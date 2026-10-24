@@ -1,4 +1,12 @@
 {
   "attribution": { "commit": "", "pr": "" },
-  "includeCoAuthoredBy": false
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "deny": [
+      "Edit(/scripts/autopilot.ps1)",
+      "Edit(/scripts/autopilot.sh)",
+      "Edit(/.claude/settings.json)",
+      "Edit(/.claude/settings.local.json)"
+    ]
+  }
 }

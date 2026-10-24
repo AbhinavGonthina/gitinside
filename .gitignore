@@ -154,3 +154,6 @@ vite.config.ts.timestamp-*
 
 # Autopilot logs
 logs/
+
+# Autopilot pause flag (local only)
+PAUSE
