@@ -1,0 +1,5 @@
+* text=auto
+# Shell scripts and hooks must keep LF endings or Git Bash / macOS / Linux sh will choke on \r.
+*.sh text eol=lf
+scripts/hooks/* text eol=lf
+*.ps1 text eol=crlf

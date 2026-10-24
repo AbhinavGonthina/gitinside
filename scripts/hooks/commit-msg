@@ -1,0 +1,24 @@
+#!/bin/sh
+# commit-msg hook: strips AI attribution lines from the commit message.
+# Removes any "Co-Authored-By: Claude ..." trailer and any
+# "Generated with [Claude Code]" line, then collapses the blank lines
+# left behind and trims trailing ones.
+#
+# POSIX sh + grep + awk only, no `sed -i`, so it behaves the same on
+# macOS (BSD), Linux (GNU), and Git for Windows (Git Bash).
+
+msg_file="$1"
+tmp_file="${msg_file}.tmp.$$"
+
+grep -v -i -E '^[[:space:]]*Co-Authored-By:[[:space:]]*Claude|Generated with \[?Claude Code' "$msg_file" \
+  | tr -d '\r' \
+  | awk '/^[[:space:]]*$/ { if (prev_blank) next; prev_blank = 1 }
+         !/^[[:space:]]*$/ { prev_blank = 0 }
+         { lines[++n] = $0 }
+         END {
+           while (n > 0 && lines[n] ~ /^[[:space:]]*$/) n--
+           for (i = 1; i <= n; i++) print lines[i]
+         }' > "$tmp_file"
+
+mv "$tmp_file" "$msg_file"
+exit 0
