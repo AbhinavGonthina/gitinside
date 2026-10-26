@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -121,6 +121,25 @@ describe("runCli", () => {
     expect(await runCli(["analyze", dir, "--out", file], io)).toBe(0);
     expect(io.out).toBe("");
     expect(JSON.parse(await readFile(file, "utf8")).nodes).toHaveLength(2);
+  });
+
+  it("replaces an existing --out file and leaves no temp file behind", async () => {
+    const io = capture();
+    const file = join(dir, "out.json");
+    await writeFile(file, "old");
+    expect(await runCli(["analyze", dir, "--out", file], io)).toBe(0);
+    expect(JSON.parse(await readFile(file, "utf8")).schemaVersion).toBe("1.0.0");
+    expect((await readdir(dir)).filter((f) => f.endsWith(".tmp"))).toEqual([]);
+  });
+
+  it("reports a failed write with exit 1 and cleans up the temp file", async () => {
+    const io = capture();
+    // Renaming a file onto a directory fails after the temp file was written.
+    const target = join(dir, "taken");
+    await mkdir(join(target, "child"), { recursive: true });
+    expect(await runCli(["analyze", dir, "--out", target], io)).toBe(1);
+    expect(io.err).toMatch(/^error: /);
+    expect((await readdir(dir)).filter((f) => f.endsWith(".tmp"))).toEqual([]);
   });
 
   it("reports a missing path with exit 1", async () => {

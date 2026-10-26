@@ -1,11 +1,26 @@
 #!/usr/bin/env node
-import { writeFile } from "node:fs/promises";
+import { rename, rm, writeFile } from "node:fs/promises";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { stringifyGraph } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
+import { serializeGraph } from "./assemble.js";
 
 const USAGE = "Usage: gitinside analyze <path> [--out <file>]";
+
+/**
+ * Write via a sibling temp file and a rename, so a crash or full disk never leaves a
+ * truncated graph where an old, valid one used to be.
+ */
+async function writeAtomically(file: string, text: string): Promise<void> {
+  const temp = `${file}.${process.pid}.tmp`;
+  try {
+    await writeFile(temp, text);
+    await rename(temp, file);
+  } catch (error) {
+    await rm(temp, { force: true });
+    throw error;
+  }
+}
 
 /** Output sinks, injectable so the CLI can be tested without touching the process. */
 export interface CliIo {
@@ -47,9 +62,9 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
   }
 
   try {
-    const text = stringifyGraph(await analyze(target));
+    const text = serializeGraph(await analyze(target));
     if (out === undefined) io.stdout(text);
-    else await writeFile(out, text);
+    else await writeAtomically(out, text);
     return 0;
   } catch (error) {
     io.stderr(`error: ${error instanceof Error ? error.message : String(error)}\n`);
