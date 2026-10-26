@@ -10,6 +10,7 @@ import {
 import { buildFileNodes } from "./files.js";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildServicePrograms } from "./program.js";
+import { buildSymbolNodes } from "./symbols.js";
 import { detectWorkspace, serviceNodes } from "./workspace.js";
 
 /** Version stamped into every graph. Part of the cache key, so bump it when output changes. */
@@ -57,6 +58,7 @@ export async function analyze(
       { id: SYSTEM_ID, kind: "system", label: name, parentId: null },
       ...serviceNodes(workspace),
       ...(await buildFileNodes(root, workspace, inventory.sourceFiles)),
+      ...buildSymbolNodes(programs),
     ],
     edges: [],
     warnings: [
