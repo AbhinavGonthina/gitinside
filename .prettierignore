@@ -4,5 +4,7 @@ node_modules
 .turbo
 pnpm-lock.yaml
 fixtures
+bench/.repos
+bench/results
 logs
 *.md

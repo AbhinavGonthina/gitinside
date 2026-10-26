@@ -152,6 +152,9 @@ vite.config.ts.timestamp-*
 # Claude Code local settings
 .claude/settings.local.json
 
+# Benchmark checkouts of pinned public repos (bench/repos.json)
+bench/.repos/
+
 # Autopilot logs
 logs/
 
