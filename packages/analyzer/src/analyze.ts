@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { SCHEMA_VERSION, SYSTEM_ID, parseGraph, type ArchitectureGraph } from "@gitinside/schema";
+import { buildInventory, type InventoryLimits } from "./inventory.js";
 
 /** Version stamped into every graph. Part of the cache key, so bump it when output changes. */
 export const ANALYZER_VERSION = "0.1.0";
@@ -13,12 +14,15 @@ export interface AnalyzeOptions {
   name?: string;
   /** Commit SHA recorded in the graph, if known. */
   sha?: string;
+  /** Override inventory limits (mainly for tests). Defaults to `DEFAULT_LIMITS`. */
+  limits?: Partial<InventoryLimits>;
 }
 
 /**
  * Analyze the repository at `dir` and return its architecture graph.
  * The analyzer only reads files; it never executes or installs anything from the repo.
- * Throws if `dir` is not a directory. The result is validated against the schema.
+ * Throws if `dir` is not a directory, and `AnalysisError` when a limit is exceeded.
+ * Skipped files appear as graph warnings. The result is validated against the schema.
  */
 export async function analyze(
   dir: string,
@@ -28,6 +32,7 @@ export async function analyze(
   const info = await stat(root).catch(() => null);
   if (!info?.isDirectory()) throw new Error(`not a directory: ${dir}`);
 
+  const inventory = await buildInventory(root, options.limits);
   const name = options.name ?? (basename(root) || "repo");
   return parseGraph({
     schemaVersion: SCHEMA_VERSION,
@@ -39,6 +44,6 @@ export async function analyze(
     analyzerVersion: ANALYZER_VERSION,
     nodes: [{ id: SYSTEM_ID, kind: "system", label: name, parentId: null }],
     edges: [],
-    warnings: [],
+    warnings: inventory.warnings,
   });
 }

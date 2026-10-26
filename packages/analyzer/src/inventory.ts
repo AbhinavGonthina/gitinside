@@ -1,0 +1,184 @@
+import { open, readdir, lstat } from "node:fs/promises";
+import { join } from "node:path";
+import { compareStrings, type AnalysisWarning } from "@gitinside/schema";
+
+/**
+ * Directory names skipped wherever they appear: dependencies, VCS data, build output,
+ * caches, and vendored code. Skipping these is expected, so it produces no warnings.
+ *
+ * Not handled: `.gitignore` is not read. Worker tarballs only contain tracked files, so
+ * it matters only for local CLI runs, where an ignored folder outside this list is walked.
+ */
+export const IGNORED_DIRS: ReadonlySet<string> = new Set([
+  ".cache",
+  ".git",
+  ".next",
+  ".turbo",
+  ".vercel",
+  ".yarn",
+  "bower_components",
+  "build",
+  "coverage",
+  "dist",
+  "node_modules",
+  "third_party",
+  "vendor",
+]);
+
+/** Extensions counted as source files for the `LIMIT_FILES` check and later parsing. */
+export const SOURCE_EXTENSIONS: readonly string[] = [
+  ".cjs",
+  ".cts",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".mts",
+  ".prisma",
+  ".ts",
+  ".tsx",
+];
+
+const MINIFIED = /\.min\.(?:c|m)?js$/;
+/** Only this many leading bytes are checked for a generated-file marker. */
+const HEADER_BYTES = 1024;
+const GENERATED_MARKER = /@generated\b|\bdo not edit\b/i;
+
+/** Limits applied during the walk. Defaults come from docs/SECURITY.md (T3). */
+export interface InventoryLimits {
+  /** Fail with `LIMIT_FILES` above this many source files. Default 20,000. */
+  maxSourceFiles: number;
+  /** Skip (with a warning) any file larger than this. Default 2 MB. */
+  maxFileBytes: number;
+  /** Skip (with a warning) directories nested deeper than this. Default 64. */
+  maxDepth: number;
+}
+
+/** Default inventory limits. */
+export const DEFAULT_LIMITS: InventoryLimits = {
+  maxSourceFiles: 20_000,
+  maxFileBytes: 2 * 1024 * 1024,
+  maxDepth: 64,
+};
+
+/** The files the rest of the pipeline may read. Paths are repo-relative with `/` separators. */
+export interface Inventory {
+  /** Every kept file, sorted with `compareStrings`. */
+  files: string[];
+  /** The subset of `files` with a source extension, same order. */
+  sourceFiles: string[];
+  /** Skipped files and directories, sorted by file then code. */
+  warnings: AnalysisWarning[];
+}
+
+/** A fatal analysis failure with a stable code (for example `LIMIT_FILES`) the UI can act on. */
+export class AnalysisError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(`${code}: ${message}`);
+    this.name = "AnalysisError";
+  }
+}
+
+/** Format an integer with comma thousands separators, independent of the machine locale. */
+export function formatCount(n: number): string {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/** True if `head` (the start of a file) carries a generated-code marker such as `@generated` or "DO NOT EDIT". */
+export function isGeneratedHeader(head: string): boolean {
+  return GENERATED_MARKER.test(head.slice(0, HEADER_BYTES));
+}
+
+function isSource(path: string): boolean {
+  return SOURCE_EXTENSIONS.some((ext) => path.endsWith(ext));
+}
+
+async function readHead(path: string): Promise<string> {
+  const handle = await open(path, "r");
+  try {
+    const buffer = Buffer.alloc(HEADER_BYTES);
+    const { bytesRead } = await handle.read(buffer, 0, HEADER_BYTES, 0);
+    return buffer.toString("utf8", 0, bytesRead);
+  } finally {
+    await handle.close();
+  }
+}
+
+/**
+ * Walk the repo at `root` and list the files to analyze. Deterministic: the output depends
+ * only on the directory contents, never on readdir order.
+ *
+ * Handles: the {@link IGNORED_DIRS} list, symlinks (never followed, warned), files over
+ * `maxFileBytes` (skipped, warned), directories deeper than `maxDepth` (skipped, warned),
+ * generated files (`*.min.js` and header markers in source files; skipped, warned).
+ * Throws {@link AnalysisError} `LIMIT_FILES` when the kept source files exceed `maxSourceFiles`.
+ *
+ * Not handled: `.gitignore` (see {@link IGNORED_DIRS}); generated files without a marker,
+ * such as bundles that aren't named `*.min.js`.
+ */
+export async function buildInventory(
+  root: string,
+  limits: Partial<InventoryLimits> = {},
+): Promise<Inventory> {
+  const { maxSourceFiles, maxFileBytes, maxDepth } = { ...DEFAULT_LIMITS, ...limits };
+  const files: string[] = [];
+  const warnings: AnalysisWarning[] = [];
+  const skip = (code: string, file: string, message: string): void => {
+    warnings.push({ code, file, message });
+  };
+
+  async function walk(rel: string, depth: number): Promise<void> {
+    const entries = await readdir(rel === "" ? root : join(root, rel), { withFileTypes: true });
+    for (const entry of entries) {
+      const path = rel === "" ? entry.name : `${rel}/${entry.name}`;
+      if (entry.isSymbolicLink()) {
+        skip("SKIPPED_SYMLINK", path, "symbolic link not followed");
+      } else if (entry.isDirectory()) {
+        if (IGNORED_DIRS.has(entry.name)) continue;
+        if (depth + 1 > maxDepth) {
+          skip("SKIPPED_DEPTH", path, `directory nested deeper than ${maxDepth} levels; skipped`);
+        } else {
+          await walk(path, depth + 1);
+        }
+      } else if (entry.isFile()) {
+        await addFile(path);
+      } else {
+        skip("SKIPPED_SPECIAL", path, "not a regular file or directory; skipped");
+      }
+    }
+  }
+
+  async function addFile(path: string): Promise<void> {
+    const full = join(root, path);
+    const { size } = await lstat(full);
+    if (size > maxFileBytes) {
+      skip(
+        "SKIPPED_LARGE",
+        path,
+        `file is ${size} bytes, over the ${maxFileBytes} byte limit; skipped`,
+      );
+    } else if (MINIFIED.test(path)) {
+      skip("SKIPPED_GENERATED", path, "generated file skipped (minified)");
+    } else if (isSource(path) && isGeneratedHeader(await readHead(full))) {
+      skip("SKIPPED_GENERATED", path, "generated file skipped (header marker)");
+    } else {
+      files.push(path);
+    }
+  }
+
+  await walk("", 0);
+  files.sort(compareStrings);
+  warnings.sort(
+    (a, b) => compareStrings(a.file ?? "", b.file ?? "") || compareStrings(a.code, b.code),
+  );
+  const sourceFiles = files.filter(isSource);
+  if (sourceFiles.length > maxSourceFiles) {
+    throw new AnalysisError(
+      "LIMIT_FILES",
+      `this repo has ${formatCount(sourceFiles.length)} source files, over the ${formatCount(maxSourceFiles)} limit. Try analyzing a subfolder.`,
+    );
+  }
+  return { files, sourceFiles, warnings };
+}

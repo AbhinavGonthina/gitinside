@@ -187,3 +187,12 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
 
   File moves and renames are detected in the diff by content similarity and reported as `renamed`, not as remove + add.
 - **Consequences:** IDs are human-readable and deterministic. Renames need a similarity threshold, tuned against fixtures in M6.
+
+## ADR-0020: Inventory skips with warnings; only the file limit is fatal
+- **Context:** the inventory (M1.3) decides which files the pipeline may read. "Fail visibly" says nothing may disappear silently, but one odd file shouldn't fail a whole analysis.
+- **Decision** (`packages/analyzer/src/inventory.ts`):
+  - A fixed list of directory names (`node_modules`, `.git`, `dist`, `build`, `.next`, `coverage`, `vendor`, …) is skipped at any depth with no warning, because skipping them is expected.
+  - Everything else that gets skipped produces a graph warning: symlinks are never followed (`SKIPPED_SYMLINK`), files over 2 MB (`SKIPPED_LARGE`), directories deeper than 64 levels (`SKIPPED_DEPTH`), and generated files, meaning `*.min.js` or an `@generated` / "DO NOT EDIT" marker in a source file's first 1 KB (`SKIPPED_GENERATED`).
+  - More than 20,000 kept source files throws `AnalysisError` `LIMIT_FILES` with the exact count. Generated and oversized files don't count.
+  - `.gitignore` is not read. GitHub tarballs only contain tracked files, so it only matters for local CLI runs.
+- **Consequences:** results are deterministic and every skip can be explained in the UI. A local run may walk a gitignored folder that isn't on the list. A generated file with no marker is analyzed like hand-written code.
