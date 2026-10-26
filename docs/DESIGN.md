@@ -164,10 +164,10 @@ Every detector file starts with a doc comment listing **patterns handled** and *
 
 **Prisma**
 - **Handled:**
-  - `schema.prisma` models, fields, relations, `datasource.provider`.
-  - Client usage `prisma.<model>.<op>`, where `create|update|upsert|delete*` are writes and `find*|count|aggregate|groupBy` are reads.
-  - Field-level reads from `select`/`include`/`where` object literals.
-- **Not handled:** `$queryRaw` (recorded as unresolved, model unknown).
+  - `schema.prisma` (and multi-file schemas) models, views, fields, relations, `datasource.provider` ⇒ a datastore with `stores` edges.
+  - Client usage `prisma.<model>.<op>`, where `create|update|upsert|delete*` are writes and `find*|count|aggregate|groupBy` are reads. The client is traced with the checker to `new PrismaClient()` or a `PrismaClient`-typed declaration (`exact`); untraced receivers named like a client (`db`, `tx`, `*prisma*`) are `heuristic`. Calls in inline Express handlers are attributed to the route.
+  - Field-level reads from `select`/`include`/`where`/`data`/… object literals, as the edge's `fields`.
+- **Not handled:** `$queryRaw` and friends (recorded as unresolved `RAW_QUERY`, model unknown); nested writes; delegates held in variables. Full list in `packages/analyzer/src/prisma.ts` (ADR-0028).
 
 **HTTP clients**
 - See §7.

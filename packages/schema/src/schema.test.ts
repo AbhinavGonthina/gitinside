@@ -96,6 +96,7 @@ function sampleGraph(): ArchitectureGraph {
         from: route,
         to: model,
         confidence: "exact",
+        fields: ["status", "total"],
         sites: [loc("apps/api/src/orders.ts", 51)],
       },
       {
@@ -165,6 +166,12 @@ describe("ArchitectureGraph", () => {
     const g = sampleGraph();
     g.edges[0] = { ...g.edges[0]!, confidence: "unresolved" };
     expect(messages(g).some((m) => m.includes('confidence "unresolved"'))).toBe(true);
+  });
+
+  it("rejects empty field names on reads/writes edges", () => {
+    const g = sampleGraph();
+    g.edges[1] = { ...g.edges[1]!, fields: [""] };
+    expect(ArchitectureGraph.safeParse(g).success).toBe(false);
   });
 
   it("rejects unknown fields", () => {

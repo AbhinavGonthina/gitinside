@@ -29,7 +29,8 @@
  * - Routers never mounted on an app we can see (or mounted only inside a mount cycle): their
  *   routes keep router-relative paths and an `EXPRESS_UNMOUNTED_ROUTER` warning says so.
  * - Inline handlers (`(req, res) => …`) and wrapped handlers (`asyncHandler(fn)`) get no
- *   `handles` edge, because there is no symbol node to point at.
+ *   `handles` edge, because there is no symbol node to point at. They are returned as
+ *   `inlineHandlers` instead, so the Prisma detector can draw `reads`/`writes` from the route.
  * - Routers imported from other workspace packages, routers stored in collections
  *   (`routers.forEach((r) => app.use(r))`), routers assigned in constructors without an
  *   initializer, and a shadowed `express` name.
@@ -228,13 +229,15 @@ function typeKind(
   return name === "Express" || name === "Application" ? "app" : undefined;
 }
 
-type FunctionWithBody =
+/** A function-like node with a body, whose returns can be followed. */
+export type FunctionWithBody =
   | ts.FunctionDeclaration
   | ts.FunctionExpression
   | ts.ArrowFunction
   | ts.MethodDeclaration;
 
-function isFunctionWithBody(node: ts.Node): node is FunctionWithBody {
+/** True for function declarations, expressions, arrows, and methods that have a body. */
+export function isFunctionWithBody(node: ts.Node): node is FunctionWithBody {
   return (
     (ts.isFunctionDeclaration(node) ||
       ts.isFunctionExpression(node) ||
@@ -245,7 +248,7 @@ function isFunctionWithBody(node: ts.Node): node is FunctionWithBody {
 }
 
 /** The expressions a function returns, not counting nested functions. */
-function returnedExpressions(fn: FunctionWithBody): ts.Expression[] {
+export function returnedExpressions(fn: FunctionWithBody): ts.Expression[] {
   const body = fn.body;
   if (!body) return [];
   if (!ts.isBlock(body)) return [body];
@@ -286,6 +289,20 @@ export function joinPath(prefix: string, path: string): string {
   return joined.length > 1 && joined.endsWith("/") ? joined.slice(0, -1) : joined;
 }
 
+/**
+ * The inline functions a handler argument is: `(req, res) => …` itself, or the function
+ * arguments of a one-level wrapper call (`asyncHandler(async (req, res) => …)`).
+ */
+function inlineFunctions(handler: ts.Expression): ts.Node[] {
+  const e = unwrap(handler);
+  const isInline = (x: ts.Expression): boolean => {
+    const u = unwrap(x);
+    return ts.isArrowFunction(u) || ts.isFunctionExpression(u);
+  };
+  if (isInline(e)) return [e];
+  return ts.isCallExpression(e) ? e.arguments.filter(isInline).map(unwrap) : [];
+}
+
 function locationOf(node: ts.Node, file: string): SourceLocation {
   const sourceFile = node.getSourceFile();
   const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
@@ -301,11 +318,20 @@ function compareLocations(a: SourceLocation, b: SourceLocation): number {
  * Returns `route` nodes (parented to the declaring file, ID `route:<service>/<METHOD> <path>`
  * where the service is the root app's), `handles` edges (route → handler symbol),
  * `DYNAMIC_ROUTE` unresolved nodes, and warnings. Everything is sorted.
+ *
+ * `inlineHandlers` maps each inline handler function (see `inlineFunctions`) to the sorted
+ * IDs of the routes it serves, so later detectors can attribute calls inside it to the route.
  */
 export function buildExpressRoutes(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
-): { nodes: GraphNode[]; edges: GraphEdge[]; warnings: AnalysisWarning[] } {
+): {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  warnings: AnalysisWarning[];
+  inlineHandlers: Map<ts.Node, string[]>;
+} {
+  const inlineHandlers = new Map<ts.Node, string[]>();
   const routers = new Map<string, RouterObject>();
 
   const keyOf = (sp: ServiceProgram, node: ts.Node): string | undefined => {
@@ -371,7 +397,7 @@ export function buildExpressRoutes(
     };
     visit(sourceFile);
   }
-  if (routers.size === 0) return { nodes: [], edges: [], warnings: [] };
+  if (routers.size === 0) return { nodes: [], edges: [], warnings: [], inlineHandlers };
 
   /** The value an expression evaluates to: the initializer, function, or parameter it names. */
   const valueOf = (
@@ -679,6 +705,11 @@ export function buildExpressRoutes(
         source: route.site,
       });
       for (const handler of route.handlers) {
+        for (const fn of inlineFunctions(handler)) {
+          const ids = inlineHandlers.get(fn) ?? [];
+          if (!ids.includes(id)) ids.push(id);
+          inlineHandlers.set(fn, ids);
+        }
         const target = resolver.resolve(route.sp, handler);
         if (!target) continue;
         const site = locationOf(handler, route.file);
@@ -750,7 +781,9 @@ export function buildExpressRoutes(
 
   const sortedEdges = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
   for (const edge of sortedEdges) edge.sites.sort(compareLocations);
+  for (const ids of inlineHandlers.values()) ids.sort(compareStrings);
   return {
+    inlineHandlers,
     nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)),
     edges: sortedEdges,
     warnings: warnings.sort(

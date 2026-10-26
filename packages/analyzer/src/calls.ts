@@ -101,6 +101,23 @@ export interface SymbolResolver {
    * from `sp`. See {@link buildCallEdges} for what is followed.
    */
   resolve(sp: ServiceProgram, expression: ts.Expression): CallTarget | undefined;
+  /**
+   * For an import alias TypeScript couldn't resolve (a workspace package import), the
+   * exported symbol it names in the target program, with the import's confidence. `member`
+   * is the property read from a namespace import.
+   */
+  importTarget(
+    sp: ServiceProgram,
+    declaration: ts.Declaration,
+    member?: string,
+  ): ImportTarget | undefined;
+}
+
+/** An exported symbol reached through an import TypeScript couldn't resolve. */
+export interface ImportTarget {
+  sp: ServiceProgram;
+  symbol: ts.Symbol;
+  confidence: Confidence;
 }
 
 /**
@@ -162,13 +179,12 @@ export function createSymbolResolver(
 
   const weaker = (a: Confidence, b: Confidence): Confidence => (a === "exact" ? b : a);
 
-  /** Follow an import TypeScript couldn't resolve to a named export of the target module. */
-  const resolveImport = (
+  /** The named export of the target module an import TypeScript couldn't resolve points at. */
+  const importTarget = (
     ctx: Context,
     declaration: ts.Declaration,
     member: string | undefined,
-    hops: number,
-  ): CallTarget | undefined => {
+  ): ImportTarget | undefined => {
     const site = importOf(declaration, member);
     if (!site) return undefined;
     const resolved = ctx.resolveModule(
@@ -178,15 +194,27 @@ export function createSymbolResolver(
     );
     const targetSp = resolved && programByFile.get(resolved.path);
     if (!resolved || !targetSp) return undefined;
-    const target = contextOf(targetSp);
+    const checker = contextOf(targetSp).checker;
     const sourceFile = targetSp.program.getSourceFile(targetSp.toAbsolute(resolved.path));
-    const moduleSymbol = sourceFile && target.checker.getSymbolAtLocation(sourceFile);
+    const moduleSymbol = sourceFile && checker.getSymbolAtLocation(sourceFile);
     if (!moduleSymbol) return undefined;
-    const exported = target.checker
-      .getExportsOfModule(moduleSymbol)
-      .find((s) => s.name === site.name);
-    const result = exported && resolveSymbol(target, exported, hops + 1);
-    return result && { id: result.id, confidence: weaker(resolved.confidence, result.confidence) };
+    const exported = checker.getExportsOfModule(moduleSymbol).find((s) => s.name === site.name);
+    return exported && { sp: targetSp, symbol: exported, confidence: resolved.confidence };
+  };
+
+  /** Follow an import TypeScript couldn't resolve to a named export of the target module. */
+  const resolveImport = (
+    ctx: Context,
+    declaration: ts.Declaration,
+    member: string | undefined,
+    hops: number,
+  ): CallTarget | undefined => {
+    const target = importTarget(ctx, declaration, member);
+    const result = target && resolveSymbol(contextOf(target.sp), target.symbol, hops + 1);
+    return (
+      result &&
+      target && { id: result.id, confidence: weaker(target.confidence, result.confidence) }
+    );
   };
 
   /** Resolve a checker symbol to a symbol node, following aliases and property values. */
@@ -246,6 +274,7 @@ export function createSymbolResolver(
     checkerOf: (sp) => contextOf(sp).checker,
     callers,
     resolve,
+    importTarget: (sp, declaration, member) => importTarget(contextOf(sp), declaration, member),
   };
 }
 

@@ -13,6 +13,7 @@ import { buildFileNodes } from "./files.js";
 import { buildImportGraph } from "./imports.js";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildNextRoutes } from "./next.js";
+import { buildPrisma } from "./prisma.js";
 import { buildServicePrograms } from "./program.js";
 import { buildSymbolNodes } from "./symbols.js";
 import { detectWorkspace, serviceNodes } from "./workspace.js";
@@ -53,6 +54,14 @@ export async function analyze(
   const resolver = createSymbolResolver(programs, workspace);
   const express = buildExpressRoutes(programs, resolver);
   const next = buildNextRoutes(programs, resolver);
+  const prisma = await buildPrisma(
+    root,
+    programs,
+    workspace,
+    resolver,
+    inventory.sourceFiles,
+    express.inlineHandlers,
+  );
   // A custom Express server can register the same route as a Next file; Express's node wins.
   const expressIds = new Set([...express.nodes, ...express.edges].map((x) => x.id));
   const name = options.name ?? (basename(root) || "repo");
@@ -72,12 +81,14 @@ export async function analyze(
       ...imports.nodes,
       ...express.nodes,
       ...next.nodes.filter((n) => !expressIds.has(n.id)),
+      ...prisma.nodes,
     ],
     edges: [
       ...imports.edges,
       ...buildCallEdges(programs, resolver),
       ...express.edges,
       ...next.edges.filter((e) => !expressIds.has(e.id)),
+      ...prisma.edges,
     ],
     warnings: [
       ...inventory.warnings,
@@ -86,6 +97,7 @@ export async function analyze(
       ...imports.warnings,
       ...express.warnings,
       ...next.warnings,
+      ...prisma.warnings,
     ].sort(
       (a, b) =>
         compareStrings(a.file ?? "", b.file ?? "") ||
