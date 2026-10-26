@@ -54,6 +54,12 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 8. If the task finished a milestone, run §4 before stopping.
 9. **Exit.** The loop starts the next run with fresh context.
 
+**Tool use in headless runs.** Nobody can approve prompts, so avoid commands that need one:
+- Create and modify files with the Write/Edit tools, never shell heredocs (`cat > f <<'EOF'`), `echo >>`, or `sed -i`. Heredocs are blocked by a safety check.
+- One command per Bash call. Don't chain with `;`, `&&`, or pipes into `tail`/`head` unless every part is an allowed command. Use the Read tool instead of `cat`/`tail` on files.
+- For the planning repo, use `git -C ../gitinside-planning …` and the file tools. Don't `cd` there.
+- Allowed shell commands: `pnpm`, `git`, `gh`, `node`, `npx`, `mkdir`, `docker compose`, `docker ps`, plus Claude Code's built-in read-only commands. Anything else will be denied, so find another way instead of retrying.
+
 **Three strikes:** if a task stays red after 3 genuine fix attempts:
 - `git revert` (or reset your uncommitted work) to the last green state.
 - Log under **Blockers** in PROGRESS.md what you tried.
