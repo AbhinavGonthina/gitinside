@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.11. Next.js detector (app router route.ts, pages/api, pages, dynamic segments, route groups)
+M1.12. Prisma detector (schema models/fields/datasource, client reads/writes, $queryRaw unresolved)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -36,7 +36,7 @@ M1.11. Next.js detector (app router route.ts, pages/api, pages, dynamic segments
 - [x] M1.8 Import edges incl. cross-workspace package imports {model: opus}
 - [x] M1.9 Call edges for locally resolved calls {model: opus}
 - [x] M1.10 Express route detector (methods, router.route, mount composition, nested/imported routers, handles edges) {model: opus}
-- [ ] M1.11 Next.js detector (app router route.ts, pages/api, pages, dynamic segments, route groups) {model: opus}
+- [x] M1.11 Next.js detector (app router route.ts, pages/api, pages, dynamic segments, route groups) {model: opus}
 - [ ] M1.12 Prisma detector (schema models/fields/datasource, client reads/writes, $queryRaw unresolved) {model: opus}
 - [ ] M1.13 Graph assembly + canonical serialization + validation before write {model: opus}
 - [ ] M1.14 Fixtures (express-basic, express-nested-routers, next-app-router, next-pages-api, prisma-relations, pnpm-monorepo, syntax-error, no-tsconfig) + golden tests {model: sonnet}
@@ -154,6 +154,8 @@ M1.11. Next.js detector (app router route.ts, pages/api, pages, dynamic segments
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-26 · M1.11: `buildNextRoutes` in `packages/analyzer/src/next.ts`, for services depending on `next`: app router `route.ts` method exports (read via `getExportsOfModule`, so re-exports and `export const { GET, POST }` count) and `page.tsx`, pages router pages and `pages/api` (ALL unless `req.method` checks are visible); `[id]`/`[...x]`/groups/slots/private folders/`src/` fallback; `handles` + `renders` edges; `NEXT_ROUTE_NO_METHODS`/`NEXT_DUPLICATE_ROUTE` warnings (ADR-0027). 167 analyzer tests, 99.1% coverage; lint/typecheck/build green; CLI smoke-tested on a scratch Next app. Next: M1.12.
 
 - 2026-10-26 · M1.10: `buildExpressRoutes` in `packages/analyzer/src/express.ts`: router objects created by `express()`/`Router()` (or typed params), followed with the checker across files/CommonJS/factories/class props and into functions they're passed to; `use` mounts composed into full paths; `route` nodes keyed by the root app's service, `handles` edges via the shared `createSymbolResolver`; dynamic paths → `DYNAMIC_ROUTE` unresolved nodes, unmounted routers → `EXPRESS_UNMOUNTED_ROUTER` warning (ADR-0026). 136 analyzer tests, 99.0% coverage; lint/typecheck/build green; CLI on this repo unchanged in kind (no Express). Next: M1.11.
 
