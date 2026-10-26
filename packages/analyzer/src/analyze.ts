@@ -7,6 +7,7 @@ import {
   parseGraph,
   type ArchitectureGraph,
 } from "@gitinside/schema";
+import { buildFileNodes } from "./files.js";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildServicePrograms } from "./program.js";
 import { detectWorkspace, serviceNodes } from "./workspace.js";
@@ -55,6 +56,7 @@ export async function analyze(
     nodes: [
       { id: SYSTEM_ID, kind: "system", label: name, parentId: null },
       ...serviceNodes(workspace),
+      ...(await buildFileNodes(root, workspace, inventory.sourceFiles)),
     ],
     edges: [],
     warnings: [
