@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.13. Graph assembly + canonical serialization + validation before write
+M1.14. Fixtures (express-basic, express-nested-routers, next-app-router, next-pages-api, prisma-relations, pnpm-monorepo, syntax-error, no-tsconfig) + golden tests
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -38,7 +38,7 @@ M1.13. Graph assembly + canonical serialization + validation before write
 - [x] M1.10 Express route detector (methods, router.route, mount composition, nested/imported routers, handles edges) {model: opus}
 - [x] M1.11 Next.js detector (app router route.ts, pages/api, pages, dynamic segments, route groups) {model: opus}
 - [x] M1.12 Prisma detector (schema models/fields/datasource, client reads/writes, $queryRaw unresolved) {model: opus}
-- [ ] M1.13 Graph assembly + canonical serialization + validation before write {model: opus}
+- [x] M1.13 Graph assembly + canonical serialization + validation before write {model: opus}
 - [ ] M1.14 Fixtures (express-basic, express-nested-routers, next-app-router, next-pages-api, prisma-relations, pnpm-monorepo, syntax-error, no-tsconfig) + golden tests {model: sonnet}
 - [ ] M1.15 Determinism test + analyzer coverage ≥ 85% + analysis benchmark baseline {model: opus}
 - [ ] M1.16 Milestone verification + docs/milestones/M1-review.md + tag m1 {model: opus}
@@ -154,6 +154,8 @@ M1.13. Graph assembly + canonical serialization + validation before write
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-26 · M1.13: `assembleGraph`/`serializeGraph` in `packages/analyzer/src/assemble.ts`: passes are ordered `GraphPart`s (order = precedence); differing duplicate nodes keep the first with a `DUPLICATE_NODE` warning, duplicate edges merge sites/fields and keep the strongest confidence, schema failures throw `INVALID_GRAPH` with readable issues; `serializeGraph` re-validates the stringified text and the CLI writes `--out` via temp file + rename (ADR-0029). 209 analyzer tests, 98.1% coverage; lint/typecheck/build green; CLI on this repo: 198 nodes, 273 edges. Next: M1.14.
 
 - 2026-10-26 · M1.12: `buildPrisma` in `packages/analyzer/src/prisma.ts`: line-based `.prisma` parser (models, views, fields, datasource, multi-file), `model` nodes under their schema file, `datastore:infra/<svc>/<file>#<ds>` + `stores` edges; client calls traced with the checker to `new PrismaClient()`/typed clients (`exact`) or `db`/`tx`/`*prisma*` names (`heuristic`) ⇒ `reads`/`writes` with new optional edge `fields`; `RAW_QUERY`/`AMBIGUOUS`/`UNKNOWN_SYMBOL` unresolved nodes; inline Express handlers attribute to the route (ADR-0028). 196 analyzer tests, 98.1% coverage; lint/typecheck/build green; CLI smoke-tested on a scratch Express+Prisma app. Next: M1.13.
 
