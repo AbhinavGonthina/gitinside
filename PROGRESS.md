@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.1. Repo tooling: ESLint + Prettier + CI
+M1.2. packages/analyzer scaffold
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -26,7 +26,7 @@ M1.1. Repo tooling: ESLint + Prettier + CI
 ## Milestones
 
 ### M1: Analyzer CLI
-- [ ] M1.1 Repo tooling: ESLint (typescript-eslint strict) + Prettier + root lint script + GitHub Actions CI (lint, typecheck, test, coverage) {model: sonnet}
+- [x] M1.1 Repo tooling: ESLint (typescript-eslint strict) + Prettier + root lint script + GitHub Actions CI (lint, typecheck, test, coverage) {model: sonnet}
 - [ ] M1.2 packages/analyzer scaffold: library API `analyze(dir)`, CLI `gitinside analyze <path> [--out]` {model: sonnet}
 - [ ] M1.3 Inventory: deterministic walk, ignore rules, generated-file detection, 20k limit, 2 MB skip warnings {model: opus}
 - [ ] M1.4 Workspace detection (npm/yarn/pnpm/Turborepo/Nx/Lerna) → service nodes; single-package fallback {model: opus}
@@ -155,4 +155,5 @@ M1.1. Repo tooling: ESLint + Prettier + CI
 ## Session notes
 (Newest first. 2–4 lines per task.)
 
+- 2026-10-26 · M1.1: root ESLint (strict, bans `localeCompare`/`any`), Prettier (markdown excluded so this file's format is safe), `pnpm lint`, GitHub Actions CI. Schema code reformatted; lint/build/typecheck/test/coverage green. Next: M1.2.
 - 2026-10-25 · Phase 1: docs written (DECISIONS, DESIGN, GRAPH_SCHEMA + packages/schema, ROADMAP, TESTING, EVALUATION, DESIGN_SYSTEM, UX, SECURITY), pnpm + Turborepo workspace set up, schema tests green (13 tests, 98.6% coverage). Next: M1.1.
