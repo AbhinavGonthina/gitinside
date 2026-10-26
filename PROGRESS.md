@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.5. Per-service TS program: tsconfig loading, synthesized defaults, paths/baseUrl, no node_modules, warnings
+M1.6. Module and file nodes with content hashes
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -30,7 +30,7 @@ M1.5. Per-service TS program: tsconfig loading, synthesized defaults, paths/base
 - [x] M1.2 packages/analyzer scaffold: library API `analyze(dir)`, CLI `gitinside analyze <path> [--out]` {model: sonnet}
 - [x] M1.3 Inventory: deterministic walk, ignore rules, generated-file detection, 20k limit, 2 MB skip warnings {model: opus}
 - [x] M1.4 Workspace detection (npm/yarn/pnpm/Turborepo/Nx/Lerna) → service nodes; single-package fallback {model: opus}
-- [ ] M1.5 Per-service TS program: tsconfig loading, synthesized defaults, paths/baseUrl, no node_modules, warnings {model: opus}
+- [x] M1.5 Per-service TS program: tsconfig loading, synthesized defaults, paths/baseUrl, no node_modules, warnings {model: opus}
 - [ ] M1.6 Module and file nodes with content hashes {model: sonnet}
 - [ ] M1.7 Symbol extraction (functions, classes, methods, exported consts) {model: opus}
 - [ ] M1.8 Import edges incl. cross-workspace package imports {model: opus}
@@ -154,6 +154,8 @@ M1.5. Per-service TS program: tsconfig loading, synthesized defaults, paths/base
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-26 · M1.5: `buildServicePrograms` in `packages/analyzer/src/program.ts`: one `ts.Program` per service over an inventory-only compiler host (plus TS's bundled libs); tsconfig/jsconfig with in-repo `extends`, `paths`, `baseUrl`; synthesized defaults; forced safe options; `TSCONFIG_MISSING`/`TSCONFIG_INVALID`/`SYNTAX_ERROR` warnings with machine paths stripped (ADR-0022). 82 analyzer tests, 98.4% coverage; lint/typecheck/build green; CLI on this repo adds no new warnings. Next: M1.6.
 
 - 2026-10-26 · M1.4: `detectWorkspace` in `packages/analyzer/src/workspace.ts`: npm/yarn `workspaces`, `pnpm-workspace.yaml` (with `!` excludes, via `yaml`), `lerna.json`, Nx `project.json`, `turbo.json`; root-service fallback; folder-name service keys with deterministic disambiguation (ADR-0021); warnings for bad config, unmatched patterns, duplicate names, dependency cycles. 60 analyzer tests, 98.4% coverage; lint/typecheck/build green; CLI on this repo finds `analyzer` + `schema`. Next: M1.5.
 
