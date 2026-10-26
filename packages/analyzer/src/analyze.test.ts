@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -25,11 +25,40 @@ function capture() {
 }
 
 describe("analyze", () => {
-  it("returns a valid graph with a system root", async () => {
+  it("returns a valid graph with a system root and a fallback service", async () => {
     const graph = await analyze(dir, { owner: "acme", name: "shop", sha: "abc1234" });
     expect(graph.repo).toEqual({ owner: "acme", name: "shop", sha: "abc1234" });
     expect(graph.analyzerVersion).toBe(ANALYZER_VERSION);
-    expect(graph.nodes.map((n) => n.kind)).toEqual(["system"]);
+    expect(graph.nodes.map((n) => n.id)).toEqual(["system:root", "service:app/"]);
+  });
+
+  it("creates one service node per workspace package", async () => {
+    await writeFile(join(dir, "package.json"), JSON.stringify({ workspaces: ["apps/*"] }));
+    await mkdir(join(dir, "apps", "api"), { recursive: true });
+    await writeFile(
+      join(dir, "apps", "api", "package.json"),
+      JSON.stringify({ name: "@acme/api", dependencies: { express: "4" } }),
+    );
+    const graph = await analyze(dir);
+    expect(graph.nodes[1]).toEqual({
+      id: "service:api/",
+      kind: "service",
+      label: "@acme/api",
+      parentId: "system:root",
+      root: "apps/api",
+      framework: "express",
+      layer: "backend",
+    });
+  });
+
+  it("merges inventory and workspace warnings in sorted order", async () => {
+    await writeFile(join(dir, "package.json"), "{");
+    await writeFile(join(dir, "app.min.js"), "!0;");
+    const graph = await analyze(dir);
+    expect(graph.warnings.map((w) => [w.file, w.code])).toEqual([
+      ["app.min.js", "SKIPPED_GENERATED"],
+      ["package.json", "INVALID_JSON"],
+    ]);
   });
 
   it("defaults owner and name", async () => {
@@ -82,7 +111,7 @@ describe("runCli", () => {
     const file = join(dir, "out.json");
     expect(await runCli(["analyze", dir, "--out", file], io)).toBe(0);
     expect(io.out).toBe("");
-    expect(JSON.parse(await readFile(file, "utf8")).nodes).toHaveLength(1);
+    expect(JSON.parse(await readFile(file, "utf8")).nodes).toHaveLength(2);
   });
 
   it("reports a missing path with exit 1", async () => {

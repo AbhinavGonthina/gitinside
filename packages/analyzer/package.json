@@ -21,7 +21,8 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@gitinside/schema": "workspace:*"
+    "@gitinside/schema": "workspace:*",
+    "yaml": "2.6.1"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
