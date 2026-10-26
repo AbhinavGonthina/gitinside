@@ -44,7 +44,16 @@ export const EdgeKind = z.enum([
 ]);
 export type EdgeKind = z.infer<typeof EdgeKind>;
 
-export const HttpMethod = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "ALL"]);
+export const HttpMethod = z.enum([
+  "GET",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "HEAD",
+  "OPTIONS",
+  "ALL",
+]);
 export type HttpMethod = z.infer<typeof HttpMethod>;
 
 /** Why something could not be resolved. Unresolved items are shown, never dropped. */
@@ -86,10 +95,22 @@ const ModelField = z
 /** A node in the hierarchy. Each kind carries its own fields. */
 export const GraphNode = z.discriminatedUnion("kind", [
   z.object({ ...nodeBase, kind: z.literal("system") }).strict(),
-  z.object({ ...nodeBase, kind: z.literal("service"), root: z.string(), framework: z.string().optional() }).strict(),
+  z
+    .object({
+      ...nodeBase,
+      kind: z.literal("service"),
+      root: z.string(),
+      framework: z.string().optional(),
+    })
+    .strict(),
   z.object({ ...nodeBase, kind: z.literal("module"), path: z.string() }).strict(),
   z
-    .object({ ...nodeBase, kind: z.literal("file"), path: z.string().min(1), hash: z.string().regex(/^[0-9a-f]{64}$/) })
+    .object({
+      ...nodeBase,
+      kind: z.literal("file"),
+      path: z.string().min(1),
+      hash: z.string().regex(/^[0-9a-f]{64}$/),
+    })
     .strict(),
   z
     .object({
@@ -99,13 +120,34 @@ export const GraphNode = z.discriminatedUnion("kind", [
       exported: z.boolean(),
     })
     .strict(),
-  z.object({ ...nodeBase, kind: z.literal("route"), method: HttpMethod, path: z.string().startsWith("/") }).strict(),
+  z
+    .object({
+      ...nodeBase,
+      kind: z.literal("route"),
+      method: HttpMethod,
+      path: z.string().startsWith("/"),
+    })
+    .strict(),
   z.object({ ...nodeBase, kind: z.literal("page"), path: z.string().startsWith("/") }).strict(),
   z.object({ ...nodeBase, kind: z.literal("model"), fields: z.array(ModelField) }).strict(),
   z.object({ ...nodeBase, kind: z.literal("datastore"), engine: z.string().min(1) }).strict(),
-  z.object({ ...nodeBase, kind: z.literal("queue"), engine: z.string().min(1), name: z.string().optional() }).strict(),
+  z
+    .object({
+      ...nodeBase,
+      kind: z.literal("queue"),
+      engine: z.string().min(1),
+      name: z.string().optional(),
+    })
+    .strict(),
   z.object({ ...nodeBase, kind: z.literal("external"), host: z.string().min(1) }).strict(),
-  z.object({ ...nodeBase, kind: z.literal("unresolved"), reason: UnresolvedReason, expression: z.string() }).strict(),
+  z
+    .object({
+      ...nodeBase,
+      kind: z.literal("unresolved"),
+      reason: UnresolvedReason,
+      expression: z.string(),
+    })
+    .strict(),
 ]);
 export type GraphNode = z.infer<typeof GraphNode>;
 
@@ -203,7 +245,9 @@ function checkIntegrity(graph: GraphShape, ctx: z.RefinementCtx): void {
     if (!from) issue(`edge ${edge.id} has missing source ${edge.from}`);
     if (!to) issue(`edge ${edge.id} has missing target ${edge.to}`);
     if (to && (edge.confidence === "unresolved") !== (to.kind === "unresolved")) {
-      issue(`edge ${edge.id}: confidence "unresolved" must be used exactly when the target is an unresolved node`);
+      issue(
+        `edge ${edge.id}: confidence "unresolved" must be used exactly when the target is an unresolved node`,
+      );
     }
   }
 }
