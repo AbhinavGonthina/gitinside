@@ -15,7 +15,7 @@ import type { Workspace } from "./workspace.js";
 const MAX_HOPS = 8;
 
 /** A callee resolved to a symbol node. */
-interface CallTarget {
+export interface CallTarget {
   id: string;
   confidence: Confidence;
 }
@@ -46,7 +46,7 @@ const WRAPPER_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
 ]);
 
 /** The identifier a callee names: `f`, the `m` of `a.b.m`, or a string-literal element `a["m"]`. */
-function calleeName(expression: ts.Expression): ts.Node | undefined {
+export function calleeName(expression: ts.Expression): ts.Node | undefined {
   const e = unwrap(expression);
   if (ts.isIdentifier(e)) return e;
   if (ts.isPropertyAccessExpression(e)) return e.name;
@@ -83,57 +83,48 @@ function importOf(
     : undefined;
 }
 
+/** A stable key for a node: repo path, kind, and span. Equal across programs loading the file. */
+export function nodeKey(path: string, node: ts.Node): string {
+  return `${path}:${node.kind}:${node.pos}:${node.end}`;
+}
+
+/** Resolves expressions to symbol nodes across all service programs. */
+export interface SymbolResolver {
+  /** The program whose root files include `path` (repo-relative), if any. */
+  programOf(path: string): ServiceProgram | undefined;
+  /** The type checker of a program, created once. */
+  checkerOf(sp: ServiceProgram): ts.TypeChecker;
+  /** Symbol node IDs by declaration node, per root source file. */
+  callers: ReadonlyMap<ts.SourceFile, ReadonlyMap<ts.Node, string>>;
+  /**
+   * The symbol node a callee or value expression (`f`, `a.b.m`, `a["m"]`) names, as seen
+   * from `sp`. See {@link buildCallEdges} for what is followed.
+   */
+  resolve(sp: ServiceProgram, expression: ts.Expression): CallTarget | undefined;
+}
+
 /**
- * Build `calls` edges (symbol → symbol) for calls whose callee resolves to a symbol node.
- *
- * The caller is the innermost symbol (see `extractSymbols`) whose declaration contains the
- * call, so calls inside nested functions and callbacks belong to the enclosing top-level
- * function, and calls inside a method belong to the method. The callee is resolved with the
- * service program's type checker:
- * - `f()`, `ns.f()`, `obj.method()`, `this.method()`, `super.method()`, `a["m"]()`, `new C()`
- *   (to the class), optional calls `a?.b()`, and calls through parentheses, `as`, and `!`.
- * - Through imports, re-exports, `import x = require()`, and CommonJS `require` in JS files,
- *   as far as TypeScript resolves them. Overloads resolve to the implementation.
- * - Through `{ list }` / `{ list: listImpl }` object properties and `const a = b` aliases,
- *   to the function they name.
- * - Imports TypeScript can't resolve because there is no `node_modules`, i.e. cross-workspace
- *   package imports (`import { f } from "@acme/shared"`, `import * as s` then `s.f()`), are
- *   resolved like import edges (M1.8), then looked up among the target module's exports with
- *   that service's checker. The edge takes the import's confidence (`exact` or `heuristic`).
- *
- * All other edges are `exact`. Calls from one symbol to the same callee share one edge, with
- * every call site (the callee name's position) listed.
- *
- * Not handled, and producing no edge: calls at file top level (there is no caller symbol);
- * recursion (self-edges); calls to nested functions, constructors, accessors, third-party
- * packages, and built-ins (no symbol node); JSX elements (`renders`, M1.11); tagged
- * templates and decorators; callees reached through untyped values, such as a method on an
- * instance of a class imported from another workspace package; workspace packages reached
- * through `require` or `import x = require()` rather than ES imports; computed element access
- * (`a[name]()`); and function values passed around and called later (`cb()` where `cb` is a
- * parameter).
+ * Create a {@link SymbolResolver} over every service program. Each program's checker and
+ * module resolver are created on first use.
  */
-export function buildCallEdges(
+export function createSymbolResolver(
   programs: readonly ServiceProgram[],
   workspace: Workspace,
-): GraphEdge[] {
-  const keyOf = (path: string, node: ts.Node): string =>
-    `${path}:${node.kind}:${node.pos}:${node.end}`;
-
-  // Symbol nodes by declaration position (shared across programs that load the same file),
+): SymbolResolver {
+  // Symbol nodes by declaration key (shared across programs that load the same file),
   // and by declaration node within each root file (to find callers).
   const symbolByKey = new Map<string, string>();
   const callers = new Map<ts.SourceFile, Map<ts.Node, string>>();
-  const programOf = new Map<string, ServiceProgram>();
+  const programByFile = new Map<string, ServiceProgram>();
   for (const sp of programs) {
     for (const file of sp.rootFiles) {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
       if (!sourceFile) continue;
-      programOf.set(file, sp);
+      programByFile.set(file, sp);
       const byNode = new Map<ts.Node, string>();
       for (const symbol of extractSymbols(sourceFile)) {
         const id = symbolNodeId(sp.service, file, symbol.qualified);
-        symbolByKey.set(keyOf(file, symbol.node), id);
+        symbolByKey.set(nodeKey(file, symbol.node), id);
         byNode.set(symbol.node, id);
       }
       callers.set(sourceFile, byNode);
@@ -160,7 +151,7 @@ export function buildCallEdges(
     const path = ctx.sp.toRepoPath(declaration.getSourceFile().fileName);
     if (path === undefined) return undefined;
     for (let n: ts.Node | undefined = declaration; n; n = n.parent) {
-      const id = symbolByKey.get(keyOf(path, n));
+      const id = symbolByKey.get(nodeKey(path, n));
       if (id !== undefined) return id;
       if (!(n.parent as ts.Node | undefined) || !WRAPPER_KINDS.has(n.parent.kind)) {
         return undefined;
@@ -185,7 +176,7 @@ export function buildCallEdges(
       declaration.getSourceFile(),
       site.literal,
     );
-    const targetSp = resolved && programOf.get(resolved.path);
+    const targetSp = resolved && programByFile.get(resolved.path);
     if (!resolved || !targetSp) return undefined;
     const target = contextOf(targetSp);
     const sourceFile = targetSp.program.getSourceFile(targetSp.toAbsolute(resolved.path));
@@ -234,8 +225,9 @@ export function buildCallEdges(
     return undefined;
   };
 
-  /** Resolve the callee of a call or `new` expression. */
-  const resolveCallee = (ctx: Context, expression: ts.Expression): CallTarget | undefined => {
+  /** Resolve a callee or value expression to a symbol node. */
+  const resolve = (sp: ServiceProgram, expression: ts.Expression): CallTarget | undefined => {
+    const ctx = contextOf(sp);
     const name = calleeName(expression);
     if (!name) return undefined;
     const symbol = ctx.checker.getSymbolAtLocation(name);
@@ -249,18 +241,59 @@ export function buildCallEdges(
     return resolveImport(ctx, declaration, e.name.text, 0);
   };
 
+  return {
+    programOf: (path) => programByFile.get(path),
+    checkerOf: (sp) => contextOf(sp).checker,
+    callers,
+    resolve,
+  };
+}
+
+/**
+ * Build `calls` edges (symbol → symbol) for calls whose callee resolves to a symbol node.
+ *
+ * The caller is the innermost symbol (see `extractSymbols`) whose declaration contains the
+ * call, so calls inside nested functions and callbacks belong to the enclosing top-level
+ * function, and calls inside a method belong to the method. The callee is resolved with the
+ * service program's type checker:
+ * - `f()`, `ns.f()`, `obj.method()`, `this.method()`, `super.method()`, `a["m"]()`, `new C()`
+ *   (to the class), optional calls `a?.b()`, and calls through parentheses, `as`, and `!`.
+ * - Through imports, re-exports, `import x = require()`, and CommonJS `require` in JS files,
+ *   as far as TypeScript resolves them. Overloads resolve to the implementation.
+ * - Through `{ list }` / `{ list: listImpl }` object properties and `const a = b` aliases,
+ *   to the function they name.
+ * - Imports TypeScript can't resolve because there is no `node_modules`, i.e. cross-workspace
+ *   package imports (`import { f } from "@acme/shared"`, `import * as s` then `s.f()`), are
+ *   resolved like import edges (M1.8), then looked up among the target module's exports with
+ *   that service's checker. The edge takes the import's confidence (`exact` or `heuristic`).
+ *
+ * All other edges are `exact`. Calls from one symbol to the same callee share one edge, with
+ * every call site (the callee name's position) listed.
+ *
+ * Not handled, and producing no edge: calls at file top level (there is no caller symbol);
+ * recursion (self-edges); calls to nested functions, constructors, accessors, third-party
+ * packages, and built-ins (no symbol node); JSX elements (`renders`, M1.11); tagged
+ * templates and decorators; callees reached through untyped values, such as a method on an
+ * instance of a class imported from another workspace package; workspace packages reached
+ * through `require` or `import x = require()` rather than ES imports; computed element access
+ * (`a[name]()`); and function values passed around and called later (`cb()` where `cb` is a
+ * parameter).
+ */
+export function buildCallEdges(
+  programs: readonly ServiceProgram[],
+  resolver: SymbolResolver,
+): GraphEdge[] {
   const edges = new Map<string, GraphEdge>();
   for (const sp of programs) {
-    const ctx = contextOf(sp);
     for (const file of sp.rootFiles) {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-      const byNode = sourceFile && callers.get(sourceFile);
+      const byNode = sourceFile && resolver.callers.get(sourceFile);
       if (!sourceFile || !byNode) continue;
 
       const visit = (node: ts.Node, caller: string | undefined): void => {
         const owner = byNode.get(node) ?? caller;
         if (owner !== undefined && (ts.isCallExpression(node) || ts.isNewExpression(node))) {
-          const target = resolveCallee(ctx, node.expression);
+          const target = resolver.resolve(sp, node.expression);
           if (target && target.id !== owner) {
             const name = calleeName(node.expression) ?? node;
             const position = sourceFile.getLineAndCharacterOfPosition(name.getStart(sourceFile));

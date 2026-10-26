@@ -1,4 +1,5 @@
 export * from "./analyze.js";
+export * from "./express.js";
 export * from "./imports.js";
 export * from "./inventory.js";
 export * from "./program.js";
