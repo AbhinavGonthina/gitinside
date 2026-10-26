@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { stringifyGraph } from "@gitinside/schema";
-import { ANALYZER_VERSION, analyze } from "./analyze.js";
+import { ANALYSIS_STAGES, ANALYZER_VERSION, analyze } from "./analyze.js";
 import { runCli } from "./cli.js";
 
 let dir: string;
@@ -81,6 +81,15 @@ describe("analyze", () => {
     const a = stringifyGraph(await analyze(dir, { name: "x" }));
     const b = stringifyGraph(await analyze(dir, { name: "x" }));
     expect(a).toBe(b);
+  });
+
+  it("reports every stage once, in order, without changing the graph", async () => {
+    await writeFile(join(dir, "a.ts"), "export function f() { return 1; }");
+    const seen: [string, number][] = [];
+    const timed = await analyze(dir, { name: "x", onStage: (s, ms) => seen.push([s, ms]) });
+    expect(seen.map(([s]) => s)).toEqual([...ANALYSIS_STAGES]);
+    expect(seen.every(([, ms]) => Number.isFinite(ms) && ms >= 0)).toBe(true);
+    expect(stringifyGraph(timed)).toBe(stringifyGraph(await analyze(dir, { name: "x" })));
   });
 
   it("rejects a missing directory", async () => {
