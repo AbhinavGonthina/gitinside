@@ -23,7 +23,7 @@ export interface ExtractedSymbol {
 }
 
 /** Strip wrappers that don't change what a value is: parentheses, `as`, `satisfies`, `!`, `<T>x`. */
-function unwrap(expression: ts.Expression): ts.Expression {
+export function unwrap(expression: ts.Expression): ts.Expression {
   let e = expression;
   while (
     ts.isParenthesizedExpression(e) ||

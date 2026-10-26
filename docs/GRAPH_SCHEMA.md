@@ -63,7 +63,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | kind | From → to | Meaning |
 |---|---|---|
 | `imports` | file → file, or → unresolved | import, re-export, or literal `require`/`import()`; a local specifier that doesn't resolve targets an `unresolved` node (`UNKNOWN_SYMBOL`) |
-| `calls` | symbol → symbol | resolved local call |
+| `calls` | symbol → symbol | call whose callee resolves to a symbol in the repo (including across workspace packages); unresolved callees get no edge (ADR-0025) |
 | `http` | symbol or page → route, or → unresolved | outbound HTTP call matched to a route (§7 of DESIGN.md) |
 | `handles` | route → symbol | handler function of a route |
 | `renders` | page → symbol | page component |
