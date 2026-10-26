@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.7. Symbol extraction (functions, classes, methods, exported consts)
+M1.8. Import edges incl. cross-workspace package imports
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -32,7 +32,7 @@ M1.7. Symbol extraction (functions, classes, methods, exported consts)
 - [x] M1.4 Workspace detection (npm/yarn/pnpm/Turborepo/Nx/Lerna) → service nodes; single-package fallback {model: opus}
 - [x] M1.5 Per-service TS program: tsconfig loading, synthesized defaults, paths/baseUrl, no node_modules, warnings {model: opus}
 - [x] M1.6 Module and file nodes with content hashes {model: sonnet}
-- [ ] M1.7 Symbol extraction (functions, classes, methods, exported consts) {model: opus}
+- [x] M1.7 Symbol extraction (functions, classes, methods, exported consts) {model: opus}
 - [ ] M1.8 Import edges incl. cross-workspace package imports {model: opus}
 - [ ] M1.9 Call edges for locally resolved calls {model: opus}
 - [ ] M1.10 Express route detector (methods, router.route, mount composition, nested/imported routers, handles edges) {model: opus}
@@ -154,6 +154,8 @@ M1.7. Symbol extraction (functions, classes, methods, exported consts)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-26 · M1.7: `extractSymbols`/`buildSymbolNodes` in `packages/analyzer/src/symbols.ts`: top-level functions, classes + methods (`Class.method`, parented to the class), function-valued consts, and exported values; exports detected syntactically incl. CommonJS (ADR-0023). 97 analyzer tests, 98.9% coverage; lint/typecheck/build green; CLI on this repo emits 86 symbols. Next: M1.8.
 
 - 2026-10-26 · M1.6: `buildFileNodes` in `packages/analyzer/src/files.ts`: module nodes for folders that directly hold source files (nested under nearest ancestor module, else service), file nodes with SHA-256 of raw bytes; IDs service-relative, `path` repo-relative; files outside every package skipped. 86 analyzer tests; lint/typecheck green. Next: M1.7.
 
