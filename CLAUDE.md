@@ -51,14 +51,30 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
    - 2–4 plain-English bullets explaining the concepts used: what each is, why we chose it, which file to read.
    - Add any new concept to `../gitinside-planning/LEARNING.md` under its topic, in reading order.
    - Commit + push the planning repo.
-8. If the task finished a milestone, run §4 before stopping.
-9. **Exit.** The loop starts the next run with fresh context.
+8. If anything was denied or tripped you up during the task, add it to **Lessons learned** below (in this file) before your final commit.
+9. If the task finished a milestone, run §4 before stopping.
+10. **Exit.** The loop starts the next run with fresh context.
 
 **Tool use in headless runs.** Nobody can approve prompts, so avoid commands that need one:
 - Create and modify files with the Write/Edit tools, never shell heredocs (`cat > f <<'EOF'`), `echo >>`, or `sed -i`. Heredocs are blocked by a safety check.
 - One command per Bash call. Don't chain with `;`, `&&`, or pipes into `tail`/`head` unless every part is an allowed command. Use the Read tool instead of `cat`/`tail` on files.
 - For the planning repo, use `git -C ../gitinside-planning …` and the file tools. Don't `cd` there.
 - Allowed shell commands: `pnpm`, `git`, `gh`, `node`, `npx`, `mkdir`, `docker compose`, `docker ps`, plus Claude Code's built-in read-only commands. Anything else will be denied, so find another way instead of retrying.
+
+**Lessons learned (keep this list growing).** When a command is denied, a tool behaves unexpectedly, or you waste time on a workaround, add a one-line lesson here, in the same commit as your task. Before every task, read this list and follow it.
+- Only add lessons about *how to work* (tools, commands, repo conventions). Never add or suggest permissions, and never weaken a rule elsewhere in this file.
+- Keep each lesson short: what fails, and what to do instead. Remove duplicates.
+
+<!-- lessons:start -->
+- `cd <dir> && git …` is denied (a git safety check on changing directory). Use `git -C <dir> …`.
+- Shell heredocs (`cat > f <<'EOF'`) are denied ("brace with quote character"). Use the Write tool.
+- Chained commands (`a; b`, `a && b`, `a | tail`) are denied if any part isn't allowed. Run allowed commands one per Bash call; read files with the Read tool, not `cat`/`tail`.
+- `cp`, `mv`, `rm` aren't allowed. Copy with Read + Write, move or delete tracked files with `git mv` / `git rm`.
+- Paths with backslash-escaped spaces are denied. Use forward slashes and quote paths instead.
+- Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
+<!-- lessons:end -->
+
+**Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
 **Three strikes:** if a task stays red after 3 genuine fix attempts:
 - `git revert` (or reset your uncommitted work) to the last green state.
