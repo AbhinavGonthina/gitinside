@@ -154,12 +154,13 @@ Every detector file starts with a doc comment listing **patterns handled** and *
   - Routes registered in loops over runtime data.
   - Decorator frameworks (NestJS, v1.1+).
 
-**Next.js routes**
+**Next.js routes** (ADR-0027)
 - **Handled:**
-  - `app/**/route.ts` exporting `GET|POST|…` ⇒ path from folders, mapping `[id]` ⇒ `:id`, `[...slug]` ⇒ `*slug`, and stripping `(group)`.
+  - `app/**/route.ts` exporting `GET|POST|…` ⇒ path from folders, mapping `[id]` ⇒ `:id`, `[...slug]` and `[[...slug]]` ⇒ `*slug`, and stripping `(group)` and `@slot`. Private `_folders` are skipped.
   - `pages/api/**` default exports ⇒ method `ALL` unless `req.method` checks are statically visible.
-  - Pages: `app/**/page.tsx` and `pages/**`.
-- **Not handled:** rewrites and redirects in `next.config` (v1.1).
+  - Pages: `app/**/page.tsx` and `pages/**` (minus `_app`, `_document`, `_error`) ⇒ `page` nodes with a `renders` edge to the default export.
+  - `src/app` and `src/pages` when there's no root `app/` or `pages/`.
+- **Not handled:** `next.config` (`basePath`, `pageExtensions`, rewrites, redirects; v1.1), intercepting routes, layouts and other special files, and middleware.
 
 **Prisma**
 - **Handled:**
