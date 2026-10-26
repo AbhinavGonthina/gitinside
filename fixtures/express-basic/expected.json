@@ -1,0 +1,168 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "route:express-basic/GET /users",
+      "id": "handles:route:express-basic/GET /users->symbol:express-basic/src/users.ts#listUsers",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 19,
+          "file": "src/server.ts",
+          "line": 10
+        }
+      ],
+      "to": "symbol:express-basic/src/users.ts#listUsers"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-basic/POST /users",
+      "id": "handles:route:express-basic/POST /users->symbol:express-basic/src/users.ts#createUser",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 20,
+          "file": "src/server.ts",
+          "line": 11
+        }
+      ],
+      "to": "symbol:express-basic/src/users.ts#createUser"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-basic/src/server.ts",
+      "id": "imports:file:express-basic/src/server.ts->file:express-basic/src/users.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 39,
+          "file": "src/server.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:express-basic/src/users.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "26070a4c1adffbd4180235aeb02326ab26f7a30128b7c45dc4157a4e5a19f586",
+      "id": "file:express-basic/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:express-basic/src",
+      "path": "src/server.ts"
+    },
+    {
+      "hash": "32fba09efedec05cd5fac0caa2cfc9ed5db0ee74dfa8a31e447ce01a5e4a3db4",
+      "id": "file:express-basic/src/users.ts",
+      "kind": "file",
+      "label": "users.ts",
+      "parentId": "module:express-basic/src",
+      "path": "src/users.ts"
+    },
+    {
+      "id": "module:express-basic/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:express-basic/",
+      "path": "src"
+    },
+    {
+      "id": "route:express-basic/GET /health",
+      "kind": "route",
+      "label": "GET /health",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-basic/src/server.ts",
+      "path": "/health",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 7
+      }
+    },
+    {
+      "id": "route:express-basic/GET /users",
+      "kind": "route",
+      "label": "GET /users",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-basic/src/server.ts",
+      "path": "/users",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:express-basic/POST /users",
+      "kind": "route",
+      "label": "POST /users",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:express-basic/src/server.ts",
+      "path": "/users",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 11
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:express-basic/",
+      "kind": "service",
+      "label": "express-basic",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-basic/src/users.ts#createUser",
+      "kind": "symbol",
+      "label": "createUser",
+      "parentId": "file:express-basic/src/users.ts",
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "src/users.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-basic/src/users.ts#listUsers",
+      "kind": "symbol",
+      "label": "listUsers",
+      "parentId": "file:express-basic/src/users.ts",
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/users.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "express-basic",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "express-basic",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

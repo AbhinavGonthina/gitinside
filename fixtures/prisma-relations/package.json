@@ -1,0 +1,1 @@
+{ "name": "prisma-relations", "dependencies": { "@prisma/client": "6", "express": "4" } }

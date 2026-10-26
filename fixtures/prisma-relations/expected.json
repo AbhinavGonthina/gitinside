@@ -1,0 +1,310 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "file:prisma-relations/src/server.ts",
+      "id": "imports:file:prisma-relations/src/server.ts->file:prisma-relations/src/db.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/server.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:prisma-relations/src/db.ts"
+    },
+    {
+      "confidence": "exact",
+      "fields": [
+        "id",
+        "title"
+      ],
+      "from": "route:prisma-relations/GET /posts",
+      "id": "reads:route:prisma-relations/GET /posts->model:prisma-relations/Post",
+      "kind": "reads",
+      "sites": [
+        {
+          "column": 30,
+          "file": "src/server.ts",
+          "line": 7
+        }
+      ],
+      "to": "model:prisma-relations/Post"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "route:prisma-relations/GET /raw",
+      "id": "reads:route:prisma-relations/GET /raw->unresolved:prisma-relations/src/server.ts:15:25",
+      "kind": "reads",
+      "reason": "RAW_QUERY",
+      "sites": [
+        {
+          "column": 25,
+          "file": "src/server.ts",
+          "line": 15
+        }
+      ],
+      "to": "unresolved:prisma-relations/src/server.ts:15:25"
+    },
+    {
+      "confidence": "exact",
+      "from": "model:prisma-relations/Post",
+      "id": "stores:model:prisma-relations/Post->datastore:infra/prisma-relations/prisma/schema.prisma#db",
+      "kind": "stores",
+      "sites": [
+        {
+          "column": 1,
+          "file": "prisma/schema.prisma",
+          "line": 1
+        }
+      ],
+      "to": "datastore:infra/prisma-relations/prisma/schema.prisma#db"
+    },
+    {
+      "confidence": "exact",
+      "from": "model:prisma-relations/User",
+      "id": "stores:model:prisma-relations/User->datastore:infra/prisma-relations/prisma/schema.prisma#db",
+      "kind": "stores",
+      "sites": [
+        {
+          "column": 1,
+          "file": "prisma/schema.prisma",
+          "line": 1
+        }
+      ],
+      "to": "datastore:infra/prisma-relations/prisma/schema.prisma#db"
+    },
+    {
+      "confidence": "exact",
+      "fields": [
+        "email"
+      ],
+      "from": "route:prisma-relations/POST /users",
+      "id": "writes:route:prisma-relations/POST /users->model:prisma-relations/User",
+      "kind": "writes",
+      "sites": [
+        {
+          "column": 30,
+          "file": "src/server.ts",
+          "line": 11
+        }
+      ],
+      "to": "model:prisma-relations/User"
+    }
+  ],
+  "nodes": [
+    {
+      "engine": "postgres",
+      "id": "datastore:infra/prisma-relations/prisma/schema.prisma#db",
+      "kind": "datastore",
+      "label": "postgres",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 1,
+        "file": "prisma/schema.prisma",
+        "line": 1
+      }
+    },
+    {
+      "hash": "77107f73afbbf9bc268a0412029405d8b15b1be7c96e70fc882ad35f377f53af",
+      "id": "file:prisma-relations/prisma/schema.prisma",
+      "kind": "file",
+      "label": "schema.prisma",
+      "parentId": "module:prisma-relations/prisma",
+      "path": "prisma/schema.prisma"
+    },
+    {
+      "hash": "420319b87f90722840ddb3de2ddcceea63e89619cc6692090038199368a03bf8",
+      "id": "file:prisma-relations/src/db.ts",
+      "kind": "file",
+      "label": "db.ts",
+      "parentId": "module:prisma-relations/src",
+      "path": "src/db.ts"
+    },
+    {
+      "hash": "b0773402ce3103e188b965f0b67b3519ff2e4a37b7addfc1ba209a8b7726b90e",
+      "id": "file:prisma-relations/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:prisma-relations/src",
+      "path": "src/server.ts"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "Int"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "String"
+        },
+        {
+          "name": "author",
+          "optional": false,
+          "type": "User"
+        },
+        {
+          "name": "authorId",
+          "optional": false,
+          "type": "Int"
+        }
+      ],
+      "id": "model:prisma-relations/Post",
+      "kind": "model",
+      "label": "Post",
+      "layer": "data",
+      "parentId": "file:prisma-relations/prisma/schema.prisma",
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "prisma/schema.prisma",
+        "line": 12
+      }
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "Int"
+        },
+        {
+          "name": "email",
+          "optional": false,
+          "type": "String"
+        },
+        {
+          "name": "posts",
+          "optional": false,
+          "type": "Post[]"
+        }
+      ],
+      "id": "model:prisma-relations/User",
+      "kind": "model",
+      "label": "User",
+      "layer": "data",
+      "parentId": "file:prisma-relations/prisma/schema.prisma",
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "prisma/schema.prisma",
+        "line": 6
+      }
+    },
+    {
+      "id": "module:prisma-relations/prisma",
+      "kind": "module",
+      "label": "prisma",
+      "parentId": "service:prisma-relations/",
+      "path": "prisma"
+    },
+    {
+      "id": "module:prisma-relations/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:prisma-relations/",
+      "path": "src"
+    },
+    {
+      "id": "route:prisma-relations/GET /posts",
+      "kind": "route",
+      "label": "GET /posts",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:prisma-relations/src/server.ts",
+      "path": "/posts",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:prisma-relations/GET /raw",
+      "kind": "route",
+      "label": "GET /raw",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:prisma-relations/src/server.ts",
+      "path": "/raw",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 14
+      }
+    },
+    {
+      "id": "route:prisma-relations/POST /users",
+      "kind": "route",
+      "label": "POST /users",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:prisma-relations/src/server.ts",
+      "path": "/users",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:prisma-relations/",
+      "kind": "service",
+      "label": "prisma-relations",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:prisma-relations/src/db.ts#prisma",
+      "kind": "symbol",
+      "label": "prisma",
+      "parentId": "file:prisma-relations/src/db.ts",
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "src/db.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "prisma-relations",
+      "parentId": null
+    },
+    {
+      "expression": "prisma.$queryRaw`SELECT 1`",
+      "id": "unresolved:prisma-relations/src/server.ts:15:25",
+      "kind": "unresolved",
+      "label": "prisma.$queryRaw",
+      "parentId": "service:prisma-relations/",
+      "reason": "RAW_QUERY",
+      "source": {
+        "column": 25,
+        "file": "src/server.ts",
+        "line": 15
+      }
+    }
+  ],
+  "repo": {
+    "name": "prisma-relations",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
