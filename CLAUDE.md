@@ -69,7 +69,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - `cd <dir> && git …` is denied (a git safety check on changing directory). Use `git -C <dir> …`.
 - Shell heredocs (`cat > f <<'EOF'`) are denied ("brace with quote character"). Use the Write tool.
 - Chained commands (`a; b`, `a && b`, `a | tail`) are denied if any part isn't allowed. Run allowed commands one per Bash call; read files with the Read tool, not `cat`/`tail`.
-- `cp`, `mv`, `rm` aren't allowed. Copy with Read + Write, move or delete tracked files with `git mv` / `git rm`.
+- `cp`, `mv`, `rm` aren't allowed. Copy with Read + Write, move or delete tracked files with `git mv` / `git rm`, and delete an untracked scratch file with `git clean -f <path>`.
+- Write CLI smoke-test output under a gitignored folder (e.g. `--out packages/analyzer/dist/smoke.json`), never into either repo's tracked tree.
 - Paths with backslash-escaped spaces are denied. Use forward slashes and quote paths instead.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 <!-- lessons:end -->
