@@ -1,0 +1,103 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:no-tsconfig/index.js#main",
+      "id": "calls:symbol:no-tsconfig/index.js#main->symbol:no-tsconfig/lib.js#double",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 10,
+          "file": "index.js",
+          "line": 4
+        }
+      ],
+      "to": "symbol:no-tsconfig/lib.js#double"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:no-tsconfig/index.js",
+      "id": "imports:file:no-tsconfig/index.js->file:no-tsconfig/lib.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 28,
+          "file": "index.js",
+          "line": 1
+        }
+      ],
+      "to": "file:no-tsconfig/lib.js"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "1f0d97f6968f313391758edbd89c91a6f66d6e14d2de17bee7f1f505d9e5b94d",
+      "id": "file:no-tsconfig/index.js",
+      "kind": "file",
+      "label": "index.js",
+      "parentId": "service:no-tsconfig/",
+      "path": "index.js"
+    },
+    {
+      "hash": "f45418d28d7ee5ff86d7d59396db0b21fde580334c399b22cd5898795ddf0ae1",
+      "id": "file:no-tsconfig/lib.js",
+      "kind": "file",
+      "label": "lib.js",
+      "parentId": "service:no-tsconfig/",
+      "path": "lib.js"
+    },
+    {
+      "id": "service:no-tsconfig/",
+      "kind": "service",
+      "label": "no-tsconfig",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:no-tsconfig/index.js#main",
+      "kind": "symbol",
+      "label": "main",
+      "parentId": "file:no-tsconfig/index.js",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "index.js",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:no-tsconfig/lib.js#double",
+      "kind": "symbol",
+      "label": "double",
+      "parentId": "file:no-tsconfig/lib.js",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "lib.js",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "no-tsconfig",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "no-tsconfig",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

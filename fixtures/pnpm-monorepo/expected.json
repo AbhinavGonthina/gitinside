@@ -1,0 +1,118 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "file:api/src/index.ts",
+      "id": "imports:file:api/src/index.ts->file:shared/src/index.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 23,
+          "file": "apps/api/src/index.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:shared/src/index.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "377e1e8480c2bb6fea4059f07bea631180e2dadf30af8afa8557ab9740f4fe46",
+      "id": "file:api/src/index.ts",
+      "kind": "file",
+      "label": "index.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/index.ts"
+    },
+    {
+      "hash": "58ee4e4b6b2719b0bc67f7a72c50d7d315069a24be996998d6dd6d40be92cfc7",
+      "id": "file:shared/src/index.ts",
+      "kind": "file",
+      "label": "index.ts",
+      "parentId": "module:shared/src",
+      "path": "packages/shared/src/index.ts"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "apps/api/src"
+    },
+    {
+      "id": "module:shared/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:shared/",
+      "path": "packages/shared/src"
+    },
+    {
+      "id": "route:api/GET /greet",
+      "kind": "route",
+      "label": "GET /greet",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/index.ts",
+      "path": "/greet",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/index.ts",
+        "line": 5
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "@mono/api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "apps/api"
+    },
+    {
+      "id": "service:shared/",
+      "kind": "service",
+      "label": "@mono/shared",
+      "parentId": "system:root",
+      "root": "packages/shared"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared/src/index.ts#greet",
+      "kind": "symbol",
+      "label": "greet",
+      "parentId": "file:shared/src/index.ts",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "packages/shared/src/index.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "pnpm-monorepo",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "pnpm-monorepo",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/api",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "packages/shared",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

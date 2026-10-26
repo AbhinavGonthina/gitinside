@@ -1,0 +1,244 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "route:next-app-router/GET /api/items",
+      "id": "handles:route:next-app-router/GET /api/items->symbol:next-app-router/app/api/items/route.ts#GET",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 23,
+          "file": "app/api/items/route.ts",
+          "line": 1
+        }
+      ],
+      "to": "symbol:next-app-router/app/api/items/route.ts#GET"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:next-app-router/POST /api/items",
+      "id": "handles:route:next-app-router/POST /api/items->symbol:next-app-router/app/api/items/route.ts#POST",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 23,
+          "file": "app/api/items/route.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:next-app-router/app/api/items/route.ts#POST"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:next-app-router//",
+      "id": "renders:page:next-app-router//->symbol:next-app-router/app/page.tsx#Home",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 25,
+          "file": "app/page.tsx",
+          "line": 1
+        }
+      ],
+      "to": "symbol:next-app-router/app/page.tsx#Home"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:next-app-router//products/:id",
+      "id": "renders:page:next-app-router//products/:id->symbol:next-app-router/app/(shop)/products/[id]/page.tsx#Product",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 25,
+          "file": "app/(shop)/products/[id]/page.tsx",
+          "line": 1
+        }
+      ],
+      "to": "symbol:next-app-router/app/(shop)/products/[id]/page.tsx#Product"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "5bd0dec0322f6f5ab7558d31cd3145a6ea157513a7fe4451d105f5415a52439e",
+      "id": "file:next-app-router/app/(shop)/products/[id]/page.tsx",
+      "kind": "file",
+      "label": "page.tsx",
+      "parentId": "module:next-app-router/app/(shop)/products/[id]",
+      "path": "app/(shop)/products/[id]/page.tsx"
+    },
+    {
+      "hash": "8b20e264d8ab3678822a05de82a4abd93a66cf6f919382aff3ff6be8037cd170",
+      "id": "file:next-app-router/app/api/items/route.ts",
+      "kind": "file",
+      "label": "route.ts",
+      "parentId": "module:next-app-router/app/api/items",
+      "path": "app/api/items/route.ts"
+    },
+    {
+      "hash": "45b40a673b025605a7b93d4b1381e76d4a3f3378096105701ff124d237e2e26b",
+      "id": "file:next-app-router/app/page.tsx",
+      "kind": "file",
+      "label": "page.tsx",
+      "parentId": "module:next-app-router/app",
+      "path": "app/page.tsx"
+    },
+    {
+      "id": "module:next-app-router/app",
+      "kind": "module",
+      "label": "app",
+      "parentId": "service:next-app-router/",
+      "path": "app"
+    },
+    {
+      "id": "module:next-app-router/app/(shop)/products/[id]",
+      "kind": "module",
+      "label": "[id]",
+      "parentId": "module:next-app-router/app",
+      "path": "app/(shop)/products/[id]"
+    },
+    {
+      "id": "module:next-app-router/app/api/items",
+      "kind": "module",
+      "label": "items",
+      "parentId": "module:next-app-router/app",
+      "path": "app/api/items"
+    },
+    {
+      "id": "page:next-app-router//",
+      "kind": "page",
+      "label": "/",
+      "layer": "frontend",
+      "parentId": "file:next-app-router/app/page.tsx",
+      "path": "/",
+      "source": {
+        "column": 25,
+        "file": "app/page.tsx",
+        "line": 1
+      }
+    },
+    {
+      "id": "page:next-app-router//products/:id",
+      "kind": "page",
+      "label": "/products/:id",
+      "layer": "frontend",
+      "parentId": "file:next-app-router/app/(shop)/products/[id]/page.tsx",
+      "path": "/products/:id",
+      "source": {
+        "column": 25,
+        "file": "app/(shop)/products/[id]/page.tsx",
+        "line": 1
+      }
+    },
+    {
+      "id": "route:next-app-router/GET /api/items",
+      "kind": "route",
+      "label": "GET /api/items",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:next-app-router/app/api/items/route.ts",
+      "path": "/api/items",
+      "source": {
+        "column": 23,
+        "file": "app/api/items/route.ts",
+        "line": 1
+      }
+    },
+    {
+      "id": "route:next-app-router/POST /api/items",
+      "kind": "route",
+      "label": "POST /api/items",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:next-app-router/app/api/items/route.ts",
+      "path": "/api/items",
+      "source": {
+        "column": 23,
+        "file": "app/api/items/route.ts",
+        "line": 5
+      }
+    },
+    {
+      "framework": "next",
+      "id": "service:next-app-router/",
+      "kind": "service",
+      "label": "next-app-router",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:next-app-router/app/(shop)/products/[id]/page.tsx#Product",
+      "kind": "symbol",
+      "label": "Product",
+      "parentId": "file:next-app-router/app/(shop)/products/[id]/page.tsx",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "app/(shop)/products/[id]/page.tsx",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:next-app-router/app/api/items/route.ts#GET",
+      "kind": "symbol",
+      "label": "GET",
+      "parentId": "file:next-app-router/app/api/items/route.ts",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "app/api/items/route.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:next-app-router/app/api/items/route.ts#POST",
+      "kind": "symbol",
+      "label": "POST",
+      "parentId": "file:next-app-router/app/api/items/route.ts",
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "app/api/items/route.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:next-app-router/app/page.tsx#Home",
+      "kind": "symbol",
+      "label": "Home",
+      "parentId": "file:next-app-router/app/page.tsx",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "app/page.tsx",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "next-app-router",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "next-app-router",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

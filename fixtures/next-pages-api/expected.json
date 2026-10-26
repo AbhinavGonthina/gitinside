@@ -1,0 +1,203 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "route:next-pages-api/ALL /api/echo/:id",
+      "id": "handles:route:next-pages-api/ALL /api/echo/:id->symbol:next-pages-api/pages/api/echo/[id].ts#handler",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/echo/[id].ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:next-pages-api/pages/api/echo/[id].ts#handler"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:next-pages-api/GET /api/hello",
+      "id": "handles:route:next-pages-api/GET /api/hello->symbol:next-pages-api/pages/api/hello.ts#handler",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/hello.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:next-pages-api/pages/api/hello.ts#handler"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:next-pages-api//",
+      "id": "renders:page:next-pages-api//->symbol:next-pages-api/pages/index.tsx#Index",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/index.tsx",
+          "line": 1
+        }
+      ],
+      "to": "symbol:next-pages-api/pages/index.tsx#Index"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "6b6b2b4b7627e5688686b064a8662d14e66e2223e7b9458bc176411c645446d4",
+      "id": "file:next-pages-api/pages/api/echo/[id].ts",
+      "kind": "file",
+      "label": "[id].ts",
+      "parentId": "module:next-pages-api/pages/api/echo",
+      "path": "pages/api/echo/[id].ts"
+    },
+    {
+      "hash": "47f8417f3b25d5a34fe5839433ca7965de0295aeeceb92fbb720e9ddaed61633",
+      "id": "file:next-pages-api/pages/api/hello.ts",
+      "kind": "file",
+      "label": "hello.ts",
+      "parentId": "module:next-pages-api/pages/api",
+      "path": "pages/api/hello.ts"
+    },
+    {
+      "hash": "287292cf828d423b13335d08f859b6d41b68a07aba28d70f3e23f43607ca75c3",
+      "id": "file:next-pages-api/pages/index.tsx",
+      "kind": "file",
+      "label": "index.tsx",
+      "parentId": "module:next-pages-api/pages",
+      "path": "pages/index.tsx"
+    },
+    {
+      "id": "module:next-pages-api/pages",
+      "kind": "module",
+      "label": "pages",
+      "parentId": "service:next-pages-api/",
+      "path": "pages"
+    },
+    {
+      "id": "module:next-pages-api/pages/api",
+      "kind": "module",
+      "label": "api",
+      "parentId": "module:next-pages-api/pages",
+      "path": "pages/api"
+    },
+    {
+      "id": "module:next-pages-api/pages/api/echo",
+      "kind": "module",
+      "label": "echo",
+      "parentId": "module:next-pages-api/pages/api",
+      "path": "pages/api/echo"
+    },
+    {
+      "id": "page:next-pages-api//",
+      "kind": "page",
+      "label": "/",
+      "layer": "frontend",
+      "parentId": "file:next-pages-api/pages/index.tsx",
+      "path": "/",
+      "source": {
+        "column": 25,
+        "file": "pages/index.tsx",
+        "line": 1
+      }
+    },
+    {
+      "id": "route:next-pages-api/ALL /api/echo/:id",
+      "kind": "route",
+      "label": "ALL /api/echo/:id",
+      "layer": "backend",
+      "method": "ALL",
+      "parentId": "file:next-pages-api/pages/api/echo/[id].ts",
+      "path": "/api/echo/:id",
+      "source": {
+        "column": 25,
+        "file": "pages/api/echo/[id].ts",
+        "line": 3
+      }
+    },
+    {
+      "id": "route:next-pages-api/GET /api/hello",
+      "kind": "route",
+      "label": "GET /api/hello",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:next-pages-api/pages/api/hello.ts",
+      "path": "/api/hello",
+      "source": {
+        "column": 25,
+        "file": "pages/api/hello.ts",
+        "line": 3
+      }
+    },
+    {
+      "framework": "next",
+      "id": "service:next-pages-api/",
+      "kind": "service",
+      "label": "next-pages-api",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:next-pages-api/pages/api/echo/[id].ts#handler",
+      "kind": "symbol",
+      "label": "handler",
+      "parentId": "file:next-pages-api/pages/api/echo/[id].ts",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "pages/api/echo/[id].ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:next-pages-api/pages/api/hello.ts#handler",
+      "kind": "symbol",
+      "label": "handler",
+      "parentId": "file:next-pages-api/pages/api/hello.ts",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "pages/api/hello.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:next-pages-api/pages/index.tsx#Index",
+      "kind": "symbol",
+      "label": "Index",
+      "parentId": "file:next-pages-api/pages/index.tsx",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "pages/index.tsx",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "next-pages-api",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "next-pages-api",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

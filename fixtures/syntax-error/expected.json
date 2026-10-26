@@ -1,0 +1,101 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "file:syntax-error/src/broken.ts",
+      "id": "imports:file:syntax-error/src/broken.ts->file:syntax-error/src/ok.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 22,
+          "file": "src/broken.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:syntax-error/src/ok.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "d9f64b9bafdb0a510b357fe66d4d48b6958673ecd141415f1011f041a9af6329",
+      "id": "file:syntax-error/src/broken.ts",
+      "kind": "file",
+      "label": "broken.ts",
+      "parentId": "module:syntax-error/src",
+      "path": "src/broken.ts"
+    },
+    {
+      "hash": "0cdeb79258554ac2a980dcebd5d191a7113aa36cc1a33bff668beb7c1c6ff726",
+      "id": "file:syntax-error/src/ok.ts",
+      "kind": "file",
+      "label": "ok.ts",
+      "parentId": "module:syntax-error/src",
+      "path": "src/ok.ts"
+    },
+    {
+      "id": "module:syntax-error/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:syntax-error/",
+      "path": "src"
+    },
+    {
+      "id": "service:syntax-error/",
+      "kind": "service",
+      "label": "syntax-error",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:syntax-error/src/broken.ts#broken",
+      "kind": "symbol",
+      "label": "broken",
+      "parentId": "file:syntax-error/src/broken.ts",
+      "source": {
+        "column": 1,
+        "endLine": 4,
+        "file": "src/broken.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:syntax-error/src/ok.ts#fine",
+      "kind": "symbol",
+      "label": "fine",
+      "parentId": "file:syntax-error/src/ok.ts",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "src/ok.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "syntax-error",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "syntax-error",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "SYNTAX_ERROR",
+      "file": "src/broken.ts",
+      "message": "syntax error at 4:10: ':' expected. (+3 more)"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

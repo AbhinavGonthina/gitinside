@@ -1,0 +1,190 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "file:express-nested-routers/src/api.ts",
+      "id": "imports:file:express-nested-routers/src/api.ts->file:express-nested-routers/src/orders.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/api.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:express-nested-routers/src/orders.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-nested-routers/src/app.ts",
+      "id": "imports:file:express-nested-routers/src/app.ts->file:express-nested-routers/src/api.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/app.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:express-nested-routers/src/api.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "179384ad3205e85765326f0e7b36d8060cbea2afabe0651134ad197409defdb9",
+      "id": "file:express-nested-routers/src/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "parentId": "module:express-nested-routers/src",
+      "path": "src/api.ts"
+    },
+    {
+      "hash": "24078a9de324ef964053a7476af2d677918ce639a9d83f16e540869d5d46bae8",
+      "id": "file:express-nested-routers/src/app.ts",
+      "kind": "file",
+      "label": "app.ts",
+      "parentId": "module:express-nested-routers/src",
+      "path": "src/app.ts"
+    },
+    {
+      "hash": "2ad2a06d03de9ed9b48eecd201c71bd41279094c8a421f8e19b7dbafcb0361a9",
+      "id": "file:express-nested-routers/src/orders.ts",
+      "kind": "file",
+      "label": "orders.ts",
+      "parentId": "module:express-nested-routers/src",
+      "path": "src/orders.ts"
+    },
+    {
+      "id": "module:express-nested-routers/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:express-nested-routers/",
+      "path": "src"
+    },
+    {
+      "id": "route:express-nested-routers/GET /api/orders",
+      "kind": "route",
+      "label": "GET /api/orders",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-nested-routers/src/orders.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 19,
+        "file": "src/orders.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:express-nested-routers/GET /api/orders/:id",
+      "kind": "route",
+      "label": "GET /api/orders/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-nested-routers/src/orders.ts",
+      "path": "/api/orders/:id",
+      "source": {
+        "column": 8,
+        "file": "src/orders.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:express-nested-routers/GET /api/ping",
+      "kind": "route",
+      "label": "GET /api/ping",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-nested-routers/src/api.ts",
+      "path": "/api/ping",
+      "source": {
+        "column": 5,
+        "file": "src/api.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:express-nested-routers/POST /api/orders",
+      "kind": "route",
+      "label": "POST /api/orders",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:express-nested-routers/src/orders.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 52,
+        "file": "src/orders.ts",
+        "line": 8
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:express-nested-routers/",
+      "kind": "service",
+      "label": "express-nested-routers",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-nested-routers/src/api.ts#api",
+      "kind": "symbol",
+      "label": "api",
+      "parentId": "file:express-nested-routers/src/api.ts",
+      "source": {
+        "column": 14,
+        "endLine": 4,
+        "file": "src/api.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-nested-routers/src/app.ts#app",
+      "kind": "symbol",
+      "label": "app",
+      "parentId": "file:express-nested-routers/src/app.ts",
+      "source": {
+        "column": 14,
+        "endLine": 4,
+        "file": "src/app.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-nested-routers/src/orders.ts#orders",
+      "kind": "symbol",
+      "label": "orders",
+      "parentId": "file:express-nested-routers/src/orders.ts",
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "src/orders.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "express-nested-routers",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "express-nested-routers",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
