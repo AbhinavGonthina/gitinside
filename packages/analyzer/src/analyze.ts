@@ -7,6 +7,7 @@ import {
   parseGraph,
   type ArchitectureGraph,
 } from "@gitinside/schema";
+import { buildCallEdges } from "./calls.js";
 import { buildFileNodes } from "./files.js";
 import { buildImportGraph } from "./imports.js";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
@@ -63,7 +64,7 @@ export async function analyze(
       ...buildSymbolNodes(programs),
       ...imports.nodes,
     ],
-    edges: imports.edges,
+    edges: [...imports.edges, ...buildCallEdges(programs, workspace)],
     warnings: [
       ...inventory.warnings,
       ...workspace.warnings,

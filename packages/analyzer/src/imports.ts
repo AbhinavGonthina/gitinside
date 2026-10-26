@@ -185,9 +185,104 @@ function exportTargets(exports: unknown, subpath: string): string[] {
 }
 
 /** A resolved import target: a repo-relative file and how sure we are. */
-interface Resolved {
+export interface ResolvedImport {
   path: string;
   confidence: Confidence;
+}
+
+/** Parsed `package.json` files by package folder, shared between resolvers. */
+export type ManifestCache = Map<string, Record<string, unknown> | undefined>;
+
+/**
+ * A module resolver for one service program: TypeScript's resolution first (`exact`), then
+ * cross-workspace package imports from their manifests (see {@link buildImportGraph} for the
+ * order and confidence rules). Returns undefined when neither finds a repo file.
+ */
+export function createModuleResolver(
+  sp: ServiceProgram,
+  workspace: Workspace,
+  manifests: ManifestCache = new Map(),
+): (
+  specifier: string,
+  sourceFile: ts.SourceFile,
+  literal: ts.StringLiteralLike,
+) => ResolvedImport | undefined {
+  const options = sp.program.getCompilerOptions();
+  const cache = ts.createModuleResolutionCache(sp.toAbsolute(""), (f) => f, options);
+
+  /** Resolve `specifier` as TypeScript would from `containingFile`, to a repo file. */
+  const resolveTs = (
+    specifier: string,
+    containingFile: string,
+    mode?: ts.ResolutionMode,
+  ): string | undefined => {
+    const result = ts.resolveModuleName(
+      specifier,
+      containingFile,
+      options,
+      sp.host,
+      cache,
+      undefined,
+      mode,
+    );
+    const fileName = result.resolvedModule?.resolvedFileName;
+    return fileName === undefined ? undefined : sp.toRepoPath(fileName);
+  };
+
+  const manifestOf = (pkg: WorkspacePackage): Record<string, unknown> | undefined => {
+    if (manifests.has(pkg.dir)) return manifests.get(pkg.dir);
+    const path = pkg.dir === "" ? "package.json" : `${pkg.dir}/package.json`;
+    let manifest: Record<string, unknown> | undefined;
+    try {
+      const parsed: unknown = JSON.parse(sp.host.readFile(sp.toAbsolute(path)) ?? "");
+      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+        manifest = parsed as Record<string, unknown>;
+      }
+    } catch {
+      manifest = undefined;
+    }
+    manifests.set(pkg.dir, manifest);
+    return manifest;
+  };
+
+  const resolveWorkspace = (pkg: WorkspacePackage, subpath: string): ResolvedImport | undefined => {
+    const manifest = manifestOf(pkg) ?? {};
+    const from = sp.toAbsolute(pkg.dir === "" ? "package.json" : `${pkg.dir}/package.json`);
+    const exact: string[] = exportTargets(manifest.exports, subpath);
+    let namesEntry = manifest.exports !== undefined;
+    if (subpath === "") {
+      for (const field of ENTRY_FIELDS) {
+        const value = manifest[field];
+        if (typeof value === "string") {
+          exact.push(value);
+          namesEntry = true;
+        }
+      }
+      if (!namesEntry) exact.push("index");
+    } else {
+      exact.push(subpath);
+    }
+    const fallback = subpath === "" ? ["src/index", "index"] : [`src/${subpath}`];
+    const tries: ResolvedImport[] = [
+      ...exact.map((path) => ({ path, confidence: "exact" as const })),
+      ...fallback.map((path) => ({ path, confidence: "heuristic" as const })),
+    ];
+    for (const attempt of tries) {
+      const relative = attempt.path.replace(/^\.\//, "");
+      if (relative === "" || relative.startsWith("/") || relative.startsWith("../")) continue;
+      const path = resolveTs(`./${relative}`, from);
+      if (path !== undefined) return { path, confidence: attempt.confidence };
+    }
+    return undefined;
+  };
+
+  return (specifier, sourceFile, literal) => {
+    const mode = ts.getModeForUsageLocation(sourceFile, literal, options);
+    const tsPath = resolveTs(specifier, sourceFile.fileName, mode);
+    if (tsPath !== undefined) return { path: tsPath, confidence: "exact" };
+    const pkgTarget = workspaceTarget(workspace, specifier);
+    return pkgTarget ? resolveWorkspace(pkgTarget.pkg, pkgTarget.subpath) : undefined;
+  };
 }
 
 /**
@@ -229,78 +324,12 @@ export function buildImportGraph(
   const nodes: GraphNode[] = [];
   const edges = new Map<string, GraphEdge>();
   const warnings: AnalysisWarning[] = [];
-  const manifests = new Map<string, Record<string, unknown> | undefined>();
+  const manifests: ManifestCache = new Map();
 
   for (const sp of programs) {
     const options = sp.program.getCompilerOptions();
-    const cache = ts.createModuleResolutionCache(sp.toAbsolute(""), (f) => f, options);
     const pathsKeys = Object.keys(options.paths ?? {});
-
-    /** Resolve `specifier` as TypeScript would from `containingFile`, to a repo file. */
-    const resolveTs = (
-      specifier: string,
-      containingFile: string,
-      mode?: ts.ResolutionMode,
-    ): string | undefined => {
-      const result = ts.resolveModuleName(
-        specifier,
-        containingFile,
-        options,
-        sp.host,
-        cache,
-        undefined,
-        mode,
-      );
-      const fileName = result.resolvedModule?.resolvedFileName;
-      return fileName === undefined ? undefined : sp.toRepoPath(fileName);
-    };
-
-    const manifestOf = (pkg: WorkspacePackage): Record<string, unknown> | undefined => {
-      if (manifests.has(pkg.dir)) return manifests.get(pkg.dir);
-      const path = pkg.dir === "" ? "package.json" : `${pkg.dir}/package.json`;
-      let manifest: Record<string, unknown> | undefined;
-      try {
-        const parsed: unknown = JSON.parse(sp.host.readFile(sp.toAbsolute(path)) ?? "");
-        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-          manifest = parsed as Record<string, unknown>;
-        }
-      } catch {
-        manifest = undefined;
-      }
-      manifests.set(pkg.dir, manifest);
-      return manifest;
-    };
-
-    const resolveWorkspace = (pkg: WorkspacePackage, subpath: string): Resolved | undefined => {
-      const manifest = manifestOf(pkg) ?? {};
-      const from = sp.toAbsolute(pkg.dir === "" ? "package.json" : `${pkg.dir}/package.json`);
-      const exact: string[] = exportTargets(manifest.exports, subpath);
-      let namesEntry = manifest.exports !== undefined;
-      if (subpath === "") {
-        for (const field of ENTRY_FIELDS) {
-          const value = manifest[field];
-          if (typeof value === "string") {
-            exact.push(value);
-            namesEntry = true;
-          }
-        }
-        if (!namesEntry) exact.push("index");
-      } else {
-        exact.push(subpath);
-      }
-      const fallback = subpath === "" ? ["src/index", "index"] : [`src/${subpath}`];
-      const tries: Resolved[] = [
-        ...exact.map((path) => ({ path, confidence: "exact" as const })),
-        ...fallback.map((path) => ({ path, confidence: "heuristic" as const })),
-      ];
-      for (const attempt of tries) {
-        const relative = attempt.path.replace(/^\.\//, "");
-        if (relative === "" || relative.startsWith("/") || relative.startsWith("../")) continue;
-        const path = resolveTs(`./${relative}`, from);
-        if (path !== undefined) return { path, confidence: attempt.confidence };
-      }
-      return undefined;
-    };
+    const resolveModule = createModuleResolver(sp, workspace, manifests);
 
     for (const file of sp.rootFiles) {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
@@ -317,13 +346,7 @@ export function buildImportGraph(
           column: position.character + 1,
         };
 
-        const mode = ts.getModeForUsageLocation(sourceFile, literal, options);
-        const tsPath = resolveTs(specifier, sourceFile.fileName, mode);
-        const pkgTarget = workspaceTarget(workspace, specifier);
-        let resolved: Resolved | undefined =
-          tsPath === undefined ? undefined : { path: tsPath, confidence: "exact" };
-        if (!resolved && pkgTarget) resolved = resolveWorkspace(pkgTarget.pkg, pkgTarget.subpath);
-
+        const resolved = resolveModule(specifier, sourceFile, literal);
         if (resolved) {
           const target = serviceForFile(workspace, resolved.path);
           if (!target || !sources.has(resolved.path)) {
@@ -356,7 +379,7 @@ export function buildImportGraph(
         const mustBeLocal =
           isRelative(specifier) ||
           /^(@\/|~\/|#)/.test(specifier) ||
-          pkgTarget !== undefined ||
+          workspaceTarget(workspace, specifier) !== undefined ||
           pathsKeys.some((key) => matchesPathsKey(key, specifier));
         if (!mustBeLocal) continue;
 
