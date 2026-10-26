@@ -36,7 +36,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `datastore` | `engine` (`postgres`, `mysql`, `mongo`, `redis`, …) | system | `datastore:infra/postgres` |
 | `queue` | `engine`, `name?` | system | `queue:infra/redis#receipts` |
 | `external` | `host` | system | `external:ext/api.stripe.com` |
-| `unresolved` | `reason`, `expression` | the service containing the call | `unresolved:web/app/blog/page.tsx:9` |
+| `unresolved` | `reason`, `expression` | the service containing the call | `unresolved:web/app/blog/page.tsx:9:15` (line:column of the expression) |
 
 **ID rules** (ADR-0019): `nodeId(kind, service, qualified)` gives `<kind>:<service>/<qualified>`.
 - IDs come from qualified names, never from array positions or hashes, so they stay stable across commits.
@@ -62,7 +62,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 
 | kind | From → to | Meaning |
 |---|---|---|
-| `imports` | file → file | static import |
+| `imports` | file → file, or → unresolved | import, re-export, or literal `require`/`import()`; a local specifier that doesn't resolve targets an `unresolved` node (`UNKNOWN_SYMBOL`) |
 | `calls` | symbol → symbol | resolved local call |
 | `http` | symbol or page → route, or → unresolved | outbound HTTP call matched to a route (§7 of DESIGN.md) |
 | `handles` | route → symbol | handler function of a route |
