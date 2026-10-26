@@ -192,7 +192,9 @@ for ($i = 1; $i -le $MaxRuns; $i++) {
   $run = @{ SessionId = ''; Summary = ''; IsError = $false; Minutes = 0 }
   $writer = New-Object System.IO.StreamWriter($raw, $true, (New-Object System.Text.UTF8Encoding($false)))
   try {
+    # --add-dir lets the run edit the planning repo too (SESSION_LOG.md, LEARNING.md, PROPOSALS.md).
     claude -p $prompt --model $runModel --permission-mode acceptEdits `
+      --add-dir (Join-Path (Split-Path $root -Parent) 'gitinside-planning') `
       --output-format stream-json --verbose `
       --allowedTools $allowedTools --disallowedTools $disallowedTools |
       ForEach-Object {
