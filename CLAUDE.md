@@ -72,6 +72,7 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - `cp`, `mv`, `rm` aren't allowed. Copy with Read + Write, move or delete tracked files with `git mv` / `git rm`, and delete an untracked scratch file with `git clean -f <path>`.
 - Write CLI smoke-test output under a gitignored folder (e.g. `--out packages/analyzer/dist/smoke.json`), never into either repo's tracked tree.
 - Paths with backslash-escaped spaces are denied. Use forward slashes and quote paths instead.
+- `pnpm --filter <pkg> exec vitest run <file>` runs the tests but then exits 1 with "Command vitest not found". Use the package scripts instead: `pnpm --filter <pkg> test` or `coverage`.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 <!-- lessons:end -->
 

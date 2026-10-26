@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.9. Call edges for locally resolved calls
+M1.10. Express route detector (methods, router.route, mount composition, nested/imported routers, handles edges)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -34,7 +34,7 @@ M1.9. Call edges for locally resolved calls
 - [x] M1.6 Module and file nodes with content hashes {model: sonnet}
 - [x] M1.7 Symbol extraction (functions, classes, methods, exported consts) {model: opus}
 - [x] M1.8 Import edges incl. cross-workspace package imports {model: opus}
-- [ ] M1.9 Call edges for locally resolved calls {model: opus}
+- [x] M1.9 Call edges for locally resolved calls {model: opus}
 - [ ] M1.10 Express route detector (methods, router.route, mount composition, nested/imported routers, handles edges) {model: opus}
 - [ ] M1.11 Next.js detector (app router route.ts, pages/api, pages, dynamic segments, route groups) {model: opus}
 - [ ] M1.12 Prisma detector (schema models/fields/datasource, client reads/writes, $queryRaw unresolved) {model: opus}
@@ -154,6 +154,8 @@ M1.9. Call edges for locally resolved calls
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-26 · M1.9: `buildCallEdges` in `packages/analyzer/src/calls.ts`: symbol → symbol `calls` edges, caller = innermost enclosing symbol, callee via each service's type checker (aliases, re-exports, object properties, overloads, `new C()`); workspace package imports bridged with the M1.8 resolver (now `createModuleResolver`), taking the import's confidence; unresolved callees get no edge (ADR-0025). 119 analyzer tests, 98.7% coverage; lint/typecheck/build green; CLI on this repo emits 98 call edges, 16 cross-service. Next: M1.10.
 
 - 2026-10-26 · M1.8: `extractImports`/`buildImportGraph` in `packages/analyzer/src/imports.ts`: file → file `imports` edges from import/export-from, `import = require`, literal `require()`/`import()`; TS resolution first, then workspace packages via their `package.json` (`src/index` fallbacks are `heuristic`); unresolvable local specifiers become `unresolved` nodes (ADR-0024). 111 analyzer tests, 98.9% coverage; lint/typecheck/build green; CLI on this repo emits 51 import edges incl. `@gitinside/schema` → `schema/src/index.ts`. Next: M1.9.
 
