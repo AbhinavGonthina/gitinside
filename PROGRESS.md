@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.8. Import edges incl. cross-workspace package imports
+M1.9. Call edges for locally resolved calls
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -33,7 +33,7 @@ M1.8. Import edges incl. cross-workspace package imports
 - [x] M1.5 Per-service TS program: tsconfig loading, synthesized defaults, paths/baseUrl, no node_modules, warnings {model: opus}
 - [x] M1.6 Module and file nodes with content hashes {model: sonnet}
 - [x] M1.7 Symbol extraction (functions, classes, methods, exported consts) {model: opus}
-- [ ] M1.8 Import edges incl. cross-workspace package imports {model: opus}
+- [x] M1.8 Import edges incl. cross-workspace package imports {model: opus}
 - [ ] M1.9 Call edges for locally resolved calls {model: opus}
 - [ ] M1.10 Express route detector (methods, router.route, mount composition, nested/imported routers, handles edges) {model: opus}
 - [ ] M1.11 Next.js detector (app router route.ts, pages/api, pages, dynamic segments, route groups) {model: opus}
@@ -154,6 +154,8 @@ M1.8. Import edges incl. cross-workspace package imports
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-26 · M1.8: `extractImports`/`buildImportGraph` in `packages/analyzer/src/imports.ts`: file → file `imports` edges from import/export-from, `import = require`, literal `require()`/`import()`; TS resolution first, then workspace packages via their `package.json` (`src/index` fallbacks are `heuristic`); unresolvable local specifiers become `unresolved` nodes (ADR-0024). 111 analyzer tests, 98.9% coverage; lint/typecheck/build green; CLI on this repo emits 51 import edges incl. `@gitinside/schema` → `schema/src/index.ts`. Next: M1.9.
 
 - 2026-10-26 · M1.7: `extractSymbols`/`buildSymbolNodes` in `packages/analyzer/src/symbols.ts`: top-level functions, classes + methods (`Class.method`, parented to the class), function-valued consts, and exported values; exports detected syntactically incl. CommonJS (ADR-0023). 97 analyzer tests, 98.9% coverage; lint/typecheck/build green; CLI on this repo emits 86 symbols. Next: M1.8.
 
