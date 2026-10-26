@@ -73,6 +73,7 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Write CLI smoke-test output under a gitignored folder (e.g. `--out packages/analyzer/dist/smoke.json`), never into either repo's tracked tree.
 - Paths with backslash-escaped spaces are denied. Use forward slashes and quote paths instead.
 - `pnpm --filter <pkg> exec vitest run <file>` runs the tests but then exits 1 with "Command vitest not found". Use the package scripts instead: `pnpm --filter <pkg> test` or `coverage`.
+- Vitest strips types without checking them, so tests can pass while `pnpm typecheck` fails (e.g. on TypeScript's internal, untyped checker methods). Run typecheck before treating green tests as done.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 <!-- lessons:end -->
 
