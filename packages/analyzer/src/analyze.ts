@@ -1,7 +1,14 @@
 import { stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
-import { SCHEMA_VERSION, SYSTEM_ID, parseGraph, type ArchitectureGraph } from "@gitinside/schema";
+import {
+  SCHEMA_VERSION,
+  SYSTEM_ID,
+  compareStrings,
+  parseGraph,
+  type ArchitectureGraph,
+} from "@gitinside/schema";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
+import { detectWorkspace, serviceNodes } from "./workspace.js";
 
 /** Version stamped into every graph. Part of the cache key, so bump it when output changes. */
 export const ANALYZER_VERSION = "0.1.0";
@@ -33,6 +40,7 @@ export async function analyze(
   if (!info?.isDirectory()) throw new Error(`not a directory: ${dir}`);
 
   const inventory = await buildInventory(root, options.limits);
+  const workspace = await detectWorkspace(root, inventory.files);
   const name = options.name ?? (basename(root) || "repo");
   return parseGraph({
     schemaVersion: SCHEMA_VERSION,
@@ -42,8 +50,16 @@ export async function analyze(
       ...(options.sha ? { sha: options.sha } : {}),
     },
     analyzerVersion: ANALYZER_VERSION,
-    nodes: [{ id: SYSTEM_ID, kind: "system", label: name, parentId: null }],
+    nodes: [
+      { id: SYSTEM_ID, kind: "system", label: name, parentId: null },
+      ...serviceNodes(workspace),
+    ],
     edges: [],
-    warnings: inventory.warnings,
+    warnings: [...inventory.warnings, ...workspace.warnings].sort(
+      (a, b) =>
+        compareStrings(a.file ?? "", b.file ?? "") ||
+        compareStrings(a.code, b.code) ||
+        compareStrings(a.message, b.message),
+    ),
   });
 }
