@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -47,6 +47,26 @@ describe("analyze", () => {
 
   it("rejects a missing directory", async () => {
     await expect(analyze(join(dir, "nope"))).rejects.toThrow(/not a directory/);
+  });
+
+  it("records skipped files as graph warnings", async () => {
+    await writeFile(join(dir, "app.min.js"), "!0;");
+    const graph = await analyze(dir);
+    expect(graph.warnings).toEqual([
+      {
+        code: "SKIPPED_GENERATED",
+        file: "app.min.js",
+        message: "generated file skipped (minified)",
+      },
+    ]);
+  });
+
+  it("fails with LIMIT_FILES over the source-file limit", async () => {
+    await writeFile(join(dir, "a.ts"), "");
+    await writeFile(join(dir, "b.ts"), "");
+    await expect(analyze(dir, { limits: { maxSourceFiles: 1 } })).rejects.toMatchObject({
+      code: "LIMIT_FILES",
+    });
   });
 });
 
