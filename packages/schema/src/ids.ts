@@ -8,7 +8,11 @@ export const SYSTEM_ID = "system:root";
  * across commits (ADR-0019). Examples:
  * `symbol:api/src/routes/orders.ts#createOrder`, `route:api/POST /api/orders`, `model:api/Order`.
  */
-export function nodeId(kind: Exclude<NodeKind, "system">, service: string, qualified: string): string {
+export function nodeId(
+  kind: Exclude<NodeKind, "system">,
+  service: string,
+  qualified: string,
+): string {
   return `${kind}:${service}/${qualified}`;
 }
 

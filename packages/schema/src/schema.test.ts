@@ -26,17 +26,87 @@ function sampleGraph(): ArchitectureGraph {
     analyzerVersion: "0.1.0",
     nodes: [
       { id: SYSTEM_ID, kind: "system", label: "acme/shop", parentId: null },
-      { id: web, kind: "service", label: "web", parentId: SYSTEM_ID, layer: "frontend", root: "apps/web", framework: "next" },
-      { id: api, kind: "service", label: "api", parentId: SYSTEM_ID, layer: "backend", root: "apps/api", framework: "express" },
-      { id: page, kind: "page", label: "/checkout", parentId: web, layer: "frontend", path: "/checkout", source: loc("apps/web/app/checkout/page.tsx", 1) },
-      { id: route, kind: "route", label: "POST /api/orders", parentId: api, layer: "backend", method: "POST", path: "/api/orders", source: loc("apps/api/src/orders.ts", 42) },
-      { id: model, kind: "model", label: "Order", parentId: api, layer: "data", fields: [{ name: "id", type: "String", optional: false }] },
-      { id: unresolved, kind: "unresolved", label: "Unresolved call", parentId: web, reason: "DYNAMIC_URL", expression: "`${CMS_URL}/posts`" },
+      {
+        id: web,
+        kind: "service",
+        label: "web",
+        parentId: SYSTEM_ID,
+        layer: "frontend",
+        root: "apps/web",
+        framework: "next",
+      },
+      {
+        id: api,
+        kind: "service",
+        label: "api",
+        parentId: SYSTEM_ID,
+        layer: "backend",
+        root: "apps/api",
+        framework: "express",
+      },
+      {
+        id: page,
+        kind: "page",
+        label: "/checkout",
+        parentId: web,
+        layer: "frontend",
+        path: "/checkout",
+        source: loc("apps/web/app/checkout/page.tsx", 1),
+      },
+      {
+        id: route,
+        kind: "route",
+        label: "POST /api/orders",
+        parentId: api,
+        layer: "backend",
+        method: "POST",
+        path: "/api/orders",
+        source: loc("apps/api/src/orders.ts", 42),
+      },
+      {
+        id: model,
+        kind: "model",
+        label: "Order",
+        parentId: api,
+        layer: "data",
+        fields: [{ name: "id", type: "String", optional: false }],
+      },
+      {
+        id: unresolved,
+        kind: "unresolved",
+        label: "Unresolved call",
+        parentId: web,
+        reason: "DYNAMIC_URL",
+        expression: "`${CMS_URL}/posts`",
+      },
     ],
     edges: [
-      { id: edgeId("http", page, route), kind: "http", from: page, to: route, confidence: "exact", label: "POST /api/orders", sites: [loc("apps/web/lib/api.ts", 14)] },
-      { id: edgeId("writes", route, model), kind: "writes", from: route, to: model, confidence: "exact", sites: [loc("apps/api/src/orders.ts", 51)] },
-      { id: edgeId("http", page, unresolved), kind: "http", from: page, to: unresolved, confidence: "unresolved", reason: "DYNAMIC_URL", sites: [loc("apps/web/app/blog/page.tsx", 9)] },
+      {
+        id: edgeId("http", page, route),
+        kind: "http",
+        from: page,
+        to: route,
+        confidence: "exact",
+        label: "POST /api/orders",
+        sites: [loc("apps/web/lib/api.ts", 14)],
+      },
+      {
+        id: edgeId("writes", route, model),
+        kind: "writes",
+        from: route,
+        to: model,
+        confidence: "exact",
+        sites: [loc("apps/api/src/orders.ts", 51)],
+      },
+      {
+        id: edgeId("http", page, unresolved),
+        kind: "http",
+        from: page,
+        to: unresolved,
+        confidence: "unresolved",
+        reason: "DYNAMIC_URL",
+        sites: [loc("apps/web/app/blog/page.tsx", 9)],
+      },
     ],
     warnings: [],
   };
@@ -73,7 +143,10 @@ describe("ArchitectureGraph", () => {
   it("rejects non-root nodes without a parent and missing parents", () => {
     const g = sampleGraph();
     g.nodes[1] = { ...g.nodes[1]!, parentId: null } as ArchitectureGraph["nodes"][number];
-    g.nodes[2] = { ...g.nodes[2]!, parentId: "service:gone/" } as ArchitectureGraph["nodes"][number];
+    g.nodes[2] = {
+      ...g.nodes[2]!,
+      parentId: "service:gone/",
+    } as ArchitectureGraph["nodes"][number];
     const m = messages(g);
     expect(m.some((x) => x.startsWith("node has no parent"))).toBe(true);
     expect(m.some((x) => x.includes("missing parent"))).toBe(true);
@@ -103,7 +176,9 @@ describe("ArchitectureGraph", () => {
 
 describe("ids", () => {
   it("builds readable, stable ids", () => {
-    expect(nodeId("symbol", "api", "src/routes/orders.ts#createOrder")).toBe("symbol:api/src/routes/orders.ts#createOrder");
+    expect(nodeId("symbol", "api", "src/routes/orders.ts#createOrder")).toBe(
+      "symbol:api/src/routes/orders.ts#createOrder",
+    );
     expect(edgeId("calls", "a", "b")).toBe("calls:a->b");
   });
 });
