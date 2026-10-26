@@ -30,7 +30,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `module` | `path` | service | `module:api/src/routes` |
 | `file` | `path`, `hash` (SHA-256 of content) | module or service | `file:api/src/routes/orders.ts` |
 | `symbol` | `symbolKind` (function, class, method, variable), `exported` | file, or class for methods | `symbol:api/src/routes/orders.ts#createOrder` |
-| `route` | `method`, `path` (e.g. `/api/users/:id`) | file that declares it | `route:api/POST /api/orders` |
+| `route` | `method`, `path` (e.g. `/api/users/:id`, full path after mounts) | file that declares it | `route:api/POST /api/orders` (service = the app that serves it) |
 | `page` | `path` (URL path) | file | `page:web//checkout` |
 | `model` | `fields[]` (`name`, `type`, `optional`) | service (or `prisma` module) | `model:api/Order` |
 | `datastore` | `engine` (`postgres`, `mysql`, `mongo`, `redis`, …) | system | `datastore:infra/postgres` |
@@ -65,7 +65,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `imports` | file → file, or → unresolved | import, re-export, or literal `require`/`import()`; a local specifier that doesn't resolve targets an `unresolved` node (`UNKNOWN_SYMBOL`) |
 | `calls` | symbol → symbol | call whose callee resolves to a symbol in the repo (including across workspace packages); unresolved callees get no edge (ADR-0025) |
 | `http` | symbol or page → route, or → unresolved | outbound HTTP call matched to a route (§7 of DESIGN.md) |
-| `handles` | route → symbol | handler function of a route |
+| `handles` | route → symbol | handler or middleware function of a route; routes with non-static paths are `unresolved` nodes (`DYNAMIC_ROUTE`) with no edge (ADR-0026) |
 | `renders` | page → symbol | page component |
 | `reads`, `writes` | symbol or route → model | Prisma client usage |
 | `stores` | model → datastore | model persisted in a datastore |

@@ -7,7 +7,8 @@ import {
   parseGraph,
   type ArchitectureGraph,
 } from "@gitinside/schema";
-import { buildCallEdges } from "./calls.js";
+import { buildCallEdges, createSymbolResolver } from "./calls.js";
+import { buildExpressRoutes } from "./express.js";
 import { buildFileNodes } from "./files.js";
 import { buildImportGraph } from "./imports.js";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
@@ -48,6 +49,8 @@ export async function analyze(
   const workspace = await detectWorkspace(root, inventory.files);
   const programs = buildServicePrograms(root, workspace, inventory);
   const imports = buildImportGraph(programs, workspace, inventory.sourceFiles);
+  const resolver = createSymbolResolver(programs, workspace);
+  const express = buildExpressRoutes(programs, resolver);
   const name = options.name ?? (basename(root) || "repo");
   return parseGraph({
     schemaVersion: SCHEMA_VERSION,
@@ -63,13 +66,15 @@ export async function analyze(
       ...(await buildFileNodes(root, workspace, inventory.sourceFiles)),
       ...buildSymbolNodes(programs),
       ...imports.nodes,
+      ...express.nodes,
     ],
-    edges: [...imports.edges, ...buildCallEdges(programs, workspace)],
+    edges: [...imports.edges, ...buildCallEdges(programs, resolver), ...express.edges],
     warnings: [
       ...inventory.warnings,
       ...workspace.warnings,
       ...programs.flatMap((p) => p.warnings),
       ...imports.warnings,
+      ...express.warnings,
     ].sort(
       (a, b) =>
         compareStrings(a.file ?? "", b.file ?? "") ||
