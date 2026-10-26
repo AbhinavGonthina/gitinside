@@ -61,6 +61,15 @@ describe("analyze", () => {
     ]);
   });
 
+  it("includes tsconfig and syntax warnings from the per-service programs", async () => {
+    await writeFile(join(dir, "bad.ts"), "const = ;");
+    const graph = await analyze(dir);
+    expect(graph.warnings.map((w) => [w.file, w.code])).toEqual([
+      [undefined, "TSCONFIG_MISSING"],
+      ["bad.ts", "SYNTAX_ERROR"],
+    ]);
+  });
+
   it("defaults owner and name", async () => {
     const graph = await analyze(dir);
     expect(graph.repo.owner).toBe("local");
