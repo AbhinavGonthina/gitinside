@@ -12,6 +12,7 @@ import { buildExpressRoutes } from "./express.js";
 import { buildFileNodes } from "./files.js";
 import { buildImportGraph } from "./imports.js";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
+import { buildNextRoutes } from "./next.js";
 import { buildServicePrograms } from "./program.js";
 import { buildSymbolNodes } from "./symbols.js";
 import { detectWorkspace, serviceNodes } from "./workspace.js";
@@ -51,6 +52,9 @@ export async function analyze(
   const imports = buildImportGraph(programs, workspace, inventory.sourceFiles);
   const resolver = createSymbolResolver(programs, workspace);
   const express = buildExpressRoutes(programs, resolver);
+  const next = buildNextRoutes(programs, resolver);
+  // A custom Express server can register the same route as a Next file; Express's node wins.
+  const expressIds = new Set([...express.nodes, ...express.edges].map((x) => x.id));
   const name = options.name ?? (basename(root) || "repo");
   return parseGraph({
     schemaVersion: SCHEMA_VERSION,
@@ -67,14 +71,21 @@ export async function analyze(
       ...buildSymbolNodes(programs),
       ...imports.nodes,
       ...express.nodes,
+      ...next.nodes.filter((n) => !expressIds.has(n.id)),
     ],
-    edges: [...imports.edges, ...buildCallEdges(programs, resolver), ...express.edges],
+    edges: [
+      ...imports.edges,
+      ...buildCallEdges(programs, resolver),
+      ...express.edges,
+      ...next.edges.filter((e) => !expressIds.has(e.id)),
+    ],
     warnings: [
       ...inventory.warnings,
       ...workspace.warnings,
       ...programs.flatMap((p) => p.warnings),
       ...imports.warnings,
       ...express.warnings,
+      ...next.warnings,
     ].sort(
       (a, b) =>
         compareStrings(a.file ?? "", b.file ?? "") ||
