@@ -218,3 +218,13 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - Syntax errors become one `SYNTAX_ERROR` warning per file (first error's line:column plus a count); TS's error recovery still yields an AST. Diagnostic text has the absolute repo root stripped so warnings are identical on every machine.
   - Parsed lib files are cached per process; they come from our install and never change.
 - **Consequences:** analysis never touches anything outside the repo except TS's libs. Project `references` and `include`/`exclude` are ignored, so a solution-style tsconfig contributes only its own options. Lib parsing costs ~0.5 s once per process.
+
+## ADR-0023: Symbols are top-level declarations; exports are detected syntactically
+- **Context:** symbol nodes (M1.7) are the leaves that `calls`, `handles`, and `renders` edges attach to, so they must include every function a route or page could point at, without flooding the graph with every local constant.
+- **Decision** (`packages/analyzer/src/symbols.ts`):
+  - Only top-level statements are read. Functions (skipping overload signatures), classes, and function- or arrow-valued `const`/`let`/`var` are always symbols. Any other variable is a symbol only when exported.
+  - Methods are class methods with a body (or `abstract`) plus function-valued class properties (`handle = () => {}`). Their ID is `Class.method`, their parent is the class symbol, and they inherit the class's `exported` flag. Constructors and get/set accessors are skipped.
+  - Exports are read from syntax, not the type checker: the `export` modifier, local `export { … }` lists, `export default` / `export =`, and the CommonJS forms `module.exports = x | { … }`, `exports.x = …`, `module.exports.x = …`. Exporting an identifier marks the local declaration. An inline exported value becomes a symbol under its export name, or `default` when it has none.
+  - Ambient (`declare`) declarations and `.d.ts` files yield no symbols. On a name collision within a file, the first declaration wins.
+  - `source` spans the declaration, starting after any JSDoc.
+- **Consequences:** the result depends only on the file's own text, so it is cheap to cache per content hash (M6.7) and easy to explain. Express controllers written as `module.exports = { list: async (req, res) => … }` get named symbols for M1.10. Nested functions, `exports["x"]`, and `Object.assign(module.exports, …)` produce no symbols. Calls made inside them are attributed to the enclosing top-level symbol in M1.9.

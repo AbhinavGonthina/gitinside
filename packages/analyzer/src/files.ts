@@ -14,7 +14,7 @@ function basename(path: string): string {
 }
 
 /** The path of `path` inside the service folder (`apps/api/src/a.ts` → `src/a.ts`). */
-function withinService(service: WorkspacePackage, path: string): string {
+export function withinService(service: WorkspacePackage, path: string): string {
   return service.dir === "" ? path : path.slice(service.dir.length + 1);
 }
 
