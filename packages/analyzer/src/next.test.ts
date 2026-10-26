@@ -330,6 +330,14 @@ describe("next.js routes", () => {
       "handles route:web/GET /api/health -> symbol:web/app/api/health/route.ts#GET (exact)",
       "handles route:web/GET /api/health -> symbol:web/server.ts#health (exact)",
     ]);
+    expect(graph.warnings.filter((w) => w.code === "DUPLICATE_NODE")).toEqual([
+      {
+        code: "DUPLICATE_NODE",
+        file: "app/api/health/route.ts",
+        message:
+          "route:web/GET /api/health is produced by both express and next; keeping express's",
+      },
+    ]);
   });
 
   it("keys routes by the owning workspace service", async () => {

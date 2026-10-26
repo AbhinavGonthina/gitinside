@@ -1,12 +1,7 @@
 import { stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
-import {
-  SCHEMA_VERSION,
-  SYSTEM_ID,
-  compareStrings,
-  parseGraph,
-  type ArchitectureGraph,
-} from "@gitinside/schema";
+import { SYSTEM_ID, type ArchitectureGraph } from "@gitinside/schema";
+import { assembleGraph } from "./assemble.js";
 import { buildCallEdges, createSymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
 import { buildFileNodes } from "./files.js";
@@ -62,47 +57,34 @@ export async function analyze(
     inventory.sourceFiles,
     express.inlineHandlers,
   );
-  // A custom Express server can register the same route as a Next file; Express's node wins.
-  const expressIds = new Set([...express.nodes, ...express.edges].map((x) => x.id));
   const name = options.name ?? (basename(root) || "repo");
-  return parseGraph({
-    schemaVersion: SCHEMA_VERSION,
+  // Part order is precedence: a custom Express server can register the same route as a
+  // Next.js file, and Express's node wins (ADR-0027).
+  return assembleGraph({
     repo: {
       owner: options.owner ?? "local",
       name,
       ...(options.sha ? { sha: options.sha } : {}),
     },
     analyzerVersion: ANALYZER_VERSION,
-    nodes: [
-      { id: SYSTEM_ID, kind: "system", label: name, parentId: null },
-      ...serviceNodes(workspace),
-      ...(await buildFileNodes(root, workspace, inventory.sourceFiles)),
-      ...buildSymbolNodes(programs),
-      ...imports.nodes,
-      ...express.nodes,
-      ...next.nodes.filter((n) => !expressIds.has(n.id)),
-      ...prisma.nodes,
+    parts: [
+      { source: "inventory", warnings: inventory.warnings },
+      {
+        source: "workspace",
+        nodes: [
+          { id: SYSTEM_ID, kind: "system", label: name, parentId: null },
+          ...serviceNodes(workspace),
+        ],
+        warnings: workspace.warnings,
+      },
+      { source: "typescript", warnings: programs.flatMap((p) => p.warnings) },
+      { source: "files", nodes: await buildFileNodes(root, workspace, inventory.sourceFiles) },
+      { source: "symbols", nodes: buildSymbolNodes(programs) },
+      { source: "imports", ...imports },
+      { source: "calls", edges: buildCallEdges(programs, resolver) },
+      { source: "express", ...express },
+      { source: "next", ...next },
+      { source: "prisma", ...prisma },
     ],
-    edges: [
-      ...imports.edges,
-      ...buildCallEdges(programs, resolver),
-      ...express.edges,
-      ...next.edges.filter((e) => !expressIds.has(e.id)),
-      ...prisma.edges,
-    ],
-    warnings: [
-      ...inventory.warnings,
-      ...workspace.warnings,
-      ...programs.flatMap((p) => p.warnings),
-      ...imports.warnings,
-      ...express.warnings,
-      ...next.warnings,
-      ...prisma.warnings,
-    ].sort(
-      (a, b) =>
-        compareStrings(a.file ?? "", b.file ?? "") ||
-        compareStrings(a.code, b.code) ||
-        compareStrings(a.message, b.message),
-    ),
   });
 }
