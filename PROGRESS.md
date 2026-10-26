@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.14. Fixtures (express-basic, express-nested-routers, next-app-router, next-pages-api, prisma-relations, pnpm-monorepo, syntax-error, no-tsconfig) + golden tests
+M1.15. Determinism test + analyzer coverage ≥ 85% + analysis benchmark baseline
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -39,7 +39,7 @@ M1.14. Fixtures (express-basic, express-nested-routers, next-app-router, next-pa
 - [x] M1.11 Next.js detector (app router route.ts, pages/api, pages, dynamic segments, route groups) {model: opus}
 - [x] M1.12 Prisma detector (schema models/fields/datasource, client reads/writes, $queryRaw unresolved) {model: opus}
 - [x] M1.13 Graph assembly + canonical serialization + validation before write {model: opus}
-- [ ] M1.14 Fixtures (express-basic, express-nested-routers, next-app-router, next-pages-api, prisma-relations, pnpm-monorepo, syntax-error, no-tsconfig) + golden tests {model: sonnet}
+- [x] M1.14 Fixtures (express-basic, express-nested-routers, next-app-router, next-pages-api, prisma-relations, pnpm-monorepo, syntax-error, no-tsconfig) + golden tests {model: sonnet}
 - [ ] M1.15 Determinism test + analyzer coverage ≥ 85% + analysis benchmark baseline {model: opus}
 - [ ] M1.16 Milestone verification + docs/milestones/M1-review.md + tag m1 {model: opus}
 
@@ -154,6 +154,8 @@ M1.14. Fixtures (express-basic, express-nested-routers, next-app-router, next-pa
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-26 · M1.14: eight fixtures under `fixtures/<name>/` (README + `expected.json` golden each) and `packages/analyzer/src/fixtures.test.ts`: byte-compares `serializeGraph` output to the golden (`UPDATE_GOLDEN=1` regenerates) plus per-fixture semantic assertions so a regenerated golden can't hide a regression. `.gitattributes` pins `fixtures/**` to LF because goldens embed file hashes. 225 analyzer tests; lint/typecheck green. Next: M1.15.
 
 - 2026-10-26 · M1.13: `assembleGraph`/`serializeGraph` in `packages/analyzer/src/assemble.ts`: passes are ordered `GraphPart`s (order = precedence); differing duplicate nodes keep the first with a `DUPLICATE_NODE` warning, duplicate edges merge sites/fields and keep the strongest confidence, schema failures throw `INVALID_GRAPH` with readable issues; `serializeGraph` re-validates the stringified text and the CLI writes `--out` via temp file + rename (ADR-0029). 209 analyzer tests, 98.1% coverage; lint/typecheck/build green; CLI on this repo: 198 nodes, 273 edges. Next: M1.14.
 
