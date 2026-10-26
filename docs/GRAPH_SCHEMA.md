@@ -32,8 +32,8 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `symbol` | `symbolKind` (function, class, method, variable), `exported` | file, or class for methods | `symbol:api/src/routes/orders.ts#createOrder` |
 | `route` | `method`, `path` (e.g. `/api/users/:id`, full path after mounts) | file that declares it | `route:api/POST /api/orders` (service = the app that serves it) |
 | `page` | `path` (URL path) | file | `page:web//checkout` |
-| `model` | `fields[]` (`name`, `type`, `optional`) | service (or `prisma` module) | `model:api/Order` |
-| `datastore` | `engine` (`postgres`, `mysql`, `mongo`, `redis`, …) | system | `datastore:infra/postgres` |
+| `model` | `fields[]` (`name`, `type`, `optional`; `type` keeps `[]` for lists) | the `.prisma` file that declares it | `model:api/Order` |
+| `datastore` | `engine` (`postgres`, `mysql`, `mongo`, `redis`, …) | system | `datastore:infra/postgres`; from a Prisma datasource, `datastore:infra/api/prisma/schema.prisma#db` (ADR-0028) |
 | `queue` | `engine`, `name?` | system | `queue:infra/redis#receipts` |
 | `external` | `host` | system | `external:ext/api.stripe.com` |
 | `unresolved` | `reason`, `expression` | the service containing the call | `unresolved:web/app/blog/page.tsx:9:15` (line:column of the expression) |
@@ -53,8 +53,10 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 ## Edges
 
 ```ts
-{ id, kind, from, to, confidence, label?, reason?, sites: SourceLocation[] }
+{ id, kind, from, to, confidence, label?, reason?, fields?: string[], sites: SourceLocation[] }
 ```
+
+`fields` appears only on `reads`/`writes` edges to a model: the model fields the call sites name in `select`, `where`, `data`, and similar arguments, sorted (ADR-0028). M6 uses it to flag a removed field that is still read.
 
 - There is one edge per `(kind, from, to)`, with ID `edgeId(kind, from, to)`, i.e. `<kind>:<from>-><to>`. Each call site that produced it is listed in `sites`.
 - Edges connect leaf-level nodes (symbols, routes, pages, models, datastores, externals). The viewer aggregates them upward to whatever level is visible.
@@ -67,8 +69,8 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `http` | symbol or page → route, or → unresolved | outbound HTTP call matched to a route (§7 of DESIGN.md) |
 | `handles` | route → symbol | handler or middleware function of a route (Express, or the exported Next.js handler); routes with non-static paths are `unresolved` nodes (`DYNAMIC_ROUTE`) with no edge (ADR-0026, ADR-0027) |
 | `renders` | page → symbol | page component: the page file's default export (ADR-0027) |
-| `reads`, `writes` | symbol or route → model | Prisma client usage |
-| `stores` | model → datastore | model persisted in a datastore |
+| `reads`, `writes` | symbol or route → model, or → unresolved | Prisma client usage; the route is the source when the call sits in an inline Express handler. Raw queries target an `unresolved` node (`RAW_QUERY`), as do calls naming an unknown (`UNKNOWN_SYMBOL`) or ambiguous (`AMBIGUOUS`) model (ADR-0028) |
+| `stores` | model → datastore | model persisted in a datastore (from the Prisma `datasource`) |
 | `publishes`, `consumes` | symbol → queue | queue producer and consumer (v1: BullMQ / known clients) |
 | `external_call` | symbol → external | SDK or literal-host call to a third party |
 

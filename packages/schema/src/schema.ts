@@ -164,6 +164,8 @@ export const GraphEdge = z
     confidence: Confidence,
     label: z.string().optional(),
     reason: UnresolvedReason.optional(),
+    /** For `reads`/`writes`: the model fields the call sites name, sorted. */
+    fields: z.array(z.string().min(1)).optional(),
     sites: z.array(SourceLocation),
   })
   .strict();
