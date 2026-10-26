@@ -75,6 +75,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - `pnpm --filter <pkg> exec vitest run <file>` runs the tests but then exits 1 with "Command vitest not found". Use the package scripts instead: `pnpm --filter <pkg> test` or `coverage`.
 - Vitest strips types without checking them, so tests can pass while `pnpm typecheck` fails (e.g. on TypeScript's internal, untyped checker methods). Run typecheck before treating green tests as done.
 - The analyzer imports `@gitinside/schema` from its built `dist`, so after editing the schema, `pnpm --filter @gitinside/analyzer test` still validates against the old one. Run `pnpm --filter @gitinside/schema build` first (or use root `pnpm test`, which builds it).
+- `pnpm bench` checks out real repos under `bench/.repos/`; anything that walks the tree (ESLint, Prettier) must ignore that folder, or `pnpm lint` lints cal.com.
+- Long background jobs: use Bash `run_in_background` plus a Monitor on its output file; the bench takes ~6 min, so don't block on it in the foreground.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 <!-- lessons:end -->
 

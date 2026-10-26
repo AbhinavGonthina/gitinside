@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.15. Determinism test + analyzer coverage ≥ 85% + analysis benchmark baseline
+M1.16. Milestone verification + docs/milestones/M1-review.md + tag m1
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -40,7 +40,7 @@ M1.15. Determinism test + analyzer coverage ≥ 85% + analysis benchmark baselin
 - [x] M1.12 Prisma detector (schema models/fields/datasource, client reads/writes, $queryRaw unresolved) {model: opus}
 - [x] M1.13 Graph assembly + canonical serialization + validation before write {model: opus}
 - [x] M1.14 Fixtures (express-basic, express-nested-routers, next-app-router, next-pages-api, prisma-relations, pnpm-monorepo, syntax-error, no-tsconfig) + golden tests {model: sonnet}
-- [ ] M1.15 Determinism test + analyzer coverage ≥ 85% + analysis benchmark baseline {model: opus}
+- [x] M1.15 Determinism test + analyzer coverage ≥ 85% + analysis benchmark baseline {model: opus}
 - [ ] M1.16 Milestone verification + docs/milestones/M1-review.md + tag m1 {model: opus}
 
 ### M2: Cross-service links + infra
@@ -154,6 +154,8 @@ M1.15. Determinism test + analyzer coverage ≥ 85% + analysis benchmark baselin
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-26 · M1.15: `determinism.test.ts` analyzes every fixture twice plus once from a copy at another path (space + non-ASCII) and byte-compares; analyzer line coverage 98.15% (threshold 85). `analyze()` gained `onStage(stage, ms)`; new `bench/` package (`pnpm bench`) shallow-fetches pinned repos and runs 1 warm-up + 5 fresh-process runs. Baseline `bench/results/2026-10-26-analysis-calcom.md`: cal.com (5,041 files), median 53.3 s (27–77 s, noisy dev machine), ~2 GiB RSS, graphs identical. Analyzer `testTimeout` 30 s (first-test TS lib parse exceeded 5 s under parallel coverage). Next: M1.16.
 
 - 2026-10-26 · M1.14: eight fixtures under `fixtures/<name>/` (README + `expected.json` golden each) and `packages/analyzer/src/fixtures.test.ts`: byte-compares `serializeGraph` output to the golden (`UPDATE_GOLDEN=1` regenerates) plus per-fixture semantic assertions so a regenerated golden can't hide a regression. `.gitattributes` pins `fixtures/**` to LF because goldens embed file hashes. 225 analyzer tests; lint/typecheck green. Next: M1.15.
 
