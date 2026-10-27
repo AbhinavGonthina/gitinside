@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M2.5. Unresolved nodes/edges with reasons; literal external hosts → external nodes
+M2.6. External SDK detector (allowlist) → external_call edges
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -48,7 +48,7 @@ M2.5. Unresolved nodes/edges with reasons; literal external hosts → external n
 - [x] M2.2 URL expression normalizer (literals, templates, concat, imported consts, env bases, new URL) {model: opus}
 - [x] M2.3 One-level wrapper inlining; WRAPPER_DEPTH beyond {model: opus}
 - [x] M2.4 Route matcher with confidence scoring, ambiguity, route index {model: opus}
-- [ ] M2.5 Unresolved nodes/edges with reasons; literal external hosts → external nodes {model: opus}
+- [x] M2.5 Unresolved nodes/edges with reasons; literal external hosts → external nodes {model: opus}
 - [ ] M2.6 External SDK detector (allowlist) → external_call edges {model: opus}
 - [ ] M2.7 docker-compose + .env detectors (names/schemes only) + stores edges {model: opus}
 - [ ] M2.8 BullMQ/queue client detection → publishes/consumes {model: opus}
@@ -154,6 +154,8 @@ M2.5. Unresolved nodes/edges with reasons; literal external hosts → external n
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-27 · M2.5: `buildHttpEdges` now returns nodes too. Unmatched requests get an `unresolved` node at the site (wrapper call when inlined) with reason, source `expression`, and a new optional schema field `detail`, plus an `unresolved` `http` edge; literal hosts get `external:ext/<host>` + `external_call` (exact). Credentials are stripped from hosts in `toUrlPattern`, default ports in `externalHost()` (ADR-0034). 416 analyzer + 15 schema tests, match.ts 97.3% lines; goldens unchanged; cal.com: all 269 requests in the graph (38 route, 135 unresolved, 79 external_call to 26 hosts). Next: M2.6.
 
 - 2026-10-27 · M2.4: `createRouteMatcher`/`buildHttpEdges` in `packages/analyzer/src/match.ts`, wired in as the new `http` stage. Base, method, and path levels combine and the weakest wins (root-relative is exact in the caller's own service, heuristic across services; API-named env bases, loopback hosts, and unknown methods are heuristic). Ties break on path level, then specific method over `ALL`; remaining ties are `AMBIGUOUS`, one level weaker but never below heuristic. DP path alignment; index by method + first literal segment (ADR-0033). 403 analyzer tests, match.ts 96.6% lines; goldens unchanged; cal.com: 38 edges from 41 sites (22 exact / 7 pattern / 9 heuristic), stage 3.8 s. Unmatched requests get no edge until M2.5. Next: M2.5.
 
