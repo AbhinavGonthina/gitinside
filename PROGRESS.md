@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M2.6. External SDK detector (allowlist) → external_call edges
+M2.7. docker-compose + .env detectors (names/schemes only) + stores edges
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -49,7 +49,7 @@ M2.6. External SDK detector (allowlist) → external_call edges
 - [x] M2.3 One-level wrapper inlining; WRAPPER_DEPTH beyond {model: opus}
 - [x] M2.4 Route matcher with confidence scoring, ambiguity, route index {model: opus}
 - [x] M2.5 Unresolved nodes/edges with reasons; literal external hosts → external nodes {model: opus}
-- [ ] M2.6 External SDK detector (allowlist) → external_call edges {model: opus}
+- [x] M2.6 External SDK detector (allowlist) → external_call edges {model: opus}
 - [ ] M2.7 docker-compose + .env detectors (names/schemes only) + stores edges {model: opus}
 - [ ] M2.8 BullMQ/queue client detection → publishes/consumes {model: opus}
 - [ ] M2.9 Pattern fixtures + golden tests + "no call site dropped" test + secret-leak test {model: opus}
@@ -154,6 +154,8 @@ M2.6. External SDK detector (allowlist) → external_call edges
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-27 · M2.6: `buildSdkEdges` in `packages/analyzer/src/sdk.ts` (new `sdk` stage) traces clients of allowlisted SDKs (Stripe, OpenAI, Anthropic, Resend, Twilio, SendGrid, HubSpot, Slack, Octokit, Postmark, Mailgun, `googleapis`/`@googleapis/*`, every `@aws-sdk/client-*`) like axios instances, and turns method calls on them into unlabeled `external_call` edges to the API host's node, shared with `fetch` via `externalNode()` (ADR-0035). Client-building calls and listed local helpers aren't requests. 434 analyzer tests, sdk.ts 94.1% lines; goldens unchanged; cal.com: `external_call` 79 → 138 (Stripe 23, Google 21, HubSpot 15, SendGrid 1), 29 hosts, no duplicate nodes. Also fixed an M2.5 Prettier slip that broke `pnpm lint`. Next: M2.7.
 
 - 2026-10-27 · M2.5: `buildHttpEdges` now returns nodes too. Unmatched requests get an `unresolved` node at the site (wrapper call when inlined) with reason, source `expression`, and a new optional schema field `detail`, plus an `unresolved` `http` edge; literal hosts get `external:ext/<host>` + `external_call` (exact). Credentials are stripped from hosts in `toUrlPattern`, default ports in `externalHost()` (ADR-0034). 416 analyzer + 15 schema tests, match.ts 97.3% lines; goldens unchanged; cal.com: all 269 requests in the graph (38 route, 135 unresolved, 79 external_call to 26 hosts). Next: M2.6.
 
