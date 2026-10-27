@@ -1,5 +1,5 @@
-import { stat } from "node:fs/promises";
-import { basename, resolve } from "node:path";
+import { readFile, stat } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { SYSTEM_ID, type ArchitectureGraph } from "@gitinside/schema";
 import { assembleGraph } from "./assemble.js";
@@ -39,7 +39,7 @@ export type AnalysisStage = (typeof ANALYSIS_STAGES)[number];
 export interface AnalyzeOptions {
   /** Repo owner recorded in the graph. Defaults to `local`. */
   owner?: string;
-  /** Repo name recorded in the graph. Defaults to the directory name. */
+  /** Repo name recorded in the graph. Defaults to the root `package.json` name, else `repo`. */
   name?: string;
   /** Commit SHA recorded in the graph, if known. */
   sha?: string;
@@ -50,6 +50,25 @@ export interface AnalyzeOptions {
    * the graph (it would break determinism); it feeds benchmarks and `analyses.stats`.
    */
   onStage?: (stage: AnalysisStage, ms: number) => void;
+}
+
+/**
+ * The repo name used when none is given: the root `package.json` `name`, else `repo`. Never
+ * the checkout's folder name, which differs between machines and would break "same commit ⇒
+ * same bytes".
+ */
+async function defaultName(root: string, files: readonly string[]): Promise<string> {
+  if (!files.includes("package.json")) return "repo";
+  try {
+    const manifest: unknown = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+    const name =
+      typeof manifest === "object" && manifest !== null && "name" in manifest
+        ? manifest.name
+        : undefined;
+    return typeof name === "string" && name.trim() !== "" ? name : "repo";
+  } catch {
+    return "repo"; // the workspace stage already warns about invalid JSON
+  }
 }
 
 /**
@@ -90,7 +109,7 @@ export async function analyze(
   const files = await stage("files", () => buildFileNodes(root, workspace, inventory.sourceFiles));
   const symbols = await stage("symbols", () => buildSymbolNodes(programs));
   const calls = await stage("calls", () => buildCallEdges(programs, resolver));
-  const name = options.name ?? (basename(root) || "repo");
+  const name = options.name ?? (await defaultName(root, inventory.files));
   // Part order is precedence: a custom Express server can register the same route as a
   // Next.js file, and Express's node wins (ADR-0027).
   return stage("assemble", () =>
