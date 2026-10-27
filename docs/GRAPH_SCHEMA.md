@@ -33,8 +33,8 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `route` | `method`, `path` (e.g. `/api/users/:id`, full path after mounts) | file that declares it | `route:api/POST /api/orders` (service = the app that serves it) |
 | `page` | `path` (URL path) | file | `page:web//checkout` |
 | `model` | `fields[]` (`name`, `type`, `optional`; `type` keeps `[]` for lists) | the `.prisma` file that declares it | `model:api/Order` |
-| `datastore` | `engine` (`postgres`, `mysql`, `mongo`, `redis`, …) | system | `datastore:infra/postgres`; from a Prisma datasource, `datastore:infra/api/prisma/schema.prisma#db` (ADR-0028) |
-| `queue` | `engine`, `name?` | system | `queue:infra/redis#receipts` |
+| `datastore` | `engine` (`postgres`, `mysql`, `mongo`, `redis`, …) | system | a compose service, `datastore:infra/<compose dir>/<service>` (`datastore:infra/postgres` at the root); a Prisma datasource no compose service matches, `datastore:infra/api/prisma/schema.prisma#db` (ADR-0028); an env URL nothing else explains, `datastore:infra/env#REDIS_URL` (ADR-0036) |
+| `queue` | `engine`, `name?` | system | `queue:infra/redis#receipts`; a compose broker (RabbitMQ, Kafka, NATS), `queue:infra/mq` |
 | `external` | `host` (lowercased, no credentials, no default port) | system | `external:ext/api.stripe.com` |
 | `unresolved` | `reason`, `expression`, `detail?` (why, in words shown to the user) | the service containing the call | `unresolved:web/app/blog/page.tsx:9:15` (line:column of the expression) |
 
@@ -70,7 +70,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `handles` | route → symbol | handler or middleware function of a route (Express, or the exported Next.js handler); routes with non-static paths are `unresolved` nodes (`DYNAMIC_ROUTE`) with no edge (ADR-0026, ADR-0027) |
 | `renders` | page → symbol | page component: the page file's default export (ADR-0027) |
 | `reads`, `writes` | symbol or route → model, or → unresolved | Prisma client usage; the route is the source when the call sits in an inline Express handler. Raw queries target an `unresolved` node (`RAW_QUERY`), as do calls naming an unknown (`UNKNOWN_SYMBOL`) or ambiguous (`AMBIGUOUS`) model (ADR-0028) |
-| `stores` | model → datastore | model persisted in a datastore (from the Prisma `datasource`) |
+| `stores` | model → datastore | model persisted in a datastore (from the Prisma `datasource`). When the datasource's env URL names a compose service, the edge targets that service's node instead: `exact` by host name, `heuristic` by a published localhost port or as the only compose service of that engine (ADR-0036) |
 | `publishes`, `consumes` | symbol → queue | queue producer and consumer (v1: BullMQ / known clients) |
 | `external_call` | symbol, inline-handler route, or file → external | SDK or literal-host call to a third party; a literal-host `fetch`/axios call is `exact` unless the call itself was reached more weakly (ADR-0034). An allowlisted SDK call targets the node of the SDK's API host, so it shares the node with `fetch` calls to that host; it is `exact`, or `heuristic` when the client came through a heuristic import or the host is inferred from an AWS package name (ADR-0035) |
 

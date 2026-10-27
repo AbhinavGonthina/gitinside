@@ -17,7 +17,9 @@
  *   several files, gets a `stores` edge. A provider that isn't a string literal gets a
  *   `PRISMA_DYNAMIC_PROVIDER` warning and no datastore. Models in a datasource-less file
  *   whose service has no datasource, or several, get no `stores` edge and a
- *   `PRISMA_NO_DATASOURCE` warning instead of a guess.
+ *   `PRISMA_NO_DATASOURCE` warning instead of a guess. The variables a datasource reads
+ *   (`url`, `directUrl`, `shadowDatabaseUrl` as `env("…")`) are returned so the infra
+ *   detector can link the datastore to a compose service (`infra.ts`, ADR-0036).
  * - Client calls: `<client>.<model>.<op>(…)` where `<model>` is a model name with its first
  *   letter lowercased (Prisma's accessor) and `<op>` is a read (`find*`, `count`, `aggregate`,
  *   `groupBy`, `findRaw`, `aggregateRaw`) or a write (`create*`, `update*`, `upsert`,
@@ -184,6 +186,10 @@ export interface PrismaDatasource {
   provider: string | undefined;
   line: number;
   column: number;
+  /** The variable in `url = env("…")`, when the URL is read that way. */
+  urlEnv?: string;
+  /** The variables in `directUrl = env("…")` and `shadowDatabaseUrl = env("…")`, in order. */
+  extraEnv?: string[];
 }
 
 /** The parts of a schema file the detector uses. */
@@ -215,6 +221,7 @@ const BLOCK_START = /^([A-Za-z]\w*)\s+([A-Za-z_]\w*)\s*\{\s*(\})?$/;
 const FIELD =
   /^([A-Za-z_]\w*)\s+(Unsupported\("(?:[^"\\]|\\.)*"\)|[A-Za-z_][\w.]*)(\[\])?(\?)?(?=\s|@|$)/;
 const PROVIDER = /^provider\s*=\s*(.*)$/;
+const URL_ENV = /^(url|directUrl|shadowDatabaseUrl)\s*=\s*env\(\s*"([^"\\]+)"\s*\)$/;
 const STRING_LITERAL = /^"((?:[^"\\]|\\.)*)"$/;
 
 /**
@@ -229,6 +236,8 @@ export function parsePrismaSchema(text: string): PrismaSchema {
     | { keyword: string; name: string; line: number; column: number; fields: PrismaField[] }
     | undefined;
   let provider: string | undefined;
+  let urlEnv: string | undefined;
+  let extraEnv: string[] = [];
 
   const close = (endLine: number): void => {
     if (!block) return;
@@ -237,10 +246,19 @@ export function parsePrismaSchema(text: string): PrismaSchema {
       models.push({ name, fields, line, column, endLine });
     } else if (block.keyword === "datasource") {
       const { name, line, column } = block;
-      datasources.push({ name, provider, line, column });
+      datasources.push({
+        name,
+        provider,
+        line,
+        column,
+        ...(urlEnv !== undefined ? { urlEnv } : {}),
+        ...(extraEnv.length > 0 ? { extraEnv } : {}),
+      });
     }
     block = undefined;
     provider = undefined;
+    urlEnv = undefined;
+    extraEnv = [];
   };
 
   const lines = text.split(/\r?\n/);
@@ -289,6 +307,9 @@ export function parsePrismaSchema(text: string): PrismaSchema {
     } else if (block.keyword === "datasource") {
       const match = PROVIDER.exec(trimmed);
       if (match) provider = STRING_LITERAL.exec((match[1] ?? "").trim())?.[1];
+      const env = URL_ENV.exec(trimmed);
+      if (env?.[1] === "url") urlEnv = env[2];
+      else if (env?.[2] !== undefined) extraEnv.push(env[2]);
     }
   }
   if (block) {
@@ -367,6 +388,19 @@ interface ClientOrigin {
 
 const weaker = (a: Confidence, b: Confidence): Confidence => (a === "exact" ? b : a);
 
+/** A datastore made from a Prisma datasource, which the infra detector may link (M2.7). */
+export interface PrismaDatastore {
+  /** The `datastore` node's ID. */
+  id: string;
+  engine: string;
+  /** The schema file that declares the datasource. */
+  file: string;
+  /** The variable in `url = env("…")`, if any. */
+  urlEnv?: string;
+  /** Every variable the datasource reads (`url`, `directUrl`, `shadowDatabaseUrl`). */
+  envKeys: string[];
+}
+
 /** A model a service's schema declares. */
 interface ModelInfo {
   id: string;
@@ -377,7 +411,7 @@ interface ModelInfo {
  * Detect Prisma schemas and client usage (see the file comment for the patterns). Reads the
  * `.prisma` files in `sourceFiles` from `root`; `inlineHandlers` comes from the Express
  * detector. Returns `model`, `datastore`, and `unresolved` nodes, `stores`/`reads`/`writes`
- * edges, and warnings, all sorted.
+ * edges, and warnings, all sorted, plus the datastores' env variables for the infra detector.
  */
 export async function buildPrisma(
   root: string,
@@ -386,10 +420,16 @@ export async function buildPrisma(
   resolver: SymbolResolver,
   sourceFiles: readonly string[],
   inlineHandlers: ReadonlyMap<ts.Node, readonly string[]>,
-): Promise<{ nodes: GraphNode[]; edges: GraphEdge[]; warnings: AnalysisWarning[] }> {
+): Promise<{
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  warnings: AnalysisWarning[];
+  datastores: PrismaDatastore[];
+}> {
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
   const warnings: AnalysisWarning[] = [];
+  const datastores: PrismaDatastore[] = [];
   /** Models by accessor, per service key. */
   const models = new Map<string, Map<string, ModelInfo>>();
 
@@ -476,6 +516,16 @@ export async function buildPrisma(
         engine,
         source: { file, line: source.line, column: source.column },
       });
+      datastores.push({
+        id,
+        engine,
+        file,
+        ...(source.urlEnv !== undefined ? { urlEnv: source.urlEnv } : {}),
+        envKeys: [
+          ...(source.urlEnv !== undefined ? [source.urlEnv] : []),
+          ...(source.extraEnv ?? []),
+        ],
+      });
       fileStores.push(id);
     }
     if (fileStores.length > 0) {
@@ -526,6 +576,7 @@ export async function buildPrisma(
         compareStrings(a.code, b.code) ||
         compareStrings(a.message, b.message),
     ),
+    datastores: datastores.sort((a, b) => compareStrings(a.id, b.id)),
   };
 }
 
