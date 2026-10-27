@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M2.1. HTTP call-site collection (fetch, axios.*, axios(config), axios.create instances via imports)
+M2.2. URL expression normalizer (literals, templates, concat, imported consts, env bases, new URL)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -44,7 +44,7 @@ M2.1. HTTP call-site collection (fetch, axios.*, axios(config), axios.create ins
 - [x] M1.16 Milestone verification + docs/milestones/M1-review.md + tag m1 {model: opus}
 
 ### M2: Cross-service links + infra
-- [ ] M2.1 HTTP call-site collection (fetch, axios.*, axios(config), axios.create instances via imports) {model: opus}
+- [x] M2.1 HTTP call-site collection (fetch, axios.*, axios(config), axios.create instances via imports) {model: opus}
 - [ ] M2.2 URL expression normalizer (literals, templates, concat, imported consts, env bases, new URL) {model: opus}
 - [ ] M2.3 One-level wrapper inlining; WRAPPER_DEPTH beyond {model: opus}
 - [ ] M2.4 Route matcher with confidence scoring, ambiguity, route index {model: opus}
@@ -154,6 +154,8 @@ M2.1. HTTP call-site collection (fetch, axios.*, axios(config), axios.create ins
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-27 · M2.1: `collectHttpCalls` in `packages/analyzer/src/http.ts` returns one sorted `HttpCallSite` per `fetch`/axios request (method, URL and `baseURL` expressions with their program, owners, confidence); axios instances traced like the Prisma client, incl. workspace packages. `null` = set but unreadable, never defaulted (ADR-0030). Not wired into the graph yet (M2.4/M2.5), so goldens are unchanged. 280 analyzer tests, http.ts 92% lines; cal.com smoke: 217 sites in 2.7 s warm. Next: M2.2.
 
 - 2026-10-27 · M1.16: milestone verified and tagged `m1`. The fresh-eyes review found 7 issues plus 4 minor ones, all fixed with tests in 6 commits: glob ReDoS → DP matcher; brace-expansion and Express mount blowups → caps with warnings; pages API fall-through methods now add `ALL`; only manifest names resolve imports; the CLI repo name no longer comes from the folder (`--owner/--name/--sha` added); `FILES_OUTSIDE_SERVICE` and `PRISMA_NO_DATASOURCE` warnings. 293 tests, analyzer 98.18%. cal.com smoke test passes; 108 `AMBIGUOUS` Prisma calls from a second example schema are logged for the M3 eval. Review: `docs/milestones/M1-review.md`. Next: M2.1.
 
