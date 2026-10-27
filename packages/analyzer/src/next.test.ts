@@ -5,7 +5,7 @@ import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
-import { checkedMethods, segmentsToPath } from "./next.js";
+import { checkedMethods, handledMethods, segmentsToPath } from "./next.js";
 
 let dir: string;
 beforeEach(async () => {
@@ -85,6 +85,36 @@ describe("checkedMethods", () => {
     ["function h() {}", []],
   ])("finds the methods %s checks", (code, expected) => {
     expect(checkedMethods(handler(code))).toEqual(expected);
+  });
+
+  it.each([
+    // Open: other methods can reach real code after (or beside) the checks.
+    ['function h(req, res) { if (req.method === "GET") return list(); return create(); }', true],
+    ['function h(req, res) { if (req.method === "GET") { list(); } else { create(); } }', true],
+    [
+      'function h(req, res) { if (req.method === "GET") a(); else if (req.method === "PUT") b(); else c(); }',
+      true,
+    ],
+    ['function h(req, res) { switch (req.method) { case "GET": return a(); } create(); }', true],
+    ['function h(req, res) { const get = req.method === "GET"; work(get); }', true],
+    ['function h(req, res) { try { if (req.method === "GET") a(); } catch {} done(); }', true],
+    // Closed: the remainder is rejected, or nothing runs for other methods.
+    ['function h(req, res) { if (req.method === "GET") a(); res.status(405).end(); }', false],
+    ['function h(req, res) { if (req.method !== "POST") return; create(); }', false],
+    ['function h(req, res) { if (!["GET"].includes(req.method)) return; a(); }', false],
+    [
+      'function h(req, res) { switch (req.method) { case "GET": return a(); default: return no(); } }',
+      false,
+    ],
+    ['function h(req, res) { setup(); if (req.method === "GET") a(); }', false],
+    ['function h(req, res) { switch (req.method) { case "POST": return a(); } }', false],
+    [
+      'function h(req, res) { if (req.method === "GET") a(); res.setHeader("Allow", ["GET"]); }',
+      false,
+    ],
+    ['function h(req, res) { if (req.method === "BREW") a(); create(); }', false],
+  ])("%s leaves other methods open: %s", (code, open) => {
+    expect(handledMethods(handler(code)).open).toBe(open);
   });
 });
 
@@ -226,6 +256,12 @@ describe("next.js routes", () => {
       "};",
       "export default orders;",
     ]);
+    await put("pages/api/items.ts", [
+      "export default function items(req, res) {",
+      '  if (req.method === "GET") return res.json([]);',
+      "  return res.status(201).end();",
+      "}",
+    ]);
     await put("pages/api/wrapped.ts", [
       "function inner(req, res) { if (req.method === 'PUT') res.end(); }",
       "const wrap = (f) => f;",
@@ -238,15 +274,19 @@ describe("next.js routes", () => {
       "page:web//blog/:slug",
       "page:web//docs/*path",
       "route:web/ALL /api",
+      "route:web/ALL /api/items",
       "route:web/ALL /api/wrapped",
       "route:web/DELETE /api/users/:id",
+      "route:web/GET /api/items",
       "route:web/GET /api/users/:id",
       "route:web/POST /api/orders",
     ]);
     expect(links(graph)).toEqual([
       "handles route:web/ALL /api -> symbol:web/pages/api/index.ts#health (exact)",
+      "handles route:web/ALL /api/items -> symbol:web/pages/api/items.ts#items (exact)",
       "handles route:web/ALL /api/wrapped -> symbol:web/pages/api/wrapped.ts#default (exact)",
       "handles route:web/DELETE /api/users/:id -> symbol:web/pages/api/users/[id].ts#handler (exact)",
+      "handles route:web/GET /api/items -> symbol:web/pages/api/items.ts#items (exact)",
       "handles route:web/GET /api/users/:id -> symbol:web/pages/api/users/[id].ts#handler (exact)",
       "handles route:web/POST /api/orders -> symbol:web/pages/api/orders.ts#orders (exact)",
       "renders page:web// -> symbol:web/pages/index.tsx#Home (exact)",
@@ -276,6 +316,7 @@ describe("next.js routes", () => {
   it("warns about route files without methods and about duplicate routes", async () => {
     await nextApp();
     await put("app/api/none/route.ts", "export function helper() {}\n");
+    await put("app/api/typed/route.ts", "export type GET = () => Response;\n");
     await put("app/api/unknown/route.ts", 'export * from "some-package";\n');
     await put("app/(a)/about/page.tsx", "export default function A() { return null; }\n");
     await put("app/(b)/about/page.tsx", "export default function B() { return null; }\n");
@@ -299,6 +340,11 @@ describe("next.js routes", () => {
       {
         code: "NEXT_ROUTE_NO_METHODS",
         file: "app/api/none/route.ts",
+        message: "route handler file exports no HTTP method (GET, POST, …); no route was created",
+      },
+      {
+        code: "NEXT_ROUTE_NO_METHODS",
+        file: "app/api/typed/route.ts",
         message: "route handler file exports no HTTP method (GET, POST, …); no route was created",
       },
       {
