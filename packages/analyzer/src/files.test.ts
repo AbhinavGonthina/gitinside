@@ -75,13 +75,34 @@ describe("module and file nodes", () => {
     expect(hash(changed)).not.toEqual(hash(first));
   });
 
-  it("skips files outside every package", async () => {
+  it("skips files outside every package, with one warning per top-level folder", async () => {
     await put("package.json", JSON.stringify({ workspaces: ["apps/*"] }));
     await put("apps/api/package.json", JSON.stringify({ name: "api" }));
     await put("apps/api/a.ts", "export {};");
     await put("scripts/build.ts", "export {};");
+    for (const name of ["a", "b", "c", "d"]) await put(`tools/${name}.ts`, "export {};");
+    await put("jest.config.js", "module.exports = {};");
     const graph = await analyze(dir);
     expect(graph.nodes.map((n) => n.id)).not.toContain("file:api/scripts/build.ts");
     expect(graph.nodes.some((n) => n.kind === "file" && n.path === "scripts/build.ts")).toBe(false);
+    expect(graph.warnings.filter((w) => w.code === "FILES_OUTSIDE_SERVICE")).toEqual([
+      {
+        code: "FILES_OUTSIDE_SERVICE",
+        message:
+          "1 source file at the repo root belongs to no workspace package and is not analyzed (jest.config.js)",
+      },
+      {
+        code: "FILES_OUTSIDE_SERVICE",
+        file: "scripts",
+        message:
+          "1 source file under scripts/ belongs to no workspace package and is not analyzed (scripts/build.ts)",
+      },
+      {
+        code: "FILES_OUTSIDE_SERVICE",
+        file: "tools",
+        message:
+          "4 source files under tools/ belong to no workspace package and are not analyzed (tools/a.ts, tools/b.ts, tools/c.ts, …)",
+      },
+    ]);
   });
 });

@@ -528,6 +528,30 @@ describe("buildPrisma via analyze", () => {
     );
   });
 
+  it("warns instead of guessing when a datasource-less schema file has no single fallback", async () => {
+    await app();
+    await put("prisma/a.prisma", ["datasource a {", '  provider = "postgresql"', "}"]);
+    await put("prisma/b.prisma", ["datasource b {", '  provider = "mysql"', "}"]);
+    await put("prisma/models.prisma", [
+      "model Post {",
+      "  id Int",
+      "}",
+      "model Tag {",
+      "  id Int",
+      "}",
+    ]);
+    const graph = await analyze(dir);
+    expect(graph.edges.filter((e) => e.kind === "stores")).toEqual([]);
+    expect(graph.warnings.filter((w) => w.code === "PRISMA_NO_DATASOURCE")).toEqual([
+      {
+        code: "PRISMA_NO_DATASOURCE",
+        file: "prisma/models.prisma",
+        message:
+          "2 models in prisma/models.prisma have no datastore: the schema file declares no datasource and the service has 2 to fall back on",
+      },
+    ]);
+  });
+
   it("does nothing for repos without Prisma", async () => {
     await put("package.json", JSON.stringify({ name: "plain" }));
     await put("src/a.ts", "export function f(db: any) { return db.user.findMany(); }\n");

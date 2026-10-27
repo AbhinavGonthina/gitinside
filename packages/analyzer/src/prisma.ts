@@ -15,7 +15,9 @@
  *   `cockroachdb`) becomes `datastore:infra/<service>/<schema file>#<name>` with its engine,
  *   and every model of that file, or of the service when its schema has one datasource across
  *   several files, gets a `stores` edge. A provider that isn't a string literal gets a
- *   `PRISMA_DYNAMIC_PROVIDER` warning and no datastore.
+ *   `PRISMA_DYNAMIC_PROVIDER` warning and no datastore. Models in a datasource-less file
+ *   whose service has no datasource, or several, get no `stores` edge and a
+ *   `PRISMA_NO_DATASOURCE` warning instead of a guess.
  * - Client calls: `<client>.<model>.<op>(…)` where `<model>` is a model name with its first
  *   letter lowercased (Prisma's accessor) and `<op>` is a read (`find*`, `count`, `aggregate`,
  *   `groupBy`, `findRaw`, `aggregateRaw`) or a write (`create*`, `update*`, `upsert`,
@@ -492,9 +494,21 @@ export async function buildPrisma(
     state.datastores.push(...fileStores);
   }
   // Multi-file schemas: models in files without a datasource use the service's only one.
+  // With none or several, guessing would be wrong, so the models stay unlinked and a
+  // warning says why.
   for (const { datastores, orphans } of pending.values()) {
     const only = datastores.length === 1 ? datastores[0] : undefined;
     if (only !== undefined) for (const model of orphans) addStores(model, only);
+    else if (orphans.length > 0) {
+      const files = [...new Set(orphans.map((id) => nodes.get(id)?.source?.file ?? ""))].sort(
+        compareStrings,
+      );
+      warnings.push({
+        code: "PRISMA_NO_DATASOURCE",
+        file: files[0] ?? "",
+        message: `${orphans.length} model${orphans.length === 1 ? "" : "s"} in ${files.join(", ")} ${orphans.length === 1 ? "has" : "have"} no datastore: the schema file declares no datasource and the service has ${datastores.length === 0 ? "none" : `${datastores.length}`} to fall back on`,
+      });
+    }
   }
 
   const usesPrisma =
