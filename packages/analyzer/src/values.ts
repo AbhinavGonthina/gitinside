@@ -59,23 +59,33 @@ export function objectProperty(
   for (let i = object.properties.length - 1; i >= 0; i--) {
     const property = object.properties[i];
     if (!property) continue;
-    if (ts.isSpreadAssignment(property)) return null;
-    const key = property.name;
-    if (key && ts.isComputedPropertyName(key)) {
-      if (!ts.isStringLiteralLike(key.expression)) return null;
-      if (key.expression.text !== name) continue;
-    } else if (
-      !key ||
-      !(ts.isIdentifier(key) || ts.isStringLiteralLike(key)) ||
-      key.text !== name
-    ) {
-      continue;
-    }
-    if (ts.isPropertyAssignment(property)) return { sp, expression: property.initializer };
-    if (ts.isShorthandPropertyAssignment(property)) return { sp, expression: property.name };
-    return null; // a method or accessor
+    const value = ownProperty(sp, property, name);
+    if (value !== undefined) return value;
   }
   return undefined;
+}
+
+/**
+ * What one object literal member says about property `name`: its value, `undefined` when it
+ * is another property, or `null` when it is a spread, a computed key that could be `name`,
+ * or a method or accessor named `name`.
+ */
+export function ownProperty(
+  sp: ServiceProgram,
+  property: ts.ObjectLiteralElementLike,
+  name: string,
+): ConfigValue {
+  if (ts.isSpreadAssignment(property)) return null;
+  const key = property.name;
+  if (key && ts.isComputedPropertyName(key)) {
+    if (!ts.isStringLiteralLike(key.expression)) return null;
+    if (key.expression.text !== name) return undefined;
+  } else if (!key || !(ts.isIdentifier(key) || ts.isStringLiteralLike(key)) || key.text !== name) {
+    return undefined;
+  }
+  if (ts.isPropertyAssignment(property)) return { sp, expression: property.initializer };
+  if (ts.isShorthandPropertyAssignment(property)) return { sp, expression: property.name };
+  return null; // a method or accessor
 }
 
 /** Readers bound to one resolver's checkers. */

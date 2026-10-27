@@ -188,7 +188,7 @@ Implemented in `packages/analyzer/src/http.ts` (ADR-0030); its file comment list
 - **`axios.METHOD(url)`, `axios(config)`, `axios.request(config)`.**
 - **Instances:**
   - `const api = axios.create({ baseURL })`, then `api.get(url)`. The instance is followed through imports via the TypeChecker, and `baseURL` is resolved the same way as URLs (§7.2).
-  - Wrapper functions: if `function get(path) { return fetch(BASE + path) }`, call sites `get('/users')` are inlined one level deep when the wrapper's URL expression is `concat(const, param)`. Deeper wrappers are unresolved with reason `WRAPPER_DEPTH`.
+  - Wrapper functions (`packages/analyzer/src/wrappers.ts`, ADR-0032): if `function get(path) { return fetch(BASE + path) }`, each call `get('/users')` becomes its own request, inlined one level deep with the wrapper's parameters bound to the caller's arguments (URL, axios `baseURL`, and method, including `{ method: "GET", ...init }`). A request whose URL still starts with the caller's own parameter (the caller is a wrapper too) is unresolved with reason `WRAPPER_DEPTH`. A wrapper with no visible callers keeps its own site, so no call site is dropped.
 
 ### 7.2 Normalize URL expressions to a pattern
 Implemented in `packages/analyzer/src/url.ts` (ADR-0031); its file comment lists every handled and unhandled expression. A URL that starts with a runtime value is `DYNAMIC_URL`, with a readable detail.
