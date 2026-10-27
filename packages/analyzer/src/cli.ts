@@ -5,7 +5,16 @@ import { fileURLToPath } from "node:url";
 import { analyze } from "./analyze.js";
 import { serializeGraph } from "./assemble.js";
 
-const USAGE = "Usage: gitinside analyze <path> [--out <file>]";
+const USAGE =
+  "Usage: gitinside analyze <path> [--out <file>] [--owner <owner>] [--name <name>] [--sha <sha>]";
+
+/** Flags that take a value, and the {@link AnalyzeOptions} key each sets (`out` is the CLI's). */
+const VALUE_FLAGS = {
+  "--out": "out",
+  "--owner": "owner",
+  "--name": "name",
+  "--sha": "sha",
+} as const;
 
 /**
  * Write via a sibling temp file and a rename, so a crash or full disk never leaves a
@@ -30,7 +39,9 @@ export interface CliIo {
 
 /**
  * Run the CLI with `argv` (without the node and script entries) and return the exit code.
- * Writes the graph to `--out` if given, otherwise to stdout.
+ * Writes the graph to `--out` if given, otherwise to stdout. `--owner`, `--name`, and
+ * `--sha` set the repo identity recorded in the graph; without them it doesn't depend on
+ * the checkout's folder, so the same commit gives the same bytes anywhere.
  */
 export async function runCli(argv: string[], io: CliIo): Promise<number> {
   const [command, ...rest] = argv;
@@ -40,15 +51,16 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
   }
 
   let target: string | undefined;
-  let out: string | undefined;
+  const values: Partial<Record<(typeof VALUE_FLAGS)[keyof typeof VALUE_FLAGS], string>> = {};
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i] as string;
-    if (arg === "--out") {
-      out = rest[++i];
-      if (out === undefined) {
-        io.stderr(`--out needs a file path\n${USAGE}\n`);
+    if (arg in VALUE_FLAGS) {
+      const value = rest[++i];
+      if (value === undefined || value === "") {
+        io.stderr(`${arg} needs a value\n${USAGE}\n`);
         return 2;
       }
+      values[VALUE_FLAGS[arg as keyof typeof VALUE_FLAGS]] = value;
     } else if (arg.startsWith("-") || target !== undefined) {
       io.stderr(`unexpected argument: ${arg}\n${USAGE}\n`);
       return 2;
@@ -61,8 +73,9 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
     return 2;
   }
 
+  const { out, ...identity } = values;
   try {
-    const text = serializeGraph(await analyze(target));
+    const text = serializeGraph(await analyze(target, identity));
     if (out === undefined) io.stdout(text);
     else await writeAtomically(out, text);
     return 0;

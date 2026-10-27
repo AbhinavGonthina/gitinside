@@ -70,11 +70,16 @@ describe("analyze", () => {
     ]);
   });
 
-  it("defaults owner and name", async () => {
+  it("defaults owner and name without using the folder name", async () => {
     const graph = await analyze(dir);
-    expect(graph.repo.owner).toBe("local");
-    expect(graph.repo.name.length).toBeGreaterThan(0);
-    expect(graph.repo.sha).toBeUndefined();
+    expect(graph.repo).toEqual({ owner: "local", name: "repo" });
+    expect(graph.nodes[0]?.label).toBe("repo");
+
+    await writeFile(join(dir, "package.json"), JSON.stringify({ name: "@acme/shop" }));
+    expect((await analyze(dir)).repo.name).toBe("@acme/shop");
+
+    await writeFile(join(dir, "package.json"), JSON.stringify({ name: 7 }));
+    expect((await analyze(dir)).repo.name).toBe("repo");
   });
 
   it("is byte-identical across runs", async () => {
@@ -157,10 +162,34 @@ describe("runCli", () => {
     expect(io.err).toMatch(/not a directory/);
   });
 
+  it("records --owner, --name, and --sha in the graph", async () => {
+    const io = capture();
+    const argv = ["analyze", dir, "--owner", "acme", "--name", "shop", "--sha", "abc1234"];
+    expect(await runCli(argv, io)).toBe(0);
+    expect(JSON.parse(io.out).repo).toEqual({ owner: "acme", name: "shop", sha: "abc1234" });
+  });
+
+  it("gives the same bytes for the same tree in differently named folders", async () => {
+    const files = { "package.json": JSON.stringify({ name: "shop" }), "src/a.ts": "export {};\n" };
+    const outputs: string[] = [];
+    for (const folder of ["checkout-one", "other name"]) {
+      for (const [path, content] of Object.entries(files)) {
+        await mkdir(join(dir, folder, "src"), { recursive: true });
+        await writeFile(join(dir, folder, path), content);
+      }
+      const io = capture();
+      expect(await runCli(["analyze", join(dir, folder)], io)).toBe(0);
+      outputs.push(io.out);
+    }
+    expect(outputs[0]).toBe(outputs[1]);
+  });
+
   it.each([
     [["analyze"]],
     [["analyze", "a", "b"]],
     [["analyze", "a", "--out"]],
+    [["analyze", "a", "--name"]],
+    [["analyze", "a", "--sha", ""]],
     [["analyze", "a", "--bogus"]],
     [["frobnicate"]],
   ])("rejects bad usage %j with exit 2", async (argv) => {
