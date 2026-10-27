@@ -231,8 +231,8 @@ For each call (method M, pattern P), compare with every route (method M', patter
    - **pattern:** matches, but needs a literal-to-param alignment or a wildcard.
    - **heuristic:** matches only after assuming an env-var base points at this backend.
 4. **Ambiguity:** if more than one route matches at the best level, link to all of them with confidence downgraded one level, and record `AMBIGUOUS`.
-5. **No match:** an `unresolved` edge to a synthetic `unresolved` node at the call site, with a reason: `NO_MATCHING_ROUTE`, `DYNAMIC_URL`, `EXTERNAL_HOST`, `WRAPPER_DEPTH`.
-   - A literal external host (`api.stripe.com`) instead creates or links an `external` node, at exact confidence.
+5. **No match:** an `unresolved` edge to a synthetic `unresolved` node at the call site (the wrapper call when inlined), with a reason (`NO_MATCHING_ROUTE`, `DYNAMIC_URL`, `WRAPPER_DEPTH`) and a `detail` in words (ADR-0034).
+   - A literal external host (`api.stripe.com`) instead creates or links an `external` node with an `external_call` edge, at exact confidence. Credentials and default ports are dropped from the host.
 
 **UI:**
 - Confidence becomes the border and line style: exact = solid, pattern = solid with a small marker, heuristic = dashed, unresolved = dotted.

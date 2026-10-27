@@ -159,7 +159,7 @@ export async function analyze(
         { source: "express", ...express },
         { source: "next", ...next },
         { source: "prisma", ...prisma },
-        { source: "http", edges: http.edges },
+        { source: "http", nodes: http.nodes, edges: http.edges },
       ],
     }),
   );

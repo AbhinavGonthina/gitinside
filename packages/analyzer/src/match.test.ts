@@ -8,6 +8,7 @@ import {
   alignSegments,
   buildHttpEdges,
   createRouteMatcher,
+  externalHost,
   isLoopbackHost,
   parseRoutePath,
   type MatchInput,
@@ -399,6 +400,58 @@ describe("buildHttpEdges", () => {
     ]);
     expect(edges.find((e) => e.to === "route:api/GET /c")?.label).toBe("GET /c");
   });
+
+  it("links literal external hosts to one external node per host", () => {
+    const { nodes, edges } = buildHttpEdges(
+      [
+        req("GET https://api.stripe.com/v1/charges", ["symbol:api/f.ts#pay"], 1),
+        req("POST https://api.stripe.com:443/v1/refunds", ["symbol:api/f.ts#pay"], 2),
+        { ...req("GET //cdn.x.com:8080/a", [], 3), confidence: "heuristic" } as HttpRequest,
+      ],
+      matcher,
+      workspace,
+    );
+    expect(nodes).toEqual([
+      {
+        id: "external:ext/api.stripe.com",
+        kind: "external",
+        label: "api.stripe.com",
+        parentId: "system:root",
+        layer: "external",
+        host: "api.stripe.com",
+      },
+      {
+        id: "external:ext/cdn.x.com:8080",
+        kind: "external",
+        label: "cdn.x.com:8080",
+        parentId: "system:root",
+        layer: "external",
+        host: "cdn.x.com:8080",
+      },
+    ]);
+    expect(
+      edges.map((e) => `${e.id} ${e.confidence} ${e.sites.map((s) => s.line).join(",")}`),
+    ).toEqual([
+      "external_call:file:api/f.ts->external:ext/cdn.x.com:8080 heuristic 3",
+      "external_call:symbol:api/f.ts#pay->external:ext/api.stripe.com exact 1,2",
+    ]);
+  });
+});
+
+describe("externalHost", () => {
+  it.each([
+    ["https", "api.x.com:443", "api.x.com"],
+    ["wss", "api.x.com:443", "api.x.com"],
+    ["http", "api.x.com:80", "api.x.com"],
+    ["ws", "api.x.com:80", "api.x.com"],
+    ["http", "api.x.com:443", "api.x.com:443"],
+    ["https", "api.x.com:8443", "api.x.com:8443"],
+    ["https", "[2001:db8::1]:443", "[2001:db8::1]"],
+    [null, "cdn.x.com:443", "cdn.x.com:443"],
+    ["ftp", "files.x.com:21", "files.x.com:21"],
+  ] as const)("%s://%s ⇒ %s", (scheme, host, expected) => {
+    expect(externalHost(scheme, host)).toBe(expected);
+  });
 });
 
 describe("analyze: http edges", () => {
@@ -455,10 +508,86 @@ describe("analyze: http edges", () => {
       .map((e) => `${e.from} -> ${e.to} ${e.confidence} ${e.label ?? ""}`);
     expect(http).toEqual([
       "symbol:web/lib/client.ts#me -> route:web/GET /api/me exact GET /api/me",
+      "symbol:web/lib/client.ts#missing -> unresolved:web/lib/client.ts:13:10 unresolved ",
       "symbol:web/lib/client.ts#order -> route:api/GET /api/orders/:id heuristic GET /api/orders/:id",
       "symbol:web/lib/client.ts#orders -> route:api/GET /api/orders heuristic GET /api/orders",
     ]);
     const me = graph.edges.find((e) => e.from === "symbol:web/lib/client.ts#me");
     expect(me?.sites).toEqual([{ file: "apps/web/lib/client.ts", line: 4, column: 10 }]);
+  });
+
+  it("keeps unmatched requests as unresolved nodes and literal hosts as external nodes", async () => {
+    await put("package.json", [JSON.stringify({ name: "shop", workspaces: ["apps/*"] })]);
+    await put("apps/api/package.json", [
+      JSON.stringify({ name: "api", dependencies: { express: "4" } }),
+    ]);
+    await put("apps/api/src/server.ts", [
+      'import express from "express";',
+      "const app = express();",
+      'app.get("/api/orders", (req, res) => {',
+      '  void fetch("https://hooks.slack.com/services/x", { method: "POST" });',
+      "});",
+    ]);
+    await put("apps/web/package.json", [JSON.stringify({ name: "web" })]);
+    await put("apps/web/lib/client.ts", [
+      "declare function buildUrl(): string;",
+      "export async function missing() {",
+      '  return fetch("/api/nothing");',
+      "}",
+      "export async function dynamic() {",
+      "  return fetch(buildUrl());",
+      "}",
+      "export async function pay() {",
+      '  await fetch("https://user:s3cret@API.Stripe.com:443/v1/charges", { method: "POST" });',
+      '  return fetch("https://api.stripe.com/v1/refunds");',
+      "}",
+      "export async function get(path: string) {",
+      "  return fetch(path);",
+      "}",
+      "export async function deeper(p: string) {",
+      "  return get(p);",
+      "}",
+      "export async function other() {",
+      '  return fetch(process.env.ANALYTICS + "/e");',
+      "}",
+      'void fetch("/api/top-level");',
+    ]);
+
+    const graph = await analyze(dir);
+    const unresolved = graph.nodes
+      .filter((n) => n.kind === "unresolved")
+      .map((n) => n.kind === "unresolved" && `${n.id} | ${n.label} | ${n.reason}: ${n.detail}`);
+    expect(unresolved).toEqual([
+      "unresolved:web/lib/client.ts:16:10 | GET get(p) | WRAPPER_DEPTH: the URL starts with a parameter of the calling function, a wrapper more than one call deep",
+      "unresolved:web/lib/client.ts:19:10 | GET {env:ANALYTICS}/e | NO_MATCHING_ROUTE: the env var ANALYTICS isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "unresolved:web/lib/client.ts:21:6 | GET /api/top-level | NO_MATCHING_ROUTE: no route matches GET to /api/top-level",
+      "unresolved:web/lib/client.ts:3:10 | GET /api/nothing | NO_MATCHING_ROUTE: no route matches GET to /api/nothing",
+      "unresolved:web/lib/client.ts:6:10 | GET buildUrl() | DYNAMIC_URL: the URL starts with a value only known at runtime",
+    ]);
+    const dynamic = graph.nodes.find((n) => n.id === "unresolved:web/lib/client.ts:6:10");
+    expect(dynamic).toMatchObject({
+      parentId: "service:web/",
+      expression: "fetch(buildUrl())",
+      source: { file: "apps/web/lib/client.ts", line: 6, column: 10 },
+    });
+
+    expect(
+      graph.nodes.filter((n) => n.kind === "external").map((n) => n.kind === "external" && n.host),
+    ).toEqual(["api.stripe.com", "hooks.slack.com"]);
+
+    const edges = graph.edges
+      .filter((e) => e.kind === "http" || e.kind === "external_call")
+      .map((e) => `${e.from} -> ${e.to} ${e.confidence}${e.reason ? " " + e.reason : ""}`);
+    expect(edges).toEqual([
+      "route:api/GET /api/orders -> external:ext/hooks.slack.com exact",
+      "symbol:web/lib/client.ts#pay -> external:ext/api.stripe.com exact",
+      "file:web/lib/client.ts -> unresolved:web/lib/client.ts:21:6 unresolved NO_MATCHING_ROUTE",
+      "symbol:web/lib/client.ts#deeper -> unresolved:web/lib/client.ts:16:10 unresolved WRAPPER_DEPTH",
+      "symbol:web/lib/client.ts#dynamic -> unresolved:web/lib/client.ts:6:10 unresolved DYNAMIC_URL",
+      "symbol:web/lib/client.ts#missing -> unresolved:web/lib/client.ts:3:10 unresolved NO_MATCHING_ROUTE",
+      "symbol:web/lib/client.ts#other -> unresolved:web/lib/client.ts:19:10 unresolved NO_MATCHING_ROUTE",
+    ]);
+    // Credentials in a literal URL never reach the graph.
+    expect(JSON.stringify(graph)).not.toContain("s3cret");
   });
 });

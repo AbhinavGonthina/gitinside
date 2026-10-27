@@ -45,22 +45,25 @@
  *   candidate.
  * - A hole that spans several segments (`/api/${path}` with `path = "a/b"`).
  *
- * Requests that match nothing are returned as {@link RouteMatch} outcomes (`unresolved` or
- * `external`) for the unresolved and external nodes of M2.5; this module draws no edge for
- * them.
+ * Requests that match nothing are {@link RouteMatch} outcomes too (`external` for a literal
+ * host outside the repo, `unresolved` with a reason and detail), and {@link buildHttpEdges}
+ * (M2.5) turns them into `external` and `unresolved` nodes, so no request is dropped.
  */
 import {
   compareStrings,
   edgeId,
+  nodeId,
+  SYSTEM_ID,
   type Confidence,
   type GraphEdge,
   type GraphNode,
   type HttpMethod,
   type SourceLocation,
+  type UnresolvedReason,
 } from "@gitinside/schema";
-import { fileNodeId } from "./files.js";
+import { fileNodeId, withinService } from "./files.js";
 import type { UrlBase, UrlSegment } from "./url.js";
-import { CONFIDENCE_RANK, weaker } from "./values.js";
+import { CONFIDENCE_RANK, expressionText, weaker } from "./values.js";
 import { serviceForFile, type Workspace } from "./workspace.js";
 import type { HttpRequest } from "./wrappers.js";
 
@@ -407,19 +410,57 @@ export function createRouteMatcher(
 const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
   compareStrings(a.file, b.file) || a.line - b.line || a.column - b.column;
 
-/** `http` edges for the requests that matched routes, plus every request's match. */
+/** Ports dropped from external hosts when they are the scheme's default. */
+const DEFAULT_PORTS: Readonly<Record<string, string>> = {
+  http: "80",
+  https: "443",
+  ws: "80",
+  wss: "443",
+};
+
+/**
+ * The host an `external` node is keyed by: the literal host without its scheme's default
+ * port, so `https://api.x.com:443` and `https://api.x.com` are one node. A protocol-relative
+ * URL (`scheme` `null`) keeps any port.
+ */
+export function externalHost(scheme: string | null, host: string): string {
+  const port = scheme === null ? undefined : DEFAULT_PORTS[scheme];
+  return port !== undefined && host.endsWith(`:${port}`) ? host.slice(0, -port.length - 1) : host;
+}
+
+/** What the unresolved node of a request shows: the URL as read, else its source text. */
+function requestLabel(request: HttpRequest): string {
+  const method = request.method ?? "?";
+  if (request.url.resolved) return `${method} ${request.url.text}`;
+  const url = request.via ? request.via.call : (request.call.url?.expression ?? request.call.call);
+  return `${method} ${expressionText(url)}`;
+}
+
+/** The graph output of the HTTP stage, plus every request's match. */
 export interface HttpEdges {
+  /** `external` and `unresolved` nodes, sorted by ID. */
+  nodes: GraphNode[];
+  /** `http` and `external_call` edges, sorted by ID. */
   edges: GraphEdge[];
   /** One entry per request, in request order. */
   matches: { request: HttpRequest; match: RouteMatch }[];
 }
 
 /**
- * Match every request and draw an `http` edge from each of its owners (or, for top-level
- * code, its file) to each matched route. Requests at the same (owner, route) merge into one
- * edge listing every site, at the strongest confidence; it records `AMBIGUOUS` only when every
- * site was ambiguous. Requests in files outside every service with no owner get no edge yet
- * (M2.5). Edges are sorted by ID.
+ * Match every request and draw edges from each of its owners (or, for top-level code, its
+ * file node), so every request is in the graph (ROADMAP M2: no call site dropped):
+ * - Matched routes: an `http` edge to each route.
+ * - A literal external host: an `external` node (`external:ext/<host>`, under the system)
+ *   and an `external_call` edge to it, `exact` unless the request itself is weaker.
+ * - Anything else: an `unresolved` node at the request's site (the wrapper call when
+ *   inlined) with the reason and its detail, and an `unresolved` `http` edge to it. The node
+ *   is kept even when the request has no source node.
+ *
+ * Requests with the same (kind, source, target) merge into one edge listing every site, at
+ * the strongest confidence; the edge keeps a reason only when every site gave it (so
+ * `AMBIGUOUS` means every site was ambiguous). Several requests at one site (a wrapper with
+ * two `fetch` calls in its body) share that site's unresolved node, and the first request's
+ * reason wins. Files outside every service belong to no program, so they make no requests.
  */
 export function buildHttpEdges(
   requests: readonly HttpRequest[],
@@ -427,9 +468,41 @@ export function buildHttpEdges(
   workspace: Workspace,
 ): HttpEdges {
   const matches = requests.map((request) => ({ request, match: matcher.match(request) }));
+  const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
+
+  const addEdge = (
+    kind: "http" | "external_call",
+    from: string,
+    to: string,
+    confidence: Confidence,
+    site: SourceLocation,
+    reason: UnresolvedReason | undefined,
+    label: string | undefined,
+  ): void => {
+    const id = edgeId(kind, from, to);
+    const existing = edges.get(id);
+    if (!existing) {
+      edges.set(id, {
+        id,
+        kind,
+        from,
+        to,
+        confidence,
+        ...(label ? { label } : {}),
+        ...(reason ? { reason } : {}),
+        sites: [site],
+      });
+      return;
+    }
+    if (CONFIDENCE_RANK[confidence] < CONFIDENCE_RANK[existing.confidence]) {
+      existing.confidence = confidence;
+    }
+    if (existing.reason !== reason) delete existing.reason;
+    if (!existing.sites.some((s) => compareLocations(s, site) === 0)) existing.sites.push(site);
+  };
+
   for (const { request, match } of matches) {
-    if (match.kind !== "routes") continue;
     const service = serviceForFile(workspace, request.file);
     const sources =
       request.owners.length > 0
@@ -437,35 +510,69 @@ export function buildHttpEdges(
         : service
           ? [fileNodeId(service, request.file)]
           : [];
-    for (const from of sources) {
-      for (const to of match.routes) {
-        const id = edgeId("http", from, to);
-        const existing = edges.get(id);
-        if (!existing) {
-          const label = matcher.label(to);
-          edges.set(id, {
-            id,
-            kind: "http",
-            from,
-            to,
-            confidence: match.confidence,
-            ...(label ? { label } : {}),
-            ...(match.ambiguous ? { reason: "AMBIGUOUS" as const } : {}),
-            sites: [request.site],
+    switch (match.kind) {
+      case "routes":
+        for (const from of sources) {
+          for (const to of match.routes) {
+            const reason = match.ambiguous ? "AMBIGUOUS" : undefined;
+            addEdge("http", from, to, match.confidence, request.site, reason, matcher.label(to));
+          }
+        }
+        break;
+      case "external": {
+        const host = externalHost(match.scheme, match.host);
+        const to = nodeId("external", "ext", host);
+        if (!nodes.has(to)) {
+          nodes.set(to, {
+            id: to,
+            kind: "external",
+            label: host,
+            parentId: SYSTEM_ID,
+            layer: "external",
+            host,
           });
-          continue;
         }
-        if (CONFIDENCE_RANK[match.confidence] < CONFIDENCE_RANK[existing.confidence]) {
-          existing.confidence = match.confidence;
+        const level = weaker("exact", request.confidence);
+        const confidence = level === "unresolved" ? "heuristic" : level;
+        for (const from of sources) {
+          addEdge("external_call", from, to, confidence, request.site, undefined, undefined);
         }
-        if (!match.ambiguous) delete existing.reason;
-        if (!existing.sites.some((s) => compareLocations(s, request.site) === 0)) {
-          existing.sites.push(request.site);
+        break;
+      }
+      case "unresolved": {
+        if (!service) break;
+        const { line, column } = request.site;
+        const to = nodeId(
+          "unresolved",
+          service.key,
+          `${withinService(service, request.file)}:${line}:${column}`,
+        );
+        let node = nodes.get(to);
+        if (node?.kind !== "unresolved") {
+          node = {
+            id: to,
+            kind: "unresolved",
+            label: requestLabel(request),
+            parentId: nodeId("service", service.key, ""),
+            reason: match.reason,
+            expression: expressionText(request.via?.call ?? request.call.call),
+            detail: match.detail,
+            source: request.site,
+          };
+          nodes.set(to, node);
         }
+        for (const from of sources) {
+          addEdge("http", from, to, "unresolved", request.site, node.reason, undefined);
+        }
+        break;
       }
     }
   }
   const out = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
   for (const edge of out) edge.sites.sort(compareLocations);
-  return { edges: out, matches };
+  return {
+    nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)),
+    edges: out,
+    matches,
+  };
 }

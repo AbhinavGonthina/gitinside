@@ -29,8 +29,9 @@
  *
  * URL rules (DESIGN.md §7.2):
  * - A literal origin (`https://api.example.com`) becomes a `host` base; scheme and host are
- *   lowercased. A hole in the host before any `:` is `DYNAMIC_URL`; one in the port is kept
- *   as `{}` in the host text.
+ *   lowercased, and credentials (`user:pass@`) are dropped. A hole in the host before any `:`
+ *   is `DYNAMIC_URL`; one in the port is kept as `{}` in the host text, and one in a password
+ *   is dropped with it.
  * - An env var is a base only at the very start of the URL; elsewhere it is a hole.
  * - Query strings and fragments are dropped at the first literal `?` or `#`.
  * - Empty segments (trailing and doubled slashes) are dropped.
@@ -269,6 +270,8 @@ export function toUrlPattern(
         rest = [text(part.text.slice(slash)), ...after.slice(i + 1)];
         break;
       }
+      // Credentials (`user:pass@`) are dropped so they never reach the graph.
+      host = host.slice(host.lastIndexOf("@") + 1);
       base = { kind: "host", scheme, host: host.toLowerCase() };
     } else {
       base = first.text.startsWith("/") ? { kind: "path" } : { kind: "page" };
