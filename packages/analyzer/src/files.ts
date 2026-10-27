@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { compareStrings, nodeId, type GraphNode } from "@gitinside/schema";
+import { compareStrings, nodeId, type AnalysisWarning, type GraphNode } from "@gitinside/schema";
 import { serviceForFile, type Workspace, type WorkspacePackage } from "./workspace.js";
 
 function dirname(path: string): string {
@@ -35,7 +35,8 @@ export function fileNodeId(service: WorkspacePackage, path: string): string {
  *
  * Not handled: folders with no source files of their own get no module (a folder that only
  * holds sub-folders is skipped, and its children attach to the next ancestor module); files
- * outside every service (possible in workspace repos) get no node.
+ * outside every service (possible in workspace repos) get no node, but
+ * {@link outsideServiceWarnings} reports them.
  */
 export async function buildFileNodes(
   root: string,
@@ -90,4 +91,34 @@ export async function buildFileNodes(
     });
   }
   return nodes;
+}
+
+/**
+ * One `FILES_OUTSIDE_SERVICE` warning per top-level folder (or for the repo root) holding
+ * source files that belong to no workspace package, such as root `scripts/` in a
+ * Turborepo. Those files get no nodes or edges, so the warning keeps the gap visible. It
+ * gives the count and the first three paths; sorted by folder.
+ */
+export function outsideServiceWarnings(
+  workspace: Workspace,
+  sourceFiles: readonly string[],
+): AnalysisWarning[] {
+  const byFolder = new Map<string, string[]>();
+  for (const path of sourceFiles) {
+    if (serviceForFile(workspace, path)) continue;
+    const slash = path.indexOf("/");
+    const folder = slash === -1 ? "" : path.slice(0, slash);
+    byFolder.set(folder, [...(byFolder.get(folder) ?? []), path]);
+  }
+  return [...byFolder.keys()].sort(compareStrings).map((folder) => {
+    const paths = (byFolder.get(folder) ?? []).sort(compareStrings);
+    const examples = paths.slice(0, 3).join(", ");
+    const more = paths.length > 3 ? ", …" : "";
+    const where = folder === "" ? "at the repo root" : `under ${folder}/`;
+    const one = paths.length === 1;
+    const message = `${paths.length} source file${one ? "" : "s"} ${where} belong${one ? "s" : ""} to no workspace package and ${one ? "is" : "are"} not analyzed (${examples}${more})`;
+    return folder === ""
+      ? { code: "FILES_OUTSIDE_SERVICE", message }
+      : { code: "FILES_OUTSIDE_SERVICE", file: folder, message };
+  });
 }

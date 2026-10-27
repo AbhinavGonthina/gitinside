@@ -5,7 +5,7 @@ import { SYSTEM_ID, type ArchitectureGraph } from "@gitinside/schema";
 import { assembleGraph } from "./assemble.js";
 import { buildCallEdges, createSymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
-import { buildFileNodes } from "./files.js";
+import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { buildImportGraph } from "./imports.js";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildNextRoutes } from "./next.js";
@@ -131,7 +131,11 @@ export async function analyze(
           warnings: workspace.warnings,
         },
         { source: "typescript", warnings: programs.flatMap((p) => p.warnings) },
-        { source: "files", nodes: files },
+        {
+          source: "files",
+          nodes: files,
+          warnings: outsideServiceWarnings(workspace, inventory.sourceFiles),
+        },
         { source: "symbols", nodes: symbols },
         { source: "imports", ...imports },
         { source: "calls", edges: calls },
