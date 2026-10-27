@@ -88,6 +88,11 @@ describe("buildInventory", () => {
     expect(isGeneratedHeader("/* Auto-generated file. Do not edit. */")).toBe(true);
     expect(isGeneratedHeader(`${"x".repeat(2000)}\n// @generated`)).toBe(false);
     expect(isGeneratedHeader("const generated = true;")).toBe(false);
+    expect(isGeneratedHeader("// DO NOT EDIT: generated from schema.json")).toBe(true);
+    expect(isGeneratedHeader("// Do not edit without updating the docs.")).toBe(false);
+    expect(isGeneratedHeader("// do not edit\n// the generated client lives elsewhere")).toBe(
+      false,
+    );
   });
 
   it("skips files over the size limit with a warning", async () => {
