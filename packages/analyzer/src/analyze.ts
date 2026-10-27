@@ -8,6 +8,7 @@ import { buildExpressRoutes } from "./express.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { collectHttpCalls } from "./http.js";
 import { buildImportGraph } from "./imports.js";
+import { buildInfra, relinkStores } from "./infra.js";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildHttpEdges, createRouteMatcher } from "./match.js";
 import { buildNextRoutes } from "./next.js";
@@ -31,6 +32,7 @@ export const ANALYSIS_STAGES = [
   "express",
   "next",
   "prisma",
+  "infra",
   "files",
   "symbols",
   "calls",
@@ -113,6 +115,8 @@ export async function analyze(
   const prisma = await stage("prisma", () =>
     buildPrisma(root, programs, workspace, resolver, inventory.sourceFiles, express.inlineHandlers),
   );
+  const infra = await stage("infra", () => buildInfra(root, inventory.files, prisma.datastores));
+  const stored = relinkStores(prisma, infra.links);
   const files = await stage("files", () => buildFileNodes(root, workspace, inventory.sourceFiles));
   const symbols = await stage("symbols", () => buildSymbolNodes(programs));
   const calls = await stage("calls", () => buildCallEdges(programs, resolver));
@@ -163,7 +167,8 @@ export async function analyze(
         { source: "calls", edges: calls },
         { source: "express", ...express },
         { source: "next", ...next },
-        { source: "prisma", ...prisma },
+        { source: "prisma", ...stored, warnings: prisma.warnings },
+        { source: "infra", nodes: infra.nodes, warnings: infra.warnings },
         { source: "http", nodes: http.nodes, edges: http.edges },
         { source: "sdk", ...sdk },
       ],

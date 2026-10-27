@@ -172,11 +172,12 @@ Every detector file starts with a doc comment listing **patterns handled** and *
 **HTTP clients**
 - See §7.
 
-**Infra**
+**Infra** (`packages/analyzer/src/infra.ts`, ADR-0036)
 - **Handled:**
-  - `docker-compose*.yml` services by image (`postgres`, `mysql`, `mongo`, `redis`, `rabbitmq`, `minio`, `elasticsearch`, etc.).
-  - `.env*` keys (`DATABASE_URL` scheme, `REDIS_URL`, `*_API_KEY` mapped to known externals).
-  - Values are never stored. Only key names and URL schemes/hosts are read; secrets are discarded at parse time.
+  - `docker-compose*.yml` / `compose*.yaml` services by image (`postgres`, `mysql`, `mongo`, `redis`, `rabbitmq`, `minio`, `elasticsearch`, etc.) ⇒ `datastore` or `queue` nodes, with override files in the same folder merged.
+  - `.env*` URL keys: a Prisma datasource's `url = env("DATABASE_URL")` links its models' `stores` edges to the compose service the URL names (`exact`) or whose published port it uses on localhost (`heuristic`); other URL keys with a datastore scheme (`REDIS_URL=rediss://…`) that nothing else explains become env-only datastores.
+  - Values are never stored. Only key names and URL schemes/hosts/ports are read; secrets are discarded at parse time, and hosts are only compared, never written.
+- **Not handled:** `*_API_KEY` keys (SDK calls draw those edges), compose `extends`/`include`/`env_file`, images set from variables (warned), literal Prisma URLs, and other ORMs' connection settings.
 
 ## 7. Cross-service resolution algorithm
 
