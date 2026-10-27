@@ -208,6 +208,16 @@ describe("import edges", () => {
       ]);
     });
 
+    it("never resolves a third-party import to a package by its folder name", async () => {
+      // packages/config has no "name", so `import "config"` is the npm package, not it.
+      await put("packages/config/package.json", JSON.stringify({ private: true }));
+      await put("packages/config/index.ts", "export const local = 1;\n");
+      await put("apps/web/app.ts", 'import config from "config";\n');
+      const graph = await analyze(dir);
+      expect(importEdges(graph)).toEqual([]);
+      expect(graph.nodes.some((n) => n.kind === "unresolved")).toBe(false);
+    });
+
     it("uses subpath export keys", async () => {
       await put(
         "packages/shared/package.json",
@@ -268,10 +278,14 @@ describe("import edges", () => {
       await put("packages/shared/src/index.ts", "export const shared = 1;\n");
       await put("apps/web/app.ts", 'import { shared } from "shared";\n');
       const graph = await analyze(dir);
-      // With no readable name the package is named after its folder, and has no entry fields.
-      expect(importEdges(graph)).toEqual([
-        "file:web/app.ts -> file:shared/src/index.ts (heuristic)",
-      ]);
+      // With no readable name the package has no importable name: its folder name is a
+      // label, not a specifier, so "shared" is treated as a third-party package. The broken
+      // manifest stays visible as a warning.
+      expect(importEdges(graph)).toEqual([]);
+      expect(graph.nodes.find((n) => n.id === "service:shared/")?.label).toBe("shared");
+      expect(graph.warnings).toContainEqual(
+        expect.objectContaining({ code: "INVALID_JSON", file: "packages/shared/package.json" }),
+      );
     });
   });
 

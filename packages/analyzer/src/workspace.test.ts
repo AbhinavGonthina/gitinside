@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildInventory } from "./inventory.js";
 import {
   detectWorkspace,
+  compileGlob,
   findCycles,
-  globToRegExp,
   serviceForFile,
   serviceNodes,
   type Workspace,
@@ -38,22 +38,49 @@ async function detect(): Promise<Workspace> {
 
 const summary = (ws: Workspace) => ws.packages.map((p) => [p.key, p.dir, p.name]);
 
-describe("globToRegExp", () => {
+describe("compileGlob", () => {
   it.each([
     ["packages/*", "packages/a", true],
     ["packages/*", "packages/a/b", false],
     ["packages/**", "packages/a/b", true],
+    ["packages/**", "packages", false],
     ["packages/**/x", "packages/x", true],
     ["packages/**/x", "packages/a/b/x", true],
+    ["packages/**/x", "packages//x", false],
+    ["**/x", "x", true],
+    ["**/x", "a/x", true],
+    ["**/x", "ax", false],
     ["./apps/*/", "apps/web", true],
     ["apps/*/package.json", "apps/web", true],
     ["apps/{web,api}", "apps/api", true],
     ["apps/{web,api}", "apps/docs", false],
+    ["{apps,libs}/{a,b}", "libs/b", true],
+    ["{apps,libs}/{a,b}", "libs/c", false],
     ["app?", "app1", true],
+    ["app?", "app/", false],
     ["apps.v2/*", "appsxv2/a", false],
+    ["a*b*c", "aXbYc", true],
+    ["a*b*c", "aX/bYc", false],
     ["*", "web", true],
   ])("%s matches %s: %s", (pattern, path, expected) => {
-    expect(globToRegExp(pattern).test(path)).toBe(expected);
+    expect(compileGlob(pattern)?.(path)).toBe(expected);
+  });
+
+  it("matches pathological globs in linear time", () => {
+    // A backtracking RegExp for these takes minutes against a deep, non-matching path.
+    const deep = `${Array.from({ length: 60 }, () => "a").join("/")}/b`;
+    const start = performance.now();
+    expect(compileGlob(`${"**/".repeat(40)}z`)?.(deep)).toBe(false);
+    expect(compileGlob(`${"**a".repeat(40)}z`)?.(deep)).toBe(false);
+    expect(compileGlob(`${"*a".repeat(40)}z`)?.("a".repeat(500))).toBe(false);
+    expect(performance.now() - start).toBeLessThan(2000);
+  });
+
+  it("refuses patterns that are too long or expand to too many alternatives", () => {
+    expect(compileGlob("{a,b}".repeat(30))).toBeUndefined();
+    expect(compileGlob(`{${Array.from({ length: 300 }, (_, i) => i).join(",")}}`)).toBeUndefined();
+    expect(compileGlob("a".repeat(1025))).toBeUndefined();
+    expect(compileGlob("{a,b}".repeat(8))).toBeDefined();
   });
 });
 
@@ -93,6 +120,7 @@ describe("detectWorkspace", () => {
         key: "shop",
         dir: "",
         name: "@acme/shop",
+        packageName: "@acme/shop",
         framework: "next",
         dependencies: ["next", "react"],
       },
@@ -156,6 +184,44 @@ describe("detectWorkspace", () => {
     expect(summary(ws)).toEqual([
       ["admin", "apps/admin", "admin-app"],
       ["ui", "libs/ui", "@acme/ui"],
+    ]);
+    // Only a package.json name is importable; Nx project names are labels.
+    expect(ws.packages.map((p) => p.packageName)).toEqual([undefined, "@acme/ui"]);
+  });
+
+  it("applies ! exclusions to Nx project folders too", async () => {
+    await tree({
+      "nx.json": {},
+      "pnpm-workspace.yaml": "packages:\n  - 'apps/*'\n  - '!apps/legacy'\n",
+      "apps/admin/project.json": {},
+      "apps/legacy/project.json": {},
+    });
+    expect(summary(await detect())).toEqual([["admin", "apps/admin", "admin"]]);
+  });
+
+  it("gives nameless packages no importable name", async () => {
+    await tree({
+      "package.json": { workspaces: ["packages/*"] },
+      "packages/config/package.json": { private: true },
+    });
+    const ws = await detect();
+    expect(summary(ws)).toEqual([["config", "packages/config", "config"]]);
+    expect(ws.packages[0]?.packageName).toBeUndefined();
+  });
+
+  it("skips hostile workspace patterns with a warning instead of hanging", async () => {
+    await tree({
+      "package.json": {
+        workspaces: ["{a,b}".repeat(30), `${"**/".repeat(40)}z`, "packages/*"],
+      },
+      "packages/x/package.json": { name: "x" },
+      [`${Array.from({ length: 40 }, () => "a").join("/")}/package.json`]: { name: "deep" },
+    });
+    const ws = await detect();
+    expect(summary(ws)).toEqual([["x", "packages/x", "x"]]);
+    expect(ws.warnings.map((w) => w.code)).toEqual([
+      "WORKSPACE_NO_MATCH",
+      "WORKSPACE_PATTERN_TOO_COMPLEX",
     ]);
   });
 

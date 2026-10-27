@@ -16,8 +16,14 @@ export interface WorkspacePackage {
   key: string;
   /** Repo-relative directory with `/` separators; `""` for the repo root. */
   dir: string;
-  /** `package.json` name, else Nx `project.json` name, else the folder name. */
+  /** `package.json` name, else Nx `project.json` name, else the folder name. For labels. */
   name: string;
+  /**
+   * The `package.json` `name`, when it has one: the only name other code can import the
+   * package by. Fallback names (Nx project, folder, `app`) never resolve imports, so a
+   * nameless `packages/config` can't capture `import "config"` from npm.
+   */
+  packageName?: string;
   /** Detected framework (`next`, `express`, `react`), from runtime dependencies. */
   framework?: string;
   /** Sorted names of every dependency the manifest declares (all four dependency fields). */
@@ -70,52 +76,129 @@ function unscoped(name: string): string {
   return name.startsWith("@") ? name.slice(name.indexOf("/") + 1) : name;
 }
 
-/** Expand one level of `{a,b}` braces: `apps/{web,api}` → `apps/web`, `apps/api`. Nested braces are not expanded. */
-function expandBraces(pattern: string): string[] {
-  const match = /\{([^{}]*)\}/.exec(pattern);
-  if (!match) return [pattern];
-  const head = pattern.slice(0, match.index);
-  const tail = pattern.slice(match.index + match[0].length);
-  return (match[1] ?? "").split(",").flatMap((alt) => expandBraces(`${head}${alt}${tail}`));
+/**
+ * Limits on repo-supplied workspace globs. Patterns come from untrusted config, so a
+ * pattern beyond these is skipped with a `WORKSPACE_PATTERN_TOO_COMPLEX` warning instead
+ * of being allowed to blow up time or memory.
+ */
+const MAX_PATTERN_LENGTH = 1024;
+const MAX_BRACE_ALTERNATIVES = 256;
+
+/**
+ * Expand `{a,b}` braces: `apps/{web,api}` → `apps/web`, `apps/api`. Several groups
+ * multiply (`{a,b}/{c,d}` → 4); nested braces expand innermost first. Returns undefined
+ * when the expansion would exceed {@link MAX_BRACE_ALTERNATIVES}.
+ */
+function expandBraces(pattern: string): string[] | undefined {
+  const done: string[] = [];
+  const queue = [pattern];
+  for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
+    const match = /\{([^{}]*)\}/.exec(next);
+    if (!match) {
+      done.push(next);
+      continue;
+    }
+    const head = next.slice(0, match.index);
+    const tail = next.slice(match.index + match[0].length);
+    for (const alt of (match[1] ?? "").split(",")) queue.push(`${head}${alt}${tail}`);
+    if (done.length + queue.length > MAX_BRACE_ALTERNATIVES) return undefined;
+  }
+  return done.sort(compareStrings);
+}
+
+/** One step of a compiled glob. */
+type GlobToken =
+  | { t: "segments" } // `**/`: zero or more whole segments, each followed by `/`
+  | { t: "any" } // `**` elsewhere: any characters, including `/`
+  | { t: "star" } // `*`: any characters within one segment
+  | { t: "one" } // `?`: one character other than `/`
+  | { t: "lit"; c: string };
+
+function tokenize(glob: string): GlobToken[] {
+  const tokens: GlobToken[] = [];
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob.charAt(i);
+    if (c === "*" && glob[i + 1] === "*") {
+      if (glob[i + 2] === "/") {
+        tokens.push({ t: "segments" });
+        i += 2;
+      } else {
+        tokens.push({ t: "any" });
+        i += 1;
+      }
+    } else if (c === "*") tokens.push({ t: "star" });
+    else if (c === "?") tokens.push({ t: "one" });
+    else tokens.push({ t: "lit", c });
+  }
+  return tokens;
 }
 
 /**
- * Compile a workspace glob into an anchored RegExp over repo-relative directory paths.
+ * Match `path` against `tokens` by dynamic programming over (token, position), so the
+ * cost is O(tokens × path length) whatever the pattern. A backtracking RegExp would be
+ * exponential on patterns like `**\/**\/**\/…\/z`.
+ */
+function matchTokens(tokens: readonly GlobToken[], path: string): boolean {
+  const n = path.length;
+  // nextSlash[p] = index of the first `/` at or after p, or n.
+  const nextSlash = new Int32Array(n + 1);
+  nextSlash[n] = n;
+  for (let p = n - 1; p >= 0; p--) nextSlash[p] = path[p] === "/" ? p : (nextSlash[p + 1] ?? n);
+  // row[p] = tokens[i..] match path[p..]; computed from the last token backwards.
+  let row = new Uint8Array(n + 1);
+  row[n] = 1;
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    const token = tokens[i];
+    const next = row;
+    row = new Uint8Array(n + 1);
+    for (let p = n; p >= 0; p--) {
+      let ok = false;
+      switch (token?.t) {
+        case "segments": {
+          const slash = nextSlash[p] ?? n;
+          ok = next[p] === 1 || (slash > p && slash < n && row[slash + 1] === 1);
+          break;
+        }
+        case "any":
+          ok = next[p] === 1 || (p < n && row[p + 1] === 1);
+          break;
+        case "star":
+          ok = next[p] === 1 || (p < n && path[p] !== "/" && row[p + 1] === 1);
+          break;
+        case "one":
+          ok = p < n && path[p] !== "/" && next[p + 1] === 1;
+          break;
+        case "lit":
+          ok = p < n && path[p] === token.c && next[p + 1] === 1;
+          break;
+      }
+      if (ok) row[p] = 1;
+    }
+  }
+  return row[0] === 1;
+}
+
+/**
+ * Compile a workspace glob into a matcher over repo-relative directory paths, or
+ * undefined when the pattern is too complex (over {@link MAX_PATTERN_LENGTH} characters
+ * or {@link MAX_BRACE_ALTERNATIVES} brace alternatives).
  *
  * Handles: `*` (within one segment), `**` (any number of segments, including none),
- * `?`, one level of `{a,b}` braces, a leading `./`, and trailing `/` or `/package.json`.
+ * `?`, `{a,b}` braces, a leading `./`, and trailing `/` or `/package.json`. Matching is
+ * linear in the path length for each alternative, so hostile patterns can't stall it.
  * Not handled: character classes (`[abc]`, matched literally) and extglobs; `*` also
  * matches dot-folders, unlike micromatch.
  */
-export function globToRegExp(pattern: string): RegExp {
+export function compileGlob(pattern: string): ((path: string) => boolean) | undefined {
+  if (pattern.length > MAX_PATTERN_LENGTH) return undefined;
   const clean = pattern
     .trim()
     .replace(/^\.\//, "")
     .replace(/\/package\.json$/, "")
     .replace(/\/+$/, "");
-  const alternatives = expandBraces(clean).map((alt) => {
-    let out = "";
-    for (let i = 0; i < alt.length; i++) {
-      const c = alt.charAt(i);
-      if (c === "*" && alt[i + 1] === "*") {
-        if (alt[i + 2] === "/") {
-          out += "(?:[^/]+/)*";
-          i += 2;
-        } else {
-          out += ".*";
-          i += 1;
-        }
-      } else if (c === "*") {
-        out += "[^/]*";
-      } else if (c === "?") {
-        out += "[^/]";
-      } else {
-        out += c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-      }
-    }
-    return out;
-  });
-  return new RegExp(`^(?:${alternatives.join("|")})$`);
+  const alternatives = expandBraces(clean)?.map(tokenize);
+  if (!alternatives) return undefined;
+  return (path) => alternatives.some((tokens) => matchTokens(tokens, path));
 }
 
 /** Workspace-level warnings carry a code, the config file, and a message. */
@@ -218,7 +301,10 @@ export function findCycles(graph: ReadonlyMap<string, readonly string[]>): strin
  * - npm/yarn `workspaces` in the root `package.json` (array, or yarn's `{ packages: [] }`).
  * - `pnpm-workspace.yaml` `packages`, including `!` exclusions.
  * - `lerna.json` `packages` (default `packages/*` when absent and nothing else lists packages).
- * - Nx: with `nx.json`, every folder with a `project.json` is a service, even without a `package.json`.
+ * - Nx: with `nx.json`, every folder with a `project.json` is a service, even without a
+ *   `package.json`, unless a `!` exclusion matches it.
+ * - Hostile globs: patterns over 1,024 characters or 256 brace alternatives are skipped
+ *   with `WORKSPACE_PATTERN_TOO_COMPLEX`; matching itself is linear (see {@link compileGlob}).
  * - Turborepo: `turbo.json` is recorded as a tool; packages come from the package manager.
  * - No workspaces, or patterns that match nothing: one root service (single-package fallback).
  * - Warnings for invalid JSON/YAML, invalid `workspaces`, patterns matching nothing,
@@ -302,17 +388,35 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
   const manifestDirs = files.filter((f) => f.endsWith("/package.json")).map(dirname);
   const nxDirs = nx ? files.filter((f) => f.endsWith("/project.json")).map(dirname) : [];
 
-  const include = patterns.filter((p) => !p.pattern.trim().startsWith("!"));
+  const compile = (p: { pattern: string; file: string }, glob: string) => {
+    const test = compileGlob(glob);
+    if (!test) {
+      warnings.push(
+        warn(
+          "WORKSPACE_PATTERN_TOO_COMPLEX",
+          p.file,
+          `workspace pattern "${p.pattern.slice(0, 80)}${p.pattern.length > 80 ? "…" : ""}" is longer than ${MAX_PATTERN_LENGTH} characters or expands to more than ${MAX_BRACE_ALTERNATIVES} alternatives; ignored`,
+        ),
+      );
+    }
+    return test;
+  };
   const exclude = patterns
     .filter((p) => p.pattern.trim().startsWith("!"))
-    .map((p) => globToRegExp(p.pattern.trim().slice(1)));
-  const compiled = include.map((p) => ({ ...p, regex: globToRegExp(p.pattern) }));
+    .flatMap((p) => compile(p, p.pattern.trim().slice(1)) ?? []);
+  const compiled = patterns
+    .filter((p) => !p.pattern.trim().startsWith("!"))
+    .flatMap((p) => {
+      const test = compile(p, p.pattern);
+      return test ? [{ ...p, test }] : [];
+    });
+  const excluded = (dir: string): boolean => exclude.some((test) => test(dir));
   const matched = new Set<number>();
-  const dirs = new Set<string>(nxDirs);
+  const dirs = new Set<string>(nxDirs.filter((dir) => !excluded(dir)));
   for (const dir of manifestDirs) {
-    if (exclude.some((r) => r.test(dir))) continue;
+    if (excluded(dir)) continue;
     compiled.forEach((p, i) => {
-      if (p.regex.test(dir)) {
+      if (p.test(dir)) {
         matched.add(i);
         dirs.add(dir);
       }
@@ -330,23 +434,38 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
     }
   });
 
-  const raw: { dir: string; name: string; preferred: string; manifest: JsonObject }[] = [];
+  const manifestName = (manifest: JsonObject | undefined): string | undefined =>
+    typeof manifest?.name === "string" && manifest.name !== "" ? manifest.name : undefined;
+  const raw: {
+    dir: string;
+    name: string;
+    packageName: string | undefined;
+    preferred: string;
+    manifest: JsonObject;
+  }[] = [];
   for (const dir of [...dirs].sort(compareStrings)) {
     const manifest = await readJson(`${dir}/package.json`);
     const project = nxDirs.includes(dir) ? await readJson(`${dir}/project.json`) : undefined;
-    const name =
-      (typeof manifest?.name === "string" && manifest.name) ||
-      (typeof project?.name === "string" && project.name) ||
-      basename(dir);
-    raw.push({ dir, name, preferred: basename(dir), manifest: manifest ?? {} });
+    const packageName = manifestName(manifest);
+    raw.push({
+      dir,
+      name: packageName ?? manifestName(project) ?? basename(dir),
+      packageName,
+      preferred: basename(dir),
+      manifest: manifest ?? {},
+    });
   }
 
   if (raw.length === 0) {
-    const name =
-      typeof rootManifest?.name === "string" && rootManifest.name
-        ? rootManifest.name
-        : FALLBACK_KEY;
-    raw.push({ dir: "", name, preferred: unscoped(name), manifest: rootManifest ?? {} });
+    const packageName = manifestName(rootManifest);
+    const name = packageName ?? FALLBACK_KEY;
+    raw.push({
+      dir: "",
+      name,
+      packageName,
+      preferred: unscoped(name),
+      manifest: rootManifest ?? {},
+    });
   }
 
   const runtimeDeps = new Map<string, string[]>();
@@ -358,6 +477,7 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
       key: r.key,
       dir: r.dir,
       name: r.name,
+      ...(r.packageName !== undefined ? { packageName: r.packageName } : {}),
       ...(framework ? { framework } : {}),
       dependencies: dependencyNames(r.manifest, ALL_DEP_FIELDS),
     };
