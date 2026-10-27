@@ -36,8 +36,17 @@ export interface ConstObject {
   confidence: Confidence;
 }
 
-/** The weaker of two confidences, for values reached through a heuristic import. */
-export const weaker = (a: Confidence, b: Confidence): Confidence => (a === "exact" ? b : a);
+/** Confidence levels from strongest to weakest. */
+export const CONFIDENCE_RANK: Readonly<Record<Confidence, number>> = {
+  exact: 0,
+  pattern: 1,
+  heuristic: 2,
+  unresolved: 3,
+};
+
+/** The weaker of two confidences, e.g. for values reached through a heuristic import. */
+export const weaker = (a: Confidence, b: Confidence): Confidence =>
+  CONFIDENCE_RANK[a] >= CONFIDENCE_RANK[b] ? a : b;
 
 /** True when a variable is declared with `const`. */
 export function isConst(declaration: ts.VariableDeclaration): boolean {

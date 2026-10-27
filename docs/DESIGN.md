@@ -216,6 +216,8 @@ Each route node has a method and a path pattern: `/api/users/:id`, `/files/*rest
 
 ### 7.4 Matching
 
+Implemented in `packages/analyzer/src/match.ts` (ADR-0033); its file comment lists every handled and unhandled pattern. Base, method, and path each give a level and the weakest wins. At the best level, the best path alignment wins, then the request's own method beats `ALL`; ambiguity floors at `heuristic`.
+
 For each call (method M, pattern P), compare with every route (method M', pattern R):
 
 1. **Method must match:** `ALL` matches any method.
