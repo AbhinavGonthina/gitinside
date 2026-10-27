@@ -77,6 +77,7 @@ import { isFunctionWithBody, returnedExpressions } from "./express.js";
 import { fileNodeId, withinService } from "./files.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
+import { expressionText } from "./values.js";
 import { serviceForFile, type Workspace, type WorkspacePackage } from "./workspace.js";
 
 /** How many alias, variable, or return hops are followed before giving up. */
@@ -159,9 +160,6 @@ const CLIENT_TYPE = /\b(?:PrismaClient|TransactionClient)\b/;
 
 /** Receiver names trusted as a client when the checker can't trace them (`heuristic`). */
 const CLIENT_NAME = /prisma|^(?:db|database|client|tx|trx)$/i;
-
-/** Longest `expression` kept for a raw query; longer source text is cut with `…`. */
-const MAX_EXPRESSION = 120;
 
 /** A field of a parsed model. */
 export interface PrismaField {
@@ -359,12 +357,6 @@ function locationOf(node: ts.Node, file: string): SourceLocation {
   const sourceFile = node.getSourceFile();
   const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
   return { file, line: position.line + 1, column: position.character + 1 };
-}
-
-/** Source text with whitespace runs collapsed, cut to {@link MAX_EXPRESSION} characters. */
-function expressionText(node: ts.Node): string {
-  const text = node.getText().replace(/\s+/g, " ");
-  return text.length > MAX_EXPRESSION ? `${text.slice(0, MAX_EXPRESSION - 1)}…` : text;
 }
 
 /** Where a client came from: the service that created or typed it, and how sure we are. */

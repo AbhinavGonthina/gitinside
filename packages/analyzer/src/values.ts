@@ -48,6 +48,15 @@ export const CONFIDENCE_RANK: Readonly<Record<Confidence, number>> = {
 export const weaker = (a: Confidence, b: Confidence): Confidence =>
   CONFIDENCE_RANK[a] >= CONFIDENCE_RANK[b] ? a : b;
 
+/** Longest `expression` kept on an unresolved node; longer source text is cut with `…`. */
+const MAX_EXPRESSION = 120;
+
+/** Source text with whitespace runs collapsed, cut to {@link MAX_EXPRESSION} characters. */
+export function expressionText(node: ts.Node): string {
+  const text = node.getText().replace(/\s+/g, " ");
+  return text.length > MAX_EXPRESSION ? `${text.slice(0, MAX_EXPRESSION - 1)}…` : text;
+}
+
 /** True when a variable is declared with `const`. */
 export function isConst(declaration: ts.VariableDeclaration): boolean {
   return (

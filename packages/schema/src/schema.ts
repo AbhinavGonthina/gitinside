@@ -146,6 +146,8 @@ export const GraphNode = z.discriminatedUnion("kind", [
       kind: z.literal("unresolved"),
       reason: UnresolvedReason,
       expression: z.string(),
+      /** Why, in words shown to the user, when the reason code alone doesn't say. */
+      detail: z.string().min(1).optional(),
     })
     .strict(),
 ]);

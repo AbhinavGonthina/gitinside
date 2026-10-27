@@ -174,6 +174,17 @@ describe("ArchitectureGraph", () => {
     expect(ArchitectureGraph.safeParse(g).success).toBe(false);
   });
 
+  it("accepts an unresolved node's detail, but not an empty one", () => {
+    const g = sampleGraph();
+    const index = g.nodes.findIndex((n) => n.kind === "unresolved");
+    const node = g.nodes[index];
+    if (node?.kind !== "unresolved") throw new Error("sample graph has no unresolved node");
+    g.nodes[index] ={ ...node, detail: "the URL starts with a value only known at runtime" };
+    expect(ArchitectureGraph.safeParse(g).success).toBe(true);
+    g.nodes[index] = { ...node, detail: "" };
+    expect(ArchitectureGraph.safeParse(g).success).toBe(false);
+  });
+
   it("rejects unknown fields", () => {
     const g = sampleGraph() as unknown as { extra: number };
     g.extra = 1;

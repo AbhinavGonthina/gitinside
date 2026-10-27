@@ -70,6 +70,8 @@ describe("toUrlPattern", () => {
     ["an origin with a query", [t("https://api.example.com?x=1")], "https://api.example.com"],
     ["a protocol-relative origin", [t("//cdn.example.com/x")], "//cdn.example.com/x"],
     ["a dynamic port", [t("http://localhost:"), H, t("/api")], "http://localhost:{}/api"],
+    ["credentials", [t("https://user:pa55@API.x.com/v1")], "https://api.x.com/v1"],
+    ["a dynamic password", [t("https://user:"), H, t("@api.x.com/v1")], "https://api.x.com/v1"],
     [
       "a dynamic host",
       [t("https://"), H, t(".example.com/x")],
