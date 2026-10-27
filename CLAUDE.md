@@ -79,6 +79,7 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Long background jobs: use Bash `run_in_background` plus a Monitor on its output file; the bench takes ~6 min, so don't block on it in the foreground.
 - Long new test lines often fail `prettier --check` in `pnpm lint`. Run `npx prettier --write <files>` on edited files before linting.
 - `git add -p` is interactive and unavailable. To split a fix into several commits, keep each fix in its own files, or commit them together with a body listing each.
+- `npx vitest` from the repo root isn't found, and `--coverage.*` flags passed through `pnpm --filter <pkg> coverage -- …` are ignored. Read the per-file row from the plain `coverage` run.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 <!-- lessons:end -->
 
