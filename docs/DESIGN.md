@@ -183,6 +183,7 @@ Every detector file starts with a doc comment listing **patterns handled** and *
 **Goal:** map each outbound HTTP call site in a frontend (or any service) to the route node it hits, with a confidence level.
 
 ### 7.1 Collect call sites
+Implemented in `packages/analyzer/src/http.ts` (ADR-0030); its file comment lists every handled and unhandled pattern. A value that is set but can't be read statically (a runtime-built config, a method from a variable) is recorded as unknown, never defaulted.
 - **`fetch(url, init?)`:** method from `init.method` if it's a string literal or resolvable const, else `GET`.
 - **`axios.METHOD(url)`, `axios(config)`, `axios.request(config)`.**
 - **Instances:**
