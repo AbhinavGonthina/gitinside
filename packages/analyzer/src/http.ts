@@ -56,9 +56,16 @@ import type { SymbolResolver } from "./calls.js";
 import { isFunctionWithBody, returnedExpressions, type FunctionWithBody } from "./express.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
+import {
+  createValueReader,
+  MAX_HOPS,
+  objectProperty,
+  weaker,
+  type ConfigValue,
+  type ProgramExpression,
+} from "./values.js";
 
-/** How many alias, variable, or return hops are followed before giving up. */
-const MAX_HOPS = 16;
+export type { ProgramExpression } from "./values.js";
 
 /** Modules whose export (default or `fetch`) is a `fetch` function. */
 const FETCH_MODULES: ReadonlySet<string> = new Set([
@@ -85,12 +92,6 @@ const AXIOS_WITH_DATA: ReadonlySet<string> = new Set([
   "put",
   "putForm",
 ]);
-
-/** An expression and the program whose checker understands it. */
-export interface ProgramExpression {
-  sp: ServiceProgram;
-  expression: ts.Expression;
-}
 
 /** The library that makes a request. */
 export type HttpClient = "fetch" | "axios";
@@ -134,13 +135,8 @@ interface AxiosValue {
   confidence: Confidence;
 }
 
-/** A property read from a config object: absent, unknown (`null`), or its value. */
-type ConfigValue = ProgramExpression | null | undefined;
-
 /** What a call site says about its request, before location and owners are added. */
 type RequestShape = Omit<HttpCallSite, "sp" | "file" | "call" | "site" | "owners">;
-
-const weaker = (a: Confidence, b: Confidence): Confidence => (a === "exact" ? b : a);
 
 /** The module name of `require("x")` or `require("x").default`. */
 function requiredModule(expression: ts.Expression): string | undefined {
@@ -215,108 +211,7 @@ export function collectHttpCalls(
   resolver: SymbolResolver,
   inlineHandlers: ReadonlyMap<ts.Node, readonly string[]> = new Map(),
 ): HttpCallSite[] {
-  /**
-   * The checker symbol an identifier or property name refers to, before alias resolution.
-   * For the name of a shorthand property (`{ method }`), the value it reads.
-   */
-  const symbolAt = (sp: ServiceProgram, node: ts.Node): ts.Symbol | undefined => {
-    const checker = resolver.checkerOf(sp);
-    const parent = node.parent as ts.Node | undefined;
-    return parent && ts.isShorthandPropertyAssignment(parent) && parent.name === node
-      ? checker.getShorthandAssignmentValueSymbol(parent)
-      : checker.getSymbolAtLocation(node);
-  };
-
-  // ---- constant strings (methods) ----
-
-  /** The string an expression always holds, if the collector can tell. */
-  const constString = (
-    sp: ServiceProgram,
-    expression: ts.Expression,
-    hops: number,
-  ): string | undefined => {
-    if (hops > MAX_HOPS) return undefined;
-    const e = unwrap(expression);
-    if (ts.isStringLiteralLike(e)) return e.text;
-    if (ts.isIdentifier(e)) {
-      const symbol = symbolAt(sp, e);
-      return symbol && constStringOfSymbol(sp, symbol, hops + 1);
-    }
-    if (ts.isPropertyAccessExpression(e)) {
-      // A string enum member, `Verb.Patch`.
-      const member = symbolAt(sp, e.name)?.valueDeclaration;
-      if (member && ts.isEnumMember(member)) {
-        const value = resolver.checkerOf(sp).getConstantValue(member);
-        return typeof value === "string" ? value : undefined;
-      }
-      const object = constObject(sp, e.expression, hops + 1);
-      const value = object && objectProperty(object.sp, object.expression, e.name.text);
-      return value ? constString(value.sp, value.expression, hops + 1) : undefined;
-    }
-    return undefined;
-  };
-
-  const constStringOfSymbol = (
-    sp: ServiceProgram,
-    start: ts.Symbol,
-    hops: number,
-  ): string | undefined => {
-    const declaration = resolveDeclaration(sp, start, hops);
-    if (!declaration) return undefined;
-    const d = declaration.declaration;
-    if (ts.isVariableDeclaration(d) && d.initializer && isConst(d)) {
-      return constString(declaration.sp, d.initializer, hops + 1);
-    }
-    return undefined;
-  };
-
-  /** True when a variable is declared with `const`. */
-  const isConst = (declaration: ts.VariableDeclaration): boolean =>
-    ts.isVariableDeclarationList(declaration.parent) &&
-    (declaration.parent.flags & ts.NodeFlags.Const) !== 0;
-
-  /** A const object literal an expression names (`METHODS` in `METHODS.post`). */
-  const constObject = (
-    sp: ServiceProgram,
-    expression: ts.Expression,
-    hops: number,
-  ): { sp: ServiceProgram; expression: ts.ObjectLiteralExpression } | undefined => {
-    if (hops > MAX_HOPS) return undefined;
-    const e = unwrap(expression);
-    if (ts.isObjectLiteralExpression(e)) return { sp, expression: e };
-    if (!ts.isIdentifier(e)) return undefined;
-    const symbol = symbolAt(sp, e);
-    const found = symbol && resolveDeclaration(sp, symbol, hops + 1);
-    const d = found?.declaration;
-    if (!found || !d || !ts.isVariableDeclaration(d) || !d.initializer || !isConst(d)) {
-      return undefined;
-    }
-    return constObject(found.sp, d.initializer, hops + 1);
-  };
-
-  /**
-   * Follow an alias (including a workspace-package import TypeScript couldn't resolve) to the
-   * first declaration of the symbol it names, with the program that understands it.
-   */
-  const resolveDeclaration = (
-    sp: ServiceProgram,
-    start: ts.Symbol,
-    hops: number,
-  ): { sp: ServiceProgram; declaration: ts.Declaration; confidence: Confidence } | undefined => {
-    if (hops > MAX_HOPS) return undefined;
-    if (start.flags & ts.SymbolFlags.Alias) {
-      const aliased = resolver.checkerOf(sp).getAliasedSymbol(start);
-      const declaration = aliased.declarations?.[0];
-      if (declaration) return { sp, declaration, confidence: "exact" };
-      const alias = start.declarations?.[0];
-      const target = alias && resolver.importTarget(sp, alias);
-      if (!target) return undefined;
-      const found = resolveDeclaration(target.sp, target.symbol, hops + 1);
-      return found && { ...found, confidence: weaker(target.confidence, found.confidence) };
-    }
-    const declaration = start.declarations?.[0];
-    return declaration && { sp, declaration, confidence: "exact" };
-  };
+  const { symbolAt, resolveDeclaration, constString } = createValueReader(resolver);
 
   // ---- config objects ----
 
@@ -335,37 +230,6 @@ export function collectHttpCalls(
     const d = found?.declaration;
     if (!found || !d || !ts.isVariableDeclaration(d) || !d.initializer) return undefined;
     return configObject(found.sp, d.initializer, hops + 1);
-  };
-
-  /**
-   * A property of an object literal: its value, `undefined` when it is certainly absent, or
-   * `null` when a spread or a computed key could supply it.
-   */
-  const objectProperty = (
-    sp: ServiceProgram,
-    object: ts.ObjectLiteralExpression,
-    name: string,
-  ): ConfigValue => {
-    for (let i = object.properties.length - 1; i >= 0; i--) {
-      const property = object.properties[i];
-      if (!property) continue;
-      if (ts.isSpreadAssignment(property)) return null;
-      const key = property.name;
-      if (key && ts.isComputedPropertyName(key)) {
-        if (!ts.isStringLiteralLike(key.expression)) return null;
-        if (key.expression.text !== name) continue;
-      } else if (
-        !key ||
-        !(ts.isIdentifier(key) || ts.isStringLiteralLike(key)) ||
-        key.text !== name
-      ) {
-        continue;
-      }
-      if (ts.isPropertyAssignment(property)) return { sp, expression: property.initializer };
-      if (ts.isShorthandPropertyAssignment(property)) return { sp, expression: property.name };
-      return null; // a method or accessor
-    }
-    return undefined;
   };
 
   /** A property of a config expression; `null` when the config itself can't be read. */
