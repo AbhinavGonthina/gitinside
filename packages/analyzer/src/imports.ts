@@ -148,10 +148,14 @@ function workspaceTarget(
   specifier: string,
 ): { pkg: WorkspacePackage; subpath: string } | undefined {
   let best: { pkg: WorkspacePackage; subpath: string } | undefined;
+  let bestLength = -1;
   for (const pkg of workspace.packages) {
-    const matches = specifier === pkg.name || specifier.startsWith(`${pkg.name}/`);
-    if (matches && (!best || pkg.name.length > best.pkg.name.length)) {
-      best = { pkg, subpath: specifier.slice(pkg.name.length + 1) };
+    const name = pkg.packageName;
+    if (name === undefined) continue;
+    const matches = specifier === name || specifier.startsWith(`${name}/`);
+    if (matches && name.length > bestLength) {
+      best = { pkg, subpath: specifier.slice(name.length + 1) };
+      bestLength = name.length;
     }
   }
   return best;
