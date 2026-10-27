@@ -20,6 +20,10 @@
  *   method `ALL`, unless the default-export handler compares its request's method with
  *   string literals (`req.method === "POST"`, `!==`, `switch (req.method)`, `["GET"].includes
  *   (req.method)`, also through `const { method } = req`), in which case one route per method.
+ *   When other methods may still fall through to real code (no negative guard, `default`,
+ *   or 405, and the checks don't end the handler), an `ALL` route is added as well, so a
+ *   fall-through endpoint is never dropped (see `handledMethods`).
+ * - Type-only exports (`export type GET = …`) in a `route.ts` are not routes.
  * - Path segments: `[id]` ⇒ `:id`, `[...slug]` and `[[...slug]]` ⇒ `*slug`, route groups
  *   `(group)` and parallel-route slots `@slot` are dropped. App router folders starting with
  *   `_` are private and produce nothing.
@@ -133,9 +137,26 @@ function functionOf(
  * none are statically visible.
  */
 export function checkedMethods(handler: ts.SignatureDeclaration): HttpMethod[] {
+  return handledMethods(handler).methods;
+}
+
+/**
+ * The methods a pages API handler checks (see {@link checkedMethods}) and whether other
+ * methods may still reach real code (`open`). The set is closed when the remainder is
+ * visibly rejected or empty: a negative guard (`req.method !== "POST"`,
+ * `!["GET"].includes(method)`), a `switch` with a `default`, a `405` or `Allow` response,
+ * or positive checks whose `if` has no final `else` and is the handler's last statement
+ * (a trailing `switch` without `default` counts the same). Otherwise, as in
+ * `if (req.method === "GET") return list(); return create();`, it's open, and the caller
+ * adds an `ALL` route so the fall-through endpoint isn't dropped.
+ */
+export function handledMethods(handler: ts.SignatureDeclaration): {
+  methods: HttpMethod[];
+  open: boolean;
+} {
   const request = handler.parameters[0];
   const body = (handler as ts.FunctionLikeDeclaration).body;
-  if (!request || !body) return [];
+  if (!request || !body) return { methods: [], open: false };
 
   // Names the request object is bound to, and names bound to its `method`.
   const requestNames = new Set<string>();
@@ -171,7 +192,16 @@ export function checkedMethods(handler: ts.SignatureDeclaration): HttpMethod[] {
     const e = unwrap(expression);
     if (ts.isStringLiteralLike(e)) found.add(e.text.toUpperCase());
   };
+  /** Positive checks (`===`, `includes`, `switch` without `default`), for the open/closed test. */
+  const positive: ts.Node[] = [];
+  let rejectsOthers = false;
   const visit = (node: ts.Node): void => {
+    if (
+      (ts.isNumericLiteral(node) && node.text === "405") ||
+      (ts.isStringLiteralLike(node) && node.text.toLowerCase() === "allow")
+    ) {
+      rejectsOthers = true;
+    }
     if (ts.isVariableDeclaration(node) && node.initializer) {
       const init = unwrap(node.initializer);
       if (
@@ -191,13 +221,21 @@ export function checkedMethods(handler: ts.SignatureDeclaration): HttpMethod[] {
         kind === ts.SyntaxKind.ExclamationEqualsEqualsToken ||
         kind === ts.SyntaxKind.ExclamationEqualsToken
       ) {
-        if (isMethod(node.left)) literal(node.right);
-        else if (isMethod(node.right)) literal(node.left);
+        const negative =
+          kind === ts.SyntaxKind.ExclamationEqualsEqualsToken ||
+          kind === ts.SyntaxKind.ExclamationEqualsToken;
+        if (isMethod(node.left) || isMethod(node.right)) {
+          literal(isMethod(node.left) ? node.right : node.left);
+          if (negative) rejectsOthers = true;
+          else positive.push(node);
+        }
       }
     } else if (ts.isSwitchStatement(node) && isMethod(node.expression)) {
       for (const clause of node.caseBlock.clauses) {
         if (ts.isCaseClause(clause)) literal(clause.expression);
+        else rejectsOthers = true;
       }
+      positive.push(node);
     } else if (
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
@@ -207,11 +245,41 @@ export function checkedMethods(handler: ts.SignatureDeclaration): HttpMethod[] {
     ) {
       const list = unwrap(node.expression.expression);
       if (ts.isArrayLiteralExpression(list)) list.elements.forEach(literal);
+      let outer: ts.Node = node.parent;
+      while (ts.isParenthesizedExpression(outer)) outer = outer.parent;
+      const negated =
+        ts.isPrefixUnaryExpression(outer) && outer.operator === ts.SyntaxKind.ExclamationToken;
+      if (negated) rejectsOthers = true;
+      else positive.push(node);
     }
     ts.forEachChild(node, visit);
   };
   visit(body);
-  return [...found].filter((m) => METHODS.has(m)).sort(compareStrings) as HttpMethod[];
+  const methods = [...found].filter((m) => METHODS.has(m)).sort(compareStrings) as HttpMethod[];
+  if (methods.length === 0 || rejectsOthers) return { methods, open: false };
+
+  // Every positive check must sit in an `if` (or be a `switch`) with no final `else`, inside
+  // the handler's last statement; anything else may let other methods reach real code.
+  const statements = ts.isBlock(body) ? body.statements : undefined;
+  const last = statements?.[statements.length - 1];
+  const open = positive.some((check) => {
+    let statement: ts.Node | undefined = check;
+    if (!ts.isSwitchStatement(check)) {
+      statement = check.parent;
+      while (statement && !ts.isIfStatement(statement) && statement !== body) {
+        statement = statement.parent;
+      }
+      if (!statement || !ts.isIfStatement(statement)) return true;
+      if (check.getStart() >= statement.expression.getEnd()) return true; // not in the condition
+      let tail: ts.IfStatement = statement;
+      while (tail.elseStatement && ts.isIfStatement(tail.elseStatement)) tail = tail.elseStatement;
+      if (tail.elseStatement) return true;
+    }
+    let top: ts.Node = statement;
+    while (top.parent !== body && top.parent !== undefined) top = top.parent;
+    return top !== last;
+  });
+  return { methods, open };
 }
 
 /**
@@ -359,8 +427,17 @@ export function buildNextRoutes(
           if (addNode(page, file)) addEdge("renders", id, found?.target, site);
           continue;
         }
-        const methods = [...exports.keys()]
-          .filter((name) => METHODS.has(name))
+        // Only value exports handle requests; `export type GET = …` is not a route. An alias
+        // TS can't resolve yields its "unknown" symbol, which is flagged as a value, so
+        // unresolvable re-exports still count.
+        const isValue = (symbol: ts.Symbol): boolean => {
+          const target =
+            symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+          return (target.flags & ts.SymbolFlags.Value) !== 0;
+        };
+        const methods = [...exports]
+          .filter(([name, symbol]) => METHODS.has(name) && isValue(symbol))
+          .map(([name]) => name)
           .sort(compareStrings);
         if (methods.length === 0) {
           warnings.push({
@@ -391,8 +468,11 @@ export function buildNextRoutes(
       if (fileSegments[0] === "api" && segments.length > 2) {
         const declaration = exported?.declarations?.[0];
         const handler = functionOf(checker, declaration);
-        const checked = handler ? checkedMethods(handler) : [];
-        for (const method of checked.length > 0 ? checked : (["ALL"] as const)) {
+        const { methods: checked, open } = handler
+          ? handledMethods(handler)
+          : { methods: [], open: false };
+        const methods: HttpMethod[] = checked.length === 0 || open ? ["ALL", ...checked] : checked;
+        for (const method of methods) {
           const id = route(method, path, file, site);
           if (id !== undefined) addEdge("handles", id, found?.target, site);
         }
