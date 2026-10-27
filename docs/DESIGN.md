@@ -191,6 +191,8 @@ Implemented in `packages/analyzer/src/http.ts` (ADR-0030); its file comment list
   - Wrapper functions: if `function get(path) { return fetch(BASE + path) }`, call sites `get('/users')` are inlined one level deep when the wrapper's URL expression is `concat(const, param)`. Deeper wrappers are unresolved with reason `WRAPPER_DEPTH`.
 
 ### 7.2 Normalize URL expressions to a pattern
+Implemented in `packages/analyzer/src/url.ts` (ADR-0031); its file comment lists every handled and unhandled expression. A URL that starts with a runtime value is `DYNAMIC_URL`, with a readable detail.
+
 Evaluate the URL expression into a sequence of **literal** and **hole** segments:
 
 | Expression | Normalized |
