@@ -66,7 +66,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 |---|---|---|
 | `imports` | file → file, or → unresolved | import, re-export, or literal `require`/`import()`; a local specifier that doesn't resolve targets an `unresolved` node (`UNKNOWN_SYMBOL`) |
 | `calls` | symbol → symbol | call whose callee resolves to a symbol in the repo (including across workspace packages); unresolved callees get no edge (ADR-0025) |
-| `http` | symbol or page → route, or → unresolved | outbound HTTP call matched to a route (§7 of DESIGN.md) |
+| `http` | symbol, inline-handler route, or (top-level code) file → route, or → unresolved | outbound HTTP call matched to a route (§7 of DESIGN.md); several equally good routes each get an edge with confidence one level weaker (not below `heuristic`) and `reason: "AMBIGUOUS"` (ADR-0033) |
 | `handles` | route → symbol | handler or middleware function of a route (Express, or the exported Next.js handler); routes with non-static paths are `unresolved` nodes (`DYNAMIC_ROUTE`) with no edge (ADR-0026, ADR-0027) |
 | `renders` | page → symbol | page component: the page file's default export (ADR-0027) |
 | `reads`, `writes` | symbol or route → model, or → unresolved | Prisma client usage; the route is the source when the call sits in an inline Express handler. Raw queries target an `unresolved` node (`RAW_QUERY`), as do calls naming an unknown (`UNKNOWN_SYMBOL`) or ambiguous (`AMBIGUOUS`) model (ADR-0028) |

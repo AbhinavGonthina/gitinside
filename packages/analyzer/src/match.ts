@@ -1,0 +1,471 @@
+/**
+ * Route matcher (M2.4, DESIGN.md §7.4): matches each {@link HttpRequest} to the `route` nodes
+ * it can reach and turns the matches into `http` edges, each with a confidence level.
+ *
+ * A request matches a route when all three of these align; the match's confidence is the
+ * weakest of the three, and then no stronger than the request's own confidence:
+ * 1. **Base.** Root-relative (`/api/x`) and `location.origin` URLs are `exact` for routes in
+ *    the caller's own service and `heuristic` for routes in other services (it assumes a proxy
+ *    or rewrite sends them there). Page-relative URLs (`api/x`) are `heuristic`: the page's
+ *    folder is unknown, so the path is read from the root. An env-var base is `heuristic` when
+ *    its name looks like an API base (`API_URL`, `BASE_URL`, `*_API_URL`, `*_BASE_URL`); any
+ *    other env var matches nothing. A literal loopback host (`localhost`, `127.0.0.1`,
+ *    `[::1]`, `0.0.0.0`, `*.localhost`, any port) is `heuristic` against every service; any
+ *    other literal host is an external API and is never matched to a route.
+ * 2. **Method.** Equal methods, an `ALL` route, or a `HEAD` request to a `GET` route are
+ *    `exact`. A request whose method can't be read matches every method at `heuristic`.
+ * 3. **Path**, segment by segment:
+ *    - A literal matches the identical literal (`exact`).
+ *    - A hole (`{}`) matches a param (`:id`, `exact`); a literal or partly literal segment
+ *      matches a param too, as a possible match (`pattern`).
+ *    - A partly literal segment (`user-{}`) matches a literal it can spell (`pattern`). A pure
+ *      hole never matches a literal: nothing says the runtime value is that literal.
+ *    - A wildcard (`*`, `*rest`, `:p*`, `:p+`) takes the rest of its segments (`pattern`).
+ *    - An optional param (`:id?`) may be absent (`exact`).
+ *
+ * Choosing among matches: only the strongest level counts. At that level, the strongest path
+ * alignment wins (under an env-var base every match is `heuristic`, but `/api/users/me` still
+ * picks the literal route over `/api/users/:id`), and then a route with the request's own
+ * method beats an `ALL` route (the pages router's fall-through route is the
+ * same handler). If several routes are still left, the request links to all of them with the
+ * confidence one level weaker (never below `heuristic`, which still points at real routes) and
+ * the edge records `AMBIGUOUS`.
+ *
+ * Routes are indexed by method, then by their first literal segment (routes starting with a
+ * param or wildcard go in a catch-all bucket), so a request only aligns against routes that
+ * can match: near-linear instead of requests × routes.
+ *
+ * Patterns not handled:
+ * - Express path syntax beyond named params, optional params, and wildcards (`/ab?cd`,
+ *   `:from-:to`, regexes, Express 5 `{braces}`): such a segment matches any single segment at
+ *   `pattern`. Case-insensitive and trailing-slash routing options are not read.
+ * - `next.config` `basePath` and rewrites, Vite/webpack dev proxies, and env values: an
+ *   env-var base is never read, only its name (values may be secrets).
+ * - Which service a loopback port belongs to (compose ports, M2.7): every service is a
+ *   candidate.
+ * - A hole that spans several segments (`/api/${path}` with `path = "a/b"`).
+ *
+ * Requests that match nothing are returned as {@link RouteMatch} outcomes (`unresolved` or
+ * `external`) for the unresolved and external nodes of M2.5; this module draws no edge for
+ * them.
+ */
+import {
+  compareStrings,
+  edgeId,
+  type Confidence,
+  type GraphEdge,
+  type GraphNode,
+  type HttpMethod,
+  type SourceLocation,
+} from "@gitinside/schema";
+import { fileNodeId } from "./files.js";
+import type { UrlBase, UrlSegment } from "./url.js";
+import { CONFIDENCE_RANK, weaker } from "./values.js";
+import { serviceForFile, type Workspace } from "./workspace.js";
+import type { HttpRequest } from "./wrappers.js";
+
+/** One segment of a route path. */
+export type RouteSegment =
+  | { kind: "literal"; text: string }
+  /** `:id`, `:id(\\d+)`; `optional` for `:id?`. */
+  | { kind: "param"; optional: boolean }
+  /** `*`, `*rest`, `:p*` (zero or more segments) and `:p+` (one or more). */
+  | { kind: "wildcard"; min: 0 | 1 }
+  /** Any other Express pattern syntax: matches one segment, as a possible match. */
+  | { kind: "complex" };
+
+/** What a request matched. */
+export type RouteMatch =
+  | {
+      kind: "routes";
+      /** Route node IDs, sorted. */
+      routes: string[];
+      confidence: Exclude<Confidence, "unresolved">;
+      /** True when several routes matched equally well. */
+      ambiguous: boolean;
+    }
+  /** A literal host outside the repo (an external API, M2.5). */
+  | { kind: "external"; scheme: string | null; host: string }
+  | {
+      kind: "unresolved";
+      reason: "DYNAMIC_URL" | "WRAPPER_DEPTH" | "NO_MATCHING_ROUTE";
+      /** Why, in words shown to the user. */
+      detail: string;
+    };
+
+/** The parts of an {@link HttpRequest} the matcher reads. */
+export type MatchInput = Pick<HttpRequest, "file" | "method" | "url" | "confidence">;
+
+/** Matches requests against the repo's routes. */
+export interface RouteMatcher {
+  match(request: MatchInput): RouteMatch;
+  /** The label of a route node the matcher knows (`GET /api/users`). */
+  label(id: string): string | undefined;
+}
+
+/** A route ready for matching. */
+interface IndexedRoute {
+  id: string;
+  /** Key of the service that serves it, if known. */
+  service: string | undefined;
+  method: HttpMethod;
+  segments: RouteSegment[];
+}
+
+/** Bucket key for routes whose first segment isn't a literal. */
+const ANY = "\0";
+
+/** A level that can't match. */
+const FAIL = Number.POSITIVE_INFINITY;
+
+const LEVELS = ["exact", "pattern", "heuristic"] as const;
+const EXACT = CONFIDENCE_RANK.exact;
+const PATTERN = CONFIDENCE_RANK.pattern;
+const HEURISTIC = CONFIDENCE_RANK.heuristic;
+
+/** Env var names read as "the base URL of an API in this repo" (DESIGN.md §7.2). */
+const API_BASE_ENV = /^(?:.+_)?(?:API|BASE)_URL$/;
+
+const PARAM = /^:[A-Za-z_$][\w$]*(?:\([^()]*\))?(\?)?$/;
+const PARAM_REPEAT = /^:[A-Za-z_$][\w$]*(?:\([^()]*\))?([*+])$/;
+const WILDCARD = /^\*[\w$]*$/;
+const PATTERN_SYNTAX = /[:*?+()[\]{}]/;
+
+/** Parse a route path (`/api/users/:id`, `/files/*rest`) into segments. Empty segments are dropped. */
+export function parseRoutePath(path: string): RouteSegment[] {
+  return path
+    .split("/")
+    .filter((s) => s !== "")
+    .map((s): RouteSegment => {
+      const param = PARAM.exec(s);
+      if (param) return { kind: "param", optional: param[1] === "?" };
+      const repeat = PARAM_REPEAT.exec(s);
+      if (repeat) return { kind: "wildcard", min: repeat[1] === "+" ? 1 : 0 };
+      if (WILDCARD.test(s)) return { kind: "wildcard", min: 0 };
+      return PATTERN_SYNTAX.test(s) ? { kind: "complex" } : { kind: "literal", text: s };
+    });
+}
+
+/** True when a host (with optional port) is the local machine. */
+export function isLoopbackHost(host: string): boolean {
+  const name = host.startsWith("[") ? host.slice(0, host.indexOf("]") + 1) : host.split(":")[0];
+  return (
+    name === "localhost" ||
+    name === "127.0.0.1" ||
+    name === "0.0.0.0" ||
+    name === "[::1]" ||
+    (name?.endsWith(".localhost") ?? false)
+  );
+}
+
+/** True when a call segment is made only of holes. */
+const isHole = (segment: UrlSegment): boolean => segment.every((p) => p.kind === "hole");
+
+/** True when a call segment is only literal text. */
+const isText = (segment: UrlSegment): boolean => segment.every((p) => p.kind === "text");
+
+/** The text of an all-text call segment. */
+const segmentText = (segment: UrlSegment): string =>
+  segment.map((p) => (p.kind === "text" ? p.text : "")).join("");
+
+/**
+ * True when a segment with holes can spell `literal`, each hole standing for any text
+ * (possibly empty). Greedy leftmost matching of the literal pieces, so linear-ish and never
+ * exponential.
+ */
+function spells(segment: UrlSegment, literal: string): boolean {
+  let at = 0;
+  let floating = false; // a hole came before the current text part
+  for (let i = 0; i < segment.length; i++) {
+    const part = segment[i];
+    if (!part) continue;
+    if (part.kind === "hole") {
+      floating = true;
+      continue;
+    }
+    const last = i === segment.length - 1;
+    if (!floating) {
+      if (!literal.startsWith(part.text, at)) return false;
+      at += part.text.length;
+    } else if (last) {
+      if (literal.length - part.text.length < at || !literal.endsWith(part.text)) return false;
+      at = literal.length;
+    } else {
+      const found = literal.indexOf(part.text, at);
+      if (found === -1) return false;
+      at = found + part.text.length;
+    }
+    floating = false;
+  }
+  return floating || at === literal.length;
+}
+
+/** The level at which one call segment matches one single-segment route segment. */
+function segmentLevel(segment: UrlSegment, route: RouteSegment): number {
+  switch (route.kind) {
+    case "literal":
+      if (isText(segment)) return segmentText(segment) === route.text ? EXACT : FAIL;
+      if (isHole(segment)) return FAIL;
+      return spells(segment, route.text) ? PATTERN : FAIL;
+    case "param":
+      return isHole(segment) ? EXACT : PATTERN;
+    case "complex":
+    case "wildcard":
+      return PATTERN;
+  }
+}
+
+/**
+ * The best level at which a call's path segments align with a route's, or {@link FAIL}.
+ * Dynamic programming over (call segment, route segment), so optional params and wildcards
+ * cost O(call × route) rather than backtracking.
+ */
+export function alignSegments(call: readonly UrlSegment[], route: readonly RouteSegment[]): number {
+  const memo = new Map<number, number>();
+  const width = route.length + 1;
+  const go = (i: number, j: number): number => {
+    if (j === route.length) return i === call.length ? EXACT : FAIL;
+    const key = i * width + j;
+    const cached = memo.get(key);
+    if (cached !== undefined) return cached;
+    const r = route[j];
+    let best = FAIL;
+    if (r?.kind === "wildcard") {
+      for (let k = r.min; i + k <= call.length; k++) {
+        best = Math.min(best, Math.max(PATTERN, go(i + k, j + 1)));
+      }
+    } else if (r) {
+      if (r.kind === "param" && r.optional) best = go(i, j + 1);
+      const segment = call[i];
+      if (segment) {
+        const level = segmentLevel(segment, r);
+        if (level !== FAIL) best = Math.min(best, Math.max(level, go(i + 1, j + 1)));
+      }
+    }
+    memo.set(key, best);
+    return best;
+  };
+  return go(0, 0);
+}
+
+/** The key of the service a route node ID belongs to: the longest workspace key it starts with. */
+function routeService(id: string, keys: readonly string[]): string | undefined {
+  let best: string | undefined;
+  for (const key of keys) {
+    if (id.startsWith(`route:${key}/`) && (best === undefined || key.length > best.length)) {
+      best = key;
+    }
+  }
+  return best;
+}
+
+/** The bucket a route's first segment puts it in. */
+const bucketOf = (segments: readonly RouteSegment[]): string => {
+  const first = segments[0];
+  if (!first) return "";
+  return first.kind === "literal" ? first.text : ANY;
+};
+
+/**
+ * Build a matcher over the `route` nodes in `nodes` (other kinds are ignored). The first node
+ * with a given ID wins, as in graph assembly.
+ */
+export function createRouteMatcher(
+  nodes: readonly GraphNode[],
+  workspace: Workspace,
+): RouteMatcher {
+  const keys = workspace.packages.map((p) => p.key);
+  /** method ⇒ first literal segment (or {@link ANY}) ⇒ routes. */
+  const index = new Map<HttpMethod, Map<string, IndexedRoute[]>>();
+  const labels = new Map<string, string>();
+  for (const node of nodes) {
+    if (node.kind !== "route" || labels.has(node.id)) continue;
+    labels.set(node.id, node.label);
+    const route: IndexedRoute = {
+      id: node.id,
+      service: routeService(node.id, keys),
+      method: node.method,
+      segments: parseRoutePath(node.path),
+    };
+    const byFirst = index.get(route.method) ?? new Map<string, IndexedRoute[]>();
+    const bucket = bucketOf(route.segments);
+    byFirst.set(bucket, [...(byFirst.get(bucket) ?? []), route]);
+    index.set(route.method, byFirst);
+  }
+
+  /** Routes a request with this method and first segment could match. */
+  const candidates = (method: HttpMethod | null, first: UrlSegment | undefined): IndexedRoute[] => {
+    const methods: HttpMethod[] =
+      method === null
+        ? [...index.keys()]
+        : method === "HEAD"
+          ? ["HEAD", "GET", "ALL"]
+          : method === "ALL"
+            ? [...index.keys()]
+            : [method, "ALL"];
+    const out: IndexedRoute[] = [];
+    for (const m of methods) {
+      const byFirst = index.get(m);
+      if (!byFirst) continue;
+      if (first === undefined) {
+        out.push(...(byFirst.get("") ?? []), ...(byFirst.get(ANY) ?? []));
+      } else if (isText(first)) {
+        out.push(...(byFirst.get(segmentText(first)) ?? []), ...(byFirst.get(ANY) ?? []));
+      } else if (isHole(first)) {
+        out.push(...(byFirst.get(ANY) ?? []));
+      } else {
+        for (const bucket of byFirst.values()) out.push(...bucket);
+      }
+    }
+    return out;
+  };
+
+  /** The level the base gives a route, or {@link FAIL} when it can't reach it. */
+  const baseLevel = (base: UrlBase, caller: string | undefined, route: IndexedRoute): number => {
+    switch (base.kind) {
+      case "path":
+        return caller !== undefined && caller === route.service ? EXACT : HEURISTIC;
+      case "page":
+        return HEURISTIC;
+      case "env":
+        return API_BASE_ENV.test(base.name) ? HEURISTIC : FAIL;
+      case "host":
+        return isLoopbackHost(base.host) ? HEURISTIC : FAIL;
+    }
+  };
+
+  const methodLevel = (method: HttpMethod | null, route: IndexedRoute): number => {
+    if (method === null) return HEURISTIC;
+    if (method === route.method || route.method === "ALL" || method === "ALL") return EXACT;
+    return method === "HEAD" && route.method === "GET" ? EXACT : FAIL;
+  };
+
+  return {
+    label: (id) => labels.get(id),
+    match(request) {
+      const { url } = request;
+      if (!url.resolved) return { kind: "unresolved", reason: url.reason, detail: url.detail };
+      const { base, segments } = url.pattern;
+      if (base.kind === "host" && !isLoopbackHost(base.host)) {
+        return { kind: "external", scheme: base.scheme, host: base.host };
+      }
+      if (base.kind === "env" && !API_BASE_ENV.test(base.name)) {
+        return {
+          kind: "unresolved",
+          reason: "NO_MATCHING_ROUTE",
+          detail: `the env var ${base.name} isn't named like an API base URL (*_API_URL, *_BASE_URL)`,
+        };
+      }
+      const caller = serviceForFile(workspace, request.file)?.key;
+
+      // Ranked by overall level, then by path level: the base and method assumptions are
+      // shared, so a literal path match still beats a param match under an env-var base.
+      let best = FAIL;
+      let bestPath = FAIL;
+      let matched: IndexedRoute[] = [];
+      for (const route of candidates(request.method, segments[0])) {
+        const path = alignSegments(segments, route.segments);
+        const level = Math.max(
+          baseLevel(base, caller, route),
+          methodLevel(request.method, route),
+          path,
+        );
+        if (level === FAIL) continue;
+        if (level < best || (level === best && path < bestPath)) {
+          best = level;
+          bestPath = path;
+          matched = [route];
+        } else if (level === best && path === bestPath) {
+          matched.push(route);
+        }
+      }
+      if (best === FAIL) {
+        return {
+          kind: "unresolved",
+          reason: "NO_MATCHING_ROUTE",
+          detail: `no route matches ${request.method ?? "a request"} to ${url.text}`,
+        };
+      }
+      // The request's own method beats an `ALL` route at the same level.
+      if (request.method !== null && request.method !== "ALL") {
+        const specific = matched.filter((r) => r.method !== "ALL");
+        if (specific.length > 0) matched = specific;
+      }
+      const ambiguous = matched.length > 1;
+      const level = LEVELS[Math.min(best + (ambiguous ? 1 : 0), HEURISTIC)] ?? "heuristic";
+      const confidence = weaker(level, request.confidence);
+      return {
+        kind: "routes",
+        routes: [...new Set(matched.map((r) => r.id))].sort(compareStrings),
+        confidence: confidence === "unresolved" ? "heuristic" : confidence,
+        ambiguous,
+      };
+    },
+  };
+}
+
+const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
+  compareStrings(a.file, b.file) || a.line - b.line || a.column - b.column;
+
+/** `http` edges for the requests that matched routes, plus every request's match. */
+export interface HttpEdges {
+  edges: GraphEdge[];
+  /** One entry per request, in request order. */
+  matches: { request: HttpRequest; match: RouteMatch }[];
+}
+
+/**
+ * Match every request and draw an `http` edge from each of its owners (or, for top-level
+ * code, its file) to each matched route. Requests at the same (owner, route) merge into one
+ * edge listing every site, at the strongest confidence; it records `AMBIGUOUS` only when every
+ * site was ambiguous. Requests in files outside every service with no owner get no edge yet
+ * (M2.5). Edges are sorted by ID.
+ */
+export function buildHttpEdges(
+  requests: readonly HttpRequest[],
+  matcher: RouteMatcher,
+  workspace: Workspace,
+): HttpEdges {
+  const matches = requests.map((request) => ({ request, match: matcher.match(request) }));
+  const edges = new Map<string, GraphEdge>();
+  for (const { request, match } of matches) {
+    if (match.kind !== "routes") continue;
+    const service = serviceForFile(workspace, request.file);
+    const sources =
+      request.owners.length > 0
+        ? request.owners
+        : service
+          ? [fileNodeId(service, request.file)]
+          : [];
+    for (const from of sources) {
+      for (const to of match.routes) {
+        const id = edgeId("http", from, to);
+        const existing = edges.get(id);
+        if (!existing) {
+          const label = matcher.label(to);
+          edges.set(id, {
+            id,
+            kind: "http",
+            from,
+            to,
+            confidence: match.confidence,
+            ...(label ? { label } : {}),
+            ...(match.ambiguous ? { reason: "AMBIGUOUS" as const } : {}),
+            sites: [request.site],
+          });
+          continue;
+        }
+        if (CONFIDENCE_RANK[match.confidence] < CONFIDENCE_RANK[existing.confidence]) {
+          existing.confidence = match.confidence;
+        }
+        if (!match.ambiguous) delete existing.reason;
+        if (!existing.sites.some((s) => compareLocations(s, request.site) === 0)) {
+          existing.sites.push(request.site);
+        }
+      }
+    }
+  }
+  const out = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
+  for (const edge of out) edge.sites.sort(compareLocations);
+  return { edges: out, matches };
+}

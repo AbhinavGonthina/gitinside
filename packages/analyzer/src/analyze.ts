@@ -6,13 +6,17 @@ import { assembleGraph } from "./assemble.js";
 import { buildCallEdges, createSymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
+import { collectHttpCalls } from "./http.js";
 import { buildImportGraph } from "./imports.js";
 import { buildInventory, type InventoryLimits } from "./inventory.js";
+import { buildHttpEdges, createRouteMatcher } from "./match.js";
 import { buildNextRoutes } from "./next.js";
 import { buildPrisma } from "./prisma.js";
 import { buildServicePrograms } from "./program.js";
 import { buildSymbolNodes } from "./symbols.js";
+import { createUrlNormalizer } from "./url.js";
 import { detectWorkspace, serviceNodes } from "./workspace.js";
+import { inlineWrappers } from "./wrappers.js";
 
 /** Version stamped into every graph. Part of the cache key, so bump it when output changes. */
 export const ANALYZER_VERSION = "0.1.0";
@@ -29,6 +33,7 @@ export const ANALYSIS_STAGES = [
   "files",
   "symbols",
   "calls",
+  "http",
   "assemble",
 ] as const;
 
@@ -109,6 +114,18 @@ export async function analyze(
   const files = await stage("files", () => buildFileNodes(root, workspace, inventory.sourceFiles));
   const symbols = await stage("symbols", () => buildSymbolNodes(programs));
   const calls = await stage("calls", () => buildCallEdges(programs, resolver));
+  const http = await stage("http", () => {
+    const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
+    const requests = inlineWrappers(
+      sites,
+      programs,
+      resolver,
+      createUrlNormalizer(resolver),
+      express.inlineHandlers,
+    );
+    const matcher = createRouteMatcher([...express.nodes, ...next.nodes], workspace);
+    return buildHttpEdges(requests, matcher, workspace);
+  });
   const name = options.name ?? (await defaultName(root, inventory.files));
   // Part order is precedence: a custom Express server can register the same route as a
   // Next.js file, and Express's node wins (ADR-0027).
@@ -142,6 +159,7 @@ export async function analyze(
         { source: "express", ...express },
         { source: "next", ...next },
         { source: "prisma", ...prisma },
+        { source: "http", edges: http.edges },
       ],
     }),
   );
