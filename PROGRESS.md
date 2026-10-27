@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M2.7. docker-compose + .env detectors (names/schemes only) + stores edges
+M2.8. BullMQ/queue client detection → publishes/consumes
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -50,7 +50,7 @@ M2.7. docker-compose + .env detectors (names/schemes only) + stores edges
 - [x] M2.4 Route matcher with confidence scoring, ambiguity, route index {model: opus}
 - [x] M2.5 Unresolved nodes/edges with reasons; literal external hosts → external nodes {model: opus}
 - [x] M2.6 External SDK detector (allowlist) → external_call edges {model: opus}
-- [ ] M2.7 docker-compose + .env detectors (names/schemes only) + stores edges {model: opus}
+- [x] M2.7 docker-compose + .env detectors (names/schemes only) + stores edges {model: opus}
 - [ ] M2.8 BullMQ/queue client detection → publishes/consumes {model: opus}
 - [ ] M2.9 Pattern fixtures + golden tests + "no call site dropped" test + secret-leak test {model: opus}
 - [ ] M2.10 docs/walkthroughs/resolver.md (line-by-line, diagrams, explain-it-back checklist) {model: opus}
@@ -154,6 +154,8 @@ M2.7. docker-compose + .env detectors (names/schemes only) + stores edges
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-27 · M2.7: `buildInfra`/`relinkStores` in `packages/analyzer/src/infra.ts` (new `infra` stage): compose services with a known image ⇒ `datastore:infra/<dir>/<service>` or `queue:` (override files in one folder merged); `.env*` parsed to keys + scheme/host/port only. A Prisma datasource's `url = env(…)` moves its `stores` edges onto the compose service it names (`exact` by host, `heuristic` by published localhost port or lone same-engine service); ties warn `INFRA_AMBIGUOUS_DATASTORE`. Unexplained URL keys ⇒ `datastore:infra/env#KEY` (ADR-0036). 474 analyzer tests, infra.ts 99.5% lines; goldens unchanged; cal.com: 102 models ⇒ `packages/prisma/postgres` (heuristic, port 5450), duplicate Prisma node gone. Next: M2.8.
 
 - 2026-10-27 · M2.6: `buildSdkEdges` in `packages/analyzer/src/sdk.ts` (new `sdk` stage) traces clients of allowlisted SDKs (Stripe, OpenAI, Anthropic, Resend, Twilio, SendGrid, HubSpot, Slack, Octokit, Postmark, Mailgun, `googleapis`/`@googleapis/*`, every `@aws-sdk/client-*`) like axios instances, and turns method calls on them into unlabeled `external_call` edges to the API host's node, shared with `fetch` via `externalNode()` (ADR-0035). Client-building calls and listed local helpers aren't requests. 434 analyzer tests, sdk.ts 94.1% lines; goldens unchanged; cal.com: `external_call` 79 → 138 (Stripe 23, Google 21, HubSpot 15, SendGrid 1), 29 hosts, no duplicate nodes. Also fixed an M2.5 Prettier slip that broke `pnpm lint`. Next: M2.7.
 
