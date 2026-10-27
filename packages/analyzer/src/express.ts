@@ -38,6 +38,9 @@
  *   as middleware, not prefixes (only literals, templates, `+`, arrays, and `process.env.*`
  *   count as path syntax).
  * - Decorator frameworks (NestJS, v1.1+), `app.param`, and `express.static` file paths.
+ * - Mount graphs whose composition exceeds 20,000 steps (routers shared under several
+ *   prefixes at many levels, which multiplies paths): composition stops and an
+ *   `EXPRESS_ROUTE_LIMIT` warning says routes are missing.
  */
 import ts from "typescript";
 import {
@@ -72,6 +75,14 @@ const MAX_HOPS = 16;
 
 /** How many rounds of parameter binding run; each round can expose routers passed further. */
 const MAX_ROUNDS = 8;
+
+/**
+ * Work budget for mount composition (router visits + route paths emitted). Composition
+ * enumerates every path through the mount graph, which is exponential when routers are
+ * shared under several prefixes at every level; past the budget it stops with an
+ * `EXPRESS_ROUTE_LIMIT` warning. Real apps use a few thousand at most.
+ */
+const MAX_COMPOSITION_STEPS = 20_000;
 
 /** What a local name is bound to: the `express` module itself, or one of its named exports. */
 type ExpressRole = "module" | "Router" | "Express" | "Application";
@@ -662,6 +673,20 @@ export function buildExpressRoutes(
     }
   };
 
+  let steps = 0;
+  /** Count one unit of composition work; false (after one warning) once the budget is spent. */
+  const spend = (): boolean => {
+    steps++;
+    if (steps <= MAX_COMPOSITION_STEPS) return true;
+    if (steps === MAX_COMPOSITION_STEPS + 1) {
+      warnings.push({
+        code: "EXPRESS_ROUTE_LIMIT",
+        message: `mount composition stopped after ${MAX_COMPOSITION_STEPS} steps (routers shared under many prefixes); some Express routes are missing`,
+      });
+    }
+    return false;
+  };
+
   const emit = (route: RouteRecord, base: Base, rootService: ServiceProgram): void => {
     const service = route.sp.service;
     if (route.paths === undefined || "dynamic" in base) {
@@ -691,6 +716,7 @@ export function buildExpressRoutes(
       return;
     }
     for (const local of route.paths) {
+      if (!spend()) return;
       const path = joinPath(base.path, local);
       const label = `${route.method} ${path}`;
       const id = nodeId("route", rootService.service.key, label);
@@ -739,7 +765,7 @@ export function buildExpressRoutes(
     root: ServiceProgram,
     stack: Set<RouterObject>,
   ): void => {
-    if (stack.has(router)) return;
+    if (stack.has(router) || !spend()) return;
     stack.add(router);
     visited.add(router);
     for (const route of router.routes) emit(route, base, root);

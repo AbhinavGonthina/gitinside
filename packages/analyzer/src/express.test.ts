@@ -59,6 +59,33 @@ describe("joinPath", () => {
 });
 
 describe("express routes", () => {
+  it("stops composing exponentially shared mounts with a warning instead of hanging", async () => {
+    // r0 → r1 → … → r19, each under two prefixes: 2^19 paths to the one route at the bottom.
+    const levels = 20;
+    await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));
+    await put("src/server.ts", [
+      'import express, { Router } from "express";',
+      "export function h() {}",
+      "const app = express();",
+      ...Array.from({ length: levels }, (_, i) => `const r${i} = Router();`),
+      'app.use("/", r0);',
+      ...Array.from({ length: levels - 1 }, (_, i) => `r${i}.use(["/a", "/b"], r${i + 1});`),
+      `r${levels - 1}.get("/x", h);`,
+    ]);
+    const start = performance.now();
+    const graph = await analyze(dir);
+    expect(performance.now() - start).toBeLessThan(20_000);
+    expect(routes(graph).length).toBeGreaterThan(0);
+    expect(routes(graph).length).toBeLessThanOrEqual(20_000);
+    expect(expressWarnings(graph)).toEqual([
+      {
+        code: "EXPRESS_ROUTE_LIMIT",
+        message:
+          "mount composition stopped after 20000 steps (routers shared under many prefixes); some Express routes are missing",
+      },
+    ]);
+  });
+
   it("detects methods, route chains, static paths, and handlers on one app", async () => {
     await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));
     await put("src/handlers.ts", [
