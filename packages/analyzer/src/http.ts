@@ -158,7 +158,7 @@ interface AxiosValue {
 type RequestShape = Omit<HttpCallSite, "sp" | "file" | "call" | "site" | "owners">;
 
 /** The module name of `require("x")` or `require("x").default`. */
-function requiredModule(expression: ts.Expression): string | undefined {
+export function requiredModule(expression: ts.Expression): string | undefined {
   let e = unwrap(expression);
   if (ts.isPropertyAccessExpression(e) && e.name.text === "default") e = unwrap(e.expression);
   if (
@@ -177,7 +177,9 @@ function requiredModule(expression: ts.Expression): string | undefined {
  * The module and imported name an import declaration binds: `default` for default imports,
  * `*` for namespace imports and `import x = require()`.
  */
-function importBinding(declaration: ts.Declaration): { module: string; name: string } | undefined {
+export function importBinding(
+  declaration: ts.Declaration,
+): { module: string; name: string } | undefined {
   let statement: ts.Node | undefined;
   let name: string | undefined;
   if (ts.isImportClause(declaration)) {
@@ -205,6 +207,36 @@ function importBinding(declaration: ts.Declaration): { module: string; name: str
 function isRepoCode(sp: ServiceProgram, declaration: ts.Declaration): boolean {
   const sourceFile = declaration.getSourceFile();
   return !sourceFile.isDeclarationFile && sp.toRepoPath(sourceFile.fileName) !== undefined;
+}
+
+/**
+ * The function a callee symbol names: a declaration, or a function value held by a variable
+ * or object property (`{ make }`, `{ make: () => … }`), through aliases.
+ */
+export function functionOf(
+  checker: ts.TypeChecker,
+  start: ts.Symbol,
+): FunctionWithBody | undefined {
+  let symbol: ts.Symbol | undefined = start;
+  for (let hop = 0; symbol && hop < MAX_HOPS; hop++) {
+    if (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+    const declaration: ts.Declaration | undefined = symbol.valueDeclaration;
+    if (!declaration) return undefined;
+    if (isFunctionWithBody(declaration)) return declaration;
+    if (ts.isShorthandPropertyAssignment(declaration)) {
+      symbol = checker.getShorthandAssignmentValueSymbol(declaration);
+      continue;
+    }
+    const init =
+      (ts.isVariableDeclaration(declaration) || ts.isPropertyAssignment(declaration)) &&
+      declaration.initializer
+        ? unwrap(declaration.initializer)
+        : undefined;
+    if (!init) return undefined;
+    if (isFunctionWithBody(init)) return init;
+    symbol = ts.isIdentifier(init) ? checker.getSymbolAtLocation(init) : undefined;
+  }
+  return undefined;
 }
 
 /** The location of a node's first token. */
@@ -499,34 +531,6 @@ export function collectHttpCalls(
     return undefined;
   };
 
-  /**
-   * The function a callee symbol names: a declaration, or a function value held by a
-   * variable or object property (`{ make }`, `{ make: () => … }`), through aliases.
-   */
-  const functionOf = (sp: ServiceProgram, start: ts.Symbol): FunctionWithBody | undefined => {
-    const checker = resolver.checkerOf(sp);
-    let symbol: ts.Symbol | undefined = start;
-    for (let hop = 0; symbol && hop < MAX_HOPS; hop++) {
-      if (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
-      const declaration: ts.Declaration | undefined = symbol.valueDeclaration;
-      if (!declaration) return undefined;
-      if (isFunctionWithBody(declaration)) return declaration;
-      if (ts.isShorthandPropertyAssignment(declaration)) {
-        symbol = checker.getShorthandAssignmentValueSymbol(declaration);
-        continue;
-      }
-      const init =
-        (ts.isVariableDeclaration(declaration) || ts.isPropertyAssignment(declaration)) &&
-        declaration.initializer
-          ? unwrap(declaration.initializer)
-          : undefined;
-      if (!init) return undefined;
-      if (isFunctionWithBody(init)) return init;
-      symbol = ts.isIdentifier(init) ? checker.getSymbolAtLocation(init) : undefined;
-    }
-    return undefined;
-  };
-
   /** What an expression is when it is axios or an axios instance. */
   const axiosOf = (
     sp: ServiceProgram,
@@ -570,7 +574,7 @@ export function collectHttpCalls(
           ? callee.name
           : undefined;
       const symbol = name && symbolAt(sp, name);
-      const fn = symbol && functionOf(sp, symbol);
+      const fn = symbol && functionOf(resolver.checkerOf(sp), symbol);
       if (!fn) return undefined;
       for (const returned of returnedExpressions(fn)) {
         const found = axiosOf(sp, returned, hops + 1);

@@ -428,6 +428,22 @@ export function externalHost(scheme: string | null, host: string): string {
   return port !== undefined && host.endsWith(`:${port}`) ? host.slice(0, -port.length - 1) : host;
 }
 
+/**
+ * The `external` node for a host (already passed through {@link externalHost}). Every pass
+ * builds it here, so a `fetch` and an SDK call to one host produce identical nodes that
+ * assembly merges silently.
+ */
+export function externalNode(host: string): GraphNode {
+  return {
+    id: nodeId("external", "ext", host),
+    kind: "external",
+    label: host,
+    parentId: SYSTEM_ID,
+    layer: "external",
+    host,
+  };
+}
+
 /** What the unresolved node of a request shows: the URL as read, else its source text. */
 function requestLabel(request: HttpRequest): string {
   const method = request.method ?? "?";
@@ -521,17 +537,9 @@ export function buildHttpEdges(
         break;
       case "external": {
         const host = externalHost(match.scheme, match.host);
-        const to = nodeId("external", "ext", host);
-        if (!nodes.has(to)) {
-          nodes.set(to, {
-            id: to,
-            kind: "external",
-            label: host,
-            parentId: SYSTEM_ID,
-            layer: "external",
-            host,
-          });
-        }
+        const node = externalNode(host);
+        const to = node.id;
+        if (!nodes.has(to)) nodes.set(to, node);
         const level = weaker("exact", request.confidence);
         const confidence = level === "unresolved" ? "heuristic" : level;
         for (const from of sources) {

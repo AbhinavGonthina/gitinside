@@ -72,7 +72,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `reads`, `writes` | symbol or route → model, or → unresolved | Prisma client usage; the route is the source when the call sits in an inline Express handler. Raw queries target an `unresolved` node (`RAW_QUERY`), as do calls naming an unknown (`UNKNOWN_SYMBOL`) or ambiguous (`AMBIGUOUS`) model (ADR-0028) |
 | `stores` | model → datastore | model persisted in a datastore (from the Prisma `datasource`) |
 | `publishes`, `consumes` | symbol → queue | queue producer and consumer (v1: BullMQ / known clients) |
-| `external_call` | symbol, inline-handler route, or file → external | SDK or literal-host call to a third party; a literal-host `fetch`/axios call is `exact` unless the call itself was reached more weakly (ADR-0034) |
+| `external_call` | symbol, inline-handler route, or file → external | SDK or literal-host call to a third party; a literal-host `fetch`/axios call is `exact` unless the call itself was reached more weakly (ADR-0034). An allowlisted SDK call targets the node of the SDK's API host, so it shares the node with `fetch` calls to that host; it is `exact`, or `heuristic` when the client came through a heuristic import or the host is inferred from an AWS package name (ADR-0035) |
 
 **Confidence** (drives line style):
 - `exact`: fully determined by literals and resolved symbols.
