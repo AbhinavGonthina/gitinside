@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M1.16. Milestone verification + docs/milestones/M1-review.md + tag m1
+M2.1. HTTP call-site collection (fetch, axios.*, axios(config), axios.create instances via imports)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -41,7 +41,7 @@ M1.16. Milestone verification + docs/milestones/M1-review.md + tag m1
 - [x] M1.13 Graph assembly + canonical serialization + validation before write {model: opus}
 - [x] M1.14 Fixtures (express-basic, express-nested-routers, next-app-router, next-pages-api, prisma-relations, pnpm-monorepo, syntax-error, no-tsconfig) + golden tests {model: opus}
 - [x] M1.15 Determinism test + analyzer coverage ≥ 85% + analysis benchmark baseline {model: opus}
-- [ ] M1.16 Milestone verification + docs/milestones/M1-review.md + tag m1 {model: opus}
+- [x] M1.16 Milestone verification + docs/milestones/M1-review.md + tag m1 {model: opus}
 
 ### M2: Cross-service links + infra
 - [ ] M2.1 HTTP call-site collection (fetch, axios.*, axios(config), axios.create instances via imports) {model: opus}
@@ -154,6 +154,8 @@ M1.16. Milestone verification + docs/milestones/M1-review.md + tag m1
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-27 · M1.16: milestone verified and tagged `m1`. The fresh-eyes review found 7 issues plus 4 minor ones, all fixed with tests in 6 commits: glob ReDoS → DP matcher; brace-expansion and Express mount blowups → caps with warnings; pages API fall-through methods now add `ALL`; only manifest names resolve imports; the CLI repo name no longer comes from the folder (`--owner/--name/--sha` added); `FILES_OUTSIDE_SERVICE` and `PRISMA_NO_DATASOURCE` warnings. 293 tests, analyzer 98.18%. cal.com smoke test passes; 108 `AMBIGUOUS` Prisma calls from a second example schema are logged for the M3 eval. Review: `docs/milestones/M1-review.md`. Next: M2.1.
 
 - 2026-10-26 · Model policy: every task now uses Opus (was 69 Opus / 38 Sonnet). Abhinav prefers maximum quality over speed, and his plan has no weekly cap, only the 5-hour session window. Not a task; next is still M1.16.
 

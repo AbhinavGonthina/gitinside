@@ -77,6 +77,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - The analyzer imports `@gitinside/schema` from its built `dist`, so after editing the schema, `pnpm --filter @gitinside/analyzer test` still validates against the old one. Run `pnpm --filter @gitinside/schema build` first (or use root `pnpm test`, which builds it).
 - `pnpm bench` checks out real repos under `bench/.repos/`; anything that walks the tree (ESLint, Prettier) must ignore that folder, or `pnpm lint` lints cal.com.
 - Long background jobs: use Bash `run_in_background` plus a Monitor on its output file; the bench takes ~6 min, so don't block on it in the foreground.
+- Long new test lines often fail `prettier --check` in `pnpm lint`. Run `npx prettier --write <files>` on edited files before linting.
+- `git add -p` is interactive and unavailable. To split a fix into several commits, keep each fix in its own files, or commit them together with a body listing each.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 <!-- lessons:end -->
 
