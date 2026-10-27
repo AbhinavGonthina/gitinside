@@ -80,6 +80,7 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Long new test lines often fail `prettier --check` in `pnpm lint`. Run `npx prettier --write <files>` on edited files before linting.
 - `git add -p` is interactive and unavailable. To split a fix into several commits, keep each fix in its own files, or commit them together with a body listing each.
 - `npx vitest` from the repo root isn't found, and `--coverage.*` flags passed through `pnpm --filter <pkg> coverage -- …` are ignored. Read the per-file row from the plain `coverage` run.
+- Glob matches files only, so `bench/.repos/*` returns nothing even when checkouts exist. List a folder with `node -e "console.log(require('fs').readdirSync('<dir>'))"`.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 <!-- lessons:end -->
 

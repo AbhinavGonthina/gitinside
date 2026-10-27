@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M2.2. URL expression normalizer (literals, templates, concat, imported consts, env bases, new URL)
+M2.3. One-level wrapper inlining; WRAPPER_DEPTH beyond
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -45,7 +45,7 @@ M2.2. URL expression normalizer (literals, templates, concat, imported consts, e
 
 ### M2: Cross-service links + infra
 - [x] M2.1 HTTP call-site collection (fetch, axios.*, axios(config), axios.create instances via imports) {model: opus}
-- [ ] M2.2 URL expression normalizer (literals, templates, concat, imported consts, env bases, new URL) {model: opus}
+- [x] M2.2 URL expression normalizer (literals, templates, concat, imported consts, env bases, new URL) {model: opus}
 - [ ] M2.3 One-level wrapper inlining; WRAPPER_DEPTH beyond {model: opus}
 - [ ] M2.4 Route matcher with confidence scoring, ambiguity, route index {model: opus}
 - [ ] M2.5 Unresolved nodes/edges with reasons; literal external hosts → external nodes {model: opus}
@@ -154,6 +154,8 @@ M2.2. URL expression normalizer (literals, templates, concat, imported consts, e
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-27 · M2.2: `createUrlNormalizer` in `packages/analyzer/src/url.ts`: `parts()` evaluates URL expressions (literals, templates, `+`, consts via imports/workspace packages, const objects, enums, literal types, `process.env`/`import.meta.env`, `location.origin`, `new URL`) to text/hole/env parts; pure `toUrlPattern()` yields base (`path`/`page`/`host`/`env`) + segments, queries dropped; a leading hole is `DYNAMIC_URL` with a detail (ADR-0031). Value readers moved to `values.ts`. fast-check idempotence property added. 340 analyzer tests, url.ts 98.7% lines; cal.com: 130/217 resolve, 87 `DYNAMIC_URL`, 69 ms. Next: M2.3.
 
 - 2026-10-27 · M2.1: `collectHttpCalls` in `packages/analyzer/src/http.ts` returns one sorted `HttpCallSite` per `fetch`/axios request (method, URL and `baseURL` expressions with their program, owners, confidence); axios instances traced like the Prisma client, incl. workspace packages. `null` = set but unreadable, never defaulted (ADR-0030). Not wired into the graph yet (M2.4/M2.5), so goldens are unchanged. 280 analyzer tests, http.ts 92% lines; cal.com smoke: 217 sites in 2.7 s warm. Next: M2.2.
 
