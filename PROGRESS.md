@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M2.3. One-level wrapper inlining; WRAPPER_DEPTH beyond
+M2.4. Route matcher with confidence scoring, ambiguity, route index
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -46,7 +46,7 @@ M2.3. One-level wrapper inlining; WRAPPER_DEPTH beyond
 ### M2: Cross-service links + infra
 - [x] M2.1 HTTP call-site collection (fetch, axios.*, axios(config), axios.create instances via imports) {model: opus}
 - [x] M2.2 URL expression normalizer (literals, templates, concat, imported consts, env bases, new URL) {model: opus}
-- [ ] M2.3 One-level wrapper inlining; WRAPPER_DEPTH beyond {model: opus}
+- [x] M2.3 One-level wrapper inlining; WRAPPER_DEPTH beyond {model: opus}
 - [ ] M2.4 Route matcher with confidence scoring, ambiguity, route index {model: opus}
 - [ ] M2.5 Unresolved nodes/edges with reasons; literal external hosts → external nodes {model: opus}
 - [ ] M2.6 External SDK detector (allowlist) → external_call edges {model: opus}
@@ -154,6 +154,8 @@ M2.3. One-level wrapper inlining; WRAPPER_DEPTH beyond
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-27 · M2.3: `inlineWrappers` in `packages/analyzer/src/wrappers.ts` turns call sites into `HttpRequest`s: a site whose URL/`baseURL`/method reads a parameter of its symbol is a wrapper body, and each resolved call to that symbol becomes its own request with the parameters bound (normalizer `bindings`); a URL still starting with the caller's parameter is `WRAPPER_DEPTH`; uncalled wrappers keep their site (ADR-0032). `methodSource` lets `{ method: "GET", ...init }` resolve per caller. 349 analyzer tests, wrappers.ts 90.7% lines; cal.com: 217 sites ⇒ 269 requests, 0 dropped, 157 resolved (was 130), 1.3 s. Next: M2.4.
 
 - 2026-10-27 · M2.2: `createUrlNormalizer` in `packages/analyzer/src/url.ts`: `parts()` evaluates URL expressions (literals, templates, `+`, consts via imports/workspace packages, const objects, enums, literal types, `process.env`/`import.meta.env`, `location.origin`, `new URL`) to text/hole/env parts; pure `toUrlPattern()` yields base (`path`/`page`/`host`/`env`) + segments, queries dropped; a leading hole is `DYNAMIC_URL` with a detail (ADR-0031). Value readers moved to `values.ts`. fast-check idempotence property added. 340 analyzer tests, url.ts 98.7% lines; cal.com: 130/217 resolve, 87 `DYNAMIC_URL`, 69 ms. Next: M2.3.
 
