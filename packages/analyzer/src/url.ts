@@ -37,8 +37,13 @@
  * - A URL that starts with a hole, or whose path (on a non-`host` base) is only holes, is
  *   `DYNAMIC_URL`: there is nothing to match it on.
  *
+ * Parameters (M2.3): an identifier parameter is a hole marked `param`. While inlining a
+ * wrapper call (`normalize(site, bindings)`), a bound parameter reads the caller's argument
+ * in the caller's scope, and a URL or `baseURL` that still starts with an unbound parameter
+ * is `WRAPPER_DEPTH` rather than `DYNAMIC_URL`. See `wrappers.ts`.
+ *
  * Not handled (each becomes a hole, so usually `DYNAMIC_URL`):
- * - `let`/`var` variables, parameters, function results (wrappers are M2.3), array
+ * - `let`/`var` variables, destructured parameters, function results, array
  *   `.join()`, `.concat()`, `path.join`, `URLSearchParams` built into the path.
  * - Mutating a `URL` after creation (`u.pathname = …`) and relative `new URL()` URLs whose
  *   base isn't literal (the base's path is unknown).
@@ -67,8 +72,11 @@ const MAX_PARTS = 256;
 /** One piece of a URL value. */
 export type UrlPart =
   | { kind: "text"; text: string }
-  /** A value only known at runtime. */
-  | { kind: "hole" }
+  /**
+   * A value only known at runtime. `param` marks a function parameter nothing is bound to,
+   * which a caller of a wrapper could supply (M2.3).
+   */
+  | { kind: "hole"; param?: true }
   /** An environment variable, by name. */
   | { kind: "env"; name: string }
   /** The page's own origin (`window.location.origin`). */
@@ -109,6 +117,15 @@ export const DYNAMIC_URL_DETAIL = {
 
 export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];
 
+/** Why a URL is `WRAPPER_DEPTH`, in words shown to the user. */
+export const WRAPPER_DEPTH_DETAIL = {
+  url: "the URL starts with a parameter of the calling function, a wrapper more than one call deep",
+  baseURL:
+    "the axios baseURL starts with a parameter of the calling function, a wrapper more than one call deep",
+} as const;
+
+export type WrapperDepthDetail = (typeof WRAPPER_DEPTH_DETAIL)[keyof typeof WRAPPER_DEPTH_DETAIL];
+
 /** The outcome of normalizing one call site's URL. */
 export type NormalizedUrl =
   | {
@@ -119,9 +136,17 @@ export type NormalizedUrl =
       /** `exact`, or the weaker confidence of a workspace import a value came through. */
       confidence: Confidence;
     }
-  | { resolved: false; reason: "DYNAMIC_URL"; detail: DynamicUrlDetail };
+  | { resolved: false; reason: "DYNAMIC_URL"; detail: DynamicUrlDetail }
+  | { resolved: false; reason: "WRAPPER_DEPTH"; detail: WrapperDepthDetail };
+
+/**
+ * Values bound to a wrapper's parameters while inlining one call to it (M2.3): the caller's
+ * argument or the parameter's default, `undefined` when neither is readable.
+ */
+export type ParameterBindings = ReadonlyMap<ts.ParameterDeclaration, ProgramExpression | undefined>;
 
 const HOLE: UrlPart = { kind: "hole" };
+const PARAM_HOLE: UrlPart = { kind: "hole", param: true };
 const text = (value: string): UrlPart => ({ kind: "text", text: value });
 
 /** `scheme://` or `//` at the start of a URL (axios's `isAbsoluteURL`). */
@@ -352,8 +377,17 @@ export function resolveURL(url: readonly UrlPart[], base: readonly UrlPart[]): U
 export interface UrlNormalizer {
   /** The parts an expression evaluates to; anything not statically known is a hole. */
   parts(value: ProgramExpression): UrlPart[];
-  /** A call site's URL, combined with its axios `baseURL`, as a pattern or `DYNAMIC_URL`. */
-  normalize(site: Pick<HttpCallSite, "url" | "baseURL">): NormalizedUrl;
+  /**
+   * A call site's URL, combined with its axios `baseURL`, as a pattern or `DYNAMIC_URL`.
+   * With `bindings` (inlining a wrapper call), a URL or base that still starts with an
+   * unbound parameter is `WRAPPER_DEPTH`: only a caller further out could supply it.
+   */
+  normalize(
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+    bindings?: ParameterBindings,
+  ): NormalizedUrl;
+  /** The parameters a call site's URL and `baseURL` read, which a wrapper caller could bind. */
+  parameters(site: Pick<HttpCallSite, "url" | "baseURL">): ReadonlySet<ts.ParameterDeclaration>;
 }
 
 /** Create a {@link UrlNormalizer} (see the file comment for what it reads). */
@@ -364,6 +398,10 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   const note = (c: Confidence): void => {
     confidence = weaker(confidence, c);
   };
+  /** The wrapper parameters bound for the current `normalize` call, if inlining. */
+  let bindings: ParameterBindings | undefined;
+  /** Parameters read without a binding during the current evaluation. */
+  const used = new Set<ts.ParameterDeclaration>();
 
   /** True when an identifier names a global, not something the repo declares. */
   const isGlobal = (sp: ServiceProgram, identifier: ts.Identifier, name: string): boolean => {
@@ -427,11 +465,35 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     return ts.isIdentifier(key) || ts.isStringLiteralLike(key) ? key.text : undefined;
   };
 
+  /** A parameter read: its bound value while inlining, else a parameter hole. */
+  const parameterParts = (
+    sp: ServiceProgram,
+    e: ts.Identifier,
+    d: ts.ParameterDeclaration,
+    hops: number,
+  ): UrlPart[] => {
+    if (bindings?.has(d)) {
+      const bound = bindings.get(d);
+      if (!bound) return [HOLE];
+      // The argument is read in the caller's scope, where these bindings don't apply.
+      const outer = bindings;
+      bindings = undefined;
+      try {
+        return partsOf(bound.sp, bound.expression, hops + 1);
+      } finally {
+        bindings = outer;
+      }
+    }
+    used.add(d);
+    return literalType(sp, e) ?? [PARAM_HOLE];
+  };
+
   const identifierParts = (sp: ServiceProgram, e: ts.Identifier, hops: number): UrlPart[] => {
     const symbol = reader.symbolAt(sp, e);
     const found = symbol && reader.resolveDeclaration(sp, symbol, hops + 1);
     if (found) {
       const d = found.declaration;
+      if (ts.isParameter(d) && ts.isIdentifier(d.name)) return parameterParts(sp, e, d, hops);
       if (ts.isVariableDeclaration(d) && d.initializer && isConst(d)) {
         note(found.confidence);
         return partsOf(found.sp, d.initializer, hops + 1);
@@ -560,14 +622,35 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     detail,
   });
 
-  const normalize = (site: Pick<HttpCallSite, "url" | "baseURL">): NormalizedUrl => {
+  /** True when inlining and the parts start with a parameter no binding supplied. */
+  const startsWithParameter = (p: readonly UrlPart[]): boolean => {
+    const first = p[0];
+    return bindings !== undefined && first?.kind === "hole" && first.param === true;
+  };
+
+  const normalize = (
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+    scope?: ParameterBindings,
+  ): NormalizedUrl => {
     confidence = "exact";
+    bindings = scope;
+    try {
+      return normalizeSite(site);
+    } finally {
+      bindings = undefined;
+      used.clear();
+    }
+  };
+
+  const normalizeSite = (site: Pick<HttpCallSite, "url" | "baseURL">): NormalizedUrl => {
     if (site.url === null) return dynamic(DYNAMIC_URL_DETAIL.url);
     let url = parts(site.url);
+    if (startsWithParameter(url)) return deeper(WRAPPER_DEPTH_DETAIL.url);
     if (url[0]?.kind === "hole") return dynamic(DYNAMIC_URL_DETAIL.leadingHole);
     if (site.baseURL !== undefined && !isAbsolute(url)) {
       if (site.baseURL === null) return dynamic(DYNAMIC_URL_DETAIL.baseURL);
       const base = parts(site.baseURL);
+      if (startsWithParameter(base)) return deeper(WRAPPER_DEPTH_DETAIL.baseURL);
       if (base[0]?.kind === "hole") return dynamic(DYNAMIC_URL_DETAIL.baseLeadingHole);
       url = joinBaseURL(base, url);
     }
@@ -581,5 +664,22 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     };
   };
 
-  return { parts, normalize };
+  const deeper = (detail: WrapperDepthDetail): NormalizedUrl => ({
+    resolved: false,
+    reason: "WRAPPER_DEPTH",
+    detail,
+  });
+
+  const parameters = (
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+  ): ReadonlySet<ts.ParameterDeclaration> => {
+    used.clear();
+    if (site.url) parts(site.url);
+    if (site.baseURL) parts(site.baseURL);
+    const found = new Set(used);
+    used.clear();
+    return found;
+  };
+
+  return { parts, normalize, parameters };
 }

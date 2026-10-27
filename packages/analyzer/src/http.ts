@@ -37,7 +37,8 @@
  *
  * Patterns not handled:
  * - Locally declared functions named `fetch` and other wrappers (`get(path)` calling
- *   `fetch(BASE + path)`) are not requests themselves; one-level inlining is M2.3.
+ *   `fetch(BASE + path)`) are not requests themselves; `wrappers.ts` (M2.3) inlines calls
+ *   to them one level deep.
  * - Instances stored in collections, destructured (`const { get } = api`), assigned later
  *   (`this.api = axios.create()` in a TS constructor, unless the property is typed), or
  *   changed after creation (`api.defaults.baseURL = …`, interceptors rewriting URLs).
@@ -60,6 +61,7 @@ import {
   createValueReader,
   MAX_HOPS,
   objectProperty,
+  ownProperty,
   weaker,
   type ConfigValue,
   type ProgramExpression,
@@ -114,6 +116,12 @@ export interface HttpCallSite {
   owners: string[];
   /** The request method, or `null` when it can't be read. */
   method: HttpMethod | null;
+  /**
+   * Where an unreadable method (`null`) comes from: a `method` value, a config the collector
+   * can't locate, or spreads in a config literal. Wrapper inlining (M2.3) re-reads it with the
+   * caller's arguments. Absent when the method is known or hidden some other way.
+   */
+  methodSource?: MethodSource;
   /** The URL argument or `url` config property, or `null` when it can't be read. */
   url: ProgramExpression | null;
   /**
@@ -127,6 +135,17 @@ export interface HttpCallSite {
    */
   confidence: Confidence;
 }
+
+/**
+ * The expression an unreadable method comes from: the `method` value itself, the request
+ * config (`fetch` init or axios config) whose `method` property couldn't be looked up, or the
+ * spreads in a config literal that could override it (`{ method: "GET", ...init }`, last
+ * spread first, with the `method` property before them, if any).
+ */
+export type MethodSource =
+  | { kind: "value"; value: ProgramExpression }
+  | { kind: "config"; config: ProgramExpression }
+  | { kind: "spreads"; spreads: ProgramExpression[]; fallback: ProgramExpression | undefined };
 
 /** What an expression evaluates to when it is axios or an axios instance. */
 interface AxiosValue {
@@ -189,14 +208,14 @@ function isRepoCode(sp: ServiceProgram, declaration: ts.Declaration): boolean {
 }
 
 /** The location of a node's first token. */
-function locationOf(node: ts.Node, file: string): SourceLocation {
+export function locationOf(node: ts.Node, file: string): SourceLocation {
   const sourceFile = node.getSourceFile();
   const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
   return { file, line: position.line + 1, column: position.character + 1 };
 }
 
 /** Normalize a method string to an {@link HttpMethod} other than `ALL`, or `null`. */
-function toMethod(text: string): HttpMethod | null {
+export function toMethod(text: string): HttpMethod | null {
   const parsed = HttpMethod.safeParse(text.toUpperCase());
   return parsed.success && parsed.data !== "ALL" ? parsed.data : null;
 }
@@ -271,6 +290,62 @@ export function collectHttpCalls(
     if (value === null) return null;
     const text = constString(value.sp, value.expression, 0);
     return text === undefined ? null : toMethod(text);
+  };
+
+  /**
+   * The spreads that could supply an object literal's `method` (`{ method: "GET", ...init }`),
+   * last first, and the `method` property before them. `undefined` when something other than
+   * a spread (a computed key, a `method()` member) hides it.
+   */
+  const spreadMethod = (
+    sp: ServiceProgram,
+    object: ts.ObjectLiteralExpression,
+  ): MethodSource | undefined => {
+    const spreads: ProgramExpression[] = [];
+    let fallback: ProgramExpression | undefined;
+    for (let i = object.properties.length - 1; i >= 0; i--) {
+      const property = object.properties[i];
+      if (!property) continue;
+      if (ts.isSpreadAssignment(property)) {
+        spreads.push({ sp, expression: property.expression });
+        continue;
+      }
+      const value = ownProperty(sp, property, "method");
+      if (value === null) return undefined;
+      if (value) {
+        fallback = value;
+        break;
+      }
+    }
+    return { kind: "spreads", spreads, fallback };
+  };
+
+  /**
+   * The `method` a config passes (absent ⇒ `fallback`), with the {@link MethodSource} of an
+   * unreadable one. `config` is `null` when a spread hides it.
+   */
+  const configMethod = (
+    sp: ServiceProgram,
+    config: ts.Expression | null | undefined,
+    fallback: HttpMethod,
+  ): Pick<HttpCallSite, "method" | "methodSource"> => {
+    if (config === null) return { method: null };
+    const value = configProperty(sp, config, "method");
+    const method = methodOf(value, fallback);
+    if (method !== null || !config) return { method };
+    if (value === null) {
+      // `null` here means the config itself couldn't be located, unless it is an object
+      // literal whose `method` a spread could supply.
+      const object = configObject(sp, config, 0);
+      if (!object) {
+        return { method, methodSource: { kind: "config", config: { sp, expression: config } } };
+      }
+      const spreads = spreadMethod(object.sp, object.expression);
+      return spreads ? { method, methodSource: spreads } : { method };
+    }
+    return value && constString(value.sp, value.expression, 0) === undefined
+      ? { method, methodSource: { kind: "value", value } }
+      : { method };
   };
 
   // ---- fetch ----
@@ -556,7 +631,7 @@ export function collectHttpCalls(
     const ownUrl = url ?? read("url");
     return {
       client: "axios",
-      method: method ?? methodOf(read("method"), "GET"),
+      ...(shorthand ? { method } : configMethod(sp, config, "GET")),
       url: ownUrl ?? null,
       baseURL: ownBase === undefined ? instance.baseURL : ownBase,
       confidence: instance.confidence,
@@ -593,8 +668,13 @@ export function collectHttpCalls(
         url = innerUrl ? { sp, expression: innerUrl } : null;
         if (init === undefined) init = spread !== -1 && spread <= 1 ? null : inner[1];
       }
-      const method = init === null ? null : methodOf(configProperty(sp, init, "method"), "GET");
-      return { client: "fetch", method, url, baseURL: undefined, confidence: "exact" };
+      return {
+        client: "fetch",
+        ...configMethod(sp, init, "GET"),
+        url,
+        baseURL: undefined,
+        confidence: "exact",
+      };
     }
 
     const callee = unwrap(call.expression);
