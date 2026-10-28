@@ -7,6 +7,7 @@ import {
   type AnyDatabase,
 } from "@gitinside/db";
 import { rateLimitKey } from "./clientIp";
+import { UNAVAILABLE_MESSAGE } from "./messages";
 import { resolveRepo, type GitHubOptions, type ResolveFailure } from "./github";
 import { parseRepoUrl } from "./repoUrl";
 import { WorkerUnavailableError, type WorkerClient } from "./worker";
@@ -30,7 +31,7 @@ import { WorkerUnavailableError, type WorkerClient } from "./worker";
 /** Everything {@link requestAnalysis} talks to. */
 export interface AnalyzeDeps {
   db: AnyDatabase;
-  worker: WorkerClient;
+  worker: Pick<WorkerClient, "enqueue">;
   github: GitHubOptions;
   /** `@gitinside/analyzer/version`: part of the cache key. */
   analyzerVersion: string;
@@ -64,9 +65,7 @@ export interface AnalyzeResponse {
   headers?: Record<string, string>;
 }
 
-/** UX.md's words for the worker being down. */
-export const UNAVAILABLE_MESSAGE =
-  "Analysis is temporarily unavailable. Already-analyzed repos still work.";
+export { UNAVAILABLE_MESSAGE };
 
 const RESOLVE_ERRORS: Record<ResolveFailure, { status: number; message: string }> = {
   REPO_NOT_FOUND: {

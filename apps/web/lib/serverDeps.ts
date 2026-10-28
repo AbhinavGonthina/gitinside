@@ -2,11 +2,12 @@ import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
 import { createDb, type DbHandle } from "@gitinside/db";
 import { MIN_SECRET_LENGTH } from "@gitinside/worker/hmac";
 import type { AnalyzeDeps } from "./analyze";
+import type { JobRouteDeps } from "./jobRoute";
 import { createWorkerClient } from "./worker";
 
 /**
- * `/api/analyze`'s dependencies from the environment (names in `apps/web/.env.example`,
- * ADR-0055, ADR-0066):
+ * The API routes' dependencies from the environment (names in `apps/web/.env.example`,
+ * ADR-0055, ADR-0066, ADR-0067):
  *
  * - `DATABASE_URL` (Neon's pooled string), `WORKER_URL`, `ENQUEUE_HMAC_SECRET`: required.
  *   If one is missing or the secret is short, the API answers "temporarily unavailable"
@@ -21,23 +22,41 @@ export const SIGNED_OUT_HOURLY_LIMIT = 5;
 
 let handle: { url: string; db: DbHandle } | undefined;
 
-/** Build the deps from `env`, or `undefined` if the server isn't configured. */
-export function analyzeDepsFromEnv(
-  env: Readonly<Record<string, string | undefined>> = process.env,
-): AnalyzeDeps | undefined {
-  const { DATABASE_URL: databaseUrl, WORKER_URL: workerUrl, ENQUEUE_HMAC_SECRET: secret } = env;
-  if (!databaseUrl || !workerUrl || !secret || secret.length < MIN_SECRET_LENGTH) return undefined;
+type Env = Readonly<Record<string, string | undefined>>;
+
+/** `WORKER_URL` and `ENQUEUE_HMAC_SECRET` if both are usable (https in production). */
+function workerConfig(env: Env): { url: string; secret: string } | undefined {
+  const { WORKER_URL: url, ENQUEUE_HMAC_SECRET: secret } = env;
+  if (!url || !secret || secret.length < MIN_SECRET_LENGTH) return undefined;
   try {
-    if (new URL(workerUrl).protocol !== "https:" && env.NODE_ENV === "production") return undefined;
+    if (new URL(url).protocol !== "https:" && env.NODE_ENV === "production") return undefined;
   } catch {
     return undefined;
   }
+  return { url, secret };
+}
+
+/**
+ * The job routes' deps (`/api/jobs/:id`, ADR-0067): only the worker, so watching a job
+ * needs no database connection. `undefined` if the worker isn't configured.
+ */
+export function jobDepsFromEnv(env: Env = process.env): JobRouteDeps | undefined {
+  const config = workerConfig(env);
+  return config && { worker: createWorkerClient(config) };
+}
+
+/** Build the deps from `env`, or `undefined` if the server isn't configured. */
+export function analyzeDepsFromEnv(env: Env = process.env): AnalyzeDeps | undefined {
+  const { DATABASE_URL: databaseUrl } = env;
+  const config = workerConfig(env);
+  if (!databaseUrl || !config) return undefined;
   if (handle?.url !== databaseUrl) {
     handle = { url: databaseUrl, db: createDb(databaseUrl, { max: 1 }) };
   }
+  const { secret } = config;
   return {
     db: handle.db.db,
-    worker: createWorkerClient({ url: workerUrl, secret }),
+    worker: createWorkerClient(config),
     github: env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN } : {},
     analyzerVersion: ANALYZER_VERSION,
     rateLimitSecret: secret,

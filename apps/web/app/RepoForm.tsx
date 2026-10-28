@@ -4,35 +4,50 @@ import { Button } from "@gitinside/viewer";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState, type FormEvent } from "react";
 import { parseRepoUrl } from "../lib/repoUrl";
+import { startAnalysis } from "../lib/startAnalysis";
 
 /**
  * The landing page's one field: paste a GitHub repo URL, press Analyze.
  * The URL is checked here so a typo gets an answer before any request; a
- * valid one opens the repo's page. (From M5.7 it starts an analysis through
- * `/api/analyze` instead, which checks it again on the server, and opens the
- * progress page.)
+ * valid one goes to `/api/analyze`, which checks it again on the server.
+ * A cached commit opens the repo's page, a new one its progress page, and a
+ * refusal (rate limit, missing repo, worker down) is said in place.
  */
 export function RepoForm() {
   const router = useRouter();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const id = useId();
 
-  const submit = (event: FormEvent) => {
+  const fail = (message: string) => {
+    setError(message);
+    input.current?.focus();
+  };
+
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
+    // Not `disabled` while pending: a disabled button drops keyboard focus (CLAUDE.md lessons).
+    if (pending) return;
     const result = parseRepoUrl(value);
     if (!result.ok) {
-      setError(result.error);
-      input.current?.focus();
+      fail(result.error);
       return;
     }
     setError(null);
-    router.push(`/${encodeURIComponent(result.owner)}/${encodeURIComponent(result.repo)}`);
+    setPending(true);
+    const answer = await startAnalysis(value);
+    if (answer.ok) {
+      router.push(answer.href);
+      return;
+    }
+    setPending(false);
+    fail(answer.message);
   };
 
   return (
-    <form className="repo-form" onSubmit={submit} noValidate>
+    <form className="repo-form" onSubmit={submit} noValidate aria-busy={pending || undefined}>
       <label htmlFor={`${id}-url`} className="visually-hidden">
         GitHub repo URL
       </label>
@@ -68,7 +83,9 @@ export function RepoForm() {
         aria-live="polite"
       >
         {error ??
-          "Public repos, no sign-in. TypeScript and JavaScript: React, Next.js, Express, Prisma."}
+          (pending
+            ? "Checking the latest commit on GitHub…"
+            : "Public repos, no sign-in. TypeScript and JavaScript: React, Next.js, Express, Prisma.")}
       </p>
     </form>
   );

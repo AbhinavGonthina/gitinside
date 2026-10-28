@@ -254,3 +254,161 @@ code {
   gap: var(--space-24);
   margin: 0;
 }
+
+.notice__title:focus {
+  outline: none;
+}
+
+/* Progress page ----------------------------------------------------------- */
+
+/* A thin bar, then the stages as a path: one hairline joins the markers, so
+   the job reads as a request traveling through the pipeline. */
+.progress__bar {
+  height: 4px;
+  margin: 0 0 var(--space-32);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+
+.progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--duration-standard) var(--ease-standard);
+}
+
+.progress__steps {
+  margin: 0 0 var(--space-32);
+  padding: 0;
+  list-style: none;
+}
+
+.progress__step {
+  /* Steps ahead: between the hairline and muted text, so the path reads
+     in both themes without competing with the steps walked. */
+  --progress-ahead: color-mix(in srgb, var(--text-muted) 55%, var(--border));
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  column-gap: var(--space-12);
+  align-items: center;
+  padding-bottom: var(--space-16);
+  color: var(--text-muted);
+  font-size: var(--font-size-14);
+}
+
+.progress__step:last-child {
+  padding-bottom: 0;
+}
+
+/* The path between markers: solid once walked, a hairline ahead. */
+.progress__step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 2px;
+  left: 7.5px;
+  width: 1px;
+  background: var(--progress-ahead);
+}
+
+.progress__step[data-status="done"]:not(:last-child)::after {
+  background: var(--accent);
+}
+
+.progress__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--progress-ahead);
+  border-radius: var(--radius-pill);
+  background: var(--canvas);
+}
+
+.progress__step[data-status="done"] .progress__marker {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--canvas);
+}
+
+.progress__step[data-status="current"] .progress__marker {
+  border-color: var(--accent);
+}
+
+/* The current stage's dot breathes; reduced motion zeroes the durations,
+   and the animation is dropped outright for it. */
+.progress__step[data-status="current"] .progress__marker::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  animation: progress-pulse 1.6s var(--ease-standard) infinite;
+}
+
+@keyframes progress-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress__step[data-status="current"] .progress__marker::before {
+    animation: none;
+  }
+}
+
+.progress__step[data-status="done"],
+.progress__step[data-status="current"] {
+  color: var(--text);
+}
+
+.progress__step[data-status="current"] .progress__label {
+  font-weight: var(--font-weight-medium);
+}
+
+.progress__detail {
+  grid-column: 2;
+  margin-top: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Failures and the unavailable notice read in body text with a bar, like the
+   landing form's errors (DESIGN_SYSTEM.md §4: diff colors never color text). */
+.progress__failure,
+.progress__notice {
+  display: flex;
+  gap: var(--space-12);
+  margin: var(--space-12) 0 var(--space-24);
+  color: var(--text);
+  font-size: var(--font-size-16);
+  line-height: var(--line-height-body);
+}
+
+.progress__failure::before,
+.progress__notice::before {
+  content: "";
+  flex: none;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--diff-removed);
+}
+
+.progress__notice::before {
+  background: var(--text-muted);
+}
+
+.progress__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-24);
+}

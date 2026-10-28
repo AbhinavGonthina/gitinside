@@ -13,7 +13,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { requestAnalysis, UNAVAILABLE_MESSAGE, type AnalyzeDeps } from "./analyze";
 import { rateLimitKey } from "./clientIp";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
-import { WorkerUnavailableError, type AnalyzeJob, type WorkerClient } from "./worker";
+import { WorkerUnavailableError, type AnalyzeJob } from "./worker";
 
 const SHA = "e".repeat(40);
 const VERSION = "0.1.0";
@@ -26,7 +26,7 @@ function fakeWorker() {
   const jobs = new Map<string, AnalyzeJob>();
   const calls: AnalyzeJob[] = [];
   let down = false;
-  const client: WorkerClient = {
+  const client: AnalyzeDeps["worker"] = {
     async enqueue(job) {
       calls.push(job);
       if (down) throw new WorkerUnavailableError("status 503");
@@ -248,7 +248,7 @@ describe("requestAnalysis", () => {
   });
 
   it("rethrows errors that aren't the worker being unavailable", async () => {
-    const broken: WorkerClient = {
+    const broken: AnalyzeDeps["worker"] = {
       enqueue: async () => {
         throw new Error("bug");
       },
