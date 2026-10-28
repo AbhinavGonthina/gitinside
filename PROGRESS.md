@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.4d. BullMQ worker (concurrency 2, tarball fetch → extract → child → result, stalled-job retries, job dir cleanup); M4b waits for the design gate (#2)
+M5.5. Worker: R2 upload, Postgres writes, progress events (plus the worker's entry point: env ⇒ Redis, sweep, worker + enqueue server, JSON logs, SIGTERM ⇒ `stopWorker`); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -107,7 +107,7 @@ M5.4d. BullMQ worker (concurrency 2, tarball fetch → extract → child → res
 - [x] M5.4a apps/worker scaffold + safe streaming tarball extraction (path checks, links rejected, size/entry limits) {model: opus}
 - [x] M5.4b Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error codes) {model: opus}
 - [x] M5.4c HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window, two-secret rotation; Supertest) {model: opus}
-- [ ] M5.4d BullMQ worker (concurrency 2, tarball fetch → extract → child → result, stalled-job retries, job dir cleanup) {model: opus}
+- [x] M5.4d BullMQ worker (concurrency 2, tarball fetch → extract → child → result, stalled-job retries, job dir cleanup) {model: opus}
 - [ ] M5.5 Worker: R2 upload, Postgres writes, progress events {model: opus}
 - [ ] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
 - [ ] M5.7 Progress page with real stages + queue position (SSE) {model: opus}
@@ -163,6 +163,8 @@ M5.4d. BullMQ worker (concurrency 2, tarball fetch → extract → child → res
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.4d: `processJob` (`apps/worker/src/job.ts`) streams the tarball (`github.ts`: redirects by hand, token only to the API, only codeload fetched) into `<jobsRoot>/<id>-<random>/src`, runs the child, calls an injected `publish` (M5.5), deletes the folder in `finally`; `sweepJobsRoot` at startup. Coded `JobFailure`s (`failure.ts`) say whether to retry: network/rate limit/shutdown/publish retried (3 attempts, backoff), `LIMIT_*`/`TAR_*`/`REPO_NOT_FOUND` thrown as `UnrecoverableError`. `queue.ts`: BullMQ 6.4.2 + ioredis 5.11.1 `JobQueue` (dedupe, re-add reruns retriable failures, positions, stages, 5 s timeouts) and a Worker (concurrency 2, `maxStalledCount: 2`, `stopWorker` cancels). BullMQ tests run on CI's new Redis service only (verified on a draft PR first: 36/36 ran, queue.ts 100%); `turbo.json` passes `CI`/`TEST_*` through (ADR-0061). 237 worker tests, 93.7% lines on CI. Eval re-recorded (lockfile). Next: M5.5.
 
 - 2026-10-28 · M5.4c: `createEnqueueHandler`/`createEnqueueServer` in `apps/worker/src/api.ts` (plain `node:http`): open `GET /health` (queue ping, 2 s), signed `POST /enqueue` ⇒ `202 { id, created }` and `GET /jobs/:id` (documented fields only). `hmac.ts`: HMAC-SHA256 over `v1\n<ts>\n<METHOD>\n<path?query>\n<body>`, ±5 min, checked before parsing or routing against `ENQUEUE_HMAC_SECRET` and the optional `…_PREVIOUS` (rotation); exported as `@gitinside/worker/hmac` for M5.6. Job IDs derived from kind/owner/repo/SHAs/analyzer version (dedupe, replays are no-ops); 16 KiB body cap; `JobQueue` interface for M5.4d's BullMQ (ADR-0060). 52 new tests (Supertest), api.ts 99.2% / hmac.ts 100% lines. Eval re-recorded (lockfile). Next: M5.4d.
 
