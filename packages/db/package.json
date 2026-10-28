@@ -1,0 +1,38 @@
+{
+  "name": "@gitinside/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "drizzle"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "generate": "drizzle-kit generate",
+    "migrate": "node dist/migrate-cli.js"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "postgres": "3.4.9"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.13",
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "drizzle-kit": "0.31.11",
+    "typescript": "5.6.3",
+    "vitest": "2.1.8"
+  }
+}

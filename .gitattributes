@@ -7,5 +7,7 @@ scripts/hooks/* text eol=lf
 fixtures/** text eol=lf
 # `pnpm eval --check` compares committed reports byte-for-byte with regenerated (LF) text.
 eval/results/** text eol=lf
+# Drizzle records a hash of each migration's SQL, so keep the bytes identical on every OS.
+packages/db/drizzle/** text eol=lf
 # Visual baselines and review screenshots are compared byte-for-byte.
 *.png binary

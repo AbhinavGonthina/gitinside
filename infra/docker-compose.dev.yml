@@ -1,0 +1,28 @@
+# Local development services (ADR-0057). Never used in production.
+#
+#   docker compose -f infra/docker-compose.dev.yml up -d
+#   DATABASE_URL=postgres://gitinside:gitinside@127.0.0.1:5432/gitinside
+#   pnpm --filter @gitinside/db migrate
+#
+# The password is a fixed local-only value: the port is bound to 127.0.0.1,
+# and production uses Neon with credentials that never sit in the repo
+# (ADR-0055). Keep the major version in step with Neon's (17).
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: gitinside
+      POSTGRES_PASSWORD: gitinside
+      POSTGRES_DB: gitinside
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - gitinside-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitinside -d gitinside"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  gitinside-postgres:

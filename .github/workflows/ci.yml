@@ -11,6 +11,24 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # Real Postgres for packages/db: its tests make a fresh database per file
+    # here instead of PGlite (ADR-0057). Same image as infra/docker-compose.dev.yml.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: gitinside
+          POSTGRES_PASSWORD: gitinside
+          POSTGRES_DB: gitinside
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gitinside -d gitinside"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgres://gitinside:gitinside@localhost:5432/gitinside
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -24,6 +42,13 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm coverage
+      # The migrate CLI from the built package, twice: the second run must be a no-op.
+      - run: pnpm --filter @gitinside/db migrate
+        env:
+          DATABASE_URL: postgres://gitinside:gitinside@localhost:5432/gitinside
+      - run: pnpm --filter @gitinside/db migrate
+        env:
+          DATABASE_URL: postgres://gitinside:gitinside@localhost:5432/gitinside
       - run: pnpm --filter @gitinside/viewer build-storybook
 
   # Every story in dark and light against packages/viewer/visual/baselines/
