@@ -1,0 +1,1 @@
+{ "name": "fake-secrets", "dependencies": { "@prisma/client": "5", "stripe": "17" } }

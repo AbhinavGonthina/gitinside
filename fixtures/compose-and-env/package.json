@@ -1,0 +1,1 @@
+{ "name": "compose-and-env", "dependencies": { "@prisma/client": "5", "express": "4" } }

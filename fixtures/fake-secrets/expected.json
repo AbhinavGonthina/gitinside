@@ -1,0 +1,438 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:fake-secrets/src/sync.ts#pull",
+      "id": "calls:symbol:fake-secrets/src/sync.ts#pull->symbol:fake-secrets/src/sync.ts#signed",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/sync.ts",
+          "line": 33
+        }
+      ],
+      "to": "symbol:fake-secrets/src/sync.ts#signed"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fake-secrets/src/sync.ts#countAccounts",
+      "id": "external_call:symbol:fake-secrets/src/sync.ts#countAccounts->external:ext/api.stripe.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 26,
+          "file": "src/sync.ts",
+          "line": 37
+        }
+      ],
+      "to": "external:ext/api.stripe.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fake-secrets/src/sync.ts#pushToPartner",
+      "id": "external_call:symbol:fake-secrets/src/sync.ts#pushToPartner->external:ext/api.partner.example",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/sync.ts",
+          "line": 9
+        }
+      ],
+      "to": "external:ext/api.partner.example"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:fake-secrets/src/sync.ts#items",
+      "id": "http:symbol:fake-secrets/src/sync.ts#items->unresolved:fake-secrets/src/sync.ts:24:9",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/sync.ts",
+          "line": 24
+        }
+      ],
+      "to": "unresolved:fake-secrets/src/sync.ts:24:9"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:fake-secrets/src/sync.ts#notify",
+      "id": "http:symbol:fake-secrets/src/sync.ts#notify->unresolved:fake-secrets/src/sync.ts:14:9",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/sync.ts",
+          "line": 14
+        }
+      ],
+      "to": "unresolved:fake-secrets/src/sync.ts:14:9"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:fake-secrets/src/sync.ts#pull",
+      "id": "http:symbol:fake-secrets/src/sync.ts#pull->unresolved:fake-secrets/src/sync.ts:33:10",
+      "kind": "http",
+      "reason": "WRAPPER_DEPTH",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/sync.ts",
+          "line": 33
+        }
+      ],
+      "to": "unresolved:fake-secrets/src/sync.ts:33:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:fake-secrets/src/sync.ts#report",
+      "id": "http:symbol:fake-secrets/src/sync.ts#report->unresolved:fake-secrets/src/sync.ts:19:9",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/sync.ts",
+          "line": 19
+        }
+      ],
+      "to": "unresolved:fake-secrets/src/sync.ts:19:9"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fake-secrets/src/sync.ts#countAccounts",
+      "id": "reads:symbol:fake-secrets/src/sync.ts#countAccounts->model:fake-secrets/Account",
+      "kind": "reads",
+      "sites": [
+        {
+          "column": 25,
+          "file": "src/sync.ts",
+          "line": 38
+        }
+      ],
+      "to": "model:fake-secrets/Account"
+    },
+    {
+      "confidence": "exact",
+      "from": "model:fake-secrets/Account",
+      "id": "stores:model:fake-secrets/Account->datastore:infra/fake-secrets/prisma/schema.prisma#db",
+      "kind": "stores",
+      "sites": [
+        {
+          "column": 1,
+          "file": "prisma/schema.prisma",
+          "line": 1
+        }
+      ],
+      "to": "datastore:infra/fake-secrets/prisma/schema.prisma#db"
+    }
+  ],
+  "nodes": [
+    {
+      "engine": "postgres",
+      "id": "datastore:infra/db",
+      "kind": "datastore",
+      "label": "db",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 3,
+        "file": "docker-compose.yml",
+        "line": 2
+      }
+    },
+    {
+      "engine": "mongo",
+      "id": "datastore:infra/env#ANALYTICS_DB_URL",
+      "kind": "datastore",
+      "label": "mongo",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 1,
+        "file": ".env.production",
+        "line": 2
+      }
+    },
+    {
+      "engine": "redis",
+      "id": "datastore:infra/env#CACHE_URL",
+      "kind": "datastore",
+      "label": "redis",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 8,
+        "file": ".env",
+        "line": 3
+      }
+    },
+    {
+      "engine": "postgres",
+      "id": "datastore:infra/fake-secrets/prisma/schema.prisma#db",
+      "kind": "datastore",
+      "label": "postgres",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 1,
+        "file": "prisma/schema.prisma",
+        "line": 1
+      }
+    },
+    {
+      "host": "api.partner.example",
+      "id": "external:ext/api.partner.example",
+      "kind": "external",
+      "label": "api.partner.example",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "host": "api.stripe.com",
+      "id": "external:ext/api.stripe.com",
+      "kind": "external",
+      "label": "api.stripe.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "4f819452ad20961f72c7791f95c52f46a29f7cd78da95f724660ddc067f69dfa",
+      "id": "file:fake-secrets/prisma/schema.prisma",
+      "kind": "file",
+      "label": "schema.prisma",
+      "parentId": "module:fake-secrets/prisma",
+      "path": "prisma/schema.prisma"
+    },
+    {
+      "hash": "a9dad83431ac63af94e0724293ab8664f6641a650224cc4a05d041a4d2cc5a6c",
+      "id": "file:fake-secrets/src/sync.ts",
+      "kind": "file",
+      "label": "sync.ts",
+      "parentId": "module:fake-secrets/src",
+      "path": "src/sync.ts"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "Int"
+        },
+        {
+          "name": "email",
+          "optional": false,
+          "type": "String"
+        }
+      ],
+      "id": "model:fake-secrets/Account",
+      "kind": "model",
+      "label": "Account",
+      "layer": "data",
+      "parentId": "file:fake-secrets/prisma/schema.prisma",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "prisma/schema.prisma",
+        "line": 6
+      }
+    },
+    {
+      "id": "module:fake-secrets/prisma",
+      "kind": "module",
+      "label": "prisma",
+      "parentId": "service:fake-secrets/",
+      "path": "prisma"
+    },
+    {
+      "id": "module:fake-secrets/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:fake-secrets/",
+      "path": "src"
+    },
+    {
+      "id": "service:fake-secrets/",
+      "kind": "service",
+      "label": "fake-secrets",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:fake-secrets/src/sync.ts#countAccounts",
+      "kind": "symbol",
+      "label": "countAccounts",
+      "parentId": "file:fake-secrets/src/sync.ts",
+      "source": {
+        "column": 1,
+        "endLine": 39,
+        "file": "src/sync.ts",
+        "line": 36
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fake-secrets/src/sync.ts#items",
+      "kind": "symbol",
+      "label": "items",
+      "parentId": "file:fake-secrets/src/sync.ts",
+      "source": {
+        "column": 1,
+        "endLine": 25,
+        "file": "src/sync.ts",
+        "line": 23
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fake-secrets/src/sync.ts#notify",
+      "kind": "symbol",
+      "label": "notify",
+      "parentId": "file:fake-secrets/src/sync.ts",
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "src/sync.ts",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fake-secrets/src/sync.ts#pull",
+      "kind": "symbol",
+      "label": "pull",
+      "parentId": "file:fake-secrets/src/sync.ts",
+      "source": {
+        "column": 1,
+        "endLine": 34,
+        "file": "src/sync.ts",
+        "line": 32
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fake-secrets/src/sync.ts#pushToPartner",
+      "kind": "symbol",
+      "label": "pushToPartner",
+      "parentId": "file:fake-secrets/src/sync.ts",
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/sync.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fake-secrets/src/sync.ts#report",
+      "kind": "symbol",
+      "label": "report",
+      "parentId": "file:fake-secrets/src/sync.ts",
+      "source": {
+        "column": 1,
+        "endLine": 20,
+        "file": "src/sync.ts",
+        "line": 18
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fake-secrets/src/sync.ts#signed",
+      "kind": "symbol",
+      "label": "signed",
+      "parentId": "file:fake-secrets/src/sync.ts",
+      "source": {
+        "column": 1,
+        "endLine": 30,
+        "file": "src/sync.ts",
+        "line": 28
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "fake-secrets",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(target, { headers: { Authorization: \"…\" } })",
+      "id": "unresolved:fake-secrets/src/sync.ts:14:9",
+      "kind": "unresolved",
+      "label": "GET target",
+      "parentId": "service:fake-secrets/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 9,
+        "file": "src/sync.ts",
+        "line": 14
+      }
+    },
+    {
+      "detail": "no route matches GET to /internal/report",
+      "expression": "fetch(\"/internal/report\", { headers: { \"x-api-key\": \"…\" } })",
+      "id": "unresolved:fake-secrets/src/sync.ts:19:9",
+      "kind": "unresolved",
+      "label": "GET /internal/report",
+      "parentId": "service:fake-secrets/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 9,
+        "file": "src/sync.ts",
+        "line": 19
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(`${target}/v2/items?…${1}…`)",
+      "id": "unresolved:fake-secrets/src/sync.ts:24:9",
+      "kind": "unresolved",
+      "label": "GET `${target}/v2/items?…${1}…`",
+      "parentId": "service:fake-secrets/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 9,
+        "file": "src/sync.ts",
+        "line": 24
+      }
+    },
+    {
+      "detail": "the URL starts with a parameter of the calling function, a wrapper more than one call deep",
+      "expression": "signed(target, \"…\")",
+      "id": "unresolved:fake-secrets/src/sync.ts:33:10",
+      "kind": "unresolved",
+      "label": "GET signed(target, \"…\")",
+      "parentId": "service:fake-secrets/",
+      "reason": "WRAPPER_DEPTH",
+      "source": {
+        "column": 10,
+        "file": "src/sync.ts",
+        "line": 33
+      }
+    }
+  ],
+  "repo": {
+    "name": "fake-secrets",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

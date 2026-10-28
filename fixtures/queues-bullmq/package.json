@@ -1,0 +1,1 @@
+{ "name": "queues-bullmq", "private": true, "workspaces": ["apps/*"] }

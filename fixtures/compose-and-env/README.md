@@ -1,0 +1,3 @@
+# compose-and-env
+
+Tests: the infra detectors. `docker-compose.yml` ⇒ `datastore:infra/db` (postgres), `datastore:infra/cache` (redis), `queue:infra/broker` (rabbitmq); the `build`-only `api` service is the repo's own app and gets no node. The Prisma datasource's `env("DATABASE_URL")` names host `db` in `.env.example`, so the `Todo` model's `stores` edge goes to the compose node (`exact`) and no separate Prisma datastore appears. `SEARCH_DB_URL` is a `mongodb://` URL nothing else explains ⇒ `datastore:infra/env#SEARCH_DB_URL`. No value from the env file (credentials, hosts, paths) reaches the graph.

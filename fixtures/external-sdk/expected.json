@@ -1,0 +1,237 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:external-sdk/src/billing.ts#archive",
+      "id": "external_call:symbol:external-sdk/src/billing.ts#archive->external:ext/s3.amazonaws.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 12,
+          "file": "src/billing.ts",
+          "line": 16
+        }
+      ],
+      "to": "external:ext/s3.amazonaws.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:external-sdk/src/billing.ts#charge",
+      "id": "external_call:symbol:external-sdk/src/billing.ts#charge->external:ext/api.stripe.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 31,
+          "file": "src/billing.ts",
+          "line": 6
+        },
+        {
+          "column": 9,
+          "file": "src/billing.ts",
+          "line": 7
+        }
+      ],
+      "to": "external:ext/api.stripe.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:external-sdk/src/billing.ts#sendReceipt",
+      "id": "external_call:symbol:external-sdk/src/billing.ts#sendReceipt->external:ext/api.resend.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 23,
+          "file": "src/billing.ts",
+          "line": 11
+        }
+      ],
+      "to": "external:ext/api.resend.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:external-sdk/src/billing.ts",
+      "id": "imports:file:external-sdk/src/billing.ts->file:external-sdk/src/clients.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 36,
+          "file": "src/billing.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:external-sdk/src/clients.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "host": "api.resend.com",
+      "id": "external:ext/api.resend.com",
+      "kind": "external",
+      "label": "api.resend.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "host": "api.stripe.com",
+      "id": "external:ext/api.stripe.com",
+      "kind": "external",
+      "label": "api.stripe.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "host": "s3.amazonaws.com",
+      "id": "external:ext/s3.amazonaws.com",
+      "kind": "external",
+      "label": "s3.amazonaws.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "9becccaa9e379004f93c05071c2919d88d3fb1468d6cd58a1ab6140506f4bdcc",
+      "id": "file:external-sdk/src/billing.ts",
+      "kind": "file",
+      "label": "billing.ts",
+      "parentId": "module:external-sdk/src",
+      "path": "src/billing.ts"
+    },
+    {
+      "hash": "7287459fa16fa5863a52d62b1d23664477af5753b834b2a5b900a4022d8575d4",
+      "id": "file:external-sdk/src/clients.ts",
+      "kind": "file",
+      "label": "clients.ts",
+      "parentId": "module:external-sdk/src",
+      "path": "src/clients.ts"
+    },
+    {
+      "id": "module:external-sdk/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:external-sdk/",
+      "path": "src"
+    },
+    {
+      "id": "service:external-sdk/",
+      "kind": "service",
+      "label": "external-sdk",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:external-sdk/src/billing.ts#archive",
+      "kind": "symbol",
+      "label": "archive",
+      "parentId": "file:external-sdk/src/billing.ts",
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/billing.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:external-sdk/src/billing.ts#charge",
+      "kind": "symbol",
+      "label": "charge",
+      "parentId": "file:external-sdk/src/billing.ts",
+      "source": {
+        "column": 1,
+        "endLine": 8,
+        "file": "src/billing.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:external-sdk/src/billing.ts#sendReceipt",
+      "kind": "symbol",
+      "label": "sendReceipt",
+      "parentId": "file:external-sdk/src/billing.ts",
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "src/billing.ts",
+        "line": 10
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:external-sdk/src/billing.ts#verify",
+      "kind": "symbol",
+      "label": "verify",
+      "parentId": "file:external-sdk/src/billing.ts",
+      "source": {
+        "column": 1,
+        "endLine": 22,
+        "file": "src/billing.ts",
+        "line": 20
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:external-sdk/src/clients.ts#resend",
+      "kind": "symbol",
+      "label": "resend",
+      "parentId": "file:external-sdk/src/clients.ts",
+      "source": {
+        "column": 14,
+        "endLine": 6,
+        "file": "src/clients.ts",
+        "line": 6
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:external-sdk/src/clients.ts#s3",
+      "kind": "symbol",
+      "label": "s3",
+      "parentId": "file:external-sdk/src/clients.ts",
+      "source": {
+        "column": 14,
+        "endLine": 7,
+        "file": "src/clients.ts",
+        "line": 7
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:external-sdk/src/clients.ts#stripe",
+      "kind": "symbol",
+      "label": "stripe",
+      "parentId": "file:external-sdk/src/clients.ts",
+      "source": {
+        "column": 14,
+        "endLine": 5,
+        "file": "src/clients.ts",
+        "line": 5
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "external-sdk",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "external-sdk",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

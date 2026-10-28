@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+  cache:
+    image: redis:7
+    ports:
+      - "6379:6379"
+  broker:
+    image: rabbitmq:3-management
+  api:
+    build: .
+    depends_on: [db, cache, broker]

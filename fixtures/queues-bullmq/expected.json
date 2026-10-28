@@ -1,0 +1,223 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:worker/src/main.ts#sendEmail",
+      "id": "consumes:symbol:worker/src/main.ts#sendEmail->queue:infra/redis#email",
+      "kind": "consumes",
+      "sites": [
+        {
+          "column": 1,
+          "file": "apps/worker/src/main.ts",
+          "line": 7
+        }
+      ],
+      "to": "queue:infra/redis#email"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:web/src/signup.ts",
+      "id": "imports:file:web/src/signup.ts->file:web/src/queues.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 41,
+          "file": "apps/web/src/signup.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:web/src/queues.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/signup.ts#signup",
+      "id": "publishes:symbol:web/src/signup.ts#signup->queue:infra/redis#email",
+      "kind": "publishes",
+      "sites": [
+        {
+          "column": 20,
+          "file": "apps/web/src/signup.ts",
+          "line": 4
+        }
+      ],
+      "to": "queue:infra/redis#email"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:web/src/signup.ts#signup",
+      "id": "publishes:symbol:web/src/signup.ts#signup->unresolved:web/src/queues.ts:8:38",
+      "kind": "publishes",
+      "reason": "DYNAMIC_NAME",
+      "sites": [
+        {
+          "column": 21,
+          "file": "apps/web/src/signup.ts",
+          "line": 5
+        }
+      ],
+      "to": "unresolved:web/src/queues.ts:8:38"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "1284135afdd49003b927576b9e6f8c9c068c8143da1e91050ef0a515576be68f",
+      "id": "file:web/src/queues.ts",
+      "kind": "file",
+      "label": "queues.ts",
+      "parentId": "module:web/src",
+      "path": "apps/web/src/queues.ts"
+    },
+    {
+      "hash": "3d9fd2af7483ff86d9e09e0d0e79d9459baa522fd93761ae017ad741feb76578",
+      "id": "file:web/src/signup.ts",
+      "kind": "file",
+      "label": "signup.ts",
+      "parentId": "module:web/src",
+      "path": "apps/web/src/signup.ts"
+    },
+    {
+      "hash": "8fa5c6e700b0b1614db2c0ceae0047afefc0102efa1aa64b97e4dd7d67d18e5e",
+      "id": "file:worker/src/main.ts",
+      "kind": "file",
+      "label": "main.ts",
+      "parentId": "module:worker/src",
+      "path": "apps/worker/src/main.ts"
+    },
+    {
+      "id": "module:web/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:web/",
+      "path": "apps/web/src"
+    },
+    {
+      "id": "module:worker/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:worker/",
+      "path": "apps/worker/src"
+    },
+    {
+      "engine": "redis",
+      "id": "queue:infra/redis#email",
+      "kind": "queue",
+      "label": "email",
+      "layer": "infra",
+      "name": "email",
+      "parentId": "system:root",
+      "source": {
+        "column": 37,
+        "file": "apps/web/src/queues.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "service:web/",
+      "kind": "service",
+      "label": "@q/web",
+      "parentId": "system:root",
+      "root": "apps/web"
+    },
+    {
+      "id": "service:worker/",
+      "kind": "service",
+      "label": "@q/worker",
+      "parentId": "system:root",
+      "root": "apps/worker"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/queues.ts#emailQueue",
+      "kind": "symbol",
+      "label": "emailQueue",
+      "parentId": "file:web/src/queues.ts",
+      "source": {
+        "column": 14,
+        "endLine": 5,
+        "file": "apps/web/src/queues.ts",
+        "line": 5
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/queues.ts#tenantQueue",
+      "kind": "symbol",
+      "label": "tenantQueue",
+      "parentId": "file:web/src/queues.ts",
+      "source": {
+        "column": 14,
+        "endLine": 8,
+        "file": "apps/web/src/queues.ts",
+        "line": 8
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/signup.ts#signup",
+      "kind": "symbol",
+      "label": "signup",
+      "parentId": "file:web/src/signup.ts",
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "apps/web/src/signup.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:worker/src/main.ts#sendEmail",
+      "kind": "symbol",
+      "label": "sendEmail",
+      "parentId": "file:worker/src/main.ts",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "apps/worker/src/main.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "queues-bullmq",
+      "parentId": null
+    },
+    {
+      "detail": "the queue name is computed at runtime",
+      "expression": "process.env.TENANT_QUEUE ?? \"\"",
+      "id": "unresolved:web/src/queues.ts:8:38",
+      "kind": "unresolved",
+      "label": "queue process.env.TENANT_QUEUE ?? \"\"",
+      "parentId": "service:web/",
+      "reason": "DYNAMIC_NAME",
+      "source": {
+        "column": 38,
+        "file": "apps/web/src/queues.ts",
+        "line": 8
+      }
+    }
+  ],
+  "repo": {
+    "name": "queues-bullmq",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/web",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/worker",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
