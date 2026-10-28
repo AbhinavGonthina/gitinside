@@ -91,6 +91,19 @@ describe("fonts", () => {
     },
   );
 
+  it("are their own entry, so the main entry imports no package CSS (ADR-0056)", () => {
+    const index = readFileSync(fileURLToPath(new URL("./index.ts", import.meta.url)), "utf8");
+    const imports = [...index.matchAll(/^import\s+(?:[^"';]*from\s+)?["']([^"']+)["']/gm)].map(
+      (m) => m[1],
+    );
+    // The library build extracts the viewer's own stylesheet into style.css;
+    // anything else with side effects would stay an import in dist/index.js.
+    expect(imports.filter((s) => !s!.startsWith("./") || s!.endsWith(".css"))).toEqual([
+      "./styles/index.css",
+    ]);
+    expect(imports).not.toContain("./fonts.js");
+  });
+
   it("are first in the font stacks", () => {
     expect(scaleTokens["font-sans"].startsWith('"Geist Variable",')).toBe(true);
     expect(scaleTokens["font-mono"].startsWith('"Geist Mono Variable",')).toBe(true);

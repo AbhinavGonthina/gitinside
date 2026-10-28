@@ -1,4 +1,6 @@
-import "./fonts.js";
+// Fonts are a separate entry (`@gitinside/viewer/fonts`, src/fonts.ts): the
+// built index.js must import in plain Node, which can't load CSS (ADR-0056).
+// This stylesheet import is extracted to dist/style.css by the library build.
 import "./styles/index.css";
 
 export { ViewerRoot } from "./ViewerRoot.js";

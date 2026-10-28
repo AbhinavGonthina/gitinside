@@ -1,5 +1,6 @@
 import type { Preview } from "@storybook/react";
 import { ViewerRoot, type Theme } from "../src/index.js";
+import "../src/fonts.js";
 import "./preview.css";
 
 // Every story renders inside ViewerRoot with the toolbar's theme, so each
