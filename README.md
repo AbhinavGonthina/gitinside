@@ -4,7 +4,7 @@
 
 See how any codebase really works. Break it down from services to functions, trace every request, and catch broken connections before they ship.
 
-(Status: in development. M1 (analyzer CLI) and M2 (cross-service links + infra) are done; the accuracy eval, website, and PR bot come next.)
+(Status: in development. M1 (analyzer CLI), M2 (cross-service links + infra), and M3 (accuracy eval harness) are done; the explorer UI, website, and PR bot come next.)
 
 ## Quickstart (analyzer CLI)
 
@@ -23,9 +23,10 @@ The output is a schema-valid `architecture.json`, the same bytes every time for 
 A pnpm + Turborepo monorepo:
 - `packages/schema` holds the graph format (types + Zod validator).
 - `packages/analyzer` holds the analysis pipeline and CLI (inventory → workspaces → per-service TypeScript programs → detectors → validated graph).
+- `eval/` holds the accuracy eval (pinned repos, hand-written labels, scorer, committed reports).
 - `bench/` holds benchmarks, and `fixtures/` holds golden test repos.
 
-Design notes: [docs/DESIGN.md](docs/DESIGN.md). Milestone reviews: [M1](docs/milestones/M1-review.md), [M2](docs/milestones/M2-review.md). How cross-service links are resolved: [docs/walkthroughs/resolver.md](docs/walkthroughs/resolver.md).
+Design notes: [docs/DESIGN.md](docs/DESIGN.md). Milestone reviews: [M1](docs/milestones/M1-review.md), [M2](docs/milestones/M2-review.md), [M3](docs/milestones/M3-review.md). How cross-service links are resolved: [docs/walkthroughs/resolver.md](docs/walkthroughs/resolver.md).
 
 ## Results so far
 
