@@ -14,12 +14,17 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.1. Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME); M4b waits for the design gate (#2)
+M5.2. apps/web Next.js scaffold, landing page, viewer integration; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
 - [#2](https://github.com/AbhinavGonthina/gitinside-planning/issues/2) **M4a design gate:** approve the visual language (docs/milestones/M4a-review.md). Blocks all of M4b; on close: apply his comments to DESIGN_SYSTEM.md and the components (drop "pending the design gate"), then remove the M4b `{blocked: design gate #2}` tags.
+- [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Oracle Cloud Always Free signup + worker VM. Blocks M5.13; on close: record region/shape for benchmark labels.
+- [#4](https://github.com/AbhinavGonthina/gitinside-planning/issues/4) Neon free project. Blocks M5.13; on close: size M5.12 retention from the storage limit he reports (SPEC assumes 1 GB).
+- [#5](https://github.com/AbhinavGonthina/gitinside-planning/issues/5) Cloudflare R2 bucket + scoped token. Blocks M5.13; R2 bills past its free tier (PROPOSALS P-1); on close: read his answer on the card and where the domain's DNS is hosted.
+- [#6](https://github.com/AbhinavGonthina/gitinside-planning/issues/6) Vercel Hobby. Part A now; **when M5.2 lands, comment on #6 that Part B (import `apps/web`, env vars per ADR-0055, domain) can start.** Blocks M5.13.
+- [#7](https://github.com/AbhinavGonthina/gitinside-planning/issues/7) DNS: CNAME `gitinside` → Vercel, A `worker.gitinside` → VM. After #3 and #6 Part B. Blocks M5.13.
 
 ## Blockers
 - none
@@ -96,7 +101,7 @@ M5.1. Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME);
 - [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus} {blocked: design gate #2}
 
 ### M5: Website (public) + live badge
-- [ ] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
+- [x] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
 - [ ] M5.2 apps/web Next.js scaffold, landing page, viewer integration (incl. a separate viewer fonts entry so the library imports without CSS, M4a review) {model: opus}
 - [ ] M5.3 Drizzle schema + migrations (local Postgres in Docker for dev/CI) {model: opus}
 - [ ] M5.4 apps/worker: BullMQ worker + HMAC enqueue API + safe tarball extraction + child-process limits {model: opus}
@@ -108,7 +113,7 @@ M5.1. Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME);
 - [ ] M5.10 Hardened worker Docker image + infra/oracle provisioning script + docs {model: opus}
 - [ ] M5.11 Security test suite with malicious fixtures {model: opus}
 - [ ] M5.12 Snapshot retention + quota check {model: opus}
-- [ ] M5.13 Deploy + production smoke test on a real public repo {model: opus}
+- [ ] M5.13 Deploy + production smoke test on a real public repo {model: opus} {blocked: #3 #4 #5 #6 #7}
 - [ ] M5.14 Milestone verification + M5-review.md + tag m5 {model: opus}
 
 ### M6: Graph diff + incremental analysis
@@ -155,6 +160,8 @@ M5.1. Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME);
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.1: five step-by-step signup issues in the planning repo: #3 Oracle Always Free VM (A1.Flex 4/24, Ubuntu 24.04, ingress 443 + 22 from his IP), #4 Neon free (`us-east-1`, pooled + direct strings), #5 R2 (Standard bucket `gitinside-snapshots`, bucket-scoped token, billing tripwire), #6 Vercel Hobby (Part A now, Part B after M5.2), #7 DNS (CNAME `gitinside`, A `worker.gitinside`). Secret names and homes fixed in ADR-0055; none go in repo files. R2 bills past its free tier ⇒ PROPOSALS P-1. M5.13 tagged blocked on #3–#7. No code changed. Next: M5.2.
 
 - 2026-10-28 · M4a.9: milestone verified and tagged `m4a`; review in `docs/milestones/M4a-review.md` (13 stories × 2 themes of Linux screenshots in `docs/milestones/M4a/`); design gate opened as planning #2, all M4b tagged blocked. The fresh-eyes review (3 medium, 6 low) plus a Chromium click-through were fixed in `c2bfc8a` (ADR-0054): reading-order Tab, focus restored when trace controls vanish (Esc stopped working), trace step number 3.71:1 ⇒ bar, duplicate inspector keys, Esc closes the legend first, CI permissions, orphan/mono visual checks. Deferred into M4b.7, M4b.11, M5.2. Tracing baselines re-captured. 1,123 tests, viewer 99.7%. Next: M5.1.
 
