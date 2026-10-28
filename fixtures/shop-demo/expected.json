@@ -1,0 +1,812 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:api/src/orders/handlers.ts#createOrder",
+      "id": "calls:symbol:api/src/orders/handlers.ts#createOrder->symbol:api/src/billing/stripe.ts#chargeOrder",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 9,
+          "file": "apps/api/src/orders/handlers.ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:api/src/billing/stripe.ts#chargeOrder"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/app/checkout/page.tsx#Checkout",
+      "id": "calls:symbol:web/app/checkout/page.tsx#Checkout->symbol:web/lib/orders.ts#placeOrder",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 33,
+          "file": "apps/web/app/checkout/page.tsx",
+          "line": 6
+        }
+      ],
+      "to": "symbol:web/lib/orders.ts#placeOrder"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/app/orders/page.tsx#Orders",
+      "id": "calls:symbol:web/app/orders/page.tsx#Orders->symbol:web/lib/orders.ts#listOrders",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 24,
+          "file": "apps/web/app/orders/page.tsx",
+          "line": 4
+        }
+      ],
+      "to": "symbol:web/lib/orders.ts#listOrders"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/app/page.tsx#Home",
+      "id": "calls:symbol:web/app/page.tsx#Home->symbol:web/lib/cms.ts#latestPosts",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 23,
+          "file": "apps/web/app/page.tsx",
+          "line": 4
+        }
+      ],
+      "to": "symbol:web/lib/cms.ts#latestPosts"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:api/src/billing/stripe.ts#chargeOrder",
+      "id": "external_call:symbol:api/src/billing/stripe.ts#chargeOrder->external:ext/api.stripe.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 31,
+          "file": "apps/api/src/billing/stripe.ts",
+          "line": 6
+        }
+      ],
+      "to": "external:ext/api.stripe.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:api/GET /api/orders",
+      "id": "handles:route:api/GET /api/orders->symbol:api/src/orders/handlers.ts#listOrders",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 17,
+          "file": "apps/api/src/routes/orders.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:api/src/orders/handlers.ts#listOrders"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:api/POST /api/orders",
+      "id": "handles:route:api/POST /api/orders->symbol:api/src/orders/handlers.ts#createOrder",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 18,
+          "file": "apps/api/src/routes/orders.ts",
+          "line": 7
+        }
+      ],
+      "to": "symbol:api/src/orders/handlers.ts#createOrder"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:web/lib/cms.ts#latestPosts",
+      "id": "http:symbol:web/lib/cms.ts#latestPosts->unresolved:web/lib/cms.ts:3:21",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 21,
+          "file": "apps/web/lib/cms.ts",
+          "line": 3
+        }
+      ],
+      "to": "unresolved:web/lib/cms.ts:3:21"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/lib/orders.ts#listOrders",
+      "id": "http:symbol:web/lib/orders.ts#listOrders->route:api/GET /api/orders",
+      "kind": "http",
+      "label": "GET /api/orders",
+      "sites": [
+        {
+          "column": 21,
+          "file": "apps/web/lib/orders.ts",
+          "line": 13
+        }
+      ],
+      "to": "route:api/GET /api/orders"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/lib/orders.ts#placeOrder",
+      "id": "http:symbol:web/lib/orders.ts#placeOrder->route:api/POST /api/orders",
+      "kind": "http",
+      "label": "POST /api/orders",
+      "sites": [
+        {
+          "column": 21,
+          "file": "apps/web/lib/orders.ts",
+          "line": 5
+        }
+      ],
+      "to": "route:api/POST /api/orders"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:api/src/orders/handlers.ts",
+      "id": "imports:file:api/src/orders/handlers.ts->file:api/src/billing/stripe.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 29,
+          "file": "apps/api/src/orders/handlers.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:api/src/billing/stripe.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:api/src/orders/handlers.ts",
+      "id": "imports:file:api/src/orders/handlers.ts->file:api/src/db.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 24,
+          "file": "apps/api/src/orders/handlers.ts",
+          "line": 3
+        }
+      ],
+      "to": "file:api/src/db.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:api/src/routes/orders.ts",
+      "id": "imports:file:api/src/routes/orders.ts->file:api/src/orders/handlers.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 41,
+          "file": "apps/api/src/routes/orders.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:api/src/orders/handlers.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:api/src/server.ts",
+      "id": "imports:file:api/src/server.ts->file:api/src/routes/orders.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 24,
+          "file": "apps/api/src/server.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:api/src/routes/orders.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:web/app/checkout/page.tsx",
+      "id": "imports:file:web/app/checkout/page.tsx->file:web/lib/orders.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 28,
+          "file": "apps/web/app/checkout/page.tsx",
+          "line": 3
+        }
+      ],
+      "to": "file:web/lib/orders.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:web/app/orders/page.tsx",
+      "id": "imports:file:web/app/orders/page.tsx->file:web/lib/orders.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 28,
+          "file": "apps/web/app/orders/page.tsx",
+          "line": 1
+        }
+      ],
+      "to": "file:web/lib/orders.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:web/app/page.tsx",
+      "id": "imports:file:web/app/page.tsx->file:web/lib/cms.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 29,
+          "file": "apps/web/app/page.tsx",
+          "line": 1
+        }
+      ],
+      "to": "file:web/lib/cms.ts"
+    },
+    {
+      "confidence": "exact",
+      "fields": [
+        "id",
+        "total"
+      ],
+      "from": "symbol:api/src/orders/handlers.ts#listOrders",
+      "id": "reads:symbol:api/src/orders/handlers.ts#listOrders->model:api/Order",
+      "kind": "reads",
+      "sites": [
+        {
+          "column": 37,
+          "file": "apps/api/src/orders/handlers.ts",
+          "line": 6
+        }
+      ],
+      "to": "model:api/Order"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:web//",
+      "id": "renders:page:web//->symbol:web/app/page.tsx#Home",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 31,
+          "file": "apps/web/app/page.tsx",
+          "line": 3
+        }
+      ],
+      "to": "symbol:web/app/page.tsx#Home"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:web//checkout",
+      "id": "renders:page:web//checkout->symbol:web/app/checkout/page.tsx#Checkout",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 25,
+          "file": "apps/web/app/checkout/page.tsx",
+          "line": 5
+        }
+      ],
+      "to": "symbol:web/app/checkout/page.tsx#Checkout"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:web//orders",
+      "id": "renders:page:web//orders->symbol:web/app/orders/page.tsx#Orders",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 31,
+          "file": "apps/web/app/orders/page.tsx",
+          "line": 3
+        }
+      ],
+      "to": "symbol:web/app/orders/page.tsx#Orders"
+    },
+    {
+      "confidence": "exact",
+      "from": "model:api/Order",
+      "id": "stores:model:api/Order->datastore:infra/db",
+      "kind": "stores",
+      "sites": [
+        {
+          "column": 1,
+          "file": "apps/api/prisma/schema.prisma",
+          "line": 1
+        }
+      ],
+      "to": "datastore:infra/db"
+    },
+    {
+      "confidence": "exact",
+      "fields": [
+        "status",
+        "total"
+      ],
+      "from": "symbol:api/src/orders/handlers.ts#createOrder",
+      "id": "writes:symbol:api/src/orders/handlers.ts#createOrder->model:api/Order",
+      "kind": "writes",
+      "sites": [
+        {
+          "column": 36,
+          "file": "apps/api/src/orders/handlers.ts",
+          "line": 11
+        }
+      ],
+      "to": "model:api/Order"
+    }
+  ],
+  "nodes": [
+    {
+      "engine": "postgres",
+      "id": "datastore:infra/db",
+      "kind": "datastore",
+      "label": "db",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 3,
+        "file": "docker-compose.yml",
+        "line": 2
+      }
+    },
+    {
+      "host": "api.stripe.com",
+      "id": "external:ext/api.stripe.com",
+      "kind": "external",
+      "label": "api.stripe.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "0db8d97bdb70ccb6c4e66f876ae23d76804c2913ee22ea24b44865ed4223fb21",
+      "id": "file:api/prisma/schema.prisma",
+      "kind": "file",
+      "label": "schema.prisma",
+      "parentId": "module:api/prisma",
+      "path": "apps/api/prisma/schema.prisma"
+    },
+    {
+      "hash": "e661d01c76a35a3e075d9220e997c0286910d95a1401fdd22afb026f57e1b73c",
+      "id": "file:api/src/billing/stripe.ts",
+      "kind": "file",
+      "label": "stripe.ts",
+      "parentId": "module:api/src/billing",
+      "path": "apps/api/src/billing/stripe.ts"
+    },
+    {
+      "hash": "420319b87f90722840ddb3de2ddcceea63e89619cc6692090038199368a03bf8",
+      "id": "file:api/src/db.ts",
+      "kind": "file",
+      "label": "db.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/db.ts"
+    },
+    {
+      "hash": "9823c3422010dae76e22a7422014a1ae8ebde5e0f925946f2d0e720fda65b639",
+      "id": "file:api/src/orders/handlers.ts",
+      "kind": "file",
+      "label": "handlers.ts",
+      "parentId": "module:api/src/orders",
+      "path": "apps/api/src/orders/handlers.ts"
+    },
+    {
+      "hash": "9b2321c22031adc7514efb477d3b9eeb65599765dfab94ba0e66714259e85219",
+      "id": "file:api/src/routes/orders.ts",
+      "kind": "file",
+      "label": "orders.ts",
+      "parentId": "module:api/src/routes",
+      "path": "apps/api/src/routes/orders.ts"
+    },
+    {
+      "hash": "7dd003db50b0a99b225793465076237e7b1f0144efa0e28ff086f99b77b588f7",
+      "id": "file:api/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/server.ts"
+    },
+    {
+      "hash": "4f2b883a9633eaa1a1caec498c6692576ddce754e377ed5af2623db4bd3e71d7",
+      "id": "file:web/app/checkout/page.tsx",
+      "kind": "file",
+      "label": "page.tsx",
+      "parentId": "module:web/app/checkout",
+      "path": "apps/web/app/checkout/page.tsx"
+    },
+    {
+      "hash": "bf7d51816382c92482973d821e7f340601e496a1ad23451264b370699e43a3d3",
+      "id": "file:web/app/orders/page.tsx",
+      "kind": "file",
+      "label": "page.tsx",
+      "parentId": "module:web/app/orders",
+      "path": "apps/web/app/orders/page.tsx"
+    },
+    {
+      "hash": "920c0b8efea7c25941002a860cb8dedbb0b21f233c04bf597e25f85eb4017825",
+      "id": "file:web/app/page.tsx",
+      "kind": "file",
+      "label": "page.tsx",
+      "parentId": "module:web/app",
+      "path": "apps/web/app/page.tsx"
+    },
+    {
+      "hash": "51f1f6987be68b8d379b84f2505de710dd762aea0e78974964aa196aa26bfc89",
+      "id": "file:web/lib/cms.ts",
+      "kind": "file",
+      "label": "cms.ts",
+      "parentId": "module:web/lib",
+      "path": "apps/web/lib/cms.ts"
+    },
+    {
+      "hash": "f0446cc16f59e62dc777c48e3f152e0dff52ac02bc083bffe3f0a5e796b004bc",
+      "id": "file:web/lib/orders.ts",
+      "kind": "file",
+      "label": "orders.ts",
+      "parentId": "module:web/lib",
+      "path": "apps/web/lib/orders.ts"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "Int"
+        },
+        {
+          "name": "total",
+          "optional": false,
+          "type": "Int"
+        },
+        {
+          "name": "status",
+          "optional": false,
+          "type": "String"
+        },
+        {
+          "name": "createdAt",
+          "optional": false,
+          "type": "DateTime"
+        }
+      ],
+      "id": "model:api/Order",
+      "kind": "model",
+      "label": "Order",
+      "layer": "data",
+      "parentId": "file:api/prisma/schema.prisma",
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "apps/api/prisma/schema.prisma",
+        "line": 10
+      }
+    },
+    {
+      "id": "module:api/prisma",
+      "kind": "module",
+      "label": "prisma",
+      "parentId": "service:api/",
+      "path": "apps/api/prisma"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "apps/api/src"
+    },
+    {
+      "id": "module:api/src/billing",
+      "kind": "module",
+      "label": "billing",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/billing"
+    },
+    {
+      "id": "module:api/src/orders",
+      "kind": "module",
+      "label": "orders",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/orders"
+    },
+    {
+      "id": "module:api/src/routes",
+      "kind": "module",
+      "label": "routes",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/routes"
+    },
+    {
+      "id": "module:web/app",
+      "kind": "module",
+      "label": "app",
+      "parentId": "service:web/",
+      "path": "apps/web/app"
+    },
+    {
+      "id": "module:web/app/checkout",
+      "kind": "module",
+      "label": "checkout",
+      "parentId": "module:web/app",
+      "path": "apps/web/app/checkout"
+    },
+    {
+      "id": "module:web/app/orders",
+      "kind": "module",
+      "label": "orders",
+      "parentId": "module:web/app",
+      "path": "apps/web/app/orders"
+    },
+    {
+      "id": "module:web/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "service:web/",
+      "path": "apps/web/lib"
+    },
+    {
+      "id": "page:web//",
+      "kind": "page",
+      "label": "/",
+      "layer": "frontend",
+      "parentId": "file:web/app/page.tsx",
+      "path": "/",
+      "source": {
+        "column": 31,
+        "file": "apps/web/app/page.tsx",
+        "line": 3
+      }
+    },
+    {
+      "id": "page:web//checkout",
+      "kind": "page",
+      "label": "/checkout",
+      "layer": "frontend",
+      "parentId": "file:web/app/checkout/page.tsx",
+      "path": "/checkout",
+      "source": {
+        "column": 25,
+        "file": "apps/web/app/checkout/page.tsx",
+        "line": 5
+      }
+    },
+    {
+      "id": "page:web//orders",
+      "kind": "page",
+      "label": "/orders",
+      "layer": "frontend",
+      "parentId": "file:web/app/orders/page.tsx",
+      "path": "/orders",
+      "source": {
+        "column": 31,
+        "file": "apps/web/app/orders/page.tsx",
+        "line": 3
+      }
+    },
+    {
+      "id": "route:api/GET /api/orders",
+      "kind": "route",
+      "label": "GET /api/orders",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/routes/orders.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 8,
+        "file": "apps/api/src/routes/orders.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:api/POST /api/orders",
+      "kind": "route",
+      "label": "POST /api/orders",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:api/src/routes/orders.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 8,
+        "file": "apps/api/src/routes/orders.ts",
+        "line": 7
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "@shop/api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "apps/api"
+    },
+    {
+      "framework": "next",
+      "id": "service:web/",
+      "kind": "service",
+      "label": "@shop/web",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": "apps/web"
+    },
+    {
+      "exported": true,
+      "id": "symbol:api/src/billing/stripe.ts#chargeOrder",
+      "kind": "symbol",
+      "label": "chargeOrder",
+      "parentId": "file:api/src/billing/stripe.ts",
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "apps/api/src/billing/stripe.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:api/src/db.ts#prisma",
+      "kind": "symbol",
+      "label": "prisma",
+      "parentId": "file:api/src/db.ts",
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "apps/api/src/db.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:api/src/orders/handlers.ts#createOrder",
+      "kind": "symbol",
+      "label": "createOrder",
+      "parentId": "file:api/src/orders/handlers.ts",
+      "source": {
+        "column": 1,
+        "endLine": 16,
+        "file": "apps/api/src/orders/handlers.ts",
+        "line": 10
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:api/src/orders/handlers.ts#listOrders",
+      "kind": "symbol",
+      "label": "listOrders",
+      "parentId": "file:api/src/orders/handlers.ts",
+      "source": {
+        "column": 1,
+        "endLine": 8,
+        "file": "apps/api/src/orders/handlers.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:api/src/routes/orders.ts#orders",
+      "kind": "symbol",
+      "label": "orders",
+      "parentId": "file:api/src/routes/orders.ts",
+      "source": {
+        "column": 14,
+        "endLine": 4,
+        "file": "apps/api/src/routes/orders.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/app/checkout/page.tsx#Checkout",
+      "kind": "symbol",
+      "label": "Checkout",
+      "parentId": "file:web/app/checkout/page.tsx",
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "apps/web/app/checkout/page.tsx",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/app/orders/page.tsx#Orders",
+      "kind": "symbol",
+      "label": "Orders",
+      "parentId": "file:web/app/orders/page.tsx",
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "apps/web/app/orders/page.tsx",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/app/page.tsx#Home",
+      "kind": "symbol",
+      "label": "Home",
+      "parentId": "file:web/app/page.tsx",
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "apps/web/app/page.tsx",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/cms.ts#latestPosts",
+      "kind": "symbol",
+      "label": "latestPosts",
+      "parentId": "file:web/lib/cms.ts",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "apps/web/lib/cms.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/orders.ts#listOrders",
+      "kind": "symbol",
+      "label": "listOrders",
+      "parentId": "file:web/lib/orders.ts",
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "apps/web/lib/orders.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/orders.ts#placeOrder",
+      "kind": "symbol",
+      "label": "placeOrder",
+      "parentId": "file:web/lib/orders.ts",
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "apps/web/lib/orders.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "shop-demo",
+      "parentId": null
+    },
+    {
+      "detail": "the env var CMS_URL isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "expression": "fetch(`${process.env.CMS_URL}/posts`)",
+      "id": "unresolved:web/lib/cms.ts:3:21",
+      "kind": "unresolved",
+      "label": "GET {env:CMS_URL}/posts",
+      "parentId": "service:web/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 21,
+        "file": "apps/web/lib/cms.ts",
+        "line": 3
+      }
+    }
+  ],
+  "repo": {
+    "name": "shop-demo",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": []
+}

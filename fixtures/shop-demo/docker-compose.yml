@@ -1,0 +1,11 @@
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+  api:
+    build: ./apps/api
+    depends_on: [db]
+  web:
+    build: ./apps/web
+    depends_on: [api]

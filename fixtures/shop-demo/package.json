@@ -1,0 +1,1 @@
+{ "name": "shop-demo", "private": true, "workspaces": ["apps/*"] }

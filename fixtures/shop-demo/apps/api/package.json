@@ -1,0 +1,4 @@
+{
+  "name": "@shop/api",
+  "dependencies": { "@prisma/client": "5", "express": "4", "stripe": "17" }
+}
