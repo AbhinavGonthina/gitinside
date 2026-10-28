@@ -75,6 +75,33 @@ export {
   type WorkerLog,
 } from "./queue.js";
 export {
+  EMPTY_PAYLOAD_HASH,
+  amzDate,
+  authorization,
+  canonicalRequest,
+  uriEncode,
+  type Credentials,
+  type SignableRequest,
+  type SigningScope,
+} from "./sigv4.js";
+export {
+  SNAPSHOT_CACHE_CONTROL,
+  STORAGE_TIMEOUT_MS,
+  StorageError,
+  createObjectStore,
+  privateSnapshotKey,
+  publicSnapshotKey,
+  storeConfigFromEnv,
+  uploadSnapshot,
+  type ObjectStore,
+  type ObjectStoreOptions,
+  type PrivateSnapshot,
+  type PublicSnapshot,
+  type PutObjectOptions,
+  type StoreConfig,
+  type StoredSnapshot,
+} from "./storage.js";
+export {
   DEFAULT_RUNNER_LIMITS,
   runAnalysis,
   type RunnerLimits,
