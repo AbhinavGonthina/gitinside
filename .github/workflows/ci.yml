@@ -22,3 +22,29 @@ jobs:
       - run: pnpm test
       - run: pnpm coverage
       - run: pnpm --filter @gitinside/viewer build-storybook
+
+  # Every story in dark and light against packages/viewer/visual/baselines/
+  # (docs/TESTING.md, ADR-0053). Re-capture with the "Visual baselines" workflow.
+  visual:
+    runs-on: ubuntu-latest
+    container:
+      # Keep in step with @playwright/test in packages/viewer/package.json.
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @gitinside/schema build
+      - run: pnpm --filter @gitinside/viewer build-storybook
+      - run: pnpm --filter @gitinside/viewer visual
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-report
+          path: |
+            packages/viewer/dist/visual-report/
+            packages/viewer/dist/visual-results/
