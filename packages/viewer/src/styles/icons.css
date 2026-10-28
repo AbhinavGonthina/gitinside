@@ -1,0 +1,68 @@
+/*
+ * Icons (DESIGN_SYSTEM.md §3). Logos carry both theme fills as custom
+ * properties (src/icons/Icon.tsx), so the theme picks one here and a switch
+ * re-renders nothing. Glyphs stroke in currentColor and inherit the tile's.
+ */
+.gi-root[data-theme="dark"] .gi-brand {
+  color: var(--gi-brand-dark);
+}
+
+.gi-root[data-theme="light"] .gi-brand {
+  color: var(--gi-brand-light);
+}
+
+.gi-glyph,
+.gi-brand {
+  display: block;
+  flex: none;
+}
+
+/*
+ * Always surface-1: brandFill checks logo contrast against this fill only,
+ * so node states (hover, selected, traced) restyle the node, never the tile.
+ */
+.gi-icon-tile {
+  --gi-ring: var(--border);
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--gi-ring);
+  border-radius: var(--radius-chip);
+  background: var(--surface-1);
+  color: var(--text-muted);
+}
+
+.gi-icon-tile[data-size="lg"] {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-tile);
+  color: var(--text);
+}
+
+/*
+ * The layer ring is a restrained accent: the layer color mixed into the
+ * hairline, so it tints the tile without outshining the logo. Layer is also
+ * named in the legend and inspector, so the ring is never the only signal.
+ */
+.gi-icon-tile[data-layer="frontend"] {
+  --gi-ring: color-mix(in srgb, var(--layer-frontend) 60%, var(--border));
+}
+
+.gi-icon-tile[data-layer="backend"] {
+  --gi-ring: color-mix(in srgb, var(--layer-backend) 60%, var(--border));
+}
+
+.gi-icon-tile[data-layer="data"] {
+  --gi-ring: color-mix(in srgb, var(--layer-data) 60%, var(--border));
+}
+
+.gi-icon-tile[data-layer="infra"] {
+  --gi-ring: color-mix(in srgb, var(--layer-infra) 60%, var(--border));
+}
+
+.gi-icon-tile[data-layer="external"] {
+  --gi-ring: color-mix(in srgb, var(--layer-external) 60%, var(--border));
+}
