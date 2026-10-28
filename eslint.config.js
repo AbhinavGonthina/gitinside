@@ -11,6 +11,7 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/.turbo/**",
       "**/.next/**",
+      "**/storybook-static/**",
       "fixtures/**",
       "bench/.repos/**",
       "eval/.repos/**",
@@ -38,8 +39,13 @@ export default tseslint.config(
     },
   },
   {
+    // The viewer runs in the browser.
+    files: ["packages/viewer/src/**", "packages/viewer/.storybook/**"],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     // Tests index into known fixtures; non-null assertions keep them readable.
-    files: ["**/*.test.ts"],
+    files: ["**/*.test.ts", "**/*.test.tsx"],
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },
   },
   prettier,

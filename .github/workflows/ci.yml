@@ -21,3 +21,4 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm coverage
+      - run: pnpm --filter @gitinside/viewer build-storybook

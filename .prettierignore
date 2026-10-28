@@ -2,6 +2,7 @@ dist
 coverage
 node_modules
 .turbo
+storybook-static
 pnpm-lock.yaml
 fixtures
 bench/.repos
