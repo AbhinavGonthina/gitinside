@@ -1,0 +1,381 @@
+/*
+ * Diagram nodes (DESIGN_SYSTEM.md §3, src/nodes/DiagramNode.tsx). Three
+ * container tiers, then states as data attributes so they combine freely.
+ * Who owns the border: selected (accent) > traced (trace) > diff > hover.
+ * Colors come from tokens only (nodes.test.tsx checks for literals).
+ */
+
+.gi-node {
+  --gi-layer: var(--text-muted);
+  --gi-node-bg: var(--surface-1);
+  --gi-node-border: var(--border);
+  --gi-state-shadow: 0 0 transparent;
+  --gi-lip: 0 0 transparent;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid var(--gi-node-border);
+  background: var(--gi-node-bg);
+  box-shadow: var(--gi-state-shadow), var(--gi-lip);
+  color: var(--text);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-standard) var(--ease-standard);
+}
+
+.gi-node[data-layer="frontend"] {
+  --gi-layer: var(--layer-frontend);
+}
+
+.gi-node[data-layer="backend"] {
+  --gi-layer: var(--layer-backend);
+}
+
+.gi-node[data-layer="data"] {
+  --gi-layer: var(--layer-data);
+}
+
+.gi-node[data-layer="infra"] {
+  --gi-layer: var(--layer-infra);
+}
+
+.gi-node[data-layer="external"] {
+  --gi-layer: var(--layer-external);
+}
+
+/* Text */
+
+.gi-node__text {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gi-node__label,
+.gi-node__subtitle {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.gi-node__label > *,
+.gi-node__subtitle > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gi-node__label {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+}
+
+.gi-node__subtitle {
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  line-height: var(--line-height-tight);
+}
+
+.gi-node code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+.gi-node__subtitle code {
+  font-size: var(--font-size-12);
+}
+
+/* The route's method, a quiet chip so the path stays the name. */
+.gi-method {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+/* Badges: counts and diff state, never color alone. */
+
+.gi-node__badges {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.gi-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.gi-badge[data-unresolved] {
+  border-style: dotted;
+  border-color: var(--text-muted);
+}
+
+.gi-badge[data-diff] {
+  color: var(--text);
+}
+
+.gi-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--gi-diff);
+}
+
+.gi-badge[data-diff="added"] {
+  --gi-diff: var(--diff-added);
+  border-color: color-mix(in srgb, var(--diff-added) 55%, var(--border));
+}
+
+.gi-badge[data-diff="changed"] {
+  --gi-diff: var(--diff-changed);
+  border-color: color-mix(in srgb, var(--diff-changed) 55%, var(--border));
+}
+
+.gi-badge[data-diff="removed"] {
+  --gi-diff: var(--diff-removed);
+  border-color: color-mix(in srgb, var(--diff-removed) 55%, var(--border));
+}
+
+/* The diff tag sits on the node's top edge, so it never squeezes the name. */
+.gi-node__diff {
+  position: absolute;
+  top: -10px;
+  right: var(--space-12);
+  padding: 0 7px;
+  background: var(--surface-1);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* Tier: cards (files, symbols, routes, pages, models, unresolved) */
+
+.gi-node[data-tier="card"] {
+  min-height: 48px;
+  padding: var(--space-8) var(--space-12) var(--space-8) var(--space-8);
+  border-radius: var(--radius-card);
+}
+
+/* Unresolved: dotted, like its edges. Shown, never dropped. */
+.gi-node[data-kind="unresolved"] {
+  --gi-node-bg: var(--canvas);
+  --gi-node-border: var(--text-muted);
+  border-style: dotted;
+}
+
+/* Tier: frames (services, modules) */
+
+.gi-node[data-tier="frame"] {
+  --gi-node-border: color-mix(in srgb, var(--gi-layer) 45%, var(--border));
+  border-radius: var(--radius-module);
+}
+
+.gi-node[data-kind="service"],
+.gi-node[data-kind="system"] {
+  border-radius: var(--radius-service);
+}
+
+.gi-node[data-tier="frame"] .gi-node__label {
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+}
+
+/*
+ * A closed frame is a solid, faintly tinted card with a stacked edge beneath:
+ * there is more inside, so it can be broken down.
+ */
+.gi-node[data-expanded="false"] {
+  --gi-node-bg: color-mix(in srgb, var(--gi-layer) 10%, var(--surface-1));
+  --gi-lip: 0 6px 0 -4px color-mix(in srgb, var(--gi-layer) 5%, var(--surface-1)),
+    0 6px 0 -3px var(--gi-node-border);
+  flex-wrap: wrap;
+  row-gap: var(--space-8);
+  min-height: 56px;
+  margin-bottom: 6px;
+  padding: var(--space-12) var(--space-16) var(--space-12) var(--space-12);
+}
+
+/* Closed frames keep their counts on a row of their own, under the name. */
+.gi-node[data-expanded="false"] > .gi-node__badges {
+  box-sizing: border-box;
+  flex-basis: 100%;
+  padding-left: 44px;
+}
+
+/* An open frame is translucent, so nested frames deepen the tint. */
+.gi-node[data-expanded="true"] {
+  --gi-node-bg: color-mix(in srgb, var(--gi-layer) 6%, transparent);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.gi-node__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+  padding: var(--space-12) var(--space-16) var(--space-12) var(--space-12);
+}
+
+.gi-node__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: 0 var(--space-16) var(--space-16);
+}
+
+/* Tier: icon-first (datastores, queues, externals), Eraser-style */
+
+.gi-node[data-tier="icon"] {
+  --gi-node-bg: transparent;
+  --gi-node-border: transparent;
+  flex-direction: column;
+  gap: var(--space-8);
+  width: 136px;
+  padding: var(--space-8) var(--space-8) var(--space-12);
+  border-radius: var(--radius-service);
+  text-align: center;
+}
+
+.gi-node[data-tier="icon"] .gi-node__text {
+  justify-items: center;
+  width: 100%;
+}
+
+.gi-node[data-tier="icon"] .gi-node__label,
+.gi-node[data-tier="icon"] .gi-node__subtitle {
+  justify-content: center;
+  max-width: 100%;
+}
+
+.gi-node[data-tier="icon"] .gi-node__badges {
+  justify-content: center;
+}
+
+/*
+ * State: hover. Tier qualifiers sit in :where() so every hover rule has the
+ * same specificity as the state rules below, which come later and win.
+ */
+
+.gi-node:is(:hover, [data-hover]) {
+  --gi-node-bg: var(--surface-2);
+  --gi-node-border: color-mix(in srgb, var(--text-muted) 45%, var(--border));
+}
+
+.gi-node:where([data-tier="frame"]):is(:hover, [data-hover]) {
+  --gi-node-border: color-mix(in srgb, var(--gi-layer) 60%, var(--border));
+}
+
+.gi-node:where([data-expanded="false"]):is(:hover, [data-hover]) {
+  --gi-node-bg: color-mix(in srgb, var(--gi-layer) 15%, var(--surface-1));
+}
+
+.gi-node:where([data-expanded="true"]):is(:hover, [data-hover]) {
+  --gi-node-bg: color-mix(in srgb, var(--gi-layer) 6%, transparent);
+}
+
+.gi-node:where([data-kind="unresolved"]):is(:hover, [data-hover]) {
+  --gi-node-bg: var(--surface-1);
+  --gi-node-border: var(--text);
+}
+
+/* State: diff (badge carries the word; border and tint carry the color) */
+
+.gi-node[data-diff="added"] {
+  --gi-node-border: var(--diff-added);
+  --gi-node-bg: color-mix(in srgb, var(--diff-added) 7%, var(--surface-1));
+}
+
+.gi-node[data-diff="changed"] {
+  --gi-node-border: var(--diff-changed);
+  --gi-node-bg: color-mix(in srgb, var(--diff-changed) 7%, var(--surface-1));
+}
+
+.gi-node[data-diff="removed"] {
+  --gi-node-border: var(--diff-removed);
+  --gi-node-bg: color-mix(in srgb, var(--diff-removed) 5%, var(--canvas));
+  border-style: dashed;
+}
+
+/* Removed is ghosted, but its badge stays readable. */
+.gi-node[data-diff="removed"] :is(.gi-icon-tile, .gi-node__text) {
+  opacity: 0.5;
+}
+
+.gi-node[data-diff="removed"] .gi-node__label {
+  text-decoration: line-through;
+  text-decoration-color: var(--diff-removed);
+}
+
+/* State: traced (on the request path) */
+
+.gi-node[data-emphasis="traced"] {
+  --gi-node-border: var(--trace);
+  --gi-state-shadow: 0 0 0 1px var(--trace),
+    0 0 0 5px color-mix(in srgb, var(--trace) 18%, transparent);
+}
+
+.gi-node[data-tier="card"][data-emphasis="traced"],
+.gi-node[data-expanded="false"][data-emphasis="traced"] {
+  --gi-node-bg: color-mix(in srgb, var(--trace) 6%, var(--surface-1));
+}
+
+/* State: dimmed (off the request path). Hover brings it partway back. */
+
+.gi-node[data-emphasis="dimmed"] {
+  opacity: 0.2;
+}
+
+.gi-node[data-emphasis="dimmed"]:hover {
+  opacity: 0.5;
+}
+
+/* State: selected. Wins the border; a trace glow still shows around it. */
+
+.gi-node[data-selected] {
+  --gi-node-border: var(--accent);
+  --gi-state-shadow: 0 0 0 1px var(--accent);
+}
+
+.gi-node[data-tier="card"][data-selected],
+.gi-node[data-expanded="false"][data-selected] {
+  --gi-node-bg: color-mix(in srgb, var(--accent) 9%, var(--surface-1));
+}
+
+.gi-node[data-selected][data-emphasis="traced"] {
+  --gi-state-shadow: 0 0 0 1px var(--accent),
+    0 0 0 5px color-mix(in srgb, var(--trace) 22%, transparent);
+}
+
+/* The lip follows the border color so a selected closed frame reads as one object. */
+.gi-node[data-expanded="false"]:is([data-selected], [data-emphasis="traced"], [data-diff]) {
+  --gi-lip: 0 6px 0 -4px var(--gi-node-bg),
+    0 6px 0 -3px color-mix(in srgb, var(--gi-node-border) 60%, var(--border));
+}
