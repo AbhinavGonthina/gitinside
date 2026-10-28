@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4a.4. Node components per kind, all states
+M4a.5. Edge components (confidence styles, labels, flow, broken, arrows)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -70,7 +70,7 @@ M4a.4. Node components per kind, all states
 - [x] M4a.1 packages/viewer scaffold (React, Vite lib, Storybook) {model: opus}
 - [x] M4a.2 Tokens (dark default + light), self-hosted Geist fonts {model: opus}
 - [x] M4a.3 Icon system: Simple Icons brand mapping + custom glyph set for kinds {model: opus}
-- [ ] M4a.4 Node components per kind, all states {model: opus}
+- [x] M4a.4 Node components per kind, all states {model: opus}
 - [ ] M4a.5 Edge components (confidence styles, labels, flow, broken, arrows) {model: opus}
 - [ ] M4a.6 Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend, palette shell) {model: opus}
 - [ ] M4a.7 Static clickable prototype on a fixture graph {model: opus}
@@ -154,6 +154,8 @@ M4a.4. Node components per kind, all states
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M4a.4: `packages/viewer/src/nodes/`: one `DiagramNode` picks its tier from the kind (frames for service/module: closed = tinted card with a stacked edge, open = translucent with children; icon-first for datastore/queue/external; cards for the rest; unresolved = dotted card with its reason in words). Pure `describe.ts` helpers give labels, subtitles, kind names, and accessible names from the node's own fields. States are combinable data attributes styled in `nodes.css` (border precedence selected > traced > diff > hover). Screenshot review moved the diff badge to a worded tag on the top edge (inline badges squeezed names and clipped the method chip) and strengthened frame tints (ADR-0049). Story Components/Nodes (Kinds, States matrix, Frames); 269 viewer tests, 100% lines. Next: M4a.5.
 
 - 2026-10-28 · M4a.3: `packages/viewer/src/icons/`: `brands.ts` maps framework / engine / host (label-boundary suffix, longest first) to 56 pinned Simple Icons (bundled, tree-shaken: lib 66 kB); unshipped brands (OpenAI, AWS, SQL Server, Twilio, Slack, SendGrid, Postmark, …) get the kind's glyph. `brandFill` = brand color if ≥ 3:1 on the `surface-1` tile, else `--text`, both set as CSS vars picked by `data-theme`. 14 stroke glyphs (`glyphs.tsx`), pure `iconFor(node)`, `IconTile`/`NodeIconTile`; story Foundations/Icons (Glyphs, Logos, Mapping). Screenshot review redrew unresolved and method, dropped the tile hover fill, softened layer rings (ADR-0048). 208 viewer tests, 100% lines. Next: M4a.4.
 
