@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.2. apps/web Next.js scaffold, landing page, viewer integration; M4b waits for the design gate (#2)
+M5.3. Drizzle schema + migrations (local Postgres in Docker for dev/CI); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -23,7 +23,7 @@ M5.2. apps/web Next.js scaffold, landing page, viewer integration; M4b waits for
 - [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Oracle Cloud Always Free signup + worker VM. Blocks M5.13; on close: record region/shape for benchmark labels.
 - [#4](https://github.com/AbhinavGonthina/gitinside-planning/issues/4) Neon free project. Blocks M5.13; on close: size M5.12 retention from the storage limit he reports (SPEC assumes 1 GB).
 - [#5](https://github.com/AbhinavGonthina/gitinside-planning/issues/5) Cloudflare R2 bucket + scoped token. Blocks M5.13; R2 bills past its free tier (PROPOSALS P-1); on close: read his answer on the card and where the domain's DNS is hosted.
-- [#6](https://github.com/AbhinavGonthina/gitinside-planning/issues/6) Vercel Hobby. Part A now; **when M5.2 lands, comment on #6 that Part B (import `apps/web`, env vars per ADR-0055, domain) can start.** Blocks M5.13.
+- [#6](https://github.com/AbhinavGonthina/gitinside-planning/issues/6) Vercel Hobby. M5.2 landed and #6 is commented: Part B (import `apps/web`, env vars per ADR-0055, domain) can start. Blocks M5.13.
 - [#7](https://github.com/AbhinavGonthina/gitinside-planning/issues/7) DNS: CNAME `gitinside` → Vercel, A `worker.gitinside` → VM. After #3 and #6 Part B. Blocks M5.13.
 
 ## Blockers
@@ -102,7 +102,7 @@ M5.2. apps/web Next.js scaffold, landing page, viewer integration; M4b waits for
 
 ### M5: Website (public) + live badge
 - [x] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
-- [ ] M5.2 apps/web Next.js scaffold, landing page, viewer integration (incl. a separate viewer fonts entry so the library imports without CSS, M4a review) {model: opus}
+- [x] M5.2 apps/web Next.js scaffold, landing page, viewer integration (incl. a separate viewer fonts entry so the library imports without CSS, M4a review) {model: opus}
 - [ ] M5.3 Drizzle schema + migrations (local Postgres in Docker for dev/CI) {model: opus}
 - [ ] M5.4 apps/worker: BullMQ worker + HMAC enqueue API + safe tarball extraction + child-process limits {model: opus}
 - [ ] M5.5 Worker: R2 upload, Postgres writes, progress events {model: opus}
@@ -160,6 +160,8 @@ M5.2. apps/web Next.js scaffold, landing page, viewer integration; M4b waits for
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.2: new `@gitinside/web` (Next.js 16 App Router): landing page (slogan, URL field with in-place errors, four promises with viewer glyphs), `/<owner>/<repo>` placeholder in UX.md's "temporarily unavailable" words, 404 that never echoes the path, Dark/Light switch stored in a `gi-theme` cookie and rendered on the server (no flash, no inline script). `<html>` is the viewer's `.gi-root`, so the site uses its tokens. Viewer split into `index` (`"use client"`, no CSS imports, imports in plain Node) and a `fonts` entry. Nonce CSP from `proxy.ts` + security headers; GitHub-rules URL parser. 103 web unit tests (94% lines), 4 Playwright E2E against `next start`, new CI `web-e2e` job (ADR-0056). Next: M5.3.
 
 - 2026-10-28 · M5.1: five step-by-step signup issues in the planning repo: #3 Oracle Always Free VM (A1.Flex 4/24, Ubuntu 24.04, ingress 443 + 22 from his IP), #4 Neon free (`us-east-1`, pooled + direct strings), #5 R2 (Standard bucket `gitinside-snapshots`, bucket-scoped token, billing tripwire), #6 Vercel Hobby (Part A now, Part B after M5.2), #7 DNS (CNAME `gitinside`, A `worker.gitinside`). Secret names and homes fixed in ADR-0055; none go in repo files. R2 bills past its free tier ⇒ PROPOSALS P-1. M5.13 tagged blocked on #3–#7. No code changed. Next: M5.2.
 
