@@ -6,6 +6,8 @@ import {
   completeAnalysis,
   failAnalysis,
   failInterruptedAnalyses,
+  findAnalysis,
+  queueAnalysis,
   repos,
   requeueAnalysis,
   startAnalysis,
@@ -215,5 +217,74 @@ describe("failInterruptedAnalyses", () => {
       errorCode: INTERRUPTED_CODE,
     });
     expect((await analysis(queued)).status).toBe("queued");
+  });
+});
+
+describe("findAnalysis", () => {
+  const key = { providerRepoId: FACTS.providerRepoId, sha: SHA, analyzerVersion: VERSION };
+
+  it("finds nothing before the first job", async () => {
+    expect(await findAnalysis(t.db, key)).toBeUndefined();
+    await upsertRepo(t.db, FACTS);
+    expect(await findAnalysis(t.db, key)).toBeUndefined();
+  });
+
+  it("finds a commit's row by GitHub's repo ID, after a rename too", async () => {
+    const id = await started();
+    await completeAnalysis(t.db, id, { snapshotKey: "public/acme/shop/x.json.gz", stats: STATS });
+    await upsertRepo(t.db, { ...FACTS, owner: "acme-inc", name: "storefront" });
+    expect(await findAnalysis(t.db, key)).toEqual({
+      id,
+      status: "done",
+      errorCode: null,
+      snapshotKey: "public/acme/shop/x.json.gz",
+    });
+  });
+
+  it("keeps commits, analyzer versions, and repos apart", async () => {
+    await started();
+    expect(await findAnalysis(t.db, { ...key, sha: "b".repeat(40) })).toBeUndefined();
+    expect(await findAnalysis(t.db, { ...key, analyzerVersion: "0.2.0" })).toBeUndefined();
+    expect(await findAnalysis(t.db, { ...key, providerRepoId: 7 })).toBeUndefined();
+    expect((await findAnalysis(t.db, key))?.status).toBe("running");
+  });
+});
+
+describe("queueAnalysis", () => {
+  async function key() {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    return { repoId, sha: SHA, analyzerVersion: VERSION };
+  }
+
+  it("inserts a queued row", async () => {
+    const queued = await queueAnalysis(t.db, await key());
+    expect(queued.status).toBe("queued");
+    expect(await analysis(queued.id)).toMatchObject({
+      status: "queued",
+      startedAt: null,
+      finishedAt: null,
+    });
+  });
+
+  it("moves a failed row back to queued, clearing the failure", async () => {
+    const id = await started();
+    await failAnalysis(t.db, id, "DOWNLOAD_FAILED");
+    expect(await queueAnalysis(t.db, await key())).toEqual({ id, status: "queued" });
+    expect(await analysis(id)).toMatchObject({
+      status: "queued",
+      errorCode: null,
+      startedAt: null,
+      finishedAt: null,
+    });
+    // The worker can pick it up again.
+    expect((await startAnalysis(t.db, await key())).status).toBe("running");
+  });
+
+  it("leaves running and done rows alone", async () => {
+    const id = await started();
+    expect(await queueAnalysis(t.db, await key())).toEqual({ id, status: "running" });
+    await completeAnalysis(t.db, id, { snapshotKey: "k", stats: STATS });
+    expect(await queueAnalysis(t.db, await key())).toEqual({ id, status: "done" });
+    expect((await analysis(id)).snapshotKey).toBe("k");
   });
 });

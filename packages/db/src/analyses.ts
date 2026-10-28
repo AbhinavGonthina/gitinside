@@ -2,7 +2,8 @@
  * The writes behind an analysis (ADR-0063): the repo row, and one `analyses` row moving
  * through `queued` → `running` → `done` | `failed`.
  *
- * - **Who calls what:** the worker calls {@link upsertRepo} and {@link startAnalysis} when a
+ * - **Who calls what:** the web app calls {@link findAnalysis} (the cache lookup) and, when it
+ *   enqueues a new job, {@link upsertRepo} and {@link queueAnalysis} (ADR-0066). The worker calls {@link upsertRepo} and {@link startAnalysis} when a
  *   job starts, {@link completeAnalysis} after the snapshot is in object storage (so a `done`
  *   row always has its object), {@link requeueAnalysis} when an attempt fails but will be
  *   retried, {@link failAnalysis} when the last one fails, and
@@ -107,6 +108,81 @@ export async function startAnalysis(
       ),
     );
   return { id: (done as { id: string }).id, status: "done" };
+}
+
+/** What {@link findAnalysis} returns: the row's state, enough to answer `/api/analyze`. */
+export interface AnalysisSummary {
+  id: string;
+  status: "queued" | "running" | "done" | "failed";
+  errorCode: string | null;
+  snapshotKey: string | null;
+}
+
+/**
+ * Look up one commit's analysis by GitHub's repo ID (so a renamed repo still finds its
+ * cache), or `undefined` if there's none yet.
+ */
+export async function findAnalysis(
+  db: AnyDatabase,
+  key: { providerRepoId: number; sha: string; analyzerVersion: string },
+): Promise<AnalysisSummary | undefined> {
+  const [row] = await db
+    .select({
+      id: analyses.id,
+      status: analyses.status,
+      errorCode: analyses.errorCode,
+      snapshotKey: analyses.snapshotKey,
+    })
+    .from(analyses)
+    .innerJoin(repos, eq(repos.id, analyses.repoId))
+    .where(
+      and(
+        eq(repos.providerRepoId, key.providerRepoId),
+        eq(analyses.sha, key.sha),
+        eq(analyses.analyzerVersion, key.analyzerVersion),
+      ),
+    );
+  return row;
+}
+
+/**
+ * Record that the web app queued a job for this commit: insert a `queued` row, or move a
+ * `failed` one back to `queued` (a new job will run it again). `queued`, `running`, and
+ * `done` rows are left as they are; the returned status is the row's after the call.
+ */
+export async function queueAnalysis(
+  db: AnyDatabase,
+  key: AnalysisKey,
+): Promise<{ id: string; status: AnalysisSummary["status"] }> {
+  const queued = {
+    status: "queued" as const,
+    errorCode: null,
+    snapshotKey: null,
+    stats: null,
+    startedAt: null,
+    finishedAt: null,
+  };
+  const [row] = await db
+    .insert(analyses)
+    .values({ ...key, ...queued })
+    .onConflictDoUpdate({
+      target: [analyses.repoId, analyses.sha, analyses.analyzerVersion],
+      set: queued,
+      setWhere: eq(analyses.status, "failed"),
+    })
+    .returning({ id: analyses.id });
+  if (row !== undefined) return { id: row.id, status: "queued" };
+  const [existing] = await db
+    .select({ id: analyses.id, status: analyses.status })
+    .from(analyses)
+    .where(
+      and(
+        eq(analyses.repoId, key.repoId),
+        eq(analyses.sha, key.sha),
+        eq(analyses.analyzerVersion, key.analyzerVersion),
+      ),
+    );
+  return existing as { id: string; status: AnalysisSummary["status"] };
 }
 
 /** Back to `queued` after a failed attempt that will be retried. Only a `running` row moves. */

@@ -13,12 +13,16 @@
     "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "dependencies": {
+    "@gitinside/analyzer": "workspace:*",
+    "@gitinside/db": "workspace:*",
     "@gitinside/viewer": "workspace:*",
+    "@gitinside/worker": "workspace:*",
     "next": "16.4.3",
     "react": "19.0.0",
     "react-dom": "19.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.13",
     "@playwright/test": "1.64.1",
     "@testing-library/dom": "10.4.0",
     "@testing-library/react": "16.1.0",

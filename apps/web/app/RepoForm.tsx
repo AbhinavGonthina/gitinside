@@ -8,8 +8,9 @@ import { parseRepoUrl } from "../lib/repoUrl";
 /**
  * The landing page's one field: paste a GitHub repo URL, press Analyze.
  * The URL is checked here so a typo gets an answer before any request; a
- * valid one opens the repo's page. (From M5.6 it starts an analysis through
- * `/api/analyze` instead, which checks it again on the server.)
+ * valid one opens the repo's page. (From M5.7 it starts an analysis through
+ * `/api/analyze` instead, which checks it again on the server, and opens the
+ * progress page.)
  */
 export function RepoForm() {
   const router = useRouter();

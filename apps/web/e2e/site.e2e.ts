@@ -95,6 +95,24 @@ test("the theme switch applies at once and survives a reload", async ({ page }) 
   expect(errors).toEqual([]);
 });
 
+test("/api/analyze answers JSON only, and says so plainly while unconfigured", async ({
+  request,
+}) => {
+  // The E2E server has no database or worker, so a valid request is "temporarily unavailable".
+  const ok = await request.post("/api/analyze", { data: { url: "acme/shop" } });
+  expect(ok.status()).toBe(503);
+  expect(await ok.json()).toEqual({
+    error: "UNAVAILABLE",
+    message: "Analysis is temporarily unavailable. Already-analyzed repos still work.",
+  });
+  expect(ok.headers()["cache-control"]).toBe("no-store");
+
+  const form = await request.post("/api/analyze", { form: { url: "acme/shop" } });
+  expect(form.status()).toBe(415);
+  const get = await request.get("/api/analyze");
+  expect(get.status()).toBe(405);
+});
+
 test("names GitHub wouldn't allow are a 404 that doesn't echo them", async ({ page }) => {
   const response = await page.goto("/settings/profile");
   expect(response?.status()).toBe(404);
