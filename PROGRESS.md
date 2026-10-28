@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.3. Drizzle schema + migrations (local Postgres in Docker for dev/CI); M4b waits for the design gate (#2)
+M5.4. apps/worker: BullMQ worker + HMAC enqueue API + safe tarball extraction + child-process limits; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -103,7 +103,7 @@ M5.3. Drizzle schema + migrations (local Postgres in Docker for dev/CI); M4b wai
 ### M5: Website (public) + live badge
 - [x] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
 - [x] M5.2 apps/web Next.js scaffold, landing page, viewer integration (incl. a separate viewer fonts entry so the library imports without CSS, M4a review) {model: opus}
-- [ ] M5.3 Drizzle schema + migrations (local Postgres in Docker for dev/CI) {model: opus}
+- [x] M5.3 Drizzle schema + migrations (local Postgres in Docker for dev/CI) {model: opus}
 - [ ] M5.4 apps/worker: BullMQ worker + HMAC enqueue API + safe tarball extraction + child-process limits {model: opus}
 - [ ] M5.5 Worker: R2 upload, Postgres writes, progress events {model: opus}
 - [ ] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
@@ -160,6 +160,8 @@ M5.3. Drizzle schema + migrations (local Postgres in Docker for dev/CI); M4b wai
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.3: new `@gitinside/db` (Drizzle 0.45 + postgres.js, `prepare: false` for Neon's pooler): the 7 DESIGN.md §10 tables, UUID IDs, integrity in the database (40-hex SHAs, analysis status ⇔ columns check, case-insensitive owner/name, non-negative counts, cascades from repos/users, installation delete only unlinks). Committed SQL migration `0000_init`, `migrate` CLI (UNPOOLED first, never prints the URL), a schema-vs-snapshot drift test (verified it fails on an added column). Tests on PGlite locally, a fresh database per file on CI's `postgres:17-alpine` service, plus the built CLI run twice; `infra/docker-compose.dev.yml` for dev (ADR-0057). 31 db tests, 87.6% lines locally (`createDb`/`runMigrations` run only in CI). Eval re-recorded (lockfile). Next: M5.4.
 
 - 2026-10-28 · M5.2: new `@gitinside/web` (Next.js 16 App Router): landing page (slogan, URL field with in-place errors, four promises with viewer glyphs), `/<owner>/<repo>` placeholder in UX.md's "temporarily unavailable" words, 404 that never echoes the path, Dark/Light switch stored in a `gi-theme` cookie and rendered on the server (no flash, no inline script). `<html>` is the viewer's `.gi-root`, so the site uses its tokens. Viewer split into `index` (`"use client"`, no CSS imports, imports in plain Node) and a `fonts` entry. Nonce CSP from `proxy.ts` + security headers; GitHub-rules URL parser. 103 web unit tests (94% lines), 4 Playwright E2E against `next start`, new CI `web-e2e` job (ADR-0056). Next: M5.3.
 
