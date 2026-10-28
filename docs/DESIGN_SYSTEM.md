@@ -62,31 +62,37 @@ The legend is always one click away and is generated from these same tokens.
   - Unresolved.
   - Service fallback.
 
-## 4. Tokens (initial proposal; M4a finalizes)
+## 4. Tokens (implemented in M4a.2; pending the design gate)
 
-**Color (dark, default)**
+Source of truth: `packages/viewer/src/tokens.ts` and `src/styles/tokens.css`, which a test keeps identical (ADR-0047). The Storybook story **Foundations/Tokens** shows every value in both themes.
 
-| Token | Value | Use |
-|---|---|---|
-| `--canvas` | `#0B0E14` | diagram background (solid; depth comes from container tints, not patterns) |
-| `--surface-1` | `#12161F` | cards, inspector |
-| `--surface-2` | `#181E2A` | hover, nested surfaces |
-| `--border` | `#252C3A` | hairlines |
-| `--text` | `#E8ECF4` | primary text |
-| `--text-muted` | `#8E97AB` | secondary text |
-| `--accent` | `#8DB0FF` | selection, focus |
-| `--layer-frontend` | `#79A6FF` | |
-| `--layer-backend` | `#B794F6` | |
-| `--layer-data` | `#34D3A6` | |
-| `--layer-infra` | `#F0A35E` | |
-| `--layer-external` | `#F38BC4` | |
-| `--trace` | `#FFD37A` | trace highlight and pulse |
-| `--diff-added` / `--diff-changed` / `--diff-removed` | `#4ADE80` / `#F5C451` / `#FF6B6B` | diff mode only |
+**Color**
 
-**Light theme:** the same token names, values tuned for WCAG 2.2 AA on a cool off-white canvas (`#F5F7FA`). It's never a plain inversion.
+| Token | Dark (default) | Light | Use |
+|---|---|---|---|
+| `--canvas` | `#0b0e14` | `#f5f7fa` | diagram background (solid; depth comes from container tints, not patterns) |
+| `--surface-1` | `#12161f` | `#ffffff` | cards, inspector |
+| `--surface-2` | `#181e2a` | `#edf0f5` | hover, nested surfaces |
+| `--surface-raised` | `#1c2332` | `#ffffff` | popovers, palette (elevation 2–3) |
+| `--border` | `#252c3a` | `#d9dee7` | hairlines |
+| `--text` | `#e8ecf4` | `#121722` | primary text |
+| `--text-muted` | `#8e97ab` | `#556073` | secondary text |
+| `--accent` | `#8db0ff` | `#2f5fd0` | selection, focus |
+| `--layer-frontend` | `#79a6ff` | `#2e6be6` | |
+| `--layer-backend` | `#b794f6` | `#7a4fd1` | |
+| `--layer-data` | `#34d3a6` | `#0e8a6a` | |
+| `--layer-infra` | `#f0a35e` | `#b8641c` | |
+| `--layer-external` | `#f38bc4` | `#c0418a` | |
+| `--trace` | `#ffd37a` | `#a66f00` | trace highlight and pulse |
+| `--diff-added` | `#4ade80` | `#1e8e4e` | diff mode only |
+| `--diff-changed` | `#f5c451` | `#a87700` | diff mode only |
+| `--diff-removed` | `#ff6b6b` | `#d23b3b` | diff mode only |
+| `--scrim` | `rgba(5, 7, 11, 0.6)` | `rgba(18, 23, 34, 0.32)` | backdrop dim behind the palette |
+
+**Contrast (enforced by tests, both themes, on the canvas and every surface):** `--text` and `--text-muted` are at least 4.5:1, so they're the only text colors. Accent, layer, trace, and diff colors are at least 3:1: use them for strokes, rings, icons, and focus, never for small text. The light theme keeps each dark hue and lowers its lightness until it clears that bar; it's never a plain inversion.
 
 **Type**
-- UI and body: **Geist**. Chosen to match the Vercel reference, with crisp numerals and good small sizes. Self-hosted.
+- UI and body: **Geist**. Chosen to match the Vercel reference, with crisp numerals and good small sizes. Self-hosted from the Fontsource packages; the app's bundler serves the woff2 files from our own origin (ADR-0047).
 - Code and identifiers: **Geist Mono**, used only for code, paths, and routes, never for general labels.
 - Scale (px): 12 / 13 / 14 / 16 / 20 / 28. Weights 400 / 500 / 600.
 - `font-variant-numeric: tabular-nums` for counts.
@@ -104,8 +110,9 @@ The legend is always one click away and is generated from these same tokens.
 **Elevation:**
 - 0: canvas.
 - 1: cards (border only, no shadow).
-- 2: popovers and inspector overlays (soft shadow).
-- 3: command palette (stronger shadow + backdrop dim).
+- 2: popovers and inspector overlays (`--surface-raised` + `--shadow-2`).
+- 3: command palette (`--surface-raised` + `--shadow-3` + `--scrim`).
+- Shadows barely show on the dark canvas, so the raised fill does most of the lifting there.
 
 **Motion:**
 - Fast (120ms) for hover and focus.
@@ -113,7 +120,8 @@ The legend is always one click away and is generated from these same tokens.
 - Layout (600ms, ease-in-out cubic) for drill-down glides.
 - Trace hop (900ms).
 - One orchestrated moment on first load: services settle into place.
-- `prefers-reduced-motion` makes every transition instant and turns off flow particles.
+- `prefers-reduced-motion` makes every transition instant and turns off flow particles. The stylesheet sets every `--duration-*` to `0ms`; JS animation reads `durations` from `tokens.ts` and must check the same media query.
+- Easing: `--ease-standard` `cubic-bezier(0.2, 0, 0, 1)` for hover and panels, `--ease-layout` `cubic-bezier(0.65, 0, 0.35, 1)` (ease-in-out cubic) for glides.
 
 ## 5. Accessibility floor
 

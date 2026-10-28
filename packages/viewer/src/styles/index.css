@@ -1,0 +1,6 @@
+/*
+ * The viewer's stylesheet entry (built to dist/style.css). Fonts are not
+ * imported here: Vite's library mode would inline every subset as base64.
+ * src/fonts.ts imports them from JS instead (ADR-0047).
+ */
+@import "./tokens.css";

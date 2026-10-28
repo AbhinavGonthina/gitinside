@@ -1,0 +1,113 @@
+/*
+ * Design tokens (DESIGN_SYSTEM.md §4) as CSS custom properties. Values mirror
+ * src/tokens.ts exactly; tokens.test.ts fails if the two drift apart.
+ * Everything is scoped to .gi-root so the viewer never restyles its host page.
+ */
+
+.gi-root {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-size-12: 12px;
+  --font-size-13: 13px;
+  --font-size-14: 14px;
+  --font-size-16: 16px;
+  --font-size-20: 20px;
+  --font-size-28: 28px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --line-height-tight: 1.25;
+  --line-height-body: 1.5;
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+  --radius-service: 16px;
+  --radius-module: 12px;
+  --radius-card: 10px;
+  --radius-tile: 12px;
+  --radius-chip: 6px;
+  --radius-pill: 9999px;
+  --duration-fast: 120ms;
+  --duration-standard: 240ms;
+  --duration-layout: 600ms;
+  --duration-trace-hop: 900ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-layout: cubic-bezier(0.65, 0, 0.35, 1);
+
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.gi-root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0b0e14;
+  --surface-1: #12161f;
+  --surface-2: #181e2a;
+  --surface-raised: #1c2332;
+  --border: #252c3a;
+  --text: #e8ecf4;
+  --text-muted: #8e97ab;
+  --accent: #8db0ff;
+  --layer-frontend: #79a6ff;
+  --layer-backend: #b794f6;
+  --layer-data: #34d3a6;
+  --layer-infra: #f0a35e;
+  --layer-external: #f38bc4;
+  --trace: #ffd37a;
+  --diff-added: #4ade80;
+  --diff-changed: #f5c451;
+  --diff-removed: #ff6b6b;
+  --scrim: rgba(5, 7, 11, 0.6);
+  --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.4), 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+.gi-root[data-theme="light"] {
+  color-scheme: light;
+  --canvas: #f5f7fa;
+  --surface-1: #ffffff;
+  --surface-2: #edf0f5;
+  --surface-raised: #ffffff;
+  --border: #d9dee7;
+  --text: #121722;
+  --text-muted: #556073;
+  --accent: #2f5fd0;
+  --layer-frontend: #2e6be6;
+  --layer-backend: #7a4fd1;
+  --layer-data: #0e8a6a;
+  --layer-infra: #b8641c;
+  --layer-external: #c0418a;
+  --trace: #a66f00;
+  --diff-added: #1e8e4e;
+  --diff-changed: #a87700;
+  --diff-removed: #d23b3b;
+  --scrim: rgba(18, 23, 34, 0.32);
+  --shadow-2: 0 1px 2px rgba(18, 23, 34, 0.06), 0 8px 24px rgba(18, 23, 34, 0.1);
+  --shadow-3: 0 2px 6px rgba(18, 23, 34, 0.08), 0 24px 64px rgba(18, 23, 34, 0.18);
+}
+
+/* Visible focus everywhere inside the viewer (DESIGN_SYSTEM.md §5). */
+.gi-root :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Every transition becomes instant; JS animation checks the same query. */
+@media (prefers-reduced-motion: reduce) {
+  .gi-root {
+    --duration-fast: 0ms;
+    --duration-standard: 0ms;
+    --duration-layout: 0ms;
+    --duration-trace-hop: 0ms;
+  }
+}
