@@ -76,8 +76,9 @@ flowchart LR
 - **Enqueue API** (small Node HTTP server on the VM, same image as the worker):
   - Accepts `POST /enqueue` and `GET /jobs/:id`, authenticated with an HMAC shared secret, and talks to Redis.
   - Exists because Redis must not be internet-exposed (ADR-0014).
-- **`apps/worker`** (BullMQ `Worker`, concurrency 2):
-  - For each job, forks a child process running `packages/analyzer`, with resource limits.
+- **`apps/worker`** (BullMQ `Worker`, concurrency 2; `queue.ts`, `job.ts`, ADR-0061):
+  - For each job, streams the tarball from GitHub into a fresh job folder, then forks a child process running `packages/analyzer`, with resource limits. The folder is deleted afterwards, and leftovers are swept at startup.
+  - Retries only failures that can pass (network, rate limit, shutdown); deterministic ones (`LIMIT_*`, `TAR_*`, `REPO_NOT_FOUND`) fail on the first attempt.
   - Uploads the snapshot to R2, writes metadata to Postgres, and reports progress through BullMQ.
 - **`packages/schema`:** TS types + Zod for `architecture.json`. Imported everywhere.
 - **`packages/analyzer`:** library + CLI (`gitinside analyze <path>`).
@@ -325,7 +326,8 @@ For each call (method M, pattern P), compare with every route (method M', patter
 | Missing or invalid tsconfig | Synthesized defaults (§5.3); warning in stats |
 | Syntax errors in a file | The file is parsed with errors; the TS AST is still traversed; warning recorded |
 | Monorepo with circular workspace deps | Services are still created; cycle warning |
-| Worker crash mid-job | BullMQ stalled-job recovery re-queues it (max 3 attempts) |
+| Worker crash mid-job | BullMQ stalled-job recovery re-queues it (`maxStalledCount: 2`, so at most 3 starts; then `JOB_STALLED`). A worker shutdown cancels running jobs, which run again after the restart |
+| Transient failure (GitHub down, rate limit, storage) | Retried with exponential backoff, 3 attempts; re-adding the job after that runs it again (ADR-0061) |
 | Oracle VM reclaimed | Rebuild from the provisioning script; queued jobs are lost (Redis); web shows "temporarily unavailable" and allows retry |
 | GitHub API rate limit | Back off; use the installation token for private repos and the app-level token for public ones |
 | Free-tier quota close to the limit | Retention eviction (§10); a `needs-abhinav` issue at 80% |

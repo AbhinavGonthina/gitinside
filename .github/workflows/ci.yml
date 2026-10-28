@@ -27,8 +27,20 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 15
+      # Real Redis for apps/worker's BullMQ tests (ADR-0061); they skip without
+      # TEST_REDIS_URL, and fail on CI if it's missing.
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
     env:
       TEST_DATABASE_URL: postgres://gitinside:gitinside@localhost:5432/gitinside
+      TEST_REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

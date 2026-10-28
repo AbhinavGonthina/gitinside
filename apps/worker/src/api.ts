@@ -16,7 +16,7 @@ import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyRequest } from "./hmac.js";
  * Every route but `/health` needs a valid signature (hmac.ts), checked on the raw body before
  * anything is parsed and before routing, so an unsigned caller learns nothing, not even which
  * paths exist. Errors are `{ "error": "<CODE>" }` (plus a fixed `message` for a bad body).
- * The queue itself is an interface; M5.4d backs it with BullMQ.
+ * The queue itself is an interface, backed by BullMQ in queue.ts.
  */
 
 /** What a job does: analyze one commit, or diff two (M6/M8). */

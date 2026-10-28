@@ -3,7 +3,14 @@
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**", ".next/**", "!.next/cache/**"] },
     "typecheck": { "dependsOn": ["^build"] },
-    "test": { "dependsOn": ["^build"] },
-    "coverage": { "dependsOn": ["^build"], "outputs": ["coverage/**"] }
+    "test": {
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["CI", "TEST_DATABASE_URL", "TEST_REDIS_URL"]
+    },
+    "coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "passThroughEnv": ["CI", "TEST_DATABASE_URL", "TEST_REDIS_URL"]
+    }
   }
 }
