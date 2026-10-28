@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.6. /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe; M4b waits for the design gate (#2)
+M5.7. Progress page with real stages + queue position (SSE), incl. pointing the landing form at /api/analyze; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -112,8 +112,8 @@ M5.6. /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe; M4b wai
 - [x] M5.5b Postgres writes: repo upsert, analysis row lifecycle (running/done/failed, stats with stage timings); `publish` = R2 then Postgres {model: opus}
 - [x] M5.5c Progress events: analyzer stages streamed from the child with counts ("Parsing 1,204 files", "Linking 87 calls"), stored as BullMQ progress {model: opus}
 - [x] M5.5d Worker entry point: env ⇒ Redis + Postgres + R2, sweep + `failInterruptedAnalyses`, worker (recorder/publish) + enqueue server, JSON logs, SIGTERM ⇒ `stopWorker` {model: opus}
-- [ ] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
-- [ ] M5.7 Progress page with real stages + queue position (SSE) {model: opus}
+- [x] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
+- [ ] M5.7 Progress page with real stages + queue position (SSE); landing form posts to /api/analyze and opens it {model: opus}
 - [ ] M5.8 Diagram page + check-on-view re-analysis {model: opus}
 - [ ] M5.9 Badge + live image endpoint + "Add to README" {model: opus}
 - [ ] M5.10 Hardened worker Docker image + infra/oracle provisioning script + docs {model: opus}
@@ -166,6 +166,8 @@ M5.6. /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe; M4b wai
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.6: `POST /api/analyze` `{ url }` (`apps/web/lib/analyze.ts` + `analyzeRoute.ts`): `parseRepoUrl` ⇒ GitHub repo facts + `commits/HEAD` (sha media type; private answered as missing; renames followed in-API) ⇒ `findAnalysis` by GitHub ID + SHA + analyzer version (new `@gitinside/analyzer/version`) ⇒ `200 done`, else signed enqueue ⇒ `202 { jobId }`. Commits in flight are free; new ones take an atomic fixed-UTC-hour slot (`consumeRateLimit`, 5/h, IP hashed with HMAC, IPv6 per /64), refunded if the worker is down or the job already existed; the web app writes `queued` rows (`queueAnalysis`). JSON only, 4 KiB cap, unconfigured ⇒ 503 "temporarily unavailable" (ADR-0066). `migrationsFolder` no longer trips Turbopack. 43 new web tests (146, 97% lines; PGlite + the real enqueue handler) + 1 E2E, 13 new db tests; live GitHub smoke OK. Eval re-recorded (analyzer + lockfile). Next: M5.7.
 
 - 2026-10-28 · M5.5d: `node dist/bin.js` (`pnpm --filter @gitinside/worker start`) ⇒ `runMain` (`main.ts`): `workerConfigFromEnv` (`config.ts`; `REDIS_URL`, `DATABASE_URL`, `R2_*`, `ENQUEUE_HMAC_SECRET`, optional `JOBS_ROOT`/`HOST`/`PORT`/`GITHUB_TOKEN`; every problem listed by name, exit 1), then Postgres ⇒ folder sweep ⇒ `failInterruptedAnalyses` ⇒ Redis ping ⇒ worker (recorder/publish) ⇒ enqueue API in one process; a failed step closes the rest. SIGTERM/SIGINT: API, worker (jobs `CANCELLED`), queue, database; >20 s or a failed step exits 1. `createJsonLog` (`log.ts`) writes one JSON line per event, nothing secret (ADR-0065); names in `apps/worker/.env.example`. 30 new tests (387 locally) + the signed-job round trip on CI's Redis (verified on draft PR #3); config/log 100%, main.ts 98% on CI. No eval re-record (no analyzer/lockfile change). Next: M5.6.
 
