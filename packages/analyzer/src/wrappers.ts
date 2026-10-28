@@ -63,6 +63,8 @@ export interface WrapperCall {
   sp: ServiceProgram;
   /** The call to the wrapper. */
   call: ts.CallExpression;
+  /** The arguments bound to parameters the inner URL or `baseURL` reads, in order. */
+  url: ts.Expression[];
 }
 
 /** One HTTP request as the route matcher (M2.4) sees it. */
@@ -356,9 +358,14 @@ export function inlineWrappers(
       for (const site of wrapper.sites) {
         const url = normalizer.normalize(site, bindings);
         const confidence = weaker(site.confidence, caller.confidence);
+        const read = normalizer.parameters(site);
+        const urlArgs = wrapper.fn.parameters.flatMap((d, i) => {
+          const arg = args[i];
+          return read.has(d) && arg ? [arg] : [];
+        });
         requests.push({
           call: site,
-          via: { wrapper: id, sp: caller.sp, call: caller.call },
+          via: { wrapper: id, sp: caller.sp, call: caller.call, url: urlArgs },
           file: caller.file,
           site: caller.site,
           owners: caller.owners,
