@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4a.5. Edge components (confidence styles, labels, flow, broken, arrows)
+M4a.6. Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend, palette shell)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -71,7 +71,7 @@ M4a.5. Edge components (confidence styles, labels, flow, broken, arrows)
 - [x] M4a.2 Tokens (dark default + light), self-hosted Geist fonts {model: opus}
 - [x] M4a.3 Icon system: Simple Icons brand mapping + custom glyph set for kinds {model: opus}
 - [x] M4a.4 Node components per kind, all states {model: opus}
-- [ ] M4a.5 Edge components (confidence styles, labels, flow, broken, arrows) {model: opus}
+- [x] M4a.5 Edge components (confidence styles, labels, flow, broken, arrows) {model: opus}
 - [ ] M4a.6 Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend, palette shell) {model: opus}
 - [ ] M4a.7 Static clickable prototype on a fixture graph {model: opus}
 - [ ] M4a.8 Visual regression baseline (stories, light + dark, Linux CI) {model: opus}
@@ -154,6 +154,8 @@ M4a.5. Edge components (confidence styles, labels, flow, broken, arrows)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M4a.5: `packages/viewer/src/edges/`: pure `edgeGeometry(points)` (rounded bends, line ends at the arrow base, chevron, pattern dot, label mid, flow path; 0.01px rounding), `describe.ts` (line style per confidence, labels from the edge's own fields: `POST /api/orders · HTTP`, `reads id, total`, reason when unresolved, counts, no guessed protocol), `DiagramEdge` (SVG) + `EdgeLabel` (HTML pill), states as data attributes in `edges.css`, flow via CSS `offset-path` (off under reduced motion, with the broken pulse). Resting stroke tested ≥ 3:1 per layer/theme. Screenshot review added selected/traced halos, a particle ring, and wider story layouts (ADR-0050). Story Components/Edges; 336 viewer tests, 99.8% lines. Next: M4a.6.
 
 - 2026-10-28 · M4a.4: `packages/viewer/src/nodes/`: one `DiagramNode` picks its tier from the kind (frames for service/module: closed = tinted card with a stacked edge, open = translucent with children; icon-first for datastore/queue/external; cards for the rest; unresolved = dotted card with its reason in words). Pure `describe.ts` helpers give labels, subtitles, kind names, and accessible names from the node's own fields. States are combinable data attributes styled in `nodes.css` (border precedence selected > traced > diff > hover). Screenshot review moved the diff badge to a worded tag on the top edge (inline badges squeezed names and clipped the method chip) and strengthened frame tints (ADR-0049). Story Components/Nodes (Kinds, States matrix, Frames); 269 viewer tests, 100% lines. Next: M4a.5.
 
