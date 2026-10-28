@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M2.9. Pattern fixtures + golden tests + "no call site dropped" test + secret-leak test
+M2.10. docs/walkthroughs/resolver.md (line-by-line, diagrams, explain-it-back checklist)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -52,7 +52,7 @@ M2.9. Pattern fixtures + golden tests + "no call site dropped" test + secret-lea
 - [x] M2.6 External SDK detector (allowlist) → external_call edges {model: opus}
 - [x] M2.7 docker-compose + .env detectors (names/schemes only) + stores edges {model: opus}
 - [x] M2.8 BullMQ/queue client detection → publishes/consumes {model: opus}
-- [ ] M2.9 Pattern fixtures + golden tests + "no call site dropped" test + secret-leak test {model: opus}
+- [x] M2.9 Pattern fixtures + golden tests + "no call site dropped" test + secret-leak test {model: opus}
 - [ ] M2.10 docs/walkthroughs/resolver.md (line-by-line, diagrams, explain-it-back checklist) {model: opus}
 - [ ] M2.11 Milestone verification + M2-review.md + tag m2 {model: opus}
 
@@ -154,6 +154,8 @@ M2.9. Pattern fixtures + golden tests + "no call site dropped" test + secret-lea
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-27 · M2.9: nine fixtures (`fetch-template-literal`, `axios-baseurl-instance`, `env-base-heuristic`, `ambiguous-routes`, `wrapper-fetch`, `external-sdk`, `compose-and-env`, `fake-secrets`, `queues-bullmq`) with goldens and exact edge + confidence assertions; "no call site dropped" (every site ⇒ request ⇒ edge at its site) and an env-value check run over all 17 fixtures. The secret-leak test found a real leak: unresolved HTTP nodes copied the whole call's source, headers and query keys included. Fixed with `redactedText()` (strings masked outside the URL path, ADR-0038). 556 analyzer tests, 97.45% lines; old goldens unchanged. Next: M2.10.
 
 - 2026-10-27 · M2.8: `buildQueueEdges` in `packages/analyzer/src/queues.ts` (new `queues` stage): BullMQ `Queue`/`Worker`/`FlowProducer`, Bull, and Bee-Queue instances traced like SDK clients; `add`/`addBulk`/`upsertJobScheduler`/`createJob`/flow `queueName`s ⇒ `publishes`, `new Worker`/`process` ⇒ `consumes` from the processor's symbol; one `queue:infra/redis#<name>` node per name shared across services. Factory parameters bind per call; worker factories found in a name-filtered second walk (2.8 s ⇒ 0.8 s on cal.com). Runtime names ⇒ new `DYNAMIC_NAME` unresolved reason (ADR-0037). 481 analyzer tests, queues.ts 94.3% lines; goldens unchanged; cal.com: no queue edges (NestJS decorators only), counts unchanged. Next: M2.9.
 
