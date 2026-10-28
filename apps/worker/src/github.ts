@@ -76,6 +76,110 @@ async function discard(response: Response): Promise<void> {
   await response.body?.cancel().catch(() => undefined);
 }
 
+function apiHeaders(token: string | undefined): Record<string, string> {
+  return {
+    "user-agent": USER_AGENT,
+    accept: "application/vnd.github+json",
+    "x-github-api-version": "2022-11-28",
+    ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
+  };
+}
+
+/** What the worker records about a repo (`repos` row; ADR-0063). */
+export interface RepoFacts {
+  /** GitHub's numeric ID, which survives renames. */
+  id: number;
+  /** GitHub's current spelling, which may differ from the request's (a rename, a case change). */
+  owner: string;
+  name: string;
+  private: boolean;
+  defaultBranch: string;
+}
+
+/** A repo description is ~6 KB; anything far larger isn't one. */
+const MAX_REPO_JSON_BYTES = 1024 * 1024;
+const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
+const REPO = /^[A-Za-z0-9._-]{1,100}$/;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Read the fields we keep from `GET /repos/{owner}/{repo}`, or `undefined` if they're malformed. */
+function parseRepoFacts(value: unknown): RepoFacts | undefined {
+  if (!isRecord(value) || !isRecord(value.owner)) return undefined;
+  const { id, name, default_branch: defaultBranch } = value;
+  const { login } = value.owner;
+  if (typeof id !== "number" || !Number.isSafeInteger(id) || id < 1) return undefined;
+  if (typeof login !== "string" || !OWNER.test(login)) return undefined;
+  if (typeof name !== "string" || !REPO.test(name)) return undefined;
+  if (typeof value.private !== "boolean") return undefined;
+  if (typeof defaultBranch !== "string" || defaultBranch === "" || defaultBranch.length > 255) {
+    return undefined;
+  }
+  return { id, owner: login, name, private: value.private, defaultBranch };
+}
+
+/**
+ * Ask GitHub's API about a repo: `GET {api}/repos/{owner}/{repo}`, following a renamed
+ * repo's redirect inside the API only (with the token, at most {@link MAX_REDIRECTS} hops).
+ * Statuses map to failures as for {@link openTarball}; a malformed answer is
+ * `DOWNLOAD_REFUSED`. Rethrows the signal's reason if it fires.
+ */
+export async function fetchRepoFacts(
+  source: Omit<TarballSource, "sha">,
+  options: DownloadOptions = {},
+): Promise<RepoFacts> {
+  const doFetch = options.fetch ?? fetch;
+  const api = new URL(options.apiBase ?? "https://api.github.com");
+  const path = ["repos", source.owner, source.repo].map(encodeURIComponent).join("/");
+  let url = new URL(`${api.pathname.replace(/\/$/, "")}/${path}`, api);
+
+  for (let hop = 0; ; hop++) {
+    let response: Response;
+    try {
+      response = await doFetch(url, {
+        headers: apiHeaders(options.token),
+        redirect: "manual",
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+      });
+    } catch (error) {
+      if (options.signal?.aborted) throw options.signal.reason;
+      throw failure("DOWNLOAD_FAILED", `request to ${url.host} failed`, error);
+    }
+    if (response.status === 200) {
+      let text: string;
+      try {
+        text = await response.text();
+      } catch (error) {
+        if (options.signal?.aborted) throw options.signal.reason;
+        throw failure("DOWNLOAD_FAILED", "the repo description stopped", error);
+      }
+      let facts: RepoFacts | undefined;
+      try {
+        facts = text.length > MAX_REPO_JSON_BYTES ? undefined : parseRepoFacts(JSON.parse(text));
+      } catch {
+        facts = undefined;
+      }
+      if (facts === undefined) throw failure("DOWNLOAD_REFUSED", "malformed repo description");
+      return facts;
+    }
+    await discard(response);
+    if (!REDIRECT.has(response.status)) throw failureForStatus(response.status, response.headers);
+    const location = response.headers.get("location");
+    let next: URL | undefined;
+    try {
+      next = location === null ? undefined : new URL(location, url);
+    } catch {
+      next = undefined;
+    }
+    if (next?.origin !== api.origin || hop >= MAX_REDIRECTS) {
+      throw failure("DOWNLOAD_REFUSED", "repo redirect refused");
+    }
+    url = next;
+  }
+}
+
 /**
  * Request the tarball of `source` and return its body once a `200` arrives. Throws
  * {@link JobFailure} for every failure, and rethrows the signal's reason if it fires.
@@ -94,12 +198,7 @@ export async function openTarball(
 
   for (let hop = 0; ; hop++) {
     const toApi = url.origin === api.origin;
-    const headers: Record<string, string> = { "user-agent": USER_AGENT };
-    if (toApi) {
-      headers.accept = "application/vnd.github+json";
-      headers["x-github-api-version"] = "2022-11-28";
-      if (options.token !== undefined) headers.authorization = `Bearer ${options.token}`;
-    }
+    const headers = toApi ? apiHeaders(options.token) : { "user-agent": USER_AGENT };
     let response: Response;
     try {
       response = await doFetch(url, {

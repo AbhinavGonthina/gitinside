@@ -14,7 +14,7 @@ import {
   schema,
   users,
 } from "./index.js";
-import { createTestDb, pgErrorCode, type TestDb } from "./testDb.testkit.js";
+import { createTestDb, pgErrorCode, type TestDb } from "./testing.js";
 
 const SHA = "a".repeat(40);
 const SHA2 = "b".repeat(40);

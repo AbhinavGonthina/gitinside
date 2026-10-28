@@ -12,7 +12,9 @@ import {
   sweepJobsRoot,
   type JobArtifact,
   type JobDeps,
+  type JobRecorder,
   type JobStage,
+  type RecordedJob,
 } from "./job.js";
 import type { RunResult } from "./runner.js";
 
@@ -23,7 +25,15 @@ const SHA = "0123456789abcdef0123456789abcdef01234567";
 const ID = "analyze-0123456789abcdef0123456789abcdef";
 
 const REQUEST: JobRequest = { kind: "analyze", owner: "acme", repo: "shop", sha: SHA };
-const STATS = { nodes: 3, edges: 2, unresolved: 0, warnings: 0, graphBytes: 2, stageMs: {} };
+const STATS = {
+  files: 1,
+  nodes: 3,
+  edges: 2,
+  unresolved: 0,
+  warnings: 0,
+  graphBytes: 2,
+  stageMs: {},
+};
 
 let github: FakeGitHub;
 let root: string;
@@ -327,6 +337,125 @@ describe("processJob analysis and publishing", () => {
     await processJob({ id: ID, request: REQUEST }, deps({ run }));
     expect(new Set(seen).size).toBe(2);
     expect(seen.every((out) => out.includes(`${ID}-`))).toBe(true);
+  });
+});
+
+describe("processJob recording", () => {
+  const RECORD: RecordedJob = {
+    analysisId: "a1",
+    repoId: "r1",
+    visibility: "public",
+    owner: "Acme",
+    name: "Shop",
+  };
+
+  function recorder(overrides: Partial<JobRecorder> = {}) {
+    const calls: unknown[][] = [];
+    const value: JobRecorder = {
+      start: async (request) => {
+        calls.push(["start", request.sha, github.requests.length]);
+        return RECORD;
+      },
+      failed: async (record, code, final) => void calls.push(["failed", record, code, final]),
+      ...overrides,
+    };
+    return { calls, recorder: value };
+  }
+
+  it("records the start before downloading and hands the record and timings to publish", async () => {
+    const { calls, recorder: r } = recorder();
+    let artifact: JobArtifact | undefined;
+    await processJob(
+      { id: ID, request: REQUEST },
+      deps({ recorder: r, publish: async (a) => void (artifact = a) }),
+    );
+    expect(calls).toEqual([["start", SHA, 0]]);
+    expect(artifact?.record).toEqual(RECORD);
+    expect(Object.keys(artifact?.timings ?? {})).toEqual(["downloadMs", "analyzeMs"]);
+  });
+
+  it.each([
+    ["a permanent failure", "LIMIT_TIME", false, true],
+    ["a retriable failure", "CANCELLED", false, false],
+    ["a retriable failure on the last attempt", "CANCELLED", true, true],
+  ])("records %s as final: %s", async (_, code, lastAttempt, final) => {
+    const { calls, recorder: r } = recorder();
+    const run = async (): Promise<RunResult> => ({
+      ok: false,
+      code,
+      message: code,
+      stderrTail: "",
+      durationMs: 1,
+    });
+    const error = await failure(
+      processJob({ id: ID, request: REQUEST, lastAttempt }, deps({ recorder: r, run })),
+    );
+    expect(error.code).toBe(code);
+    expect(calls.at(-1)).toEqual(["failed", RECORD, code, final]);
+  });
+
+  it("records an unexpected error as the processor's WORKER_ERROR", async () => {
+    const { calls, recorder: r } = recorder();
+    const run = async (): Promise<RunResult> => {
+      throw new TypeError("boom");
+    };
+    await expect(
+      processJob({ id: ID, request: REQUEST }, deps({ recorder: r, run })),
+    ).rejects.toThrow("boom");
+    expect(calls.at(-1)).toEqual(["failed", RECORD, "WORKER_ERROR", false]);
+  });
+
+  it("logs a failure to record a failure, and still fails with the job's own code", async () => {
+    const logs: Record<string, unknown>[] = [];
+    const { recorder: r } = recorder({
+      failed: async () => {
+        throw new Error("db down");
+      },
+    });
+    const error = await failure(
+      processJob(
+        { id: ID, request: REQUEST },
+        deps({
+          recorder: r,
+          log: (e) => void logs.push(e),
+          publish: async () => {
+            throw new Error("R2 down");
+          },
+        }),
+      ),
+    );
+    expect(error.code).toBe("PUBLISH_FAILED");
+    expect(logs).toEqual([
+      { event: "record_failed", id: ID, code: "PUBLISH_FAILED", message: "db down" },
+    ]);
+  });
+
+  it("records nothing when the start itself fails, and never downloads", async () => {
+    const { calls, recorder: r } = recorder({
+      start: async () => {
+        throw new JobFailure("REPO_NOT_PUBLIC");
+      },
+    });
+    const error = await failure(processJob({ id: ID, request: REQUEST }, deps({ recorder: r })));
+    expect([error.code, error.retriable]).toEqual(["REPO_NOT_PUBLIC", false]);
+    expect(calls).toEqual([]);
+    expect(github.requests).toEqual([]);
+    expect(await jobFolders()).toEqual([]);
+  });
+
+  it("gives the start the download's cancellation", async () => {
+    const controller = new AbortController();
+    const { recorder: r } = recorder({
+      start: async (_request, signal) => {
+        controller.abort();
+        expect(signal.aborted).toBe(true);
+        throw signal.reason;
+      },
+    });
+    const error = await failure(
+      processJob({ id: ID, request: REQUEST, signal: controller.signal }, deps({ recorder: r })),
+    );
+    expect(error.code).toBe("CANCELLED");
   });
 });
 

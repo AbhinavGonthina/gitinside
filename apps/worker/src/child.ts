@@ -48,6 +48,7 @@ export async function runChildJob(
   return {
     ok: true,
     stats: {
+      files: graph.nodes.filter((node) => node.kind === "file").length,
       nodes: graph.nodes.length,
       edges: graph.edges.length,
       unresolved: graph.nodes.filter((node) => node.kind === "unresolved").length,

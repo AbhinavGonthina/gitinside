@@ -9,6 +9,7 @@ import postgres from "postgres";
 import * as schema from "./schema.js";
 
 export * from "./schema.js";
+export * from "./analyses.js";
 export { schema };
 
 /** A Drizzle database bound to GitInside's schema. */

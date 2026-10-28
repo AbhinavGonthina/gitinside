@@ -39,8 +39,10 @@ export { FAILURE_CODE, JobFailure, RETRIABLE_CODES } from "./failure.js";
 export {
   MAX_REDIRECTS,
   failureForStatus,
+  fetchRepoFacts,
   openTarball,
   type DownloadOptions,
+  type RepoFacts,
   type TarballSource,
 } from "./github.js";
 export {
@@ -53,8 +55,11 @@ export {
   type JobContext,
   type JobDeps,
   type JobOutcome,
+  type JobRecorder,
   type JobStage,
+  type RecordedJob,
 } from "./job.js";
+export { createAnalysisRecorder, type AnalysisRecorder, type RecorderOptions } from "./record.js";
 export type { AnalysisStats, ChildJob } from "./protocol.js";
 export {
   JOB_OPTIONS,

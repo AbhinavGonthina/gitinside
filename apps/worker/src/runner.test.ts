@@ -61,6 +61,7 @@ describe("runAnalysis with the real analyzer", () => {
     const graph = JSON.parse(text) as { nodes: { kind: string }[]; edges: unknown[] };
     if (!result.ok) return;
     expect(result.stats).toMatchObject({
+      files: graph.nodes.filter((node) => node.kind === "file").length,
       nodes: graph.nodes.length,
       edges: graph.edges.length,
       unresolved: graph.nodes.filter((node) => node.kind === "unresolved").length,

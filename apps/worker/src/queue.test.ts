@@ -25,7 +25,15 @@ import type { RunResult } from "./runner.js";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const REQUEST: JobRequest = { kind: "analyze", owner: "acme", repo: "shop", sha: SHA };
-const STATS = { nodes: 3, edges: 2, unresolved: 0, warnings: 0, graphBytes: 2, stageMs: {} };
+const STATS = {
+  files: 1,
+  nodes: 3,
+  edges: 2,
+  unresolved: 0,
+  warnings: 0,
+  graphBytes: 2,
+  stageMs: {},
+};
 const REDIS_URL = process.env.TEST_REDIS_URL;
 
 let github: FakeGitHub;
@@ -148,6 +156,7 @@ function fakeJob(data: unknown, attemptsMade = 0) {
     id: jobIdFor(REQUEST, "0.1.0"),
     data,
     attemptsMade,
+    opts: { attempts: JOB_OPTIONS.attempts },
     updateProgress: async (value: unknown) => void progress.push(value),
   };
   return { job: job as unknown as Job<JobRequest, JobOutcome>, progress };

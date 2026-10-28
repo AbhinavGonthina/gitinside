@@ -249,6 +249,7 @@ export function createProcessor(
 ) => Promise<JobOutcome> {
   // Three declared parameters: BullMQ passes the abort signal only to processors that
   // take it (Function.length >= 3).
+  const jobDeps: JobDeps = { log, ...deps };
   return async (job, token, signal) => {
     void token;
     const id = job.id ?? "";
@@ -262,8 +263,9 @@ export function createProcessor(
           request,
           ...(signal === undefined ? {} : { signal }),
           onStage: (stage) => job.updateProgress({ stage, progress: STAGE_PROGRESS[stage] }),
+          lastAttempt: attempt >= (job.opts.attempts ?? 1),
         },
-        deps,
+        jobDeps,
       );
       log({ event: "job_done", id, attempt, nodes: outcome.stats.nodes, ...outcome.timings });
       return outcome;
