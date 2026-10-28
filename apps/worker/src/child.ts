@@ -3,12 +3,14 @@ import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { AnalysisError, analyze, serializeGraph } from "@gitinside/analyzer";
 import type { ArchitectureGraph } from "@gitinside/schema";
-import { parseChildJob, type ChildJob, type ChildReport } from "./protocol.js";
+import type { StepProgress } from "./progress.js";
+import { parseChildJob, progressLine, type ChildJob, type ChildReport } from "./protocol.js";
 
 /**
  * The analysis child process: started by `runAnalysis` (runner.ts) with a heap cap, the
  * Node permission model, an empty environment, and the network guard. It analyzes
- * `job.src`, writes the serialized graph to `job.out`, and prints one {@link ChildReport}.
+ * `job.src`, writes the serialized graph to `job.out`, prints a progress line as each
+ * analyzer stage starts, and ends with one {@link ChildReport}.
  *
  * Known analyzer failures ({@link AnalysisError}, e.g. `LIMIT_FILES`) become a report with
  * their code. Anything else is a bug: it propagates, Node prints the stack to stderr and
@@ -20,10 +22,14 @@ export interface ChildDeps {
   analyze: typeof analyze;
 }
 
-/** Run one job and describe the outcome. Throws only on unexpected errors. */
+/**
+ * Run one job and describe the outcome. Throws only on unexpected errors. `onProgress` gets
+ * each analyzer stage as it starts, with the analyzer's counts.
+ */
 export async function runChildJob(
   job: ChildJob,
   deps: ChildDeps = { analyze },
+  onProgress?: (progress: StepProgress) => void,
 ): Promise<ChildReport> {
   const stageMs: Record<string, number> = {};
   let graph: ArchitectureGraph;
@@ -36,6 +42,12 @@ export async function runChildJob(
       onStage: (stage, ms) => {
         stageMs[stage] = Math.round(ms);
       },
+      ...(onProgress === undefined
+        ? {}
+        : {
+            onProgress: ({ stage, count }) =>
+              onProgress(count === undefined ? { step: stage } : { step: stage, count }),
+          }),
     });
     text = serializeGraph(graph);
   } catch (error) {
@@ -62,7 +74,9 @@ export async function runChildJob(
 /* v8 ignore start -- process entry point, run as a child by runner.test.ts */
 const entry = process.argv[1];
 if (entry !== undefined && realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url))) {
-  const report = await runChildJob(parseChildJob(process.argv[2] ?? ""));
+  const report = await runChildJob(parseChildJob(process.argv[2] ?? ""), undefined, (progress) =>
+    process.stdout.write(progressLine(progress)),
+  );
   process.stdout.write(`${JSON.stringify(report)}\n`);
 }
 /* v8 ignore stop */

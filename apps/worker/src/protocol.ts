@@ -1,9 +1,13 @@
+import { isAnalyzerStep, type StepProgress } from "./progress.js";
+
 /**
  * The contract between the worker and the analysis child process (`child.ts`).
  *
  * The parent passes one {@link ChildJob} as JSON in `argv[2]`; the child writes the graph to
- * `job.out` and prints exactly one {@link ChildReport} line to stdout. This module has no
- * dependency on the analyzer, so the runner can import it without loading TypeScript.
+ * `job.out` and prints to stdout zero or more progress lines (`{"progress":{"step":…}}`, see
+ * {@link progressLine}) followed by exactly one {@link ChildReport} line, the last. This
+ * module has no dependency on the analyzer, so the runner can import it without loading
+ * TypeScript.
  */
 
 /** What the child analyzes and where it writes the graph. */
@@ -64,6 +68,30 @@ export function parseChildJob(text: string): ChildJob {
     name: name as string,
     ...(sha === undefined ? {} : { sha }),
   };
+}
+
+/** The stdout line (with its newline) the child prints for one progress event. */
+export function progressLine(progress: StepProgress): string {
+  const { step, count } = progress;
+  return `${JSON.stringify({ progress: count === undefined ? { step } : { step, count } })}\n`;
+}
+
+/**
+ * Parse a stdout line as a progress event, or return `undefined` if it isn't one (it may be
+ * the report). Only a known step and a non-negative integer count pass.
+ */
+export function parseProgressLine(text: string): StepProgress | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!isRecord(value) || !isRecord(value.progress)) return undefined;
+  const { step, count } = value.progress;
+  if (!isAnalyzerStep(step)) return undefined;
+  if (count === undefined) return { step };
+  return isCount(count) ? { step, count } : undefined;
 }
 
 /**

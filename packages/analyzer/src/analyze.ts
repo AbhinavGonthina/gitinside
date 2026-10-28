@@ -46,6 +46,12 @@ export const ANALYSIS_STAGES = [
 /** One pipeline stage of {@link analyze}. */
 export type AnalysisStage = (typeof ANALYSIS_STAGES)[number];
 
+/** A stage starting, or learning how much work it has (see {@link AnalyzeOptions.onProgress}). */
+export interface AnalysisProgress {
+  stage: AnalysisStage;
+  /** What the stage works through, when known: source files to parse, requests to link. */
+  count?: number;
+}
 /** Options for {@link analyze}. */
 export interface AnalyzeOptions {
   /** Repo owner recorded in the graph. Defaults to `local`. */
@@ -61,6 +67,12 @@ export interface AnalyzeOptions {
    * the graph (it would break determinism); it feeds benchmarks and `analyses.stats`.
    */
   onStage?: (stage: AnalysisStage, ms: number) => void;
+  /**
+   * Called as each stage starts, in order. `programs` carries the source files it parses;
+   * `http` reports a second time, with the requests it links to routes, once it has
+   * collected them. Like timings, progress never enters the graph.
+   */
+  onProgress?: (event: AnalysisProgress) => void;
 }
 
 /**
@@ -96,9 +108,14 @@ export async function analyze(
   const info = await stat(root).catch(() => null);
   if (!info?.isDirectory()) throw new Error(`not a directory: ${dir}`);
 
-  const onStage = options.onStage;
-  /** Run one stage, reporting its duration when someone is listening. */
-  async function stage<T>(name: AnalysisStage, run: () => T | Promise<T>): Promise<T> {
+  const { onStage, onProgress } = options;
+  /** Run one stage, reporting its start (with `count`, if known) and duration to listeners. */
+  async function stage<T>(
+    name: AnalysisStage,
+    run: () => T | Promise<T>,
+    count?: number,
+  ): Promise<T> {
+    onProgress?.(count === undefined ? { stage: name } : { stage: name, count });
     const start = performance.now();
     const result = await run();
     onStage?.(name, performance.now() - start);
@@ -107,7 +124,11 @@ export async function analyze(
 
   const inventory = await stage("inventory", () => buildInventory(root, options.limits));
   const workspace = await stage("workspace", () => detectWorkspace(root, inventory.files));
-  const programs = await stage("programs", () => buildServicePrograms(root, workspace, inventory));
+  const programs = await stage(
+    "programs",
+    () => buildServicePrograms(root, workspace, inventory),
+    inventory.sourceFiles.length,
+  );
   const imports = await stage("imports", () =>
     buildImportGraph(programs, workspace, inventory.sourceFiles),
   );
@@ -131,6 +152,7 @@ export async function analyze(
       createUrlNormalizer(resolver),
       express.inlineHandlers,
     );
+    onProgress?.({ stage: "http", count: requests.length });
     const matcher = createRouteMatcher([...express.nodes, ...next.nodes], workspace);
     return buildHttpEdges(requests, matcher, workspace);
   });

@@ -56,6 +56,26 @@ switch (job.owner) {
   case "known":
     report({ ok: false, code: "LIMIT_FILES", message: "LIMIT_FILES: too many files" });
     break;
+  case "steps":
+    // Progress lines, one split across two writes, then the report.
+    report({ progress: { step: "inventory" } });
+    process.stdout.write('{"progress":{"step":"prog');
+    await new Promise((done) => setTimeout(done, 50));
+    process.stdout.write('rams","count":1204}}\n');
+    report({ progress: { step: "http", count: 87 } });
+    report({ ok: false, code: "LIMIT_FILES", message: "LIMIT_FILES: too many files" });
+    break;
+  case "after":
+    report({ ok: false, code: "LIMIT_FILES", message: "LIMIT_FILES: too many files" });
+    report({ progress: { step: "assemble" } });
+    break;
+  case "twice":
+    report({ ok: false, code: "LIMIT_FILES", message: "first" });
+    report({ ok: false, code: "LIMIT_FILES", message: "second" });
+    break;
+  case "unterminated":
+    process.stdout.write(JSON.stringify({ ok: false, code: "LIMIT_FILES", message: "m" }));
+    break;
   case "network": {
     const port = Number(job.name);
     probe({

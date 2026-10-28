@@ -2,9 +2,10 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { AnalysisError, analyze } from "@gitinside/analyzer";
+import { ANALYSIS_STAGES, AnalysisError, analyze } from "@gitinside/analyzer";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runChildJob } from "./child.js";
+import type { StepProgress } from "./progress.js";
 
 const FIXTURE = fileURLToPath(new URL("../../../fixtures/no-tsconfig/", import.meta.url));
 
@@ -41,6 +42,21 @@ describe("runChildJob", () => {
       expect(Object.keys(report.stats.stageMs)[0]).toBe("inventory");
       expect(Object.values(report.stats.stageMs).every(Number.isInteger)).toBe(true);
     }
+  });
+
+  it("passes each analyzer stage on as a step, with the counts the analyzer gives", async () => {
+    const steps: StepProgress[] = [];
+    await runChildJob(
+      { src: FIXTURE, out: join(dir, "g.json"), owner: "a", name: "b" },
+      undefined,
+      (progress) => steps.push(progress),
+    );
+    expect(steps.map(({ step }) => step).filter((step, i, all) => all.indexOf(step) === i)).toEqual(
+      [...ANALYSIS_STAGES],
+    );
+    const programs = steps.find(({ step }) => step === "programs");
+    expect(programs?.count).toBeGreaterThan(0);
+    expect(steps.filter(({ step }) => step === "http").at(-1)).toHaveProperty("count");
   });
 
   it("passes the SHA to the analyzer only when given", async () => {

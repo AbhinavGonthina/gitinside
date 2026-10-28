@@ -314,7 +314,7 @@ For each call (method M, pattern P), compare with every route (method M', patter
 
 **Worker enqueue API (VM, HMAC; `apps/worker/src/api.ts`, ADR-0060):**
 - `POST /enqueue` `{ kind: 'analyze' | 'diff', owner, repo, sha, baseSha?, installationId? }` → `202 { id, created }`. The ID is derived from the commit and analyzer version, so a repeat is `created: false`.
-- `GET /jobs/:id` → `{ id, kind, state, stage?, progress?, position?, errorCode? }`
+- `GET /jobs/:id` → `{ id, kind, state, stage?, progress?, step?, count?, position?, errorCode? }`. While `stage` is `analyze`, `step` is the analyzer stage running and `count` its size when known (source files for `programs`, requests for `http`); `describeProgress` in `@gitinside/worker/progress` turns them into the progress page's words ("Parsing 1,204 files", ADR-0064).
 - `GET /health` (unauthenticated) → `{ status: 'ok' | 'unavailable' }`
 - Signed with `X-GitInside-Timestamp` + `X-GitInside-Signature: v1=<hex>` (`@gitinside/worker/hmac`).
 

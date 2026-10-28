@@ -59,6 +59,15 @@ export {
   type JobStage,
   type RecordedJob,
 } from "./job.js";
+export {
+  ANALYZER_STEPS,
+  describeProgress,
+  formatCount,
+  isAnalyzerStep,
+  stepProgress,
+  type AnalyzerStep,
+  type StepProgress,
+} from "./progress.js";
 export { createAnalysisRecorder, type AnalysisRecorder, type RecorderOptions } from "./record.js";
 export type { AnalysisStats, ChildJob } from "./protocol.js";
 export {
@@ -71,12 +80,14 @@ export {
   createBullJobQueue,
   createProcessor,
   errorCodeFor,
+  progressForStep,
   statusFromJob,
   stopWorker,
   type AnalysisWorkerOptions,
   type BullJobQueue,
   type BullQueueOptions,
   type JobSnapshot,
+  type StoredProgress,
   type WorkerLog,
 } from "./queue.js";
 export {

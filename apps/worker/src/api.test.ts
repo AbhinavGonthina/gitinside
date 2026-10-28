@@ -276,6 +276,25 @@ describe("GET /jobs/:id", () => {
     });
   });
 
+  it("returns a running job's stage, step, and count", async () => {
+    const { app, queue } = setup();
+    const { body } = await enqueue(app, JOB);
+    const entry = queue.jobs.get(body.id);
+    if (entry === undefined) throw new Error("job missing");
+    entry.status = {
+      id: body.id,
+      kind: "analyze",
+      state: "running",
+      stage: "analyze",
+      progress: 38,
+      step: "programs",
+      count: 1204,
+    };
+    const path = `/jobs/${body.id}`;
+    const res = await app.get(path).set(signed("GET", path));
+    expect(res.body).toEqual(entry.status);
+  });
+
   it("answers 404 for unknown and malformed IDs", async () => {
     const { app } = setup();
     for (const id of [`analyze-${"0".repeat(32)}`, "analyze-XYZ", "..", "%2e%2e"]) {
