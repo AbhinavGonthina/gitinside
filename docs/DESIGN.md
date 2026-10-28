@@ -80,6 +80,7 @@ flowchart LR
   - For each job, streams the tarball from GitHub into a fresh job folder, then forks a child process running `packages/analyzer`, with resource limits. The folder is deleted afterwards, and leftovers are swept at startup.
   - Retries only failures that can pass (network, rate limit, shutdown); deterministic ones (`LIMIT_*`, `TAR_*`, `REPO_NOT_FOUND`) fail on the first attempt.
   - Uploads the gzipped snapshot to R2 (`storage.ts`, signed with our own SigV4, keyed per repo, SHA, and analyzer version; ADR-0062), writes metadata to Postgres, and reports progress through BullMQ.
+  - Runs in one process with the enqueue API (`bin.ts` ⇒ `main.ts`, ADR-0065): config from env checked up front, the startup sweep (job folders, then rows left `running`) before any job, and on SIGTERM an ordered shutdown (API, worker, queue, database).
 - **`packages/schema`:** TS types + Zod for `architecture.json`. Imported everywhere.
 - **`packages/analyzer`:** library + CLI (`gitinside analyze <path>`).
 - **`packages/diff`:** library + CLI (`gitinside diff <base> <head>`).
@@ -335,7 +336,7 @@ For each call (method M, pattern P), compare with every route (method M', patter
 
 ## 13. Observability
 
-- **Logs:** structured JSON logs from the worker, rotated on disk.
+- **Logs:** structured JSON logs from the worker, one event per line on stdout (`createJsonLog`, ADR-0065), rotated on disk by Docker's log driver. Codes, IDs, counts, and timings only; never a secret or connection string.
 - **Per-analysis timing** for each pipeline stage, stored in `analyses.stats` (feeds benchmarks).
 - **Health endpoint** on the enqueue API.
 - No third-party telemetry ($0, privacy).

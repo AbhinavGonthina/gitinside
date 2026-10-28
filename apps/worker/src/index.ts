@@ -13,6 +13,9 @@ export {
   type JobState,
   type JobStatus,
 } from "./api.js";
+export { CONFIG_DEFAULTS, ConfigError, workerConfigFromEnv, type WorkerConfig } from "./config.js";
+// main.ts (the process entry, run by bin.ts) isn't re-exported: it loads the analyzer.
+export { createJsonLog } from "./log.js";
 export {
   DEFAULT_EXTRACT_LIMITS,
   ExtractError,
