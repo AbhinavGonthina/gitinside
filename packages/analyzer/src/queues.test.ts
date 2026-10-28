@@ -180,9 +180,59 @@ describe("buildQueueEdges: BullMQ", () => {
       [
         "unresolved:api/src/server.ts:8:56",
         DYNAMIC_NAME_DETAIL.typed,
-        "queue this.other.add('y', {})",
+        // The whole call is shown, so its strings (job names, payloads) are masked.
+        "queue this.other.add('…', {})",
       ],
     ]);
+  });
+
+  it("masks job data in unresolved queue nodes, but shows a name expression's own text", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/jobs.ts", [
+      'import { Queue, FlowProducer } from "bullmq";',
+      "class Mailer {",
+      "  constructor(private queue: Queue) {}",
+      '  send() { return this.queue.add("send", { token: "gi_fake_q_1" }); }',
+      "}",
+      "const base = { name: 'b' };",
+      "const flow = new FlowProducer();",
+      "export const go = () => flow.add({ ...base, data: { key: 'gi_fake_q_2' } });",
+      "export const named = (tenant: string) => new Queue(`mail-${tenant}`).add('x', {});",
+      "export { Mailer };",
+    ]);
+    const result = await detect();
+    const text = JSON.stringify(result.nodes);
+    expect(text).not.toContain("gi_fake_q_1");
+    expect(text).not.toContain("gi_fake_q_2");
+    expect(result.nodes.flatMap((n) => (n.kind === "unresolved" ? [n.expression] : []))).toEqual([
+      'this.queue.add("…", { token: "…" })',
+      "{ ...base, data: { key: '…' } }",
+      "`mail-${tenant}`",
+    ]);
+  });
+
+  it("keeps a publish inside a called worker factory, and never names a queue ''", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/jobs.ts", [
+      'import { Queue, Worker } from "bullmq";',
+      "export function setup(name: string) {",
+      '  void new Queue(name).add("hello", {});',
+      "  return new Worker(name, async () => 1);",
+      "}",
+      'export const boot = () => setup("email");',
+      'export const empty = () => new Queue("").add("x", {});',
+    ]);
+    const result = await detect();
+    // The worker's processor is an inline function of `setup`, so `consumes` starts there; the
+    // publish was dropped along with the factory's own worker before the M2 review.
+    expect(summary(result)).toEqual([
+      "consumes symbol:api/src/jobs.ts#setup -> #email @ src/jobs.ts:6:27",
+      "publishes symbol:api/src/jobs.ts#empty -> unresolved:api/src/jobs.ts:7:38 (unresolved) @ src/jobs.ts:7:42",
+      "publishes symbol:api/src/jobs.ts#setup -> unresolved:api/src/jobs.ts:3:18 (unresolved) @ src/jobs.ts:3:24",
+    ]);
+    expect(result.nodes.find((n) => n.id === "unresolved:api/src/jobs.ts:7:38")).toMatchObject({
+      detail: DYNAMIC_NAME_DETAIL.empty,
+    });
   });
 
   it("binds nested worker factories and workspace factories at the import's confidence", async () => {

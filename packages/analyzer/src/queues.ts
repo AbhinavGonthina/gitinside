@@ -72,9 +72,9 @@ import { unwrap } from "./symbols.js";
 import {
   CONFIDENCE_RANK,
   createValueReader,
-  expressionText,
   MAX_HOPS,
   objectProperty,
+  redactedText,
   weaker,
   type ProgramExpression,
 } from "./values.js";
@@ -163,6 +163,7 @@ const ENGINE = "redis";
 export const DYNAMIC_NAME_DETAIL = {
   computed: "the queue name is computed at runtime",
   typed: "the queue comes from a typed value, so its name is unknown",
+  empty: "the queue name is an empty string",
 } as const;
 
 /** A queue's name: read, or not readable (with where it was computed, when known). */
@@ -276,6 +277,7 @@ export function buildQueueEdges(
 
   const nameOf = (at: ProgramExpression | undefined): QueueName => {
     const name = at && constString(at.sp, at.expression, 0);
+    if (name === "" && at) return { kind: "dynamic", at, detail: DYNAMIC_NAME_DETAIL.empty };
     return name !== undefined && at
       ? { kind: "known", name, at }
       : { kind: "dynamic", ...(at ? { at } : {}), detail: DYNAMIC_NAME_DETAIL.computed };
@@ -817,6 +819,12 @@ export function buildQueueEdges(
     const service = file === undefined ? undefined : serviceForFile(workspace, file);
     if (!service || file === undefined) return undefined;
     const source = queue.at ? locationOf(anchor, file) : event.site;
+    // Only a name expression's own strings are shown: a whole call or flow object can hold
+    // job data, so its strings are masked (ADR-0038).
+    const shown = redactedText(
+      anchor,
+      queue.at && !ts.isObjectLiteralExpression(anchor) ? [anchor] : [],
+    );
     const id = nodeId(
       "unresolved",
       service.key,
@@ -825,17 +833,18 @@ export function buildQueueEdges(
     return {
       id,
       kind: "unresolved",
-      label: `queue ${expressionText(anchor)}`,
+      label: `queue ${shown}`,
       parentId: nodeId("service", service.key, ""),
       reason: "DYNAMIC_NAME",
-      expression: expressionText(anchor),
+      expression: shown,
       detail: queue.detail,
       source,
     };
   };
 
   for (const event of events) {
-    if (event.within && calledFactories.has(event.within)) continue;
+    // A called factory's own worker is replaced by one per call; its publishes stay.
+    if (event.kind === "consumes" && event.within && calledFactories.has(event.within)) continue;
     let to: string;
     let confidence = event.confidence;
     if (event.queue.kind === "known") {
