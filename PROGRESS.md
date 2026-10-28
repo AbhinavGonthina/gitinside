@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M3.4. Draft labels for repos 3–5
+M3.5. Scoring script (overall / per repo / per confidence, FP and FN lists)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -60,7 +60,7 @@ M3.4. Draft labels for repos 3–5
 - [x] M3.1 eval/ package scaffold + ground-truth format per docs/EVALUATION.md {model: opus}
 - [x] M3.2 Select 5 repos, pin SHAs in eval/repos.json {model: opus}
 - [x] M3.3 Draft labels for repos 1–2 (independently of analyzer output; commit before scoring) {model: opus}
-- [ ] M3.4 Draft labels for repos 3–5 {model: opus}
+- [x] M3.4 Draft labels for repos 3–5 {model: opus}
 - [ ] M3.5 Scoring script (overall / per repo / per confidence, FP and FN lists) {model: opus}
 - [ ] M3.6 Report generator → eval/results/ ("Pending owner review") + pnpm eval reproducibility {model: opus}
 - [ ] M3.7 Open needs-abhinav issue: review a seeded random 20% of labels {model: opus}
@@ -154,6 +154,8 @@ M3.4. Draft labels for repos 3–5
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M3.4: labels for repos 3–5 (wanderlust, conversa, taxonomy), drafted by reading code only, analyzer never run. wanderlust: 20 axios sites → `/api/{posts,auth,user}` routers; conversa: 24 `${API_BASE}` fetches → CommonJS routers + 2 S3 presigned uploads (`null`); taxonomy: 5 root-relative fetches → app router handlers + GitHub API and 2 bundled-font fetches (`null`). Two wanderlust calls pick between two literal routes, so a call site may now carry one label per route reached (ADR-0041, `compareLabels`). `validate`: 144 labels at 142 sites; 24 eval tests, 100% lines; lint/typecheck green. Next: M3.5.
 
 - 2026-10-28 · M3.3: labels for repos 1–2 (`repos.json` order), drafted by reading code only, analyzer never run. WealthWise: 49 call sites (48 → Express `/api/v1/*` via the path-taking `apiClient` wrapper and direct auth fetches, 1 external Gemini fetch ⇒ `null`). foodie: 39 `httpRequest()` calls in `services/api.ts` → routers that `createRouter.ts` loads by glob and mounts at `/api`. EVALUATION.md now fixes what's labeled (no SDK/MCP/NextAuth internals, sockets, `<a href>`, inline HTML), env fallbacks, and dispatch order. `validate`: 88 sites; eval tests and lint green. Next: M3.4.
 

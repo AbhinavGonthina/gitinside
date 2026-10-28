@@ -83,6 +83,7 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Glob matches files only, so `bench/.repos/*` returns nothing even when checkouts exist. List a folder with `node -e "console.log(require('fs').readdirSync('<dir>'))"`.
 - `UPDATE_GOLDEN=1 pnpm …` (any env-var prefix) needs approval. To write goldens, run a scratch script under `packages/analyzer/dist/` that calls the built `analyze` + `serializeGraph` with `{ owner: "fixtures", name }`, then run the tests normally.
 - `gh api graphql -f query="{ … }"` (and `--jq` filters with `{}` objects) are denied as brace expansion. Call `gh api <path>` from a scratch Node script under a gitignored `dist/` with `execFileSync` and format the JSON there.
+- `pnpm --filter @gitinside/eval validate` runs `dist/validate.js`, so after editing `eval/src` it checks with the old rules. Run `pnpm --filter @gitinside/eval build` first.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 <!-- lessons:end -->
 
