@@ -35,7 +35,45 @@ export {
   type SignedParts,
   type VerifyFailure,
 } from "./hmac.js";
+export { FAILURE_CODE, JobFailure, RETRIABLE_CODES } from "./failure.js";
+export {
+  MAX_REDIRECTS,
+  failureForStatus,
+  openTarball,
+  type DownloadOptions,
+  type TarballSource,
+} from "./github.js";
+export {
+  DEFAULT_DOWNLOAD_TIMEOUT_MS,
+  SKIPPED_SAMPLE_SIZE,
+  STAGE_PROGRESS,
+  processJob,
+  sweepJobsRoot,
+  type JobArtifact,
+  type JobContext,
+  type JobDeps,
+  type JobOutcome,
+  type JobStage,
+} from "./job.js";
 export type { AnalysisStats, ChildJob } from "./protocol.js";
+export {
+  JOB_OPTIONS,
+  MAX_STALLED_COUNT,
+  QUEUE_CALL_TIMEOUT_MS,
+  QUEUE_NAME,
+  WORKER_CONCURRENCY,
+  createAnalysisWorker,
+  createBullJobQueue,
+  createProcessor,
+  errorCodeFor,
+  statusFromJob,
+  stopWorker,
+  type AnalysisWorkerOptions,
+  type BullJobQueue,
+  type BullQueueOptions,
+  type JobSnapshot,
+  type WorkerLog,
+} from "./queue.js";
 export {
   DEFAULT_RUNNER_LIMITS,
   runAnalysis,
