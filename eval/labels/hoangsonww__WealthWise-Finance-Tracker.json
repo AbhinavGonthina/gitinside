@@ -1,0 +1,470 @@
+{
+  "repo": "hoangsonww/WealthWise-Finance-Tracker",
+  "sha": "8abd4ea065e461233584a63e65b70252604f67f9",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "apps/api/src/services/advisor.service.ts", "line": 249 },
+      "method": "GET",
+      "target": null,
+      "notes": "GEMINI_MODELS_ENDPOINT is the literal https://generativelanguage.googleapis.com/v1/models: an external host, no route in the repo"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/app/(auth)/forgot-password/forgot-password-client.tsx",
+        "line": 114
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/auth.routes.ts",
+        "line": 190,
+        "route": "POST /api/v1/auth/forgot-password"
+      },
+      "notes": "module-level API_URL = NEXT_PUBLIC_API_URL ?? \"http://localhost:4000/api/v1\" (the API's port and prefix; .env.example agrees); authRoutes mounted at /api/v1/auth in apps/api/src/app.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/app/(auth)/forgot-password/forgot-password-client.tsx",
+        "line": 144
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/auth.routes.ts",
+        "line": 229,
+        "route": "POST /api/v1/auth/reset-password"
+      }
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/app/(auth)/register/register-page-client.tsx",
+        "line": 89
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/auth.routes.ts",
+        "line": 49,
+        "route": "POST /api/v1/auth/register"
+      },
+      "notes": "API_URL is a local const declared inside the submit handler, same env + fallback as elsewhere"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/app/(dashboard)/settings/settings-page-client.tsx",
+        "line": 229
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/transaction.routes.ts",
+        "line": 104,
+        "route": "GET /api/v1/transactions"
+      },
+      "notes": "apiClient.get(`/transactions?${params}`): the query string is dropped"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/app/(dashboard)/settings/settings-page-client.tsx",
+        "line": 383
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/api/src/routes/auth.routes.ts",
+        "line": 162,
+        "route": "DELETE /api/v1/auth/me"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-accounts.ts", "line": 25 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/account.routes.ts",
+        "line": 24,
+        "route": "GET /api/v1/accounts"
+      },
+      "notes": "apiClient (lib/api-client.ts) takes the path as a parameter and prefixes BASE_URL = NEXT_PUBLIC_API_URL ?? \"http://localhost:4000/api/v1\", so each apiClient.* call is the call site; method comes from which apiClient method is called"
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-accounts.ts", "line": 35 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/account.routes.ts",
+        "line": 79,
+        "route": "GET /api/v1/accounts/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-accounts.ts", "line": 47 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/account.routes.ts",
+        "line": 57,
+        "route": "POST /api/v1/accounts"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-accounts.ts", "line": 67 },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/api/src/routes/account.routes.ts",
+        "line": 116,
+        "route": "PATCH /api/v1/accounts/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-accounts.ts", "line": 90 },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/api/src/routes/account.routes.ts",
+        "line": 136,
+        "route": "DELETE /api/v1/accounts/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-advisor.ts", "line": 15 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/advisor.routes.ts",
+        "line": 44,
+        "route": "POST /api/v1/advisor/chat"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-analytics.ts", "line": 83 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/analytics.routes.ts",
+        "line": 35,
+        "route": "GET /api/v1/analytics/spending-by-category"
+      },
+      "notes": "path is `/analytics/spending-by-category${qs ? `?${qs}` : \"\"}`: the nested template only adds a query string"
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-analytics.ts", "line": 95 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/analytics.routes.ts",
+        "line": 56,
+        "route": "GET /api/v1/analytics/income-vs-expense"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-analytics.ts", "line": 111 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/analytics.routes.ts",
+        "line": 83,
+        "route": "GET /api/v1/analytics/monthly-summary"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-analytics.ts", "line": 123 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/analytics.routes.ts",
+        "line": 104,
+        "route": "GET /api/v1/analytics/trends"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-analytics.ts", "line": 135 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/analytics.routes.ts",
+        "line": 118,
+        "route": "GET /api/v1/analytics/net-worth"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-analytics.ts", "line": 149 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/analytics.routes.ts",
+        "line": 145,
+        "route": "GET /api/v1/analytics/spending-by-day-of-week"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-analytics.ts", "line": 161 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/analytics.routes.ts",
+        "line": 166,
+        "route": "GET /api/v1/analytics/category-monthly-breakdown"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-budgets.ts", "line": 26 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/budget.routes.ts",
+        "line": 24,
+        "route": "GET /api/v1/budgets"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-budgets.ts", "line": 36 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/budget.routes.ts",
+        "line": 38,
+        "route": "GET /api/v1/budgets/summary"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-budgets.ts", "line": 47 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/budget.routes.ts",
+        "line": 71,
+        "route": "POST /api/v1/budgets"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-budgets.ts", "line": 67 },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/api/src/routes/budget.routes.ts",
+        "line": 106,
+        "route": "PATCH /api/v1/budgets/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-budgets.ts", "line": 90 },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/api/src/routes/budget.routes.ts",
+        "line": 126,
+        "route": "DELETE /api/v1/budgets/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-categories.ts", "line": 24 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/category.routes.ts",
+        "line": 24,
+        "route": "GET /api/v1/categories"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-categories.ts", "line": 35 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/category.routes.ts",
+        "line": 55,
+        "route": "POST /api/v1/categories"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-categories.ts", "line": 58 },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/api/src/routes/category.routes.ts",
+        "line": 93,
+        "route": "PATCH /api/v1/categories/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-categories.ts", "line": 84 },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/api/src/routes/category.routes.ts",
+        "line": 117,
+        "route": "DELETE /api/v1/categories/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-goals.ts", "line": 25 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/goal.routes.ts",
+        "line": 24,
+        "route": "GET /api/v1/goals"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-goals.ts", "line": 36 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/goal.routes.ts",
+        "line": 59,
+        "route": "POST /api/v1/goals"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-goals.ts", "line": 56 },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/api/src/routes/goal.routes.ts",
+        "line": 98,
+        "route": "PATCH /api/v1/goals/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-goals.ts", "line": 79 },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/api/src/routes/goal.routes.ts",
+        "line": 118,
+        "route": "DELETE /api/v1/goals/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-goals.ts", "line": 98 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/goal.routes.ts",
+        "line": 149,
+        "route": "POST /api/v1/goals/:id/add-funds"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-profile.ts", "line": 18 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/auth.routes.ts",
+        "line": 118,
+        "route": "GET /api/v1/auth/me"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-profile.ts", "line": 30 },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/api/src/routes/auth.routes.ts",
+        "line": 146,
+        "route": "PATCH /api/v1/auth/me"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-recurring.ts", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/recurring.routes.ts",
+        "line": 24,
+        "route": "GET /api/v1/recurring"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-recurring.ts", "line": 37 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/recurring.routes.ts",
+        "line": 38,
+        "route": "GET /api/v1/recurring/upcoming"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-recurring.ts", "line": 48 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/recurring.routes.ts",
+        "line": 80,
+        "route": "POST /api/v1/recurring"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-recurring.ts", "line": 68 },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/api/src/routes/recurring.routes.ts",
+        "line": 123,
+        "route": "PATCH /api/v1/recurring/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-recurring.ts", "line": 91 },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/api/src/routes/recurring.routes.ts",
+        "line": 143,
+        "route": "DELETE /api/v1/recurring/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-recurring.ts", "line": 110 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/recurring.routes.ts",
+        "line": 164,
+        "route": "POST /api/v1/recurring/:id/mark-paid"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-transactions.ts", "line": 41 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/transaction.routes.ts",
+        "line": 104,
+        "route": "GET /api/v1/transactions"
+      },
+      "notes": "path is `/transactions${qs}` where qs is \"\" or \"?...\" from buildQueryString(), so the route is the list route"
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-transactions.ts", "line": 51 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/transaction.routes.ts",
+        "line": 234,
+        "route": "GET /api/v1/transactions/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-transactions.ts", "line": 63 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/transaction.routes.ts",
+        "line": 178,
+        "route": "POST /api/v1/transactions"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-transactions.ts", "line": 84 },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/api/src/routes/transaction.routes.ts",
+        "line": 279,
+        "route": "PATCH /api/v1/transactions/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-transactions.ts", "line": 111 },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/api/src/routes/transaction.routes.ts",
+        "line": 299,
+        "route": "DELETE /api/v1/transactions/:id"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-transactions.ts", "line": 131 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/transaction.routes.ts",
+        "line": 212,
+        "route": "POST /api/v1/transactions/import"
+      }
+    },
+    {
+      "callSite": { "file": "apps/web/src/hooks/use-transactions.ts", "line": 156 },
+      "method": "GET",
+      "target": {
+        "file": "apps/api/src/routes/transaction.routes.ts",
+        "line": 132,
+        "route": "GET /api/v1/transactions/search"
+      },
+      "notes": "/search is registered before /:id, so Express routes it to the search handler, not getById"
+    },
+    {
+      "callSite": { "file": "apps/web/src/lib/auth.ts", "line": 28 },
+      "method": "POST",
+      "target": {
+        "file": "apps/api/src/routes/auth.routes.ts",
+        "line": 77,
+        "route": "POST /api/v1/auth/login"
+      },
+      "notes": "inside the NextAuth CredentialsProvider authorize(), so it runs on the Next.js server, not the browser"
+    }
+  ]
+}
