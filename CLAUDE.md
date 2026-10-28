@@ -87,7 +87,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - `git clean -f <path>` silently skips gitignored files (e.g. scratch scripts under `dist/`). `git clean -fX <path>` removes them but deletes the whole ignored folder (all of `dist/`), so rebuild afterwards.
 - Any commit touching `eval/` (outside `eval/results`), the analyzer, the schema, or the lockfile makes `pnpm eval --check` refuse the committed report. After committing such a change, run `pnpm eval` and commit the regenerated report.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
-<!-- lessons:end -->
+- `git stash` / `stash pop` (autocrlf) rewrites files with CRLF, so `pnpm lint` then fails `prettier --check`. Run `npx prettier --write <files>` after a pop.
+- The analyzer's "exponentially shared mounts" test has a 20 s wall-clock budget and takes 19–23 s under `coverage` on this machine (≈10 s under `test`). If it alone fails, rerun `pnpm --filter @gitinside/analyzer coverage` by itself before suspecting your change.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 

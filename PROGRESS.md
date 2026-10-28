@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4a.1. packages/viewer scaffold (React, Vite lib, Storybook)
+M4a.2. Tokens (dark default + light), self-hosted Geist fonts
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -67,7 +67,7 @@ M4a.1. packages/viewer scaffold (React, Vite lib, Storybook)
 - [x] M3.8 Milestone verification + M3-review.md + tag m3 {model: opus}
 
 ### M4a: Design system + prototype (design gate)
-- [ ] M4a.1 packages/viewer scaffold (React, Vite lib, Storybook) {model: opus}
+- [x] M4a.1 packages/viewer scaffold (React, Vite lib, Storybook) {model: opus}
 - [ ] M4a.2 Tokens (dark default + light), self-hosted Geist fonts {model: opus}
 - [ ] M4a.3 Icon system: Simple Icons brand mapping + custom glyph set for kinds {model: opus}
 - [ ] M4a.4 Node components per kind, all states {model: opus}
@@ -154,6 +154,8 @@ M4a.1. packages/viewer scaffold (React, Vite lib, Storybook)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M4a.1: new `@gitinside/viewer`: Vite library build (one ES module, React 19 peer, types via `tsc`), Storybook 8.6 whose preview wraps every story in `ViewerRoot` with a dark/light `theme` global, Vitest + jsdom + Testing Library (3 tests, 100% lines). `ViewerRoot` sets `data-theme` for the M4a.2 tokens; Vite pinned to Vitest's 5.4.21; CI builds Storybook (ADR-0046). No screenshots: nothing is styled until M4a.2. Flaky: the analyzer's exponential-mounts test has a 20 s wall-clock budget and takes 19–23 s under coverage on this machine (9.6 s without), same on clean `main`; it passed on the final run. Eval report re-recorded (lockfile changed). Next: M4a.2.
 
 - 2026-10-28 · M3.8: milestone verified and tagged `m3`. The fresh-eyes review found nothing high-severity and 9 issues (5 confirmed by running), fixed in `3b8e3a9` (ADR-0045): `--check <path>` resolved inside `eval/` (the report's own reproduce command failed), reused checkouts weren't cleaned, symlinks differed by OS, wrong duplicates double-counted, indistinguishable and null+route labels at one site validated, hard-coded report wording, workflow permissions, report sort. Report re-recorded at `3b8e3a9` (numbers unchanged: precision 28/29, recall 28/138) and `--check` with the explicit path reproduces it. 675 tests, eval 99.48%, analyzer 97.49%. Review: `docs/milestones/M3-review.md`. Next: M4a.1.
 
