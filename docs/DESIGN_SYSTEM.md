@@ -63,6 +63,19 @@ The legend is always one click away and is generated from these same tokens.
   - **Dimmed:** 20% opacity (50% on hover).
   - **Diff:** a worded tag on the top edge ("Added", "Changed", "Removed") with a colored dot, plus a diff-colored border and tint. Removed is also dashed, ghosted to 50%, and struck through.
 
+**Edge components** (implemented in M4a.5, `packages/viewer/src/edges/`; pending the design gate; ADR-0050). Story **Components/Edges** shows Confidence, Kinds, States (every confidence × every state), and a small diagram in plain, Trace, and Diff modes.
+- **Geometry:** drawn from route points (ELK's in M4b). Bends are rounded (radius 10, less on short jogs); the line stops at the arrowhead's base.
+- **Line style = confidence:** solid (exact); solid with a small dot just off the source (pattern); dashed 6/4 (heuristic); dotted, with an open chevron arrowhead (unresolved). Arrowheads are filled 8×8 triangles otherwise.
+- **Color:** the source's layer, 70% mixed into `--text-muted` at rest (≥ 3:1 on every surface, tested), full layer color and 2px on hover.
+- **Labels:** a quiet pill on the line's midpoint: `POST /api/orders · HTTP` (method chip, mono path, muted protocol), `reads id, total`, "calls API" (never a guessed protocol), the reason in words when unresolved (dotted pill), "22 calls" for aggregated edges.
+- **States** (combine; color goes to broken > selected > traced > diff > hover):
+  - **Selected:** accent line plus a soft accent halo; accent pill border.
+  - **Traced:** trace-colored 2.5px line with a trace halo; trace pill border.
+  - **Dimmed:** 20% opacity (50% on hover), label too.
+  - **Diff:** line in the diff color; the pill leads with "Added", "Changed", or "Removed". Removed is ghosted to 50% and its label struck through.
+  - **Broken:** pulsing red dashes whatever the confidence, and the pill says what broke ("Route removed in this PR").
+- **Flow:** two particles per edge travel source to target (a canvas ring keeps them visible on a same-colored line). Reduced motion removes them and stops the broken pulse.
+
 **Icons** (implemented in M4a.3, `packages/viewer/src/icons/`; pending the design gate; ADR-0048)
 - **Brand logos:** from Simple Icons 16.36 (CC0 icons; trademarks belong to their owners and are used only to identify the technology). Mapped only from the node's own field: `service.framework`, `datastore.engine` / `queue.engine`, and `external.host` (which covers the SDK hosts). A host matches its suffix at a label boundary, and the longest suffix wins (`maps.googleapis.com` is Google Maps). The tables are in `brands.ts`; story **Foundations/Icons → Logos** shows all of them.
   - **No logo, so the kind's glyph:** brands Simple Icons doesn't ship (OpenAI, AWS, Microsoft SQL Server, Twilio, Slack, SendGrid, Postmark, Memcached, Typesense, Redpanda), unknown hosts, IPs, and loopback. Never a guessed logo.

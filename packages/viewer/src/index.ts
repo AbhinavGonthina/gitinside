@@ -46,6 +46,20 @@ export {
   nodeTier,
   REASON_TEXT,
 } from "./nodes/describe.js";
+export { DiagramEdge, EdgeLabel, FLOW_PARTICLES } from "./edges/DiagramEdge.js";
+export type { DiagramEdgeProps, EdgeLabelProps } from "./edges/DiagramEdge.js";
+export {
+  brokenText,
+  CONFIDENCE_TEXT,
+  EDGE_WORDS,
+  edgeAccessibleName,
+  edgeLabel,
+  edgeLabelText,
+  LINE_STYLE,
+} from "./edges/describe.js";
+export type { EdgeLike, EdgeLineStyle, EdgeState, EdgeText } from "./edges/describe.js";
+export { ARROW, CORNER_RADIUS, DOT_OFFSET, edgeGeometry } from "./edges/geometry.js";
+export type { EdgeGeometry, Point } from "./edges/geometry.js";
 export type {
   NodeCount,
   NodeDiff,
