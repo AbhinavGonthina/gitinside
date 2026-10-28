@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4a.7. Static clickable prototype on a fixture graph
+M4a.8. Visual regression baseline (stories, light + dark, Linux CI)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -73,7 +73,7 @@ M4a.7. Static clickable prototype on a fixture graph
 - [x] M4a.4 Node components per kind, all states {model: opus}
 - [x] M4a.5 Edge components (confidence styles, labels, flow, broken, arrows) {model: opus}
 - [x] M4a.6 Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend, palette shell) {model: opus}
-- [ ] M4a.7 Static clickable prototype on a fixture graph {model: opus}
+- [x] M4a.7 Static clickable prototype on a fixture graph {model: opus}
 - [ ] M4a.8 Visual regression baseline (stories, light + dark, Linux CI) {model: opus}
 - [ ] M4a.9 M4a-review.md with screenshots + needs-abhinav design-approval issue; UI work then waits for approval {model: opus}
 
@@ -154,6 +154,8 @@ M4a.7. Static clickable prototype on a fixture graph
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M4a.7: new `fixtures/shop-demo` (Next.js `/checkout` → `placeOrder` → heuristic `POST /api/orders` → `createOrder` → Prisma `Order` in compose Postgres + Stripe; a `CMS_URL` fetch stays unresolved), in every analyzer fixture suite. `packages/viewer/src/prototype/`: `ExplorerPrototype` draws its golden graph (story Prototype/Explorer, 4 stories, sources via `import.meta.glob` for code previews): lifted/aggregated edges at the weakest confidence (`model.ts`), a fixed fitted column layout (`layout.ts`, ELK later), a trace script checked against the graph (`trace.ts`); drill one level, select, step through the trace, Esc/T/Enter/Space. Screenshot review fixed overflow, stacked labels, lost focus after opening a frame (ADR-0052). 432 viewer tests, prototype 99.3% lines. Eval re-recorded (analyzer test changed). Next: M4a.8.
 
 - 2026-10-28 · M4a.6: `packages/viewer/src/chrome/`: controlled controls (buttons primary/secondary/quiet, switch, segmented radio group, key caps, status chips, 14 interface icons), `TopBar` (repo + short SHA, search → palette, diff view, filters, Trace as the one primary), overlays (`Breadcrumbs`, `ZoomControls`, `Minimap` shell with pure `minimapFit`, `Legend` built from the canvas's own tables), inspector parts (header, "From the code", facts, Calls/Called by in edge words + line style, `CodePreview` with commit permalink), `CommandPalette` shell (dialog + combobox/listbox). Screenshot review fixed a diff-mode top-bar overlap, a too-tall legend (two columns), mid-word path wraps, hairline icons (ADR-0051). Story Components/Chrome (7 stories); 391 viewer tests, chrome 100% lines. Next: M4a.7.
 
