@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.5d. Worker entry point (env ⇒ Redis + Postgres + R2, sweep, worker + enqueue server, JSON logs, SIGTERM); M4b waits for the design gate (#2)
+M5.6. /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -111,7 +111,7 @@ M5.5d. Worker entry point (env ⇒ Redis + Postgres + R2, sweep, worker + enqueu
 - [x] M5.5a Snapshot store: gzipped `architecture.json`, R2 keys per ADR-0013, SigV4 PUT without an SDK (AWS test vectors, fake S3 server), `R2_*` env config {model: opus}
 - [x] M5.5b Postgres writes: repo upsert, analysis row lifecycle (running/done/failed, stats with stage timings); `publish` = R2 then Postgres {model: opus}
 - [x] M5.5c Progress events: analyzer stages streamed from the child with counts ("Parsing 1,204 files", "Linking 87 calls"), stored as BullMQ progress {model: opus}
-- [ ] M5.5d Worker entry point: env ⇒ Redis + Postgres + R2, sweep + `failInterruptedAnalyses`, worker (recorder/publish) + enqueue server, JSON logs, SIGTERM ⇒ `stopWorker` {model: opus}
+- [x] M5.5d Worker entry point: env ⇒ Redis + Postgres + R2, sweep + `failInterruptedAnalyses`, worker (recorder/publish) + enqueue server, JSON logs, SIGTERM ⇒ `stopWorker` {model: opus}
 - [ ] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
 - [ ] M5.7 Progress page with real stages + queue position (SSE) {model: opus}
 - [ ] M5.8 Diagram page + check-on-view re-analysis {model: opus}
@@ -166,6 +166,8 @@ M5.5d. Worker entry point (env ⇒ Redis + Postgres + R2, sweep, worker + enqueu
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.5d: `node dist/bin.js` (`pnpm --filter @gitinside/worker start`) ⇒ `runMain` (`main.ts`): `workerConfigFromEnv` (`config.ts`; `REDIS_URL`, `DATABASE_URL`, `R2_*`, `ENQUEUE_HMAC_SECRET`, optional `JOBS_ROOT`/`HOST`/`PORT`/`GITHUB_TOKEN`; every problem listed by name, exit 1), then Postgres ⇒ folder sweep ⇒ `failInterruptedAnalyses` ⇒ Redis ping ⇒ worker (recorder/publish) ⇒ enqueue API in one process; a failed step closes the rest. SIGTERM/SIGINT: API, worker (jobs `CANCELLED`), queue, database; >20 s or a failed step exits 1. `createJsonLog` (`log.ts`) writes one JSON line per event, nothing secret (ADR-0065); names in `apps/worker/.env.example`. 30 new tests (387 locally) + the signed-job round trip on CI's Redis (verified on draft PR #3); config/log 100%, main.ts 98% on CI. No eval re-record (no analyzer/lockfile change). Next: M5.6.
 
 - 2026-10-28 · M5.5c: analyzer `onProgress({ stage, count? })` as each stage starts (`programs` = source files, `http` again with the requests it links; never in the graph). The child prints `{"progress":…}` lines before its report; the runner parses them as they arrive (split chunks joined, output after the report ⇒ `ANALYZER_CRASHED`). The latest step is the job's BullMQ progress (`step`, `count`, steps share 30–90), best effort (`progress_failed` logged); `GET /jobs/:id` gains `step`/`count`. New dependency-free `@gitinside/worker/progress` with `describeProgress` ("Parsing 1,204 files") for M5.7 (ADR-0064). 357 worker tests locally + the Redis round trip on CI; progress/protocol 100% lines. Eval re-recorded (analyzer changed, numbers unchanged). Next: M5.5d.
 
