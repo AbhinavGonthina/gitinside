@@ -50,6 +50,8 @@ Coverage is a floor, not a goal. Don't write tests that only touch lines.
 
 - Screenshots only in Linux CI (Playwright's Docker image) so font rendering is stable. Windows runs skip visual comparison.
 - Baselines live in the repo. A change to a baseline must be intentional and mentioned in the commit body.
+- Every Storybook story is captured in dark and light (`packages/viewer/visual/`, ADR-0053): baselines are `visual/baselines/<story-id>--<theme>.png`, compared by CI's `visual` job in `mcr.microsoft.com/playwright:v<@playwright/test version>-noble`. Run locally (Linux) with `pnpm --filter @gitinside/viewer build-storybook` then `pnpm --filter @gitinside/viewer visual`.
+- To update baselines: run the **Visual baselines** workflow (`gh workflow run visual-baselines.yml`), download its artifact (`gh run download <run> -n visual-baselines -D packages/viewer/visual/baselines`), look at the changed images, and commit them with the reason. Bump the image tag in both workflows whenever `@playwright/test` changes.
 - Every UI task also takes light and dark screenshots for the self-critique loop (CLAUDE.md), saved to `docs/milestones/` for review docs.
 
 ## Security tests (see SECURITY.md)

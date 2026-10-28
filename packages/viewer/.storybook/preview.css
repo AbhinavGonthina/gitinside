@@ -1,0 +1,8 @@
+/* Storybook only: the decorator's ViewerRoot grows with stories wider or
+   taller than the frame, so a full-page screenshot (visual/) shows the
+   theme's canvas behind all of it, not the iframe's white page. */
+#storybook-root > .gi-root {
+  width: fit-content;
+  min-width: 100%;
+  min-height: 100vh;
+}
