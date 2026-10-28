@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.5a. Snapshot store (gzip, R2 keys, SigV4 PUT); M4b waits for the design gate (#2)
+M5.5b. Postgres writes (repo upsert, analysis row lifecycle; `publish` = R2 then Postgres); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -108,7 +108,7 @@ M5.5a. Snapshot store (gzip, R2 keys, SigV4 PUT); M4b waits for the design gate 
 - [x] M5.4b Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error codes) {model: opus}
 - [x] M5.4c HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window, two-secret rotation; Supertest) {model: opus}
 - [x] M5.4d BullMQ worker (concurrency 2, tarball fetch → extract → child → result, stalled-job retries, job dir cleanup) {model: opus}
-- [ ] M5.5a Snapshot store: gzipped `architecture.json`, R2 keys per ADR-0013, SigV4 PUT without an SDK (AWS test vectors, fake S3 server), `R2_*` env config {model: opus}
+- [x] M5.5a Snapshot store: gzipped `architecture.json`, R2 keys per ADR-0013, SigV4 PUT without an SDK (AWS test vectors, fake S3 server), `R2_*` env config {model: opus}
 - [ ] M5.5b Postgres writes: repo upsert, analysis row lifecycle (running/done/failed, stats with stage timings); `publish` = R2 then Postgres {model: opus}
 - [ ] M5.5c Progress events: analyzer stages streamed from the child with counts ("Parsing 1,204 files", "Linking 87 calls"), stored as BullMQ progress {model: opus}
 - [ ] M5.5d Worker entry point: env ⇒ Redis, sweep, worker + enqueue server, JSON logs, SIGTERM ⇒ `stopWorker` {model: opus}
@@ -166,6 +166,8 @@ M5.5a. Snapshot store (gzip, R2 keys, SigV4 PUT); M4b waits for the design gate 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.5a: M5.5 split into a–d. `apps/worker/src/sigv4.ts`: our own AWS SigV4 on `node:crypto` (no SDK), matching all three worked examples in AWS's docs. `storage.ts`: `createObjectStore(config).put` (path-style, region `auto`, body SHA-256 signed, 60 s, `StorageError { status, s3Code }` keeping only S3's `<Code>`), `uploadSnapshot` (gzip 9, public immutable / private no-store), `storeConfigFromEnv` (`R2_*`, errors name the variable only). Keys now carry the analyzer version, `public/<owner>/<repo>/<sha>/<version>.json.gz` (amends ADR-0013, ADR-0062). Fake S3 testkit verifies signatures + body hashes; caught that S3 codes contain digits (`XAmzContentSHA256Mismatch`). 51 new tests (277 worker), sigv4/storage 100% lines. No eval re-record (no analyzer/lockfile change). Next: M5.5b.
 
 - 2026-10-28 · M5.4d: `processJob` (`apps/worker/src/job.ts`) streams the tarball (`github.ts`: redirects by hand, token only to the API, only codeload fetched) into `<jobsRoot>/<id>-<random>/src`, runs the child, calls an injected `publish` (M5.5), deletes the folder in `finally`; `sweepJobsRoot` at startup. Coded `JobFailure`s (`failure.ts`) say whether to retry: network/rate limit/shutdown/publish retried (3 attempts, backoff), `LIMIT_*`/`TAR_*`/`REPO_NOT_FOUND` thrown as `UnrecoverableError`. `queue.ts`: BullMQ 6.4.2 + ioredis 5.11.1 `JobQueue` (dedupe, re-add reruns retriable failures, positions, stages, 5 s timeouts) and a Worker (concurrency 2, `maxStalledCount: 2`, `stopWorker` cancels). BullMQ tests run on CI's new Redis service only (verified on a draft PR first: 36/36 ran, queue.ts 100%); `turbo.json` passes `CI`/`TEST_*` through (ADR-0061). 237 worker tests, 93.7% lines on CI. Eval re-recorded (lockfile). Next: M5.5.
 
