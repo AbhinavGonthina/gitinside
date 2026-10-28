@@ -163,7 +163,7 @@ If `AUTONOMY: OFF` (PROGRESS.md line 2): after step 6, set "Current task" to `AW
 ## 6. Code standards
 
 - **TypeScript:** strict mode everywhere (`tsconfig.base.json`). ESLint + Prettier. No `any` without a comment explaining why.
-- **Monorepo layout:** `packages/schema`, `packages/analyzer`, `packages/diff`, `packages/viewer`, `apps/web`, `apps/worker`, `eval/`, `bench/`, `fixtures/`, `infra/`. Package manager: `pnpm` (9.15) with Turborepo; run `pnpm build | test | typecheck | lint | coverage` from the root.
+- **Monorepo layout:** `packages/schema`, `packages/analyzer`, `packages/db`, `packages/diff`, `packages/viewer`, `apps/web`, `apps/worker`, `eval/`, `bench/`, `fixtures/`, `infra/`. Package manager: `pnpm` (9.15) with Turborepo; run `pnpm build | test | typecheck | lint | coverage` from the root.
 - **Documentation:**
   - Every public function gets a doc comment.
   - Every detector documents the patterns it handles **and the ones it doesn't**.

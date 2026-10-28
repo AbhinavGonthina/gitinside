@@ -10,5 +10,7 @@ fixtures
 bench/.repos
 eval/.repos
 bench/results
+# drizzle-kit's generated migrations and snapshots: never hand-edited.
+packages/db/drizzle
 logs
 *.md
