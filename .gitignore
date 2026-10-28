@@ -158,6 +158,9 @@ vite.config.ts.timestamp-*
 # Benchmark checkouts of pinned public repos (bench/repos.json)
 bench/.repos/
 
+# Eval checkouts of pinned public repos (eval/repos.json)
+eval/.repos/
+
 # Autopilot logs
 logs/
 

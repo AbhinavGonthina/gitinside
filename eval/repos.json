@@ -1,3 +1,49 @@
 {
-  "repos": []
+  "repos": [
+    {
+      "owner": "hoangsonww",
+      "name": "WealthWise-Finance-Tracker",
+      "url": "https://github.com/hoangsonww/WealthWise-Finance-Tracker",
+      "sha": "8abd4ea065e461233584a63e65b70252604f67f9",
+      "license": "MIT",
+      "shape": "next-plus-server-monorepo",
+      "why": "npm-workspaces Turborepo: a Next.js 14 app router web app calling a separate Express API (apps/api, routers mounted under /api/v1) through a fetch wrapper in lib/api-client.ts that takes the path as a parameter, so call sites are the wrapper's callers in TanStack Query hooks. Also has Express-based mcp/agentic-ai packages. ~308 source files."
+    },
+    {
+      "owner": "jgudo",
+      "name": "foodie",
+      "url": "https://github.com/jgudo/foodie",
+      "sha": "84f5e6d81f48e9cd0149ec07a2611049a852746a",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Create React App SPA (frontend/) and an Express server (server/) side by side with no workspace config. Requests go through httpRequest(), a wrapper over axios(config) with axios.defaults.baseURL built from REACT_APP_ env vars and an /api/v1 prefix. ~167 source files."
+    },
+    {
+      "owner": "krishnaacharyaa",
+      "name": "wanderlust",
+      "url": "https://github.com/krishnaacharyaa/wanderlust",
+      "sha": "2d83720e4318a7f999d3f9d751013b105f0c805a",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Vite React frontend and Express backend (routers mounted at /api/posts, /api/auth, /api/user). Most calls use an axios.create() instance whose baseURL is assigned afterwards via instance.defaults.baseURL from VITE_API_PATH; the rest call axios directly with that env var concatenated. ~109 source files."
+    },
+    {
+      "owner": "pankil-soni",
+      "name": "conversa",
+      "url": "https://github.com/pankil-soni/conversa",
+      "sha": "2b97aa82a5743c5097ca35e1d828e42b86916514",
+      "license": "MIT",
+      "shape": "env-api-urls",
+      "why": "Vite React frontend whose single API module builds every fetch URL as `${API_BASE}/...` with API_BASE = import.meta.env.VITE_API_URL ?? a localhost fallback; the CommonJS Express backend mounts routers via app.use(path, require(...)). No root package.json. ~112 source files."
+    },
+    {
+      "owner": "shadcn-ui",
+      "name": "taxonomy",
+      "url": "https://github.com/shadcn-ui/taxonomy",
+      "sha": "298a8857c7128a0d121e7f699dfd729f23b3966d",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Single-package Next.js 13 app router app: client components fetch its own route handlers (app/api/posts, app/api/posts/[postId], app/api/users/[userId], app/api/users/stripe) by root-relative path, plus one call to an external host (api.github.com) and two fetches of bundled font files via new URL(…, import.meta.url). Widely used reference app. ~131 source files."
+    }
+  ]
 }

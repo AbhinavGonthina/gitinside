@@ -13,6 +13,7 @@ export default tseslint.config(
       "**/.next/**",
       "fixtures/**",
       "bench/.repos/**",
+      "eval/.repos/**",
     ],
   },
   js.configs.recommended,
