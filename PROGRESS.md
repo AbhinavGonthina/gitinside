@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.7. Progress page with real stages + queue position (SSE), incl. pointing the landing form at /api/analyze; M4b waits for the design gate (#2)
+M5.8. Diagram page + check-on-view re-analysis; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -113,7 +113,7 @@ M5.7. Progress page with real stages + queue position (SSE), incl. pointing the 
 - [x] M5.5c Progress events: analyzer stages streamed from the child with counts ("Parsing 1,204 files", "Linking 87 calls"), stored as BullMQ progress {model: opus}
 - [x] M5.5d Worker entry point: env ⇒ Redis + Postgres + R2, sweep + `failInterruptedAnalyses`, worker (recorder/publish) + enqueue server, JSON logs, SIGTERM ⇒ `stopWorker` {model: opus}
 - [x] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
-- [ ] M5.7 Progress page with real stages + queue position (SSE); landing form posts to /api/analyze and opens it {model: opus}
+- [x] M5.7 Progress page with real stages + queue position (SSE); landing form posts to /api/analyze and opens it {model: opus}
 - [ ] M5.8 Diagram page + check-on-view re-analysis {model: opus}
 - [ ] M5.9 Badge + live image endpoint + "Add to README" {model: opus}
 - [ ] M5.10 Hardened worker Docker image + infra/oracle provisioning script + docs {model: opus}
@@ -166,6 +166,8 @@ M5.7. Progress page with real stages + queue position (SSE), incl. pointing the 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.7: landing form posts to `/api/analyze` (`lib/startAnalysis.ts`): `200` ⇒ repo page, `202` ⇒ `/<owner>/<repo>/jobs/<jobId>`, refusals said in place. Worker client `status()` (signed `GET /jobs/:id`, fields checked one by one); `lib/jobs.ts` puts it into words on the server ("2 ahead of you", "Parsing 1,204 files", failures with direction and a retry flag, codes never shown). `GET /api/jobs/:id` (JSON) and `/events` (SSE: event per change, keep-alive, ends after 25 s or a final state, `EventSource` reconnects; abort stops polling); worker-only deps, no database (ADR-0067). `JobProgress`: five-step path, progressbar, done ⇒ repo page, Try again. Screenshot review made the steps ahead and the light bar track visible. 68 new web tests (214), 10/10 E2E. No eval re-record. Next: M5.8.
 
 - 2026-10-28 · M5.6: `POST /api/analyze` `{ url }` (`apps/web/lib/analyze.ts` + `analyzeRoute.ts`): `parseRepoUrl` ⇒ GitHub repo facts + `commits/HEAD` (sha media type; private answered as missing; renames followed in-API) ⇒ `findAnalysis` by GitHub ID + SHA + analyzer version (new `@gitinside/analyzer/version`) ⇒ `200 done`, else signed enqueue ⇒ `202 { jobId }`. Commits in flight are free; new ones take an atomic fixed-UTC-hour slot (`consumeRateLimit`, 5/h, IP hashed with HMAC, IPv6 per /64), refunded if the worker is down or the job already existed; the web app writes `queued` rows (`queueAnalysis`). JSON only, 4 KiB cap, unconfigured ⇒ 503 "temporarily unavailable" (ADR-0066). `migrationsFolder` no longer trips Turbopack. 43 new web tests (146, 97% lines; PGlite + the real enqueue handler) + 1 E2E, 13 new db tests; live GitHub smoke OK. Eval re-recorded (analyzer + lockfile). Next: M5.7.
 
