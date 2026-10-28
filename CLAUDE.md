@@ -93,7 +93,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Prettier lowercases hex colors in CSS, so CSS checked against TS values must use lowercase hex in the TS too.
 - Viewer screenshots: `pnpm --filter @gitinside/viewer build-storybook`, then a scratch Playwright script under `packages/viewer/dist/` that serves `storybook-static/` with `node:http` and opens `iframe.html?id=<story>&viewMode=story&globals=theme:light`. The browser is installed with `pnpm --filter @gitinside/viewer exec playwright install chromium`. Check that the CSS actually applied (computed background, `document.fonts`) before critiquing. Import `chromium` from `@playwright/test` (the viewer's dependency); a bare `playwright` import isn't resolvable.
 - `pnpm --filter @gitinside/viewer build` empties `packages/viewer/dist/`, deleting scratch scripts there (e.g. the screenshot script). Take screenshots before building the library, or rewrite the script afterwards.
-- `pnpm --filter <pkg> add <dep>` writes a `^` range, but this repo pins exact versions. Edit package.json to the exact version and run `pnpm install` again.<!-- lessons:end -->
+- `pnpm --filter <pkg> add <dep>` writes a `^` range, but this repo pins exact versions. Edit package.json to the exact version and run `pnpm install` again.
+- The viewer's declaration build (`tsconfig.build.json`) has no Node types, so a test helper importing `node:fs` passes `pnpm typecheck` but fails `pnpm --filter @gitinside/viewer build`. Name such helpers `*.testkit.ts` (excluded there) and run the library build before committing.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
