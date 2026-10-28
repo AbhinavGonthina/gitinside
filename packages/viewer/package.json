@@ -10,6 +10,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./fonts": {
+      "types": "./dist/fonts.d.ts",
+      "import": "./dist/fonts.js"
+    },
     "./styles.css": "./dist/style.css"
   },
   "scripts": {
