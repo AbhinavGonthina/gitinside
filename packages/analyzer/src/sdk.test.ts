@@ -233,6 +233,24 @@ describe("buildSdkEdges", () => {
       "symbol:api/src/fake.ts#run -> s3.amazonaws.com @ src/fake.ts:11:17",
     ]);
   });
+
+  it("traces each factory once, however many calls return it (M2 review)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    // Each factory returns ten calls of the one before: 10^7 traces without a cache.
+    const lines = ['import Stripe from "stripe";', "declare const c: number;"];
+    lines.push('function f0() { return new Stripe("k"); }');
+    for (let i = 1; i <= 7; i++) {
+      const returns = Array.from({ length: 10 }, (_, k) => `if (c === ${k}) return f${i - 1}();`);
+      lines.push(`function f${i}() { ${returns.join(" ")} return f${i - 1}(); }`);
+    }
+    lines.push("export const go = () => f7().customers.create();");
+    await put("src/pay.ts", lines);
+    const started = performance.now();
+    expect(summary(await detect())).toEqual([
+      "symbol:api/src/pay.ts#go -> api.stripe.com @ src/pay.ts:11:40",
+    ]);
+    expect(performance.now() - started).toBeLessThan(20_000);
+  });
 });
 
 describe("analyze: SDK and fetch calls", () => {

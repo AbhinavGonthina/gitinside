@@ -63,7 +63,7 @@ import {
 } from "@gitinside/schema";
 import { fileNodeId, withinService } from "./files.js";
 import type { UrlBase, UrlSegment } from "./url.js";
-import { CONFIDENCE_RANK, redactedText, weaker } from "./values.js";
+import { clip, CONFIDENCE_RANK, redactedText, weaker } from "./values.js";
 import { serviceForFile, type Workspace } from "./workspace.js";
 import type { HttpRequest } from "./wrappers.js";
 
@@ -386,7 +386,7 @@ export function createRouteMatcher(
         return {
           kind: "unresolved",
           reason: "NO_MATCHING_ROUTE",
-          detail: `no route matches ${request.method ?? "a request"} to ${url.text}`,
+          detail: clip(`no route matches ${request.method ?? "a request"} to ${url.text}`),
         };
       }
       // The request's own method beats an `ALL` route at the same level.
@@ -462,7 +462,7 @@ function requestExpression(request: HttpRequest): string {
 /** What the unresolved node of a request shows: the URL as read, else its source text. */
 function requestLabel(request: HttpRequest): string {
   const method = request.method ?? "?";
-  if (request.url.resolved) return `${method} ${request.url.text}`;
+  if (request.url.resolved) return clip(`${method} ${request.url.text}`);
   if (request.via) return `${method} ${requestExpression(request)}`;
   const url = request.call.url?.expression;
   return `${method} ${url ? redactedText(url, [url]) : requestExpression(request)}`;

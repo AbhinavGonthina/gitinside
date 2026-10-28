@@ -70,6 +70,16 @@ import {
 /** More parts than this (from repeated concatenation) collapse to one hole. */
 const MAX_PARTS = 256;
 
+/** More literal text than this (characters) collapses to one hole. */
+const MAX_TEXT = 2048;
+
+/**
+ * Expressions one `parts()`/`normalize()` call may visit. Consts that repeat each other
+ * (`a1 = a0 + a0`, `a2 = a1 + a1`, …) grow exponentially; past the budget the URL is
+ * `DYNAMIC_URL` with {@link DYNAMIC_URL_DETAIL}`.tooComplex`.
+ */
+const MAX_STEPS = 10_000;
+
 /** One piece of a URL value. */
 export type UrlPart =
   | { kind: "text"; text: string }
@@ -77,7 +87,12 @@ export type UrlPart =
    * A value only known at runtime. `param` marks a function parameter nothing is bound to,
    * which a caller of a wrapper could supply (M2.3).
    */
-  | { kind: "hole"; param?: true }
+  | {
+      kind: "hole";
+      param?: true;
+      /** The value was too large or too complex to read (see {@link MAX_STEPS}). */
+      overflow?: true;
+    }
   /** An environment variable, by name. */
   | { kind: "env"; name: string }
   /** The page's own origin (`window.location.origin`). */
@@ -114,6 +129,8 @@ export const DYNAMIC_URL_DETAIL = {
   baseLeadingHole: "the axios baseURL starts with a value only known at runtime",
   host: "the host is only known at runtime",
   onlyHoles: "every path segment is only known at runtime",
+  emptyHost: "the URL has an empty host",
+  tooComplex: "the URL is too large or too complex to read statically",
 } as const;
 
 export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];
@@ -148,6 +165,7 @@ export type ParameterBindings = ReadonlyMap<ts.ParameterDeclaration, ProgramExpr
 
 const HOLE: UrlPart = { kind: "hole" };
 const PARAM_HOLE: UrlPart = { kind: "hole", param: true };
+const OVERFLOW_HOLE: UrlPart = { kind: "hole", overflow: true };
 const text = (value: string): UrlPart => ({ kind: "text", text: value });
 
 /** `scheme://` or `//` at the start of a URL (axios's `isAbsoluteURL`). */
@@ -156,12 +174,18 @@ const ABSOLUTE = /^([a-z][a-z\d+\-.]*:)?\/\//i;
 /** A literal origin at the start of a URL. */
 const ORIGIN = /^[a-z][a-z\d+\-.]*:\/\/[^/?#]*/i;
 
-/** Join adjacent text parts and drop empty ones. Returns a single hole past {@link MAX_PARTS}. */
+/**
+ * Join adjacent text parts and drop empty ones. Returns a single hole past {@link MAX_PARTS}
+ * parts or {@link MAX_TEXT} characters of text.
+ */
 export function mergeParts(parts: readonly UrlPart[]): UrlPart[] {
   const out: UrlPart[] = [];
+  let length = 0;
   for (const part of parts) {
     if (part.kind === "text") {
       if (part.text === "") continue;
+      length += part.text.length;
+      if (length > MAX_TEXT) return [OVERFLOW_HOLE];
       const last = out[out.length - 1];
       if (last?.kind === "text") {
         out[out.length - 1] = text(last.text + part.text);
@@ -170,7 +194,7 @@ export function mergeParts(parts: readonly UrlPart[]): UrlPart[] {
     }
     out.push(part);
   }
-  return out.length > MAX_PARTS ? [HOLE] : out;
+  return out.length > MAX_PARTS ? [OVERFLOW_HOLE] : out;
 }
 
 /** True when merged parts start with `scheme://` or `//`. */
@@ -272,6 +296,8 @@ export function toUrlPattern(
       }
       // Credentials (`user:pass@`) are dropped so they never reach the graph.
       host = host.slice(host.lastIndexOf("@") + 1);
+      // `https:///x` or `https://user@/x`: no host to name an external node by.
+      if (host === "" || host.startsWith(":")) return { detail: DYNAMIC_URL_DETAIL.emptyHost };
       base = { kind: "host", scheme, host: host.toLowerCase() };
     } else {
       base = first.text.startsWith("/") ? { kind: "path" } : { kind: "page" };
@@ -525,8 +551,12 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     return partsOf(value.sp, value.expression, hops + 1);
   };
 
+  /** Expressions visited by the current `parts()` call (see {@link MAX_STEPS}). */
+  let steps = 0;
+
   const partsOf = (sp: ServiceProgram, expression: ts.Expression, hops: number): UrlPart[] => {
     if (hops > MAX_HOPS) return [HOLE];
+    if (++steps > MAX_STEPS) return [OVERFLOW_HOLE];
     const e = unwrap(expression);
     if (ts.isStringLiteralLike(e) || ts.isNumericLiteral(e)) return [text(e.text)];
     if (ts.isTemplateExpression(e)) {
@@ -616,8 +646,14 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     });
   };
 
-  const parts = (value: ProgramExpression): UrlPart[] =>
-    mergeParts(partsOf(value.sp, value.expression, 0));
+  const parts = (value: ProgramExpression): UrlPart[] => {
+    steps = 0;
+    return mergeParts(partsOf(value.sp, value.expression, 0));
+  };
+
+  /** True when part of a value was too large or complex to read. */
+  const overflowed = (p: readonly UrlPart[]): boolean =>
+    p.some((part) => part.kind === "hole" && part.overflow === true);
 
   const dynamic = (detail: DynamicUrlDetail): NormalizedUrl => ({
     resolved: false,
@@ -648,14 +684,17 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   const normalizeSite = (site: Pick<HttpCallSite, "url" | "baseURL">): NormalizedUrl => {
     if (site.url === null) return dynamic(DYNAMIC_URL_DETAIL.url);
     let url = parts(site.url);
+    if (overflowed(url)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
     if (startsWithParameter(url)) return deeper(WRAPPER_DEPTH_DETAIL.url);
     if (url[0]?.kind === "hole") return dynamic(DYNAMIC_URL_DETAIL.leadingHole);
     if (site.baseURL !== undefined && !isAbsolute(url)) {
       if (site.baseURL === null) return dynamic(DYNAMIC_URL_DETAIL.baseURL);
       const base = parts(site.baseURL);
+      if (overflowed(base)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
       if (startsWithParameter(base)) return deeper(WRAPPER_DEPTH_DETAIL.baseURL);
       if (base[0]?.kind === "hole") return dynamic(DYNAMIC_URL_DETAIL.baseLeadingHole);
       url = joinBaseURL(base, url);
+      if (overflowed(url)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
     }
     const result = toUrlPattern(url);
     if ("detail" in result) return dynamic(result.detail);

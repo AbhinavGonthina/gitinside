@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Confidence, GraphNode, HttpMethod } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
+import { serializeGraph } from "./assemble.js";
 import {
   alignSegments,
   buildHttpEdges,
@@ -466,6 +467,25 @@ describe("analyze: http edges", () => {
     await mkdir(dirname(join(dir, path)), { recursive: true });
     await writeFile(join(dir, path), content.join("\n") + "\n");
   };
+
+  it("keeps empty hosts and long URLs as valid, short nodes (M2 review)", async () => {
+    await put("package.json", [JSON.stringify({ name: "web" })]);
+    await put("src/api.ts", [
+      'export const a = () => fetch("https:///x");',
+      'export const b = () => fetch("https://user@/x");',
+      `export const c = () => fetch("/${"long/".repeat(60)}");`,
+    ]);
+    // `serializeGraph` validates, so an empty label or host would throw here.
+    const graph = JSON.parse(serializeGraph(await analyze(dir))) as { nodes: GraphNode[] };
+    const unresolved = graph.nodes.filter((n) => n.kind === "unresolved");
+    expect(unresolved.map((n) => n.kind === "unresolved" && [n.reason, n.detail])).toEqual([
+      ["DYNAMIC_URL", "the URL has an empty host"],
+      ["DYNAMIC_URL", "the URL has an empty host"],
+      ["NO_MATCHING_ROUTE", expect.stringMatching(/^no route matches GET to \/long\/.*…$/)],
+    ]);
+    for (const n of unresolved) expect(n.label.length).toBeLessThanOrEqual(120);
+    expect(graph.nodes.some((n) => n.kind === "external")).toBe(false);
+  });
 
   it("links frontend fetch and axios calls to Express and Next routes", async () => {
     await put("package.json", [JSON.stringify({ name: "shop", workspaces: ["apps/*"] })]);
