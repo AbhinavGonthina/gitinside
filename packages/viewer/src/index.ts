@@ -60,6 +60,68 @@ export {
 export type { EdgeLike, EdgeLineStyle, EdgeState, EdgeText } from "./edges/describe.js";
 export { ARROW, CORNER_RADIUS, DOT_OFFSET, edgeGeometry } from "./edges/geometry.js";
 export type { EdgeGeometry, Point } from "./edges/geometry.js";
+export {
+  Button,
+  IconButton,
+  Kbd,
+  SegmentedControl,
+  StatusChip,
+  Toggle,
+} from "./chrome/controls.js";
+export type {
+  ButtonProps,
+  ButtonVariant,
+  IconButtonProps,
+  Segment,
+  SegmentedControlProps,
+  StatusChipProps,
+  StatusTone,
+  ToggleProps,
+} from "./chrome/controls.js";
+export { DIFF_VIEWS, TopBar } from "./chrome/TopBar.js";
+export type { DiffView, TopBarProps } from "./chrome/TopBar.js";
+export { Breadcrumbs, Legend, Minimap, ZoomControls } from "./chrome/overlays.js";
+export type {
+  BreadcrumbsProps,
+  Crumb,
+  LegendProps,
+  MinimapNode,
+  MinimapProps,
+  ZoomControlsProps,
+} from "./chrome/overlays.js";
+export {
+  CodePreview,
+  ConnectionList,
+  FactList,
+  Inspector,
+  InspectorActions,
+  InspectorHeader,
+  InspectorSection,
+  InspectorSummary,
+} from "./chrome/Inspector.js";
+export type {
+  CodePreviewProps,
+  Connection,
+  ConnectionListProps,
+  Fact,
+  InspectorHeaderProps,
+  InspectorProps,
+} from "./chrome/Inspector.js";
+export { CommandPalette } from "./chrome/CommandPalette.js";
+export type { CommandPaletteProps, PaletteResult } from "./chrome/CommandPalette.js";
+export {
+  boundsOf,
+  githubLineUrl,
+  highlightSegments,
+  LAYER_NAMES,
+  minimapFit,
+  shortSha,
+  toMinimap,
+  zoomText,
+} from "./chrome/describe.js";
+export type { MinimapFit, Rect, RepoRef, TextSegment } from "./chrome/describe.js";
+export { LogoMark, UiIcon, uiIconNames, uiIcons } from "./chrome/uiIcons.js";
+export type { UiIconName } from "./chrome/uiIcons.js";
 export type {
   NodeCount,
   NodeDiff,
