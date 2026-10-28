@@ -438,3 +438,12 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - An on-demand **Eval** GitHub Actions workflow (`workflow_dispatch`) runs `--check`.
 - **Alternatives rejected:** leaving the date and machine out of the report (EVALUATION.md requires them); comparing everything except the Run section (then a report could claim a commit it wasn't produced from); a JSON sidecar that the Markdown is re-rendered from (proves only the renderer, not the analysis).
 - **Consequences:** a new report is needed whenever the analyzer, schema, labels, or lockfile change, which matches the rule that analyzer commits after M3 state their eval delta.
+
+## ADR-0044: Owner label review sample: stratified per repo, seeded by date
+- **Context:** M3.7. D10.3 has Abhinav review a random 20% of the drafted labels, chosen by a seeded shuffle with the issue's date as the seed (EVALUATION.md §1). Left open: the sampling unit, whether to sample across all repos at once, and which generator, so the list can be regenerated anywhere.
+- **Decision** (`eval/src/sample.ts`, CLI `review-sample`):
+  - **The unit is a call site,** with every label at it, since a multi-route site (ADR-0041) is one judgment about one piece of code.
+  - **Stratified per repo:** ⌈20%⌉ of each repo's call sites, each repo shuffled with its own seed `<date>/<owner>/<name>`. A pooled draw of 29 of 142 could skip taxonomy (8 sites) entirely; stratifying costs one extra site (30) and checks every labeler pass.
+  - **Generator:** FNV-1a 32-bit hash of the seed string into mulberry32, Fisher–Yates. Integer-only arithmetic, so the same on every platform and Node version; no dependency.
+- **Alternatives rejected:** one pooled shuffle (can miss a repo); `Math.random` or a time seed (not reproducible); sampling labels instead of sites (splits one judgment in two).
+- **Consequences:** the list in the review issue can be checked by anyone with the committed labels and the issue's date. Corrections go into the label files with a `notes` entry and `reviewedBy`, then a new report is generated.
