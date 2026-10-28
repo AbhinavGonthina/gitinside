@@ -36,6 +36,24 @@ describe("layout", () => {
     );
   });
 
+  it("lists nodes in reading order, an open frame's children right after it (M4a review)", () => {
+    expect(laidOut(null).order).toEqual([
+      "service:web/",
+      "service:api/",
+      "datastore:infra/db",
+      "external:ext/api.stripe.com",
+    ]);
+    const open = laidOut("service:api/");
+    expect(open.order).toEqual([
+      "service:web/",
+      "service:api/",
+      ...(index.children.get("service:api/") ?? []).map((c) => c.id),
+      "datastore:infra/db",
+      "external:ext/api.stripe.com",
+    ]);
+    expect(new Set(open.order)).toEqual(visibleIds(index, "service:api/"));
+  });
+
   it("reads left to right by layer: web, then api, then data and Stripe", () => {
     const { boxes, width, height } = laidOut(null);
     const x = (id: string) => boxes.get(id)?.x ?? NaN;

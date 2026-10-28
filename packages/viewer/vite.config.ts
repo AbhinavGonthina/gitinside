@@ -8,7 +8,7 @@ import react from "@vitejs/plugin-react";
 // subsets into base64 in style.css; the app's bundler emits them as files
 // instead (ADR-0047). The tokens are dist/style.css (`@gitinside/viewer/styles.css`).
 // simple-icons is bundled: only the logos brands.ts names survive tree-shaking
-// (ADR-0048). The schema is imported for types only and stays external.
+// (ADR-0048). The schema (a dependency: types plus `compareStrings`) stays external.
 export default defineConfig({
   plugins: [react()],
   build: {

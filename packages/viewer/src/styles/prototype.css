@@ -194,8 +194,10 @@
   color: var(--text);
 }
 
+/* The trace color marks the current step as a bar (a graphic, 3:1); its text stays --text (4.5:1). */
 .gi-proto__step[aria-current="step"] {
   background: color-mix(in srgb, var(--trace) 12%, var(--surface-1));
+  box-shadow: inset 3px 0 0 var(--trace);
   color: var(--text);
 }
 
@@ -207,7 +209,7 @@
 }
 
 .gi-proto__step[aria-current="step"] .gi-proto__step-number {
-  color: var(--trace);
+  color: var(--text);
   font-weight: var(--font-weight-semibold);
 }
 

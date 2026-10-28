@@ -1,6 +1,6 @@
 import { composeStories } from "@storybook/react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExplorerPrototype } from "./ExplorerPrototype.js";
 import * as stories from "./Prototype.stories.js";
 import { shopDemo, shopDemoSources } from "./shopDemo.testkit.js";
@@ -173,6 +173,68 @@ describe("ExplorerPrototype", () => {
     press("Escape");
     expect(node("src")).toBeNull();
     press("Escape"); // nothing left to undo
+  });
+
+  it("lists a node once per edge in the inspector, without duplicate React keys (M4a review)", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    setup({ initialSelected: "module:api/src" });
+    const calls = screen.getByRole("heading", { name: /^Calls/ }).closest("section") as HTMLElement;
+    const order = within(calls).getAllByRole("button", { name: /^Order/ });
+    expect(order.map((b) => b.textContent?.match(/reads|writes/)?.[0])).toEqual([
+      "reads",
+      "writes",
+    ]);
+    expect(errors.mock.calls.flat().join(" ")).not.toMatch(/same key/);
+    errors.mockRestore();
+  });
+
+  it("closes the legend before anything else on Esc, focus back on its button (M4a review)", () => {
+    const { container, node, press } = setup({ initialOpen: "service:api/" });
+    const toggle = screen.getByRole("button", { name: "Legend" });
+    fireEvent.click(toggle);
+    const close = screen.getByRole("button", { name: "Close legend" });
+    close.focus();
+    press("Escape", close);
+    expect(container.querySelector(".gi-legend")).toBeNull();
+    expect(node("src")).not.toBeNull(); // still broken down
+    expect(document.activeElement).toBe(toggle);
+    press("Escape", toggle);
+    expect(node("src")).toBeNull();
+  });
+
+  it("tabs through the canvas in reading order (M4a review)", () => {
+    const { container } = setup({ initialOpen: "service:api/" });
+    const ids = [...container.querySelectorAll<HTMLElement>(".gi-proto__node")].map(
+      (el) => el.dataset.nodeId,
+    );
+    expect(ids).toEqual([
+      "service:web/",
+      "service:api/",
+      "module:api/prisma",
+      "module:api/src",
+      "datastore:infra/db",
+      "external:ext/api.stripe.com",
+    ]);
+  });
+
+  it("keeps keyboard focus in the explorer when a trace control disappears (M4a review)", () => {
+    const { node, heading, press } = setup({ initialSelected: "page:web//checkout" });
+    // "Trace from here" is replaced by the step player: focus lands on the current step.
+    const start = screen.getByRole("button", { name: /Trace from here/ });
+    start.focus();
+    fireEvent.click(start);
+    expect(document.activeElement?.textContent).toBe("1page /checkout renders Checkout");
+    // The last step disables "Next step"; Esc from the player removes it.
+    const next = screen.getByRole("button", { name: /Next step/ });
+    next.focus();
+    for (let i = 0; i < 7; i++) fireEvent.click(next);
+    expect(document.activeElement?.getAttribute("aria-current")).toBe("step");
+    press("Escape", document.activeElement as Element);
+    expect(heading().textContent).toBe("/checkout");
+    // Back on the box the trace started from, so the next Esc still works.
+    expect(document.activeElement).toBe(node("@shop/web"));
+    press("Escape", document.activeElement as Element);
+    expect(heading().textContent).toBe("shop-demo");
   });
 
   it("traces from the top bar and from the start page's inspector, and ignores modified keys", () => {

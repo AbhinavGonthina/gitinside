@@ -58,6 +58,12 @@ export interface PlacedEdge {
 /** The whole layout: a box per visible node, routed edges, and the canvas size. */
 export interface Layout {
   boxes: ReadonlyMap<string, Rect>;
+  /**
+   * Visible node IDs in reading order: columns left to right, top to bottom
+   * within a column, an open frame's children right after the frame. The
+   * explorer renders nodes in this order so Tab follows it (UX.md).
+   */
+  order: readonly string[];
   edges: readonly PlacedEdge[];
   width: number;
   height: number;
@@ -124,8 +130,11 @@ export function layout(index: GraphIndex, open: string | null, edges: readonly V
     }
   }
 
+  const order = used.flat().flatMap((id) => (id === open ? [id, ...inner.map((c) => c.id)] : [id]));
+
   return {
     boxes,
+    order,
     edges: routeEdges(edges, boxes),
     width: x - COLUMN_GAP + PAD,
     height: tallest + 2 * PAD,
