@@ -151,6 +151,9 @@ vite.config.ts.timestamp-*
 # Turbo Repo
 .turbo
 
+# Storybook static build
+storybook-static/
+
 
 # Claude Code local settings
 .claude/settings.local.json

@@ -23,6 +23,7 @@ The output is a schema-valid `architecture.json`, the same bytes every time for 
 A pnpm + Turborepo monorepo:
 - `packages/schema` holds the graph format (types + Zod validator).
 - `packages/analyzer` holds the analysis pipeline and CLI (inventory → workspaces → per-service TypeScript programs → detectors → validated graph).
+- `packages/viewer` holds the explorer's React components and their Storybook (`pnpm --filter @gitinside/viewer storybook`); in progress (M4a).
 - `eval/` holds the accuracy eval (pinned repos, hand-written labels, scorer, committed reports).
 - `bench/` holds benchmarks, and `fixtures/` holds golden test repos.
 

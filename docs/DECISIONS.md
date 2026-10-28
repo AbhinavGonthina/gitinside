@@ -460,3 +460,15 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - **Newest report** is chosen by date, then version numerically (`0.10.0` after `0.9.0`).
 - **Not changed:** a same-day rerun replaces that day's report rather than refusing. Git history keeps the old one, the Run record names the code, and the "re-run `pnpm eval` after any input change" rule (ADR-0043) would otherwise need a new name scheme. The review's other suggestion, summarizing review disagreements in the report, waits until the review exists (planning #1).
 - **Consequences:** the report was regenerated. Its numbers are unchanged; only the Run commit and the derived wording can differ.
+
+## ADR-0046: Viewer package scaffold: React 19, Vite library mode, Storybook 8, theme on one attribute
+- **Context:** M4a.1 needs `packages/viewer` (ROADMAP M4a) for `apps/web` (Next.js, M5) and Storybook, with visual tests in dark and light later (M4a.8).
+- **Decision:**
+  - **React 19** as a peer dependency, so the Next.js app supplies the single copy (Next 15 ships React 19). React Flow (ADR-0011) is added when the graph canvas arrives (M4b).
+  - **Vite library mode** builds one ES module bundle with React external; `tsc --emitDeclarationOnly` writes the types into the same `dist/`. The package exports `dist/` like `@gitinside/schema`, so turbo's `^build` ordering works unchanged.
+  - **Vite 5.4.21**, the version Vitest 2.1.8 already resolves. Two Vite copies made `plugins` fail typecheck under `exactOptionalPropertyTypes`.
+  - **Storybook 8.6** (`react-vite`, `addon-essentials`, telemetry off). A preview decorator wraps every story in `ViewerRoot` with a `theme` global (toolbar, and `&globals=theme:light` in URLs for visual tests). CI builds Storybook on every push (TESTING.md).
+  - **Theme = `data-theme` on `ViewerRoot`.** Tokens (M4a.2) will be CSS variables keyed on `[data-theme]`, so switching themes changes one attribute and re-renders nothing below it.
+  - **Tests** use Vitest + jsdom + Testing Library; coverage threshold 70% (TESTING.md, "others").
+- **Alternatives rejected:** `vite-plugin-dts` (an extra dependency for what `tsc` does); a React context for theme (every consumer re-renders on switch, and CSS couldn't see it).
+- **Consequences:** `.storybook/` and the Vite configs are typechecked with the package (only `src/` is emitted). ESLint gives the viewer browser globals.
