@@ -14,11 +14,12 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4a.9. M4a-review.md with screenshots + needs-abhinav design-approval issue
+M5.1. Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
+- [#2](https://github.com/AbhinavGonthina/gitinside-planning/issues/2) **M4a design gate:** approve the visual language (docs/milestones/M4a-review.md). Blocks all of M4b; on close: apply his comments to DESIGN_SYSTEM.md and the components (drop "pending the design gate"), then remove the M4b `{blocked: design gate #2}` tags.
 
 ## Blockers
 - none
@@ -75,28 +76,28 @@ M4a.9. M4a-review.md with screenshots + needs-abhinav design-approval issue
 - [x] M4a.6 Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend, palette shell) {model: opus}
 - [x] M4a.7 Static clickable prototype on a fixture graph {model: opus}
 - [x] M4a.8 Visual regression baseline (stories, light + dark, Linux CI) {model: opus}
-- [ ] M4a.9 M4a-review.md with screenshots + needs-abhinav design-approval issue; UI work then waits for approval {model: opus}
+- [x] M4a.9 M4a-review.md with screenshots + needs-abhinav design-approval issue; UI work then waits for approval {model: opus}
 
 ### M4b: Interactive explorer
-- [ ] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility {model: opus}
-- [ ] M4b.2 ELK layout in a Web Worker with stable ordering + layout cache {model: opus}
-- [ ] M4b.3 Semantic drill-down with animated in-place transitions + reduced motion {model: opus}
-- [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
-- [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub) {model: opus}
-- [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus}
-- [ ] M4b.7 Ctrl+K command palette {model: opus}
-- [ ] M4b.8 Filters {model: opus}
-- [ ] M4b.9 Deep links {model: opus}
-- [ ] M4b.10 Export SVG / PNG / Mermaid {model: opus}
-- [ ] M4b.11 Keyboard navigation + screen-reader announcements {model: opus}
-- [ ] M4b.12 Onboarding hints + empty/error states {model: opus}
-- [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus}
-- [ ] M4b.14 Playwright E2E + visual tests {model: opus}
-- [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
+- [ ] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility {model: opus} {blocked: design gate #2}
+- [ ] M4b.2 ELK layout in a Web Worker with stable ordering + layout cache {model: opus} {blocked: design gate #2}
+- [ ] M4b.3 Semantic drill-down with animated in-place transitions + reduced motion {model: opus} {blocked: design gate #2}
+- [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus} {blocked: design gate #2}
+- [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub) {model: opus} {blocked: design gate #2}
+- [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus} {blocked: design gate #2}
+- [ ] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus} {blocked: design gate #2}
+- [ ] M4b.8 Filters {model: opus} {blocked: design gate #2}
+- [ ] M4b.9 Deep links {model: opus} {blocked: design gate #2}
+- [ ] M4b.10 Export SVG / PNG / Mermaid {model: opus} {blocked: design gate #2}
+- [ ] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus} {blocked: design gate #2}
+- [ ] M4b.12 Onboarding hints + empty/error states {model: opus} {blocked: design gate #2}
+- [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus} {blocked: design gate #2}
+- [ ] M4b.14 Playwright E2E + visual tests {model: opus} {blocked: design gate #2}
+- [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus} {blocked: design gate #2}
 
 ### M5: Website (public) + live badge
 - [ ] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
-- [ ] M5.2 apps/web Next.js scaffold, landing page, viewer integration {model: opus}
+- [ ] M5.2 apps/web Next.js scaffold, landing page, viewer integration (incl. a separate viewer fonts entry so the library imports without CSS, M4a review) {model: opus}
 - [ ] M5.3 Drizzle schema + migrations (local Postgres in Docker for dev/CI) {model: opus}
 - [ ] M5.4 apps/worker: BullMQ worker + HMAC enqueue API + safe tarball extraction + child-process limits {model: opus}
 - [ ] M5.5 Worker: R2 upload, Postgres writes, progress events {model: opus}
@@ -154,6 +155,8 @@ M4a.9. M4a-review.md with screenshots + needs-abhinav design-approval issue
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M4a.9: milestone verified and tagged `m4a`; review in `docs/milestones/M4a-review.md` (13 stories × 2 themes of Linux screenshots in `docs/milestones/M4a/`); design gate opened as planning #2, all M4b tagged blocked. The fresh-eyes review (3 medium, 6 low) plus a Chromium click-through were fixed in `c2bfc8a` (ADR-0054): reading-order Tab, focus restored when trace controls vanish (Esc stopped working), trace step number 3.71:1 ⇒ bar, duplicate inspector keys, Esc closes the legend first, CI permissions, orphan/mono visual checks. Deferred into M4b.7, M4b.11, M5.2. Tracing baselines re-captured. 1,123 tests, viewer 99.7%. Next: M5.1.
 
 - 2026-10-28 · M4a.8: `packages/viewer/visual/`: cases from the built Storybook's `index.json` (every story × dark/light, 52 shots; empty/unknown index throws), one Playwright spec that checks theme, tokens, Geist, page coverage, and no errors before a strict full-page screenshot. Linux only in `mcr.microsoft.com/playwright:v1.64.1-noble`: new CI `visual` job compares; the dispatch-only **Visual baselines** workflow captures them as an artifact (no Docker here). Trial run found wide stories drawn on white past the viewport, so the Storybook preview root now grows with its story (ADR-0053). 437 viewer tests. Next: M4a.9.
 
