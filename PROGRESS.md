@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M2.11. Milestone verification + M2-review.md + tag m2
+M3.1. eval/ package scaffold + ground-truth format per docs/EVALUATION.md
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -54,7 +54,7 @@ M2.11. Milestone verification + M2-review.md + tag m2
 - [x] M2.8 BullMQ/queue client detection → publishes/consumes {model: opus}
 - [x] M2.9 Pattern fixtures + golden tests + "no call site dropped" test + secret-leak test {model: opus}
 - [x] M2.10 docs/walkthroughs/resolver.md (line-by-line, diagrams, explain-it-back checklist) {model: opus}
-- [ ] M2.11 Milestone verification + M2-review.md + tag m2 {model: opus}
+- [x] M2.11 Milestone verification + M2-review.md + tag m2 {model: opus}
 
 ### M3: Accuracy eval harness
 - [ ] M3.1 eval/ package scaffold + ground-truth format per docs/EVALUATION.md {model: opus}
@@ -154,6 +154,8 @@ M2.11. Milestone verification + M2-review.md + tag m2
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M2.11: milestone verified and tagged `m2`. The fresh-eyes review ran hostile repos against the built CLI and found 10 issues (7 confirmed by running). 9 fixed with tests in 3 commits (ADR-0039): exponential URL/factory evaluation (70 s and 110 s repros) ⇒ step budget, text cap, factory memo; empty hosts/queue/compose names crashed the whole analysis; two masking gaps (`&token=`, strings in calls inside the URL) and unmasked queue payloads; dropped factory publishes; literal Prisma URLs linked by engine; mutable configs; open env quotes. Kept: unbound param hole ⇒ `exact` (DESIGN §7.4), logged for M3. 598 tests, analyzer 97.49%; goldens and cal.com counts unchanged. Review: `docs/milestones/M2-review.md`. Next: M3.1.
 
 - 2026-10-28 · M2.10: `docs/walkthroughs/resolver.md` walks every function of `values.ts` → `http.ts` → `url.ts` → `wrappers.ts` → `match.ts` in data-flow order, with line-by-line passes over the tricky parts (`traceAxiosSymbol`, `toUrlPattern`, `parameterParts`, `boundMethod`, `alignSegments`, `match`). The `wrapper-fetch` fixture is traced through all four stages to its golden edges, incl. why `requestVia` is `WRAPPER_DEPTH`. Four Mermaid diagrams, a DP table, a confidence-source table, and a 20-item explain-it-back checklist. Docs only; lint green. Next: M2.11.
 
