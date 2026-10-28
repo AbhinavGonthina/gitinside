@@ -30,7 +30,7 @@ These are mandatory standards. Nobody reviews each autopilot step, so the tests 
 Each fixture under `fixtures/` is a small hand-written repo exercising **one** pattern, with an `expected.json` golden graph and a `README.md` stating what it tests. Required set (added in the milestone that needs it):
 
 - **M1:** `express-basic`, `express-nested-routers`, `next-app-router`, `next-pages-api`, `prisma-relations`, `pnpm-monorepo`, `syntax-error`, `no-tsconfig`.
-- **M2:** `fetch-template-literal`, `axios-baseurl-instance`, `env-base-heuristic`, `ambiguous-routes`, `wrapper-fetch`, `external-sdk`, `compose-and-env`, `fake-secrets`.
+- **M2:** `fetch-template-literal`, `axios-baseurl-instance`, `env-base-heuristic`, `ambiguous-routes`, `wrapper-fetch`, `external-sdk`, `compose-and-env`, `fake-secrets`, `queues-bullmq`. `fixtures.test.ts` also asserts over every fixture that each collected HTTP call has an edge ("no call site dropped") and that no env value or planted secret reaches the output.
 - **M6:** `diff-removed-route-still-called` (base and head), `diff-renamed-file`, `diff-changed-method`, `diff-removed-model-field`.
 - **Malicious (M5):** `postinstall-script`, `huge-file`, `symlink-escape`, `path-traversal-tar`, `zip-bomb`, `deep-nesting`, `too-many-files` (generated in test, not committed).
 

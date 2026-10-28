@@ -1,0 +1,187 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:compose-and-env/src/todos.ts#listTodos",
+      "id": "reads:symbol:compose-and-env/src/todos.ts#listTodos->model:compose-and-env/Todo",
+      "kind": "reads",
+      "sites": [
+        {
+          "column": 22,
+          "file": "src/todos.ts",
+          "line": 6
+        }
+      ],
+      "to": "model:compose-and-env/Todo"
+    },
+    {
+      "confidence": "exact",
+      "from": "model:compose-and-env/Todo",
+      "id": "stores:model:compose-and-env/Todo->datastore:infra/db",
+      "kind": "stores",
+      "sites": [
+        {
+          "column": 1,
+          "file": "prisma/schema.prisma",
+          "line": 1
+        }
+      ],
+      "to": "datastore:infra/db"
+    }
+  ],
+  "nodes": [
+    {
+      "engine": "redis",
+      "id": "datastore:infra/cache",
+      "kind": "datastore",
+      "label": "cache",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 3,
+        "file": "docker-compose.yml",
+        "line": 6
+      }
+    },
+    {
+      "engine": "postgres",
+      "id": "datastore:infra/db",
+      "kind": "datastore",
+      "label": "db",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 3,
+        "file": "docker-compose.yml",
+        "line": 2
+      }
+    },
+    {
+      "engine": "mongo",
+      "id": "datastore:infra/env#SEARCH_DB_URL",
+      "kind": "datastore",
+      "label": "mongo",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 1,
+        "file": ".env.example",
+        "line": 6
+      }
+    },
+    {
+      "hash": "1810cca61355af008af7d96c383e2102e8ceed6810a4f12dac68cc4d841063b2",
+      "id": "file:compose-and-env/prisma/schema.prisma",
+      "kind": "file",
+      "label": "schema.prisma",
+      "parentId": "module:compose-and-env/prisma",
+      "path": "prisma/schema.prisma"
+    },
+    {
+      "hash": "e084b42b0a5e5328c0b6ced6c8b50334cd0708b032158f4b0869eaed6c6f1d32",
+      "id": "file:compose-and-env/src/todos.ts",
+      "kind": "file",
+      "label": "todos.ts",
+      "parentId": "module:compose-and-env/src",
+      "path": "src/todos.ts"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "Int"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "String"
+        },
+        {
+          "name": "done",
+          "optional": false,
+          "type": "Boolean"
+        }
+      ],
+      "id": "model:compose-and-env/Todo",
+      "kind": "model",
+      "label": "Todo",
+      "layer": "data",
+      "parentId": "file:compose-and-env/prisma/schema.prisma",
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "prisma/schema.prisma",
+        "line": 10
+      }
+    },
+    {
+      "id": "module:compose-and-env/prisma",
+      "kind": "module",
+      "label": "prisma",
+      "parentId": "service:compose-and-env/",
+      "path": "prisma"
+    },
+    {
+      "id": "module:compose-and-env/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:compose-and-env/",
+      "path": "src"
+    },
+    {
+      "engine": "rabbitmq",
+      "id": "queue:infra/broker",
+      "kind": "queue",
+      "label": "broker",
+      "layer": "infra",
+      "parentId": "system:root",
+      "source": {
+        "column": 3,
+        "file": "docker-compose.yml",
+        "line": 10
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:compose-and-env/",
+      "kind": "service",
+      "label": "compose-and-env",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:compose-and-env/src/todos.ts#listTodos",
+      "kind": "symbol",
+      "label": "listTodos",
+      "parentId": "file:compose-and-env/src/todos.ts",
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/todos.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "compose-and-env",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "compose-and-env",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

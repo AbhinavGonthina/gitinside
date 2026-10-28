@@ -1,0 +1,200 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "file:fetch-template-literal/src/client.ts",
+      "id": "http:file:fetch-template-literal/src/client.ts->route:fetch-template-literal/GET /api/users",
+      "kind": "http",
+      "label": "GET /api/users",
+      "sites": [
+        {
+          "column": 6,
+          "file": "src/client.ts",
+          "line": 20
+        }
+      ],
+      "to": "route:fetch-template-literal/GET /api/users"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fetch-template-literal/src/client.ts#listUsers",
+      "id": "http:symbol:fetch-template-literal/src/client.ts#listUsers->route:fetch-template-literal/GET /api/users",
+      "kind": "http",
+      "label": "GET /api/users",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/client.ts",
+          "line": 9
+        }
+      ],
+      "to": "route:fetch-template-literal/GET /api/users"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:fetch-template-literal/src/client.ts#loadTeams",
+      "id": "http:symbol:fetch-template-literal/src/client.ts#loadTeams->unresolved:fetch-template-literal/src/client.ts:15:21",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/client.ts",
+          "line": 15
+        }
+      ],
+      "to": "unresolved:fetch-template-literal/src/client.ts:15:21"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fetch-template-literal/src/client.ts#loadUser",
+      "id": "http:symbol:fetch-template-literal/src/client.ts#loadUser->route:fetch-template-literal/GET /api/users/:id",
+      "kind": "http",
+      "label": "GET /api/users/:id",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/client.ts",
+          "line": 3
+        }
+      ],
+      "to": "route:fetch-template-literal/GET /api/users/:id"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "a47a7fa0b5a1e4040e40fbde84e05751cc1ab2de0825ba0bb15085bce86e9888",
+      "id": "file:fetch-template-literal/src/client.ts",
+      "kind": "file",
+      "label": "client.ts",
+      "parentId": "module:fetch-template-literal/src",
+      "path": "src/client.ts"
+    },
+    {
+      "hash": "2a2e00ba1aef6364a2c5297f03f5f49862f82f9d0ac553c12ccc141e264f9da3",
+      "id": "file:fetch-template-literal/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:fetch-template-literal/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:fetch-template-literal/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:fetch-template-literal/",
+      "path": "src"
+    },
+    {
+      "id": "route:fetch-template-literal/GET /api/users",
+      "kind": "route",
+      "label": "GET /api/users",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:fetch-template-literal/src/server.ts",
+      "path": "/api/users",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:fetch-template-literal/GET /api/users/:id",
+      "kind": "route",
+      "label": "GET /api/users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:fetch-template-literal/src/server.ts",
+      "path": "/api/users/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:fetch-template-literal/",
+      "kind": "service",
+      "label": "fetch-template-literal",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:fetch-template-literal/src/client.ts#listUsers",
+      "kind": "symbol",
+      "label": "listUsers",
+      "parentId": "file:fetch-template-literal/src/client.ts",
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/client.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fetch-template-literal/src/client.ts#loadTeams",
+      "kind": "symbol",
+      "label": "loadTeams",
+      "parentId": "file:fetch-template-literal/src/client.ts",
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/client.ts",
+        "line": 14
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fetch-template-literal/src/client.ts#loadUser",
+      "kind": "symbol",
+      "label": "loadUser",
+      "parentId": "file:fetch-template-literal/src/client.ts",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/client.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "fetch-template-literal",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches GET to /api/teams",
+      "expression": "fetch(\"/api/teams\")",
+      "id": "unresolved:fetch-template-literal/src/client.ts:15:21",
+      "kind": "unresolved",
+      "label": "GET /api/teams",
+      "parentId": "service:fetch-template-literal/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 21,
+        "file": "src/client.ts",
+        "line": 15
+      }
+    }
+  ],
+  "repo": {
+    "name": "fetch-template-literal",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

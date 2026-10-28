@@ -1,0 +1,159 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "symbol:ambiguous-routes/src/client.ts#acmeItems",
+      "id": "http:symbol:ambiguous-routes/src/client.ts#acmeItems->route:ambiguous-routes/GET /v1/:org/items",
+      "kind": "http",
+      "label": "GET /v1/:org/items",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/client.ts",
+          "line": 3
+        }
+      ],
+      "to": "route:ambiguous-routes/GET /v1/:org/items"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:ambiguous-routes/src/client.ts#acmeItems",
+      "id": "http:symbol:ambiguous-routes/src/client.ts#acmeItems->route:ambiguous-routes/GET /v1/acme/:kind",
+      "kind": "http",
+      "label": "GET /v1/acme/:kind",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/client.ts",
+          "line": 3
+        }
+      ],
+      "to": "route:ambiguous-routes/GET /v1/acme/:kind"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ambiguous-routes/src/client.ts#orgItems",
+      "id": "http:symbol:ambiguous-routes/src/client.ts#orgItems->route:ambiguous-routes/GET /v1/:org/items",
+      "kind": "http",
+      "label": "GET /v1/:org/items",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/client.ts",
+          "line": 9
+        }
+      ],
+      "to": "route:ambiguous-routes/GET /v1/:org/items"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "bf333b53b4cdde87c2d9615dcc9bb537817a66d2f006f172d174222654534885",
+      "id": "file:ambiguous-routes/src/client.ts",
+      "kind": "file",
+      "label": "client.ts",
+      "parentId": "module:ambiguous-routes/src",
+      "path": "src/client.ts"
+    },
+    {
+      "hash": "064e74378363980a44329906e5124633b25a1f1917a66d2377bbbc3603959b07",
+      "id": "file:ambiguous-routes/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:ambiguous-routes/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:ambiguous-routes/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:ambiguous-routes/",
+      "path": "src"
+    },
+    {
+      "id": "route:ambiguous-routes/GET /v1/:org/items",
+      "kind": "route",
+      "label": "GET /v1/:org/items",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ambiguous-routes/src/server.ts",
+      "path": "/v1/:org/items",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:ambiguous-routes/GET /v1/acme/:kind",
+      "kind": "route",
+      "label": "GET /v1/acme/:kind",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ambiguous-routes/src/server.ts",
+      "path": "/v1/acme/:kind",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:ambiguous-routes/",
+      "kind": "service",
+      "label": "ambiguous-routes",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:ambiguous-routes/src/client.ts#acmeItems",
+      "kind": "symbol",
+      "label": "acmeItems",
+      "parentId": "file:ambiguous-routes/src/client.ts",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/client.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ambiguous-routes/src/client.ts#orgItems",
+      "kind": "symbol",
+      "label": "orgItems",
+      "parentId": "file:ambiguous-routes/src/client.ts",
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/client.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "ambiguous-routes",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "ambiguous-routes",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

@@ -1,0 +1,305 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-fetch/src/http.ts#requestVia",
+      "id": "calls:symbol:wrapper-fetch/src/http.ts#requestVia->symbol:wrapper-fetch/src/http.ts#requestRaw",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/http.ts",
+          "line": 15
+        }
+      ],
+      "to": "symbol:wrapper-fetch/src/http.ts#requestRaw"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-fetch/src/projects.ts#createProject",
+      "id": "calls:symbol:wrapper-fetch/src/projects.ts#createProject->symbol:wrapper-fetch/src/http.ts#request",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/projects.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:wrapper-fetch/src/http.ts#request"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-fetch/src/projects.ts#legacyProjects",
+      "id": "calls:symbol:wrapper-fetch/src/projects.ts#legacyProjects->symbol:wrapper-fetch/src/http.ts#requestVia",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/projects.ts",
+          "line": 12
+        }
+      ],
+      "to": "symbol:wrapper-fetch/src/http.ts#requestVia"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-fetch/src/projects.ts#listProjects",
+      "id": "calls:symbol:wrapper-fetch/src/projects.ts#listProjects->symbol:wrapper-fetch/src/http.ts#request",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/projects.ts",
+          "line": 4
+        }
+      ],
+      "to": "symbol:wrapper-fetch/src/http.ts#request"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:wrapper-fetch/src/http.ts#requestVia",
+      "id": "http:symbol:wrapper-fetch/src/http.ts#requestVia->unresolved:wrapper-fetch/src/http.ts:15:10",
+      "kind": "http",
+      "reason": "WRAPPER_DEPTH",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/http.ts",
+          "line": 15
+        }
+      ],
+      "to": "unresolved:wrapper-fetch/src/http.ts:15:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-fetch/src/projects.ts#createProject",
+      "id": "http:symbol:wrapper-fetch/src/projects.ts#createProject->route:wrapper-fetch/POST /api/projects",
+      "kind": "http",
+      "label": "POST /api/projects",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/projects.ts",
+          "line": 8
+        }
+      ],
+      "to": "route:wrapper-fetch/POST /api/projects"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-fetch/src/projects.ts#listProjects",
+      "id": "http:symbol:wrapper-fetch/src/projects.ts#listProjects->route:wrapper-fetch/GET /api/projects",
+      "kind": "http",
+      "label": "GET /api/projects",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/projects.ts",
+          "line": 4
+        }
+      ],
+      "to": "route:wrapper-fetch/GET /api/projects"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:wrapper-fetch/src/projects.ts",
+      "id": "imports:file:wrapper-fetch/src/projects.ts->file:wrapper-fetch/src/http.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 37,
+          "file": "src/projects.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:wrapper-fetch/src/http.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "579c02f6e7e09c4b6b3298930b14da6b30c9b591ebfe5ff60524c90c5cd023cd",
+      "id": "file:wrapper-fetch/src/http.ts",
+      "kind": "file",
+      "label": "http.ts",
+      "parentId": "module:wrapper-fetch/src",
+      "path": "src/http.ts"
+    },
+    {
+      "hash": "b462a792648d486c7c13cde949e34b1d035eddf467db517f34bb83e0b05df7fa",
+      "id": "file:wrapper-fetch/src/projects.ts",
+      "kind": "file",
+      "label": "projects.ts",
+      "parentId": "module:wrapper-fetch/src",
+      "path": "src/projects.ts"
+    },
+    {
+      "hash": "83cdab94c06511ca72290f600228faaaae96922d139f92593932077a00c05651",
+      "id": "file:wrapper-fetch/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:wrapper-fetch/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:wrapper-fetch/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:wrapper-fetch/",
+      "path": "src"
+    },
+    {
+      "id": "route:wrapper-fetch/GET /api/projects",
+      "kind": "route",
+      "label": "GET /api/projects",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:wrapper-fetch/src/server.ts",
+      "path": "/api/projects",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:wrapper-fetch/POST /api/projects",
+      "kind": "route",
+      "label": "POST /api/projects",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:wrapper-fetch/src/server.ts",
+      "path": "/api/projects",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:wrapper-fetch/",
+      "kind": "service",
+      "label": "wrapper-fetch",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-fetch/src/http.ts#request",
+      "kind": "symbol",
+      "label": "request",
+      "parentId": "file:wrapper-fetch/src/http.ts",
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/http.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-fetch/src/http.ts#requestRaw",
+      "kind": "symbol",
+      "label": "requestRaw",
+      "parentId": "file:wrapper-fetch/src/http.ts",
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "src/http.ts",
+        "line": 10
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-fetch/src/http.ts#requestVia",
+      "kind": "symbol",
+      "label": "requestVia",
+      "parentId": "file:wrapper-fetch/src/http.ts",
+      "source": {
+        "column": 1,
+        "endLine": 16,
+        "file": "src/http.ts",
+        "line": 14
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-fetch/src/projects.ts#createProject",
+      "kind": "symbol",
+      "label": "createProject",
+      "parentId": "file:wrapper-fetch/src/projects.ts",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "src/projects.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-fetch/src/projects.ts#legacyProjects",
+      "kind": "symbol",
+      "label": "legacyProjects",
+      "parentId": "file:wrapper-fetch/src/projects.ts",
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "src/projects.ts",
+        "line": 11
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-fetch/src/projects.ts#listProjects",
+      "kind": "symbol",
+      "label": "listProjects",
+      "parentId": "file:wrapper-fetch/src/projects.ts",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/projects.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "wrapper-fetch",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a parameter of the calling function, a wrapper more than one call deep",
+      "expression": "requestRaw(url)",
+      "id": "unresolved:wrapper-fetch/src/http.ts:15:10",
+      "kind": "unresolved",
+      "label": "GET requestRaw(url)",
+      "parentId": "service:wrapper-fetch/",
+      "reason": "WRAPPER_DEPTH",
+      "source": {
+        "column": 10,
+        "file": "src/http.ts",
+        "line": 15
+      }
+    }
+  ],
+  "repo": {
+    "name": "wrapper-fetch",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

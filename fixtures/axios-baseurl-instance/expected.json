@@ -1,0 +1,178 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:axios-baseurl-instance/src/orders.ts#createOrder",
+      "id": "http:symbol:axios-baseurl-instance/src/orders.ts#createOrder->route:axios-baseurl-instance/POST /api/orders",
+      "kind": "http",
+      "label": "POST /api/orders",
+      "sites": [
+        {
+          "column": 13,
+          "file": "src/orders.ts",
+          "line": 9
+        }
+      ],
+      "to": "route:axios-baseurl-instance/POST /api/orders"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:axios-baseurl-instance/src/orders.ts#getOrder",
+      "id": "http:symbol:axios-baseurl-instance/src/orders.ts#getOrder->route:axios-baseurl-instance/GET /api/orders/:id",
+      "kind": "http",
+      "label": "GET /api/orders/:id",
+      "sites": [
+        {
+          "column": 30,
+          "file": "src/orders.ts",
+          "line": 4
+        }
+      ],
+      "to": "route:axios-baseurl-instance/GET /api/orders/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:axios-baseurl-instance/src/orders.ts",
+      "id": "imports:file:axios-baseurl-instance/src/orders.ts->file:axios-baseurl-instance/src/api.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/orders.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:axios-baseurl-instance/src/api.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "28e2fa787308671365f6afb38ac7bfeb67a9e31fd29a92e884e67f00588195bb",
+      "id": "file:axios-baseurl-instance/src/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "parentId": "module:axios-baseurl-instance/src",
+      "path": "src/api.ts"
+    },
+    {
+      "hash": "4d185e72f9bb8c4a13976fa89f3cfe43e58c3ecc1bab1482f255589d8dc3e7b6",
+      "id": "file:axios-baseurl-instance/src/orders.ts",
+      "kind": "file",
+      "label": "orders.ts",
+      "parentId": "module:axios-baseurl-instance/src",
+      "path": "src/orders.ts"
+    },
+    {
+      "hash": "28abede8ea2dc0a0fb78b999eb62b53ef16838329d0c42447ee0a2b43356cacb",
+      "id": "file:axios-baseurl-instance/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:axios-baseurl-instance/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:axios-baseurl-instance/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:axios-baseurl-instance/",
+      "path": "src"
+    },
+    {
+      "id": "route:axios-baseurl-instance/GET /api/orders/:id",
+      "kind": "route",
+      "label": "GET /api/orders/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:axios-baseurl-instance/src/server.ts",
+      "path": "/api/orders/:id",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:axios-baseurl-instance/POST /api/orders",
+      "kind": "route",
+      "label": "POST /api/orders",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:axios-baseurl-instance/src/server.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:axios-baseurl-instance/",
+      "kind": "service",
+      "label": "axios-baseurl-instance",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:axios-baseurl-instance/src/api.ts#api",
+      "kind": "symbol",
+      "label": "api",
+      "parentId": "file:axios-baseurl-instance/src/api.ts",
+      "source": {
+        "column": 14,
+        "endLine": 4,
+        "file": "src/api.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:axios-baseurl-instance/src/orders.ts#createOrder",
+      "kind": "symbol",
+      "label": "createOrder",
+      "parentId": "file:axios-baseurl-instance/src/orders.ts",
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/orders.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:axios-baseurl-instance/src/orders.ts#getOrder",
+      "kind": "symbol",
+      "label": "getOrder",
+      "parentId": "file:axios-baseurl-instance/src/orders.ts",
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/orders.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "axios-baseurl-instance",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "axios-baseurl-instance",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

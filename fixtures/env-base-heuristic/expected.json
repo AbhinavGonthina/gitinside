@@ -1,0 +1,205 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/users.ts#loadMe",
+      "id": "http:symbol:web/src/users.ts#loadMe->route:api/GET /users/me",
+      "kind": "http",
+      "label": "GET /users/me",
+      "sites": [
+        {
+          "column": 21,
+          "file": "apps/web/src/users.ts",
+          "line": 11
+        }
+      ],
+      "to": "route:api/GET /users/me"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/users.ts#loadUser",
+      "id": "http:symbol:web/src/users.ts#loadUser->route:api/GET /users/:id",
+      "kind": "http",
+      "label": "GET /users/:id",
+      "sites": [
+        {
+          "column": 21,
+          "file": "apps/web/src/users.ts",
+          "line": 5
+        }
+      ],
+      "to": "route:api/GET /users/:id"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:web/src/users.ts#track",
+      "id": "http:symbol:web/src/users.ts#track->unresolved:web/src/users.ts:17:9",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 9,
+          "file": "apps/web/src/users.ts",
+          "line": 17
+        }
+      ],
+      "to": "unresolved:web/src/users.ts:17:9"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "f50b2dffc183b60ae0aa838043e212edebbb4e80dd9aab2fc0098ccd9f4dcd47",
+      "id": "file:api/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/server.ts"
+    },
+    {
+      "hash": "01a9f7a90b63ff61138a7fc805b081139a3a4a425e08e9fc1858e2c1d8f3d745",
+      "id": "file:web/src/users.ts",
+      "kind": "file",
+      "label": "users.ts",
+      "parentId": "module:web/src",
+      "path": "apps/web/src/users.ts"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "apps/api/src"
+    },
+    {
+      "id": "module:web/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:web/",
+      "path": "apps/web/src"
+    },
+    {
+      "id": "route:api/GET /users/:id",
+      "kind": "route",
+      "label": "GET /users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/users/:id",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:api/GET /users/me",
+      "kind": "route",
+      "label": "GET /users/me",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/users/me",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "@env/api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "apps/api"
+    },
+    {
+      "id": "service:web/",
+      "kind": "service",
+      "label": "@env/web",
+      "parentId": "system:root",
+      "root": "apps/web"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/users.ts#loadMe",
+      "kind": "symbol",
+      "label": "loadMe",
+      "parentId": "file:web/src/users.ts",
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "apps/web/src/users.ts",
+        "line": 10
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/users.ts#loadUser",
+      "kind": "symbol",
+      "label": "loadUser",
+      "parentId": "file:web/src/users.ts",
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "apps/web/src/users.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/users.ts#track",
+      "kind": "symbol",
+      "label": "track",
+      "parentId": "file:web/src/users.ts",
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "apps/web/src/users.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "env-base-heuristic",
+      "parentId": null
+    },
+    {
+      "detail": "the env var ANALYTICS_HOST isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "expression": "fetch(`${process.env.ANALYTICS_HOST}/users/${event}`, { method: \"POST\" })",
+      "id": "unresolved:web/src/users.ts:17:9",
+      "kind": "unresolved",
+      "label": "POST {env:ANALYTICS_HOST}/users/{}",
+      "parentId": "service:web/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 9,
+        "file": "apps/web/src/users.ts",
+        "line": 17
+      }
+    }
+  ],
+  "repo": {
+    "name": "env-base-heuristic",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/api",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/web",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
