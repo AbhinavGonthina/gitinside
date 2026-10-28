@@ -66,6 +66,7 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
   - `column` (the start of the call expression) is added only when one line holds several calls.
   - A call site normally has one label. When its URL is one of several alternatives the code fixes statically (`cond ? "/a" : "/b"`, a `let url` reassigned in a branch), it gets **one label per route reached**, each with the same `callSite` (ADR-0041).
   - Labels are sorted by call site (file, line, column), then target (`null` first, then route, file, line), and unique.
+  - Two labels at one call site can't name the same route as scoring compares it (registering file + method + path, parameter names and lines ignored), and a `null` label can't share a call site with a route label: it says the call reaches no route (ADR-0045).
 - **`method`** is the request's method (`GET`, `POST`, …), or `null` when the code computes it at runtime.
 - **`target`** is the route the request really reaches, or `null` when it reaches none in the repo (external host, a service outside the repo, a URL that can't be known statically). `file` + `line` are where the route is registered (the `router.post(…)` call, or the Next.js handler export or page file). `route` is `"<METHOD> <path>"` in the analyzer's route spelling (GRAPH_SCHEMA.md): the full path after mounts, `:name` for dynamic segments and `*name` for catch-alls (Next.js `[id]` ⇒ `:id`, `[...slug]` ⇒ `*slug`), no trailing slash, no query; `ALL` when the handler accepts any method.
 - **`labeler`** is `claude-draft` or `abhinav`; **`reviewedBy`** is the reviewer's GitHub login once the review is done.
@@ -87,7 +88,7 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 
 **Scoring** (`pnpm eval`; implemented in `eval/src/score.ts`, ADR-0042):
 - **Predictions:** every site of an `http` edge to a `route` node predicts that route at that site. Every site of an `http` edge to an `unresolved` node, or of an `external_call` edge to an `external` node, predicts "no route in the repo". Other edge kinds are not HTTP predictions. Predictions whose site is outside the label file's `scope` are not scored.
-- **Matching:** each label is scored on its own, so a call site with two labeled routes needs both predicted for full recall. A route prediction matches a label when the call site (file + line, plus column when the label has one) and target route (registering file + method + path, with parameter names ignored) agree. Route lines are not compared (the analyzer anchors a route at its method call, the label at the registering statement). The same route predicted twice for one label counts once.
+- **Matching:** each label is scored on its own, so a call site with two labeled routes needs both predicted for full recall. A route prediction matches a label when the call site (file + line, plus column when the label has one) and target route (registering file + method + path, with parameter names ignored) agree. Route lines are not compared (the analyzer anchors a route at its method call, the label at the registering statement). The same route predicted twice for one labeled call site counts once, whether it is right or wrong.
 - **True positive:** a route prediction that matches a label's target.
 - **False positive:** a route prediction that matches no label, listed with its kind: `wrong-route` (the site's label names another route), `route-for-null-label` (the label says `target: null`), or `unlabeled-site` (no label at that in-scope site).
 - **False negative:** a labeled target that was never predicted, listed with what was predicted at the site instead (another route, an unresolved node and its reason, an external host, or nothing).
@@ -103,9 +104,9 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 - Limitations.
 
 `pnpm eval` must reproduce a committed report byte-for-byte from pinned inputs (ADR-0043):
-- `pnpm eval [--label "<machine>"]` checks out each pinned SHA under `eval/.repos/` (gitignored; read only, never installed or run), analyzes and scores it, and writes the report (`eval/src/run.ts`, rendered by `eval/src/report.ts`).
+- `pnpm eval [--label "<machine>"]` checks out each pinned SHA under `eval/.repos/` (gitignored; read only, never installed or run), analyzes and scores it, and writes the report (`eval/src/run.ts`, rendered by `eval/src/report.ts`). Every run resets each checkout and deletes untracked and ignored files, and symlinks are checked out as plain files on every OS, so only the pinned tree is analyzed. A rerun on the same day with the same analyzer version replaces that day's report; git history keeps the old one.
 - The report's **Run** section (date, GitInside commit, machine) is the only part that isn't a function of the pinned inputs. A run from a tree with uncommitted changes to the inputs is marked `+ uncommitted changes` and can't be checked, so commit the code first, then run the eval, then commit the report.
-- `pnpm eval --check [report]` (default: the newest report) reads that Run section back, refuses if the analyzer, schema, eval code, labels, or lockfile differ from the recorded commit, regenerates the report, and fails unless the bytes are identical. The **Eval** GitHub Actions workflow runs it on demand.
+- `pnpm eval --check [report]` (default: the newest report by date, then version; a path is relative to where `pnpm` was run) reads that Run section back, refuses if the analyzer, schema, eval code, labels, or lockfile differ from the recorded commit, regenerates the report, and fails unless the bytes are identical. The **Eval** GitHub Actions workflow runs it on demand.
 
 **After M3:** any analyzer change states its eval delta in the commit body.
 

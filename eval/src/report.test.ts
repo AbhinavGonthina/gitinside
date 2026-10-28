@@ -1,6 +1,8 @@
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { EvalRepo, LabelFile } from "./format.js";
 import {
+  compareReportNames,
   DIRTY_MARK,
   firstDifference,
   parseRun,
@@ -8,6 +10,7 @@ import {
   renderReport,
   ReportError,
   reportFileName,
+  resolveReportArg,
   type ReportInput,
   type ReportRun,
 } from "./report.js";
@@ -158,6 +161,36 @@ describe("reportFileName", () => {
   });
 });
 
+describe("compareReportNames", () => {
+  it("sorts by date, then analyzer version numerically (M3 review)", () => {
+    const names = [
+      "2026-11-01-0.1.0.md",
+      "2026-10-28-0.10.0.md",
+      "notes.md",
+      "2026-10-28-1.0.0.md",
+      "2026-10-28-0.9.0.md",
+    ];
+    expect([...names].sort(compareReportNames)).toEqual([
+      "notes.md",
+      "2026-10-28-0.9.0.md",
+      "2026-10-28-0.10.0.md",
+      "2026-10-28-1.0.0.md",
+      "2026-11-01-0.1.0.md",
+    ]);
+  });
+});
+
+describe("resolveReportArg", () => {
+  it("resolves against the folder pnpm was run from, not the eval package (M3 review)", () => {
+    const root = resolve("/repo");
+    expect(resolveReportArg("eval/results/2026-10-28-0.1.0.md", root)).toBe(
+      join(root, "eval", "results", "2026-10-28-0.1.0.md"),
+    );
+    const abs = resolve("/elsewhere/r.md");
+    expect(resolveReportArg(abs, root)).toBe(abs);
+  });
+});
+
 describe("renderReport", () => {
   const text = renderReport(input());
 
@@ -173,6 +206,26 @@ describe("renderReport", () => {
     );
     expect(reviewed).not.toContain("Pending owner review");
     expect(reviewed).toContain("> **Labels reviewed** by `AbhinavGonthina`");
+    expect(reviewed).toContain("the owner reviewed a seeded random 20% of call sites");
+    expect(reviewed).not.toContain("until the owner review is done");
+  });
+
+  it("derives who labeled and how many repos from the inputs (M3 review)", () => {
+    expect(text).toContain("The labels were drafted by Claude from reading");
+    expect(text).toContain("- **Small set:** two small and mid-size apps");
+    expect(text).toContain("until the owner review is done");
+    const own = renderReport(
+      input({
+        repos: [repo("acme", "shop")],
+        labels: [{ ...LABELS_A, labeler: "abhinav" }],
+        score: { overall: SCORE_A.counts, repos: [SCORE_A] },
+      }),
+    );
+    expect(own).toContain("The labels were written by Abhinav from reading");
+    expect(own).toContain("- **Small set:** one small and mid-size app (");
+    expect(own).toContain("- **Who labeled:** Abhinav wrote the labels");
+    const mixed = renderReport(input({ labels: [LABELS_A, { ...LABELS_B, labeler: "abhinav" }] }));
+    expect(mixed).toContain("drafted by Claude or written by Abhinav (see each label file)");
   });
 
   it("records the run: date, commit, analyzer version, machine", () => {

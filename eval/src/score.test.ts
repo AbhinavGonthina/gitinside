@@ -376,13 +376,22 @@ describe("scoreRepo", () => {
     });
   });
 
-  it("counts the same route predicted twice for one label once", () => {
+  it("counts the same route predicted twice for one label once, right or wrong (M3 review)", () => {
     const g = graph({ routes: [users, user], edges: [http(users, [at(1, 5), at(1, 40)])] });
     const hit = scoreRepo(labels([label(1, users)]), g);
     expect(hit.counts).toMatchObject({ truePositives: 1, falsePositives: 0 });
+    // The label names the line only, so both sites are the same labeled call: one wrong answer.
     const g2 = graph({ routes: [users, user], edges: [http(user, [at(1, 5), at(1, 40)])] });
     const miss = scoreRepo(labels([label(1, users)]), g2);
-    expect(miss.counts.falsePositives).toBe(2);
+    expect(miss.counts).toMatchObject({ falsePositives: 1, falseNegatives: 1 });
+    // With columns, or with no label at all, the two sites are two calls: two wrong answers.
+    const columns = scoreRepo(
+      labels([label(1, users, { column: 5 }), label(1, users, { column: 40 })]),
+      g2,
+    );
+    expect(columns.counts.falsePositives).toBe(2);
+    const unlabeled = scoreRepo(labels([label(2, users)]), g2);
+    expect(unlabeled.counts.falsePositives).toBe(2);
   });
 
   it("compares the registering file", () => {

@@ -447,3 +447,16 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - **Generator:** FNV-1a 32-bit hash of the seed string into mulberry32, Fisher–Yates. Integer-only arithmetic, so the same on every platform and Node version; no dependency.
 - **Alternatives rejected:** one pooled shuffle (can miss a repo); `Math.random` or a time seed (not reproducible); sampling labels instead of sites (splits one judgment in two).
 - **Consequences:** the list in the review issue can be checked by anyone with the committed labels and the issue's date. Corrections go into the label files with a `notes` entry and `reviewedBy`, then a new report is generated.
+
+## ADR-0045: M3 fresh-eyes review fixes to the eval harness
+- **Context:** the M3.8 review (a context-free subagent, `m2..HEAD`) found no high-severity issues and confirmed the committed report reproduces. It found one real bug and eight latent gaps, five confirmed by running.
+- **Decision:**
+  - **`--check <path>` resolves against `INIT_CWD`** (where `pnpm` was run), not the eval package. The report's own "Reproduce" command failed with ENOENT before.
+  - **Checkouts are reset and cleaned** (`reset --hard`, `clean -ffdx`) on every run, and checked out with `core.symlinks=false` on every OS. Stray or ignored files (a reader's `node_modules`, a `.env`) could otherwise reach the analysis, and Linux and Windows would disagree on symlinks.
+  - **Wrong duplicates count once, like right ones:** when the label names only the line, the same wrong route at two columns is one FP, not two.
+  - **Labels scoring can't tell apart are rejected** by `format.ts`: two routes at one site with the same `routeKey`, or `null` mixed with a route at one site (the `null` label was never scored). No committed label file had either.
+  - **Report wording is derived** from the number of repos, `labeler`, and `reviewedBy`, instead of being fixed text.
+  - **The Eval workflow** gets `permissions: contents: read` and `persist-credentials: false`.
+  - **Newest report** is chosen by date, then version numerically (`0.10.0` after `0.9.0`).
+- **Not changed:** a same-day rerun replaces that day's report rather than refusing. Git history keeps the old one, the Run record names the code, and the "re-run `pnpm eval` after any input change" rule (ADR-0043) would otherwise need a new name scheme. The review's other suggestion, summarizing review disagreements in the report, waits until the review exists (planning #1).
+- **Consequences:** the report was regenerated. Its numbers are unchanged; only the Run commit and the derived wording can differ.

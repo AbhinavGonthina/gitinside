@@ -188,9 +188,8 @@ describe("parseLabelFile", () => {
     });
     const admin = { file: "r.ts", line: 9, route: "DELETE /api/posts/admin/:id" };
     const own = { file: "r.ts", line: 3, route: "DELETE /api/posts/:id" };
-    const parsed = parseLabelFile("x.json", labels({ edges: [at(null), at(own), at(admin)] }));
+    const parsed = parseLabelFile("x.json", labels({ edges: [at(own), at(admin)] }));
     expect(parsed.edges.map((e) => e.target?.route ?? null)).toEqual([
-      null,
       "DELETE /api/posts/:id",
       "DELETE /api/posts/admin/:id",
     ]);
@@ -203,8 +202,31 @@ describe("parseLabelFile", () => {
     expect(issues(() => parseLabelFile("x.json", labels({ edges: [at(own), at(own)] })))).toContain(
       "edges.1: duplicate label (call site + target)",
     );
+  });
+
+  it("rejects labels at one call site that scoring can't tell apart (M3 review)", () => {
+    const at = (target: { file: string; line: number; route: string } | null, line = 1) => ({
+      callSite: { file: "a.ts", line },
+      method: "GET",
+      target,
+    });
+    const own = { file: "r.ts", line: 3, route: "GET /api/posts/:id" };
+    const same = "same route as another label at this call site";
+    // Scoring ignores route lines and parameter names, so these would be one route twice.
+    expect(
+      issues(() => parseLabelFile("x.json", labels({ edges: [at(own), at({ ...own, line: 4 })] }))),
+    ).toContain(`edges.1.target: ${same}`);
+    const renamed = { ...own, route: "GET /api/posts/:postId" };
+    expect(
+      issues(() => parseLabelFile("x.json", labels({ edges: [at(own), at(renamed)] }))),
+    ).toContain(`edges.1.target: ${same}`);
+    // `null` says the call reaches no route, so it can't share a site with one.
+    expect(
+      issues(() => parseLabelFile("x.json", labels({ edges: [at(null), at(own)] }))),
+    ).toContain("edges.1.target: a call site can't be labeled both `null` and a route");
+    // Different sites are independent.
     expect(() =>
-      parseLabelFile("x.json", labels({ edges: [at(own), at({ ...own, line: 4 })] })),
+      parseLabelFile("x.json", labels({ edges: [at(null), at(own, 2), at(renamed, 3)] })),
     ).not.toThrow();
   });
 

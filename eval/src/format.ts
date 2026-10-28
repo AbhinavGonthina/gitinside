@@ -128,6 +128,45 @@ export function compareLabels(a: LabeledEdge, b: LabeledEdge): number {
   return compareLocations(a.callSite, b.callSite) || compareTargets(a.target, b.target);
 }
 
+/**
+ * A route's comparison key: method plus path with parameter names dropped (`:id` ⇒ `:`,
+ * `*slug` ⇒ `*`), plus the registering file.
+ */
+export function routeKey(file: string, route: string): string {
+  const space = route.indexOf(" ");
+  const method = route.slice(0, space);
+  const path = route
+    .slice(space + 1)
+    .split("/")
+    .map((s) => (s.startsWith(":") ? ":" : s.startsWith("*") ? "*" : s))
+    .join("/");
+  return `${file}\u0000${method} ${path}`;
+}
+
+/** Report labels at one call site that scoring can't tell apart, or that mix `null` with routes. */
+function checkSites(edges: readonly LabeledEdge[], ctx: z.RefinementCtx): void {
+  const sites = new Map<string, { hasNull: boolean; keys: Set<string> }>();
+  edges.forEach((edge, i) => {
+    const { file, line, column } = edge.callSite;
+    const id = `${file}:${line}:${column ?? ""}`;
+    const site = sites.get(id) ?? { hasNull: false, keys: new Set<string>() };
+    sites.set(id, site);
+    const issue = (message: string): void =>
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["edges", i, "target"], message });
+    if (edge.target === null) {
+      if (site.keys.size > 0) issue("a call site can't be labeled both `null` and a route");
+      site.hasNull = true;
+      return;
+    }
+    if (site.hasNull) issue("a call site can't be labeled both `null` and a route");
+    const key = routeKey(edge.target.file, edge.target.route);
+    if (site.keys.has(key)) {
+      issue("same route as another label at this call site (parameter names are ignored)");
+    }
+    site.keys.add(key);
+  });
+}
+
 /** Whether `file` lies inside one of the label file's scope entries (`.` = the whole repo). */
 export function inScope(scope: readonly string[], file: string): boolean {
   return scope.some((s) => s === "." || file === s || file.startsWith(`${s}/`));
@@ -173,6 +212,7 @@ export const labelFileSchema = z
   .superRefine((file, ctx) => {
     checkSorted(file.scope, compareStrings, ["scope"], "scope entry", ctx);
     checkSorted(file.edges, compareLabels, ["edges"], "label (call site + target)", ctx);
+    checkSites(file.edges, ctx);
     file.edges.forEach((edge, i) => {
       if (!inScope(file.scope, edge.callSite.file)) {
         ctx.addIssue({
