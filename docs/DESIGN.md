@@ -305,7 +305,7 @@ For each call (method M, pattern P), compare with every route (method M', patter
 
 | Method + path | Purpose |
 |---|---|
-| `POST /api/analyze` `{ url }` | Resolve the repo and latest SHA. Return the existing analysis, or enqueue. Rate-limited (5/h per IP signed out, 30/h signed in). |
+| `POST /api/analyze` `{ url }` | Resolve the repo and latest SHA. Return the existing analysis (`200 { status: "done", owner, repo, sha }`), or enqueue (`202 { status: "queued", jobId, … }`). Only new analyses are rate-limited (5/h per IP signed out, 30/h signed in); a commit in flight gets its job back free. Errors: `{ error, message }` (`INVALID_URL`, `REPO_NOT_FOUND` incl. private, `REPO_EMPTY`, `RATE_LIMITED` with `retryAt`, `UNAVAILABLE`, …). `apps/web/lib/analyze.ts`, ADR-0066 |
 | `GET /api/jobs/:id` | Status, stage, progress, queue position (SSE variant at `/api/jobs/:id/events`) |
 | `GET /api/graph/:owner/:repo/:sha` | Snapshot (public: redirect to CDN; private: access check, then a stream) |
 | `GET /api/diff/:owner/:repo/:base...:head` | Diff for the viewer |

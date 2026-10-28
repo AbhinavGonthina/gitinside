@@ -18,11 +18,11 @@ import { buildQueueEdges } from "./queues.js";
 import { buildSdkEdges } from "./sdk.js";
 import { buildSymbolNodes } from "./symbols.js";
 import { createUrlNormalizer } from "./url.js";
+import { ANALYZER_VERSION } from "./version.js";
 import { detectWorkspace, serviceNodes } from "./workspace.js";
 import { inlineWrappers } from "./wrappers.js";
 
-/** Version stamped into every graph. Part of the cache key, so bump it when output changes. */
-export const ANALYZER_VERSION = "0.1.0";
+export { ANALYZER_VERSION };
 
 /** Pipeline stages reported to {@link AnalyzeOptions.onStage}, in the order they run. */
 export const ANALYSIS_STAGES = [
