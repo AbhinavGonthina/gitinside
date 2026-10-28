@@ -64,7 +64,8 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
   - a `fetch`/axios call whose URL is fixed there (even inside a helper like `getUsers()`) is labeled at that call;
   - a call through a helper that takes the path as a parameter is labeled at each call *of the helper* (the outermost caller that supplies the path, however many helper levels deep);
   - `column` (the start of the call expression) is added only when one line holds several calls.
-  - Call sites are sorted by file, line, column, and unique.
+  - A call site normally has one label. When its URL is one of several alternatives the code fixes statically (`cond ? "/a" : "/b"`, a `let url` reassigned in a branch), it gets **one label per route reached**, each with the same `callSite` (ADR-0041).
+  - Labels are sorted by call site (file, line, column), then target (`null` first, then route, file, line), and unique.
 - **`method`** is the request's method (`GET`, `POST`, …), or `null` when the code computes it at runtime.
 - **`target`** is the route the request really reaches, or `null` when it reaches none in the repo (external host, a service outside the repo, a URL that can't be known statically). `file` + `line` are where the route is registered (the `router.post(…)` call, or the Next.js handler export or page file). `route` is `"<METHOD> <path>"` in the analyzer's route spelling (GRAPH_SCHEMA.md): the full path after mounts, `:name` for dynamic segments and `*name` for catch-alls (Next.js `[id]` ⇒ `:id`, `[...slug]` ⇒ `*slug`), no trailing slash, no query; `ALL` when the handler accepts any method.
 - **`labeler`** is `claude-draft` or `abhinav`; **`reviewedBy`** is the reviewer's GitHub login once the review is done.
@@ -72,7 +73,7 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 
 **Labeling method** (D10.3):
 1. Labels are drafted by reading the code: find every outbound HTTP call site (grep `fetch(`, `axios`, client wrappers) and trace it by hand to its route.
-   - **What is labeled:** every `fetch`/axios request written in the repo's TS/JS source, at the call site defined above. **Not labeled**, because no request expression is in the repo's code: requests made inside third-party libraries (MCP `SSEClientTransport`, NextAuth's `getSession`, SDK clients such as `@google/generative-ai`), socket.io/WebSocket clients, `<a href>` navigations, and scripts inline in `.html` files. These are fixed before scoring so they can't be tuned to the result.
+   - **What is labeled:** every `fetch`/axios request written in the repo's TS/JS source, at the call site defined above. **Not labeled**, because no request expression is in the repo's code: requests made inside third-party libraries (MCP `SSEClientTransport`, NextAuth's `getSession`, SDK clients such as `@google/generative-ai`), socket.io/WebSocket clients, `<a href>` and `window.location` navigations, and scripts inline in `.html` files. These are fixed before scoring so they can't be tuned to the result.
    - **Env bases:** when a URL is built from an env var with an in-code fallback (`process.env.X ?? "http://localhost:4000/api/v1"`), the target follows the fallback, checked against the repo's `.env.example` and server port where they exist.
    - **Route order:** when several routes could match, the target is the one Express or Next.js would really dispatch to (registration order, literal before param), with a note.
 2. The labeler must not look at analyzer output while labeling. Label files are committed before the first scoring run, so history shows they came first.
@@ -81,7 +82,7 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 5. Until review is complete, reports are headed **"Pending owner review"**.
 
 **Scoring** (`pnpm eval`):
-- **Matching:** a predicted `http` edge matches a label when the call site (file + line, plus column when the label has one) and target route (registering file + method + path, with parameter names ignored) agree.
+- **Matching:** each label is scored on its own, so a call site with two labeled routes needs both predicted for full recall. A predicted `http` edge matches a label when the call site (file + line, plus column when the label has one) and target route (registering file + method + path, with parameter names ignored) agree.
 - **True positive:** predicted target equals the labeled target.
 - **False positive:** predicted target is wrong, or a route was predicted where the label says none (`target: null`).
 - **False negative:** a labeled target that was never predicted (an unresolved prediction for a labeled real target counts here).

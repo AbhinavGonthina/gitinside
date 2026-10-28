@@ -13,9 +13,10 @@ try {
   const problems = crossCheck(inputs);
   for (const p of problems) console.error(`  - ${p}`);
   if (problems.length > 0) process.exit(1);
-  const edges = [...inputs.labels.values()].reduce((n, l) => n + l.edges.length, 0);
+  const all = [...inputs.labels.values()].flatMap((l) => l.edges.map((e) => ({ repo: l.repo, e })));
+  const sites = new Set(all.map(({ repo, e }) => JSON.stringify([repo, e.callSite]))).size;
   console.log(
-    `eval inputs OK: ${inputs.repos.length} repos, ${inputs.labels.size} label files, ${edges} labeled call sites`,
+    `eval inputs OK: ${inputs.repos.length} repos, ${inputs.labels.size} label files, ${all.length} labels at ${sites} call sites`,
   );
 } catch (error) {
   if (!(error instanceof EvalInputError)) throw error;
