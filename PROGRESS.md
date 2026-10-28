@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M2.10. docs/walkthroughs/resolver.md (line-by-line, diagrams, explain-it-back checklist)
+M2.11. Milestone verification + M2-review.md + tag m2
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -53,7 +53,7 @@ M2.10. docs/walkthroughs/resolver.md (line-by-line, diagrams, explain-it-back ch
 - [x] M2.7 docker-compose + .env detectors (names/schemes only) + stores edges {model: opus}
 - [x] M2.8 BullMQ/queue client detection → publishes/consumes {model: opus}
 - [x] M2.9 Pattern fixtures + golden tests + "no call site dropped" test + secret-leak test {model: opus}
-- [ ] M2.10 docs/walkthroughs/resolver.md (line-by-line, diagrams, explain-it-back checklist) {model: opus}
+- [x] M2.10 docs/walkthroughs/resolver.md (line-by-line, diagrams, explain-it-back checklist) {model: opus}
 - [ ] M2.11 Milestone verification + M2-review.md + tag m2 {model: opus}
 
 ### M3: Accuracy eval harness
@@ -154,6 +154,8 @@ M2.10. docs/walkthroughs/resolver.md (line-by-line, diagrams, explain-it-back ch
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M2.10: `docs/walkthroughs/resolver.md` walks every function of `values.ts` → `http.ts` → `url.ts` → `wrappers.ts` → `match.ts` in data-flow order, with line-by-line passes over the tricky parts (`traceAxiosSymbol`, `toUrlPattern`, `parameterParts`, `boundMethod`, `alignSegments`, `match`). The `wrapper-fetch` fixture is traced through all four stages to its golden edges, incl. why `requestVia` is `WRAPPER_DEPTH`. Four Mermaid diagrams, a DP table, a confidence-source table, and a 20-item explain-it-back checklist. Docs only; lint green. Next: M2.11.
 
 - 2026-10-27 · M2.9: nine fixtures (`fetch-template-literal`, `axios-baseurl-instance`, `env-base-heuristic`, `ambiguous-routes`, `wrapper-fetch`, `external-sdk`, `compose-and-env`, `fake-secrets`, `queues-bullmq`) with goldens and exact edge + confidence assertions; "no call site dropped" (every site ⇒ request ⇒ edge at its site) and an env-value check run over all 17 fixtures. The secret-leak test found a real leak: unresolved HTTP nodes copied the whole call's source, headers and query keys included. Fixed with `redactedText()` (strings masked outside the URL path, ADR-0038). 556 analyzer tests, 97.45% lines; old goldens unchanged. Next: M2.10.
 
