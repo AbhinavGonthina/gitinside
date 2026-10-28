@@ -85,6 +85,7 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - `gh api graphql -f query="{ … }"` (and `--jq` filters with `{}` objects) are denied as brace expansion. Call `gh api <path>` from a scratch Node script under a gitignored `dist/` with `execFileSync` and format the JSON there.
 - `pnpm --filter @gitinside/eval validate` runs `dist/validate.js`, so after editing `eval/src` it checks with the old rules. Run `pnpm --filter @gitinside/eval build` first.
 - `git clean -f <path>` silently skips gitignored files (e.g. scratch scripts under `dist/`). `git clean -fX <path>` removes them but deletes the whole ignored folder (all of `dist/`), so rebuild afterwards.
+- Any commit touching `eval/` (outside `eval/results`), the analyzer, the schema, or the lockfile makes `pnpm eval --check` refuse the committed report. After committing such a change, run `pnpm eval` and commit the regenerated report.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 <!-- lessons:end -->
 

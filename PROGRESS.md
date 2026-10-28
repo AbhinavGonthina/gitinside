@@ -14,11 +14,11 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M3.7. Open needs-abhinav issue: review a seeded random 20% of labels
+M3.8. Milestone verification + M3-review.md + tag m3
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
-- none yet
+- [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, regenerate the report without "Pending owner review".
 
 ## Blockers
 - none
@@ -63,7 +63,7 @@ M3.7. Open needs-abhinav issue: review a seeded random 20% of labels
 - [x] M3.4 Draft labels for repos 3–5 {model: opus}
 - [x] M3.5 Scoring script (overall / per repo / per confidence, FP and FN lists) {model: opus}
 - [x] M3.6 Report generator → eval/results/ ("Pending owner review") + pnpm eval reproducibility {model: opus}
-- [ ] M3.7 Open needs-abhinav issue: review a seeded random 20% of labels {model: opus}
+- [x] M3.7 Open needs-abhinav issue: review a seeded random 20% of labels {model: opus}
 - [ ] M3.8 Milestone verification + M3-review.md + tag m3 {model: opus}
 
 ### M4a: Design system + prototype (design gate)
@@ -154,6 +154,8 @@ M3.7. Open needs-abhinav issue: review a seeded random 20% of labels
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M3.7: `eval/src/sample.ts` draws the owner review sample: per repo, ⌈20%⌉ of call sites via FNV-1a(`<date>/<owner>/<name>`) → mulberry32 → Fisher–Yates, rendered as a checklist with permalinks at the pinned SHAs; CLI `pnpm --filter @gitinside/eval review-sample --seed <date>` (ADR-0044, EVALUATION.md §1). Seed 2026-10-28 ⇒ 30 of 142 sites, posted as planning issue #1. Report re-recorded at `445d016` (only the Run commit changed; `--check` reproduces). 73 eval tests, sample.ts 100% lines. Next: M3.8.
 
 - 2026-10-28 · M3.6: `pnpm eval` (`eval/src/run.ts` + pure `report.ts`) checks out the pinned SHAs, analyzes, scores, and writes `eval/results/2026-10-28-0.1.0.md` ("Pending owner review"); `pnpm eval --check` reuses the report's Run record, refuses if analyzer/schema/eval/labels/lockfile changed since its commit, and byte-compares (ADR-0043; on-demand Eval workflow). First result: precision 96.6% (28/29), recall 20.3% (28/138). conversa 24/24; WealthWise/foodie 0 recall (requests predicted once as `DYNAMIC_URL` inside `apiClient`/`httpRequest`, not at callers: 83 of 110 misses); wanderlust's axios instance mostly unseen and `axios\n.get(` anchored a line off the label; taxonomy's 1 FP/FN is a helper call placed at its caller. Analyzer recall work is for after M3.8. 63 eval tests, 99.67% lines. Next: M3.7.
 
