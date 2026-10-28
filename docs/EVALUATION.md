@@ -72,6 +72,9 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 
 **Labeling method** (D10.3):
 1. Labels are drafted by reading the code: find every outbound HTTP call site (grep `fetch(`, `axios`, client wrappers) and trace it by hand to its route.
+   - **What is labeled:** every `fetch`/axios request written in the repo's TS/JS source, at the call site defined above. **Not labeled**, because no request expression is in the repo's code: requests made inside third-party libraries (MCP `SSEClientTransport`, NextAuth's `getSession`, SDK clients such as `@google/generative-ai`), socket.io/WebSocket clients, `<a href>` navigations, and scripts inline in `.html` files. These are fixed before scoring so they can't be tuned to the result.
+   - **Env bases:** when a URL is built from an env var with an in-code fallback (`process.env.X ?? "http://localhost:4000/api/v1"`), the target follows the fallback, checked against the repo's `.env.example` and server port where they exist.
+   - **Route order:** when several routes could match, the target is the one Express or Next.js would really dispatch to (registration order, literal before param), with a note.
 2. The labeler must not look at analyzer output while labeling. Label files are committed before the first scoring run, so history shows they came first.
 3. Abhinav reviews a random 20% of call sites. The sample is chosen by a seeded shuffle (seed = the date the review issue is opened) and listed in the issue.
 4. Disagreements are resolved in the label file, with a `notes` entry, and summarized in the report.

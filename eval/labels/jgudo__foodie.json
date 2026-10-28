@@ -1,0 +1,364 @@
+{
+  "repo": "jgudo/foodie",
+  "sha": "84f5e6d81f48e9cd0149ec07a2611049a852746a",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 4 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/auth.ts",
+        "line": 38,
+        "route": "POST /api/v1/authenticate"
+      },
+      "notes": "httpRequest() (services/fetcher.ts) passes its config to axios(req), so each httpRequest({ method, url }) call is the call site. axios.defaults.baseURL = `${REACT_APP_FOODIE_URL || 'http://localhost:9000'}/api/${REACT_APP_FOODIE_API_VERSION || 'v1'}` (server port defaults to 9000). Server: routes/createRouter.ts glob-requires every routes/**/*.ts file and .use()s each default Router with no path, mounted at /api in app.ts; each route spells its own /v1 prefix"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 10 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/auth.ts",
+        "line": 122,
+        "route": "GET /api/v1/check-session"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 12 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/auth.ts",
+        "line": 12,
+        "route": "POST /api/v1/register"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 18 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/api/v1/auth.ts",
+        "line": 110,
+        "route": "DELETE /api/v1/logout"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 20 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/feed.ts",
+        "line": 10,
+        "route": "GET /api/v1/feed"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 28 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/post.ts",
+        "line": 297,
+        "route": "GET /api/v1/post/:post_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 30 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/post.ts",
+        "line": 15,
+        "route": "POST /api/v1/post"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 37 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/post.ts",
+        "line": 89,
+        "route": "GET /api/v1/:username/posts"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 44 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/api/v1/post.ts",
+        "line": 262,
+        "route": "DELETE /api/v1/post/:post_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 47 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/routes/api/v1/post.ts",
+        "line": 219,
+        "route": "PATCH /api/v1/post/:post_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 55 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/post.ts",
+        "line": 138,
+        "route": "POST /api/v1/like/post/:post_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 62 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/post.ts",
+        "line": 323,
+        "route": "GET /api/v1/post/likes/:post_id"
+      },
+      "notes": "three segments after /v1, so the earlier GET /v1/post/:post_id can't take it"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 71 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/user.ts",
+        "line": 11,
+        "route": "GET /api/v1/:username"
+      },
+      "notes": "user.ts is the last router mounted (glob order is alphabetical), so the literal one-segment GET routes (/v1/feed, /v1/search, ...) win for their own names; any other username reaches this route"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 74 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/routes/api/v1/user.ts",
+        "line": 93,
+        "route": "PATCH /api/v1/:username/edit"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 84 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/comment.ts",
+        "line": 83,
+        "route": "GET /api/v1/comment/:post_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 92 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/api/v1/comment.ts",
+        "line": 222,
+        "route": "DELETE /api/v1/comment/:comment_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 95 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/comment.ts",
+        "line": 12,
+        "route": "POST /api/v1/comment/:post_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 102 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/routes/api/v1/comment.ts",
+        "line": 258,
+        "route": "PATCH /api/v1/comment/:comment_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 110 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/comment.ts",
+        "line": 525,
+        "route": "POST /api/v1/like/comment/:comment_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 117 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/comment.ts",
+        "line": 311,
+        "route": "POST /api/v1/reply"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 129 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/comment.ts",
+        "line": 385,
+        "route": "GET /api/v1/reply"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 143 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/notification.ts",
+        "line": 9,
+        "route": "GET /api/v1/notifications"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 152 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/follow.ts",
+        "line": 11,
+        "route": "POST /api/v1/follow/:follow_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 154 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/follow.ts",
+        "line": 91,
+        "route": "POST /api/v1/unfollow/:follow_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 160 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/follow.ts",
+        "line": 154,
+        "route": "GET /api/v1/:username/followers"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 168 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/follow.ts",
+        "line": 123,
+        "route": "GET /api/v1/:username/following"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 176 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/follow.ts",
+        "line": 186,
+        "route": "GET /api/v1/people/suggested"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 185 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/routes/api/v1/notification.ts",
+        "line": 79,
+        "route": "PATCH /api/v1/read/notification/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 191 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/notification.ts",
+        "line": 43,
+        "route": "GET /api/v1/notifications/unread"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 194 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/routes/api/v1/notification.ts",
+        "line": 58,
+        "route": "PATCH /api/v1/notifications/mark"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 199 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/bookmark.ts",
+        "line": 54,
+        "route": "GET /api/v1/bookmarks"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 205 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/bookmark.ts",
+        "line": 11,
+        "route": "POST /api/v1/bookmark/post/:post_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 213 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/user.ts",
+        "line": 126,
+        "route": "POST /api/v1/upload/:field"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 222 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/search.ts",
+        "line": 10,
+        "route": "GET /api/v1/search"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 232 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/message.ts",
+        "line": 79,
+        "route": "GET /api/v1/messages"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 240 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/routes/api/v1/message.ts",
+        "line": 228,
+        "route": "PATCH /api/v1/message/read/:from_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 246 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/message.ts",
+        "line": 183,
+        "route": "GET /api/v1/messages/unread"
+      },
+      "notes": "registered before GET /v1/messages/:target_id in the same router, so it wins"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 249 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/api/v1/message.ts",
+        "line": 10,
+        "route": "POST /api/v1/message/:user_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.ts", "line": 257 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/api/v1/message.ts",
+        "line": 253,
+        "route": "GET /api/v1/messages/:target_id"
+      }
+    }
+  ]
+}
