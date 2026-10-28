@@ -173,11 +173,13 @@ export function ConnectionList({ items, empty, onSelect }: ConnectionListProps) 
   if (items.length === 0) return <p className="gi-inspector__empty">{empty}</p>;
   return (
     <ul className="gi-connections">
-      {items.map(({ node, layer, edge }) => {
+      {items.map(({ node, layer, edge }, i) => {
         const label = nodeLabel(node);
         const tint = node.layer ?? layer;
+        // One row per edge, so a node can appear twice (reads and writes Order):
+        // its ID alone isn't a unique key. The list order is deterministic.
         return (
-          <li key={node.id}>
+          <li key={`${node.id} ${i}`}>
             <button
               type="button"
               className="gi-connection"

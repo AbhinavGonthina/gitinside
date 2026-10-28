@@ -27,6 +27,15 @@ describe("prototype.css", () => {
     );
   });
 
+  it("never sets text in the trace color, which is only 3:1 in light (M4a review)", () => {
+    // --trace meets the 3:1 graphics bar, not the 4.5:1 text bar, so the current
+    // step is marked with a bar and its text stays --text.
+    for (const rule of body.match(/\{[^}]*\}/g) ?? []) {
+      expect(rule).not.toMatch(/(?:^|[\s;{])color:[^;]*var\(--trace\)/);
+    }
+    expect(body).toMatch(/aria-current="step"\] \{[^}]*box-shadow: inset 3px 0 0 var\(--trace\)/);
+  });
+
   it("layers the open frame under the edges, and boxes and labels over them", () => {
     const z = (selector: string) =>
       new RegExp(`${selector.replace(/[.[\]>]/g, "\\$&")} \\{[^}]*z-index: (\\d)`).exec(body)?.[1];

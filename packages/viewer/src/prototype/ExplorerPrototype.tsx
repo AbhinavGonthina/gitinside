@@ -267,6 +267,32 @@ export function ExplorerPrototype({
   }, [tracing, trace, steps, index, visible]);
   const hopIds = useMemo(() => new Set(steps.map((s) => s.edge.id)), [steps]);
 
+  // Starting, stepping, or ending a trace can remove the focused control (the
+  // step player's buttons, "Trace from here", a disabled "Next step"), which
+  // drops focus to the page and makes T and Esc stop working. Put it back: on
+  // the current step while tracing, else on the box the trace started from.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const lastTrace = useRef({ tracing, step });
+  useEffect(() => {
+    const prev = lastTrace.current;
+    lastTrace.current = { tracing, step };
+    if (prev.tracing === tracing && prev.step === step) return; // first render: don't take focus
+    const root = rootRef.current;
+    const active = document.activeElement;
+    const lost =
+      !active || active === document.body || !active.isConnected || active.matches(":disabled");
+    if (!root || !lost) return;
+    if (tracing) {
+      root.querySelector<HTMLElement>(".gi-proto__step[aria-current]")?.focus();
+      return;
+    }
+    const start = trace ? visibleAncestor(index, trace.start, visible) : undefined;
+    const wrapper = [...root.querySelectorAll<HTMLElement>("[data-node-id]")].find(
+      (el) => el.dataset.nodeId === start,
+    );
+    wrapper?.querySelector<HTMLElement>(":scope > .gi-node")?.focus();
+  }, [tracing, step, trace, index, visible]);
+
   const selectedNode = selected ? index.byId.get(selected) : undefined;
   const selectedVisible = selected ? visibleAncestor(index, selected, visible) : undefined;
   const repo: RepoRef = graph.repo;
@@ -294,11 +320,23 @@ export function ExplorerPrototype({
     setAnnouncement(tracing ? "Trace ended" : `Tracing from ${nodeOf(index, trace.start).label}`);
   }
 
-  /** Esc: exit trace → go up a level → clear selection (UX.md keyboard table). T toggles trace. */
+  /** Closes the legend; focus inside it goes back to the button that opened it. */
+  function closeLegend() {
+    const root = rootRef.current;
+    const toggle = root?.querySelector<HTMLElement>(".gi-proto__map .gi-overlay button");
+    if (root?.querySelector(".gi-legend")?.contains(document.activeElement)) toggle?.focus();
+    setLegend(false);
+  }
+
+  /**
+   * Esc: close the legend → exit trace → go up a level → clear selection
+   * (UX.md keyboard table). T toggles trace.
+   */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.key === "Escape") {
-      if (tracing) toggleTrace();
+      if (legend) closeLegend();
+      else if (tracing) toggleTrace();
       else if (open) goUp();
       else if (selected) select(null);
       else return;
@@ -398,7 +436,7 @@ export function ExplorerPrototype({
   });
 
   return (
-    <div className="gi-proto" onKeyDown={onKeyDown}>
+    <div ref={rootRef} className="gi-proto" onKeyDown={onKeyDown}>
       <TopBar repo={repo} tracing={tracing} onTrace={trace ? toggleTrace : undefined} />
       <div className="gi-proto__main">
         <div
@@ -418,7 +456,8 @@ export function ExplorerPrototype({
                 style={{ width: placed.width, height: placed.height, transform: `scale(${scale})` }}
               >
                 {/* One stable list, so a node keeps its element (and focus) when it opens. */}
-                {[...visible].map(renderNode)}
+                {/* In reading order, so Tab moves left to right and into an open frame. */}
+                {placed.order.map(renderNode)}
                 <svg
                   className="gi-proto__edges"
                   width={placed.width}
@@ -486,7 +525,7 @@ export function ExplorerPrototype({
             data-place="bottom-right"
             onClick={(e) => e.stopPropagation()}
           >
-            {legend && <Legend onClose={() => setLegend(false)} />}
+            {legend && <Legend onClose={closeLegend} />}
             <div className="gi-proto__map">
               <div className="gi-overlay">
                 <Button

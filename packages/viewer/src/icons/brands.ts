@@ -21,6 +21,7 @@
  * - Anything inferred from a path or a package name rather than the node's
  *   own field (e.g. YouTube calls through `www.googleapis.com` show Google).
  */
+import { compareStrings } from "@gitinside/schema";
 import {
   siAlgolia,
   siAnthropic,
@@ -211,7 +212,7 @@ export const brands: readonly Brand[] = [
       b,
     ]),
   ).values(),
-].sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
+].sort((a, b) => compareStrings(a.slug, b.slug));
 
 /**
  * Surfaces a logo tile can have. The tile is always `surface-1` (node states

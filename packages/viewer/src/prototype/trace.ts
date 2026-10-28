@@ -41,7 +41,7 @@ export interface TraceStep {
   site: SourceLocation | undefined;
 }
 
-/** A name for a node in a sentence: routes by their label, everything else by name. */
+/** A name for a node in a sentence: "page /checkout" for pages, the label for everything else. */
 function spoken(node: GraphNode): string {
   if (node.kind === "page") return `page ${node.path}`;
   return node.label;

@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { compareStrings } from "@gitinside/schema";
 import { expect, test } from "@playwright/test";
 import { visualCases } from "./cases.js";
 
@@ -22,7 +23,18 @@ function loadIndex(): unknown {
 
 test.skip(process.platform !== "linux", "Visual baselines are Linux-only (docs/TESTING.md)");
 
-for (const c of visualCases(loadIndex())) {
+const cases = visualCases(loadIndex());
+
+test("every baseline belongs to a story", () => {
+  // A renamed or removed story would otherwise leave its old screenshot behind.
+  // Capture runs (`--update-snapshots`) start from the committed folder, so only compare runs check.
+  test.skip(test.info().config.updateSnapshots === "all", "capturing baselines");
+  const dir = fileURLToPath(new URL("./baselines/", import.meta.url));
+  const files = readdirSync(dir).filter((f) => f.endsWith(".png"));
+  expect(files.sort(compareStrings)).toEqual(cases.map((c) => c.snapshot).sort(compareStrings));
+});
+
+for (const c of cases) {
   test(c.title, async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -51,17 +63,25 @@ for (const c of visualCases(loadIndex())) {
           box !== undefined &&
           Math.ceil(box.width) >= page.scrollWidth &&
           Math.ceil(box.height) >= page.scrollHeight,
-        geist: [...document.fonts].some(
-          (font) =>
-            font.family.replaceAll('"', "") === "Geist Variable" && font.status === "loaded",
-        ),
+        geist: loaded("Geist Variable"),
+        // Not every story sets code-like text; when one does, Geist Mono must have loaded.
+        mono:
+          ![...document.querySelectorAll("body *")].some((el) =>
+            getComputedStyle(el).fontFamily.includes("Geist Mono"),
+          ) || loaded("Geist Mono Variable"),
       };
+      function loaded(family: string) {
+        return [...document.fonts].some(
+          (font) => font.family.replaceAll('"', "") === family && font.status === "loaded",
+        );
+      }
     });
     expect(look.background, "tokens.css applied").not.toMatch(
       /^(rgba\(0, 0, 0, 0\)|transparent|)$/,
     );
     expect(look.covers, "the themed root covers the page").toBe(true);
     expect(look.geist, "Geist loaded").toBe(true);
+    expect(look.mono, "Geist Mono loaded where it's used").toBe(true);
 
     await expect(page).toHaveScreenshot(c.snapshot, { fullPage: true });
     expect(errors, "no errors while rendering").toEqual([]);
