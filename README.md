@@ -4,7 +4,7 @@
 
 See how any codebase really works. Break it down from services to functions, trace every request, and catch broken connections before they ship.
 
-(Status: in development. M1, the analyzer CLI, is done; the website and PR bot come later.)
+(Status: in development. M1 (analyzer CLI) and M2 (cross-service links + infra) are done; the accuracy eval, website, and PR bot come next.)
 
 ## Quickstart (analyzer CLI)
 
@@ -16,7 +16,7 @@ pnpm build
 node packages/analyzer/dist/cli.js analyze path/to/repo --out architecture.json
 ```
 
-The output is a schema-valid `architecture.json`, the same bytes every time for the same commit. It covers workspace services, modules, files, symbols, imports, calls, Express and Next.js routes, and Prisma models. Anything it can't resolve appears as an `unresolved` node or a warning, never a guess. Optional flags `--owner`, `--name`, and `--sha` record the repo identity.
+The output is a schema-valid `architecture.json`, the same bytes every time for the same commit. It covers workspace services, modules, files, symbols, imports, calls, Express and Next.js routes, and Prisma models. It also links `fetch`/axios calls to the routes they hit, each with a confidence level (exact, pattern, heuristic). It adds external APIs (from literal hosts and allowlisted SDKs), docker-compose and `.env` datastores (key names and URL hosts only, never values), and BullMQ/Bull/Bee-Queue queues. Anything it can't resolve appears as an `unresolved` node or a warning, never a guess. Optional flags `--owner`, `--name`, and `--sha` record the repo identity.
 
 ## Architecture
 
@@ -25,13 +25,14 @@ A pnpm + Turborepo monorepo:
 - `packages/analyzer` holds the analysis pipeline and CLI (inventory → workspaces → per-service TypeScript programs → detectors → validated graph).
 - `bench/` holds benchmarks, and `fixtures/` holds golden test repos.
 
-Design notes: [docs/DESIGN.md](docs/DESIGN.md). M1 review: [docs/milestones/M1-review.md](docs/milestones/M1-review.md).
+Design notes: [docs/DESIGN.md](docs/DESIGN.md). Milestone reviews: [M1](docs/milestones/M1-review.md), [M2](docs/milestones/M2-review.md). How cross-service links are resolved: [docs/walkthroughs/resolver.md](docs/walkthroughs/resolver.md).
 
 ## Results so far
 
 Reported exactly as measured; each links to the committed report.
 
 - **Analysis time (M1 baseline):** cal.com at a pinned SHA (5,041 files, 113 workspace packages) analyzes in a median of 53.3 s (range 27–77 s) with ~2 GiB peak memory on a dev laptop, and every run produces a byte-identical graph. [Report](bench/results/2026-10-26-analysis-calcom.md). Reproduce with `pnpm bench`.
+- **Cross-service links (M2 smoke test, not yet an accuracy measure):** on the same cal.com commit, all 269 HTTP requests (from 217 call sites) reach the graph, none dropped. They form 38 `http` edges to routes (22 exact, 7 pattern, 9 heuristic), 135 edges to unresolved nodes that carry a reason, and 79 `external_call` edges. Allowlisted SDK calls bring `external_call` edges to 138, across 29 hosts. Precision and recall come with M3. [M2 review](docs/milestones/M2-review.md#smoke-test).
 
 ## Contributing setup
 
