@@ -4,7 +4,7 @@
 
 See how any codebase really works. Break it down from services to functions, trace every request, and catch broken connections before they ship.
 
-(Status: in development. M1 (analyzer CLI), M2 (cross-service links + infra), and M3 (accuracy eval harness) are done; the explorer UI, website, and PR bot come next.)
+(Status: in development. M1 (analyzer CLI), M2 (cross-service links + infra), M3 (accuracy eval harness), and M4a (design system + prototype, awaiting design approval) are done; the website is in progress (M5), and the interactive explorer and PR bot come next.)
 
 ## Quickstart (analyzer CLI)
 
@@ -23,7 +23,8 @@ The output is a schema-valid `architecture.json`, the same bytes every time for 
 A pnpm + Turborepo monorepo:
 - `packages/schema` holds the graph format (types + Zod validator).
 - `packages/analyzer` holds the analysis pipeline and CLI (inventory → workspaces → per-service TypeScript programs → detectors → validated graph).
-- `packages/viewer` holds the explorer's React components and their Storybook (`pnpm --filter @gitinside/viewer storybook`); in progress (M4a).
+- `packages/viewer` holds the explorer's React components and their Storybook (`pnpm --filter @gitinside/viewer storybook`).
+- `apps/web` is the website (Next.js App Router, built on the viewer's tokens and components): `pnpm build`, then `pnpm --filter @gitinside/web start` (or `dev`) and open http://localhost:3000. Analysis from the site arrives with the worker (M5.4–M5.8).
 - `eval/` holds the accuracy eval (pinned repos, hand-written labels, scorer, committed reports).
 - `bench/` holds benchmarks, and `fixtures/` holds golden test repos.
 

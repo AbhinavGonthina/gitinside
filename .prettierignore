@@ -3,6 +3,8 @@ coverage
 node_modules
 .turbo
 storybook-static
+.next
+next-env.d.ts
 pnpm-lock.yaml
 fixtures
 bench/.repos

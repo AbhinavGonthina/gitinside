@@ -40,12 +40,12 @@ export default tseslint.config(
   },
   {
     // The viewer runs in the browser.
-    files: ["packages/viewer/src/**", "packages/viewer/.storybook/**"],
+    files: ["packages/viewer/src/**", "packages/viewer/.storybook/**", "apps/web/app/**"],
     languageOptions: { globals: { ...globals.browser } },
   },
   {
     // Tests index into known fixtures; non-null assertions keep them readable.
-    files: ["**/*.test.ts", "**/*.test.tsx"],
+    files: ["**/*.test.ts", "**/*.test.tsx", "**/*.e2e.ts"],
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },
   },
   prettier,
