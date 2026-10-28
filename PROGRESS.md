@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.4b. Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error codes); M4b waits for the design gate (#2)
+M5.4c. HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window, two-secret rotation; Supertest); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -105,7 +105,7 @@ M5.4b. Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error
 - [x] M5.2 apps/web Next.js scaffold, landing page, viewer integration (incl. a separate viewer fonts entry so the library imports without CSS, M4a review) {model: opus}
 - [x] M5.3 Drizzle schema + migrations (local Postgres in Docker for dev/CI) {model: opus}
 - [x] M5.4a apps/worker scaffold + safe streaming tarball extraction (path checks, links rejected, size/entry limits) {model: opus}
-- [ ] M5.4b Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error codes) {model: opus}
+- [x] M5.4b Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error codes) {model: opus}
 - [ ] M5.4c HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window, two-secret rotation; Supertest) {model: opus}
 - [ ] M5.4d BullMQ worker (concurrency 2, tarball fetch → extract → child → result, stalled-job retries, job dir cleanup) {model: opus}
 - [ ] M5.5 Worker: R2 upload, Postgres writes, progress events {model: opus}
@@ -163,6 +163,8 @@ M5.4b. Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.4b: `runAnalysis(job)` in `apps/worker/src/runner.ts` spawns the compiled `child.js` (analyzer behind a one-line JSON protocol, `protocol.ts`) with `--max-old-space-size=3072`, a 5-minute SIGKILL timer (+ `AbortSignal`), Node's `--permission` (read app root + `src`, write only the graph file; no processes/workers/addons), an empty env, and a preloaded `netguard.ts` (every socket/DNS/fetch ⇒ `ERR_NETWORK_DISABLED`). Codes: analyzer's own, `LIMIT_TIME`, `LIMIT_MEMORY`, `CANCELLED`, `ANALYZER_CRASHED` (ADR-0059). Tests run the real child against the express-basic golden plus a probe script in the same sandbox; Vitest global setup builds `dist/`. 91 worker tests, runner 98.3% lines (netguard runs only in children). Eval re-recorded (lockfile). Next: M5.4c.
 
 - 2026-10-28 · M5.4a: M5.4 split into a–d. New `@gitinside/worker` with `extractTarball(source, dest)` (`apps/worker/src/extract.ts`): our own streaming tar parser behind gunzip (ustar prefix, pax `x`/`g`, GNU `L`), every write by us (`mkdir` / create-exclusive `open`, resolved path checked under `dest`). Absolute/`..`/NUL paths fail (`TAR_UNSAFE_PATH`); links, devices, odd names skipped and listed; 500 MiB on the decompressed stream (gzip bombs stop early), 100k entries, checksums, end marker required, duplicates/conflicts `TAR_INVALID` (ADR-0058). 44 tests incl. a real `git archive` round trip and byte-built hostile archives; extract.ts 98.7% lines. Next: M5.4b.
 

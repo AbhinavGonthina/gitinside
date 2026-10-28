@@ -98,7 +98,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Docker's daemon isn't running on this machine (`docker ps` fails on the pipe), so Linux-only outputs (visual baselines) come from a CI workflow: `gh workflow run <file>`, then `gh run download <run> -n <artifact> -D <dir>`.
 - Foreground `gh run watch` reprints the whole job list every few seconds and floods the context. Run it with `run_in_background` (and `--interval 30`).
 - A Monitor `until gh … | grep -q …; do sleep …; done` loop needs approval (pipes and `sleep`). Start the command with Bash `run_in_background` and wait for its completion notification instead.
-- jsdom keeps `document.activeElement` on a button that becomes `disabled`, but it no longer gets key presses in a browser. Focus-recovery code should treat a focused `:disabled` element as lost, and the click-through belongs in a real browser.<!-- lessons:end -->
+- jsdom keeps `document.activeElement` on a button that becomes `disabled`, but it no longer gets key presses in a browser. Focus-recovery code should treat a focused `:disabled` element as lost, and the click-through belongs in a real browser.
+- On Windows, `spawn(…, { env: {} })` still hands the child libuv's required system variables (`SystemRoot`, `TEMP`, `PATH`, …, casing from the parent). Tests asserting an empty child env must allow that list on win32 and expect `[]` only on Linux.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
