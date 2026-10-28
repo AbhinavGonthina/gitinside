@@ -1,0 +1,353 @@
+/*
+ * Diagram edges (DESIGN_SYSTEM.md §3, src/edges/DiagramEdge.tsx): an SVG
+ * group per edge plus an HTML label pill. Line style is confidence (set by
+ * data-line), color is the source's layer, and states are data attributes
+ * shared by the line and its label. Who owns the color: broken > selected >
+ * traced > diff > hover. Colors come from tokens only (edgesCss.test.ts).
+ */
+
+:is(.gi-edge, .gi-edge-label) {
+  --gi-layer: var(--text-muted);
+  --gi-edge-strong: var(--text);
+}
+
+:is(.gi-edge, .gi-edge-label)[data-layer="frontend"] {
+  --gi-layer: var(--layer-frontend);
+  --gi-edge-strong: var(--layer-frontend);
+}
+
+:is(.gi-edge, .gi-edge-label)[data-layer="backend"] {
+  --gi-layer: var(--layer-backend);
+  --gi-edge-strong: var(--layer-backend);
+}
+
+:is(.gi-edge, .gi-edge-label)[data-layer="data"] {
+  --gi-layer: var(--layer-data);
+  --gi-edge-strong: var(--layer-data);
+}
+
+:is(.gi-edge, .gi-edge-label)[data-layer="infra"] {
+  --gi-layer: var(--layer-infra);
+  --gi-edge-strong: var(--layer-infra);
+}
+
+:is(.gi-edge, .gi-edge-label)[data-layer="external"] {
+  --gi-layer: var(--layer-external);
+  --gi-edge-strong: var(--layer-external);
+}
+
+/* The line: a restrained layer tint at rest (still 3:1 on the canvas). */
+
+.gi-edge {
+  --gi-edge-color: color-mix(in srgb, var(--gi-layer) 70%, var(--text-muted));
+  --gi-edge-width: 1.5px;
+  --gi-edge-particle: var(--gi-edge-strong);
+  --gi-edge-halo: transparent;
+  transition: opacity var(--duration-standard) var(--ease-standard);
+}
+
+.gi-edge__line {
+  fill: none;
+  stroke: var(--gi-edge-color);
+  stroke-width: var(--gi-edge-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    stroke var(--duration-fast) var(--ease-standard),
+    stroke-width var(--duration-fast) var(--ease-standard);
+}
+
+/*
+ * A wide stroke under the line so a thin line is easy to point at. It is
+ * invisible at rest and becomes the halo of a selected or traced edge.
+ */
+.gi-edge__hit {
+  fill: none;
+  stroke: var(--gi-edge-halo);
+  stroke-width: 10px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+  transition: stroke var(--duration-fast) var(--ease-standard);
+}
+
+/* Confidence: solid = exact, dot near the source = pattern, dashed, dotted. */
+
+.gi-edge[data-line="dashed"] .gi-edge__line {
+  stroke-dasharray: 6 4;
+  stroke-linecap: butt;
+}
+
+.gi-edge[data-line="dotted"] .gi-edge__line {
+  stroke-dasharray: 0 5;
+  stroke-width: calc(var(--gi-edge-width) + 0.5px);
+}
+
+.gi-edge__dot {
+  fill: var(--gi-edge-color);
+  transition: fill var(--duration-fast) var(--ease-standard);
+}
+
+/* Arrowheads: filled when resolved, an open chevron when unresolved. */
+
+.gi-edge__arrow {
+  fill: var(--gi-edge-color);
+  stroke: var(--gi-edge-color);
+  stroke-width: 1px;
+  stroke-linejoin: round;
+  transition:
+    fill var(--duration-fast) var(--ease-standard),
+    stroke var(--duration-fast) var(--ease-standard);
+}
+
+.gi-edge__arrow--open {
+  fill: none;
+  stroke-width: var(--gi-edge-width);
+  stroke-linecap: round;
+}
+
+/*
+ * Flow: particles travel source to target, one lap per three trace hops. A
+ * canvas-colored ring keeps them visible on a line of the same color.
+ */
+
+.gi-edge__particle {
+  fill: var(--gi-edge-particle);
+  stroke: var(--canvas);
+  stroke-width: 1.5px;
+  paint-order: stroke;
+  offset-rotate: 0deg;
+  offset-distance: 0%;
+  animation: gi-edge-flow calc(var(--duration-trace-hop) * 3) linear infinite;
+  animation-delay: calc(var(--duration-trace-hop) * -3 * var(--gi-flow-lag, 0));
+  pointer-events: none;
+}
+
+@keyframes gi-edge-flow {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  88% {
+    opacity: 1;
+  }
+
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+/* State: hover. The full layer color and a heavier line. */
+
+.gi-edge:is(:hover, [data-hover]) {
+  --gi-edge-color: var(--gi-edge-strong);
+  --gi-edge-width: 2px;
+}
+
+/* State: diff. The label carries the word. */
+
+.gi-edge[data-diff="added"] {
+  --gi-edge-color: var(--diff-added);
+  --gi-edge-particle: var(--diff-added);
+}
+
+.gi-edge[data-diff="changed"] {
+  --gi-edge-color: var(--diff-changed);
+  --gi-edge-particle: var(--diff-changed);
+}
+
+.gi-edge[data-diff="removed"] {
+  --gi-edge-color: var(--diff-removed);
+  --gi-edge-particle: var(--diff-removed);
+  opacity: 0.5;
+}
+
+/* State: traced (on the request path). */
+
+.gi-edge[data-emphasis="traced"] {
+  --gi-edge-color: var(--trace);
+  --gi-edge-particle: var(--trace);
+  --gi-edge-halo: color-mix(in srgb, var(--trace) 16%, transparent);
+  --gi-edge-width: 2.5px;
+}
+
+/* State: dimmed (off the request path). Hover brings it partway back. */
+
+.gi-edge[data-emphasis="dimmed"] {
+  opacity: 0.2;
+}
+
+.gi-edge[data-emphasis="dimmed"]:hover {
+  opacity: 0.5;
+}
+
+/*
+ * State: selected. The halo, not only the color, sets it apart: a frontend
+ * edge is already close to the accent hue.
+ */
+
+.gi-edge[data-selected] {
+  --gi-edge-color: var(--accent);
+  --gi-edge-particle: var(--accent);
+  --gi-edge-halo: color-mix(in srgb, var(--accent) 22%, transparent);
+  --gi-edge-width: 2px;
+}
+
+.gi-edge[data-selected][data-emphasis="traced"] {
+  --gi-edge-halo: color-mix(in srgb, var(--trace) 22%, transparent);
+  --gi-edge-width: 2.5px;
+}
+
+/*
+ * State: broken (diff mode). A pulsing dashed red line whatever its
+ * confidence; the label says what broke.
+ */
+
+.gi-edge[data-broken] {
+  --gi-edge-color: var(--diff-removed);
+  --gi-edge-width: 2px;
+  opacity: 1;
+}
+
+.gi-edge[data-broken] .gi-edge__line {
+  stroke-dasharray: 5 4;
+  stroke-linecap: butt;
+  animation: gi-edge-pulse calc(var(--duration-trace-hop) * 2) var(--ease-layout) infinite alternate;
+}
+
+@keyframes gi-edge-pulse {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* Reduced motion: no particles, no pulse (the dashes and label still say "broken"). */
+@media (prefers-reduced-motion: reduce) {
+  .gi-edge__particle {
+    display: none;
+  }
+
+  .gi-edge[data-broken] .gi-edge__line {
+    animation: none;
+  }
+}
+
+/*
+ * The label pill, centered on the point it is placed at (geometry `mid`).
+ * Quiet by default; states change its border, never its size.
+ */
+
+.gi-edge-label {
+  --gi-label-border: var(--border);
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+  padding: 1px 8px;
+  border: 1px solid var(--gi-label-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-standard) var(--ease-standard);
+}
+
+.gi-edge-label > * {
+  flex: none;
+}
+
+.gi-edge-label code {
+  overflow: hidden;
+  flex: 0 1 auto;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  text-overflow: ellipsis;
+}
+
+.gi-edge-label .gi-method {
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.gi-edge-label__note::before {
+  margin-right: 6px;
+  content: "·";
+}
+
+.gi-edge-label[data-confidence="unresolved"] {
+  --gi-label-border: var(--text-muted);
+  border-style: dotted;
+  background: var(--canvas);
+}
+
+.gi-edge-label:is(:hover, [data-hover]) {
+  --gi-label-border: color-mix(in srgb, var(--gi-edge-strong) 60%, var(--border));
+}
+
+.gi-edge-label__diff {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+}
+
+.gi-edge-label[data-diff="added"] {
+  --gi-diff: var(--diff-added);
+  --gi-label-border: color-mix(in srgb, var(--diff-added) 55%, var(--border));
+}
+
+.gi-edge-label[data-diff="changed"] {
+  --gi-diff: var(--diff-changed);
+  --gi-label-border: color-mix(in srgb, var(--diff-changed) 55%, var(--border));
+}
+
+.gi-edge-label[data-diff="removed"] {
+  --gi-diff: var(--diff-removed);
+  --gi-label-border: color-mix(in srgb, var(--diff-removed) 55%, var(--border));
+}
+
+.gi-edge-label[data-diff="removed"] > :not(.gi-edge-label__diff) {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.gi-edge-label[data-emphasis="traced"] {
+  --gi-label-border: var(--trace);
+  color: var(--text);
+}
+
+.gi-edge-label[data-emphasis="dimmed"] {
+  opacity: 0.2;
+}
+
+.gi-edge-label[data-selected] {
+  --gi-label-border: var(--accent);
+  color: var(--text);
+}
+
+.gi-edge-label[data-broken] {
+  --gi-diff: var(--diff-removed);
+  --gi-label-border: var(--diff-removed);
+  border-style: solid;
+  background: var(--surface-1);
+  color: var(--text);
+}
