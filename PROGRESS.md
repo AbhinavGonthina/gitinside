@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M3.6. Report generator → eval/results/ ("Pending owner review") + pnpm eval reproducibility
+M3.7. Open needs-abhinav issue: review a seeded random 20% of labels
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -62,7 +62,7 @@ M3.6. Report generator → eval/results/ ("Pending owner review") + pnpm eval re
 - [x] M3.3 Draft labels for repos 1–2 (independently of analyzer output; commit before scoring) {model: opus}
 - [x] M3.4 Draft labels for repos 3–5 {model: opus}
 - [x] M3.5 Scoring script (overall / per repo / per confidence, FP and FN lists) {model: opus}
-- [ ] M3.6 Report generator → eval/results/ ("Pending owner review") + pnpm eval reproducibility {model: opus}
+- [x] M3.6 Report generator → eval/results/ ("Pending owner review") + pnpm eval reproducibility {model: opus}
 - [ ] M3.7 Open needs-abhinav issue: review a seeded random 20% of labels {model: opus}
 - [ ] M3.8 Milestone verification + M3-review.md + tag m3 {model: opus}
 
@@ -154,6 +154,8 @@ M3.6. Report generator → eval/results/ ("Pending owner review") + pnpm eval re
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M3.6: `pnpm eval` (`eval/src/run.ts` + pure `report.ts`) checks out the pinned SHAs, analyzes, scores, and writes `eval/results/2026-10-28-0.1.0.md` ("Pending owner review"); `pnpm eval --check` reuses the report's Run record, refuses if analyzer/schema/eval/labels/lockfile changed since its commit, and byte-compares (ADR-0043; on-demand Eval workflow). First result: precision 96.6% (28/29), recall 20.3% (28/138). conversa 24/24; WealthWise/foodie 0 recall (requests predicted once as `DYNAMIC_URL` inside `apiClient`/`httpRequest`, not at callers: 83 of 110 misses); wanderlust's axios instance mostly unseen and `axios\n.get(` anchored a line off the label; taxonomy's 1 FP/FN is a helper call placed at its caller. Analyzer recall work is for after M3.8. 63 eval tests, 99.67% lines. Next: M3.7.
 
 - 2026-10-28 · M3.5: `scoreRepo`/`scoreAll` in `eval/src/score.ts`: predictions per edge site (`http` → route; `http` → unresolved and `external_call` → external = "no route"), matched on call site (column only when labeled) + registering file + method + path with param names dropped. TP/FP/FN overall, per repo, per confidence (per-level recall over all positive labels, so levels sum); FPs carry a kind (`wrong-route`/`route-for-null-label`/`unlabeled-site`), FNs list what was predicted instead; abstentions and missing (no prediction at all) separate (ADR-0042). Not yet run on the eval repos (M3.6). 43 eval tests, 99.75% lines; lint/typecheck green. Next: M3.6.
 
