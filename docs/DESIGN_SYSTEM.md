@@ -49,6 +49,20 @@ Every M4a review checks screenshots against this list.
 
 The legend is always one click away and is generated from these same tokens.
 
+**Node components** (implemented in M4a.4, `packages/viewer/src/nodes/`; pending the design gate; ADR-0049). Story **Components/Nodes** shows Kinds, States (every kind × every state), and Frames.
+- **Tiers:**
+  - **Frames** (service, module). Closed: a solid card tinted 10% with the layer, a layer-mixed border, counts on their own row, and a **stacked edge** beneath meaning "there is more inside; break it down". Open: translucent (6% layer tint), header row on top, children inside; nested frames deepen the tint. Service radius 16, module 12.
+  - **Cards** (file, symbol, route, page, model, unresolved): `surface-1`, radius 10, small tile, name and muted subtitle, counts on the right. Symbols, page paths, and unresolved expressions use Geist Mono; a route's method sits in a quiet mono chip before its path.
+  - **Icon-first** (datastore, queue, external): large tile, name beneath, engine or brand beneath that. No container until a state needs one.
+  - **Unresolved:** a dotted card on the canvas color, its reason in words ("URL built from CMS_URL at runtime").
+- **Subtitles** come from the node's own fields: framework + root, folder path, "Exported function", "6 fields", "PostgreSQL", "Redis queue", the brand of a host.
+- **States** (combine freely; the border goes to the highest: selected > traced > diff > hover):
+  - **Hover:** `surface-2` fill (frames: a stronger tint) and a stronger border.
+  - **Selected:** 2px `--accent` border and a faint accent fill. Distinct from the keyboard focus ring, which is an offset outline.
+  - **Traced:** `--trace` border plus a soft trace glow, kept when also selected.
+  - **Dimmed:** 20% opacity (50% on hover).
+  - **Diff:** a worded tag on the top edge ("Added", "Changed", "Removed") with a colored dot, plus a diff-colored border and tint. Removed is also dashed, ghosted to 50%, and struck through.
+
 **Icons** (implemented in M4a.3, `packages/viewer/src/icons/`; pending the design gate; ADR-0048)
 - **Brand logos:** from Simple Icons 16.36 (CC0 icons; trademarks belong to their owners and are used only to identify the technology). Mapped only from the node's own field: `service.framework`, `datastore.engine` / `queue.engine`, and `external.host` (which covers the SDK hosts). A host matches its suffix at a label boundary, and the longest suffix wins (`maps.googleapis.com` is Google Maps). The tables are in `brands.ts`; story **Foundations/Icons → Logos** shows all of them.
   - **No logo, so the kind's glyph:** brands Simple Icons doesn't ship (OpenAI, AWS, Microsoft SQL Server, Twilio, Slack, SendGrid, Postmark, Memcached, Typesense, Redpanda), unknown hosts, IPs, and loopback. Never a guessed logo.

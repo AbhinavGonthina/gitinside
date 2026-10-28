@@ -34,3 +34,23 @@ export type {
   NodeIconChoice,
   NodeIconProps,
 } from "./icons/Icon.js";
+export { DiagramNode } from "./nodes/DiagramNode.js";
+export type { DiagramNodeProps } from "./nodes/DiagramNode.js";
+export {
+  countText,
+  DIFF_TEXT,
+  kindName,
+  nodeAccessibleName,
+  nodeLabel,
+  nodeSubtitle,
+  nodeTier,
+  REASON_TEXT,
+} from "./nodes/describe.js";
+export type {
+  NodeCount,
+  NodeDiff,
+  NodeEmphasis,
+  NodeState,
+  NodeText,
+  NodeTier,
+} from "./nodes/describe.js";
