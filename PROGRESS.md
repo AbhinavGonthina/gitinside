@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M3.5. Scoring script (overall / per repo / per confidence, FP and FN lists)
+M3.6. Report generator → eval/results/ ("Pending owner review") + pnpm eval reproducibility
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -61,7 +61,7 @@ M3.5. Scoring script (overall / per repo / per confidence, FP and FN lists)
 - [x] M3.2 Select 5 repos, pin SHAs in eval/repos.json {model: opus}
 - [x] M3.3 Draft labels for repos 1–2 (independently of analyzer output; commit before scoring) {model: opus}
 - [x] M3.4 Draft labels for repos 3–5 {model: opus}
-- [ ] M3.5 Scoring script (overall / per repo / per confidence, FP and FN lists) {model: opus}
+- [x] M3.5 Scoring script (overall / per repo / per confidence, FP and FN lists) {model: opus}
 - [ ] M3.6 Report generator → eval/results/ ("Pending owner review") + pnpm eval reproducibility {model: opus}
 - [ ] M3.7 Open needs-abhinav issue: review a seeded random 20% of labels {model: opus}
 - [ ] M3.8 Milestone verification + M3-review.md + tag m3 {model: opus}
@@ -154,6 +154,8 @@ M3.5. Scoring script (overall / per repo / per confidence, FP and FN lists)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M3.5: `scoreRepo`/`scoreAll` in `eval/src/score.ts`: predictions per edge site (`http` → route; `http` → unresolved and `external_call` → external = "no route"), matched on call site (column only when labeled) + registering file + method + path with param names dropped. TP/FP/FN overall, per repo, per confidence (per-level recall over all positive labels, so levels sum); FPs carry a kind (`wrong-route`/`route-for-null-label`/`unlabeled-site`), FNs list what was predicted instead; abstentions and missing (no prediction at all) separate (ADR-0042). Not yet run on the eval repos (M3.6). 43 eval tests, 99.75% lines; lint/typecheck green. Next: M3.6.
 
 - 2026-10-28 · M3.4: labels for repos 3–5 (wanderlust, conversa, taxonomy), drafted by reading code only, analyzer never run. wanderlust: 20 axios sites → `/api/{posts,auth,user}` routers; conversa: 24 `${API_BASE}` fetches → CommonJS routers + 2 S3 presigned uploads (`null`); taxonomy: 5 root-relative fetches → app router handlers + GitHub API and 2 bundled-font fetches (`null`). Two wanderlust calls pick between two literal routes, so a call site may now carry one label per route reached (ADR-0041, `compareLabels`). `validate`: 144 labels at 142 sites; 24 eval tests, 100% lines; lint/typecheck green. Next: M3.5.
 
