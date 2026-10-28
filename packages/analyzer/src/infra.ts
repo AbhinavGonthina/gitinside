@@ -40,7 +40,8 @@
  *   `KEY: value` lines, and env files with other names (`config.env`, `.envrc`).
  * - `*_API_KEY` keys: a key alone isn't a connection, and SDK calls already draw
  *   `external_call` edges (M2.6).
- * - Literal Prisma URLs (`url = "postgres://…"`), `prisma.config.ts`, and other ORMs'
+ * - Literal Prisma URLs (`url = "postgres://…"`): the datasource keeps its own datastore and
+ *   is never linked by engine alone. Also `prisma.config.ts`, and other ORMs'
  *   connection settings; Kubernetes, Terraform, and other infra formats (v1.1).
  */
 import { readFile } from "node:fs/promises";
@@ -205,28 +206,38 @@ export function urlAuthority(value: string): UrlAuthority | undefined {
 
 const ENV_LINE = /^(\s*(?:export\s+)?)([A-Za-z_][\w.-]*)\s*=\s*(.*)$/;
 
+const QUOTES = ['"', "'", "`"] as const;
+
 /**
  * Parse an env file into its keys and URL authorities. Values are read only to find a URL
- * and are not returned. Never throws: unreadable lines are skipped.
+ * and are not returned. Never throws: unreadable lines are skipped. A quoted value that
+ * continues onto later lines is skipped whole; a quote that never closes is read as a
+ * one-line value, so one bad line can't hide the rest of the file.
  */
 export function parseEnv(text: string): EnvEntry[] {
   const entries: EnvEntry[] = [];
   const lines = text.split(/\r?\n/);
-  /** The quote a multi-line value is waiting for, if any. */
-  let open: string | undefined;
-  for (const [index, line] of lines.entries()) {
-    if (open !== undefined) {
-      if (line.includes(open)) open = undefined;
-      continue;
+  // For each quote, the next line at or after `i` containing it (one backward pass each,
+  // so finding where a value closes never rescans the file).
+  const closing = new Map<string, Int32Array>();
+  for (const quote of QUOTES) {
+    const next = new Int32Array(lines.length + 1).fill(-1);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      next[i] = lines[i]?.includes(quote) ? i : (next[i + 1] ?? -1);
     }
-    const match = ENV_LINE.exec(line);
+    closing.set(quote, next);
+  }
+  for (let index = 0; index < lines.length; index++) {
+    const match = ENV_LINE.exec(lines[index] ?? "");
     if (!match) continue;
     const key = match[2] ?? "";
+    const line = index + 1;
     let value = match[3] ?? "";
     const quote = value[0];
     if (quote === '"' || quote === "'" || quote === "`") {
       const end = value.indexOf(quote, 1);
-      if (end < 0) open = quote;
+      const closes = end < 0 ? (closing.get(quote)?.[index + 1] ?? -1) : -1;
+      if (closes >= 0) index = closes;
       value = value.slice(1, end < 0 ? undefined : end);
     } else {
       const comment = value.indexOf("#");
@@ -235,7 +246,7 @@ export function parseEnv(text: string): EnvEntry[] {
     const url = urlAuthority(value);
     entries.push({
       key,
-      line: index + 1,
+      line,
       column: (match[1] ?? "").length + 1,
       ...(url ? { url } : {}),
     });
@@ -427,6 +438,14 @@ export async function buildInfra(
     }
     const dir = dirName(file);
     for (const service of services) {
+      if (service.name.trim() === "") {
+        warnings.push({
+          code: "COMPOSE_INVALID",
+          file,
+          message: `a service at line ${service.line} has an empty name; ignored`,
+        });
+        continue;
+      }
       const qualified = dir === "" ? service.name : `${dir}/${service.name}`;
       const extra = pending.get(qualified) ?? [];
       extra.push(service);
@@ -498,7 +517,7 @@ export async function buildInfra(
         ? [[...exact], "exact"]
         : heuristic.size > 0
           ? [[...heuristic], "heuristic"]
-          : urls.length === 0
+          : urls.length === 0 && !store.urlOther
             ? [sameEngine, "heuristic"]
             : [[], "heuristic"];
     const only = candidates.length === 1 ? candidates[0] : undefined;

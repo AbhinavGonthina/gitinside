@@ -119,6 +119,31 @@ describe("parseEnv", () => {
     ]);
     expect(JSON.stringify(entries)).not.toMatch(/hunter2|sk_live|BEGIN/);
   });
+
+  it("reads the lines after a quote that never closes (M2 review)", () => {
+    const entries = parseEnv(
+      ['A="unterminated', "DATABASE_URL=postgres://db:5432/x", "B='ok'"].join("\n"),
+    );
+    expect(entries).toEqual([
+      { key: "A", line: 1, column: 1 },
+      {
+        key: "DATABASE_URL",
+        line: 2,
+        column: 1,
+        url: { scheme: "postgres", host: "db", port: 5432 },
+      },
+      { key: "B", line: 3, column: 1 },
+    ]);
+  });
+
+  it("stays linear on many unterminated quotes", () => {
+    // Every line opens a quote that the next line's quote closes, so every other line is a
+    // key; the last one never closes and is read as a one-line value.
+    const text = Array.from({ length: 100_000 }, (_, i) => `K${i}="x`).join("\n");
+    const started = performance.now();
+    expect(parseEnv(text)).toHaveLength(50_000);
+    expect(performance.now() - started).toBeLessThan(5_000);
+  });
 });
 
 describe("imageEngine", () => {
@@ -395,5 +420,31 @@ describe("buildInfra via analyze", () => {
       "COMPOSE_INVALID docker-compose.test.yml: could not parse YAML at line 3; ignored",
       "COMPOSE_DYNAMIC_IMAGE docker-compose.yml: service db sets its image from a variable, so its engine is unknown",
     ]);
+  });
+
+  it("skips a compose service with an empty name instead of failing the graph (M2 review)", async () => {
+    await put("package.json", [JSON.stringify({ name: "api" })]);
+    await put("docker-compose.yml", [
+      "services:",
+      '  "":',
+      "    image: postgres",
+      "  db:",
+      "    image: redis",
+    ]);
+    const graph = await analyze(dir);
+    expect(infraNodes(graph)).toEqual(["datastore:infra/db redis db (docker-compose.yml:4)"]);
+    expect(infraWarnings(graph)).toEqual([
+      "COMPOSE_INVALID docker-compose.yml: a service at line 2 has an empty name; ignored",
+    ]);
+  });
+
+  it("never links a literal Prisma URL to a compose service by engine alone (M2 review)", async () => {
+    await prismaApp(['  url = "postgresql://u:p@prod.neon.tech/app"']);
+    await put("docker-compose.yml", ["services:", "  testdb:", "    image: postgres"]);
+    const graph = await analyze(dir);
+    expect(stores(graph)).toEqual([
+      "model:api/User -> datastore:infra/api/prisma/schema.prisma#db (exact)",
+    ]);
+    expect(stringifyGraph(graph)).not.toMatch(/neon\.tech/);
   });
 });
