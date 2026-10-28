@@ -426,3 +426,15 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - **Duplicates count once:** the same route predicted twice for one label (two sites on a line the label gives no column for) is one TP.
   - **Alternatives rejected:** comparing route lines (fails on harmless anchoring differences); counting external predictions for `null` labels as FPs or ignoring them (the analyzer correctly said "not in this repo"); per-level recall over labels "attempted" at that level (undefined for FNs, which have no confidence).
 - **Consequences:** the scorer refuses a graph for another repo or commit (`ScoreError`). M3.6 adds the runner (analyze each pinned checkout, score, write the report).
+
+## ADR-0043: Eval reports: byte-for-byte reproduction with a recorded run record
+- **Context:** M3.6. EVALUATION.md asks that `pnpm eval` reproduce a committed report byte-for-byte, and also that the report state its date and machine. Those two can't both hold on another machine or day unless the report separates what depends on the run from what depends on the inputs. The analyzer's version string (`0.1.0`) also doesn't change with every analyzer commit, so it can't by itself say which code produced a report.
+- **Decision** (`eval/src/run.ts`, `eval/src/report.ts`):
+  - **The report is a pure function** of the pinned inputs plus a **Run** record (date, GitInside commit, machine). Scores, lists, and wording are all derived from the inputs, sorted, and printed with fixed formatting (`toFixed(1)` plus the raw fraction).
+  - **`pnpm eval --check [report]`** reads the Run record back, refuses if the analyzer, schema, eval code (including labels and `repos.json`), or `pnpm-lock.yaml` differ from the recorded commit (committed or uncommitted), regenerates, and compares bytes. So "reproduced" means: the same code, at the recorded commit, gives the same report, on any machine.
+  - **Dirty runs are marked** (`+ uncommitted changes`) and can't be checked. The workflow is: commit code, run the eval, commit the report.
+  - **Checkouts** are shallow fetches of the exact SHA into `eval/.repos/<owner>__<name>`, with LFS smudging and `core.autocrlf` off so files have the same bytes on every OS; `eval/results/**` is pinned to LF for the same reason. The repos are only read.
+  - **Missing labels with a real target** are listed once, under false negatives ("nothing predicted at the site"); the Missing list repeats only `null`-labeled dropped sites.
+  - An on-demand **Eval** GitHub Actions workflow (`workflow_dispatch`) runs `--check`.
+- **Alternatives rejected:** leaving the date and machine out of the report (EVALUATION.md requires them); comparing everything except the Run section (then a report could claim a commit it wasn't produced from); a JSON sidecar that the Markdown is re-rendered from (proves only the renderer, not the analysis).
+- **Consequences:** a new report is needed whenever the analyzer, schema, labels, or lockfile change, which matches the rule that analyzer commits after M3 state their eval delta.

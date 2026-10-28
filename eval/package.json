@@ -8,9 +8,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "validate": "node dist/validate.js"
+    "validate": "node dist/validate.js",
+    "eval": "node dist/run.js"
   },
   "dependencies": {
+    "@gitinside/analyzer": "workspace:*",
     "@gitinside/schema": "workspace:*",
     "zod": "3.23.8"
   },

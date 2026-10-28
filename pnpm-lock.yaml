@@ -57,6 +57,9 @@ importers:
 
   eval:
     dependencies:
+      '@gitinside/analyzer':
+        specifier: workspace:*
+        version: link:../packages/analyzer
       '@gitinside/schema':
         specifier: workspace:*
         version: link:../packages/schema
