@@ -310,9 +310,11 @@ For each call (method M, pattern P), compare with every route (method M', patter
 | `POST /api/github/webhook` | `pull_request`, `push`, `installation`, `installation_repositories` (HMAC-verified) |
 | `GET /api/auth/github/callback` | OAuth (identity only) |
 
-**Worker enqueue API (VM, HMAC):**
-- `POST /enqueue` `{ kind: 'analyze' | 'diff', owner, repo, sha, baseSha?, installationId? }`
-- `GET /jobs/:id`
+**Worker enqueue API (VM, HMAC; `apps/worker/src/api.ts`, ADR-0060):**
+- `POST /enqueue` `{ kind: 'analyze' | 'diff', owner, repo, sha, baseSha?, installationId? }` → `202 { id, created }`. The ID is derived from the commit and analyzer version, so a repeat is `created: false`.
+- `GET /jobs/:id` → `{ id, kind, state, stage?, progress?, position?, errorCode? }`
+- `GET /health` (unauthenticated) → `{ status: 'ok' | 'unavailable' }`
+- Signed with `X-GitInside-Timestamp` + `X-GitInside-Signature: v1=<hex>` (`@gitinside/worker/hmac`).
 
 ## 12. Failure modes and limits
 
