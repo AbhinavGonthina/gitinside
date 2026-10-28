@@ -15,6 +15,23 @@ GitInside's numbers must survive an interviewer asking "how did you measure that
 
 Each is pinned by commit SHA in `eval/repos.json`: `{ "repos": [{ owner, name, url, sha, license, shape, why }] }`, sorted by `owner/name` (case-insensitive). `url` is `https://github.com/<owner>/<name>`; `license` is a permissive SPDX ID (MIT, Apache-2.0, BSD-2/3-Clause, ISC, 0BSD, Unlicense); `shape` is one of `next-api-routes`, `next-plus-server-monorepo`, `spa-plus-express`, `axios-baseurl`, `env-api-urls` (the list above).
 
+**The pinned set** (M3.2, 2026-10-28; one repo per shape, each pinned at its default-branch HEAD on that date):
+
+| Shape | Repo | Source files |
+|---|---|---|
+| `next-api-routes` | `shadcn-ui/taxonomy` | ~131 |
+| `next-plus-server-monorepo` | `hoangsonww/WealthWise-Finance-Tracker` | ~308 |
+| `spa-plus-express` | `jgudo/foodie` | ~167 |
+| `axios-baseurl` | `krishnaacharyaa/wanderlust` | ~109 |
+| `env-api-urls` | `pankil-soni/conversa` | ~112 |
+
+How they were chosen:
+- **The analyzer was never run on any candidate.** Repos were picked by reading their code (licenses, package layout, how requests and routes are written), so the set can't be tuned to what GitInside already handles. The checkouts used for reading live in `eval/.repos/` (gitignored).
+- **Server code must be in v1 scope** (Express or Next.js route handlers, TS or JS), so a route the analyzer can't see is a real miss, not a framework v1 never claimed. Rejected for this reason: `drodzewicz/Work-Flow` (routes are `routing-controllers` decorators). Also rejected: `shanhuiyang/TypeScript-MERN-Starter` (its client is mostly a React Native app) and `aelassas/bookcars` (about 40 MB on GitHub, many times the others; too large to label by hand in one pass).
+- **Small enough to label every call site** by hand (about 100–300 source files), with routes the frontend really calls in the same repo.
+- **Variety in how URLs are built**, not just in shape: a path-taking `fetch` wrapper (WealthWise), a wrapper over `axios(config)` with `axios.defaults.baseURL` (foodie), a base URL assigned after `axios.create()` (wanderlust), template literals over an env base with a fallback (conversa), and plain root-relative `fetch` (taxonomy).
+- **Known limitation:** small and mid-size apps, mostly hobby or reference projects. Numbers from this set say nothing about large production monorepos (cal.com is used only for the performance benchmark).
+
 **Ground truth format** (`eval/labels/<owner>__<repo>.json`):
 ```json
 {

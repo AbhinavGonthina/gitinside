@@ -5,6 +5,7 @@ node_modules
 pnpm-lock.yaml
 fixtures
 bench/.repos
+eval/.repos
 bench/results
 logs
 *.md

@@ -2,8 +2,9 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { compareStrings } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
-import { EvalInputError, type EvalRepo, type LabelFile } from "./format.js";
+import { EvalInputError, REPO_SHAPES, type EvalRepo, type LabelFile } from "./format.js";
 import { crossCheck, loadEvalInputs } from "./inputs.js";
 
 const SHA_A = "a".repeat(40);
@@ -86,5 +87,13 @@ describe("loadEvalInputs", () => {
   it("validates the committed eval inputs", () => {
     const root = fileURLToPath(new URL("..", import.meta.url));
     expect(crossCheck(loadEvalInputs(root))).toEqual([]);
+  });
+
+  it("pins one committed repo per shape (EVALUATION.md §1)", () => {
+    const root = fileURLToPath(new URL("..", import.meta.url));
+    const shapes = loadEvalInputs(root)
+      .repos.map((r) => r.shape)
+      .sort(compareStrings);
+    expect(shapes).toEqual([...REPO_SHAPES]);
   });
 });
