@@ -1,0 +1,244 @@
+{
+  "repo": "pankil-soni/conversa",
+  "sha": "2b97aa82a5743c5097ca35e1d828e42b86916514",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/components/dashboard/MessageInput.tsx", "line": 131 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(url) with url from the GET /user/presigned-url response: an S3 presigned POST to the bucket's host, outside the repo"
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 75 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/auth-routes.js",
+        "line": 15,
+        "route": "POST /auth/login"
+      },
+      "notes": "every URL is `${API_BASE}/…` with API_BASE = import.meta.env.VITE_API_URL ?? \"http://localhost:5500\" (the backend's hardcoded PORT, and VITE_API_URL in .env.example). backend/index.js mounts the routers with app.use(\"/auth\" | \"/user\" | \"/message\" | \"/conversation\", require(...))"
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 82 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/auth-routes.js",
+        "line": 14,
+        "route": "POST /auth/register"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 89 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/auth-routes.js",
+        "line": 17,
+        "route": "GET /auth/me"
+      },
+      "notes": "no method in the init object, so GET"
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 94 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/auth-routes.js",
+        "line": 16,
+        "route": "POST /auth/getotp"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 101 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/auth-routes.js",
+        "line": 18,
+        "route": "POST /auth/send-verification-otp"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 107 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/auth-routes.js",
+        "line": 19,
+        "route": "POST /auth/verify-email"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 118 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/conversation-routes.js",
+        "line": 13,
+        "route": "GET /conversation"
+      },
+      "notes": "URL ends in /conversation/; Express's non-strict routing sends it to router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 123 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/conversation-routes.js",
+        "line": 14,
+        "route": "GET /conversation/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 128 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/conversation-routes.js",
+        "line": 12,
+        "route": "POST /conversation"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 135 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/conversation-routes.js",
+        "line": 15,
+        "route": "POST /conversation/:id/pin"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 145 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/message-routes.js",
+        "line": 15,
+        "route": "GET /message/:id"
+      },
+      "notes": "page and limit are in the query string"
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 150 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/Routes/message-routes.js",
+        "line": 17,
+        "route": "DELETE /message/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 157 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/Routes/message-routes.js",
+        "line": 16,
+        "route": "DELETE /message/bulk/hide"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 164 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/message-routes.js",
+        "line": 18,
+        "route": "POST /message/clear/:conversationId"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 170 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/message-routes.js",
+        "line": 19,
+        "route": "POST /message/:id/star"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 176 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/message-routes.js",
+        "line": 14,
+        "route": "GET /message/starred"
+      },
+      "notes": "registered before GET /:id, so it wins"
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 185 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/user-routes.js",
+        "line": 17,
+        "route": "GET /user/online-status/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 195 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/user-routes.js",
+        "line": 18,
+        "route": "GET /user/non-friends"
+      },
+      "notes": "query string built with URLSearchParams"
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 201 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/Routes/user-routes.js",
+        "line": 16,
+        "route": "PUT /user/update"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 208 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/user-routes.js",
+        "line": 19,
+        "route": "GET /user/presigned-url"
+      },
+      "notes": "fetch( on line 208, URL template on line 209"
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 214 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/user-routes.js",
+        "line": 20,
+        "route": "POST /user/block/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 220 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/Routes/user-routes.js",
+        "line": 21,
+        "route": "DELETE /user/block/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 226 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/user-routes.js",
+        "line": 22,
+        "route": "GET /user/block-status/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/lib/api.ts", "line": 231 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/Routes/user-routes.js",
+        "line": 23,
+        "route": "DELETE /user/delete"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/UserProfile.tsx", "line": 222 },
+      "method": "POST",
+      "target": null,
+      "notes": "S3 presigned POST to the url returned by GET /user/presigned-url, outside the repo"
+    }
+  ]
+}

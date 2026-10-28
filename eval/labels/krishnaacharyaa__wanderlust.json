@@ -1,0 +1,219 @@
+{
+  "repo": "krishnaacharyaa/wanderlust",
+  "sha": "2d83720e4318a7f999d3f9d751013b105f0c805a",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/components/blog-feed.tsx", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 32,
+        "route": "GET /api/posts/categories/:category"
+      },
+      "notes": "axios.get(VITE_API_PATH + categoryEndpoint), categoryEndpoint = selectedCategory === 'featured' ? '/api/posts/featured' : `/api/posts/categories/${selectedCategory}`, so the site reaches both routes. VITE_API_PATH has no in-code fallback; frontend/.env.sample sets http://localhost:8080 = backend PORT in backend/.env.sample. app.ts mounts postsRouter at /api/posts, authRouter at /api/auth, userRouter at /api/user"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/blog-feed.tsx", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 26,
+        "route": "GET /api/posts/featured"
+      },
+      "notes": "'featured' alternative of categoryEndpoint; registered before GET /:id, so it wins"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/blog-feed.tsx", "line": 35 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 35,
+        "route": "GET /api/posts/latest"
+      },
+      "notes": "registered before GET /:id, so it wins"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/form-blog.tsx", "line": 84 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 20,
+        "route": "POST /api/posts"
+      },
+      "notes": "axiosInstance (helpers/axios-instance.ts): axios.create() with defaults.baseURL = VITE_API_PATH assigned afterwards. URL '/api/posts/' has a trailing slash; Express's non-strict routing sends it to router.post('/')"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/form-blog.tsx", "line": 89 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 46,
+        "route": "PATCH /api/posts/admin/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/components/form-blog.tsx", "line": 91 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 40,
+        "route": "PATCH /api/posts/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/hooks/useAuthData.ts", "line": 28 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/auth.ts",
+        "line": 54,
+        "route": "GET /api/auth/check/:_id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/layouts/header-layout.tsx", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/auth.ts",
+        "line": 51,
+        "route": "POST /api/auth/signout"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin-blogs.tsx", "line": 18 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 23,
+        "route": "GET /api/posts"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin-blogs.tsx", "line": 26 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 49,
+        "route": "DELETE /api/posts/admin/:id"
+      },
+      "notes": "'/api/posts/admin/' + postId"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin-users.tsx", "line": 19 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/user.ts",
+        "line": 12,
+        "route": "GET /api/user"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin-users.tsx", "line": 28 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/routes/user.ts",
+        "line": 15,
+        "route": "PATCH /api/user/:userId"
+      },
+      "notes": "'/api/user/' + userId"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/details-page.tsx", "line": 44 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 43,
+        "route": "DELETE /api/posts/:id"
+      },
+      "notes": "axios.delete(VITE_API_PATH + url) where url = `/api/posts/${postId}`, reassigned to `/api/posts/admin/${postId}` for admins, so the site reaches both routes"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/details-page.tsx", "line": 44 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 49,
+        "route": "DELETE /api/posts/admin/:id"
+      },
+      "notes": "admin alternative of url; two segments after /api/posts, so DELETE /:id can't take it"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/details-page.tsx", "line": 60 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 37,
+        "route": "GET /api/posts/:id"
+      },
+      "notes": "plain axios.get(VITE_API_PATH + `/api/posts/${postId}`)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/details-page.tsx", "line": 77 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 29,
+        "route": "GET /api/posts/related-posts-by-category"
+      },
+      "notes": "categories go in axios params (query string); registered before GET /:id"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/edit-blog.tsx", "line": 20 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 37,
+        "route": "GET /api/posts/:id"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/home-page.tsx", "line": 14 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/posts.ts",
+        "line": 23,
+        "route": "GET /api/posts"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/signin-page.tsx", "line": 31 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/auth.ts",
+        "line": 17,
+        "route": "POST /api/auth/email-password/signin"
+      },
+      "notes": "window.location.href = `${VITE_API_PATH}/api/auth/google` on line 106 is a navigation, not labeled"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/signin-page.tsx", "line": 79 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/auth.ts",
+        "line": 39,
+        "route": "GET /api/auth/check"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/signup-page.tsx", "line": 31 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/auth.ts",
+        "line": 16,
+        "route": "POST /api/auth/email-password/signup"
+      },
+      "notes": "window.location.href to /api/auth/google on line 101 is a navigation, not labeled"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/signup-page.tsx", "line": 74 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/auth.ts",
+        "line": 39,
+        "route": "GET /api/auth/check"
+      }
+    }
+  ]
+}

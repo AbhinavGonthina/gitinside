@@ -160,7 +160,7 @@ describe("parseLabelFile", () => {
     }
   });
 
-  it("requires call sites sorted and unique", () => {
+  it("requires labels sorted by call site and unique", () => {
     const site = (file: string, line: number, column?: number) => ({
       callSite: { file, line, ...(column ? { column } : {}) },
       method: "GET",
@@ -168,15 +168,43 @@ describe("parseLabelFile", () => {
     });
     expect(
       issues(() => parseLabelFile("x.json", labels({ edges: [site("b.ts", 1), site("a.ts", 1)] }))),
-    ).toContain("edges.1: call site out of order");
+    ).toContain("edges.1: label (call site + target) out of order");
     expect(
       issues(() => parseLabelFile("x.json", labels({ edges: [site("a.ts", 2), site("a.ts", 1)] }))),
-    ).toContain("edges.1: call site out of order");
+    ).toContain("edges.1: label (call site + target) out of order");
     expect(
       issues(() => parseLabelFile("x.json", labels({ edges: [site("a.ts", 1), site("a.ts", 1)] }))),
-    ).toContain("edges.1: duplicate call site");
+    ).toContain("edges.1: duplicate label (call site + target)");
     expect(() =>
       parseLabelFile("x.json", labels({ edges: [site("a.ts", 1), site("a.ts", 1, 9)] })),
+    ).not.toThrow();
+  });
+
+  it("allows one label per target at a call site whose URL has alternatives, sorted by target", () => {
+    const at = (target: { file: string; line: number; route: string } | null) => ({
+      callSite: { file: "a.ts", line: 1 },
+      method: "DELETE",
+      target,
+    });
+    const admin = { file: "r.ts", line: 9, route: "DELETE /api/posts/admin/:id" };
+    const own = { file: "r.ts", line: 3, route: "DELETE /api/posts/:id" };
+    const parsed = parseLabelFile("x.json", labels({ edges: [at(null), at(own), at(admin)] }));
+    expect(parsed.edges.map((e) => e.target?.route ?? null)).toEqual([
+      null,
+      "DELETE /api/posts/:id",
+      "DELETE /api/posts/admin/:id",
+    ]);
+    expect(
+      issues(() => parseLabelFile("x.json", labels({ edges: [at(admin), at(own)] }))),
+    ).toContain("edges.1: label (call site + target) out of order");
+    expect(
+      issues(() => parseLabelFile("x.json", labels({ edges: [at(own), at(null)] }))),
+    ).toContain("edges.1: label (call site + target) out of order");
+    expect(issues(() => parseLabelFile("x.json", labels({ edges: [at(own), at(own)] })))).toContain(
+      "edges.1: duplicate label (call site + target)",
+    );
+    expect(() =>
+      parseLabelFile("x.json", labels({ edges: [at(own), at({ ...own, line: 4 })] })),
     ).not.toThrow();
   });
 

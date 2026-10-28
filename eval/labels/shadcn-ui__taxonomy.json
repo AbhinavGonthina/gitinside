@@ -1,0 +1,74 @@
+{
+  "repo": "shadcn-ui/taxonomy",
+  "sha": "298a8857c7128a0d121e7f699dfd729f23b3966d",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "app/(marketing)/page.tsx", "line": 10 },
+      "method": "GET",
+      "target": null,
+      "notes": "getGitHubStars(): literal https://api.github.com/repos/shadcn/taxonomy, an external host"
+    },
+    {
+      "callSite": { "file": "app/api/og/route.tsx", "line": 7 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(new URL(\"../../../assets/fonts/Inter-Regular.ttf\", import.meta.url)) loads a font bundled with the edge function, not a route"
+    },
+    {
+      "callSite": { "file": "app/api/og/route.tsx", "line": 11 },
+      "method": "GET",
+      "target": null,
+      "notes": "bundled font file (CalSans-SemiBold.ttf) via new URL(…, import.meta.url), not a route"
+    },
+    {
+      "callSite": { "file": "components/billing-form.tsx", "line": 37 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/users/stripe/route.ts",
+        "line": 12,
+        "route": "GET /api/users/stripe"
+      },
+      "notes": "root-relative fetch from a client component; the static stripe/ folder wins over the sibling [userId]/ (which only exports PATCH anyway)"
+    },
+    {
+      "callSite": { "file": "components/editor.tsx", "line": 91 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/posts/[postId]/route.ts",
+        "line": 44,
+        "route": "PATCH /api/posts/:postId"
+      }
+    },
+    {
+      "callSite": { "file": "components/post-create-button.tsx", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/posts/route.ts",
+        "line": 41,
+        "route": "POST /api/posts"
+      }
+    },
+    {
+      "callSite": { "file": "components/post-operations.tsx", "line": 29 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/posts/[postId]/route.ts",
+        "line": 14,
+        "route": "DELETE /api/posts/:postId"
+      },
+      "notes": "inside the module-level helper deletePost(postId), which fixes the path itself"
+    },
+    {
+      "callSite": { "file": "components/user-name-form.tsx", "line": 49 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/users/[userId]/route.ts",
+        "line": 14,
+        "route": "PATCH /api/users/:userId"
+      }
+    }
+  ]
+}

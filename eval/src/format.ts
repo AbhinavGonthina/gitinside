@@ -1,7 +1,7 @@
 /**
  * The eval's input formats (docs/EVALUATION.md §1): the pinned repo list `eval/repos.json` and
  * the ground-truth label files `eval/labels/<owner>__<name>.json`. Both are hand-written, so
- * every rule a scorer relies on (path spelling, route syntax, sort order, unique call sites) is
+ * every rule a scorer relies on (path spelling, route syntax, sort order, unique labels) is
  * checked here rather than assumed later.
  */
 import { compareStrings } from "@gitinside/schema";
@@ -114,6 +114,20 @@ export function compareLocations(a: SourcePoint, b: SourcePoint): number {
   return compareStrings(a.file, b.file) || a.line - b.line || (a.column ?? 0) - (b.column ?? 0);
 }
 
+/** Order targets: `null` first, then by route, registering file, and line. */
+export function compareTargets(a: LabeledEdge["target"], b: LabeledEdge["target"]): number {
+  if (a === null || b === null) return (a === null ? 0 : 1) - (b === null ? 0 : 1);
+  return compareStrings(a.route, b.route) || compareStrings(a.file, b.file) || a.line - b.line;
+}
+
+/**
+ * Order labels by call site, then target. A call site has several labels only when its URL is
+ * one of several statically known alternatives (`cond ? "/a" : "/b"`), one per route reached.
+ */
+export function compareLabels(a: LabeledEdge, b: LabeledEdge): number {
+  return compareLocations(a.callSite, b.callSite) || compareTargets(a.target, b.target);
+}
+
 /** Whether `file` lies inside one of the label file's scope entries (`.` = the whole repo). */
 export function inScope(scope: readonly string[], file: string): boolean {
   return scope.some((s) => s === "." || file === s || file.startsWith(`${s}/`));
@@ -158,13 +172,7 @@ export const labelFileSchema = z
   .strict()
   .superRefine((file, ctx) => {
     checkSorted(file.scope, compareStrings, ["scope"], "scope entry", ctx);
-    checkSorted(
-      file.edges,
-      (a, b) => compareLocations(a.callSite, b.callSite),
-      ["edges"],
-      "call site",
-      ctx,
-    );
+    checkSorted(file.edges, compareLabels, ["edges"], "label (call site + target)", ctx);
     file.edges.forEach((edge, i) => {
       if (!inScope(file.scope, edge.callSite.file)) {
         ctx.addIssue({
