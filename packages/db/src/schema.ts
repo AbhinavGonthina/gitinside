@@ -87,11 +87,19 @@ export const repos = pgTable(
 
 /** Counts recorded when an analysis finishes, plus per-stage timings in ms (DESIGN §13). */
 export interface AnalysisStats {
+  /** Source files analyzed (the graph's `file` nodes). */
   files: number;
   nodes: number;
   edges: number;
   unresolved: number;
+  warnings?: number;
+  /** `architecture.json` size, and the gzipped object's size (what counts against R2's quota). */
+  graphBytes?: number;
+  snapshotBytes?: number;
+  /** Analyzer stages. `jsonb` reorders keys, so this doesn't keep the stage order. */
   stageMs?: Record<string, number>;
+  /** Worker stages: download + extract, the analysis child, the snapshot upload. */
+  jobMs?: { download: number; analyze: number; upload: number };
 }
 
 /**

@@ -21,6 +21,8 @@ export const RETRIABLE_CODES: ReadonlySet<string> = new Set([
   "CANCELLED",
   /** Storing the result (R2, Postgres) failed. */
   "PUBLISH_FAILED",
+  /** Writing the job's start to Postgres failed (record.ts). */
+  "RECORD_FAILED",
   /** Something unexpected in the worker itself (a full disk, a bug); logged with details. */
   "WORKER_ERROR",
 ]);

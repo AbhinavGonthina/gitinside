@@ -14,7 +14,13 @@ describe("JobFailure", () => {
 
   it("is retriable exactly for the listed codes", () => {
     for (const code of RETRIABLE_CODES) expect(new JobFailure(code).retriable).toBe(true);
-    for (const code of ["REPO_NOT_FOUND", "TAR_UNSAFE_PATH", "LIMIT_TIME", "ANALYZER_CRASHED"]) {
+    for (const code of [
+      "REPO_NOT_FOUND",
+      "REPO_NOT_PUBLIC",
+      "TAR_UNSAFE_PATH",
+      "LIMIT_TIME",
+      "ANALYZER_CRASHED",
+    ]) {
       expect(new JobFailure(code).retriable).toBe(false);
     }
   });

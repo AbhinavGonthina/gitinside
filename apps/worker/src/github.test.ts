@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { JobFailure } from "./failure.js";
-import { MAX_REDIRECTS, failureForStatus, openTarball, type DownloadOptions } from "./github.js";
+import {
+  MAX_REDIRECTS,
+  failureForStatus,
+  fetchRepoFacts,
+  openTarball,
+  type DownloadOptions,
+} from "./github.js";
 
 const SOURCE = { owner: "acme", repo: "shop", sha: "0123456789abcdef0123456789abcdef01234567" };
 const API = "https://api.github.com";
@@ -125,5 +131,121 @@ describe("failureForStatus", () => {
     [503, {}, "DOWNLOAD_FAILED"],
   ])("%i %j ⇒ %s", (status, headers, code) => {
     expect(failureForStatus(status, new Headers(headers)).code).toBe(code);
+  });
+});
+
+describe("fetchRepoFacts", () => {
+  const REPO_JSON = {
+    id: 3_000_000_001,
+    name: "Shop",
+    owner: { login: "Acme", id: 7 },
+    private: false,
+    default_branch: "trunk",
+    description: "ignored",
+  };
+  const json = (value: unknown): Response => new Response(JSON.stringify(value));
+
+  async function factsCode(options: DownloadOptions): Promise<string> {
+    try {
+      await fetchRepoFacts(SOURCE, options);
+    } catch (error) {
+      if (error instanceof JobFailure) return error.code;
+      throw error;
+    }
+    return "OK";
+  }
+
+  it("asks the API with GitHub's headers and keeps GitHub's spelling", async () => {
+    const { calls, fetch } = scripted(json(REPO_JSON));
+    expect(await fetchRepoFacts(SOURCE, { fetch, token: "t" })).toEqual({
+      id: 3_000_000_001,
+      owner: "Acme",
+      name: "Shop",
+      private: false,
+      defaultBranch: "trunk",
+    });
+    expect(calls).toEqual([
+      {
+        url: `${API}/repos/acme/shop`,
+        headers: {
+          "user-agent": "gitinside-worker",
+          accept: "application/vnd.github+json",
+          "x-github-api-version": "2022-11-28",
+          authorization: "Bearer t",
+        },
+      },
+    ]);
+  });
+
+  it("follows a renamed repo's redirect inside the API, with the token", async () => {
+    const { calls, fetch } = scripted(
+      redirect(301, `${API}/repositories/3000000001`),
+      json(REPO_JSON),
+    );
+    expect((await fetchRepoFacts(SOURCE, { fetch, token: "t" })).name).toBe("Shop");
+    expect(calls.map((c) => [c.url, c.headers.authorization])).toEqual([
+      [`${API}/repos/acme/shop`, "Bearer t"],
+      [`${API}/repositories/3000000001`, "Bearer t"],
+    ]);
+  });
+
+  it.each([
+    ["another host", [redirect(302, "https://evil.example/repos/acme/shop")]],
+    ["no location", [redirect(302)]],
+    ["a bad location", [redirect(302, "http://[")]],
+    [
+      "too many hops",
+      Array.from({ length: MAX_REDIRECTS + 1 }, () => redirect(301, `${API}/repositories/1`)),
+    ],
+  ])("refuses a redirect to %s", async (_, script) => {
+    const { calls, fetch } = scripted(...script);
+    expect(await factsCode({ fetch })).toBe("DOWNLOAD_REFUSED");
+    expect(calls.every((c) => c.url.startsWith(API))).toBe(true);
+  });
+
+  it.each([
+    ["not JSON", "{"],
+    ["an array", "[]"],
+    ["no owner", JSON.stringify({ ...REPO_JSON, owner: null })],
+    ["a bad owner", JSON.stringify({ ...REPO_JSON, owner: { login: "-x" } })],
+    ["a bad name", JSON.stringify({ ...REPO_JSON, name: "a/b" })],
+    ["a bad ID", JSON.stringify({ ...REPO_JSON, id: 1.5 })],
+    ["no visibility", JSON.stringify({ ...REPO_JSON, private: "no" })],
+    ["no default branch", JSON.stringify({ ...REPO_JSON, default_branch: "" })],
+    ["a huge body", JSON.stringify({ ...REPO_JSON, description: "x".repeat(1024 * 1024) })],
+  ])("refuses an answer with %s", async (_, text) => {
+    const { fetch } = scripted(new Response(text));
+    expect(await factsCode({ fetch })).toBe("DOWNLOAD_REFUSED");
+  });
+
+  it.each([
+    [404, "REPO_NOT_FOUND"],
+    [403, "GITHUB_RATE_LIMITED"],
+    [502, "DOWNLOAD_FAILED"],
+  ])("maps %i to %s", async (status, code) => {
+    const headers = status === 403 ? { "x-ratelimit-remaining": "0" } : {};
+    const { fetch } = scripted(new Response("{}", { status, headers }));
+    expect(await factsCode({ fetch })).toBe(code);
+  });
+
+  it("fails a network error as retriable, and rethrows an abort", async () => {
+    const down = (async () => {
+      throw new TypeError("fetch failed");
+    }) as typeof globalThis.fetch;
+    expect(await factsCode({ fetch: down })).toBe("DOWNLOAD_FAILED");
+
+    const controller = new AbortController();
+    controller.abort(new Error("stop"));
+    await expect(
+      fetchRepoFacts(SOURCE, { fetch: down, signal: controller.signal }),
+    ).rejects.toThrow("stop");
+  });
+
+  it("fails a body cut off mid-stream", async () => {
+    const body = new ReadableStream<Uint8Array>({
+      pull: (c) => c.error(new Error("reset")),
+    });
+    const { fetch } = scripted(new Response(body));
+    expect(await factsCode({ fetch })).toBe("DOWNLOAD_FAILED");
   });
 });

@@ -22,10 +22,15 @@ describe("runChildJob", () => {
     const report = await runChildJob({ src: FIXTURE, out, owner: "fixtures", name: "no-tsconfig" });
     const text = await readFile(out, "utf8");
     expect(text).toBe(await readFile(join(FIXTURE, "expected.json"), "utf8"));
-    const graph = JSON.parse(text) as { nodes: unknown[]; edges: unknown[]; warnings: unknown[] };
+    const graph = JSON.parse(text) as {
+      nodes: { kind: string }[];
+      edges: unknown[];
+      warnings: unknown[];
+    };
     expect(report).toMatchObject({
       ok: true,
       stats: {
+        files: graph.nodes.filter((node) => node.kind === "file").length,
         nodes: graph.nodes.length,
         edges: graph.edges.length,
         warnings: graph.warnings.length,

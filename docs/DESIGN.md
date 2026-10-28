@@ -296,6 +296,7 @@ For each call (method M, pattern P), compare with every route (method M', patter
 | `rate_limits` | key (ip or user), window_start, count |
 
 - **Implementation:** `packages/db` (ADR-0057). IDs are random UUIDs; GitHub IDs are `bigint`; every table has `created_at`, and `repos`/`pull_requests` also `updated_at`. The database itself enforces SHAs (40 lowercase hex), the status ⇔ columns rule for `analyses` (`done` has a snapshot, `failed` an error code, both a finish time), non-negative counts, owner/name unique ignoring case, and cascading deletes from repos and users. Migrations are committed SQL under `packages/db/drizzle/`, applied with `pnpm --filter @gitinside/db migrate`.
+- **Writes** (ADR-0063, `packages/db/src/analyses.ts`): the worker upserts the repo from GitHub's own facts (ID, current name, visibility, default branch) and marks the analysis `running` at the start of each attempt, `queued` after an attempt that will be retried, `failed` after the last one, and `done` only after the snapshot is in R2. A `done` row is never changed again. At startup the worker fails rows left `running` by a dead process (`JOB_INTERRUPTED`).
 - **Snapshot retention** (fits R2's 10 GB): keep the latest 5 SHAs per public repo plus any SHA referenced by a PR from the last 30 days. Evict the oldest first, globally, when usage passes 8 GB.
 - **Private data:** stored under the installation prefix and deleted on uninstall.
 

@@ -19,6 +19,8 @@ export interface ChildJob {
 
 /** Counts and timings from a finished analysis; they feed `analyses.stats`. */
 export interface AnalysisStats {
+  /** Source files analyzed: the graph's `file` nodes. */
+  files: number;
   nodes: number;
   edges: number;
   /** Nodes of kind `unresolved` (requests, imports, and calls shown with a reason). */
@@ -84,12 +86,13 @@ export function parseChildReport(text: string): ChildReport | undefined {
     return { ok: false, code, message };
   }
   if (value.ok !== true || !isRecord(value.stats)) return undefined;
-  const { nodes, edges, unresolved, warnings, graphBytes, stageMs } = value.stats;
-  if (![nodes, edges, unresolved, warnings, graphBytes].every(isCount)) return undefined;
+  const { files, nodes, edges, unresolved, warnings, graphBytes, stageMs } = value.stats;
+  if (![files, nodes, edges, unresolved, warnings, graphBytes].every(isCount)) return undefined;
   if (!isRecord(stageMs) || !Object.values(stageMs).every(isCount)) return undefined;
   return {
     ok: true,
     stats: {
+      files: files as number,
       nodes: nodes as number,
       edges: edges as number,
       unresolved: unresolved as number,

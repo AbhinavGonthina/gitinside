@@ -1,5 +1,7 @@
 /**
- * A freshly migrated, private database for one test file.
+ * A freshly migrated, private database for one test file, for this package's tests and for
+ * other packages' (`@gitinside/db/testing`; ADR-0063). Tests only: it needs PGlite, a dev
+ * dependency.
  *
  * - With `TEST_DATABASE_URL` set (CI's Postgres service, or local Docker
  *   Postgres), creates a new database on that server, migrates it with

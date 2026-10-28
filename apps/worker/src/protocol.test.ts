@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseChildJob, parseChildReport } from "./protocol.js";
 
 const STATS = {
+  files: 1,
   nodes: 3,
   edges: 2,
   unresolved: 1,
@@ -59,6 +60,7 @@ describe("parseChildReport", () => {
     ["no ok flag", JSON.stringify({ stats: STATS })],
     ["missing stats", JSON.stringify({ ok: true })],
     ["a negative count", JSON.stringify({ ok: true, stats: { ...STATS, nodes: -1 } })],
+    ["a missing file count", JSON.stringify({ ok: true, stats: { ...STATS, files: undefined } })],
     ["a fractional count", JSON.stringify({ ok: true, stats: { ...STATS, edges: 1.5 } })],
     ["a bad stage time", JSON.stringify({ ok: true, stats: { ...STATS, stageMs: { a: "1" } } })],
     ["stage times as an array", JSON.stringify({ ok: true, stats: { ...STATS, stageMs: [1] } })],

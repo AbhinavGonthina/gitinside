@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@gitinside/analyzer": "workspace:*",
+    "@gitinside/db": "workspace:*",
     "@gitinside/schema": "workspace:*",
     "bullmq": "6.4.2",
     "ioredis": "5.11.1"

@@ -9,12 +9,14 @@ import { runAnalysis, type RunOptions, type RunResult } from "./runner.js";
 
 /**
  * One job, start to finish (docs/SECURITY.md §3; ADR-0061):
- * 1. **download + extract:** the tarball streams from GitHub (github.ts) straight into
- *    `<jobsRoot>/<id>-<random>/src` (extract.ts); nothing is buffered on disk first. Both
- *    share one budget, {@link DEFAULT_DOWNLOAD_TIMEOUT_MS}.
+ * 1. **download + extract:** the recorder (if any) marks the analysis running in Postgres;
+ *    then the tarball streams from GitHub (github.ts) straight into
+ *    `<jobsRoot>/<id>-<random>/src` (extract.ts); nothing is buffered on disk first. All of
+ *    it shares one budget, {@link DEFAULT_DOWNLOAD_TIMEOUT_MS}.
  * 2. **analyze:** the sandboxed child (runner.ts) writes `architecture.json` next to `src`.
- * 3. **publish:** the caller's `publish` stores the graph (M5.5: R2 + Postgres).
- * 4. **clean up:** the job folder is deleted whatever happened.
+ * 3. **publish:** the caller's `publish` stores the graph (record.ts: R2, then Postgres).
+ * 4. **clean up:** the job folder is deleted whatever happened. A failed attempt is
+ *    recorded as queued again, or failed if it was final.
  *
  * Every failure is a {@link JobFailure} with a code; the queue decides from
  * `retriable` whether to try again. The folder name has a random part, so a stalled
@@ -44,9 +46,34 @@ export interface JobArtifact {
   /** `architecture.json` for `request.sha`. */
   graphPath: string;
   stats: AnalysisStats;
+  /** Wall-clock milliseconds of the stages before publishing. */
+  timings: { downloadMs: number; analyzeMs: number };
+  /** What the recorder wrote when the attempt started; absent without a recorder. */
+  record?: RecordedJob;
 }
 
-/** What a finished job returns (the BullMQ return value; M5.5 copies it to `analyses.stats`). */
+/** A started attempt as Postgres knows it (record.ts). */
+export interface RecordedJob {
+  analysisId: string;
+  repoId: string;
+  visibility: "public" | "private";
+  /** GitHub's current spelling of the repo, which may differ from the request's. */
+  owner: string;
+  name: string;
+}
+
+/**
+ * Records each attempt in Postgres (record.ts; ADR-0063). `publish` marks the analysis done;
+ * the recorder handles the rest of its lifecycle.
+ */
+export interface JobRecorder {
+  /** Before the download: look the repo up on GitHub, upsert it, mark the analysis running. */
+  start(request: JobRequest, signal: AbortSignal): Promise<RecordedJob>;
+  /** After a failed attempt: `final` marks the analysis failed, otherwise queued again. */
+  failed(job: RecordedJob, code: string, final: boolean): Promise<void>;
+}
+
+/** What a finished job returns (the BullMQ return value). */
 export interface JobOutcome {
   stats: AnalysisStats;
   extract: {
@@ -72,6 +99,10 @@ export interface JobDeps {
   extractLimits?: Partial<ExtractLimits>;
   run?: (job: Parameters<typeof runAnalysis>[0], options: RunOptions) => Promise<RunResult>;
   runOptions?: Omit<RunOptions, "signal">;
+  /** Without one, nothing is written to Postgres (and `artifact.record` is absent). */
+  recorder?: JobRecorder;
+  /** Where a failure to record a failure is reported (the job's own failure still wins). */
+  log?: (event: Record<string, unknown>) => void;
 }
 
 /** What one job gets: its ID, the request, cancellation, and a progress callback. */
@@ -81,21 +112,30 @@ export interface JobContext {
   /** Fires on worker shutdown; the job fails with the retriable `CANCELLED`. */
   signal?: AbortSignal;
   onStage?: (stage: JobStage) => Promise<void> | void;
+  /** The queue won't retry this attempt, so even a retriable failure is final. Default false. */
+  lastAttempt?: boolean;
 }
 
 const JOB_FOLDER_ID = /^[A-Za-z0-9_-]{1,100}$/;
 const elapsed = (start: number): number => Math.round(performance.now() - start);
 
-/** Download and extract into `dest`, mapping every error to a {@link JobFailure}. */
+/**
+ * Record the attempt (if there's a recorder), then download and extract into `dest`, mapping
+ * every error to a {@link JobFailure}. The record is kept in `attempt` as soon as it exists.
+ */
 async function fetchSource(
   context: JobContext,
   deps: JobDeps,
   dest: string,
+  attempt: { record?: RecordedJob },
 ): Promise<Awaited<ReturnType<typeof extractTarball>>> {
   const timeout = AbortSignal.timeout(deps.downloadTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS);
   const signal =
     context.signal === undefined ? timeout : AbortSignal.any([context.signal, timeout]);
   try {
+    if (deps.recorder !== undefined) {
+      attempt.record = await deps.recorder.start(context.request, signal);
+    }
     const { owner, repo, sha } = context.request;
     const body = await openTarball({ owner, repo, sha }, { ...deps.download, signal });
     await context.onStage?.("extract");
@@ -122,13 +162,14 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
   }
   await mkdir(deps.jobsRoot, { recursive: true });
   const dir = await mkdtemp(join(deps.jobsRoot, `${context.id}-`));
+  const attempt: { record?: RecordedJob } = {};
   try {
     const src = join(dir, "src");
     const out = join(dir, "architecture.json");
 
     let start = performance.now();
     await context.onStage?.("download");
-    const extracted = await fetchSource(context, deps, src);
+    const extracted = await fetchSource(context, deps, src, attempt);
     const downloadMs = elapsed(start);
 
     start = performance.now();
@@ -150,6 +191,8 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
         request: context.request,
         graphPath: out,
         stats: result.stats,
+        timings: { downloadMs, analyzeMs },
+        ...(attempt.record === undefined ? {} : { record: attempt.record }),
       });
     } catch (error) {
       throw new JobFailure("PUBLISH_FAILED", "storing the result failed", { cause: error });
@@ -167,8 +210,36 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
       },
       timings: { downloadMs, analyzeMs, publishMs },
     };
+  } catch (error) {
+    if (attempt.record !== undefined) await recordFailure(context, deps, attempt.record, error);
+    throw error;
   } finally {
     await rm(dir, { recursive: true, force: true, maxRetries: 3 });
+  }
+}
+
+/**
+ * Tell the recorder an attempt failed. Anything but a {@link JobFailure} becomes the
+ * processor's retriable `WORKER_ERROR`, so it's final only on the last attempt. If recording
+ * fails too, that is logged and the job's own failure is what the queue sees.
+ */
+async function recordFailure(
+  context: JobContext,
+  deps: JobDeps,
+  record: RecordedJob,
+  error: unknown,
+): Promise<void> {
+  const failure = error instanceof JobFailure ? error : new JobFailure("WORKER_ERROR");
+  const final = !failure.retriable || context.lastAttempt === true;
+  try {
+    await deps.recorder?.failed(record, failure.code, final);
+  } catch (recordError) {
+    deps.log?.({
+      event: "record_failed",
+      id: context.id,
+      code: failure.code,
+      message: recordError instanceof Error ? recordError.message : String(recordError),
+    });
   }
 }
 
