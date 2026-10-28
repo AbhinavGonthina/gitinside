@@ -9,7 +9,8 @@
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "validate": "node dist/validate.js",
-    "eval": "node dist/run.js"
+    "eval": "node dist/run.js",
+    "review-sample": "node dist/review.js"
   },
   "dependencies": {
     "@gitinside/analyzer": "workspace:*",

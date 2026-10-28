@@ -78,6 +78,10 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
    - **Route order:** when several routes could match, the target is the one Express or Next.js would really dispatch to (registration order, literal before param), with a note.
 2. The labeler must not look at analyzer output while labeling. Label files are committed before the first scoring run, so history shows they came first.
 3. Abhinav reviews a random 20% of call sites. The sample is chosen by a seeded shuffle (seed = the date the review issue is opened) and listed in the issue.
+   - **How it's drawn** (`eval/src/sample.ts`): per repo, the call sites (all labels at one site together) are shuffled with Fisher–Yates driven by mulberry32 seeded with the FNV-1a hash of `<date>/<owner>/<name>`, and the first ⌈20%⌉ are kept. Drawing per repo guarantees every label file is checked; the per-repo seed keeps each repo's sample independent of the others.
+   - **Regenerate the list:** `pnpm --filter @gitinside/eval build`, then `pnpm --filter @gitinside/eval review-sample --seed <YYYY-MM-DD> [--out <file>]`. It prints a Markdown checklist with permalinks to each call site and labeled route at the pinned SHA.
+   - **First review:** seed `2026-10-28`, 30 of 142 call sites (WealthWise 10, foodie 8, wanderlust 4, conversa 6, taxonomy 2).
+   - The sample checks labels that exist; it can't find call sites the labeler missed. Unlabeled in-scope predictions show up as `unlabeled-site` false positives in every report instead.
 4. Disagreements are resolved in the label file, with a `notes` entry, and summarized in the report.
 5. Until review is complete, reports are headed **"Pending owner review"**.
 
