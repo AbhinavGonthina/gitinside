@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4a.2. Tokens (dark default + light), self-hosted Geist fonts
+M4a.3. Icon system: Simple Icons brand mapping + custom glyph set for kinds
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -68,7 +68,7 @@ M4a.2. Tokens (dark default + light), self-hosted Geist fonts
 
 ### M4a: Design system + prototype (design gate)
 - [x] M4a.1 packages/viewer scaffold (React, Vite lib, Storybook) {model: opus}
-- [ ] M4a.2 Tokens (dark default + light), self-hosted Geist fonts {model: opus}
+- [x] M4a.2 Tokens (dark default + light), self-hosted Geist fonts {model: opus}
 - [ ] M4a.3 Icon system: Simple Icons brand mapping + custom glyph set for kinds {model: opus}
 - [ ] M4a.4 Node components per kind, all states {model: opus}
 - [ ] M4a.5 Edge components (confidence styles, labels, flow, broken, arrows) {model: opus}
@@ -154,6 +154,8 @@ M4a.2. Tokens (dark default + light), self-hosted Geist fonts
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M4a.2: `src/tokens.ts` + `src/styles/tokens.css` (dark/light colors on `.gi-root[data-theme]`, shared type/space/radius/motion scales, focus ring, reduced motion ⇒ 0ms), kept identical by `tokens.test.ts`, which also enforces AA in both themes (text ≥ 4.5:1, accent/layer/trace/diff ≥ 3:1 on every surface). Light values finalized in DESIGN_SYSTEM.md §4; screenshot review added `surface-raised` (dark elevation was invisible). Geist via Fontsource, kept external in the lib build (inlining made a 201 kB base64 CSS); `sideEffects` list removed (Storybook dropped the CSS). Playwright added for screenshots. ADR-0047; 116 viewer tests, 100% lines. Next: M4a.3.
 
 - 2026-10-28 · M4a.1: new `@gitinside/viewer`: Vite library build (one ES module, React 19 peer, types via `tsc`), Storybook 8.6 whose preview wraps every story in `ViewerRoot` with a dark/light `theme` global, Vitest + jsdom + Testing Library (3 tests, 100% lines). `ViewerRoot` sets `data-theme` for the M4a.2 tokens; Vite pinned to Vitest's 5.4.21; CI builds Storybook (ADR-0046). No screenshots: nothing is styled until M4a.2. Flaky: the analyzer's exponential-mounts test has a 20 s wall-clock budget and takes 19–23 s under coverage on this machine (9.6 s without), same on clean `main`; it passed on the final run. Eval report re-recorded (lockfile changed). Next: M4a.2.
 

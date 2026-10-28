@@ -88,7 +88,10 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Any commit touching `eval/` (outside `eval/results`), the analyzer, the schema, or the lockfile makes `pnpm eval --check` refuse the committed report. After committing such a change, run `pnpm eval` and commit the regenerated report.
 - Prettier ignores `*.md` on purpose, so it can't reformat PROGRESS.md, which `autopilot.ps1` parses. Keep it that way.
 - `git stash` / `stash pop` (autocrlf) rewrites files with CRLF, so `pnpm lint` then fails `prettier --check`. Run `npx prettier --write <files>` after a pop.
-- The analyzer's "exponentially shared mounts" test has a 20 s wall-clock budget and takes 19–23 s under `coverage` on this machine (≈10 s under `test`). If it alone fails, rerun `pnpm --filter @gitinside/analyzer coverage` by itself before suspecting your change.<!-- lessons:end -->
+- The analyzer's "exponentially shared mounts" test has a 20 s wall-clock budget and takes 19–23 s under `coverage` on this machine (≈10 s under `test`). If it alone fails, rerun `pnpm --filter @gitinside/analyzer coverage` by itself before suspecting your change.
+- Under the viewer's jsdom environment, `fileURLToPath(new URL("./x", import.meta.url))` throws "URL must be of scheme file". Put `// @vitest-environment node` at the top of tests that read files and need no DOM.
+- Prettier lowercases hex colors in CSS, so CSS checked against TS values must use lowercase hex in the TS too.
+- Viewer screenshots: `pnpm --filter @gitinside/viewer build-storybook`, then a scratch Playwright script under `packages/viewer/dist/` that serves `storybook-static/` with `node:http` and opens `iframe.html?id=<story>&viewMode=story&globals=theme:light`. The browser is installed with `pnpm --filter @gitinside/viewer exec playwright install chromium`. Check that the CSS actually applied (computed background, `document.fonts`) before critiquing.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
