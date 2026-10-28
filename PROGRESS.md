@@ -14,11 +14,11 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M3.8. Milestone verification + M3-review.md + tag m3
+M4a.1. packages/viewer scaffold (React, Vite lib, Storybook)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
-- [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, regenerate the report without "Pending owner review".
+- [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
 
 ## Blockers
 - none
@@ -64,7 +64,7 @@ M3.8. Milestone verification + M3-review.md + tag m3
 - [x] M3.5 Scoring script (overall / per repo / per confidence, FP and FN lists) {model: opus}
 - [x] M3.6 Report generator → eval/results/ ("Pending owner review") + pnpm eval reproducibility {model: opus}
 - [x] M3.7 Open needs-abhinav issue: review a seeded random 20% of labels {model: opus}
-- [ ] M3.8 Milestone verification + M3-review.md + tag m3 {model: opus}
+- [x] M3.8 Milestone verification + M3-review.md + tag m3 {model: opus}
 
 ### M4a: Design system + prototype (design gate)
 - [ ] M4a.1 packages/viewer scaffold (React, Vite lib, Storybook) {model: opus}
@@ -154,6 +154,8 @@ M3.8. Milestone verification + M3-review.md + tag m3
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M3.8: milestone verified and tagged `m3`. The fresh-eyes review found nothing high-severity and 9 issues (5 confirmed by running), fixed in `3b8e3a9` (ADR-0045): `--check <path>` resolved inside `eval/` (the report's own reproduce command failed), reused checkouts weren't cleaned, symlinks differed by OS, wrong duplicates double-counted, indistinguishable and null+route labels at one site validated, hard-coded report wording, workflow permissions, report sort. Report re-recorded at `3b8e3a9` (numbers unchanged: precision 28/29, recall 28/138) and `--check` with the explicit path reproduces it. 675 tests, eval 99.48%, analyzer 97.49%. Review: `docs/milestones/M3-review.md`. Next: M4a.1.
 
 - 2026-10-28 · M3.7: `eval/src/sample.ts` draws the owner review sample: per repo, ⌈20%⌉ of call sites via FNV-1a(`<date>/<owner>/<name>`) → mulberry32 → Fisher–Yates, rendered as a checklist with permalinks at the pinned SHAs; CLI `pnpm --filter @gitinside/eval review-sample --seed <date>` (ADR-0044, EVALUATION.md §1). Seed 2026-10-28 ⇒ 30 of 142 sites, posted as planning issue #1. Report re-recorded at `445d016` (only the Run commit changed; `--check` reproduces). 73 eval tests, sample.ts 100% lines. Next: M3.8.
 
