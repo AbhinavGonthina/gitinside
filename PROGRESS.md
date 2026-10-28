@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4a.3. Icon system: Simple Icons brand mapping + custom glyph set for kinds
+M4a.4. Node components per kind, all states
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -69,7 +69,7 @@ M4a.3. Icon system: Simple Icons brand mapping + custom glyph set for kinds
 ### M4a: Design system + prototype (design gate)
 - [x] M4a.1 packages/viewer scaffold (React, Vite lib, Storybook) {model: opus}
 - [x] M4a.2 Tokens (dark default + light), self-hosted Geist fonts {model: opus}
-- [ ] M4a.3 Icon system: Simple Icons brand mapping + custom glyph set for kinds {model: opus}
+- [x] M4a.3 Icon system: Simple Icons brand mapping + custom glyph set for kinds {model: opus}
 - [ ] M4a.4 Node components per kind, all states {model: opus}
 - [ ] M4a.5 Edge components (confidence styles, labels, flow, broken, arrows) {model: opus}
 - [ ] M4a.6 Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend, palette shell) {model: opus}
@@ -154,6 +154,8 @@ M4a.3. Icon system: Simple Icons brand mapping + custom glyph set for kinds
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M4a.3: `packages/viewer/src/icons/`: `brands.ts` maps framework / engine / host (label-boundary suffix, longest first) to 56 pinned Simple Icons (bundled, tree-shaken: lib 66 kB); unshipped brands (OpenAI, AWS, SQL Server, Twilio, Slack, SendGrid, Postmark, …) get the kind's glyph. `brandFill` = brand color if ≥ 3:1 on the `surface-1` tile, else `--text`, both set as CSS vars picked by `data-theme`. 14 stroke glyphs (`glyphs.tsx`), pure `iconFor(node)`, `IconTile`/`NodeIconTile`; story Foundations/Icons (Glyphs, Logos, Mapping). Screenshot review redrew unresolved and method, dropped the tile hover fill, softened layer rings (ADR-0048). 208 viewer tests, 100% lines. Next: M4a.4.
 
 - 2026-10-28 · M4a.2: `src/tokens.ts` + `src/styles/tokens.css` (dark/light colors on `.gi-root[data-theme]`, shared type/space/radius/motion scales, focus ring, reduced motion ⇒ 0ms), kept identical by `tokens.test.ts`, which also enforces AA in both themes (text ≥ 4.5:1, accent/layer/trace/diff ≥ 3:1 on every surface). Light values finalized in DESIGN_SYSTEM.md §4; screenshot review added `surface-raised` (dark elevation was invisible). Geist via Fontsource, kept external in the lib build (inlining made a 201 kB base64 CSS); `sideEffects` list removed (Storybook dropped the CSS). Playwright added for screenshots. ADR-0047; 116 viewer tests, 100% lines. Next: M4a.3.
 
