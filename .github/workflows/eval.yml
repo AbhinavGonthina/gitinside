@@ -1,0 +1,31 @@
+name: Eval
+
+# On demand (docs/EVALUATION.md §1): regenerate the newest committed accuracy report from the
+# pinned repo SHAs and fail unless it is byte-identical. The eval repos are only read, never
+# installed or run.
+on:
+  workflow_dispatch:
+    inputs:
+      report:
+        description: "Report to check (default: the newest in eval/results/)"
+        required: false
+        default: ""
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # --check diffs the inputs against the commit the report records.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The input goes through an env var, never into the script text (no shell injection).
+      - run: pnpm eval --check $REPORT
+        env:
+          REPORT: ${{ inputs.report }}

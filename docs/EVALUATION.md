@@ -98,7 +98,10 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 - Every false positive and false negative with file:line.
 - Limitations.
 
-`pnpm eval` must reproduce a committed report byte-for-byte from pinned inputs.
+`pnpm eval` must reproduce a committed report byte-for-byte from pinned inputs (ADR-0043):
+- `pnpm eval [--label "<machine>"]` checks out each pinned SHA under `eval/.repos/` (gitignored; read only, never installed or run), analyzes and scores it, and writes the report (`eval/src/run.ts`, rendered by `eval/src/report.ts`).
+- The report's **Run** section (date, GitInside commit, machine) is the only part that isn't a function of the pinned inputs. A run from a tree with uncommitted changes to the inputs is marked `+ uncommitted changes` and can't be checked, so commit the code first, then run the eval, then commit the report.
+- `pnpm eval --check [report]` (default: the newest report) reads that Run section back, refuses if the analyzer, schema, eval code, labels, or lockfile differ from the recorded commit, regenerates the report, and fails unless the bytes are identical. The **Eval** GitHub Actions workflow runs it on demand.
 
 **After M3:** any analyzer change states its eval delta in the commit body.
 

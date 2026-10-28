@@ -5,3 +5,5 @@ scripts/hooks/* text eol=lf
 *.ps1 text eol=crlf
 # Golden graphs embed content hashes of fixture files, so fixtures must be byte-identical on every OS.
 fixtures/** text eol=lf
+# `pnpm eval --check` compares committed reports byte-for-byte with regenerated (LF) text.
+eval/results/** text eol=lf
