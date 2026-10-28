@@ -153,6 +153,17 @@ Source of truth: `packages/viewer/src/tokens.ts` and `src/styles/tokens.css`, wh
 - `prefers-reduced-motion` makes every transition instant and turns off flow particles. The stylesheet sets every `--duration-*` to `0ms`; JS animation reads `durations` from `tokens.ts` and must check the same media query.
 - Easing: `--ease-standard` `cubic-bezier(0.2, 0, 0, 1)` for hover and panels, `--ease-layout` `cubic-bezier(0.65, 0, 0.35, 1)` (ease-in-out cubic) for glides.
 
+**Chrome** (implemented in M4a.6, `packages/viewer/src/chrome/`; pending the design gate; ADR-0051). Story **Components/Chrome** shows Controls, Top bar, Inspector, Canvas overlays, Command palette (with and without results), and Layout (everything around a small diagram).
+- **Controls:**
+  - **Buttons:** `primary` (accent fill, canvas-colored text, ≥ 4.5:1 tested) for the one main action on a surface, `secondary` (`surface-1` + hairline), `quiet` (muted text, `surface-2` on hover) for toolbars. 32px in the top bar, 28px in overlays and the inspector, radius 6. A shortcut hint sits inside the button as key caps.
+  - **Switch** (`role="switch"`), **segmented control** (a radio group: one tab stop, arrow keys move), **key caps** (Geist, not mono: keys aren't code), **chips** (kind, layer with a dot, commit), **counts**.
+  - **Interface icons:** 14 icons on the glyphs' 24 grid with round caps and no fills, but a 2-unit stroke (1.33px at 16px), because the glyphs' 1.5 drew hairlines next to 13px text.
+- **Top bar** (52px, `surface-1`): the mark and "GitInside", the repo (owner muted) and a chip with the branch and short SHA (full SHA in the tooltip), a centered search field that opens the palette (Ctrl K or ⌘ K), then Base / Head / Overlay when there is a base, Filters (with a count), Share, and **Trace a request**, the only primary button (it becomes a secondary "Exit trace" while tracing). The repo name and actions never shrink; search gives way.
+- **Canvas overlays** (`surface-1`, hairline, `shadow-2`, radius 10): status chips top-left (a trace gets a pulsing trace-colored dot, a diff the compare icon, since trace and diff-changed are both amber), zoom − / level / + / fit top-right, the drill-down path bottom-left (files and symbols in mono), the minimap (boxes tinted by layer, the view in an accent frame) and a "Legend" button bottom-right.
+- **Legend** (popover, `surface-raised` + `shadow-2`, two columns so it opens over a laptop-height canvas): layer swatches, the four line styles drawn by `DiagramEdge` itself, shapes by tier, and the highlight states in words. Built from the same tables the canvas uses.
+- **Inspector** (`surface-1`, left hairline): kind and layer chips, icon and name (the panel's heading), where it lives; the "From the code" sentence on `surface-2`; sections for facts (long values truncate, the tooltip has them), **Called by** and **Calls** (each row: icon, name, the edge's words and confidence, a short line in the edge's style), the code with line numbers and the selected line marked, "Open on GitHub" at the commit permalink; actions at the foot.
+- **Command palette** (elevation 3: `surface-raised`, `shadow-3`, scrim): a 16px field, results with icon, name (matched characters tinted), path in mono, and kind on the right; the active row is accent-tinted; an empty state that suggests what to try; a key-hint footer.
+
 ## 5. Accessibility floor
 
 - WCAG 2.2 AA contrast for text and essential graphics in both themes.
