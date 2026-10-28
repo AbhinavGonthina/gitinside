@@ -92,6 +92,7 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Under the viewer's jsdom environment, `fileURLToPath(new URL("./x", import.meta.url))` throws "URL must be of scheme file". Put `// @vitest-environment node` at the top of tests that read files and need no DOM.
 - Prettier lowercases hex colors in CSS, so CSS checked against TS values must use lowercase hex in the TS too.
 - Viewer screenshots: `pnpm --filter @gitinside/viewer build-storybook`, then a scratch Playwright script under `packages/viewer/dist/` that serves `storybook-static/` with `node:http` and opens `iframe.html?id=<story>&viewMode=story&globals=theme:light`. The browser is installed with `pnpm --filter @gitinside/viewer exec playwright install chromium`. Check that the CSS actually applied (computed background, `document.fonts`) before critiquing.
+- `pnpm --filter @gitinside/viewer build` empties `packages/viewer/dist/`, deleting scratch scripts there (e.g. the screenshot script). Take screenshots before building the library, or rewrite the script afterwards.
 - `pnpm --filter <pkg> add <dep>` writes a `^` range, but this repo pins exact versions. Edit package.json to the exact version and run `pnpm install` again.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
