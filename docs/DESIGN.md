@@ -306,7 +306,7 @@ For each call (method M, pattern P), compare with every route (method M', patter
 | Method + path | Purpose |
 |---|---|
 | `POST /api/analyze` `{ url }` | Resolve the repo and latest SHA. Return the existing analysis (`200 { status: "done", owner, repo, sha }`), or enqueue (`202 { status: "queued", jobId, … }`). Only new analyses are rate-limited (5/h per IP signed out, 30/h signed in); a commit in flight gets its job back free. Errors: `{ error, message }` (`INVALID_URL`, `REPO_NOT_FOUND` incl. private, `REPO_EMPTY`, `RATE_LIMITED` with `retryAt`, `UNAVAILABLE`, …). `apps/web/lib/analyze.ts`, ADR-0066 |
-| `GET /api/jobs/:id` | Status, stage, progress, queue position (SSE variant at `/api/jobs/:id/events`) |
+| `GET /api/jobs/:id` | The job as the progress page shows it: `{ state: "queued", text: "2 ahead of you", position? }`, `{ state: "running", step, progress, text: "Parsing 1,204 files" }`, `{ state: "done" }`, `{ state: "failed", errorCode, message, retry }`, `missing` (404), `unavailable` (503). SSE variant at `/api/jobs/:id/events`: `event: status` on each change, ends after 25 s or a final state, and `EventSource` reconnects. Page: `/<owner>/<repo>/jobs/<jobId>`. `apps/web/lib/jobs.ts` + `jobRoute.ts`, ADR-0067 |
 | `GET /api/graph/:owner/:repo/:sha` | Snapshot (public: redirect to CDN; private: access check, then a stream) |
 | `GET /api/diff/:owner/:repo/:base...:head` | Diff for the viewer |
 | `GET /api/badge/:owner/:repo.svg` | Badge (live image for public repos: top-level SVG, cached 10 min; check-on-view triggers re-analysis) |

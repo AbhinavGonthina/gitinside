@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
 import { describe, expect, it } from "vitest";
-import { SIGNED_OUT_HOURLY_LIMIT, analyzeDepsFromEnv } from "./serverDeps";
+import { SIGNED_OUT_HOURLY_LIMIT, analyzeDepsFromEnv, jobDepsFromEnv } from "./serverDeps";
 
 const ENV = {
   // Never connected to: postgres.js opens connections on the first query only.
@@ -41,5 +41,19 @@ describe("analyzeDepsFromEnv", () => {
     const plain = { ...ENV, WORKER_URL: "http://127.0.0.1:8080" };
     expect(analyzeDepsFromEnv({ ...plain, NODE_ENV: "production" })).toBeUndefined();
     expect(analyzeDepsFromEnv(plain)).toBeDefined();
+  });
+});
+
+describe("jobDepsFromEnv", () => {
+  it("needs only the worker, not the database", () => {
+    const deps = jobDepsFromEnv({ ...ENV, DATABASE_URL: undefined });
+    expect(typeof deps?.worker.status).toBe("function");
+  });
+
+  it("is undefined without a usable worker URL and secret", () => {
+    expect(jobDepsFromEnv({ ...ENV, WORKER_URL: undefined })).toBeUndefined();
+    expect(jobDepsFromEnv({ ...ENV, ENQUEUE_HMAC_SECRET: "short" })).toBeUndefined();
+    const plain = { ...ENV, WORKER_URL: "http://127.0.0.1:8080", NODE_ENV: "production" };
+    expect(jobDepsFromEnv(plain)).toBeUndefined();
   });
 });

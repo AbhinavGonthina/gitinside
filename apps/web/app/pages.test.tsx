@@ -1,12 +1,16 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import ProgressPage, {
+  generateMetadata as progressMetadata,
+} from "./[owner]/[repo]/jobs/[job]/page";
 import RepoPage, { generateMetadata } from "./[owner]/[repo]/page";
 import NotFound from "./not-found";
 import Home from "./page";
 import { SiteHeader } from "./SiteHeader";
 
+const router = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => router,
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
@@ -76,6 +80,44 @@ describe("repo page", () => {
       title: "acme/shop",
     });
     expect(await generateMetadata({ params: params("-x", "shop") })).toEqual({});
+  });
+});
+
+describe("progress page", () => {
+  const JOB = `analyze-${"e".repeat(32)}`;
+  const jobParams = (owner: string, repo: string, job: string) =>
+    Promise.resolve({ owner, repo, job });
+
+  it("renders the live progress for a valid repo and job", async () => {
+    vi.stubGlobal(
+      "EventSource",
+      class {
+        addEventListener() {}
+        close() {}
+      },
+    );
+    render(await ProgressPage({ params: jobParams("acme", "shop", JOB) }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("acme / shop");
+    expect(screen.getByRole("progressbar", { name: "Analysis progress" })).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["settings", "profile", JOB],
+    ["acme", "shop", "analyze-123"],
+    ["acme", "shop", `diff-${"e".repeat(32)}`],
+  ])("is a 404 for %j / %j / %j", async (owner, repo, job) => {
+    await expect(ProgressPage({ params: jobParams(owner, repo, job) })).rejects.toThrow(
+      "NEXT_NOT_FOUND",
+    );
+  });
+
+  it("titles the tab and keeps the page out of search results", async () => {
+    expect(await progressMetadata({ params: jobParams("acme", "shop", JOB) })).toEqual({
+      title: "Analyzing acme/shop",
+      robots: { index: false },
+    });
+    expect(await progressMetadata({ params: jobParams("acme", "shop", "x") })).toEqual({});
   });
 });
 

@@ -4,12 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnalyzeDeps } from "./analyze";
 import { MAX_BODY_BYTES, handleAnalyzeRequest } from "./analyzeRoute";
 import { fakeGitHub } from "./github.testkit";
-import type { WorkerClient } from "./worker";
 
 const SHA = "f".repeat(40);
 
 /** Deps whose database must never be reached: the requests below stop before it. */
-function depsWithoutDb(worker?: WorkerClient): AnalyzeDeps {
+function depsWithoutDb(worker?: AnalyzeDeps["worker"]): AnalyzeDeps {
   const gh = fakeGitHub([{ id: 1, owner: "acme", name: "shop", sha: SHA }]);
   return {
     db: new Proxy({} as AnalyzeDeps["db"], {
