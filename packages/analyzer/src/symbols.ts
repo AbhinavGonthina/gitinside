@@ -52,7 +52,7 @@ function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
 }
 
 /** The static text of a property name, or undefined for computed names (`[key]`). */
-function propertyName(name: ts.PropertyName): string | undefined {
+export function propertyName(name: ts.PropertyName): string | undefined {
   return ts.isComputedPropertyName(name) ? undefined : name.text;
 }
 

@@ -63,7 +63,7 @@ import {
 } from "@gitinside/schema";
 import { fileNodeId, withinService } from "./files.js";
 import type { UrlBase, UrlSegment } from "./url.js";
-import { CONFIDENCE_RANK, expressionText, weaker } from "./values.js";
+import { CONFIDENCE_RANK, redactedText, weaker } from "./values.js";
 import { serviceForFile, type Workspace } from "./workspace.js";
 import type { HttpRequest } from "./wrappers.js";
 
@@ -444,12 +444,28 @@ export function externalNode(host: string): GraphNode {
   };
 }
 
+/**
+ * The source text an unresolved request shows as its `expression`: the wrapper call when
+ * inlined, else the `fetch`/axios call, with secrets masked by {@link redactedText} (only the
+ * URL's text before any `?` is kept).
+ */
+function requestExpression(request: HttpRequest): string {
+  if (request.via) return redactedText(request.via.call, request.via.url);
+  const url = request.call.url?.expression;
+  const base = request.call.baseURL?.expression;
+  return redactedText(
+    request.call.call,
+    [url, base].filter((e) => e !== undefined),
+  );
+}
+
 /** What the unresolved node of a request shows: the URL as read, else its source text. */
 function requestLabel(request: HttpRequest): string {
   const method = request.method ?? "?";
   if (request.url.resolved) return `${method} ${request.url.text}`;
-  const url = request.via ? request.via.call : (request.call.url?.expression ?? request.call.call);
-  return `${method} ${expressionText(url)}`;
+  if (request.via) return `${method} ${requestExpression(request)}`;
+  const url = request.call.url?.expression;
+  return `${method} ${url ? redactedText(url, [url]) : requestExpression(request)}`;
 }
 
 /** The graph output of the HTTP stage, plus every request's match. */
@@ -563,7 +579,7 @@ export function buildHttpEdges(
             label: requestLabel(request),
             parentId: nodeId("service", service.key, ""),
             reason: match.reason,
-            expression: expressionText(request.via?.call ?? request.call.call),
+            expression: requestExpression(request),
             detail: match.detail,
             source: request.site,
           };

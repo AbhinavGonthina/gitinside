@@ -36,7 +36,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `datastore` | `engine` (`postgres`, `mysql`, `mongo`, `redis`, …) | system | a compose service, `datastore:infra/<compose dir>/<service>` (`datastore:infra/postgres` at the root); a Prisma datasource no compose service matches, `datastore:infra/api/prisma/schema.prisma#db` (ADR-0028); an env URL nothing else explains, `datastore:infra/env#REDIS_URL` (ADR-0036) |
 | `queue` | `engine`, `name?` | system | a BullMQ, Bull, or Bee-Queue queue by name, `queue:infra/redis#receipts` (ADR-0037); a compose broker (RabbitMQ, Kafka, NATS), `queue:infra/mq` |
 | `external` | `host` (lowercased, no credentials, no default port) | system | `external:ext/api.stripe.com` |
-| `unresolved` | `reason`, `expression`, `detail?` (why, in words shown to the user) | the service containing the call | `unresolved:web/app/blog/page.tsx:9:15` (line:column of the expression) |
+| `unresolved` | `reason`, `expression` (for HTTP requests, string contents outside the URL path masked as `…`, ADR-0038), `detail?` (why, in words shown to the user) | the service containing the call | `unresolved:web/app/blog/page.tsx:9:15` (line:column of the expression) |
 
 **ID rules** (ADR-0019): `nodeId(kind, service, qualified)` gives `<kind>:<service>/<qualified>`.
 - IDs come from qualified names, never from array positions or hashes, so they stay stable across commits.

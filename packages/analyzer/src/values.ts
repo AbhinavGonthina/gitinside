@@ -8,7 +8,7 @@ import ts from "typescript";
 import type { Confidence } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
 import type { ServiceProgram } from "./program.js";
-import { unwrap } from "./symbols.js";
+import { propertyName, unwrap } from "./symbols.js";
 
 /** How many alias, variable, or return hops are followed before giving up. */
 export const MAX_HOPS = 16;
@@ -53,8 +53,69 @@ const MAX_EXPRESSION = 120;
 
 /** Source text with whitespace runs collapsed, cut to {@link MAX_EXPRESSION} characters. */
 export function expressionText(node: ts.Node): string {
-  const text = node.getText().replace(/\s+/g, " ");
+  return clip(node.getText());
+}
+
+/** Collapse whitespace runs and cut to {@link MAX_EXPRESSION} characters. */
+function clip(source: string): string {
+  const text = source.replace(/\s+/g, " ");
   return text.length > MAX_EXPRESSION ? `${text.slice(0, MAX_EXPRESSION - 1)}…` : text;
+}
+
+/** Lengths of a string-like token's opening and closing delimiters (`"`, `` ` ``, `}`, `${`). */
+const DELIMITERS: ReadonlyMap<ts.SyntaxKind, readonly [number, number]> = new Map([
+  [ts.SyntaxKind.StringLiteral, [1, 1]],
+  [ts.SyntaxKind.NoSubstitutionTemplateLiteral, [1, 1]],
+  [ts.SyntaxKind.TemplateHead, [1, 2]],
+  [ts.SyntaxKind.TemplateMiddle, [1, 2]],
+  [ts.SyntaxKind.TemplateTail, [1, 1]],
+]);
+
+/**
+ * {@link expressionText} for source a user is shown on an unresolved request, with string
+ * contents that could hold a secret replaced by `…` (SECURITY.md T5). Inside the `url` nodes,
+ * literal text is kept up to and including the first `?`, so the path stays readable but a
+ * query (`?api_key=…`) doesn't; every other string's contents (header values, bodies, tokens
+ * passed to a wrapper) are masked. Identifiers, operators, empty strings, quoted property
+ * names (`"x-api-key":`), and `method` values are kept as written.
+ */
+export function redactedText(node: ts.Node, url: readonly ts.Node[]): string {
+  const start = node.getStart();
+  const source = node.getText();
+  const cuts: { from: number; to: number; keep: number }[] = [];
+  /** Kept URL nodes whose query has started: the rest of their literal text is masked. */
+  const inQuery = new Set<ts.Node>();
+  const visit = (n: ts.Node, within: ts.Node | undefined): void => {
+    const owner = within ?? (url.includes(n) ? n : undefined);
+    const delimiters = DELIMITERS.get(n.kind);
+    const parent = n.parent as ts.Node | undefined;
+    const shown =
+      parent !== undefined &&
+      ts.isPropertyAssignment(parent) &&
+      (parent.name === n || (propertyName(parent.name) === "method" && parent.initializer === n));
+    if (delimiters && !shown) {
+      const from = n.getStart() - start + delimiters[0];
+      const to = n.getEnd() - start - delimiters[1];
+      let keep = 0;
+      if (owner && !inQuery.has(owner)) {
+        const query = source.slice(from, to).indexOf("?");
+        keep = query === -1 ? to - from : query + 1;
+        if (query !== -1) inQuery.add(owner);
+      }
+      if (from + keep < to) cuts.push({ from, to, keep });
+    }
+    ts.forEachChild(n, (child) => {
+      visit(child, owner);
+    });
+  };
+  visit(node, undefined);
+  let text = "";
+  let at = 0;
+  for (const { from, to, keep } of cuts) {
+    text += `${source.slice(at, from + keep)}…`;
+    at = to;
+  }
+  return clip(text + source.slice(at));
 }
 
 /** True when a variable is declared with `const`. */
