@@ -13,6 +13,10 @@
     "./hmac": {
       "types": "./dist/hmac.d.ts",
       "import": "./dist/hmac.js"
+    },
+    "./progress": {
+      "types": "./dist/progress.d.ts",
+      "import": "./dist/progress.js"
     }
   },
   "scripts": {

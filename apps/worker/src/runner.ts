@@ -2,12 +2,20 @@ import { spawn } from "node:child_process";
 import { realpath, stat } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { parseChildJob, parseChildReport, type AnalysisStats, type ChildJob } from "./protocol.js";
+import type { StepProgress } from "./progress.js";
+import {
+  parseChildJob,
+  parseChildReport,
+  parseProgressLine,
+  type AnalysisStats,
+  type ChildJob,
+} from "./protocol.js";
 
 /**
  * Runs one analysis in a sandboxed child process (docs/SECURITY.md T1, T3, T4; ADR-0059).
  *
- * The child is `node child.js` (the analyzer behind a one-line JSON protocol, protocol.ts):
+ * The child is `node child.js` (the analyzer behind a line-based JSON protocol, protocol.ts:
+ * progress lines, passed to `onProgress` as they arrive, then one report):
  * - **Memory:** `--max-old-space-size` (3 GB). V8 aborts past it; the runner reports
  *   `LIMIT_MEMORY`.
  * - **Time:** a 5-minute wall-clock timer, then `SIGKILL` (works even while the analyzer is
@@ -23,7 +31,8 @@ import { parseChildJob, parseChildReport, type AnalysisStats, type ChildJob } fr
  *
  * Outcomes: success with stats, an analyzer error code (`LIMIT_FILES`, `INVALID_GRAPH`),
  * `LIMIT_TIME`, `LIMIT_MEMORY`, `CANCELLED` (the signal fired), or `ANALYZER_CRASHED`
- * (any other exit, a missing or malformed report, or a graph file that doesn't match it).
+ * (any other exit, a missing or malformed report, output after the report, or a graph file
+ * that doesn't match it).
  * The runner never throws for the child's behavior; it throws only if `src` or the folder of
  * `out` doesn't exist. Deleting the job folder is the caller's job (SECURITY.md §3).
  */
@@ -56,6 +65,12 @@ export interface RunOptions {
   scriptsDir?: string;
   /** Run this script in place of `child.js`, in the same sandbox (tests use probe scripts). */
   childScript?: string;
+  /**
+   * Gets each progress line from the child as it arrives, already validated. Must not
+   * throw. A run whose output breaks the protocol still ends `ANALYZER_CRASHED`, so steps
+   * seen before that are hints only.
+   */
+  onProgress?: (progress: StepProgress) => void;
 }
 
 /** The outcome of {@link runAnalysis}. `durationMs` is wall clock from spawn to exit. */
@@ -157,12 +172,33 @@ export async function runAnalysis(job: ChildJob, options: RunOptions = {}): Prom
     windowsHide: true,
   });
 
-  let stdout = "";
+  // stdout is progress lines, then the report line. Anything after the report, or past the
+  // byte cap, breaks the protocol.
+  let pending = "";
   let stdoutBytes = 0;
+  let reportLine: string | undefined;
+  let broken = false;
+  const onLine = (line: string): void => {
+    if (reportLine !== undefined) {
+      broken = true;
+      return;
+    }
+    const progress = parseProgressLine(line);
+    if (progress === undefined) reportLine = line;
+    else options.onProgress?.(progress);
+  };
   child.stdout.setEncoding("utf8");
   child.stdout.on("data", (chunk: string) => {
     stdoutBytes += Buffer.byteLength(chunk);
-    if (stdoutBytes <= STDOUT_MAX_BYTES) stdout += chunk;
+    if (broken || stdoutBytes > STDOUT_MAX_BYTES) {
+      broken = true;
+      return;
+    }
+    pending += chunk;
+    for (let end = pending.indexOf("\n"); end >= 0; end = pending.indexOf("\n")) {
+      onLine(pending.slice(0, end));
+      pending = pending.slice(end + 1);
+    }
   });
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk: string) => {
@@ -204,10 +240,9 @@ export async function runAnalysis(job: ChildJob, options: RunOptions = {}): Prom
   }
 
   const crashed = (): RunResult => fail("ANALYZER_CRASHED", "the analyzer stopped unexpectedly");
-  const lines = stdout.split("\n");
   const report =
-    exit.code === 0 && stdoutBytes <= STDOUT_MAX_BYTES && lines.length === 2 && lines[1] === ""
-      ? parseChildReport(lines[0] as string)
+    exit.code === 0 && !broken && pending === "" && reportLine !== undefined
+      ? parseChildReport(reportLine)
       : undefined;
   if (report === undefined) return crashed();
   if (!report.ok) return fail(report.code, report.message);

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { StepProgress } from "./progress.js";
 import {
   DEFAULT_RUNNER_LIMITS,
   childArgs,
@@ -49,12 +50,16 @@ function findings(result: Awaited<ReturnType<typeof runAnalysis>>): Record<strin
 }
 
 describe("runAnalysis with the real analyzer", () => {
-  it("writes the same bytes as the golden graph and reports its stats", async () => {
+  it("writes the same bytes as the golden graph and reports its stats and steps", async () => {
+    const steps: StepProgress[] = [];
     const result = await runAnalysis(
       { src, out, owner: "fixtures", name: "express-basic" },
-      { scriptsDir: DIST },
+      { scriptsDir: DIST, onProgress: (step) => steps.push(step) },
     );
     expect(result.ok).toBe(true);
+    expect(steps[0]).toEqual({ step: "inventory" });
+    expect(steps.find(({ step }) => step === "programs")?.count).toBeGreaterThan(0);
+    expect(steps.at(-1)).toEqual({ step: "assemble" });
     const text = await readFile(out, "utf8");
     expect(text).toBe(await readFile(join(FIXTURES, "express-basic", "expected.json"), "utf8"));
 
@@ -161,9 +166,29 @@ describe("runAnalysis outcomes", () => {
     ["no report", "silent"],
     ["over 64 KiB of stdout", "noisy"],
     ["a report the graph file doesn't match", "lie"],
+    ["a line after the report", "after"],
+    ["two reports", "twice"],
+    ["a report without its newline", "unterminated"],
   ])("treats %s as ANALYZER_CRASHED", async (_, mode) => {
     const result = await runProbe(mode);
     expect(result).toMatchObject({ ok: false, code: "ANALYZER_CRASHED" });
+  });
+
+  it("passes progress lines on as they arrive, even split across writes, then the report", async () => {
+    const steps: StepProgress[] = [];
+    const result = await runProbe("steps", "x", { onProgress: (step) => steps.push(step) });
+    expect(steps).toEqual([
+      { step: "inventory" },
+      { step: "programs", count: 1204 },
+      { step: "http", count: 87 },
+    ]);
+    expect(result).toMatchObject({ ok: false, code: "LIMIT_FILES" });
+  });
+
+  it("drops progress lines after the report", async () => {
+    const steps: StepProgress[] = [];
+    await runProbe("after", "x", { onProgress: (step) => steps.push(step) });
+    expect(steps).toEqual([]);
   });
 
   it("keeps only the end of stderr", async () => {

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { stringifyGraph } from "@gitinside/schema";
-import { ANALYSIS_STAGES, ANALYZER_VERSION, analyze } from "./analyze.js";
+import { ANALYSIS_STAGES, ANALYZER_VERSION, analyze, type AnalysisProgress } from "./analyze.js";
 import { runCli } from "./cli.js";
 
 let dir: string;
@@ -95,6 +95,27 @@ describe("analyze", () => {
     expect(seen.map(([s]) => s)).toEqual([...ANALYSIS_STAGES]);
     expect(seen.every(([, ms]) => Number.isFinite(ms) && ms >= 0)).toBe(true);
     expect(stringifyGraph(timed)).toBe(stringifyGraph(await analyze(dir, { name: "x" })));
+  });
+
+  it("reports each stage's start with file and request counts, without changing the graph", async () => {
+    await writeFile(join(dir, "a.ts"), "export const get = () => fetch('/api/a');");
+    await writeFile(
+      join(dir, "b.ts"),
+      "export const post = () => fetch('/api/b', { method: 'POST' });",
+    );
+    const seen: AnalysisProgress[] = [];
+    const reported = await analyze(dir, { name: "x", onProgress: (event) => seen.push(event) });
+    expect(seen).toEqual([
+      { stage: "inventory" },
+      { stage: "workspace" },
+      { stage: "programs", count: 2 },
+      ...ANALYSIS_STAGES.slice(3, ANALYSIS_STAGES.indexOf("http") + 1).map((stage) => ({ stage })),
+      { stage: "http", count: 2 },
+      { stage: "sdk" },
+      { stage: "queues" },
+      { stage: "assemble" },
+    ]);
+    expect(stringifyGraph(reported)).toBe(stringifyGraph(await analyze(dir, { name: "x" })));
   });
 
   it("rejects a missing directory", async () => {

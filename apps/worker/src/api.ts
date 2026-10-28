@@ -47,6 +47,10 @@ export interface JobStatus {
   stage?: string;
   /** 0–100 while running. */
   progress?: number;
+  /** In `analyze`: the analyzer stage running (`programs`, `http`, …; progress.ts). */
+  step?: string;
+  /** With `step`, when known: source files being parsed (`programs`), requests being linked (`http`). */
+  count?: number;
   /** Jobs ahead of this one while queued (0 = next). */
   position?: number;
   /** Set when `failed`: `LIMIT_TIME`, `TAR_INVALID`, … */
@@ -181,13 +185,15 @@ function send(
 
 /** Copy only the documented fields, so nothing the queue stores internally reaches a caller. */
 function publicStatus(status: JobStatus): JobStatus {
-  const { id, kind, state, stage, progress, position, errorCode } = status;
+  const { id, kind, state, stage, progress, step, count, position, errorCode } = status;
   return {
     id,
     kind,
     state,
     ...(stage === undefined ? {} : { stage }),
     ...(progress === undefined ? {} : { progress }),
+    ...(step === undefined ? {} : { step }),
+    ...(count === undefined ? {} : { count }),
     ...(position === undefined ? {} : { position }),
     ...(errorCode === undefined ? {} : { errorCode }),
   };

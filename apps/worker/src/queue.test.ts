@@ -17,6 +17,7 @@ import {
   createBullJobQueue,
   createProcessor,
   errorCodeFor,
+  progressForStep,
   statusFromJob,
   stopWorker,
   type BullJobQueue,
@@ -107,12 +108,41 @@ describe("statusFromJob", () => {
     });
   });
 
+  it("shows the analyzer's step and count, and nothing else stored with them", () => {
+    const progress = { ...progressForStep({ step: "programs", count: 1204 }), extra: "x" };
+    expect(statusFromJob({ ...job, state: "active", progress })).toEqual({
+      id: "analyze-1",
+      kind: "analyze",
+      state: "running",
+      stage: "analyze",
+      progress: 38,
+      step: "programs",
+      count: 1204,
+    });
+    expect(
+      statusFromJob({ ...job, state: "active", progress: progressForStep({ step: "calls" }) }),
+    ).toEqual({
+      id: "analyze-1",
+      kind: "analyze",
+      state: "running",
+      stage: "analyze",
+      progress: 70,
+      step: "calls",
+    });
+  });
+
   it.each([
     0,
     { stage: "hacking", progress: 30 },
     { stage: "analyze", progress: 101 },
     { stage: "analyze", progress: 1.5 },
+    { stage: "analyze", progress: -1 },
     { stage: "toString", progress: 1 },
+    { stage: "analyze", progress: 40, step: "hacking" },
+    { stage: "upload", progress: 90, step: "programs" },
+    { stage: "analyze", progress: 40, step: "programs", count: -1 },
+    { stage: "analyze", progress: 40, step: "programs", count: "1" },
+    { stage: "analyze", progress: 40, count: 3 },
     null,
   ])("ignores progress that isn't ours: %j", (progress) => {
     expect(statusFromJob({ ...job, state: "active", progress })).toEqual({
@@ -188,6 +218,22 @@ describe("createProcessor", () => {
       { stage: "upload", progress: 90 },
     ]);
     expect(logs).toEqual([expect.objectContaining({ event: "job_done", id: job.id, attempt: 2 })]);
+  });
+
+  it("stores the analyzer's steps as progress between the analyze and upload stages", async () => {
+    const { job, progress } = fakeJob(REQUEST);
+    const run: JobDeps["run"] = async (child, options) => {
+      options.onProgress?.({ step: "programs", count: 12 });
+      options.onProgress?.({ step: "http", count: 4 });
+      return writeGraph(child);
+    };
+    await createProcessor(deps(run))(job, "t", undefined);
+    expect(progress.slice(2)).toEqual([
+      { stage: "analyze", progress: 30 },
+      { stage: "analyze", progress: 38, step: "programs", count: 12 },
+      { stage: "analyze", progress: 74, step: "http", count: 4 },
+      { stage: "upload", progress: 90 },
+    ]);
   });
 
   it("fails permanent failures with UnrecoverableError carrying only the code", async () => {
@@ -339,13 +385,33 @@ describe.runIf(REDIS_URL !== undefined)("BullMQ on Redis", () => {
     expect(await readdir(join(root, "jobs"))).toEqual([]);
   });
 
-  it("shows the stage of a running job", async () => {
+  it("shows the stage, then the analyzer's step, of a running job", async () => {
     let release = (): void => undefined;
     const gate = new Promise<void>((resolve) => (release = resolve));
-    worker({ deps: deps(async (job) => (await gate, writeGraph(job))) });
+    let step = (): void => undefined;
+    const stepGate = new Promise<void>((resolve) => (step = resolve));
+    worker({
+      deps: deps(async (job, options) => {
+        await stepGate;
+        options.onProgress?.({ step: "programs", count: 1204 });
+        await gate;
+        return writeGraph(job);
+      }),
+    });
     await add(1);
     await until(async () => (await queue.get(idFor(1)))?.stage === "analyze");
     expect(await queue.get(idFor(1))).toMatchObject({ state: "running", progress: 30 });
+    step();
+    await until(async () => (await queue.get(idFor(1)))?.step === "programs");
+    expect(await queue.get(idFor(1))).toEqual({
+      id: idFor(1),
+      kind: "analyze",
+      state: "running",
+      stage: "analyze",
+      progress: 38,
+      step: "programs",
+      count: 1204,
+    });
     release();
     await until(async () => (await queue.get(idFor(1)))?.state === "done");
   });

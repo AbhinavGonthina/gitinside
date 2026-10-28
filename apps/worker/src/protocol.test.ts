@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseChildJob, parseChildReport } from "./protocol.js";
+import { parseChildJob, parseChildReport, parseProgressLine, progressLine } from "./protocol.js";
 
 const STATS = {
   files: 1,
@@ -35,6 +35,33 @@ describe("parseChildJob", () => {
     ["a non-string SHA", JSON.stringify({ src: "/s", out: "/o", owner: "a", name: "b", sha: 1 })],
   ])("rejects %s", (_, text) => {
     expect(() => parseChildJob(text)).toThrow();
+  });
+});
+
+describe("progress lines", () => {
+  it("round-trip one event per line, with or without a count", () => {
+    for (const event of [{ step: "programs", count: 1204 }, { step: "imports" }] as const) {
+      const line = progressLine(event);
+      expect(line.endsWith("\n")).toBe(true);
+      expect(line.slice(0, -1)).not.toContain("\n");
+      expect(parseProgressLine(line.slice(0, -1))).toEqual(event);
+    }
+  });
+
+  it("keeps only the step and count", () => {
+    const line = JSON.stringify({ progress: { step: "http", count: 3, note: "x" }, ok: true });
+    expect(parseProgressLine(line)).toEqual({ step: "http", count: 3 });
+  });
+
+  it.each([
+    ["half a line", '{"progress":{"st'],
+    ["a report", JSON.stringify({ ok: true, stats: STATS })],
+    ["a non-object", JSON.stringify({ progress: "programs" })],
+    ["an unknown step", JSON.stringify({ progress: { step: "download" } })],
+    ["a negative count", JSON.stringify({ progress: { step: "http", count: -1 } })],
+    ["a text count", JSON.stringify({ progress: { step: "http", count: "1" } })],
+  ])("aren't %s", (_, text) => {
+    expect(parseProgressLine(text)).toBeUndefined();
   });
 });
 

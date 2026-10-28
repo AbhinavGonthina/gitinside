@@ -4,6 +4,7 @@ import type { JobRequest } from "./api.js";
 import { ExtractError, extractTarball, type ExtractLimits, type SkippedEntry } from "./extract.js";
 import { JobFailure } from "./failure.js";
 import { openTarball, type DownloadOptions } from "./github.js";
+import type { JobStage, StepProgress } from "./progress.js";
 import type { AnalysisStats } from "./protocol.js";
 import { runAnalysis, type RunOptions, type RunResult } from "./runner.js";
 
@@ -23,16 +24,7 @@ import { runAnalysis, type RunOptions, type RunResult } from "./runner.js";
  * attempt that is still running elsewhere never shares a folder with its retry.
  */
 
-/** Where a running job is; `GET /jobs/:id` shows it. */
-export type JobStage = "download" | "extract" | "analyze" | "upload";
-
-/** Coarse progress (0–100) at the start of each stage. */
-export const STAGE_PROGRESS: Readonly<Record<JobStage, number>> = {
-  download: 0,
-  extract: 10,
-  analyze: 30,
-  upload: 90,
-};
+export { STAGE_PROGRESS, type JobStage } from "./progress.js";
 
 /** Download + extraction budget. The analysis has its own (runner.ts, 5 minutes). */
 export const DEFAULT_DOWNLOAD_TIMEOUT_MS = 2 * 60 * 1000;
@@ -112,6 +104,11 @@ export interface JobContext {
   /** Fires on worker shutdown; the job fails with the retriable `CANCELLED`. */
   signal?: AbortSignal;
   onStage?: (stage: JobStage) => Promise<void> | void;
+  /**
+   * The analyzer's steps while in `analyze`, as the child streams them. Best effort: the
+   * job doesn't wait for it, and its failure is logged (`progress_failed`), never the job's.
+   */
+  onStep?: (progress: StepProgress) => Promise<void> | void;
   /** The queue won't retry this attempt, so even a retriable failure is final. Default false. */
   lastAttempt?: boolean;
 }
@@ -178,7 +175,11 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
     const { owner, repo, sha } = context.request;
     const result = await run(
       { src, out, owner, name: repo, sha },
-      { ...deps.runOptions, ...(context.signal === undefined ? {} : { signal: context.signal }) },
+      {
+        ...deps.runOptions,
+        ...(context.signal === undefined ? {} : { signal: context.signal }),
+        ...(context.onStep === undefined ? {} : { onProgress: reportStep(context, deps) }),
+      },
     );
     if (!result.ok) throw new JobFailure(result.code, result.stderrTail);
     const analyzeMs = elapsed(start);
@@ -216,6 +217,23 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
   } finally {
     await rm(dir, { recursive: true, force: true, maxRetries: 3 });
   }
+}
+
+/**
+ * The runner's progress callback: pass each step to `context.onStep` at once (so updates
+ * reach the queue in order) without waiting, logging a failure instead of throwing it.
+ */
+function reportStep(context: JobContext, deps: JobDeps): (progress: StepProgress) => void {
+  return (progress) => {
+    void (async () => context.onStep?.(progress))().catch((error: unknown) => {
+      deps.log?.({
+        event: "progress_failed",
+        id: context.id,
+        step: progress.step,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
+  };
 }
 
 /**

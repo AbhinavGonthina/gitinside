@@ -16,7 +16,7 @@ import {
   type JobStage,
   type RecordedJob,
 } from "./job.js";
-import type { RunResult } from "./runner.js";
+import type { RunOptions, RunResult } from "./runner.js";
 
 const WORKER = fileURLToPath(new URL("..", import.meta.url));
 const DIST = join(WORKER, "dist");
@@ -54,7 +54,8 @@ afterEach(async () => {
 });
 
 /** A runner stand-in that writes a tiny graph, so most tests skip the real child. */
-const fakeRun = vi.fn(async (job: { out: string }): Promise<RunResult> => {
+const fakeRun = vi.fn(async (job: { out: string }, options?: RunOptions): Promise<RunResult> => {
+  void options;
   await writeFile(job.out, "{}");
   return { ok: true, stats: STATS, durationMs: 1 };
 });
@@ -91,7 +92,7 @@ async function jobFolders(): Promise<string[]> {
 describe("processJob with the real analyzer", () => {
   it("downloads, extracts, analyzes, publishes, and removes the job folder", async () => {
     github.tarball = await tarballOf(join(FIXTURES, "express-basic"));
-    const stages: JobStage[] = [];
+    const stages: string[] = [];
     let published: { artifact: JobArtifact; graph: string } | undefined;
     const real = deps({
       runOptions: { scriptsDir: DIST },
@@ -101,11 +102,20 @@ describe("processJob with the real analyzer", () => {
     });
     delete real.run;
     const outcome = await processJob(
-      { id: ID, request: REQUEST, onStage: (stage) => void stages.push(stage) },
+      {
+        id: ID,
+        request: REQUEST,
+        onStage: (stage: JobStage) => void stages.push(stage),
+        onStep: ({ step, count }) => void stages.push(count === undefined ? step : `${step}:n`),
+      },
       real,
     );
 
-    expect(stages).toEqual(["download", "extract", "analyze", "upload"]);
+    // The analyzer's steps stream in between the analyze and upload stages.
+    expect(stages.slice(0, 4)).toEqual(["download", "extract", "analyze", "inventory"]);
+    expect(stages).toContain("programs:n");
+    expect(stages).toContain("http:n");
+    expect(stages.slice(-2)).toEqual(["assemble", "upload"]);
     expect(published?.artifact).toMatchObject({ id: ID, request: REQUEST, stats: outcome.stats });
     const graph = JSON.parse(published?.graph ?? "") as {
       repo: Record<string, unknown>;
@@ -118,6 +128,50 @@ describe("processJob with the real analyzer", () => {
     expect(outcome.extract.skipped).toBe(0);
     expect(Object.keys(outcome.timings)).toEqual(["downloadMs", "analyzeMs", "publishMs"]);
     expect(await jobFolders()).toEqual([]);
+  });
+});
+
+describe("processJob analyzer steps", () => {
+  /** A runner stand-in that reports two steps through `onProgress`, then succeeds. */
+  const steppingRun: JobDeps["run"] = async (job, options) => {
+    options.onProgress?.({ step: "inventory" });
+    options.onProgress?.({ step: "programs", count: 3 });
+    return fakeRun(job);
+  };
+
+  it("asks the runner for progress only when someone listens", async () => {
+    await processJob({ id: ID, request: REQUEST }, deps());
+    expect(fakeRun.mock.calls[0]?.[1]).not.toHaveProperty("onProgress");
+  });
+
+  it("hands each step to onStep at once, in order", async () => {
+    const steps: unknown[] = [];
+    await processJob(
+      { id: ID, request: REQUEST, onStep: (step) => void steps.push(step) },
+      deps({ run: steppingRun }),
+    );
+    expect(steps).toEqual([{ step: "inventory" }, { step: "programs", count: 3 }]);
+  });
+
+  it("logs a failing progress update and still finishes the job", async () => {
+    const log = vi.fn();
+    const outcome = await processJob(
+      {
+        id: ID,
+        request: REQUEST,
+        onStep: ({ step }) => {
+          if (step === "inventory") throw new Error("redis down");
+          return Promise.reject("still down");
+        },
+      },
+      deps({ run: steppingRun, log }),
+    );
+    expect(outcome.stats).toEqual(STATS);
+    await vi.waitFor(() => expect(log).toHaveBeenCalledTimes(2));
+    expect(log.mock.calls.map(([event]) => event as unknown)).toEqual([
+      { event: "progress_failed", id: ID, step: "inventory", message: "redis down" },
+      { event: "progress_failed", id: ID, step: "programs", message: "still down" },
+    ]);
   });
 });
 

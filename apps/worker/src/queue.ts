@@ -15,7 +15,15 @@ import {
   type JobStatus,
 } from "./api.js";
 import { FAILURE_CODE, JobFailure, RETRIABLE_CODES } from "./failure.js";
-import { processJob, STAGE_PROGRESS, type JobDeps, type JobOutcome, type JobStage } from "./job.js";
+import { processJob, type JobDeps, type JobOutcome } from "./job.js";
+import {
+  STAGE_PROGRESS,
+  isAnalyzerStep,
+  stepProgress,
+  type AnalyzerStep,
+  type JobStage,
+  type StepProgress,
+} from "./progress.js";
 
 /**
  * The BullMQ side of the worker (ADR-0014, ADR-0061): the {@link JobQueue} the enqueue API
@@ -54,23 +62,51 @@ export const JOB_OPTIONS: JobsOptions = {
   removeOnFail: { age: 24 * 60 * 60, count: 1_000 },
 };
 
-/** What a job stores as its BullMQ progress. */
-interface StoredProgress {
+/**
+ * What a job stores as its BullMQ progress: the stage, and while analyzing, the analyzer's
+ * latest step and its count.
+ */
+export interface StoredProgress {
   stage: JobStage;
   progress: number;
+  step?: AnalyzerStep;
+  count?: number;
 }
+
+/** The progress stored when an analyzer step starts (or its count becomes known). */
+export function progressForStep({ step, count }: StepProgress): StoredProgress {
+  return {
+    stage: "analyze",
+    progress: stepProgress(step),
+    step,
+    ...(count === undefined ? {} : { count }),
+  };
+}
+
+const isCount = (value: unknown): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 
 function isStoredProgress(value: unknown): value is StoredProgress {
   if (typeof value !== "object" || value === null) return false;
-  const { stage, progress } = value as Record<string, unknown>;
+  const { stage, progress, step, count } = value as Record<string, unknown>;
   return (
     typeof stage === "string" &&
     Object.hasOwn(STAGE_PROGRESS, stage) &&
-    typeof progress === "number" &&
-    Number.isInteger(progress) &&
-    progress >= 0 &&
-    progress <= 100
+    isCount(progress) &&
+    progress <= 100 &&
+    (step === undefined || (stage === "analyze" && isAnalyzerStep(step))) &&
+    (count === undefined || (step !== undefined && isCount(count)))
   );
+}
+
+/** The status fields of stored progress, and nothing else stored with it. */
+function runningFields({ stage, progress, step, count }: StoredProgress): Partial<JobStatus> {
+  return {
+    stage,
+    progress,
+    ...(step === undefined ? {} : { step }),
+    ...(count === undefined ? {} : { count }),
+  };
 }
 
 /**
@@ -120,9 +156,7 @@ export function statusFromJob(job: JobSnapshot): JobStatus | undefined {
       return {
         ...base,
         state: "running",
-        ...(isStoredProgress(job.progress)
-          ? { stage: job.progress.stage, progress: job.progress.progress }
-          : {}),
+        ...(isStoredProgress(job.progress) ? runningFields(job.progress) : {}),
       };
     case "completed":
       return { ...base, state: "done" };
@@ -263,6 +297,7 @@ export function createProcessor(
           request,
           ...(signal === undefined ? {} : { signal }),
           onStage: (stage) => job.updateProgress({ stage, progress: STAGE_PROGRESS[stage] }),
+          onStep: (step) => job.updateProgress(progressForStep(step)),
           lastAttempt: attempt >= (job.opts.attempts ?? 1),
         },
         jobDeps,
