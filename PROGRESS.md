@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M3.3. Draft labels for repos 1–2 (independently of analyzer output; commit before scoring)
+M3.4. Draft labels for repos 3–5
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -59,7 +59,7 @@ M3.3. Draft labels for repos 1–2 (independently of analyzer output; commit bef
 ### M3: Accuracy eval harness
 - [x] M3.1 eval/ package scaffold + ground-truth format per docs/EVALUATION.md {model: opus}
 - [x] M3.2 Select 5 repos, pin SHAs in eval/repos.json {model: opus}
-- [ ] M3.3 Draft labels for repos 1–2 (independently of analyzer output; commit before scoring) {model: opus}
+- [x] M3.3 Draft labels for repos 1–2 (independently of analyzer output; commit before scoring) {model: opus}
 - [ ] M3.4 Draft labels for repos 3–5 {model: opus}
 - [ ] M3.5 Scoring script (overall / per repo / per confidence, FP and FN lists) {model: opus}
 - [ ] M3.6 Report generator → eval/results/ ("Pending owner review") + pnpm eval reproducibility {model: opus}
@@ -154,6 +154,8 @@ M3.3. Draft labels for repos 1–2 (independently of analyzer output; commit bef
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M3.3: labels for repos 1–2 (`repos.json` order), drafted by reading code only, analyzer never run. WealthWise: 49 call sites (48 → Express `/api/v1/*` via the path-taking `apiClient` wrapper and direct auth fetches, 1 external Gemini fetch ⇒ `null`). foodie: 39 `httpRequest()` calls in `services/api.ts` → routers that `createRouter.ts` loads by glob and mounts at `/api`. EVALUATION.md now fixes what's labeled (no SDK/MCP/NextAuth internals, sockets, `<a href>`, inline HTML), env fallbacks, and dispatch order. `validate`: 88 sites; eval tests and lint green. Next: M3.4.
 
 - 2026-10-28 · M3.2: `eval/repos.json` pins 5 MIT repos, one per shape, at default-branch HEAD: `shadcn-ui/taxonomy` (next-api-routes), `hoangsonww/WealthWise-Finance-Tracker` (next-plus-server-monorepo), `jgudo/foodie` (spa-plus-express), `krishnaacharyaa/wanderlust` (axios-baseurl), `pankil-soni/conversa` (env-api-urls). Picked by reading code only (analyzer never run on them); server code must be Express/Next; ~100–300 source files each. Rejected candidates + limits in EVALUATION.md §1. New one-per-shape test (23 eval tests); `eval/.repos/` gitignored for reading checkouts. Next: M3.3.
 
