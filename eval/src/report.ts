@@ -182,7 +182,7 @@ export function renderReport(input: ReportInput): string {
     "",
     "- **TP / FP / FN:** route predictions that match a label / that match none / labeled real targets never predicted.",
     "- **Abstentions:** `null`-labeled call sites (no route in the repo) where the analyzer predicted only an unresolved node or an external host. Correct, but not part of precision.",
-    "- **Missing:** labels with no prediction of any kind at their call site (a dropped call).",
+    "- **Missing:** labels with no prediction of any kind at their call site: the request was dropped, or the analyzer placed it at another site (for example inside a helper whose callers the label names).",
     "",
     "### By confidence level",
     "",
