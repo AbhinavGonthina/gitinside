@@ -18,6 +18,7 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@gitinside/analyzer": "workspace:*",
     "@gitinside/schema": "workspace:*"
   },
   "devDependencies": {
