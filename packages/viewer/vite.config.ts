@@ -7,6 +7,8 @@ import react from "@vitejs/plugin-react";
 // too: library mode inlines every asset, which would turn ~150 kB of woff2
 // subsets into base64 in style.css; the app's bundler emits them as files
 // instead (ADR-0047). The tokens are dist/style.css (`@gitinside/viewer/styles.css`).
+// simple-icons is bundled: only the logos brands.ts names survive tree-shaking
+// (ADR-0048). The schema is imported for types only and stays external.
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -16,7 +18,13 @@ export default defineConfig({
       fileName: "index",
     },
     rollupOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime", /^@fontsource-variable\//],
+      external: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        /^@fontsource-variable\//,
+        /^@gitinside\//,
+      ],
     },
     sourcemap: true,
     emptyOutDir: true,

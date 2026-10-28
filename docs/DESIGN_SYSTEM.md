@@ -49,18 +49,21 @@ Every M4a review checks screenshots against this list.
 
 The legend is always one click away and is generated from these same tokens.
 
-**Icons**
-- **Brand logos:** from Simple Icons (CC0 icons; trademarks belong to their owners and are used only to identify the technology). Mapped from `service.framework`, `datastore.engine`, `external.host`, and known SDKs. Logos sit on a neutral rounded tile so mixed brand colors stay harmonious. Use official brand colors, with a monochrome fallback when contrast fails.
-- **Custom glyph set** for generic kinds: drawn on a 24px grid with 1.5px strokes and rounded joins, optically matched to the brand tiles, and designed as a family. Required glyphs:
-  - Route.
-  - Page.
-  - Function, method, class.
-  - Module/folder, file.
-  - Model.
-  - Queue.
-  - Unknown external.
-  - Unresolved.
-  - Service fallback.
+**Icons** (implemented in M4a.3, `packages/viewer/src/icons/`; pending the design gate; ADR-0048)
+- **Brand logos:** from Simple Icons 16.36 (CC0 icons; trademarks belong to their owners and are used only to identify the technology). Mapped only from the node's own field: `service.framework`, `datastore.engine` / `queue.engine`, and `external.host` (which covers the SDK hosts). A host matches its suffix at a label boundary, and the longest suffix wins (`maps.googleapis.com` is Google Maps). The tables are in `brands.ts`; story **Foundations/Icons → Logos** shows all of them.
+  - **No logo, so the kind's glyph:** brands Simple Icons doesn't ship (OpenAI, AWS, Microsoft SQL Server, Twilio, Slack, SendGrid, Postmark, Memcached, Typesense, Redpanda), unknown hosts, IPs, and loopback. Never a guessed logo.
+  - **Tile:** logos and glyphs sit on a neutral rounded tile, always `--surface-1` with a hairline: `sm` 32px (radius 6, 20px icon) for card rows, `lg` 56px (radius 12, 32px icon) for icon-first nodes. Node states restyle the node, never the tile.
+  - **Layer ring:** the tile's hairline mixes 60% of the layer color into `--border`, a tint, not a stroke that outshines the logo.
+  - **Color:** the official brand color when it is at least 3:1 on the tile in that theme, otherwise `--text` (monochrome). Black marks (Next.js, Vercel, X) are black in light and text-colored in dark; pale ones (ClickHouse, Hugging Face) go monochrome in light. Both fills are set on the element and the theme picks one in CSS, so switching themes re-renders nothing.
+  - **Optical size:** logos are inset 3px on a 30px box (80% of the icon size), so filled marks match the stroked glyphs.
+- **Custom glyph set** for generic kinds: drawn on a 24px grid with 1.5px `currentColor` strokes, round caps and joins, no fills, about 3.75px margins, and designed as a family (`glyphs.tsx`, story **Foundations/Icons → Glyphs**):
+  - Service fallback: a two-unit server.
+  - Module: a folder. File: a page with a folded corner and two lines.
+  - Function: ƒ. Method: ƒ in a rounded frame. Class: an open box. Variable: braces around a dot.
+  - Route: a request arriving at an endpoint (dot, line, arrowhead). Page: a browser window.
+  - Model: a table with a header row. Datastore (engine without a logo): a cylinder.
+  - Queue: messages in a pipe. Unknown external: a globe.
+  - Unresolved: a question mark in a dotted ring, echoing the dotted line of unresolved edges.
 
 ## 4. Tokens (implemented in M4a.2; pending the design gate)
 

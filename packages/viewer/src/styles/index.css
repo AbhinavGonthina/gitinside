@@ -4,3 +4,4 @@
  * src/fonts.ts imports them from JS instead (ADR-0047).
  */
 @import "./tokens.css";
+@import "./icons.css";
