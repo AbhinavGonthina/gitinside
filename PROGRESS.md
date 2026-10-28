@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M3.1. eval/ package scaffold + ground-truth format per docs/EVALUATION.md
+M3.2. Select 5 repos, pin SHAs in eval/repos.json
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -57,7 +57,7 @@ M3.1. eval/ package scaffold + ground-truth format per docs/EVALUATION.md
 - [x] M2.11 Milestone verification + M2-review.md + tag m2 {model: opus}
 
 ### M3: Accuracy eval harness
-- [ ] M3.1 eval/ package scaffold + ground-truth format per docs/EVALUATION.md {model: opus}
+- [x] M3.1 eval/ package scaffold + ground-truth format per docs/EVALUATION.md {model: opus}
 - [ ] M3.2 Select 5 repos, pin SHAs in eval/repos.json {model: opus}
 - [ ] M3.3 Draft labels for repos 1–2 (independently of analyzer output; commit before scoring) {model: opus}
 - [ ] M3.4 Draft labels for repos 3–5 {model: opus}
@@ -154,6 +154,8 @@ M3.1. eval/ package scaffold + ground-truth format per docs/EVALUATION.md
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M3.1: new `@gitinside/eval` package. `eval/src/format.ts` validates `repos.json` and `labels/<owner>__<name>.json` with zod; `inputs.ts` loads them and cross-checks names and SHAs; `pnpm --filter @gitinside/eval validate` runs both. Format finalized in EVALUATION.md (ADR-0040): a required `scope` (in-scope unlabeled predictions count as FPs), call sites where the code fixes the route (outermost helper call that supplies the path), routes in the analyzer's spelling, sorted unique sites, permissive licenses only. 22 tests, 100% lines; `repos.json` is empty until M3.2. Next: M3.2.
 
 - 2026-10-28 · M2.11: milestone verified and tagged `m2`. The fresh-eyes review ran hostile repos against the built CLI and found 10 issues (7 confirmed by running). 9 fixed with tests in 3 commits (ADR-0039): exponential URL/factory evaluation (70 s and 110 s repros) ⇒ step budget, text cap, factory memo; empty hosts/queue/compose names crashed the whole analysis; two masking gaps (`&token=`, strings in calls inside the URL) and unmasked queue payloads; dropped factory publishes; literal Prisma URLs linked by engine; mutable configs; open env quotes. Kept: unbound param hole ⇒ `exact` (DESIGN §7.4), logged for M3. 598 tests, analyzer 97.49%; goldens and cal.com counts unchanged. Review: `docs/milestones/M2-review.md`. Next: M3.1.
 
