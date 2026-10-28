@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4a.6. Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend, palette shell)
+M4a.7. Static clickable prototype on a fixture graph
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -72,7 +72,7 @@ M4a.6. Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend
 - [x] M4a.3 Icon system: Simple Icons brand mapping + custom glyph set for kinds {model: opus}
 - [x] M4a.4 Node components per kind, all states {model: opus}
 - [x] M4a.5 Edge components (confidence styles, labels, flow, broken, arrows) {model: opus}
-- [ ] M4a.6 Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend, palette shell) {model: opus}
+- [x] M4a.6 Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend, palette shell) {model: opus}
 - [ ] M4a.7 Static clickable prototype on a fixture graph {model: opus}
 - [ ] M4a.8 Visual regression baseline (stories, light + dark, Linux CI) {model: opus}
 - [ ] M4a.9 M4a-review.md with screenshots + needs-abhinav design-approval issue; UI work then waits for approval {model: opus}
@@ -154,6 +154,8 @@ M4a.6. Chrome components (top bar, inspector, breadcrumbs, minimap shell, legend
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M4a.6: `packages/viewer/src/chrome/`: controlled controls (buttons primary/secondary/quiet, switch, segmented radio group, key caps, status chips, 14 interface icons), `TopBar` (repo + short SHA, search → palette, diff view, filters, Trace as the one primary), overlays (`Breadcrumbs`, `ZoomControls`, `Minimap` shell with pure `minimapFit`, `Legend` built from the canvas's own tables), inspector parts (header, "From the code", facts, Calls/Called by in edge words + line style, `CodePreview` with commit permalink), `CommandPalette` shell (dialog + combobox/listbox). Screenshot review fixed a diff-mode top-bar overlap, a too-tall legend (two columns), mid-word path wraps, hairline icons (ADR-0051). Story Components/Chrome (7 stories); 391 viewer tests, chrome 100% lines. Next: M4a.7.
 
 - 2026-10-28 · M4a.5: `packages/viewer/src/edges/`: pure `edgeGeometry(points)` (rounded bends, line ends at the arrow base, chevron, pattern dot, label mid, flow path; 0.01px rounding), `describe.ts` (line style per confidence, labels from the edge's own fields: `POST /api/orders · HTTP`, `reads id, total`, reason when unresolved, counts, no guessed protocol), `DiagramEdge` (SVG) + `EdgeLabel` (HTML pill), states as data attributes in `edges.css`, flow via CSS `offset-path` (off under reduced motion, with the broken pulse). Resting stroke tested ≥ 3:1 per layer/theme. Screenshot review added selected/traced halos, a particle ring, and wider story layouts (ADR-0050). Story Components/Edges; 336 viewer tests, 99.8% lines. Next: M4a.6.
 
