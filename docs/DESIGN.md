@@ -172,6 +172,10 @@ Every detector file starts with a doc comment listing **patterns handled** and *
 **HTTP clients**
 - See §7.
 
+**Queues** (`packages/analyzer/src/queues.ts`, ADR-0037)
+- **Handled:** BullMQ `Queue`/`Worker`/`FlowProducer`, Bull, and Bee-Queue, traced like SDK clients (imports, workspace packages, class properties, factories with their parameters bound). `add`/`addBulk`/`upsertJobScheduler`/`createJob` and flow `queueName`s ⇒ `publishes`; `new Worker(name, processor)` and `queue.process(processor)` ⇒ `consumes` from the processor's symbol. Calls of worker factories bind the name per call. Every queue name is one `queue:infra/redis#<name>` node shared by producers and workers in any service.
+- **Not handled:** NestJS `@Processor`/`@InjectQueue`, queues kept in maps or subclasses, publishing wrappers (their name parameter is `DYNAMIC_NAME`), sandboxed processor files, `prefix`/connection options, and other brokers' clients (amqplib, kafkajs, SQS). A name computed at runtime is an unresolved `DYNAMIC_NAME` node.
+
 **Infra** (`packages/analyzer/src/infra.ts`, ADR-0036)
 - **Handled:**
   - `docker-compose*.yml` / `compose*.yaml` services by image (`postgres`, `mysql`, `mongo`, `redis`, `rabbitmq`, `minio`, `elasticsearch`, etc.) ⇒ `datastore` or `queue` nodes, with override files in the same folder merged.
