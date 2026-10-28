@@ -7,7 +7,8 @@
  * the pinned inputs. `--check` reads it back from the committed report with {@link parseRun}
  * and regenerates everything else.
  */
-import type { SourceLocation } from "@gitinside/schema";
+import { resolve } from "node:path";
+import { compareStrings, type SourceLocation } from "@gitinside/schema";
 import type { EvalRepo, LabeledEdge, LabelFile, SourcePoint } from "./format.js";
 import {
   SCORED_LEVELS,
@@ -53,6 +54,33 @@ export class ReportError extends Error {
 /** The report's file name: `<date>-<analyzerVersion>.md`. */
 export function reportFileName(run: Pick<ReportRun, "date" | "analyzerVersion">): string {
   return `${run.date}-${run.analyzerVersion}.md`;
+}
+
+const REPORT_NAME = /^(\d{4}-\d{2}-\d{2})-(\d+)\.(\d+)\.(\d+)(.*)\.md$/;
+
+/**
+ * Order report file names by date, then analyzer version numerically (`0.9.0` before
+ * `0.10.0`); names that don't parse sort first, by plain string order.
+ */
+export function compareReportNames(a: string, b: string): number {
+  const ma = REPORT_NAME.exec(a);
+  const mb = REPORT_NAME.exec(b);
+  if (!ma || !mb) return (ma ? 1 : 0) - (mb ? 1 : 0) || compareStrings(a, b);
+  return (
+    compareStrings(ma[1] ?? "", mb[1] ?? "") ||
+    Number(ma[2]) - Number(mb[2]) ||
+    Number(ma[3]) - Number(mb[3]) ||
+    Number(ma[4]) - Number(mb[4]) ||
+    compareStrings(a, b)
+  );
+}
+
+/**
+ * The report a `--check <arg>` names, resolved against the folder the user ran `pnpm` from
+ * (`INIT_CWD`), not the eval package pnpm runs the script in.
+ */
+export function resolveReportArg(arg: string, invokedFrom: string): string {
+  return resolve(invokedFrom, arg);
 }
 
 /** `n/d` as a percentage with one decimal plus the raw fraction, or `n/a` when `d` is 0. */
@@ -129,6 +157,21 @@ function countsRow(name: string, c: Counts): string {
   );
 }
 
+const COUNT_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+
+/** A small count in words (`five`), larger ones as digits. */
+function count(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
+
+/** Who wrote the label files, as a past participle phrase ("drafted by Claude"). */
+function labelAuthor(labels: readonly LabelFile[]): string {
+  const claude = labels.some((l) => l.labeler === "claude-draft");
+  const abhinav = labels.some((l) => l.labeler === "abhinav");
+  if (claude && abhinav) return "drafted by Claude or written by Abhinav (see each label file)";
+  return abhinav ? "written by Abhinav" : "drafted by Claude";
+}
+
 /** Render the Markdown report. Every number is printed as counted, with its raw fraction. */
 export function renderReport(input: ReportInput): string {
   const { run, repos, labels, score } = input;
@@ -143,9 +186,16 @@ export function renderReport(input: ReportInput): string {
   });
 
   const reviewers = [...new Set(labels.map((l) => l.reviewedBy))];
-  const status = reviewers.includes(null)
-    ? "> **Pending owner review.** The labels were drafted by Claude from reading each repo's code, without looking at analyzer output. Abhinav's review of a seeded random 20% of call sites is not done yet, so these numbers may change."
+  const pending = reviewers.includes(null);
+  const author = labelAuthor(labels);
+  const status = pending
+    ? `> **Pending owner review.** The labels were ${author} from reading each repo's code, without looking at analyzer output. Abhinav's review of a seeded random 20% of call sites is not done yet, so these numbers may change.`
     : `> **Labels reviewed** by ${reviewers.map((r) => code(r ?? "")).join(", ")} (a seeded random 20% of call sites).`;
+  const whoLabeled = labels.every((l) => l.labeler === "abhinav")
+    ? "- **Who labeled:** Abhinav wrote the labels from the code alone and committed them before scoring."
+    : pending
+      ? "- **Who labeled:** Claude drafted the labels and also wrote the analyzer. The labels were written from the code alone and committed before scoring, but until the owner review is done they are one reader's judgment."
+      : "- **Who labeled:** Claude drafted the labels and also wrote the analyzer. They were written from the code alone and committed before scoring; the owner reviewed a seeded random 20% of call sites, and the rest are still one reader's judgment.";
 
   const o = score.overall;
   const lines = [
@@ -209,8 +259,8 @@ export function renderReport(input: ReportInput): string {
     "",
     "## Limitations",
     "",
-    "- **Small set:** five small and mid-size apps (about 100–300 source files), mostly hobby or reference projects. The numbers say nothing about large production monorepos.",
-    "- **Who labeled:** Claude drafted the labels and also wrote the analyzer. The labels were written from the code alone and committed before scoring, but until the owner review is done they are one reader's judgment.",
+    `- **Small set:** ${count(repos.length)} small and mid-size ${repos.length === 1 ? "app" : "apps"} (about 100–300 source files), mostly hobby or reference projects. The numbers say nothing about large production monorepos.`,
+    whoLabeled,
     "- **What isn't counted:** requests made inside third-party libraries (SDK clients, NextAuth, MCP transports), sockets, `<a href>`/`window.location` navigations, and inline HTML scripts are not labeled, so they can't count against recall.",
     "- **Precision covers routes only:** abstentions are reported apart, so a tool that abstained everywhere would show `n/a` precision, not 100%.",
     "- **Lenient route comparison:** parameter names and route lines are ignored; a route in the right file with the right method and path shape counts.",

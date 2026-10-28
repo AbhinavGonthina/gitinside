@@ -37,10 +37,13 @@ import {
   compareLocations,
   compareTargets,
   inScope,
+  routeKey,
   type LabeledEdge,
   type LabelFile,
   type SourcePoint,
 } from "./format.js";
+
+export { routeKey };
 
 /** The confidence levels a route prediction can carry, strongest first. */
 export const SCORED_LEVELS = ["exact", "pattern", "heuristic"] as const;
@@ -154,21 +157,6 @@ export function recall(c: Counts): number | null {
   return ratio(c.truePositives, c.positiveLabels);
 }
 
-/**
- * A route's comparison key: method plus path with parameter names dropped (`:id` ⇒ `:`,
- * `*slug` ⇒ `*`), plus the registering file.
- */
-export function routeKey(file: string, route: string): string {
-  const space = route.indexOf(" ");
-  const method = route.slice(0, space);
-  const path = route
-    .slice(space + 1)
-    .split("/")
-    .map((s) => (s.startsWith(":") ? ":" : s.startsWith("*") ? "*" : s))
-    .join("/");
-  return `${file}\u0000${method} ${path}`;
-}
-
 /** Whether a predicted site is the labeled call site (column only when the label has one). */
 export function siteMatches(label: SourcePoint, site: SourceLocation): boolean {
   return (
@@ -269,7 +257,7 @@ export function scoreRepo(labels: LabelFile, graph: ArchitectureGraph): RepoScor
   const found = new Set<LabeledEdge>();
   const falsePositives: FalsePositive[] = [];
   // Several sites or edges can predict the same route for the same label (two calls on a line
-  // the label gives no column for): that is one prediction, counted once.
+  // the label gives no column for): that is one prediction, counted once, right or wrong.
   const seen = new Set<string>();
 
   for (const p of predictions) {
@@ -277,9 +265,10 @@ export function scoreRepo(labels: LabelFile, graph: ArchitectureGraph): RepoScor
     const atSite = labels.edges.filter((l) => siteMatches(l.callSite, p.site));
     const key = routeKey(p.target.file, p.target.route);
     const hit = atSite.find((l) => l.target && routeKey(l.target.file, l.target.route) === key);
+    const column = atSite.some((l) => l.callSite.column === undefined) ? "" : p.site.column;
     const dedupe = hit
       ? `label ${labels.edges.indexOf(hit)}\u0000${key}`
-      : `site ${p.site.file}:${p.site.line}:${p.site.column}\u0000${key}`;
+      : `site ${p.site.file}:${p.site.line}:${column}\u0000${key}`;
     if (seen.has(dedupe)) continue;
     seen.add(dedupe);
     if (hit) {

@@ -11,6 +11,11 @@ on:
         required: false
         default: ""
 
+# Least privilege: the job only reads this repo, and third-party repos are checked out
+# while it runs, so the token gets read access and isn't left in .git/config.
+permissions:
+  contents: read
+
 jobs:
   reproduce:
     runs-on: ubuntu-latest
@@ -19,6 +24,7 @@ jobs:
         with:
           # --check diffs the inputs against the commit the report records.
           fetch-depth: 0
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

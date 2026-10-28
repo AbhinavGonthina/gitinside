@@ -18,15 +18,17 @@ import { cpus, platform, release, totalmem } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ANALYZER_VERSION, analyze } from "@gitinside/analyzer";
-import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
+import type { ArchitectureGraph } from "@gitinside/schema";
 import { labelFileName, type EvalRepo, type LabelFile } from "./format.js";
 import { crossCheck, loadEvalInputs } from "./inputs.js";
 import {
+  compareReportNames,
   DIRTY_MARK,
   firstDifference,
   parseRun,
   renderReport,
   reportFileName,
+  resolveReportArg,
   type ReportRun,
 } from "./report.js";
 import { scoreAll } from "./score.js";
@@ -54,27 +56,39 @@ function git(cwd: string, args: string[]): string {
 }
 
 /**
- * Git for the checkouts: LFS smudging and line-ending conversion off, so a checkout never
- * downloads or runs anything extra and has the same bytes on every OS.
+ * Git for the checkouts: LFS smudging, line-ending conversion, and symlinks off, so a checkout
+ * never downloads or runs anything extra and has the same bytes on every OS (Windows can't
+ * always make symlinks, so they are plain files everywhere).
  */
 function checkoutGit(cwd: string, args: string[]): string {
-  const config = ["filter.lfs.smudge=", "filter.lfs.required=false", "core.autocrlf=false"];
+  const config = [
+    "filter.lfs.smudge=",
+    "filter.lfs.required=false",
+    "core.autocrlf=false",
+    "core.symlinks=false",
+  ];
   return git(cwd, [...config.flatMap((c) => ["-c", c]), ...args]);
 }
 
-/** Shallow-fetch exactly `repo.sha` into `eval/.repos/<owner>__<name>`, reusing a checkout. */
+/**
+ * Shallow-fetch exactly `repo.sha` into `eval/.repos/<owner>__<name>`, reusing a checkout, then
+ * reset it and delete every untracked or ignored file, so only the pinned tree is analyzed.
+ */
 function checkout(repo: EvalRepo): string {
   const dir = join(EVAL, ".repos", `${repo.owner}__${repo.name}`);
-  if (existsSync(join(dir, ".git")) && checkoutGit(dir, ["rev-parse", "HEAD"]) === repo.sha) {
-    return dir;
+  const reuse =
+    existsSync(join(dir, ".git")) && checkoutGit(dir, ["rev-parse", "HEAD"]) === repo.sha;
+  if (!reuse) {
+    mkdirSync(dir, { recursive: true });
+    if (!existsSync(join(dir, ".git"))) {
+      checkoutGit(dir, ["init", "--quiet"]);
+      checkoutGit(dir, ["remote", "add", "origin", repo.url]);
+    }
+    checkoutGit(dir, ["fetch", "--quiet", "--depth", "1", "origin", repo.sha]);
+    checkoutGit(dir, ["checkout", "--quiet", "--detach", "--force", "FETCH_HEAD"]);
   }
-  mkdirSync(dir, { recursive: true });
-  if (!existsSync(join(dir, ".git"))) {
-    checkoutGit(dir, ["init", "--quiet"]);
-    checkoutGit(dir, ["remote", "add", "origin", repo.url]);
-  }
-  checkoutGit(dir, ["fetch", "--quiet", "--depth", "1", "origin", repo.sha]);
-  checkoutGit(dir, ["checkout", "--quiet", "--detach", "--force", "FETCH_HEAD"]);
+  checkoutGit(dir, ["reset", "--quiet", "--hard", "HEAD"]);
+  checkoutGit(dir, ["clean", "--quiet", "-ffdx"]);
   return dir;
 }
 
@@ -100,12 +114,12 @@ function option(flag: string): string | undefined {
   return value.startsWith("--") ? "" : value;
 }
 
-/** The newest committed report, by its dated file name. */
+/** The newest committed report, by date and then analyzer version. */
 function newestReport(): string {
   const files = existsSync(RESULTS)
     ? readdirSync(RESULTS)
         .filter((f) => f.endsWith(".md"))
-        .sort(compareStrings)
+        .sort(compareReportNames)
     : [];
   const last = files.at(-1);
   if (!last) throw new Error("no report in eval/results/ to check; run `pnpm eval` first");
@@ -140,7 +154,8 @@ async function main(): Promise<void> {
   let reportPath: string;
   let committed: string | undefined;
   if (check !== undefined) {
-    reportPath = check === "" ? newestReport() : resolve(check);
+    reportPath =
+      check === "" ? newestReport() : resolveReportArg(check, process.env.INIT_CWD ?? ROOT);
     committed = readFileSync(reportPath, "utf8");
     run = parseRun(committed);
     if (run.gitinsideSha.endsWith(DIRTY_MARK)) {
@@ -190,11 +205,14 @@ async function main(): Promise<void> {
     process.stdout.write(`${shown} reproduced byte-for-byte\n`);
     return;
   }
+  // A same-day rerun after a code change replaces that day's report; the commit that adds
+  // the new one keeps the old one in history, and the Run record says which code made it.
+  const replaced = existsSync(reportPath);
   mkdirSync(RESULTS, { recursive: true });
   writeFileSync(reportPath, text);
   const o = score.overall;
   process.stdout.write(
-    `wrote ${shown}: TP ${o.truePositives}, FP ${o.falsePositives}, FN ${o.falseNegatives} over ${o.labels} labels\n`,
+    `${replaced ? "replaced" : "wrote"} ${shown}: TP ${o.truePositives}, FP ${o.falsePositives}, FN ${o.falseNegatives} over ${o.labels} labels\n`,
   );
 }
 
