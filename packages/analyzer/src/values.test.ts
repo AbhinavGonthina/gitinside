@@ -42,6 +42,13 @@ describe("redactedText", () => {
     ['call(target, "t0ken")', [], 'call(target, "…")'],
     ['call("")', [], 'call("")'],
     ["call('single', `tpl`)", [], "call('…', `…`)"],
+    // A key-value pair can start a URL's secret part without a `?` (M2 review).
+    ["fetch(`${base}&token=gi_fake_tok_1`)", [0], "fetch(`${base}&…`)"],
+    ['fetch(base + "&api_key=gi_fake_tok_2")', [0], 'fetch(base + "&…")'],
+    ['fetch(base + "/a#frag")', [0], 'fetch(base + "/a#…")'],
+    // Strings passed to a function inside the URL aren't URL text.
+    ['fetch(sign("/api/x", "gi_fake_tok_3"))', [0], 'fetch(sign("…", "…"))'],
+    ['fetch(new URL("/api/x", base))', [0], 'fetch(new URL("/api/x", base))'],
   ];
   it.each(cases)("%s", (source, urlArgs, expected) => {
     const c = call(source);

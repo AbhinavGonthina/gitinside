@@ -59,6 +59,7 @@ import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
 import {
   createValueReader,
+  isConst,
   MAX_HOPS,
   objectProperty,
   ownProperty,
@@ -280,7 +281,65 @@ export function collectHttpCalls(
     const found = symbol && resolveDeclaration(sp, symbol, hops + 1);
     const d = found?.declaration;
     if (!found || !d || !ts.isVariableDeclaration(d) || !d.initializer) return undefined;
+    if (!isConst(d) || isMutated(found.sp, d)) return undefined;
     return configObject(found.sp, d.initializer, hops + 1);
+  };
+
+  const mutated = new Map<ts.VariableDeclaration, boolean>();
+
+  /**
+   * True when a `const` object's members are written after it is declared: `x.a = …`,
+   * `x["a"] += …`, `delete x.a`, or `Object.assign(x, …)` anywhere in its file. Then a
+   * property read from its literal could be stale.
+   */
+  const isMutated = (sp: ServiceProgram, d: ts.VariableDeclaration): boolean => {
+    const known = mutated.get(d);
+    if (known !== undefined) return known;
+    const symbol = ts.isIdentifier(d.name) ? symbolAt(sp, d.name) : undefined;
+    const names = (e: ts.Expression): boolean => {
+      const target = unwrap(e);
+      return ts.isIdentifier(target) && symbol !== undefined && symbolAt(sp, target) === symbol;
+    };
+    const member = (e: ts.Expression): boolean => {
+      const target = unwrap(e);
+      return (
+        (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target)) &&
+        names(target.expression)
+      );
+    };
+    let found = false;
+    const visit = (n: ts.Node): void => {
+      if (found) return;
+      if (
+        (ts.isBinaryExpression(n) &&
+          n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+          n.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+          member(n.left)) ||
+        (ts.isDeleteExpression(n) && member(n.expression))
+      ) {
+        found = true;
+        return;
+      }
+      if (ts.isCallExpression(n)) {
+        const callee = unwrap(n.expression);
+        const first = n.arguments[0];
+        if (
+          ts.isPropertyAccessExpression(callee) &&
+          callee.name.text === "assign" &&
+          ts.isIdentifier(callee.expression) &&
+          callee.expression.text === "Object" &&
+          first &&
+          names(first)
+        ) {
+          found = true;
+          return;
+        }
+      }
+      ts.forEachChild(n, visit);
+    };
+    if (symbol) visit(d.getSourceFile());
+    mutated.set(d, found);
+    return found;
   };
 
   /** A property of a config expression; `null` when the config itself can't be read. */
@@ -531,6 +590,30 @@ export function collectHttpCalls(
     return undefined;
   };
 
+  /**
+   * Results by factory function, like {@link axiosBySymbol}: without it, factories that each
+   * return several calls of the next one are traced exponentially often.
+   */
+  const axiosByFactory = new Map<FunctionWithBody, AxiosValue | null>();
+
+  /** The first axios value a factory function returns. */
+  const axiosOfFactory = (
+    sp: ServiceProgram,
+    fn: FunctionWithBody,
+    hops: number,
+  ): AxiosValue | undefined => {
+    const known = axiosByFactory.get(fn);
+    if (known !== undefined) return known ?? undefined;
+    axiosByFactory.set(fn, null);
+    let result: AxiosValue | undefined;
+    for (const returned of returnedExpressions(fn)) {
+      result = axiosOf(sp, returned, hops + 1);
+      if (result) break;
+    }
+    axiosByFactory.set(fn, result ?? null);
+    return result;
+  };
+
   /** What an expression is when it is axios or an axios instance. */
   const axiosOf = (
     sp: ServiceProgram,
@@ -575,12 +658,7 @@ export function collectHttpCalls(
           : undefined;
       const symbol = name && symbolAt(sp, name);
       const fn = symbol && functionOf(resolver.checkerOf(sp), symbol);
-      if (!fn) return undefined;
-      for (const returned of returnedExpressions(fn)) {
-        const found = axiosOf(sp, returned, hops + 1);
-        if (found) return found;
-      }
-      return undefined;
+      return fn ? axiosOfFactory(sp, fn, hops) : undefined;
     }
     if (ts.isIdentifier(e) || ts.isPropertyAccessExpression(e)) {
       const symbol = symbolAt(sp, ts.isIdentifier(e) ? e : e.name);

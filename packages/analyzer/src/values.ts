@@ -57,7 +57,7 @@ export function expressionText(node: ts.Node): string {
 }
 
 /** Collapse whitespace runs and cut to {@link MAX_EXPRESSION} characters. */
-function clip(source: string): string {
+export function clip(source: string): string {
   const text = source.replace(/\s+/g, " ");
   return text.length > MAX_EXPRESSION ? `${text.slice(0, MAX_EXPRESSION - 1)}…` : text;
 }
@@ -71,13 +71,24 @@ const DELIMITERS: ReadonlyMap<ts.SyntaxKind, readonly [number, number]> = new Ma
   [ts.SyntaxKind.TemplateTail, [1, 1]],
 ]);
 
+/** Where a query or a `key=value` pair may start inside a URL's literal text. */
+const QUERY_START = /[?&=#]/;
+
+/** True when a node's children are built into its value as text (not passed to a function). */
+function buildsText(n: ts.Node): boolean {
+  if (ts.isCallExpression(n)) return false;
+  if (ts.isNewExpression(n)) return ts.isIdentifier(n.expression) && n.expression.text === "URL";
+  return true;
+}
+
 /**
  * {@link expressionText} for source a user is shown on an unresolved request, with string
  * contents that could hold a secret replaced by `…` (SECURITY.md T5). Inside the `url` nodes,
- * literal text is kept up to and including the first `?`, so the path stays readable but a
- * query (`?api_key=…`) doesn't; every other string's contents (header values, bodies, tokens
- * passed to a wrapper) are masked. Identifiers, operators, empty strings, quoted property
- * names (`"x-api-key":`), and `method` values are kept as written.
+ * literal text is kept up to and including the first `?`, `&`, `=`, or `#`, so the path stays
+ * readable but a query (`?api_key=…`, `${base}&token=…`) doesn't. Strings passed to a function
+ * inside the URL (`sign("/x", "key")`) and every other string's contents (header values,
+ * bodies, tokens passed to a wrapper) are masked. Identifiers, operators, empty strings,
+ * quoted property names (`"x-api-key":`), and `method` values are kept as written.
  */
 export function redactedText(node: ts.Node, url: readonly ts.Node[]): string {
   const start = node.getStart();
@@ -98,14 +109,16 @@ export function redactedText(node: ts.Node, url: readonly ts.Node[]): string {
       const to = n.getEnd() - start - delimiters[1];
       let keep = 0;
       if (owner && !inQuery.has(owner)) {
-        const query = source.slice(from, to).indexOf("?");
+        const query = source.slice(from, to).search(QUERY_START);
         keep = query === -1 ? to - from : query + 1;
         if (query !== -1) inQuery.add(owner);
       }
       if (from + keep < to) cuts.push({ from, to, keep });
     }
+    // Arguments of a call inside the URL aren't URL text, so they are masked.
+    const inner = owner && buildsText(n) ? owner : undefined;
     ts.forEachChild(n, (child) => {
-      visit(child, owner);
+      visit(child, inner);
     });
   };
   visit(node, undefined);

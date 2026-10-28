@@ -375,6 +375,12 @@ export function buildSdkEdges(
   ): SdkValue | undefined =>
     found && { ...found, confidence: weaker(target.confidence, found.confidence) };
 
+  /**
+   * Results by factory function, like {@link sdkBySymbol}: without it, factories that each
+   * return several calls of the next one are traced exponentially often.
+   */
+  const sdkByFactory = new Map<FunctionWithBody, SdkValue | null>();
+
   /** The first SDK value a factory function returns, no stronger than `confidence`. */
   const returnedSdk = (
     sp: ServiceProgram,
@@ -382,11 +388,20 @@ export function buildSdkEdges(
     confidence: Confidence,
     hops: number,
   ): SdkValue | undefined => {
-    for (const returned of returnedExpressions(fn)) {
-      const found = viaImport({ confidence }, sdkOf(sp, returned, hops + 1));
-      if (found) return found;
+    let known = sdkByFactory.get(fn);
+    if (known === undefined) {
+      sdkByFactory.set(fn, null);
+      known = null;
+      for (const returned of returnedExpressions(fn)) {
+        const found = sdkOf(sp, returned, hops + 1);
+        if (found) {
+          known = found;
+          break;
+        }
+      }
+      sdkByFactory.set(fn, known);
     }
-    return undefined;
+    return viaImport({ confidence }, known ?? undefined);
   };
 
   /** What an expression is when it comes from an SDK. */

@@ -94,6 +94,31 @@ describe("collectHttpCalls: fetch", () => {
     ]);
   });
 
+  it("doesn't read a method from a config that is reassigned or mutated (M2 review)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      "export async function load(flag: boolean) {",
+      '  const fixed = { method: "PUT" };',
+      '  const opts = { method: "GET" };',
+      '  if (flag) opts.method = "POST";',
+      '  let loose = { method: "GET" };',
+      '  const merged = { method: "GET" };',
+      '  Object.assign(merged, { method: "DELETE" });',
+      '  await fetch("/a", fixed);',
+      '  await fetch("/b", opts);',
+      '  await fetch("/c", loose);',
+      '  await fetch("/d", merged);',
+      "  loose = { method: 'PATCH' };",
+      "}",
+    ]);
+    expect(summary(await collect()).map((s) => s.split(" base=")[0])).toEqual([
+      'src/api.ts:8:9 fetch PUT "/a"',
+      'src/api.ts:9:9 fetch ? "/b"',
+      'src/api.ts:10:9 fetch ? "/c"',
+      'src/api.ts:11:9 fetch ? "/d"',
+    ]);
+  });
+
   it("recognizes global objects, fetch packages, and Request objects, but not local fetch functions", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/a.ts", [
@@ -329,6 +354,24 @@ describe("collectHttpCalls: axios", () => {
       "export default app;",
     ]);
     expect(await collect()).toEqual([]);
+  });
+
+  it("traces each factory once, however many calls return it (M2 review)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    // Each factory returns ten calls of the one before: 10^7 traces without a cache.
+    const lines = ['import axios from "axios";', "declare const c: number;"];
+    lines.push('function f0() { return axios.create({ baseURL: "/api" }); }');
+    for (let i = 1; i <= 7; i++) {
+      const returns = Array.from({ length: 10 }, (_, k) => `if (c === ${k}) return f${i - 1}();`);
+      lines.push(`function f${i}() { ${returns.join(" ")} return f${i - 1}(); }`);
+    }
+    lines.push('export const go = () => f7().get("/x");');
+    await put("src/api.ts", lines);
+    const started = performance.now();
+    expect(summary(await collect())).toEqual([
+      'src/api.ts:11:30 axios GET "/x" base="/api" [symbol:web/src/api.ts#go]',
+    ]);
+    expect(performance.now() - started).toBeLessThan(20_000);
   });
 });
 

@@ -101,6 +101,9 @@ describe("toUrlPattern", () => {
       "DYNAMIC: every path segment is only known at runtime",
     ],
     ["only holes on a host", [t("https://api.stripe.com/"), H], "https://api.stripe.com/{}"],
+    ["an empty host", [t("https:///x")], "DYNAMIC: the URL has an empty host"],
+    ["only credentials", [t("https://user@/x")], "DYNAMIC: the URL has an empty host"],
+    ["only a port", [t("http://:8080/x")], "DYNAMIC: the URL has an empty host"],
   ])("normalizes %s", (_name, parts, expected) => {
     expect(show(parts)).toBe(expected);
   });
@@ -426,6 +429,29 @@ describe("createUrlNormalizer", () => {
     expect(await normalized()).toEqual([
       "src/api.ts:2 DYNAMIC_URL: the URL can't be read statically",
     ]);
+  });
+
+  it("gives up on exponentially repeated consts and huge text quickly (M2 review)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    // Each const repeats the last ten times: 10^8 expressions, 10^7 characters if evaluated.
+    const lines = ['const a0 = "x";'];
+    for (let i = 1; i <= 8; i++) {
+      lines.push(`const a${i} = \`${`\${a${i - 1}}`.repeat(10)}\`;`);
+    }
+    lines.push(
+      `const big = "/${"y".repeat(3000)}";`,
+      "export const deep = () => fetch('/' + a8);",
+      "export const long = () => fetch(big);",
+      "export const ok = () => fetch(`/api/${a2}`);",
+    );
+    await put("src/api.ts", lines);
+    const started = performance.now();
+    expect(await normalized()).toEqual([
+      "src/api.ts:11 DYNAMIC_URL: the URL is too large or too complex to read statically",
+      "src/api.ts:12 DYNAMIC_URL: the URL is too large or too complex to read statically",
+      `src/api.ts:13 /api/${"x".repeat(100)}`,
+    ]);
+    expect(performance.now() - started).toBeLessThan(20_000);
   });
 
   it("takes the confidence of a heuristic workspace import a const came through", async () => {
