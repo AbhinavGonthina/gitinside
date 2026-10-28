@@ -94,8 +94,8 @@ fetch → inventory → parse → resolve → detect → build graph → link cr
 
 1. **Fetch** (worker only, not the analyzer library):
    - Download `GET /repos/{owner}/{repo}/tarball/{sha}` into a temp dir.
-   - Stream-extract with path checks: reject absolute paths, `..`, symlinks, and hard links.
-   - Enforce limits: total size ≤ 500 MB extracted, any file > 2 MB skipped and recorded as skipped.
+   - Stream-extract with path checks (`apps/worker/src/extract.ts`, ADR-0058): absolute paths and `..` fail the job; symlinks, hard links, and special files are skipped and listed.
+   - Enforce limits: total size ≤ 500 MB extracted and ≤ 100,000 entries. Files over 2 MB are written, and the analyzer's inventory skips them with a `SKIPPED_LARGE` warning, as on a checkout.
 2. **Inventory:**
    - Walk files (sorted, for determinism). Skip `node_modules/`, `.git/`, `dist/`, `build/`, `.next/`, `coverage/`, vendored dirs, and generated files (header markers like `@generated`, or `*.min.js`).
    - Count source files (`.ts .tsx .js .jsx .mjs .cjs .prisma`). Over 20,000 ⇒ fail with `LIMIT_FILES`.
