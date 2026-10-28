@@ -7,3 +7,5 @@ scripts/hooks/* text eol=lf
 fixtures/** text eol=lf
 # `pnpm eval --check` compares committed reports byte-for-byte with regenerated (LF) text.
 eval/results/** text eol=lf
+# Visual baselines and review screenshots are compared byte-for-byte.
+*.png binary

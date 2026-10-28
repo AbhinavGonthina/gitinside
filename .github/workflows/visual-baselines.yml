@@ -1,0 +1,36 @@
+name: Visual baselines
+
+# Captures new visual regression baselines in the same container CI compares
+# in, and uploads them as an artifact. Nothing is committed by the workflow:
+# download the artifact (`gh run download <run> -n visual-baselines -D
+# packages/viewer/visual/baselines`), review the images, and commit them with
+# the reason in the body (docs/TESTING.md).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    container:
+      # Keep in step with @playwright/test in packages/viewer/package.json.
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @gitinside/schema build
+      - run: pnpm --filter @gitinside/viewer build-storybook
+      - run: pnpm --filter @gitinside/viewer visual --update-snapshots=all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines
+          path: packages/viewer/visual/baselines/
+          if-no-files-found: error
