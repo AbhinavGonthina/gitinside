@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.4c. HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window, two-secret rotation; Supertest); M4b waits for the design gate (#2)
+M5.4d. BullMQ worker (concurrency 2, tarball fetch → extract → child → result, stalled-job retries, job dir cleanup); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -106,7 +106,7 @@ M5.4c. HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window,
 - [x] M5.3 Drizzle schema + migrations (local Postgres in Docker for dev/CI) {model: opus}
 - [x] M5.4a apps/worker scaffold + safe streaming tarball extraction (path checks, links rejected, size/entry limits) {model: opus}
 - [x] M5.4b Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error codes) {model: opus}
-- [ ] M5.4c HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window, two-secret rotation; Supertest) {model: opus}
+- [x] M5.4c HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window, two-secret rotation; Supertest) {model: opus}
 - [ ] M5.4d BullMQ worker (concurrency 2, tarball fetch → extract → child → result, stalled-job retries, job dir cleanup) {model: opus}
 - [ ] M5.5 Worker: R2 upload, Postgres writes, progress events {model: opus}
 - [ ] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
@@ -163,6 +163,8 @@ M5.4c. HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window,
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.4c: `createEnqueueHandler`/`createEnqueueServer` in `apps/worker/src/api.ts` (plain `node:http`): open `GET /health` (queue ping, 2 s), signed `POST /enqueue` ⇒ `202 { id, created }` and `GET /jobs/:id` (documented fields only). `hmac.ts`: HMAC-SHA256 over `v1\n<ts>\n<METHOD>\n<path?query>\n<body>`, ±5 min, checked before parsing or routing against `ENQUEUE_HMAC_SECRET` and the optional `…_PREVIOUS` (rotation); exported as `@gitinside/worker/hmac` for M5.6. Job IDs derived from kind/owner/repo/SHAs/analyzer version (dedupe, replays are no-ops); 16 KiB body cap; `JobQueue` interface for M5.4d's BullMQ (ADR-0060). 52 new tests (Supertest), api.ts 99.2% / hmac.ts 100% lines. Eval re-recorded (lockfile). Next: M5.4d.
 
 - 2026-10-28 · M5.4b: `runAnalysis(job)` in `apps/worker/src/runner.ts` spawns the compiled `child.js` (analyzer behind a one-line JSON protocol, `protocol.ts`) with `--max-old-space-size=3072`, a 5-minute SIGKILL timer (+ `AbortSignal`), Node's `--permission` (read app root + `src`, write only the graph file; no processes/workers/addons), an empty env, and a preloaded `netguard.ts` (every socket/DNS/fetch ⇒ `ERR_NETWORK_DISABLED`). Codes: analyzer's own, `LIMIT_TIME`, `LIMIT_MEMORY`, `CANCELLED`, `ANALYZER_CRASHED` (ADR-0059). Tests run the real child against the express-basic golden plus a probe script in the same sandbox; Vitest global setup builds `dist/`. 91 worker tests, runner 98.3% lines (netguard runs only in children). Eval re-recorded (lockfile). Next: M5.4c.
 
