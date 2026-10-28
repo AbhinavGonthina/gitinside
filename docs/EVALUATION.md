@@ -13,7 +13,7 @@ GitInside's numbers must survive an interviewer asking "how did you measure that
 - A repo using axios instances with `baseURL`.
 - A repo with env-based API URLs.
 
-Each is pinned by commit SHA in `eval/repos.json`.
+Each is pinned by commit SHA in `eval/repos.json`: `{ "repos": [{ owner, name, url, sha, license, shape, why }] }`, sorted by `owner/name` (case-insensitive). `url` is `https://github.com/<owner>/<name>`; `license` is a permissive SPDX ID (MIT, Apache-2.0, BSD-2/3-Clause, ISC, 0BSD, Unlicense); `shape` is one of `next-api-routes`, `next-plus-server-monorepo`, `spa-plus-express`, `axios-baseurl`, `env-api-urls` (the list above).
 
 **Ground truth format** (`eval/labels/<owner>__<repo>.json`):
 ```json
@@ -22,22 +22,36 @@ Each is pinned by commit SHA in `eval/repos.json`.
   "sha": "<40-char sha>",
   "labeler": "claude-draft",
   "reviewedBy": null,
+  "scope": ["."],
   "edges": [
-    {
-      "callSite": { "file": "apps/web/lib/api.ts", "line": 14 },
-      "method": "POST",
-      "target": { "file": "apps/api/src/routes/orders.ts", "line": 42, "route": "POST /api/orders" },
-      "notes": "wrapper placeOrder()"
-    },
     {
       "callSite": { "file": "apps/web/app/blog/page.tsx", "line": 9 },
       "method": "GET",
       "target": null,
       "notes": "CMS on another host; correct answer is unresolved/external"
+    },
+    {
+      "callSite": { "file": "apps/web/lib/api.ts", "line": 14 },
+      "method": "POST",
+      "target": { "file": "apps/api/src/routes/orders.ts", "line": 42, "route": "POST /api/orders" },
+      "notes": "wrapper placeOrder()"
     }
   ]
 }
 ```
+
+Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitinside/eval validate` checks every committed file):
+- **Paths** are repo-relative with forward slashes, no leading `./` or `/`, no `..`. Lines and columns are 1-based.
+- **`scope`** lists the folders (or `.` for the whole repo) whose call sites are *all* labeled, sorted. Every `callSite` lies inside it. Predictions outside the scope are not scored; a route predicted at an in-scope call site with no label counts as a false positive (and is listed, so a missed label can be fixed with a note rather than hidden).
+- **`callSite`** is where the URL's route becomes known, which is a property of the code, not of the analyzer:
+  - a `fetch`/axios call whose URL is fixed there (even inside a helper like `getUsers()`) is labeled at that call;
+  - a call through a helper that takes the path as a parameter is labeled at each call *of the helper* (the outermost caller that supplies the path, however many helper levels deep);
+  - `column` (the start of the call expression) is added only when one line holds several calls.
+  - Call sites are sorted by file, line, column, and unique.
+- **`method`** is the request's method (`GET`, `POST`, …), or `null` when the code computes it at runtime.
+- **`target`** is the route the request really reaches, or `null` when it reaches none in the repo (external host, a service outside the repo, a URL that can't be known statically). `file` + `line` are where the route is registered (the `router.post(…)` call, or the Next.js handler export or page file). `route` is `"<METHOD> <path>"` in the analyzer's route spelling (GRAPH_SCHEMA.md): the full path after mounts, `:name` for dynamic segments and `*name` for catch-alls (Next.js `[id]` ⇒ `:id`, `[...slug]` ⇒ `*slug`), no trailing slash, no query; `ALL` when the handler accepts any method.
+- **`labeler`** is `claude-draft` or `abhinav`; **`reviewedBy`** is the reviewer's GitHub login once the review is done.
+- **`notes`** is optional free text: how the call was traced, or how a disagreement was resolved.
 
 **Labeling method** (D10.3):
 1. Labels are drafted by reading the code: find every outbound HTTP call site (grep `fetch(`, `axios`, client wrappers) and trace it by hand to its route.
@@ -47,7 +61,7 @@ Each is pinned by commit SHA in `eval/repos.json`.
 5. Until review is complete, reports are headed **"Pending owner review"**.
 
 **Scoring** (`pnpm eval`):
-- **Matching:** a predicted `http` edge matches a label when the call site (file + line) and target route (method + path) agree.
+- **Matching:** a predicted `http` edge matches a label when the call site (file + line, plus column when the label has one) and target route (registering file + method + path, with parameter names ignored) agree.
 - **True positive:** predicted target equals the labeled target.
 - **False positive:** predicted target is wrong, or a route was predicted where the label says none (`target: null`).
 - **False negative:** a labeled target that was never predicted (an unresolved prediction for a labeled real target counts here).
