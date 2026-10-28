@@ -34,7 +34,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `page` | `path` (URL path) | file | `page:web//checkout` |
 | `model` | `fields[]` (`name`, `type`, `optional`; `type` keeps `[]` for lists) | the `.prisma` file that declares it | `model:api/Order` |
 | `datastore` | `engine` (`postgres`, `mysql`, `mongo`, `redis`, …) | system | a compose service, `datastore:infra/<compose dir>/<service>` (`datastore:infra/postgres` at the root); a Prisma datasource no compose service matches, `datastore:infra/api/prisma/schema.prisma#db` (ADR-0028); an env URL nothing else explains, `datastore:infra/env#REDIS_URL` (ADR-0036) |
-| `queue` | `engine`, `name?` | system | `queue:infra/redis#receipts`; a compose broker (RabbitMQ, Kafka, NATS), `queue:infra/mq` |
+| `queue` | `engine`, `name?` | system | a BullMQ, Bull, or Bee-Queue queue by name, `queue:infra/redis#receipts` (ADR-0037); a compose broker (RabbitMQ, Kafka, NATS), `queue:infra/mq` |
 | `external` | `host` (lowercased, no credentials, no default port) | system | `external:ext/api.stripe.com` |
 | `unresolved` | `reason`, `expression`, `detail?` (why, in words shown to the user) | the service containing the call | `unresolved:web/app/blog/page.tsx:9:15` (line:column of the expression) |
 
@@ -71,7 +71,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `renders` | page → symbol | page component: the page file's default export (ADR-0027) |
 | `reads`, `writes` | symbol or route → model, or → unresolved | Prisma client usage; the route is the source when the call sits in an inline Express handler. Raw queries target an `unresolved` node (`RAW_QUERY`), as do calls naming an unknown (`UNKNOWN_SYMBOL`) or ambiguous (`AMBIGUOUS`) model (ADR-0028) |
 | `stores` | model → datastore | model persisted in a datastore (from the Prisma `datasource`). When the datasource's env URL names a compose service, the edge targets that service's node instead: `exact` by host name, `heuristic` by a published localhost port or as the only compose service of that engine (ADR-0036) |
-| `publishes`, `consumes` | symbol → queue | queue producer and consumer (v1: BullMQ / known clients) |
+| `publishes`, `consumes` | symbol, inline-handler route, or file → queue, or → unresolved | queue producer (`add`, `addBulk`, flows, `createJob`) and consumer (the `Worker` or `process` processor's symbol, else the code that creates it) for BullMQ, Bull, and Bee-Queue. A queue name computed at runtime targets an `unresolved` node (`DYNAMIC_NAME`) (ADR-0037) |
 | `external_call` | symbol, inline-handler route, or file → external | SDK or literal-host call to a third party; a literal-host `fetch`/axios call is `exact` unless the call itself was reached more weakly (ADR-0034). An allowlisted SDK call targets the node of the SDK's API host, so it shares the node with `fetch` calls to that host; it is `exact`, or `heuristic` when the client came through a heuristic import or the host is inferred from an AWS package name (ADR-0035) |
 
 **Confidence** (drives line style):
@@ -80,7 +80,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 - `heuristic`: depends on an assumption, such as an env-var base URL pointing at this backend.
 - `unresolved`: could not be determined. **The target must be an `unresolved` node, and vice versa.**
 
-**Unresolved reasons:** `DYNAMIC_URL`, `NO_MATCHING_ROUTE`, `AMBIGUOUS`, `EXTERNAL_HOST`, `WRAPPER_DEPTH`, `DYNAMIC_ROUTE`, `RAW_QUERY`, `UNKNOWN_SYMBOL`. Unresolved items are always kept and shown, never dropped.
+**Unresolved reasons:** `DYNAMIC_URL`, `NO_MATCHING_ROUTE`, `AMBIGUOUS`, `EXTERNAL_HOST`, `WRAPPER_DEPTH`, `DYNAMIC_ROUTE`, `RAW_QUERY`, `UNKNOWN_SYMBOL`, `DYNAMIC_NAME` (a queue name computed at runtime). Unresolved items are always kept and shown, never dropped.
 
 ## Integrity rules (enforced by `parseGraph`)
 

@@ -66,6 +66,7 @@ export const UnresolvedReason = z.enum([
   "DYNAMIC_ROUTE",
   "RAW_QUERY",
   "UNKNOWN_SYMBOL",
+  "DYNAMIC_NAME",
 ]);
 export type UnresolvedReason = z.infer<typeof UnresolvedReason>;
 

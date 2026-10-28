@@ -14,6 +14,7 @@ import { buildHttpEdges, createRouteMatcher } from "./match.js";
 import { buildNextRoutes } from "./next.js";
 import { buildPrisma } from "./prisma.js";
 import { buildServicePrograms } from "./program.js";
+import { buildQueueEdges } from "./queues.js";
 import { buildSdkEdges } from "./sdk.js";
 import { buildSymbolNodes } from "./symbols.js";
 import { createUrlNormalizer } from "./url.js";
@@ -38,6 +39,7 @@ export const ANALYSIS_STAGES = [
   "calls",
   "http",
   "sdk",
+  "queues",
   "assemble",
 ] as const;
 
@@ -135,6 +137,9 @@ export async function analyze(
   const sdk = await stage("sdk", () =>
     buildSdkEdges(programs, resolver, workspace, express.inlineHandlers),
   );
+  const queues = await stage("queues", () =>
+    buildQueueEdges(programs, resolver, workspace, express.inlineHandlers),
+  );
   const name = options.name ?? (await defaultName(root, inventory.files));
   // Part order is precedence: a custom Express server can register the same route as a
   // Next.js file, and Express's node wins (ADR-0027).
@@ -171,6 +176,7 @@ export async function analyze(
         { source: "infra", nodes: infra.nodes, warnings: infra.warnings },
         { source: "http", nodes: http.nodes, edges: http.edges },
         { source: "sdk", ...sdk },
+        { source: "queues", ...queues },
       ],
     }),
   );
