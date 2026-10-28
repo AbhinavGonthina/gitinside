@@ -188,6 +188,8 @@ export interface PrismaDatasource {
   column: number;
   /** The variable in `url = env("…")`, when the URL is read that way. */
   urlEnv?: string;
+  /** True when `url` is set some other way (a literal), so it names its own database. */
+  urlOther?: true;
   /** The variables in `directUrl = env("…")` and `shadowDatabaseUrl = env("…")`, in order. */
   extraEnv?: string[];
 }
@@ -222,6 +224,7 @@ const FIELD =
   /^([A-Za-z_]\w*)\s+(Unsupported\("(?:[^"\\]|\\.)*"\)|[A-Za-z_][\w.]*)(\[\])?(\?)?(?=\s|@|$)/;
 const PROVIDER = /^provider\s*=\s*(.*)$/;
 const URL_ENV = /^(url|directUrl|shadowDatabaseUrl)\s*=\s*env\(\s*"([^"\\]+)"\s*\)$/;
+const URL_SET = /^url\s*=/;
 const STRING_LITERAL = /^"((?:[^"\\]|\\.)*)"$/;
 
 /**
@@ -237,6 +240,7 @@ export function parsePrismaSchema(text: string): PrismaSchema {
     | undefined;
   let provider: string | undefined;
   let urlEnv: string | undefined;
+  let urlOther = false;
   let extraEnv: string[] = [];
 
   const close = (endLine: number): void => {
@@ -252,12 +256,14 @@ export function parsePrismaSchema(text: string): PrismaSchema {
         line,
         column,
         ...(urlEnv !== undefined ? { urlEnv } : {}),
+        ...(urlEnv === undefined && urlOther ? { urlOther: true as const } : {}),
         ...(extraEnv.length > 0 ? { extraEnv } : {}),
       });
     }
     block = undefined;
     provider = undefined;
     urlEnv = undefined;
+    urlOther = false;
     extraEnv = [];
   };
 
@@ -310,6 +316,7 @@ export function parsePrismaSchema(text: string): PrismaSchema {
       const env = URL_ENV.exec(trimmed);
       if (env?.[1] === "url") urlEnv = env[2];
       else if (env?.[2] !== undefined) extraEnv.push(env[2]);
+      else if (URL_SET.test(trimmed)) urlOther = true;
     }
   }
   if (block) {
@@ -397,6 +404,8 @@ export interface PrismaDatastore {
   file: string;
   /** The variable in `url = env("…")`, if any. */
   urlEnv?: string;
+  /** True when `url` is set without `env()`, so it is never linked by engine alone. */
+  urlOther?: true;
   /** Every variable the datasource reads (`url`, `directUrl`, `shadowDatabaseUrl`). */
   envKeys: string[];
 }
@@ -521,6 +530,7 @@ export async function buildPrisma(
         engine,
         file,
         ...(source.urlEnv !== undefined ? { urlEnv: source.urlEnv } : {}),
+        ...(source.urlOther ? { urlOther: true as const } : {}),
         envKeys: [
           ...(source.urlEnv !== undefined ? [source.urlEnv] : []),
           ...(source.extraEnv ?? []),
