@@ -79,7 +79,7 @@ flowchart LR
 - **`apps/worker`** (BullMQ `Worker`, concurrency 2; `queue.ts`, `job.ts`, ADR-0061):
   - For each job, streams the tarball from GitHub into a fresh job folder, then forks a child process running `packages/analyzer`, with resource limits. The folder is deleted afterwards, and leftovers are swept at startup.
   - Retries only failures that can pass (network, rate limit, shutdown); deterministic ones (`LIMIT_*`, `TAR_*`, `REPO_NOT_FOUND`) fail on the first attempt.
-  - Uploads the snapshot to R2, writes metadata to Postgres, and reports progress through BullMQ.
+  - Uploads the gzipped snapshot to R2 (`storage.ts`, signed with our own SigV4, keyed per repo, SHA, and analyzer version; ADR-0062), writes metadata to Postgres, and reports progress through BullMQ.
 - **`packages/schema`:** TS types + Zod for `architecture.json`. Imported everywhere.
 - **`packages/analyzer`:** library + CLI (`gitinside analyze <path>`).
 - **`packages/diff`:** library + CLI (`gitinside diff <base> <head>`).

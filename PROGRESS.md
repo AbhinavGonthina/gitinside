@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.5. Worker: R2 upload, Postgres writes, progress events (plus the worker's entry point: env ⇒ Redis, sweep, worker + enqueue server, JSON logs, SIGTERM ⇒ `stopWorker`); M4b waits for the design gate (#2)
+M5.5a. Snapshot store (gzip, R2 keys, SigV4 PUT); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -108,7 +108,10 @@ M5.5. Worker: R2 upload, Postgres writes, progress events (plus the worker's ent
 - [x] M5.4b Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error codes) {model: opus}
 - [x] M5.4c HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window, two-secret rotation; Supertest) {model: opus}
 - [x] M5.4d BullMQ worker (concurrency 2, tarball fetch → extract → child → result, stalled-job retries, job dir cleanup) {model: opus}
-- [ ] M5.5 Worker: R2 upload, Postgres writes, progress events {model: opus}
+- [ ] M5.5a Snapshot store: gzipped `architecture.json`, R2 keys per ADR-0013, SigV4 PUT without an SDK (AWS test vectors, fake S3 server), `R2_*` env config {model: opus}
+- [ ] M5.5b Postgres writes: repo upsert, analysis row lifecycle (running/done/failed, stats with stage timings); `publish` = R2 then Postgres {model: opus}
+- [ ] M5.5c Progress events: analyzer stages streamed from the child with counts ("Parsing 1,204 files", "Linking 87 calls"), stored as BullMQ progress {model: opus}
+- [ ] M5.5d Worker entry point: env ⇒ Redis, sweep, worker + enqueue server, JSON logs, SIGTERM ⇒ `stopWorker` {model: opus}
 - [ ] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
 - [ ] M5.7 Progress page with real stages + queue position (SSE) {model: opus}
 - [ ] M5.8 Diagram page + check-on-view re-analysis {model: opus}
