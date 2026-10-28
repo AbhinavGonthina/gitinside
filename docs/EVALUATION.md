@@ -81,13 +81,16 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 4. Disagreements are resolved in the label file, with a `notes` entry, and summarized in the report.
 5. Until review is complete, reports are headed **"Pending owner review"**.
 
-**Scoring** (`pnpm eval`):
-- **Matching:** each label is scored on its own, so a call site with two labeled routes needs both predicted for full recall. A predicted `http` edge matches a label when the call site (file + line, plus column when the label has one) and target route (registering file + method + path, with parameter names ignored) agree.
-- **True positive:** predicted target equals the labeled target.
-- **False positive:** predicted target is wrong, or a route was predicted where the label says none (`target: null`).
-- **False negative:** a labeled target that was never predicted (an unresolved prediction for a labeled real target counts here).
-- **Unresolved predictions** for `target: null` labels count as correct abstentions and are reported separately, not inside precision.
-- Precision and recall are reported **overall, per repo, and per confidence level** (exact / pattern / heuristic).
+**Scoring** (`pnpm eval`; implemented in `eval/src/score.ts`, ADR-0042):
+- **Predictions:** every site of an `http` edge to a `route` node predicts that route at that site. Every site of an `http` edge to an `unresolved` node, or of an `external_call` edge to an `external` node, predicts "no route in the repo". Other edge kinds are not HTTP predictions. Predictions whose site is outside the label file's `scope` are not scored.
+- **Matching:** each label is scored on its own, so a call site with two labeled routes needs both predicted for full recall. A route prediction matches a label when the call site (file + line, plus column when the label has one) and target route (registering file + method + path, with parameter names ignored) agree. Route lines are not compared (the analyzer anchors a route at its method call, the label at the registering statement). The same route predicted twice for one label counts once.
+- **True positive:** a route prediction that matches a label's target.
+- **False positive:** a route prediction that matches no label, listed with its kind: `wrong-route` (the site's label names another route), `route-for-null-label` (the label says `target: null`), or `unlabeled-site` (no label at that in-scope site).
+- **False negative:** a labeled target that was never predicted, listed with what was predicted at the site instead (another route, an unresolved node and its reason, an external host, or nothing).
+- **Abstentions:** a `target: null` label whose site has only non-route predictions (unresolved or external) is a correct abstention, reported separately, not inside precision.
+- **Missing:** a label with no prediction of any kind at its site (a dropped call site) is listed separately too; a missing label with a real target is also a false negative.
+- Precision = TP / (TP + FP); recall = TP / labels with a real target; an empty denominator is reported as "n/a", never as 0% or 100%.
+- Precision and recall are reported **overall, per repo, and per confidence level** (exact / pattern / heuristic). Per-level recall is that level's true positives over *all* labels with a real target, so the three levels add up to the overall recall.
 
 **Report:** `eval/results/<YYYY-MM-DD>-<analyzerVersion>.md`, committed, containing:
 - Repos and SHAs, the analyzer version, and machine specs.
