@@ -39,6 +39,7 @@ const NAMES = [
   "compose-and-env",
   "fake-secrets",
   "queues-bullmq",
+  "shop-demo",
 ];
 
 describe.each(NAMES)("fixture %s", (name) => {
@@ -210,6 +211,31 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       "symbol:worker/src/main.ts#sendEmail -> queue:infra/redis#email exact",
     ]);
     expect(g.edges.find((e) => e.from.endsWith("#sendEmail"))?.kind).toBe("consumes");
+  });
+
+  it("shop-demo: one request path from a page to the database and Stripe (the viewer prototype's graph)", async () => {
+    const g = await run("shop-demo");
+    expect(
+      links(g, "renders", "calls", "http", "handles", "writes", "stores", "external_call"),
+    ).toEqual([
+      "model:api/Order -> datastore:infra/db exact",
+      "page:web// -> symbol:web/app/page.tsx#Home exact",
+      "page:web//checkout -> symbol:web/app/checkout/page.tsx#Checkout exact",
+      "page:web//orders -> symbol:web/app/orders/page.tsx#Orders exact",
+      "route:api/GET /api/orders -> symbol:api/src/orders/handlers.ts#listOrders exact",
+      "route:api/POST /api/orders -> symbol:api/src/orders/handlers.ts#createOrder exact",
+      "symbol:api/src/billing/stripe.ts#chargeOrder -> external:ext/api.stripe.com exact",
+      "symbol:api/src/orders/handlers.ts#createOrder -> model:api/Order exact",
+      "symbol:api/src/orders/handlers.ts#createOrder -> symbol:api/src/billing/stripe.ts#chargeOrder exact",
+      "symbol:web/app/checkout/page.tsx#Checkout -> symbol:web/lib/orders.ts#placeOrder exact",
+      "symbol:web/app/orders/page.tsx#Orders -> symbol:web/lib/orders.ts#listOrders exact",
+      "symbol:web/app/page.tsx#Home -> symbol:web/lib/cms.ts#latestPosts exact",
+      "symbol:web/lib/cms.ts#latestPosts -> unresolved:web/lib/cms.ts:3:21 unresolved NO_MATCHING_ROUTE",
+      "symbol:web/lib/orders.ts#listOrders -> route:api/GET /api/orders heuristic",
+      "symbol:web/lib/orders.ts#placeOrder -> route:api/POST /api/orders heuristic",
+    ]);
+    expect(g.warnings).toEqual([]);
+    expect(serializeGraph(g)).not.toContain("shop:shop");
   });
 });
 
