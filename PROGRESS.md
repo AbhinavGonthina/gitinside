@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.4. apps/worker: BullMQ worker + HMAC enqueue API + safe tarball extraction + child-process limits; M4b waits for the design gate (#2)
+M5.4b. Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error codes); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -104,7 +104,10 @@ M5.4. apps/worker: BullMQ worker + HMAC enqueue API + safe tarball extraction + 
 - [x] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
 - [x] M5.2 apps/web Next.js scaffold, landing page, viewer integration (incl. a separate viewer fonts entry so the library imports without CSS, M4a review) {model: opus}
 - [x] M5.3 Drizzle schema + migrations (local Postgres in Docker for dev/CI) {model: opus}
-- [ ] M5.4 apps/worker: BullMQ worker + HMAC enqueue API + safe tarball extraction + child-process limits {model: opus}
+- [x] M5.4a apps/worker scaffold + safe streaming tarball extraction (path checks, links rejected, size/entry limits) {model: opus}
+- [ ] M5.4b Child-process analysis runner (heap cap, 5 min SIGKILL, no network, error codes) {model: opus}
+- [ ] M5.4c HMAC enqueue API (POST /enqueue, GET /jobs/:id, health; timestamp window, two-secret rotation; Supertest) {model: opus}
+- [ ] M5.4d BullMQ worker (concurrency 2, tarball fetch → extract → child → result, stalled-job retries, job dir cleanup) {model: opus}
 - [ ] M5.5 Worker: R2 upload, Postgres writes, progress events {model: opus}
 - [ ] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
 - [ ] M5.7 Progress page with real stages + queue position (SSE) {model: opus}
@@ -160,6 +163,8 @@ M5.4. apps/worker: BullMQ worker + HMAC enqueue API + safe tarball extraction + 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-28 · M5.4a: M5.4 split into a–d. New `@gitinside/worker` with `extractTarball(source, dest)` (`apps/worker/src/extract.ts`): our own streaming tar parser behind gunzip (ustar prefix, pax `x`/`g`, GNU `L`), every write by us (`mkdir` / create-exclusive `open`, resolved path checked under `dest`). Absolute/`..`/NUL paths fail (`TAR_UNSAFE_PATH`); links, devices, odd names skipped and listed; 500 MiB on the decompressed stream (gzip bombs stop early), 100k entries, checksums, end marker required, duplicates/conflicts `TAR_INVALID` (ADR-0058). 44 tests incl. a real `git archive` round trip and byte-built hostile archives; extract.ts 98.7% lines. Next: M5.4b.
 
 - 2026-10-28 · M5.3: new `@gitinside/db` (Drizzle 0.45 + postgres.js, `prepare: false` for Neon's pooler): the 7 DESIGN.md §10 tables, UUID IDs, integrity in the database (40-hex SHAs, analysis status ⇔ columns check, case-insensitive owner/name, non-negative counts, cascades from repos/users, installation delete only unlinks). Committed SQL migration `0000_init`, `migrate` CLI (UNPOOLED first, never prints the URL), a schema-vs-snapshot drift test (verified it fails on an added column). Tests on PGlite locally, a fresh database per file on CI's `postgres:17-alpine` service, plus the built CLI run twice; `infra/docker-compose.dev.yml` for dev (ADR-0057). 31 db tests, 87.6% lines locally (`createDb`/`runMigrations` run only in CI). Eval re-recorded (lockfile). Next: M5.4.
 
