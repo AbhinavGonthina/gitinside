@@ -73,9 +73,10 @@ mkdir -p "$RUN_DIR"
   echo "no-hosts"
   echo "listen-address=127.0.0.1"
   echo "bind-interfaces"
-  # Stay root (no CAP_SETUID/SETGID to switch): the DNS rule below allows root only.
+  # Stay root (no CAP_SETUID/SETGID to switch): the DNS rule below allows root only. An
+  # empty group means no group change at all (even to root's, setgid needs CAP_SETGID).
   echo "user=root"
-  echo "group=root"
+  echo "group="
   echo "filter-AAAA"
   echo "cache-size=1000"
   echo "log-facility=-"
