@@ -1,4 +1,5 @@
 export { applyDiff, DiffApplyError } from "./apply.js";
+export { detectBroken, parseHttpLabel, relativeImportTargets } from "./broken.js";
 export { checkComparable, describeRepo, IncompatibleGraphsError } from "./compare.js";
 export { diffGraphs, type DiffOptions } from "./diff.js";
 export {

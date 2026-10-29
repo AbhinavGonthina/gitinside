@@ -190,6 +190,18 @@ function checkIntegrity(diff: DiffShape, ctx: z.RefinementCtx): void {
     (message) => issue(`broken ${message}`),
   );
 
+  // A broken edge's target is gone and its source isn't (DESIGN.md §8 properties).
+  const removedNodes = new Set(nodes.removed);
+  const removedEdges = new Set(edges.removed);
+  for (const b of diff.broken) {
+    if (!removedEdges.has(b.edge)) issue(`broken edge ${b.edge} isn't a removed edge`);
+    if (!removedNodes.has(b.to))
+      issue(`broken edge ${b.edge} targets ${b.to}, which isn't removed`);
+    if (removedNodes.has(b.from) || nodes.renamed.some((r) => r.from === b.from)) {
+      issue(`broken edge ${b.edge} comes from ${b.from}, which isn't in head`);
+    }
+  }
+
   const expected = summarizeDiff(diff);
   const lists = ["added", "removed", "modified", "updated", "renamed"] as const;
   const matches =

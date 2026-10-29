@@ -1,0 +1,495 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "route:diff-broken/GET /api/orders",
+      "id": "handles:route:diff-broken/GET /api/orders->symbol:diff-broken/src/handlers.ts#listOrders",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/server.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:diff-broken/src/handlers.ts#listOrders"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:diff-broken/PUT /api/orders",
+      "id": "handles:route:diff-broken/PUT /api/orders->symbol:diff-broken/src/handlers.ts#createOrder",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/server.ts",
+          "line": 7
+        }
+      ],
+      "to": "symbol:diff-broken/src/handlers.ts#createOrder"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:diff-broken/src/client.ts#cancelOrder",
+      "id": "http:symbol:diff-broken/src/client.ts#cancelOrder->unresolved:diff-broken/src/client.ts:12:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 12
+        }
+      ],
+      "to": "unresolved:diff-broken/src/client.ts:12:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:diff-broken/src/client.ts#loadOrders",
+      "id": "http:symbol:diff-broken/src/client.ts#loadOrders->route:diff-broken/GET /api/orders",
+      "kind": "http",
+      "label": "GET /api/orders",
+      "sites": [
+        {
+          "column": 17,
+          "file": "src/client.ts",
+          "line": 4
+        }
+      ],
+      "to": "route:diff-broken/GET /api/orders"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:diff-broken/src/client.ts#placeOrder",
+      "id": "http:symbol:diff-broken/src/client.ts#placeOrder->unresolved:diff-broken/src/client.ts:8:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 8
+        }
+      ],
+      "to": "unresolved:diff-broken/src/client.ts:8:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "file:diff-broken/src/client.ts",
+      "id": "imports:file:diff-broken/src/client.ts->unresolved:diff-broken/src/client.ts:1:29",
+      "kind": "imports",
+      "reason": "UNKNOWN_SYMBOL",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/client.ts",
+          "line": 1
+        }
+      ],
+      "to": "unresolved:diff-broken/src/client.ts:1:29"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-broken/src/handlers.ts",
+      "id": "imports:file:diff-broken/src/handlers.ts->file:diff-broken/src/db.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/handlers.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:diff-broken/src/db.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-broken/src/server.ts",
+      "id": "imports:file:diff-broken/src/server.ts->file:diff-broken/src/handlers.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 41,
+          "file": "src/server.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:diff-broken/src/handlers.ts"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:diff-broken/src/handlers.ts#invoiceTotal",
+      "id": "reads:symbol:diff-broken/src/handlers.ts#invoiceTotal->unresolved:diff-broken/src/handlers.ts:13:41",
+      "kind": "reads",
+      "reason": "UNKNOWN_SYMBOL",
+      "sites": [
+        {
+          "column": 41,
+          "file": "src/handlers.ts",
+          "line": 13
+        }
+      ],
+      "to": "unresolved:diff-broken/src/handlers.ts:13:41"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:diff-broken/src/handlers.ts#listOrders",
+      "id": "reads:symbol:diff-broken/src/handlers.ts#listOrders->model:diff-broken/Order",
+      "kind": "reads",
+      "sites": [
+        {
+          "column": 31,
+          "file": "src/handlers.ts",
+          "line": 5
+        }
+      ],
+      "to": "model:diff-broken/Order"
+    },
+    {
+      "confidence": "exact",
+      "from": "model:diff-broken/Order",
+      "id": "stores:model:diff-broken/Order->datastore:infra/diff-broken/prisma/schema.prisma#db",
+      "kind": "stores",
+      "sites": [
+        {
+          "column": 1,
+          "file": "prisma/schema.prisma",
+          "line": 1
+        }
+      ],
+      "to": "datastore:infra/diff-broken/prisma/schema.prisma#db"
+    },
+    {
+      "confidence": "exact",
+      "fields": [
+        "total"
+      ],
+      "from": "symbol:diff-broken/src/handlers.ts#createOrder",
+      "id": "writes:symbol:diff-broken/src/handlers.ts#createOrder->model:diff-broken/Order",
+      "kind": "writes",
+      "sites": [
+        {
+          "column": 31,
+          "file": "src/handlers.ts",
+          "line": 9
+        }
+      ],
+      "to": "model:diff-broken/Order"
+    }
+  ],
+  "nodes": [
+    {
+      "engine": "postgres",
+      "id": "datastore:infra/diff-broken/prisma/schema.prisma#db",
+      "kind": "datastore",
+      "label": "postgres",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 1,
+        "file": "prisma/schema.prisma",
+        "line": 1
+      }
+    },
+    {
+      "hash": "e983a3a62277692bb1629c5171f957e2f7698c29ef44a871cc5b9917300b209f",
+      "id": "file:diff-broken/prisma/schema.prisma",
+      "kind": "file",
+      "label": "schema.prisma",
+      "parentId": "module:diff-broken/prisma",
+      "path": "prisma/schema.prisma"
+    },
+    {
+      "hash": "a9bd253a8c5710577a5eed0ff241d62b50ab044de53f66b535eae160f508f666",
+      "id": "file:diff-broken/src/client.ts",
+      "kind": "file",
+      "label": "client.ts",
+      "parentId": "module:diff-broken/src",
+      "path": "src/client.ts"
+    },
+    {
+      "hash": "420319b87f90722840ddb3de2ddcceea63e89619cc6692090038199368a03bf8",
+      "id": "file:diff-broken/src/db.ts",
+      "kind": "file",
+      "label": "db.ts",
+      "parentId": "module:diff-broken/src",
+      "path": "src/db.ts"
+    },
+    {
+      "hash": "32b84f91163f1512c54c66d27f929af7da55caa9d496a655b755c798e5a935db",
+      "id": "file:diff-broken/src/handlers.ts",
+      "kind": "file",
+      "label": "handlers.ts",
+      "parentId": "module:diff-broken/src",
+      "path": "src/handlers.ts"
+    },
+    {
+      "hash": "4f86bcc78a475dbaf1fc83e35fe04a71e6352bfbe9c03fa2db7c1825c19f1f3d",
+      "id": "file:diff-broken/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:diff-broken/src",
+      "path": "src/server.ts"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "Int"
+        },
+        {
+          "name": "total",
+          "optional": false,
+          "type": "Int"
+        }
+      ],
+      "id": "model:diff-broken/Order",
+      "kind": "model",
+      "label": "Order",
+      "layer": "data",
+      "parentId": "file:diff-broken/prisma/schema.prisma",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "prisma/schema.prisma",
+        "line": 6
+      }
+    },
+    {
+      "id": "module:diff-broken/prisma",
+      "kind": "module",
+      "label": "prisma",
+      "parentId": "service:diff-broken/",
+      "path": "prisma"
+    },
+    {
+      "id": "module:diff-broken/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:diff-broken/",
+      "path": "src"
+    },
+    {
+      "id": "route:diff-broken/GET /api/orders",
+      "kind": "route",
+      "label": "GET /api/orders",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:diff-broken/src/server.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:diff-broken/PUT /api/orders",
+      "kind": "route",
+      "label": "PUT /api/orders",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:diff-broken/src/server.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 7
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:diff-broken/",
+      "kind": "service",
+      "label": "diff-broken",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/client.ts#cancelOrder",
+      "kind": "symbol",
+      "label": "cancelOrder",
+      "parentId": "file:diff-broken/src/client.ts",
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "src/client.ts",
+        "line": 11
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/client.ts#label",
+      "kind": "symbol",
+      "label": "label",
+      "parentId": "file:diff-broken/src/client.ts",
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/client.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/client.ts#loadOrders",
+      "kind": "symbol",
+      "label": "loadOrders",
+      "parentId": "file:diff-broken/src/client.ts",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/client.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/client.ts#placeOrder",
+      "kind": "symbol",
+      "label": "placeOrder",
+      "parentId": "file:diff-broken/src/client.ts",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "src/client.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/db.ts#prisma",
+      "kind": "symbol",
+      "label": "prisma",
+      "parentId": "file:diff-broken/src/db.ts",
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "src/db.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/handlers.ts#createOrder",
+      "kind": "symbol",
+      "label": "createOrder",
+      "parentId": "file:diff-broken/src/handlers.ts",
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/handlers.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/handlers.ts#invoiceTotal",
+      "kind": "symbol",
+      "label": "invoiceTotal",
+      "parentId": "file:diff-broken/src/handlers.ts",
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "src/handlers.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/handlers.ts#listOrders",
+      "kind": "symbol",
+      "label": "listOrders",
+      "parentId": "file:diff-broken/src/handlers.ts",
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/handlers.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "diff-broken-head",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches DELETE to /api/orders/{}",
+      "expression": "fetch(`/api/orders/${id}`, { method: \"DELETE\" })",
+      "id": "unresolved:diff-broken/src/client.ts:12:10",
+      "kind": "unresolved",
+      "label": "DELETE /api/orders/{}",
+      "parentId": "service:diff-broken/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "src/client.ts",
+        "line": 12
+      }
+    },
+    {
+      "expression": "./legacy.js",
+      "id": "unresolved:diff-broken/src/client.ts:1:29",
+      "kind": "unresolved",
+      "label": "./legacy.js",
+      "parentId": "service:diff-broken/",
+      "reason": "UNKNOWN_SYMBOL",
+      "source": {
+        "column": 29,
+        "file": "src/client.ts",
+        "line": 1
+      }
+    },
+    {
+      "detail": "no route matches POST to /api/orders",
+      "expression": "fetch(\"/api/orders\", { method: \"POST\", body: JSON.stringify({ total }) })",
+      "id": "unresolved:diff-broken/src/client.ts:8:10",
+      "kind": "unresolved",
+      "label": "POST /api/orders",
+      "parentId": "service:diff-broken/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "src/client.ts",
+        "line": 8
+      }
+    },
+    {
+      "expression": "prisma.invoice.findMany",
+      "id": "unresolved:diff-broken/src/handlers.ts:13:41",
+      "kind": "unresolved",
+      "label": "prisma.invoice.findMany",
+      "parentId": "service:diff-broken/",
+      "reason": "UNKNOWN_SYMBOL",
+      "source": {
+        "column": 41,
+        "file": "src/handlers.ts",
+        "line": 13
+      }
+    }
+  ],
+  "repo": {
+    "name": "diff-broken-head",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
