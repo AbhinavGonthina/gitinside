@@ -33,8 +33,9 @@ GitInside analyzes **untrusted code** submitted by anyone, and holds **private r
 
 ## 3. Worker container
 
-- Runs as a non-root user, with a read-only root filesystem. The only writable path is `/tmp/jobs` (tmpfs, size-capped).
-- `no-new-privileges`, all Linux capabilities dropped, a seccomp default profile.
+- Image `apps/worker/Dockerfile`, stack `infra/oracle/compose.yml` (ADR-0074), both checked on every CI run by `infra/oracle/check.mjs`.
+- Runs as a non-root user (`node`, uid 1000), with a read-only root filesystem. The only writable path is `/tmp/jobs` (tmpfs, 1,200 MB, `noexec,nosuid,nodev`). The app lives at `/app/apps/worker`, so the analysis child's read root `/app` holds code only; npm, npx, corepack, and yarn are removed.
+- `no-new-privileges`, all Linux capabilities dropped, Docker's default seccomp profile. 3 CPUs, 12 GB without swap, 256 PIDs.
 - Each job (`apps/worker/src/job.ts`): tarball → `/tmp/jobs/<jobId>-<random>/src` → child process with resource limits → `architecture.json` → upload → the job dir is deleted (also deleted on failure). The worker sweeps `/tmp/jobs` at startup for folders a killed process left behind.
 - Redis runs in a sibling container on an internal Docker network with no published port. The enqueue API is the only exposed port, behind Caddy TLS on the VM.
 - The VM firewall allows inbound 443 (and 22 from Abhinav's IP for SSH). Everything else is denied.

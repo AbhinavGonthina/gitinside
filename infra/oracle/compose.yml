@@ -1,0 +1,114 @@
+# The production stack on the Oracle VM: the analysis worker and its Redis
+# (docs/SECURITY.md §3, ADR-0074). Run from the repo root, as root (the env file is
+# root-only):
+#
+#   docker compose -f infra/oracle/compose.yml up -d --build
+#
+# Secrets come from /etc/gitinside/worker.env (names in apps/worker/.env.example); set
+# WORKER_ENV_FILE to use another file (CI's container check does). Caddy on the VM
+# terminates TLS and proxies to 127.0.0.1:8080; nothing else is published.
+
+name: gitinside
+
+services:
+  worker:
+    build:
+      context: ../..
+      dockerfile: apps/worker/Dockerfile
+    image: gitinside-worker:local
+    restart: unless-stopped
+    init: true
+    env_file: ${WORKER_ENV_FILE:-/etc/gitinside/worker.env}
+    environment:
+      # These belong to the stack, not the secrets file, so they always win.
+      REDIS_URL: redis://redis:6379
+      JOBS_ROOT: /tmp/jobs
+      HOST: 0.0.0.0
+      PORT: "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    # Hardening: an unprivileged user (the image's `node`), nothing writable but the
+    # job folder, no capabilities, no privilege gain, Docker's default seccomp profile
+    # (applied because nothing here turns it off).
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      # Two jobs at once, each at most 500 MiB extracted plus its graph (SECURITY.md T3).
+      # noexec: nothing in a job folder is ever run.
+      - /tmp/jobs:size=1200m,mode=0700,uid=1000,gid=1000,noexec,nosuid,nodev
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Resources on a 4 OCPU / 24 GB A1 VM: two analysis children at 3 GB heap each, the
+    # worker itself, and the tmpfs (counted as memory); one core left for Redis, Caddy,
+    # and the OS.
+    cpus: 3
+    mem_limit: 12g
+    memswap_limit: 12g
+    pids_limit: 256
+    # The worker stops within 20 s of SIGTERM (ADR-0065); Docker waits longer before SIGKILL.
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      start_interval: 2s
+      retries: 3
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [internal, egress]
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    # BullMQ needs `noeviction`; the append-only file keeps queued jobs across restarts.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - noeviction
+    # Running as `redis` from the start means the image's entrypoint never needs to change
+    # users, so no capability is required.
+    user: redis
+    read_only: true
+    volumes:
+      - redis-data:/data
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    cpus: 0.5
+    mem_limit: 768m
+    pids_limit: 64
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+    # No published port, and only the internal network: Redis is reachable from the worker
+    # alone and can't reach anything itself.
+    networks: [internal]
+
+networks:
+  # No route out of the host: Redis lives here.
+  internal:
+    internal: true
+  # The worker's way out (GitHub, R2, Neon). The allowlist on it is M5.10b.
+  egress: {}
+
+volumes:
+  redis-data:
