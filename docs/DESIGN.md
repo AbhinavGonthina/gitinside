@@ -257,8 +257,8 @@ For each call (method M, pattern P), compare with every route (method M', patter
    - **Symbols:** body-hash equality, or a similarity ≥ 0.8 plus the same name in a moved file.
    - Each match is a `renamed` pair, and edges are remapped through it.
 3. **Classify:**
-   - **Nodes:** `added`, `removed`, `modified` (same ID, different fingerprint: signature, route method/path, or model fields), `renamed`.
-   - **Edges:** `added`, `removed`, unchanged.
+   - **Nodes:** `added`, `removed`, `modified` (same ID, different fingerprint: e.g. a file's hash, a route's method/path, a model's fields; per-kind table in ADR-0085), `updated` (same ID and fingerprint, other facts such as a source line differ), `renamed`. Symbols carry no signature yet, so their body changes show through their file's hash.
+   - **Edges:** `added`, `removed`, `modified` (confidence, label, reason, or fields), `updated` (call sites only), `renamed`.
 4. **Broken edges:** a head edge E from S to T is **broken** if S exists in head and still references T, but T is removed in head, or T is modified incompatibly. Incompatible means:
    - A route's method or path changed.
    - A function's required parameter count increased.
