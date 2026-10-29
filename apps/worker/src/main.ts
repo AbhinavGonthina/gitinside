@@ -13,6 +13,7 @@ import {
   stopWorker,
   type WorkerLog,
 } from "./queue.js";
+import { runMaintenance, scheduleMaintenance, type MaintenanceSchedule } from "./maintenance.js";
 import { createAnalysisRecorder } from "./record.js";
 import { createObjectStore } from "./storage.js";
 
@@ -26,10 +27,11 @@ import { createObjectStore } from "./storage.js";
  *    analyses still `running` from before this start `failed` (`JOB_INTERRUPTED`). A job that
  *    BullMQ re-runs moves its row back to `running`.
  * 3. Connect to Redis and check it answers, so a bad `REDIS_URL` fails here, loudly.
- * 4. Start the worker (recorder + `publish` = R2 then Postgres), then the enqueue API.
+ * 4. Start the worker (recorder + `publish` = R2 then Postgres), the hourly maintenance
+ *    (retention, rate-limit pruning, quota check; maintenance.ts), then the enqueue API.
  *
  * **Shutdown** ({@link RunningWorker.stop}, on SIGTERM or SIGINT): stop accepting API
- * requests, cancel running jobs (`CANCELLED` is retriable, so they run again after the
+ * requests, stop the maintenance schedule (waiting for a run in progress), cancel running jobs (`CANCELLED` is retriable, so they run again after the
  * restart) and wait for the worker, then close the queue and the database. Each step runs
  * even if an earlier one failed.
  */
@@ -63,6 +65,8 @@ export interface StartOptions {
   queueCallTimeoutMs?: number;
   /** The analysis runner and its limits (tests stub the child). */
   jobDeps?: Pick<JobDeps, "run" | "runOptions">;
+  /** Maintenance timing (maintenance.ts defaults), or `false` for none. */
+  maintenance?: Pick<MaintenanceSchedule, "firstDelayMs" | "intervalMs"> | false;
 }
 
 /** Run `steps` in order, logging (not throwing) each failure; rejects at the end if any did. */
@@ -128,9 +132,10 @@ export async function startWorkerProcess(
       ...options.github,
       ...(config.githubToken === undefined ? {} : { token: config.githubToken }),
     };
+    const store = createObjectStore(config.store);
     const recorder = createAnalysisRecorder({
       db,
-      store: createObjectStore(config.store),
+      store,
       analyzerVersion,
       github,
     });
@@ -147,6 +152,15 @@ export async function startWorkerProcess(
       },
     });
     cleanup.push(["worker", () => stopWorker(worker)]);
+
+    if (options.maintenance !== false) {
+      const maintenance = scheduleMaintenance({
+        run: () => runMaintenance({ db, store, log }),
+        log,
+        ...options.maintenance,
+      });
+      cleanup.push(["maintenance", () => maintenance.stop()]);
+    }
 
     const server = createEnqueueServer({ queue, secrets: config.secrets, analyzerVersion });
     await new Promise<void>((resolve, reject) => {

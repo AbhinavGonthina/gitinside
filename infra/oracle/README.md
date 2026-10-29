@@ -67,6 +67,8 @@ Create a new VM as in #3, point the DNS record at its IP (#7), and follow **Firs
 | Restart | `sudo systemctl restart gitinside` |
 | Stop | `sudo systemctl stop gitinside` |
 | Health from the VM | `curl http://127.0.0.1:8080/health` |
+| Quota check (R2 and Neon vs. the free limits; exit 2 at 80%) | `sudo docker compose -f /opt/gitinside/infra/oracle/compose.yml exec worker node dist/quota-bin.js` |
+| Quota alarms from the hourly maintenance | `sudo docker compose -f /opt/gitinside/infra/oracle/compose.yml logs worker \| grep quota_alarm` |
 | Rotate the HMAC secret | Set `ENQUEUE_HMAC_SECRET_PREVIOUS` to the old value and `ENQUEUE_HMAC_SECRET` to the new one, restart, update Vercel, then remove `…_PREVIOUS` and restart again |
 
 - **Changing the R2 account or the Neon host** changes the allowlist: restart the stack so the gateway reads the env file again.

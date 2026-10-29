@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONFIG_DEFAULTS, ConfigError, workerConfigFromEnv } from "./config.js";
+import { CONFIG_DEFAULTS, ConfigError, quotaConfigFromEnv, workerConfigFromEnv } from "./config.js";
 
 const SECRET = "s".repeat(43);
 const ENV = {
@@ -124,5 +124,34 @@ describe("workerConfigFromEnv", () => {
     expect(() => workerConfigFromEnv({ ...ENV, REDIS_URL: undefined })).toThrow(
       "invalid worker configuration: REDIS_URL is not set",
     );
+  });
+});
+
+describe("quotaConfigFromEnv", () => {
+  it("reads only the database and the bucket", () => {
+    const { DATABASE_URL, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } = ENV;
+    expect(
+      quotaConfigFromEnv({
+        DATABASE_URL,
+        R2_ACCOUNT_ID,
+        R2_ACCESS_KEY_ID,
+        R2_SECRET_ACCESS_KEY,
+        R2_BUCKET,
+      }),
+    ).toEqual({ databaseUrl: DATABASE_URL, store: workerConfigFromEnv(ENV).store });
+  });
+
+  it("lists both problems at once, never a value", () => {
+    let error: unknown;
+    try {
+      quotaConfigFromEnv({ ...ENV, DATABASE_URL: "nope", R2_ACCOUNT_ID: "acct-value" });
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(ConfigError);
+    expect((error as ConfigError).problems).toEqual([
+      "DATABASE_URL is not a URL",
+      "R2_ACCOUNT_ID must be 32 lowercase hex",
+    ]);
   });
 });

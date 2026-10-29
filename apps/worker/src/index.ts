@@ -13,7 +13,14 @@ export {
   type JobState,
   type JobStatus,
 } from "./api.js";
-export { CONFIG_DEFAULTS, ConfigError, workerConfigFromEnv, type WorkerConfig } from "./config.js";
+export {
+  CONFIG_DEFAULTS,
+  ConfigError,
+  quotaConfigFromEnv,
+  workerConfigFromEnv,
+  type QuotaConfig,
+  type WorkerConfig,
+} from "./config.js";
 // main.ts (the process entry, run by bin.ts) isn't re-exported: it loads the analyzer.
 export { createJsonLog } from "./log.js";
 export {
@@ -134,6 +141,24 @@ export {
   type RetentionPolicy,
   type RetentionReport,
 } from "./retention.js";
+export {
+  MAINTENANCE_FIRST_DELAY_MS,
+  MAINTENANCE_INTERVAL_MS,
+  QUOTA_ALARM_RATIO,
+  QUOTA_LIMITS,
+  checkQuotas,
+  logQuotas,
+  measureQuotas,
+  runMaintenance,
+  scheduleMaintenance,
+  type MaintenanceDeps,
+  type MaintenanceReport,
+  type MaintenanceSchedule,
+  type QuotaDeps,
+  type QuotaLimits,
+  type QuotaUsage,
+  type ScheduledMaintenance,
+} from "./maintenance.js";
 export {
   DEFAULT_RUNNER_LIMITS,
   runAnalysis,

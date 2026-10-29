@@ -29,6 +29,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/bin.js",
+    "quota": "node dist/quota-bin.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage"
