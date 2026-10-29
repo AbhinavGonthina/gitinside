@@ -4,7 +4,8 @@
  *
  * - **Who calls what:** the web app calls {@link findAnalysis} (the cache lookup),
  *   {@link findPublishedAnalysis} (what a repo page and `/api/graph` serve) and, when it
- *   enqueues a new job, {@link upsertRepo} and {@link queueAnalysis} (ADR-0066). The worker calls {@link upsertRepo} and {@link startAnalysis} when a
+ *   enqueues a new job, {@link upsertRepo} and {@link queueAnalysis} (ADR-0066), and
+ *   {@link hideRepo} when GitHub says a published repo went private or away. The worker calls {@link upsertRepo} and {@link startAnalysis} when a
  *   job starts, {@link completeAnalysis} after the snapshot is in object storage (so a `done`
  *   row always has its object), {@link requeueAnalysis} when an attempt fails but will be
  *   retried, {@link failAnalysis} when the last one fails, and
@@ -195,6 +196,22 @@ export async function findPublishedAnalysis(
     repo: { id, providerRepoId, owner, name },
     analysis: { sha, analyzerVersion, snapshotKey, finishedAt },
   };
+}
+
+/**
+ * Stop serving a repo publicly: GitHub now says it's private, gone, or blocked (SECURITY.md
+ * T6). Sets `visibility` to `private`, which {@link findPublishedAnalysis} filters out, so
+ * its repo page, permalinks, graphs, and images all stop at once. The next {@link upsertRepo}
+ * with GitHub's facts (an analysis request once it's public again) restores it. Returns
+ * whether a public row changed.
+ */
+export async function hideRepo(db: AnyDatabase, id: string): Promise<boolean> {
+  const rows = await db
+    .update(repos)
+    .set({ visibility: "private", updatedAt: sql`now()` })
+    .where(and(eq(repos.id, id), eq(repos.visibility, "public")))
+    .returning({ id: repos.id });
+  return rows.length > 0;
 }
 
 /**

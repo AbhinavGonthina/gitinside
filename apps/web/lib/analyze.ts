@@ -17,15 +17,17 @@ import { WorkerUnavailableError, type WorkerClient } from "./worker";
  *
  * 1. **Parse** the pasted URL with GitHub's name rules (`parseRepoUrl`).
  * 2. **Resolve** the repo and its default branch's latest commit on GitHub (public only).
- * 3. **Cache:** a `done` analysis of that commit by this analyzer version is returned as is.
- *    Viewing and re-asking are never rate-limited.
+ * 3. **Cache:** a `done` analysis of that commit by this analyzer version is returned as is
+ *    (the repo row refreshed from GitHub's facts). Viewing and re-asking are never
+ *    rate-limited.
  * 4. **Dedupe:** a commit already `queued` or `running` gets the same job back (the job ID
  *    is derived from the commit), again without counting against the limit.
  * 5. **Rate limit** anything else: a new analysis counts against the caller's hourly
  *    window (5 signed out). The slot is given back if the queue turns out to be down or
  *    the job already existed (someone else's request covered the commit first).
  * 6. **Enqueue** through the signed worker API; when this request created the job, record
- *    the repo and a `queued` row so the next request sees it in flight.
+ *    the repo and a `queued` row so the next request sees it in flight. If that write
+ *    fails, the job still stands and the answer is still `202` (logged by name).
  */
 
 /** Everything {@link requestAnalysis} talks to. */
@@ -107,7 +109,11 @@ export async function requestAnalysis(
     sha: repo.sha,
     analyzerVersion: deps.analyzerVersion,
   });
-  if (existing?.status === "done") return { status: 200, body: { status: "done", ...commit } };
+  if (existing?.status === "done") {
+    // GitHub's facts again: a repo hidden when it went private is served once it's public.
+    await upsertRepo(deps.db, repo);
+    return { status: 200, body: { status: "done", ...commit } };
+  }
 
   const inFlight = existing?.status === "queued" || existing?.status === "running";
   const key = rateLimitKey(deps.rateLimitSecret, address);
@@ -127,8 +133,23 @@ export async function requestAnalysis(
     return { status: 503, body: { error: "UNAVAILABLE", message: UNAVAILABLE_MESSAGE } };
   }
   if (job.created) {
-    const { id: repoId } = await upsertRepo(deps.db, repo);
-    await queueAnalysis(deps.db, { repoId, sha: repo.sha, analyzerVersion: deps.analyzerVersion });
+    // Only a head start: the worker inserts the row itself when the job starts, and the
+    // job exists now, so a failed write mustn't turn into an error the slot was spent on.
+    try {
+      const { id: repoId } = await upsertRepo(deps.db, repo);
+      await queueAnalysis(deps.db, {
+        repoId,
+        sha: repo.sha,
+        analyzerVersion: deps.analyzerVersion,
+      });
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: "queue_record_failed",
+          error: error instanceof Error ? error.name : "unknown",
+        }),
+      );
+    }
   } else if (charged) {
     await refundRateLimit(deps.db, key, charged);
   }

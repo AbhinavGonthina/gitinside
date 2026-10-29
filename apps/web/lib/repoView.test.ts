@@ -288,17 +288,35 @@ describe("viewRepo", () => {
     );
   });
 
-  it("stops serving a repo GitHub no longer shows publicly", async () => {
+  it("stops serving a repo GitHub no longer shows publicly, permalinks included (M5 review)", async () => {
     await done(OLD);
     shop.private = true;
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({ status: "missing" });
-    // Blocked by GitHub (451): the same. Neither answer is remembered.
+    // Hidden in the database: the permalink, which never asks GitHub, stops too, and the
+    // repo page stays "not analyzed" once GitHub shows it again, until someone asks for an
+    // analysis (which restores the row; analyze.test.ts).
+    expect(await viewRepo({ owner: "acme", repo: "shop", sha: OLD }, deps)).toEqual({
+      status: "missing",
+    });
     shop.private = false;
-    gh.failNext(new Response("", { status: 451 }));
-    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({ status: "missing" });
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({
+      status: "not-analyzed",
+      owner: "acme",
+      repo: "shop",
+    });
+    await repoId();
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "current" }),
     );
+  });
+
+  it("stops serving a repo GitHub blocks (451), and doesn't remember the answer", async () => {
+    await done(OLD);
+    gh.failNext(new Response("", { status: 451 }));
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({ status: "missing" });
+    expect(await viewRepo({ owner: "acme", repo: "shop", sha: OLD }, deps)).toEqual({
+      status: "missing",
+    });
   });
 
   it("treats a name now held by a different repo as not analyzed", async () => {
