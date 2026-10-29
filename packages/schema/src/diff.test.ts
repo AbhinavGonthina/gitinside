@@ -184,6 +184,32 @@ describe("GraphDiff", () => {
     expect(m).toContain(`broken edge ${d.broken[0]!.edge} appears more than once in the diff`);
   });
 
+  it("requires a broken edge to be removed, to target a removed node, and to come from head", () => {
+    const kept = sampleDiff();
+    kept.edges.removed = [];
+    kept.summary = summarizeDiff(kept);
+    const edge = kept.broken[0]!.edge;
+    expect(messages(kept)).toEqual([`broken edge ${edge} isn't a removed edge`]);
+
+    const unchanged = sampleDiff();
+    unchanged.broken[0] = { ...unchanged.broken[0]!, to: model };
+    expect(messages(unchanged)).toEqual([
+      `broken edge ${edge} targets ${model}, which isn't removed`,
+    ]);
+
+    const gone = sampleDiff();
+    gone.broken[0] = { ...gone.broken[0]!, from: renamedFrom };
+    expect(messages(gone)).toEqual([
+      `broken edge ${edge} comes from ${renamedFrom}, which isn't in head`,
+    ]);
+    const removedSource = sampleDiff();
+    removedSource.broken[0] = {
+      ...removedSource.broken[0]!,
+      from: removedSource.nodes.removed[0]!,
+    };
+    expect(messages(removedSource)).toHaveLength(1);
+  });
+
   it("requires modified and updated entries to name a change, and never `id`", () => {
     const d = sampleDiff();
     d.nodes.modified[0] = { ...d.nodes.modified[0]!, changes: [] };
@@ -210,11 +236,12 @@ describe("canonical diff serialization", () => {
   function extended(): GraphDiff {
     const d = sampleDiff();
     d.nodes.removed.push(nodeId("route", "api", "DELETE /api/orders"));
-    d.edges.added.push({ ...d.edges.added[0]!, id: "a-first", sites: [] });
+    d.edges.added.push({ ...d.edges.added[0]!, id: "a-added", sites: [] });
     d.edges.added[0] = {
       ...d.edges.added[0]!,
       sites: [loc("b.ts", 1), loc("a.ts", 2)],
     };
+    d.edges.removed.push("a-first");
     d.broken.push({ ...d.broken[0]!, edge: "a-first" });
     d.warnings.added.push({ code: "A_FIRST", message: "m" });
     d.summary = summarizeDiff(d);
@@ -232,7 +259,7 @@ describe("canonical diff serialization", () => {
         removed: reverse(d.nodes.removed),
         renamed: d.nodes.renamed.map((r) => ({ ...r, changes: reverse(r.changes) })),
       },
-      edges: { ...d.edges, added: reverse(d.edges.added) },
+      edges: { ...d.edges, added: reverse(d.edges.added), removed: reverse(d.edges.removed) },
       broken: reverse(d.broken),
       warnings: { ...d.warnings, added: reverse(d.warnings.added) },
     };
@@ -245,7 +272,8 @@ describe("canonical diff serialization", () => {
       nodeId("route", "api", "GET /api/orders"),
     ]);
     expect(sorted.nodes.renamed[0]!.changes).toEqual(["label", "path"]);
-    expect(sorted.edges.added[0]!.id).toBe("a-first");
+    expect(sorted.edges.added[0]!.id).toBe("a-added");
+    expect(sorted.edges.removed[0]).toBe("a-first");
     expect(sorted.edges.added[1]!.sites.map((s) => s.file)).toEqual(["a.ts", "b.ts"]);
     expect(sorted.broken[0]!.edge).toBe("a-first");
     expect(sorted.warnings.added[0]!.code).toBe("A_FIRST");

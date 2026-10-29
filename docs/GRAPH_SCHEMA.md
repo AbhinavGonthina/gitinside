@@ -130,7 +130,7 @@ BrokenEdge = { edge, from, to, reason, detail, sites }
 - **`broken`:** a base edge (`edge`) whose source (`from`) still exists in head and still makes the call, but whose target (`to`, its base ID) no longer answers it. `reason` is `TARGET_REMOVED`, `ROUTE_CHANGED`, `PARAMETERS_ADDED`, or `FIELD_REMOVED`; `detail` says it in words; `sites` are the head call sites.
 - **Warnings** are a multiset: head's are base's minus `removed` (one occurrence each) plus `added`.
 
-**Integrity rules** (enforced by `parseGraphDiff`): records are valid graph nodes and edges; each node ID and each edge ID appears in at most one list (a rename's `from` and head ID both count); each base edge is broken at most once; `summary` matches the lists (`summarizeDiff`); no unknown fields.
+**Integrity rules** (enforced by `parseGraphDiff`): records are valid graph nodes and edges; each node ID and each edge ID appears in at most one list (a rename's `from` and head ID both count); each base edge is broken at most once, and a broken edge is a removed edge whose target is a removed node and whose source is in head (ADR-0087); `summary` matches the lists (`summarizeDiff`); no unknown fields.
 
 **Canonical serialization:** `stringifyDiff(diff)` is the only way diffs are written. Entries are sorted by head ID (removed IDs as strings), `changes` by name, broken edges by edge ID then reason, sites and warnings as in graphs; keys sorted, 2-space indent, trailing newline.
 

@@ -53,7 +53,7 @@
  *   as part of one segment.
  */
 import ts from "typescript";
-import type { Confidence } from "@gitinside/schema";
+import type { Confidence, UrlSegment } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
 import type { HttpCallSite } from "./http.js";
 import type { ServiceProgram } from "./program.js";
@@ -98,11 +98,8 @@ export type UrlPart =
   /** The page's own origin (`window.location.origin`). */
   | { kind: "origin" };
 
-/** A piece of a path segment. */
-export type UrlSegmentPart = { kind: "text"; text: string } | { kind: "hole" };
-
-/** One path segment: never empty, never containing `/`. */
-export type UrlSegment = UrlSegmentPart[];
+/** A path segment and its pieces, defined with the route grammar in the schema (ADR-0087). */
+export type { UrlSegment, UrlSegmentPart } from "@gitinside/schema";
 
 /** What the path is relative to. */
 export type UrlBase =

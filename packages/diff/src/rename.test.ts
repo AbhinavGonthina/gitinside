@@ -452,13 +452,13 @@ describe("rename detection rules", () => {
 });
 
 describe("thresholds on the repo's fixtures", () => {
-  /** Every source file under `fixtures/`, except the diff pair (it's a rename by design). */
+  /** Every source file under `fixtures/`, except the diff pairs (one commit apart by design). */
   const sources: { path: string; text: string }[] = [];
   const walk = (dir: string): void => {
     for (const name of readdirSync(dir).sort(compareStrings)) {
       const path = join(dir, name);
       if (statSync(path).isDirectory()) {
-        if (name !== "node_modules" && !name.startsWith("diff-rename")) walk(path);
+        if (name !== "node_modules" && !/^diff-(rename|broken)-/.test(name)) walk(path);
       } else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(name)) {
         const relative = path.slice(FIXTURES.length + 1).replaceAll("\\", "/");
         sources.push({ path: relative, text: readFileSync(path, "utf8") });

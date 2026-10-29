@@ -43,6 +43,8 @@ const NAMES = [
   "checker-crash",
   "diff-rename-base",
   "diff-rename-head",
+  "diff-broken-base",
+  "diff-broken-head",
 ];
 
 describe.each(NAMES)("fixture %s", (name) => {

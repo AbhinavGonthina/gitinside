@@ -10,6 +10,7 @@ import {
   type GraphEdge,
 } from "@gitinside/schema";
 import { warningKey } from "./apply.js";
+import { detectBroken } from "./broken.js";
 import { checkComparable } from "./compare.js";
 import { changedFields, isEdgeModified, isNodeModified } from "./fingerprint.js";
 import { detectRenames, type FileContents } from "./rename.js";
@@ -145,8 +146,8 @@ function diffWarnings(
  * multiset. The result is canonical (`canonicalizeDiff`), validated by `parseGraphDiff`,
  * and `applyDiff(base, result)` equals `head`.
  *
- * Handles: added, removed, modified, updated, and renamed nodes and edges. Doesn't yet
- * handle broken edges (M6.4), so `broken` is empty.
+ * Handles: added, removed, modified, updated, and renamed nodes and edges, and broken
+ * connections whose target is gone (`detectBroken`; see there for what it doesn't catch).
  *
  * Throws `IncompatibleGraphsError` for graphs from two analyzer versions.
  */
@@ -189,7 +190,7 @@ export function diffGraphs(
       updated: edges.updated.map(({ record, changes }) => ({ edge: record, changes })),
       renamed: edges.renamed.map(({ from, record, changes }) => ({ from, edge: record, changes })),
     },
-    broken: [],
+    broken: detectBroken(before, after, renames),
   };
   return parseGraphDiff(
     canonicalizeDiff({
