@@ -1,7 +1,13 @@
 // @vitest-environment node
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
 import { describe, expect, it } from "vitest";
-import { SIGNED_OUT_HOURLY_LIMIT, analyzeDepsFromEnv, jobDepsFromEnv } from "./serverDeps";
+import {
+  SIGNED_OUT_HOURLY_LIMIT,
+  analyzeDepsFromEnv,
+  graphDepsFromEnv,
+  jobDepsFromEnv,
+  repoViewDepsFromEnv,
+} from "./serverDeps";
 
 const ENV = {
   // Never connected to: postgres.js opens connections on the first query only.
@@ -41,6 +47,43 @@ describe("analyzeDepsFromEnv", () => {
     const plain = { ...ENV, WORKER_URL: "http://127.0.0.1:8080" };
     expect(analyzeDepsFromEnv({ ...plain, NODE_ENV: "production" })).toBeUndefined();
     expect(analyzeDepsFromEnv(plain)).toBeDefined();
+  });
+});
+
+describe("graphDepsFromEnv", () => {
+  const R2 = {
+    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+    R2_ACCESS_KEY_ID: "key-id",
+    R2_SECRET_ACCESS_KEY: "secret-key",
+    R2_BUCKET: "gitinside-snapshots",
+  };
+
+  it("needs the database and the bucket, not the worker", () => {
+    const deps = graphDepsFromEnv({ DATABASE_URL: ENV.DATABASE_URL, ...R2 });
+    expect(typeof deps?.store.get).toBe("function");
+    expect(deps?.db).toBe(analyzeDepsFromEnv(ENV)?.db);
+  });
+
+  it("is undefined when a variable is missing or malformed", () => {
+    for (const name of ["DATABASE_URL", ...Object.keys(R2)]) {
+      expect(graphDepsFromEnv({ ...ENV, ...R2, [name]: "" }), name).toBeUndefined();
+    }
+    expect(graphDepsFromEnv({ ...ENV, ...R2, R2_ACCOUNT_ID: "evil.example" })).toBeUndefined();
+  });
+});
+
+describe("repoViewDepsFromEnv", () => {
+  it("needs only the database; the worker is optional", () => {
+    const deps = repoViewDepsFromEnv(ENV);
+    expect(deps).toMatchObject({ analyzerVersion: ANALYZER_VERSION, github: {} });
+    expect(typeof deps?.worker?.enqueue).toBe("function");
+    // One memory of GitHub's answers for the whole process.
+    expect(repoViewDepsFromEnv(ENV)?.heads).toBe(deps?.heads);
+    expect(repoViewDepsFromEnv({ ...ENV, GITHUB_TOKEN: "t" })?.github).toEqual({ token: "t" });
+    const noWorker = repoViewDepsFromEnv({ ...ENV, WORKER_URL: undefined });
+    expect(noWorker).toBeDefined();
+    expect(noWorker?.worker).toBeUndefined();
+    expect(repoViewDepsFromEnv({ ...ENV, DATABASE_URL: "" })).toBeUndefined();
   });
 });
 

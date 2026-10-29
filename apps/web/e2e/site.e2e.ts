@@ -168,6 +168,16 @@ test("/api/jobs answers 503 while unconfigured and 404 for IDs it never issues",
   expect((await request.get("/api/jobs/analyze-1/events")).status()).toBe(404);
 });
 
+test("/api/graph answers 503 while unconfigured and 404 for commits that aren't full SHAs", async ({
+  request,
+}) => {
+  const ok = await request.get(`/api/graph/acme/shop/${"d".repeat(40)}`);
+  expect(ok.status()).toBe(503);
+  expect(ok.headers()["cache-control"]).toBe("no-store");
+  expect((await ok.json()).error).toBe("UNAVAILABLE");
+  expect((await request.get("/api/graph/acme/shop/main")).status()).toBe(404);
+});
+
 test("a progress page for a malformed job is a 404", async ({ page }) => {
   const response = await page.goto("/acme/shop/jobs/analyze-123");
   expect(response?.status()).toBe(404);

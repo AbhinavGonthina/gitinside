@@ -112,6 +112,7 @@ export {
   publicSnapshotKey,
   storeConfigFromEnv,
   uploadSnapshot,
+  type ObjectBody,
   type ObjectStore,
   type ObjectStoreOptions,
   type PrivateSnapshot,

@@ -7,6 +7,7 @@ import {
   failAnalysis,
   failInterruptedAnalyses,
   findAnalysis,
+  findPublishedAnalysis,
   queueAnalysis,
   repos,
   requeueAnalysis,
@@ -217,6 +218,50 @@ describe("failInterruptedAnalyses", () => {
       errorCode: INTERRUPTED_CODE,
     });
     expect((await analysis(queued)).status).toBe("queued");
+  });
+});
+
+describe("findPublishedAnalysis", () => {
+  const OTHER = "b".repeat(40);
+
+  async function done(repoId: string, sha: string, version: string, finishedAt: string) {
+    const { id } = await startAnalysis(t.db, { repoId, sha, analyzerVersion: version });
+    await completeAnalysis(t.db, id, { snapshotKey: `k/${sha}/${version}`, stats: STATS });
+    await t.db
+      .update(analyses)
+      .set({ finishedAt: new Date(finishedAt) })
+      .where(eq(analyses.id, id));
+  }
+
+  it("finds the latest finished analysis of a public repo, ignoring case", async () => {
+    const { id: repoId } = await upsertRepo(t.db, { ...FACTS, owner: "Acme", name: "Shop" });
+    await done(repoId, SHA, VERSION, "2026-10-01T00:00:00Z");
+    await done(repoId, OTHER, VERSION, "2026-10-02T00:00:00Z");
+    await done(repoId, SHA, "0.2.0", "2026-10-03T00:00:00Z");
+    // Still running: never served.
+    await startAnalysis(t.db, { repoId, sha: "c".repeat(40), analyzerVersion: VERSION });
+
+    expect(await findPublishedAnalysis(t.db, { owner: "ACME", name: "shop" })).toEqual({
+      repo: { id: repoId, providerRepoId: FACTS.providerRepoId, owner: "Acme", name: "Shop" },
+      analysis: {
+        sha: SHA,
+        analyzerVersion: "0.2.0",
+        snapshotKey: `k/${SHA}/0.2.0`,
+        finishedAt: new Date("2026-10-03T00:00:00Z"),
+      },
+    });
+    const pinned = await findPublishedAnalysis(t.db, { owner: "acme", name: "shop", sha: OTHER });
+    expect(pinned?.analysis).toMatchObject({ sha: OTHER, analyzerVersion: VERSION });
+    expect(
+      await findPublishedAnalysis(t.db, { owner: "acme", name: "shop", sha: "c".repeat(40) }),
+    ).toBeUndefined();
+    expect(await findPublishedAnalysis(t.db, { owner: "acme", name: "other" })).toBeUndefined();
+  });
+
+  it("never returns a private repo's analysis", async () => {
+    const { id: repoId } = await upsertRepo(t.db, { ...FACTS, visibility: "private" });
+    await done(repoId, SHA, VERSION, "2026-10-01T00:00:00Z");
+    expect(await findPublishedAnalysis(t.db, { owner: "acme", name: "shop" })).toBeUndefined();
   });
 });
 

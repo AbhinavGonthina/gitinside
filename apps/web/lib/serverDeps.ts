@@ -1,8 +1,11 @@
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
-import { createDb, type DbHandle } from "@gitinside/db";
+import { createDb, type AnyDatabase, type DbHandle } from "@gitinside/db";
 import { MIN_SECRET_LENGTH } from "@gitinside/worker/hmac";
+import { createObjectStore, storeConfigFromEnv } from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
+import type { GraphRouteDeps } from "./graphRoute";
 import type { JobRouteDeps } from "./jobRoute";
+import { createHeadCache, type RepoViewDeps } from "./repoView";
 import { createWorkerClient } from "./worker";
 
 /**
@@ -13,6 +16,8 @@ import { createWorkerClient } from "./worker";
  *   If one is missing or the secret is short, the API answers "temporarily unavailable"
  *   instead of failing on every request; nothing is logged with a value.
  * - `GITHUB_TOKEN`: optional, raises GitHub's limit from 60 to 5,000 requests an hour.
+ * - `R2_*` (ADR-0055, ADR-0068): `/api/graph` reads snapshots with them, alongside
+ *   `DATABASE_URL`; the repo page needs only the database (and the worker to re-analyze).
  *
  * One database connection per serverless instance (`max: 1`), opened on first use and kept.
  */
@@ -45,21 +50,60 @@ export function jobDepsFromEnv(env: Env = process.env): JobRouteDeps | undefined
   return config && { worker: createWorkerClient(config) };
 }
 
-/** Build the deps from `env`, or `undefined` if the server isn't configured. */
-export function analyzeDepsFromEnv(env: Env = process.env): AnalyzeDeps | undefined {
+/** The shared connection for `DATABASE_URL`, or `undefined` if it isn't set. */
+function database(env: Env): AnyDatabase | undefined {
   const { DATABASE_URL: databaseUrl } = env;
-  const config = workerConfig(env);
-  if (!databaseUrl || !config) return undefined;
+  if (!databaseUrl) return undefined;
   if (handle?.url !== databaseUrl) {
     handle = { url: databaseUrl, db: createDb(databaseUrl, { max: 1 }) };
   }
+  return handle.db.db;
+}
+
+/** Build the deps from `env`, or `undefined` if the server isn't configured. */
+export function analyzeDepsFromEnv(env: Env = process.env): AnalyzeDeps | undefined {
+  const config = workerConfig(env);
+  const db = config && database(env);
+  if (!config || !db) return undefined;
   const { secret } = config;
   return {
-    db: handle.db.db,
+    db,
     worker: createWorkerClient(config),
     github: env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN } : {},
     analyzerVersion: ANALYZER_VERSION,
     rateLimitSecret: secret,
     hourlyLimit: SIGNED_OUT_HOURLY_LIMIT,
+  };
+}
+
+/** `/api/graph`'s deps (ADR-0068): the database and the `R2_*` bucket, else `undefined`. */
+export function graphDepsFromEnv(env: Env = process.env): GraphRouteDeps | undefined {
+  let store: GraphRouteDeps["store"];
+  try {
+    store = createObjectStore(storeConfigFromEnv(env));
+  } catch {
+    return undefined; // a missing or malformed R2_* variable; named nowhere public
+  }
+  const db = database(env);
+  return db && { db, store };
+}
+
+/** One process-wide memory of GitHub's answers (lib/repoView.ts). */
+const heads = createHeadCache();
+
+/**
+ * The repo page's deps (ADR-0068): the database, else `undefined` (the page then says
+ * analysis is unavailable). Without a configured worker, newer commits aren't analyzed.
+ */
+export function repoViewDepsFromEnv(env: Env = process.env): RepoViewDeps | undefined {
+  const db = database(env);
+  if (!db) return undefined;
+  const config = workerConfig(env);
+  return {
+    db,
+    worker: config && createWorkerClient(config),
+    github: env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN } : {},
+    analyzerVersion: ANALYZER_VERSION,
+    heads,
   };
 }

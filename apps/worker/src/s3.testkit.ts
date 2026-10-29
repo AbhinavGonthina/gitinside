@@ -7,7 +7,8 @@ import { authorization, type Credentials } from "./sigv4.js";
  * A fake S3 bucket for tests, on 127.0.0.1. It checks each request the way R2 does:
  * the SigV4 signature (recomputed from the headers the request says it signed) and the
  * body against `x-amz-content-sha256`. A good `PUT /<bucket>/<key>` is stored in
- * {@link FakeS3.objects}; anything else gets S3's XML error. `handler` can be replaced
+ * {@link FakeS3.objects} and a good `GET` returns it (`404 NoSuchKey` if absent); anything
+ * else gets S3's XML error. `handler` can be replaced
  * per test; every request is recorded.
  */
 export interface StoredObject {
@@ -66,8 +67,23 @@ export async function startFakeS3(
     if (expected !== given) return s3Error(res, 403, "SignatureDoesNotMatch");
     const prefix = `/${bucket}/`;
     const url = req.url ?? "";
-    if (req.method !== "PUT" || !url.startsWith(prefix)) return s3Error(res, 404, "NoSuchBucket");
-    fake.objects.set(decodeURIComponent(url.slice(prefix.length)), { body, headers });
+    if (!url.startsWith(prefix)) return s3Error(res, 404, "NoSuchBucket");
+    const key = decodeURIComponent(url.slice(prefix.length));
+    if (req.method === "GET") {
+      const object = fake.objects.get(key);
+      if (object === undefined) return s3Error(res, 404, "NoSuchKey");
+      // Served with the headers it was stored with, as R2 does.
+      const { "content-type": type, "content-encoding": encoding } = object.headers;
+      res.writeHead(200, {
+        ...(type === undefined ? {} : { "content-type": type }),
+        ...(encoding === undefined ? {} : { "content-encoding": encoding }),
+        "content-length": object.body.length,
+      });
+      res.end(object.body);
+      return;
+    }
+    if (req.method !== "PUT") return s3Error(res, 405, "MethodNotAllowed");
+    fake.objects.set(key, { body, headers });
     res.writeHead(200, { etag: '"x"' });
     res.end();
   };

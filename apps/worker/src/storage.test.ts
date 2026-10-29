@@ -2,7 +2,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gunzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { startFakeS3, type FakeS3 } from "./s3.testkit.js";
 import {
@@ -214,6 +214,68 @@ describe("createObjectStore", () => {
       expect(s3.requests).toHaveLength(0);
     },
   );
+
+  it("reads back what it stored, a gzipped object decoded", async () => {
+    const store = createObjectStore(config);
+    const json = '{"nodes":[]}';
+    await store.put("public/acme/shop/x.json.gz", gzipSync(json), {
+      contentType: "application/json",
+      contentEncoding: "gzip",
+      cacheControl: SNAPSHOT_CACHE_CONTROL.public,
+    });
+    const object = await store.get("public/acme/shop/x.json.gz");
+    expect(object?.contentType).toBe("application/json");
+    expect(await new Response(object?.body).text()).toBe(json);
+    const get = s3.requests.at(-1);
+    expect(get).toMatchObject({
+      method: "GET",
+      url: "/gitinside-snapshots/public/acme/shop/x.json.gz",
+    });
+    expect(get?.headers.authorization).toMatch(/^AWS4-HMAC-SHA256 /);
+  });
+
+  it("answers undefined for a missing object", async () => {
+    await expect(createObjectStore(config).get("public/acme/shop/none.json.gz")).resolves.toBe(
+      undefined,
+    );
+  });
+
+  it("fails reads with S3's code on other refusals, a 404 without NoSuchKey included", async () => {
+    const wrong = createObjectStore({
+      ...config,
+      credentials: { accessKeyId: s3.credentials.accessKeyId, secretAccessKey: "wrong-secret-xyz" },
+    });
+    await expect(wrong.get("k")).rejects.toMatchObject({
+      status: 403,
+      s3Code: "SignatureDoesNotMatch",
+      message: "GET answered 403 SignatureDoesNotMatch",
+    });
+    const otherBucket = createObjectStore({ ...config, bucket: "other-bucket" });
+    await expect(otherBucket.get("k")).rejects.toMatchObject({
+      status: 404,
+      s3Code: "NoSuchBucket",
+    });
+    s3.handler = (_req, _body, res) => {
+      res.writeHead(302, { location: "https://elsewhere.example/" });
+      res.end();
+    };
+    await expect(createObjectStore(config).get("k")).rejects.toMatchObject({
+      status: 302,
+      message: "GET answered 302",
+    });
+  });
+
+  it("fails a read when no response arrives, and refuses bad keys unsent", async () => {
+    const store = createObjectStore(config);
+    await expect(store.get("../x")).rejects.toThrow("invalid object key");
+    expect(s3.requests).toHaveLength(0);
+    await s3.close();
+    await expect(store.get("k")).rejects.toMatchObject({
+      status: undefined,
+      message: `GET from ${new URL(s3.endpoint).host} failed`,
+    });
+    s3 = await startFakeS3(); // for afterEach
+  });
 
   it("refuses a bad bucket or an endpoint with a path", () => {
     expect(() => createObjectStore({ ...config, bucket: "Bad" })).toThrow("bucket");
