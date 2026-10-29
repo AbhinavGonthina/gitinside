@@ -3,6 +3,12 @@
 // them (`@gitinside/viewer/image`). The main entry is client code.
 export { BADGE_COLORS, BADGE_HEIGHT, renderBadge } from "./image/badge.js";
 export type { BadgeOptions, BadgeTone } from "./image/badge.js";
-export { MAX_ROWS, renderDiagram, topLevelCounts } from "./image/diagram.js";
+export {
+  BADGE_MESSAGE_MAX,
+  badgeMessage,
+  MAX_ROWS,
+  renderDiagram,
+  topLevelCounts,
+} from "./image/diagram.js";
 export type { DiagramImageOptions } from "./image/diagram.js";
 export type { ImageTheme } from "./image/palette.js";

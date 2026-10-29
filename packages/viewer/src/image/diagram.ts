@@ -116,6 +116,26 @@ export function topLevelCounts(
   });
 }
 
+/** Longest {@link badgeMessage}: kinds that don't fit are left off the end. */
+export const BADGE_MESSAGE_MAX = 40;
+
+/**
+ * The README badge's message for a graph: "3 services · 2 datastores", in
+ * drawing order, as many kinds as fit in {@link BADGE_MESSAGE_MAX} characters
+ * (the first always does). "no services found" for an empty top level.
+ */
+export function badgeMessage(graph: ArchitectureGraph): string {
+  const parts = topLevelCounts(graph).map(countText);
+  if (parts.length === 0) return "no services found";
+  let message = parts[0] as string;
+  for (const part of parts.slice(1)) {
+    const next = `${message} · ${part}`;
+    if (next.length > BADGE_MESSAGE_MAX) break;
+    message = next;
+  }
+  return message;
+}
+
 /** "3 services, 2 datastores and 1 outside API" (the image's description). */
 function summary(graph: ArchitectureGraph): string {
   const parts = topLevelCounts(graph).map(countText);

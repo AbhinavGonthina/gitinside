@@ -5,7 +5,15 @@ import { glyphNames } from "../icons/glyphs.js";
 import { themeTokens } from "../tokens.js";
 import { shopDemo } from "../prototype/shopDemo.testkit.js";
 import { BADGE_COLORS, BADGE_HEIGHT, renderBadge } from "./badge.js";
-import { layoutTopLevel, MAX_ROWS, renderDiagram, rowsFor, topLevelCounts } from "./diagram.js";
+import {
+  BADGE_MESSAGE_MAX,
+  badgeMessage,
+  layoutTopLevel,
+  MAX_ROWS,
+  renderDiagram,
+  rowsFor,
+  topLevelCounts,
+} from "./diagram.js";
 import { attrs, esc, fit, glyphMarkup, num, textWidth } from "./markup.js";
 import { imageColors, mix, paletteCss } from "./palette.js";
 
@@ -362,5 +370,25 @@ describe("renderDiagram", () => {
       [1, "datastore"],
       [1, "outside API"],
     ]);
+  });
+
+  it("words the badge from the counts, leaving off kinds that don't fit", () => {
+    expect(badgeMessage(graphOf([]))).toBe("no services found");
+    const external = (id: string): GraphNode => ({
+      id,
+      kind: "external",
+      label: id,
+      parentId: root.id,
+      host: `${id}.example.com`,
+    });
+    expect(badgeMessage(graphOf([service("a"), datastore("d"), external("x")]))).toBe(
+      "1 service · 1 datastore · 1 outside API",
+    );
+    const many = (n: number, make: (id: string) => GraphNode) =>
+      Array.from({ length: n }, (_, i) => make(`${make.name}${i}`));
+    const big = graphOf([...many(1200, service), ...many(12, datastore), ...many(10, external)]);
+    // "1,200 services · 12 datastores · 10 outside APIs" is 49 characters.
+    expect(badgeMessage(big)).toBe("1,200 services · 12 datastores");
+    expect(badgeMessage(big).length).toBeLessThanOrEqual(BADGE_MESSAGE_MAX);
   });
 });

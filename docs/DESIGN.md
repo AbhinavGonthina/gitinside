@@ -71,7 +71,7 @@ flowchart LR
 **Components**
 - **`apps/web`** (Next.js, App Router, on Vercel):
   - Landing page, the `/<owner>/<repo>[/<sha>]` diagram pages, the progress page, and the signed-in dashboard.
-  - Route handlers: `/api/analyze`, `/api/jobs/:id`, `/api/badge/:owner/:repo.svg`, GitHub OAuth callback, GitHub App webhooks.
+  - Route handlers: `/api/analyze`, `/api/jobs/:id`, `/api/badge/:owner/:repo.svg`, `/api/diagram/:owner/:repo.svg`, GitHub OAuth callback, GitHub App webhooks.
   - Never parses repos.
 - **Enqueue API** (small Node HTTP server on the VM, same image as the worker):
   - Accepts `POST /enqueue` and `GET /jobs/:id`, authenticated with an HMAC shared secret, and talks to Redis.
@@ -310,7 +310,8 @@ For each call (method M, pattern P), compare with every route (method M', patter
 | `GET /api/graph/:owner/:repo/:sha` | Snapshot: the newest finished analysis of that commit, streamed from R2 as JSON (public: `public, max-age=300, s-maxage=86400`, cached by Vercel's CDN; private (M8): access check, then `no-store`). Bad names or a short SHA ⇒ 404 before any lookup; storage down ⇒ 503. `apps/web/lib/graphRoute.ts`, ADR-0068 |
 | Page `/<owner>/<repo>[/<sha>]` | Check-on-view (`lib/repoView.ts`, ADR-0068): the newest finished analysis; without a SHA, GitHub's latest commit (remembered 60 s) is compared and a new one enqueued, charged to the repo (`repo:<id>`, 6/h), not the visitor. A repo GitHub no longer shows publicly is a 404. Not analyzed ⇒ an Analyze button; ready ⇒ a repo bar (commit, latest-commit status) and the graph fetched from `/api/graph` and schema-checked in the browser (`app/[owner]/[repo]/`, ADR-0069) |
 | `GET /api/diff/:owner/:repo/:base...:head` | Diff for the viewer |
-| `GET /api/badge/:owner/:repo.svg` | Badge (live image for public repos: top-level SVG, cached 10 min; check-on-view triggers re-analysis) |
+| `GET /api/badge/:owner/:repo.svg` | README badge, "GitInside \| 3 services · 2 datastores" (`badgeMessage`). Check-on-view through `viewRepo` (a new commit is enqueued, charged to the repo) while the newest finished diagram is shown. Cached 10 min (`public, max-age=600, s-maxage=600`). No diagram (never analyzed, private, gone, impossible name) ⇒ the same link-only badge, "view architecture"; a failure on our side ⇒ that badge for 1 min, never a 5xx. Served with its own CSP (`default-src 'none'; style-src 'unsafe-inline'; sandbox`). `apps/web/lib/imageRoute.ts`, ADR-0072 |
+| `GET /api/diagram/:owner/:repo.svg[?theme=dark\|light]` | Live README image: the top level as SVG (`renderDiagram`; `auto` follows the reader's system, `<picture>` asks for one theme). Same check-on-view, caching, link-only fallback, and CSP as the badge. ADR-0072 |
 | `POST /api/github/webhook` | `pull_request`, `push`, `installation`, `installation_repositories` (HMAC-verified) |
 | `GET /api/auth/github/callback` | OAuth (identity only) |
 

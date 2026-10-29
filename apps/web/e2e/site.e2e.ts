@@ -178,6 +178,36 @@ test("/api/graph answers 503 while unconfigured and 404 for commits that aren't 
   expect((await request.get("/api/graph/acme/shop/main")).status()).toBe(404);
 });
 
+test("the README images are SVG with their own CSP; link-only while unconfigured", async ({
+  page,
+  request,
+}) => {
+  for (const path of ["/api/badge/acme/shop.svg", "/api/diagram/acme/shop.svg?theme=dark"]) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBe(200);
+    const headers = response.headers();
+    expect(headers["content-type"]).toBe("image/svg+xml; charset=utf-8");
+    expect(headers["content-security-policy"]).toBe(
+      "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    );
+    expect(headers["x-content-type-options"]).toBe("nosniff");
+    expect(headers["cache-control"]).toBe("public, max-age=60, s-maxage=60");
+    expect(await response.text()).toContain("view architecture");
+  }
+  expect((await request.get("/api/badge/acme/shop")).status()).toBe(404);
+
+  // In an <img>, as a README shows it: it decodes, at the badge's own size.
+  await page.goto("/");
+  const size = await page.evaluate(async () => {
+    const img = new Image();
+    img.src = "/api/badge/acme/shop.svg";
+    await img.decode();
+    return { width: img.naturalWidth, height: img.naturalHeight };
+  });
+  expect(size.height).toBe(20);
+  expect(size.width).toBeGreaterThan(100);
+});
+
 test("a commit permalink needs a full SHA, and says unavailable while unconfigured", async ({
   page,
 }) => {
