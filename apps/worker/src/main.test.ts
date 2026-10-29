@@ -18,6 +18,7 @@ import {
   startWorkerProcess,
   type MainIo,
   type RunningWorker,
+  type StartOptions,
 } from "./main.js";
 import { QUEUE_NAME } from "./queue.js";
 import type { RunResult } from "./runner.js";
@@ -326,7 +327,7 @@ describe("startWorkerProcess", () => {
       await s3.close();
     });
 
-    async function start(): Promise<RunningWorker> {
+    async function start(maintenance?: StartOptions["maintenance"]): Promise<RunningWorker> {
       const worker = await startWorkerProcess(
         config({
           redisUrl: REDIS_URL ?? "",
@@ -345,6 +346,7 @@ describe("startWorkerProcess", () => {
               return { ok: true, stats: STATS, durationMs: 1 };
             },
           },
+          ...(maintenance === undefined ? {} : { maintenance }),
         },
       );
       running.push(worker);
@@ -396,6 +398,30 @@ describe("startWorkerProcess", () => {
         "worker_stopping",
         "worker_stopped",
       ]);
+    });
+
+    it("runs maintenance on its schedule against the same database and bucket", async () => {
+      s3.objects.set("public/x", { body: Buffer.alloc(9), headers: {}, lastModified: new Date() });
+      const worker = await start({ firstDelayMs: 1, intervalMs: 60_000 });
+      const end = Date.now() + 10_000;
+      while (!events(lines).includes("quota")) {
+        if (Date.now() > end) throw new Error("no maintenance run");
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      await worker.stop();
+      expect(events(lines)).toEqual([
+        "worker_starting",
+        "startup_sweep",
+        "worker_ready",
+        "retention_run",
+        "rate_limits_pruned",
+        "quota",
+        "worker_stopping",
+        "worker_stopped",
+      ]);
+      expect(parse(lines).find((line) => line.event === "quota")).toMatchObject({
+        quotas: [{ resource: "bucket", usedBytes: 9 }, { resource: "database" }],
+      });
     });
 
     it("closes the worker and queue when the port is taken", async () => {

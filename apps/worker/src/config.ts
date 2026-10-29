@@ -63,6 +63,34 @@ function urlWithScheme(env: Env, name: string, schemes: readonly string[]): stri
   return value;
 }
 
+/** What {@link quotaConfigFromEnv} returns: only what the quota command reads. */
+export interface QuotaConfig {
+  databaseUrl: string;
+  store: StoreConfig;
+}
+
+/**
+ * The quota command's settings: `DATABASE_URL` and the `R2_*` variables, checked as
+ * {@link workerConfigFromEnv} checks them. Throws a {@link ConfigError} listing every problem.
+ */
+export function quotaConfigFromEnv(env: Env): QuotaConfig {
+  const problems: string[] = [];
+  let databaseUrl: string | undefined;
+  let store: StoreConfig | undefined;
+  try {
+    databaseUrl = urlWithScheme(env, "DATABASE_URL", ["postgres:", "postgresql:"]);
+  } catch (error) {
+    problems.push((error as Error).message);
+  }
+  try {
+    store = storeConfigFromEnv(env);
+  } catch (error) {
+    problems.push((error as Error).message);
+  }
+  if (databaseUrl === undefined || store === undefined) throw new ConfigError(problems);
+  return { databaseUrl, store };
+}
+
 /** Read and check the worker's settings; throws a {@link ConfigError} listing every problem. */
 export function workerConfigFromEnv(env: Env): WorkerConfig {
   const problems: string[] = [];
