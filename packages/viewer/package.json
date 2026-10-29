@@ -14,6 +14,10 @@
       "types": "./dist/fonts.d.ts",
       "import": "./dist/fonts.js"
     },
+    "./image": {
+      "types": "./dist/image.d.ts",
+      "import": "./dist/image.js"
+    },
     "./styles.css": "./dist/style.css"
   },
   "scripts": {
