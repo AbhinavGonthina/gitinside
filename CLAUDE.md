@@ -123,6 +123,7 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - In a full parallel `pnpm test` here, web's PGlite tests (`analyzeRoute`, `jobRoute`) can time out under the worker suite's load. If only those fail, rerun `pnpm --filter @gitinside/web test` alone before suspecting your change.
 - A failing `docker compose up --wait` only says "unhealthy". `check.mjs` prints the stack's logs on failure, so grep the job log for `<service>-1 |`.
 - The container check's `github443` probe failed once with `ECONNREFUSED` on a docs-only commit (`ea54ac0`) and passed on the next run. If only that probe fails, rerun the job (`gh run rerun <run> --failed`) before debugging the gateway.
+- `pnpm lint` rejects non-null assertions (`x!`) in source files, though tests allow them. In source, destructure and check for `undefined` instead.
 - `pnpm test --concurrency=2` fails at once with "Unknown option: 'concurrency'" (pnpm parses it, not turbo). Run plain `pnpm test` in the background.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.

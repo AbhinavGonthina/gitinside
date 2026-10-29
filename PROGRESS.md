@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.3. Rename/move detection with tuned thresholds (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.4. Broken-edge detection incl. head re-resolution (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -136,7 +136,7 @@ M6.3. Rename/move detection with tuned thresholds (M5.13 and M5.14b wait on #3�
 ### M6: Graph diff + incremental analysis
 - [x] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
 - [x] M6.2 Node/edge classification with per-kind fingerprints {model: opus}
-- [ ] M6.3 Rename/move detection with tuned thresholds {model: opus}
+- [x] M6.3 Rename/move detection with tuned thresholds {model: opus}
 - [ ] M6.4 Broken-edge detection incl. head re-resolution {model: opus}
 - [ ] M6.5 Property tests (fast-check) {model: opus}
 - [ ] M6.6 gitinside diff CLI (paths or git refs) + Mermaid summary {model: opus}
@@ -178,6 +178,8 @@ M6.3. Rename/move detection with tuned thresholds (M5.13 and M5.14b wait on #3�
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.3: `detectRenames` (`packages/diff/src/rename.ts`, ADR-0086) pairs base-only with head-only nodes: files by hash, or 4-token shingle Jaccard ≥ 0.6 (50+ tokens) when the caller passes `contents` (new `diffGraphs` option; the graph has no text); modules by majority of moved files; symbols by name under a renamed parent (body ≥ 0.8) or a unique token-equal body; unresolved nodes by call in the same/moved file. Edges follow their endpoints, and children of renamed parents are `updated`. Ties are never guessed. Thresholds measured on 5,898 real files (k=4: 96% / 92% of 20% deletions / insertions matched, 0.04% of random pairs). New fixture pair `diff-rename-base/head` (goldens) checked end to end. Diff 45 tests, 99% lines; analyzer 604 + the known timing test (3.6 s alone, over 20 s under load). Eval re-recorded. Next: M6.4.
 
 - 2026-10-29 · M6.2: `diffGraphs(base, head)` in `packages/diff/src/diff.ts`: canonicalizes both, matches by ID, same-ID records with differing fields go to `modified` (fingerprint field differs) or `updated`; warnings as a multiset; output canonical + `parseGraphDiff`-validated. `NODE_FINGERPRINTS`/`EDGE_FINGERPRINT` (`fingerprint.ts`, ADR-0085): explicit per-kind table checked against the zod schema by a test; `label`/`source`/edge `sites` incidental; model fields compared as a set by name; key order and `undefined` ignored. No symbol signature in the schema yet (M6.4's `PARAMETERS_ADDED` will need one). `renamed`/`broken` empty until M6.3/M6.4. 14 new tests (diff 24, 100% lines), typecheck and lint clean. No eval re-record. Next: M6.3.
 
