@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "strict": true,
+    "plugins": [{ "name": "./scripts/pwn.js" }]
+  },
+  "include": ["src"]
+}
