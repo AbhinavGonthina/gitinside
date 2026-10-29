@@ -9,8 +9,9 @@ import react from "@vitejs/plugin-react";
 // instead (ADR-0047). The tokens are dist/style.css (`@gitinside/viewer/styles.css`).
 // simple-icons is bundled: only the logos brands.ts names survive tree-shaking
 // (ADR-0048). The schema (a dependency: types plus `compareStrings`) stays external.
-// Two entries: `index` (components, no CSS imports left, so plain Node can
-// import it) and `fonts` (only the Fontsource imports; ADR-0056).
+// Three entries: `index` (components, no CSS imports left, so plain Node can
+// import it), `fonts` (only the Fontsource imports; ADR-0056), and `image`
+// (the README badge and live image as SVG text, for server code; ADR-0071).
 // `index` starts with "use client": its components use hooks, so React Server
 // Components (apps/web) must treat the bundle as client code; server
 // components can still render them with serializable props.
@@ -18,7 +19,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     lib: {
-      entry: { index: "src/index.ts", fonts: "src/fonts.ts" },
+      entry: { index: "src/index.ts", fonts: "src/fonts.ts", image: "src/image.ts" },
       formats: ["es"],
       fileName: (_format, name) => `${name}.js`,
     },

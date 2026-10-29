@@ -29,6 +29,20 @@ describe("@gitinside/viewer as built", () => {
     expect(dist("index.js").startsWith('"use client";')).toBe(true);
   });
 
+  it("serves the README images from a server entry: plain Node, no client banner (ADR-0071)", () => {
+    expect(dist("image.js").startsWith('"use client"')).toBe(false);
+    const out = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        "const m = await import('@gitinside/viewer/image'); console.log(m.renderBadge({ message: 'ok' }).slice(0, 4));",
+      ],
+      { cwd: appDir, encoding: "utf8" },
+    );
+    expect(out.trim()).toBe("<svg");
+  });
+
   it("keeps the fonts in their own entry", () => {
     const fonts = dist("fonts.js");
     expect(fonts).toContain('import "@fontsource-variable/geist/index.css"');
