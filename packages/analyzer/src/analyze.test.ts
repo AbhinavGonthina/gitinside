@@ -23,6 +23,7 @@ const failing = vi.hoisted(() => ({
   express: undefined as unknown,
   sdk: undefined as unknown,
   symbolAt: undefined as string | undefined,
+  typeAt: undefined as string | undefined,
 }));
 vi.mock("./program.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./program.js")>();
@@ -38,6 +39,12 @@ vi.mock("./program.js", async (importOriginal) => {
               throw new TypeError("Cannot read properties of undefined (reading 'id')");
             }
             return checker.getSymbolAtLocation(node);
+          },
+          getTypeAtLocation: (node) => {
+            if (node.getText() === failing.typeAt) {
+              throw new TypeError("Cannot read properties of undefined (reading 'flags')");
+            }
+            return checker.getTypeAtLocation(node);
           },
         };
         return { ...sp, program: { ...sp.program, getTypeChecker: () => throwing } };
@@ -71,6 +78,7 @@ beforeEach(async () => {
   failing.express = undefined;
   failing.sdk = undefined;
   failing.symbolAt = undefined;
+  failing.typeAt = undefined;
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -366,6 +374,42 @@ describe("internal failures (M5.8c)", () => {
     expect(graph.nodes.map((n) => n.id)).toContain("route:checker-crash/POST /echo");
   });
 
+  it("treats a type TypeScript throws on as unknown, keeping the stage's other edges (M5 review)", async () => {
+    await put("package.json", [JSON.stringify({ name: "client", dependencies: { axios: "1" } })]);
+    await put("src/client.ts", [
+      'import axios from "axios";',
+      "export async function load(target: string) {",
+      "  await axios(target);",
+      '  await fetch("https://api.example.com/items");',
+      "}",
+    ]);
+    const healthy = await analyze(dir);
+    failing.typeAt = "target";
+    const graph = await analyze(dir);
+
+    expect(graph.warnings.filter((w) => w.code !== "TSCONFIG_MISSING")).toEqual([
+      {
+        code: "TYPESCRIPT_INTERNAL_ERROR",
+        file: "src/client.ts",
+        message:
+          "TypeScript failed on the expression at 3:15 (TypeError: Cannot read properties of undefined (reading 'flags')); what it names is treated as unknown",
+      },
+    ]);
+    // Only `axios(target)` changes: with no type known, its argument reads as a config, not
+    // a URL. The http stage itself keeps going, so the `fetch` call is linked as before.
+    const call = "unresolved:client/src/client.ts:3:9";
+    expect({ ...graph, warnings: [] }).toEqual({
+      ...healthy,
+      nodes: healthy.nodes.map((n) =>
+        n.id === call
+          ? { ...n, label: "? axios(target)", detail: "the URL can't be read statically" }
+          : n,
+      ),
+      warnings: [],
+    });
+    expect(graph.edges.map((e) => e.to)).toContain("external:ext/api.example.com");
+  });
+
   it("still fails the analysis on a limit", async () => {
     await shop();
     failing.express = new AnalysisError("LIMIT_FILES", "too many files");
@@ -423,6 +467,20 @@ describe("guardedChecker", () => {
       },
     };
     expect(guardedChecker(broken, failed).getSymbolAtLocation(declaration.name)).toBeUndefined();
+    expect(failed).toHaveBeenCalledWith(declaration.name, error);
+  });
+
+  it("answers `any` for a type TypeScript throws on, and reports the node", () => {
+    const failed = vi.fn();
+    const error = new TypeError("Cannot read properties of undefined (reading 'flags')");
+    const broken: ts.TypeChecker = {
+      ...checker,
+      getTypeAtLocation: () => {
+        throw error;
+      },
+    };
+    const type = guardedChecker(broken, failed).getTypeAtLocation(declaration.name);
+    expect(type.flags).toBe(ts.TypeFlags.Any);
     expect(failed).toHaveBeenCalledWith(declaration.name, error);
   });
 });
