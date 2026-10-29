@@ -1,3 +1,4 @@
+import { redirectToCanonical } from "../../../../../../lib/canonical";
 import { handleGraphRequest } from "../../../../../../lib/graphRoute";
 import { graphDepsFromEnv } from "../../../../../../lib/serverDeps";
 
@@ -5,8 +6,10 @@ import { graphDepsFromEnv } from "../../../../../../lib/serverDeps";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ owner: string; repo: string; sha: string }> },
 ): Promise<Response> {
-  return handleGraphRequest(await params, graphDepsFromEnv());
+  return (
+    redirectToCanonical(request.url, "") ?? handleGraphRequest(await params, graphDepsFromEnv())
+  );
 }

@@ -1,3 +1,4 @@
+import { redirectToCanonical } from "../../../../../lib/canonical";
 import { handleImageRequest } from "../../../../../lib/imageRoute";
 import { imageDepsFromEnv } from "../../../../../lib/serverDeps";
 
@@ -5,8 +6,11 @@ import { imageDepsFromEnv } from "../../../../../lib/serverDeps";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ owner: string; repo: string }> },
 ): Promise<Response> {
-  return handleImageRequest("badge", await params, {}, imageDepsFromEnv());
+  return (
+    redirectToCanonical(request.url, "") ??
+    handleImageRequest("badge", await params, {}, imageDepsFromEnv())
+  );
 }

@@ -25,8 +25,10 @@ export const config = {
   matcher: [
     {
       // Pages only: static files and the image optimizer carry no scripts,
-      // and API responses aren't HTML. Prefetches reuse the page's policy.
-      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)",
+      // and API responses aren't HTML. Prefetches reuse the page's policy. `api/` with
+      // its slash: owners like `api-platform` are pages (M5 review). The other prefixes
+      // can't start a GitHub owner (no `_` or `.` in owner names).
+      source: "/((?!api/|_next/static|_next/image|favicon.ico|icon.svg).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
