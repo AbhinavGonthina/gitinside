@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.10a. Hardened worker Docker image + production compose + CI container check; M4b waits for the design gate (#2)
+M5.10b. Egress allowlist + Caddy TLS + infra/oracle/provision.sh + VM docs; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -120,7 +120,7 @@ M5.10a. Hardened worker Docker image + production compose + CI container check; 
 - [x] M5.9a README image renderers: `@gitinside/viewer/image` server entry, `renderBadge` + `renderDiagram` (top level as standalone SVG, auto/dark/light, deterministic, escaped), screenshots {model: opus}
 - [x] M5.9b Badge + live image routes (`/api/badge/:owner/:repo.svg` and the diagram image): `viewRepo` check-on-view, 10 min cache, link-only badge for missing/private/not analyzed, CSP on the SVG {model: opus}
 - [x] M5.9c "Add to README" on the repo page: Markdown for the badge or the live image (`<picture>` for dark/light), copy button, screenshots {model: opus}
-- [ ] M5.10a Hardened worker Docker image (`pnpm deploy`, non-root, read-only root, tmpfs `/tmp/jobs`, no capabilities) + production compose (worker + internal-only Redis, limits, log rotation) + CI container check {model: opus}
+- [x] M5.10a Hardened worker Docker image (`pnpm deploy`, non-root, read-only root, tmpfs `/tmp/jobs`, no capabilities) + production compose (worker + internal-only Redis, limits, log rotation) + CI container check {model: opus}
 - [ ] M5.10b Egress allowlist (GitHub, R2, Neon) + Caddy TLS + `infra/oracle/provision.sh` (Docker, firewall, env file, systemd, rebuild in minutes) + VM docs {model: opus}
 - [ ] M5.11 Security test suite with malicious fixtures {model: opus}
 - [ ] M5.12 Snapshot retention + quota check {model: opus}
@@ -172,6 +172,8 @@ M5.10a. Hardened worker Docker image + production compose + CI container check; 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.10a: M5.10 split into a (image) and b (egress, Caddy, provisioning). `apps/worker/Dockerfile`: installs/builds only `@gitinside/worker...`, `pnpm deploy --prod` to `/app/apps/worker` (child's read root `/app` = code only; schema/analyzer/worker gain `"files": ["dist"]`), npm/npx/corepack/yarn removed, user `node`. `infra/oracle/compose.yml`: read-only root, noexec tmpfs `/tmp/jobs` 1,200 MB, cap_drop ALL, no-new-privileges, default seccomp, init, 3 CPU/12 GB/256 PIDs, 30 s grace, healthcheck, rotated logs, API on 127.0.0.1:8080; Redis as `redis`, AOF, noeviction, internal-only network (ADR-0074). `infra/oracle/check.mjs` (new CI job `worker-image`, verified on draft PR #5): kernel-applied hardening from `/proc`, EROFS checks, golden analysis inside the image, clean SIGTERM. Local `pnpm test` had one viewer/web load flake, green on rerun. Eval re-recorded (numbers unchanged). Next: M5.10b.
 
 - 2026-10-29 · M5.9c: "Add to README" button on the repo bar (`AddToReadme.tsx`; the share menu waits for M4b's top bar, ADR-0073). It opens a disclosure panel: Badge / Live image, a preview served by the real image route, the snippet (`lib/readme.ts`), and Copy ("Copied" + live region; on refusal the snippet is selected). The badge is one Markdown line; the live image is `<a><picture>` with a dark `?theme=dark` source and a light `<img>`. Origin from `window.location`, names encoded per segment and HTML-escaped. Esc returns focus, a click outside closes it. Screenshot review fixed the panel off-screen at 390px (now hangs from the bar), a cut-off snippet (wrapped), the copy, and the phone status line; repo-* shots re-taken. 13 new web tests (307, new files 100% lines), 13/13 E2E. No eval re-record. Next: M5.10.
 
