@@ -37,14 +37,14 @@ GitInside analyzes **untrusted code** submitted by anyone, and holds **private r
 - Runs as a non-root user (`node`, uid 1000), with a read-only root filesystem. The only writable path is `/tmp/jobs` (tmpfs, 1,200 MB, `noexec,nosuid,nodev`). The app lives at `/app/apps/worker`, so the analysis child's read root `/app` holds code only; npm, npx, corepack, and yarn are removed.
 - `no-new-privileges`, all Linux capabilities dropped, Docker's default seccomp profile. 3 CPUs, 12 GB without swap, 256 PIDs.
 - Each job (`apps/worker/src/job.ts`): tarball → `/tmp/jobs/<jobId>-<random>/src` → child process with resource limits → `architecture.json` → upload → the job dir is deleted (also deleted on failure). The worker sweeps `/tmp/jobs` at startup for folders a killed process left behind.
-- The worker has no network of its own: it joins the `egress` gateway's namespace, whose iptables rules and dnsmasq it can't change (no capabilities). The gateway holds `NET_ADMIN`, `NET_RAW`, and `NET_BIND_SERVICE` only and runs no repo code.
-- Redis runs in a sibling container on an internal Docker network with no published port. The enqueue API is the only exposed service: Caddy terminates TLS on 443 and forwards only `/health`, `/enqueue`, and `/jobs/*`.
+- The worker has no network of its own: it joins the `egress` gateway's namespace, whose iptables rules and dnsmasq it can't change (no capabilities). The gateway holds `NET_ADMIN`, `NET_RAW`, and `NET_BIND_SERVICE` only, runs no repo code, and holds no secret: it reads a file of host names derived from the env file, never the env file itself (ADR-0083).
+- Redis runs in a sibling container on an internal Docker network with no published port, and requires a password that only Redis and the worker process hold (the analysis child's environment is empty), so a child whose network guard failed still can't use the queue. The enqueue API is the only exposed service: Caddy terminates TLS on 443 and forwards only `/health`, `/enqueue`, and `/jobs/*`.
 - The VM firewall allows inbound 443 (and 22 from Abhinav's IP for SSH). Everything else is denied: the OCI security list outside, Oracle's host rules inside.
 
 ## 4. Secrets handling
 
 - Never committed. `.env*` is gitignored. Example files (`.env.example`) contain names only.
-- **Production:** Vercel environment variables (web) and a root-only `/etc/gitinside/worker.env` on the VM (worker).
+- **Production:** Vercel environment variables (web) and a root-only `/etc/gitinside/worker.env` on the VM (worker), plus the generated Redis password in a root-only `/etc/gitinside/redis.env`.
 - Abhinav enters secrets himself. Autopilot never asks for secret values in issues, logs, or commits, and never prints them.
 - Rotation: GitHub App keys and HMAC secrets can be rotated without downtime (two valid secrets during rollover).
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { CONFIG_DEFAULTS, ConfigError, quotaConfigFromEnv, workerConfigFromEnv } from "./config.js";
+import {
+  CONFIG_DEFAULTS,
+  ConfigError,
+  quotaConfigFromEnv,
+  redisConnection,
+  workerConfigFromEnv,
+} from "./config.js";
 
 const SECRET = "s".repeat(43);
 const ENV = {
@@ -51,9 +57,11 @@ describe("workerConfigFromEnv", () => {
       HOST: "0.0.0.0",
       PORT: "65535",
       GITHUB_TOKEN: "gh-token",
+      REDIS_PASSWORD: "redis-pass",
     });
     expect(config).toMatchObject({
       redisUrl: "rediss://redis:6380",
+      redisPassword: "redis-pass",
       databaseUrl: "postgres://db/x",
       secrets: [SECRET, previous],
       jobsRoot: "/var/jobs",
@@ -70,9 +78,11 @@ describe("workerConfigFromEnv", () => {
       HOST: "",
       PORT: "",
       GITHUB_TOKEN: "",
+      REDIS_PASSWORD: "",
     });
     expect(config).toMatchObject({ jobsRoot: "/tmp/jobs", host: "127.0.0.1", port: 8080 });
     expect(config).not.toHaveProperty("githubToken");
+    expect(config).not.toHaveProperty("redisPassword");
   });
 
   it("lists every missing variable at once", () => {
@@ -124,6 +134,18 @@ describe("workerConfigFromEnv", () => {
     expect(() => workerConfigFromEnv({ ...ENV, REDIS_URL: undefined })).toThrow(
       "invalid worker configuration: REDIS_URL is not set",
     );
+  });
+});
+
+describe("redisConnection", () => {
+  it("sends the password beside the URL, never inside it", () => {
+    expect(
+      redisConnection({ redisUrl: "redis://redis:6379", redisPassword: "redis-pass" }),
+    ).toEqual({ url: "redis://redis:6379", password: "redis-pass" });
+  });
+
+  it("is the URL alone without a password", () => {
+    expect(redisConnection(workerConfigFromEnv(ENV))).toEqual({ url: ENV.REDIS_URL });
   });
 });
 
