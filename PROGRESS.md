@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.14d. M5 review follow-ups, web (M5.13 and M5.14b wait on #3–#7); M4b waits for the design gate (#2)
+M5.14e. M5 review follow-up, worker: retention's BullMQ jobs (M5.13 and M5.14b wait on #3–#7); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -129,7 +129,7 @@ M5.14d. M5 review follow-ups, web (M5.13 and M5.14b wait on #3–#7); M4b waits 
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
 - [x] M5.14c M5 review follow-up (ADR-0079, ADR-0080): guard `getTypeAtLocation` like `getSymbolAtLocation` (eval re-record) {model: opus}
-- [ ] M5.14d M5 review follow-ups, web: stale head cache showing an older commit as current after a job; no "Analyze again" for permanent failures {model: opus}
+- [x] M5.14d M5 review follow-ups, web: stale head cache showing an older commit as current after a job; no "Analyze again" for permanent failures {model: opus}
 - [ ] M5.14e M5 review follow-up, worker: retention removes evicted analyses' completed BullMQ jobs (Redis tests, CI only) {model: opus}
 - [ ] M5.14f M5 review follow-ups, infra: egress gateway mounts a hosts-only file instead of `worker.env`; Redis `requirepass` (worker env only); verified on CI's container check {model: opus}
 
@@ -178,6 +178,8 @@ M5.14d. M5 review follow-ups, web (M5.13 and M5.14b wait on #3–#7); M4b waits 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.14d: `viewRepo`'s head cache key now includes the shown analysis (`owner/repo@sha/version`), so a publish inside the minute re-asks GitHub instead of labeling the older commit "up to date" (ADR-0081). `behind`/`failed` carries the row's `errorCode`; `permanentFailure` (`lib/jobs.ts`, reason split from advice) gives the reason and no "Analyze again" for limits, blocked repos, bad tarballs. Screenshot review: the status dot sat alone above a wrapped sentence, now drawn on the text; repo-* shots retaken, `repo-permanent-*` added. 5 new web tests (321), typecheck and lint clean. No eval re-record. Next: M5.14e.
 
 - 2026-10-29 · M5.14c: M5.14c split into c (analyzer), d (web), e (retention's BullMQ jobs), f (infra). `guardedChecker` now guards `getTypeAtLocation` too: a throw answers `getAnyType()` plus one `TYPESCRIPT_INTERNAL_ERROR` warning, instead of a `DETECTOR_FAILED` that dropped every edge of the `http` stage (ADR-0080). New tests: a fault-injected `axios(target)` changes only its own unresolved node while the `fetch` edge stays, and the unit guard answers `any`. 597 analyzer tests, typecheck and lint clean; coverage left to CI (local timing test). Eval re-recorded. Next: M5.14d.
 
