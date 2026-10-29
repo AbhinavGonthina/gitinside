@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.12b. Retention schedule + quota check; M4b waits for the design gate (#2)
+M5.14. Milestone verification (M5.13 is blocked on #3–#7); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -124,7 +124,7 @@ M5.12b. Retention schedule + quota check; M4b waits for the design gate (#2)
 - [x] M5.10b Egress allowlist (GitHub, R2, Neon) + Caddy TLS + `infra/oracle/provision.sh` (Docker, firewall, env file, systemd, rebuild in minutes) + VM docs {model: opus}
 - [x] M5.11 Security test suite with malicious fixtures {model: opus}
 - [x] M5.12a Snapshot retention: bucket list/delete (ListObjectsV2), db reads/deletes, pure `planRetention` (latest 5 per public repo, PR pins, superseded versions, orphans, 8 GB budget from the listing), `runRetention` (rows before objects) {model: opus}
-- [ ] M5.12b Retention schedule in the worker + quota check: R2 (listing) and Neon (`pg_database_size`) against their free limits, `quota_alarm` log at 80%, prune old rate-limit windows, a `quota` command for M5.13's smoke test {model: opus}
+- [x] M5.12b Retention schedule in the worker + quota check: R2 (listing) and Neon (`pg_database_size`) against their free limits, `quota_alarm` log at 80%, prune old rate-limit windows, a `quota` command for M5.13's smoke test {model: opus}
 - [ ] M5.13 Deploy + production smoke test on a real public repo {model: opus} {blocked: #3 #4 #5 #6 #7}
 - [ ] M5.14 Milestone verification + M5-review.md + tag m5 {model: opus}
 
@@ -173,6 +173,8 @@ M5.12b. Retention schedule + quota check; M4b waits for the design gate (#2)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.12b: `apps/worker/src/maintenance.ts` (ADR-0078): `startWorkerProcess` schedules `runMaintenance` a minute after startup, then an hour after each run ends (`setTimeout` chain, no overlap; shutdown waits for a run). Each run does retention, then `pruneRateLimits` (new in `@gitinside/db`: windows that ended over an hour ago), then `measureQuotas` (fresh listing + `pg_database_size` vs. 10 × 10⁹ / 10⁹ bytes, the Neon figure pending #4). Each step fails on its own (`maintenance_failed`); `quota_alarm` at 80%. Read-only `quota` command (`node dist/quota-bin.js`, exit 0/2/1) for M5.13; runbook row added. 18 new worker tests (447 + 14 CI-only) + 2 db; one full-run web timing flake, green alone. No eval re-record. Next: M5.13 is blocked, so M5.14.
 
 - 2026-10-29 · M5.12a: M5.12 split into a (retention) and b (schedule + quota check). `ObjectStore` gains `list` (ListObjectsV2 pages, strict hand-parsed XML: a page missing a field throws) and `delete` (missing = deleted); fake S3 lists/deletes. `@gitinside/db` `listStoredSnapshots`, `listPinnedShas` (PR base/head, 30 days), `deleteDoneAnalyses` (by `(id, key)` pairs). `apps/worker/src/retention.ts`: pure `planRetention` (latest 5 commits per public repo by served analysis, superseded versions, PR pins, orphans after 1 h, oldest-first past 8 × 10⁹ bytes measured by the listing) + `runRetention` (rows read before listing, rows deleted before objects, failed deletes become next run's orphans, missing objects only reported) (ADR-0077). 20 new worker tests + 5 db. No eval re-record. Next: M5.12b.
 
