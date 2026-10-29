@@ -237,6 +237,22 @@ importers:
         specifier: 2.1.8
         version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)
 
+  packages/diff:
+    dependencies:
+      '@gitinside/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: 2.1.8
+        version: 2.1.8(vitest@2.1.8(@types/node@22.10.2)(jsdom@25.0.1))
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)
+
   packages/schema:
     dependencies:
       zod:
