@@ -1,0 +1,33 @@
+# TLS in front of the worker's enqueue API (docs/SECURITY.md §3, ADR-0075). Caddy gets a
+# certificate for WORKER_DOMAIN from Let's Encrypt over TLS-ALPN on 443 (port 80 is closed
+# on the VM, so the HTTP challenge fails and Caddy uses the other one), and passes the
+# request target through unchanged, as the HMAC signature needs (ADR-0060). CI sets
+# WORKER_DOMAIN=localhost, which Caddy serves from its own local CA.
+{
+	admin off
+	skip_install_trust
+	servers {
+		protocols h1 h2
+		timeouts {
+			read_header 10s
+			read_body 10s
+			write 30s
+			idle 2m
+		}
+	}
+}
+
+{$WORKER_DOMAIN} {
+	# The API's three routes; nothing else reaches the worker.
+	@api path /health /enqueue /jobs/*
+	handle @api {
+		# The worker refuses bodies over 16 KiB unread; this stops them a step earlier.
+		request_body {
+			max_size 16KiB
+		}
+		reverse_proxy egress:8080
+	}
+	handle {
+		respond 404
+	}
+}

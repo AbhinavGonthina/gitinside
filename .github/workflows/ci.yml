@@ -63,8 +63,10 @@ jobs:
           DATABASE_URL: postgres://gitinside:gitinside@localhost:5432/gitinside
       - run: pnpm --filter @gitinside/viewer build-storybook
 
-  # The production worker image and stack (infra/oracle, ADR-0074): built, started,
-  # and checked for its hardening, with a sandboxed analysis run inside it.
+  # The production worker image and stack (infra/oracle, ADR-0074, ADR-0075): built,
+  # started, and checked for its hardening, egress allowlist, and TLS proxy, with a
+  # sandboxed analysis run inside it. The VM's provisioning script is linted here; it
+  # installs Docker, so it only runs on the VM.
   worker-image:
     runs-on: ubuntu-latest
     steps:
@@ -72,8 +74,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: shellcheck infra/oracle/provision.sh infra/oracle/egress/entrypoint.sh
       - run: docker version
       - run: docker compose version
+      # The same kernel modules provision.sh loads on the VM, for the gateway's ipset.
+      - run: sudo modprobe -a ip_set ip_set_hash_ip xt_set xt_owner
       - run: node infra/oracle/check.mjs
 
   # Every story in dark and light against packages/viewer/visual/baselines/
