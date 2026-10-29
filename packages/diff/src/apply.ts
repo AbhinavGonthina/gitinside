@@ -53,7 +53,8 @@ function applyLists<T extends { id: string }>(
   return [...items.values()];
 }
 
-const warningKey = (w: AnalysisWarning): string =>
+/** Identity of a warning in the multiset: its code, file, and message. */
+export const warningKey = (w: AnalysisWarning): string =>
   JSON.stringify([w.code, w.file ?? "", w.message]);
 
 /** Base warnings minus `removed` (one occurrence each) plus `added`. */
