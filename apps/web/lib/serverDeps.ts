@@ -4,6 +4,7 @@ import { MIN_SECRET_LENGTH } from "@gitinside/worker/hmac";
 import { createObjectStore, storeConfigFromEnv } from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
 import type { GraphRouteDeps } from "./graphRoute";
+import type { ImageRouteDeps } from "./imageRoute";
 import type { JobRouteDeps } from "./jobRoute";
 import { createHeadCache, type RepoViewDeps } from "./repoView";
 import { createWorkerClient } from "./worker";
@@ -18,6 +19,7 @@ import { createWorkerClient } from "./worker";
  * - `GITHUB_TOKEN`: optional, raises GitHub's limit from 60 to 5,000 requests an hour.
  * - `R2_*` (ADR-0055, ADR-0068): `/api/graph` reads snapshots with them, alongside
  *   `DATABASE_URL`; the repo page needs only the database (and the worker to re-analyze).
+ *   The README images need both (ADR-0072).
  *
  * One database connection per serverless instance (`max: 1`), opened on first use and kept.
  */
@@ -86,6 +88,16 @@ export function graphDepsFromEnv(env: Env = process.env): GraphRouteDeps | undef
   }
   const db = database(env);
   return db && { db, store };
+}
+
+/**
+ * The README images' deps (ADR-0072): the repo page's, plus the `R2_*` bucket the graph is
+ * read from; `undefined` without either (the images are then the link-only badge).
+ */
+export function imageDepsFromEnv(env: Env = process.env): ImageRouteDeps | undefined {
+  const graph = graphDepsFromEnv(env);
+  const view = graph && repoViewDepsFromEnv(env);
+  return graph && view && { view, store: graph.store };
 }
 
 /** One process-wide memory of GitHub's answers (lib/repoView.ts). */

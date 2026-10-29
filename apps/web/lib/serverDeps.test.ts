@@ -5,6 +5,7 @@ import {
   SIGNED_OUT_HOURLY_LIMIT,
   analyzeDepsFromEnv,
   graphDepsFromEnv,
+  imageDepsFromEnv,
   jobDepsFromEnv,
   repoViewDepsFromEnv,
 } from "./serverDeps";
@@ -69,6 +70,27 @@ describe("graphDepsFromEnv", () => {
       expect(graphDepsFromEnv({ ...ENV, ...R2, [name]: "" }), name).toBeUndefined();
     }
     expect(graphDepsFromEnv({ ...ENV, ...R2, R2_ACCOUNT_ID: "evil.example" })).toBeUndefined();
+  });
+});
+
+describe("imageDepsFromEnv", () => {
+  const R2 = {
+    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+    R2_ACCESS_KEY_ID: "key-id",
+    R2_SECRET_ACCESS_KEY: "secret-key",
+    R2_BUCKET: "gitinside-snapshots",
+  };
+
+  it("is the repo page's deps plus the bucket; the worker stays optional", () => {
+    const deps = imageDepsFromEnv({ ...ENV, ...R2 });
+    expect(typeof deps?.store.get).toBe("function");
+    expect(deps?.view.heads).toBe(repoViewDepsFromEnv(ENV)?.heads);
+    expect(imageDepsFromEnv({ ...ENV, ...R2, WORKER_URL: undefined })?.view.worker).toBeUndefined();
+  });
+
+  it("is undefined without the database or the bucket", () => {
+    expect(imageDepsFromEnv(ENV)).toBeUndefined();
+    expect(imageDepsFromEnv({ ...ENV, ...R2, DATABASE_URL: "" })).toBeUndefined();
   });
 });
 

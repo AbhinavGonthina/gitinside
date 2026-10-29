@@ -54,6 +54,14 @@ export function createNonce(): string {
 }
 
 /**
+ * The policy of the README images (`/api/badge`, `/api/diagram`, ADR-0072). An SVG opened
+ * directly is a document on our origin, and it draws text from strangers' repos, so it may
+ * load nothing and run nothing: its own `<style>` and `style` attributes are all it uses,
+ * and `sandbox` gives it an opaque origin besides.
+ */
+export const IMAGE_CSP = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+
+/**
  * Headers sent with every response, pages and API alike (next.config.ts).
  * The CSP itself comes from proxy.ts, because it needs a per-response nonce.
  */
