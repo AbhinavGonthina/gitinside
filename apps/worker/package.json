@@ -23,6 +23,9 @@
       "import": "./dist/storage.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/bin.js",

@@ -1,0 +1,20 @@
+# CI only: a throwaway Postgres for the container check (infra/oracle/check.mjs, ADR-0074).
+# Production uses Neon; this file is never deployed.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: gitinside
+      POSTGRES_PASSWORD: gitinside
+      POSTGRES_DB: gitinside
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitinside -d gitinside"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    networks: [internal]
+
+  worker:
+    depends_on:
+      postgres:
+        condition: service_healthy

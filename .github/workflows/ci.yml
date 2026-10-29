@@ -63,6 +63,19 @@ jobs:
           DATABASE_URL: postgres://gitinside:gitinside@localhost:5432/gitinside
       - run: pnpm --filter @gitinside/viewer build-storybook
 
+  # The production worker image and stack (infra/oracle, ADR-0074): built, started,
+  # and checked for its hardening, with a sandboxed analysis run inside it.
+  worker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: docker version
+      - run: docker compose version
+      - run: node infra/oracle/check.mjs
+
   # Every story in dark and light against packages/viewer/visual/baselines/
   # (docs/TESTING.md, ADR-0053). Re-capture with the "Visual baselines" workflow.
   visual:

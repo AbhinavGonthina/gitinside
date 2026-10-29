@@ -1,0 +1,15 @@
+# Build context for apps/worker/Dockerfile: sources and manifests only. The image builds
+# from source, so local builds, checkouts, and anything secret stay out.
+.git
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/.next
+**/storybook-static
+bench/.repos
+eval/.repos
+logs
+**/.env
+**/.env.*
+!**/.env.example
