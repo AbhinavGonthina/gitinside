@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.8b. Diagram page from `viewRepo`; M4b waits for the design gate (#2)
+M5.8c. Analyzer crash in the Express stage on a multi-checkout tree; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -115,7 +115,8 @@ M5.8b. Diagram page from `viewRepo`; M4b waits for the design gate (#2)
 - [x] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
 - [x] M5.7 Progress page with real stages + queue position (SSE); landing form posts to /api/analyze and opens it {model: opus}
 - [x] M5.8a Graph serving (`/api/graph`, signed R2 GET) + check-on-view logic (`viewRepo`: latest commit, re-analysis charged to the repo) {model: opus}
-- [ ] M5.8b Diagram page `/<owner>/<repo>[/<sha>]` from `viewRepo`: graph fetched in the browser, not-analyzed / updating / behind / missing states, screenshots {model: opus}
+- [x] M5.8b Diagram page `/<owner>/<repo>[/<sha>]` from `viewRepo`: graph fetched in the browser, not-analyzed / updating / behind / missing states, screenshots {model: opus}
+- [ ] M5.8c Fix the analyzer crash found in M5.8b: `gitinside analyze .` on this repo with `eval/.repos/` and `bench/.repos/` checkouts present throws `TypeError: Cannot read properties of undefined (reading 'id')` from inside TypeScript, called by the Express stage's `valueOf` (`express.ts`, `checker.getSymbolAtLocation`; likely a node from another service's program). Each checkout alone and a clean HEAD analyze fine. Find the trigger, add a regression fixture, and make a detector's internal error a warning rather than a failed analysis {model: opus}
 - [ ] M5.9 Badge + live image endpoint + "Add to README" {model: opus}
 - [ ] M5.10 Hardened worker Docker image + infra/oracle provisioning script + docs {model: opus}
 - [ ] M5.11 Security test suite with malicious fixtures {model: opus}
@@ -168,6 +169,8 @@ M5.8b. Diagram page from `viewRepo`; M4b waits for the design gate (#2)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.8b: `/<owner>/<repo>` and new `/<owner>/<repo>/<sha>` (full lowercase SHA only) render `viewRepo` (`app/[owner]/[repo]/repoScreen.tsx`): unavailable notice (unconfigured, or lookup failed, logged by name), real 404, Analyze button (`useAnalyze`, refreshes if the answer is this page), or `RepoDiagram`: repo bar (commit chip, `headStatus` line with Watch progress / Analyze again / See the latest) + graph fetched from `/api/graph` and checked with `parseGraph` (`lib/repoStatus.ts`; bad graph refused, Try again only when it could help). Diagram = M4a prototype, exported with `topBar={false}` (ADR-0069). 35 new web tests (277, new files 100%), 2 viewer, 12/12 E2E; 14 screenshots via a Vite harness. Smoke run found an analyzer crash ⇒ M5.8c. Eval re-recorded in `40c5eb0` (lockfile; numbers unchanged). Next: M5.8c.
 
 - 2026-10-29 · M5.8a: M5.8 split into a (server) and b (page). Worker store gains a signed `get` (`404 NoSuchKey` ⇒ `undefined`), exported as `@gitinside/worker/storage`; `@gitinside/db` `findPublishedAnalysis` (newest done analysis of a public repo, optionally one commit). `GET /api/graph/:owner/:repo/:sha` streams the snapshot from R2 as JSON (`s-maxage` 1 day; 404 before lookup on bad names/SHAs; 503 on storage failure). `viewRepo` (`lib/repoView.ts`): permalinks never ask GitHub; else GitHub's head (remembered 60 s) ⇒ current / updating (job ID) / behind (failed, limited, unavailable) / unknown; new commits enqueued, charged to `repo:<id>` (6/h), refunded when no job made; gone or private on GitHub ⇒ 404 (ADR-0068). 32 new web tests (242, 98.3% lines; repoView/graphRoute 100%), 4 worker, 2 db; 11/11 E2E. No eval re-record. Next: M5.8b.
 
