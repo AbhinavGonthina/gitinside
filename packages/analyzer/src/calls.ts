@@ -91,11 +91,13 @@ export function nodeKey(path: string, node: ts.Node): string {
 }
 
 /**
- * A checker whose `getSymbolAtLocation` answers `undefined` (no symbol known) instead of
- * throwing, calling `failed` with the node and error. TypeScript itself can crash on code it
- * doesn't expect: 5.6 throws inside it while printing the type of a getter-only property for
- * an error message under `exactOptionalPropertyTypes` (zod's bundled `safeParse` result,
- * M5.8c). One such expression in a repo should cost that expression, not the analysis.
+ * A checker whose `getSymbolAtLocation` answers `undefined` (no symbol known) and whose
+ * `getTypeAtLocation` answers `any` (no type known) instead of throwing, calling `failed`
+ * with the node and error. TypeScript itself can crash on code it doesn't expect: 5.6 throws
+ * inside it while printing the type of a getter-only property for an error message under
+ * `exactOptionalPropertyTypes` (zod's bundled `safeParse` result, M5.8c). One such
+ * expression in a repo should cost that expression, not the analysis or a whole stage.
+ * Other checker methods take symbols or work on these answers and pass through unguarded.
  */
 export function guardedChecker(
   checker: ts.TypeChecker,
@@ -111,6 +113,14 @@ export function guardedChecker(
         return undefined;
       }
     },
+    getTypeAtLocation(node) {
+      try {
+        return checker.getTypeAtLocation(node);
+      } catch (error) {
+        failed(node, error);
+        return checker.getAnyType();
+      }
+    },
   };
 }
 
@@ -119,8 +129,9 @@ export interface SymbolResolver {
   /** The program whose root files include `path` (repo-relative), if any. */
   programOf(path: string): ServiceProgram | undefined;
   /**
-   * The type checker of a program, created once. Its `getSymbolAtLocation` never throws
-   * (see {@link guardedChecker}); expressions it failed on are listed by {@link warnings}.
+   * The type checker of a program, created once. Its `getSymbolAtLocation` and
+   * `getTypeAtLocation` never throw (see {@link guardedChecker}); expressions they failed on
+   * are listed by {@link warnings}.
    */
   checkerOf(sp: ServiceProgram): ts.TypeChecker;
   /**
