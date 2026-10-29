@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.8. Diagram page + check-on-view re-analysis; M4b waits for the design gate (#2)
+M5.8b. Diagram page from `viewRepo`; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -114,7 +114,8 @@ M5.8. Diagram page + check-on-view re-analysis; M4b waits for the design gate (#
 - [x] M5.5d Worker entry point: env ⇒ Redis + Postgres + R2, sweep + `failInterruptedAnalyses`, worker (recorder/publish) + enqueue server, JSON logs, SIGTERM ⇒ `stopWorker` {model: opus}
 - [x] M5.6 /api/analyze: URL parsing, latest SHA, cache, rate limits, dedupe {model: opus}
 - [x] M5.7 Progress page with real stages + queue position (SSE); landing form posts to /api/analyze and opens it {model: opus}
-- [ ] M5.8 Diagram page + check-on-view re-analysis {model: opus}
+- [x] M5.8a Graph serving (`/api/graph`, signed R2 GET) + check-on-view logic (`viewRepo`: latest commit, re-analysis charged to the repo) {model: opus}
+- [ ] M5.8b Diagram page `/<owner>/<repo>[/<sha>]` from `viewRepo`: graph fetched in the browser, not-analyzed / updating / behind / missing states, screenshots {model: opus}
 - [ ] M5.9 Badge + live image endpoint + "Add to README" {model: opus}
 - [ ] M5.10 Hardened worker Docker image + infra/oracle provisioning script + docs {model: opus}
 - [ ] M5.11 Security test suite with malicious fixtures {model: opus}
@@ -167,6 +168,8 @@ M5.8. Diagram page + check-on-view re-analysis; M4b waits for the design gate (#
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.8a: M5.8 split into a (server) and b (page). Worker store gains a signed `get` (`404 NoSuchKey` ⇒ `undefined`), exported as `@gitinside/worker/storage`; `@gitinside/db` `findPublishedAnalysis` (newest done analysis of a public repo, optionally one commit). `GET /api/graph/:owner/:repo/:sha` streams the snapshot from R2 as JSON (`s-maxage` 1 day; 404 before lookup on bad names/SHAs; 503 on storage failure). `viewRepo` (`lib/repoView.ts`): permalinks never ask GitHub; else GitHub's head (remembered 60 s) ⇒ current / updating (job ID) / behind (failed, limited, unavailable) / unknown; new commits enqueued, charged to `repo:<id>` (6/h), refunded when no job made; gone or private on GitHub ⇒ 404 (ADR-0068). 32 new web tests (242, 98.3% lines; repoView/graphRoute 100%), 4 worker, 2 db; 11/11 E2E. No eval re-record. Next: M5.8b.
 
 - 2026-10-28 · M5.7: landing form posts to `/api/analyze` (`lib/startAnalysis.ts`): `200` ⇒ repo page, `202` ⇒ `/<owner>/<repo>/jobs/<jobId>`, refusals said in place. Worker client `status()` (signed `GET /jobs/:id`, fields checked one by one); `lib/jobs.ts` puts it into words on the server ("2 ahead of you", "Parsing 1,204 files", failures with direction and a retry flag, codes never shown). `GET /api/jobs/:id` (JSON) and `/events` (SSE: event per change, keep-alive, ends after 25 s or a final state, `EventSource` reconnects; abort stops polling); worker-only deps, no database (ADR-0067). `JobProgress`: five-step path, progressbar, done ⇒ repo page, Try again. Screenshot review made the steps ahead and the light bar track visible. 68 new web tests (214), 10/10 E2E. No eval re-record. Next: M5.8.
 
