@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.4. Broken-edge detection incl. head re-resolution (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.4b. Broken edges needing new analyzer facts (PARAMETERS_ADDED, FIELD_REMOVED) (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -137,7 +137,8 @@ M6.4. Broken-edge detection incl. head re-resolution (M5.13 and M5.14b wait on #
 - [x] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
 - [x] M6.2 Node/edge classification with per-kind fingerprints {model: opus}
 - [x] M6.3 Rename/move detection with tuned thresholds {model: opus}
-- [ ] M6.4 Broken-edge detection incl. head re-resolution {model: opus}
+- [x] M6.4a Broken-edge detection incl. head re-resolution: `TARGET_REMOVED` / `ROUTE_CHANGED` for routes, relative imports, Prisma models; route grammar shared via the schema {model: opus}
+- [ ] M6.4b Broken edges needing new analyzer facts: required parameter counts on symbols + call-site argument counts (`PARAMETERS_ADDED`), field names a Prisma call uses that the model lacks (`FIELD_REMOVED`); schema + goldens + eval re-record {model: opus}
 - [ ] M6.5 Property tests (fast-check) {model: opus}
 - [ ] M6.6 gitinside diff CLI (paths or git refs) + Mermaid summary {model: opus}
 - [ ] M6.7 Incremental cache (content-hash facts, importer invalidation, disk LRU) {model: opus}
@@ -178,6 +179,8 @@ M6.4. Broken-edge detection incl. head re-resolution (M5.13 and M5.14b wait on #
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.4a: M6.4 split into a (graph-only reasons) and b (`PARAMETERS_ADDED`/`FIELD_REMOVED`, which need new analyzer facts). `detectBroken` (`packages/diff/src/broken.ts`, ADR-0087): a base edge to a gone (not renamed) target is broken when the head source (or its rename) has an unresolved call of the same kind that re-resolves to it: HTTP label ⇒ method + path matched against the route, relative import specifier ⇒ file path, Prisma accessor ⇒ model. Handler serving a new route ⇒ `ROUTE_CHANGED`. The route grammar moved to `@gitinside/schema` (`routes.ts`), re-exported by the analyzer; `parseGraphDiff` now checks broken edges are removed edges with removed targets and sources in head. New fixture pair `diff-broken-base/head` (4 broken + 1 removed-with-caller). Diff 93 tests, 98.9% lines; schema 30; analyzer green (the known shared-mounts timing test failed under load at 25 s, 2 s alone). Eval re-recorded (unchanged). Next: M6.4b.
 
 - 2026-10-29 · M6.3: `detectRenames` (`packages/diff/src/rename.ts`, ADR-0086) pairs base-only with head-only nodes: files by hash, or 4-token shingle Jaccard ≥ 0.6 (50+ tokens) when the caller passes `contents` (new `diffGraphs` option; the graph has no text); modules by majority of moved files; symbols by name under a renamed parent (body ≥ 0.8) or a unique token-equal body; unresolved nodes by call in the same/moved file. Edges follow their endpoints, and children of renamed parents are `updated`. Ties are never guessed. Thresholds measured on 5,898 real files (k=4: 96% / 92% of 20% deletions / insertions matched, 0.04% of random pairs). New fixture pair `diff-rename-base/head` (goldens) checked end to end. Diff 45 tests, 99% lines; analyzer 604 + the known timing test (3.6 s alone, over 20 s under load). Eval re-recorded. Next: M6.4.
 
