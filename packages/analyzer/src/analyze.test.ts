@@ -1,14 +1,76 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stringifyGraph } from "@gitinside/schema";
-import { ANALYSIS_STAGES, ANALYZER_VERSION, analyze, type AnalysisProgress } from "./analyze.js";
+import {
+  ANALYSIS_STAGES,
+  ANALYZER_VERSION,
+  analyze,
+  detectorFailure,
+  type AnalysisProgress,
+} from "./analyze.js";
+import { guardedChecker } from "./calls.js";
 import { runCli } from "./cli.js";
+import { AnalysisError } from "./inventory.js";
+
+// Detectors that throw on demand, so a test can stand in for an analyzer bug, and a checker
+// that throws on one expression's text, standing in for TypeScript's own crash (M5.8c). All
+// pass through until a test sets `failing`.
+const failing = vi.hoisted(() => ({
+  express: undefined as unknown,
+  sdk: undefined as unknown,
+  symbolAt: undefined as string | undefined,
+}));
+vi.mock("./program.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./program.js")>();
+  return {
+    ...actual,
+    buildServicePrograms: (...args: Parameters<typeof actual.buildServicePrograms>) =>
+      actual.buildServicePrograms(...args).map((sp) => {
+        const checker = sp.program.getTypeChecker();
+        const throwing: ts.TypeChecker = {
+          ...checker,
+          getSymbolAtLocation: (node) => {
+            if (node.getText() === failing.symbolAt) {
+              throw new TypeError("Cannot read properties of undefined (reading 'id')");
+            }
+            return checker.getSymbolAtLocation(node);
+          },
+        };
+        return { ...sp, program: { ...sp.program, getTypeChecker: () => throwing } };
+      }),
+  };
+});
+vi.mock("./express.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./express.js")>();
+  return {
+    ...actual,
+    buildExpressRoutes: (...args: Parameters<typeof actual.buildExpressRoutes>) => {
+      if (failing.express !== undefined) throw failing.express;
+      return actual.buildExpressRoutes(...args);
+    },
+  };
+});
+vi.mock("./sdk.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./sdk.js")>();
+  return {
+    ...actual,
+    buildSdkEdges: (...args: Parameters<typeof actual.buildSdkEdges>) => {
+      if (failing.sdk !== undefined) throw failing.sdk;
+      return actual.buildSdkEdges(...args);
+    },
+  };
+});
 
 let dir: string;
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "gitinside-test-"));
+  failing.express = undefined;
+  failing.sdk = undefined;
+  failing.symbolAt = undefined;
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -223,5 +285,144 @@ describe("runCli", () => {
     const io = capture();
     expect(await runCli([], io)).toBe(0);
     expect(io.err).toMatch(/Usage/);
+  });
+});
+
+async function put(path: string, content: string[]): Promise<void> {
+  await mkdir(dirname(join(dir, path)), { recursive: true });
+  await writeFile(join(dir, path), content.join("\n") + "\n");
+}
+
+/** An Express server whose route calls Stripe, so both detectors have something to find. */
+async function shop(): Promise<void> {
+  await put("package.json", [
+    JSON.stringify({ name: "shop", dependencies: { express: "4", stripe: "17" } }),
+  ]);
+  await put("src/server.ts", [
+    'import express from "express";',
+    'import Stripe from "stripe";',
+    'const stripe = new Stripe("sk");',
+    "export async function pay() {",
+    "  await stripe.charges.create({});",
+    "}",
+    "const app = express();",
+    'app.post("/pay", pay);',
+  ]);
+}
+
+describe("internal failures (M5.8c)", () => {
+  it("turns a detector's internal error into a warning and keeps every other detector's output", async () => {
+    await shop();
+    const healthy = await analyze(dir);
+    failing.express = new TypeError("Cannot read properties of undefined (reading 'id')");
+    const graph = await analyze(dir);
+
+    expect(graph.warnings.filter((w) => w.code === "DETECTOR_FAILED")).toEqual([
+      {
+        code: "DETECTOR_FAILED",
+        message:
+          "the express stage stopped on an internal error (TypeError: Cannot read properties of undefined (reading 'id')); what it finds is missing from this graph",
+      },
+    ]);
+    // Only Express's own nodes and edges are missing: the route and its handles edge.
+    const removed = new Set(["route:shop/POST /pay"]);
+    expect(graph.nodes).toEqual(healthy.nodes.filter((n) => !removed.has(n.id)));
+    expect(graph.edges).toEqual(healthy.edges.filter((e) => !removed.has(e.from)));
+    expect(graph.edges.some((e) => e.kind === "external_call")).toBe(true);
+  });
+
+  it("guards later stages too, and lists each failure", async () => {
+    await shop();
+    failing.express = new Error("first");
+    failing.sdk = "not even an Error";
+    const graph = await analyze(dir);
+    expect(
+      graph.warnings.filter((w) => w.code === "DETECTOR_FAILED").map((w) => w.message),
+    ).toEqual([
+      "the express stage stopped on an internal error (Error: first); what it finds is missing from this graph",
+      "the sdk stage stopped on an internal error (not even an Error); what it finds is missing from this graph",
+    ]);
+    expect(graph.edges.filter((e) => e.kind === "external_call" || e.kind === "handles")).toEqual(
+      [],
+    );
+  });
+
+  it("treats an expression TypeScript throws on as unknown, with one warning (fixtures/checker-crash)", async () => {
+    const fixture = fileURLToPath(new URL("../../../fixtures/checker-crash/", import.meta.url));
+    const healthy = await analyze(fixture, { owner: "fixtures", name: "checker-crash" });
+    failing.symbolAt = "bind";
+    const graph = await analyze(fixture, { owner: "fixtures", name: "checker-crash" });
+
+    expect(graph.warnings).toEqual([
+      {
+        code: "TYPESCRIPT_INTERNAL_ERROR",
+        file: "src/schema.js",
+        message:
+          "TypeScript failed on the expression at 17:37 (TypeError: Cannot read properties of undefined (reading 'id')); what it names is treated as unknown",
+      },
+    ]);
+    // `bind` names nothing the graph draws, so only the warning differs.
+    expect({ ...graph, warnings: [] }).toEqual(healthy);
+    expect(graph.nodes.map((n) => n.id)).toContain("route:checker-crash/POST /echo");
+  });
+
+  it("still fails the analysis on a limit", async () => {
+    await shop();
+    failing.express = new AnalysisError("LIMIT_FILES", "too many files");
+    await expect(analyze(dir)).rejects.toBeInstanceOf(AnalysisError);
+  });
+});
+
+describe("detectorFailure", () => {
+  it("removes the checkout's path in either slash style", () => {
+    const root = "C:\\work\\repo";
+    const error = new Error(
+      "ENOENT: C:\\work\\repo\\src\\a.ts and C:/work/repo/src/b.ts, root C:\\work\\repo",
+    );
+    expect(detectorFailure("prisma", error, root).message).toBe(
+      "the prisma stage stopped on an internal error (Error: ENOENT: src\\a.ts and src/b.ts, root .); what it finds is missing from this graph",
+    );
+  });
+
+  it("cuts long error text", () => {
+    const message = detectorFailure("calls", new Error("x".repeat(500)), "/repo").message;
+    expect(message).toContain(`(Error: ${"x".repeat(192)}…)`);
+  });
+});
+
+describe("guardedChecker", () => {
+  const sourceFile = ts.createSourceFile("/a.ts", "const a = b.c;", ts.ScriptTarget.ES2022, true);
+  const program = ts.createProgram({
+    rootNames: ["/a.ts"],
+    options: { noLib: true, types: [] },
+    host: {
+      ...ts.createCompilerHost({}),
+      getSourceFile: (name) => (name === "/a.ts" ? sourceFile : undefined),
+      fileExists: (name) => name === "/a.ts",
+    },
+  });
+  const checker = program.getTypeChecker();
+  const declaration = (sourceFile.statements[0] as ts.VariableStatement).declarationList
+    .declarations[0]!;
+
+  it("passes answers through and keeps the rest of the checker", () => {
+    const failed = vi.fn();
+    const guarded = guardedChecker(checker, failed);
+    expect(guarded.getSymbolAtLocation(declaration.name)?.name).toBe("a");
+    expect(guarded.typeToString(guarded.getTypeAtLocation(declaration.name))).toBe("any");
+    expect(failed).not.toHaveBeenCalled();
+  });
+
+  it("answers undefined and reports the node when TypeScript throws", () => {
+    const failed = vi.fn();
+    const error = new TypeError("Cannot read properties of undefined (reading 'id')");
+    const broken: ts.TypeChecker = {
+      ...checker,
+      getSymbolAtLocation: () => {
+        throw error;
+      },
+    };
+    expect(guardedChecker(broken, failed).getSymbolAtLocation(declaration.name)).toBeUndefined();
+    expect(failed).toHaveBeenCalledWith(declaration.name, error);
   });
 });

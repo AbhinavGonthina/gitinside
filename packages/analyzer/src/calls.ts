@@ -2,10 +2,12 @@ import ts from "typescript";
 import {
   compareStrings,
   edgeId,
+  type AnalysisWarning,
   type Confidence,
   type GraphEdge,
   type SourceLocation,
 } from "@gitinside/schema";
+import { errorText } from "./failures.js";
 import { createModuleResolver, type ManifestCache } from "./imports.js";
 import type { ServiceProgram } from "./program.js";
 import { extractSymbols, symbolNodeId, unwrap } from "./symbols.js";
@@ -88,12 +90,44 @@ export function nodeKey(path: string, node: ts.Node): string {
   return `${path}:${node.kind}:${node.pos}:${node.end}`;
 }
 
+/**
+ * A checker whose `getSymbolAtLocation` answers `undefined` (no symbol known) instead of
+ * throwing, calling `failed` with the node and error. TypeScript itself can crash on code it
+ * doesn't expect: 5.6 throws inside it while printing the type of a getter-only property for
+ * an error message under `exactOptionalPropertyTypes` (zod's bundled `safeParse` result,
+ * M5.8c). One such expression in a repo should cost that expression, not the analysis.
+ */
+export function guardedChecker(
+  checker: ts.TypeChecker,
+  failed: (node: ts.Node, error: unknown) => void,
+): ts.TypeChecker {
+  return {
+    ...checker,
+    getSymbolAtLocation(node) {
+      try {
+        return checker.getSymbolAtLocation(node);
+      } catch (error) {
+        failed(node, error);
+        return undefined;
+      }
+    },
+  };
+}
+
 /** Resolves expressions to symbol nodes across all service programs. */
 export interface SymbolResolver {
   /** The program whose root files include `path` (repo-relative), if any. */
   programOf(path: string): ServiceProgram | undefined;
-  /** The type checker of a program, created once. */
+  /**
+   * The type checker of a program, created once. Its `getSymbolAtLocation` never throws
+   * (see {@link guardedChecker}); expressions it failed on are listed by {@link warnings}.
+   */
   checkerOf(sp: ServiceProgram): ts.TypeChecker;
+  /**
+   * One `TYPESCRIPT_INTERNAL_ERROR` warning per expression TypeScript threw on so far, so
+   * call this after the last stage that uses a checker.
+   */
+  warnings(): AnalysisWarning[];
   /** Symbol node IDs by declaration node, per root source file. */
   callers: ReadonlyMap<ts.SourceFile, ReadonlyMap<ts.Node, string>>;
   /**
@@ -149,13 +183,27 @@ export function createSymbolResolver(
   }
 
   const manifests: ManifestCache = new Map();
+  const failures = new Map<string, AnalysisWarning>();
   const contexts = new Map<ServiceProgram, Context>();
   const contextOf = (sp: ServiceProgram): Context => {
     let context = contexts.get(sp);
     if (!context) {
+      const failed = (node: ts.Node, error: unknown): void => {
+        const sourceFile = node.getSourceFile();
+        const file = sp.toRepoPath(sourceFile.fileName);
+        const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+        const at = `${line + 1}:${character + 1}`;
+        const key = `${file ?? ""}:${at}`;
+        if (failures.has(key)) return;
+        failures.set(key, {
+          code: "TYPESCRIPT_INTERNAL_ERROR",
+          message: `TypeScript failed on the expression at ${at} (${errorText(error, sp.toAbsolute(""))}); what it names is treated as unknown`,
+          ...(file === undefined ? {} : { file }),
+        });
+      };
       context = {
         sp,
-        checker: sp.program.getTypeChecker(),
+        checker: guardedChecker(sp.program.getTypeChecker(), failed),
         resolveModule: createModuleResolver(sp, workspace, manifests),
       };
       contexts.set(sp, context);
@@ -272,6 +320,7 @@ export function createSymbolResolver(
   return {
     programOf: (path) => programByFile.get(path),
     checkerOf: (sp) => contextOf(sp).checker,
+    warnings: () => [...failures.values()],
     callers,
     resolve,
     importTarget: (sp, declaration, member) => importTarget(contextOf(sp), declaration, member),

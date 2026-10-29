@@ -40,6 +40,7 @@ const NAMES = [
   "fake-secrets",
   "queues-bullmq",
   "shop-demo",
+  "checker-crash",
 ];
 
 describe.each(NAMES)("fixture %s", (name) => {
@@ -211,6 +212,15 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       "symbol:worker/src/main.ts#sendEmail -> queue:infra/redis#email exact",
     ]);
     expect(g.edges.find((e) => e.from.endsWith("#sendEmail"))?.kind).toBe("consumes");
+  });
+
+  it("checker-crash: the route survives zod's safeParse shape, and storybook-static is skipped (M5.8c)", async () => {
+    const g = await run("checker-crash");
+    expect(ids(g, "route")).toEqual(["route:checker-crash/POST /echo"]);
+    expect(g.nodes.some((n) => "path" in n && String(n.path).startsWith("storybook-static"))).toBe(
+      false,
+    );
+    expect(g.warnings).toEqual([]);
   });
 
   it("shop-demo: one request path from a page to the database and Stripe (the viewer prototype's graph)", async () => {

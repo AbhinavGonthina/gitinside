@@ -1,0 +1,149 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:checker-crash/src/schema.js#Schema.safeParse",
+      "id": "calls:symbol:checker-crash/src/schema.js#Schema.safeParse->symbol:checker-crash/src/schema.js#result",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 12,
+          "file": "src/schema.js",
+          "line": 21
+        }
+      ],
+      "to": "symbol:checker-crash/src/schema.js#result"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:checker-crash/src/server.js",
+      "id": "imports:file:checker-crash/src/server.js->file:checker-crash/src/schema.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 28,
+          "file": "src/server.js",
+          "line": 2
+        }
+      ],
+      "to": "file:checker-crash/src/schema.js"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "c4b0841966c91bbaf58628632da35d3033bea3016ad85c73fe05a1691f22869a",
+      "id": "file:checker-crash/src/schema.js",
+      "kind": "file",
+      "label": "schema.js",
+      "parentId": "module:checker-crash/src",
+      "path": "src/schema.js"
+    },
+    {
+      "hash": "93e259719a9e265191b9d38fdf2c37fb71fe7c2075311ac5792570435b5cca55",
+      "id": "file:checker-crash/src/server.js",
+      "kind": "file",
+      "label": "server.js",
+      "parentId": "module:checker-crash/src",
+      "path": "src/server.js"
+    },
+    {
+      "id": "module:checker-crash/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:checker-crash/",
+      "path": "src"
+    },
+    {
+      "id": "route:checker-crash/POST /echo",
+      "kind": "route",
+      "label": "POST /echo",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:checker-crash/src/server.js",
+      "path": "/echo",
+      "source": {
+        "column": 5,
+        "file": "src/server.js",
+        "line": 7
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:checker-crash/",
+      "kind": "service",
+      "label": "checker-crash",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:checker-crash/src/schema.js#Schema",
+      "kind": "symbol",
+      "label": "Schema",
+      "parentId": "file:checker-crash/src/schema.js",
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "src/schema.js",
+        "line": 15
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:checker-crash/src/schema.js#Schema.safeParse",
+      "kind": "symbol",
+      "label": "safeParse",
+      "parentId": "symbol:checker-crash/src/schema.js#Schema",
+      "source": {
+        "column": 3,
+        "endLine": 22,
+        "file": "src/schema.js",
+        "line": 20
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": false,
+      "id": "symbol:checker-crash/src/schema.js#result",
+      "kind": "symbol",
+      "label": "result",
+      "parentId": "file:checker-crash/src/schema.js",
+      "source": {
+        "column": 7,
+        "endLine": 13,
+        "file": "src/schema.js",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:checker-crash/src/server.js#app",
+      "kind": "symbol",
+      "label": "app",
+      "parentId": "file:checker-crash/src/server.js",
+      "source": {
+        "column": 7,
+        "endLine": 4,
+        "file": "src/server.js",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "checker-crash",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "checker-crash",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": []
+}

@@ -1,0 +1,1 @@
+const r=e=>e.length?{success:!1,get error(){if(this._error)return this._error;const t=new Error(e.join(", "));return this._error=t,this._error}}:{success:!0};class s{constructor(){this.safeParse=this.safeParse.bind(this)}safeParse(e){return r(Array.isArray(e)?e:[])}}export{s as Schema};
