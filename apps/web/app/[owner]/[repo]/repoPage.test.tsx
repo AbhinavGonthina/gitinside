@@ -212,7 +212,8 @@ describe("RepoDiagram", () => {
     renderDiagram({ state: "current" });
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("Temporarily unavailable.");
-    expect(document.activeElement).toBe(alert);
+    // Focus moves in an effect, which may run just after the alert first appears.
+    await waitFor(() => expect(document.activeElement).toBe(alert));
     fetchMock.mockImplementation(graphResponse);
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("region", { name: "Diagram" })).toBeTruthy();
