@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.14. Milestone verification (M5.13 is blocked on #3–#7); M4b waits for the design gate (#2)
+M5.14c. M5 review follow-ups before the deploy (M5.13 and M5.14b wait on #3–#7); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -125,8 +125,10 @@ M5.14. Milestone verification (M5.13 is blocked on #3–#7); M4b waits for the d
 - [x] M5.11 Security test suite with malicious fixtures {model: opus}
 - [x] M5.12a Snapshot retention: bucket list/delete (ListObjectsV2), db reads/deletes, pure `planRetention` (latest 5 per public repo, PR pins, superseded versions, orphans, 8 GB budget from the listing), `runRetention` (rows before objects) {model: opus}
 - [x] M5.12b Retention schedule in the worker + quota check: R2 (listing) and Neon (`pg_database_size`) against their free limits, `quota_alarm` log at 80%, prune old rate-limit windows, a `quota` command for M5.13's smoke test {model: opus}
-- [ ] M5.13 Deploy + production smoke test on a real public repo {model: opus} {blocked: #3 #4 #5 #6 #7}
-- [ ] M5.14 Milestone verification + M5-review.md + tag m5 {model: opus}
+- [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review) {model: opus} {blocked: #3 #4 #5 #6 #7}
+- [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
+- [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
+- [ ] M5.14c M5 review follow-ups before the deploy (ADR-0079): egress gateway mounts a hosts-only file instead of `worker.env`; Redis `requirepass` (worker env only); stale head cache showing an older commit as current after a job; no "Analyze again" for permanent failures; retention removes evicted analyses' completed BullMQ jobs; guard `getTypeAtLocation` like `getSymbolAtLocation` (eval re-record) {model: opus}
 
 ### M6: Graph diff + incremental analysis
 - [ ] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
@@ -152,7 +154,7 @@ M5.14. Milestone verification (M5.13 is blocked on #3–#7); M4b waits for the d
 ### M8: Sign-in + private repos + PR bot
 - [ ] M8.1 needs-abhinav: register GitHub App (permissions per ADR-0009) + secrets {model: opus}
 - [ ] M8.2 GitHub sign-in (identity only), sessions, dashboard {model: opus}
-- [ ] M8.3 Install flow + installation webhooks + private snapshot prefix {model: opus}
+- [ ] M8.3 Install flow + installation webhooks + private snapshot prefix (incl. job IDs scoped by installation, M5 review / ADR-0079) {model: opus}
 - [ ] M8.4 Per-view access checks (60s cache), private isolation, noindex {model: opus}
 - [ ] M8.5 Uninstall → immediate deletion (tested) {model: opus}
 - [ ] M8.6 PR webhook → diff job → comment + Check Run (updated in place) {model: opus}
@@ -173,6 +175,8 @@ M5.14. Milestone verification (M5.13 is blocked on #3–#7); M4b waits for the d
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.14a: M5.14 split into a (pre-deploy verification), b (production smoke + tag `m5`, blocked on M5.13), and c (deferred review fixes). Two fresh-eyes reviewers of `m4a..HEAD` found 1 high, 4 medium, 10 low (ADR-0079). Fixed: a repo gone private now hidden in the db (`hideRepo`; permalinks and `/api/graph` stop too, `/api/analyze` restores it), 308s to canonical queries on graph/badge/diagram, CSP for `api-*` owners, 202 kept if row writes fail, skipped tar paths cut to 512 chars, jobs cancelled before awaiting maintenance, DESIGN.md's start count corrected; the rest moved to M5.14c / M5.13 / M8.3. 1,997 local tests (analyzer 595, viewer 471, worker 448 + 14 CI-only, web 316, eval 77, db 67, schema 15, bench 8); analyzer coverage only on CI (timing test times out locally): 97.57% lines, CI green on `aa2ec6d`. CLI smoke on wanderlust: 443 nodes / 276 edges, as in M3. `docs/milestones/M5-review.md` written, production sections pending. No eval re-record. Next: M5.14c.
 
 - 2026-10-29 · M5.12b: `apps/worker/src/maintenance.ts` (ADR-0078): `startWorkerProcess` schedules `runMaintenance` a minute after startup, then an hour after each run ends (`setTimeout` chain, no overlap; shutdown waits for a run). Each run does retention, then `pruneRateLimits` (new in `@gitinside/db`: windows that ended over an hour ago), then `measureQuotas` (fresh listing + `pg_database_size` vs. 10 × 10⁹ / 10⁹ bytes, the Neon figure pending #4). Each step fails on its own (`maintenance_failed`); `quota_alarm` at 80%. Read-only `quota` command (`node dist/quota-bin.js`, exit 0/2/1) for M5.13; runbook row added. 18 new worker tests (447 + 14 CI-only) + 2 db; one full-run web timing flake, green alone. No eval re-record. Next: M5.13 is blocked, so M5.14.
 
