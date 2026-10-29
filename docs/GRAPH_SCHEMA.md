@@ -101,6 +101,39 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 
 The determinism test (TESTING.md) analyzes each fixture twice and compares the `stringifyGraph` bytes.
 
+## Graph diff: `GraphDiff`
+
+What changed between a base and a head graph of one repo (DESIGN.md §8). `packages/diff` produces it; the viewer's diff mode and the PR bot read it. Defined in [`packages/schema/src/diff.ts`](../packages/schema/src/diff.ts) (ADR-0084).
+
+```ts
+{
+  schemaVersion: "1.0.0",
+  analyzerVersion: "0.1.0",               // both graphs; a diff across analyzer versions is refused
+  base: { repo }, head: { repo },          // repo = { owner, name, sha? } as in the graph
+  nodes: { added: GraphNode[], removed: string[], modified: NodeChange[], updated: NodeChange[], renamed: NodeRename[] },
+  edges: { added: GraphEdge[], removed: string[], modified: EdgeChange[], updated: EdgeChange[], renamed: EdgeRename[] },
+  broken: BrokenEdge[],
+  warnings: { added: AnalysisWarning[], removed: AnalysisWarning[] },
+  summary: { nodes: counts, edges: counts, broken: number }   // counts of every list
+}
+NodeChange = { node: GraphNode, changes: string[] }            // head record + names of the fields that differ
+NodeRename = { from: string, node: GraphNode, changes: string[] }
+EdgeChange = { edge: GraphEdge, changes: string[] }
+EdgeRename = { from: string, edge: GraphEdge, changes: string[] }
+BrokenEdge = { edge, from, to, reason, detail, sites }
+```
+
+- **Complete on its own:** added, changed, and renamed items carry the whole head record, removed items their base ID, so `applyDiff(base, diff)` rebuilds head byte for byte.
+- **`modified` vs. `updated`:** both mean "same ID, different record". `modified` is a change a reviewer cares about (a fingerprint field: a file's hash, a model's fields, an edge's confidence); `updated` covers everything else (a source line that moved, the sites of an edge) and isn't shown as a change. The fingerprint fields per kind are M6.2's.
+- **`renamed`:** a base item that reappears under another ID (`from` is its base ID). Edges whose endpoints were renamed get new IDs (`edgeId` embeds them), so they're listed as renamed edges, not as removed + added.
+- **`changes`:** the names of the record's top-level fields that differ, never `id`. At least one for `modified` and `updated`; possibly none for a pure rename.
+- **`broken`:** a base edge (`edge`) whose source (`from`) still exists in head and still makes the call, but whose target (`to`, its base ID) no longer answers it. `reason` is `TARGET_REMOVED`, `ROUTE_CHANGED`, `PARAMETERS_ADDED`, or `FIELD_REMOVED`; `detail` says it in words; `sites` are the head call sites.
+- **Warnings** are a multiset: head's are base's minus `removed` (one occurrence each) plus `added`.
+
+**Integrity rules** (enforced by `parseGraphDiff`): records are valid graph nodes and edges; each node ID and each edge ID appears in at most one list (a rename's `from` and head ID both count); each base edge is broken at most once; `summary` matches the lists (`summarizeDiff`); no unknown fields.
+
+**Canonical serialization:** `stringifyDiff(diff)` is the only way diffs are written. Entries are sorted by head ID (removed IDs as strings), `changes` by name, broken edges by edge ID then reason, sites and warnings as in graphs; keys sorted, 2-space indent, trailing newline.
+
 ## Example
 
 ```json

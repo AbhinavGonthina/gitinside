@@ -180,19 +180,23 @@ export const AnalysisWarning = z
   .strict();
 export type AnalysisWarning = z.infer<typeof AnalysisWarning>;
 
+/** The analyzed repo and, when known, the commit. */
+export const GraphRepo = z
+  .object({
+    owner: z.string().min(1),
+    name: z.string().min(1),
+    sha: z
+      .string()
+      .regex(/^[0-9a-f]{7,40}$/)
+      .optional(),
+  })
+  .strict();
+export type GraphRepo = z.infer<typeof GraphRepo>;
+
 const graphShape = z
   .object({
     schemaVersion: z.literal(SCHEMA_VERSION),
-    repo: z
-      .object({
-        owner: z.string().min(1),
-        name: z.string().min(1),
-        sha: z
-          .string()
-          .regex(/^[0-9a-f]{7,40}$/)
-          .optional(),
-      })
-      .strict(),
+    repo: GraphRepo,
     analyzerVersion: z.string().min(1),
     nodes: z.array(GraphNode),
     edges: z.array(GraphEdge),

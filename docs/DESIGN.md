@@ -265,7 +265,7 @@ For each call (method M, pattern P), compare with every route (method M', patter
    - A model field read by S was removed.
 
    Also check base edges whose target was removed but whose source in head still contains the same call site. Detect this by re-running the resolver on head and finding unresolved calls whose base resolution pointed at the removed target.
-5. **Output:** a `GraphDiff` with lists of ID references plus summary counts. Diffs are sorted and deterministic.
+5. **Output:** a `GraphDiff` (GRAPH_SCHEMA.md): head records for added, changed, and renamed items, base IDs for removed ones, broken edges, and summary counts, so the diff alone rebuilds head from base (ADR-0084). Diffs are sorted and deterministic (`stringifyDiff`).
 
 **Properties (fast-check):**
 - `diff(g, g)` is empty.
