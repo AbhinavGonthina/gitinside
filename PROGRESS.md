@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.2. Node/edge classification with per-kind fingerprints (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.3. Rename/move detection with tuned thresholds (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -135,7 +135,7 @@ M6.2. Node/edge classification with per-kind fingerprints (M5.13 and M5.14b wait
 
 ### M6: Graph diff + incremental analysis
 - [x] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
-- [ ] M6.2 Node/edge classification with per-kind fingerprints {model: opus}
+- [x] M6.2 Node/edge classification with per-kind fingerprints {model: opus}
 - [ ] M6.3 Rename/move detection with tuned thresholds {model: opus}
 - [ ] M6.4 Broken-edge detection incl. head re-resolution {model: opus}
 - [ ] M6.5 Property tests (fast-check) {model: opus}
@@ -178,6 +178,8 @@ M6.2. Node/edge classification with per-kind fingerprints (M5.13 and M5.14b wait
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.2: `diffGraphs(base, head)` in `packages/diff/src/diff.ts`: canonicalizes both, matches by ID, same-ID records with differing fields go to `modified` (fingerprint field differs) or `updated`; warnings as a multiset; output canonical + `parseGraphDiff`-validated. `NODE_FINGERPRINTS`/`EDGE_FINGERPRINT` (`fingerprint.ts`, ADR-0085): explicit per-kind table checked against the zod schema by a test; `label`/`source`/edge `sites` incidental; model fields compared as a set by name; key order and `undefined` ignored. No symbol signature in the schema yet (M6.4's `PARAMETERS_ADDED` will need one). `renamed`/`broken` empty until M6.3/M6.4. 14 new tests (diff 24, 100% lines), typecheck and lint clean. No eval re-record. Next: M6.3.
 
 - 2026-10-29 · M6.1: `GraphDiff` in `packages/schema/src/diff.ts` (ADR-0084): head records for added/modified/updated/renamed nodes and edges, base IDs for removed, `broken` (base edge, reason, detail, head sites), warnings as a multiset, `summary` checked by `parseGraphDiff` (`summarizeDiff`); `modified` = fingerprint change, `updated` = incidental (fingerprints per kind left to M6.2); `stringifyDiff`; `GraphRepo` extracted. New `packages/diff` (85% threshold): `checkComparable` (refuses two analyzer versions, not two repos) and `applyDiff` (rebuilds + validates head; refuses another base or unknown IDs). 12 schema + 10 diff tests (diff 100% lines); full `pnpm test` green. Eval re-recorded (schema + lockfile; numbers unchanged). Next: M6.2.
 
