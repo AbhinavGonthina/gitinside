@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.10. Hardened worker Docker image + infra/oracle provisioning script + docs; M4b waits for the design gate (#2)
+M5.10a. Hardened worker Docker image + production compose + CI container check; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -120,7 +120,8 @@ M5.10. Hardened worker Docker image + infra/oracle provisioning script + docs; M
 - [x] M5.9a README image renderers: `@gitinside/viewer/image` server entry, `renderBadge` + `renderDiagram` (top level as standalone SVG, auto/dark/light, deterministic, escaped), screenshots {model: opus}
 - [x] M5.9b Badge + live image routes (`/api/badge/:owner/:repo.svg` and the diagram image): `viewRepo` check-on-view, 10 min cache, link-only badge for missing/private/not analyzed, CSP on the SVG {model: opus}
 - [x] M5.9c "Add to README" on the repo page: Markdown for the badge or the live image (`<picture>` for dark/light), copy button, screenshots {model: opus}
-- [ ] M5.10 Hardened worker Docker image + infra/oracle provisioning script + docs {model: opus}
+- [ ] M5.10a Hardened worker Docker image (`pnpm deploy`, non-root, read-only root, tmpfs `/tmp/jobs`, no capabilities) + production compose (worker + internal-only Redis, limits, log rotation) + CI container check {model: opus}
+- [ ] M5.10b Egress allowlist (GitHub, R2, Neon) + Caddy TLS + `infra/oracle/provision.sh` (Docker, firewall, env file, systemd, rebuild in minutes) + VM docs {model: opus}
 - [ ] M5.11 Security test suite with malicious fixtures {model: opus}
 - [ ] M5.12 Snapshot retention + quota check {model: opus}
 - [ ] M5.13 Deploy + production smoke test on a real public repo {model: opus} {blocked: #3 #4 #5 #6 #7}
