@@ -472,22 +472,26 @@ code {
   font-size: var(--font-size-13);
 }
 
-.repo-bar__status::before {
+/* The dot belongs to the text, so a sentence too long for one line wraps
+   under itself instead of leaving the dot alone on the line above. */
+.repo-bar__status > span::before {
   content: "";
-  flex: none;
+  display: inline-block;
   width: 6px;
   height: 6px;
+  margin-right: var(--space-12);
   border-radius: var(--radius-pill);
   background: var(--text-muted);
+  vertical-align: middle;
 }
 
-.repo-bar__status[data-tone="updating"]::before {
+.repo-bar__status[data-tone="updating"] > span::before {
   background: var(--accent);
   animation: progress-pulse 1.6s var(--ease-standard) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .repo-bar__status[data-tone="updating"]::before {
+  .repo-bar__status[data-tone="updating"] > span::before {
     animation: none;
   }
 }

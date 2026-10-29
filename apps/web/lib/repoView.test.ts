@@ -220,8 +220,28 @@ describe("viewRepo", () => {
     await failAnalysis(t.db, id, "LIMIT_FILES");
     shop.sha = NEW;
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
-      ready(OLD, { state: "behind", sha: NEW, reason: "failed" }),
+      ready(OLD, { state: "behind", sha: NEW, reason: "failed", errorCode: "LIMIT_FILES" }),
     );
+    expect(worker.calls).toEqual([]);
+  });
+
+  it("asks GitHub again once a newer analysis is published within the minute (M5 review)", async () => {
+    await done(OLD);
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "current" }),
+    );
+    // A push, then `/api/analyze` (which asks GitHub itself) runs a job that finishes before
+    // this process's remembered answer, naming OLD, runs out.
+    shop.sha = NEW;
+    await done(NEW);
+    clock += 30_000;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(NEW, { state: "current" }),
+    );
+    expect(gh.requests).toHaveLength(4); // asked again, not "OLD is up to date"
+    // The new answer is remembered as before.
+    await viewRepo({ owner: "acme", repo: "shop" }, deps);
+    expect(gh.requests).toHaveLength(4);
     expect(worker.calls).toEqual([]);
   });
 

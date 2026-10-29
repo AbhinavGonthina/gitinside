@@ -7,6 +7,7 @@ import {
   failureView,
   isFinal,
   jobView,
+  permanentFailure,
   queueText,
 } from "./jobs";
 import type { WorkerJobStatus } from "./worker";
@@ -110,6 +111,30 @@ describe("failureView", () => {
 
   it("an inherited property name isn't a message", () => {
     expect(failureView("constructor").retry).toBe(true);
+  });
+});
+
+describe("permanentFailure", () => {
+  it("is the first sentence of a no-retry message, without the advice", () => {
+    for (const code of [
+      "LIMIT_FILES",
+      "LIMIT_TIME",
+      "REPO_NOT_FOUND",
+      "REPO_UNAVAILABLE",
+      "TAR_INVALID",
+    ]) {
+      const reason = permanentFailure(code);
+      expect(reason, code).toBeDefined();
+      expect(failureView(code).message.startsWith(reason as string), code).toBe(true);
+      expect(reason, code).not.toMatch(/Try a smaller repo|Private repos/);
+    }
+    expect(failureView("REPO_UNAVAILABLE").message).toBe(permanentFailure("REPO_UNAVAILABLE"));
+  });
+
+  it("is undefined when another try could pass", () => {
+    for (const code of ["ANALYZER_CRASHED", "WORKER_ERROR", "constructor"]) {
+      expect(permanentFailure(code), code).toBeUndefined();
+    }
   });
 });
 

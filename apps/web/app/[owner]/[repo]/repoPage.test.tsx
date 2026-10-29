@@ -189,11 +189,19 @@ describe("RepoDiagram", () => {
         ? analyzeResponse(429, { error: "RATE_LIMITED", message: "You've analyzed 5 repos." })
         : graphResponse(),
     );
-    renderDiagram({ state: "behind", sha: NEWER, reason: "failed" });
+    renderDiagram({ state: "behind", sha: NEWER, reason: "failed", errorCode: "DOWNLOAD_FAILED" });
     await screen.findByRole("region", { name: "Diagram" });
     fireEvent.click(screen.getByRole("button", { name: "Analyze again" }));
     expect((await screen.findByRole("alert")).textContent).toBe("You've analyzed 5 repos.");
     expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("says why, without Analyze again, when the latest commit would fail again (M5 review)", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    renderDiagram({ state: "behind", sha: NEWER, reason: "failed", errorCode: "LIMIT_TIME" });
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(screen.getByText(/took over 5 minutes, the limit for one repo\.$/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Analyze again" })).toBeNull();
   });
 
   it("goes to the progress page of a started re-analysis", async () => {
@@ -202,7 +210,7 @@ describe("RepoDiagram", () => {
         ? analyzeResponse(202, { status: "queued", jobId: JOB, owner: "acme", repo: "shop" })
         : graphResponse(),
     );
-    renderDiagram({ state: "behind", sha: NEWER, reason: "failed" });
+    renderDiagram({ state: "behind", sha: NEWER, reason: "failed", errorCode: "DOWNLOAD_FAILED" });
     fireEvent.click(screen.getByRole("button", { name: "Analyze again" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/acme/shop/jobs/${JOB}`));
   });

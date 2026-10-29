@@ -42,7 +42,8 @@ describe("headStatus", () => {
   });
 
   it("explains each reason a newer commit isn't shown, offering a retry only after a failure", () => {
-    expect(status({ state: "behind", sha: NEWER, reason: "failed" })).toEqual({
+    const failed = { state: "behind", sha: NEWER, reason: "failed" } as const;
+    expect(status({ ...failed, errorCode: "ANALYZER_CRASHED" })).toEqual({
       tone: "behind",
       text: "The latest commit, b1c2d3e, couldn't be analyzed, so this is an earlier one.",
       analyze: true,
@@ -54,6 +55,18 @@ describe("headStatus", () => {
     expect(status({ state: "behind", sha: NEWER, reason: "unavailable" })).toEqual({
       tone: "behind",
       text: "Analysis is temporarily unavailable, so this is an earlier commit than the latest, b1c2d3e.",
+    });
+  });
+
+  it("gives the reason instead of Analyze again when the failure would happen again (M5 review)", () => {
+    const failed = { state: "behind", sha: NEWER, reason: "failed" } as const;
+    expect(status({ ...failed, errorCode: "LIMIT_FILES" })).toEqual({
+      tone: "behind",
+      text: "The latest commit, b1c2d3e, can't be analyzed, so this is an earlier one. This repo has over 20,000 source files, the limit for one analysis.",
+    });
+    expect(status({ ...failed, errorCode: "TAR_UNSAFE_PATH" })).toEqual({
+      tone: "behind",
+      text: "The latest commit, b1c2d3e, can't be analyzed, so this is an earlier one. GitHub's download of this repo has paths outside the repo, so it wasn't analyzed.",
     });
   });
 

@@ -1,4 +1,5 @@
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
+import { permanentFailure } from "./jobs";
 import type { HeadState } from "./repoView";
 import { OFFLINE_MESSAGE, progressHref, repoHref } from "./startAnalysis";
 
@@ -20,19 +21,31 @@ export interface HeadStatus {
   text: string;
   /** A page to go to: the progress page, or the latest diagram from a permalink. */
   link?: { href: string; label: string };
-  /** Offer "Analyze again" (the latest commit failed; it goes through the visitor's limit). */
+  /**
+   * Offer "Analyze again" (the latest commit failed in a way another try could fix; it goes
+   * through the visitor's limit).
+   */
   analyze?: boolean;
 }
 
 function behindStatus(head: Extract<HeadState, { state: "behind" }>): HeadStatus {
   const latest = short(head.sha);
   switch (head.reason) {
-    case "failed":
+    case "failed": {
+      // A failure that would happen again gets its reason, not a button that can't help.
+      const reason = permanentFailure(head.errorCode);
+      if (reason !== undefined) {
+        return {
+          tone: "behind",
+          text: `The latest commit, ${latest}, can't be analyzed, so this is an earlier one. ${reason}`,
+        };
+      }
       return {
         tone: "behind",
         text: `The latest commit, ${latest}, couldn't be analyzed, so this is an earlier one.`,
         analyze: true,
       };
+    }
     case "limited":
       return {
         tone: "behind",

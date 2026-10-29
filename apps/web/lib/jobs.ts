@@ -43,8 +43,11 @@ export function isFinal(view: JobView): boolean {
 export const MISSING_MESSAGE =
   "We couldn't find this analysis. It may have finished over a day ago. Analyze the repo again.";
 
-const NOT_PUBLIC =
-  "We couldn't find a public GitHub repo with that name. Private repos aren't supported yet.";
+const NOT_PUBLIC = {
+  reason: "We couldn't find a public GitHub repo with that name.",
+  advice: "Private repos aren't supported yet.",
+};
+const SMALLER = "Try a smaller repo.";
 const ON_OUR_SIDE = "The analysis failed on our side. Try again.";
 
 /**
@@ -52,28 +55,53 @@ const ON_OUR_SIDE = "The analysis failed on our side. Try again.";
  * what to do. Anything else (a download that dropped, a worker restart, a crash) is
  * {@link ON_OUR_SIDE} with a retry. The numbers are the limits in docs/SECURITY.md T3.
  */
-const PERMANENT: Readonly<Record<string, string>> = {
-  LIMIT_FILES:
-    "This repo has over 20,000 source files, the limit for one analysis. Try a smaller repo.",
-  LIMIT_SIZE: "This repo is over 500 MB unpacked, the limit for one analysis. Try a smaller repo.",
-  LIMIT_ENTRIES:
-    "This repo has over 100,000 files and folders, the limit for one analysis. Try a smaller repo.",
-  LIMIT_TIME: "The analysis took over 5 minutes, the limit for one repo. Try a smaller repo.",
-  LIMIT_MEMORY: "The analysis needed more memory than one repo may use. Try a smaller repo.",
+const PERMANENT: Readonly<Record<string, { reason: string; advice?: string }>> = {
+  LIMIT_FILES: {
+    reason: "This repo has over 20,000 source files, the limit for one analysis.",
+    advice: SMALLER,
+  },
+  LIMIT_SIZE: {
+    reason: "This repo is over 500 MB unpacked, the limit for one analysis.",
+    advice: SMALLER,
+  },
+  LIMIT_ENTRIES: {
+    reason: "This repo has over 100,000 files and folders, the limit for one analysis.",
+    advice: SMALLER,
+  },
+  LIMIT_TIME: {
+    reason: "The analysis took over 5 minutes, the limit for one repo.",
+    advice: SMALLER,
+  },
+  LIMIT_MEMORY: {
+    reason: "The analysis needed more memory than one repo may use.",
+    advice: SMALLER,
+  },
   REPO_NOT_FOUND: NOT_PUBLIC,
   REPO_NOT_PUBLIC: NOT_PUBLIC,
-  REPO_UNAVAILABLE: "GitHub has blocked access to that repo.",
-  TAR_INVALID: "GitHub's download of this repo couldn't be read, so it wasn't analyzed.",
-  TAR_UNSAFE_PATH:
-    "GitHub's download of this repo has paths outside the repo, so it wasn't analyzed.",
+  REPO_UNAVAILABLE: { reason: "GitHub has blocked access to that repo." },
+  TAR_INVALID: {
+    reason: "GitHub's download of this repo couldn't be read, so it wasn't analyzed.",
+  },
+  TAR_UNSAFE_PATH: {
+    reason: "GitHub's download of this repo has paths outside the repo, so it wasn't analyzed.",
+  },
 };
+
+/**
+ * What happened, in one sentence, when `errorCode` would fail again on the same commit;
+ * `undefined` when trying again could help. The repo page uses it to explain a failed latest
+ * commit without offering "Analyze again" (M5 review).
+ */
+export function permanentFailure(errorCode: string): string | undefined {
+  return Object.hasOwn(PERMANENT, errorCode) ? PERMANENT[errorCode]?.reason : undefined;
+}
 
 /** The page's words for a failed job. */
 export function failureView(errorCode: string): Extract<JobView, { state: "failed" }> {
-  const message = Object.hasOwn(PERMANENT, errorCode) ? PERMANENT[errorCode] : undefined;
-  return message === undefined
-    ? { state: "failed", errorCode, message: ON_OUR_SIDE, retry: true }
-    : { state: "failed", errorCode, message, retry: false };
+  const entry = Object.hasOwn(PERMANENT, errorCode) ? PERMANENT[errorCode] : undefined;
+  if (entry === undefined) return { state: "failed", errorCode, message: ON_OUR_SIDE, retry: true };
+  const message = entry.advice === undefined ? entry.reason : `${entry.reason} ${entry.advice}`;
+  return { state: "failed", errorCode, message, retry: false };
 }
 
 /** "2 ahead of you" for a waiting job (0 ahead: "You're next"). */
