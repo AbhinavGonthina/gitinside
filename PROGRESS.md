@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.14c. M5 review follow-ups before the deploy (M5.13 and M5.14b wait on #3–#7); M4b waits for the design gate (#2)
+M5.14d. M5 review follow-ups, web (M5.13 and M5.14b wait on #3–#7); M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -128,7 +128,10 @@ M5.14c. M5 review follow-ups before the deploy (M5.13 and M5.14b wait on #3–#7
 - [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review) {model: opus} {blocked: #3 #4 #5 #6 #7}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
-- [ ] M5.14c M5 review follow-ups before the deploy (ADR-0079): egress gateway mounts a hosts-only file instead of `worker.env`; Redis `requirepass` (worker env only); stale head cache showing an older commit as current after a job; no "Analyze again" for permanent failures; retention removes evicted analyses' completed BullMQ jobs; guard `getTypeAtLocation` like `getSymbolAtLocation` (eval re-record) {model: opus}
+- [x] M5.14c M5 review follow-up (ADR-0079, ADR-0080): guard `getTypeAtLocation` like `getSymbolAtLocation` (eval re-record) {model: opus}
+- [ ] M5.14d M5 review follow-ups, web: stale head cache showing an older commit as current after a job; no "Analyze again" for permanent failures {model: opus}
+- [ ] M5.14e M5 review follow-up, worker: retention removes evicted analyses' completed BullMQ jobs (Redis tests, CI only) {model: opus}
+- [ ] M5.14f M5 review follow-ups, infra: egress gateway mounts a hosts-only file instead of `worker.env`; Redis `requirepass` (worker env only); verified on CI's container check {model: opus}
 
 ### M6: Graph diff + incremental analysis
 - [ ] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
@@ -175,6 +178,8 @@ M5.14c. M5 review follow-ups before the deploy (M5.13 and M5.14b wait on #3–#7
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.14c: M5.14c split into c (analyzer), d (web), e (retention's BullMQ jobs), f (infra). `guardedChecker` now guards `getTypeAtLocation` too: a throw answers `getAnyType()` plus one `TYPESCRIPT_INTERNAL_ERROR` warning, instead of a `DETECTOR_FAILED` that dropped every edge of the `http` stage (ADR-0080). New tests: a fault-injected `axios(target)` changes only its own unresolved node while the `fetch` edge stays, and the unit guard answers `any`. 597 analyzer tests, typecheck and lint clean; coverage left to CI (local timing test). Eval re-recorded. Next: M5.14d.
 
 - 2026-10-29 · M5.14a: M5.14 split into a (pre-deploy verification), b (production smoke + tag `m5`, blocked on M5.13), and c (deferred review fixes). Two fresh-eyes reviewers of `m4a..HEAD` found 1 high, 4 medium, 10 low (ADR-0079). Fixed: a repo gone private now hidden in the db (`hideRepo`; permalinks and `/api/graph` stop too, `/api/analyze` restores it), 308s to canonical queries on graph/badge/diagram, CSP for `api-*` owners, 202 kept if row writes fail, skipped tar paths cut to 512 chars, jobs cancelled before awaiting maintenance, DESIGN.md's start count corrected; the rest moved to M5.14c / M5.13 / M8.3. 1,997 local tests (analyzer 595, viewer 471, worker 448 + 14 CI-only, web 316, eval 77, db 67, schema 15, bench 8); analyzer coverage only on CI (timing test times out locally): 97.57% lines, CI green on `aa2ec6d`. CLI smoke on wanderlust: 443 nodes / 276 edges, as in M3. `docs/milestones/M5-review.md` written, production sections pending. No eval re-record. Next: M5.14c.
 
