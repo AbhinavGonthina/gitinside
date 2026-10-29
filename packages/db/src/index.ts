@@ -12,6 +12,7 @@ import * as schema from "./schema.js";
 export * from "./schema.js";
 export * from "./analyses.js";
 export * from "./rateLimits.js";
+export * from "./retention.js";
 export { schema };
 
 /** A Drizzle database bound to GitInside's schema. */

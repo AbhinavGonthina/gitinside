@@ -7,13 +7,50 @@ import { authorization, type Credentials } from "./sigv4.js";
  * A fake S3 bucket for tests, on 127.0.0.1. It checks each request the way R2 does:
  * the SigV4 signature (recomputed from the headers the request says it signed) and the
  * body against `x-amz-content-sha256`. A good `PUT /<bucket>/<key>` is stored in
- * {@link FakeS3.objects} and a good `GET` returns it (`404 NoSuchKey` if absent); anything
- * else gets S3's XML error. `handler` can be replaced
- * per test; every request is recorded.
+ * {@link FakeS3.objects}, a good `GET` returns it (`404 NoSuchKey` if absent), `DELETE`
+ * removes it (`204` either way), and `GET /<bucket>?list-type=2` lists keys in order, paged
+ * by `max-keys` with a continuation token; anything else gets S3's XML error. `handler` can
+ * be replaced per test; every request is recorded.
  */
 export interface StoredObject {
   body: Buffer;
   headers: Record<string, string>;
+  /** Default: when it was stored. Tests set it to age an object. */
+  lastModified?: Date;
+}
+
+const xmlEscape = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function listing(fake: FakeS3, query: URLSearchParams, res: ServerResponse): void {
+  const prefix = query.get("prefix") ?? "";
+  const maxKeys = Number(query.get("max-keys") ?? "1000");
+  const after = query.get("continuation-token");
+  const start = after === null ? "" : Buffer.from(after, "base64").toString();
+  const keys = [...fake.objects.keys()]
+    .filter((key) => key.startsWith(prefix) && key > start)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const page = keys.slice(0, maxKeys);
+  const truncated = keys.length > page.length;
+  const contents = page.map((key) => {
+    const object = fake.objects.get(key) as StoredObject;
+    return (
+      `<Contents><Key>${xmlEscape(key)}</Key>` +
+      `<LastModified>${(object.lastModified ?? new Date()).toISOString()}</LastModified>` +
+      `<ETag>&quot;x&quot;</ETag><Size>${object.body.length}</Size>` +
+      `<StorageClass>STANDARD</StorageClass></Contents>`
+    );
+  });
+  const next = truncated
+    ? `<NextContinuationToken>${Buffer.from(page.at(-1) ?? "").toString("base64")}</NextContinuationToken>`
+    : "";
+  res.writeHead(200, { "content-type": "application/xml" });
+  res.end(
+    `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Name>${fake.bucket}</Name>` +
+      `<Prefix>${xmlEscape(prefix)}</Prefix><KeyCount>${page.length}</KeyCount>` +
+      `<MaxKeys>${maxKeys}</MaxKeys><IsTruncated>${truncated}</IsTruncated>${next}` +
+      `${contents.join("")}</ListBucketResult>`,
+  );
 }
 
 export interface FakeS3 {
@@ -67,8 +104,19 @@ export async function startFakeS3(
     if (expected !== given) return s3Error(res, 403, "SignatureDoesNotMatch");
     const prefix = `/${bucket}/`;
     const url = req.url ?? "";
+    const parsed = new URL(url, "http://x");
+    if (req.method === "GET" && parsed.pathname === `/${bucket}`) {
+      if (parsed.searchParams.get("list-type") !== "2") return s3Error(res, 400, "InvalidArgument");
+      return listing(fake, parsed.searchParams, res);
+    }
     if (!url.startsWith(prefix)) return s3Error(res, 404, "NoSuchBucket");
     const key = decodeURIComponent(url.slice(prefix.length));
+    if (req.method === "DELETE") {
+      fake.objects.delete(key);
+      res.writeHead(204);
+      res.end();
+      return;
+    }
     if (req.method === "GET") {
       const object = fake.objects.get(key);
       if (object === undefined) return s3Error(res, 404, "NoSuchKey");
@@ -83,7 +131,7 @@ export async function startFakeS3(
       return;
     }
     if (req.method !== "PUT") return s3Error(res, 405, "MethodNotAllowed");
-    fake.objects.set(key, { body, headers });
+    fake.objects.set(key, { body, headers, lastModified: new Date() });
     res.writeHead(200, { etag: '"x"' });
     res.end();
   };

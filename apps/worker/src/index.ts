@@ -112,6 +112,7 @@ export {
   publicSnapshotKey,
   storeConfigFromEnv,
   uploadSnapshot,
+  type ListedObject,
   type ObjectBody,
   type ObjectStore,
   type ObjectStoreOptions,
@@ -121,6 +122,18 @@ export {
   type StoreConfig,
   type StoredSnapshot,
 } from "./storage.js";
+export {
+  RETENTION_POLICY,
+  planRetention,
+  runRetention,
+  type EvictionReason,
+  type Eviction,
+  type RetentionDeps,
+  type RetentionInput,
+  type RetentionPlan,
+  type RetentionPolicy,
+  type RetentionReport,
+} from "./retention.js";
 export {
   DEFAULT_RUNNER_LIMITS,
   runAnalysis,
