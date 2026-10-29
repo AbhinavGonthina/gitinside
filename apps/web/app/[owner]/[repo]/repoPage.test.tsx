@@ -1,11 +1,13 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import shopDemo from "../../../../../fixtures/shop-demo/expected.json";
 import { UNAVAILABLE_MESSAGE } from "../../../lib/messages";
+import { readmeMarkdown } from "../../../lib/readme";
 import { UNREADABLE_MESSAGE } from "../../../lib/repoStatus";
 import { viewRepo, type RepoView, type RepoViewDeps } from "../../../lib/repoView";
 import { repoViewDepsFromEnv } from "../../../lib/serverDeps";
 import CommitPage, { generateMetadata as commitMetadata } from "./[sha]/page";
+import { AddToReadme, COPIED_MESSAGE, COPIED_MS, COPY_FAILED_MESSAGE } from "./AddToReadme";
 import { NotAnalyzed } from "./NotAnalyzed";
 import RepoPage from "./page";
 import { RepoDiagram } from "./RepoDiagram";
@@ -239,6 +241,108 @@ describe("RepoDiagram", () => {
     const { unmount } = renderDiagram({ state: "current" });
     unmount();
     expect(signal?.aborted).toBe(true);
+  });
+});
+
+describe("AddToReadme", () => {
+  const origin = window.location.origin;
+  const openPanel = () => {
+    render(<AddToReadme owner="acme" repo="shop" />);
+    const button = screen.getByRole("button", { name: "Add to README" });
+    fireEvent.click(button);
+    return button;
+  };
+  const markdown = () => screen.getByLabelText("Markdown").textContent;
+
+  it("is on the repo bar of a diagram", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    render(
+      <RepoDiagram
+        owner="acme"
+        repo="shop"
+        sha={SHA}
+        graphUrl={GRAPH_URL}
+        head={{ state: "current" }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Add to README" })).toBeTruthy();
+    await screen.findByRole("region", { name: "Diagram" });
+  });
+
+  it("opens with the badge's Markdown on this site, and a preview of it", () => {
+    const button = openPanel();
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    const panel = screen.getByRole("region", { name: "Add to README" });
+    expect(button.getAttribute("aria-controls")).toBe(panel.id);
+    expect(markdown()).toBe(readmeMarkdown("badge", origin, "acme", "shop"));
+    expect(within(panel).getByRole("img").getAttribute("src")).toBe(
+      `${origin}/api/badge/acme/shop.svg`,
+    );
+  });
+
+  it("switches to the live image, previewed in the site's theme", () => {
+    document.documentElement.dataset["theme"] = "light";
+    openPanel();
+    fireEvent.click(screen.getByRole("radio", { name: "Live image" }));
+    expect(markdown()).toBe(readmeMarkdown("image", origin, "acme", "shop"));
+    expect(markdown()).toContain("<picture>");
+    expect(screen.getByRole("img").getAttribute("src")).toBe(
+      `${origin}/api/diagram/acme/shop.svg?theme=light`,
+    );
+    delete document.documentElement.dataset["theme"];
+  });
+
+  it("copies the Markdown, says so, and goes back to Copy", async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue();
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    openPanel();
+    // The clipboard answers in a microtask; act flushes it without moving the clock.
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Copy" })));
+    expect(screen.getByRole("button", { name: "Copied" })).toBeTruthy();
+    expect(writeText).toHaveBeenCalledWith(readmeMarkdown("badge", origin, "acme", "shop"));
+    expect(screen.getByRole("status").textContent).toBe(COPIED_MESSAGE);
+    await act(() => vi.advanceTimersByTimeAsync(COPIED_MS - 1));
+    expect(screen.getByRole("button", { name: "Copied" })).toBeTruthy();
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("");
+    vi.useRealTimers();
+  });
+
+  it("selects the Markdown when the browser refuses to copy", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockRejectedValue(new Error("no"));
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    openPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe(COPY_FAILED_MESSAGE));
+    expect(window.getSelection()?.toString()).toBe(markdown());
+    // Choosing the other snippet clears the old message.
+    fireEvent.click(screen.getByRole("radio", { name: "Live image" }));
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  it("closes on Esc, returning focus to its button", () => {
+    const button = openPanel();
+    const radio = screen.getByRole("radio", { name: "Badge" });
+    radio.focus();
+    fireEvent.keyDown(radio, { key: "Escape" });
+    expect(screen.queryByRole("region", { name: "Add to README" })).toBeNull();
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(button.getAttribute("aria-controls")).toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("closes on a click outside or on its button, leaving focus where it is", () => {
+    const button = openPanel();
+    fireEvent.pointerDown(screen.getByLabelText("Markdown"));
+    expect(screen.getByRole("region", { name: "Add to README" })).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("region", { name: "Add to README" })).toBeNull();
+    expect(document.activeElement).not.toBe(button);
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(screen.queryByRole("region", { name: "Add to README" })).toBeNull();
   });
 });
 

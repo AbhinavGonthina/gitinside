@@ -464,7 +464,8 @@ code {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-4) var(--space-12);
-  flex: 1;
+  /* Takes its own line rather than a column one word wide on a phone. */
+  flex: 1 1 16rem;
   min-width: 0;
   margin: 0;
   color: var(--text-muted);
@@ -511,6 +512,114 @@ code {
 }
 
 .repo-bar__github {
+  font-size: var(--font-size-13);
+}
+
+/* "Add to README": a raised panel over the canvas, like the viewer's palette
+   (surface-raised + shadow-3). It hangs from the repo bar's right edge, not
+   from its button, so it stays on screen when the bar wraps on a phone. */
+.repo-bar {
+  position: relative;
+}
+
+.readme-panel {
+  position: absolute;
+  top: calc(100% - var(--space-4));
+  right: var(--space-24);
+  z-index: 20;
+  box-sizing: border-box;
+  width: min(600px, calc(100vw - 48px));
+  padding: var(--space-16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-module);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-3);
+}
+
+.readme-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8) var(--space-16);
+}
+
+.readme-panel__title {
+  margin: 0;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+}
+
+.readme-panel__text {
+  margin: var(--space-8) 0 var(--space-12);
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  line-height: var(--line-height-body);
+}
+
+/* The preview sits on the canvas color, the way a README page frames it. */
+.readme-panel__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 64px;
+  padding: var(--space-16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--canvas);
+}
+
+.readme-panel__preview img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.readme-panel__preview[data-kind="badge"] img {
+  height: 20px;
+}
+
+.readme-panel__preview[data-kind="image"] img {
+  max-height: 220px;
+}
+
+.readme-panel__code {
+  margin: var(--space-12) 0 0;
+  padding: var(--space-12);
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: var(--font-size-12);
+  line-height: 1.6;
+  /* Wrapped so the whole snippet shows; Copy takes the text as written. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.readme-panel__code:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.readme-panel__code code {
+  font-size: inherit;
+}
+
+.readme-panel__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-12);
+  margin-top: var(--space-12);
+}
+
+.readme-panel__status {
+  flex: 1;
+  margin: 0;
+  color: var(--text-muted);
   font-size: var(--font-size-13);
 }
 
