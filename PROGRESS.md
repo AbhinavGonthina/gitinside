@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.1. packages/diff scaffold + GraphDiff types in schema (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.2. Node/edge classification with per-kind fingerprints (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -134,7 +134,7 @@ M6.1. packages/diff scaffold + GraphDiff types in schema (M5.13 and M5.14b wait 
 - [x] M5.14f M5 review follow-ups, infra: egress gateway mounts a hosts-only file instead of `worker.env`; Redis `requirepass` (worker env only); verified on CI's container check {model: opus}
 
 ### M6: Graph diff + incremental analysis
-- [ ] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
+- [x] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
 - [ ] M6.2 Node/edge classification with per-kind fingerprints {model: opus}
 - [ ] M6.3 Rename/move detection with tuned thresholds {model: opus}
 - [ ] M6.4 Broken-edge detection incl. head re-resolution {model: opus}
@@ -178,6 +178,8 @@ M6.1. packages/diff scaffold + GraphDiff types in schema (M5.13 and M5.14b wait 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.1: `GraphDiff` in `packages/schema/src/diff.ts` (ADR-0084): head records for added/modified/updated/renamed nodes and edges, base IDs for removed, `broken` (base edge, reason, detail, head sites), warnings as a multiset, `summary` checked by `parseGraphDiff` (`summarizeDiff`); `modified` = fingerprint change, `updated` = incidental (fingerprints per kind left to M6.2); `stringifyDiff`; `GraphRepo` extracted. New `packages/diff` (85% threshold): `checkComparable` (refuses two analyzer versions, not two repos) and `applyDiff` (rebuilds + validates head; refuses another base or unknown IDs). 12 schema + 10 diff tests (diff 100% lines); full `pnpm test` green. Eval re-recorded (schema + lockfile; numbers unchanged). Next: M6.2.
 
 - 2026-10-29 · M5.14f: the egress gateway mounts only `/etc/gitinside/egress.hosts`, which new `infra/oracle/egress-hosts.sh` derives from `worker.env` (provision.sh + the unit's `ExecStartPre`); the gateway refuses any line that isn't a dotted lowercase DNS name. Redis gets `requirepass` from a generated root-only `redis.env` (stdin config, `REDISCLI_AUTH` health check), given to Redis and the worker only; the worker passes `REDIS_PASSWORD` beside the URL (`redisConnection`) (ADR-0083). CI's container check covers good/bad env and hosts files, the gateway's mounts and env, `NOAUTH` from the worker's namespace, no password in `ps`; verified on draft PR #9. Worker 453 locally (one PGlite hook timeout under load in `record.test.ts`, green alone). Note: `main`'s previous run (`ea54ac0`, docs only) failed the container check on `github443: ECONNREFUSED` once; it passed on PR #9, so treated as intermittent. No eval re-record. Next: M6.1 (M5 stays open for M5.13/M5.14b).
 
