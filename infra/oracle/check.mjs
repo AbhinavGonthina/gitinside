@@ -333,6 +333,10 @@ try {
     assert.ok(events.includes(event), `no ${event} in ${events.join(", ")}`);
   }
   console.log("worker container check passed");
+} catch (error) {
+  // The stack's own logs say why a container never became healthy.
+  run(["logs", "--no-color", "--timestamps"]);
+  throw error;
 } finally {
   run(["down", "--volumes", "--remove-orphans"]);
   rmSync(dir, { recursive: true, force: true });
