@@ -8,6 +8,7 @@ import { createGzip, gzipSync } from "node:zlib";
 import { compareStrings } from "@gitinside/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { JobRequest } from "./api.js";
+import { SKIPPED_PATH_MAX_CHARS } from "./extract.js";
 import { JobFailure } from "./failure.js";
 import { entriesOf, startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import { processJob, type JobOutcome } from "./job.js";
@@ -424,7 +425,10 @@ describe("deep-nesting: depth and path-length limits (T3)", () => {
       ]),
     );
 
-    expect(outcome.extract.skippedSample).toEqual([{ path: tooLong, reason: "UNSUPPORTED_NAME" }]);
+    // Listed cut to 512 characters, so a crafted name can't bloat the stored result (ADR-0079).
+    expect(outcome.extract.skippedSample).toEqual([
+      { path: `${tooLong.slice(0, SKIPPED_PATH_MAX_CHARS)}…`, reason: "UNSUPPORTED_NAME" },
+    ]);
     expect(src.filter((p) => !p.endsWith("/"))).toEqual(
       [`${at(80)}/deep.ts`, `${at(64)}/kept.ts`, "index.ts"].sort(compareStrings),
     );

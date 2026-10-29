@@ -139,6 +139,17 @@ export async function startWorkerProcess(
       analyzerVersion,
       github,
     });
+    // Registered before the worker, so shutdown cancels jobs first and only then waits
+    // for a maintenance run (a long bucket listing must not keep jobs past the deadline).
+    if (options.maintenance !== false) {
+      const maintenance = scheduleMaintenance({
+        run: () => runMaintenance({ db, store, log }),
+        log,
+        ...options.maintenance,
+      });
+      cleanup.push(["maintenance", () => maintenance.stop()]);
+    }
+
     const worker = createAnalysisWorker({
       connection,
       ...prefix,
@@ -152,15 +163,6 @@ export async function startWorkerProcess(
       },
     });
     cleanup.push(["worker", () => stopWorker(worker)]);
-
-    if (options.maintenance !== false) {
-      const maintenance = scheduleMaintenance({
-        run: () => runMaintenance({ db, store, log }),
-        log,
-        ...options.maintenance,
-      });
-      cleanup.push(["maintenance", () => maintenance.stop()]);
-    }
 
     const server = createEnqueueServer({ queue, secrets: config.secrets, analyzerVersion });
     await new Promise<void>((resolve, reject) => {

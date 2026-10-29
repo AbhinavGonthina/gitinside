@@ -62,7 +62,11 @@ export type SkipReason = "SYMLINK" | "HARDLINK" | "SPECIAL" | "UNSUPPORTED_NAME"
 
 /** An archive entry that wasn't written. */
 export interface SkippedEntry {
-  /** Path inside the repo (top folder stripped); control characters replaced with U+FFFD. */
+  /**
+   * Path inside the repo (top folder stripped); control characters replaced with U+FFFD,
+   * cut to {@link SKIPPED_PATH_MAX_CHARS} characters plus "…" so a crafted name can't bloat
+   * the job's stored result.
+   */
   path: string;
   reason: SkipReason;
 }
@@ -103,6 +107,8 @@ export interface ExtractOptions {
 const BLOCK = 512;
 const META_MAX_BYTES = 1024 * 1024;
 const SEGMENT_MAX_BYTES = 255;
+/** Characters of a skipped entry's path kept in the result (a pax path can be 1 MiB). */
+export const SKIPPED_PATH_MAX_CHARS = 512;
 // eslint-disable-next-line no-control-regex -- matching control characters is the point
 const CONTROL = /[\u0000-\u001f\u007f]/g;
 
@@ -420,7 +426,7 @@ async function extractTar(
     const isFile = header.type === "0" || header.type === "7";
     const isDir = header.type === "5";
     const skip = async (reason: SkipReason): Promise<void> => {
-      skipped.push({ path: path.replace(CONTROL, "�"), reason });
+      skipped.push({ path: listedPath(path), reason });
       await reader.skip(size + padding(size));
     };
 
@@ -445,4 +451,12 @@ async function extractTar(
   await reader.drain();
   skipped.sort((a, b) => compareStrings(a.path, b.path) || compareStrings(a.reason, b.reason));
   return { files, directories, tarBytes: reader.total, skipped };
+}
+
+function listedPath(path: string): string {
+  const clean = path.replace(CONTROL, "�");
+  // Counted by code point, so a surrogate pair isn't split.
+  const chars = Array.from(clean.slice(0, 2 * SKIPPED_PATH_MAX_CHARS + 2));
+  if (chars.length <= SKIPPED_PATH_MAX_CHARS) return clean;
+  return `${chars.slice(0, SKIPPED_PATH_MAX_CHARS).join("")}…`;
 }

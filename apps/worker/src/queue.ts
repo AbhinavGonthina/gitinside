@@ -35,9 +35,9 @@ import {
  *   (failure.ts). A permanent failure throws BullMQ's `UnrecoverableError`, which fails the
  *   job at once.
  * - **Stalled jobs:** if the worker process dies mid-job its lock expires, and the stalled
- *   check puts the job back in the queue, at most {@link MAX_STALLED_COUNT} times, so a job
- *   starts at most 3 times however it fails (DESIGN.md §12). Past that it fails with
- *   `JOB_STALLED`.
+ *   check puts the job back in the queue, at most {@link MAX_STALLED_COUNT} times. Past that
+ *   it fails with `JOB_STALLED`. Stalls and attempts are counted apart, so a job that both
+ *   stalls and fails retriably can start up to 3 + 2 = 5 times (DESIGN.md §12).
  * - **Dedupe:** the job ID is the enqueue API's derived ID, so the same commit is one job.
  *   Re-adding a job that **failed retriably** (GitHub was down for all 3 attempts) runs it
  *   again; any other existing job is left alone (`created: false`).
@@ -49,7 +49,7 @@ import {
 export const QUEUE_NAME = "analysis";
 /** Jobs one worker runs at once (SECURITY.md T3, T9). */
 export const WORKER_CONCURRENCY = 2;
-/** Times a stalled job is put back before it fails. 1 + 2 = 3 starts at most. */
+/** Times a stalled job is put back before it fails (on top of the 3 attempts). */
 export const MAX_STALLED_COUNT = 2;
 /** How long queue calls from the API may take before it answers 503. */
 export const QUEUE_CALL_TIMEOUT_MS = 5_000;
