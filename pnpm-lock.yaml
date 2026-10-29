@@ -41,6 +41,9 @@ importers:
       '@gitinside/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@gitinside/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
       '@gitinside/viewer':
         specifier: workspace:*
         version: link:../../packages/viewer

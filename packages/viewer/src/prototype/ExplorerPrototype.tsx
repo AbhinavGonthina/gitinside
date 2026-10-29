@@ -52,6 +52,11 @@ export interface ExplorerPrototypeProps {
   initialSelected?: string | null;
   /** Start tracing, at this step (0-based). */
   initialStep?: number | null;
+  /**
+   * Draw the explorer's own top bar (default). The website turns it off and shows its own
+   * repo bar: the top bar's search, filters, and share do nothing until M4b.
+   */
+  topBar?: boolean;
 }
 
 /** How many lines the code preview shows (UX.md: 15), with the site 4 lines down. */
@@ -202,7 +207,8 @@ function topLevelOf(index: GraphIndex, id: string): string | undefined {
  *
  * It is for the design gate, not the product: the layout is a fixed column
  * layout (ELK comes in M4b.2), there is no pan or zoom, and the trace is a
- * script checked against the graph rather than M4b.6's search.
+ * script checked against the graph rather than M4b.6's search. Until M4b, the website's
+ * diagram page shows it (without a trace or the top bar) on the repo's real graph.
  */
 export function ExplorerPrototype({
   graph,
@@ -211,6 +217,7 @@ export function ExplorerPrototype({
   initialOpen = null,
   initialSelected = null,
   initialStep = null,
+  topBar = true,
 }: ExplorerPrototypeProps) {
   const index = useMemo(() => indexGraph(graph), [graph]);
   const steps = useMemo(() => (trace ? checkTrace(index, trace) : []), [index, trace]);
@@ -436,8 +443,13 @@ export function ExplorerPrototype({
   });
 
   return (
-    <div ref={rootRef} className="gi-proto" onKeyDown={onKeyDown}>
-      <TopBar repo={repo} tracing={tracing} onTrace={trace ? toggleTrace : undefined} />
+    <div
+      ref={rootRef}
+      className="gi-proto"
+      data-bare={topBar ? undefined : ""}
+      onKeyDown={onKeyDown}
+    >
+      {topBar && <TopBar repo={repo} tracing={tracing} onTrace={trace ? toggleTrace : undefined} />}
       <div className="gi-proto__main">
         <div
           ref={canvasRef}
@@ -570,6 +582,7 @@ export function ExplorerPrototype({
               open !== selectedNode.id
             }
             canTrace={trace !== undefined && selectedNode?.id === trace.start}
+            hasTrace={trace !== undefined}
             sources={sources}
             repo={repo}
             onSelect={reveal}
@@ -590,6 +603,7 @@ function NodePanel({
   node,
   canBreakDown,
   canTrace,
+  hasTrace,
   sources,
   repo,
   onSelect,
@@ -600,6 +614,7 @@ function NodePanel({
   node: GraphNode;
   canBreakDown: boolean;
   canTrace: boolean;
+  hasTrace: boolean;
   sources: Readonly<Record<string, string>> | undefined;
   repo: RepoRef;
   onSelect: (id: string) => void;
@@ -622,8 +637,14 @@ function NodePanel({
       {isRoot ? (
         <InspectorSection title="Start here">
           <p className="gi-inspector__empty">
-            Select a box to see what it does. Double-click a service to break it down, or press{" "}
-            <Kbd keys={["T"]} /> to trace the checkout request.
+            Select a box to see what it does. Double-click a service to break it down
+            {hasTrace ? (
+              <>
+                , or press <Kbd keys={["T"]} /> to trace the checkout request.
+              </>
+            ) : (
+              "."
+            )}
           </p>
         </InspectorSection>
       ) : (

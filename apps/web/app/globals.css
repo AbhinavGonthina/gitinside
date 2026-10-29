@@ -218,7 +218,7 @@ code {
   }
 }
 
-/* Notices (repo page until M5.8, 404) -------------------------------------- */
+/* Notices (repo page without a diagram, 404) ------------------------------- */
 
 .notice {
   box-sizing: border-box;
@@ -411,4 +411,140 @@ code {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-24);
+}
+
+/* Diagram page ------------------------------------------------------------ */
+
+/* The canvas is the hero: one quiet row about the repo, then the diagram
+   fills the rest of the window. */
+.diagram-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.repo-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+  padding: var(--space-8) var(--space-24) var(--space-12);
+  border-bottom: 1px solid var(--border);
+}
+
+.repo-bar__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
+.repo-bar__name {
+  margin: 0;
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.repo-bar__commit {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.repo-bar__commit:hover {
+  border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
+}
+
+/* How the diagram relates to the latest commit: muted text after a small
+   dot, the accent dot breathing while a newer diagram is on its way. */
+.repo-bar__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-12);
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+}
+
+.repo-bar__status::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--text-muted);
+}
+
+.repo-bar__status[data-tone="updating"]::before {
+  background: var(--accent);
+  animation: progress-pulse 1.6s var(--ease-standard) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repo-bar__status[data-tone="updating"]::before {
+    animation: none;
+  }
+}
+
+.repo-bar__error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-size-13);
+}
+
+.repo-bar a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.repo-bar a.repo-bar__commit {
+  text-decoration: none;
+}
+
+.repo-bar__github {
+  font-size: var(--font-size-13);
+}
+
+.diagram-page__canvas {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 640px;
+}
+
+.diagram-page__canvas > .gi-proto {
+  flex: 1;
+  height: auto;
+}
+
+/* Loading and failure sit where the diagram will be. */
+.diagram-page__state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-16);
+  margin: 0;
+  padding: var(--space-24);
+  color: var(--text-muted);
+  font-size: var(--font-size-14);
+}
+
+.diagram-page__state .progress__failure {
+  max-width: 56ch;
+  margin: 0;
+}
+
+.diagram-page__state .progress__failure:focus {
+  outline: none;
 }

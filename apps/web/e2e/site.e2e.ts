@@ -178,6 +178,22 @@ test("/api/graph answers 503 while unconfigured and 404 for commits that aren't 
   expect((await request.get("/api/graph/acme/shop/main")).status()).toBe(404);
 });
 
+test("a commit permalink needs a full SHA, and says unavailable while unconfigured", async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  expect((await page.goto("/acme/shop/main"))?.status()).toBe(404);
+  expect((await page.goto(`/acme/shop/${"d".repeat(7)}`))?.status()).toBe(404);
+  const response = await page.goto(`/acme/shop/${"d".repeat(40)}`);
+  expect(response?.status()).toBe(200);
+  await expect(page).toHaveTitle("acme/shop at ddddddd · GitInside");
+  await expect(
+    page.getByText("Analysis is temporarily unavailable. Already-analyzed repos still work."),
+  ).toBeVisible();
+  // The 404s above log themselves; nothing else may go wrong.
+  expect(errors.filter((e) => !e.includes("404"))).toEqual([]);
+});
+
 test("a progress page for a malformed job is a 404", async ({ page }) => {
   const response = await page.goto("/acme/shop/jobs/analyze-123");
   expect(response?.status()).toBe(404);
