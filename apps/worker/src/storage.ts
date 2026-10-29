@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { constants, gzip } from "node:zlib";
-import { amzDate, authorization, uriEncode, type Credentials } from "./sigv4.js";
+import {
+  amzDate,
+  authorization,
+  EMPTY_PAYLOAD_HASH,
+  uriEncode,
+  type Credentials,
+} from "./sigv4.js";
 
 /**
  * Graph snapshots in object storage (Cloudflare R2, S3-compatible; ADR-0013, ADR-0062).
@@ -18,6 +24,9 @@ import { amzDate, authorization, uriEncode, type Credentials } from "./sigv4.js"
  * - **Requests** are signed with SigV4 (sigv4.ts) over the exact body hash, so R2 rejects a
  *   body that changed in transit. Each request has a time budget; every failure is a
  *   {@link StorageError}, which the job reports as the retriable `PUBLISH_FAILED`.
+ * - **Reads** (`get`, the web app's `/api/graph`, ADR-0068) are signed GETs; a missing
+ *   object is `undefined`, any other refusal a {@link StorageError}. Exported on its own as
+ *   `@gitinside/worker/storage`, so the web app reads with the code the worker writes with.
  * - **Credentials** come from `R2_*` variables (ADR-0055) and appear in no error or log.
  */
 
@@ -54,9 +63,21 @@ export interface PutObjectOptions {
   cacheControl: string;
 }
 
-/** The operations the worker needs. */
+/** An object read back by {@link ObjectStore.get}. */
+export interface ObjectBody {
+  /**
+   * The stored bytes, decoded: `fetch` undoes a stored `Content-Encoding: gzip`, so a
+   * snapshot arrives as `architecture.json`. Cancel it if it isn't read.
+   */
+  body: ReadableStream<Uint8Array>;
+  contentType: string | undefined;
+}
+
+/** The operations the worker (put) and the web app (get, M5.8) need. */
 export interface ObjectStore {
   put(key: string, body: Uint8Array, options: PutObjectOptions): Promise<void>;
+  /** The object under `key`, or `undefined` if there's none (S3's `404 NoSuchKey`). */
+  get(key: string): Promise<ObjectBody | undefined>;
 }
 
 /** Options for {@link createObjectStore}. */
@@ -188,13 +209,57 @@ export function createObjectStore(
   const timeoutMs = options.timeoutMs ?? STORAGE_TIMEOUT_MS;
   const scope = { region: config.region ?? "auto", service: "s3" };
 
+  function objectUrl(key: string): URL {
+    if (!KEY.test(key) || key.split("/").some((s) => s === "" || s === "." || s === "..")) {
+      throw new StorageError("invalid object key");
+    }
+    const path = [config.bucket, ...key.split("/")].map(uriEncode).join("/");
+    return new URL(`/${path}`, endpoint);
+  }
+
   return {
-    async put(key, body, put) {
-      if (!KEY.test(key) || key.split("/").some((s) => s === "" || s === "." || s === "..")) {
-        throw new StorageError("invalid object key");
+    async get(key) {
+      const url = objectUrl(key);
+      const headers = { "x-amz-content-sha256": EMPTY_PAYLOAD_HASH, "x-amz-date": amzDate(now()) };
+      const auth = authorization(
+        {
+          method: "GET",
+          url,
+          headers: { ...headers, host: url.host },
+          payloadHash: EMPTY_PAYLOAD_HASH,
+        },
+        config.credentials,
+        scope,
+      );
+      let response: Response;
+      try {
+        response = await doFetch(url, {
+          headers: { ...headers, authorization: auth },
+          redirect: "manual",
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch (error) {
+        throw new StorageError(`GET from ${url.host} failed`, undefined, undefined, {
+          cause: error,
+        });
       }
-      const path = [config.bucket, ...key.split("/")].map(uriEncode).join("/");
-      const url = new URL(`/${path}`, endpoint);
+      if (response.status === 200 && response.body !== null) {
+        return {
+          body: response.body,
+          contentType: response.headers.get("content-type") ?? undefined,
+        };
+      }
+      const s3Code = await s3CodeOf(response);
+      if (response.status === 404 && s3Code === "NoSuchKey") return undefined;
+      throw new StorageError(
+        `GET answered ${response.status}${s3Code === undefined ? "" : ` ${s3Code}`}`,
+        response.status,
+        s3Code,
+      );
+    },
+
+    async put(key, body, put) {
+      const url = objectUrl(key);
       const payloadHash = createHash("sha256").update(body).digest("hex");
       const headers: Record<string, string> = {
         "cache-control": put.cacheControl,

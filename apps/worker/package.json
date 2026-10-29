@@ -17,6 +17,10 @@
     "./progress": {
       "types": "./dist/progress.d.ts",
       "import": "./dist/progress.js"
+    },
+    "./storage": {
+      "types": "./dist/storage.d.ts",
+      "import": "./dist/storage.js"
     }
   },
   "scripts": {

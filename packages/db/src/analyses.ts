@@ -2,7 +2,8 @@
  * The writes behind an analysis (ADR-0063): the repo row, and one `analyses` row moving
  * through `queued` → `running` → `done` | `failed`.
  *
- * - **Who calls what:** the web app calls {@link findAnalysis} (the cache lookup) and, when it
+ * - **Who calls what:** the web app calls {@link findAnalysis} (the cache lookup),
+ *   {@link findPublishedAnalysis} (what a repo page and `/api/graph` serve) and, when it
  *   enqueues a new job, {@link upsertRepo} and {@link queueAnalysis} (ADR-0066). The worker calls {@link upsertRepo} and {@link startAnalysis} when a
  *   job starts, {@link completeAnalysis} after the snapshot is in object storage (so a `done`
  *   row always has its object), {@link requeueAnalysis} when an attempt fails but will be
@@ -12,7 +13,7 @@
  *   exists and is immutable), so a redundant job can't hide a cached result.
  * - **Times** come from the database's clock (`now()`), one clock for every writer.
  */
-import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { analyses, repos, type AnalysisStats } from "./schema.js";
 import type * as schema from "./schema.js";
@@ -143,6 +144,57 @@ export async function findAnalysis(
       ),
     );
   return row;
+}
+
+/** What {@link findPublishedAnalysis} returns: the repo as last seen, and one finished analysis. */
+export interface PublishedAnalysis {
+  repo: { id: string; providerRepoId: number; owner: string; name: string };
+  analysis: { sha: string; analyzerVersion: string; snapshotKey: string; finishedAt: Date };
+}
+
+/**
+ * The newest `done` analysis of a **public** repo, found by owner and name ignoring case
+ * (the diagram page and `/api/graph`, ADR-0068); with `sha`, of that commit. "Newest" is
+ * the latest finish, so a re-analysis by a newer analyzer version wins over the old one.
+ * Private repos are never returned (M8 adds access checks).
+ */
+export async function findPublishedAnalysis(
+  db: AnyDatabase,
+  query: { owner: string; name: string; sha?: string },
+): Promise<PublishedAnalysis | undefined> {
+  const [row] = await db
+    .select({
+      id: repos.id,
+      providerRepoId: repos.providerRepoId,
+      owner: repos.owner,
+      name: repos.name,
+      sha: analyses.sha,
+      analyzerVersion: analyses.analyzerVersion,
+      snapshotKey: analyses.snapshotKey,
+      finishedAt: analyses.finishedAt,
+    })
+    .from(analyses)
+    .innerJoin(repos, eq(repos.id, analyses.repoId))
+    .where(
+      and(
+        sql`lower(${repos.owner}) = lower(${query.owner})`,
+        sql`lower(${repos.name}) = lower(${query.name})`,
+        eq(repos.visibility, "public"),
+        eq(analyses.status, "done"),
+        query.sha === undefined ? undefined : eq(analyses.sha, query.sha),
+      ),
+    )
+    .orderBy(desc(analyses.finishedAt), desc(analyses.createdAt))
+    .limit(1);
+  if (row === undefined) return undefined;
+  const { id, providerRepoId, owner, name, sha, analyzerVersion } = row;
+  // `done` rows always have both (the status check in schema.ts).
+  const snapshotKey = row.snapshotKey as string;
+  const finishedAt = row.finishedAt as Date;
+  return {
+    repo: { id, providerRepoId, owner, name },
+    analysis: { sha, analyzerVersion, snapshotKey, finishedAt },
+  };
 }
 
 /**
