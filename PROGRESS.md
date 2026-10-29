@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.9b. Badge + live image routes; M4b waits for the design gate (#2)
+M5.9c. "Add to README" on the repo page; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -118,7 +118,7 @@ M5.9b. Badge + live image routes; M4b waits for the design gate (#2)
 - [x] M5.8b Diagram page `/<owner>/<repo>[/<sha>]` from `viewRepo`: graph fetched in the browser, not-analyzed / updating / behind / missing states, screenshots {model: opus}
 - [x] M5.8c Fix the analyzer crash found in M5.8b: `gitinside analyze .` on this repo with `eval/.repos/` and `bench/.repos/` checkouts present throws `TypeError: Cannot read properties of undefined (reading 'id')` from inside TypeScript, called by the Express stage's `valueOf` (`express.ts`, `checker.getSymbolAtLocation`; likely a node from another service's program). Each checkout alone and a clean HEAD analyze fine. Find the trigger, add a regression fixture, and make a detector's internal error a warning rather than a failed analysis {model: opus}
 - [x] M5.9a README image renderers: `@gitinside/viewer/image` server entry, `renderBadge` + `renderDiagram` (top level as standalone SVG, auto/dark/light, deterministic, escaped), screenshots {model: opus}
-- [ ] M5.9b Badge + live image routes (`/api/badge/:owner/:repo.svg` and the diagram image): `viewRepo` check-on-view, 10 min cache, link-only badge for missing/private/not analyzed, CSP on the SVG {model: opus}
+- [x] M5.9b Badge + live image routes (`/api/badge/:owner/:repo.svg` and the diagram image): `viewRepo` check-on-view, 10 min cache, link-only badge for missing/private/not analyzed, CSP on the SVG {model: opus}
 - [ ] M5.9c "Add to README" on the repo page: Markdown for the badge or the live image (`<picture>` for dark/light), copy button, screenshots {model: opus}
 - [ ] M5.10 Hardened worker Docker image + infra/oracle provisioning script + docs {model: opus}
 - [ ] M5.11 Security test suite with malicious fixtures {model: opus}
@@ -171,6 +171,8 @@ M5.9b. Badge + live image routes; M4b waits for the design gate (#2)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.9b: `GET /api/badge/:owner/:repo.svg` and `/api/diagram/:owner/:repo.svg[?theme=dark|light]` (`lib/imageRoute.ts`, ADR-0072): `viewRepo` check-on-view (new commit enqueued, charged to the repo), graph from R2 through `parseGraph`, then `renderBadge(badgeMessage(graph))` (new viewer export, ≤ 40 chars) or `renderDiagram`. One link-only badge ("view architecture") for not analyzed / private / gone / impossible names; failures answer it for 60 s, never a 5xx; answers cached 10 min; own `IMAGE_CSP`. 16 new web tests (294; imageRoute.ts 100% lines), 1 viewer, 13/13 E2E (incl. `next start` routing `.svg` and an `<img>` decoding at 20px). No screenshots: images unchanged since M5.9a. No eval re-record. Next: M5.9c.
 
 - 2026-10-29 · M5.9a: M5.9 split into a (renderers), b (routes), c ("Add to README"). New server entry `@gitinside/viewer/image` (no CSS, no "use client"; ADR-0071): `renderDiagram(graph, { theme: auto|dark|light })` draws the top level as standalone SVG from the canvas's own lifted edges, words, logos, glyphs (serialized from their React artwork), and token colors (`color-mix` computed to hex); `renderBadge({ message, tone })` is shields-shaped with fixed ≥ 4.5:1 colors. Own layout: 3 layer columns, wrapped top-aligned sub-columns (√n rows past 15), row-gap and side-lane routing. The screenshot review moved outside APIs into the data column (lines crossed datastores) and fixed cal.com's 20-column strip. All text escaped, and hostile names are tested. 25 new tests (viewer 470, image 98% lines) + a built-entry check in web. Screenshots `docs/milestones/M5/readme-*.png`. No eval re-record. Next: M5.9b.
 
