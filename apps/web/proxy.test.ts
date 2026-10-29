@@ -40,10 +40,23 @@ describe("proxy", () => {
 
   it("covers pages but not static files, the image optimizer, or the API", () => {
     const source = new RegExp(`^${config.matcher[0]!.source}$`);
-    for (const path of ["/", "/acme/shop", "/acme/shop/abc1234"]) {
+    // Owners that merely start with "api" are pages too (M5 review).
+    for (const path of [
+      "/",
+      "/acme/shop",
+      "/acme/shop/abc1234",
+      "/api-platform/core",
+      "/apify/x",
+    ]) {
       expect(source.test(path), path).toBe(true);
     }
-    for (const path of ["/_next/static/chunks/x.js", "/_next/image", "/api/analyze", "/icon.svg"]) {
+    for (const path of [
+      "/_next/static/chunks/x.js",
+      "/_next/image",
+      "/api/analyze",
+      "/api/badge/acme/shop.svg",
+      "/icon.svg",
+    ]) {
       expect(source.test(path), path).toBe(false);
     }
   });
