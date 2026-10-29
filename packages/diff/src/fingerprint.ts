@@ -90,17 +90,30 @@ export function changedFields(base: object, head: object): string[] {
     .sort(compareStrings);
 }
 
-/** Whether any of `changes` is a fingerprint field of the node whose value really differs. */
-export function isNodeModified(base: GraphNode, head: GraphNode, changes: string[]): boolean {
+/**
+ * Whether any of `changes` is a fingerprint field of the node whose value really differs.
+ * A `parentId` that followed its parent's rename (`renames` maps base ⇒ head IDs) is no
+ * change: a route in a moved file is `updated`, the move itself is the file's.
+ */
+export function isNodeModified(
+  base: GraphNode,
+  head: GraphNode,
+  changes: string[],
+  renames: ReadonlyMap<string, string> = new Map(),
+): boolean {
   if (base.kind !== head.kind) return true;
   const fingerprint: readonly string[] = NODE_FINGERPRINTS[head.kind];
   const a = base as Record<string, unknown>;
   const b = head as Record<string, unknown>;
-  return changes.some(
-    (field) =>
-      fingerprint.includes(field) &&
-      fingerprintValue(head.kind, field, a[field]) !== fingerprintValue(head.kind, field, b[field]),
-  );
+  return changes.some((field) => {
+    if (!fingerprint.includes(field)) return false;
+    if (field === "parentId" && base.parentId !== null) {
+      if (renames.get(base.parentId) === head.parentId) return false;
+    }
+    return (
+      fingerprintValue(head.kind, field, a[field]) !== fingerprintValue(head.kind, field, b[field])
+    );
+  });
 }
 
 /** Whether any of `changes` is an edge fingerprint field. */

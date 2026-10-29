@@ -41,6 +41,8 @@ const NAMES = [
   "queues-bullmq",
   "shop-demo",
   "checker-crash",
+  "diff-rename-base",
+  "diff-rename-head",
 ];
 
 describe.each(NAMES)("fixture %s", (name) => {

@@ -1,40 +1,56 @@
 import {
   canonicalize,
   canonicalizeDiff,
+  edgeId,
   parseGraphDiff,
   summarizeDiff,
   type AnalysisWarning,
   type ArchitectureGraph,
   type GraphDiff,
+  type GraphEdge,
 } from "@gitinside/schema";
 import { warningKey } from "./apply.js";
 import { checkComparable } from "./compare.js";
 import { changedFields, isEdgeModified, isNodeModified } from "./fingerprint.js";
+import { detectRenames, type FileContents } from "./rename.js";
 
-/** The lists `classify` sorts one kind of record into; `renamed` is filled by M6.3. */
+/** Options for {@link diffGraphs}. */
+export interface DiffOptions {
+  /**
+   * The two commits' file contents. Without them, a moved file is found only when its
+   * content is unchanged, and a symbol only by following its file (ADR-0086).
+   */
+  contents?: FileContents;
+}
+
+/** The lists `classify` sorts one kind of record into. */
 interface Classified<T> {
   added: T[];
-  removed: string[];
+  removed: T[];
   modified: { record: T; changes: string[] }[];
   updated: { record: T; changes: string[] }[];
+  renamed: { from: string; record: T; changes: string[] }[];
 }
 
 /**
- * Match records by ID: base-only IDs are removed, head-only records added, and records
- * in both are unchanged (no field differs), `modified` (a fingerprint field differs), or
- * `updated` (only incidental fields differ).
+ * Match records by ID: base-only records are removed, head-only records added, unless
+ * `renames` pairs them (base ID ⇒ head ID), and records in both are unchanged (no field
+ * differs), `modified` (a fingerprint field differs), or `updated` (only incidental
+ * fields differ).
  */
 function classify<T extends { id: string }>(
   base: readonly T[],
   head: readonly T[],
   isModified: (base: T, head: T, changes: string[]) => boolean,
+  renames: ReadonlyMap<string, string> = new Map(),
 ): Classified<T> {
   const heads = new Map(head.map((record) => [record.id, record]));
-  const out: Classified<T> = { added: [], removed: [], modified: [], updated: [] };
+  const out: Classified<T> = { added: [], removed: [], modified: [], updated: [], renamed: [] };
+  const baseOnly: T[] = [];
   for (const before of base) {
     const after = heads.get(before.id);
     if (after === undefined) {
-      out.removed.push(before.id);
+      baseOnly.push(before);
       continue;
     }
     heads.delete(before.id);
@@ -45,7 +61,47 @@ function classify<T extends { id: string }>(
       changes,
     });
   }
+  for (const before of baseOnly) {
+    const to = renames.get(before.id);
+    const after = to === undefined ? undefined : heads.get(to);
+    if (after === undefined) {
+      out.removed.push(before);
+      continue;
+    }
+    heads.delete(after.id);
+    out.renamed.push({ from: before.id, record: after, changes: changedFields(before, after) });
+  }
   out.added = [...heads.values()];
+  return out;
+}
+
+/** IDs in `base` but not `head`, and in `head` but not `base`. */
+function onlyIn(base: readonly { id: string }[], head: readonly { id: string }[]) {
+  const baseIds = new Set(base.map((r) => r.id));
+  const headIds = new Set(head.map((r) => r.id));
+  return {
+    removed: new Set([...baseIds].filter((id) => !headIds.has(id))),
+    added: new Set([...headIds].filter((id) => !baseIds.has(id))),
+  };
+}
+
+/**
+ * Base edge ⇒ head edge for edges whose endpoints were renamed: the base edge's ID with
+ * both endpoints mapped, when head has that edge and base doesn't.
+ */
+function edgeRenames(
+  base: readonly GraphEdge[],
+  added: ReadonlySet<string>,
+  nodes: ReadonlyMap<string, string>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const edge of base) {
+    const from = nodes.get(edge.from) ?? edge.from;
+    const to = nodes.get(edge.to) ?? edge.to;
+    if (from === edge.from && to === edge.to) continue;
+    const id = edgeId(edge.kind, from, to);
+    if (added.has(id)) out.set(edge.id, id);
+  }
   return out;
 }
 
@@ -82,39 +138,56 @@ function diffWarnings(
 }
 
 /**
- * What changed from `base` to `head` (DESIGN.md §8): nodes and edges matched by ID and
- * classified with per-kind fingerprints (`NODE_FINGERPRINTS`, `EDGE_FINGERPRINT`), and
- * warnings as a multiset. The result is canonical (`canonicalizeDiff`), validated by
- * `parseGraphDiff`, and `applyDiff(base, result)` equals `head`.
+ * What changed from `base` to `head` (DESIGN.md §8): renames and moves found among
+ * base-only and head-only nodes (`detectRenames`, thresholds in `RENAME_THRESHOLDS`),
+ * edges renamed with their endpoints, everything else matched by ID and classified with
+ * per-kind fingerprints (`NODE_FINGERPRINTS`, `EDGE_FINGERPRINT`), and warnings as a
+ * multiset. The result is canonical (`canonicalizeDiff`), validated by `parseGraphDiff`,
+ * and `applyDiff(base, result)` equals `head`.
  *
- * Handles: added, removed, modified, and updated nodes and edges. Doesn't yet handle:
- * renames and moves (M6.3; a moved file is removed + added) and broken edges (M6.4),
- * so `renamed` and `broken` are empty.
+ * Handles: added, removed, modified, updated, and renamed nodes and edges. Doesn't yet
+ * handle broken edges (M6.4), so `broken` is empty.
  *
  * Throws `IncompatibleGraphsError` for graphs from two analyzer versions.
  */
-export function diffGraphs(base: ArchitectureGraph, head: ArchitectureGraph): GraphDiff {
+export function diffGraphs(
+  base: ArchitectureGraph,
+  head: ArchitectureGraph,
+  options: DiffOptions = {},
+): GraphDiff {
   checkComparable(base, head);
   const before = canonicalize(base);
   const after = canonicalize(head);
 
-  const nodes = classify(before.nodes, after.nodes, isNodeModified);
-  const edges = classify(before.edges, after.edges, (_b, _h, changes) => isEdgeModified(changes));
+  const nodeIds = onlyIn(before.nodes, after.nodes);
+  const renames = detectRenames(before, after, nodeIds.removed, nodeIds.added, options.contents);
+  const nodes = classify(
+    before.nodes,
+    after.nodes,
+    (b, h, changes) => isNodeModified(b, h, changes, renames),
+    renames,
+  );
+  const edges = classify(
+    before.edges,
+    after.edges,
+    (_b, _h, changes) => isEdgeModified(changes),
+    edgeRenames(before.edges, onlyIn(before.edges, after.edges).added, renames),
+  );
 
   const lists = {
     nodes: {
       added: nodes.added,
-      removed: nodes.removed,
+      removed: nodes.removed.map((n) => n.id),
       modified: nodes.modified.map(({ record, changes }) => ({ node: record, changes })),
       updated: nodes.updated.map(({ record, changes }) => ({ node: record, changes })),
-      renamed: [],
+      renamed: nodes.renamed.map(({ from, record, changes }) => ({ from, node: record, changes })),
     },
     edges: {
       added: edges.added,
-      removed: edges.removed,
+      removed: edges.removed.map((e) => e.id),
       modified: edges.modified.map(({ record, changes }) => ({ edge: record, changes })),
       updated: edges.updated.map(({ record, changes }) => ({ edge: record, changes })),
-      renamed: [],
+      renamed: edges.renamed.map(({ from, record, changes }) => ({ from, edge: record, changes })),
     },
     broken: [],
   };
