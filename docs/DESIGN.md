@@ -252,10 +252,12 @@ For each call (method M, pattern P), compare with every route (method M', patter
 **Input:** base graph and head graph (same schema version).
 
 1. **Node identity:** IDs are qualified names (ADR-0019), so most nodes match by ID.
-2. **Rename and move detection:** among base nodes missing in head and head nodes new in head, of the same kind:
-   - **Files:** content-similarity score (shingled token Jaccard, ≥ 0.6).
-   - **Symbols:** body-hash equality, or a similarity ≥ 0.8 plus the same name in a moved file.
-   - Each match is a `renamed` pair, and edges are remapped through it.
+2. **Rename and move detection** (`detectRenames`, ADR-0086): among base nodes missing in head and head nodes new in head, of the same kind, one to one. File text comes from the caller (`contents`); without it, only identical files match.
+   - **Files:** identical hash, or content similarity (Jaccard over 4-token shingles, ≥ 0.6, files of 50+ tokens).
+   - **Modules:** a folder most of whose files moved into one new folder.
+   - **Symbols:** the same name under a renamed file or class with body similarity ≥ 0.8, or a body equal token for token (own name masked, 20+ tokens) that's unique on both sides.
+   - **Unresolved nodes:** the same call in the same (or moved) file, paired in source order.
+   - Ties are left unmatched, never broken by guessing. Each match is a `renamed` pair, and edges are remapped through it; a node whose parent was renamed is `updated`, not `modified`.
 3. **Classify:**
    - **Nodes:** `added`, `removed`, `modified` (same ID, different fingerprint: e.g. a file's hash, a route's method/path, a model's fields; per-kind table in ADR-0085), `updated` (same ID and fingerprint, other facts such as a source line differ), `renamed`. Symbols carry no signature yet, so their body changes show through their file's hash.
    - **Edges:** `added`, `removed`, `modified` (confidence, label, reason, or fields), `updated` (call sites only), `renamed`.

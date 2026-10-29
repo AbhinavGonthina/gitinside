@@ -927,3 +927,31 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - **Symbols have no signature fingerprint:** a function whose body or parameters changed shows through its file's `hash`. M6.4's `PARAMETERS_ADDED` will need parameter facts that the schema doesn't carry yet.
 - **Alternatives rejected:** a blacklist of incidental fields (new fields would be fingerprints by accident); hashing whole records minus `label`/`source` (no `changes` names, and model reordering would read as a change); adding a symbol signature to the schema now (an analyzer and schema change belongs with M6.4, which needs it).
 - **Consequences:** `diffGraphs` exists with `renamed` and `broken` empty until M6.3 and M6.4; a moved file is removed + added for now.
+
+## ADR-0086: Rename detection reads file contents from the caller; thresholds measured on real repos; ties stay unmatched
+- **Context:** M6.3. DESIGN.md §8 matches moved files by shingled-token Jaccard (≥ 0.6) and symbols by body hash or by name plus similarity ≥ 0.8. The graph has no file text and no symbol body hash, only each file's SHA-256 and each symbol's line span. `packages/diff` also has to stay usable in browsers (M6.9), so it can't read the disk.
+- **Decision** (`packages/diff/src/rename.ts`, `detectRenames`, called by `diffGraphs`):
+  - **Contents are an option:** `diffGraphs(base, head, { contents: { base(path), head(path) } })`, by repo-relative path. The CLI (M6.6) and the PR job (M8.6) have both trees. Without contents, a file matches only by identical `hash`, and symbols only by following their file. The graph schema doesn't change.
+  - **Only base-only and head-only IDs are paired, of the same kind, one to one.** The order is files, then modules, then symbols, then unresolved nodes:
+    - **Files:** identical hash scores 1. Otherwise, with contents, a Jaccard over 4-token shingles of at least 0.6. Files under 50 tokens match by hash only.
+    - **Modules (folders):** a removed folder matches an added one when more than half of its files moved there and more than half of the new folder's files came from it.
+    - **Symbols:** the same qualified name and `symbolKind` under a renamed parent (file or class), with a body similarity of at least 0.8 when both bodies can be read. Otherwise the body (the `source` lines, its own name masked) must be equal token for token, at least 20 tokens, and the only such body on both sides. That catches a function renamed in place or moved to another file. Parent-following runs again afterwards, so a renamed class's methods follow it.
+    - **Unresolved nodes** (their IDs are positions): the same reason, expression, and detail in the same file or its renamed file, paired in source order only when both sides have as many.
+  - **Ties are never broken by guessing.** Candidates are sorted by score, then a shared base name. Within one (score, rank) tier, a pair is taken only when neither end has another candidate. Ambiguous ends are dropped from lower tiers too, so two identical files removed and two added stay removed + added.
+  - **Edges follow their endpoints:** a base-only edge whose endpoints map to a head-only edge ID is `renamed`. A same-ID node whose `parentId` followed a renamed parent is `updated`, not `modified` (a route in a moved file).
+  - **Budget:** past 250,000 removed × added file pairs, content is compared only between files with the same base name. Identical hashes always match.
+  - **Thresholds were measured** on 5,898 source files of cal.com and the eval repos at their pinned commits, using synthetic edits of 400 sampled files at 50+ tokens:
+
+    | Shingle size | 20% of lines deleted | 20% new lines inserted | Top identifier renamed |
+    | --- | --- | --- | --- |
+    | 3 | 96.5% | 96.0% | 98.5% |
+    | 4 | 96.0% | 92.0% | 95.5% |
+    | 5 | 89.5% | 86.3% | 87.8% |
+
+    Each figure is the share of edited files scoring ≥ 0.6 against their original. Random pairs of different files scored ≥ 0.6 in 0.04% of 20,000 at every size. Same-name pairs (e.g. two `route.ts`) did so in 4.9% at size 4 (3: 5.6%, 5: 4.3%); these are mostly near-copies such as cal.com's app-store templates. The checkouts are shallow, so real renames couldn't be replayed from history. Among the repo's fixtures, the only pair over 0.6 is a 13-line server copied with 4 lines changed; a test pins that list.
+- **Alternatives rejected:**
+  - Per-file shingles or MinHash in `architecture.json`: every graph grows, and it's an analyzer change for a diff-only need.
+  - Hashing contents inside `packages/diff` to check them against `hash`: that needs `node:crypto` in a browser-bound package.
+  - Greedy matching that breaks ties by path: a guessed rename can hide a removed target from M6.4's broken-edge check.
+  - k = 3: slightly better recall, but more same-name near-copies matched. k = 5: a tenth fewer true moves.
+- **Consequences:** a moved and edited file is renamed only when the caller passes contents. A renamed service (every ID in it changes) and a moved model, route, or page are not detected: the last three keep their IDs and show as `updated`. A file split in two matches at most one half. M6.5's property tests must cover diffs with renames.

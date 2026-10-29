@@ -1,0 +1,289 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:diff-rename/src/orders/routes.ts#listOrders",
+      "id": "calls:symbol:diff-rename/src/orders/routes.ts#listOrders->symbol:diff-rename/src/util/format.ts#formatAmount",
+      "kind": "calls",
+      "sites": [
+        {
+          "column": 52,
+          "file": "src/orders/routes.ts",
+          "line": 12
+        }
+      ],
+      "to": "symbol:diff-rename/src/util/format.ts#formatAmount"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:diff-rename/GET /api/orders",
+      "id": "handles:route:diff-rename/GET /api/orders->symbol:diff-rename/src/orders/routes.ts#listOrders",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 17,
+          "file": "src/orders/routes.ts",
+          "line": 20
+        }
+      ],
+      "to": "symbol:diff-rename/src/orders/routes.ts#listOrders"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:diff-rename/POST /api/orders",
+      "id": "handles:route:diff-rename/POST /api/orders->symbol:diff-rename/src/orders/routes.ts#createOrder",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 18,
+          "file": "src/orders/routes.ts",
+          "line": 21
+        }
+      ],
+      "to": "symbol:diff-rename/src/orders/routes.ts#createOrder"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:diff-rename/src/orders/routes.ts#createOrder",
+      "id": "http:symbol:diff-rename/src/orders/routes.ts#createOrder->unresolved:diff-rename/src/orders/routes.ts:16:9",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/orders/routes.ts",
+          "line": 16
+        }
+      ],
+      "to": "unresolved:diff-rename/src/orders/routes.ts:16:9"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-rename/src/app.ts",
+      "id": "imports:file:diff-rename/src/app.ts->file:diff-rename/src/orders/routes.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/app.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:diff-rename/src/orders/routes.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-rename/src/orders/routes.ts",
+      "id": "imports:file:diff-rename/src/orders/routes.ts->file:diff-rename/src/util/format.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 30,
+          "file": "src/orders/routes.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:diff-rename/src/util/format.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "303c26b46facd39d1c54fecb76a5104b5821812ece16dc5046b4b82ace024887",
+      "id": "file:diff-rename/src/app.ts",
+      "kind": "file",
+      "label": "app.ts",
+      "parentId": "module:diff-rename/src",
+      "path": "src/app.ts"
+    },
+    {
+      "hash": "f4230483d19d460fc75794e6933157fed36f5b51925726dd956cb1bede9056ae",
+      "id": "file:diff-rename/src/orders/routes.ts",
+      "kind": "file",
+      "label": "routes.ts",
+      "parentId": "module:diff-rename/src/orders",
+      "path": "src/orders/routes.ts"
+    },
+    {
+      "hash": "2ad7fe35134459aeba2a28a7bdd4e6f31d43df4ee8b51a998901b6258487d462",
+      "id": "file:diff-rename/src/util/format.ts",
+      "kind": "file",
+      "label": "format.ts",
+      "parentId": "module:diff-rename/src/util",
+      "path": "src/util/format.ts"
+    },
+    {
+      "id": "module:diff-rename/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:diff-rename/",
+      "path": "src"
+    },
+    {
+      "id": "module:diff-rename/src/orders",
+      "kind": "module",
+      "label": "orders",
+      "parentId": "module:diff-rename/src",
+      "path": "src/orders"
+    },
+    {
+      "id": "module:diff-rename/src/util",
+      "kind": "module",
+      "label": "util",
+      "parentId": "module:diff-rename/src",
+      "path": "src/util"
+    },
+    {
+      "id": "route:diff-rename/GET /api/orders",
+      "kind": "route",
+      "label": "GET /api/orders",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:diff-rename/src/orders/routes.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 8,
+        "file": "src/orders/routes.ts",
+        "line": 20
+      }
+    },
+    {
+      "id": "route:diff-rename/POST /api/orders",
+      "kind": "route",
+      "label": "POST /api/orders",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:diff-rename/src/orders/routes.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 8,
+        "file": "src/orders/routes.ts",
+        "line": 21
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:diff-rename/",
+      "kind": "service",
+      "label": "diff-rename",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-rename/src/app.ts#app",
+      "kind": "symbol",
+      "label": "app",
+      "parentId": "file:diff-rename/src/app.ts",
+      "source": {
+        "column": 14,
+        "endLine": 4,
+        "file": "src/app.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-rename/src/orders/routes.ts#createOrder",
+      "kind": "symbol",
+      "label": "createOrder",
+      "parentId": "file:diff-rename/src/orders/routes.ts",
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "src/orders/routes.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-rename/src/orders/routes.ts#listOrders",
+      "kind": "symbol",
+      "label": "listOrders",
+      "parentId": "file:diff-rename/src/orders/routes.ts",
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "src/orders/routes.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-rename/src/orders/routes.ts#orders",
+      "kind": "symbol",
+      "label": "orders",
+      "parentId": "file:diff-rename/src/orders/routes.ts",
+      "source": {
+        "column": 14,
+        "endLine": 5,
+        "file": "src/orders/routes.ts",
+        "line": 5
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-rename/src/util/format.ts#formatAmount",
+      "kind": "symbol",
+      "label": "formatAmount",
+      "parentId": "file:diff-rename/src/util/format.ts",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/util/format.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-rename/src/util/format.ts#formatCount",
+      "kind": "symbol",
+      "label": "formatCount",
+      "parentId": "file:diff-rename/src/util/format.ts",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "src/util/format.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "diff-rename-head",
+      "parentId": null
+    },
+    {
+      "detail": "the env var WAREHOUSE isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "expression": "fetch(process.env.WAREHOUSE + \"/reserve/\" + req.body.sku, { method: \"POST\" })",
+      "id": "unresolved:diff-rename/src/orders/routes.ts:16:9",
+      "kind": "unresolved",
+      "label": "POST {env:WAREHOUSE}/reserve/{}",
+      "parentId": "service:diff-rename/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 9,
+        "file": "src/orders/routes.ts",
+        "line": 16
+      }
+    }
+  ],
+  "repo": {
+    "name": "diff-rename-head",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
