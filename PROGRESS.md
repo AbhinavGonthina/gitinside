@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.11. Security test suite with malicious fixtures; M4b waits for the design gate (#2)
+M5.12. Snapshot retention + quota check; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -122,7 +122,7 @@ M5.11. Security test suite with malicious fixtures; M4b waits for the design gat
 - [x] M5.9c "Add to README" on the repo page: Markdown for the badge or the live image (`<picture>` for dark/light), copy button, screenshots {model: opus}
 - [x] M5.10a Hardened worker Docker image (`pnpm deploy`, non-root, read-only root, tmpfs `/tmp/jobs`, no capabilities) + production compose (worker + internal-only Redis, limits, log rotation) + CI container check {model: opus}
 - [x] M5.10b Egress allowlist (GitHub, R2, Neon) + Caddy TLS + `infra/oracle/provision.sh` (Docker, firewall, env file, systemd, rebuild in minutes) + VM docs {model: opus}
-- [ ] M5.11 Security test suite with malicious fixtures {model: opus}
+- [x] M5.11 Security test suite with malicious fixtures {model: opus}
 - [ ] M5.12 Snapshot retention + quota check {model: opus}
 - [ ] M5.13 Deploy + production smoke test on a real public repo {model: opus} {blocked: #3 #4 #5 #6 #7}
 - [ ] M5.14 Milestone verification + M5-review.md + tag m5 {model: opus}
@@ -172,6 +172,8 @@ M5.11. Security test suite with malicious fixtures; M4b waits for the design gat
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.11: `apps/worker/src/security.test.ts` (18 tests, ADR-0076) runs each malicious case as a whole job (fake GitHub ⇒ `processJob` ⇒ extractor ⇒ real `--permission` child ⇒ stored graph) at the production limits: committed `fixtures/malicious/postinstall-script` (scripts, configs, tsconfig plugin, top-level code, `.npmrc` added in-test) ⇒ no `PWNED` sentinel, exactly one spawned process (mocked `node:child_process`), route still found; huge file, symlink/hard-link escape to a canary (+ a link planted on disk), 8 path-traversal forms, 520 MiB zip bomb, depth 64 / 4,096-byte paths, 20,001 files (`LIMIT_FILES`), 100,001 entries (`LIMIT_ENTRIES`), fake-secrets with worker env secrets. `fixtures/malicious/README.md` lists the byte-built cases. All passed first time; no worker code changed. 20k-file case ~2.7 min on this machine. Full `pnpm test` green (worker 409 + 13 Redis/Postgres-only skips). No eval re-record. Next: M5.12.
 
 - 2026-10-29 · M5.10b: the worker now joins an `egress` gateway's network namespace (`infra/oracle/egress/`, ADR-0075). In that namespace, dnsmasq resolves only api.github.com, codeload, `<account>.r2.cloudflarestorage.com`, and the Neon hosts from the env file (AAAA dropped). The resolved addresses go into an ipset, and iptables lets TCP out only to them on 443/5432, plus the fixed internal subnet. Everything else is rejected, IPv6 is dropped, and only root may ask Docker's resolver. Caddy (container, 443 only, TLS-ALPN, three routes, 16 KiB bodies, 404 elsewhere). `provision.sh` (idempotent: Docker repo, modules, NTP, host-firewall check, checkout at `--ref`, env file, build, migrations, `gitinside.service`) + `infra/oracle/README.md`. The CI check asserts all of it from inside the worker as uid 1000 and checks Caddy over TLS, plus shellcheck; it was verified on draft PR #6 (4 fix rounds: env-file read without DAC_OVERRIDE, NET_RAW for `-m set`, dnsmasq group change). The script's first real run is on the VM (M5.13). No eval re-record. Next: M5.11.
 
