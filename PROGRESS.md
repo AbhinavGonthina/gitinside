@@ -159,6 +159,7 @@ M5.8. Diagram page + check-on-view re-analysis; M4b waits for the design gate (#
 - [ ] M9.1 Choose + hand-verify 3 OSS demo repos; landing gallery {model: opus}
 - [ ] M9.2 Final eval + benchmarks; README numbers with links {model: opus}
 - [ ] M9.3 README (slogan, GIF with trace first, quickstart, architecture, results) {model: opus}
+- [ ] M9.3b README "Why I built this" section from gitinside-planning/MOTIVATION.md (his voice, nothing added) + needs-abhinav review issue {model: opus}
 - [ ] M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md {model: opus}
 - [ ] M9.5 Blog post draft + needs-abhinav edit/publish-decision issue {model: opus}
 - [ ] M9.6 Full regression + axe accessibility audit {model: opus}
