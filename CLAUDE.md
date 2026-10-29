@@ -115,7 +115,9 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - `vi.useFakeTimers({ shouldAdvanceTime: true })` plus `findBy*` lets real time run a UI timer (e.g. "Copied" → "Copy") before the test checks it. Use plain `vi.useFakeTimers()`, flush promises with `await act(async () => fireEvent…)`, and step with `await act(() => vi.advanceTimersByTimeAsync(ms))`.
 - `docker compose config` validates compose files without the daemon, but fails on a missing `env_file`. Pass `--env-file <gitignored file>` setting the variable that names it (no env-var prefix needed).
 - `gh run view --log --job <id>` needs the numeric job ID (`gh run view <run> --json jobs`), and logs only exist once the whole run has finished.
-- Prettier/YAML: a plain scalar containing `: ` (e.g. a JS ternary in a healthcheck `test`) becomes a mapping. Quote such strings.<!-- lessons:end -->
+- Prettier/YAML: a plain scalar containing `: ` (e.g. a JS ternary in a healthcheck `test`) becomes a mapping. Quote such strings.
+- Root in a `cap_drop: [ALL]` container can't read a 0600 file it doesn't own (no `DAC_OVERRIDE`), so CI's runner-owned files fail where the VM's root-owned ones work. iptables `-m set` also needs `NET_RAW`, and dnsmasq needs `user=root` plus an empty `group=` to skip its privilege drop.
+- A failing `docker compose up --wait` only says "unhealthy". `check.mjs` prints the stack's logs on failure, so grep the job log for `<service>-1 |`.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 

@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.10b. Egress allowlist + Caddy TLS + infra/oracle/provision.sh + VM docs; M4b waits for the design gate (#2)
+M5.11. Security test suite with malicious fixtures; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -121,7 +121,7 @@ M5.10b. Egress allowlist + Caddy TLS + infra/oracle/provision.sh + VM docs; M4b 
 - [x] M5.9b Badge + live image routes (`/api/badge/:owner/:repo.svg` and the diagram image): `viewRepo` check-on-view, 10 min cache, link-only badge for missing/private/not analyzed, CSP on the SVG {model: opus}
 - [x] M5.9c "Add to README" on the repo page: Markdown for the badge or the live image (`<picture>` for dark/light), copy button, screenshots {model: opus}
 - [x] M5.10a Hardened worker Docker image (`pnpm deploy`, non-root, read-only root, tmpfs `/tmp/jobs`, no capabilities) + production compose (worker + internal-only Redis, limits, log rotation) + CI container check {model: opus}
-- [ ] M5.10b Egress allowlist (GitHub, R2, Neon) + Caddy TLS + `infra/oracle/provision.sh` (Docker, firewall, env file, systemd, rebuild in minutes) + VM docs {model: opus}
+- [x] M5.10b Egress allowlist (GitHub, R2, Neon) + Caddy TLS + `infra/oracle/provision.sh` (Docker, firewall, env file, systemd, rebuild in minutes) + VM docs {model: opus}
 - [ ] M5.11 Security test suite with malicious fixtures {model: opus}
 - [ ] M5.12 Snapshot retention + quota check {model: opus}
 - [ ] M5.13 Deploy + production smoke test on a real public repo {model: opus} {blocked: #3 #4 #5 #6 #7}
@@ -172,6 +172,8 @@ M5.10b. Egress allowlist + Caddy TLS + infra/oracle/provision.sh + VM docs; M4b 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.10b: the worker now joins an `egress` gateway's network namespace (`infra/oracle/egress/`, ADR-0075). In that namespace, dnsmasq resolves only api.github.com, codeload, `<account>.r2.cloudflarestorage.com`, and the Neon hosts from the env file (AAAA dropped). The resolved addresses go into an ipset, and iptables lets TCP out only to them on 443/5432, plus the fixed internal subnet. Everything else is rejected, IPv6 is dropped, and only root may ask Docker's resolver. Caddy (container, 443 only, TLS-ALPN, three routes, 16 KiB bodies, 404 elsewhere). `provision.sh` (idempotent: Docker repo, modules, NTP, host-firewall check, checkout at `--ref`, env file, build, migrations, `gitinside.service`) + `infra/oracle/README.md`. The CI check asserts all of it from inside the worker as uid 1000 and checks Caddy over TLS, plus shellcheck; it was verified on draft PR #6 (4 fix rounds: env-file read without DAC_OVERRIDE, NET_RAW for `-m set`, dnsmasq group change). The script's first real run is on the VM (M5.13). No eval re-record. Next: M5.11.
 
 - 2026-10-29 · M5.10a: M5.10 split into a (image) and b (egress, Caddy, provisioning). `apps/worker/Dockerfile`: installs/builds only `@gitinside/worker...`, `pnpm deploy --prod` to `/app/apps/worker` (child's read root `/app` = code only; schema/analyzer/worker gain `"files": ["dist"]`), npm/npx/corepack/yarn removed, user `node`. `infra/oracle/compose.yml`: read-only root, noexec tmpfs `/tmp/jobs` 1,200 MB, cap_drop ALL, no-new-privileges, default seccomp, init, 3 CPU/12 GB/256 PIDs, 30 s grace, healthcheck, rotated logs, API on 127.0.0.1:8080; Redis as `redis`, AOF, noeviction, internal-only network (ADR-0074). `infra/oracle/check.mjs` (new CI job `worker-image`, verified on draft PR #5): kernel-applied hardening from `/proc`, EROFS checks, golden analysis inside the image, clean SIGTERM. Local `pnpm test` had one viewer/web load flake, green on rerun. Eval re-recorded (numbers unchanged). Next: M5.10b.
 
