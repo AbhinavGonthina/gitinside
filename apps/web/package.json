@@ -15,6 +15,7 @@
   "dependencies": {
     "@gitinside/analyzer": "workspace:*",
     "@gitinside/db": "workspace:*",
+    "@gitinside/schema": "workspace:*",
     "@gitinside/viewer": "workspace:*",
     "@gitinside/worker": "workspace:*",
     "next": "16.4.3",

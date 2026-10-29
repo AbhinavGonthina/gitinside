@@ -263,6 +263,21 @@ describe("ExplorerPrototype", () => {
     const { heading, press } = setup({ trace: undefined });
     press("t");
     expect(heading().textContent).toBe("shop-demo");
+    // The start hint doesn't promise one either.
+    expect(
+      screen.getByText("Select a box to see what it does. Double-click a service to break it down.")
+        .tagName,
+    ).toBe("P");
+  });
+
+  it("can leave the top bar out for a page that brings its own", () => {
+    const { container, node, heading } = setup({ trace: undefined, topBar: false });
+    expect(container.querySelector(".gi-topbar")).toBeNull();
+    expect(container.querySelector(".gi-proto")?.hasAttribute("data-bare")).toBe(true);
+    fireEvent.click(node("@shop/api") as HTMLElement);
+    expect(heading().textContent).toBe("@shop/api");
+    cleanup();
+    expect(setup().container.querySelector(".gi-proto")?.hasAttribute("data-bare")).toBe(false);
   });
 
   it("toggles the legend beside the minimap", () => {
