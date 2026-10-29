@@ -1,16 +1,60 @@
-# The production stack on the Oracle VM: the analysis worker and its Redis
-# (docs/SECURITY.md §3, ADR-0074). Run from the repo root, as root (the env file is
-# root-only):
+# The production stack on the Oracle VM: the analysis worker, its Redis, the egress
+# gateway the worker's traffic leaves through, and Caddy in front of the enqueue API
+# (docs/SECURITY.md §3, ADR-0074, ADR-0075). infra/oracle/provision.sh installs a systemd
+# unit that runs, from the checkout and as root (the env file is root-only):
 #
-#   docker compose -f infra/oracle/compose.yml up -d --build
+#   docker compose -f infra/oracle/compose.yml up -d --build --wait
 #
 # Secrets come from /etc/gitinside/worker.env (names in apps/worker/.env.example); set
-# WORKER_ENV_FILE to use another file (CI's container check does). Caddy on the VM
-# terminates TLS and proxies to 127.0.0.1:8080; nothing else is published.
+# WORKER_ENV_FILE to use another file (CI's container check does). Only Caddy's 443 is
+# published to the world; the API is also on 127.0.0.1:8080 for the VM itself.
 
 name: gitinside
 
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
 services:
+  # The network namespace the worker runs in: dnsmasq answers only allowlisted names, and
+  # iptables lets TCP out only to the addresses it handed out (infra/oracle/egress/).
+  egress:
+    build:
+      context: egress
+    image: gitinside-egress:local
+    restart: unless-stopped
+    environment:
+      EGRESS_INTERNAL_SUBNET: 172.30.250.0/24
+    volumes:
+      # Read for the R2 account and the database hosts only.
+      - ${WORKER_ENV_FILE:-/etc/gitinside/worker.env}:/etc/gitinside/worker.env:ro
+      - ./egress/resolv.conf:/etc/resolv.conf:ro
+    # The worker shares this container's network, so its API port is published here.
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    tmpfs:
+      - /run
+    # NET_ADMIN for the rules and the ipset, NET_BIND_SERVICE for dnsmasq's port 53.
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, NET_BIND_SERVICE]
+    security_opt:
+      - no-new-privileges:true
+    cpus: 0.25
+    mem_limit: 128m
+    pids_limit: 32
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /run/egress/ready && pidof dnsmasq"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      start_interval: 1s
+      retries: 3
+    logging: *logging
+    networks: [internal, outside]
+
   worker:
     build:
       context: ../..
@@ -25,8 +69,10 @@ services:
       JOBS_ROOT: /tmp/jobs
       HOST: 0.0.0.0
       PORT: "8080"
-    ports:
-      - "127.0.0.1:8080:8080"
+    # Every packet in or out goes through the gateway's rules (ADR-0075).
+    network_mode: service:egress
+    volumes:
+      - ./egress/resolv.conf:/etc/resolv.conf:ro
     # Hardening: an unprivileged user (the image's `node`), nothing writable but the
     # job folder, no capabilities, no privilege gain, Docker's default seccomp profile
     # (applied because nothing here turns it off).
@@ -41,7 +87,7 @@ services:
       - no-new-privileges:true
     # Resources on a 4 OCPU / 24 GB A1 VM: two analysis children at 3 GB heap each, the
     # worker itself, and the tmpfs (counted as memory); one core left for Redis, Caddy,
-    # and the OS.
+    # the gateway, and the OS.
     cpus: 3
     mem_limit: 12g
     memswap_limit: 12g
@@ -59,15 +105,12 @@ services:
       start_period: 20s
       start_interval: 2s
       retries: 3
-    logging: &logging
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: "5"
+    logging: *logging
     depends_on:
+      egress:
+        condition: service_healthy
       redis:
         condition: service_healthy
-    networks: [internal, egress]
 
   redis:
     image: redis:7.4-alpine
@@ -103,12 +146,48 @@ services:
     # alone and can't reach anything itself.
     networks: [internal]
 
+  # TLS on 443 for worker.gitinside.abhinavgonthina.dev (infra/oracle/Caddyfile).
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    environment:
+      WORKER_DOMAIN: ${WORKER_DOMAIN:-worker.gitinside.abhinavgonthina.dev}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and the ACME account survive rebuilds of the stack.
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "443:443"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt:
+      - no-new-privileges:true
+    cpus: 0.25
+    mem_limit: 256m
+    pids_limit: 64
+    logging: *logging
+    depends_on:
+      egress:
+        condition: service_healthy
+    # Needs the internet for Let's Encrypt; reaches the API as egress:8080.
+    networks: [outside]
+
 networks:
-  # No route out of the host: Redis lives here.
+  # No route out of the host: Redis lives here. A fixed subnet, so the gateway can allow
+  # exactly this network.
   internal:
     internal: true
-  # The worker's way out (GitHub, R2, Neon). The allowlist on it is M5.10b.
-  egress: {}
+    ipam:
+      config:
+        - subnet: 172.30.250.0/24
+  # The way out, for the gateway (and so the worker, through its rules) and Caddy.
+  outside: {}
 
 volumes:
   redis-data:
+  caddy-data:
+  caddy-config:
