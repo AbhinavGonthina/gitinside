@@ -44,7 +44,8 @@ describe("buildInventory", () => {
   });
 
   it("skips ignored directories at any depth without warnings", async () => {
-    for (const d of ["node_modules", ".git", "dist", "build", ".next", "coverage", "vendor"]) {
+    const dirs = ["node_modules", ".git", "dist", "build", ".next", "coverage", "vendor"];
+    for (const d of [...dirs, "storybook-static"]) {
       await put(`${d}/x.js`);
       await put(`packages/app/${d}/y.js`);
     }

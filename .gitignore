@@ -157,6 +157,8 @@ vite.config.ts.timestamp-*
 
 # Storybook static build
 storybook-static/
+# …except the analyzer fixture that checks such folders are skipped
+!fixtures/checker-crash/storybook-static/
 
 
 # Claude Code local settings

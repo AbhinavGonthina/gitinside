@@ -1,15 +1,16 @@
 import { readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
-import { SYSTEM_ID, type ArchitectureGraph } from "@gitinside/schema";
+import { SYSTEM_ID, type AnalysisWarning, type ArchitectureGraph } from "@gitinside/schema";
 import { assembleGraph } from "./assemble.js";
 import { buildCallEdges, createSymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
+import { errorText } from "./failures.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { collectHttpCalls } from "./http.js";
 import { buildImportGraph } from "./imports.js";
 import { buildInfra, relinkStores } from "./infra.js";
-import { buildInventory, type InventoryLimits } from "./inventory.js";
+import { AnalysisError, buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildHttpEdges, createRouteMatcher } from "./match.js";
 import { buildNextRoutes } from "./next.js";
 import { buildPrisma } from "./prisma.js";
@@ -94,11 +95,26 @@ async function defaultName(root: string, files: readonly string[]): Promise<stri
   }
 }
 
+/** The `DETECTOR_FAILED` warning for a detector stage that threw (see {@link errorText}). */
+export function detectorFailure(
+  stage: AnalysisStage,
+  error: unknown,
+  root: string,
+): AnalysisWarning {
+  return {
+    code: "DETECTOR_FAILED",
+    message: `the ${stage} stage stopped on an internal error (${errorText(error, root)}); what it finds is missing from this graph`,
+  };
+}
+
 /**
  * Analyze the repository at `dir` and return its architecture graph.
  * The analyzer only reads files; it never executes or installs anything from the repo.
  * Throws if `dir` is not a directory, and `AnalysisError` when a limit is exceeded.
  * Skipped files appear as graph warnings. The result is validated against the schema.
+ * A detector stage (imports, Express, Next.js, Prisma, infra, calls, HTTP, SDKs, queues)
+ * that throws becomes a `DETECTOR_FAILED` warning and contributes nothing, so one detector's
+ * bug costs its own nodes and edges rather than the whole analysis.
  */
 export async function analyze(
   dir: string,
@@ -122,6 +138,25 @@ export async function analyze(
     return result;
   }
 
+  const failures: AnalysisWarning[] = [];
+  /**
+   * Run a detector stage; if it throws (anything but a limit), record a `DETECTOR_FAILED`
+   * warning and use `empty` instead. Files and symbols aren't detectors: edges point at
+   * their nodes, so they always run unguarded.
+   */
+  function detector<T>(name: AnalysisStage, run: () => T | Promise<T>, empty: () => T): Promise<T> {
+    return stage(name, async () => {
+      try {
+        return await run();
+      } catch (error) {
+        if (error instanceof AnalysisError) throw error;
+        failures.push(detectorFailure(name, error, root));
+        return empty();
+      }
+    });
+  }
+  const none = () => ({ nodes: [], edges: [], warnings: [] });
+
   const inventory = await stage("inventory", () => buildInventory(root, options.limits));
   const workspace = await stage("workspace", () => detectWorkspace(root, inventory.files));
   const programs = await stage(
@@ -129,38 +164,70 @@ export async function analyze(
     () => buildServicePrograms(root, workspace, inventory),
     inventory.sourceFiles.length,
   );
-  const imports = await stage("imports", () =>
-    buildImportGraph(programs, workspace, inventory.sourceFiles),
+  const imports = await detector(
+    "imports",
+    () => buildImportGraph(programs, workspace, inventory.sourceFiles),
+    none,
   );
   const resolver = createSymbolResolver(programs, workspace);
-  const express = await stage("express", () => buildExpressRoutes(programs, resolver));
-  const next = await stage("next", () => buildNextRoutes(programs, resolver));
-  const prisma = await stage("prisma", () =>
-    buildPrisma(root, programs, workspace, resolver, inventory.sourceFiles, express.inlineHandlers),
+  const express = await detector(
+    "express",
+    () => buildExpressRoutes(programs, resolver),
+    () => ({ ...none(), inlineHandlers: new Map() }),
   );
-  const infra = await stage("infra", () => buildInfra(root, inventory.files, prisma.datastores));
+  const next = await detector("next", () => buildNextRoutes(programs, resolver), none);
+  const prisma = await detector(
+    "prisma",
+    () =>
+      buildPrisma(
+        root,
+        programs,
+        workspace,
+        resolver,
+        inventory.sourceFiles,
+        express.inlineHandlers,
+      ),
+    () => ({ ...none(), datastores: [] }),
+  );
+  const infra = await detector(
+    "infra",
+    () => buildInfra(root, inventory.files, prisma.datastores),
+    () => ({ nodes: [], warnings: [], links: new Map() }),
+  );
   const stored = relinkStores(prisma, infra.links);
   const files = await stage("files", () => buildFileNodes(root, workspace, inventory.sourceFiles));
   const symbols = await stage("symbols", () => buildSymbolNodes(programs));
-  const calls = await stage("calls", () => buildCallEdges(programs, resolver));
-  const http = await stage("http", () => {
-    const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
-    const requests = inlineWrappers(
-      sites,
-      programs,
-      resolver,
-      createUrlNormalizer(resolver),
-      express.inlineHandlers,
-    );
-    onProgress?.({ stage: "http", count: requests.length });
-    const matcher = createRouteMatcher([...express.nodes, ...next.nodes], workspace);
-    return buildHttpEdges(requests, matcher, workspace);
-  });
-  const sdk = await stage("sdk", () =>
-    buildSdkEdges(programs, resolver, workspace, express.inlineHandlers),
+  const calls = await detector(
+    "calls",
+    () => buildCallEdges(programs, resolver),
+    () => [],
   );
-  const queues = await stage("queues", () =>
-    buildQueueEdges(programs, resolver, workspace, express.inlineHandlers),
+  const http = await detector(
+    "http",
+    () => {
+      const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
+      const requests = inlineWrappers(
+        sites,
+        programs,
+        resolver,
+        createUrlNormalizer(resolver),
+        express.inlineHandlers,
+      );
+      onProgress?.({ stage: "http", count: requests.length });
+      const matcher = createRouteMatcher([...express.nodes, ...next.nodes], workspace);
+      return buildHttpEdges(requests, matcher, workspace);
+    },
+    () => ({ nodes: [], edges: [], matches: [] }),
+  );
+  const sdk = await detector(
+    "sdk",
+    () => buildSdkEdges(programs, resolver, workspace, express.inlineHandlers),
+    () => ({ nodes: [], edges: [] }),
+  );
+  const queues = await detector(
+    "queues",
+    () => buildQueueEdges(programs, resolver, workspace, express.inlineHandlers),
+    () => ({ nodes: [], edges: [] }),
   );
   const name = options.name ?? (await defaultName(root, inventory.files));
   // Part order is precedence: a custom Express server can register the same route as a
@@ -199,6 +266,7 @@ export async function analyze(
         { source: "http", nodes: http.nodes, edges: http.edges },
         { source: "sdk", ...sdk },
         { source: "queues", ...queues },
+        { source: "analyzer", warnings: [...resolver.warnings(), ...failures] },
       ],
     }),
   );

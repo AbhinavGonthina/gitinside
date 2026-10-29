@@ -21,6 +21,7 @@ export const IGNORED_DIRS: ReadonlySet<string> = new Set([
   "coverage",
   "dist",
   "node_modules",
+  "storybook-static",
   "third_party",
   "vendor",
 ]);
