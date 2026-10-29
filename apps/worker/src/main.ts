@@ -143,7 +143,7 @@ export async function startWorkerProcess(
     // for a maintenance run (a long bucket listing must not keep jobs past the deadline).
     if (options.maintenance !== false) {
       const maintenance = scheduleMaintenance({
-        run: () => runMaintenance({ db, store, log }),
+        run: () => runMaintenance({ db, store, jobs: queue, log }),
         log,
         ...options.maintenance,
       });

@@ -305,6 +305,11 @@ describe("createBullJobQueue without Redis", () => {
       await expect(queue.ping()).rejects.toThrow(/200 ms/);
       await expect(queue.get("analyze-x")).rejects.toThrow(/200 ms/);
       await expect(queue.add("analyze-x", REQUEST)).rejects.toThrow(/200 ms/);
+      // One timeout, not one per ID (20 × 200 ms): the rest count as failed at once.
+      const ids = Array.from({ length: 20 }, (_, n) => `analyze-${n}`);
+      const started = Date.now();
+      expect(await queue.removeCompleted(ids)).toEqual({ removed: 0, failed: 20 });
+      expect(Date.now() - started).toBeLessThan(2_000);
     } finally {
       await queue.close();
     }
@@ -412,6 +417,37 @@ describe.runIf(REDIS_URL !== undefined)("BullMQ on Redis", () => {
       step: "programs",
       count: 1204,
     });
+    release();
+    await until(async () => (await queue.get(idFor(1)))?.state === "done");
+  });
+
+  it("removes completed jobs only, so their commit can be added again", async () => {
+    let release = (): void => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    worker({
+      deps: deps(async (job) => {
+        if (job.out.includes(idFor(2))) await gate;
+        if (job.out.includes(idFor(3))) {
+          return { ok: false, code: "LIMIT_FILES", message: "", stderrTail: "", durationMs: 1 };
+        }
+        return writeGraph(job);
+      }),
+    });
+    await add(1);
+    await add(2);
+    await add(3);
+    await until(async () => (await queue.get(idFor(1)))?.state === "done");
+    await until(async () => (await queue.get(idFor(3)))?.state === "failed");
+    await until(async () => (await queue.get(idFor(2)))?.state === "running");
+
+    expect(await queue.removeCompleted([idFor(1), idFor(2), idFor(3), idFor(4)])).toEqual({
+      removed: 1,
+      failed: 0,
+    });
+    expect(await queue.get(idFor(1))).toBeUndefined();
+    expect((await queue.get(idFor(2)))?.state).toBe("running");
+    expect((await queue.get(idFor(3)))?.state).toBe("failed");
+    expect(await add(1)).toEqual({ created: true });
     release();
     await until(async () => (await queue.get(idFor(1)))?.state === "done");
   });

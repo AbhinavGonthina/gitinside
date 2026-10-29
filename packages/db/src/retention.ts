@@ -17,6 +17,9 @@ import { analyses, pullRequests, repos } from "./schema.js";
 export interface StoredSnapshotRow {
   id: string;
   repoId: string;
+  /** The repo's current owner and name (its job ID is derived from them, ADR-0082). */
+  owner: string;
+  name: string;
   visibility: "public" | "private";
   sha: string;
   analyzerVersion: string;
@@ -43,6 +46,8 @@ export async function listStoredSnapshots(db: AnyDatabase): Promise<StoredSnapsh
     .select({
       id: analyses.id,
       repoId: analyses.repoId,
+      owner: repos.owner,
+      name: repos.name,
       visibility: repos.visibility,
       sha: analyses.sha,
       analyzerVersion: analyses.analyzerVersion,
