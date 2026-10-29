@@ -332,7 +332,7 @@ For each call (method M, pattern P), compare with every route (method M', patter
 | Missing or invalid tsconfig | Synthesized defaults (§5.3); warning in stats |
 | Syntax errors in a file | The file is parsed with errors; the TS AST is still traversed; warning recorded |
 | Monorepo with circular workspace deps | Services are still created; cycle warning |
-| Worker crash mid-job | BullMQ stalled-job recovery re-queues it (`maxStalledCount: 2`, so at most 3 starts; then `JOB_STALLED`). A worker shutdown cancels running jobs, which run again after the restart |
+| Worker crash mid-job | BullMQ stalled-job recovery re-queues it (`maxStalledCount: 2`; then `JOB_STALLED`). A stall doesn't use up one of the 3 attempts, so a job that both fails retriably and stalls can start up to 5 times (M5 review). A worker shutdown cancels running jobs, which run again after the restart |
 | Transient failure (GitHub down, rate limit, storage) | Retried with exponential backoff, 3 attempts; re-adding the job after that runs it again (ADR-0061) |
 | Oracle VM reclaimed | Rebuild from the provisioning script; queued jobs are lost (Redis); web shows "temporarily unavailable" and allows retry |
 | GitHub API rate limit | Back off; use the installation token for private repos and the app-level token for public ones |

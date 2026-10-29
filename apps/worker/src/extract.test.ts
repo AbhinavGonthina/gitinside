@@ -7,7 +7,12 @@ import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ExtractError, extractTarball, type ExtractErrorCode } from "./extract.js";
+import {
+  ExtractError,
+  extractTarball,
+  SKIPPED_PATH_MAX_CHARS,
+  type ExtractErrorCode,
+} from "./extract.js";
 import { paxBody, streamOf, tar, tgz, type TestEntry } from "./tar.testkit.js";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../..");
@@ -300,6 +305,29 @@ describe("extractTarball: entries that aren't regular files or folders", () => {
     );
     expect(result.skipped).toEqual([{ path: "abcdef/ghij.ts", reason: "UNSUPPORTED_NAME" }]);
     expect(await listing(dest)).toEqual(["a.ts"]);
+  });
+
+  it("lists a skipped entry's path cut to 512 characters, never splitting a character (M5 review)", async () => {
+    const huge = "x/".repeat(400_000);
+    const emoji = `${"e".repeat(511)}${"😀".repeat(300)}`;
+    const exact = "😀".repeat(512);
+    const result = await extractTarball(
+      tgz([
+        { name: "P", type: "x", body: paxBody({ path: `${ROOT}/${huge}a.ts` }) },
+        file("long-1"),
+        { name: "P", type: "x", body: paxBody({ path: `${ROOT}/${emoji}` }) },
+        { name: "link", type: "2" },
+        { name: "P", type: "x", body: paxBody({ path: `${ROOT}/${exact}` }) },
+        { name: "link", type: "2" },
+      ]),
+      dest,
+    );
+    expect(result.skipped).toEqual([
+      { path: `${"e".repeat(511)}😀…`, reason: "SYMLINK" },
+      { path: `${"x/".repeat(256)}…`, reason: "UNSUPPORTED_NAME" },
+      { path: exact, reason: "SYMLINK" },
+    ]);
+    expect(SKIPPED_PATH_MAX_CHARS).toBe(512);
   });
 });
 
