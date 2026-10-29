@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.14f. M5 review follow-ups, infra: gateway hosts-only file, Redis password (M5.13 and M5.14b wait on #3–#7); M4b waits for the design gate (#2)
+M6.1. packages/diff scaffold + GraphDiff types in schema (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -131,7 +131,7 @@ M5.14f. M5 review follow-ups, infra: gateway hosts-only file, Redis password (M5
 - [x] M5.14c M5 review follow-up (ADR-0079, ADR-0080): guard `getTypeAtLocation` like `getSymbolAtLocation` (eval re-record) {model: opus}
 - [x] M5.14d M5 review follow-ups, web: stale head cache showing an older commit as current after a job; no "Analyze again" for permanent failures {model: opus}
 - [x] M5.14e M5 review follow-up, worker: retention removes evicted analyses' completed BullMQ jobs (Redis tests, CI only) {model: opus}
-- [ ] M5.14f M5 review follow-ups, infra: egress gateway mounts a hosts-only file instead of `worker.env`; Redis `requirepass` (worker env only); verified on CI's container check {model: opus}
+- [x] M5.14f M5 review follow-ups, infra: egress gateway mounts a hosts-only file instead of `worker.env`; Redis `requirepass` (worker env only); verified on CI's container check {model: opus}
 
 ### M6: Graph diff + incremental analysis
 - [ ] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
@@ -178,6 +178,8 @@ M5.14f. M5 review follow-ups, infra: gateway hosts-only file, Redis password (M5
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.14f: the egress gateway mounts only `/etc/gitinside/egress.hosts`, which new `infra/oracle/egress-hosts.sh` derives from `worker.env` (provision.sh + the unit's `ExecStartPre`); the gateway refuses any line that isn't a dotted lowercase DNS name. Redis gets `requirepass` from a generated root-only `redis.env` (stdin config, `REDISCLI_AUTH` health check), given to Redis and the worker only; the worker passes `REDIS_PASSWORD` beside the URL (`redisConnection`) (ADR-0083). CI's container check covers good/bad env and hosts files, the gateway's mounts and env, `NOAUTH` from the worker's namespace, no password in `ps`; verified on draft PR #9. Worker 453 locally (one PGlite hook timeout under load in `record.test.ts`, green alone). Note: `main`'s previous run (`ea54ac0`, docs only) failed the container check on `github443: ECONNREFUSED` once; it passed on PR #9, so treated as intermittent. No eval re-record. Next: M6.1 (M5 stays open for M5.13/M5.14b).
 
 - 2026-10-29 · M5.14e: `runRetention` takes an optional `CompletedJobs` queue and, after deleting rows, removes each deleted row's **completed** BullMQ job (ID from the repo's current owner/name + row's SHA and analyzer version; `StoredSnapshotRow` gains `owner`/`name`). Failures are counted (`failedJobRemovals`), never fail the run; the first one stops the call (one timeout per outage). Maintenance passes the worker's queue (ADR-0082). Before, a commit evicted within a day of its job got `created: false` + "done" for a missing analysis. 6 new worker tests + 2 Redis-only, verified on draft PR #8 (both ran); worker 452 locally + 16 CI-only, db 67. No eval re-record. Next: M5.14f.
 

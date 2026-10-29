@@ -121,7 +121,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Writing a `.npmrc` (a "sensitive file") with Write/Edit is refused, even inside `fixtures/`. Add such a file to the test's tarball entries in code instead.
 - File-heavy tests are slow here: creating or reading 20k small files costs ~54 s each way on this machine (`security.test.ts`'s 20,001-file case takes ~2.5 min), seconds on Linux CI. Run `pnpm --filter @gitinside/worker test -- <name>` for one file while iterating.
 - In a full parallel `pnpm test` here, web's PGlite tests (`analyzeRoute`, `jobRoute`) can time out under the worker suite's load. If only those fail, rerun `pnpm --filter @gitinside/web test` alone before suspecting your change.
-- A failing `docker compose up --wait` only says "unhealthy". `check.mjs` prints the stack's logs on failure, so grep the job log for `<service>-1 |`.<!-- lessons:end -->
+- A failing `docker compose up --wait` only says "unhealthy". `check.mjs` prints the stack's logs on failure, so grep the job log for `<service>-1 |`.
+- The container check's `github443` probe failed once with `ECONNREFUSED` on a docs-only commit (`ea54ac0`) and passed on the next run. If only that probe fails, rerun the job (`gh run rerun <run> --failed`) before debugging the gateway.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
