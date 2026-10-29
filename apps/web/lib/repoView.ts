@@ -21,15 +21,15 @@ import { WorkerUnavailableError, type WorkerClient } from "./worker";
  *    `/<owner>/<repo>/<sha>` permalink). None: the repo page offers "Analyze", which goes
  *    through `/api/analyze` and the visitor's rate limit; a permalink is a 404.
  * 2. **Permalinks stop there:** a commit's diagram never changes, so no GitHub call.
- * 3. **Check** the default branch's latest commit on GitHub, remembered per repo for
- *    {@link HEAD_TTL_MS} so busy pages don't spend GitHub's hourly quota. If GitHub can't
- *    be asked, the diagram is still shown (`unknown`). If GitHub says the repo is gone or
+ * 3. **Check** the default branch's latest commit on GitHub, remembered per repo and shown
+ *    analysis for {@link HEAD_TTL_MS} so busy pages don't spend GitHub's hourly quota. If
+ *    GitHub can't be asked, the diagram is still shown (`unknown`). If GitHub says it's gone or
  *    private now, it's a 404, and the repo is hidden (`hideRepo`) so its permalinks, graphs,
  *    and images stop too: a repo that went private must stop being served publicly.
  * 4. **Up to date** when the shown analysis is that commit by this analyzer version.
  *    Otherwise the newer commit's own state decides: finished ⇒ shown instead; in flight
- *    ⇒ `updating`; failed ⇒ `behind` (a deterministic failure isn't re-run on every view;
- *    "Analyze" retries it); none ⇒ enqueued.
+ *    ⇒ `updating`; failed ⇒ `behind` with its code (a failure isn't re-run on every view;
+ *    "Analyze again" retries one that could pass); none ⇒ enqueued.
  * 5. **Who pays:** re-analysis on view is charged to the repo, not the visitor
  *    (`repo:<GitHub ID>`, {@link RECHECKS_PER_HOUR} per hour), since a README image or a
  *    shared link is viewed by many people at once, and only a repo someone already paid to
@@ -94,8 +94,10 @@ export type HeadState =
   | { state: "current" }
   /** A newer analysis is queued or running; `jobId` opens its progress page when known. */
   | { state: "updating"; sha: string; jobId?: string }
+  /** Newer than what's shown, but its analysis failed with `errorCode`. */
+  | { state: "behind"; sha: string; reason: "failed"; errorCode: string }
   /** Newer than what's shown, but not being analyzed now. */
-  | { state: "behind"; sha: string; reason: "failed" | "limited" | "unavailable" }
+  | { state: "behind"; sha: string; reason: "limited" | "unavailable" }
   /** GitHub couldn't be asked. */
   | { state: "unknown" };
 
@@ -133,8 +135,20 @@ function ready(published: PublishedAnalysis, head: HeadState): RepoView {
   };
 }
 
-async function latestCommit(ref: RepoRef, deps: RepoViewDeps): Promise<ResolveResult> {
-  const key = `${ref.owner}/${ref.repo}`.toLowerCase();
+/**
+ * GitHub's answer for `ref`, remembered per repo **and per shown analysis**: once a newer
+ * analysis is published (a job finished, often started by `/api/analyze`, which asked GitHub
+ * itself), an answer remembered before it may name an older commit, and would show that
+ * older commit's diagram as "up to date" (M5 review). Keying on the shown analysis makes
+ * that answer a miss, so a publish costs one more lookup, never a wrong label.
+ */
+async function latestCommit(
+  ref: RepoRef,
+  shown: PublishedAnalysis["analysis"],
+  deps: RepoViewDeps,
+): Promise<ResolveResult> {
+  const repo = `${ref.owner}/${ref.repo}`.toLowerCase();
+  const key = `${repo}@${shown.sha}/${shown.analyzerVersion}`;
   const cached = deps.heads.get(key);
   if (cached !== undefined) return cached;
   const resolved = await resolveRepo(ref, deps.github);
@@ -158,7 +172,7 @@ export async function viewRepo(
   }
   if (published === undefined) return { status: "not-analyzed", owner: ref.owner, repo: ref.repo };
 
-  const resolved = await latestCommit(ref, deps);
+  const resolved = await latestCommit(ref, published.analysis, deps);
   if (!resolved.ok) {
     if (resolved.code === "REPO_NOT_FOUND" || resolved.code === "REPO_UNAVAILABLE") {
       // Recorded, so its permalinks and graphs (which never ask GitHub) stop too.
@@ -191,7 +205,9 @@ export async function viewRepo(
     if (latest !== undefined) return ready(latest, { state: "current" });
   }
   if (existing?.status === "failed") {
-    return ready(published, { state: "behind", sha: head.sha, reason: "failed" });
+    // `failed` rows always carry a code (schema.ts); the fallback is the worker's own.
+    const errorCode = existing.errorCode ?? "WORKER_ERROR";
+    return ready(published, { state: "behind", sha: head.sha, reason: "failed", errorCode });
   }
   const inFlight = existing?.status === "queued" || existing?.status === "running";
   const updating: HeadState = { state: "updating", sha: head.sha };
