@@ -76,7 +76,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 - **Landing:** headline "Git inside your repo.", supporting line, URL field ("Paste a GitHub repo URL"), demo repo gallery, "Sign in for private repos" (from M8).
 - **Analyze:** submit, then the progress page with real stages ("Downloading", "Parsing 1,204 files", "Linking 87 calls to routes", "Laying out") and queue position ("2 ahead of you"). It shows the error state with direction on failure.
 - **Cached:** an instant redirect to the diagram.
-- **README badge:** in the share menu, "Add to README" gives Markdown for the badge or live image.
+- **README badge:** in the share menu, "Add to README" gives Markdown for the badge or live image (a `<picture>` with one source per theme), with a preview and Copy. Until M4b brings the top bar back, the button sits on the repo bar (ADR-0073).
 
 ## States
 

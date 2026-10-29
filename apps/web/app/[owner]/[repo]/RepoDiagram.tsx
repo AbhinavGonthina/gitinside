@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { headStatus, loadGraph, short, type GraphLoad } from "../../../lib/repoStatus";
 import type { HeadState } from "../../../lib/repoView";
+import { AddToReadme } from "./AddToReadme";
 import { githubHref } from "./RepoNotice";
 import { useAnalyze } from "./useAnalyze";
 
@@ -22,7 +23,8 @@ export interface RepoDiagramProps {
 /**
  * The diagram page (ADR-0069): a repo bar (name, commit, how it relates to the latest
  * commit), then the diagram. The graph is fetched in the browser from `/api/graph`, so the
- * page itself stays small and the CDN caches the graph per commit. Until M4b, the diagram
+ * page itself stays small and the CDN caches the graph per commit. "Add to README" lives on
+ * the repo bar, since the prototype's share menu is hidden with its top bar. Until M4b, the diagram
  * is the M4a explorer prototype without its top bar.
  */
 export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramProps) {
@@ -77,6 +79,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
             {error}
           </p>
         )}
+        <AddToReadme owner={owner} repo={repo} />
         <a className="repo-bar__github" href={githubHref(owner, repo)} rel="noopener noreferrer">
           Open on GitHub
         </a>
