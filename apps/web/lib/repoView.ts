@@ -2,6 +2,7 @@ import {
   consumeRateLimit,
   findAnalysis,
   findPublishedAnalysis,
+  hideRepo,
   queueAnalysis,
   refundRateLimit,
   upsertRepo,
@@ -23,7 +24,8 @@ import { WorkerUnavailableError, type WorkerClient } from "./worker";
  * 3. **Check** the default branch's latest commit on GitHub, remembered per repo for
  *    {@link HEAD_TTL_MS} so busy pages don't spend GitHub's hourly quota. If GitHub can't
  *    be asked, the diagram is still shown (`unknown`). If GitHub says the repo is gone or
- *    private now, it's a 404: a repo that went private must stop being served publicly.
+ *    private now, it's a 404, and the repo is hidden (`hideRepo`) so its permalinks, graphs,
+ *    and images stop too: a repo that went private must stop being served publicly.
  * 4. **Up to date** when the shown analysis is that commit by this analyzer version.
  *    Otherwise the newer commit's own state decides: finished ⇒ shown instead; in flight
  *    ⇒ `updating`; failed ⇒ `behind` (a deterministic failure isn't re-run on every view;
@@ -159,6 +161,8 @@ export async function viewRepo(
   const resolved = await latestCommit(ref, deps);
   if (!resolved.ok) {
     if (resolved.code === "REPO_NOT_FOUND" || resolved.code === "REPO_UNAVAILABLE") {
+      // Recorded, so its permalinks and graphs (which never ask GitHub) stop too.
+      await hideRepo(db, published.repo.id);
       return { status: "missing" };
     }
     return ready(published, { state: "unknown" });

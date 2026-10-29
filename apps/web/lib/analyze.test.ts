@@ -3,13 +3,14 @@ import {
   analyses,
   completeAnalysis,
   failAnalysis,
+  hideRepo,
   rateLimits,
   repos,
   startAnalysis,
   upsertRepo,
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { requestAnalysis, UNAVAILABLE_MESSAGE, type AnalyzeDeps } from "./analyze";
 import { rateLimitKey } from "./clientIp";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
@@ -134,6 +135,48 @@ describe("requestAnalysis", () => {
     });
     expect(worker.calls).toEqual([]);
     expect(await slotsUsed()).toBe(5);
+  });
+
+  it("a cache hit restores a repo hidden while it was private (M5 review)", async () => {
+    const { repoId, id } = await doneAnalysis();
+    await completeAnalysis(t.db, id, {
+      snapshotKey: "k",
+      stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+    });
+    await hideRepo(t.db, repoId);
+    expect((await requestAnalysis("acme/shop", IP, deps)).status).toBe(200);
+    const [repo] = await t.db.select().from(repos);
+    expect(repo).toMatchObject({ visibility: "public", owner: "Acme", name: "Shop" });
+  });
+
+  it("still answers 202 when recording the new job's rows fails (M5 review)", async () => {
+    let enqueued = false;
+    const db = new Proxy(t.db, {
+      get(target, key, receiver) {
+        if (enqueued && key === "transaction") {
+          return () => Promise.reject(new Error("connection lost"));
+        }
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
+    const client: AnalyzeDeps["worker"] = {
+      enqueue: async (job) => {
+        enqueued = true;
+        return worker.client.enqueue(job);
+      },
+    };
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const answer = await requestAnalysis("acme/shop", IP, { ...deps, db, worker: client });
+      expect(answer).toMatchObject({ status: 202, body: { status: "queued" } });
+      expect(errors.mock.calls).toEqual([
+        [JSON.stringify({ event: "queue_record_failed", error: "Error" })],
+      ]);
+    } finally {
+      errors.mockRestore();
+    }
+    expect(await analysisRows()).toEqual([]);
+    expect(await slotsUsed()).toBe(1);
   });
 
   it("a different analyzer version's result isn't a cache hit", async () => {

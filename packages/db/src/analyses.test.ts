@@ -8,6 +8,7 @@ import {
   failInterruptedAnalyses,
   findAnalysis,
   findPublishedAnalysis,
+  hideRepo,
   queueAnalysis,
   repos,
   requeueAnalysis,
@@ -262,6 +263,20 @@ describe("findPublishedAnalysis", () => {
     const { id: repoId } = await upsertRepo(t.db, { ...FACTS, visibility: "private" });
     await done(repoId, SHA, VERSION, "2026-10-01T00:00:00Z");
     expect(await findPublishedAnalysis(t.db, { owner: "acme", name: "shop" })).toBeUndefined();
+  });
+
+  it("stops serving a hidden repo, permalinks included, until GitHub's facts restore it", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    await done(repoId, SHA, VERSION, "2026-10-01T00:00:00Z");
+    const pinned = { owner: "acme", name: "shop", sha: SHA };
+
+    expect(await hideRepo(t.db, repoId)).toBe(true);
+    expect(await hideRepo(t.db, repoId)).toBe(false);
+    expect(await findPublishedAnalysis(t.db, { owner: "acme", name: "shop" })).toBeUndefined();
+    expect(await findPublishedAnalysis(t.db, pinned)).toBeUndefined();
+
+    await upsertRepo(t.db, FACTS);
+    expect((await findPublishedAnalysis(t.db, pinned))?.analysis.sha).toBe(SHA);
   });
 });
 
