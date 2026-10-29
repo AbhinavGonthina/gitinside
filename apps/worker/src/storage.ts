@@ -27,6 +27,9 @@ import {
  * - **Reads** (`get`, the web app's `/api/graph`, ADR-0068) are signed GETs; a missing
  *   object is `undefined`, any other refusal a {@link StorageError}. Exported on its own as
  *   `@gitinside/worker/storage`, so the web app reads with the code the worker writes with.
+ * - **Listing and deleting** (`list`, `delete`) serve snapshot retention (retention.ts,
+ *   ADR-0077): ListObjectsV2 pages parsed strictly (a page missing a field throws rather
+ *   than under-count the bucket), and deletes that treat a missing object as done.
  * - **Credentials** come from `R2_*` variables (ADR-0055) and appear in no error or log.
  */
 
@@ -73,11 +76,26 @@ export interface ObjectBody {
   contentType: string | undefined;
 }
 
-/** The operations the worker (put) and the web app (get, M5.8) need. */
+/** One object as a bucket listing reports it. */
+export interface ListedObject {
+  key: string;
+  /** Stored bytes (gzipped for a snapshot): what counts against the quota. */
+  size: number;
+  lastModified: Date;
+}
+
+/** The operations the worker (put, retention's list/delete) and the web app (get, M5.8) need. */
 export interface ObjectStore {
   put(key: string, body: Uint8Array, options: PutObjectOptions): Promise<void>;
   /** The object under `key`, or `undefined` if there's none (S3's `404 NoSuchKey`). */
   get(key: string): Promise<ObjectBody | undefined>;
+  /**
+   * Every object whose key starts with `prefix` (default all), in the bucket's key order,
+   * fetched a page at a time (S3's ListObjectsV2). A page that can't be read throws.
+   */
+  list(prefix?: string): AsyncIterable<ListedObject>;
+  /** Delete the object under `key`; deleting a missing object succeeds, as in S3. */
+  delete(key: string): Promise<void>;
 }
 
 /** Options for {@link createObjectStore}. */
@@ -88,6 +106,8 @@ export interface ObjectStoreOptions {
   timeoutMs?: number;
   /** The signing clock (tests fix it). Default now. */
   now?: () => Date;
+  /** Keys per listing page (S3's `max-keys`). Default and maximum 1,000. */
+  listPageSize?: number;
 }
 
 /** What {@link uploadSnapshot} stored. */
@@ -116,6 +136,16 @@ const ACCOUNT_ID = /^[0-9a-f]{32}$/;
 const BUCKET = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 const KEY = /^[A-Za-z0-9._/-]{1,512}$/;
 const S3_ERROR_CODE = /<Code>([A-Za-z][A-Za-z0-9.]{0,63})<\/Code>/;
+const LIST_PREFIX = /^[A-Za-z0-9._/-]{0,512}$/;
+const LIST_CONTENTS = /<Contents>([\s\S]*?)<\/Contents>/g;
+const XML_ENTITY = /&(amp|lt|gt|quot|apos|#[0-9]{1,7}|#x[0-9A-Fa-f]{1,6});/g;
+const XML_ENTITIES: Readonly<Record<string, string>> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+};
 
 /** A storage request that failed. `message` holds no credentials or response bodies. */
 export class StorageError extends Error {
@@ -194,6 +224,63 @@ async function s3CodeOf(response: Response): Promise<string | undefined> {
   return S3_ERROR_CODE.exec(text.slice(0, 4096))?.[1];
 }
 
+/** A {@link StorageError} for a response that refused `verb`, with S3's code if any. */
+async function refusal(response: Response, verb: string): Promise<StorageError> {
+  const s3Code = await s3CodeOf(response);
+  return new StorageError(
+    `${verb} answered ${response.status}${s3Code === undefined ? "" : ` ${s3Code}`}`,
+    response.status,
+    s3Code,
+  );
+}
+
+function decodeEntity(entity: string): string {
+  if (entity.startsWith("#x")) return String.fromCodePoint(parseInt(entity.slice(2), 16));
+  if (entity.startsWith("#")) return String.fromCodePoint(Number(entity.slice(1)));
+  return XML_ENTITIES[entity] ?? "";
+}
+
+/** The decoded text of the first `<name>…</name>` in `xml`, or `undefined`. */
+function xmlField(xml: string, name: string): string | undefined {
+  const open = xml.indexOf(`<${name}>`);
+  if (open === -1) return undefined;
+  const from = open + name.length + 2;
+  const close = xml.indexOf(`</${name}>`, from);
+  if (close === -1) return undefined;
+  return xml.slice(from, close).replace(XML_ENTITY, (_, entity: string) => decodeEntity(entity));
+}
+
+/**
+ * One ListObjectsV2 page: its objects, and the token for the next page if it was cut short.
+ * Throws a {@link StorageError} unless every object has a key, a size, and a date, so a
+ * caller never sizes the bucket from a half-read listing.
+ */
+function parseListing(xml: string): { objects: ListedObject[]; next: string | undefined } {
+  const unreadable = () => new StorageError("LIST answered an unreadable listing", 200);
+  try {
+    if (!xml.includes("<ListBucketResult")) throw unreadable();
+    const objects: ListedObject[] = [];
+    for (const [, block = ""] of xml.matchAll(LIST_CONTENTS)) {
+      const key = xmlField(block, "Key");
+      const size = xmlField(block, "Size");
+      const lastModified = new Date(xmlField(block, "LastModified") ?? "");
+      if (key === undefined || key === "" || size === undefined || !/^\d{1,15}$/.test(size)) {
+        throw unreadable();
+      }
+      if (Number.isNaN(lastModified.getTime())) throw unreadable();
+      objects.push({ key, size: Number(size), lastModified });
+    }
+    const truncated = xmlField(xml, "IsTruncated");
+    if (truncated === "false") return { objects, next: undefined };
+    const next = xmlField(xml, "NextContinuationToken");
+    if (truncated !== "true" || next === undefined || next === "") throw unreadable();
+    return { objects, next };
+  } catch (error) {
+    // `fromCodePoint` throws a RangeError on an entity past U+10FFFF.
+    throw error instanceof StorageError ? error : unreadable();
+  }
+}
+
 /** An {@link ObjectStore} speaking S3's API with path-style URLs (`<endpoint>/<bucket>/<key>`). */
 export function createObjectStore(
   config: StoreConfig,
@@ -207,7 +294,31 @@ export function createObjectStore(
   const doFetch = options.fetch ?? fetch;
   const now = options.now ?? (() => new Date());
   const timeoutMs = options.timeoutMs ?? STORAGE_TIMEOUT_MS;
+  const pageSize = options.listPageSize ?? 1000;
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 1000) {
+    throw new Error("listPageSize must be 1–1000");
+  }
   const scope = { region: config.region ?? "auto", service: "s3" };
+
+  /** A signed request without a body; `failure` is the message if no response arrives. */
+  async function send(method: "GET" | "DELETE", url: URL, failure: string): Promise<Response> {
+    const headers = { "x-amz-content-sha256": EMPTY_PAYLOAD_HASH, "x-amz-date": amzDate(now()) };
+    const auth = authorization(
+      { method, url, headers: { ...headers, host: url.host }, payloadHash: EMPTY_PAYLOAD_HASH },
+      config.credentials,
+      scope,
+    );
+    try {
+      return await doFetch(url, {
+        method,
+        headers: { ...headers, authorization: auth },
+        redirect: "manual",
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (error) {
+      throw new StorageError(failure, undefined, undefined, { cause: error });
+    }
+  }
 
   function objectUrl(key: string): URL {
     if (!KEY.test(key) || key.split("/").some((s) => s === "" || s === "." || s === "..")) {
@@ -220,42 +331,54 @@ export function createObjectStore(
   return {
     async get(key) {
       const url = objectUrl(key);
-      const headers = { "x-amz-content-sha256": EMPTY_PAYLOAD_HASH, "x-amz-date": amzDate(now()) };
-      const auth = authorization(
-        {
-          method: "GET",
-          url,
-          headers: { ...headers, host: url.host },
-          payloadHash: EMPTY_PAYLOAD_HASH,
-        },
-        config.credentials,
-        scope,
-      );
-      let response: Response;
-      try {
-        response = await doFetch(url, {
-          headers: { ...headers, authorization: auth },
-          redirect: "manual",
-          signal: AbortSignal.timeout(timeoutMs),
-        });
-      } catch (error) {
-        throw new StorageError(`GET from ${url.host} failed`, undefined, undefined, {
-          cause: error,
-        });
-      }
+      const response = await send("GET", url, `GET from ${url.host} failed`);
       if (response.status === 200 && response.body !== null) {
         return {
           body: response.body,
           contentType: response.headers.get("content-type") ?? undefined,
         };
       }
-      const s3Code = await s3CodeOf(response);
-      if (response.status === 404 && s3Code === "NoSuchKey") return undefined;
-      throw new StorageError(
-        `GET answered ${response.status}${s3Code === undefined ? "" : ` ${s3Code}`}`,
-        response.status,
-        s3Code,
-      );
+      const error = await refusal(response, "GET");
+      if (error.status === 404 && error.s3Code === "NoSuchKey") return undefined;
+      throw error;
+    },
+
+    async *list(prefix = "") {
+      if (!LIST_PREFIX.test(prefix)) throw new StorageError("invalid listing prefix");
+      let token: string | undefined;
+      do {
+        const url = new URL(`/${uriEncode(config.bucket)}`, endpoint);
+        url.searchParams.set("list-type", "2");
+        url.searchParams.set("max-keys", String(pageSize));
+        if (prefix !== "") url.searchParams.set("prefix", prefix);
+        if (token !== undefined) url.searchParams.set("continuation-token", token);
+        const response = await send("GET", url, `LIST from ${url.host} failed`);
+        if (response.status !== 200) throw await refusal(response, "LIST");
+        let xml: string;
+        try {
+          xml = await response.text();
+        } catch (error) {
+          throw new StorageError(`LIST from ${url.host} failed`, 200, undefined, { cause: error });
+        }
+        const page = parseListing(xml);
+        if (page.next !== undefined && page.next === token) {
+          throw new StorageError("LIST answered the same page twice", 200);
+        }
+        yield* page.objects;
+        token = page.next;
+      } while (token !== undefined);
+    },
+
+    async delete(key) {
+      const url = objectUrl(key);
+      const response = await send("DELETE", url, `DELETE at ${url.host} failed`);
+      if (response.status === 204 || response.status === 200) {
+        await response.body?.cancel().catch(() => undefined);
+        return;
+      }
+      const error = await refusal(response, "DELETE");
+      if (error.status === 404 && error.s3Code === "NoSuchKey") return;
+      throw error;
     },
 
     async put(key, body, put) {
@@ -289,12 +412,7 @@ export function createObjectStore(
         await response.body?.cancel().catch(() => undefined);
         return;
       }
-      const s3Code = await s3CodeOf(response);
-      throw new StorageError(
-        `PUT answered ${response.status}${s3Code === undefined ? "" : ` ${s3Code}`}`,
-        response.status,
-        s3Code,
-      );
+      throw await refusal(response, "PUT");
     },
   };
 }

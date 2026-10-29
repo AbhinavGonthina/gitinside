@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { startFakeS3, type FakeS3 } from "./s3.testkit.js";
+import { s3Error, startFakeS3, type FakeS3 } from "./s3.testkit.js";
 import {
   SNAPSHOT_CACHE_CONTROL,
   StorageError,
@@ -282,6 +282,125 @@ describe("createObjectStore", () => {
     expect(() => createObjectStore({ ...config, endpoint: `${s3.endpoint}/other` })).toThrow(
       "endpoint must be an origin",
     );
+    for (const listPageSize of [0, 1001, 1.5]) {
+      expect(() => createObjectStore(config, { listPageSize })).toThrow("listPageSize");
+    }
+  });
+
+  async function collect(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
+    const items: unknown[] = [];
+    for await (const item of iterable) items.push(item);
+    return items;
+  }
+
+  function stored(key: string, bytes: number, lastModified: Date) {
+    s3.objects.set(key, { body: Buffer.alloc(bytes), headers: {}, lastModified });
+  }
+
+  it("lists every object with its size and date, across pages, under a prefix", async () => {
+    const day = new Date("2026-10-01T00:00:00.000Z");
+    stored("public/b/1.json.gz", 10, day);
+    stored("public/a/2.json.gz", 20, day);
+    stored("public/a/1.json.gz", 30, day);
+    stored("private/1/x.json.gz", 40, day);
+    stored("public/odd&<name>.json.gz", 5, day);
+    const store = createObjectStore(config, { listPageSize: 2 });
+
+    const all = await collect(store.list());
+    expect(all).toEqual([
+      { key: "private/1/x.json.gz", size: 40, lastModified: day },
+      { key: "public/a/1.json.gz", size: 30, lastModified: day },
+      { key: "public/a/2.json.gz", size: 20, lastModified: day },
+      { key: "public/b/1.json.gz", size: 10, lastModified: day },
+      { key: "public/odd&<name>.json.gz", size: 5, lastModified: day },
+    ]);
+    const lists = s3.requests.filter((r) => r.url.startsWith("/gitinside-snapshots?"));
+    expect(lists).toHaveLength(3);
+    expect(lists[1]?.url).toContain("continuation-token=");
+
+    expect((await collect(store.list("public/a/"))).map((o) => (o as { key: string }).key)).toEqual(
+      ["public/a/1.json.gz", "public/a/2.json.gz"],
+    );
+    expect(await collect(store.list("nothing/"))).toEqual([]);
+  });
+
+  it("refuses a listing it can't read completely, instead of under-counting", async () => {
+    const store = createObjectStore(config);
+    const answers = [
+      "<html>not a listing</html>",
+      "<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>a</Key><LastModified>2026-10-01T00:00:00Z</LastModified></Contents></ListBucketResult>",
+      "<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>a</Key><Size>-1</Size><LastModified>2026-10-01T00:00:00Z</LastModified></Contents></ListBucketResult>",
+      "<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>a</Key><Size>1</Size><LastModified>soon</LastModified></Contents></ListBucketResult>",
+      "<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>&#9999999;</Key><Size>1</Size><LastModified>2026-10-01T00:00:00Z</LastModified></Contents></ListBucketResult>",
+      "<ListBucketResult><IsTruncated>true</IsTruncated></ListBucketResult>",
+      "<ListBucketResult></ListBucketResult>",
+    ];
+    for (const xml of answers) {
+      s3.handler = (_req, _body, res) => {
+        res.writeHead(200, { "content-type": "application/xml" });
+        res.end(xml);
+      };
+      await expect(collect(store.list())).rejects.toMatchObject({
+        name: "StorageError",
+        message: "LIST answered an unreadable listing",
+      });
+    }
+  });
+
+  it("stops when a listing hands back the token it was given", async () => {
+    s3.handler = (_req, _body, res) => {
+      res.writeHead(200);
+      res.end(
+        "<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>t</NextContinuationToken></ListBucketResult>",
+      );
+    };
+    await expect(collect(createObjectStore(config).list())).rejects.toThrow(
+      "LIST answered the same page twice",
+    );
+    expect(s3.requests).toHaveLength(2);
+  });
+
+  it("fails a refused or unanswered listing, and refuses a bad prefix unsent", async () => {
+    const store = createObjectStore(config);
+    await expect(collect(store.list("a b"))).rejects.toThrow("invalid listing prefix");
+    expect(s3.requests).toHaveLength(0);
+    const wrong = createObjectStore({
+      ...config,
+      credentials: { accessKeyId: s3.credentials.accessKeyId, secretAccessKey: "wrong-secret-xyz" },
+    });
+    await expect(collect(wrong.list())).rejects.toMatchObject({
+      status: 403,
+      message: "LIST answered 403 SignatureDoesNotMatch",
+    });
+    await s3.close();
+    await expect(collect(store.list())).rejects.toMatchObject({
+      status: undefined,
+      message: `LIST from ${new URL(s3.endpoint).host} failed`,
+    });
+    s3 = await startFakeS3(); // for afterEach
+  });
+
+  it("deletes an object, and treats a missing one as deleted", async () => {
+    stored("public/a/1.json.gz", 3, new Date());
+    const store = createObjectStore(config);
+    await store.delete("public/a/1.json.gz");
+    expect(s3.objects.has("public/a/1.json.gz")).toBe(false);
+    await store.delete("public/a/1.json.gz");
+    expect(s3.requests.at(-1)).toMatchObject({ method: "DELETE" });
+
+    s3.handler = (_req, _body, res) => s3Error(res, 404, "NoSuchKey");
+    await expect(store.delete("public/a/1.json.gz")).resolves.toBeUndefined();
+    s3.handler = (_req, _body, res) => s3Error(res, 403, "AccessDenied");
+    await expect(store.delete("public/a/1.json.gz")).rejects.toMatchObject({
+      status: 403,
+      message: "DELETE answered 403 AccessDenied",
+    });
+    await expect(store.delete("../x")).rejects.toThrow("invalid object key");
+    await s3.close();
+    await expect(store.delete("k")).rejects.toMatchObject({
+      message: `DELETE at ${new URL(s3.endpoint).host} failed`,
+    });
+    s3 = await startFakeS3(); // for afterEach
   });
 });
 
