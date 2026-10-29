@@ -12,12 +12,12 @@
 #   else is rejected, and IPv6 is dropped. Docker's resolver (127.0.0.11) answers any name,
 #   so only root may ask it.
 #
-# The allowlist: api.github.com, codeload.github.com, <R2_ACCOUNT_ID>.r2.cloudflarestorage.com,
-# and the hosts of DATABASE_URL / DATABASE_URL_UNPOOLED, read from the worker's env file.
-# Values are never printed; only host names are.
+# The allowlist: api.github.com, codeload.github.com, and the hosts in the hosts file, which
+# infra/oracle/egress-hosts.sh derives from the worker's env file (the R2 endpoint and the
+# database hosts). The gateway never sees the env file or any secret (ADR-0083).
 set -eu
 
-ENV_FILE=${EGRESS_ENV_FILE:-/etc/gitinside/worker.env}
+HOSTS_FILE=${EGRESS_HOSTS_FILE:-/etc/gitinside/egress.hosts}
 INTERNAL_SUBNET=${EGRESS_INTERNAL_SUBNET:?EGRESS_INTERNAL_SUBNET is not set}
 SET=gitinside-allow
 RUN_DIR=/run/egress
@@ -28,40 +28,20 @@ fail() {
   exit 1
 }
 
-# The last value of the variable $1 in the env file, without surrounding quotes.
-value() {
-  sed -n "s/^[[:space:]]*$1[[:space:]]*=//p" "$ENV_FILE" | tail -n 1 |
-    sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/"
-}
-
-# The lowercase host of a URL (`scheme://[user[:password]@]host[:port][/…]`).
-url_host() {
-  printf '%s\n' "$1" |
-    sed -n 's|^[A-Za-z][A-Za-z0-9+.-]*://\([^@/]*@\)\{0,1\}\([^:/?#]*\).*$|\2|p' |
-    tr '[:upper:]' '[:lower:]'
-}
-
-[ -r "$ENV_FILE" ] || fail "can't read the worker's env file ($ENV_FILE)"
+[ -r "$HOSTS_FILE" ] || fail "can't read the hosts file ($HOSTS_FILE)"
 
 hosts="api.github.com codeload.github.com"
 
-account=$(value R2_ACCOUNT_ID | tr '[:upper:]' '[:lower:]')
-case $account in
-  '' | *[!0-9a-z]*) fail "R2_ACCOUNT_ID is empty or not an account ID" ;;
-esac
-hosts="$hosts $account.r2.cloudflarestorage.com"
-
-for name in DATABASE_URL DATABASE_URL_UNPOOLED; do
-  url=$(value "$name")
-  [ -n "$url" ] || continue
-  host=$(url_host "$url")
+# One lowercase DNS name with a dot per line; blank lines are skipped. Anything else stops
+# the gateway, so a bad file can't widen the allowlist (dnsmasq syntax, wildcards).
+while IFS= read -r host || [ -n "$host" ]; do
   case $host in
-    '') fail "$name has no host" ;;
-    *[!a-z0-9.-]*) fail "$name has an unexpected host" ;;
+    '') ;;
+    *[!a-z0-9.-]* | .* | *. | *..*) fail "the hosts file has an unexpected line" ;;
     *.*) hosts="$hosts $host" ;;
-    *) ;; # a service of this stack (CI's Postgres), reached over the internal network
+    *) fail "the hosts file has a name without a dot" ;;
   esac
-done
+done <"$HOSTS_FILE"
 
 # shellcheck disable=SC2086 # split on purpose: one host per line
 hosts=$(printf '%s\n' $hosts | sort -u | tr '\n' ' ')

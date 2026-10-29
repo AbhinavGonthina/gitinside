@@ -7,7 +7,8 @@ The analysis worker, its Redis, the egress gateway, and Caddy run as one Docker 
 | `compose.yml` | The stack: `egress`, `worker`, `redis`, `caddy` |
 | `egress/` | The gateway image: dnsmasq plus the iptables rules the worker's traffic goes through |
 | `Caddyfile` | TLS on 443 for `worker.gitinside.abhinavgonthina.dev`, the API's three routes only |
-| `provision.sh` | Installs Docker, loads kernel modules, checks out the repo, migrates, installs the systemd unit |
+| `provision.sh` | Installs Docker, loads kernel modules, checks out the repo, writes the Redis password and the gateway's host names, migrates, installs the systemd unit |
+| `egress-hosts.sh` | Derives the gateway's host names (`/etc/gitinside/egress.hosts`) from the env file; run by `provision.sh` and before every start |
 | `check.mjs`, `compose.check.yml` | CI's check of the whole stack (job `worker-image`); never deployed |
 
 ## What runs
@@ -23,9 +24,9 @@ internet ──443──▶ caddy ──egress:8080──▶ [ egress gateway ne
 ```
 
 - **caddy** publishes 443, gets its certificate from Let's Encrypt (TLS-ALPN challenge; port 80 stays closed), and forwards `GET /health`, `POST /enqueue`, and `GET /jobs/:id` unchanged. Anything else gets a 404 from Caddy.
-- **egress** owns the network namespace the worker runs in. Its dnsmasq resolves only `api.github.com`, `codeload.github.com`, `<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`, the hosts of `DATABASE_URL` / `DATABASE_URL_UNPOOLED` (read from the env file), and the stack's own service names. Everything else is NXDOMAIN. TCP may leave only to addresses dnsmasq handed out, on 443 or 5432. Raw IPs, other ports, the cloud metadata address, outside DNS servers, Docker's own resolver, and IPv6 are refused.
+- **egress** owns the network namespace the worker runs in. Its dnsmasq resolves only `api.github.com`, `codeload.github.com`, `<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`, the hosts of `DATABASE_URL` / `DATABASE_URL_UNPOOLED`, and the stack's own service names. It never sees the env file: it mounts `/etc/gitinside/egress.hosts`, host names only, which `egress-hosts.sh` writes from the env file (ADR-0083). Everything else is NXDOMAIN. TCP may leave only to addresses dnsmasq handed out, on 443 or 5432. Raw IPs, other ports, the cloud metadata address, outside DNS servers, Docker's own resolver, and IPv6 are refused.
 - **worker** has no network of its own (`network_mode: service:egress`) and no capabilities, so it can't change those rules. It is also on `127.0.0.1:8080` for checks from the VM itself.
-- **redis** is on an internal network with no route out and no published port.
+- **redis** is on an internal network with no route out and no published port, and it requires a password (`requirepass`). `provision.sh` generates it once into `/etc/gitinside/redis.env` (root-only); only Redis and the worker process get it, and the analysis children start with an empty environment.
 
 What the allowlist doesn't stop: R2 and Neon sit behind shared addresses (Cloudflare's and AWS's), so a process holding one of those addresses could reach another tenant behind the same address by sending a different TLS server name. Nothing in the worker runs repo code (SECURITY.md T1), and the analysis child has no network at all (`netguard.ts`), so this is a second wall, not the first.
 
@@ -69,9 +70,10 @@ Create a new VM as in #3, point the DNS record at its IP (#7), and follow **Firs
 | Health from the VM | `curl http://127.0.0.1:8080/health` |
 | Quota check (R2 and Neon vs. the free limits; exit 2 at 80%) | `sudo docker compose -f /opt/gitinside/infra/oracle/compose.yml exec worker node dist/quota-bin.js` |
 | Quota alarms from the hourly maintenance | `sudo docker compose -f /opt/gitinside/infra/oracle/compose.yml logs worker \| grep quota_alarm` |
+| Rotate the Redis password | `sudo rm /etc/gitinside/redis.env`, then run `provision.sh` again (it generates a new one and recreates both containers) |
 | Rotate the HMAC secret | Set `ENQUEUE_HMAC_SECRET_PREVIOUS` to the old value and `ENQUEUE_HMAC_SECRET` to the new one, restart, update Vercel, then remove `…_PREVIOUS` and restart again |
 
-- **Changing the R2 account or the Neon host** changes the allowlist: restart the stack so the gateway reads the env file again.
+- **Changing the R2 account or the Neon host** changes the allowlist: `sudo systemctl restart gitinside` re-derives `egress.hosts` and restarts the gateway with it.
 - **If the egress container restarts on its own**, the worker keeps the old network namespace with its rules but loses DNS, so jobs fail and retry. `sudo systemctl restart gitinside` recreates both.
 - **Host firewall:** Oracle's Ubuntu image keeps its rules in `/etc/iptables/rules.v4` (SSH in, everything else rejected). Docker adds its own chains when it starts; after reloading the saved rules, run `sudo systemctl restart docker gitinside`.
 - **Idle reclamation:** Oracle may reclaim an idle Always Free VM. Never generate artificial load to prevent it. Rebuild instead.

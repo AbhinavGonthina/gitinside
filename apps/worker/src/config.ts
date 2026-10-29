@@ -9,6 +9,7 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
  * | Variable | Required | Meaning |
  * |---|---|---|
  * | `REDIS_URL` | yes | `redis://` or `rediss://`, the Redis next to the worker |
+ * | `REDIS_PASSWORD` | no | Redis's `requirepass` (production generates it, ADR-0083) |
  * | `DATABASE_URL` | yes | `postgres://` or `postgresql://` (Neon's pooled endpoint) |
  * | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | yes | snapshot bucket (storage.ts) |
  * | `ENQUEUE_HMAC_SECRET` (+ optional `…_PREVIOUS`) | yes | enqueue API signing (hmac.ts) |
@@ -23,6 +24,8 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
 /** What {@link workerConfigFromEnv} returns. */
 export interface WorkerConfig {
   redisUrl: string;
+  /** Sent on every Redis connection; never part of `redisUrl`, so the URL stays loggable. */
+  redisPassword?: string;
   databaseUrl: string;
   store: StoreConfig;
   /** Current signing secret first, then the previous one during a rollover. */
@@ -132,8 +135,10 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     throw new ConfigError(problems);
   }
   const githubToken = env.GITHUB_TOKEN;
+  const redisPassword = env.REDIS_PASSWORD;
   return {
     redisUrl,
+    ...(redisPassword === undefined || redisPassword === "" ? {} : { redisPassword }),
     databaseUrl,
     store,
     secrets,
@@ -141,5 +146,19 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     host,
     port,
     ...(githubToken === undefined || githubToken === "" ? {} : { githubToken }),
+  };
+}
+
+/**
+ * The BullMQ connection for the worker's Redis: the URL, plus the password when one is
+ * set (ioredis lets an explicit `password` win over the URL's).
+ */
+export function redisConnection(config: Pick<WorkerConfig, "redisUrl" | "redisPassword">): {
+  url: string;
+  password?: string;
+} {
+  return {
+    url: config.redisUrl,
+    ...(config.redisPassword === undefined ? {} : { password: config.redisPassword }),
   };
 }

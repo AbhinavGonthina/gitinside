@@ -7,11 +7,16 @@
  *   node infra/oracle/check.mjs
  *
  * It builds the images through infra/oracle/compose.yml (plus compose.check.yml's throwaway
- * Postgres), writes a fake env file (no real secret exists in CI), applies the migrations
- * from inside the image, starts the stack with Caddy serving `localhost`, and checks:
+ * Postgres), writes a fake env file (no real secret exists in CI) and a Redis password,
+ * derives the gateway's hosts file with egress-hosts.sh, applies the migrations from inside
+ * the image, starts the stack with Caddy serving `localhost`, and checks:
+ * - egress-hosts.sh lists the R2 and database hosts and refuses bad values without echoing
+ *   them; the gateway refuses a hosts file line that could widen its allowlist;
  * - the worker answers `GET /health` on 127.0.0.1:8080, and the port is bound to loopback only;
  * - Caddy serves the API's routes over TLS on 443 and answers 404 for anything else;
- * - Redis publishes no port and sits only on the `internal: true` network;
+ * - Redis publishes no port, sits only on the `internal: true` network, answers NOAUTH
+ *   without the password, and shows the password on no command line;
+ * - the gateway mounts the hosts file and resolv.conf only, with no secret in its env;
  * - the worker runs in the egress gateway's network namespace, where only allowlisted names
  *   resolve, TCP reaches them on 443 only, and other hosts, raw IPs, the cloud metadata
  *   address, outside DNS servers, and Docker's own resolver are all refused;
@@ -47,11 +52,37 @@ writeFileSync(
     `ENQUEUE_HMAC_SECRET=${randomBytes(32).toString("hex")}`,
     "",
   ].join("\n"),
-  // Fake values, so world-readable: on the VM the file is root's own (0600), which the
-  // egress gateway's root can read without CAP_DAC_OVERRIDE; here the runner owns it.
-  { mode: 0o644 },
+  { mode: 0o600 },
 );
-const env = { ...process.env, WORKER_ENV_FILE: envFile, WORKER_DOMAIN: "localhost" };
+const redisPassword = randomBytes(32).toString("hex");
+const redisEnvFile = join(dir, "redis.env");
+writeFileSync(redisEnvFile, `REDIS_PASSWORD=${redisPassword}\n`, { mode: 0o600 });
+const hostsFile = join(dir, "egress.hosts");
+const env = {
+  ...process.env,
+  WORKER_ENV_FILE: envFile,
+  REDIS_ENV_FILE: redisEnvFile,
+  EGRESS_HOSTS_FILE: hostsFile,
+  WORKER_DOMAIN: "localhost",
+};
+
+/** infra/oracle/egress-hosts.sh on `envText`; the hosts file's lines, or the exit status. */
+function egressHosts(envText) {
+  const input = join(dir, "hosts-case.env");
+  const output = join(dir, "hosts-case.hosts");
+  writeFileSync(input, envText);
+  rmSync(output, { force: true });
+  try {
+    execFileSync("sh", ["infra/oracle/egress-hosts.sh", input, output], { stdio: "pipe" });
+  } catch (error) {
+    return { status: error.status, stderr: String(error.stderr) };
+  }
+  return {
+    hosts: readFileSync(output, "utf8")
+      .split("\n")
+      .filter((line) => line !== ""),
+  };
+}
 
 /** `docker compose …` with output shown (builds, startup). */
 function run(args) {
@@ -174,6 +205,17 @@ const tcp = (host, port) => new Promise((resolve) => {
   socket.on("timeout", () => { socket.destroy(); resolve("timeout"); });
   socket.on("error", (error) => resolve(error.code));
 });
+const firstReply = (host, port, request) => new Promise((resolve) => {
+  const socket = connect({ host, port, timeout: 5000 });
+  let reply = "";
+  socket.on("connect", () => socket.write(request));
+  socket.on("data", (chunk) => {
+    reply += chunk;
+    if (reply.includes("\\r\\n")) { socket.destroy(); resolve(reply.split("\\r\\n")[0]); }
+  });
+  socket.on("timeout", () => { socket.destroy(); resolve("timeout"); });
+  socket.on("error", (error) => resolve(error.code));
+});
 const dns = async (server, name) => {
   const resolver = new Resolver({ timeout: 2000, tries: 1 });
   resolver.setServers([server]);
@@ -193,6 +235,7 @@ console.log(JSON.stringify({
   outsideDns: await dns("1.1.1.1", "example.com"),
   dockerDns: await dns("127.0.0.11", "example.com"),
   redis: await tcp("redis", 6379),
+  redisNoAuth: await firstReply("redis", 6379, "PING\\r\\n"),
 }));
 `;
 
@@ -215,7 +258,59 @@ try {
 `;
 
 try {
+  // The gateway's hosts file, derived from the env file as provision.sh and the systemd
+  // unit derive it: host names only (CI's single-label `postgres` is the stack's own).
+  execFileSync("sh", ["infra/oracle/egress-hosts.sh", envFile, hostsFile], { stdio: "inherit" });
+  const account = "0".repeat(32);
+  assert.deepEqual(readFileSync(hostsFile, "utf8"), `${account}.r2.cloudflarestorage.com\n`);
+  const r2 = `R2_ACCOUNT_ID=${account}\n`;
+  assert.deepEqual(
+    egressHosts(
+      `${r2}DATABASE_URL="postgres://u:p@Ep-1.Neon.tech:5432/db?sslmode=require"\n` +
+        "DATABASE_URL_UNPOOLED='postgresql://u:p@ep-2.neon.tech/db'\n",
+    ),
+    { hosts: [`${account}.r2.cloudflarestorage.com`, "ep-1.neon.tech", "ep-2.neon.tech"] },
+  );
+  for (const bad of [
+    "",
+    "R2_ACCOUNT_ID=not-hex!\n",
+    `${r2}DATABASE_URL=postgres://u:p@/db\n`,
+    `${r2}DATABASE_URL=postgres://u:p@db.example/x\nDATABASE_URL_UNPOOLED=postgres://h_st.x/y\n`,
+  ]) {
+    const result = egressHosts(bad);
+    assert.equal(result.status, 1, JSON.stringify({ bad, result }));
+    assert.ok(!result.stderr.includes("u:p"), result.stderr);
+  }
+
   run(["build"]);
+
+  // The gateway refuses a hosts file that could widen its allowlist, before any rule.
+  for (const line of ["*.github.com", "evil.example/#/1.2.3.4", "localhost", "a..b", ".x.y"]) {
+    const bad = join(dir, "bad.hosts");
+    writeFileSync(bad, `${line}\n`, { mode: 0o644 });
+    let status = 0;
+    try {
+      execFileSync(
+        "docker",
+        [
+          "run",
+          "--rm",
+          "--network",
+          "none",
+          "-e",
+          "EGRESS_INTERNAL_SUBNET=172.30.250.0/24",
+          "-v",
+          `${bad}:/etc/gitinside/egress.hosts:ro`,
+          "gitinside-egress:local",
+        ],
+        { stdio: "pipe" },
+      );
+    } catch (error) {
+      status = error.status;
+    }
+    assert.equal(status, 1, line);
+  }
+
   run(["up", "-d", "--wait", "egress", "redis", "postgres"]);
   run(["run", "--rm", "--no-deps", "-T", "worker", "node", "--input-type=module", "-e", MIGRATE]);
   run(["up", "-d", "--wait", "worker", "caddy"]);
@@ -287,6 +382,33 @@ try {
   }
   for (const key of ["outsideDns", "dockerDns"]) {
     assert.equal(typeof reach[key], "string", `${key}: ${JSON.stringify(reach)}`);
+  }
+
+  // Redis wants the password (the worker's health check above passed with it), and the
+  // password is on no command line in the Redis container.
+  assert.match(reach.redisNoAuth, /^-NOAUTH/, JSON.stringify(reach));
+  const redisArgs = capture(["exec", "-T", "redis", "ps", "-o", "args"]);
+  assert.ok(redisArgs.includes("redis-server"), "redis-server is not running");
+  assert.ok(!redisArgs.includes(redisPassword), "the Redis password is on a command line");
+
+  // The gateway holds host names only: no env file mounted, no secret in its environment.
+  assert.deepEqual(
+    egress.Mounts.filter((mount) => mount.Type === "bind")
+      .map((mount) => [mount.Source, mount.Destination])
+      .sort((a, b) => (a[1] < b[1] ? -1 : 1)),
+    [
+      [hostsFile, "/etc/gitinside/egress.hosts"],
+      [join(process.cwd(), "infra/oracle/egress/resolv.conf"), "/etc/resolv.conf"],
+    ],
+  );
+  const gatewayEnv = egress.Config.Env.join("\n");
+  for (const name of [
+    "REDIS_PASSWORD",
+    "R2_SECRET_ACCESS_KEY",
+    "ENQUEUE_HMAC_SECRET",
+    "DATABASE_URL",
+  ]) {
+    assert.ok(!gatewayEnv.includes(name), `${name} is in the gateway's environment`);
   }
 
   const redis = inspect("redis");

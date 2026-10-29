@@ -2,7 +2,7 @@ import type { AddressInfo } from "node:net";
 import { ANALYZER_VERSION } from "@gitinside/analyzer";
 import { createDb, failInterruptedAnalyses, type AnyDatabase } from "@gitinside/db";
 import { createEnqueueServer } from "./api.js";
-import { ConfigError, workerConfigFromEnv, type WorkerConfig } from "./config.js";
+import { ConfigError, redisConnection, workerConfigFromEnv, type WorkerConfig } from "./config.js";
 import type { DownloadOptions } from "./github.js";
 import { sweepJobsRoot, type JobDeps } from "./job.js";
 import { createJsonLog } from "./log.js";
@@ -116,7 +116,7 @@ export async function startWorkerProcess(
     const interrupted = await failInterruptedAnalyses(db, startedAt);
     log({ event: "startup_sweep", folders, interrupted });
 
-    const connection = { url: config.redisUrl };
+    const connection = redisConnection(config);
     const prefix = options.prefix === undefined ? {} : { prefix: options.prefix };
     const queue = createBullJobQueue({
       connection,

@@ -74,7 +74,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: shellcheck infra/oracle/provision.sh infra/oracle/egress/entrypoint.sh
+      - run: shellcheck infra/oracle/provision.sh infra/oracle/egress-hosts.sh infra/oracle/egress/entrypoint.sh
       - run: docker version
       - run: docker compose version
       # The same kernel modules provision.sh loads on the VM, for the gateway's ipset.
