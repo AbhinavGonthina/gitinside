@@ -47,7 +47,9 @@ writeFileSync(
     `ENQUEUE_HMAC_SECRET=${randomBytes(32).toString("hex")}`,
     "",
   ].join("\n"),
-  { mode: 0o600 },
+  // Fake values, so world-readable: on the VM the file is root's own (0600), which the
+  // egress gateway's root can read without CAP_DAC_OVERRIDE; here the runner owns it.
+  { mode: 0o644 },
 );
 const env = { ...process.env, WORKER_ENV_FILE: envFile, WORKER_DOMAIN: "localhost" };
 
