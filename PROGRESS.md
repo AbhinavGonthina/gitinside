@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.9. Badge + live image endpoint + "Add to README"; M4b waits for the design gate (#2)
+M5.9b. Badge + live image routes; M4b waits for the design gate (#2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -117,7 +117,9 @@ M5.9. Badge + live image endpoint + "Add to README"; M4b waits for the design ga
 - [x] M5.8a Graph serving (`/api/graph`, signed R2 GET) + check-on-view logic (`viewRepo`: latest commit, re-analysis charged to the repo) {model: opus}
 - [x] M5.8b Diagram page `/<owner>/<repo>[/<sha>]` from `viewRepo`: graph fetched in the browser, not-analyzed / updating / behind / missing states, screenshots {model: opus}
 - [x] M5.8c Fix the analyzer crash found in M5.8b: `gitinside analyze .` on this repo with `eval/.repos/` and `bench/.repos/` checkouts present throws `TypeError: Cannot read properties of undefined (reading 'id')` from inside TypeScript, called by the Express stage's `valueOf` (`express.ts`, `checker.getSymbolAtLocation`; likely a node from another service's program). Each checkout alone and a clean HEAD analyze fine. Find the trigger, add a regression fixture, and make a detector's internal error a warning rather than a failed analysis {model: opus}
-- [ ] M5.9 Badge + live image endpoint + "Add to README" {model: opus}
+- [x] M5.9a README image renderers: `@gitinside/viewer/image` server entry, `renderBadge` + `renderDiagram` (top level as standalone SVG, auto/dark/light, deterministic, escaped), screenshots {model: opus}
+- [ ] M5.9b Badge + live image routes (`/api/badge/:owner/:repo.svg` and the diagram image): `viewRepo` check-on-view, 10 min cache, link-only badge for missing/private/not analyzed, CSP on the SVG {model: opus}
+- [ ] M5.9c "Add to README" on the repo page: Markdown for the badge or the live image (`<picture>` for dark/light), copy button, screenshots {model: opus}
 - [ ] M5.10 Hardened worker Docker image + infra/oracle provisioning script + docs {model: opus}
 - [ ] M5.11 Security test suite with malicious fixtures {model: opus}
 - [ ] M5.12 Snapshot retention + quota check {model: opus}
@@ -169,6 +171,8 @@ M5.9. Badge + live image endpoint + "Add to README"; M4b waits for the design ga
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.9a: M5.9 split into a (renderers), b (routes), c ("Add to README"). New server entry `@gitinside/viewer/image` (no CSS, no "use client"; ADR-0071): `renderDiagram(graph, { theme: auto|dark|light })` draws the top level as standalone SVG from the canvas's own lifted edges, words, logos, glyphs (serialized from their React artwork), and token colors (`color-mix` computed to hex); `renderBadge({ message, tone })` is shields-shaped with fixed ≥ 4.5:1 colors. Own layout: 3 layer columns, wrapped top-aligned sub-columns (√n rows past 15), row-gap and side-lane routing. The screenshot review moved outside APIs into the data column (lines crossed datastores) and fixed cal.com's 20-column strip. All text escaped, and hostile names are tested. 25 new tests (viewer 470, image 98% lines) + a built-entry check in web. Screenshots `docs/milestones/M5/readme-*.png`. No eval re-record. Next: M5.9b.
 
 - 2026-10-29 · M5.8c: trigger was `packages/viewer/storybook-static/assets/Icon-*.js` (gitignored Storybook build, bundled zod), not the eval/bench checkouts. TS 5.6 throws inside `getSymbolAtLocation(this.safeParse.bind)` while printing a getter-only property for an error message (`exactOptionalPropertyTypes`); it never reproduced outside the full checkout. Fix (ADR-0070): `guardedChecker` (throw ⇒ `undefined` + one `TYPESCRIPT_INTERNAL_ERROR` per expression), `detector()` stages (throw ⇒ empty part + `DETECTOR_FAILED`; limits still fail), `storybook-static` ignored, fixture `checker-crash` + fault-injection tests in `analyze.test.ts`. This repo with the bundle: 38,757 nodes, 1 warning. 594 analyzer tests; local coverage hits the known 20 s timing test even on clean `main`, so coverage was checked on CI (draft PR #4), which caught a focus race in M5.8b's `repoPage.test.tsx` (now waits for the effect). Eval re-recorded (numbers unchanged: TP 28, FP 1, FN 110). Next: M5.9.
 
