@@ -32,7 +32,7 @@ Each fixture under `fixtures/` is a small hand-written repo exercising **one** p
 - **M1:** `express-basic`, `express-nested-routers`, `next-app-router`, `next-pages-api`, `prisma-relations`, `pnpm-monorepo`, `syntax-error`, `no-tsconfig`.
 - **M2:** `fetch-template-literal`, `axios-baseurl-instance`, `env-base-heuristic`, `ambiguous-routes`, `wrapper-fetch`, `external-sdk`, `compose-and-env`, `fake-secrets`, `queues-bullmq`. `fixtures.test.ts` also asserts over every fixture that each collected HTTP call has an edge ("no call site dropped") and that no env value or planted secret reaches the output.
 - **M6:** `diff-removed-route-still-called` (base and head), `diff-renamed-file`, `diff-changed-method`, `diff-removed-model-field`.
-- **Malicious (M5):** `postinstall-script`, `huge-file`, `symlink-escape`, `path-traversal-tar`, `zip-bomb`, `deep-nesting`, `too-many-files` (generated in test, not committed).
+- **Malicious (M5):** `postinstall-script`, `huge-file`, `symlink-escape`, `path-traversal-tar`, `zip-bomb`, `deep-nesting`, `too-many-files`. Only `fixtures/malicious/postinstall-script/` is a folder; the rest are built byte by byte in `apps/worker/src/security.test.ts` (`fixtures/malicious/README.md` lists each case and its expected outcome; ADR-0076).
 
 Fixtures are never executed: no `npm install`, no scripts. Tests only call the analyzer on the directory.
 
@@ -56,13 +56,13 @@ Coverage is a floor, not a goal. Don't write tests that only touch lines.
 
 ## Security tests (see SECURITY.md)
 
-These must show that the worker:
+`apps/worker/src/security.test.ts` runs each malicious case through the whole job (fake GitHub ⇒ extraction ⇒ the sandboxed child ⇒ the stored graph) at the production limits; the unit tests in `extract.test.ts`, `runner.test.ts`, and the analyzer's `inventory.test.ts` cover each layer alone. Its 20,001-file case takes about 2.5 minutes on Windows (per-file cost of NTFS) and seconds on Linux. Together they must show that the worker:
 - Rejects path traversal and symlinks during extraction.
 - Stops at size and file limits.
 - Never runs package scripts. The test asserts that no child process other than the analyzer is spawned, and that a sentinel file a postinstall script would create never appears.
 - Never writes secret values into the graph.
-- Verifies webhook signatures.
-- Denies private snapshots to users without access.
+- Verifies webhook signatures (M8.8).
+- Denies private snapshots to users without access (M8.8).
 
 ## CI (GitHub Actions)
 

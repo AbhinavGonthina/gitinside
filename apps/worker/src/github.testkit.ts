@@ -71,15 +71,15 @@ export async function startFakeGitHub(tarball: Buffer = Buffer.alloc(0)): Promis
   return fake;
 }
 
-/** A GitHub-style tarball (`<top>/` folder first) of the files under `dir`. */
-export async function tarballOf(dir: string, top = "acme-shop-0123456"): Promise<Buffer> {
-  const entries: TestEntry[] = [{ name: `${top}/`, type: "5" }];
+/** Tar entries (folders and files, sorted, repo-relative names) for the files under `dir`. */
+export async function entriesOf(dir: string): Promise<TestEntry[]> {
+  const entries: TestEntry[] = [];
   const walk = async (folder: string): Promise<void> => {
     const items = await readdir(folder, { withFileTypes: true });
     items.sort((a, b) => compareStrings(a.name, b.name));
     for (const item of items) {
       const path = join(folder, item.name);
-      const name = `${top}/${relative(dir, path).split(sep).join("/")}`;
+      const name = relative(dir, path).split(sep).join("/");
       if (item.isDirectory()) {
         entries.push({ name: `${name}/`, type: "5" });
         await walk(path);
@@ -89,7 +89,12 @@ export async function tarballOf(dir: string, top = "acme-shop-0123456"): Promise
     }
   };
   await walk(dir);
-  return gzipSync(tar(entries));
+  return entries;
+}
+
+/** A GitHub-style tarball (`<top>/` folder first) of the files under `dir`. */
+export async function tarballOf(dir: string, top = "acme-shop-0123456"): Promise<Buffer> {
+  return tarballFrom(await entriesOf(dir), top);
 }
 
 /** A gzipped tarball of the given entries under GitHub's top folder. */

