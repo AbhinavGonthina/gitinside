@@ -240,6 +240,7 @@ try {
   assert.deepEqual(egress.HostConfig.CapAdd.map((cap) => cap.replace(/^CAP_/, "")).sort(), [
     "NET_ADMIN",
     "NET_BIND_SERVICE",
+    "NET_RAW",
   ]);
   assert.ok(egress.HostConfig.SecurityOpt.includes("no-new-privileges:true"));
   assert.deepEqual(egress.HostConfig.PortBindings, {
