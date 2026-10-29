@@ -49,7 +49,7 @@ async function done(repoId: string, commit: string, key: string) {
 }
 
 describe("listStoredSnapshots", () => {
-  it("lists done analyses with their repo's visibility, and nothing else", async () => {
+  it("lists done analyses with their repo's name and visibility, and nothing else", async () => {
     const pub = await repo(1);
     const priv = await repo(2, "private");
     const a = await done(pub, sha("a"), "public/acme/r1/a.json.gz");
@@ -67,6 +67,8 @@ describe("listStoredSnapshots", () => {
     const row = rows.find((r) => r.id === a);
     expect(row).toMatchObject({
       repoId: pub,
+      owner: "acme",
+      name: "r1",
       visibility: "public",
       sha: sha("a"),
       analyzerVersion: VERSION,

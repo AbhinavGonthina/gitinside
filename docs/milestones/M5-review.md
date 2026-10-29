@@ -53,7 +53,7 @@ The trigger turned out to be a gitignored Storybook build (`storybook-static/ass
 ## What's still weak
 
 - **Nothing has run in production.** The VM, Neon, R2, Vercel, and DNS are all waiting on signups (#3–#7). `provision.sh` has only run on CI's containers.
-- **Some review findings are deferred to M5.14e–f** (before the deploy): the egress gateway mounts every secret when it needs only host names; Redis has no password and is reachable from the analysis child's namespace if netguard fails; retention can leave a completed BullMQ job behind its deleted row. (`getTypeAtLocation` was guarded in M5.14c; the stale head cache and "Analyze again" for permanent failures were fixed in M5.14d.)
+- **Some review findings are deferred to M5.14f** (before the deploy): the egress gateway mounts every secret when it needs only host names; Redis has no password and is reachable from the analysis child's namespace if netguard fails. (`getTypeAtLocation` was guarded in M5.14c; the stale head cache and "Analyze again" for permanent failures were fixed in M5.14d; retention removes completed BullMQ jobs behind its deleted rows since M5.14e.)
 - **`ANALYZER_VERSION` is still `0.1.0`** although M5 changed the output; it's bumped right before the first deploy (M5.13).
 - **A repo that goes private is hidden only once someone opens its repo page or README image.** Permalinks never ask GitHub, and a CDN copy of a graph can live a day (ADR-0079).
 - **Case variants of a path** (`/Acme/shop` vs. `/acme/shop`) are separate CDN keys that each reach the database.
@@ -77,7 +77,7 @@ Two subagents with no prior context reviewed `m4a..HEAD`: one the web side (apps
 | 9 | Low | "Analyze again" offered for permanent failures. | Fixed in M5.14d: the reason instead of the button (ADR-0081). |
 | 10 | Low | The egress gateway mounts the whole `worker.env`. | Deferred to M5.14f (infra, verified on CI's container check). |
 | 11 | Low | Redis has no password and the child's namespace can reach it. | Deferred to M5.14f. |
-| 12 | Low | Retention can delete a row whose completed BullMQ job is kept a day, so `created: false` loops. | Deferred to M5.14e (Redis tests, CI only). |
+| 12 | Low | Retention can delete a row whose completed BullMQ job is kept a day, so `created: false` loops. | Fixed in M5.14e (ADR-0082): retention removes the deleted rows' completed jobs; Redis tests on CI. |
 | 13 | Low | `getTypeAtLocation` isn't guarded like `getSymbolAtLocation`. | Fixed in M5.14c (ADR-0080): answers `any` with a `TYPESCRIPT_INTERNAL_ERROR` warning instead of failing the `http` stage. |
 | 14 | Low | `ANALYZER_VERSION` not bumped although M5 changed the output. | Added to M5.13, right before the first deploy. |
 | 15 | Low (M8) | Job IDs ignore the installation. | Added to M8.3, the first time a job carries one. |

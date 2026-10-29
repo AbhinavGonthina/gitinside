@@ -179,8 +179,22 @@ async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   }
 }
 
-/** A {@link JobQueue} on a BullMQ `Queue`, plus `close`. */
-export interface BullJobQueue extends JobQueue {
+/**
+ * Removes finished jobs whose analysis row retention deleted (ADR-0082). A completed job is
+ * kept a day for status lookups, and while it exists `add` answers `created: false`, so the
+ * commit couldn't be analyzed again until it expired.
+ */
+export interface CompletedJobs {
+  /**
+   * Remove each job that is `completed`; jobs in any other state, and unknown IDs, are left
+   * alone. The first job that can't be read or removed stops the call, and it and the rest
+   * count as `failed`; the call never rejects.
+   */
+  removeCompleted(ids: readonly string[]): Promise<{ removed: number; failed: number }>;
+}
+
+/** A {@link JobQueue} on a BullMQ `Queue`, plus `removeCompleted` and `close`. */
+export interface BullJobQueue extends JobQueue, CompletedJobs {
   readonly queue: Queue<JobRequest, JobOutcome>;
   close(): Promise<void>;
 }
@@ -241,10 +255,32 @@ export function createBullJobQueue(options: BullQueueOptions): BullJobQueue {
     });
   }
 
+  async function removeIfCompleted(id: string): Promise<boolean> {
+    const job = await queue.getJob(id);
+    if (job === undefined || (await job.getState()) !== "completed") return false;
+    // Nothing moves a completed job on (`add` leaves it alone), so it is still completed.
+    await job.remove();
+    return true;
+  }
+
+  async function removeCompleted(ids: readonly string[]) {
+    let removed = 0;
+    for (const [index, id] of ids.entries()) {
+      try {
+        if (await withTimeout(removeIfCompleted(id), ms)) removed++;
+      } catch {
+        // Redis is most likely down: don't wait out a timeout per remaining ID.
+        return { removed, failed: ids.length - index };
+      }
+    }
+    return { removed, failed: 0 };
+  }
+
   return {
     queue,
     add: (id, request) => withTimeout(add(id, request), ms),
     get: (id) => withTimeout(get(id), ms),
+    removeCompleted,
     ping: async () => {
       await withTimeout(queue.getWaitingCount(), ms);
     },

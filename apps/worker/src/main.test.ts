@@ -20,9 +20,11 @@ import {
   type RunningWorker,
   type StartOptions,
 } from "./main.js";
-import { QUEUE_NAME } from "./queue.js";
+import { QUEUE_NAME, createBullJobQueue } from "./queue.js";
+import { RETENTION_POLICY, runRetention } from "./retention.js";
 import type { RunResult } from "./runner.js";
 import { startFakeS3, type FakeS3 } from "./s3.testkit.js";
+import { createObjectStore } from "./storage.js";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const SECRET = "s".repeat(43);
@@ -398,6 +400,45 @@ describe("startWorkerProcess", () => {
         "worker_stopping",
         "worker_stopped",
       ]);
+    });
+
+    it("analyzes a commit again once retention evicted it, instead of answering its old job", async () => {
+      const worker = await start();
+      const body = JSON.stringify({ kind: "analyze", owner: "acme", repo: "shop", sha: SHA });
+      const waitForDone = async (path: string) => {
+        const end = Date.now() + 15_000;
+        let state: unknown;
+        while ((state = (await api(worker, "GET", path)).body.state) !== "done") {
+          if (state === "failed" || Date.now() > end) throw new Error(`job ended ${String(state)}`);
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      };
+      const first = await api(worker, "POST", "/enqueue", body);
+      await waitForDone(`/jobs/${first.body.id as string}`);
+
+      const queue = createBullJobQueue({ connection: { url: REDIS_URL ?? "" }, prefix });
+      try {
+        const report = await runRetention({
+          db: t.db,
+          store: createObjectStore({
+            endpoint: s3.endpoint,
+            bucket: s3.bucket,
+            credentials: s3.credentials,
+          }),
+          jobs: queue,
+          policy: { ...RETENTION_POLICY, keepPerRepo: 0 },
+        });
+        expect(report).toMatchObject({ deletedObjects: 1, removedJobs: 1, failedJobRemovals: 0 });
+      } finally {
+        await queue.close();
+      }
+      expect(await t.db.select().from(analyses)).toEqual([]);
+
+      const again = await api(worker, "POST", "/enqueue", body);
+      expect(again).toMatchObject({ status: 202, body: { id: first.body.id, created: true } });
+      await waitForDone(`/jobs/${first.body.id as string}`);
+      expect(await t.db.select().from(analyses)).toHaveLength(1);
+      expect(s3.objects.size).toBe(1);
     });
 
     it("runs maintenance on its schedule against the same database and bucket", async () => {

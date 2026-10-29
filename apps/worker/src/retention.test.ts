@@ -2,6 +2,7 @@
 import { analyses, pullRequests, repos, type StoredSnapshotRow } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { jobIdFor } from "./api.js";
 import {
   RETENTION_POLICY,
   planRetention,
@@ -30,6 +31,8 @@ function row(
   return {
     id,
     repoId,
+    owner: "acme",
+    name: repoId,
     visibility: "public",
     sha: sha(n),
     analyzerVersion: "0.1.0",
@@ -265,6 +268,8 @@ describe("runRetention", () => {
       missing: 0,
       deletedObjects: 2,
       failedDeletes: 0,
+      removedJobs: 0,
+      failedJobRemovals: 0,
     });
     expect(await commitsLeft()).toEqual([1, 3, 4, 5, 6, 7].map(sha));
     expect([...s3.objects.keys()].sort()).toEqual(
@@ -314,6 +319,81 @@ describe("runRetention", () => {
     expect(await commitsLeft()).toHaveLength(7);
     expect(s3.objects.size).toBe(7);
     expect(s3.requests.some((r) => r.method === "DELETE")).toBe(false);
+  });
+
+  /** A queue that records which IDs it was asked to remove, answering `answer`. */
+  function fakeJobs(
+    answer: (ids: readonly string[]) => Promise<{ removed: number; failed: number }>,
+  ) {
+    const asked: string[][] = [];
+    return {
+      asked,
+      jobs: {
+        removeCompleted: (ids: readonly string[]) => {
+          asked.push([...ids]);
+          return answer(ids);
+        },
+      },
+    };
+  }
+  const shopJob = (n: number, version = "0.1.0") =>
+    jobIdFor({ kind: "analyze", owner: "acme", repo: "shop", sha: sha(n) }, version);
+
+  it("removes the completed jobs of the rows it deleted, by the repo's current name", async () => {
+    // Renamed on GitHub since: the web app now enqueues it as Acme/Store.
+    await t.db.update(repos).set({ owner: "Acme", name: "Store" });
+    const { asked, jobs } = fakeJobs(async (ids) => ({ removed: ids.length, failed: 0 }));
+    const report = await runRetention({ db: t.db, store: store(), jobs });
+    const storeJob = (n: number) =>
+      jobIdFor({ kind: "analyze", owner: "acme", repo: "store", sha: sha(n) }, "0.1.0");
+    expect(asked).toEqual([[storeJob(1), storeJob(2)].sort()]);
+    expect(report).toMatchObject({ removedJobs: 2, failedJobRemovals: 0, deletedObjects: 2 });
+  });
+
+  it("derives each job ID from the evicted row's analyzer version", async () => {
+    await t.db.insert(analyses).values({
+      repoId: shopId,
+      sha: sha(7),
+      analyzerVersion: "0.0.9",
+      status: "done",
+      snapshotKey: key("shop", 7, "0.0.9"),
+      finishedAt: new Date(Date.UTC(2026, 0, 1)),
+    });
+    stored(key("shop", 7, "0.0.9"), 100);
+    const { asked, jobs } = fakeJobs(async () => ({ removed: 0, failed: 0 }));
+    await runRetention({ db: t.db, store: store(), jobs });
+    expect(asked).toEqual([[shopJob(1), shopJob(2), shopJob(7, "0.0.9")].sort()]);
+  });
+
+  it("asks for no jobs when it deleted no rows", async () => {
+    const { asked, jobs } = fakeJobs(async () => ({ removed: 0, failed: 0 }));
+    const report = await runRetention({
+      db: t.db,
+      store: store(),
+      jobs,
+      policy: { ...RETENTION_POLICY, keepPerRepo: 10 },
+    });
+    expect(asked).toEqual([]);
+    expect(report).toMatchObject({ removedJobs: 0, failedJobRemovals: 0 });
+  });
+
+  it("counts failed job removals and still deletes the objects", async () => {
+    const partly = fakeJobs(async () => ({ removed: 1, failed: 1 }));
+    expect(await runRetention({ db: t.db, store: store(), jobs: partly.jobs })).toMatchObject({
+      removedJobs: 1,
+      failedJobRemovals: 1,
+      deletedObjects: 2,
+    });
+
+    const report = await runRetention({
+      db: t.db,
+      store: store(),
+      jobs: fakeJobs(() => Promise.reject(new Error("redis down"))).jobs,
+      policy: { ...RETENTION_POLICY, keepPerRepo: 3 },
+    });
+    expect(report).toMatchObject({ removedJobs: 0, failedJobRemovals: 2, deletedObjects: 2 });
+    expect(await commitsLeft()).toEqual([5, 6, 7].map(sha));
+    expect(s3.objects.size).toBe(3);
   });
 
   it("reports a done row whose object is gone, and keeps it", async () => {

@@ -7,6 +7,8 @@ import {
   type StoredSnapshotRow,
 } from "@gitinside/db";
 import { compareStrings } from "@gitinside/schema";
+import { jobIdFor } from "./api.js";
+import type { CompletedJobs } from "./queue.js";
 import type { ListedObject, ObjectStore } from "./storage.js";
 
 /**
@@ -34,6 +36,13 @@ import type { ListedObject, ObjectStore } from "./storage.js";
  * which the next run deletes, never a row pointing at nothing. A `done` row whose object
  * is missing is only reported (`missing`), because deleting rows on the word of a listing
  * is how a listing bug would destroy the database.
+ *
+ * Each deleted row's **completed BullMQ job** is removed next (ADR-0082). Its ID is derived
+ * from the commit and analyzer version, like the row, and BullMQ keeps it a day; while it
+ * exists the enqueue API answers `created: false` and "done" for a commit that no longer has
+ * an analysis, so nobody could analyze it again. The ID is computed from the repo's current
+ * name, the one the web app enqueues under. A failed removal is counted and the run goes on:
+ * the job expires on its own within the day.
  *
  * Known race, accepted: a commit re-analyzed in the instant between its row's deletion and
  * its object's deletion would lose the new object (same key); the next view re-analyzes it.
@@ -206,6 +215,8 @@ export function planRetention(input: RetentionInput): RetentionPlan {
 export interface RetentionDeps {
   db: AnyDatabase;
   store: Pick<ObjectStore, "list" | "delete">;
+  /** The queue whose completed jobs of deleted rows are removed. Without it, none are. */
+  jobs?: CompletedJobs;
   /** Default now. */
   now?: () => Date;
   policy?: RetentionPolicy;
@@ -226,12 +237,16 @@ export interface RetentionReport {
   /** Objects deleted, and deletes that failed (left for the next run as orphans). */
   deletedObjects: number;
   failedDeletes: number;
+  /** Completed jobs of deleted rows removed, and removals that failed (they expire anyway). */
+  removedJobs: number;
+  failedJobRemovals: number;
 }
 
 /**
  * Run retention once: read the rows and the bucket, plan, delete the evicted rows, then the
- * objects of the rows actually deleted plus the orphans. A failed listing or row delete
- * rejects before any object is touched; a failed object delete is counted, not thrown.
+ * completed jobs and objects of the rows actually deleted, plus the orphans. A failed listing
+ * or row delete rejects before any job or object is touched; a failed job removal or object
+ * delete is counted, not thrown.
  */
 export async function runRetention(deps: RetentionDeps): Promise<RetentionReport> {
   const { db, store } = deps;
@@ -250,6 +265,23 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
   const gone = await deleteDoneAnalyses(db, plan.evict);
   const goneIds = new Set(gone.map((row) => row.id));
   const goneKeys = new Set(gone.map((row) => row.snapshotKey));
+
+  const jobIds = rows
+    .filter((row) => goneIds.has(row.id))
+    .map((row) =>
+      jobIdFor(
+        { kind: "analyze", owner: row.owner, repo: row.name, sha: row.sha },
+        row.analyzerVersion,
+      ),
+    )
+    .sort(compareStrings);
+  const jobs =
+    deps.jobs === undefined || jobIds.length === 0
+      ? { removed: 0, failed: 0 }
+      : await deps.jobs
+          .removeCompleted(jobIds)
+          .catch(() => ({ removed: 0, failed: jobIds.length }));
+
   const orphans = new Set(plan.orphans);
   const keys = plan.deleteKeys.filter((key) => goneKeys.has(key) || orphans.has(key));
   let deletedObjects = 0;
@@ -283,5 +315,7 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
     missing: plan.missing.length,
     deletedObjects,
     failedDeletes,
+    removedJobs: jobs.removed,
+    failedJobRemovals: jobs.failed,
   };
 }

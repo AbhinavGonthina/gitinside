@@ -1,5 +1,5 @@
 import { databaseSizeBytes, pruneRateLimits, type AnyDatabase } from "@gitinside/db";
-import type { WorkerLog } from "./queue.js";
+import type { CompletedJobs, WorkerLog } from "./queue.js";
 import { runRetention, type RetentionPolicy, type RetentionReport } from "./retention.js";
 import type { ObjectStore } from "./storage.js";
 
@@ -7,7 +7,8 @@ import type { ObjectStore } from "./storage.js";
  * The worker's hourly maintenance (ADR-0078), keeping GitInside inside its free tiers
  * (SPEC §5, DESIGN.md §10 and §12):
  *
- * 1. **Retention** ({@link runRetention}): evict snapshots past the rules, delete orphans.
+ * 1. **Retention** ({@link runRetention}): evict snapshots past the rules (and their
+ *    completed jobs), delete orphans.
  * 2. **Rate-limit pruning** (`pruneRateLimits`): drop windows that ended over an hour ago.
  * 3. **Quota check** ({@link measureQuotas}): measure the bucket (a fresh listing, after
  *    retention deleted what it could) and the database, against {@link QUOTA_LIMITS}. Each
@@ -102,6 +103,8 @@ export function logQuotas(log: WorkerLog, quotas: readonly QuotaUsage[]): void {
 /** What {@link runMaintenance} needs. */
 export interface MaintenanceDeps extends QuotaDeps {
   store: Pick<ObjectStore, "list" | "delete">;
+  /** Retention removes deleted rows' completed jobs from it (ADR-0082). */
+  jobs?: CompletedJobs;
   log: WorkerLog;
   /** Retention's clock and rules (tests fix them). */
   now?: () => Date;
@@ -140,6 +143,7 @@ export async function runMaintenance(deps: MaintenanceDeps): Promise<Maintenance
     runRetention({
       db,
       store,
+      ...(deps.jobs === undefined ? {} : { jobs: deps.jobs }),
       ...(deps.now === undefined ? {} : { now: deps.now }),
       ...(deps.policy === undefined ? {} : { policy: deps.policy }),
     }),
