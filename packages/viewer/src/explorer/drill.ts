@@ -1,6 +1,6 @@
 import { compareStrings } from "@gitinside/schema";
 import { useMemo, useState } from "react";
-import { canOpen, isWithin, type HierarchyIndex } from "../model/hierarchy.js";
+import { ancestry, canOpen, isEntry, isWithin, type HierarchyIndex } from "../model/hierarchy.js";
 import { buildView, effectiveOpen, type GraphView, type ViewOptions } from "../model/view.js";
 
 /**
@@ -50,6 +50,36 @@ export function collapseTo(index: HierarchyIndex, expansion: Expansion, id: stri
   return expansion.filter((x) => x === id || !isWithin(index, x, id));
 }
 
+/**
+ * Whether a node is drawn as its own box when `open` (the nodes really open)
+ * are broken down: at the top level, inside an open parent, or as an entry
+ * at its open service's first level. The root is never a box.
+ */
+export function isShown(index: HierarchyIndex, open: ReadonlySet<string>, id: string): boolean {
+  const node = index.byId.get(id);
+  if (!node?.parentId) return false;
+  if (node.parentId === index.root.id || open.has(node.parentId)) return true;
+  const service = index.service.get(id);
+  return isEntry(node) && service !== undefined && open.has(service);
+}
+
+/**
+ * Drills as far as needed to show `id` as its own box (UX.md: selecting a
+ * connection "flies there, drilling if needed"): its closed ancestors open,
+ * outermost first, stopping as soon as it's drawn, so a route only needs its
+ * service. Open nodes keep their place in the order.
+ */
+export function revealIn(index: HierarchyIndex, expansion: Expansion, id: string): Expansion {
+  let next = expansion;
+  const outward = ancestry(index, id).slice(1, -1).reverse();
+  for (const a of outward) {
+    const open = effectiveOpen(index, next);
+    if (isShown(index, open, id)) break;
+    if (!open.has(a.id)) next = openIn(index, next, a.id);
+  }
+  return next;
+}
+
 /** The drill-down state with its view, from {@link useDrill}. */
 export interface Drill {
   expansion: Expansion;
@@ -60,6 +90,8 @@ export interface Drill {
   /** Goes up a level; returns the node it closed, if any (for the announcement). */
   up(): string | undefined;
   collapseTo(id: string): void;
+  /** Opens what's needed to show `id` as its own box ({@link revealIn}). */
+  reveal(id: string): void;
 }
 
 /**
@@ -92,5 +124,6 @@ export function useDrill(
       return closed;
     },
     collapseTo: (id) => setExpansion((e) => collapseTo(index, e, id)),
+    reveal: (id) => setExpansion((e) => revealIn(index, e, id)),
   };
 }

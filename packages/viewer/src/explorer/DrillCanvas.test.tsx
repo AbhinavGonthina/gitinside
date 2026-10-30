@@ -151,6 +151,55 @@ describe("DrillCanvas", () => {
     expect(nodeEl(DB)?.hasAttribute("data-can-open")).toBe(false);
   });
 
+  it("asks to select on click, Space, or Enter on a box that can't open further", async () => {
+    const onOpen = vi.fn();
+    const onSelect = vi.fn();
+    render(
+      <DrillCanvas
+        index={index}
+        view={buildView(index, [API])}
+        cache={quickCache()}
+        onOpen={onOpen}
+        onSelect={onSelect}
+      />,
+    );
+    await flush();
+    fireEvent.click(nodeEl(DB) as HTMLElement);
+    fireEvent.keyDown(nodeEl(DB) as HTMLElement, { key: " " });
+    fireEvent.keyDown(nodeEl(DB) as HTMLElement, { key: "Enter" });
+    // api is open already, so Enter selects it; x does nothing.
+    fireEvent.keyDown(nodeEl(API) as HTMLElement, { key: "Enter" });
+    fireEvent.keyDown(nodeEl(API) as HTMLElement, { key: "x" });
+    expect(onSelect.mock.calls).toEqual([[DB], [DB], [DB], [API]]);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("draws each box's and line's look from the host", async () => {
+    const view = buildView(index, []);
+    const [first] = view.edges;
+    render(
+      <DrillCanvas
+        index={index}
+        view={view}
+        cache={quickCache()}
+        boxLook={(n) =>
+          n.id === API ? { selected: true, emphasis: "current" } : { emphasis: "dimmed" }
+        }
+        lineLook={(e) => (e === first ? { emphasis: "traced", flow: true } : { selected: true })}
+      />,
+    );
+    await flush();
+    expect(nodeEl(API)?.hasAttribute("data-selected")).toBe(true);
+    expect(nodeEl(API)?.getAttribute("data-emphasis")).toBe("current");
+    expect(nodeEl(DB)?.getAttribute("data-emphasis")).toBe("dimmed");
+    const lines = document.querySelectorAll(".gi-drill__lines .gi-edge");
+    expect(lines[0]?.getAttribute("data-emphasis")).toBe("traced");
+    expect(lines[0]?.querySelector(".gi-edge__particle")).not.toBeNull();
+    expect(lines[1]?.hasAttribute("data-selected")).toBe(true);
+    const pills = document.querySelectorAll(".gi-drill__labels .gi-edge-label");
+    expect(pills[0]?.getAttribute("data-emphasis")).toBe("traced");
+  });
+
   it("keeps the current level drawn (busy) until the next one is laid out", async () => {
     const { cache, resolveAll } = deferredCache();
     render(<Harness cache={cache} />);

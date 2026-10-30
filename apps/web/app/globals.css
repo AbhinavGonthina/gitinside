@@ -634,7 +634,7 @@ code {
   min-height: 640px;
 }
 
-.diagram-page__canvas > .gi-proto {
+.diagram-page__canvas > .gi-explorer {
   flex: 1;
   height: auto;
 }

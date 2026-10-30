@@ -1,11 +1,11 @@
 import type { GraphEdge, GraphNode, SourceLocation } from "@gitinside/schema";
 import { EDGE_WORDS } from "../edges/describe.js";
-import { nodeOf, type GraphIndex } from "./model.js";
+import { nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
 
 /**
- * The prototype's trace (M4a.7). It is scripted, not computed: a start node
- * and the IDs of the edges it follows, in order. M4b.6 replaces the script
- * with the BFS from UX.md. The script only names edges; every hop's words,
+ * The explorer's trace until M4b.6 (from the M4a.7 prototype). It is
+ * scripted, not computed: a start node and the IDs of the edges it follows,
+ * in order. M4b.6 replaces the script with the BFS from UX.md. The script only names edges; every hop's words,
  * file, line, and confidence still come from the graph, and
  * {@link checkTrace} rejects a script that names a missing edge or a hop
  * that doesn't continue the path.
@@ -52,7 +52,7 @@ function spoken(node: GraphNode): string {
  * edge the graph doesn't have, or starts somewhere the path hasn't reached
  * (each hop must leave the start or a node an earlier hop arrived at).
  */
-export function checkTrace(index: GraphIndex, script: TraceScript): TraceStep[] {
+export function checkTrace(index: HierarchyIndex, script: TraceScript): TraceStep[] {
   const edges = new Map(index.graph.edges.map((e) => [e.id, e]));
   const reached = new Set([nodeOf(index, script.start).id]);
   return script.hops.map((id) => {

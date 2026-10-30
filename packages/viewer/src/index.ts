@@ -177,14 +177,27 @@ export type {
   LayoutEngineOptions,
   LayoutWorkerFactory,
 } from "./layout/engine.js";
-export { closeIn, collapseTo, openIn, upFrom, useDrill } from "./explorer/drill.js";
+export { connectionsOf } from "./model/connections.js";
+export type { NodeConnection } from "./model/connections.js";
+export {
+  closeIn,
+  collapseTo,
+  isShown,
+  openIn,
+  revealIn,
+  upFrom,
+  useDrill,
+} from "./explorer/drill.js";
 export type { Drill, Expansion } from "./explorer/drill.js";
 export { centeredOn, planTransition } from "./explorer/transition.js";
 export type { BoxExit, BoxMove, Shown, TransitionPlan } from "./explorer/transition.js";
 export { DrillCanvas } from "./explorer/DrillCanvas.js";
-export type { DrillCanvasProps } from "./explorer/DrillCanvas.js";
-export { ExplorerPrototype } from "./prototype/ExplorerPrototype.js";
-export type { ExplorerPrototypeProps } from "./prototype/ExplorerPrototype.js";
+export type { BoxLook, DrillCanvasProps, LineLook } from "./explorer/DrillCanvas.js";
+export { FIT_INSET, fitScale } from "./explorer/fit.js";
+export { CHECKOUT_TRACE, checkTrace, traceNodes } from "./explorer/trace.js";
+export type { TraceScript, TraceStep } from "./explorer/trace.js";
+export { Explorer } from "./explorer/Explorer.js";
+export type { ExplorerProps } from "./explorer/Explorer.js";
 export type { UiIconName } from "./chrome/uiIcons.js";
 export type {
   NodeCount,

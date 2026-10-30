@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, ExplorerPrototype, UiIcon } from "@gitinside/viewer";
+import { Button, Explorer, UiIcon } from "@gitinside/viewer";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { headStatus, loadGraph, short, type GraphLoad } from "../../../lib/repoStatus";
@@ -24,8 +24,9 @@ export interface RepoDiagramProps {
  * The diagram page (ADR-0069): a repo bar (name, commit, how it relates to the latest
  * commit), then the diagram. The graph is fetched in the browser from `/api/graph`, so the
  * page itself stays small and the CDN caches the graph per commit. "Add to README" lives on
- * the repo bar, since the prototype's share menu is hidden with its top bar. Until M4b, the diagram
- * is the M4a explorer prototype without its top bar.
+ * the repo bar, since the explorer's share menu is hidden with its top bar. The diagram is the
+ * M4b explorer without its top bar; its layouts run on the main thread until M4b.3b2 gives the
+ * site a layout worker.
  */
 export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramProps) {
   const [load, setLoad] = useState<GraphLoad | undefined>(undefined);
@@ -90,7 +91,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
             Loading the diagram
           </p>
         ) : load.ok ? (
-          <ExplorerPrototype graph={load.graph} topBar={false} />
+          <Explorer graph={load.graph} topBar={false} />
         ) : (
           <div className="diagram-page__state">
             <p className="progress__failure" role="alert" tabIndex={-1} ref={failure}>

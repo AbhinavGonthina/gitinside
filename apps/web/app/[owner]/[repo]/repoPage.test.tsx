@@ -154,7 +154,7 @@ describe("RepoDiagram", () => {
   const renderDiagram = (head: Parameters<typeof RepoDiagram>[0]["head"]) =>
     render(<RepoDiagram owner="acme" repo="shop" sha={SHA} graphUrl={GRAPH_URL} head={head} />);
 
-  it("says it's loading, then draws the graph without the prototype's own top bar", async () => {
+  it("says it's loading, then draws the graph without the explorer's own top bar", async () => {
     fetchMock.mockImplementation(graphResponse);
     const { container } = renderDiagram({ state: "current" });
     expect(screen.getByRole("status").textContent).toBe("Loading the diagram");

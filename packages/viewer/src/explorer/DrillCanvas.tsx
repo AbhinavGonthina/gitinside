@@ -11,15 +11,27 @@ import { DiagramEdge, EdgeLabel } from "../edges/DiagramEdge.js";
 import type { LayoutCache } from "../layout/engine.js";
 import { edgeLabelSize, frameCounts } from "../layout/size.js";
 import { layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
-import { drawnEdge, type GraphView, type ViewNode } from "../model/view.js";
+import { drawnEdge, type GraphView, type ViewEdge, type ViewNode } from "../model/view.js";
 import { prefersReducedMotion } from "../motion.js";
 import { DiagramNode } from "../nodes/DiagramNode.js";
-import { nodeTier } from "../nodes/describe.js";
+import { nodeTier, type NodeEmphasis } from "../nodes/describe.js";
 import { durations, scaleTokens } from "../tokens.js";
 import { planTransition, type BoxExit, type Shown, type TransitionPlan } from "./transition.js";
 
+/** How a box looks besides its node: selected, and its part in a trace. */
+export interface BoxLook {
+  selected?: boolean | undefined;
+  emphasis?: NodeEmphasis | undefined;
+}
+
+/** How a line and its pill look: selected, its part in a trace, and particles flowing along it. */
+export interface LineLook extends BoxLook {
+  flow?: boolean | undefined;
+}
+
 /** Props for {@link DrillCanvas}. */
-export interface DrillCanvasProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+export interface DrillCanvasProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "children" | "onSelect"> {
   index: HierarchyIndex;
   /** The view to draw (from `useDrill` or `buildView`). */
   view: GraphView;
@@ -27,6 +39,12 @@ export interface DrillCanvasProps extends Omit<HTMLAttributes<HTMLDivElement>, "
   cache: Pick<LayoutCache, "layout" | "peek">;
   /** Asked to break a node down (double-click or Enter on a box that can open). */
   onOpen?: ((id: string) => void) | undefined;
+  /** Asked to select a box (click, Space, or Enter on a box that can't open further). */
+  onSelect?: ((id: string) => void) | undefined;
+  /** Each drawn box's look. */
+  boxLook?: ((n: ViewNode) => BoxLook) | undefined;
+  /** Each drawn line's (and its pill's) look. */
+  lineLook?: ((e: ViewEdge) => LineLook) | undefined;
   /** Called each time a view is drawn, with its layout. */
   onLayout?: ((shown: Shown) => void) | undefined;
 }
@@ -106,16 +124,21 @@ function fadeInAfter(el: Element | null) {
  * at once. A change mid-glide starts from where the boxes are drawn then.
  * Under reduced motion every change is instant.
  *
- * Interaction here is drill-down only: double-click or Enter asks to open a
- * box (`onOpen`); the host owns the state, Esc, and selection. When opening
- * or closing replaces the focused box's element, focus goes to the toggled
- * box. `data-layout` is "pending" until the first layout is drawn.
+ * The host owns the state: double-click or Enter asks to open a box
+ * (`onOpen`); a click, Space, or Enter on a box that can't open further asks
+ * to select it (`onSelect`); `boxLook` and `lineLook` draw the selection and
+ * a trace. Esc is the host's too. When opening or closing replaces the
+ * focused box's element, focus goes to the toggled box. `data-layout` is
+ * "pending" until the first layout is drawn.
  */
 export function DrillCanvas({
   index,
   view,
   cache,
   onOpen,
+  onSelect,
+  boxLook,
+  lineLook,
   onLayout,
   className,
   ...rest
@@ -252,15 +275,20 @@ export function DrillCanvas({
     if (n.canOpen && !n.open) onOpen?.(n.id);
   }
 
+  /** Enter breaks a box down, or selects one that can't open further (UX.md); Space selects. */
   function onKeyDown(event: KeyboardEvent<HTMLElement>, n: ViewNode) {
-    if (event.key !== "Enter" || !n.canOpen || n.open) return;
+    const opens = event.key === "Enter" && n.canOpen && !n.open && onOpen !== undefined;
+    const selects = (event.key === "Enter" || event.key === " ") && !opens && onSelect;
+    if (!opens && !selects) return;
     event.preventDefault();
     event.stopPropagation();
-    open(n);
+    if (opens) open(n);
+    else onSelect?.(n.id);
   }
 
   const box = (n: ViewNode, rect: Rect, leavingBox: boolean) => {
     const frame = nodeTier(n.node) === "frame";
+    const look = leavingBox ? {} : (boxLook?.(n) ?? {});
     const register = (el: HTMLElement | null) => {
       const map = leavingBox ? leavingEls.current : boxEls.current;
       if (el) map.set(n.id, el);
@@ -283,8 +311,18 @@ export function DrillCanvas({
           layer={layerOf(index, n.id)}
           counts={frame && !n.open ? frameCounts(index, n.id) : []}
           expanded={n.open}
+          selected={look.selected ?? false}
+          emphasis={look.emphasis}
           tabIndex={leavingBox ? -1 : 0}
           data-can-open={n.canOpen && !n.open ? "" : undefined}
+          onClick={
+            leavingBox || !onSelect
+              ? undefined
+              : (e) => {
+                  e.stopPropagation();
+                  onSelect(n.id);
+                }
+          }
           onDoubleClick={
             leavingBox
               ? undefined
@@ -332,6 +370,7 @@ export function DrillCanvas({
               const e = edges.get(placed.id);
               if (!e) return null;
               const { edge, count } = drawnEdge(e);
+              const { selected, emphasis, flow } = lineLook?.(e) ?? {};
               return (
                 <DiagramEdge
                   key={placed.id}
@@ -340,6 +379,9 @@ export function DrillCanvas({
                   points={placed.points}
                   layer={layerOf(index, e.from)}
                   ends={{ from: nodeOf(index, e.from).label, to: nodeOf(index, e.to).label }}
+                  selected={selected}
+                  emphasis={emphasis}
+                  flow={flow ?? false}
                 />
               );
             })}
@@ -349,12 +391,15 @@ export function DrillCanvas({
               const e = edges.get(placed.id);
               if (!e) return null;
               const { edge, count } = drawnEdge(e);
+              const { selected, emphasis } = lineLook?.(e) ?? {};
               return (
                 <EdgeLabel
                   key={placed.id}
                   edge={edge}
                   count={count}
                   layer={layerOf(index, e.from)}
+                  selected={selected}
+                  emphasis={emphasis}
                   data-measured-width={edgeLabelSize(e).width}
                   style={{ left: placed.label.x, top: placed.label.y }}
                 />

@@ -1,10 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { indexGraph } from "./model.js";
-import { shopDemo } from "./shopDemo.testkit.js";
+import { buildHierarchy } from "../model/hierarchy.js";
+import { shopDemo } from "../prototype/shopDemo.testkit.js";
 import { CHECKOUT_TRACE, checkTrace, traceNodes } from "./trace.js";
 
-const index = indexGraph(shopDemo());
+const index = buildHierarchy(shopDemo());
 
 describe("the scripted checkout trace", () => {
   it("names only real edges, each continuing the path from the page", () => {

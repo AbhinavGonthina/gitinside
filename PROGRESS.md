@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.3b. The explorer on the drill-down canvas (M5.13 and M5.14b wait on #3, #5, #7)
+M4b.3b1. The explorer on the drill-down canvas (M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -90,7 +90,8 @@ M4b.3b. The explorer on the drill-down canvas (M5.13 and M5.14b wait on #3, #5, 
 - [x] M4b.2a Node and edge-label sizes measured from content, not fixed per tier (design gate fit) + ELK layout of a view (compound frames, stable ordering, routes in a service's first column, absolute boxes and routes), deterministic {model: opus}
 - [x] M4b.2b ELK in a Web Worker (in-thread fallback) + layout cache per expansion state (`view.open` + hidden kinds) + a story drawing the laid-out fixture with real nodes and edges, screenshots, real-browser fit check {model: opus}
 - [x] M4b.3a Drill-down canvas: expansion state (open in order, Esc closes the last opened, collapse to a frame), `DrillCanvas` drawing a view from the layout cache with animated in-place transitions (boxes glide, children emerge from the opened node's center, closed ones fold into it, edges fade in after; interruptible; reduced motion instant), focus kept on the toggled node, a story + motion frames + baselines {model: opus}
-- [ ] M4b.3b The explorer on the drill-down canvas: `ExplorerPrototype`'s one-level model and column layout replaced by the view model, ELK, and `DrillCanvas` (multi-level drill, routes first, breadcrumbs from `viewTrail`, selection and trace mapped to visible boxes), website on it, prototype model removed, screenshots, baselines {model: opus}
+- [ ] M4b.3b1 The explorer on the drill-down canvas: `Explorer` replaces `ExplorerPrototype` (view model, ELK, `DrillCanvas`; multi-level drill, routes first, breadcrumbs from `viewTrail`, selection and trace mapped to visible boxes, connections drill to their node), website on it, stories, screenshots, baselines {model: opus}
+- [ ] M4b.3b2 Prototype model removed: the README image off `prototype/model.ts` and `prototype/layout.ts` (hierarchy index, its own column layout, same bytes), `prototype/` deleted; the website's layout in a Web Worker (`next build` check) {model: opus}
 - [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
 - [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub; the code sample links to the file and line, design gate) {model: opus}
 - [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus}
