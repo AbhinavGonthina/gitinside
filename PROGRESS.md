@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.6. Trace mode (M5.13 and M5.14b wait on #3, #5)
+M4b.6b. Trace picker + player (M5.13 and M5.14b wait on #3, #5)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -96,7 +96,8 @@ M4b.6. Trace mode (M5.13 and M5.14b wait on #3, #5)
 - [x] M4b.4b Zoom-dependent detail (UX.md "Drill-down"): labels, counts, and edge labels appear progressively with zoom; at low zoom only service names and aggregated edges; screenshots, baselines {model: opus}
 - [x] M4b.5a Inspector content: a "From the code" summary per kind from graph facts (what it calls, reads, writes, renders, handles), "Open on GitHub" at the exact line whenever a node has a source (with or without code text), the code sample's path linking to the file and line (design gate), code loaded on selection through a `loadSource` prop (the website's from `raw.githubusercontent.com` at the analyzed SHA, size-capped, CSP `connect-src`), loading and couldn't-load states; tests, screenshots {model: opus}
 - [x] M4b.5b Shiki in the code preview: lazy and fine-grained (TS/TSX/JS/JSON/Prisma/YAML), JavaScript regex engine (no WASM under the CSP), tokens rendered as React spans (no HTML, SECURITY T10) in token colors for dark and light, plain text until loaded; tests, screenshots, baselines {model: opus}
-- [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus}
+- [x] M4b.6a Computed request path (ADR-0117): `traceFrom` (BFS reach within 12 hops over renders/calls/http/handles/reads/writes/stores/external_call/publishes, `consumes` backwards; steps depth-first in call order; cut-off nodes listed), replacing the scripted trace; "Trace from here" on every page and route with a hop, T and the top-bar button trace the selected page or route (else `traceStart`), so the website traces too; an unresolved end quotes the node's reason; tests, story, baselines {model: opus}
+- [ ] M4b.6b Trace picker + player: a searchable list of pages and routes from the top bar and T when nothing traceable is selected (replacing the "select a page or route" message), play/pause auto-advancing the steps, a pulse travelling the current hop (900ms, off under reduced motion); tests, screenshots, baselines {model: opus}
 - [ ] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
 - [ ] M4b.8 Filters {model: opus}
 - [ ] M4b.9 Deep links {model: opus}
@@ -217,6 +218,8 @@ M4b.6. Trace mode (M5.13 and M5.14b wait on #3, #5)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-30 M4b.6a** Computed request path (ADR-0117): `traceFrom` reaches everything within 12 hops (breadth-first), then lists the steps depth-first in call order, so they read like the request runs; `consumes` goes queue → worker, `imports` aren't followed, cut-off nodes are listed under the steps, an unresolved end quotes its reason. The script is gone; on shop-demo the computed path equals it hop for hop. Trace from here on every page/route with a hop, T/top bar trace the selection (else `traceStart`), so the website traces too. Story "Tracing, unresolved"; call-order mutation turned 4 tests red. Its first Linux baseline showed a step title cut at the inspector's edge: titles wrap now, checked in the visual spec (`530b148`). Also gave the inspector's cold-Shiki test a 10 s budget (failed alone at 1 s, `493cda1`). M4b.6 split: 6b is the picker, play/pause, and the pulse.
 
 - **2026-10-30 M4b.5b** Shiki in the code preview (ADR-0116): core, JavaScript regex engine (no WASM), and one grammar per language as lazy chunks; one CSS-variable theme for both themes, five `--syntax-*` tokens at ≥ 4.5:1 on the canvas and the selected line; tokens as React spans, never HTML (T10); plain until loaded, colored in place, 200 lines of context. Visual tests wait for no `pending`/`plain` preview. Viewer 737, web 329, typecheck/lint/web build green; eval regenerated for the lockfile (numbers unchanged). Still weak: no real-browser check under the website's CSP (the diagram page needs a database).
 
