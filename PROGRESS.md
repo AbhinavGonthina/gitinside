@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.1. Viewer graph model (design gate changes done; M5.13 and M5.14b wait on #3, #5, #7)
+M4b.2. ELK layout in a Web Worker (M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -86,7 +86,7 @@ M4b.1. Viewer graph model (design gate changes done; M5.13 and M5.14b wait on #3
 - [x] M4b.0c Design gate: the current trace hop stands out (its two nodes and edge clearly stronger than the rest of the lit path, at the system level and inside a service), screenshots, baselines {model: opus}
 - [x] M4b.0d Design gate: a new GitInside mark (top bar, favicon, README badge), screenshots, baselines {model: opus}
 - [x] M4b.0e Design gate: motion pass (hover, select, inspector content swap, overlays, palette open/close: token durations, reduced motion), no AI-looking defaults {model: opus}
-- [ ] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility; a service's first level leads with its routes and pages, then its folders (design gate, UX.md) {model: opus}
+- [x] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility; a service's first level leads with its routes and pages, then its folders (design gate, UX.md) {model: opus}
 - [ ] M4b.2 ELK layout in a Web Worker with stable ordering + layout cache; node sizes measured from content, not fixed per tier (design gate fit) {model: opus}
 - [ ] M4b.3 Semantic drill-down with animated in-place transitions + reduced motion (routes first at the service level) {model: opus}
 - [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
@@ -194,6 +194,8 @@ M4b.1. Viewer graph model (design gate changes done; M5.13 and M5.14b wait on #3
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.1: Viewer graph model (ADR-0105, `5b5c0e0`). `buildHierarchy` (`model/hierarchy.ts`) indexes a graph once: tree children, depth, service, kind counts inside each node, each service's routes and pages in route-table order. `buildView` (`model/view.ts`) maps any expansion set to visible nodes (frame, `entries`/`contents` section, level), the effective open set (layout cache key), and edges lifted to their innermost visible ends. Routes first: an open service draws its routes and pages ahead of its folders until their file opens, then they move into it (drawn once). A test checks every graph edge is drawn exactly once or lies inside one visible node. Viewer 537 (21 new), root typecheck + lint green. The prototype keeps its own model until M4b.3. No UI change, so no screenshots; no eval delta. Next: M4b.2.
 
 - 2026-10-30 · M4b.0e: Motion pass (ADR-0104). Overlays (legend, status chips) rise 4px and fade in over `standard`, and leave faster (fade, `fast`, new `--ease-exit`); the palette's scrim fades and its dialog settles 6px. `usePresence` (`motion.ts`) keeps a leaving overlay mounted, inert, for its exit (instant under reduced motion). The inspector is keyed by selection so content swaps in; trace mode keys only the step's header, summary, and code, so focus stays on "Next step". Shape pseudo-elements and edge label fills now transition with their box. Tests forbid easing overshoot and scale/blur/rotate or >6px moves in chrome keyframes. Viewer 516 (13 new), root typecheck + lint green. Frames sampled mid-animation in `docs/milestones/M4b/motion-*`; end states unchanged, so no baseline re-capture. No eval delta. Next: M4b.1.
 
