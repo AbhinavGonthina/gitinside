@@ -1,6 +1,6 @@
 import { compareStrings, Confidence, Layer } from "@gitinside/schema";
 import { composeStories } from "@storybook/react";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { contrastRatio } from "../contrast.js";
 import { CONFIDENCE_TEXT } from "../edges/describe.js";
@@ -431,6 +431,49 @@ describe("inspector", () => {
     expect(link.getAttribute("title")).toBe("Open a.ts at line 8 on GitHub");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
+  });
+
+  it("shows plain text first, then the same text colored as React spans", async () => {
+    const lines = [
+      " * The page. */",
+      'const page = "<script>alert(1)</script>";',
+      "",
+      "export default page;",
+    ];
+    // JSX: no other test in this file loads that grammar, so it starts pending.
+    const { container } = render(
+      <CodePreview path="a.jsx" startLine={2} lines={lines} before={["/**"]} />,
+    );
+    const figure = screen.getByRole("figure");
+    const texts = () =>
+      [...container.querySelectorAll(".gi-code__line code")].map((c) => c.textContent);
+    const plain = [lines[0], lines[1], " ", lines[3]];
+    expect(figure.getAttribute("data-syntax")).toBe("pending");
+    expect(container.querySelector("[data-token]")).toBeNull();
+    expect(texts()).toEqual(plain);
+
+    await waitFor(() => expect(figure.getAttribute("data-syntax")).toBe("done"));
+    expect(texts()).toEqual(plain);
+    // The context line opened a doc comment, so the first line is all comment.
+    const first = container.querySelectorAll(".gi-code__line code")[0]!;
+    expect([...first.childNodes].map((s) => (s as Element).getAttribute("data-token"))).toEqual([
+      "comment",
+    ]);
+    const tokens = [...container.querySelectorAll("[data-token]")];
+    const pairs = tokens.map((t) => [t.textContent, t.getAttribute("data-token")]);
+    expect(pairs).toContainEqual(["const", "keyword"]);
+    expect(pairs).toContainEqual(['"<script>alert(1)</script>"', "string"]);
+    // Tokens are text in spans, never markup (SECURITY.md T10).
+    expect(container.querySelector("script")).toBeNull();
+    expect(tokens.every((t) => t.tagName === "SPAN" && t.children.length === 0)).toBe(true);
+  });
+
+  it("leaves a language it doesn't color plain", () => {
+    const { container } = render(
+      <CodePreview path="Dockerfile" startLine={1} lines={["FROM node"]} />,
+    );
+    expect(screen.getByRole("figure").getAttribute("data-syntax")).toBe("plain");
+    expect(container.querySelector(".gi-code__line code")?.textContent).toBe("FROM node");
   });
 
   it("has no GitHub link without a permalink", () => {

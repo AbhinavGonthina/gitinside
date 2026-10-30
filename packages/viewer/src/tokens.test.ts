@@ -27,6 +27,18 @@ function declarations(source: string, selector: string): Record<string, string> 
   return props;
 }
 
+/** `a` at `weight` over `b`, per sRGB channel, as `#rrggbb` (CSS `color-mix(in srgb, …)` over an opaque base). */
+function mixHex(a: string, b: string, weight: number): string {
+  const channel = (hex: string, i: number) => parseInt(hex.slice(i, i + 2), 16);
+  return `#${[1, 3, 5]
+    .map((i) =>
+      Math.round(channel(a, i) * weight + channel(b, i) * (1 - weight))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
 const surfaces: ThemeTokenName[] = ["canvas", "surface-1", "surface-2", "surface-raised"];
 const textTokens: ThemeTokenName[] = ["text", "text-muted"];
 const graphicTokens: ThemeTokenName[] = [
@@ -140,6 +152,29 @@ describe("theme tokens", () => {
         expect(contrastRatio(t[fg], t[bg])).toBeGreaterThanOrEqual(3);
       },
     );
+  });
+
+  describe.each(["dark", "light"] as const)("%s syntax colors", (theme) => {
+    const t = themeTokens[theme];
+    // The selected line: `color-mix(in srgb, var(--accent) 12%, transparent)` over the canvas.
+    const selected = mixHex(t.accent, t.canvas, 0.12);
+    const syntax = (Object.keys(t) as ThemeTokenName[]).filter((n) => n.startsWith("syntax-"));
+
+    it("are the five the code preview uses", () => {
+      expect(syntax.sort()).toEqual(
+        ["constant", "function", "keyword", "string", "type"].map((k) => `syntax-${k}`),
+      );
+    });
+
+    it.each(syntax)("%s is at least 4.5:1 on the canvas and the selected line (text)", (fg) => {
+      expect(contrastRatio(t[fg], t.canvas)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(t[fg], selected)).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it("are told apart from each other and from plain text", () => {
+      const colors = [...syntax.map((n) => t[n]), t.text, t["text-muted"]];
+      expect(new Set(colors).size).toBe(colors.length);
+    });
   });
 
   it("give every layer its own color", () => {

@@ -36,6 +36,16 @@ function sourceLine(id: string): number {
   return line;
 }
 
+/**
+ * Matches the code preview's line reading `text` (indentation aside, like
+ * `getByText`), whether it's still plain or already split into Shiki's token
+ * spans (M4b.5b).
+ */
+function codeLine(text: string) {
+  return (_: string, el: Element | null) =>
+    el?.matches(".gi-code__line > code") === true && el.textContent?.trim() === text;
+}
+
 /** Waits until the canvas has drawn the current level (layouts run on the main thread here). */
 async function settle() {
   await waitFor(
@@ -177,7 +187,7 @@ describe("Explorer", { timeout: 30_000 }, () => {
     const { box, isOpen, heading, act } = await setup({ initialSelected: ROUTE });
     expect(screen.getByText("/api/orders", { selector: "dd code" })).toBeTruthy();
     const preview = screen.getByRole("figure");
-    expect(within(preview).getByText('orders.post("/", createOrder);')).toBeTruthy();
+    expect(within(preview).getByText(codeLine('orders.post("/", createOrder);'))).toBeTruthy();
     expect(preview.querySelector("[data-highlight]")?.textContent).toContain("orders.post");
     // No commit SHA in the fixture graph, so no GitHub link rather than a branch link.
     expect(within(preview).queryByText("Open on GitHub")).toBeNull();
@@ -226,7 +236,7 @@ describe("Explorer", { timeout: 30_000 }, () => {
     await act(() => finish(sources["apps/api/src/routes/orders.ts"]));
     await waitFor(() =>
       expect(
-        within(screen.getByRole("figure")).getByText('orders.post("/", createOrder);'),
+        within(screen.getByRole("figure")).getByText(codeLine('orders.post("/", createOrder);')),
       ).toBeTruthy(),
     );
     expect(
@@ -243,7 +253,7 @@ describe("Explorer", { timeout: 30_000 }, () => {
     expect(screen.getByRole("figure").hasAttribute("aria-busy")).toBe(false);
     await settle();
     expect(
-      within(screen.getByRole("figure")).getByText('orders.post("/", createOrder);'),
+      within(screen.getByRole("figure")).getByText(codeLine('orders.post("/", createOrder);')),
     ).toBeTruthy();
     expect(loadSource).toHaveBeenCalledTimes(2);
   });
@@ -324,7 +334,9 @@ describe("Explorer", { timeout: 30_000 }, () => {
     // The trace owns the edges' look; nothing is drawn as selected meanwhile.
     expect(container.querySelector(".gi-edge[data-selected]")).toBeNull();
     expect(hop[0]?.getAttribute("aria-label")).toMatch(/Current step of the request path$/);
-    expect(screen.getByText("const res = await fetch(`${API_URL}/api/orders`, {")).toBeTruthy();
+    expect(
+      screen.getByText(codeLine("const res = await fetch(`${API_URL}/api/orders`, {")),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     expect(heading().textContent).toBe("Checkout calls placeOrder");
     fireEvent.click(screen.getByRole("button", { name: /createOrder writes Order/ }));
@@ -805,7 +817,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     expect(container.querySelector('[data-expanded="true"]')?.getAttribute("aria-label")).toMatch(
       /^@shop\/api/,
     );
-    expect(screen.getByText('orders.post("/", createOrder);')).toBeTruthy();
+    expect(screen.getByText(codeLine('orders.post("/", createOrder);'))).toBeTruthy();
   });
 
   it("cover the overview, drilling, zooming out, and the trace at two depths", async () => {

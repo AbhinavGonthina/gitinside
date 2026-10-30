@@ -29,7 +29,12 @@ export type ThemeTokenName =
   | "diff-removed"
   | "scrim"
   | "shadow-2"
-  | "shadow-3";
+  | "shadow-3"
+  | "syntax-keyword"
+  | "syntax-string"
+  | "syntax-function"
+  | "syntax-type"
+  | "syntax-constant";
 
 /**
  * Per-theme values. Colors are lowercase `#rrggbb` (Prettier's CSS spelling,
@@ -40,6 +45,8 @@ export type ThemeTokenName =
  * `text` and `text-muted` are at least 4.5:1, so they work for any text.
  * `accent`, the layers, `trace`, and the diff colors are at least 3:1, so
  * they work for strokes, rings, icons, and focus, but not for small text.
+ * The `syntax-*` colors are for the code preview only: at least 4.5:1 on the
+ * canvas (its background) and on the selected line's accent tint.
  */
 export const themeTokens: Record<Theme, Record<ThemeTokenName, string>> = {
   dark: {
@@ -65,6 +72,11 @@ export const themeTokens: Record<Theme, Record<ThemeTokenName, string>> = {
     scrim: "rgba(5, 7, 11, 0.6)",
     "shadow-2": "0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45)",
     "shadow-3": "0 2px 6px rgba(0, 0, 0, 0.4), 0 24px 64px rgba(0, 0, 0, 0.6)",
+    "syntax-keyword": "#c2a3f7",
+    "syntax-string": "#6ad8b0",
+    "syntax-function": "#8fb6ff",
+    "syntax-type": "#f5a3cf",
+    "syntax-constant": "#f2b27a",
   },
   // Tuned for the cool off-white canvas, not inverted: hues stay, lightness
   // drops until each color clears its AA bar on every light surface.
@@ -89,6 +101,11 @@ export const themeTokens: Record<Theme, Record<ThemeTokenName, string>> = {
     scrim: "rgba(18, 23, 34, 0.32)",
     "shadow-2": "0 1px 2px rgba(18, 23, 34, 0.06), 0 8px 24px rgba(18, 23, 34, 0.1)",
     "shadow-3": "0 2px 6px rgba(18, 23, 34, 0.08), 0 24px 64px rgba(18, 23, 34, 0.18)",
+    "syntax-keyword": "#6b3fc4",
+    "syntax-string": "#0a6f54",
+    "syntax-function": "#2459c9",
+    "syntax-type": "#a8336f",
+    "syntax-constant": "#95500f",
   },
 };
 
