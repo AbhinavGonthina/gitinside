@@ -15,7 +15,7 @@ import { runAnalysis, type RunOptions, type RunResult } from "./runner.js";
  *    `<jobsRoot>/<id>-<random>/src` (extract.ts); nothing is buffered on disk first. All of
  *    it shares one budget, {@link DEFAULT_DOWNLOAD_TIMEOUT_MS}.
  * 2. **analyze:** the sandboxed child (runner.ts) writes `architecture.json` next to `src`.
- * 3. **publish:** the caller's `publish` stores the graph (record.ts: R2, then Postgres).
+ * 3. **publish:** the caller's `publish` stores the graph (record.ts: the bucket, then Postgres).
  * 4. **clean up:** the job folder is deleted whatever happened. A failed attempt is
  *    recorded as queued again, or failed if it was final.
  *

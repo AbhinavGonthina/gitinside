@@ -19,7 +19,7 @@ export const RETRIABLE_CODES: ReadonlySet<string> = new Set([
   "GITHUB_RATE_LIMITED",
   /** The worker shut down mid-job; the next worker runs it again. */
   "CANCELLED",
-  /** Storing the result (R2, Postgres) failed. */
+  /** Storing the result (the bucket, Postgres) failed. */
   "PUBLISH_FAILED",
   /** Writing the job's start to Postgres failed (record.ts). */
   "RECORD_FAILED",

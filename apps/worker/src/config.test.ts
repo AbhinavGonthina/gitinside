@@ -11,10 +11,11 @@ const SECRET = "s".repeat(43);
 const ENV = {
   REDIS_URL: "redis://redis:6379",
   DATABASE_URL: "postgresql://user:pw-value@db.example/gitinside?sslmode=require",
-  R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
-  R2_ACCESS_KEY_ID: "key-id",
-  R2_SECRET_ACCESS_KEY: "key-secret",
-  R2_BUCKET: "gitinside-snapshots",
+  SNAPSHOTS_NAMESPACE: "axq1ns2example",
+  SNAPSHOTS_REGION: "us-ashburn-1",
+  SNAPSHOTS_ACCESS_KEY_ID: "key-id",
+  SNAPSHOTS_SECRET_ACCESS_KEY: "key-secret",
+  SNAPSHOTS_BUCKET: "gitinside-snapshots",
   ENQUEUE_HMAC_SECRET: SECRET,
 };
 
@@ -34,10 +35,10 @@ describe("workerConfigFromEnv", () => {
       redisUrl: ENV.REDIS_URL,
       databaseUrl: ENV.DATABASE_URL,
       store: {
-        endpoint: `https://${ENV.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+        endpoint: "https://axq1ns2example.compat.objectstorage.us-ashburn-1.oraclecloud.com",
         bucket: "gitinside-snapshots",
         credentials: { accessKeyId: "key-id", secretAccessKey: "key-secret" },
-        region: "auto",
+        region: "us-ashburn-1",
       },
       secrets: [SECRET],
       jobsRoot: CONFIG_DEFAULTS.jobsRoot,
@@ -89,7 +90,7 @@ describe("workerConfigFromEnv", () => {
     expect(problems({})).toEqual([
       "REDIS_URL is not set",
       "DATABASE_URL is not set",
-      "R2_ACCOUNT_ID is not set",
+      "SNAPSHOTS_NAMESPACE is not set",
       "ENQUEUE_HMAC_SECRET is not set",
     ]);
   });
@@ -104,7 +105,7 @@ describe("workerConfigFromEnv", () => {
     [{ PORT: "80a" }, "PORT must be 1–65535"],
     [{ PORT: "080" }, "PORT must be 1–65535"],
     [{ ENQUEUE_HMAC_SECRET: "short" }, "ENQUEUE_HMAC_SECRET must be at least 32 characters"],
-    [{ R2_BUCKET: "" }, "R2_BUCKET is not set"],
+    [{ SNAPSHOTS_BUCKET: "" }, "SNAPSHOTS_BUCKET is not set"],
   ])("refuses %j", (override, problem) => {
     expect(problems({ ...ENV, ...override })).toEqual([problem]);
   });
@@ -114,17 +115,11 @@ describe("workerConfigFromEnv", () => {
       REDIS_URL: "http://user:redis-pass@redis",
       DATABASE_URL: "mysql://user:db-pass@db",
       ENQUEUE_HMAC_SECRET: "short-secret-value",
-      R2_ACCOUNT_ID: "acct-value",
+      SNAPSHOTS_NAMESPACE: "ns.value",
       PORT: "port-value",
     };
     const text = problems({ ...ENV, ...bad }).join("\n");
-    for (const value of [
-      "redis-pass",
-      "db-pass",
-      "short-secret-value",
-      "acct-value",
-      "port-value",
-    ]) {
+    for (const value of ["redis-pass", "db-pass", "short-secret-value", "ns.value", "port-value"]) {
       expect(text).not.toContain(value);
     }
     expect(text.split("\n")).toHaveLength(5);
@@ -151,29 +146,28 @@ describe("redisConnection", () => {
 
 describe("quotaConfigFromEnv", () => {
   it("reads only the database and the bucket", () => {
-    const { DATABASE_URL, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } = ENV;
-    expect(
-      quotaConfigFromEnv({
-        DATABASE_URL,
-        R2_ACCOUNT_ID,
-        R2_ACCESS_KEY_ID,
-        R2_SECRET_ACCESS_KEY,
-        R2_BUCKET,
-      }),
-    ).toEqual({ databaseUrl: DATABASE_URL, store: workerConfigFromEnv(ENV).store });
+    const onlyQuota = Object.fromEntries(
+      Object.entries(ENV).filter(
+        ([name]) => name === "DATABASE_URL" || name.startsWith("SNAPSHOTS_"),
+      ),
+    );
+    expect(quotaConfigFromEnv(onlyQuota)).toEqual({
+      databaseUrl: ENV.DATABASE_URL,
+      store: workerConfigFromEnv(ENV).store,
+    });
   });
 
   it("lists both problems at once, never a value", () => {
     let error: unknown;
     try {
-      quotaConfigFromEnv({ ...ENV, DATABASE_URL: "nope", R2_ACCOUNT_ID: "acct-value" });
+      quotaConfigFromEnv({ ...ENV, DATABASE_URL: "nope", SNAPSHOTS_REGION: "region.value" });
     } catch (caught) {
       error = caught;
     }
     expect(error).toBeInstanceOf(ConfigError);
     expect((error as ConfigError).problems).toEqual([
       "DATABASE_URL is not a URL",
-      "R2_ACCOUNT_ID must be 32 lowercase hex",
+      "SNAPSHOTS_REGION must be an Oracle region identifier (e.g. us-ashburn-1)",
     ]);
   });
 });

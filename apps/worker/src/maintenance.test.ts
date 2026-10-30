@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import {
   MAINTENANCE_FIRST_DELAY_MS,
   MAINTENANCE_INTERVAL_MS,
+  QUOTA_ALARM_RATIO,
   QUOTA_LIMITS,
   checkQuotas,
   measureQuotas,
@@ -46,7 +47,14 @@ describe("checkQuotas", () => {
       alarm: false,
     });
     expect(database).toMatchObject({ limitBytes: 1_000_000_000, percent: 150, alarm: true });
-    expect(QUOTA_LIMITS).toEqual({ bucketBytes: 10_000_000_000, databaseBytes: 1_000_000_000 });
+    expect(QUOTA_LIMITS).toEqual({ bucketBytes: 20_000_000_000, databaseBytes: 1_000_000_000 });
+  });
+
+  it("has retention keep the bucket at or under the alarm point", () => {
+    expect(RETENTION_POLICY.budgetBytes).toBe(16_000_000_000);
+    expect(RETENTION_POLICY.budgetBytes).toBeLessThanOrEqual(
+      QUOTA_LIMITS.bucketBytes * QUOTA_ALARM_RATIO,
+    );
   });
 });
 

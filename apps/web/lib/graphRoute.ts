@@ -10,7 +10,7 @@ import { parseRepoPath } from "./repoUrl";
  *
  * - **Public repos only** (`findPublishedAnalysis`); the newest finished analysis of the
  *   commit, so a re-analysis by a newer analyzer version replaces the old graph.
- * - **Streamed from R2** with the bucket's own credentials (no public bucket, ADR-0055).
+ * - **Streamed from the bucket** (Oracle Object Storage, ADR-0095) with the bucket's own credentials (no public bucket, ADR-0055).
  *   `fetch` decodes the stored gzip, and the platform compresses the response for the
  *   browser again.
  * - **Cached by the CDN** for a day (`s-maxage`) and by browsers for 5 minutes: a commit's

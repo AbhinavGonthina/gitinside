@@ -235,7 +235,7 @@ describe("the child's sandbox", () => {
   it("can't read outside its roots, write anything but out, or start processes", async () => {
     const secretDir = await mkdtemp(join(tmpdir(), "gitinside-secret-"));
     const secret = join(secretDir, "worker.env");
-    await writeFile(secret, "R2_SECRET=planted");
+    await writeFile(secret, "SNAPSHOTS_SECRET=planted");
     try {
       const result = findings(await runProbe("sandbox", secret));
       expect(result).toMatchObject({
@@ -253,7 +253,7 @@ describe("the child's sandbox", () => {
 
   it("gives the child an empty environment, ignoring the worker's secrets and NODE_OPTIONS", async () => {
     const saved = { ...process.env };
-    process.env.R2_SECRET_ACCESS_KEY = "planted";
+    process.env.SNAPSHOTS_SECRET_ACCESS_KEY = "planted";
     process.env.NODE_OPTIONS = "--max-old-space-size=7";
     try {
       const result = findings(await runProbe("sandbox", join(jobDir, "nothing")));

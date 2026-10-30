@@ -477,7 +477,7 @@ describe("too-many-files: file and entry limits (T3)", () => {
 describe("secrets never reach the stored graph (T5)", () => {
   it("keeps fake-secrets' planted values and the worker's own secrets out of the graph", async () => {
     // The worker's environment holds real secrets in production; the child gets none.
-    vi.stubEnv("R2_SECRET_ACCESS_KEY", "gi-fake-worker-r2-secret");
+    vi.stubEnv("SNAPSHOTS_SECRET_ACCESS_KEY", "gi-fake-worker-bucket-secret");
     vi.stubEnv("ENQUEUE_HMAC_SECRET", "gi-fake-worker-hmac-secret");
     vi.stubEnv("DATABASE_URL", "postgresql://worker:gi-fake-worker-db@db.internal/gitinside");
     vi.stubEnv("GITHUB_TOKEN", "gi_fake_worker_github_token");

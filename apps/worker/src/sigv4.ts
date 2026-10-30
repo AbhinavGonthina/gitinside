@@ -2,7 +2,8 @@ import { createHash, createHmac } from "node:crypto";
 import { compareStrings } from "@gitinside/schema";
 
 /**
- * AWS Signature Version 4, the request signing R2's S3-compatible API accepts (ADR-0062).
+ * AWS Signature Version 4, the request signing S3-compatible APIs (Oracle Object
+ * Storage's, R2's) accept (ADR-0062).
  *
  * Hand-written instead of pulling in an AWS SDK: the worker only ever signs a handful of
  * object requests, and SigV4 is a fixed recipe of SHA-256 and HMAC-SHA256 that
@@ -28,7 +29,7 @@ export interface Credentials {
   secretAccessKey: string;
 }
 
-/** What a signature is bound to besides the request: `auto`/`s3` for R2. */
+/** What a signature is bound to besides the request: the bucket's region (Oracle's region identifier) and `s3`. */
 export interface SigningScope {
   region: string;
   service: string;

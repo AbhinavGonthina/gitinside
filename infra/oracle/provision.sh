@@ -23,7 +23,8 @@ REDIS_ENV_FILE=$ENV_DIR/redis.env
 HOSTS_FILE=$ENV_DIR/egress.hosts
 UNIT=/etc/systemd/system/gitinside.service
 MODULES=(ip_set ip_set_hash_ip xt_set xt_owner)
-REQUIRED=(DATABASE_URL R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET ENQUEUE_HMAC_SECRET)
+REQUIRED=(DATABASE_URL SNAPSHOTS_NAMESPACE SNAPSHOTS_REGION SNAPSHOTS_ACCESS_KEY_ID
+  SNAPSHOTS_SECRET_ACCESS_KEY SNAPSHOTS_BUCKET ENQUEUE_HMAC_SECRET)
 # Applies the migrations from inside the worker image, through the egress gateway.
 MIGRATE='import { runMigrations } from "@gitinside/db";
 await runMigrations(process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL);

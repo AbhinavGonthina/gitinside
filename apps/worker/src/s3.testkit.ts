@@ -4,7 +4,8 @@ import type { AddressInfo } from "node:net";
 import { authorization, type Credentials } from "./sigv4.js";
 
 /**
- * A fake S3 bucket for tests, on 127.0.0.1. It checks each request the way R2 does:
+ * A fake S3 bucket for tests, on 127.0.0.1. It checks each request the way an
+ * S3-compatible store (Oracle Object Storage, R2) does:
  * the SigV4 signature (recomputed from the headers the request says it signed) and the
  * body against `x-amz-content-sha256`. A good `PUT /<bucket>/<key>` is stored in
  * {@link FakeS3.objects}, a good `GET` returns it (`404 NoSuchKey` if absent), `DELETE`
@@ -57,6 +58,8 @@ export interface FakeS3 {
   endpoint: string;
   bucket: string;
   credentials: Credentials;
+  /** The signing region it checks (Oracle's region identifier, or R2's `auto`). */
+  region: string;
   objects: Map<string, StoredObject>;
   requests: { method: string; url: string; headers: IncomingMessage["headers"] }[];
   /** Answers after the body is read; the default checks and stores. */
@@ -75,12 +78,19 @@ export function s3Error(res: ServerResponse, status: number, code: string): void
 const AUTH =
   /^AWS4-HMAC-SHA256 Credential=[^,]+, SignedHeaders=([a-z0-9;-]+), Signature=[0-9a-f]{64}$/;
 
-/** Start a fake bucket named `bucket` accepting `credentials`. */
+/** Start a fake bucket named `bucket` accepting `credentials` signed for `region`. */
 export async function startFakeS3(
   bucket = "gitinside-snapshots",
   credentials: Credentials = { accessKeyId: "test-key-id", secretAccessKey: "test-secret-key" },
+  region = "auto",
 ): Promise<FakeS3> {
-  const fake = { bucket, credentials, objects: new Map(), requests: [] } as unknown as FakeS3;
+  const fake = {
+    bucket,
+    credentials,
+    region,
+    objects: new Map(),
+    requests: [],
+  } as unknown as FakeS3;
 
   fake.handler = (req, body, res) => {
     const given = req.headers.authorization ?? "";
@@ -99,7 +109,7 @@ export async function startFakeS3(
     const expected = authorization(
       { method: req.method ?? "", url: new URL(req.url ?? "/", "http://x"), headers, payloadHash },
       credentials,
-      { region: "auto", service: "s3" },
+      { region, service: "s3" },
     );
     if (expected !== given) return s3Error(res, 403, "SignatureDoesNotMatch");
     const prefix = `/${bucket}/`;
@@ -120,7 +130,7 @@ export async function startFakeS3(
     if (req.method === "GET") {
       const object = fake.objects.get(key);
       if (object === undefined) return s3Error(res, 404, "NoSuchKey");
-      // Served with the headers it was stored with, as R2 does.
+      // Served with the headers it was stored with, as S3 does.
       const { "content-type": type, "content-encoding": encoding } = object.headers;
       res.writeHead(200, {
         ...(type === undefined ? {} : { "content-type": type }),

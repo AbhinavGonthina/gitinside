@@ -17,7 +17,7 @@ import { createWorkerClient } from "./worker";
  *   If one is missing or the secret is short, the API answers "temporarily unavailable"
  *   instead of failing on every request; nothing is logged with a value.
  * - `GITHUB_TOKEN`: optional, raises GitHub's limit from 60 to 5,000 requests an hour.
- * - `R2_*` (ADR-0055, ADR-0068): `/api/graph` reads snapshots with them, alongside
+ * - `SNAPSHOTS_*` (ADR-0055, ADR-0068, ADR-0095): `/api/graph` reads snapshots with them, alongside
  *   `DATABASE_URL`; the repo page needs only the database (and the worker to re-analyze).
  *   The README images need both (ADR-0072).
  *
@@ -78,20 +78,20 @@ export function analyzeDepsFromEnv(env: Env = process.env): AnalyzeDeps | undefi
   };
 }
 
-/** `/api/graph`'s deps (ADR-0068): the database and the `R2_*` bucket, else `undefined`. */
+/** `/api/graph`'s deps (ADR-0068): the database and the `SNAPSHOTS_*` bucket, else `undefined`. */
 export function graphDepsFromEnv(env: Env = process.env): GraphRouteDeps | undefined {
   let store: GraphRouteDeps["store"];
   try {
     store = createObjectStore(storeConfigFromEnv(env));
   } catch {
-    return undefined; // a missing or malformed R2_* variable; named nowhere public
+    return undefined; // a missing or malformed SNAPSHOTS_* variable; named nowhere public
   }
   const db = database(env);
   return db && { db, store };
 }
 
 /**
- * The README images' deps (ADR-0072): the repo page's, plus the `R2_*` bucket the graph is
+ * The README images' deps (ADR-0072): the repo page's, plus the `SNAPSHOTS_*` bucket the graph is
  * read from; `undefined` without either (the images are then the link-only badge).
  */
 export function imageDepsFromEnv(env: Env = process.env): ImageRouteDeps | undefined {

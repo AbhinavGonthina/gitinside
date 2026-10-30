@@ -11,7 +11,7 @@ import { createObjectStore, type ObjectStore, type StoreConfig } from "./storage
  * runs (ADR-0078). It measures the bucket and the database against the free limits and
  * prints the worker's own `quota` / `quota_alarm` JSON lines. Read-only: it deletes nothing.
  *
- * Reads `DATABASE_URL` and the `R2_*` variables only. Exit codes: 0 when every resource is
+ * Reads `DATABASE_URL` and the `SNAPSHOTS_*` variables only. Exit codes: 0 when every resource is
  * under 80%, 2 when any is in alarm, 1 when the config is invalid or a measurement failed.
  */
 

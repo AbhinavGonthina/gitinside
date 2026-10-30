@@ -27,7 +27,7 @@ import { createObjectStore } from "./storage.js";
  *    analyses still `running` from before this start `failed` (`JOB_INTERRUPTED`). A job that
  *    BullMQ re-runs moves its row back to `running`.
  * 3. Connect to Redis and check it answers, so a bad `REDIS_URL` fails here, loudly.
- * 4. Start the worker (recorder + `publish` = R2 then Postgres), the hourly maintenance
+ * 4. Start the worker (recorder + `publish` = bucket then Postgres), the hourly maintenance
  *    (retention, rate-limit pruning, quota check; maintenance.ts), then the enqueue API.
  *
  * **Shutdown** ({@link RunningWorker.stop}, on SIGTERM or SIGINT): stop accepting API

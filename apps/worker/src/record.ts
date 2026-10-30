@@ -26,7 +26,7 @@ import {
  *   marked `running`. A **private repo on a job without an installation is refused**
  *   (`REPO_NOT_PUBLIC`): the worker's token may be able to read it, but it must never reach
  *   the public cache.
- * - **publish = R2, then Postgres:** the snapshot is uploaded first and the row marked `done`
+ * - **publish = bucket, then Postgres:** the snapshot is uploaded first and the row marked `done`
  *   only after the bucket acknowledged it, so a `done` row always has its object. If the
  *   database write fails, the attempt is retried and the upload repeats under the same
  *   immutable key, which is harmless.
