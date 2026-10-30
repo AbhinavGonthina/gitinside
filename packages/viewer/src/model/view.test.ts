@@ -159,6 +159,11 @@ describe("edge aggregation", () => {
     expect(lifted(view).some((e) => e.startsWith("imports"))).toBe(false);
     const withImports = buildView(index, ["service:web/"], { hiddenKinds: new Set() });
     expect(lifted(withImports)).toContain("imports module:web/app -> module:web/lib exact ×3");
+    // The view records what it left off, sorted, for the layout cache's key.
+    expect(view.hidden).toEqual(["imports"]);
+    expect(withImports.hidden).toEqual([]);
+    const twoHidden = buildView(index, [], { hiddenKinds: new Set(["stores", "calls"]) });
+    expect(twoHidden.hidden).toEqual(["calls", "stores"]);
   });
 
   it("accounts for every graph edge: drawn once, or inside one visible node", () => {

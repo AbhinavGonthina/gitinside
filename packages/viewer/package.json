@@ -18,6 +18,7 @@
       "types": "./dist/image.d.ts",
       "import": "./dist/image.js"
     },
+    "./layout-worker": "./dist/layout-worker.js",
     "./styles.css": "./dist/style.css"
   },
   "scripts": {

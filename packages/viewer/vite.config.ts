@@ -9,9 +9,12 @@ import react from "@vitejs/plugin-react";
 // instead (ADR-0047). The tokens are dist/style.css (`@gitinside/viewer/styles.css`).
 // simple-icons is bundled: only the logos brands.ts names survive tree-shaking
 // (ADR-0048). The schema (a dependency: types plus `compareStrings`) stays external.
-// Three entries: `index` (components, no CSS imports left, so plain Node can
-// import it), `fonts` (only the Fontsource imports; ADR-0056), and `image`
-// (the README badge and live image as SVG text, for server code; ADR-0071).
+// Four entries: `index` (components, no CSS imports left, so plain Node can
+// import it), `fonts` (only the Fontsource imports; ADR-0056), `image`
+// (the README badge and live image as SVG text, for server code; ADR-0071),
+// and `layout-worker` (ELK's worker script, which the app builds into a Web
+// Worker; ADR-0107). `index` loads ELK itself only as the in-thread fallback,
+// a separate chunk.
 // `index` starts with "use client": its components use hooks, so React Server
 // Components (apps/web) must treat the bundle as client code; server
 // components can still render them with serializable props.
@@ -19,7 +22,12 @@ export default defineConfig({
   plugins: [react()],
   build: {
     lib: {
-      entry: { index: "src/index.ts", fonts: "src/fonts.ts", image: "src/image.ts" },
+      entry: {
+        index: "src/index.ts",
+        fonts: "src/fonts.ts",
+        image: "src/image.ts",
+        "layout-worker": "src/layout/worker.ts",
+      },
       formats: ["es"],
       fileName: (_format, name) => `${name}.js`,
     },

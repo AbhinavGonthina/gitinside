@@ -206,6 +206,24 @@ describe("runLayout", () => {
     },
   );
 
+  it.each(STATES.map((s) => [s.length, s] as const))(
+    "keeps every label pill clear of the others (%i open)",
+    async (_n, state) => {
+      // Parallel edges run 14px apart; pills placed beside them and snapped
+      // onto them covered each other (`reads` / `writes` from src to prisma).
+      const { input, result } = await laidOut(state);
+      const pills = result.edges.map((e, i) => {
+        const { width, height } = input.edges[i]?.label ?? { width: 0, height: 0 };
+        return { id: e.id, x: e.label.x - width / 2, y: e.label.y - height / 2, width, height };
+      });
+      for (const [i, a] of pills.entries()) {
+        for (const b of pills.slice(i + 1)) {
+          expect(overlaps(a, b), `${a.id} / ${b.id}`).toBe(false);
+        }
+      }
+    },
+  );
+
   it("keeps room for each label between the columns it crosses", async () => {
     const { input, result } = await laidOut([]);
     const http = input.edges.find((e) => e.id === "http:service:web/->service:api/");
