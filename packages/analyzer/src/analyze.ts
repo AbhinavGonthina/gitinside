@@ -21,7 +21,7 @@ import { buildSymbolNodes } from "./symbols.js";
 import { createUrlNormalizer } from "./url.js";
 import { ANALYZER_VERSION } from "./version.js";
 import { detectWorkspace, serviceNodes } from "./workspace.js";
-import { inlineWrappers } from "./wrappers.js";
+import { bindWrappers, collectHttpFacts } from "./wrappers.js";
 
 export { ANALYZER_VERSION };
 
@@ -206,13 +206,15 @@ export async function analyze(
     "http",
     () => {
       const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
-      const requests = inlineWrappers(
+      // Per-service facts, then the global binding step (ADR-0092).
+      const facts = collectHttpFacts(
         sites,
         programs,
         resolver,
         createUrlNormalizer(resolver),
         express.inlineHandlers,
       );
+      const requests = bindWrappers(facts);
       onProgress?.({ stage: "http", count: requests.length });
       const matcher = createRouteMatcher([...express.nodes, ...next.nodes], workspace);
       return buildHttpEdges(requests, matcher, workspace);

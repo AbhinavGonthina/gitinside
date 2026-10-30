@@ -306,7 +306,7 @@ describe('"no call site dropped" (ROADMAP M2)', () => {
     // Every site is represented by a request: its own, or one per inlined wrapper call.
     for (const site of sites) {
       expect(
-        requests.some((r) => r.call === site),
+        requests.some((r) => at(r.call.site) === at(site.site)),
         `site ${at(site.site)}`,
       ).toBe(true);
     }

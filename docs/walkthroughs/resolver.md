@@ -378,9 +378,13 @@ sequenceDiagram
   Note over L: HttpRequest at projects.ts:4, owner listProjects,<br/>method from boundMethod() = GET
 ```
 
-### `HttpRequest` (lines 71–91)
+### `HttpRequest`
 
-Like a call site, but positioned at the **caller**: `file`, `site`, and `owners` are the wrapper call's when inlined, and `via` records the wrapper call (used later to show `requestRaw(url)` as the expression). `confidence` is the weakest of the site's, the URL's, and the wrapper call's resolution.
+Like a call site, but positioned at the **caller**: `file`, `site`, and `owners` are the wrapper call's when inlined, and `via` is the wrapper's symbol ID. `confidence` is the weakest of the site's, the URL's, and the wrapper call's resolution. Since M6.7c it is plain data (no TypeScript nodes), so the text an unresolved node would show is computed up front: `expression` (`requestRaw(url)` for an inlined call) and `label`.
+
+### Per-service facts and the binding step (M6.7c, ADR-0092)
+
+`collectHttpFacts` returns one `HttpFacts` per service: its direct requests, its wrappers (each with the requests it makes if nobody calls it), and its calls to wrappers anywhere, already inlined. `bindWrappers` is the only step that looks across services: it drops a wrapper's own requests when some service calls it, then sorts. `inlineWrappers` is the two together. Inlining happens in the caller's service because binding a URL template later can't reproduce `normalize` exactly (ternaries compare whole branches, `new URL` depends on the argument's text, step budgets span the argument); the caller records the wrapper's program as reached, so its cached facts stay valid exactly as long as its inputs do.
 
 ### Module helpers (lines 110–147)
 
@@ -388,7 +392,7 @@ Like a call site, but positioned at the **caller**: `file`, `site`, and `owners`
 - **`valueFunction(node)`**: the function a symbol declaration holds: the declaration itself (`function f`), a variable/property initializer (`const f = () => …`), `export default`, or `exports.f = …`.
 - **`symbolName(id)`**: the last name in a symbol ID: `symbol:pkg/src/a.ts#Api.get` ⇒ `get`. Used for the cheap name filter below.
 
-### `inlineWrappers(sites, programs, resolver, normalizer, inlineHandlers)` (line 155)
+### `collectHttpFacts(sites, programs, resolver, normalizer, inlineHandlers)`
 
 #### Find wrappers (lines 183–217)
 
@@ -400,12 +404,12 @@ Like a call site, but positioned at the **caller**: `file`, `site`, and `owners`
 
 #### Find callers (lines 219–264)
 
-One walk over every file, with the same owner tracking as `collectHttpCalls`. The expensive call is `resolver.resolve()` (the type checker), so it's gated by a cheap filter (lines 236–242): the callee's name must equal some wrapper's `symbolName`, **or** be an alias (a renamed import like `import { request as r }`, whose name can't match). Only candidates are resolved; a resolved target that is a wrapper records a `Caller` with its location, owners, and the resolution's confidence.
+One walk over each service's files (`callersIn`), with the same owner tracking as `collectHttpCalls`. The expensive call is `resolver.resolve()` (the type checker), so it's gated by a cheap filter (lines 236–242): the callee's name must equal some wrapper's `symbolName`, **or** be an alias (a renamed import like `import { request as r }`, whose name can't match). Only candidates are resolved; a resolved target that is a wrapper records a `Caller` with its location, owners, and the resolution's confidence.
 
 #### Build requests (lines 266–378)
 
-- **`own(site)`**: a request from the site itself, normalized without bindings. Used for direct sites and for wrappers with **no visible callers**, so an uncalled wrapper still appears (as `DYNAMIC_URL` if its URL starts with the parameter). Nothing is dropped.
-- For each wrapper (in sorted ID order) and each caller:
+- **`own(site)`**: a request from the site itself, normalized without bindings. Computed for direct sites and for every wrapper site; `bindWrappers` keeps a wrapper's own requests only when it has **no visible callers**, so an uncalled wrapper still appears (as `DYNAMIC_URL` if its URL starts with the parameter). Nothing is dropped.
+- **`inline(id, wrapper, caller)`**, for each caller a service has:
   - **Bindings** (lines 299–317), parameter by parameter, positionally:
     - a rest parameter, or a position at or after a spread argument ⇒ unknown (`undefined`);
     - an argument ⇒ the argument, in the **caller's** program;
@@ -415,8 +419,9 @@ One walk over every file, with the same owner tracking as `collectHttpCalls`. Th
   - **`methodValue(value)`**: an absent or missing method is `GET` (fetch's and axios's default); unknown ⇒ `null`; else `constString` ⇒ `toMethod`.
   - **`configMethod(config)`**: for `fetch(url, init)` where `init` is a parameter: look at the caller's `init` (an object literal or const object) and read its `method`.
   - **`boundMethod(site)`** (343–356): reads the method the way JavaScript builds the object. For spreads, walk them last first: a missing spread adds nothing (continue); an unknown one ⇒ `null`; one whose object sets `method` ⇒ that method; one whose object certainly doesn't set it ⇒ continue. If no spread decides, use the `fallback` (`"GET"` in site A).
-  - For each wrapper site: `normalizer.normalize(site, bindings)`, combine confidences, and record in `via.url` which **arguments** the URL read (`urlArgs`). `redactedText` keeps those arguments' path text readable and masks every other argument (a token passed as `request("/x", token)`).
-- Sorted by request location, then by the inner call's location.
+  - For each wrapper site: `normalizer.normalize(site, bindings)`, combine confidences, and find which **arguments** the URL read (`urlArgs`). The `expression` is `redactedText(call, urlArgs)`, which keeps those arguments' path text readable and masks every other argument (a token passed as `request("/x", token)`).
+- A service calling a wrapper in another program records it with `resolver.programOf`, so the wrapper's inputs count as the caller's.
+- `bindWrappers` sorts by request location, then by the inner call's location.
 
 **Running example after stage 3.** Site A has two callers, site B has one:
 
@@ -514,10 +519,12 @@ Example: call `/files/a/b`, route `/files/*rest`:
 - **`externalHost(scheme, host)`**: drops the scheme's default port (`:443` for https), so `https://api.stripe.com:443` and `https://api.stripe.com` are one host. A protocol-relative URL (`//cdn…`, scheme `null`) keeps its port, since we don't know which default applies.
 - **`externalNode(host)`**: the single constructor for `external:ext/<host>` nodes. `sdk.ts` (M2.6) calls it too, so a `fetch` and a Stripe SDK call produce byte-identical nodes and assembly merges them without a `DUPLICATE_NODE` warning.
 
-### What an unresolved node shows (lines 452–469)
+### What an unresolved node shows
 
-- **`requestExpression(request)`**: the wrapper call when inlined (`requestRaw(url)`, keeping only the URL-reading arguments' path text), else the `fetch`/axios call with its URL and base expressions kept. Always through `redactedText`.
-- **`requestLabel(request)`**: `METHOD url-text` when resolved, else `METHOD <expression>`; the method is `?` when unknown.
+Computed in `wrappers.ts` with the request (M6.7c), and only copied here:
+
+- **`expression`**: the wrapper call when inlined (`requestRaw(url)`, keeping only the URL-reading arguments' path text), else the `fetch`/axios call with its URL and base expressions kept. Always through `redactedText`.
+- **`label`**: `METHOD url-text` when resolved, else `METHOD <expression>` (for a direct call, the redacted URL expression when there is one); the method is `?` when unknown.
 
 ### `buildHttpEdges(requests, matcher, workspace)` (lines 497–602)
 
