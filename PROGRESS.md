@@ -14,15 +14,15 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7d3. Per-service fact bundles for every remaining program stage + `analyze` as facts → compose (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
+M5.12d. Count Oracle Object Storage requests against the 50k/month free tier, then M6.7d3 (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
 - [#2](https://github.com/AbhinavGonthina/gitinside-planning/issues/2) **M4a design gate:** approve the visual language (docs/milestones/M4a-review.md). Blocks all of M4b; on close: apply his comments to DESIGN_SYSTEM.md and the components (drop "pending the design gate"), then remove the M4b `{blocked: design gate #2}` tags.
 - [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Oracle Cloud Always Free signup + worker VM. Blocks M5.13; on close: record region/shape for benchmark labels.
-- [#5](https://github.com/AbhinavGonthina/gitinside-planning/issues/5) Snapshot storage. He answered "no card on Cloudflare" (P-1 option 1 out); asked him to pick from PROPOSALS P-2 (recommended: Oracle Object Storage, Always Free, S3-compatible). Blocks M5.13; on answer: re-target the snapshot store's config and retention budget, update SPEC §5 via the proposal, and ask where the domain's DNS is hosted.
-- [#7](https://github.com/AbhinavGonthina/gitinside-planning/issues/7) DNS: CNAME `gitinside` → Vercel (target known from #6), A `worker.gitinside` → VM. After #3. Blocks M5.13.
+- [#5](https://github.com/AbhinavGonthina/gitinside-planning/issues/5) Snapshot storage. He chose PROPOSALS P-2 option 1 (Oracle Object Storage; SPEC §5 updated, M5.12c/d added). Now asks for the bucket + a Customer Secret Key on the #3 account, values into the VM's env file and Vercel. Blocks M5.13.
+- [#7](https://github.com/AbhinavGonthina/gitinside-planning/issues/7) DNS at name.com (his answer in #5): CNAME `gitinside` → Vercel (target known from #6), A `worker.gitinside` → VM. After #3. Blocks M5.13.
 
 ## Blockers
 - none
@@ -123,6 +123,8 @@ M6.7d3. Per-service fact bundles for every remaining program stage + `analyze` a
 - [x] M5.11 Security test suite with malicious fixtures {model: opus}
 - [x] M5.12a Snapshot retention: bucket list/delete (ListObjectsV2), db reads/deletes, pure `planRetention` (latest 5 per public repo, PR pins, superseded versions, orphans, 8 GB budget from the listing), `runRetention` (rows before objects) {model: opus}
 - [x] M5.12b Retention schedule in the worker + quota check: R2 (listing) and Neon (`pg_database_size`) against their free limits, `quota_alarm` log at 80%, prune old rate-limit windows, a `quota` command for M5.13's smoke test {model: opus}
+- [x] M5.12c Snapshot store on Oracle Object Storage (PROPOSALS P-2, #5): `SNAPSHOTS_*` config (namespace, region, keys, bucket ⇒ the S3-compatible endpoint, region signing), egress allowlist host from it, retention budget and bucket quota from 20 GB; web + worker + infra + docs {model: opus}
+- [ ] M5.12d Stay inside Oracle's 50k object requests/month: count the store requests worker and web make per month, `quota_alarm` at 80%, and check every snapshot read is behind the CDN cache {model: opus}
 - [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review) {model: opus} {blocked: #3 #5 #7}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
@@ -184,6 +186,8 @@ M6.7d3. Per-service fact bundles for every remaining program stage + `analyze` a
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.12c: Abhinav chose P-2 option 1 in #5 (Oracle Object Storage; DNS at name.com). SPEC §5/§4/§10/§11 and P-2 updated; M5.12c/d added ahead of M6.7d3; #5 retitled with bucket + Customer Secret Key steps, #7 got name.com steps. Store settings are now `SNAPSHOTS_NAMESPACE/REGION/ACCESS_KEY_ID/SECRET_ACCESS_KEY/BUCKET` (ADR-0095): endpoint built by `oracleS3Host` (no-dot labels only, same rule in `egress-hosts.sh`), signing region = Oracle's region (the fake S3 now checks it), quota 20 GB, retention budget 16 GB. Worker, web, infra (provision, check.mjs), docs updated. 4 new tests; worker and web green, `egress-hosts.sh` checked locally with Git's `sh` (CI's container check runs it for real). Next: M5.12d.
 
 - 2026-10-29 · M6.7d2: new `packages/analyzer/src/owners.ts` (ADR-0094): walks record `Owners` (node keys of the arrow/function expressions around a call up to the nearest symbol, plus fallback IDs) via `ownersAt`; `bindOwners` maps the innermost listed inline handler to its routes after Express composition. HTTP binds in `bindWrappers(facts, inlineHandlers)`; Prisma (`PrismaUse`), SDK, and queues bind after their walks in walk order; `inlineRoutesOf` removed. 5 new tests (4 `owners.test.ts` units; an inline handler's HTTP facts unchanged when another service remounts its router). Dropping the outer-handler chain fails 2 unit tests (goldens alone don't catch it). Analyzer 689, full `pnpm test` green. Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110), `--check` byte-for-byte. Also #4 (Neon, 1 GB, us-east-1) and #6 (Vercel live, CNAME target for #7) closed: removed from Needs Abhinav and M5.13's tag. Next: M6.7d3.
 
