@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.6. gitinside diff CLI (paths or git refs) + Mermaid summary (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.7. Incremental cache (content-hash facts, importer invalidation, disk LRU) (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -140,7 +140,7 @@ M6.6. gitinside diff CLI (paths or git refs) + Mermaid summary (M5.13 and M5.14b
 - [x] M6.4a Broken-edge detection incl. head re-resolution: `TARGET_REMOVED` / `ROUTE_CHANGED` for routes, relative imports, Prisma models; route grammar shared via the schema {model: opus}
 - [x] M6.4b Broken edges needing new analyzer facts: required parameter counts on symbols + call-site argument counts (`PARAMETERS_ADDED`), field names a Prisma call uses that the model lacks (`FIELD_REMOVED`); schema + goldens + eval re-record {model: opus}
 - [x] M6.5 Property tests (fast-check) {model: opus}
-- [ ] M6.6 gitinside diff CLI (paths or git refs) + Mermaid summary {model: opus}
+- [x] M6.6 gitinside diff CLI (paths or git refs) + Mermaid summary {model: opus}
 - [ ] M6.7 Incremental cache (content-hash facts, importer invalidation, disk LRU) {model: opus}
 - [ ] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
 - [ ] M6.9 Viewer diff mode (overlay, stable layout, changes list) {model: opus}
@@ -179,6 +179,8 @@ M6.6. gitinside diff CLI (paths or git refs) + Mermaid summary (M5.13 and M5.14b
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.6: `gitinside diff <base> <head> [--repo] [--format json|mermaid] [--out]` added to the analyzer's CLI, which now depends on `@gitinside/diff` (ADR-0089). Each side (`revisions.ts`, `openSide`) is a graph file, a folder, or a ref: `rev-parse --end-of-options`, then a temp `git worktree` with `core.hooksPath` set to an empty folder (the hook test fails without it), removed in a `finally`; both trees' text feeds rename detection. `renderMermaidSummary` (`packages/diff/src/mermaid.ts`): broken connections first, then changed architecture-level nodes, then cross-boundary edges lifted to them; 40-node cap with a note; look-alike labels get their service or file; allowlist escaping. Analyzer 637, diff 122 (mermaid.ts 98% lines), full `pnpm test` green, web build OK. Smoke run on this repo m4a..HEAD: 18 nodes. Eval re-recorded (lockfile; unchanged). Next: M6.7.
 
 - 2026-10-29 · M6.5: `packages/diff/src/properties.test.ts`, 300 seeded runs each, with and without contents: `diff(g, g)` empty, `applyDiff(base, diff) == head`, added/removed (and renames) swap with the sides, broken edges never target a node unchanged in head (in head ⇒ `modified`), and order independence. Pairs come from one fixed-length choice vector (head = base with 5–30% replaced): shared IDs, hash/content renames, route method changes under one handler, calls to missing targets as unresolved nodes naming them. A reachability test needs every broken reason, renames, and warnings in the sample; tuning took several rounds (`ROUTE_CHANGED` was first 0 of 300). Mutating `detectBroken`'s removed-target guard fails all six. All properties held on the first run, so no diff code changed. Diff 111 tests, 98.97% lines. Eval re-recorded (lockfile; unchanged). Next: M6.6.
 
