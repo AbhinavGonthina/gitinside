@@ -18,12 +18,21 @@ node packages/analyzer/dist/cli.js analyze path/to/repo --out architecture.json
 
 The output is a schema-valid `architecture.json`, the same bytes every time for the same commit. It covers workspace services, modules, files, symbols, imports, calls, Express and Next.js routes, and Prisma models. It also links `fetch`/axios calls to the routes they hit, each with a confidence level (exact, pattern, heuristic). It adds external APIs (from literal hosts and allowlisted SDKs), docker-compose and `.env` datastores (key names and URL hosts only, never values), and BullMQ/Bull/Bee-Queue queues. Anything it can't resolve appears as an `unresolved` node or a warning, never a guess. Optional flags `--owner`, `--name`, and `--sha` record the repo identity.
 
+To see what a change does to the architecture, diff two commits, folders, or graph files:
+
+```sh
+node packages/analyzer/dist/cli.js diff main my-branch --repo path/to/repo
+node packages/analyzer/dist/cli.js diff main my-branch --repo path/to/repo --format mermaid
+```
+
+Commits are checked out into temporary `git worktree`s (no git hooks run) and removed afterwards. The JSON output lists added, removed, modified, and renamed nodes and edges, plus **broken connections**: calls whose route, function, file, or model field the change removed or changed while the caller still makes them. `--format mermaid` prints a flowchart of the services, routes, and models that changed, with broken connections first.
+
 ## Architecture
 
 A pnpm + Turborepo monorepo:
 - `packages/schema` holds the graph format and the graph diff format (types + Zod validators).
-- `packages/diff` compares two graphs of a repo (M6, in progress: `diffGraphs` classifies nodes and edges as added, removed, modified, or updated by per-kind fingerprints, and `applyDiff` rebuilds head from base + diff; renames and broken edges are next).
-- `packages/analyzer` holds the analysis pipeline and CLI (inventory → workspaces → per-service TypeScript programs → detectors → validated graph).
+- `packages/diff` compares two graphs of a repo (M6, in progress): `diffGraphs` classifies nodes and edges by per-kind fingerprints, detects renames and moves, and finds broken connections; `applyDiff` rebuilds head from base + diff; `renderMermaidSummary` draws the change. Property-tested with fast-check.
+- `packages/analyzer` holds the analysis pipeline and the `gitinside` CLI (`analyze`, and `diff`, which analyzes both sides and calls `packages/diff`) (inventory → workspaces → per-service TypeScript programs → detectors → validated graph).
 - `packages/viewer` holds the explorer's React components and their Storybook (`pnpm --filter @gitinside/viewer storybook`).
 - `packages/db` holds the Postgres schema (Drizzle), committed SQL migrations, and the client shared by the web app and worker. Local Postgres: `docker compose -f infra/docker-compose.dev.yml up -d`, then `pnpm --filter @gitinside/db migrate` with `DATABASE_URL` from that file. Its tests run on in-memory PGlite, so they need no Docker.
 - `apps/web` is the website (Next.js App Router, built on the viewer's tokens and components): `pnpm build`, then `pnpm --filter @gitinside/web start` (or `dev`) and open http://localhost:3000. Analysis from the site arrives with the worker (M5.4–M5.8). Each analyzed repo's page has "Add to README", which gives the Markdown for a live badge or diagram image that stays current with the default branch.

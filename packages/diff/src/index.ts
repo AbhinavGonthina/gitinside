@@ -2,6 +2,7 @@ export { applyDiff, DiffApplyError } from "./apply.js";
 export { detectBroken, parseHttpLabel, relativeImportTargets } from "./broken.js";
 export { checkComparable, describeRepo, IncompatibleGraphsError } from "./compare.js";
 export { diffGraphs, type DiffOptions } from "./diff.js";
+export { escapeMermaidLabel, renderMermaidSummary, type MermaidSummaryOptions } from "./mermaid.js";
 export {
   detectRenames,
   RENAME_THRESHOLDS,
