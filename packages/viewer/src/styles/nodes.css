@@ -28,6 +28,18 @@
     opacity var(--duration-standard) var(--ease-standard);
 }
 
+/*
+ * The shapes' drawn parts (a window's band, a folder's tab, a table's fields
+ * rule) take the node's colors, so they change with it rather than snapping
+ * ahead of the box on hover and selection.
+ */
+.gi-node::before,
+.gi-node .gi-node__fields {
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
 .gi-node[data-layer="frontend"] {
   --gi-layer: var(--layer-frontend);
 }

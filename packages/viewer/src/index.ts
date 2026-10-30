@@ -7,6 +7,8 @@ export { ViewerRoot } from "./ViewerRoot.js";
 export type { Theme, ViewerRootProps } from "./ViewerRoot.js";
 export { cssVar, durations, scaleTokens, themeTokens } from "./tokens.js";
 export type { ScaleTokenName, ThemeTokenName } from "./tokens.js";
+export { prefersReducedMotion, REDUCED_MOTION_QUERY, usePresence } from "./motion.js";
+export type { Presence } from "./motion.js";
 export { contrastRatio, relativeLuminance } from "./contrast.js";
 export {
   brandFill,

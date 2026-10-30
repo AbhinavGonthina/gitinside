@@ -1,6 +1,7 @@
 import { composeStories } from "@storybook/react";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { durations } from "../tokens.js";
 import { ExplorerPrototype } from "./ExplorerPrototype.js";
 import * as stories from "./Prototype.stories.js";
 import { shopDemo, shopDemoSources } from "./shopDemo.testkit.js";
@@ -209,7 +210,15 @@ describe("ExplorerPrototype", () => {
     fireEvent.click(toggle);
     const close = screen.getByRole("button", { name: "Close legend" });
     close.focus();
+    vi.useFakeTimers();
     press("Escape", close);
+    // It plays its exit, out of reach of the pointer and screen readers, then unmounts.
+    const leaving = container.querySelector(".gi-legend");
+    expect(leaving?.getAttribute("data-state")).toBe("closing");
+    expect(leaving?.hasAttribute("inert")).toBe(true);
+    expect(screen.queryByRole("region", { name: "Legend" })).toBeNull();
+    act(() => vi.advanceTimersByTime(durations.fast));
+    vi.useRealTimers();
     expect(container.querySelector(".gi-legend")).toBeNull();
     expect(node("src")).not.toBeNull(); // still broken down
     expect(document.activeElement).toBe(toggle);
@@ -303,6 +312,46 @@ describe("ExplorerPrototype", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close legend" }));
     expect(screen.queryByRole("region", { name: "Legend" })).toBeNull();
     expect(screen.getByRole("img", { name: /Minimap of 4 boxes/ })).toBeTruthy();
+  });
+
+  it("reopens a closing legend in place", () => {
+    const { container } = setup();
+    const toggle = screen.getByRole("button", { name: "Legend" });
+    fireEvent.click(toggle);
+    const legend = container.querySelector(".gi-legend");
+    expect(legend?.getAttribute("data-state")).toBe("open");
+    fireEvent.click(toggle);
+    expect(legend?.getAttribute("data-state")).toBe("closing");
+    fireEvent.click(toggle);
+    // The same element, open again: no flash of a fresh mount.
+    expect(container.querySelector(".gi-legend")).toBe(legend);
+    expect(legend?.getAttribute("data-state")).toBe("open");
+    expect(legend?.hasAttribute("inert")).toBe(false);
+  });
+
+  it("swaps the inspector's content for a new selection, and a trace step's without moving focus", () => {
+    const { node, heading } = setup();
+    const panel = () => screen.getByRole("complementary");
+    fireEvent.click(node("@shop/api") as HTMLElement);
+    const api = panel();
+    fireEvent.click(node("db") as HTMLElement);
+    expect(heading().textContent).toBe("db");
+    // A fresh panel per selection, so its content plays the swap and starts at the top.
+    expect(panel()).not.toBe(api);
+
+    fireEvent.click(node("@shop/web") as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: /Trace a request/ }));
+    const trace = panel();
+    const header = trace.querySelector(".gi-inspector__header");
+    const steps = trace.querySelector(".gi-proto__steps");
+    const next = screen.getByRole("button", { name: /Next step/ });
+    next.focus();
+    fireEvent.click(next);
+    // The step's header is new; the panel, the steps list, and the focused button are kept.
+    expect(panel()).toBe(trace);
+    expect(trace.querySelector(".gi-inspector__header")).not.toBe(header);
+    expect(trace.querySelector(".gi-proto__steps")).toBe(steps);
+    expect(document.activeElement).toBe(next);
   });
 });
 

@@ -138,6 +138,7 @@ export const scaleTokens = {
   "duration-trace-hop": `${durations["trace-hop"]}ms`,
   "ease-standard": "cubic-bezier(0.2, 0, 0, 1)",
   "ease-layout": "cubic-bezier(0.65, 0, 0.35, 1)",
+  "ease-exit": "cubic-bezier(0.4, 0, 1, 1)",
 } as const;
 
 /** Names of the theme-independent tokens. */

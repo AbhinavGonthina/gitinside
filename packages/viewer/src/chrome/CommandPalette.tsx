@@ -28,6 +28,11 @@ export interface CommandPaletteProps {
   /** Open that node: the explorer flies there, drilling as needed, and selects it. */
   onPick?: ((id: string) => void) | undefined;
   onClose?: (() => void) | undefined;
+  /**
+   * `"closing"` while it plays its exit (from `usePresence`): it fades out,
+   * ignores the pointer, and leaves the accessibility tree. Default `"open"`.
+   */
+  state?: "open" | "closing" | undefined;
 }
 
 /** Names drawn in the mono face (code-like), like on the canvas. */
@@ -52,6 +57,7 @@ export function CommandPalette({
   onActiveIndexChange,
   onPick,
   onClose,
+  state = "open",
 }: CommandPaletteProps) {
   const id = useId();
   const listId = `${id}-results`;
@@ -73,7 +79,13 @@ export function CommandPalette({
   };
 
   return (
-    <div className="gi-palette-scrim" onClick={onClose}>
+    <div
+      className="gi-palette-scrim"
+      data-state={state}
+      inert={state === "closing" || undefined}
+      aria-hidden={state === "closing" || undefined}
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"

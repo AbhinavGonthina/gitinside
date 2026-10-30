@@ -518,6 +518,7 @@
   color: var(--text);
   font-size: var(--font-size-13);
   white-space: nowrap;
+  animation: gi-rise-in var(--duration-standard) var(--ease-standard) both;
 }
 
 .gi-status:has(.gi-button) {
@@ -580,6 +581,30 @@
   border-radius: var(--radius-module);
   background: var(--surface-raised);
   box-shadow: var(--shadow-2);
+  animation: gi-rise-in var(--duration-standard) var(--ease-standard) both;
+}
+
+/*
+ * Overlays come in with a short rise and leave faster than they came, the
+ * way a native popover does (ADR-0104): no scale, no blur, no overshoot.
+ * A closing overlay (`data-state`, from `usePresence`) is inert.
+ */
+.gi-popover[data-state="closing"] {
+  animation: gi-fade-out var(--duration-fast) var(--ease-exit) both;
+  pointer-events: none;
+}
+
+@keyframes gi-rise-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+@keyframes gi-fade-out {
+  to {
+    opacity: 0;
+  }
 }
 
 .gi-popover__header {
@@ -713,6 +738,22 @@
 
 .gi-inspector code {
   font-family: var(--font-mono);
+}
+
+/*
+ * A new selection's content fades in where the old one was (the explorer
+ * keys the panel by selection, the trace player its step's header, summary,
+ * and code). Only the content moves; the panel itself stays put.
+ */
+.gi-inspector > * {
+  animation: gi-swap-in var(--duration-standard) var(--ease-standard) both;
+}
+
+@keyframes gi-swap-in {
+  from {
+    opacity: 0;
+    translate: 0 2px;
+  }
 }
 
 .gi-inspector__header {
@@ -1049,6 +1090,19 @@
   justify-content: center;
   padding-top: 12vh;
   background: var(--scrim);
+  animation: gi-fade-in var(--duration-standard) var(--ease-standard) both;
+}
+
+/* The scrim and the dialog leave together, faster than they came. */
+.gi-palette-scrim[data-state="closing"] {
+  animation: gi-fade-out var(--duration-fast) var(--ease-exit) both;
+  pointer-events: none;
+}
+
+@keyframes gi-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .gi-palette {
@@ -1062,6 +1116,15 @@
   border-radius: var(--radius-module);
   background: var(--surface-raised);
   box-shadow: var(--shadow-3);
+  animation: gi-drop-in var(--duration-standard) var(--ease-standard) both;
+}
+
+/* The dialog settles down from the search field's direction, 6px. */
+@keyframes gi-drop-in {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+  }
 }
 
 .gi-palette__field {
