@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.0c. The current trace hop stands out (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on #3, #5, #7)
+M4b.0d. A new GitInside mark (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -83,7 +83,7 @@ M4b.0c. The current trace hop stands out (design gate #2 closed 2026-10-30; M5.1
 ### M4b: Interactive explorer
 - [x] M4b.0a Design gate fix: node content fits its container (`@shop/web`'s count badges wrapped out of its closed frame): closed frames sized from their counts, a real-browser check that no node's content overflows its box in any story, re-captured baselines (DESIGN_SYSTEM §1.1, ADR-0100) {model: opus}
 - [x] M4b.0b Design gate: a distinct shape per layer (frontend vs backend services, data, queue, external) and per card kind (route, page, model vs file/symbol), same quiet style, icon still the primary marker; legend's shapes table, README image, screenshots, baselines {model: opus}
-- [ ] M4b.0c Design gate: the current trace hop stands out (its two nodes and edge clearly stronger than the rest of the lit path, at the system level and inside a service), screenshots, baselines {model: opus}
+- [x] M4b.0c Design gate: the current trace hop stands out (its two nodes and edge clearly stronger than the rest of the lit path, at the system level and inside a service), screenshots, baselines {model: opus}
 - [ ] M4b.0d Design gate: a new GitInside mark (top bar, favicon, README badge), screenshots, baselines {model: opus}
 - [ ] M4b.0e Design gate: motion pass (hover, select, inspector content swap, overlays, palette open/close: token durations, reduced motion), no AI-looking defaults {model: opus}
 - [ ] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility; a service's first level leads with its routes and pages, then its folders (design gate, UX.md) {model: opus}
@@ -194,6 +194,8 @@ M4b.0c. The current trace hop stands out (design gate #2 closed 2026-10-30; M5.1
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.0c: The current hop is a third emphasis, `current` (ADR-0102). The explorer marks the boxes holding the step's two ends (one box for a hop inside it, never the open frame) and its edge. The rest of the path got quieter (plain trace border; 1.75px line, no halo). The current hop gets the glow, a tint, a 3px haloed line, larger particles, and a tinted pill. The current edge no longer borrows the selected look. Accessible names, legend row, and state stories updated. Viewer 499 (3 new), web 327, root typecheck + lint green. Screenshots are in `docs/milestones/M4b/trace-current-*`; baselines re-captured on Linux CI. Viewer-only, no eval delta. Next: M4b.0d.
 
 - 2026-10-30 · M4b.0b: Shapes from system design drawings (ADR-0101): `nodeShape` gives frontend services and pages a window (title band), other services a box (radius 6), modules a folder (tab), routes a capsule, models an ER-style table listing their fields, and the datastore / queue / outside-API tiles a cylinder / pipe / circle (`TILE_OUTLINES`, shared with the README image). `nodeSize`/`frameHeader` size each shape; the legend draws every outline from `SHAPE_TEXT` in a third column. Viewer 495 (23 new), web 327, root typecheck + lint green; local overflow check clean on every story, screenshots in `docs/milestones/M4b/`. Baselines re-captured on Linux CI. Viewer-only, no eval delta. Next: M4b.0c.
 
