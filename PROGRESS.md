@@ -14,12 +14,11 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7d3c. SDK and queue edges as per-service facts (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
+M4b.0a. Node content fits its container (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
-- [#2](https://github.com/AbhinavGonthina/gitinside-planning/issues/2) **M4a design gate:** approve the visual language (docs/milestones/M4a-review.md). Blocks all of M4b; on close: apply his comments to DESIGN_SYSTEM.md and the components (drop "pending the design gate"), then remove the M4b `{blocked: design gate #2}` tags.
 - [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Oracle Cloud Always Free signup + worker VM. Blocks M5.13; on close: record region/shape for benchmark labels.
 - [#5](https://github.com/AbhinavGonthina/gitinside-planning/issues/5) Snapshot storage. He chose PROPOSALS P-2 option 1 (Oracle Object Storage; SPEC §5 updated, M5.12c/d added). Now asks for the bucket + a Customer Secret Key on the #3 account, values into the VM's env file and Vercel. Blocks M5.13.
 - [#7](https://github.com/AbhinavGonthina/gitinside-planning/issues/7) DNS at name.com (his answer in #5): CNAME `gitinside` → Vercel (target known from #6), A `worker.gitinside` → VM. After #3. Blocks M5.13.
@@ -82,21 +81,26 @@ M6.7d3c. SDK and queue edges as per-service facts (M5.13 and M5.14b wait on #3, 
 - [x] M4a.9 M4a-review.md with screenshots + needs-abhinav design-approval issue; UI work then waits for approval {model: opus}
 
 ### M4b: Interactive explorer
-- [ ] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility {model: opus} {blocked: design gate #2}
-- [ ] M4b.2 ELK layout in a Web Worker with stable ordering + layout cache {model: opus} {blocked: design gate #2}
-- [ ] M4b.3 Semantic drill-down with animated in-place transitions + reduced motion {model: opus} {blocked: design gate #2}
-- [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus} {blocked: design gate #2}
-- [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub) {model: opus} {blocked: design gate #2}
-- [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus} {blocked: design gate #2}
-- [ ] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus} {blocked: design gate #2}
-- [ ] M4b.8 Filters {model: opus} {blocked: design gate #2}
-- [ ] M4b.9 Deep links {model: opus} {blocked: design gate #2}
-- [ ] M4b.10 Export SVG / PNG / Mermaid {model: opus} {blocked: design gate #2}
-- [ ] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus} {blocked: design gate #2}
-- [ ] M4b.12 Onboarding hints + empty/error states {model: opus} {blocked: design gate #2}
-- [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus} {blocked: design gate #2}
-- [ ] M4b.14 Playwright E2E + visual tests {model: opus} {blocked: design gate #2}
-- [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus} {blocked: design gate #2}
+- [ ] M4b.0a Design gate fix: node content fits its container (`@shop/web`'s count badges wrapped out of its closed frame): closed frames sized from their counts, a real-browser check that no node's content overflows its box in any story, re-captured baselines (DESIGN_SYSTEM §1.1, ADR-0100) {model: opus}
+- [ ] M4b.0b Design gate: a distinct shape per layer (frontend vs backend services, data, queue, external) and per card kind (route, page, model vs file/symbol), same quiet style, icon still the primary marker; legend's shapes table, README image, screenshots, baselines {model: opus}
+- [ ] M4b.0c Design gate: the current trace hop stands out (its two nodes and edge clearly stronger than the rest of the lit path, at the system level and inside a service), screenshots, baselines {model: opus}
+- [ ] M4b.0d Design gate: a new GitInside mark (top bar, favicon, README badge), screenshots, baselines {model: opus}
+- [ ] M4b.0e Design gate: motion pass (hover, select, inspector content swap, overlays, palette open/close: token durations, reduced motion), no AI-looking defaults {model: opus}
+- [ ] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility; a service's first level leads with its routes and pages, then its folders (design gate, UX.md) {model: opus}
+- [ ] M4b.2 ELK layout in a Web Worker with stable ordering + layout cache; node sizes measured from content, not fixed per tier (design gate fit) {model: opus}
+- [ ] M4b.3 Semantic drill-down with animated in-place transitions + reduced motion (routes first at the service level) {model: opus}
+- [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
+- [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub; the code sample links to the file and line, design gate) {model: opus}
+- [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus}
+- [ ] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
+- [ ] M4b.8 Filters {model: opus}
+- [ ] M4b.9 Deep links {model: opus}
+- [ ] M4b.10 Export SVG / PNG / Mermaid {model: opus}
+- [ ] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
+- [ ] M4b.12 Onboarding hints + empty/error states {model: opus}
+- [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus}
+- [ ] M4b.14 Playwright E2E + visual tests {model: opus}
+- [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
 
 ### M5: Website (public) + live badge
 - [x] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
