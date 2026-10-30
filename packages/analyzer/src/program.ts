@@ -2,20 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 import { compareStrings, type AnalysisWarning } from "@gitinside/schema";
+import { contentHash, createInputLog, programRootFiles, type InputLog } from "./inputs.js";
 import type { Inventory } from "./inventory.js";
-import { serviceForFile, type Workspace, type WorkspacePackage } from "./workspace.js";
-
-/** Extensions parsed by the TS program. `.prisma` is a source file too, but has its own detector. */
-const PROGRAM_EXTENSIONS: readonly string[] = [
-  ".cjs",
-  ".cts",
-  ".js",
-  ".jsx",
-  ".mjs",
-  ".mts",
-  ".ts",
-  ".tsx",
-];
+import type { Workspace, WorkspacePackage } from "./workspace.js";
 
 /** Config files looked up in each service folder, in order. */
 const CONFIG_NAMES: readonly string[] = ["tsconfig.json", "jsconfig.json"];
@@ -81,8 +70,14 @@ export interface ServiceProgram {
   service: WorkspacePackage;
   /** The program. Root files are the service's source files; imports may pull in others. */
   program: ts.Program;
-  /** The inventory-backed host, for module resolution in later passes. */
+  /**
+   * The inventory-backed host, for module resolution in later passes. Every repo path it
+   * reads or probes is recorded in {@link inputs}, so later passes must reach repo files
+   * through it.
+   */
   host: ts.CompilerHost;
+  /** What this service's program and host observed of the repo so far (ADR-0090). */
+  inputs: InputLog;
   /** Repo-relative path of the config used, or undefined when defaults were synthesized. */
   configFile?: string;
   /** Repo-relative source files owned by this service, sorted. */
@@ -176,84 +171,104 @@ export function buildServicePrograms(
   /** Strip the machine-specific root from diagnostic text so warnings are identical everywhere. */
   const relativize = (text: string): string => text.replaceAll(`${rootPath}/`, "");
 
-  const fileExists = (fileName: string): boolean => {
-    const rel = toRepoPath(fileName);
-    if (rel !== undefined) return present.has(rel);
-    return isLib(fileName) && ts.sys.fileExists(fileName);
-  };
-  const readFile = (fileName: string): string | undefined => {
-    const rel = toRepoPath(fileName);
-    if (rel !== undefined) {
-      return present.has(rel) ? readFileSync(toAbsolute(rel), "utf8") : undefined;
-    }
-    return isLib(fileName) ? ts.sys.readFile(fileName) : undefined;
-  };
-  const directoryExists = (dirName: string): boolean => {
-    const rel = toRepoPath(dirName);
-    if (rel !== undefined) return dirs.has(rel);
-    return dirName.replaceAll("\\", "/") === libDir;
-  };
+  /** Content hashes by repo path, computed once per run however many services read a file. */
+  const hashes = new Map<string, string>();
 
-  const host: ts.CompilerHost = {
-    fileExists,
-    readFile,
-    directoryExists,
-    getDirectories: () => [],
-    realpath: (path) => path,
-    getSourceFile(fileName, languageVersionOrOptions) {
-      const version =
-        typeof languageVersionOrOptions === "object"
-          ? languageVersionOrOptions.languageVersion
-          : languageVersionOrOptions;
-      const cacheKey = `${version}:${fileName}`;
-      if (isLib(fileName)) {
-        const cached = libCache.get(cacheKey);
-        if (cached) return cached;
+  /**
+   * A host for one service. It answers from the inventory (plus TypeScript's own libs) and
+   * records every repo path it reads or probes in `inputs`, the service's observed inputs.
+   */
+  const createHost = (
+    inputs: InputLog,
+  ): { host: ts.CompilerHost; configHost: ts.ParseConfigHost } => {
+    const fileExists = (fileName: string): boolean => {
+      const rel = toRepoPath(fileName);
+      if (rel === undefined) return isLib(fileName) && ts.sys.fileExists(fileName);
+      const exists = present.has(rel);
+      inputs.probeFile(rel, exists);
+      return exists;
+    };
+    const readFile = (fileName: string): string | undefined => {
+      const rel = toRepoPath(fileName);
+      if (rel === undefined) return isLib(fileName) ? ts.sys.readFile(fileName) : undefined;
+      if (!present.has(rel)) {
+        inputs.probeFile(rel, false);
+        return undefined;
       }
-      const text = readFile(fileName);
-      if (text === undefined) return undefined;
-      const sourceFile = ts.createSourceFile(fileName, text, languageVersionOrOptions, true);
-      if (isLib(fileName)) libCache.set(cacheKey, sourceFile);
-      return sourceFile;
-    },
-    getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options).replaceAll("\\", "/"),
-    getDefaultLibLocation: () => libDir,
-    writeFile: () => undefined,
-    getCurrentDirectory: () => rootPath,
-    getCanonicalFileName: (fileName) => fileName,
-    useCaseSensitiveFileNames: () => true,
-    getNewLine: () => "\n",
+      const bytes = readFileSync(toAbsolute(rel));
+      let hash = hashes.get(rel);
+      if (hash === undefined) {
+        hash = contentHash(bytes);
+        hashes.set(rel, hash);
+      }
+      inputs.read(rel, hash);
+      return bytes.toString("utf8");
+    };
+    const directoryExists = (dirName: string): boolean => {
+      const rel = toRepoPath(dirName);
+      if (rel === undefined) return dirName.replaceAll("\\", "/") === libDir;
+      const exists = dirs.has(rel);
+      inputs.probeDir(rel, exists);
+      return exists;
+    };
+
+    const host: ts.CompilerHost = {
+      fileExists,
+      readFile,
+      directoryExists,
+      getDirectories: () => [],
+      realpath: (path) => path,
+      getSourceFile(fileName, languageVersionOrOptions) {
+        const version =
+          typeof languageVersionOrOptions === "object"
+            ? languageVersionOrOptions.languageVersion
+            : languageVersionOrOptions;
+        const cacheKey = `${version}:${fileName}`;
+        if (isLib(fileName)) {
+          const cached = libCache.get(cacheKey);
+          if (cached) return cached;
+        }
+        const text = readFile(fileName);
+        if (text === undefined) return undefined;
+        const sourceFile = ts.createSourceFile(fileName, text, languageVersionOrOptions, true);
+        if (isLib(fileName)) libCache.set(cacheKey, sourceFile);
+        return sourceFile;
+      },
+      getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options).replaceAll("\\", "/"),
+      getDefaultLibLocation: () => libDir,
+      writeFile: () => undefined,
+      getCurrentDirectory: () => rootPath,
+      getCanonicalFileName: (fileName) => fileName,
+      useCaseSensitiveFileNames: () => true,
+      getNewLine: () => "\n",
+    };
+
+    const configHost: ts.ParseConfigHost = {
+      useCaseSensitiveFileNames: true,
+      fileExists,
+      readFile,
+      // Root files come from the inventory, so `include` globs are never expanded.
+      readDirectory: () => [],
+    };
+    return { host, configHost };
   };
 
-  const configHost: ts.ParseConfigHost = {
-    useCaseSensitiveFileNames: true,
-    fileExists,
-    readFile,
-    // Root files come from the inventory, so `include` globs are never expanded.
-    readDirectory: () => [],
-  };
-
-  const owned = new Map<string, string[]>();
-  for (const file of inventory.sourceFiles) {
-    if (!PROGRAM_EXTENSIONS.some((ext) => file.endsWith(ext))) continue;
-    const service = serviceForFile(workspace, file);
-    if (!service) continue;
-    const list = owned.get(service.key);
-    if (list) list.push(file);
-    else owned.set(service.key, [file]);
-  }
+  const owned = programRootFiles(workspace, inventory.sourceFiles);
 
   return workspace.packages.map((service) => {
     const rootFiles = owned.get(service.key) ?? [];
+    const inputs = createInputLog(service.key, rootFiles);
+    const { host, configHost } = createHost(inputs);
     const warnings: AnalysisWarning[] = [];
     const flatten = (message: string | ts.DiagnosticMessageChain): string =>
       relativize(ts.flattenDiagnosticMessageText(message, " "));
 
     let options: ts.CompilerOptions = DEFAULT_COMPILER_OPTIONS;
     let configFile: string | undefined;
+    // Probed through the host, so a config added later invalidates the service.
     const configPath = CONFIG_NAMES.map((name) =>
       service.dir === "" ? name : `${service.dir}/${name}`,
-    ).find((path) => present.has(path));
+    ).find((path) => host.fileExists(toAbsolute(path)));
 
     if (configPath === undefined) {
       if (rootFiles.length > 0) {
@@ -267,7 +282,7 @@ export function buildServicePrograms(
       }
     } else {
       const absolute = toAbsolute(configPath);
-      const parsedJson = ts.parseConfigFileTextToJson(absolute, readFile(absolute) ?? "");
+      const parsedJson = ts.parseConfigFileTextToJson(absolute, host.readFile(absolute) ?? "");
       if (parsedJson.error) {
         warnings.push(
           warn(
@@ -333,6 +348,7 @@ export function buildServicePrograms(
       service,
       program,
       host,
+      inputs,
       ...(configFile === undefined ? {} : { configFile }),
       rootFiles,
       warnings,
