@@ -126,6 +126,28 @@ export {
 export type { MinimapFit, Rect, RepoRef, TextSegment } from "./chrome/describe.js";
 export { LogoMark, UiIcon, uiIconNames, uiIcons } from "./chrome/uiIcons.js";
 export { MARK_NODE, MARK_PATH, markStroke } from "./mark.js";
+export {
+  ancestry,
+  buildHierarchy,
+  canOpen,
+  compareEntries,
+  countsInside,
+  isEntry,
+  isWithin,
+  layerOf,
+  nodeOf,
+} from "./model/hierarchy.js";
+export type { EntryNode, HierarchyIndex, KindCounts } from "./model/hierarchy.js";
+export {
+  buildView,
+  DEFAULT_HIDDEN_KINDS,
+  drawnEdge,
+  effectiveOpen,
+  viewTrail,
+  visibleAncestor,
+  weaker,
+} from "./model/view.js";
+export type { GraphView, Section, ViewEdge, ViewNode, ViewOptions } from "./model/view.js";
 export { ExplorerPrototype } from "./prototype/ExplorerPrototype.js";
 export type { ExplorerPrototypeProps } from "./prototype/ExplorerPrototype.js";
 export type { UiIconName } from "./chrome/uiIcons.js";
