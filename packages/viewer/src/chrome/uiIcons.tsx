@@ -27,7 +27,9 @@ export type UiIconName =
   | "open-external"
   | "break-down"
   | "commit"
-  | "compare";
+  | "compare"
+  | "play"
+  | "pause";
 
 /** Artwork for each interface icon. */
 export const uiIcons: Readonly<Record<UiIconName, ReactNode>> = {
@@ -73,6 +75,11 @@ export const uiIcons: Readonly<Record<UiIconName, ReactNode>> = {
     </>
   ),
   compare: <path d="M4.5 8.5h13l-3-3M19.5 15.5h-13l3 3" />,
+  // The trace player: a rounded triangle and two bars, outlined like the rest.
+  play: (
+    <path d="M8 6.1v11.8a1 1 0 0 0 1.53.85l9.2-5.9a1 1 0 0 0 0-1.7l-9.2-5.9A1 1 0 0 0 8 6.1Z" />
+  ),
+  pause: <path d="M9 6v12M15 6v12" />,
 };
 
 /** Every interface icon name. */

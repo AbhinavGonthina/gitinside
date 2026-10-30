@@ -50,6 +50,16 @@ describe("edges.css", () => {
     expect(reduced).toMatch(/\[data-broken\] \.gi-edge__line\s*\{\s*animation: none;/);
   });
 
+  it("runs the hop pulse once per trace hop, hidden at rest and under reduced motion (M4b.6b)", () => {
+    const rule = /^\.gi-edge__pulse \{([^}]*)\}/m.exec(body)?.[1] ?? "";
+    expect(rule).toContain("animation: gi-edge-hop var(--duration-trace-hop) ");
+    // Not drawn when animations are off (the visual baselines), so it never covers the line.
+    expect(rule).toContain("opacity: 0;");
+    expect(body).toMatch(/\[data-pulse="backward"\] \{\s*animation-direction: reverse;/);
+    const reduced = body.slice(body.indexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced).toMatch(/\.gi-edge__pulse\s*\{\s*display: none;/);
+  });
+
   it.each([
     ["solid", false],
     ["dashed", true],

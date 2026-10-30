@@ -26,6 +26,7 @@ import {
 } from "../model/view.js";
 import { usePresence } from "../motion.js";
 import { nodeAccessibleName, nodeLabel } from "../nodes/describe.js";
+import { durations } from "../tokens.js";
 import {
   centerOn,
   clampZoom,
@@ -43,9 +44,13 @@ import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./Dril
 import { useDrill, type Expansion } from "./drill.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { NodePanel, TracePanel } from "./panels.js";
+import { traceChoices, TracePicker } from "./picker.js";
 import { useSourceAccess, type SourceLoader } from "./sources.js";
 import { canTraceFrom, traceFrom, traceNodes, type TraceStep } from "./trace.js";
 import type { Shown } from "./transition.js";
+
+/** How long the player stays on a step: the pulse travels its hop three times. */
+export const PLAY_STEP_MS = durations["trace-hop"] * 3;
 
 /** Props for {@link Explorer}. */
 export interface ExplorerProps {
@@ -61,7 +66,8 @@ export interface ExplorerProps {
   /**
    * The page or route that T and the Trace button trace when the selection
    * isn't a page or route (e.g. a demo's lead request). Without one, they
-   * trace the selected page or route only.
+   * trace the selected page or route, or open a picker of every page and
+   * route that has a request path.
    */
   traceStart?: string | undefined;
   /** Start with these nodes broken down, in opening order (the last one is closed first by Esc). */
@@ -104,7 +110,9 @@ function deepestOpen(view: GraphView, expansion: Expansion): string | undefined 
  * connection in the inspector drills to its node. **Trace from here** on a
  * page or route, T, or the Trace button follows its request path
  * (`traceFrom`) step by step, on whatever boxes hold its hops at the current
- * depth.
+ * depth; with nothing to start from, they open a searchable picker of pages
+ * and routes. The player steps by hand or plays (a step every
+ * {@link PLAY_STEP_MS}), and a pulse travels the current hop.
  *
  * Layouts come from ELK, in the host's Web Worker when given one. Each level
  * is fitted to the canvas until the user pans (drag, wheel, or the minimap)
@@ -151,6 +159,12 @@ export function Explorer({
     [index, traced],
   );
   const steps = path?.steps ?? [];
+  const [playing, setPlaying] = useState(false);
+  // The picker T and the Trace button open when there's nothing to trace yet.
+  const choices = useMemo(() => traceChoices(index), [index]);
+  const [picking, setPicking] = useState(false);
+  const pickerState = usePresence(picking);
+  const pickerOpener = useRef<HTMLElement | null>(null);
   const [legend, setLegend] = useState(false);
   const legendState = usePresence(legend);
   const [announcement, setAnnouncement] = useState("");
@@ -254,6 +268,19 @@ export function Explorer({
     () => holders(index, view, current ? [current.from.id, current.to.id] : []),
     [current, index, view],
   );
+  /** The box the current hop leaves from, which sets the pulse's direction. */
+  const hopStart = current ? visibleAncestor(index, view, current.from.id) : undefined;
+
+  // The player: each step stays up for PLAY_STEP_MS, and play stops on the last.
+  useEffect(() => {
+    if (!playing || step === null) return;
+    if (step >= steps.length - 1) {
+      setPlaying(false);
+      return;
+    }
+    const timer = setTimeout(() => setStep(step + 1), PLAY_STEP_MS);
+    return () => clearTimeout(timer);
+  }, [playing, step, steps.length]);
 
   // Starting, stepping, or ending a trace can remove the focused control (the
   // step player's buttons, "Trace from here", a disabled "Next step"), which
@@ -318,16 +345,57 @@ export function Explorer({
   function startTrace(id: string) {
     setTraced(id);
     setStep(0);
+    setPlaying(false);
     setAnnouncement(`Tracing from ${nodeOf(index, id).label}`);
   }
 
-  /** T and the Trace button: end the trace, or start one from {@link startable}. */
+  /**
+   * T and the Trace button: end the trace, start one from {@link startable},
+   * or, with nothing to start from, open the picker.
+   */
   function toggleTrace() {
     if (tracing) {
       setStep(null);
+      setPlaying(false);
       setAnnouncement("Trace ended");
     } else if (startable) startTrace(startable);
-    else setAnnouncement("Select a page or route to trace its request path");
+    else {
+      pickerOpener.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setPicking(true);
+    }
+  }
+
+  /** Closes the picker, focus back where it was when it opened (the Trace button, a box). */
+  function closePicker() {
+    const opener = pickerOpener.current;
+    pickerOpener.current = null;
+    if (opener?.isConnected && opener !== document.body) opener.focus();
+    // Nothing to go back to: leave the closing (inert) field, so a trace's
+    // first step can take focus instead of the page.
+    else if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setPicking(false);
+  }
+
+  /** A page or route picked in the picker: trace it. */
+  function pickTrace(id: string) {
+    closePicker();
+    startTrace(id);
+  }
+
+  /** Play or pause the steps; play on the last step starts over. */
+  function togglePlay() {
+    if (playing) setPlaying(false);
+    else {
+      if (step !== null && step >= steps.length - 1) setStep(0);
+      setPlaying(true);
+    }
+  }
+
+  /** A step picked by hand (Previous, Next, the list) takes over from the player. */
+  function goToStep(next: number) {
+    setPlaying(false);
+    setStep(next);
   }
 
   /** Closes the legend; focus inside it goes back to the button that opened it. */
@@ -339,7 +407,7 @@ export function Explorer({
   }
 
   /**
-   * Esc: close the legend → exit trace → go up a level → clear selection
+   * Esc: close the picker or the legend → exit trace → go up a level → clear selection
    * (UX.md keyboard table). T toggles trace.
    */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -350,7 +418,8 @@ export function Explorer({
       else zoomBy(event.key === "-" ? -1 : 1);
       event.preventDefault();
     } else if (event.key === "Escape") {
-      if (legend) closeLegend();
+      if (picking) closePicker();
+      else if (legend) closeLegend();
       else if (tracing) toggleTrace();
       else if (goUp()) {
         // went up a level
@@ -358,6 +427,8 @@ export function Explorer({
       else return;
       event.preventDefault();
     } else if (event.key === "t" || event.key === "T") {
+      // A T typed in the picker's field is text (and mustn't make the field the picker's opener).
+      if (isTextEntry(event.target)) return;
       toggleTrace();
       event.preventDefault();
     }
@@ -395,17 +466,16 @@ export function Explorer({
    * While tracing: the current step's line is `current`, the rest of the path
    * `traced`, everything else dimmed. Otherwise the selection's lines are selected.
    */
-  const lineLook = (e: ViewEdge): LineLook => ({
-    selected: !tracing && (selectedBox === e.from || selectedBox === e.to),
-    emphasis: !tracing
-      ? undefined
-      : current && e.edges.some((g) => g.id === current.edge.id)
-        ? "current"
-        : onPath(e)
-          ? "traced"
-          : "dimmed",
-    flow: onPath(e),
-  });
+  const lineLook = (e: ViewEdge): LineLook => {
+    const isHop = current !== undefined && e.edges.some((g) => g.id === current.edge.id);
+    return {
+      selected: !tracing && (selectedBox === e.from || selectedBox === e.to),
+      emphasis: !tracing ? undefined : isHop ? "current" : onPath(e) ? "traced" : "dimmed",
+      flow: onPath(e),
+      // The pulse runs the way the request goes, against the line for a queue's consumer.
+      pulse: !isHop ? undefined : e.to === hopStart && e.from !== hopStart ? "backward" : "forward",
+    };
+  };
 
   const trailEnd = deepestOpen(view, drill.expansion);
   const crumbs = [
@@ -532,7 +602,9 @@ export function Explorer({
             view={view}
             sources={sourceAccess}
             repo={repo}
-            onStep={setStep}
+            playing={playing}
+            onStep={goToStep}
+            onPlay={togglePlay}
             onBreakDown={breakDown}
           />
         ) : (
@@ -542,6 +614,7 @@ export function Explorer({
             canBreakDown={selectedView !== undefined && selectedView.canOpen && !selectedView.open}
             canTrace={selectionTraces}
             traceHint={fallbackStart ? nodeOf(index, fallbackStart) : undefined}
+            canPick={choices.length > 0}
             sources={sourceAccess}
             repo={repo}
             onSelect={reveal}
@@ -550,6 +623,14 @@ export function Explorer({
           />
         )}
       </div>
+      {pickerState && (
+        <TracePicker
+          choices={choices}
+          state={pickerState}
+          onPick={pickTrace}
+          onClose={closePicker}
+        />
+      )}
       <div className="gi-visually-hidden" aria-live="polite">
         {announcement}
       </div>

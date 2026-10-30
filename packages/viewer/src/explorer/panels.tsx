@@ -152,6 +152,8 @@ export interface NodePanelProps {
   canTrace: boolean;
   /** What T traces when nothing traceable is selected, for the overview's hint. */
   traceHint: GraphNode | undefined;
+  /** Whether T's picker has any page or route to offer, for the overview's hint. */
+  canPick: boolean;
   sources: SourceAccess;
   repo: RepoRef;
   onSelect: (id: string) => void;
@@ -166,6 +168,7 @@ export function NodePanel({
   canBreakDown,
   canTrace,
   traceHint,
+  canPick,
   sources,
   repo,
   onSelect,
@@ -196,8 +199,12 @@ export function NodePanel({
                 , or press <Kbd keys={["T"]} /> to trace the request from{" "}
                 <code>{nodeLabel(traceHint).code ?? traceHint.label}</code>.
               </>
+            ) : canPick ? (
+              <>
+                , or press <Kbd keys={["T"]} /> to pick a page or route and trace its request path.
+              </>
             ) : (
-              ". Select a page or route to trace its request path."
+              ". No page or route in this repo has a request path to trace."
             )}
           </p>
         </InspectorSection>
@@ -291,11 +298,18 @@ export interface TracePanelProps {
   view: GraphView;
   sources: SourceAccess;
   repo: RepoRef;
+  /** The player is advancing the steps by itself. */
+  playing: boolean;
   onStep: (step: number) => void;
+  /** Play or pause; play on the last step starts over. */
+  onPlay: () => void;
   onBreakDown: (id: string) => void;
 }
 
-/** The trace player: the current step's title, match, and code, the steps list, and the controls. */
+/**
+ * The trace player: the current step's title, match, and code, the steps
+ * list, and the controls (previous / play-pause / next, UX.md).
+ */
 export function TracePanel({
   index,
   steps,
@@ -304,7 +318,9 @@ export function TracePanel({
   view,
   sources,
   repo,
+  playing,
   onStep,
+  onPlay,
   onBreakDown,
 }: TracePanelProps) {
   const current = steps[step];
@@ -384,6 +400,18 @@ export function TracePanel({
         >
           Previous
         </Button>
+        {steps.length > 1 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={playing ? "pause" : "play"}
+            // Pause, Play, and Replay take one width, so Next step holds still.
+            className="gi-explorer__play"
+            onClick={onPlay}
+          >
+            {playing ? "Pause" : step === steps.length - 1 ? "Replay" : "Play"}
+          </Button>
+        )}
         <Button
           variant="primary"
           size="sm"

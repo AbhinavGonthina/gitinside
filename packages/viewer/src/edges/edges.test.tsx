@@ -234,6 +234,20 @@ describe("DiagramEdge", () => {
     expect(particles.map((p) => p.style.getPropertyValue("--gi-flow-lag"))).toEqual(["0", "0.5"]);
   });
 
+  it("draws the current hop's pulse along the full route, either way, only when asked", () => {
+    expect(draw({ emphasis: "current" }).querySelector(".gi-edge__pulse")).toBeNull();
+    cleanup();
+    const g = draw({ emphasis: "current", pulse: "backward" });
+    const pulse = g.querySelector(".gi-edge__pulse");
+    expect(pulse?.getAttribute("d")).toBe(g.querySelector(".gi-edge__hit")?.getAttribute("d"));
+    expect(pulse?.getAttribute("pathLength")).toBe("100");
+    expect(pulse?.getAttribute("data-pulse")).toBe("backward");
+    cleanup();
+    // Unlike particles, an unresolved hop pulses too: it's still where the request is.
+    const unresolved = draw({ edge: edgeSampleOf("unresolved").edge, pulse: "forward" });
+    expect(unresolved.querySelector(".gi-edge__pulse")).not.toBeNull();
+  });
+
   it("sets every state as a data attribute, and passes extra attributes through", () => {
     const g = draw({
       hovered: true,

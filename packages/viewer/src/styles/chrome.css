@@ -1217,6 +1217,11 @@ a.gi-button {
   outline: none;
 }
 
+/* The field's accent rule and caret mark its focus; the root's ring would box it in twice. */
+.gi-palette__field input:focus-visible {
+  outline: none;
+}
+
 .gi-palette__field input::placeholder {
   color: var(--text-muted);
 }

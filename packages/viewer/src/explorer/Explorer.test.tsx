@@ -6,7 +6,7 @@ import { buildView } from "../model/view.js";
 import { shopDemo, shopDemoSources } from "../shopDemo.testkit.js";
 import { durations } from "../tokens.js";
 import * as stories from "./Explorer.stories.js";
-import { Explorer } from "./Explorer.js";
+import { Explorer, PLAY_STEP_MS } from "./Explorer.js";
 
 const CHECKOUT = "page:web//checkout";
 
@@ -455,28 +455,51 @@ describe("Explorer", { timeout: 30_000 }, () => {
     expect(screen.getByText("Step 1 of 8")).toBeTruthy();
   });
 
-  it("without a start, traces the selected page or route only", async () => {
+  it("without a start, traces the selected page or route, or picks one", async () => {
     const { container, box, heading, press } = await setup({
       traceStart: undefined,
       initialOpen: [API],
     });
     const topBar = within(container.querySelector(".gi-topbar") as HTMLElement);
     const traceButton = () => topBar.getByRole("button", { name: "Trace a request" });
-    // Nothing traceable selected: T and the button say what to do, and so does the hint.
+    const picker = () => screen.queryByRole("dialog", { name: "Trace a request" });
+    const field = () => screen.getByRole("combobox", { name: "Trace from a page or route" });
+    // Nothing traceable selected: T opens the picker, with focus in its field.
     await press("t");
     expect(heading().textContent).toBe("shop-demo");
-    const live = () => container.querySelector("[aria-live]")?.textContent;
-    expect(live()).toBe("Select a page or route to trace its request path");
+    expect(picker()).not.toBeNull();
+    expect(document.activeElement).toBe(field());
+    // Esc closes the picker only: the service stays broken down.
+    fireEvent.keyDown(field(), { key: "Escape" });
+    expect(picker()).toBeNull();
+    expect(box(SRC)).not.toBeNull();
+    // The top bar's button with a service selected opens it too; a pick traces it.
     fireEvent.click(box(API) as HTMLElement);
+    traceButton().focus();
     fireEvent.click(traceButton());
     expect(heading().textContent).toBe("@shop/api");
-    expect(live()).toBe("Select a page or route to trace its request path");
+    // Reopened within the first one's exit (the same element), focus still moves into the field.
+    expect(document.activeElement).toBe(field());
+    // T typed in the field is a letter, not the shortcut.
+    fireEvent.keyDown(field(), { key: "t" });
+    fireEvent.change(field(), { target: { value: "get orders" } });
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "GET /api/ordersapps/api/src/routes/orders.tsRoute",
+    ]);
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(picker()).toBeNull();
+    expect(screen.getByText("Step 1 of 3")).toBeTruthy();
+    const live = () => container.querySelector("[aria-live]")?.textContent;
+    expect(live()).toBe("Tracing from GET /api/orders");
+    // Focus went back to the button it opened from, now Exit trace, so the keys keep working.
+    const exit = topBar.getByRole("button", { name: "Exit trace" });
+    expect(document.activeElement).toBe(exit);
+    fireEvent.click(exit);
+    // The overview's hint says how to pick one.
     fireEvent.click(container.querySelector(".gi-explorer__canvas") as HTMLElement);
-    expect(
-      screen.getByText(
-        "Select a box to see what it does. Double-click a service to break it down. Select a page or route to trace its request path.",
-      ).tagName,
-    ).toBe("P");
+    expect(container.querySelector(".gi-inspector__empty")?.textContent).toMatch(
+      /^Select a box to see what it does\. Double-click a service to break it down, or press T\s*to pick a page or route and trace its request path\.$/,
+    );
     // A folder can't be traced from.
     fireEvent.click(box(SRC) as HTMLElement);
     expect(screen.queryByRole("button", { name: /Trace from here/ })).toBeNull();
@@ -534,6 +557,101 @@ describe("Explorer", { timeout: 30_000 }, () => {
         "The path goes on past 12 hops, from f11. Trace from further in to follow it.",
       ),
     ).toBeTruthy();
+  });
+
+  it("plays the steps by itself, pauses, gives way to a step picked by hand, and replays", async () => {
+    await setup({ initialStep: 0 });
+    vi.useFakeTimers();
+    const at = (n: number) => expect(screen.getByText(`Step ${n} of 8`)).toBeTruthy();
+    const wait = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
+    const play = screen.getByRole("button", { name: "Play" });
+    await act(async () => fireEvent.click(play));
+    // One button: Play becomes Pause in place, so focus stays on it.
+    expect(screen.getByRole("button", { name: "Pause" })).toBe(play);
+    await wait(PLAY_STEP_MS - 1);
+    at(1);
+    await wait(1);
+    at(2);
+    await wait(PLAY_STEP_MS);
+    at(3);
+    await act(async () => fireEvent.click(play));
+    expect(play.textContent).toBe("Play");
+    await wait(PLAY_STEP_MS * 2);
+    at(3);
+    // Previous, Next, or the list take over from the player.
+    await act(async () => fireEvent.click(play));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: /Next step/ })));
+    at(4);
+    expect(play.textContent).toBe("Play");
+    await wait(PLAY_STEP_MS * 2);
+    at(4);
+    // Played to the end, it stops there and offers to start over.
+    await act(async () => fireEvent.click(play));
+    for (let i = 0; i < 6; i++) await wait(PLAY_STEP_MS);
+    at(8);
+    expect(play.textContent).toBe("Replay");
+    await act(async () => fireEvent.click(play));
+    at(1);
+    expect(play.textContent).toBe("Pause");
+    // Ending the trace stops it.
+    await act(async () => fireEvent.click(screen.getByTitle("Exit trace")));
+    await wait(PLAY_STEP_MS * 2);
+    expect(screen.queryByText(/^Step \d of 8$/)).toBeNull();
+  });
+
+  it("pulses the current hop's line the way the request goes", async () => {
+    const { container } = await setup({ initialStep: 0 });
+    const pulses = () => [...container.querySelectorAll(".gi-edge__pulse")];
+    // The first hop happens inside @shop/web: no line to pulse.
+    expect(pulses()).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: /placeOrder requests POST/ }));
+    expect(pulses()).toHaveLength(1);
+    expect(pulses()[0]?.closest(".gi-edge")?.getAttribute("data-emphasis")).toBe("current");
+    expect(pulses()[0]?.closest(".gi-edge")?.getAttribute("data-kind")).toBe("http");
+    expect(pulses()[0]?.getAttribute("data-pulse")).toBe("forward");
+    cleanup();
+
+    // A queue's consumer is drawn worker → queue, but the request goes queue → worker.
+    const jobs = {
+      id: "queue:infra/jobs",
+      kind: "queue" as const,
+      label: "jobs",
+      parentId: index.root.id,
+      layer: "infra" as const,
+      engine: "bullmq",
+    };
+    const work = {
+      id: "symbol:api/src/work.ts#work",
+      kind: "symbol" as const,
+      label: "work",
+      parentId: API,
+      symbolKind: "function" as const,
+      exported: true,
+    };
+    const hop = (kind: "publishes" | "consumes", from: string, to: string) => ({
+      id: `${kind}:${from}->${to}`,
+      kind,
+      from,
+      to,
+      confidence: "exact" as const,
+      sites: [],
+    });
+    const queued = {
+      ...graph,
+      nodes: [...graph.nodes, jobs, work],
+      edges: [
+        ...graph.edges,
+        hop("publishes", "symbol:api/src/orders/handlers.ts#createOrder", jobs.id),
+        hop("consumes", work.id, jobs.id),
+      ],
+    };
+    const again = await setup({ graph: queued, traceStart: ROUTE, initialStep: 0 });
+    fireEvent.click(screen.getByRole("button", { name: /createOrder publishes to jobs/ }));
+    const forward = again.container.querySelectorAll(".gi-edge__pulse");
+    expect([...forward].map((p) => p.getAttribute("data-pulse"))).toEqual(["forward"]);
+    fireEvent.click(screen.getByRole("button", { name: /jobs consumed by work/ }));
+    const backward = again.container.querySelectorAll(".gi-edge__pulse");
+    expect([...backward].map((p) => p.getAttribute("data-pulse"))).toEqual(["backward"]);
   });
 
   it("can leave the top bar out for a page that brings its own", async () => {
@@ -897,6 +1015,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "DrilledDeep",
       "Outline",
       "Overview",
+      "TracePicker",
       "Tracing",
       "TracingBrokenDown",
       "TracingUnresolved",
@@ -924,5 +1043,19 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
         /^Unresolved \(No route in the repo matches\)\. The env var CMS_URL isn't named like an API base URL/,
       ),
     ).toBeTruthy();
+  });
+
+  it("open the trace picker and search it in the picker story", async () => {
+    const { container } = render(<all.TracePicker />);
+    await settle();
+    await act(async () => all.TracePicker.play?.({ canvasElement: container }));
+    const names = screen
+      .getAllByRole("option")
+      .map((o) => o.querySelector(".gi-palette__name")?.textContent);
+    expect(names).toEqual(["/orders", "GET /api/orders", "POST /api/orders"]);
+    // Opened with nothing focused: once picked, focus lands on the first step, not the page.
+    fireEvent.keyDown(document.activeElement as Element, { key: "Enter" });
+    expect(screen.getByText(/^Step 1 of \d+$/)).toBeTruthy();
+    expect(document.activeElement?.getAttribute("aria-current")).toBe("step");
   });
 });
