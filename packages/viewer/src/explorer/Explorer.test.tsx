@@ -68,7 +68,9 @@ async function setup(props: Partial<Parameters<typeof Explorer>[0]> = {}) {
   return { ...view, box, isOpen, heading, press, act: act2, crumbs };
 }
 
-describe("Explorer", () => {
+// Each test lays out several levels with ELK on the main thread; under CI's
+// coverage instrumentation that outlasts vitest's 5 s default (M4b.3b1).
+describe("Explorer", { timeout: 30_000 }, () => {
   it("opens at the system level with the repo overview in the inspector", async () => {
     const { container, box, heading, crumbs } = await setup();
     expect(container.querySelectorAll(".gi-drill__node")).toHaveLength(4);
@@ -434,7 +436,7 @@ describe("Explorer", () => {
   });
 });
 
-describe("Explorer stories", () => {
+describe("Explorer stories", { timeout: 30_000 }, () => {
   const all = composeStories(stories);
   // jsdom has no Worker: the stories' layouts fall back to the main thread, with a warning.
   beforeEach(() => vi.spyOn(console, "warn").mockImplementation(() => undefined));
