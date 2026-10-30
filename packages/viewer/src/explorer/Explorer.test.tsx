@@ -28,6 +28,14 @@ const SRC = "module:api/src";
 const ROUTE = "route:api/POST /api/orders";
 const PLACE_ORDER = "symbol:web/lib/orders.ts#placeOrder";
 
+/** The line a node of the demo graph is defined on. */
+function sourceLine(id: string): number {
+  const node = index.byId.get(id);
+  const line = node && "source" in node ? node.source?.line : undefined;
+  if (line === undefined) throw new Error(`no source line for ${id}`);
+  return line;
+}
+
 /** Waits until the canvas has drawn the current level (layouts run on the main thread here). */
 async function settle() {
   await waitFor(
@@ -193,14 +201,87 @@ describe("Explorer", { timeout: 30_000 }, () => {
     expect(box(PLACE_ORDER)).not.toBeNull();
   });
 
+  it("loads a selection's code through loadSource, once per file, with Open on GitHub at the line", async () => {
+    let finish: (text: string | undefined) => void = () => {};
+    const loadSource = vi.fn(
+      (_path: string) =>
+        new Promise<string | undefined>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const shaGraph = { ...graph, repo: { ...graph.repo, sha: "0123456789abcdef" } };
+    const { act } = await setup({
+      graph: shaGraph,
+      sources: undefined,
+      loadSource,
+      initialSelected: ROUTE,
+    });
+    const line = sourceLine(ROUTE);
+    const href = `https://github.com/${graph.repo.owner}/${graph.repo.name}/blob/0123456789abcdef/apps/api/src/routes/orders.ts#L${line}`;
+    // Open on GitHub is there before (and whether or not) the code arrives.
+    expect(screen.getByRole("link", { name: /Open on GitHub/ }).getAttribute("href")).toBe(href);
+    expect(screen.getByRole("figure").getAttribute("aria-busy")).toBe("true");
+    expect(loadSource).toHaveBeenCalledWith("apps/api/src/routes/orders.ts");
+
+    await act(() => finish(sources["apps/api/src/routes/orders.ts"]));
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("figure")).getByText('orders.post("/", createOrder);'),
+      ).toBeTruthy(),
+    );
+    expect(
+      screen.getByRole("link", { name: "apps/api/src/routes/orders.ts" }).getAttribute("href"),
+    ).toBe(href);
+
+    // Away (another file, another load) and back: the route's file is already
+    // here, so no second load and no loading frame.
+    await act(() => fireEvent.click(screen.getByRole("button", { name: /placeOrder/ })));
+    expect(loadSource).toHaveBeenCalledTimes(2);
+    expect(loadSource).toHaveBeenLastCalledWith("apps/web/lib/orders.ts");
+    // Checked in the click's own render, before any promise settles.
+    fireEvent.click(screen.getByRole("button", { name: /^POST \/api\/orders/ }));
+    expect(screen.getByRole("figure").hasAttribute("aria-busy")).toBe(false);
+    await settle();
+    expect(
+      within(screen.getByRole("figure")).getByText('orders.post("/", createOrder);'),
+    ).toBeTruthy();
+    expect(loadSource).toHaveBeenCalledTimes(2);
+  });
+
+  it("says when a selection's code couldn't load, keeping the GitHub link", async () => {
+    const loadSource = vi.fn(async () => undefined);
+    await setup({
+      graph: { ...graph, repo: { ...graph.repo, sha: "0123456789abcdef" } },
+      sources: undefined,
+      loadSource,
+      initialSelected: ROUTE,
+    });
+    await waitFor(() => expect(screen.getByText("Couldn't load this file.")).toBeTruthy());
+    expect(screen.getByRole("link", { name: "apps/api/src/routes/orders.ts" })).toBeTruthy();
+  });
+
+  it("shows no code section without a way to get the file, but still links to GitHub", async () => {
+    await setup({
+      graph: { ...graph, repo: { ...graph.repo, sha: "0123456789abcdef" } },
+      sources: undefined,
+      initialSelected: ROUTE,
+    });
+    expect(screen.queryByRole("figure")).toBeNull();
+    expect(screen.getByRole("link", { name: /Open on GitHub/ })).toBeTruthy();
+  });
+
   it("explains unresolved calls and other kinds in words from the graph", async () => {
     await setup({ initialSelected: "unresolved:web/lib/cms.ts:3:21" });
-    expect(screen.getByText(/the env var CMS_URL isn't named like an API base URL/)).toBeTruthy();
+    expect(screen.getByText(/The env var CMS_URL isn't named like an API base URL/)).toBeTruthy();
     expect(screen.getByText("fetch(`${process.env.CMS_URL}/posts`)")).toBeTruthy();
     cleanup();
     await setup({ initialSelected: "model:api/Order" });
     expect(screen.getByText("id, total, status, createdAt")).toBeTruthy();
-    expect(screen.getByText("Model with 1 connection out and 2 in.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Model with 4 fields. Stored in db. Read by listOrders. Written by createOrder.",
+      ),
+    ).toBeTruthy();
     cleanup();
     await setup({ initialSelected: "external:ext/api.stripe.com" });
     expect(screen.getByText("api.stripe.com", { selector: "dd code" })).toBeTruthy();

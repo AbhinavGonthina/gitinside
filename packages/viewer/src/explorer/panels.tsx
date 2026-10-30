@@ -1,6 +1,5 @@
 import type { GraphNode } from "@gitinside/schema";
-import type { ReactNode } from "react";
-import { Button, Kbd } from "../chrome/controls.js";
+import { Button, Kbd, LinkButton } from "../chrome/controls.js";
 import { githubLineUrl, type RepoRef } from "../chrome/describe.js";
 import {
   CodePreview,
@@ -19,91 +18,66 @@ import { frameCounts } from "../layout/size.js";
 import { connectionsOf, type NodeConnection } from "../model/connections.js";
 import { canOpen, layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { visibleAncestor, type GraphView } from "../model/view.js";
-import { kindName, REASON_TEXT } from "../nodes/describe.js";
+import { REASON_TEXT } from "../nodes/describe.js";
+import { useSourceText, type SourceAccess } from "./sources.js";
+import { summaryOf } from "./summary.js";
 import type { TraceStep } from "./trace.js";
 
 /**
- * The explorer's inspector content (from the M4a.7 prototype; M4b.5 brings
- * the full inspector): a node's summary, facts, connections, and code, or the
- * trace player's current step. Every word is templated from the graph.
+ * The explorer's inspector content (M4b.5a): a node's summary, facts,
+ * connections, code, and Open on GitHub, or the trace player's current step.
+ * Every word is templated from the graph (`summary.tsx`); code is loaded
+ * when a selection needs it (`sources.ts`).
  */
 
 /** How many lines the code preview shows (UX.md: 15), with the site 4 lines down. */
 const PREVIEW_LINES = 15;
 const PREVIEW_LEAD = 4;
 
-function plural(n: number, noun: string): string {
-  return `${n} ${n === 1 ? noun : `${noun}s`}`;
-}
-
-/** A list in words: "a", "a and b", "a, b and c". */
-function listText(items: readonly string[]): string {
-  if (items.length <= 1) return items.join("");
-  return `${items.slice(0, -1).join(", ")} and ${items.at(-1) ?? ""}`;
-}
-
-/** The 15 lines around `line` of `path`, or undefined when the file isn't available. */
-function preview(
-  sources: Readonly<Record<string, string>> | undefined,
-  repo: RepoRef,
-  path: string,
-  line: number,
-) {
-  const text = sources?.[path];
-  if (text === undefined) return undefined;
+/** The 15 lines of `text` around `line`, the first one's number, and the line to mark. */
+export function previewLines(text: string, line: number) {
   const all = text.replace(/\r\n/g, "\n").split("\n");
   const start = Math.max(1, Math.min(line - PREVIEW_LEAD, all.length - PREVIEW_LINES + 1));
   return {
-    path,
     startLine: start,
     lines: all.slice(start - 1, start - 1 + PREVIEW_LINES),
     highlight: line,
-    href: githubLineUrl(repo, path, line),
   };
 }
 
-/** The "From the code" sentence, templated from graph facts only (no AI in v1). */
-function summaryOf(index: HierarchyIndex, node: GraphNode): ReactNode {
-  const { incoming, outgoing } = connectionsOf(index, node.id);
-  switch (node.kind) {
-    case "system": {
-      const top = index.children.get(node.id) ?? [];
-      const count = (kind: GraphNode["kind"], noun: string) =>
-        plural(top.filter((n) => n.kind === kind).length, noun);
-      const inside = frameCounts(index, node.id).map((c) => plural(c.value, c.noun));
-      return `${count("service", "service")}, ${count("datastore", "datastore")} and ${count("external", "outside API")}, with ${listText(inside)} inside.`;
-    }
-    case "service": {
-      const framework = node.framework
-        ? (brandForFramework(node.framework)?.title ?? node.framework)
-        : undefined;
-      const inside = frameCounts(index, node.id).map((c) => plural(c.value, c.noun));
-      return (
-        <>
-          {framework ? `${framework} service` : "Service"}
-          {node.root ? (
-            <>
-              {" in "}
-              <code>{node.root}</code>
-            </>
-          ) : null}
-          {inside.length > 0 ? ` with ${listText(inside)}` : ""}. It has{" "}
-          {plural(outgoing.length, "connection")} out and {incoming.length} in.
-        </>
-      );
-    }
-    case "unresolved":
-      return `${node.detail ?? REASON_TEXT[node.reason]}, so it can't be linked. It's shown, not dropped.`;
-    case "route":
-      return (
-        <>
-          Handles <code>{node.label}</code>. Reached by {plural(incoming.length, "request")}; it has{" "}
-          {plural(outgoing.length, "connection")} out.
-        </>
-      );
-    default:
-      return `${kindName(node)} with ${plural(outgoing.length, "connection")} out and ${incoming.length} in.`;
-  }
+/**
+ * The code section for a source location: the preview once the file is
+ * here, its loading or couldn't-load frame before that (the GitHub link
+ * works in all three), and nothing when there's no way to get the file.
+ */
+function CodeSection({
+  access,
+  repo,
+  site,
+}: {
+  access: SourceAccess;
+  repo: RepoRef;
+  site: { file: string; line: number } | undefined;
+}) {
+  const source = useSourceText(access, site?.file);
+  if (!site || source.status === "none") return null;
+  const href = githubLineUrl(repo, site.file, site.line);
+  return (
+    <InspectorSection title="Code">
+      {source.status === "ready" ? (
+        <CodePreview path={site.file} href={href} {...previewLines(source.text, site.line)} />
+      ) : (
+        <CodePreview
+          path={site.file}
+          href={href}
+          startLine={site.line}
+          lines={[]}
+          highlight={site.line}
+          status={source.status}
+        />
+      )}
+    </InspectorSection>
+  );
 }
 
 /** Facts from the node's own fields. */
@@ -167,7 +141,7 @@ export interface NodePanelProps {
   canBreakDown: boolean;
   canTrace: boolean;
   hasTrace: boolean;
-  sources: Readonly<Record<string, string>> | undefined;
+  sources: SourceAccess;
   repo: RepoRef;
   onSelect: (id: string) => void;
   onBreakDown: (id: string) => void;
@@ -189,7 +163,7 @@ export function NodePanel({
 }: NodePanelProps) {
   const { incoming, outgoing } = connectionsOf(index, node.id);
   const source = "source" in node ? node.source : undefined;
-  const code = source ? preview(sources, repo, source.file, source.line) : undefined;
+  const github = source ? githubLineUrl(repo, source.file, source.line) : undefined;
   const isRoot = node.id === index.root.id;
   const connection = (c: NodeConnection) => ({
     node: c.other,
@@ -233,14 +207,10 @@ export function NodePanel({
               onSelect={onSelect}
             />
           </InspectorSection>
-          {code && (
-            <InspectorSection title="Code">
-              <CodePreview {...code} />
-            </InspectorSection>
-          )}
+          <CodeSection access={sources} repo={repo} site={source} />
         </>
       )}
-      {(canBreakDown || canTrace) && (
+      {(canBreakDown || canTrace || github) && (
         <InspectorActions>
           {canBreakDown && (
             <Button
@@ -263,6 +233,18 @@ export function NodePanel({
               Trace from here
             </Button>
           )}
+          {github && (
+            <LinkButton
+              href={github}
+              target="_blank"
+              rel="noreferrer noopener"
+              variant={canBreakDown || canTrace ? "quiet" : "secondary"}
+              size="sm"
+              trailingIcon="open-external"
+            >
+              Open on GitHub
+            </LinkButton>
+          )}
         </InspectorActions>
       )}
     </Inspector>
@@ -276,7 +258,7 @@ export interface TracePanelProps {
   step: number;
   /** The view on the canvas, to say where the hop is drawn. */
   view: GraphView;
-  sources: Readonly<Record<string, string>> | undefined;
+  sources: SourceAccess;
   repo: RepoRef;
   onStep: (step: number) => void;
   onBreakDown: (id: string) => void;
@@ -296,7 +278,6 @@ export function TracePanel({
   const current = steps[step];
   if (!current) return null;
   const site = current.site;
-  const code = site ? preview(sources, repo, site.file, site.line) : undefined;
   const from = visibleAncestor(index, view, current.from.id);
   const to = visibleAncestor(index, view, current.to.id);
   // Both ends in one closed box: the hop happens inside it, out of sight.
@@ -335,11 +316,7 @@ export function TracePanel({
           ? ` Goes from ${nodeOf(index, from).label} to ${nodeOf(index, to).label} on the canvas.`
           : ""}
       </InspectorSummary>
-      {code && (
-        <InspectorSection key={`code-${step}`} title="Code">
-          <CodePreview {...code} />
-        </InspectorSection>
-      )}
+      <CodeSection key={`code-${step}`} access={sources} repo={repo} site={site} />
       <InspectorSection title="Steps" count={steps.length}>
         <ol className="gi-explorer__steps">
           {steps.map((s, i) => (

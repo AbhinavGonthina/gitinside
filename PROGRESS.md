@@ -94,7 +94,8 @@ M4b.5. Inspector (M5.13 and M5.14b wait on #3, #5, #7)
 - [x] M4b.3b2 Prototype model removed: the README image off `prototype/model.ts` and `prototype/layout.ts` (hierarchy index, its own column layout, same bytes), `prototype/` deleted; the website's layout in a Web Worker (`next build` check) {model: opus}
 - [x] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
 - [x] M4b.4b Zoom-dependent detail (UX.md "Drill-down"): labels, counts, and edge labels appear progressively with zoom; at low zoom only service names and aggregated edges; screenshots, baselines {model: opus}
-- [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub; the code sample links to the file and line, design gate) {model: opus}
+- [ ] M4b.5a Inspector content: a "From the code" summary per kind from graph facts (what it calls, reads, writes, renders, handles), "Open on GitHub" at the exact line whenever a node has a source (with or without code text), the code sample's path linking to the file and line (design gate), code loaded on selection through a `loadSource` prop (the website's from `raw.githubusercontent.com` at the analyzed SHA, size-capped, CSP `connect-src`), loading and couldn't-load states; tests, screenshots {model: opus}
+- [ ] M4b.5b Shiki in the code preview: lazy and fine-grained (TS/TSX/JS/JSON/Prisma/YAML), JavaScript regex engine (no WASM under the CSP), tokens rendered as React spans (no HTML, SECURITY T10) in token colors for dark and light, plain text until loaded; tests, screenshots, baselines {model: opus}
 - [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus}
 - [ ] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
 - [ ] M4b.8 Filters {model: opus}

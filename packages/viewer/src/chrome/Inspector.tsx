@@ -226,45 +226,83 @@ export interface CodePreviewProps {
   lines: readonly string[];
   /** The line the selection is on; it gets a marker and a tint. */
   highlight?: number | undefined;
-  /** Permalink at the analyzed commit; without one there is no GitHub link. */
+  /** Permalink at the analyzed commit and line; without one the path isn't a link. */
   href?: string | undefined;
+  /**
+   * `loading` while the file is on its way (the frame keeps its height, so
+   * the panel doesn't jump), `failed` when it couldn't be loaded; `lines` are
+   * ignored for both. Default `ready`.
+   */
+  status?: "ready" | "loading" | "failed";
 }
 
 /**
- * The code around the selection with line numbers (UX.md: 15 lines), and
- * "Open on GitHub" at that line. Plain text for now; M4b.5 adds Shiki
- * highlighting inside the same frame.
+ * The code around the selection with line numbers (UX.md: 15 lines). The
+ * file's path in the caption links to the file at that line on GitHub, at the
+ * analyzed commit (design gate), and the link stays when the code couldn't
+ * load. Plain text for now; M4b.5b adds Shiki highlighting inside the same
+ * frame.
  */
-export function CodePreview({ path, startLine, lines, highlight, href }: CodePreviewProps) {
+export function CodePreview({
+  path,
+  startLine,
+  lines,
+  highlight,
+  href,
+  status = "ready",
+}: CodePreviewProps) {
   return (
-    <figure className="gi-code">
+    <figure className="gi-code" aria-busy={status === "loading" || undefined}>
       <figcaption className="gi-code__header">
-        <code title={path}>{path}</code>
-        {href && (
-          <a className="gi-code__link" href={href} target="_blank" rel="noreferrer noopener">
-            Open on GitHub
+        {href ? (
+          <a
+            className="gi-code__link"
+            href={href}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={`Open ${path}${highlight ? ` at line ${highlight}` : ""} on GitHub`}
+          >
+            <code>{path}</code>
             <UiIcon name="open-external" size={14} />
           </a>
+        ) : (
+          <code title={path}>{path}</code>
         )}
       </figcaption>
-      <pre className="gi-code__body">
-        {lines.map((line, i) => {
-          const n = startLine + i;
-          return (
-            <span
-              key={n}
-              className="gi-code__line"
-              {...(n === highlight ? { "data-highlight": "" } : {})}
-            >
-              <span className="gi-code__number" aria-hidden>
-                {n}
-              </span>
-              <code>{line || " "}</code>
-            </span>
-          );
-        })}
-      </pre>
+      {status === "ready" ? (
+        <CodeLines startLine={startLine} lines={lines} highlight={highlight} />
+      ) : (
+        <p className="gi-code__status" data-status={status} role="status">
+          {status === "loading" ? "Loading the code" : "Couldn't load this file."}
+        </p>
+      )}
     </figure>
+  );
+}
+
+function CodeLines({
+  startLine,
+  lines,
+  highlight,
+}: Pick<CodePreviewProps, "startLine" | "lines" | "highlight">) {
+  return (
+    <pre className="gi-code__body">
+      {lines.map((line, i) => {
+        const n = startLine + i;
+        return (
+          <span
+            key={n}
+            className="gi-code__line"
+            {...(n === highlight ? { "data-highlight": "" } : {})}
+          >
+            <span className="gi-code__number" aria-hidden>
+              {n}
+            </span>
+            <code>{line || " "}</code>
+          </span>
+        );
+      })}
+    </pre>
   );
 }
 

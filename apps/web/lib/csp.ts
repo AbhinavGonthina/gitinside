@@ -5,6 +5,9 @@
  * to run any script the server didn't mark with this response's nonce.
  */
 
+/** Where `createGitHubSourceLoader` reads public files from (the viewer's code previews). */
+export const GITHUB_RAW_ORIGIN = "https://raw.githubusercontent.com";
+
 /** Options for {@link buildCsp}. */
 export interface CspOptions {
   /** A fresh, unguessable nonce for this response (see {@link createNonce}). */
@@ -24,6 +27,9 @@ export interface CspOptions {
  *   are allowed (`style-src-attr`) because the viewer positions nodes and
  *   passes theme fills through inline custom properties, and attributes
  *   can't run code.
+ * - **Fetches:** our origin, plus GitHub's raw file host, where the
+ *   inspector reads public code at the analyzed commit (ADR-0115). It only
+ *   reads text, which React renders escaped.
  * - **Everything else is our origin only:** fonts are self-hosted (ADR-0047),
  *   no plugins, no `<base>` rewriting, forms post only to us, and no other
  *   site may frame us.
@@ -36,7 +42,7 @@ export function buildCsp({ nonce, dev, https }: CspOptions): string {
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "font-src 'self'",
-    "connect-src 'self'",
+    `connect-src 'self' ${GITHUB_RAW_ORIGIN}`,
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",

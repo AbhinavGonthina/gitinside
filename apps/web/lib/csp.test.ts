@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { buildCsp, createNonce, SECURITY_HEADERS } from "./csp";
+import { buildCsp, createNonce, GITHUB_RAW_ORIGIN, SECURITY_HEADERS } from "./csp";
 
 /** The policy as directive name → sources. */
 function directives(csp: string): Map<string, string[]> {
@@ -29,15 +29,17 @@ describe("buildCsp", () => {
     expect(prod.get("style-src-attr")).toEqual(["'unsafe-inline'"]);
   });
 
-  it("loads nothing from another origin", () => {
+  it("loads nothing from another origin, except code previews' fetches from GitHub", () => {
     for (const [name, sources] of prod) {
       for (const source of sources) {
+        if (name === "connect-src" && source === GITHUB_RAW_ORIGIN) continue;
         expect(source, `${name} ${source}`).not.toMatch(/^(https?:|\*|\/\/)|\.\w/);
       }
     }
     expect(prod.get("default-src")).toEqual(["'self'"]);
     expect(prod.get("font-src")).toEqual(["'self'"]);
-    expect(prod.get("connect-src")).toEqual(["'self'"]);
+    // Only fetches (no scripts, styles, frames, or images), and only GitHub's raw file host (ADR-0115).
+    expect(prod.get("connect-src")).toEqual(["'self'", "https://raw.githubusercontent.com"]);
   });
 
   it("forbids plugins, base rewriting, foreign form posts, and framing", () => {

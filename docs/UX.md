@@ -32,8 +32,8 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
   - A summary sentence templated from graph facts. It's labeled "From the code", because there's no AI in v1.
   - Facts (counts, path, framework).
   - **Calls** and **Called by** lists (clickable; selecting flies there, drilling if needed).
-  - Code preview (Shiki, the 15 lines around the source location), with a link to the file and line on GitHub at the analyzed commit (design gate).
-  - **Open on GitHub** at the exact line, using the commit SHA permalink.
+  - Code preview (Shiki, the 15 lines around the source location), whose file path links to the file and line on GitHub at the analyzed commit (design gate). It loads when selected (the website reads public files from GitHub in the browser, ADR-0115); while loading the frame keeps its height, and a file that can't load says so.
+  - **Open on GitHub** at the exact line, using the commit SHA permalink, whether or not the code loaded.
 - **Unresolved nodes** explain why ("URL built from `CMS_URL` at runtime").
 
 ## Trace mode (signature)
