@@ -12,6 +12,7 @@ import {
   InspectorSummary,
   type Fact,
 } from "../chrome/Inspector.js";
+import { CONTEXT_LINES } from "../chrome/syntax.js";
 import { CONFIDENCE_TEXT } from "../edges/describe.js";
 import { brandForFramework } from "../icons/brands.js";
 import { frameCounts } from "../layout/size.js";
@@ -34,13 +35,17 @@ import type { TraceStep } from "./trace.js";
 const PREVIEW_LINES = 15;
 const PREVIEW_LEAD = 4;
 
-/** The 15 lines of `text` around `line`, the first one's number, and the line to mark. */
+/**
+ * The 15 lines of `text` around `line`, the first one's number, the line to
+ * mark, and the lines above them that the highlighter reads for context.
+ */
 export function previewLines(text: string, line: number) {
   const all = text.replace(/\r\n/g, "\n").split("\n");
   const start = Math.max(1, Math.min(line - PREVIEW_LEAD, all.length - PREVIEW_LINES + 1));
   return {
     startLine: start,
     lines: all.slice(start - 1, start - 1 + PREVIEW_LINES),
+    before: all.slice(Math.max(0, start - 1 - CONTEXT_LINES), start - 1),
     highlight: line,
   };
 }

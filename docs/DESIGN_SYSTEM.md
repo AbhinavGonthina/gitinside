@@ -142,8 +142,15 @@ Source of truth: `packages/viewer/src/tokens.ts` and `src/styles/tokens.css`, wh
 | `--diff-changed` | `#f5c451` | `#a87700` | diff mode only |
 | `--diff-removed` | `#ff6b6b` | `#d23b3b` | diff mode only |
 | `--scrim` | `rgba(5, 7, 11, 0.6)` | `rgba(18, 23, 34, 0.32)` | backdrop dim behind the palette |
+| `--syntax-keyword` | `#c2a3f7` | `#6b3fc4` | code preview only: keywords, JSON and YAML keys, JSX tags |
+| `--syntax-string` | `#6ad8b0` | `#0a6f54` | code preview only: strings |
+| `--syntax-function` | `#8fb6ff` | `#2459c9` | code preview only: function names, Prisma attributes |
+| `--syntax-type` | `#f5a3cf` | `#a8336f` | code preview only: types, classes, components |
+| `--syntax-constant` | `#f2b27a` | `#95500f` | code preview only: numbers, `true`, constants |
 
-**Contrast (enforced by tests, both themes, on the canvas and every surface):** `--text` and `--text-muted` are at least 4.5:1, so they're the only text colors. Accent, layer, trace, and diff colors are at least 3:1: use them for strokes, rings, icons, and focus, never for small text. The light theme keeps each dark hue and lowers its lightness until it clears that bar; it's never a plain inversion.
+**Contrast (enforced by tests, both themes, on the canvas and every surface):** `--text` and `--text-muted` are at least 4.5:1, so they're the only text colors outside code. Accent, layer, trace, and diff colors are at least 3:1: use them for strokes, rings, icons, and focus, never for small text. The light theme keeps each dark hue and lowers its lightness until it clears that bar; it's never a plain inversion.
+
+**Syntax colors** (M4b.5b) are the layer hues lifted (dark) or lowered (light) to 4.5:1 on the canvas and on the selected line's accent tint, since the code preview draws them as 12px text. Comments are `--text-muted`; everything else is `--text`. No italics or bold: Geist Mono has no italic, and weight changes make 15 lines look busy.
 
 **Type**
 - UI and body: **Geist**. Chosen to match the Vercel reference, with crisp numerals and good small sizes. Self-hosted from the Fontsource packages; the app's bundler serves the woff2 files from our own origin (ADR-0047).

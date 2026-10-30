@@ -1011,7 +1011,7 @@ a.gi-button {
   stroke: none;
 }
 
-/* Code preview: plain text now; Shiki fills the same frame in M4b.5. */
+/* Code preview: plain text, then Shiki's colors in the same frame (M4b.5b). */
 
 .gi-code {
   margin: 0;
@@ -1113,6 +1113,31 @@ a.gi-button {
 .gi-code__line code {
   color: var(--text);
   white-space: pre;
+}
+
+/* Shiki's tokens (syntax.ts): color only, so highlighting never changes a line's width. */
+.gi-code [data-token="keyword"] {
+  color: var(--syntax-keyword);
+}
+
+.gi-code [data-token="string"] {
+  color: var(--syntax-string);
+}
+
+.gi-code [data-token="function"] {
+  color: var(--syntax-function);
+}
+
+.gi-code [data-token="type"] {
+  color: var(--syntax-type);
+}
+
+.gi-code [data-token="constant"] {
+  color: var(--syntax-constant);
+}
+
+.gi-code [data-token="comment"] {
+  color: var(--text-muted);
 }
 
 /* Command palette (elevation 3: raised fill, deepest shadow, scrim) */

@@ -1,5 +1,5 @@
 import type { GraphNode, Layer } from "@gitinside/schema";
-import type { HTMLAttributes, ReactNode } from "react";
+import { useEffect, useState, type HTMLAttributes, type ReactNode } from "react";
 import {
   CONFIDENCE_TEXT,
   edgeLabel,
@@ -10,6 +10,14 @@ import {
 import { IconTile, NodeIcon, TILE_ICON_SIZE } from "../icons/Icon.js";
 import { kindName, nodeLabel, nodeSubtitle } from "../nodes/describe.js";
 import { LAYER_NAMES } from "./describe.js";
+import {
+  highlightLines,
+  languageOf,
+  loadSyntax,
+  syntaxReady,
+  type SyntaxLanguage,
+  type SyntaxToken,
+} from "./syntax.js";
 import { UiIcon } from "./uiIcons.js";
 
 /**
@@ -224,6 +232,11 @@ export interface CodePreviewProps {
   /** Line number of the first line in `lines`. */
   startLine: number;
   lines: readonly string[];
+  /**
+   * The file's lines above `lines` (the highlighter reads up to 200 of them
+   * to know whether the preview starts inside a comment or a string).
+   */
+  before?: readonly string[] | undefined;
   /** The line the selection is on; it gets a marker and a tint. */
   highlight?: number | undefined;
   /** Permalink at the analyzed commit and line; without one the path isn't a link. */
@@ -240,19 +253,27 @@ export interface CodePreviewProps {
  * The code around the selection with line numbers (UX.md: 15 lines). The
  * file's path in the caption links to the file at that line on GitHub, at the
  * analyzed commit (design gate), and the link stays when the code couldn't
- * load. Plain text for now; M4b.5b adds Shiki highlighting inside the same
- * frame.
+ * load. The code is plain text until Shiki and the file's grammar have loaded
+ * (`syntax.ts`), then colored in place: the same characters in the same
+ * frame, so nothing moves. `data-syntax` on the frame says which it is
+ * (`pending`, `done`, or `plain` for a language it doesn't color).
  */
 export function CodePreview({
   path,
   startLine,
   lines,
+  before = NO_LINES,
   highlight,
   href,
   status = "ready",
 }: CodePreviewProps) {
+  const syntax = useSyntax(path, before, status === "ready" ? lines : NO_LINES);
   return (
-    <figure className="gi-code" aria-busy={status === "loading" || undefined}>
+    <figure
+      className="gi-code"
+      aria-busy={status === "loading" || undefined}
+      data-syntax={status === "ready" ? syntax.state : undefined}
+    >
       <figcaption className="gi-code__header">
         {href ? (
           <a
@@ -270,7 +291,12 @@ export function CodePreview({
         )}
       </figcaption>
       {status === "ready" ? (
-        <CodeLines startLine={startLine} lines={lines} highlight={highlight} />
+        <CodeLines
+          startLine={startLine}
+          lines={lines}
+          tokens={syntax.tokens}
+          highlight={highlight}
+        />
       ) : (
         <p className="gi-code__status" data-status={status} role="status">
           {status === "loading" ? "Loading the code" : "Couldn't load this file."}
@@ -280,15 +306,55 @@ export function CodePreview({
   );
 }
 
+const NO_LINES: readonly string[] = [];
+
+/**
+ * The preview's tokens once its language is loaded: `pending` (plain text)
+ * while Shiki loads, `done` with tokens, `plain` for a language it doesn't
+ * color or a load or tokenizer that failed.
+ */
+function useSyntax(
+  path: string,
+  before: readonly string[],
+  lines: readonly string[],
+): { state: "pending" | "done" | "plain"; tokens?: SyntaxToken[][] | undefined } {
+  const language = languageOf(path);
+  const ready = language !== undefined && syntaxReady(language);
+  // Which language failed to load, so a failure shows plain text, not "pending" forever.
+  const [failed, setFailed] = useState<SyntaxLanguage>();
+  // Bumped when a load finishes, to render again with the grammar in place.
+  const [, setLoads] = useState(0);
+  useEffect(() => {
+    if (language === undefined || ready) return;
+    let live = true;
+    void loadSyntax(language).then((ok) => {
+      if (!live) return;
+      if (ok) setLoads((n) => n + 1);
+      else setFailed(language);
+    });
+    return () => {
+      live = false;
+    };
+  }, [language, ready]);
+  if (language === undefined || lines.length === 0) return { state: "plain" };
+  if (!ready) return { state: failed === language ? "plain" : "pending" };
+  const tokens = highlightLines(language, before, lines);
+  return tokens ? { state: "done", tokens } : { state: "plain" };
+}
+
 function CodeLines({
   startLine,
   lines,
+  tokens,
   highlight,
-}: Pick<CodePreviewProps, "startLine" | "lines" | "highlight">) {
+}: Pick<CodePreviewProps, "startLine" | "lines" | "highlight"> & {
+  tokens?: SyntaxToken[][] | undefined;
+}) {
   return (
     <pre className="gi-code__body">
       {lines.map((line, i) => {
         const n = startLine + i;
+        const runs = tokens?.[i];
         return (
           <span
             key={n}
@@ -298,7 +364,21 @@ function CodeLines({
             <span className="gi-code__number" aria-hidden>
               {n}
             </span>
-            <code>{line || " "}</code>
+            <code>
+              {!line
+                ? " "
+                : runs
+                  ? runs.map((run, j) =>
+                      run.kind ? (
+                        <span key={j} data-token={run.kind}>
+                          {run.text}
+                        </span>
+                      ) : (
+                        run.text
+                      ),
+                    )
+                  : line}
+            </code>
           </span>
         );
       })}

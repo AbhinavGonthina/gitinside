@@ -56,6 +56,12 @@ for (const c of cases) {
       page.locator('[data-layout-runs-in="main"]'),
       "laid out in the worker",
     ).toHaveCount(0);
+    // Code previews are plain until Shiki's chunks load (M4b.5b); shoot them colored.
+    await expect(page.locator('.gi-code[data-syntax="pending"]')).toHaveCount(0);
+    await expect(
+      page.locator('.gi-code[data-syntax="plain"]'),
+      "Shiki loaded and highlighted every preview",
+    ).toHaveCount(0);
 
     // The screenshot must show the real styles and fonts, not a fallback, and
     // the theme's canvas behind the whole page (no white iframe edge).
