@@ -167,6 +167,31 @@ export const SYNTAX_THEME: ThemeRegistration = {
   ],
 };
 
+const SCRIPT_SAMPLE = [
+  'import { Router } from "express";',
+  "/** Docs. */",
+  "// A comment",
+  "export const LIMIT = 25;",
+  "export async function list(limit: number = 1): Promise<string[]> {",
+  "  const res = await fetch(`/api?limit=${limit}`, { method: 'GET' });",
+  '  if (!res.ok) throw new Error("failed");',
+  "  return res.json() as Promise<string[]>;",
+  "}",
+  "export default class Store extends Base implements Api {}",
+].join("\n");
+
+/** Our own code per grammar, tokenized once on load (see {@link loadSyntax}). */
+const WARM_UP: Record<SyntaxLanguage, string> = {
+  typescript: SCRIPT_SAMPLE,
+  tsx: `${SCRIPT_SAMPLE}\nconst a = <Layout title="Shop">{n}</Layout>;`,
+  javascript: SCRIPT_SAMPLE.replace(/: number|: Promise<string\[\]>| as Promise<string\[\]>/g, ""),
+  jsx: 'const a = <div className="x">{n}</div>;\nexport default a;',
+  json: '{ "name": "@shop/api", "private": true, "port": 3000, "list": [null] }',
+  prisma:
+    'datasource db {\n  provider = "postgresql"\n}\n// note\nmodel Order {\n  id Int @id @default(autoincrement())\n}',
+  yaml: 'services:\n  db:\n    image: postgres:16 # pinned\n    ports: [5432]\n    env: "x"',
+};
+
 let core: Promise<HighlighterCore> | undefined;
 let highlighter: HighlighterCore | undefined;
 const loads = new Map<SyntaxLanguage, Promise<boolean>>();
@@ -189,6 +214,15 @@ export function loadSyntax(language: SyntaxLanguage): Promise<boolean> {
   const load = core
     .then(async (h) => {
       await h.loadLanguage(...(await GRAMMARS[language]()).default);
+      // The engine compiles a grammar's patterns the first time they run, and
+      // Shiki gives each line 500ms before coloring the rest of it like its
+      // start (a slow machine's first `import … "express";` came back as one
+      // keyword). Pay that cost here, on our own sample, without the limit.
+      h.codeToTokensBase(WARM_UP[language], {
+        lang: language,
+        theme: SYNTAX_THEME.name ?? "gitinside",
+        tokenizeTimeLimit: 0,
+      });
       loaded.add(language);
       return true;
     })
