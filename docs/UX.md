@@ -39,7 +39,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 ## Trace mode (signature)
 
 - **Starting a trace:** the top-bar button, the T key, or "Trace from here" on a page or route in the inspector. A picker lists pages and routes, searchable.
-- **The path:** a BFS from the start over `http → handles → calls → reads/writes → stores` and `external_call`/`publishes`, up to depth 12, ordered by call order within each function when known.
+- **The path:** a BFS from the start over `http → handles → calls → reads/writes → stores` and `external_call`/`publishes`, up to depth 12, ordered by call order within each function when known. Done in M4b.6a (ADR-0117): steps go depth-first in call order, `consumes` is followed from the queue to its worker, an unresolved end says why, and where the 12-hop limit cuts the path is listed under the steps.
 - **Display:** everything off the path dims to about 20%. Path edges turn `--trace`. A pulse travels each hop (900ms).
 - **The player** (in the inspector): previous / play-pause / next, a step list, and each step's title, file:line, code, and match note ("Exact match: router.post('/') mounted at /api/orders").
 - **Trace across zoom levels:** hops inside a collapsed node show "happens inside api; break it down to watch it." Drilling down keeps the trace active.

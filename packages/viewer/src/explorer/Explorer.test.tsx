@@ -7,7 +7,8 @@ import { shopDemo, shopDemoSources } from "../shopDemo.testkit.js";
 import { durations } from "../tokens.js";
 import * as stories from "./Explorer.stories.js";
 import { Explorer } from "./Explorer.js";
-import { CHECKOUT_TRACE } from "./trace.js";
+
+const CHECKOUT = "page:web//checkout";
 
 afterEach(() => {
   cleanup();
@@ -60,7 +61,7 @@ async function settle() {
 
 async function setup(props: Partial<Parameters<typeof Explorer>[0]> = {}) {
   const view = render(
-    <Explorer graph={graph} sources={sources} trace={CHECKOUT_TRACE} {...props} />,
+    <Explorer graph={graph} sources={sources} traceStart={CHECKOUT} {...props} />,
   );
   await settle();
   /** A box on the canvas by node ID (not one folding away). */
@@ -454,19 +455,89 @@ describe("Explorer", { timeout: 30_000 }, () => {
     expect(screen.getByText("Step 1 of 8")).toBeTruthy();
   });
 
-  it("without a trace script, offers no trace", async () => {
-    const { heading, press } = await setup({ trace: undefined });
+  it("without a start, traces the selected page or route only", async () => {
+    const { container, box, heading, press } = await setup({
+      traceStart: undefined,
+      initialOpen: [API],
+    });
+    const topBar = within(container.querySelector(".gi-topbar") as HTMLElement);
+    const traceButton = () => topBar.getByRole("button", { name: "Trace a request" });
+    // Nothing traceable selected: T and the button say what to do, and so does the hint.
     await press("t");
     expect(heading().textContent).toBe("shop-demo");
-    // The start hint doesn't promise one either.
+    const live = () => container.querySelector("[aria-live]")?.textContent;
+    expect(live()).toBe("Select a page or route to trace its request path");
+    fireEvent.click(box(API) as HTMLElement);
+    fireEvent.click(traceButton());
+    expect(heading().textContent).toBe("@shop/api");
+    expect(live()).toBe("Select a page or route to trace its request path");
+    fireEvent.click(container.querySelector(".gi-explorer__canvas") as HTMLElement);
     expect(
-      screen.getByText("Select a box to see what it does. Double-click a service to break it down.")
-        .tagName,
+      screen.getByText(
+        "Select a box to see what it does. Double-click a service to break it down. Select a page or route to trace its request path.",
+      ).tagName,
     ).toBe("P");
+    // A folder can't be traced from.
+    fireEvent.click(box(SRC) as HTMLElement);
+    expect(screen.queryByRole("button", { name: /Trace from here/ })).toBeNull();
+    // Any route can: its path is computed from the graph.
+    fireEvent.click(box("route:api/GET /api/orders") as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: /Trace from here/ }));
+    expect(screen.getByText("Step 1 of 3")).toBeTruthy();
+    expect(live()).toBe("Tracing from GET /api/orders");
+    // The chip names the route with its method: GET and POST share the path.
+    expect(container.querySelector(".gi-explorer__pin code")?.textContent).toBe("GET /api/orders");
+    expect(heading().textContent).toBe("GET /api/orders handled by listOrders");
+    const steps = within(container.querySelector(".gi-explorer__steps") as HTMLElement);
+    expect(steps.getAllByRole("button").map((b) => b.textContent)).toEqual([
+      "1GET /api/orders handled by listOrders",
+      "2listOrders reads Order",
+      "3Order stored in db",
+    ]);
+    // Exiting and using the top bar traces the selection, the route, again.
+    await press("t");
+    fireEvent.click(traceButton());
+    expect(screen.getByText("Step 1 of 3")).toBeTruthy();
+  });
+
+  it("says where a long path stops (UX.md: up to 12 hops)", async () => {
+    const chain = Array.from({ length: 15 }, (_, k) => ({
+      id: `symbol:api/src/chain.ts#f${k}`,
+      kind: "symbol" as const,
+      label: `f${k}`,
+      parentId: "service:api/",
+      symbolKind: "function" as const,
+      exported: true,
+    }));
+    // POST /api/orders is handled by f0, which calls f1, … f14.
+    const hops = chain.map((n, k) => {
+      const kind = k === 0 ? ("handles" as const) : ("calls" as const);
+      const from = k === 0 ? ROUTE : `symbol:api/src/chain.ts#f${k - 1}`;
+      return {
+        id: `${kind}:${from}->${n.id}`,
+        kind,
+        from,
+        to: n.id,
+        confidence: "exact" as const,
+        sites: [],
+      };
+    });
+    const long = {
+      ...graph,
+      nodes: [...graph.nodes, ...chain],
+      edges: [...graph.edges.filter((e) => e.from !== ROUTE), ...hops],
+    };
+    await setup({ graph: long, traceStart: ROUTE, initialStep: 0 });
+    expect(screen.getByText("Step 1 of 12")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "The path goes on past 12 hops, from f11. Trace from further in to follow it.",
+      ),
+    ).toBeTruthy();
   });
 
   it("can leave the top bar out for a page that brings its own", async () => {
-    const { container, box, heading } = await setup({ trace: undefined, topBar: false });
+    const { container, box, heading } = await setup({ traceStart: undefined, topBar: false });
     expect(container.querySelector(".gi-topbar")).toBeNull();
     expect(container.querySelector(".gi-explorer")?.hasAttribute("data-bare")).toBe(true);
     fireEvent.click(box(API) as HTMLElement);
@@ -820,7 +891,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     expect(screen.getByText(codeLine('orders.post("/", createOrder);'))).toBeTruthy();
   });
 
-  it("cover the overview, drilling, zooming out, and the trace at two depths", async () => {
+  it("cover the overview, drilling, zooming out, and the trace at two depths and to an unresolved end", async () => {
     expect(Object.keys(all).sort()).toEqual([
       "BrokenDown",
       "DrilledDeep",
@@ -828,6 +899,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "Overview",
       "Tracing",
       "TracingBrokenDown",
+      "TracingUnresolved",
       "ZoomedOut",
     ]);
     for (const Story of [
@@ -843,5 +915,14 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       expect(container.querySelector(".gi-explorer")).not.toBeNull();
       cleanup();
     }
+    render(<all.TracingUnresolved />);
+    await settle();
+    expect(screen.getByText("Step 3 of 3")).toBeTruthy();
+    // The step says why the analyzer couldn't follow the request, in its own words.
+    expect(
+      screen.getByText(
+        /^Unresolved \(No route in the repo matches\)\. The env var CMS_URL isn't named like an API base URL/,
+      ),
+    ).toBeTruthy();
   });
 });

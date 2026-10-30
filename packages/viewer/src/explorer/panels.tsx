@@ -19,10 +19,10 @@ import { frameCounts } from "../layout/size.js";
 import { connectionsOf, type NodeConnection } from "../model/connections.js";
 import { canOpen, layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { visibleAncestor, type GraphView } from "../model/view.js";
-import { REASON_TEXT } from "../nodes/describe.js";
+import { nodeLabel, REASON_TEXT } from "../nodes/describe.js";
 import { useSourceText, type SourceAccess } from "./sources.js";
 import { summaryOf } from "./summary.js";
-import type { TraceStep } from "./trace.js";
+import { TRACE_DEPTH, type TraceStep } from "./trace.js";
 
 /**
  * The explorer's inspector content (M4b.5a): a node's summary, facts,
@@ -148,13 +148,15 @@ export interface NodePanelProps {
   index: HierarchyIndex;
   node: GraphNode;
   canBreakDown: boolean;
+  /** Whether the node is a page or route with a request path (**Trace from here**). */
   canTrace: boolean;
-  hasTrace: boolean;
+  /** What T traces when nothing traceable is selected, for the overview's hint. */
+  traceHint: GraphNode | undefined;
   sources: SourceAccess;
   repo: RepoRef;
   onSelect: (id: string) => void;
   onBreakDown: (id: string) => void;
-  onTrace: () => void;
+  onTrace: (id: string) => void;
 }
 
 /** The inspector for a selected node, or the repo overview for the root. */
@@ -163,7 +165,7 @@ export function NodePanel({
   node,
   canBreakDown,
   canTrace,
-  hasTrace,
+  traceHint,
   sources,
   repo,
   onSelect,
@@ -189,12 +191,13 @@ export function NodePanel({
         <InspectorSection title="Start here">
           <p className="gi-inspector__empty">
             Select a box to see what it does. Double-click a service to break it down
-            {hasTrace ? (
+            {traceHint ? (
               <>
-                , or press <Kbd keys={["T"]} /> to trace the checkout request.
+                , or press <Kbd keys={["T"]} /> to trace the request from{" "}
+                <code>{nodeLabel(traceHint).code ?? traceHint.label}</code>.
               </>
             ) : (
-              "."
+              ". Select a page or route to trace its request path."
             )}
           </p>
         </InspectorSection>
@@ -240,7 +243,7 @@ export function NodePanel({
               variant={canBreakDown ? "secondary" : "primary"}
               size="sm"
               icon="trace"
-              onClick={onTrace}
+              onClick={() => onTrace(node.id)}
             >
               Trace from here
             </Button>
@@ -263,10 +266,26 @@ export function NodePanel({
   );
 }
 
+/** A detail as a sentence: capitalized, with a full stop. */
+function sentence(text: string): string {
+  const s = `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+  return /[.!?]$/.test(s) ? s : `${s}.`;
+}
+
+/** "a, b, and 3 more": the first names of the nodes a path stops at. */
+function cutOffNames(nodes: readonly GraphNode[]): string {
+  const shown = nodes.slice(0, 2).map((n) => n.label);
+  const rest = nodes.length - shown.length;
+  if (rest > 0) return `${shown.join(", ")}, and ${rest} more`;
+  return shown.join(" and ");
+}
+
 /** Props for {@link TracePanel}. */
 export interface TracePanelProps {
   index: HierarchyIndex;
   steps: readonly TraceStep[];
+  /** Nodes where the path stops at its depth limit though it goes on (`Trace.cutOff`). */
+  cutOff: readonly GraphNode[];
   step: number;
   /** The view on the canvas, to say where the hop is drawn. */
   view: GraphView;
@@ -280,6 +299,7 @@ export interface TracePanelProps {
 export function TracePanel({
   index,
   steps,
+  cutOff,
   step,
   view,
   sources,
@@ -323,6 +343,9 @@ export function TracePanel({
       <InspectorSummary key={`summary-${step}`}>
         {CONFIDENCE_TEXT[current.edge.confidence]}
         {current.edge.reason ? ` (${REASON_TEXT[current.edge.reason]})` : ""}.
+        {current.to.kind === "unresolved" && current.to.detail
+          ? ` ${sentence(current.to.detail)}`
+          : ""}
         {inside && hidden ? ` Happens inside ${inside.label}; break it down to watch it.` : ""}
         {from && to && from !== to
           ? ` Goes from ${nodeOf(index, from).label} to ${nodeOf(index, to).label} on the canvas.`
@@ -345,6 +368,12 @@ export function TracePanel({
             </li>
           ))}
         </ol>
+        {cutOff.length > 0 && (
+          <p className="gi-inspector__empty">
+            The path goes on past {TRACE_DEPTH} hops, from {cutOffNames(cutOff)}. Trace from further
+            in to follow it.
+          </p>
+        )}
       </InspectorSection>
       <InspectorActions>
         <Button

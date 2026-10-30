@@ -1,4 +1,4 @@
-import type { ArchitectureGraph } from "@gitinside/schema";
+import type { ArchitectureGraph, GraphNode } from "@gitinside/schema";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Button, StatusChip } from "../chrome/controls.js";
 import type { RepoRef } from "../chrome/describe.js";
@@ -44,7 +44,7 @@ import { useDrill, type Expansion } from "./drill.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { NodePanel, TracePanel } from "./panels.js";
 import { useSourceAccess, type SourceLoader } from "./sources.js";
-import { checkTrace, traceNodes, type TraceScript, type TraceStep } from "./trace.js";
+import { canTraceFrom, traceFrom, traceNodes, type TraceStep } from "./trace.js";
 import type { Shown } from "./transition.js";
 
 /** Props for {@link Explorer}. */
@@ -58,13 +58,17 @@ export interface ExplorerProps {
    * code preview. Without either, nodes show no code, only their GitHub link.
    */
   loadSource?: SourceLoader | undefined;
-  /** The scripted request path the Trace button plays (until M4b.6). Without one, Trace is disabled. */
-  trace?: TraceScript | undefined;
+  /**
+   * The page or route that T and the Trace button trace when the selection
+   * isn't a page or route (e.g. a demo's lead request). Without one, they
+   * trace the selected page or route only.
+   */
+  traceStart?: string | undefined;
   /** Start with these nodes broken down, in opening order (the last one is closed first by Esc). */
   initialOpen?: Expansion;
   /** Start with this node selected. */
   initialSelected?: string | null;
-  /** Start tracing, at this step (0-based). */
+  /** Start tracing from `traceStart`, at this step (0-based). */
   initialStep?: number | null;
   /**
    * Start at this zoom (clamped to 25–200%), centered on the first level, as
@@ -97,9 +101,10 @@ function deepestOpen(view: GraphView, expansion: Expansion): string | undefined 
  * place to any depth (double-click, Enter, or **Break down**; Esc or a
  * breadcrumb goes back up), with a service's routes and pages first. A click
  * or Space selects; the canvas marks the box that holds the selection, and a
- * connection in the inspector drills to its node. The Trace button or T
- * plays a scripted request path (M4b.6 brings the search) on whatever boxes
- * hold its hops at the current depth.
+ * connection in the inspector drills to its node. **Trace from here** on a
+ * page or route, T, or the Trace button follows its request path
+ * (`traceFrom`) step by step, on whatever boxes hold its hops at the current
+ * depth.
  *
  * Layouts come from ELK, in the host's Web Worker when given one. Each level
  * is fitted to the canvas until the user pans (drag, wheel, or the minimap)
@@ -114,7 +119,7 @@ export function Explorer({
   graph,
   sources,
   loadSource,
-  trace,
+  traceStart,
   initialOpen = [],
   initialSelected = null,
   initialStep = null,
@@ -130,9 +135,22 @@ export function Explorer({
   const drill = useDrill(index, initialOpen);
   const view = drill.view;
 
-  const steps = useMemo(() => (trace ? checkTrace(index, trace) : []), [index, trace]);
   const [selected, setSelected] = useState<string | null>(initialSelected);
-  const [step, setStep] = useState<number | null>(initialStep);
+  /** `traceStart`, if it's in this graph and has somewhere to go. */
+  const traceStartNode = traceStart === undefined ? undefined : index.byId.get(traceStart);
+  const fallbackStart =
+    traceStartNode && canTraceFrom(index, traceStartNode) ? traceStartNode.id : undefined;
+  // The trace's start outlives the trace, so focus can go back to it on exit.
+  const [traced, setTraced] = useState<string | null>(
+    fallbackStart !== undefined && initialStep !== null ? fallbackStart : null,
+  );
+  const [step, setStep] = useState<number | null>(traced === null ? null : initialStep);
+  // A new graph without the traced node ends the trace rather than throwing.
+  const path = useMemo(
+    () => (traced && index.byId.has(traced) ? traceFrom(index, traced) : undefined),
+    [index, traced],
+  );
+  const steps = path?.steps ?? [];
   const [legend, setLegend] = useState(false);
   const legendState = usePresence(legend);
   const [announcement, setAnnouncement] = useState("");
@@ -223,12 +241,12 @@ export function Explorer({
     if (next !== live.current.camera) moveCamera(next, "layout");
   });
 
-  const tracing = step !== null && trace !== undefined;
+  const tracing = step !== null && path !== undefined;
   const current: TraceStep | undefined = tracing ? steps[step] : undefined;
   /** The boxes holding each node on the path, at the current depth. */
   const pathBoxes = useMemo(
-    () => holders(index, view, tracing && trace ? traceNodes(steps, trace.start) : []),
-    [tracing, trace, steps, index, view],
+    () => holders(index, view, tracing ? traceNodes(path) : []),
+    [tracing, path, index, view],
   );
   const hopIds = useMemo(() => new Set(steps.map((s) => s.edge.id)), [steps]);
   /** The current hop's two ends as drawn: the boxes holding them (one box for a hop inside it). */
@@ -256,14 +274,18 @@ export function Explorer({
       root.querySelector<HTMLElement>(".gi-explorer__step[aria-current]")?.focus();
       return;
     }
-    const start = trace ? visibleAncestor(index, view, trace.start) : undefined;
+    const start = traced ? visibleAncestor(index, view, traced) : undefined;
     const wrapper = [
       ...root.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving])"),
     ].find((el) => el.dataset.nodeId === start);
     wrapper?.querySelector<HTMLElement>(":scope > .gi-node")?.focus();
-  }, [tracing, step, trace, index, view]);
+  }, [tracing, step, traced, index, view]);
 
   const selectedNode = selected ? index.byId.get(selected) : undefined;
+  /** Whether the selection is a page or route with a request path. */
+  const selectionTraces = selectedNode !== undefined && canTraceFrom(index, selectedNode);
+  /** What T and the Trace button trace: the selection if it can be, else `traceStart`. */
+  const startable = selectionTraces ? selectedNode.id : fallbackStart;
   const selectedBox = selected ? visibleAncestor(index, view, selected) : undefined;
   const repo: RepoRef = graph.repo;
 
@@ -292,10 +314,20 @@ export function Explorer({
     setAnnouncement(`Back to ${nodeOf(index, id).label}`);
   }
 
+  /** Starts tracing the request path from a node, at its first step. */
+  function startTrace(id: string) {
+    setTraced(id);
+    setStep(0);
+    setAnnouncement(`Tracing from ${nodeOf(index, id).label}`);
+  }
+
+  /** T and the Trace button: end the trace, or start one from {@link startable}. */
   function toggleTrace() {
-    if (!trace) return;
-    setStep(tracing ? null : 0);
-    setAnnouncement(tracing ? "Trace ended" : `Tracing from ${nodeOf(index, trace.start).label}`);
+    if (tracing) {
+      setStep(null);
+      setAnnouncement("Trace ended");
+    } else if (startable) startTrace(startable);
+    else setAnnouncement("Select a page or route to trace its request path");
   }
 
   /** Closes the legend; focus inside it goes back to the button that opened it. */
@@ -404,7 +436,7 @@ export function Explorer({
       data-settled={settled ? "" : undefined}
       onKeyDown={onKeyDown}
     >
-      {topBar && <TopBar repo={repo} tracing={tracing} onTrace={trace ? toggleTrace : undefined} />}
+      {topBar && <TopBar repo={repo} tracing={tracing} onTrace={toggleTrace} />}
       <div className="gi-explorer__main">
         <div
           ref={canvasRef}
@@ -430,12 +462,9 @@ export function Explorer({
             zoom={camera.zoom}
           />
           <div className="gi-explorer__pin" data-place="top-left">
-            {tracing && trace && (
+            {tracing && (
               <StatusChip tone="trace" exitLabel="Exit trace" onExit={toggleTrace}>
-                Tracing{" "}
-                <code>
-                  {nodeLabel(nodeOf(index, trace.start)).code ?? nodeOf(index, trace.start).label}
-                </code>
+                Tracing <code>{traceName(path.start)}</code>
               </StatusChip>
             )}
           </div>
@@ -494,10 +523,11 @@ export function Explorer({
             </div>
           </div>
         </div>
-        {tracing && trace ? (
+        {tracing ? (
           <TracePanel
             index={index}
             steps={steps}
+            cutOff={path.cutOff}
             step={step}
             view={view}
             sources={sourceAccess}
@@ -510,13 +540,13 @@ export function Explorer({
             index={index}
             node={selectedNode ?? index.root}
             canBreakDown={selectedView !== undefined && selectedView.canOpen && !selectedView.open}
-            canTrace={trace !== undefined && selectedNode?.id === trace.start}
-            hasTrace={trace !== undefined}
+            canTrace={selectionTraces}
+            traceHint={fallbackStart ? nodeOf(index, fallbackStart) : undefined}
             sources={sourceAccess}
             repo={repo}
             onSelect={reveal}
             onBreakDown={breakDown}
-            onTrace={toggleTrace}
+            onTrace={startTrace}
           />
         )}
       </div>
@@ -525,6 +555,13 @@ export function Explorer({
       </div>
     </div>
   );
+}
+
+/** A trace's start in the status chip: a page's path, a route's method and path (GET and POST share one). */
+function traceName(node: GraphNode): string {
+  const label = nodeLabel(node);
+  const name = label.code ?? label.text ?? node.label;
+  return label.method ? `${label.method} ${name}` : name;
 }
 
 /** A field that takes typed text, where + − 0 are characters, not zoom keys. */

@@ -214,8 +214,8 @@ export {
 export type { Camera } from "./explorer/camera.js";
 export { DRAG_THRESHOLD } from "./explorer/gestures.js";
 export type { CameraMotion } from "./explorer/gestures.js";
-export { CHECKOUT_TRACE, checkTrace, traceNodes } from "./explorer/trace.js";
-export type { TraceScript, TraceStep } from "./explorer/trace.js";
+export { canTraceFrom, TRACE_DEPTH, traceFrom, traceNodes } from "./explorer/trace.js";
+export type { Trace, TraceStep } from "./explorer/trace.js";
 export { createGitHubSourceLoader, MAX_SOURCE_BYTES } from "./explorer/sources.js";
 export type { GitHubSourceLoaderOptions, SourceLoader } from "./explorer/sources.js";
 export { Explorer } from "./explorer/Explorer.js";
