@@ -85,9 +85,10 @@ describe("drill.css", () => {
       expect(name).toMatch(/width: calc\(100% \/ var\(--gi-name-scale, 1\)\);/);
       expect(name).toMatch(/transform: scale\(var\(--gi-name-scale, 1\)\);/);
       expect(name).toMatch(/transform-origin: 0 50%;/);
-      expect(name).toMatch(
-        /opacity var\(--duration-standard\)[^;]*transform var\(--duration-standard\)/,
-      );
+      // The width snaps, so a gliding scale would overflow the box mid-glide
+      // (Linux capture, M4b.4b): no transform transition anywhere on it.
+      expect(name).not.toMatch(/transition/);
+      expect(body).not.toMatch(/transform var\(--duration/);
     });
 
     it("fades with the standard duration, keeping the fields row's color transitions", () => {
