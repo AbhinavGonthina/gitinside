@@ -15,6 +15,7 @@ import {
   TILE_OUTLINES,
   type TileShape,
 } from "../icons/Icon.js";
+import { markMarkup } from "../mark.js";
 import {
   countText,
   nodeLabel,
@@ -565,10 +566,9 @@ function footer(graph: ArchitectureGraph, width: number, top: number): string {
     `<text${attrs({ x: PAD, y, "font-size": 12 })} style="fill:${v("muted")}" xml:space="preserve">${esc(repoText)}${
       sha ? ` <tspan font-family="${esc(MONO)}">${esc(sha.slice(0, 7))}</tspan>` : ""
     }</text>`,
-    // The logo mark (chrome/uiIcons.tsx LogoMark) and the name, on the right.
+    // The logo mark (mark.ts), 16px, and the name, on the right.
     `<g transform="translate(${num(width - PAD - brand)} ${num(y - 12)}) scale(0.667)">`,
-    `<rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke-width="2.25" style="stroke:${v("text")}"/>`,
-    `<rect x="9" y="9" width="8" height="8" rx="2" style="fill:${v("accent")}"/>`,
+    markMarkup({ frame: v("text"), node: v("accent"), size: 16 }),
     `</g>`,
     `<text${attrs({ x: width - PAD - brand + 22, y, "font-size": 12, "font-weight": 600 })} style="fill:${v("text")}">GitInside</text>`,
   ].join("");

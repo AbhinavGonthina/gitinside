@@ -1,3 +1,4 @@
+import { markMarkup } from "../mark.js";
 import { themeTokens } from "../tokens.js";
 import { attrs, esc, num, textWidth } from "./markup.js";
 
@@ -79,10 +80,9 @@ export function renderBadge({ message, tone = "accent" }: BadgeOptions): string 
     `<rect width="${left}" height="${BADGE_HEIGHT}" fill="${label.fill}"/>`,
     `<rect x="${left}" width="${right}" height="${BADGE_HEIGHT}" fill="${colors.fill}"/>`,
     `</g>`,
-    // The logo mark (chrome/uiIcons.tsx LogoMark) on its 24px grid, scaled down.
+    // The logo mark (mark.ts) on its 24px grid, scaled down.
     `<g transform="translate(${PAD} ${num(markY)}) scale(${num(s)})">`,
-    `<rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke="${label.text}" stroke-width="2.5"/>`,
-    `<rect x="9" y="9" width="8" height="8" rx="2" fill="${label.mark}"/>`,
+    markMarkup({ frame: label.text, node: label.mark, size: MARK }),
     `</g>`,
     `<g font-family="${esc(FONT)}" font-size="${FONT_SIZE}" font-weight="600">`,
     `<text x="${PAD + MARK + MARK_GAP}" y="${baseline}" fill="${label.text}" textLength="${labelText}" lengthAdjust="spacingAndGlyphs">${LABEL}</text>`,
