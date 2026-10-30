@@ -149,6 +149,7 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - Abhinav learns BullMQ.
 
 ## ADR-0015: $0 hosting
+- **Superseded in part by ADR-0111** (the worker moves from the Oracle VM to Google Cloud Run; Redis leaves with it).
 - **Context:** the budget is $0 (D8.1, D8.2).
 - **Decision:**
   - Vercel Hobby (web).
@@ -1213,3 +1214,33 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
 - **Checked in a real browser:** a scratch Next.js page (not committed) drawing `RepoDiagram` on shop-demo under the site's real CSP: the layout runs in the worker, a drill-down lays out there too, and nothing is logged. With the `window` line removed, the page logs the worker failure and lays out on the main thread instead of hanging.
 - **Alternatives rejected:** copying the built worker into `public/` and starting it by URL (skips the bundler's transforms, but adds a copy step, an unhashed 2 MB file, and a second way to load it); drawing the README image with ELK (asynchronous, and the layout would differ from the bytes already cached); a timeout as the failure signal (still rejected, ADR-0107: a slow big layout isn't a failure).
 - **Consequences:** `prototype/` and its tests are gone; `shopDemo.testkit.ts` moved to `src/`. The CSP needs no change: the worker and its chunks loaded under it in Chromium (`worker-src` falls back to `script-src`, and the worker is started by a trusted script). Still weak: no committed E2E draws the diagram page (it needs a database the E2E server doesn't have), so the worker's real-browser check is a scratch run; M4b.14's E2E should cover it. Viewer and web only; no graph or eval change.
+
+## ADR-0111: The worker runs on Google Cloud Run instead of an Oracle VM; snapshots stay in Oracle Object Storage
+- **Context:** ADR-0015 put the analysis worker (enqueue API, Redis + BullMQ, the sandboxed analyzer) on an Oracle Cloud Always Free ARM VM, and named "Cloud Run Jobs + pg-boss" as the fallback needing its own ADR. Three things changed when the VM was due (planning #3, 2026-10-29 to 10-30):
+  - **No capacity.** Ashburn, the account's permanent home region, returned "Out of host capacity" for `VM.Standard.A1.Flex` in all three availability domains, by hand and from a script retrying every two minutes for hours. Free Tier accounts can't use another region.
+  - **The free allowance halved.** Oracle's docs now give Always Free A1 as 1,500 OCPU hours and 9,000 GB hours a month, i.e. **2 OCPU / 12 GB** running all month, down from 4 / 24 in June 2026. The spec, the issue, and most guides still said 4 / 24.
+  - **The usual fix bends the $0 rule.** Upgrading to Pay As You Go gets capacity, but Oracle then can bill the card, places a ~$100 authorization hold (Oracle Support Doc 2972946.1), and documents no way back to Free Tier. Abhinav declined it. Idle Always Free VMs can also be reclaimed after 7 quiet days, and a stopped VM can hit the same capacity wall when restarted.
+- **What the worker needs** (bench, 2026-10-26): cal.com (5,041 files) peaks at ~2 GiB and takes 27–77 s on a laptop; each analysis is capped at 3 GB heap and 5 minutes; two run at once. So roughly 2 cores and 8+ GB, or the equivalent per job. Traffic is small: the site is a portfolio piece for recruiters, not announced.
+- **Options:**
+
+  | | Free, no charge possible | Available now | Big repos, 2 at once | Rework |
+  |---|---|---|---|---|
+  | Keep retrying Oracle A1 (2 / 12) | yes | no | yes | none |
+  | Oracle E2.1.Micro (1 GB) | yes | yes | no | small (swap, size limit) |
+  | Oracle Pay As You Go | no; ~$100 hold, one-way | likely | yes | none |
+  | Azure for Students ($100/yr credit) | yes, but runs out after ~3 months/yr | yes | yes | small |
+  | Abhinav's own PC + tunnel | yes | yes | yes, only while it's on | small |
+  | **Google Cloud Run** | within the monthly allowance; caps bound the rest | yes | yes | significant |
+
+- **Decision:** the worker moves to **Google Cloud Run**; everything else stays.
+  - **Why Cloud Run:** containers start per job from Google's pool, so there's no capacity hunt, no idle reclaim, and nothing to patch. Each job can get its own 1 vCPU / 4 GiB (up to 8 vCPU / 32 GiB), so big repos fit and two run side by side. The free allowance is **monthly and permanent** (as published Oct 2026: 180k–240k vCPU-seconds and 360k–450k GiB-seconds), worth roughly 1,000 cal.com-sized or 10,000 small analyses a month. Expected use is a few percent of that, and cached commits never wake the worker.
+  - **The queue leaves Redis.** Cloud Run scales to zero, so an always-on BullMQ worker doesn't fit. Jobs are tracked in Neon and dispatched by a managed or Postgres-backed queue (Cloud Tasks, or pg-boss as ADR-0015 named); the implementing ADR picks one. The behavior stays: at most 2 at once, `repo@sha` dedupe, 3 attempts, live progress, the HMAC-signed request from Vercel.
+  - **Snapshots stay in Oracle Object Storage** (ADR-0095). A Free Tier account can't be charged at all, it holds 20 GB versus Cloud Storage's 5 GB, the code is done, and keeping storage off Google's meter means a Cloud Run incident can't make storage cost money. Moving it to Google wouldn't remove a cross-cloud hop: diagram views go Vercel → storage either way, and every service sits in northern Virginia (~1–5 ms apart).
+  - **Cost guardrails are part of the decision, set up before the trial ends:** a Cloud Run **spend cap** (preview since July 2026; pauses the service at the cap) around $1; a budget alert that turns billing off (Google's documented kill switch) as a backstop that doesn't depend on a preview; `max-instances` 2, concurrency 1, a 5-minute timeout, min instances 0; image cleanup to stay inside Artifact Registry's free storage; no Cloud NAT, load balancer, Memorystore, or static IP; a free-tier region near Vercel's `iad1`. The existing rate limits and dedupe stay.
+- **Consequences:**
+  - **$0 becomes "$0 in practice, bounded worst case."** The 90-day trial can't bill. After it, the account must be activated to keep the free allowance, and usage above it is billable. With the caps, a bot hammering the form costs about the cap plus a few cents of reporting lag; without them the theoretical ceiling is ~$150–170 a month. This is the one place in the stack where the card could be charged, so the guardrails are checked in M5.13's smoke test and written into SECURITY.md T9.
+  - **The sandbox changes shape.** The egress-firewall gateway (ADR-0075) needs a network the worker controls; on Cloud Run, the platform's sandbox and egress settings replace it. The analysis child still has no network (`netguard.ts`), so the main protection carries over, but SECURITY.md §3 and T1–T9 get a fresh review.
+  - **Infra shrinks.** `infra/oracle` (provision script, Caddy, egress gateway, compose stack) is replaced by a container image and a Cloud Run service deployed from GitHub Actions with keyless Workload Identity Federation. The `worker.gitinside` DNS record isn't needed; Cloud Run serves HTTPS on its own address.
+  - **Latency:** a cold start adds ~2–5 s to the first job after a quiet period. The analysis itself dominates.
+  - **Oracle stays** for Object Storage (#5). A1 remains a possible future host if capacity and the free tier allow, but nothing waits on it.
+  - **Superseded:** the worker-host and Redis lines of ADR-0015, and the VM-specific parts of ADR-0074/0075. Sizing numbers in SPEC §5 and the docs move from the 4 / 24 VM to per-job Cloud Run resources.
