@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.0e. Motion pass (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on #3, #5, #7)
+M4b.1. Viewer graph model (design gate changes done; M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -85,7 +85,7 @@ M4b.0e. Motion pass (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on 
 - [x] M4b.0b Design gate: a distinct shape per layer (frontend vs backend services, data, queue, external) and per card kind (route, page, model vs file/symbol), same quiet style, icon still the primary marker; legend's shapes table, README image, screenshots, baselines {model: opus}
 - [x] M4b.0c Design gate: the current trace hop stands out (its two nodes and edge clearly stronger than the rest of the lit path, at the system level and inside a service), screenshots, baselines {model: opus}
 - [x] M4b.0d Design gate: a new GitInside mark (top bar, favicon, README badge), screenshots, baselines {model: opus}
-- [ ] M4b.0e Design gate: motion pass (hover, select, inspector content swap, overlays, palette open/close: token durations, reduced motion), no AI-looking defaults {model: opus}
+- [x] M4b.0e Design gate: motion pass (hover, select, inspector content swap, overlays, palette open/close: token durations, reduced motion), no AI-looking defaults {model: opus}
 - [ ] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility; a service's first level leads with its routes and pages, then its folders (design gate, UX.md) {model: opus}
 - [ ] M4b.2 ELK layout in a Web Worker with stable ordering + layout cache; node sizes measured from content, not fixed per tier (design gate fit) {model: opus}
 - [ ] M4b.3 Semantic drill-down with animated in-place transitions + reduced motion (routes first at the service level) {model: opus}
@@ -194,6 +194,8 @@ M4b.0e. Motion pass (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.0e: Motion pass (ADR-0104). Overlays (legend, status chips) rise 4px and fade in over `standard`, and leave faster (fade, `fast`, new `--ease-exit`); the palette's scrim fades and its dialog settles 6px. `usePresence` (`motion.ts`) keeps a leaving overlay mounted, inert, for its exit (instant under reduced motion). The inspector is keyed by selection so content swaps in; trace mode keys only the step's header, summary, and code, so focus stays on "Next step". Shape pseudo-elements and edge label fills now transition with their box. Tests forbid easing overshoot and scale/blur/rotate or >6px moves in chrome keyframes. Viewer 516 (13 new), root typecheck + lint green. Frames sampled mid-animation in `docs/milestones/M4b/motion-*`; end states unchanged, so no baseline re-capture. No eval delta. Next: M4b.1.
 
 - 2026-10-30 · M4b.0d: The new mark is a "G" drawn as the rounded service frame, opened at the top right, whose bar runs inward to an accent node (ADR-0103; chosen from four candidates rendered at 12–64px). Its geometry lives once in `packages/viewer/src/mark.ts` (`LogoMark`, README badge and image); a web test pins the static favicon to it and the theme tokens. Strokes are 2.5 units below 20px. Viewer 503 (4 new), web 329 (2 new), root typecheck + lint green. Screenshots in `docs/milestones/M4b/mark-*`; 18 baselines re-captured on Linux CI (run 41017072733). No eval delta. Next: M4b.0e.
 

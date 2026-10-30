@@ -134,7 +134,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - `gh run download -D <dir>` fails with "file exists" if the folder already has those files (e.g. `visual/baselines/`). Run `git rm -r -q <dir>` first, download, then `git add <dir>`: git then shows only the images that changed.
 - A layout bug that shows only in Linux CI screenshots (text a few px wider than on Windows) won't reproduce in a local Playwright check. Put the check in `visual/stories.visual.ts` and let the baseline capture run prove it on Linux.
 - Local prototype screenshots taken right at load catch edges mid fade-in (600ms), so lines look missing. Wait ~1.2 s before shooting. Likewise, two README SVGs inlined in one HTML page share the `.gi` palette (the last `<style>` wins); shoot each theme on its own page.
-- `npx prettier --write` exits 2 ("No parser could be inferred") when given an `.svg`, though it formats the other files. Leave `.svg` files out of the list.<!-- lessons:end -->
+- `npx prettier --write` exits 2 ("No parser could be inferred") when given an `.svg`, though it formats the other files. Leave `.svg` files out of the list.
+- Screenshots taken "a few ms after a click" can't catch a 120–240ms animation reliably. For motion frames, `page.clock.install()` before `goto` (JS exit timers wait for `page.clock.runFor`), then pause `document.getAnimations()` at a chosen `currentTime` and shoot (`apps/web/dist/motion-shots.mjs`, M4b.0e).<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
