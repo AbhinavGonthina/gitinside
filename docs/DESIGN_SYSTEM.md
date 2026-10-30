@@ -9,7 +9,7 @@ Abhinav's review of [M4a-review.md](milestones/M4a-review.md), in his words wher
 - **Kept as is:** tokens, logos, glyphs, edge confidence styles, node states, the inspector ("looks clean"), the command palette ("kinda like Mac, that's nice"), the broken-down service's sidebar, the code sample in the inspector, and the light theme ("looks clean and good"). Overall it reads as a system design diagram he'd explore in both themes, "good for a first run"; the diagram should get richer later.
 - **Fix: content must fit its container.** `@shop/web`'s count badges wrapped onto a second line and spilled out of its closed frame. Every node is sized from its content (M4b.0a).
 - **Change: a distinct shape per layer and kind** (gate questions 1 and 2). Too many similar shapes stand for different things. Each layer gets its own shape that makes sense in a system design drawing (a frontend service doesn't look like a backend service; data is already separate), and routes, pages, and models get shapes of their own instead of sharing the card. Shapes stay in today's style (quiet, hairline, tinted) and the icon stays the primary marker, so §2's "plain primitive as the only marker" still holds (M4b.0b).
-- **Change: the current trace hop stands out** (question 3). Where the whole path is lit, the reader must still see where in the flow they are: the current hop's nodes and edge are clearly stronger than the rest of the path (M4b.0c).
+- **Change: the current trace hop stands out** (question 3). Where the whole path is lit, the reader must still see where in the flow they are: the current hop's nodes and edge are clearly stronger than the rest of the path (M4b.0c, done: the `current` emphasis in §3).
 - **Change: a service's first level leads with its routes,** then its folders (question 4). See UX.md "Drill-down" (M4b.1, M4b.3).
 - **Change: the code sample links to the file on GitHub,** at the commit and line (M4b.5).
 - **Change: a new GitInside mark.** "Not a fan of the logo right now" (M4b.0d).
@@ -81,7 +81,8 @@ The legend is always one click away and is generated from these same tokens.
 - **States** (combine freely; the border goes to the highest: selected > traced > diff > hover):
   - **Hover:** `surface-2` fill (frames: a stronger tint) and a stronger border.
   - **Selected:** 2px `--accent` border and a faint accent fill. Distinct from the keyboard focus ring, which is an offset outline.
-  - **Traced:** `--trace` border plus a soft trace glow, kept when also selected.
+  - **Traced:** a plain `--trace` border (no glow), for every node on the request path.
+  - **Current hop** (M4b.0c, ADR-0102): the boxes holding the current step's two ends (one box when the hop happens inside it; never the open frame around them) get the `--trace` border plus a 6px trace glow and a 10% trace tint, kept when also selected. So where the whole path is lit, as at the system level, the reader still sees where in the flow they are.
   - **Dimmed:** 20% opacity (50% on hover).
   - **Diff:** a worded tag on the top edge ("Added", "Changed", "Removed") with a colored dot, plus a diff-colored border and tint. Removed is also dashed, ghosted to 50%, and struck through.
 
@@ -92,7 +93,8 @@ The legend is always one click away and is generated from these same tokens.
 - **Labels:** a quiet pill on the line's midpoint: `POST /api/orders · HTTP` (method chip, mono path, muted protocol), `reads id, total`, "calls API" (never a guessed protocol), the reason in words when unresolved (dotted pill), "22 calls" for aggregated edges.
 - **States** (combine; color goes to broken > selected > traced > diff > hover):
   - **Selected:** accent line plus a soft accent halo; accent pill border.
-  - **Traced:** trace-colored 2.5px line with a trace halo; trace pill border.
+  - **Traced:** trace-colored 1.75px line, no halo; pill border 70% trace.
+  - **Current hop:** trace-colored 3px line with a trace halo and larger particles; the pill gets a full trace border, a 14% trace fill, and a soft ring. The trace owns the edges while it runs, so none is drawn as selected.
   - **Dimmed:** 20% opacity (50% on hover), label too.
   - **Diff:** line in the diff color; the pill leads with "Added", "Changed", or "Removed". Removed is ghosted to 50% and its label struck through.
   - **Broken:** pulsing red dashes whatever the confidence, and the pill says what broke ("Route removed in this PR").

@@ -388,6 +388,10 @@ function Highlights() {
             <span className="gi-legend__swatch" data-tone="trace" aria-hidden />
             On the request path
           </li>
+          <li>
+            <span className="gi-legend__swatch" data-tone="trace-current" aria-hidden />
+            Current step of the trace
+          </li>
           {DIFF_STATES.map((diff) => (
             <li key={diff}>
               <span className="gi-legend__swatch" data-tone={diff} aria-hidden />

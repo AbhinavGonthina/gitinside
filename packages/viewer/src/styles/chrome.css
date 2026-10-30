@@ -665,8 +665,16 @@
   background: color-mix(in srgb, var(--gi-layer) 20%, transparent);
 }
 
+/* The path's quiet trace hairline, and the current hop's ring and glow (nodes.css). */
 .gi-legend__swatch[data-tone="trace"] {
   --gi-layer: var(--trace);
+  border-width: 1px;
+  background: transparent;
+}
+
+.gi-legend__swatch[data-tone="trace-current"] {
+  --gi-layer: var(--trace);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--trace) 24%, transparent);
 }
 
 .gi-legend__swatch[data-tone="added"] {

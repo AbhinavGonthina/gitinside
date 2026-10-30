@@ -1115,3 +1115,13 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - **The legend draws each outline** from `SHAPE_TEXT`, a record over `NodeShape`, so a new shape can't ship without a row. It grows to three columns (700px) to stay short.
 - **Alternatives rejected:** a colored left border per layer (an AI-design default and color-only); clip-path silhouettes (chevron routes, notched cards), which cut the border and the state rings; clouds for outside APIs (clip-art next to real logos); a second shape set for modules beyond the folder tab.
 - **Consequences:** every visual baseline changes; the README image shows windows, boxes, and the shaped tiles. Field names on model tables are the first per-node detail beyond counts, a step toward the richer diagram he asked for later.
+
+## ADR-0102: The current trace hop is a third emphasis, and the rest of the path gets quieter
+- **Context:** At the design gate (planning #2, question 3) Abhinav asked for the current hop to stand out: at the system level every box is on the checkout path, so the trace lit everything and the reader couldn't tell where in the flow they were. The prototype only marked the current step's edge as selected (accent blue), and a hop inside one service had no edge on screen at all.
+- **Decision:**
+  - **`NodeEmphasis` gains `current`** (`"dimmed" | "traced" | "current"`), shared by nodes and edges. The explorer marks the boxes holding the current step's two ends (`hopNodes`, via `visibleAncestor`: one box when the hop happens inside it, never the open frame) and the drawn edge that carries the step.
+  - **Strength moves rather than adds:** the rest of the path drops its glow (nodes keep a plain `--trace` border; edges go from 2.5px with a halo to 1.75px without), and the current hop takes the glow, a tint, a 3px haloed line, larger particles, and a tinted label pill. Two clear levels instead of one loud one.
+  - **No selection while tracing:** the current edge used to borrow the selected look (accent); the trace owns edge styling now, so blue never competes with the trace color.
+  - **Words too:** accessible names say "Current step of the request path" (`EMPHASIS_TEXT`), and the legend has a row for it.
+- **Alternatives rejected:** a step-number badge on the current edge (a hop inside one box has no edge to carry it); dimming the rest of the path partway (it would read as "off the path", which already means 20%); a pulsing ring on the current nodes (motion is M4b.0e's pass, and a pulse on every step change is busy).
+- **Consequences:** the trace and state baselines change. M4b.6 (the real trace mode) keeps this split: its step player sets `current`, and its BFS sets `traced`.

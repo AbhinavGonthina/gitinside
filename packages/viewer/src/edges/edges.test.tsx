@@ -354,7 +354,7 @@ describe("Edges stories", () => {
     for (const attr of ["data-hover", "data-selected", "data-broken"]) {
       expect(container.querySelectorAll(`.gi-edge[${attr}]`)).toHaveLength(4);
     }
-    for (const value of ["traced", "dimmed"]) {
+    for (const value of ["traced", "current", "dimmed"]) {
       expect(container.querySelectorAll(`.gi-edge[data-emphasis="${value}"]`)).toHaveLength(4);
     }
     for (const value of ["added", "changed", "removed"]) {
@@ -369,9 +369,12 @@ describe("Edges stories", () => {
     );
     cleanup();
     const trace = render(<Trace />).container;
-    expect(trace.querySelectorAll('.gi-edge[data-emphasis="traced"]')).toHaveLength(4);
+    // One hop is current (route → handler); the rest of the path is traced.
+    expect(trace.querySelectorAll('.gi-edge[data-emphasis="current"]')).toHaveLength(1);
+    expect(trace.querySelectorAll('.gi-edge[data-emphasis="traced"]')).toHaveLength(3);
     expect(trace.querySelectorAll('.gi-edge[data-emphasis="dimmed"]')).toHaveLength(2);
-    expect(trace.querySelectorAll('.gi-node[data-emphasis="traced"]')).toHaveLength(5);
+    expect(trace.querySelectorAll('.gi-node[data-emphasis="current"]')).toHaveLength(2);
+    expect(trace.querySelectorAll('.gi-node[data-emphasis="traced"]')).toHaveLength(3);
     cleanup();
     const diff = render(<Diff />).container;
     expect(diff.querySelector(".gi-edge[data-broken]")).not.toBeNull();

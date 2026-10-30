@@ -273,6 +273,15 @@ export function ExplorerPrototype({
     return out;
   }, [tracing, trace, steps, index, visible]);
   const hopIds = useMemo(() => new Set(steps.map((s) => s.edge.id)), [steps]);
+  /** The current hop's two ends as drawn: the boxes holding them (one box for a hop inside it). */
+  const hopNodes = useMemo(() => {
+    const out = new Set<string>();
+    for (const id of current ? [current.from.id, current.to.id] : []) {
+      const v = visibleAncestor(index, id, visible);
+      if (v) out.add(v);
+    }
+    return out;
+  }, [current, index, visible]);
 
   // Starting, stepping, or ending a trace can remove the focused control (the
   // step player's buttons, "Trace from here", a disabled "Next step"), which
@@ -390,11 +399,13 @@ export function ExplorerPrototype({
       isOpen && [...pathNodes].some((p) => p !== id && ancestry(index, p).some((a) => a.id === id));
     const emphasis = !tracing
       ? undefined
-      : pathNodes.has(id)
-        ? ("traced" as const)
-        : containsPath
-          ? undefined
-          : ("dimmed" as const);
+      : hopNodes.has(id) && !isOpen
+        ? ("current" as const)
+        : pathNodes.has(id)
+          ? ("traced" as const)
+          : containsPath
+            ? undefined
+            : ("dimmed" as const);
     const counts = node.kind === "service" || node.kind === "module" ? frameCounts(index, id) : [];
     return (
       <div
@@ -434,12 +445,19 @@ export function ExplorerPrototype({
   /** On the request path: the line is traced and its particles flow. */
   const onPath = (view: ViewEdge) => tracing && view.edges.some((e) => hopIds.has(e.id));
 
-  /** Selected = the current trace step's edge, or an edge of the selection when not tracing. */
+  /**
+   * While tracing: the current step's edge is `current`, the rest of the path
+   * `traced`, everything else dimmed. Otherwise the selection's edges are selected.
+   */
   const edgeState = (view: ViewEdge) => ({
-    selected: tracing
-      ? Boolean(current && view.edges.some((e) => e.id === current.edge.id))
-      : selectedVisible === view.from || selectedVisible === view.to,
-    emphasis: !tracing ? undefined : onPath(view) ? ("traced" as const) : ("dimmed" as const),
+    selected: !tracing && (selectedVisible === view.from || selectedVisible === view.to),
+    emphasis: !tracing
+      ? undefined
+      : current && view.edges.some((e) => e.id === current.edge.id)
+        ? ("current" as const)
+        : onPath(view)
+          ? ("traced" as const)
+          : ("dimmed" as const),
   });
 
   return (
