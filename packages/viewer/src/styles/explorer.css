@@ -104,6 +104,18 @@
   gap: var(--space-8);
 }
 
+/*
+ * A trace step's title is a sentence ("latestPosts requests GET
+ * {env:CMS_URL}/posts"): it wraps instead of being cut at the inspector's
+ * edge like a node's one-line name.
+ */
+.gi-inspector__title h2.gi-explorer__hop {
+  display: block;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 /* The trace player's step list. */
 
 .gi-explorer__steps {

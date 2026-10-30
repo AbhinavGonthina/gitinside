@@ -106,6 +106,21 @@ for (const c of cases) {
     );
     expect(spills, "every node's content fits its box").toEqual([]);
 
+    // A trace step's title wraps inside the inspector rather than running off
+    // its edge (M4b.6a: "latestPosts requests GET {env:CMS_URL}/posts" was cut).
+    const cutTitles = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(".gi-explorer__hop")]
+        .filter((h) => {
+          const panel = h.closest(".gi-inspector")?.getBoundingClientRect();
+          return (
+            h.scrollWidth > h.clientWidth + 1 ||
+            (panel && h.getBoundingClientRect().right > panel.right)
+          );
+        })
+        .map((h) => h.textContent ?? ""),
+    );
+    expect(cutTitles, "every trace step title fits the inspector").toEqual([]);
+
     // An open box's own row sits at its top, in the header room the layout
     // kept (M4b.3a: an open file's row centered behind its routes): at most
     // 24px down, plus a window's 10px title band, in diagram px (the

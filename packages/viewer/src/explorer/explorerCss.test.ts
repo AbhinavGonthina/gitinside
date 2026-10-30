@@ -40,6 +40,13 @@ describe("explorer.css", () => {
     expect(body).toMatch(/\.gi-explorer__canvas\[data-panning\] \{\s*cursor: grabbing;/);
   });
 
+  it("wraps a trace step's title instead of cutting it at the inspector's edge (M4b.6a)", () => {
+    // The node header's h2 is one clipped line; a step title is a sentence.
+    expect(body).toMatch(
+      /\.gi-inspector__title h2\.gi-explorer__hop \{[^}]*overflow: visible;[^}]*overflow-wrap: anywhere;[^}]*white-space: normal;/,
+    );
+  });
+
   it("never sets text in the trace color, which is only 3:1 in light (M4a review)", () => {
     // --trace meets the 3:1 graphics bar, not the 4.5:1 text bar, so the current
     // step is marked with a bar and its text stays --text.
