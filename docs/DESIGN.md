@@ -286,9 +286,11 @@ For each call (method M, pattern P), compare with every route (method M', patter
 
 ## 9. Incremental analysis
 
-- **Cache key:** per-file `(schemaVersion, analyzerVersion, path, contentHash)` ⇒ cached per-file facts: symbols, imports, call sites, route and model declarations.
-- **Invalidation:** a changed file invalidates itself and its direct importers' resolution facts (import edges and resolved calls). Cross-service linking is always recomputed; it's cheap compared with parsing.
-- **Storage:** a local disk cache on the worker (LRU, 2 GB cap). For PR diffs, base and head share entries for unchanged files.
+Built in steps M6.7a–f (ADR-0090).
+- **Unit of reuse:** a service's facts: what each program stage (symbols, imports, calls, Express, Next.js, Prisma usage, HTTP requests before matching, SDKs, queues) found in that service's files, in serializable form, namespaced by `(schemaVersion, analyzerVersion)`.
+- **Validation by observed inputs:** each entry lists every repo path the service's program and detectors read or probed, with its content hash (SHA-256) or "absent", including other services' files reached through workspace imports. An entry is reused only if every input still answers the same, so a changed, added, or deleted file invalidates every service that read or looked for it: its own, its importers' (transitively), and dependents in other services. Direct-importer invalidation alone could let a warm run differ from a cold one, since checker facts follow types through transitive imports and Express mounts compose routes from importer files.
+- **Always recomputed:** route matching, wrapper binding, the Prisma schema, infra, file nodes, and assembly; they're cheap compared with parsing. A clean service's program is built only if a dirty service's checker needs it.
+- **Storage:** a local disk cache on the worker (`openDiskCache`, `packages/analyzer/src/cache.ts`): gzipped JSON entries named by key hash, atomic renames, LRU by file time, 2 GB cap, failures counted and treated as misses. For PR diffs, base and head share entries for unchanged services.
 - **Budgets** (measured in `bench/`):
   - Full analysis of a 5k-file repo ≤ 60 s on the Oracle VM.
   - Incremental re-analysis after a 10-file change ≤ 10 s.

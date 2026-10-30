@@ -1,5 +1,6 @@
 export * from "./analyze.js";
 export * from "./assemble.js";
+export * from "./cache.js";
 export * from "./express.js";
 export * from "./http.js";
 export * from "./imports.js";
