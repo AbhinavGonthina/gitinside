@@ -100,6 +100,18 @@ for (const c of cases) {
     );
     expect(spills, "every node's content fits its box").toEqual([]);
 
+    // An open box's own row sits at its top, in the header room the layout
+    // kept (M4b.3a: an open file's row centered behind its routes).
+    const sunk = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(".gi-drill__node[data-open] > .gi-node")]
+        .filter((n) => {
+          const tile = n.querySelector(".gi-icon-tile");
+          return tile && tile.getBoundingClientRect().top - n.getBoundingClientRect().top > 24;
+        })
+        .map((n) => n.getAttribute("aria-label") ?? ""),
+    );
+    expect(sunk, "an open box's own row sits at its top").toEqual([]);
+
     // Each edge label the layout made room for is no wider than that room:
     // its size was estimated from its words before anything was drawn.
     // And no two laid-out pills cover each other.
