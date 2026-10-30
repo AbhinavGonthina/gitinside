@@ -1,10 +1,18 @@
 import type { Confidence, Layer, NodeKind } from "@gitinside/schema";
-import type { HTMLAttributes } from "react";
+import { useRef, type HTMLAttributes, type PointerEvent } from "react";
 import { DiagramEdge } from "../edges/DiagramEdge.js";
 import { CONFIDENCE_TEXT } from "../edges/describe.js";
 import { DIFF_TEXT, type NodeDiff, type NodeShape } from "../nodes/describe.js";
 import { IconButton } from "./controls.js";
-import { boundsOf, LAYER_NAMES, minimapFit, toMinimap, zoomText, type Rect } from "./describe.js";
+import {
+  boundsOf,
+  LAYER_NAMES,
+  minimapFit,
+  toMinimap,
+  zoomText,
+  type MinimapFit,
+  type Rect,
+} from "./describe.js";
 import { UiIcon } from "./uiIcons.js";
 
 /** One level of the drill-down path. */
@@ -126,29 +134,66 @@ export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
   viewport: Rect;
   width?: number;
   height?: number;
+  /**
+   * Asked to center the view on a canvas point: a click on the map, and each
+   * move while dragging on it. Without it the map only draws.
+   */
+  onNavigate?: ((center: { x: number; y: number }) => void) | undefined;
 }
 
 /**
- * The minimap shell (UX.md: bottom-right): the diagram's boxes tinted by
- * layer, and a frame over the part in view. M4b adds dragging the frame;
- * here it only draws. The map fits the diagram and the viewport together,
- * so the frame never falls off the edge.
+ * The minimap (UX.md: bottom-right): the diagram's boxes tinted by layer,
+ * and a frame over the part in view. The map fits the diagram and the
+ * viewport together, so the frame never falls off the edge. With
+ * `onNavigate`, pressing on the map moves the view there and dragging keeps
+ * it under the pointer; the map holds its scale for the whole drag, so it
+ * doesn't shift under the pointer as the frame moves. Keyboard users have
+ * the zoom keys and fit (UX.md), so the map stays a picture to screen readers.
  */
 export function Minimap({
   nodes,
   viewport,
   width = 200,
   height = 128,
+  onNavigate,
   className,
   ...rest
 }: MinimapProps) {
   const bounds = boundsOf([...nodes.map((n) => n.rect), viewport]) ?? viewport;
   const fit = minimapFit(bounds, { width, height });
   const view = toMinimap(viewport, fit);
+  const dragFit = useRef<MinimapFit | undefined>(undefined);
+
+  /** The canvas point under a pointer on the map, read with the drag's fit. */
+  const navigate = (event: PointerEvent<SVGSVGElement>, using: MinimapFit) => {
+    const r = event.currentTarget.getBoundingClientRect();
+    const mx = ((event.clientX - r.left) * width) / Math.max(r.width, 1);
+    const my = ((event.clientY - r.top) * height) / Math.max(r.height, 1);
+    onNavigate?.({ x: (mx - using.dx) / using.scale, y: (my - using.dy) / using.scale });
+  };
+  const drag = onNavigate && {
+    onPointerDown: (event: PointerEvent<SVGSVGElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      dragFit.current = fit;
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      navigate(event, fit);
+    },
+    onPointerMove: (event: PointerEvent<SVGSVGElement>) => {
+      if (dragFit.current) navigate(event, dragFit.current);
+    },
+    onPointerUp: () => {
+      dragFit.current = undefined;
+    },
+    onPointerCancel: () => {
+      dragFit.current = undefined;
+    },
+  };
   return (
     <div
       {...rest}
       className={className ? `gi-overlay gi-minimap ${className}` : "gi-overlay gi-minimap"}
+      data-navigable={onNavigate ? "" : undefined}
     >
       <svg
         width={width}
@@ -156,6 +201,7 @@ export function Minimap({
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label={`Minimap of ${nodes.length} ${nodes.length === 1 ? "box" : "boxes"}; the frame shows the part in view`}
+        {...drag}
       >
         {nodes.map((n) => {
           const r = toMinimap(n.rect, fit);

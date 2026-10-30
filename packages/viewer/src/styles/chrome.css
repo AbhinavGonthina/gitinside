@@ -490,6 +490,12 @@
   display: block;
 }
 
+/* A map that moves the view: press or drag on it; touch drags stay on the map. */
+.gi-minimap[data-navigable] svg {
+  cursor: pointer;
+  touch-action: none;
+}
+
 .gi-minimap__node {
   --gi-layer: var(--text-muted);
   fill: color-mix(in srgb, var(--gi-layer) 30%, var(--surface-2));

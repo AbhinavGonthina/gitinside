@@ -19,19 +19,25 @@ describe("explorer.css", () => {
     expect(body).not.toMatch(/\brgba?\(|\bhsla?\(/);
   });
 
-  it("moves a refit with the layout duration token, but not the first fit on load", () => {
+  it("moves the camera with duration tokens, by kind of move, but not the first fit on load", () => {
     const timed = body.match(/\b(?:transition|animation):[^;]*;/g) ?? [];
     expect(timed.length).toBeGreaterThan(0);
     for (const t of timed) expect(t).not.toMatch(/\d+m?s\b/);
     expect(body).toMatch(/\.gi-explorer__drill \{[^}]*transform-origin: 0 0;/);
     expect(body).toMatch(
-      /\.gi-explorer\[data-settled\] \.gi-explorer__drill \{\s*transition: transform var\(--duration-layout\)/,
+      /\.gi-explorer\[data-settled\] \.gi-explorer__drill\[data-camera-motion="layout"\] \{\s*transition: transform var\(--duration-layout\) var\(--ease-layout\)/,
     );
     expect(body).toMatch(
-      /\.gi-explorer\[data-settled\] \.gi-explorer__fit \{[^}]*width var\(--duration-layout\)/,
+      /\.gi-explorer\[data-settled\] \.gi-explorer__drill\[data-camera-motion="standard"\] \{\s*transition: transform var\(--duration-standard\) var\(--ease-standard\)/,
     );
-    // Unsettled, nothing on the fit moves.
-    expect(body).not.toMatch(/^\.gi-explorer__(?:fit|drill) \{[^}]*transition/m);
+    // Unsettled, or moved by the pointer ("none"), the camera doesn't glide.
+    expect(body).not.toMatch(/^\.gi-explorer__drill \{[^}]*transition/m);
+    expect(body).not.toMatch(/data-camera-motion="none"/);
+  });
+
+  it("pans the canvas instead of the page or a text selection", () => {
+    expect(body).toMatch(/\.gi-explorer__canvas \{[^}]*touch-action: none;[^}]*user-select: none;/);
+    expect(body).toMatch(/\.gi-explorer__canvas\[data-panning\] \{\s*cursor: grabbing;/);
   });
 
   it("never sets text in the trace color, which is only 3:1 in light (M4a review)", () => {

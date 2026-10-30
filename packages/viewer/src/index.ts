@@ -194,6 +194,24 @@ export type { BoxExit, BoxMove, Shown, TransitionPlan } from "./explorer/transit
 export { DrillCanvas } from "./explorer/DrillCanvas.js";
 export type { BoxLook, DrillCanvasProps, LineLook } from "./explorer/DrillCanvas.js";
 export { FIT_INSET, fitScale } from "./explorer/fit.js";
+export {
+  centerOn,
+  clampZoom,
+  ensureVisible,
+  fitCamera,
+  holdInPlace,
+  keepInView,
+  KEEP_IN_VIEW,
+  panBy,
+  stepZoom,
+  visibleRect,
+  wheelZoomFactor,
+  ZOOM,
+  zoomAt,
+} from "./explorer/camera.js";
+export type { Camera } from "./explorer/camera.js";
+export { DRAG_THRESHOLD } from "./explorer/gestures.js";
+export type { CameraMotion } from "./explorer/gestures.js";
 export { CHECKOUT_TRACE, checkTrace, traceNodes } from "./explorer/trace.js";
 export type { TraceScript, TraceStep } from "./explorer/trace.js";
 export { Explorer } from "./explorer/Explorer.js";
