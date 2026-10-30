@@ -1,9 +1,22 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { ArchitectureGraph } from "@gitinside/schema";
+import { edgeId, type ArchitectureGraph, type GraphNode } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
+import {
+  collectCallFacts,
+  composeCallEdges,
+  createSymbolResolver,
+  type CallFacts,
+} from "./calls.js";
+import { buildInventory } from "./inventory.js";
+import { buildServicePrograms } from "./program.js";
+import { collectSymbolNodes } from "./symbols.js";
+import { detectWorkspace } from "./workspace.js";
+
+const FIXTURES = fileURLToPath(new URL("../../../fixtures/", import.meta.url));
 
 let dir: string;
 beforeEach(async () => {
@@ -312,5 +325,83 @@ describe("call edges", () => {
       const graph = await analyze(dir);
       expect(callEdges(graph)).toEqual([]);
     });
+  });
+});
+
+describe("call and symbol facts", () => {
+  /** Each service's symbol nodes and call facts for the repo at `root`, in program order. */
+  async function facts(root: string): Promise<{ symbols: GraphNode[][]; calls: CallFacts[] }> {
+    const inventory = await buildInventory(root);
+    const workspace = await detectWorkspace(root, inventory.files);
+    const programs = buildServicePrograms(root, workspace, inventory);
+    const resolver = createSymbolResolver(programs, workspace);
+    return {
+      symbols: programs.map((sp) => collectSymbolNodes(sp)),
+      calls: programs.map((sp) => collectCallFacts(sp, resolver)),
+    };
+  }
+
+  /** `facts` after a JSON round trip, checked to be unchanged by it. */
+  function revived<T>(value: T): T {
+    const copy = JSON.parse(JSON.stringify(value)) as T;
+    expect(copy).toEqual(value);
+    return copy;
+  }
+
+  it.each(["shop-demo", "pnpm-monorepo", "express-basic", "next-pages-api"])(
+    "composes %s's call edges and symbol nodes from JSON round-tripped facts as analyze does",
+    async (name) => {
+      const root = join(FIXTURES, name);
+      const { symbols, calls } = revived(await facts(root));
+      const graph = await analyze(root);
+      const edges = composeCallEdges(calls);
+      expect(symbols.flat().length).toBeGreaterThan(0);
+      expect(edges).toEqual(graph.edges.filter((e) => e.kind === "calls"));
+      expect(symbols.flat()).toEqual(graph.nodes.filter((n) => n.kind === "symbol"));
+    },
+  );
+
+  it("merges one caller's sites across files and keeps the strongest confidence", () => {
+    const site = (line: number) => ({ file: "a.ts", line, column: 1, args: 0 });
+    const edges = composeCallEdges([
+      { service: "a", calls: [{ from: "s:a", to: "s:b", confidence: "heuristic", site: site(9) }] },
+      { service: "b", calls: [{ from: "s:a", to: "s:b", confidence: "exact", site: site(2) }] },
+    ]);
+    expect(edges).toEqual([
+      {
+        id: edgeId("calls", "s:a", "s:b"),
+        kind: "calls",
+        from: "s:a",
+        to: "s:b",
+        confidence: "exact",
+        sites: [site(2), site(9)],
+      },
+    ]);
+  });
+
+  it("keeps a package's call facts unchanged when another service starts calling it", async () => {
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*", "packages/*"] }));
+    await put("apps/web/package.json", JSON.stringify({ name: "web" }));
+    await put(
+      "packages/shared/package.json",
+      JSON.stringify({ name: "@acme/shared", exports: "./src/index.ts" }),
+    );
+    await put(
+      "packages/shared/src/index.ts",
+      "function inner() {}\nexport function format() { inner(); }\n",
+    );
+    await put("apps/web/app.ts", "export function render() {}\n");
+    const before = await facts(dir);
+    await put(
+      "apps/web/app.ts",
+      'import { format } from "@acme/shared";\nexport function render() { format(); }\n',
+    );
+    const after = await facts(dir);
+    const of = (all: CallFacts[], service: string) => all.find((f) => f.service === service);
+    expect(of(before.calls, "shared")?.calls).toHaveLength(1);
+    expect(of(after.calls, "shared")).toEqual(of(before.calls, "shared"));
+    expect(of(after.calls, "web")?.calls.map((c) => c.to)).toEqual([
+      "symbol:shared/src/index.ts#format",
+    ]);
   });
 });

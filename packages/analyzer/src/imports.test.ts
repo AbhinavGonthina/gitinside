@@ -1,11 +1,17 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { ArchitectureGraph } from "@gitinside/schema";
+import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
-import { extractImports } from "./imports.js";
+import { collectImportFacts, composeImports, extractImports, type ImportFacts } from "./imports.js";
+import { buildInventory } from "./inventory.js";
+import { buildServicePrograms } from "./program.js";
+import { detectWorkspace } from "./workspace.js";
+
+const FIXTURES = fileURLToPath(new URL("../../../fixtures/", import.meta.url));
 
 function specifiers(code: string, fileName = "/repo/a.ts"): string[] {
   const sourceFile = ts.createSourceFile(fileName, code, ts.ScriptTarget.ES2022, true);
@@ -286,6 +292,104 @@ describe("import edges", () => {
       expect(graph.warnings).toContainEqual(
         expect.objectContaining({ code: "INVALID_JSON", file: "packages/shared/package.json" }),
       );
+    });
+  });
+
+  describe("facts", () => {
+    /** Each service's import facts for the repo at `root`, in program order. */
+    async function importFacts(root: string): Promise<ImportFacts[]> {
+      const inventory = await buildInventory(root);
+      const workspace = await detectWorkspace(root, inventory.files);
+      const programs = buildServicePrograms(root, workspace, inventory);
+      return programs.map((sp) => collectImportFacts(sp, workspace, inventory.sourceFiles));
+    }
+
+    /** The imports part of `analyze`'s graph: imports edges, their unresolved nodes, warnings. */
+    function importsPart(graph: ArchitectureGraph) {
+      const edges = graph.edges.filter((e) => e.kind === "imports");
+      const targets = new Set(edges.map((e) => e.to));
+      return {
+        nodes: graph.nodes.filter((n) => n.kind === "unresolved" && targets.has(n.id)),
+        edges,
+        warnings: graph.warnings.filter((w) => w.code === "IMPORT_OUTSIDE_SERVICE"),
+      };
+    }
+
+    const sorted = <T extends { id: string }>(items: T[]): T[] =>
+      [...items].sort((a, b) => compareStrings(a.id, b.id));
+
+    async function workspaceRepo(): Promise<void> {
+      await put("package.json", JSON.stringify({ workspaces: ["apps/*", "packages/*"] }));
+      await put("apps/web/package.json", JSON.stringify({ name: "web" }));
+      await put(
+        "apps/web/app.ts",
+        [
+          'import { shared } from "@acme/shared";',
+          'import { other } from "@acme/shared";',
+          'import { gone } from "./missing";',
+          'import { s } from "../../scripts/seed";',
+          "export const x = [shared, other, gone, s];",
+          "",
+        ].join("\n"),
+      );
+      await put("apps/web/page.ts", 'import { x } from "./app";\nexport const y = x;\n');
+      await put("packages/shared/package.json", JSON.stringify({ name: "@acme/shared" }));
+      await put(
+        "packages/shared/src/index.ts",
+        'export { util } from "./util";\nexport const shared = 1, other = 2;\n',
+      );
+      await put("packages/shared/src/util.ts", "export const util = 1;\n");
+      await put("scripts/seed.ts", "export const s = 1;\n");
+    }
+
+    it("composes JSON round-tripped facts into the graph's import edges, nodes, and warnings", async () => {
+      await workspaceRepo();
+      const facts = await importFacts(dir);
+      const revived = JSON.parse(JSON.stringify(facts)) as ImportFacts[];
+      expect(revived).toEqual(facts);
+      const composed = composeImports(revived);
+      const part = importsPart(await analyze(dir));
+      expect(composed.edges.map((e) => `${e.from} -> ${e.to} (${e.confidence})`)).toEqual([
+        "file:shared/src/index.ts -> file:shared/src/util.ts (exact)",
+        "file:web/app.ts -> file:shared/src/index.ts (heuristic)",
+        "file:web/app.ts -> unresolved:web/app.ts:3:22 (unresolved)",
+        "file:web/page.ts -> file:web/app.ts (exact)",
+      ]);
+      expect(composed.edges[1]?.sites.map((s) => s.line)).toEqual([1, 2]);
+      expect(composed.edges.map((e) => e.reason)).toEqual([
+        undefined,
+        undefined,
+        "UNKNOWN_SYMBOL",
+        undefined,
+      ]);
+      expect(sorted(composed.edges)).toEqual(sorted(part.edges));
+      expect(composed.nodes).toEqual(sorted(part.nodes));
+      expect(composed.warnings).toEqual(part.warnings);
+      expect(composed.warnings).toHaveLength(1);
+    });
+
+    it.each(["pnpm-monorepo", "shop-demo", "express-nested-routers"])(
+      "composes %s from JSON round-tripped facts exactly as analyze does",
+      async (name) => {
+        const root = join(FIXTURES, name);
+        const facts = await importFacts(root);
+        const composed = composeImports(JSON.parse(JSON.stringify(facts)) as ImportFacts[]);
+        const part = importsPart(await analyze(root));
+        expect(composed.edges.length).toBeGreaterThan(0);
+        expect(sorted(composed.edges)).toEqual(sorted(part.edges));
+        expect(composed.nodes).toEqual(sorted(part.nodes));
+      },
+    );
+
+    it("keeps a package's facts unchanged when another service starts importing it", async () => {
+      await workspaceRepo();
+      const before = await importFacts(dir);
+      await put("apps/web/more.ts", 'import { shared } from "@acme/shared";\nexport { shared };\n');
+      const after = await importFacts(dir);
+      const of = (all: ImportFacts[], service: string) => all.find((f) => f.service === service);
+      expect(of(before, "shared")?.imports).toHaveLength(1);
+      expect(of(after, "shared")).toEqual(of(before, "shared"));
+      expect(of(after, "web")).not.toEqual(of(before, "web"));
     });
   });
 
