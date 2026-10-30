@@ -38,6 +38,69 @@ describe("drill.css", () => {
     );
   });
 
+  describe("zoom-dependent detail (M4b.4b)", () => {
+    /** The declarations of the rule whose selector, whitespace collapsed, is `selector`. */
+    const rule = (selector: string) => {
+      for (const m of body.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+        if ((m[1] ?? "").replace(/\s+/g, " ").trim() === selector) return m[2] ?? "";
+      }
+      throw new Error(`no rule ${selector}`);
+    };
+
+    it("fades secondary text out below full detail, but never the names or the diff tag", () => {
+      const hides = rule(
+        '.gi-drill:is([data-detail="names"], [data-detail="outline"]) .gi-node :is(.gi-node__subtitle, .gi-node__badges, .gi-node__fields)',
+      );
+      expect(hides).toMatch(/opacity: 0;/);
+      expect(body).not.toMatch(/data-detail="names"\][^{]*gi-node__label/);
+      expect(body).not.toMatch(/gi-node__diff/);
+    });
+
+    it("keeps the selection's, the current hop's, and a broken edge's pill at names detail", () => {
+      expect(
+        rule(
+          '.gi-drill[data-detail="names"] .gi-edge-label:not([data-selected], [data-emphasis="current"], [data-broken])',
+        ),
+      ).toMatch(/opacity: 0;/);
+      expect(rule('.gi-drill[data-detail="outline"] .gi-edge-label')).toMatch(/opacity: 0;/);
+    });
+
+    it("keeps only service names in the outline, and any box being looked at", () => {
+      expect(
+        rule(
+          '.gi-drill[data-detail="outline"] .gi-node:not( [data-kind="service"], [data-selected], [data-emphasis="traced"], [data-emphasis="current"], :hover, :focus-visible ) .gi-node__label',
+        ),
+      ).toMatch(/opacity: 0;/);
+    });
+
+    it("drops a service's inner lines from the outline unless selected, traced, or broken, and they can't be pointed at", () => {
+      const inner =
+        '.gi-drill[data-detail="outline"] .gi-edge[data-inner]:not( [data-selected], [data-emphasis="traced"], [data-emphasis="current"], [data-broken] )';
+      expect(rule(inner)).toMatch(/opacity: 0;[^]*pointer-events: none;/);
+      expect(rule(`${inner} .gi-edge__hit`)).toMatch(/pointer-events: none;/);
+    });
+
+    it("scales a service's name from its left edge, narrowing it by the same factor", () => {
+      const name = rule('.gi-drill .gi-node[data-kind="service"] .gi-node__label');
+      expect(name).toMatch(/width: calc\(100% \/ var\(--gi-name-scale, 1\)\);/);
+      expect(name).toMatch(/transform: scale\(var\(--gi-name-scale, 1\)\);/);
+      expect(name).toMatch(/transform-origin: 0 50%;/);
+      expect(name).toMatch(
+        /opacity var\(--duration-standard\)[^;]*transform var\(--duration-standard\)/,
+      );
+    });
+
+    it("fades with the standard duration, keeping the fields row's color transitions", () => {
+      expect(
+        rule(".gi-drill .gi-node :is(.gi-node__label, .gi-node__subtitle, .gi-node__badges)"),
+      ).toMatch(/opacity var\(--duration-standard\) var\(--ease-standard\)/);
+      const fields = rule(".gi-drill .gi-node .gi-node__fields");
+      expect(fields).toMatch(/background-color var\(--duration-fast\)/);
+      expect(fields).toMatch(/border-color var\(--duration-fast\)/);
+      expect(fields).toMatch(/opacity var\(--duration-standard\)/);
+    });
+  });
+
   it("lets clicks through the pills' layer and past a folding box", () => {
     expect(body).toMatch(/\.gi-drill__labels \{[^}]*pointer-events: none/);
     expect(body).toMatch(/\.gi-drill__node\[data-leaving\] \{[^}]*pointer-events: none/);

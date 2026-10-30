@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type HTMLAttributes,
   type KeyboardEvent,
 } from "react";
@@ -16,6 +17,7 @@ import { prefersReducedMotion } from "../motion.js";
 import { DiagramNode } from "../nodes/DiagramNode.js";
 import { nodeTier, type NodeEmphasis } from "../nodes/describe.js";
 import { durations, scaleTokens } from "../tokens.js";
+import { detailAt, insideOneService, serviceNameScale } from "./detail.js";
 import { planTransition, type BoxExit, type Shown, type TransitionPlan } from "./transition.js";
 
 /** How a box looks besides its node: selected, and its part in a trace. */
@@ -47,6 +49,8 @@ export interface DrillCanvasProps
   lineLook?: ((e: ViewEdge) => LineLook) | undefined;
   /** Called each time a view is drawn, with its layout. */
   onLayout?: ((shown: Shown) => void) | undefined;
+  /** The host camera's zoom, which sets how much text is drawn (`detail.ts`; default 1). */
+  zoom?: number | undefined;
 }
 
 /** Boxes leaving the canvas, kept for their fold. `generation` tells one transition's from the next's. */
@@ -130,6 +134,11 @@ function fadeInAfter(el: Element | null) {
  * a trace. Esc is the host's too. When opening or closing replaces the
  * focused box's element, focus goes to the toggled box. `data-layout` is
  * "pending" until the first layout is drawn.
+ *
+ * `zoom` thins the text out for a zoomed-out camera (`detail.ts`): the level
+ * is drawn as `data-detail` and the service names' scale as
+ * `--gi-name-scale`, with `data-inner` on each line between two boxes of one
+ * service; `drill.css` fades and scales, so zooming never resizes a box.
  */
 export function DrillCanvas({
   index,
@@ -140,7 +149,9 @@ export function DrillCanvas({
   boxLook,
   lineLook,
   onLayout,
+  zoom = 1,
   className,
+  style,
   ...rest
 }: DrillCanvasProps) {
   const [shown, setShown] = useState<Shown | undefined>(() => {
@@ -342,7 +353,9 @@ export function DrillCanvas({
     <div
       {...rest}
       className={className ? `gi-drill ${className}` : "gi-drill"}
+      style={{ ...style, "--gi-name-scale": serviceNameScale(zoom) } as CSSProperties}
       data-layout={shown ? "done" : "pending"}
+      data-detail={detailAt(zoom)}
       aria-busy={busy || !shown || undefined}
     >
       {error && <p role="alert">Couldn&apos;t lay out this level: {error}</p>}
@@ -382,6 +395,7 @@ export function DrillCanvas({
                   selected={selected}
                   emphasis={emphasis}
                   flow={flow ?? false}
+                  data-inner={insideOneService(index, e) ? "" : undefined}
                 />
               );
             })}

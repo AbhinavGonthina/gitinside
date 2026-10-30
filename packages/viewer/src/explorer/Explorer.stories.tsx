@@ -78,6 +78,35 @@ export const DrilledDeep: Story = {
   ),
 };
 
+/**
+ * Zoomed out to 55% with the api broken down (M4b.4b): box names stay;
+ * subtitles, counts, and edge labels are gone, except the selected route's.
+ */
+export const ZoomedOut: Story = {
+  name: "Zoomed out",
+  render: () => (
+    <Explore
+      initialOpen={["service:api/"]}
+      initialSelected="route:api/POST /api/orders"
+      initialZoom={0.55}
+    />
+  ),
+};
+
+/**
+ * Zoomed out to 25% with both services broken down: an outline of service
+ * names and the lines between services; the selected folder keeps its name.
+ */
+export const Outline: Story = {
+  render: () => (
+    <Explore
+      initialOpen={["service:web/", "service:api/"]}
+      initialSelected="module:web/lib"
+      initialZoom={0.25}
+    />
+  ),
+};
+
 /** The checkout request traced at the system level, on the request step. */
 export const Tracing: Story = { render: () => <Explore initialStep={2} /> };
 

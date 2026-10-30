@@ -71,3 +71,88 @@
   inset: 0;
   pointer-events: none;
 }
+
+/*
+ * Zoom-dependent detail (M4b.4b, src/explorer/detail.ts; UX.md). The host's
+ * zoom sets data-detail; text fades rather than leaving the layout, so no box
+ * moves or resizes as you zoom. `names`: subtitles, counts, model fields, and
+ * pills go, except the selection's and the current hop's pills and a broken
+ * edge's. `outline`: only service names, and only the lines that leave a
+ * service; a selected, traced, hovered, or focused box keeps its name, and a
+ * selected, traced, or broken line stays. Below full detail service names
+ * are scaled up to stay readable.
+ */
+.gi-drill .gi-node :is(.gi-node__label, .gi-node__subtitle, .gi-node__badges) {
+  transition: opacity var(--duration-standard) var(--ease-standard);
+}
+
+/*
+ * A service's name grows as you zoom out (--gi-name-scale, set from the zoom)
+ * so it stays readable, from its left edge; its width shrinks by the same
+ * factor, so it still ends in an ellipsis inside its box.
+ */
+.gi-drill .gi-node[data-kind="service"] .gi-node__label {
+  width: calc(100% / var(--gi-name-scale, 1));
+  transform: scale(var(--gi-name-scale, 1));
+  transform-origin: 0 50%;
+  transition:
+    opacity var(--duration-standard) var(--ease-standard),
+    transform var(--duration-standard) var(--ease-standard);
+}
+
+.gi-drill .gi-node .gi-node__fields {
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-standard) var(--ease-standard);
+}
+
+.gi-drill:is([data-detail="names"], [data-detail="outline"])
+  .gi-node
+  :is(.gi-node__subtitle, .gi-node__badges, .gi-node__fields) {
+  opacity: 0;
+}
+
+.gi-drill[data-detail="names"]
+  .gi-edge-label:not([data-selected], [data-emphasis="current"], [data-broken]) {
+  opacity: 0;
+}
+
+.gi-drill[data-detail="outline"] .gi-edge-label {
+  opacity: 0;
+}
+
+.gi-drill[data-detail="outline"]
+  .gi-node:not(
+    [data-kind="service"],
+    [data-selected],
+    [data-emphasis="traced"],
+    [data-emphasis="current"],
+    :hover,
+    :focus-visible
+  )
+  .gi-node__label {
+  opacity: 0;
+}
+
+.gi-drill[data-detail="outline"]
+  .gi-edge[data-inner]:not(
+    [data-selected],
+    [data-emphasis="traced"],
+    [data-emphasis="current"],
+    [data-broken]
+  ) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.gi-drill[data-detail="outline"]
+  .gi-edge[data-inner]:not(
+    [data-selected],
+    [data-emphasis="traced"],
+    [data-emphasis="current"],
+    [data-broken]
+  )
+  .gi-edge__hit {
+  pointer-events: none;
+}

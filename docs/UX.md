@@ -21,7 +21,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 - **A service's first level leads with its routes** (design gate, ADR-0100): breaking a service down shows its entry points first (routes and pages, each linked to the file that defines it), then its folders as module frames, as the analyzer groups them. The levels below stay the same, and a route still appears inside its file when that file is opened (it moves there from the service's entries, so it's drawn once; ADR-0105).
 - **Opening a node:** double-click, Enter, or the inspector's "Break down" button. The node expands **in place**: its frame grows, siblings glide aside, and children emerge from the parent's center (600ms layout motion). It never re-renders the whole canvas abruptly.
 - **Going up:** Esc, or a breadcrumb, collapses back.
-- **Zoom-dependent detail:** labels, counts, and edge labels appear progressively. At low zoom, show only service names and aggregated edges.
+- **Zoom-dependent detail:** labels, counts, and edge labels appear progressively. At low zoom, show only service names and aggregated edges. Done in M4b.4b (ADR-0113): full detail from 65%; names only from 40%, keeping the pills of the selection, the current trace hop, and broken edges; below 40%, service names (scaled up to stay readable) and the lines between services, plus whatever is selected, traced, hovered, or focused.
 - **Edge aggregation:** edges between hidden descendants are drawn between their visible ancestors, with counts ("22 calls").
 
 ## Selection and inspector

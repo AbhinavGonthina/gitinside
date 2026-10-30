@@ -131,6 +131,41 @@ describe("DrillCanvas", () => {
     expect(wrapper(API)?.dataset.open).toBe("");
   });
 
+  it("draws its detail level and marks the lines inside one service (M4b.4b)", async () => {
+    const cache = quickCache();
+    const view = buildView(index, [API, "module:api/src"]);
+    await cache.layout(view);
+    const { rerender } = render(<DrillCanvas index={index} view={view} cache={cache} />);
+    expect(canvas()?.dataset.detail).toBe("full");
+    const inner = view.edges.filter(
+      (e) => index.service.get(e.from) === API && index.service.get(e.to) === API,
+    );
+    expect(inner.length).toBeGreaterThan(0);
+    expect(inner.length).toBeLessThan(view.edges.length);
+    expect(document.querySelectorAll(".gi-drill__lines .gi-edge[data-inner]")).toHaveLength(
+      inner.length,
+    );
+    expect(canvas()?.style.getPropertyValue("--gi-name-scale")).toBe("1");
+    rerender(
+      <DrillCanvas
+        index={index}
+        view={view}
+        cache={cache}
+        zoom={0.3}
+        style={{ transform: "scale(0.3)" }}
+      />,
+    );
+    expect(canvas()?.dataset.detail).toBe("outline");
+    // The host's style is kept beside the service names' scale.
+    expect(canvas()?.style.transform).toBe("scale(0.3)");
+    expect(canvas()?.style.getPropertyValue("--gi-name-scale")).toBe("2.86");
+    // Only the text fades: every box, line, and pill is still drawn.
+    expect(document.querySelectorAll(".gi-drill__lines .gi-edge")).toHaveLength(view.edges.length);
+    expect(document.querySelectorAll(".gi-drill__labels .gi-edge-label")).toHaveLength(
+      view.edges.length,
+    );
+  });
+
   it("asks to break a box down on double-click or Enter, only when it can open", async () => {
     const onOpen = vi.fn();
     render(

@@ -28,6 +28,7 @@ import { usePresence } from "../motion.js";
 import { nodeAccessibleName, nodeLabel } from "../nodes/describe.js";
 import {
   centerOn,
+  clampZoom,
   ensureVisible,
   fitCamera,
   holdInPlace,
@@ -58,6 +59,12 @@ export interface ExplorerProps {
   initialSelected?: string | null;
   /** Start tracing, at this step (0-based). */
   initialStep?: number | null;
+  /**
+   * Start at this zoom (clamped to 25–200%), centered on the first level, as
+   * if zoomed there by hand, instead of fitted. 0 or the fit button fits as
+   * usual.
+   */
+  initialZoom?: number | undefined;
   /**
    * Draw the explorer's own top bar (default). The website turns it off and shows its own
    * repo bar: the top bar's search, filters, and share do nothing until later M4b tasks.
@@ -92,6 +99,9 @@ function deepestOpen(view: GraphView, expansion: Expansion): string | undefined 
  * or zooms (Ctrl or ⌘ + wheel, a pinch, − / +, or the zoom buttons); from
  * then on the camera is theirs, and breaking a node down keeps that node
  * where it was on the canvas, until they fit again (0 or the fit button).
+ * Text thins out as the camera zooms out (`detailAt`): subtitles, counts,
+ * and edge labels first, then everything but service names and the lines
+ * between services.
  */
 export function Explorer({
   graph,
@@ -100,6 +110,7 @@ export function Explorer({
   initialOpen = [],
   initialSelected = null,
   initialStep = null,
+  initialZoom,
   topBar = true,
   layoutWorker,
 }: ExplorerProps) {
@@ -154,11 +165,21 @@ export function Explorer({
     moveCamera(stepZoom(live.current.camera, direction, live.current.canvas), "standard");
   useCanvasGestures(canvasRef, live, moveCamera);
   // The first fit is drawn as is; only later moves glide (explorer.css), so
-  // the diagram doesn't zoom out on load.
+  // the diagram doesn't zoom out on load. A start zoom replaces that fit
+  // before anything glides.
   const [settled, setSettled] = useState(false);
   const fitted = canvas.width > 0 && shown !== undefined;
+  const startZoom = useRef(initialZoom);
   useEffect(() => {
     if (!fitted || settled) return;
+    const zoom = startZoom.current;
+    if (zoom !== undefined) {
+      startZoom.current = undefined;
+      const { size: diagram, canvas: room } = live.current;
+      const middle = { x: diagram.width / 2, y: diagram.height / 2 };
+      const start = centerOn({ zoom: clampZoom(zoom), x: 0, y: 0 }, middle, room);
+      setHandSet(keepInView(start, diagram, room));
+    }
     const frame = requestAnimationFrame(() => setSettled(true));
     return () => cancelAnimationFrame(frame);
   }, [fitted, settled]);
@@ -397,6 +418,7 @@ export function Explorer({
             boxLook={boxLook}
             lineLook={lineLook}
             onLayout={onLayout}
+            zoom={camera.zoom}
           />
           <div className="gi-explorer__pin" data-place="top-left">
             {tracing && trace && (

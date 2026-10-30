@@ -525,6 +525,46 @@ describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
     );
   });
 
+  it("thins the canvas's text out as it zooms out, and brings it back with a fit (M4b.4b)", async () => {
+    const { container } = await setup();
+    const detail = () => container.querySelector<HTMLElement>(".gi-drill")?.dataset.detail;
+    const zoomOut = screen.getByRole("button", { name: "Zoom out" });
+    expect(detail()).toBe("full");
+    fireEvent.click(zoomOut);
+    expect([level(), detail()]).toEqual(["80%", "full"]);
+    fireEvent.click(zoomOut);
+    expect([level(), detail()]).toEqual(["64%", "names"]);
+    fireEvent.click(zoomOut);
+    fireEvent.click(zoomOut);
+    expect([level(), detail()]).toEqual(["41%", "names"]);
+    fireEvent.click(zoomOut);
+    expect([level(), detail()]).toEqual(["33%", "outline"]);
+    // Zooming out drops no box or line: the canvas only fades their text.
+    expect(container.querySelectorAll(".gi-drill__node:not([data-leaving])").length).toBe(
+      buildView(index, []).nodes.length,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Fit to screen" }));
+    expect([level(), detail()]).toEqual(["100%", "full"]);
+  });
+
+  it("starts at a given zoom centered on the level, and fits with 0", async () => {
+    const { container, press } = await setup({ initialZoom: 0.33 });
+    const detail = () => container.querySelector<HTMLElement>(".gi-drill")?.dataset.detail;
+    await waitFor(() => expect(level()).toBe("33%"));
+    expect(detail()).toBe("outline");
+    const start = cameraOf(container);
+    // The level's center is at the canvas's center.
+    const stage = container.querySelector<HTMLElement>(".gi-drill__stage") as HTMLElement;
+    const middle = {
+      x: parseFloat(stage.style.width) / 2,
+      y: parseFloat(stage.style.height) / 2,
+    };
+    expect(middle.x * start.zoom + start.x).toBeCloseTo(CANVAS.width / 2, 0);
+    expect(middle.y * start.zoom + start.y).toBeCloseTo(CANVAS.height / 2, 0);
+    await press("0");
+    expect([level(), detail()]).toEqual(["100%", "full"]);
+  });
+
   it("zooms around the pointer with Ctrl + wheel, and pans with the wheel", async () => {
     const { container } = await setup();
     const fit = cameraOf(container);
@@ -626,13 +666,17 @@ describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
     for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
     fireEvent.wheel(canvas(), { deltaX: -5000, deltaY: -5000 });
     await act(() => fireEvent.click(screen.getByRole("button", { name: /placeOrder/ })));
-    const corner = onCanvas(container, box(PLACE_ORDER));
-    const { width, height } = (box(PLACE_ORDER)?.parentElement as HTMLElement).style;
-    const zoom = cameraOf(container).zoom;
-    expect(corner.x).toBeGreaterThanOrEqual(0);
-    expect(corner.y).toBeGreaterThanOrEqual(0);
-    expect(corner.x + parseFloat(width) * zoom).toBeLessThanOrEqual(CANVAS.width);
-    expect(corner.y + parseFloat(height) * zoom).toBeLessThanOrEqual(CANVAS.height);
+    // The flight starts in an effect after the new level is drawn, so it can
+    // land a render after `data-layout` says done: wait for it.
+    await waitFor(() => {
+      const corner = onCanvas(container, box(PLACE_ORDER));
+      const { width, height } = (box(PLACE_ORDER)?.parentElement as HTMLElement).style;
+      const zoom = cameraOf(container).zoom;
+      expect(corner.x).toBeGreaterThanOrEqual(0);
+      expect(corner.y).toBeGreaterThanOrEqual(0);
+      expect(corner.x + parseFloat(width) * zoom).toBeLessThanOrEqual(CANVAS.width);
+      expect(corner.y + parseFloat(height) * zoom).toBeLessThanOrEqual(CANVAS.height);
+    });
   });
 
   it("moves the view to where the minimap is pressed, and follows a drag on it", async () => {
@@ -678,15 +722,24 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     expect(screen.getByText('orders.post("/", createOrder);')).toBeTruthy();
   });
 
-  it("cover the overview, drilling, and the trace at two depths", async () => {
+  it("cover the overview, drilling, zooming out, and the trace at two depths", async () => {
     expect(Object.keys(all).sort()).toEqual([
       "BrokenDown",
       "DrilledDeep",
+      "Outline",
       "Overview",
       "Tracing",
       "TracingBrokenDown",
+      "ZoomedOut",
     ]);
-    for (const Story of [all.Overview, all.DrilledDeep, all.Tracing, all.TracingBrokenDown]) {
+    for (const Story of [
+      all.Overview,
+      all.DrilledDeep,
+      all.ZoomedOut,
+      all.Outline,
+      all.Tracing,
+      all.TracingBrokenDown,
+    ]) {
       const { container } = render(<Story />);
       await settle();
       expect(container.querySelector(".gi-explorer")).not.toBeNull();
