@@ -35,7 +35,8 @@
  *   routes keep router-relative paths and an `EXPRESS_UNMOUNTED_ROUTER` warning says so.
  * - Inline handlers (`(req, res) => …`) and wrapped handlers (`asyncHandler(fn)`) get no
  *   `handles` edge, because there is no symbol node to point at. They are returned as
- *   `inlineHandlers` instead, so the Prisma detector can draw `reads`/`writes` from the route.
+ *   `inlineHandlers` instead, so the Prisma, HTTP, SDK, and queue detectors can draw their
+ *   edges from the route (`owners.ts`).
  * - Routers imported from other workspace packages, routers stored in collections
  *   (`routers.forEach((r) => app.use(r))`), routers assigned in constructors without an
  *   initializer, and a shadowed `express` name.
@@ -195,7 +196,7 @@ export interface ExpressRoutes {
   warnings: AnalysisWarning[];
   /**
    * The sorted IDs of the routes each inline handler function serves, by the function's node
-   * key; look one up with {@link inlineRoutesOf}.
+   * key; other detectors' owners are bound to them with `bindOwners` (`owners.ts`).
    */
   inlineHandlers: Map<string, string[]>;
 }
@@ -1050,19 +1051,4 @@ export function buildExpressRoutes(
     programs.map((sp) => sp.service),
     rootFileServices(programs),
   );
-}
-
-/**
- * The routes an inline handler function serves (see {@link ExpressRoutes.inlineHandlers}),
- * for a node in the root file `file` of the program being walked.
- */
-export function inlineRoutesOf(
-  inlineHandlers: ReadonlyMap<string, readonly string[]>,
-  file: string,
-  node: ts.Node,
-): readonly string[] | undefined {
-  if (inlineHandlers.size === 0 || !(ts.isArrowFunction(node) || ts.isFunctionExpression(node))) {
-    return undefined;
-  }
-  return inlineHandlers.get(nodeKey(file, node));
 }

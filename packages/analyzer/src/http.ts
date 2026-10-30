@@ -54,12 +54,8 @@ import {
   type SourceLocation,
 } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
-import {
-  inlineRoutesOf,
-  isFunctionWithBody,
-  returnedExpressions,
-  type FunctionWithBody,
-} from "./express.js";
+import { isFunctionWithBody, returnedExpressions, type FunctionWithBody } from "./express.js";
+import { NO_OWNERS, ownersAt, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
 import {
@@ -118,8 +114,8 @@ export interface HttpCallSite {
   call: ts.CallExpression;
   /** Position of the callee name (`fetch`, `get`, or the instance for `api(config)`). */
   site: SourceLocation;
-  /** Symbol or route node IDs the call belongs to, sorted. Empty for top-level code. */
-  owners: string[];
+  /** The code the call belongs to, before Express composition (see `owners.ts`). */
+  owners: Owners;
   /** The request method, or `null` when it can't be read. */
   method: HttpMethod | null;
   /**
@@ -260,13 +256,12 @@ export function toMethod(text: string): HttpMethod | null {
 
 /**
  * Collect every `fetch` and axios request in the service programs (see the file comment for
- * what is recognized). `inlineHandlers` comes from the Express detector, so calls inside an
- * inline route handler belong to the route. Sorted by file, line, and column.
+ * what is recognized). A site's owners name the inline handlers it may be in by node key, so
+ * nothing here depends on the Express composition (ADR-0094). Sorted by file, line, and column.
  */
 export function collectHttpCalls(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
-  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): HttpCallSite[] {
   const { symbolAt, resolveDeclaration, constString } = createValueReader(resolver);
 
@@ -798,10 +793,8 @@ export function collectHttpCalls(
       const byNode = sourceFile && resolver.callers.get(sourceFile);
       if (!sourceFile || !byNode) continue;
 
-      const visit = (node: ts.Node, owners: readonly string[]): void => {
-        const symbol = byNode.get(node);
-        const current =
-          inlineRoutesOf(inlineHandlers, file, node) ?? (symbol !== undefined ? [symbol] : owners);
+      const visit = (node: ts.Node, owners: Owners): void => {
+        const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
           const request = requestOf(sp, node);
           if (request) {
@@ -813,7 +806,7 @@ export function collectHttpCalls(
               file,
               call: node,
               site: locationOf(name, file),
-              owners: [...current].sort(compareStrings),
+              owners: current,
             });
           }
         }
@@ -821,7 +814,7 @@ export function collectHttpCalls(
           visit(child, current);
         });
       };
-      visit(sourceFile, []);
+      visit(sourceFile, NO_OWNERS);
     }
   }
 

@@ -49,10 +49,11 @@ import {
   type SourceLocation,
 } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
-import { inlineRoutesOf, returnedExpressions, type FunctionWithBody } from "./express.js";
+import { returnedExpressions, type FunctionWithBody } from "./express.js";
 import { fileNodeId } from "./files.js";
 import { functionOf, importBinding, locationOf, requiredModule } from "./http.js";
 import { externalNode } from "./match.js";
+import { bindOwners, NO_OWNERS, ownersAt, withFallback, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
 import { CONFIDENCE_RANK, createValueReader, MAX_HOPS, weaker } from "./values.js";
@@ -238,7 +239,8 @@ const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
  * Find every call through an allowlisted SDK client (see the file comment) and draw an
  * `external_call` edge from its owners (or its file, for top-level code) to the API's
  * `external` node. Calls with the same source and host merge into one edge listing every
- * site, at the strongest confidence. `inlineHandlers` comes from the Express detector.
+ * site, at the strongest confidence. `inlineHandlers` comes from the Express detector; it is
+ * only read to bind each request's owners after the walk (ADR-0094).
  */
 export function buildSdkEdges(
   programs: readonly ServiceProgram[],
@@ -526,17 +528,23 @@ export function buildSdkEdges(
     if (!existing.sites.some((s) => compareLocations(s, site) === 0)) existing.sites.push(site);
   };
 
+  /** The requests found, in walk order, before their owners are bound (ADR-0094). */
+  const requests: {
+    owners: Owners;
+    external: GraphNode;
+    confidence: Confidence;
+    site: SourceLocation;
+  }[] = [];
   for (const sp of programs) {
     for (const file of sp.rootFiles) {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
       const byNode = sourceFile && resolver.callers.get(sourceFile);
       if (!sourceFile || !byNode) continue;
       const service = serviceForFile(workspace, file);
+      const fallback = service ? [fileNodeId(service, file)] : [];
 
-      const visit = (node: ts.Node, owners: readonly string[]): void => {
-        const symbol = byNode.get(node);
-        const current =
-          inlineRoutesOf(inlineHandlers, file, node) ?? (symbol !== undefined ? [symbol] : owners);
+      const visit = (node: ts.Node, owners: Owners): void => {
+        const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
           const request = requestOf(sp, node);
           // `google.calendar({ auth })` builds a client locally; calls on it are requests.
@@ -547,23 +555,26 @@ export function buildSdkEdges(
             !request.names.some((n) => request.value.pkg.local.includes(n))
           ) {
             const { pkg } = request.value;
-            const external = externalNode(pkg.host);
-            const sources =
-              current.length > 0 ? current : service ? [fileNodeId(service, file)] : [];
-            if (sources.length > 0 && !nodes.has(external.id)) nodes.set(external.id, external);
-            const confidence = weaker(request.value.confidence, pkg.confidence);
-            const site = locationOf(request.name, file);
-            for (const from of sources) {
-              addEdge(from, external.id, confidence, site);
-            }
+            requests.push({
+              owners: withFallback(current, fallback),
+              external: externalNode(pkg.host),
+              confidence: weaker(request.value.confidence, pkg.confidence),
+              site: locationOf(request.name, file),
+            });
           }
         }
         ts.forEachChild(node, (child) => {
           visit(child, current);
         });
       };
-      visit(sourceFile, []);
+      visit(sourceFile, NO_OWNERS);
     }
+  }
+
+  for (const { owners, external, confidence, site } of requests) {
+    const sources = bindOwners(owners, inlineHandlers);
+    if (sources.length > 0 && !nodes.has(external.id)) nodes.set(external.id, external);
+    for (const from of sources) addEdge(from, external.id, confidence, site);
   }
 
   const out = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));

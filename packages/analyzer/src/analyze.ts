@@ -215,16 +215,10 @@ export async function analyze(
   const http = await detector(
     "http",
     () => {
-      const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
-      // Per-service facts, then the global binding step (ADR-0092).
-      const facts = collectHttpFacts(
-        sites,
-        programs,
-        resolver,
-        createUrlNormalizer(resolver),
-        express.inlineHandlers,
-      );
-      const requests = bindWrappers(facts);
+      const sites = collectHttpCalls(programs, resolver);
+      // Per-service facts, then the global binding step (ADR-0092, ADR-0094).
+      const facts = collectHttpFacts(sites, programs, resolver, createUrlNormalizer(resolver));
+      const requests = bindWrappers(facts, express.inlineHandlers);
       onProgress?.({ stage: "http", count: requests.length });
       const matcher = createRouteMatcher([...express.nodes, ...next.nodes], workspace);
       return buildHttpEdges(requests, matcher, workspace);

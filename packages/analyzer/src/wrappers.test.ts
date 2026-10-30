@@ -37,7 +37,7 @@ async function requests(): Promise<HttpRequest[]> {
   const programs = buildServicePrograms(dir, workspace, inventory);
   const resolver = createSymbolResolver(programs, workspace);
   const express = buildExpressRoutes(programs, resolver);
-  const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
+  const sites = collectHttpCalls(programs, resolver);
   return inlineWrappers(
     sites,
     programs,
@@ -54,17 +54,18 @@ async function facts() {
   const programs = buildServicePrograms(dir, workspace, inventory);
   const resolver = createSymbolResolver(programs, workspace);
   const express = buildExpressRoutes(programs, resolver);
-  const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
+  const sites = collectHttpCalls(programs, resolver);
   const normalizer = createUrlNormalizer(resolver);
   return {
     programs,
     resolver,
-    facts: collectHttpFacts(sites, programs, resolver, normalizer, express.inlineHandlers),
+    inlineHandlers: express.inlineHandlers,
+    facts: collectHttpFacts(sites, programs, resolver, normalizer),
   };
 }
 
 /** `file:line METHOD url`, plus `<- wrapper` when inlined. */
-const brief = (r: HttpRequest): string =>
+const brief = (r: Omit<HttpRequest, "owners">): string =>
   `${r.file}:${r.site.line} ${r.method ?? "?"} ${r.url.resolved ? r.url.text : r.url.reason}` +
   (r.via ? ` <- ${r.via.slice(r.via.lastIndexOf("#") + 1)}` : "");
 
@@ -399,10 +400,10 @@ describe("collectHttpFacts + bindWrappers (M6.7c)", () => {
       'export const a = () => send("/x?token=abc", "POST");',
       "export const b = (u: string) => fetch(u);",
     ]);
-    const { facts: live } = await facts();
+    const { facts: live, inlineHandlers } = await facts();
     const copied = JSON.parse(JSON.stringify(live)) as HttpFacts[];
     expect(copied).toEqual(live);
-    expect(bindWrappers(copied)).toEqual(bindWrappers(live));
+    expect(bindWrappers(copied, inlineHandlers)).toEqual(bindWrappers(live, inlineHandlers));
     // Nothing secret survives into the text an unresolved node would show.
     expect(JSON.stringify(live)).not.toContain("token=abc");
   });
@@ -421,5 +422,45 @@ describe("collectHttpFacts + bindWrappers (M6.7c)", () => {
     const keys = (set: ReadonlySet<ServiceProgram>) => [...set].map((p) => p.service.key);
     expect(keys(all.resolver.reached(web))).toEqual([sdk.service.key]);
     expect(keys(all.resolver.reached(sdk))).toEqual([]);
+  });
+
+  it("keeps an inline handler's requests unchanged when another service remounts it", async () => {
+    await put("package.json", JSON.stringify({ name: "root", workspaces: ["packages/*"] }));
+    await put(
+      "packages/routes/package.json",
+      JSON.stringify({ name: "routes", dependencies: { express: "4" } }),
+    );
+    await put("packages/routes/src/users.ts", [
+      'import { Router } from "express";',
+      "export const users = Router();",
+      'users.get("/users", async (_req, res) => {',
+      '  res.json(await fetch("https://up.example.com/u"));',
+      "});",
+    ]);
+    await put(
+      "packages/api/package.json",
+      JSON.stringify({ name: "api", dependencies: { express: "4" } }),
+    );
+    const server = (prefix: string) => [
+      'import express from "express";',
+      'import { users } from "../../routes/src/users";',
+      "const app = express();",
+      `app.use("${prefix}", users);`,
+    ];
+    await put("packages/api/src/server.ts", server("/v1"));
+    const before = await facts();
+    await put("packages/api/src/server.ts", server("/v2"));
+    const after = await facts();
+
+    // The request's facts name the handler by node key, not by the routes it serves.
+    const routes = of(before, "packages/routes/");
+    expect(of(after, "packages/routes/")).toEqual(routes);
+    expect(routes.requests.map((r) => [r.owners.handlers.length, r.owners.ids])).toEqual([[1, []]]);
+    const owners = (all: typeof before) =>
+      bindWrappers(all.facts, all.inlineHandlers).map((r) => r.owners);
+    expect(owners(before)).toEqual([["route:api/GET /v1/users"]]);
+    expect(owners(after)).toEqual([["route:api/GET /v2/users"]]);
+    // Without Express's map, the request is top-level code.
+    expect(bindWrappers(after.facts).map((r) => r.owners)).toEqual([[]]);
   });
 });

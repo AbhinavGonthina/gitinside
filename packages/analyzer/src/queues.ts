@@ -64,14 +64,17 @@ import {
   type SourceLocation,
 } from "@gitinside/schema";
 import { calleeName, type SymbolResolver } from "./calls.js";
-import {
-  inlineRoutesOf,
-  isFunctionWithBody,
-  returnedExpressions,
-  type FunctionWithBody,
-} from "./express.js";
+import { isFunctionWithBody, returnedExpressions, type FunctionWithBody } from "./express.js";
 import { fileNodeId, withinService } from "./files.js";
 import { functionOf, importBinding, locationOf, requiredModule } from "./http.js";
+import {
+  bindOwners,
+  handlerKey,
+  NO_OWNERS,
+  ownersAt,
+  withFallback,
+  type Owners,
+} from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
 import {
@@ -218,8 +221,8 @@ export interface QueueEdges {
 interface QueueEvent {
   kind: "publishes" | "consumes";
   queue: QueueName;
-  /** Where the edge starts. */
-  sources: readonly string[];
+  /** Where the edge starts, bound to IDs once the walk is done (ADR-0094). */
+  sources: Owners;
   confidence: Confidence;
   site: SourceLocation;
   /** Source text for an unresolved node with no name expression. */
@@ -262,7 +265,8 @@ const contains = (outer: ts.Node, inner: ts.Node): boolean =>
  * Find every queue producer and consumer (see the file comment) and draw `publishes` and
  * `consumes` edges to the queue's node. Events with the same kind, source, and queue merge
  * into one edge listing every site, at the strongest confidence. `inlineHandlers` comes from
- * the Express detector.
+ * the Express detector; it is only read to bind each event's owners after the walk
+ * (ADR-0094).
  */
 export function buildQueueEdges(
   programs: readonly ServiceProgram[],
@@ -599,35 +603,39 @@ export function buildQueueEdges(
   /** The symbol (or owners) a processor expression stands for, and how surely. */
   const processorSources = (
     processor: ProgramExpression | undefined,
-    owners: readonly string[],
-  ): { sources: readonly string[]; confidence: Confidence } => {
+    owners: Owners,
+  ): { sources: Owners; confidence: Confidence } => {
     if (!processor) return { sources: owners, confidence: "exact" };
     const e = unwrap(processor.expression);
     if (isFunctionWithBody(e)) {
-      const inner = enclosingOwners(processor.sp, e);
-      return { sources: inner ?? owners, confidence: "exact" };
+      return { sources: enclosingOwners(processor.sp, e, owners), confidence: "exact" };
     }
     const target = resolver.resolve(processor.sp, e);
     return target
-      ? { sources: [target.id], confidence: target.confidence }
+      ? { sources: { handlers: [], ids: [target.id] }, confidence: target.confidence }
       : { sources: owners, confidence: "exact" };
   };
 
-  /** The owners of the code around a node: the innermost symbol or inline handler's routes. */
-  const enclosingOwners = (sp: ServiceProgram, node: ts.Node): readonly string[] | undefined => {
+  /**
+   * The owners of the code around a node: the innermost symbol or inline handler's routes,
+   * else its file node, else `outer` (when the file is in no service).
+   */
+  const enclosingOwners = (sp: ServiceProgram, node: ts.Node, outer: Owners): Owners => {
     const byNode = resolver.callers.get(node.getSourceFile());
     const file = sp.toRepoPath(node.getSourceFile().fileName);
     // Inline handlers are found in root files only, as the symbols in `byNode` are.
     const rootFile = byNode ? file : undefined;
+    const handlers: string[] = [];
     for (let n: ts.Node | undefined = node; n; n = n.parent) {
-      const routes =
-        rootFile === undefined ? undefined : inlineRoutesOf(inlineHandlers, rootFile, n);
-      if (routes) return routes;
+      const key = rootFile === undefined ? undefined : handlerKey(rootFile, n);
+      if (key !== undefined) handlers.push(key);
       const symbol = byNode?.get(n);
-      if (symbol !== undefined) return [symbol];
+      if (symbol !== undefined) return { handlers, ids: [symbol] };
     }
     const service = file === undefined ? undefined : serviceForFile(workspace, file);
-    return service && file !== undefined ? [fileNodeId(service, file)] : undefined;
+    return service && file !== undefined
+      ? { handlers, ids: [fileNodeId(service, file)] }
+      : { handlers: [...handlers, ...outer.handlers], ids: outer.ids };
   };
 
   /** The function whose parameter a dynamic name reads, when `node` sits inside it. */
@@ -658,7 +666,7 @@ export function buildQueueEdges(
   const consume = (
     instance: QueueInstance,
     processor: ProgramExpression | undefined,
-    owners: readonly string[],
+    owners: Owners,
     site: SourceLocation,
     node: ts.Node,
   ): void => {
@@ -688,7 +696,7 @@ export function buildQueueEdges(
       sp: ServiceProgram,
       file: string,
       node: ts.CallExpression | ts.NewExpression,
-      sources: readonly string[],
+      sources: Owners,
     ) => void,
   ): void => {
     for (const sp of usesLibrary ? programs : []) {
@@ -697,21 +705,17 @@ export function buildQueueEdges(
         const byNode = sourceFile && resolver.callers.get(sourceFile);
         if (!sourceFile || !byNode) continue;
         const service = serviceForFile(workspace, file);
-        const visit = (node: ts.Node, owners: readonly string[]): void => {
-          const symbol = byNode.get(node);
-          const current =
-            inlineRoutesOf(inlineHandlers, file, node) ??
-            (symbol !== undefined ? [symbol] : owners);
+        const fallback = service ? [fileNodeId(service, file)] : [];
+        const visit = (node: ts.Node, owners: Owners): void => {
+          const current = ownersAt(file, node, byNode.get(node), owners);
           if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
-            const sources =
-              current.length > 0 ? current : service ? [fileNodeId(service, file)] : [];
-            onCall(sp, file, node, sources);
+            onCall(sp, file, node, withFallback(current, fallback));
           }
           ts.forEachChild(node, (child) => {
             visit(child, current);
           });
         };
-        visit(sourceFile, []);
+        visit(sourceFile, NO_OWNERS);
       }
     }
   };
@@ -869,7 +873,9 @@ export function buildQueueEdges(
       to = node.id;
       confidence = "unresolved";
     }
-    for (const from of event.sources) addEdge(event, from, to, confidence);
+    for (const from of bindOwners(event.sources, inlineHandlers)) {
+      addEdge(event, from, to, confidence);
+    }
   }
   // Queues that are created but never used still exist.
   for (const [name, source] of declared) {

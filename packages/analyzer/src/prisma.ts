@@ -80,8 +80,9 @@ import {
   type UnresolvedReason,
 } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
-import { inlineRoutesOf, isFunctionWithBody, returnedExpressions } from "./express.js";
+import { isFunctionWithBody, returnedExpressions } from "./express.js";
 import { fileNodeId, withinService } from "./files.js";
+import { bindOwners, NO_OWNERS, ownersAt, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
 import { expressionText } from "./values.js";
@@ -590,7 +591,8 @@ export async function buildPrisma(
     schemaFiles.length > 0 ||
     workspace.packages.some((p) => p.dependencies.includes("@prisma/client"));
   if (usesPrisma) {
-    scanClientCalls(programs, resolver, models, inlineHandlers, nodes, edges);
+    const uses = scanClientCalls(programs, resolver, models, nodes);
+    for (const use of uses) addUse(edges, use, bindOwners(use.owners, inlineHandlers));
   }
 
   const sortedEdges = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
@@ -613,15 +615,61 @@ export async function buildPrisma(
   };
 }
 
-/** Find client calls in every program and add their edges and unresolved nodes. */
+/**
+ * A client call's `reads`/`writes` edges before Express composition: one per owner once
+ * {@link Owners} are bound. Plain data.
+ */
+interface PrismaUse {
+  kind: "reads" | "writes";
+  owners: Owners;
+  to: string;
+  confidence: Confidence;
+  site: CallSite;
+  fields: string[];
+  reason?: UnresolvedReason;
+}
+
+/**
+ * Add a use's edge from each of `owners`, merging into an existing edge with the same ID: its
+ * sites and fields grow, and it becomes `exact` if this use is. Uses are added in walk order.
+ */
+function addUse(edges: Map<string, GraphEdge>, use: PrismaUse, owners: readonly string[]): void {
+  const { kind, to, confidence, site, fields, reason } = use;
+  for (const from of owners) {
+    const id = edgeId(kind, from, to);
+    const existing = edges.get(id);
+    if (existing) {
+      existing.sites.push(site);
+      if (confidence === "exact") existing.confidence = "exact";
+      if (fields.length > 0) {
+        existing.fields = [...new Set([...(existing.fields ?? []), ...fields])];
+      }
+      continue;
+    }
+    edges.set(id, {
+      id,
+      kind,
+      from,
+      to,
+      confidence,
+      ...(reason ? { reason } : {}),
+      ...(fields.length > 0 ? { fields: [...fields] } : {}),
+      sites: [site],
+    });
+  }
+}
+
+/**
+ * Find client calls in every program: add their unresolved nodes to `nodes` and return their
+ * uses in walk order, with owners naming inline handlers by node key (ADR-0094).
+ */
 function scanClientCalls(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
   models: ReadonlyMap<string, ReadonlyMap<string, ModelInfo>>,
-  inlineHandlers: ReadonlyMap<string, readonly string[]>,
   nodes: Map<string, GraphNode>,
-  edges: Map<string, GraphEdge>,
-): void {
+): PrismaUse[] {
+  const uses: PrismaUse[] = [];
   const schemaServices = [...models.entries()].filter(([, byAccessor]) => byAccessor.size > 0);
 
   /** The service that owns the file a node is in, as the analyzer splits files. */
@@ -863,37 +911,6 @@ function scanClientCalls(
     return confidence === "heuristic" ? undefined : { reason: "UNKNOWN_SYMBOL" };
   };
 
-  const addEdge = (
-    kind: "reads" | "writes",
-    from: string,
-    to: string,
-    confidence: Confidence,
-    site: CallSite,
-    fields: readonly string[],
-    reason?: UnresolvedReason,
-  ): void => {
-    const id = edgeId(kind, from, to);
-    const existing = edges.get(id);
-    if (existing) {
-      existing.sites.push(site);
-      if (confidence === "exact") existing.confidence = "exact";
-      if (fields.length > 0) {
-        existing.fields = [...new Set([...(existing.fields ?? []), ...fields])];
-      }
-      return;
-    }
-    edges.set(id, {
-      id,
-      kind,
-      from,
-      to,
-      confidence,
-      ...(reason ? { reason } : {}),
-      ...(fields.length > 0 ? { fields: [...fields] } : {}),
-      sites: [site],
-    });
-  };
-
   const addUnresolved = (
     sp: ServiceProgram,
     file: string,
@@ -928,7 +945,7 @@ function scanClientCalls(
 
       const handle = (
         call: ts.CallExpression | ts.TaggedTemplateExpression,
-        owners: readonly string[],
+        owners: Owners,
       ): void => {
         const callee = unwrap(ts.isCallExpression(call) ? call.expression : call.tag);
         if (!ts.isPropertyAccessExpression(callee)) return;
@@ -946,7 +963,15 @@ function scanClientCalls(
             callee.getText(),
             expressionText(call),
           );
-          for (const owner of owners) addEdge(raw, owner, id, "unresolved", site, [], "RAW_QUERY");
+          uses.push({
+            kind: raw,
+            owners,
+            to: id,
+            confidence: "unresolved",
+            site,
+            fields: [],
+            reason: "RAW_QUERY",
+          });
           return;
         }
         const kind = READ_OPS.has(op) ? "reads" : WRITE_OPS.has(op) ? "writes" : undefined;
@@ -975,27 +1000,38 @@ function scanClientCalls(
         if ("reason" in found) {
           const text = `${receiver.getText()}.${accessor}.${op}`;
           const id = addUnresolved(sp, file, site, found.reason, text, text);
-          for (const owner of owners)
-            addEdge(kind, owner, id, "unresolved", site, [], found.reason);
+          uses.push({
+            kind,
+            owners,
+            to: id,
+            confidence: "unresolved",
+            site,
+            fields: [],
+            reason: found.reason,
+          });
           return;
         }
         const { named, missing } = fieldUse(call.arguments[0], found.model.fields);
         const used: CallSite = missing.length > 0 ? { ...site, missingFields: missing } : site;
-        for (const owner of owners) {
-          addEdge(kind, owner, found.model.id, found.confidence, used, named);
-        }
+        uses.push({
+          kind,
+          owners,
+          to: found.model.id,
+          confidence: found.confidence,
+          site: used,
+          fields: [...named],
+        });
       };
 
-      const visit = (node: ts.Node, owners: readonly string[]): void => {
-        const symbol = byNode.get(node);
-        const current =
-          inlineRoutesOf(inlineHandlers, file, node) ?? (symbol !== undefined ? [symbol] : owners);
+      const visit = (node: ts.Node, owners: Owners): void => {
+        const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) handle(node, current);
         ts.forEachChild(node, (child) => {
           visit(child, current);
         });
       };
-      visit(sourceFile, []);
+      visit(sourceFile, NO_OWNERS);
     }
   }
+  return uses;
 }
