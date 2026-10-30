@@ -17,8 +17,8 @@ import { collectImportFacts, composeImports, type ManifestCache } from "./import
 import { buildInfra, relinkStores } from "./infra.js";
 import { AnalysisError, buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildHttpEdges, createRouteMatcher } from "./match.js";
-import { buildNextRoutes } from "./next.js";
-import { buildPrisma } from "./prisma.js";
+import { collectNextFacts, composeNextRoutes } from "./next.js";
+import { buildPrismaSchemas, collectPrismaFacts, composePrisma } from "./prisma.js";
 import { buildServicePrograms } from "./program.js";
 import { buildQueueEdges } from "./queues.js";
 import { buildSdkEdges } from "./sdk.js";
@@ -191,18 +191,19 @@ export async function analyze(
     },
     () => ({ ...none(), inlineHandlers: new Map<string, string[]>() }),
   );
-  const next = await detector("next", () => buildNextRoutes(programs, resolver), none);
+  const next = await detector(
+    "next",
+    () => composeNextRoutes(programs.map((sp) => collectNextFacts(sp, resolver))),
+    none,
+  );
   const prisma = await detector(
     "prisma",
-    () =>
-      buildPrisma(
-        root,
-        programs,
-        workspace,
-        resolver,
-        inventory.sourceFiles,
-        express.inlineHandlers,
-      ),
+    async () => {
+      // The schema is a global input; client calls are per-service facts (ADR-0099).
+      const schemas = await buildPrismaSchemas(root, workspace, inventory.sourceFiles);
+      const facts = programs.map((sp) => collectPrismaFacts(sp, resolver, schemas.usesPrisma));
+      return composePrisma(schemas, facts, express.inlineHandlers);
+    },
     () => ({ ...none(), datastores: [] }),
   );
   const infra = await detector(

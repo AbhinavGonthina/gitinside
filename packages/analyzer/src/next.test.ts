@@ -1,11 +1,23 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
-import { checkedMethods, handledMethods, segmentsToPath } from "./next.js";
+import { createSymbolResolver } from "./calls.js";
+import { buildInventory } from "./inventory.js";
+import {
+  checkedMethods,
+  collectNextFacts,
+  composeNextRoutes,
+  handledMethods,
+  segmentsToPath,
+  type NextFacts,
+} from "./next.js";
+import { buildServicePrograms } from "./program.js";
+import { detectWorkspace } from "./workspace.js";
 
 let dir: string;
 beforeEach(async () => {
@@ -115,6 +127,70 @@ describe("checkedMethods", () => {
     ['function h(req, res) { if (req.method === "BREW") a(); create(); }', false],
   ])("%s leaves other methods open: %s", (code, open) => {
     expect(handledMethods(handler(code)).open).toBe(open);
+  });
+});
+
+describe("next.js facts", () => {
+  const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
+
+  async function nextFacts(root: string): Promise<NextFacts[]> {
+    const inventory = await buildInventory(root);
+    const workspace = await detectWorkspace(root, inventory.files);
+    const programs = buildServicePrograms(root, workspace, inventory);
+    const resolver = createSymbolResolver(programs, workspace);
+    return programs.map((sp) => collectNextFacts(sp, resolver));
+  }
+
+  /** The Next.js part of `analyze`'s graph (no Express routes in these repos). */
+  function nextPart(graph: ArchitectureGraph) {
+    return {
+      nodes: graph.nodes.filter((n) => n.kind === "route" || n.kind === "page"),
+      edges: graph.edges.filter((e) => e.kind === "handles" || e.kind === "renders"),
+      warnings: nextWarnings(graph),
+    };
+  }
+
+  it.each(["next-app-router", "next-pages-api"])(
+    "composes %s from JSON round-tripped facts exactly as analyze does",
+    async (name) => {
+      const root = join(FIXTURES, name);
+      const facts = await nextFacts(root);
+      const revived = JSON.parse(JSON.stringify(facts)) as NextFacts[];
+      expect(revived).toEqual(facts);
+      const composed = composeNextRoutes(revived);
+      expect(composed.nodes.length).toBeGreaterThan(0);
+      expect(composed.edges.length).toBeGreaterThan(0);
+      expect(composed).toEqual(nextPart(await analyze(root)));
+    },
+  );
+
+  it("keeps a service's facts unchanged when another service adds a route", async () => {
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*"] }));
+    for (const name of ["web", "admin"]) {
+      await put(
+        `apps/${name}/package.json`,
+        JSON.stringify({ name, dependencies: { next: "15" } }),
+      );
+    }
+    await put("apps/api/package.json", JSON.stringify({ name: "api" }));
+    await put("apps/web/app/api/users/route.ts", "export function GET() {}\n");
+    await put("apps/web/app/(group)/api/users/route.ts", "export function GET() {}\n");
+    await put("apps/admin/app/page.tsx", "export default function Home() { return null; }\n");
+    const before = await nextFacts(dir);
+    await put("apps/admin/app/api/users/route.ts", "export function POST() {}\n");
+    const after = await nextFacts(dir);
+    const of = (all: NextFacts[], service: string) => all.find((f) => f.service === service);
+    expect(of(before, "web")?.warnings.map((w) => w.code)).toEqual(["NEXT_DUPLICATE_ROUTE"]);
+    expect(of(after, "web")).toEqual(of(before, "web"));
+    expect(of(after, "admin")).not.toEqual(of(before, "admin"));
+    expect(of(after, "api")).toEqual({ service: "api", nodes: [], edges: [], warnings: [] });
+    const composed = composeNextRoutes(after);
+    expect(composed.nodes.map((n) => n.id)).toEqual([
+      "page:admin//",
+      "route:admin/POST /api/users",
+      "route:web/GET /api/users",
+    ]);
+    expect(composed).toEqual(nextPart(await analyze(dir)));
   });
 });
 

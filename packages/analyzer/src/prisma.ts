@@ -355,19 +355,40 @@ function isQueryKeyword(name: string, fields: ReadonlySet<string>): boolean {
 }
 
 /**
+ * The names a query argument uses as fields of a model (see {@link fieldUse}), split by
+ * `fields`, the model's: `named` are fields it has, `missing` are names it lacks (a removed or
+ * misspelled field) that aren't query keywords (see {@link isQueryKeyword}). Sorted as given.
+ */
+export function splitFields(
+  names: readonly string[],
+  fields: ReadonlySet<string>,
+): { named: string[]; missing: string[] } {
+  return {
+    named: names.filter((name) => fields.has(name)),
+    missing: names.filter((name) => !fields.has(name) && !isQueryKeyword(name, fields)),
+  };
+}
+
+/**
  * The names a query argument uses as fields of a model (see the file comment for which
- * keys count), sorted: `named` are fields the model has, `missing` are names it lacks (a
- * removed or misspelled field) that aren't query keywords (see {@link isQueryKeyword}).
+ * keys count), sorted: `named` are fields the model has, `missing` are names it lacks (see
+ * {@link splitFields}).
  */
 export function fieldUse(
   argument: ts.Expression | undefined,
   fields: ReadonlySet<string>,
 ): { named: string[]; missing: string[] } {
+  return splitFields(fieldNames(argument), fields);
+}
+
+/**
+ * Every name a query argument uses where a field of its model goes (see the file comment for
+ * which keys count), sorted and without duplicates; the model isn't needed to find them.
+ */
+export function fieldNames(argument: ts.Expression | undefined): string[] {
   const found = new Set<string>();
-  const missing = new Set<string>();
   const use = (name: string): void => {
-    if (fields.has(name)) found.add(name);
-    else if (!isQueryKeyword(name, fields)) missing.add(name);
+    found.add(name);
   };
   const collect = (expression: ts.Expression, logical: boolean): void => {
     const e = unwrap(expression);
@@ -394,14 +415,14 @@ export function fieldUse(
     }
   };
   const top = argument && unwrap(argument);
-  if (!top || !ts.isObjectLiteralExpression(top)) return { named: [], missing: [] };
+  if (!top || !ts.isObjectLiteralExpression(top)) return [];
   for (const property of top.properties) {
     if (!ts.isPropertyAssignment(property)) continue;
     const key = propertyText(property.name);
     if (key === undefined || !FIELD_KEYS.has(key)) continue;
     collect(property.initializer, key === "where" || key === "having");
   }
-  return { named: [...found].sort(compareStrings), missing: [...missing].sort(compareStrings) };
+  return [...found].sort(compareStrings);
 }
 
 /** The location of a node's first token. */
@@ -435,16 +456,83 @@ export interface PrismaDatastore {
 }
 
 /** A model a service's schema declares. */
-interface ModelInfo {
+export interface ModelInfo {
   id: string;
   fields: ReadonlySet<string>;
+}
+
+/** Prisma's nodes, edges, warnings, and datastores, as {@link buildPrisma} returns them. */
+export interface PrismaPart {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  warnings: AnalysisWarning[];
+  datastores: PrismaDatastore[];
+}
+
+/**
+ * The repo's Prisma schemas, from {@link buildPrismaSchemas}: a global input, read from the
+ * `.prisma` files rather than from any program (ADR-0099).
+ */
+export interface PrismaSchemas extends PrismaPart {
+  /** Models by accessor, per service key. */
+  models: Map<string, Map<string, ModelInfo>>;
+  /** Whether client calls are looked for at all: a schema exists or a service depends on `@prisma/client`. */
+  usesPrisma: boolean;
+}
+
+/**
+ * A Prisma client call one service's program found, before any schema is consulted: plain
+ * data (ADR-0099). A `raw` call is an `unresolved` node with reason `RAW_QUERY`; a `model`
+ * call names its model by accessor and is matched to a schema by {@link composePrisma}.
+ */
+export type PrismaCall =
+  | {
+      type: "raw";
+      kind: "reads" | "writes";
+      owners: Owners;
+      site: SourceLocation;
+      /** The `unresolved` node's ID, label, and expression. */
+      node: { id: string; label: string; expression: string };
+    }
+  | {
+      type: "model";
+      kind: "reads" | "writes";
+      owners: Owners;
+      site: SourceLocation;
+      /** The model's accessor: `user` in `prisma.user.findMany()`. */
+      accessor: string;
+      /** The key of the service that created or typed the client, when it was traced. */
+      origin?: string;
+      /** `exact` or the import's confidence when traced, `heuristic` when trusted by name. */
+      confidence: Confidence;
+      /** The ID and text of the `unresolved` node made when no single model matches. */
+      node: { id: string; text: string };
+      /** Every name the query argument uses as a field (see {@link fieldNames}), sorted. */
+      names: string[];
+    };
+
+/**
+ * What one service's program says about Prisma client use, as plain data (ADR-0090): its
+ * client calls in walk order. The schema stays global (ADR-0099).
+ */
+export interface PrismaFacts {
+  /** Key of the service whose program found these. */
+  service: string;
+  /**
+   * False when the repo doesn't use Prisma, so nothing was looked for. Facts collected that
+   * way are stale once a schema or an `@prisma/client` dependency appears.
+   */
+  scanned: boolean;
+  calls: PrismaCall[];
 }
 
 /**
  * Detect Prisma schemas and client usage (see the file comment for the patterns). Reads the
  * `.prisma` files in `sourceFiles` from `root`; `inlineHandlers` comes from the Express
  * detector. Returns `model`, `datastore`, and `unresolved` nodes, `stores`/`reads`/`writes`
- * edges, and warnings, all sorted, plus the datastores' env variables for the infra detector.
+ * edges, and warnings, all sorted, plus the datastores' env variables for the infra detector:
+ * {@link buildPrismaSchemas}, {@link collectPrismaFacts} per program, then
+ * {@link composePrisma}.
  */
 export async function buildPrisma(
   root: string,
@@ -453,12 +541,22 @@ export async function buildPrisma(
   resolver: SymbolResolver,
   sourceFiles: readonly string[],
   inlineHandlers: ReadonlyMap<string, readonly string[]>,
-): Promise<{
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  warnings: AnalysisWarning[];
-  datastores: PrismaDatastore[];
-}> {
+): Promise<PrismaPart> {
+  const schemas = await buildPrismaSchemas(root, workspace, sourceFiles);
+  const facts = programs.map((sp) => collectPrismaFacts(sp, resolver, schemas.usesPrisma));
+  return composePrisma(schemas, facts, inlineHandlers);
+}
+
+/**
+ * Parse every `.prisma` file in `sourceFiles` (read from `root`) into `model` and
+ * `datastore` nodes, `stores` edges, and warnings, all sorted, with each service's models by
+ * accessor for {@link composePrisma}.
+ */
+export async function buildPrismaSchemas(
+  root: string,
+  workspace: Workspace,
+  sourceFiles: readonly string[],
+): Promise<PrismaSchemas> {
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
   const warnings: AnalysisWarning[] = [];
@@ -587,14 +685,22 @@ export async function buildPrisma(
     }
   }
 
-  const usesPrisma =
-    schemaFiles.length > 0 ||
-    workspace.packages.some((p) => p.dependencies.includes("@prisma/client"));
-  if (usesPrisma) {
-    const uses = scanClientCalls(programs, resolver, models, nodes);
-    for (const use of uses) addUse(edges, use, bindOwners(use.owners, inlineHandlers));
-  }
+  return {
+    ...sortedPart(nodes, edges, warnings, datastores),
+    models,
+    usesPrisma:
+      schemaFiles.length > 0 ||
+      workspace.packages.some((p) => p.dependencies.includes("@prisma/client")),
+  };
+}
 
+/** Nodes, edges (with their sites and fields), warnings, and datastores, sorted. */
+function sortedPart(
+  nodes: ReadonlyMap<string, GraphNode>,
+  edges: ReadonlyMap<string, GraphEdge>,
+  warnings: AnalysisWarning[],
+  datastores: PrismaDatastore[],
+): PrismaPart {
   const sortedEdges = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
   for (const edge of sortedEdges) {
     edge.sites.sort(
@@ -605,23 +711,112 @@ export async function buildPrisma(
   return {
     nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)),
     edges: sortedEdges,
-    warnings: warnings.sort(
+    warnings: [...warnings].sort(
       (a, b) =>
         compareStrings(a.file ?? "", b.file ?? "") ||
         compareStrings(a.code, b.code) ||
         compareStrings(a.message, b.message),
     ),
-    datastores: datastores.sort((a, b) => compareStrings(a.id, b.id)),
+    datastores: [...datastores].sort((a, b) => compareStrings(a.id, b.id)),
   };
 }
 
 /**
- * A client call's `reads`/`writes` edges before Express composition: one per owner once
- * {@link Owners} are bound. Plain data.
+ * The global Prisma step: match every service's client calls to the schemas' models, add
+ * `unresolved` nodes for raw queries and calls no single model matches, and merge the calls
+ * into `reads`/`writes` edges from their owners (inline handlers bound to the Express routes
+ * in `inlineHandlers`), in program order then walk order. Facts that weren't `scanned`
+ * contribute nothing. Doesn't modify `schemas`.
  */
+export function composePrisma(
+  schemas: PrismaSchemas,
+  facts: readonly PrismaFacts[],
+  inlineHandlers: ReadonlyMap<string, readonly string[]>,
+): PrismaPart {
+  const nodes = new Map(schemas.nodes.map((n) => [n.id, n]));
+  const edges = new Map(
+    schemas.edges.map((e) => [e.id, { ...e, sites: [...e.sites] } satisfies GraphEdge]),
+  );
+  const { models } = schemas;
+  const schemaServices = [...models.values()].filter((byAccessor) => byAccessor.size > 0);
+
+  /** The model a call names, or why it can't be determined. */
+  const lookup = (
+    accessor: string,
+    origin: string | undefined,
+    caller: string,
+    confidence: Confidence,
+  ): { model: ModelInfo; confidence: Confidence } | { reason: UnresolvedReason } | undefined => {
+    for (const service of [origin, caller]) {
+      const model = service === undefined ? undefined : models.get(service)?.get(accessor);
+      if (model) return { model, confidence };
+    }
+    const candidates = schemaServices.flatMap((byAccessor) => {
+      const model = byAccessor.get(accessor);
+      return model ? [model] : [];
+    });
+    const only = candidates[0];
+    if (candidates.length === 1 && only) {
+      return { model: only, confidence: schemaServices.length === 1 ? confidence : "heuristic" };
+    }
+    if (candidates.length > 1) return { reason: "AMBIGUOUS" };
+    return confidence === "heuristic" ? undefined : { reason: "UNKNOWN_SYMBOL" };
+  };
+
+  const addUnresolved = (
+    service: string,
+    id: string,
+    site: SourceLocation,
+    reason: UnresolvedReason,
+    label: string,
+    expression: string,
+  ): void => {
+    nodes.set(id, {
+      id,
+      kind: "unresolved",
+      label,
+      parentId: nodeId("service", service, ""),
+      reason,
+      expression,
+      source: site,
+    });
+  };
+
+  for (const { service, scanned, calls } of facts) {
+    if (!scanned) continue;
+    for (const call of calls) {
+      const { kind, owners, site } = call;
+      const from = bindOwners(owners, inlineHandlers);
+      const unresolved = (reason: UnresolvedReason, label: string, expression: string): void => {
+        const { id } = call.node;
+        addUnresolved(service, id, site, reason, label, expression);
+        addUse(edges, { kind, to: id, confidence: "unresolved", site, fields: [], reason }, from);
+      };
+      if (call.type === "raw") {
+        unresolved("RAW_QUERY", call.node.label, call.node.expression);
+        continue;
+      }
+      const found = lookup(call.accessor, call.origin, service, call.confidence);
+      if (!found) continue;
+      if ("reason" in found) {
+        unresolved(found.reason, call.node.text, call.node.text);
+        continue;
+      }
+      const { named, missing } = splitFields(call.names, found.model.fields);
+      const used: CallSite = missing.length > 0 ? { ...site, missingFields: missing } : site;
+      addUse(
+        edges,
+        { kind, to: found.model.id, confidence: found.confidence, site: used, fields: named },
+        from,
+      );
+    }
+  }
+  return sortedPart(nodes, edges, schemas.warnings, schemas.datastores);
+}
+
+/** A client call matched to its target, to become one `reads`/`writes` edge per owner. */
 interface PrismaUse {
   kind: "reads" | "writes";
-  owners: Owners;
   to: string;
   confidence: Confidence;
   site: CallSite;
@@ -660,17 +855,18 @@ function addUse(edges: Map<string, GraphEdge>, use: PrismaUse, owners: readonly 
 }
 
 /**
- * Find client calls in every program: add their unresolved nodes to `nodes` and return their
- * uses in walk order, with owners naming inline handlers by node key (ADR-0094).
+ * Collect one service's {@link PrismaFacts} with its program: its client calls in walk order,
+ * with owners naming inline handlers by node key (ADR-0094). `repoUsesPrisma` is
+ * {@link PrismaSchemas.usesPrisma}; without it nothing is looked for.
  */
-function scanClientCalls(
-  programs: readonly ServiceProgram[],
+export function collectPrismaFacts(
+  sp: ServiceProgram,
   resolver: SymbolResolver,
-  models: ReadonlyMap<string, ReadonlyMap<string, ModelInfo>>,
-  nodes: Map<string, GraphNode>,
-): PrismaUse[] {
-  const uses: PrismaUse[] = [];
-  const schemaServices = [...models.entries()].filter(([, byAccessor]) => byAccessor.size > 0);
+  repoUsesPrisma: boolean,
+): PrismaFacts {
+  const calls: PrismaCall[] = [];
+  const facts: PrismaFacts = { service: sp.service.key, scanned: repoUsesPrisma, calls };
+  if (!repoUsesPrisma) return facts;
 
   /** The service that owns the file a node is in, as the analyzer splits files. */
   const serviceOf = (sp: ServiceProgram, node: ts.Node): WorkspacePackage => {
@@ -888,150 +1084,76 @@ function scanClientCalls(
     return undefined;
   };
 
-  /** The model a call names, or why it can't be determined. */
-  const lookup = (
-    accessor: string,
-    origin: WorkspacePackage | undefined,
-    caller: WorkspacePackage,
-    confidence: Confidence,
-  ): { model: ModelInfo; confidence: Confidence } | { reason: UnresolvedReason } | undefined => {
-    for (const service of [origin, caller]) {
-      const model = service && models.get(service.key)?.get(accessor);
-      if (model) return { model, confidence };
-    }
-    const candidates = schemaServices.flatMap(([, byAccessor]) => {
-      const model = byAccessor.get(accessor);
-      return model ? [model] : [];
-    });
-    const only = candidates[0];
-    if (candidates.length === 1 && only) {
-      return { model: only, confidence: schemaServices.length === 1 ? confidence : "heuristic" };
-    }
-    if (candidates.length > 1) return { reason: "AMBIGUOUS" };
-    return confidence === "heuristic" ? undefined : { reason: "UNKNOWN_SYMBOL" };
-  };
+  const service = sp.service;
+  for (const file of sp.rootFiles) {
+    const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+    const byNode = sourceFile && resolver.callers.get(sourceFile);
+    if (!sourceFile || !byNode) continue;
+    /** The ID an `unresolved` node at `site` gets. */
+    const unresolvedId = (site: SourceLocation): string =>
+      nodeId(
+        "unresolved",
+        service.key,
+        `${withinService(service, file)}:${site.line}:${site.column}`,
+      );
 
-  const addUnresolved = (
-    sp: ServiceProgram,
-    file: string,
-    site: SourceLocation,
-    reason: UnresolvedReason,
-    label: string,
-    expression: string,
-  ): string => {
-    const service = sp.service;
-    const id = nodeId(
-      "unresolved",
-      service.key,
-      `${withinService(service, file)}:${site.line}:${site.column}`,
-    );
-    nodes.set(id, {
-      id,
-      kind: "unresolved",
-      label,
-      parentId: nodeId("service", service.key, ""),
-      reason,
-      expression,
-      source: site,
-    });
-    return id;
-  };
+    const handle = (
+      call: ts.CallExpression | ts.TaggedTemplateExpression,
+      owners: Owners,
+    ): void => {
+      const callee = unwrap(ts.isCallExpression(call) ? call.expression : call.tag);
+      if (!ts.isPropertyAccessExpression(callee)) return;
+      const op = callee.name.text;
+      const site = locationOf(callee.name, file);
 
-  for (const sp of programs) {
-    for (const file of sp.rootFiles) {
-      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-      const byNode = sourceFile && resolver.callers.get(sourceFile);
-      if (!sourceFile || !byNode) continue;
+      const raw = RAW_OPS.get(op);
+      if (raw) {
+        if (!clientOf(sp, callee.expression, 0)) return;
+        const node = {
+          id: unresolvedId(site),
+          label: callee.getText(),
+          expression: expressionText(call),
+        };
+        calls.push({ type: "raw", kind: raw, owners, site, node });
+        return;
+      }
+      const kind = READ_OPS.has(op) ? "reads" : WRITE_OPS.has(op) ? "writes" : undefined;
+      if (!kind || !ts.isCallExpression(call)) return;
+      const delegate = unwrap(callee.expression);
+      if (!ts.isPropertyAccessExpression(delegate)) return;
+      const accessor = delegate.name.text;
+      if (accessor.startsWith("$")) return;
+      const receiver = unwrap(delegate.expression);
+      const origin = clientOf(sp, receiver, 0);
+      if (!origin) {
+        const name = ts.isIdentifier(receiver)
+          ? receiver.text
+          : ts.isPropertyAccessExpression(receiver)
+            ? receiver.name.text
+            : undefined;
+        if (name === undefined || !CLIENT_NAME.test(name)) return;
+      }
+      calls.push({
+        type: "model",
+        kind,
+        owners,
+        site,
+        accessor,
+        ...(origin ? { origin: origin.service.key } : {}),
+        confidence: origin?.confidence ?? "heuristic",
+        node: { id: unresolvedId(site), text: `${receiver.getText()}.${accessor}.${op}` },
+        names: fieldNames(call.arguments[0]),
+      });
+    };
 
-      const handle = (
-        call: ts.CallExpression | ts.TaggedTemplateExpression,
-        owners: Owners,
-      ): void => {
-        const callee = unwrap(ts.isCallExpression(call) ? call.expression : call.tag);
-        if (!ts.isPropertyAccessExpression(callee)) return;
-        const op = callee.name.text;
-        const site = locationOf(callee.name, file);
-
-        const raw = RAW_OPS.get(op);
-        if (raw) {
-          if (!clientOf(sp, callee.expression, 0)) return;
-          const id = addUnresolved(
-            sp,
-            file,
-            site,
-            "RAW_QUERY",
-            callee.getText(),
-            expressionText(call),
-          );
-          uses.push({
-            kind: raw,
-            owners,
-            to: id,
-            confidence: "unresolved",
-            site,
-            fields: [],
-            reason: "RAW_QUERY",
-          });
-          return;
-        }
-        const kind = READ_OPS.has(op) ? "reads" : WRITE_OPS.has(op) ? "writes" : undefined;
-        if (!kind || !ts.isCallExpression(call)) return;
-        const delegate = unwrap(callee.expression);
-        if (!ts.isPropertyAccessExpression(delegate)) return;
-        const accessor = delegate.name.text;
-        if (accessor.startsWith("$")) return;
-        const receiver = unwrap(delegate.expression);
-        const origin = clientOf(sp, receiver, 0);
-        if (!origin) {
-          const name = ts.isIdentifier(receiver)
-            ? receiver.text
-            : ts.isPropertyAccessExpression(receiver)
-              ? receiver.name.text
-              : undefined;
-          if (name === undefined || !CLIENT_NAME.test(name)) return;
-        }
-        const found = lookup(
-          accessor,
-          origin?.service,
-          sp.service,
-          origin?.confidence ?? "heuristic",
-        );
-        if (!found) return;
-        if ("reason" in found) {
-          const text = `${receiver.getText()}.${accessor}.${op}`;
-          const id = addUnresolved(sp, file, site, found.reason, text, text);
-          uses.push({
-            kind,
-            owners,
-            to: id,
-            confidence: "unresolved",
-            site,
-            fields: [],
-            reason: found.reason,
-          });
-          return;
-        }
-        const { named, missing } = fieldUse(call.arguments[0], found.model.fields);
-        const used: CallSite = missing.length > 0 ? { ...site, missingFields: missing } : site;
-        uses.push({
-          kind,
-          owners,
-          to: found.model.id,
-          confidence: found.confidence,
-          site: used,
-          fields: [...named],
-        });
-      };
-
-      const visit = (node: ts.Node, owners: Owners): void => {
-        const current = ownersAt(file, node, byNode.get(node), owners);
-        if (ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) handle(node, current);
-        ts.forEachChild(node, (child) => {
-          visit(child, current);
-        });
-      };
-      visit(sourceFile, NO_OWNERS);
-    }
+    const visit = (node: ts.Node, owners: Owners): void => {
+      const current = ownersAt(file, node, byNode.get(node), owners);
+      if (ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) handle(node, current);
+      ts.forEachChild(node, (child) => {
+        visit(child, current);
+      });
+    };
+    visit(sourceFile, NO_OWNERS);
   }
-  return uses;
+  return facts;
 }

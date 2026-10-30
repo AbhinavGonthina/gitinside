@@ -283,18 +283,36 @@ export function handledMethods(handler: ts.SignatureDeclaration): {
 }
 
 /**
- * Detect Next.js routes and pages in every service that depends on `next` (see the file
- * comment for the patterns). Returns `route` nodes (`route:<service>/<METHOD> <path>`) and
- * `page` nodes (`page:<service>/<path>`), both parented to their file, `handles` and
- * `renders` edges, and warnings. Everything is sorted.
+ * What one service's program says about Next.js, as plain data (ADR-0090): its routes and
+ * pages, their `handles`/`renders` edges, and warnings, in the order its files were walked.
+ * Every ID carries the service's key and duplicates are only possible within one router, so
+ * no other service's facts change them; {@link composeNextRoutes} only merges and sorts.
  */
-export function buildNextRoutes(
-  programs: readonly ServiceProgram[],
-  resolver: SymbolResolver,
-): { nodes: GraphNode[]; edges: GraphEdge[]; warnings: AnalysisWarning[] } {
+export interface NextFacts {
+  /** Key of the service whose program found these. */
+  service: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  warnings: AnalysisWarning[];
+}
+
+/**
+ * Collect one service's {@link NextFacts} with its program (see the file comment for the
+ * patterns): `route` nodes (`route:<service>/<METHOD> <path>`) and `page` nodes
+ * (`page:<service>/<path>`), both parented to their file, with their edges. Empty unless the
+ * service depends on `next`.
+ */
+export function collectNextFacts(sp: ServiceProgram, resolver: SymbolResolver): NextFacts {
+  const service = sp.service;
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
   const warnings: AnalysisWarning[] = [];
+  const facts = (): NextFacts => ({
+    service: service.key,
+    nodes: [...nodes.values()],
+    edges: [...edges.values()],
+    warnings,
+  });
   /** The file that produced each node, for duplicate warnings. */
   const owners = new Map<string, string>();
 
@@ -324,179 +342,196 @@ export function buildNextRoutes(
     edges.set(id, { id, kind, from, to: target.id, confidence: target.confidence, sites: [site] });
   };
 
-  for (const sp of programs) {
-    const service = sp.service;
-    if (!service.dependencies.includes("next")) continue;
-    const checker = resolver.checkerOf(sp);
-    const local = sp.rootFiles.map((file) => ({ file, rel: withinService(service, file) }));
-    const atRoot = local.some(({ rel }) => rel.startsWith("app/") || rel.startsWith("pages/"));
-    const base = atRoot ? "" : "src/";
+  if (!service.dependencies.includes("next")) return facts();
+  const checker = resolver.checkerOf(sp);
+  const local = sp.rootFiles.map((file) => ({ file, rel: withinService(service, file) }));
+  const atRoot = local.some(({ rel }) => rel.startsWith("app/") || rel.startsWith("pages/"));
+  const base = atRoot ? "" : "src/";
 
-    /** The module's exports by name, or an empty map for files without a module symbol. */
-    const exportsOf = (sourceFile: ts.SourceFile): Map<string, ts.Symbol> => {
-      const moduleSymbol = checker.getSymbolAtLocation(sourceFile);
-      const result = new Map<string, ts.Symbol>();
-      if (!moduleSymbol) return result;
-      for (const symbol of checker.getExportsOfModule(moduleSymbol))
-        result.set(symbol.name, symbol);
-      return result;
+  /** The module's exports by name, or an empty map for files without a module symbol. */
+  const exportsOf = (sourceFile: ts.SourceFile): Map<string, ts.Symbol> => {
+    const moduleSymbol = checker.getSymbolAtLocation(sourceFile);
+    const result = new Map<string, ts.Symbol>();
+    if (!moduleSymbol) return result;
+    for (const symbol of checker.getExportsOfModule(moduleSymbol)) result.set(symbol.name, symbol);
+    return result;
+  };
+
+  /**
+   * The symbol node an export names, and where it is declared in `file` (the file's start
+   * when the declaration is elsewhere, as with `export *`).
+   */
+  const exportTarget = (
+    symbol: ts.Symbol,
+    file: string,
+    sourceFile: ts.SourceFile,
+  ): { target: CallTarget | undefined; site: SourceLocation } | undefined => {
+    const declaration = symbol.declarations?.[0];
+    if (!declaration) return undefined;
+    const name = ts.getNameOfDeclaration(declaration);
+    const site =
+      declaration.getSourceFile() === sourceFile
+        ? locationOf(name ?? declaration, file)
+        : { file, line: 1, column: 1 };
+    const own = resolver.callers.get(declaration.getSourceFile())?.get(declaration);
+    if (own !== undefined) return { target: { id: own, confidence: "exact" }, site };
+    if (ts.isExportAssignment(declaration)) {
+      return { target: resolver.resolve(sp, declaration.expression), site };
+    }
+    return {
+      target: name && ts.isIdentifier(name) ? resolver.resolve(sp, name) : undefined,
+      site,
     };
+  };
 
-    /**
-     * The symbol node an export names, and where it is declared in `file` (the file's start
-     * when the declaration is elsewhere, as with `export *`).
-     */
-    const exportTarget = (
-      symbol: ts.Symbol,
-      file: string,
-      sourceFile: ts.SourceFile,
-    ): { target: CallTarget | undefined; site: SourceLocation } | undefined => {
-      const declaration = symbol.declarations?.[0];
-      if (!declaration) return undefined;
-      const name = ts.getNameOfDeclaration(declaration);
-      const site =
-        declaration.getSourceFile() === sourceFile
-          ? locationOf(name ?? declaration, file)
-          : { file, line: 1, column: 1 };
-      const own = resolver.callers.get(declaration.getSourceFile())?.get(declaration);
-      if (own !== undefined) return { target: { id: own, confidence: "exact" }, site };
-      if (ts.isExportAssignment(declaration)) {
-        return { target: resolver.resolve(sp, declaration.expression), site };
-      }
-      return {
-        target: name && ts.isIdentifier(name) ? resolver.resolve(sp, name) : undefined,
-        site,
-      };
-    };
-
-    const route = (
-      method: HttpMethod,
-      path: string,
-      file: string,
-      site: SourceLocation,
-    ): string | undefined => {
-      const label = `${method} ${path}`;
-      const id = nodeId("route", service.key, label);
-      const added = addNode(
-        {
-          id,
-          kind: "route",
-          label,
-          parentId: fileNodeId(service, file),
-          layer: "backend",
-          method,
-          path,
-          source: site,
-        },
-        file,
-      );
-      return added ? id : undefined;
-    };
-
-    for (const { file, rel } of local) {
-      if (!rel.startsWith(base) || !PAGE_EXTENSION.test(rel) || rel.endsWith(".d.ts")) continue;
-      const inner = rel.slice(base.length);
-      const segments = inner.replace(PAGE_EXTENSION, "").split("/");
-      const router: RouterKind | undefined =
-        segments[0] === "app" ? "app" : segments[0] === "pages" ? "pages" : undefined;
-      if (!router || segments.length < 2) continue;
-      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-      if (!sourceFile) continue;
-      const start: SourceLocation = { file, line: 1, column: 1 };
-
-      if (router === "app") {
-        const leaf = segments[segments.length - 1];
-        if (leaf !== "route" && leaf !== "page") continue;
-        const path = segmentsToPath(segments.slice(1, -1), "app");
-        if (path === undefined) continue;
-        const exports = exportsOf(sourceFile);
-        if (leaf === "page") {
-          const component = exports.get("default");
-          const found = component && exportTarget(component, file, sourceFile);
-          const id = nodeId("page", service.key, path);
-          const site = found?.site ?? start;
-          const page: GraphNode = {
-            id,
-            kind: "page",
-            label: path,
-            parentId: fileNodeId(service, file),
-            layer: "frontend",
-            path,
-            source: site,
-          };
-          if (addNode(page, file)) addEdge("renders", id, found?.target, site);
-          continue;
-        }
-        // Only value exports handle requests; `export type GET = …` is not a route. An alias
-        // TS can't resolve yields its "unknown" symbol, which is flagged as a value, so
-        // unresolvable re-exports still count.
-        const isValue = (symbol: ts.Symbol): boolean => {
-          const target =
-            symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
-          return (target.flags & ts.SymbolFlags.Value) !== 0;
-        };
-        const methods = [...exports]
-          .filter(([name, symbol]) => METHODS.has(name) && isValue(symbol))
-          .map(([name]) => name)
-          .sort(compareStrings);
-        if (methods.length === 0) {
-          warnings.push({
-            code: "NEXT_ROUTE_NO_METHODS",
-            file,
-            message:
-              "route handler file exports no HTTP method (GET, POST, …); no route was created",
-          });
-        }
-        for (const method of methods) {
-          const found = exportTarget(exports.get(method) as ts.Symbol, file, sourceFile);
-          const site = found?.site ?? start;
-          const id = route(method as HttpMethod, path, file, site);
-          if (id !== undefined) addEdge("handles", id, found?.target, site);
-        }
-        continue;
-      }
-
-      // Pages router.
-      const fileSegments = segments.slice(1);
-      if (fileSegments.length === 1 && SPECIAL_PAGES.has(fileSegments[0] ?? "")) continue;
-      if (fileSegments[fileSegments.length - 1] === "index") fileSegments.pop();
-      const path = segmentsToPath(fileSegments, "pages");
-      if (path === undefined) continue;
-      const exported = exportsOf(sourceFile).get("default");
-      const found = exported && exportTarget(exported, file, sourceFile);
-      const site = found?.site ?? start;
-      if (fileSegments[0] === "api" && segments.length > 2) {
-        const declaration = exported?.declarations?.[0];
-        const handler = functionOf(checker, declaration);
-        const { methods: checked, open } = handler
-          ? handledMethods(handler)
-          : { methods: [], open: false };
-        const methods: HttpMethod[] = checked.length === 0 || open ? ["ALL", ...checked] : checked;
-        for (const method of methods) {
-          const id = route(method, path, file, site);
-          if (id !== undefined) addEdge("handles", id, found?.target, site);
-        }
-        continue;
-      }
-      const id = nodeId("page", service.key, path);
-      const page: GraphNode = {
+  const route = (
+    method: HttpMethod,
+    path: string,
+    file: string,
+    site: SourceLocation,
+  ): string | undefined => {
+    const label = `${method} ${path}`;
+    const id = nodeId("route", service.key, label);
+    const added = addNode(
+      {
         id,
-        kind: "page",
-        label: path,
+        kind: "route",
+        label,
         parentId: fileNodeId(service, file),
-        layer: "frontend",
+        layer: "backend",
+        method,
         path,
         source: site,
-      };
-      if (addNode(page, file)) addEdge("renders", id, found?.target, site);
-    }
-  }
-
-  return {
-    nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)),
-    edges: [...edges.values()].sort((a, b) => compareStrings(a.id, b.id)),
-    warnings: warnings.sort(
-      (a, b) => compareStrings(a.file ?? "", b.file ?? "") || compareStrings(a.message, b.message),
-    ),
+      },
+      file,
+    );
+    return added ? id : undefined;
   };
+
+  for (const { file, rel } of local) {
+    if (!rel.startsWith(base) || !PAGE_EXTENSION.test(rel) || rel.endsWith(".d.ts")) continue;
+    const inner = rel.slice(base.length);
+    const segments = inner.replace(PAGE_EXTENSION, "").split("/");
+    const router: RouterKind | undefined =
+      segments[0] === "app" ? "app" : segments[0] === "pages" ? "pages" : undefined;
+    if (!router || segments.length < 2) continue;
+    const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+    if (!sourceFile) continue;
+    const start: SourceLocation = { file, line: 1, column: 1 };
+
+    if (router === "app") {
+      const leaf = segments[segments.length - 1];
+      if (leaf !== "route" && leaf !== "page") continue;
+      const path = segmentsToPath(segments.slice(1, -1), "app");
+      if (path === undefined) continue;
+      const exports = exportsOf(sourceFile);
+      if (leaf === "page") {
+        const component = exports.get("default");
+        const found = component && exportTarget(component, file, sourceFile);
+        const id = nodeId("page", service.key, path);
+        const site = found?.site ?? start;
+        const page: GraphNode = {
+          id,
+          kind: "page",
+          label: path,
+          parentId: fileNodeId(service, file),
+          layer: "frontend",
+          path,
+          source: site,
+        };
+        if (addNode(page, file)) addEdge("renders", id, found?.target, site);
+        continue;
+      }
+      // Only value exports handle requests; `export type GET = …` is not a route. An alias
+      // TS can't resolve yields its "unknown" symbol, which is flagged as a value, so
+      // unresolvable re-exports still count.
+      const isValue = (symbol: ts.Symbol): boolean => {
+        const target =
+          symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+        return (target.flags & ts.SymbolFlags.Value) !== 0;
+      };
+      const methods = [...exports]
+        .filter(([name, symbol]) => METHODS.has(name) && isValue(symbol))
+        .map(([name]) => name)
+        .sort(compareStrings);
+      if (methods.length === 0) {
+        warnings.push({
+          code: "NEXT_ROUTE_NO_METHODS",
+          file,
+          message: "route handler file exports no HTTP method (GET, POST, …); no route was created",
+        });
+      }
+      for (const method of methods) {
+        const found = exportTarget(exports.get(method) as ts.Symbol, file, sourceFile);
+        const site = found?.site ?? start;
+        const id = route(method as HttpMethod, path, file, site);
+        if (id !== undefined) addEdge("handles", id, found?.target, site);
+      }
+      continue;
+    }
+
+    // Pages router.
+    const fileSegments = segments.slice(1);
+    if (fileSegments.length === 1 && SPECIAL_PAGES.has(fileSegments[0] ?? "")) continue;
+    if (fileSegments[fileSegments.length - 1] === "index") fileSegments.pop();
+    const path = segmentsToPath(fileSegments, "pages");
+    if (path === undefined) continue;
+    const exported = exportsOf(sourceFile).get("default");
+    const found = exported && exportTarget(exported, file, sourceFile);
+    const site = found?.site ?? start;
+    if (fileSegments[0] === "api" && segments.length > 2) {
+      const declaration = exported?.declarations?.[0];
+      const handler = functionOf(checker, declaration);
+      const { methods: checked, open } = handler
+        ? handledMethods(handler)
+        : { methods: [], open: false };
+      const methods: HttpMethod[] = checked.length === 0 || open ? ["ALL", ...checked] : checked;
+      for (const method of methods) {
+        const id = route(method, path, file, site);
+        if (id !== undefined) addEdge("handles", id, found?.target, site);
+      }
+      continue;
+    }
+    const id = nodeId("page", service.key, path);
+    const page: GraphNode = {
+      id,
+      kind: "page",
+      label: path,
+      parentId: fileNodeId(service, file),
+      layer: "frontend",
+      path,
+      source: site,
+    };
+    if (addNode(page, file)) addEdge("renders", id, found?.target, site);
+  }
+  return facts();
+}
+
+/** Every service's Next.js routes, pages, edges, and warnings from their facts, sorted. */
+export function composeNextRoutes(facts: readonly NextFacts[]): {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  warnings: AnalysisWarning[];
+} {
+  return {
+    nodes: facts.flatMap((f) => f.nodes).sort((a, b) => compareStrings(a.id, b.id)),
+    edges: facts.flatMap((f) => f.edges).sort((a, b) => compareStrings(a.id, b.id)),
+    warnings: facts
+      .flatMap((f) => f.warnings)
+      .sort(
+        (a, b) =>
+          compareStrings(a.file ?? "", b.file ?? "") || compareStrings(a.message, b.message),
+      ),
+  };
+}
+
+/**
+ * Detect Next.js routes and pages in every service that depends on `next`:
+ * {@link collectNextFacts} per program, then {@link composeNextRoutes}.
+ */
+export function buildNextRoutes(
+  programs: readonly ServiceProgram[],
+  resolver: SymbolResolver,
+): { nodes: GraphNode[]; edges: GraphEdge[]; warnings: AnalysisWarning[] } {
+  return composeNextRoutes(programs.map((sp) => collectNextFacts(sp, resolver)));
 }

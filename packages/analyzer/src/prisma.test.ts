@@ -1,11 +1,26 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
-import { fieldUse, modelAccessor, parsePrismaSchema } from "./prisma.js";
+import { createSymbolResolver } from "./calls.js";
+import { buildExpressRoutes } from "./express.js";
+import { buildInventory } from "./inventory.js";
+import {
+  buildPrismaSchemas,
+  collectPrismaFacts,
+  composePrisma,
+  fieldUse,
+  modelAccessor,
+  parsePrismaSchema,
+  type PrismaFacts,
+  type PrismaPart,
+} from "./prisma.js";
+import { buildServicePrograms } from "./program.js";
+import { detectWorkspace } from "./workspace.js";
 
 let dir: string;
 beforeEach(async () => {
@@ -203,6 +218,148 @@ describe("fieldUse", () => {
 
   it("returns nothing without an argument", () => {
     expect(fieldUse(undefined, fields)).toEqual({ named: [], missing: [] });
+  });
+});
+
+describe("prisma facts", () => {
+  const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
+
+  /** The schemas, every service's client-call facts, and Express's inline handlers. */
+  async function prismaInputs(root: string) {
+    const inventory = await buildInventory(root);
+    const workspace = await detectWorkspace(root, inventory.files);
+    const programs = buildServicePrograms(root, workspace, inventory);
+    const resolver = createSymbolResolver(programs, workspace);
+    const { inlineHandlers } = buildExpressRoutes(programs, resolver);
+    const schemas = await buildPrismaSchemas(root, workspace, inventory.sourceFiles);
+    const facts = programs.map((sp) => collectPrismaFacts(sp, resolver, schemas.usesPrisma));
+    return { schemas, facts, inlineHandlers };
+  }
+
+  /** Client usage in `analyze`'s graph: reads/writes edges and the unresolved nodes they reach. */
+  function clientPart(graph: ArchitectureGraph) {
+    const edges = graph.edges.filter((e) => e.kind === "reads" || e.kind === "writes");
+    const targets = new Set(edges.map((e) => e.to));
+    return {
+      edges,
+      unresolved: graph.nodes.filter((n) => n.kind === "unresolved" && targets.has(n.id)),
+      models: graph.nodes.filter((n) => n.kind === "model"),
+    };
+  }
+
+  function composedClientPart(part: PrismaPart) {
+    const edges = part.edges.filter((e) => e.kind === "reads" || e.kind === "writes");
+    return {
+      edges,
+      unresolved: part.nodes.filter((n) => n.kind === "unresolved"),
+      models: part.nodes.filter((n) => n.kind === "model"),
+    };
+  }
+
+  it.each(["prisma-relations", "shop-demo", "diff-broken-head"])(
+    "composes %s from JSON round-tripped facts exactly as analyze does",
+    async (name) => {
+      const root = join(FIXTURES, name);
+      const { schemas, facts, inlineHandlers } = await prismaInputs(root);
+      const revived = JSON.parse(JSON.stringify(facts)) as PrismaFacts[];
+      expect(revived).toEqual(facts);
+      const composed = composePrisma(schemas, revived, inlineHandlers);
+      const graph = await analyze(root);
+      expect(composed.edges.some((e) => e.kind === "reads" || e.kind === "writes")).toBe(true);
+      expect(composedClientPart(composed)).toEqual(clientPart(graph));
+      expect(composed.warnings).toEqual(graph.warnings.filter((w) => w.code.startsWith("PRISMA")));
+    },
+  );
+
+  async function clientRepo(): Promise<void> {
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*", "packages/*"] }));
+    await put(
+      "packages/db/package.json",
+      JSON.stringify({ name: "@acme/db", dependencies: { "@prisma/client": "6" } }),
+    );
+    await put("packages/db/prisma/schema.prisma", SCHEMA);
+    await put("packages/db/src/index.ts", [
+      'import { PrismaClient } from "@prisma/client";',
+      "export const prisma = new PrismaClient();",
+      "export function byId(id: number) { return prisma.user.findUnique({ where: { id } }); }",
+    ]);
+    await put(
+      "apps/api/package.json",
+      JSON.stringify({ name: "api", dependencies: { "@acme/db": "workspace:*" } }),
+    );
+    await put("apps/api/src/users.ts", [
+      'import { prisma } from "@acme/db";',
+      "export function find(email: string) {",
+      "  return prisma.user.findMany({ where: { email }, select: { id: true } });",
+      "}",
+      "export function raw() { return prisma.$queryRaw`SELECT 1`; }",
+    ]);
+  }
+
+  const of = (all: PrismaFacts[], service: string) => all.find((f) => f.service === service);
+
+  it("keeps a service's client facts unchanged when the schema loses a field it uses", async () => {
+    await clientRepo();
+    const before = await prismaInputs(dir);
+    await put(
+      "packages/db/prisma/schema.prisma",
+      SCHEMA.filter((line) => !line.includes("email")),
+    );
+    const after = await prismaInputs(dir);
+    expect(of(after.facts, "api")).toEqual(of(before.facts, "api"));
+    expect(of(after.facts, "api")?.calls.map((c) => c.type)).toEqual(["model", "raw"]);
+    const sitesOf = (part: PrismaPart) =>
+      part.edges.find((e) => e.id === "reads:symbol:api/src/users.ts#find->model:db/User")?.sites;
+    const composed = composePrisma(after.schemas, after.facts, after.inlineHandlers);
+    expect(sitesOf(composed)?.map((s) => s.missingFields)).toEqual([["email"]]);
+    expect(
+      sitesOf(composePrisma(before.schemas, before.facts, before.inlineHandlers))?.map(
+        (s) => s.missingFields,
+      ),
+    ).toEqual([undefined]);
+    expect(composedClientPart(composed)).toEqual(clientPart(await analyze(dir)));
+  });
+
+  it("keeps the client's package facts unchanged when another service starts calling it", async () => {
+    await clientRepo();
+    const before = await prismaInputs(dir);
+    await put("apps/api/src/posts.ts", [
+      'import { prisma } from "@acme/db";',
+      "export const posts = () => prisma.post.findMany();",
+    ]);
+    const after = await prismaInputs(dir);
+    expect(of(before.facts, "db")?.calls).toHaveLength(1);
+    expect(of(after.facts, "db")).toEqual(of(before.facts, "db"));
+    expect(of(after.facts, "api")).not.toEqual(of(before.facts, "api"));
+  });
+
+  it("looks for nothing in a repo without Prisma, and composes unscanned facts to nothing", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put(
+      "src/db.ts",
+      "declare const db: any;\nexport const all = () => db.user.findMany();\n",
+    );
+    const { schemas, facts, inlineHandlers } = await prismaInputs(dir);
+    expect(schemas.usesPrisma).toBe(false);
+    expect(facts).toEqual([{ service: "api", scanned: false, calls: [] }]);
+    const unscanned: PrismaFacts = {
+      ...(facts[0] as PrismaFacts),
+      calls: [
+        {
+          type: "raw",
+          kind: "reads",
+          owners: { handlers: [], ids: ["symbol:api/src/db.ts#all"] },
+          site: { file: "src/db.ts", line: 2, column: 1 },
+          node: { id: "unresolved:api/src/db.ts:2:1", label: "db.$queryRaw", expression: "x" },
+        },
+      ],
+    };
+    expect(composePrisma(schemas, [unscanned], inlineHandlers)).toEqual({
+      nodes: [],
+      edges: [],
+      warnings: [],
+      datastores: [],
+    });
   });
 });
 
