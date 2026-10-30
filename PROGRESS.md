@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7d3. Per-service fact bundles for every remaining program stage + global composition (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
+M6.7d3b. Next.js routes and Prisma client uses as per-service facts (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -147,7 +147,10 @@ M6.7d3. Per-service fact bundles for every remaining program stage + global comp
 - [x] M6.7c Wrapper inlining as per-service facts (wrapper URL templates, calls to wrappers) + a global binding step; no output change (goldens, eval) {model: opus}
 - [x] M6.7d1 Express as per-service facts (router creations, parameter bindings, route and `use` registrations with router references, resolved handlers) + a global composition step; `inlineHandlers` keyed by node key; no output change (goldens, eval) {model: opus}
 - [x] M6.7d2 Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (handler keys, bound to route IDs after Express composition); no output change {model: opus}
-- [ ] M6.7d3 Per-service serializable fact bundles for every remaining program stage (imports, symbols, calls, Next.js, Prisma client uses, SDK, queues, TypeScript and resolver warnings) + global composition; `analyze` rebuilt as facts → compose; JSON round-trip test; no output change (goldens, eval) {model: opus}
+- [x] M6.7d3a Imports, symbols, and calls as per-service facts (`collectImportFacts` + `composeImports`, `collectSymbolNodes`, `collectCallFacts` + `composeCallEdges`), wired into `analyze`; JSON round-trip test; no output change (goldens, eval) {model: opus}
+- [ ] M6.7d3b Next.js routes and Prisma client uses as per-service facts + global composition (Prisma schema stays global); no output change {model: opus}
+- [ ] M6.7d3c SDK and queue edges as per-service facts + global composition; no output change {model: opus}
+- [ ] M6.7d3d Resolver warnings per asking service + a `ServiceFacts` bundle per service; `analyze` rebuilt as facts → compose; whole-bundle JSON round-trip test; no output change (goldens, eval) {model: opus}
 - [ ] M6.7e `analyze({ cache })`: reuse clean services' facts, build clean programs only when needed; warm == cold bytes over fixture edits (edit, add, delete, cross-service import, tsconfig); CLI `--cache <dir>`, diff's two ref sides share it {model: opus}
 - [ ] M6.7f Worker cache volume (2 GB): public folder + per-installation private folders (deleted on uninstall, M8.5); compose + container check {model: opus}
 - [ ] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
@@ -187,6 +190,8 @@ M6.7d3. Per-service fact bundles for every remaining program stage + global comp
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.7d3a: M6.7d3 split into a–d. Imports and calls are now one record per site per service (`collectImportFacts`: `ImportFact`s, unresolved nodes, `IMPORT_OUTSIDE_SERVICE` warnings; `collectCallFacts`: `CallFact`s), merged globally by `composeImports` / `composeCallEdges` with the old rules; symbols are `collectSymbolNodes(sp)` concatenated (ADR-0098). `analyze` calls the two steps; the `build*` functions remain as collect-then-compose. Analyzer 700 (11 new: round-tripped facts compose to analyze's edges/nodes on fixtures + a workspace repo; a package's facts unchanged when another service starts importing/calling it; merge rules). Root typecheck + lint green. Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110), `--check` byte-for-byte. Next: M6.7d3b.
 
 - 2026-10-29 · M5.12d2: README images (`handleImageRequest`) no longer read the bucket: they fetch the view's `graphUrl` (stored spelling) on the request's own origin via `cdnGraphReader` (10 s timeout, refuses paths leaving the origin), so the day-cached `/api/graph` takes the reads; a non-200 is `image_graph_unavailable` + status. `imageDepsFromEnv(origin)` needs only the database. `/api/graph` 308s other spellings to the stored one before any bucket read (cached 1 h for case-only renames, ADR-0097). Web 327 tests (5 new; image tests run the real graph handler over a fake bucket), root typecheck + lint green. Web-only, no eval delta. M5.13 now confirms the CDN hit. Next: M6.7d3.
 
