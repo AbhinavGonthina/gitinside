@@ -2,7 +2,6 @@
 import type { ArchitectureGraph } from "@gitinside/schema";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Explorer, type ExplorerProps } from "./Explorer.js";
-import { CHECKOUT_TRACE } from "./trace.js";
 
 // The explorer (M4b.3b) on the analyzer's own output for fixtures/shop-demo:
 // the golden graph, and the fixture's source files for the code previews.
@@ -40,7 +39,7 @@ function Explore(props: Partial<ExplorerProps>) {
       <Explorer
         graph={graph}
         sources={sources}
-        trace={CHECKOUT_TRACE}
+        traceStart="page:web//checkout"
         layoutWorker={layoutWorker}
         {...props}
       />
@@ -114,4 +113,13 @@ export const Tracing: Story = { render: () => <Explore initialStep={2} /> };
 export const TracingBrokenDown: Story = {
   name: "Tracing, broken down",
   render: () => <Explore initialOpen={["service:api/", "module:api/src"]} initialStep={4} />,
+};
+
+/**
+ * The home page's request path (M4b.6a): it ends on the step whose URL the
+ * analyzer couldn't resolve, shown as the unresolved call it is.
+ */
+export const TracingUnresolved: Story = {
+  name: "Tracing, unresolved",
+  render: () => <Explore initialOpen={["service:web/"]} traceStart="page:web//" initialStep={2} />,
 };
