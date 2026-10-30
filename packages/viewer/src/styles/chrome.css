@@ -518,7 +518,7 @@
   color: var(--text);
   font-size: var(--font-size-13);
   white-space: nowrap;
-  animation: gi-rise-in var(--duration-standard) var(--ease-standard) both;
+  animation: gi-rise-in var(--duration-standard) var(--ease-standard);
 }
 
 .gi-status:has(.gi-button) {
@@ -581,7 +581,7 @@
   border-radius: var(--radius-module);
   background: var(--surface-raised);
   box-shadow: var(--shadow-2);
-  animation: gi-rise-in var(--duration-standard) var(--ease-standard) both;
+  animation: gi-rise-in var(--duration-standard) var(--ease-standard);
 }
 
 /*
@@ -746,7 +746,7 @@
  * and code). Only the content moves; the panel itself stays put.
  */
 .gi-inspector > * {
-  animation: gi-swap-in var(--duration-standard) var(--ease-standard) both;
+  animation: gi-swap-in var(--duration-standard) var(--ease-standard);
 }
 
 @keyframes gi-swap-in {
@@ -1090,7 +1090,7 @@
   justify-content: center;
   padding-top: 12vh;
   background: var(--scrim);
-  animation: gi-fade-in var(--duration-standard) var(--ease-standard) both;
+  animation: gi-fade-in var(--duration-standard) var(--ease-standard);
 }
 
 /* The scrim and the dialog leave together, faster than they came. */
@@ -1116,7 +1116,7 @@
   border-radius: var(--radius-module);
   background: var(--surface-raised);
   box-shadow: var(--shadow-3);
-  animation: gi-drop-in var(--duration-standard) var(--ease-standard) both;
+  animation: gi-drop-in var(--duration-standard) var(--ease-standard);
 }
 
 /* The dialog settles down from the search field's direction, 6px. */
