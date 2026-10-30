@@ -21,12 +21,22 @@ export interface RepoDiagramProps {
 }
 
 /**
+ * Starts the diagram's layout worker (`layoutWorker.ts`). Module-level, so the explorer's
+ * engine isn't rebuilt on every render; only ever called in the browser.
+ */
+const layoutWorker = () =>
+  new Worker(new URL("./layoutWorker.ts", import.meta.url), {
+    type: "module",
+    name: "gitinside-layout",
+  });
+
+/**
  * The diagram page (ADR-0069): a repo bar (name, commit, how it relates to the latest
  * commit), then the diagram. The graph is fetched in the browser from `/api/graph`, so the
  * page itself stays small and the CDN caches the graph per commit. "Add to README" lives on
  * the repo bar, since the explorer's share menu is hidden with its top bar. The diagram is the
- * M4b explorer without its top bar; its layouts run on the main thread until M4b.3b2 gives the
- * site a layout worker.
+ * M4b explorer without its top bar, laid out in a Web Worker (the explorer falls back to the
+ * main thread if the worker can't start).
  */
 export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramProps) {
   const [load, setLoad] = useState<GraphLoad | undefined>(undefined);
@@ -91,7 +101,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
             Loading the diagram
           </p>
         ) : load.ok ? (
-          <Explorer graph={load.graph} topBar={false} />
+          <Explorer graph={load.graph} topBar={false} layoutWorker={layoutWorker} />
         ) : (
           <div className="diagram-page__state">
             <p className="progress__failure" role="alert" tabIndex={-1} ref={failure}>
