@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.12d2. Put every snapshot read behind the CDN cache (README images via `/api/graph`), then M6.7d3 (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
+M6.7d3. Per-service fact bundles for every remaining program stage + global composition (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -125,8 +125,8 @@ M5.12d2. Put every snapshot read behind the CDN cache (README images via `/api/g
 - [x] M5.12b Retention schedule in the worker + quota check: R2 (listing) and Neon (`pg_database_size`) against their free limits, `quota_alarm` log at 80%, prune old rate-limit windows, a `quota` command for M5.13's smoke test {model: opus}
 - [x] M5.12c Snapshot store on Oracle Object Storage (PROPOSALS P-2, #5): `SNAPSHOTS_*` config (namespace, region, keys, bucket ⇒ the S3-compatible endpoint, region signing), egress allowlist host from it, retention budget and bucket quota from 20 GB; web + worker + infra + docs {model: opus}
 - [x] M5.12d1 Count Oracle Object Storage requests (50k/month): `store_requests` per UTC month and source, `countingFetch` in the worker's and web's stores, a `requests` quota with `quota_alarm` at 80% (ADR-0096) {model: opus}
-- [ ] M5.12d2 Every snapshot read behind the CDN cache: README images read the graph through the day-cached `/api/graph` URL instead of the bucket (each image URL now reads its snapshot every 10 min, ≈ 4,300 requests/month per busy URL, ADR-0096), and case variants of a graph path redirect to the stored spelling before any bucket read {model: opus}
-- [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review) {model: opus} {blocked: #3 #5 #7}
+- [x] M5.12d2 Every snapshot read behind the CDN cache: README images read the graph through the day-cached `/api/graph` URL instead of the bucket (each image URL now reads its snapshot every 10 min, ≈ 4,300 requests/month per busy URL, ADR-0096), and case variants of a graph path redirect to the stored spelling before any bucket read {model: opus}
+- [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review; confirm an image's self-request to `/api/graph` is a CDN hit, `x-vercel-cache: HIT`, with `store_requests` unchanged, ADR-0097) {model: opus} {blocked: #3 #5 #7}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
 - [x] M5.14c M5 review follow-up (ADR-0079, ADR-0080): guard `getTypeAtLocation` like `getSymbolAtLocation` (eval re-record) {model: opus}
@@ -187,6 +187,8 @@ M5.12d2. Put every snapshot read behind the CDN cache (README images via `/api/g
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.12d2: README images (`handleImageRequest`) no longer read the bucket: they fetch the view's `graphUrl` (stored spelling) on the request's own origin via `cdnGraphReader` (10 s timeout, refuses paths leaving the origin), so the day-cached `/api/graph` takes the reads; a non-200 is `image_graph_unavailable` + status. `imageDepsFromEnv(origin)` needs only the database. `/api/graph` 308s other spellings to the stored one before any bucket read (cached 1 h for case-only renames, ADR-0097). Web 327 tests (5 new; image tests run the real graph handler over a fake bucket), root typecheck + lint green. Web-only, no eval delta. M5.13 now confirms the CDN hit. Next: M6.7d3.
 
 - 2026-10-29 · M5.12d1: M5.12d split into d1 (counting) and d2 (README image reads behind the CDN: each image URL reads its snapshot on every 10-minute miss, the largest share of the 50k budget). New `store_requests` table (migration `0001`), one upsert per request per UTC month and source (`countStoreRequests`, `storeRequestsThisMonth`). `countingFetch` (`@gitinside/worker/storage`) counts every attempt alongside it, awaited; a failed count is logged (`store_request_count_failed`) and never fails the request. Worker (`createCountedStore`, main + quota-bin) and web (`graphDepsFromEnv`) both count. `measureQuotas` adds `requests` vs 50,000 (`bySource`); usage lines are now `{ resource, unit, used, limit, percent, alarm }` (ADR-0096). 12 new tests (db 4, worker 7, web 1). Full `pnpm test` green except web's known PGlite timeout under load (web alone 322/322; worker 466 + 16 Redis-skipped, those 16 green on CI via draft PR #10). Next: M5.12d2.
 
