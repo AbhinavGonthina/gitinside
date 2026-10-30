@@ -12,7 +12,8 @@ import type { CompletedJobs } from "./queue.js";
 import type { ListedObject, ObjectStore } from "./storage.js";
 
 /**
- * Snapshot retention (DESIGN.md §10, ADR-0077): keeps the bucket inside R2's free 10 GB.
+ * Snapshot retention (DESIGN.md §10, ADR-0077): keeps the bucket inside Oracle Object
+ * Storage's Always Free 20 GB (ADR-0095).
  *
  * **What is kept**, decided by the pure {@link planRetention}:
  * 1. Per **public** repo, the latest {@link RetentionPolicy.keepPerRepo} commits (5), each by
@@ -21,14 +22,14 @@ import type { ListedObject, ObjectStore } from "./storage.js";
  *    commit (`superseded`: an older analyzer version nothing serves any more).
  * 2. Plus any commit a pull request updated in the last 30 days names as base or head
  *    (pinned): a PR diff may still need it. Pinned snapshots are never evicted.
- * 3. If the bucket would still hold more than {@link RetentionPolicy.budgetBytes} (8 GB),
+ * 3. If the bucket would still hold more than {@link RetentionPolicy.budgetBytes} (16 GB),
  *    the oldest snapshots by finish time go first, globally, private ones included
  *    (`over-budget`), until it fits.
  * 4. **Orphans**, objects with a snapshot key that no `done` row names, are deleted once
  *    older than an hour (an upload is written before its row, ADR-0063). Objects outside
  *    the snapshot key shapes are never touched, only counted.
  *
- * Sizes come from listing the bucket, not from our rows: the listing is what R2 bills.
+ * Sizes come from listing the bucket, not from our rows: the listing is what the free tier counts.
  *
  * **How a run applies it** ({@link runRetention}): rows are read **before** the bucket is
  * listed, so any row the run sees has its object in the listing (publish uploads first).
@@ -59,12 +60,12 @@ export interface RetentionPolicy {
 }
 
 /**
- * DESIGN.md §10's numbers. 8 GB counted as 8 × 10⁹ bytes, the smaller reading of R2's
- * "10 GB" free tier, leaves room for an hour of uploads between runs.
+ * DESIGN.md §10's numbers. 16 GB counted as 16 × 10⁹ bytes, 80% of the smaller reading of
+ * Oracle's "20 GB" Always Free storage, leaves room for an hour of uploads between runs.
  */
 export const RETENTION_POLICY: RetentionPolicy = {
   keepPerRepo: 5,
-  budgetBytes: 8_000_000_000,
+  budgetBytes: 16_000_000_000,
   orphanGraceMs: 60 * 60 * 1000,
 };
 

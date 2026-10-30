@@ -93,7 +93,7 @@ export interface AnalysisStats {
   edges: number;
   unresolved: number;
   warnings?: number;
-  /** `architecture.json` size, and the gzipped object's size (what counts against R2's quota). */
+  /** `architecture.json` size, and the gzipped object's size (what counts against the bucket's quota). */
   graphBytes?: number;
   snapshotBytes?: number;
   /** Analyzer stages. `jsonb` reorders keys, so this doesn't keep the stage order. */

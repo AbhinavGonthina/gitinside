@@ -23,7 +23,10 @@ import type { ObjectStore } from "./storage.js";
 
 /** The free tiers' storage limits, in bytes. */
 export interface QuotaLimits {
-  /** R2's free 10 GB, counted as 10 × 10⁹ bytes (the smaller reading). */
+  /**
+   * Oracle Object Storage's Always Free 20 GB (ADR-0095), counted as 20 × 10⁹ bytes (the
+   * smaller reading).
+   */
   bucketBytes: number;
   /**
    * Neon's free plan storage: SPEC §5 assumes 1 GB, counted as 10⁹ bytes. Planning issue #4
@@ -34,7 +37,7 @@ export interface QuotaLimits {
 
 /** The limits {@link measureQuotas} checks by default. */
 export const QUOTA_LIMITS: QuotaLimits = {
-  bucketBytes: 10_000_000_000,
+  bucketBytes: 20_000_000_000,
   databaseBytes: 1_000_000_000,
 };
 
@@ -82,7 +85,7 @@ export interface QuotaDeps {
 }
 
 /**
- * Measure the whole bucket (its listing, what R2 bills) and the database, and check them.
+ * Measure the whole bucket (its listing, what the free tier counts) and the database, and check them.
  * Read-only. Rejects if either can't be measured.
  */
 export async function measureQuotas(deps: QuotaDeps): Promise<QuotaUsage[]> {

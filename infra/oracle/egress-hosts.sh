@@ -4,7 +4,8 @@
 #
 #   sh infra/oracle/egress-hosts.sh <worker env file> <hosts file>
 #
-# The hosts: <R2_ACCOUNT_ID>.r2.cloudflarestorage.com and the hosts of DATABASE_URL /
+# The hosts: <SNAPSHOTS_NAMESPACE>.compat.objectstorage.<SNAPSHOTS_REGION>.oraclecloud.com
+# (Oracle Object Storage's S3-compatible API, ADR-0095) and the hosts of DATABASE_URL /
 # DATABASE_URL_UNPOOLED (single-label names, such as CI's `postgres` service, are the
 # stack's own and reached over the internal network, so they're left out). GitHub's two
 # hosts are fixed in the gateway itself. provision.sh runs this, and so does the systemd
@@ -35,11 +36,21 @@ url_host() {
 
 [ -r "$ENV_FILE" ] || fail "can't read the worker's env file ($ENV_FILE)"
 
-account=$(value R2_ACCOUNT_ID | tr '[:upper:]' '[:lower:]')
-case $account in
-  '' | *[!0-9a-z]*) fail "R2_ACCOUNT_ID is empty or not an account ID" ;;
+# The snapshot bucket's endpoint, built from the namespace and region as storage.ts builds
+# it (`oracleS3Host`). Both must be lowercase DNS labels joined by hyphens, as storage.ts
+# requires, so neither can add a dot (another domain) or anything else to the name.
+# The letters are spelled out: a range like a-z can match capitals in some locales.
+namespace=$(value SNAPSHOTS_NAMESPACE)
+case $namespace in
+  '' | -* | *- | *[!0123456789abcdefghijklmnopqrstuvwxyz-]*)
+    fail "SNAPSHOTS_NAMESPACE is empty or not a namespace" ;;
 esac
-hosts="$account.r2.cloudflarestorage.com"
+region=$(value SNAPSHOTS_REGION)
+case $region in
+  '' | -* | *- | *--* | *[!0123456789abcdefghijklmnopqrstuvwxyz-]*)
+    fail "SNAPSHOTS_REGION is empty or not a region identifier" ;;
+esac
+hosts="$namespace.compat.objectstorage.$region.oraclecloud.com"
 
 for name in DATABASE_URL DATABASE_URL_UNPOOLED; do
   url=$(value "$name")

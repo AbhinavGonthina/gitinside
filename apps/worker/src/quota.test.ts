@@ -10,10 +10,11 @@ import { createObjectStore } from "./storage.js";
 
 const ENV = {
   DATABASE_URL: "postgres://127.0.0.1/gitinside",
-  R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
-  R2_ACCESS_KEY_ID: "key-id",
-  R2_SECRET_ACCESS_KEY: "key-secret",
-  R2_BUCKET: "gitinside-snapshots",
+  SNAPSHOTS_NAMESPACE: "axq1ns2example",
+  SNAPSHOTS_REGION: "us-ashburn-1",
+  SNAPSHOTS_ACCESS_KEY_ID: "key-id",
+  SNAPSHOTS_SECRET_ACCESS_KEY: "key-secret",
+  SNAPSHOTS_BUCKET: "gitinside-snapshots",
 };
 
 const parse = (lines: string[]): Record<string, unknown>[] =>
@@ -49,8 +50,8 @@ describe("runQuota", () => {
       },
     }),
     openStore: (config) => {
-      expect(config).toMatchObject({ bucket: ENV.R2_BUCKET, region: "auto" });
-      // The fake's own endpoint, bucket, and keys stand in for R2's.
+      expect(config).toMatchObject({ bucket: ENV.SNAPSHOTS_BUCKET, region: "us-ashburn-1" });
+      // The fake's own endpoint, bucket, and keys stand in for Oracle's.
       return createObjectStore({
         endpoint: s3.endpoint,
         bucket: s3.bucket,
@@ -68,7 +69,7 @@ describe("runQuota", () => {
       time: expect.any(String),
       event: "quota",
       quotas: [
-        { resource: "bucket", usedBytes: 40, limitBytes: 10_000_000_000, alarm: false },
+        { resource: "bucket", usedBytes: 40, limitBytes: 20_000_000_000, alarm: false },
         { resource: "database", limitBytes: 1_000_000_000, alarm: false },
       ],
     });
@@ -98,7 +99,7 @@ describe("runQuota", () => {
     let opened = false;
     const code = await runQuota(
       io({
-        env: { ...ENV, DATABASE_URL: "mysql://x", R2_BUCKET: "" },
+        env: { ...ENV, DATABASE_URL: "mysql://x", SNAPSHOTS_BUCKET: "" },
         openDb: () => {
           opened = true;
           throw new Error("unreachable");
@@ -112,7 +113,7 @@ describe("runQuota", () => {
         event: "config_invalid",
         problems: [
           "DATABASE_URL must start with postgres:// or postgresql://",
-          "R2_BUCKET is not set",
+          "SNAPSHOTS_BUCKET is not set",
         ],
       },
     ]);
@@ -132,7 +133,7 @@ describe("quota-bin.js", () => {
     expect(parse((error?.stdout ?? "").trimEnd().split("\n"))).toMatchObject([
       {
         event: "config_invalid",
-        problems: ["DATABASE_URL is not set", "R2_ACCOUNT_ID is not set"],
+        problems: ["DATABASE_URL is not set", "SNAPSHOTS_NAMESPACE is not set"],
       },
     ]);
   });

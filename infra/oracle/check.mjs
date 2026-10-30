@@ -10,7 +10,7 @@
  * Postgres), writes a fake env file (no real secret exists in CI) and a Redis password,
  * derives the gateway's hosts file with egress-hosts.sh, applies the migrations from inside
  * the image, starts the stack with Caddy serving `localhost`, and checks:
- * - egress-hosts.sh lists the R2 and database hosts and refuses bad values without echoing
+ * - egress-hosts.sh lists the bucket and database hosts and refuses bad values without echoing
  *   them; the gateway refuses a hosts file line that could widen its allowlist;
  * - the worker answers `GET /health` on 127.0.0.1:8080, and the port is bound to loopback only;
  * - Caddy serves the API's routes over TLS on 443 and answers 404 for anything else;
@@ -45,10 +45,11 @@ writeFileSync(
   envFile,
   [
     "DATABASE_URL=postgres://gitinside:gitinside@postgres:5432/gitinside",
-    `R2_ACCOUNT_ID=${"0".repeat(32)}`,
-    "R2_ACCESS_KEY_ID=check",
-    "R2_SECRET_ACCESS_KEY=check",
-    "R2_BUCKET=gitinside-check",
+    "SNAPSHOTS_NAMESPACE=checkns",
+    "SNAPSHOTS_REGION=us-ashburn-1",
+    "SNAPSHOTS_ACCESS_KEY_ID=check",
+    "SNAPSHOTS_SECRET_ACCESS_KEY=check",
+    "SNAPSHOTS_BUCKET=gitinside-check",
     `ENQUEUE_HMAC_SECRET=${randomBytes(32).toString("hex")}`,
     "",
   ].join("\n"),
@@ -261,21 +262,26 @@ try {
   // The gateway's hosts file, derived from the env file as provision.sh and the systemd
   // unit derive it: host names only (CI's single-label `postgres` is the stack's own).
   execFileSync("sh", ["infra/oracle/egress-hosts.sh", envFile, hostsFile], { stdio: "inherit" });
-  const account = "0".repeat(32);
-  assert.deepEqual(readFileSync(hostsFile, "utf8"), `${account}.r2.cloudflarestorage.com\n`);
-  const r2 = `R2_ACCOUNT_ID=${account}\n`;
+  const bucketHost = "checkns.compat.objectstorage.us-ashburn-1.oraclecloud.com";
+  assert.deepEqual(readFileSync(hostsFile, "utf8"), `${bucketHost}\n`);
+  const bucket = "SNAPSHOTS_NAMESPACE=checkns\nSNAPSHOTS_REGION='us-ashburn-1'\n";
   assert.deepEqual(
     egressHosts(
-      `${r2}DATABASE_URL="postgres://u:p@Ep-1.Neon.tech:5432/db?sslmode=require"\n` +
+      `${bucket}DATABASE_URL="postgres://u:p@Ep-1.Neon.tech:5432/db?sslmode=require"\n` +
         "DATABASE_URL_UNPOOLED='postgresql://u:p@ep-2.neon.tech/db'\n",
     ),
-    { hosts: [`${account}.r2.cloudflarestorage.com`, "ep-1.neon.tech", "ep-2.neon.tech"] },
+    { hosts: [bucketHost, "ep-1.neon.tech", "ep-2.neon.tech"] },
   );
   for (const bad of [
     "",
-    "R2_ACCOUNT_ID=not-hex!\n",
-    `${r2}DATABASE_URL=postgres://u:p@/db\n`,
-    `${r2}DATABASE_URL=postgres://u:p@db.example/x\nDATABASE_URL_UNPOOLED=postgres://h_st.x/y\n`,
+    "SNAPSHOTS_REGION=us-ashburn-1\n",
+    "SNAPSHOTS_NAMESPACE=checkns\n",
+    "SNAPSHOTS_NAMESPACE=evil.example\nSNAPSHOTS_REGION=us-ashburn-1\n",
+    "SNAPSHOTS_NAMESPACE=Checkns\nSNAPSHOTS_REGION=us-ashburn-1\n",
+    "SNAPSHOTS_NAMESPACE=checkns\nSNAPSHOTS_REGION=us-ashburn-1.evil\n",
+    "SNAPSHOTS_NAMESPACE=checkns\nSNAPSHOTS_REGION=-us\n",
+    `${bucket}DATABASE_URL=postgres://u:p@/db\n`,
+    `${bucket}DATABASE_URL=postgres://u:p@db.example/x\nDATABASE_URL_UNPOOLED=postgres://h_st.x/y\n`,
   ]) {
     const result = egressHosts(bad);
     assert.equal(result.status, 1, JSON.stringify({ bad, result }));
@@ -404,7 +410,7 @@ try {
   const gatewayEnv = egress.Config.Env.join("\n");
   for (const name of [
     "REDIS_PASSWORD",
-    "R2_SECRET_ACCESS_KEY",
+    "SNAPSHOTS_SECRET_ACCESS_KEY",
     "ENQUEUE_HMAC_SECRET",
     "DATABASE_URL",
   ]) {

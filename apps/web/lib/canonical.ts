@@ -2,8 +2,8 @@
  * Canonical query strings for the cached GET routes (graph, badge, diagram; M5 review).
  *
  * The CDN keys its cache on the whole URL, but the handlers ignore unknown query
- * parameters, so `?n=1`, `?n=2`, … would each miss the cache and cost a database lookup, an
- * R2 read, and (for images) check-on-view. Any other query is answered with a cheap,
+ * parameters, so `?n=1`, `?n=2`, … would each miss the cache and cost a database lookup, a
+ * bucket read, and (for images) check-on-view. Any other query is answered with a cheap,
  * cacheable `308` to the canonical URL before anything is looked up, so a loop of made-up
  * queries costs one redirect each and never reaches the database.
  *

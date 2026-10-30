@@ -10,7 +10,8 @@ import {
 } from "./sigv4.js";
 
 /**
- * Graph snapshots in object storage (Cloudflare R2, S3-compatible; ADR-0013, ADR-0062).
+ * Graph snapshots in object storage: Oracle Object Storage through its S3-compatible API
+ * (ADR-0013, ADR-0062, ADR-0095; Cloudflare R2 until PROPOSALS P-2).
  *
  * - **Keys** name one analysis: repo, commit, and analyzer version, so a new analyzer
  *   version writes a new object instead of overwriting one a cache may still hold.
@@ -21,7 +22,7 @@ import {
  * - **Objects** are `architecture.json` gzipped (level 9), stored with
  *   `Content-Encoding: gzip` and `Content-Type: application/json`. Public ones are
  *   immutable (a key never changes content), private ones `no-store`.
- * - **Requests** are signed with SigV4 (sigv4.ts) over the exact body hash, so R2 rejects a
+ * - **Requests** are signed with SigV4 (sigv4.ts) over the exact body hash, so the store rejects a
  *   body that changed in transit. Each request has a time budget; every failure is a
  *   {@link StorageError}, which the job reports as the retriable `PUBLISH_FAILED`.
  * - **Reads** (`get`, the web app's `/api/graph`, ADR-0068) are signed GETs; a missing
@@ -30,7 +31,8 @@ import {
  * - **Listing and deleting** (`list`, `delete`) serve snapshot retention (retention.ts,
  *   ADR-0077): ListObjectsV2 pages parsed strictly (a page missing a field throws rather
  *   than under-count the bucket), and deletes that treat a missing object as done.
- * - **Credentials** come from `R2_*` variables (ADR-0055) and appear in no error or log.
+ * - **Credentials** come from `SNAPSHOTS_*` variables (ADR-0055, ADR-0095) and appear in no
+ *   error or log.
  */
 
 /** What identifies a public snapshot. */
@@ -51,11 +53,14 @@ export interface PrivateSnapshot {
 
 /** Where and how to reach the bucket. */
 export interface StoreConfig {
-  /** `https://<account>.r2.cloudflarestorage.com` (tests: a local server). No trailing path. */
+  /**
+   * `https://<namespace>.compat.objectstorage.<region>.oraclecloud.com` (tests: a local
+   * server). No trailing path; objects are addressed path-style (`/<bucket>/<key>`).
+   */
   endpoint: string;
   bucket: string;
   credentials: Credentials;
-  /** R2 signs with `auto`. */
+  /** The signing region: Oracle's region identifier. Default `auto`. */
   region?: string;
 }
 
@@ -132,7 +137,10 @@ const REPO = /^[A-Za-z0-9._-]{1,100}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const VERSION = /^[0-9A-Za-z][0-9A-Za-z.-]{0,63}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const ACCOUNT_ID = /^[0-9a-f]{32}$/;
+/** One DNS label: the namespace is the endpoint's first one. */
+const NAMESPACE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+/** `us-ashburn-1`, `eu-frankfurt-1`, `us-gov-ashburn-1`, … */
+const REGION = /^[a-z]{2,3}(?:-[a-z]{2,20}){1,3}-[0-9]{1,2}$/;
 const BUCKET = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 const KEY = /^[A-Za-z0-9._/-]{1,512}$/;
 const S3_ERROR_CODE = /<Code>([A-Za-z][A-Za-z0-9.]{0,63})<\/Code>/;
@@ -193,9 +201,20 @@ export function privateSnapshotKey(snapshot: PrivateSnapshot): string {
 }
 
 /**
- * Read the bucket settings from `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
- * and `R2_BUCKET` (ADR-0055). Throws, naming the variable but never its value, if one is
- * missing or malformed.
+ * The host of Oracle Object Storage's S3-compatible API for a tenancy's namespace in a
+ * region. The egress allowlist (infra/oracle/egress-hosts.sh) derives the same name.
+ */
+export function oracleS3Host(namespace: string, region: string): string {
+  return `${namespace}.compat.objectstorage.${region}.oraclecloud.com`;
+}
+
+/**
+ * Read the bucket settings (ADR-0055, ADR-0095): `SNAPSHOTS_NAMESPACE` and
+ * `SNAPSHOTS_REGION` (Oracle Object Storage's namespace and region identifier, which name
+ * the S3-compatible endpoint and the signing region), `SNAPSHOTS_ACCESS_KEY_ID` and
+ * `SNAPSHOTS_SECRET_ACCESS_KEY` (a Customer Secret Key), and `SNAPSHOTS_BUCKET`. The
+ * endpoint is built, not read, so a setting can't point the store at another host. Throws,
+ * naming the variable but never its value, if one is missing or malformed.
  */
 export function storeConfigFromEnv(env: Readonly<Record<string, string | undefined>>): StoreConfig {
   const read = (name: string): string => {
@@ -203,18 +222,24 @@ export function storeConfigFromEnv(env: Readonly<Record<string, string | undefin
     if (value === undefined || value === "") throw new Error(`${name} is not set`);
     return value;
   };
-  const accountId = read("R2_ACCOUNT_ID");
-  if (!ACCOUNT_ID.test(accountId)) throw new Error("R2_ACCOUNT_ID must be 32 lowercase hex");
-  const bucket = read("R2_BUCKET");
-  if (!BUCKET.test(bucket)) throw new Error("R2_BUCKET is not a bucket name");
+  const namespace = read("SNAPSHOTS_NAMESPACE");
+  if (!NAMESPACE.test(namespace)) {
+    throw new Error("SNAPSHOTS_NAMESPACE must be a lowercase Object Storage namespace");
+  }
+  const region = read("SNAPSHOTS_REGION");
+  if (!REGION.test(region)) {
+    throw new Error("SNAPSHOTS_REGION must be an Oracle region identifier (e.g. us-ashburn-1)");
+  }
+  const bucket = read("SNAPSHOTS_BUCKET");
+  if (!BUCKET.test(bucket)) throw new Error("SNAPSHOTS_BUCKET is not a bucket name");
   return {
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    endpoint: `https://${oracleS3Host(namespace, region)}`,
     bucket,
     credentials: {
-      accessKeyId: read("R2_ACCESS_KEY_ID"),
-      secretAccessKey: read("R2_SECRET_ACCESS_KEY"),
+      accessKeyId: read("SNAPSHOTS_ACCESS_KEY_ID"),
+      secretAccessKey: read("SNAPSHOTS_SECRET_ACCESS_KEY"),
     },
-    region: "auto",
+    region,
   };
 }
 

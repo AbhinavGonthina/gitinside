@@ -51,46 +51,47 @@ describe("analyzeDepsFromEnv", () => {
   });
 });
 
-describe("graphDepsFromEnv", () => {
-  const R2 = {
-    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
-    R2_ACCESS_KEY_ID: "key-id",
-    R2_SECRET_ACCESS_KEY: "secret-key",
-    R2_BUCKET: "gitinside-snapshots",
-  };
+const BUCKET = {
+  SNAPSHOTS_NAMESPACE: "axq1ns2example",
+  SNAPSHOTS_REGION: "us-ashburn-1",
+  SNAPSHOTS_ACCESS_KEY_ID: "key-id",
+  SNAPSHOTS_SECRET_ACCESS_KEY: "secret-key",
+  SNAPSHOTS_BUCKET: "gitinside-snapshots",
+};
 
+describe("graphDepsFromEnv", () => {
   it("needs the database and the bucket, not the worker", () => {
-    const deps = graphDepsFromEnv({ DATABASE_URL: ENV.DATABASE_URL, ...R2 });
+    const deps = graphDepsFromEnv({ DATABASE_URL: ENV.DATABASE_URL, ...BUCKET });
     expect(typeof deps?.store.get).toBe("function");
     expect(deps?.db).toBe(analyzeDepsFromEnv(ENV)?.db);
   });
 
   it("is undefined when a variable is missing or malformed", () => {
-    for (const name of ["DATABASE_URL", ...Object.keys(R2)]) {
-      expect(graphDepsFromEnv({ ...ENV, ...R2, [name]: "" }), name).toBeUndefined();
+    for (const name of ["DATABASE_URL", ...Object.keys(BUCKET)]) {
+      expect(graphDepsFromEnv({ ...ENV, ...BUCKET, [name]: "" }), name).toBeUndefined();
     }
-    expect(graphDepsFromEnv({ ...ENV, ...R2, R2_ACCOUNT_ID: "evil.example" })).toBeUndefined();
+    for (const bad of [
+      { SNAPSHOTS_NAMESPACE: "evil.example" },
+      { SNAPSHOTS_REGION: "us-ashburn-1.evil.example" },
+    ]) {
+      expect(graphDepsFromEnv({ ...ENV, ...BUCKET, ...bad })).toBeUndefined();
+    }
   });
 });
 
 describe("imageDepsFromEnv", () => {
-  const R2 = {
-    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
-    R2_ACCESS_KEY_ID: "key-id",
-    R2_SECRET_ACCESS_KEY: "secret-key",
-    R2_BUCKET: "gitinside-snapshots",
-  };
-
   it("is the repo page's deps plus the bucket; the worker stays optional", () => {
-    const deps = imageDepsFromEnv({ ...ENV, ...R2 });
+    const deps = imageDepsFromEnv({ ...ENV, ...BUCKET });
     expect(typeof deps?.store.get).toBe("function");
     expect(deps?.view.heads).toBe(repoViewDepsFromEnv(ENV)?.heads);
-    expect(imageDepsFromEnv({ ...ENV, ...R2, WORKER_URL: undefined })?.view.worker).toBeUndefined();
+    expect(
+      imageDepsFromEnv({ ...ENV, ...BUCKET, WORKER_URL: undefined })?.view.worker,
+    ).toBeUndefined();
   });
 
   it("is undefined without the database or the bucket", () => {
     expect(imageDepsFromEnv(ENV)).toBeUndefined();
-    expect(imageDepsFromEnv({ ...ENV, ...R2, DATABASE_URL: "" })).toBeUndefined();
+    expect(imageDepsFromEnv({ ...ENV, ...BUCKET, DATABASE_URL: "" })).toBeUndefined();
   });
 });
 

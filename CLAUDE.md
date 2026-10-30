@@ -225,4 +225,4 @@ Follow docs/DESIGN_SYSTEM.md and docs/UX.md exactly:
   - Never generate artificial load (Oracle idle policy).
   - Never touch other repos.
 - **Stay current:** re-read SPEC.md and PROGRESS.md at the start of every run. Keep each run to one task.
-- **Hosting ($0):** Vercel Hobby (web), Oracle Always Free VM (worker + Redis/BullMQ in Docker), Neon free (Postgres/Drizzle), Cloudflare R2 free (snapshots), `gitinside.abhinavgonthina.dev`. Stay inside free quotas.
+- **Hosting ($0):** Vercel Hobby (web), Oracle Always Free VM (worker + Redis/BullMQ in Docker), Neon free (Postgres/Drizzle), Oracle Object Storage Always Free (snapshots, S3-compatible; replaced R2, P-2), `gitinside.abhinavgonthina.dev`. Stay inside free quotas.

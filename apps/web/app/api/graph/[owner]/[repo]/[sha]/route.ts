@@ -2,7 +2,7 @@ import { redirectToCanonical } from "../../../../../../lib/canonical";
 import { handleGraphRequest } from "../../../../../../lib/graphRoute";
 import { graphDepsFromEnv } from "../../../../../../lib/serverDeps";
 
-/** `GET /api/graph/:owner/:repo/:sha`: one commit's graph, streamed from R2 (lib/graphRoute.ts, ADR-0068). */
+/** `GET /api/graph/:owner/:repo/:sha`: one commit's graph, streamed from the snapshot bucket (lib/graphRoute.ts, ADR-0068). */
 export const dynamic = "force-dynamic";
 
 export async function GET(

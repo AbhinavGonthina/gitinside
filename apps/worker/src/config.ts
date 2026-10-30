@@ -11,7 +11,7 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
  * | `REDIS_URL` | yes | `redis://` or `rediss://`, the Redis next to the worker |
  * | `REDIS_PASSWORD` | no | Redis's `requirepass` (production generates it, ADR-0083) |
  * | `DATABASE_URL` | yes | `postgres://` or `postgresql://` (Neon's pooled endpoint) |
- * | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | yes | snapshot bucket (storage.ts) |
+ * | `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_ACCESS_KEY_ID`, `SNAPSHOTS_SECRET_ACCESS_KEY`, `SNAPSHOTS_BUCKET` | yes | snapshot bucket on Oracle Object Storage (storage.ts) |
  * | `ENQUEUE_HMAC_SECRET` (+ optional `…_PREVIOUS`) | yes | enqueue API signing (hmac.ts) |
  * | `JOBS_ROOT` | no, `/tmp/jobs` | absolute parent of the job folders |
  * | `HOST` | no, `127.0.0.1` | enqueue API address (the container sets `0.0.0.0` behind Caddy) |
@@ -73,7 +73,7 @@ export interface QuotaConfig {
 }
 
 /**
- * The quota command's settings: `DATABASE_URL` and the `R2_*` variables, checked as
+ * The quota command's settings: `DATABASE_URL` and the `SNAPSHOTS_*` variables, checked as
  * {@link workerConfigFromEnv} checks them. Throws a {@link ConfigError} listing every problem.
  */
 export function quotaConfigFromEnv(env: Env): QuotaConfig {

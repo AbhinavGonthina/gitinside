@@ -13,7 +13,7 @@
 #   so only root may ask it.
 #
 # The allowlist: api.github.com, codeload.github.com, and the hosts in the hosts file, which
-# infra/oracle/egress-hosts.sh derives from the worker's env file (the R2 endpoint and the
+# infra/oracle/egress-hosts.sh derives from the worker's env file (the bucket's endpoint and the
 # database hosts). The gateway never sees the env file or any secret (ADR-0083).
 set -eu
 

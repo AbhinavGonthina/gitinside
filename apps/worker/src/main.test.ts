@@ -43,10 +43,11 @@ const STATS = {
 const ENV = {
   REDIS_URL: "redis://127.0.0.1:6379",
   DATABASE_URL: "postgres://127.0.0.1/gitinside",
-  R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
-  R2_ACCESS_KEY_ID: "key-id",
-  R2_SECRET_ACCESS_KEY: "key-secret",
-  R2_BUCKET: "gitinside-snapshots",
+  SNAPSHOTS_NAMESPACE: "axq1ns2example",
+  SNAPSHOTS_REGION: "us-ashburn-1",
+  SNAPSHOTS_ACCESS_KEY_ID: "key-id",
+  SNAPSHOTS_SECRET_ACCESS_KEY: "key-secret",
+  SNAPSHOTS_BUCKET: "gitinside-snapshots",
   ENQUEUE_HMAC_SECRET: SECRET,
 };
 
@@ -365,7 +366,7 @@ describe("startWorkerProcess", () => {
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     }
 
-    it("takes a signed job through the queue to R2 and Postgres, then stops cleanly", async () => {
+    it("takes a signed job through the queue to the bucket and Postgres, then stops cleanly", async () => {
       const worker = await start();
       expect((await fetch(`http://127.0.0.1:${worker.address.port}/health`)).status).toBe(200);
 

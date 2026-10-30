@@ -9,6 +9,7 @@ import {
   SNAPSHOT_CACHE_CONTROL,
   StorageError,
   createObjectStore,
+  oracleS3Host,
   privateSnapshotKey,
   publicSnapshotKey,
   storeConfigFromEnv,
@@ -85,19 +86,34 @@ describe("privateSnapshotKey", () => {
 
 describe("storeConfigFromEnv", () => {
   const env = {
-    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
-    R2_ACCESS_KEY_ID: "key-id-value",
-    R2_SECRET_ACCESS_KEY: "secret-value-never-printed",
-    R2_BUCKET: "gitinside-snapshots",
+    SNAPSHOTS_NAMESPACE: "axq1ns2example",
+    SNAPSHOTS_REGION: "us-ashburn-1",
+    SNAPSHOTS_ACCESS_KEY_ID: "key-id-value",
+    SNAPSHOTS_SECRET_ACCESS_KEY: "secret-value-never-printed",
+    SNAPSHOTS_BUCKET: "gitinside-snapshots",
   };
 
-  it("builds R2's endpoint from the account ID", () => {
+  it("builds Oracle's S3-compatible endpoint and signs with the region", () => {
     expect(storeConfigFromEnv(env)).toEqual({
-      endpoint: "https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com",
+      endpoint: "https://axq1ns2example.compat.objectstorage.us-ashburn-1.oraclecloud.com",
       bucket: "gitinside-snapshots",
       credentials: { accessKeyId: "key-id-value", secretAccessKey: "secret-value-never-printed" },
-      region: "auto",
+      region: "us-ashburn-1",
     });
+    expect(oracleS3Host("ns", "eu-frankfurt-1")).toBe(
+      "ns.compat.objectstorage.eu-frankfurt-1.oraclecloud.com",
+    );
+  });
+
+  it("accepts other region identifiers", () => {
+    for (const region of [
+      "eu-frankfurt-1",
+      "us-gov-ashburn-1",
+      "ap-chuncheon-1",
+      "sa-saopaulo-1",
+    ]) {
+      expect(storeConfigFromEnv({ ...env, SNAPSHOTS_REGION: region }).region).toBe(region);
+    }
   });
 
   it.each(Object.keys(env))("names a missing %s", (name) => {
@@ -105,11 +121,17 @@ describe("storeConfigFromEnv", () => {
     expect(() => storeConfigFromEnv({ ...env, [name]: undefined })).toThrow(`${name} is not set`);
   });
 
-  it("refuses a malformed account ID or bucket without echoing it", () => {
+  it("refuses a namespace, region, or bucket that could change the host, without echoing it", () => {
     for (const bad of [
-      { R2_ACCOUNT_ID: "evil.example.com/x" },
-      { R2_BUCKET: "Bad_Bucket" },
-      { R2_BUCKET: "x" },
+      { SNAPSHOTS_NAMESPACE: "evil.example.com/x" },
+      { SNAPSHOTS_NAMESPACE: "evil.example.com#" },
+      { SNAPSHOTS_NAMESPACE: "Upper" },
+      { SNAPSHOTS_NAMESPACE: "-dash" },
+      { SNAPSHOTS_REGION: "us-ashburn-1.evil.example" },
+      { SNAPSHOTS_REGION: "x" },
+      { SNAPSHOTS_REGION: "US-ASHBURN-1" },
+      { SNAPSHOTS_BUCKET: "Bad_Bucket" },
+      { SNAPSHOTS_BUCKET: "x" },
     ]) {
       const error = (() => {
         try {
@@ -119,7 +141,7 @@ describe("storeConfigFromEnv", () => {
         }
         throw new Error("expected a throw");
       })();
-      expect(error.message).toMatch(/^R2_(ACCOUNT_ID|BUCKET) /);
+      expect(error.message).toMatch(/^SNAPSHOTS_(NAMESPACE|REGION|BUCKET) /);
       expect(error.message).not.toContain(Object.values(bad)[0]);
     }
   });
@@ -137,7 +159,7 @@ describe("createObjectStore", () => {
 
   const options = { contentType: "application/json", cacheControl: "no-store" };
 
-  it("stores an object with a signature R2 would accept", async () => {
+  it("stores an object with a signature an S3-compatible store would accept", async () => {
     const store = createObjectStore(config, { now: () => new Date("2026-10-28T12:00:00Z") });
     await store.put("public/acme/shop/x.json.gz", Buffer.from("hello"), {
       ...options,
@@ -154,6 +176,30 @@ describe("createObjectStore", () => {
     // The local port is part of the signed host, as fetch sends it.
     expect(stored?.headers.host).toBe(new URL(s3.endpoint).host);
     expect(s3.requests[0]?.url).toBe("/gitinside-snapshots/public/acme/shop/x.json.gz");
+  });
+
+  it("signs for the configured region, as Oracle's endpoint checks it", async () => {
+    const oracle = await startFakeS3(undefined, undefined, "us-ashburn-1");
+    try {
+      const at = {
+        endpoint: oracle.endpoint,
+        bucket: oracle.bucket,
+        credentials: oracle.credentials,
+      };
+      await createObjectStore({ ...at, region: "us-ashburn-1" }).put(
+        "k",
+        Buffer.from("x"),
+        options,
+      );
+      expect(oracle.objects.get("k")?.body.toString()).toBe("x");
+      await expect(
+        createObjectStore({ ...at, region: "eu-frankfurt-1" }).put("j", Buffer.from("y"), options),
+      ).rejects.toMatchObject({ status: 403, s3Code: "SignatureDoesNotMatch" });
+      // Without a region the store signs with `auto`, which a regional endpoint refuses.
+      await expect(createObjectStore(at).get("k")).rejects.toMatchObject({ status: 403 });
+    } finally {
+      await oracle.close();
+    }
   });
 
   it("fails with S3's code, and nothing of the secret or the body, on a bad signature", async () => {
