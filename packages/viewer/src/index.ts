@@ -177,6 +177,12 @@ export type {
   LayoutEngineOptions,
   LayoutWorkerFactory,
 } from "./layout/engine.js";
+export { closeIn, collapseTo, openIn, upFrom, useDrill } from "./explorer/drill.js";
+export type { Drill, Expansion } from "./explorer/drill.js";
+export { centeredOn, planTransition } from "./explorer/transition.js";
+export type { BoxExit, BoxMove, Shown, TransitionPlan } from "./explorer/transition.js";
+export { DrillCanvas } from "./explorer/DrillCanvas.js";
+export type { DrillCanvasProps } from "./explorer/DrillCanvas.js";
 export { ExplorerPrototype } from "./prototype/ExplorerPrototype.js";
 export type { ExplorerPrototypeProps } from "./prototype/ExplorerPrototype.js";
 export type { UiIconName } from "./chrome/uiIcons.js";

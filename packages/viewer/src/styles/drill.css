@@ -1,0 +1,73 @@
+/*
+ * The drill-down canvas (M4b.3, src/explorer/DrillCanvas.tsx): a view's
+ * boxes, lines, and label pills, absolutely placed from its ELK layout. The
+ * in-place glides are Web Animations timed in JS from the duration tokens
+ * (motion.ts checks reduced motion); only the stage's size moves in CSS.
+ */
+
+.gi-drill {
+  position: relative;
+}
+
+.gi-drill__stage {
+  position: relative;
+  transition:
+    width var(--duration-layout) var(--ease-layout),
+    height var(--duration-layout) var(--ease-layout);
+}
+
+/*
+ * Stacking: open frames, then the lines, then the closed boxes, then the
+ * pills. A frame and its children keep one flat list (so a node keeps its
+ * element and focus when it opens); z-index does the layering, and nested
+ * frames paint in drawing order, outer first.
+ */
+.gi-drill__node {
+  position: absolute;
+  z-index: 2;
+}
+
+.gi-drill__node[data-open] {
+  z-index: 0;
+}
+
+.gi-drill__node[data-leaving] {
+  pointer-events: none;
+}
+
+.gi-drill__node > .gi-node {
+  width: 100%;
+  height: 100%;
+}
+
+.gi-drill__node > .gi-node[data-expanded="false"] {
+  align-content: center;
+}
+
+/*
+ * An open file (a card, not a frame) holds its routes and symbols below its
+ * own row: the row stays at the top, in the header room the layout kept,
+ * instead of centering behind the children.
+ */
+.gi-drill__node[data-open] > .gi-node:not([data-tier="frame"]) {
+  align-items: flex-start;
+}
+
+.gi-drill__node > .gi-node[data-can-open] {
+  cursor: zoom-in;
+}
+
+.gi-drill__lines {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: visible;
+}
+
+/* The pills' layer covers the stage but lets clicks through to the boxes. */
+.gi-drill__labels {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+}
