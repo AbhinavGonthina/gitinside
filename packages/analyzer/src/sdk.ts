@@ -49,7 +49,7 @@ import {
   type SourceLocation,
 } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
-import { returnedExpressions, type FunctionWithBody } from "./express.js";
+import { inlineRoutesOf, returnedExpressions, type FunctionWithBody } from "./express.js";
 import { fileNodeId } from "./files.js";
 import { functionOf, importBinding, locationOf, requiredModule } from "./http.js";
 import { externalNode } from "./match.js";
@@ -244,7 +244,7 @@ export function buildSdkEdges(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
   workspace: Workspace,
-  inlineHandlers: ReadonlyMap<ts.Node, readonly string[]> = new Map(),
+  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): SdkEdges {
   const { symbolAt } = createValueReader(resolver);
 
@@ -535,7 +535,8 @@ export function buildSdkEdges(
 
       const visit = (node: ts.Node, owners: readonly string[]): void => {
         const symbol = byNode.get(node);
-        const current = inlineHandlers.get(node) ?? (symbol !== undefined ? [symbol] : owners);
+        const current =
+          inlineRoutesOf(inlineHandlers, file, node) ?? (symbol !== undefined ? [symbol] : owners);
         if (ts.isCallExpression(node)) {
           const request = requestOf(sp, node);
           // `google.calendar({ auth })` builds a client locally; calls on it are requests.

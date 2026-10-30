@@ -51,7 +51,7 @@ import {
   type SourceLocation,
 } from "@gitinside/schema";
 import { calleeName, type SymbolResolver } from "./calls.js";
-import { isFunctionWithBody, type FunctionWithBody } from "./express.js";
+import { inlineRoutesOf, isFunctionWithBody, type FunctionWithBody } from "./express.js";
 import {
   locationOf,
   toMethod,
@@ -228,7 +228,7 @@ export function collectHttpFacts(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
   normalizer: UrlNormalizer,
-  inlineHandlers: ReadonlyMap<ts.Node, readonly string[]> = new Map(),
+  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): HttpFacts[] {
   const reader = createValueReader(resolver);
 
@@ -328,7 +328,8 @@ export function collectHttpFacts(
       if (!sourceFile || !byNode) continue;
       const visit = (node: ts.Node, owners: readonly string[]): void => {
         const symbol = byNode.get(node);
-        const current = inlineHandlers.get(node) ?? (symbol !== undefined ? [symbol] : owners);
+        const current =
+          inlineRoutesOf(inlineHandlers, file, node) ?? (symbol !== undefined ? [symbol] : owners);
         if (ts.isCallExpression(node)) {
           const name = calleeName(node.expression);
           // Only resolve calls spelled like a wrapper, or through a (possibly renamed) import.
@@ -514,7 +515,7 @@ export function inlineWrappers(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
   normalizer: UrlNormalizer,
-  inlineHandlers: ReadonlyMap<ts.Node, readonly string[]> = new Map(),
+  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): HttpRequest[] {
   return bindWrappers(collectHttpFacts(sites, programs, resolver, normalizer, inlineHandlers));
 }

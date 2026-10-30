@@ -80,7 +80,7 @@ import {
   type UnresolvedReason,
 } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
-import { isFunctionWithBody, returnedExpressions } from "./express.js";
+import { inlineRoutesOf, isFunctionWithBody, returnedExpressions } from "./express.js";
 import { fileNodeId, withinService } from "./files.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
@@ -451,7 +451,7 @@ export async function buildPrisma(
   workspace: Workspace,
   resolver: SymbolResolver,
   sourceFiles: readonly string[],
-  inlineHandlers: ReadonlyMap<ts.Node, readonly string[]>,
+  inlineHandlers: ReadonlyMap<string, readonly string[]>,
 ): Promise<{
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -618,7 +618,7 @@ function scanClientCalls(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
   models: ReadonlyMap<string, ReadonlyMap<string, ModelInfo>>,
-  inlineHandlers: ReadonlyMap<ts.Node, readonly string[]>,
+  inlineHandlers: ReadonlyMap<string, readonly string[]>,
   nodes: Map<string, GraphNode>,
   edges: Map<string, GraphEdge>,
 ): void {
@@ -988,7 +988,8 @@ function scanClientCalls(
 
       const visit = (node: ts.Node, owners: readonly string[]): void => {
         const symbol = byNode.get(node);
-        const current = inlineHandlers.get(node) ?? (symbol !== undefined ? [symbol] : owners);
+        const current =
+          inlineRoutesOf(inlineHandlers, file, node) ?? (symbol !== undefined ? [symbol] : owners);
         if (ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) handle(node, current);
         ts.forEachChild(node, (child) => {
           visit(child, current);

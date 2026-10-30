@@ -54,7 +54,12 @@ import {
   type SourceLocation,
 } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
-import { isFunctionWithBody, returnedExpressions, type FunctionWithBody } from "./express.js";
+import {
+  inlineRoutesOf,
+  isFunctionWithBody,
+  returnedExpressions,
+  type FunctionWithBody,
+} from "./express.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
 import {
@@ -261,7 +266,7 @@ export function toMethod(text: string): HttpMethod | null {
 export function collectHttpCalls(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
-  inlineHandlers: ReadonlyMap<ts.Node, readonly string[]> = new Map(),
+  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): HttpCallSite[] {
   const { symbolAt, resolveDeclaration, constString } = createValueReader(resolver);
 
@@ -795,7 +800,8 @@ export function collectHttpCalls(
 
       const visit = (node: ts.Node, owners: readonly string[]): void => {
         const symbol = byNode.get(node);
-        const current = inlineHandlers.get(node) ?? (symbol !== undefined ? [symbol] : owners);
+        const current =
+          inlineRoutesOf(inlineHandlers, file, node) ?? (symbol !== undefined ? [symbol] : owners);
         if (ts.isCallExpression(node)) {
           const request = requestOf(sp, node);
           if (request) {
