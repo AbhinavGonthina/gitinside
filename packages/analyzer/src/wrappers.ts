@@ -51,7 +51,7 @@ import {
   type SourceLocation,
 } from "@gitinside/schema";
 import { calleeName, type SymbolResolver } from "./calls.js";
-import { inlineRoutesOf, isFunctionWithBody, type FunctionWithBody } from "./express.js";
+import { isFunctionWithBody, type FunctionWithBody } from "./express.js";
 import {
   locationOf,
   toMethod,
@@ -59,6 +59,7 @@ import {
   type HttpClient,
   type MethodSource,
 } from "./http.js";
+import { bindOwners, NO_OWNERS, ownersAt, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
 import type { NormalizedUrl, UrlNormalizer } from "./url.js";
@@ -109,6 +110,12 @@ export interface HttpRequest {
   expression: string;
 }
 
+/**
+ * An {@link HttpRequest} as a service's fact: its owners still name the inline handlers it
+ * may be in by node key, bound to route IDs by {@link bindWrappers} (ADR-0094).
+ */
+export type HttpRequestFact = Omit<HttpRequest, "owners"> & { owners: Owners };
+
 /** A wrapper function whose body is in a service, as a fact. */
 export interface WrapperFact {
   /** The symbol node ID of the wrapper. */
@@ -116,7 +123,7 @@ export interface WrapperFact {
   /** The name a call to it is spelled with (the last part of its qualified name). */
   name: string;
   /** The requests its sites make when no service calls it, in site order. */
-  requests: HttpRequest[];
+  requests: HttpRequestFact[];
 }
 
 /** A service's calls to one wrapper (in any service), inlined. */
@@ -124,7 +131,7 @@ export interface WrapperCallFact {
   /** The symbol node ID of the wrapper called. */
   wrapper: string;
   /** One request per call and wrapper site, in call order, then site order. */
-  requests: HttpRequest[];
+  requests: HttpRequestFact[];
 }
 
 /**
@@ -135,7 +142,7 @@ export interface HttpFacts {
   /** The service's key. */
   service: string;
   /** Requests of the service's sites that aren't wrapper bodies, in site order. */
-  requests: HttpRequest[];
+  requests: HttpRequestFact[];
   /** Wrappers whose body is in the service, sorted by ID. */
   wrappers: WrapperFact[];
   /** The service's calls to wrappers, sorted by wrapper ID. */
@@ -155,7 +162,7 @@ interface Caller {
   file: string;
   call: ts.CallExpression;
   site: SourceLocation;
-  owners: string[];
+  owners: Owners;
   confidence: Confidence;
 }
 
@@ -217,10 +224,10 @@ function ownText(
 
 /**
  * Find wrappers and inline the calls to them, one {@link HttpFacts} per program, in program
- * order (see the file comment). `sites` are {@link collectHttpCalls}'s, and `inlineHandlers`
- * comes from the Express detector, as for that function. A service's facts depend only on
- * its own analysis and the programs it reached (the wrappers it calls are recorded with
- * `programOf`), except for the candidate filter: a call is resolved only when it is spelled
+ * order (see the file comment). `sites` are {@link collectHttpCalls}'s. A service's facts
+ * depend only on its own analysis and the programs it reached (the wrappers it calls are
+ * recorded with `programOf`), not on Express's routes (owners name inline handlers by node
+ * key, ADR-0094), except for the candidate filter: a call is resolved only when it is spelled
  * like some wrapper in the repo or through an import alias (ADR-0092).
  */
 export function collectHttpFacts(
@@ -228,7 +235,6 @@ export function collectHttpFacts(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
   normalizer: UrlNormalizer,
-  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): HttpFacts[] {
   const reader = createValueReader(resolver);
 
@@ -264,7 +270,7 @@ export function collectHttpFacts(
   };
 
   /** A site's own request, as when nothing inlines it. */
-  const own = (site: HttpCallSite): HttpRequest => {
+  const own = (site: HttpCallSite): HttpRequestFact => {
     const url = normalizer.normalize(site);
     return {
       call: { client: site.client, file: site.file, site: site.site },
@@ -326,10 +332,8 @@ export function collectHttpFacts(
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
       const byNode = sourceFile && resolver.callers.get(sourceFile);
       if (!sourceFile || !byNode) continue;
-      const visit = (node: ts.Node, owners: readonly string[]): void => {
-        const symbol = byNode.get(node);
-        const current =
-          inlineRoutesOf(inlineHandlers, file, node) ?? (symbol !== undefined ? [symbol] : owners);
+      const visit = (node: ts.Node, owners: Owners): void => {
+        const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
           const name = calleeName(node.expression);
           // Only resolve calls spelled like a wrapper, or through a (possibly renamed) import.
@@ -348,7 +352,7 @@ export function collectHttpFacts(
               file,
               call: node,
               site: locationOf(name, file),
-              owners: [...current].sort(compareStrings),
+              owners: current,
               confidence: target.confidence,
             });
             callers.set(target.id, list);
@@ -358,7 +362,7 @@ export function collectHttpFacts(
           visit(child, current);
         });
       };
-      visit(sourceFile, []);
+      visit(sourceFile, NO_OWNERS);
     }
     return callers;
   };
@@ -373,7 +377,7 @@ export function collectHttpFacts(
   };
 
   /** The requests one call to a wrapper makes: one per site in the wrapper's body. */
-  const inline = (id: string, wrapper: Wrapper, caller: Caller): HttpRequest[] => {
+  const inline = (id: string, wrapper: Wrapper, caller: Caller): HttpRequestFact[] => {
     const args = caller.call.arguments;
     const spread = args.findIndex((a) => ts.isSpreadElement(a));
     const bindings = new Map<ts.ParameterDeclaration, ProgramExpression | undefined>();
@@ -433,7 +437,7 @@ export function collectHttpFacts(
       return methodValue(source.fallback);
     };
 
-    return wrapper.sites.map((site): HttpRequest => {
+    return wrapper.sites.map((site): HttpRequestFact => {
       const url = normalizer.normalize(site, bindings);
       const confidence = weaker(site.confidence, caller.confidence);
       const read = normalizer.parameters(site);
@@ -485,11 +489,15 @@ export function collectHttpFacts(
  * The global step over every service's {@link HttpFacts} (see the file comment): each
  * service's own requests, then for each wrapper (by ID) every service's calls to it, or its
  * own requests when nothing calls it. So every collected site yields at least one request.
- * Sorted by request location, then by the location of the call that makes it.
+ * Owners are bound to the routes of `inlineHandlers` (Express's, see `owners.ts`). Sorted by
+ * request location, then by the location of the call that makes it.
  */
-export function bindWrappers(facts: readonly HttpFacts[]): HttpRequest[] {
+export function bindWrappers(
+  facts: readonly HttpFacts[],
+  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
+): HttpRequest[] {
   const requests = facts.flatMap((f) => f.requests);
-  const called = new Map<string, HttpRequest[]>();
+  const called = new Map<string, HttpRequestFact[]>();
   for (const f of facts) {
     for (const { wrapper, requests: inlined } of f.calls) {
       called.set(wrapper, [...(called.get(wrapper) ?? []), ...inlined]);
@@ -500,9 +508,9 @@ export function bindWrappers(facts: readonly HttpFacts[]): HttpRequest[] {
     const calls = called.get(wrapper.id) ?? [];
     requests.push(...(calls.length > 0 ? calls : wrapper.requests));
   }
-  return requests.sort(
-    (a, b) => compareLocations(a.site, b.site) || compareLocations(a.call.site, b.call.site),
-  );
+  return requests
+    .map((request) => ({ ...request, owners: bindOwners(request.owners, inlineHandlers) }))
+    .sort((a, b) => compareLocations(a.site, b.site) || compareLocations(a.call.site, b.call.site));
 }
 
 /**
@@ -517,5 +525,5 @@ export function inlineWrappers(
   normalizer: UrlNormalizer,
   inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): HttpRequest[] {
-  return bindWrappers(collectHttpFacts(sites, programs, resolver, normalizer, inlineHandlers));
+  return bindWrappers(collectHttpFacts(sites, programs, resolver, normalizer), inlineHandlers);
 }

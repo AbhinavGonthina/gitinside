@@ -4,7 +4,6 @@ import { dirname, join } from "node:path";
 import fc from "fast-check";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createSymbolResolver } from "./calls.js";
-import { buildExpressRoutes } from "./express.js";
 import { collectHttpCalls } from "./http.js";
 import { buildInventory } from "./inventory.js";
 import { buildServicePrograms } from "./program.js";
@@ -232,9 +231,8 @@ async function normalized(): Promise<string[]> {
   const workspace = await detectWorkspace(dir, inventory.files);
   const programs = buildServicePrograms(dir, workspace, inventory);
   const resolver = createSymbolResolver(programs, workspace);
-  const express = buildExpressRoutes(programs, resolver);
   const normalizer = createUrlNormalizer(resolver);
-  return collectHttpCalls(programs, resolver, express.inlineHandlers).map((site) => {
+  return collectHttpCalls(programs, resolver).map((site) => {
     const result = normalizer.normalize(site);
     const where = `${site.file}:${site.site.line}`;
     if (!result.resolved) return `${where} DYNAMIC_URL: ${result.detail}`;

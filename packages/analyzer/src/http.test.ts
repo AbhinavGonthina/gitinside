@@ -6,6 +6,7 @@ import { createSymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
 import { collectHttpCalls, type HttpCallSite, type ProgramExpression } from "./http.js";
 import { buildInventory } from "./inventory.js";
+import { bindOwners } from "./owners.js";
 import { buildServicePrograms } from "./program.js";
 import { detectWorkspace } from "./workspace.js";
 
@@ -22,14 +23,20 @@ async function put(path: string, content: string | string[]): Promise<void> {
   await writeFile(join(dir, path), Array.isArray(content) ? content.join("\n") + "\n" : content);
 }
 
-/** Run the collector over the temp repo, with Express inline handlers like `analyze` has. */
-async function collect(): Promise<HttpCallSite[]> {
+/** A collected site with its owners bound to Express's inline handlers, as `analyze` does. */
+type BoundSite = Omit<HttpCallSite, "owners"> & { owners: string[] };
+
+/** Run the collector over the temp repo and bind owners like `analyze` does. */
+async function collect(): Promise<BoundSite[]> {
   const inventory = await buildInventory(dir);
   const workspace = await detectWorkspace(dir, inventory.files);
   const programs = buildServicePrograms(dir, workspace, inventory);
   const resolver = createSymbolResolver(programs, workspace);
   const express = buildExpressRoutes(programs, resolver);
-  return collectHttpCalls(programs, resolver, express.inlineHandlers);
+  return collectHttpCalls(programs, resolver).map((site) => ({
+    ...site,
+    owners: bindOwners(site.owners, express.inlineHandlers),
+  }));
 }
 
 function text(value: ProgramExpression | null | undefined): string {
@@ -42,7 +49,7 @@ function text(value: ProgramExpression | null | undefined): string {
  * `line:column client METHOD url base=… [owners]`, with `?` for unknown, `-` for absent,
  * and the confidence when it isn't `exact`.
  */
-function summary(sites: readonly HttpCallSite[]): string[] {
+function summary(sites: readonly BoundSite[]): string[] {
   return sites.map(
     (s) =>
       `${s.file}:${s.site.line}:${s.site.column} ${s.client} ${s.method ?? "?"} ${text(s.url)}` +

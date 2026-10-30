@@ -290,7 +290,7 @@ async function httpRequests(
   const programs = buildServicePrograms(dir, workspace, inventory);
   const resolver = createSymbolResolver(programs, workspace);
   const express = buildExpressRoutes(programs, resolver);
-  const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
+  const sites = collectHttpCalls(programs, resolver);
   const normalizer = createUrlNormalizer(resolver);
   return {
     sites,

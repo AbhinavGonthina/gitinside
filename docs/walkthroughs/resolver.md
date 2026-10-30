@@ -41,8 +41,9 @@ All of it runs inside one stage of `analyze()` (`packages/analyzer/src/analyze.t
 
 ```ts
 const http = await stage("http", () => {
-  const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
-  const requests = inlineWrappers(sites, programs, resolver, createUrlNormalizer(resolver), express.inlineHandlers);
+  const sites = collectHttpCalls(programs, resolver);
+  const facts = collectHttpFacts(sites, programs, resolver, createUrlNormalizer(resolver));
+  const requests = bindWrappers(facts, express.inlineHandlers);
   const matcher = createRouteMatcher([...express.nodes, ...next.nodes], workspace);
   return buildHttpEdges(requests, matcher, workspace);
 });
@@ -178,7 +179,7 @@ The design choice: mask by **structure** (everything except the URL path), not b
 - **`locationOf(node, file)`**: 1-based line and column of the node's first token. `getStart(sourceFile)` skips leading trivia (comments, whitespace), so the column points at the name, not the space before it.
 - **`toMethod(text)`**: `"post"` ⇒ `"POST"`; anything outside `HttpMethod`, and `ALL` itself, ⇒ `null`. `ALL` is a route-side concept (Express `app.all`), never a request method.
 
-### `collectHttpCalls(programs, resolver, inlineHandlers)` (line 260)
+### `collectHttpCalls(programs, resolver)` (line 260)
 
 Everything else in the file is a closure inside this function, so all helpers share one `createValueReader` and one memo table. It's organized in four sections.
 
@@ -246,7 +247,7 @@ axios is harder than fetch because instances carry state (`baseURL`) and travel 
   - **axios called directly** (`axios(...)`, `api(...)`): `isStringValued` picks `(url, config)` or `(config)`.
   - **`x.request(config)`** and **shorthands**: `get/delete/head/options(url, config)` and `post/put/patch(url, data, config)` (the `*Form` variants strip `Form` to get the method). The config is argument 1 or 2 accordingly.
 - **The walk** (712–742): for each root file of each program, a recursive `visit` carries `owners`:
-  - `resolver.callers` maps declaration nodes to symbol IDs (built in M1.9). Entering a node that declares a symbol makes that symbol the owner; entering an inline Express handler makes its routes the owners (`inlineHandlers`, keyed by the function's node key and read with `inlineRoutesOf`, so `app.get("/x", async () => fetch(…))` belongs to the route).
+  - `resolver.callers` maps declaration nodes to symbol IDs (built in M1.9). Entering a node that declares a symbol makes that symbol the owner; entering an arrow or function expression records its node key as a possible inline Express handler (`ownersAt` in `owners.ts`). Which ones really are handlers is only known after Express is composed, so `bindWrappers` later swaps the innermost listed one for its routes (`bindOwners`, ADR-0094), and `app.get("/x", async () => fetch(…))` belongs to the route.
   - Because the owner is replaced on the way down, the innermost symbol wins.
   - Each recognized call becomes a site; `site` is the location of the callee name (`fetch` or the `get` in `api.get`).
 - The result is sorted by file, line, column with `compareStrings`, never `localeCompare` (determinism).
@@ -392,7 +393,7 @@ Like a call site, but positioned at the **caller**: `file`, `site`, and `owners`
 - **`valueFunction(node)`**: the function a symbol declaration holds: the declaration itself (`function f`), a variable/property initializer (`const f = () => …`), `export default`, or `exports.f = …`.
 - **`symbolName(id)`**: the last name in a symbol ID: `symbol:pkg/src/a.ts#Api.get` ⇒ `get`. Used for the cheap name filter below.
 
-### `collectHttpFacts(sites, programs, resolver, normalizer, inlineHandlers)`
+### `collectHttpFacts(sites, programs, resolver, normalizer)`
 
 #### Find wrappers (lines 183–217)
 
