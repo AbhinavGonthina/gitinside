@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.3b2. Prototype model removed, website layout in a Web Worker (M5.13 and M5.14b wait on #3, #5, #7)
+M4b.4. Breadcrumbs, minimap, pan/zoom/fit (M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -91,7 +91,7 @@ M4b.3b2. Prototype model removed, website layout in a Web Worker (M5.13 and M5.1
 - [x] M4b.2b ELK in a Web Worker (in-thread fallback) + layout cache per expansion state (`view.open` + hidden kinds) + a story drawing the laid-out fixture with real nodes and edges, screenshots, real-browser fit check {model: opus}
 - [x] M4b.3a Drill-down canvas: expansion state (open in order, Esc closes the last opened, collapse to a frame), `DrillCanvas` drawing a view from the layout cache with animated in-place transitions (boxes glide, children emerge from the opened node's center, closed ones fold into it, edges fade in after; interruptible; reduced motion instant), focus kept on the toggled node, a story + motion frames + baselines {model: opus}
 - [x] M4b.3b1 The explorer on the drill-down canvas: `Explorer` replaces `ExplorerPrototype` (view model, ELK, `DrillCanvas`; multi-level drill, routes first, breadcrumbs from `viewTrail`, selection and trace mapped to visible boxes, connections drill to their node), website on it, stories, screenshots, baselines {model: opus}
-- [ ] M4b.3b2 Prototype model removed: the README image off `prototype/model.ts` and `prototype/layout.ts` (hierarchy index, its own column layout, same bytes), `prototype/` deleted; the website's layout in a Web Worker (`next build` check) {model: opus}
+- [x] M4b.3b2 Prototype model removed: the README image off `prototype/model.ts` and `prototype/layout.ts` (hierarchy index, its own column layout, same bytes), `prototype/` deleted; the website's layout in a Web Worker (`next build` check) {model: opus}
 - [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
 - [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub; the code sample links to the file and line, design gate) {model: opus}
 - [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus}
@@ -197,6 +197,8 @@ M4b.3b2. Prototype model removed, website layout in a Web Worker (M5.13 and M5.1
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.3b2: README image on the hierarchy index + `buildView`, its fixed sizes/routing in `image/layout.ts`, `prototype/` deleted (`edc60f6`); `image/bytes.test.ts` pins its SVG bytes (24 fixtures + a wrapped synthetic graph × 3 themes, hashes from the pre-move code). Website lays out in a Web Worker (`af19502`, ADR-0110): Next.js folds `typeof window` in the worker, killing ELK at load, and Turbopack's runtime swallowed the error so the explorer hung; `layout/workerSetup.ts` fixes both (the fallback was checked by removing the fix). Real-browser check under the real CSP via a scratch page; `next build`, viewer 620, web 329, root typecheck + lint green. No eval delta. Still weak: no committed E2E draws the diagram page (needs a DB). Next: M4b.4.
 
 - 2026-10-30 · M4b.3b1: The explorer on the drill-down canvas (ADR-0109, `fa52e81`). `Explorer` replaces `ExplorerPrototype`: view model + ELK + `DrillCanvas`, any depth, routes first, breadcrumbs from `viewTrail`, hidden selections/trace hops light their innermost box, inspector connections drill only as far as needed (`revealIn`); the website draws it (main-thread layout until 3b2). Linux capture failed the open-row check (screen px on a scaled canvas, a window's title band): fixed in `512bbfc`, which also stops the first fit zooming on load (`data-settled`). Viewer 630, web 329, root typecheck + lint green; baselines from Linux CI (`3510e2d`). CI's coverage step then timed out one explorer test at vitest's 5 s default: suites given 30 s (`ad1c1c9`), CI green. No eval delta. Still weak: the 40% fit floor lets a deep view run under the inspector until M4b.4. Next: M4b.3b2.
 
