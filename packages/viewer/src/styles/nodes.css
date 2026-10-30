@@ -280,6 +280,110 @@
 }
 
 /*
+ * Shapes: each layer and kind gets its own outline, in the same quiet style
+ * (design gate, DESIGN_SYSTEM.md §3 "Shape"). The icon stays the primary
+ * marker. Datastores, queues, and outside APIs take theirs from the icon
+ * tile (icons.css); the rest are set here. Every border and fill still comes
+ * from --gi-node-border and --gi-node-bg, so states restyle shapes too.
+ */
+
+/* Window: a frontend service or a page, with a title band like a client's window. */
+.gi-node[data-shape="window"] {
+  --gi-band: 10px;
+}
+
+.gi-node[data-shape="window"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  box-sizing: border-box;
+  height: var(--gi-band);
+  border-bottom: 1px solid var(--gi-node-border);
+  border-radius: calc(var(--radius-service) - 1px) calc(var(--radius-service) - 1px) 0 0;
+  background: color-mix(in srgb, var(--gi-layer) 22%, var(--gi-node-bg));
+  pointer-events: none;
+}
+
+.gi-node[data-shape="window"][data-expanded="false"] {
+  padding-top: calc(var(--space-12) + var(--gi-band));
+}
+
+.gi-node[data-shape="window"][data-expanded="true"] > .gi-node__header {
+  padding-top: calc(var(--space-12) + var(--gi-band));
+}
+
+.gi-node[data-shape="window"][data-tier="card"] {
+  --gi-band: 6px;
+  min-height: calc(48px + var(--gi-band));
+  padding-top: calc(var(--space-8) + var(--gi-band));
+}
+
+.gi-node[data-shape="window"][data-tier="card"]::before {
+  border-radius: calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px) 0 0;
+}
+
+/* Box: a backend (or infra) service, squarer than a window. */
+.gi-node[data-shape="box"] {
+  border-radius: var(--radius-chip);
+}
+
+/* Folder: a module, with a tab on its top edge that covers the border under it. */
+.gi-node[data-shape="folder"]::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: var(--space-12);
+  box-sizing: border-box;
+  width: 44px;
+  height: 7px;
+  border: 1px solid var(--gi-node-border);
+  border-bottom: none;
+  border-radius: var(--radius-chip) var(--radius-chip) 0 0;
+  background: var(--gi-node-bg);
+  pointer-events: none;
+}
+
+/* Capsule: a route, an endpoint. Rounder ends need more room beside the tile. */
+.gi-node[data-shape="capsule"] {
+  padding-right: var(--space-16);
+  padding-left: var(--space-12);
+  border-radius: var(--radius-pill);
+}
+
+/*
+ * Table: a model, an entity with a tinted header (icon, name, field count)
+ * and its fields ruled off beneath, as an ER diagram draws it.
+ */
+.gi-node[data-shape="table"] {
+  --gi-node-bg: color-mix(in srgb, var(--gi-layer) 10%, var(--surface-1));
+  flex-wrap: wrap;
+  align-content: space-between;
+  row-gap: var(--space-8);
+  padding-bottom: 0;
+  border-radius: var(--radius-chip);
+}
+
+.gi-node .gi-node__fields {
+  display: block;
+  flex: 0 0 calc(100% + var(--space-8) + var(--space-12));
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0 calc(-1 * var(--space-12)) 0 calc(-1 * var(--space-8));
+  padding: 6px var(--space-12) 7px;
+  overflow: hidden;
+  border-top: 1px solid var(--gi-node-border);
+  border-radius: 0 0 calc(var(--radius-chip) - 1px) calc(var(--radius-chip) - 1px);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  line-height: var(--line-height-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
  * State: hover. Tier qualifiers sit in :where() so every hover rule has the
  * same specificity as the state rules below, which come later and win.
  */
@@ -299,6 +403,10 @@
 
 .gi-node:where([data-expanded="true"]):is(:hover, [data-hover]) {
   --gi-node-bg: color-mix(in srgb, var(--gi-layer) 6%, transparent);
+}
+
+.gi-node:where([data-shape="table"]):is(:hover, [data-hover]) {
+  --gi-node-bg: color-mix(in srgb, var(--gi-layer) 15%, var(--surface-1));
 }
 
 .gi-node:where([data-kind="unresolved"]):is(:hover, [data-hover]) {
@@ -325,7 +433,7 @@
 }
 
 /* Removed is ghosted, but its badge stays readable. */
-.gi-node[data-diff="removed"] :is(.gi-icon-tile, .gi-node__text) {
+.gi-node[data-diff="removed"] :is(.gi-icon-tile, .gi-node__text, .gi-node__fields) {
   opacity: 0.5;
 }
 

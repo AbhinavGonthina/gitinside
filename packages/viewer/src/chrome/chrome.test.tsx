@@ -1,11 +1,11 @@
-import { Confidence, Layer } from "@gitinside/schema";
+import { compareStrings, Confidence, Layer } from "@gitinside/schema";
 import { composeStories } from "@storybook/react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { contrastRatio } from "../contrast.js";
 import { CONFIDENCE_TEXT } from "../edges/describe.js";
-import { DIFF_TEXT } from "../nodes/describe.js";
-import { sampleOf } from "../nodes/samples.js";
+import { DIFF_TEXT, nodeShape } from "../nodes/describe.js";
+import { nodeSamples, sampleOf } from "../nodes/samples.js";
 import { themeTokens } from "../tokens.js";
 import * as stories from "./Chrome.stories.js";
 import { CommandPalette } from "./CommandPalette.js";
@@ -21,7 +21,7 @@ import {
   zoomText,
 } from "./describe.js";
 import { CodePreview, ConnectionList, FactList, InspectorHeader } from "./Inspector.js";
-import { Breadcrumbs, Legend, Minimap, ZoomControls } from "./overlays.js";
+import { Breadcrumbs, Legend, Minimap, SHAPE_TEXT, ZoomControls } from "./overlays.js";
 import { minimapNodes, paletteResults, sampleCrumbs, sampleRepo } from "./samples.js";
 import { DIFF_VIEWS, TopBar } from "./TopBar.js";
 import { UI_ICON_STROKE, UiIcon, uiIconNames } from "./uiIcons.js";
@@ -327,6 +327,16 @@ describe("canvas overlays", () => {
     expect(lines).toEqual(["solid", "dot", "dashed", "dotted"]);
     fireEvent.click(screen.getByRole("button", { name: "Close legend" }));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("draws and names every shape the canvas uses, with the stacked edge (design gate)", () => {
+    const { container } = render(<Legend />);
+    const text = container.textContent ?? "";
+    const used = new Set(nodeSamples.map((s) => nodeShape(s.node, s.layer)));
+    for (const shape of used) expect(text).toContain(SHAPE_TEXT[shape]);
+    expect(Object.keys(SHAPE_TEXT).sort(compareStrings)).toEqual([...used].sort(compareStrings));
+    expect(text).toContain("Stacked edge: opens in place");
+    expect(container.querySelectorAll(".gi-legend__shape")).toHaveLength(used.size + 1);
   });
 });
 

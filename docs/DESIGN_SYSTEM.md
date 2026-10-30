@@ -55,6 +55,7 @@ Every M4a review checks screenshots against this list.
 |---|---|
 | **Icon** (primary marker) | Technology when known (Next.js, Express, Postgres, Redis, Stripe… real logos), otherwise kind (custom glyph for route, function, module, file, model, queue, unresolved) |
 | **Container style** | Kind tier: services and modules are frames (translucent, contain children); files and symbols are compact cards or rows; datastores, queues, and externals are icon-first nodes (large icon tile, label beneath, Eraser-style) |
+| **Shape** | Layer and kind within the tier (design gate, ADR-0101): a frontend service or a page is a **window** (title band), any other service a **box** (radius 6), a module a **folder** (tab), a route a **capsule**, a model a **table** (tinted header, fields row), files and symbols a **card**, unresolved items **dotted**; icon tiles are a **cylinder** (datastore), a **pipe** (queue, a cylinder lying down), and a **circle** (outside API) |
 | **Layer color** | Frontend / backend / data / infra / external. Used as a restrained accent (frame tint, icon-tile ring, edge flow color), never a full fill |
 | **Line style** | Confidence: solid = exact, solid with a small dot marker = pattern, dashed = heuristic, dotted = unresolved |
 | **Badges** | Counts (routes, callers, unresolved calls), diff state |
@@ -68,6 +69,14 @@ The legend is always one click away and is generated from these same tokens.
   - **Cards** (file, symbol, route, page, model, unresolved): `surface-1`, radius 10, small tile, name and muted subtitle, counts on the right. Symbols, page paths, and unresolved expressions use Geist Mono; a route's method sits in a quiet mono chip before its path.
   - **Icon-first** (datastore, queue, external): large tile, name beneath, engine or brand beneath that. No container until a state needs one.
   - **Unresolved:** a dotted card on the canvas color, its reason in words ("URL built from CMS_URL at runtime").
+- **Shapes** (M4b.0b, `nodeShape` in `nodes/describe.ts`, `data-shape` in `nodes.css`, `TILE_OUTLINES` in `icons/Icon.tsx`; the README image draws the same ones). Every outline uses the node's border and fill variables, so states restyle it:
+  - **Window:** a 10px title band (6px on page cards) tinted 22% with the layer, ruled off by the border. Frontend services and pages, so "what a user sees" reads the same at both levels.
+  - **Box:** backend and infra services (and services without a layer), radius 6: squarer than a window.
+  - **Folder:** a module, a 44 × 7px tab on its top edge that covers the border under it.
+  - **Capsule:** a route, an endpoint; a little more room beside the tile for the round ends.
+  - **Table:** a model, radius 6, its header tinted 10% with the layer and its fields beneath a rule, in mono, in declaration order (`id · total · note?`, `?` for optional), cut to fit with the full list in the tooltip.
+  - **Icon tiles:** all 64px tall so icon-first nodes line up: cylinder 56 wide with its top rim, pipe 84 wide with its open end on the right, circle 64. `surface-1` with the layer ring, like the square tile; the icon sits in the body.
+  - The legend's **Shape** column draws each outline at 24 × 16 from `SHAPE_TEXT`, a record over every shape, plus the stacked edge.
 - **Subtitles** come from the node's own fields: framework + root, folder path, "Exported function", "6 fields", "PostgreSQL", "Redis queue", the brand of a host.
 - **States** (combine freely; the border goes to the highest: selected > traced > diff > hover):
   - **Hover:** `surface-2` fill (frames: a stronger tint) and a stronger border.
@@ -173,7 +182,7 @@ Source of truth: `packages/viewer/src/tokens.ts` and `src/styles/tokens.css`, wh
   - **Interface icons:** 14 icons on the glyphs' 24 grid with round caps and no fills, but a 2-unit stroke (1.33px at 16px), because the glyphs' 1.5 drew hairlines next to 13px text.
 - **Top bar** (52px, `surface-1`): the mark and "GitInside", the repo (owner muted) and a chip with the branch and short SHA (full SHA in the tooltip), a centered search field that opens the palette (Ctrl K or ⌘ K), then Base / Head / Overlay when there is a base, Filters (with a count), Share, and **Trace a request**, the only primary button (it becomes a secondary "Exit trace" while tracing). The repo name and actions never shrink; search gives way.
 - **Canvas overlays** (`surface-1`, hairline, `shadow-2`, radius 10): status chips top-left (a trace gets a pulsing trace-colored dot, a diff the compare icon, since trace and diff-changed are both amber), zoom − / level / + / fit top-right, the drill-down path bottom-left (files and symbols in mono), the minimap (boxes tinted by layer, the view in an accent frame) and a "Legend" button bottom-right.
-- **Legend** (popover, `surface-raised` + `shadow-2`, two columns so it opens over a laptop-height canvas): layer swatches, the four line styles drawn by `DiagramEdge` itself, shapes by tier, and the highlight states in words. Built from the same tables the canvas uses.
+- **Legend** (popover, `surface-raised` + `shadow-2`, 700px, three columns so it opens over a laptop-height canvas): layer swatches and the four line styles drawn by `DiagramEdge` itself, the shapes drawn in outline, and the highlight states in words. Built from the same tables the canvas uses.
 - **Inspector** (`surface-1`, left hairline): kind and layer chips, icon and name (the panel's heading), where it lives; the "From the code" sentence on `surface-2`; sections for facts (long values truncate, the tooltip has them), **Called by** and **Calls** (each row: icon, name, the edge's words and confidence, a short line in the edge's style), the code with line numbers and the selected line marked, "Open on GitHub" at the commit permalink; actions at the foot.
 - **Command palette** (elevation 3: `surface-raised`, `shadow-3`, scrim): a 16px field, results with icon, name (matched characters tinted), path in mono, and kind on the right; the active row is accent-tinted; an empty state that suggests what to try; a key-hint footer.
 

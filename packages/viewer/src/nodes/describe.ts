@@ -1,4 +1,4 @@
-import type { GraphNode, NodeKind, UnresolvedReason } from "@gitinside/schema";
+import type { GraphNode, Layer, NodeKind, UnresolvedReason } from "@gitinside/schema";
 import { brandForEngine, brandForFramework, brandForHost } from "../icons/brands.js";
 
 /**
@@ -29,6 +29,73 @@ export function nodeTier(node: GraphNode): NodeTier {
     default:
       return "card";
   }
+}
+
+/**
+ * The outline a node is drawn with, so each layer and kind reads as its own
+ * thing in a system design drawing (design gate, DESIGN_SYSTEM.md §1.1). The
+ * icon stays the primary marker; the shape is the second.
+ * - `window`: a frontend service or a page, with a title band like a client's window.
+ * - `box`: any other service (backend, infra, or no layer), squarer than a window.
+ * - `folder`: a module, with a tab on its top edge.
+ * - `cylinder` / `pipe` / `circle`: the icon tile of a datastore, a queue
+ *   (a cylinder lying down), and an outside API.
+ * - `capsule`: a route, an endpoint.
+ * - `table`: a model, an entity with a header and its fields.
+ * - `card`: files and symbols.
+ * - `dotted`: unresolved items, like their dotted edges.
+ */
+export type NodeShape =
+  | "window"
+  | "box"
+  | "folder"
+  | "cylinder"
+  | "pipe"
+  | "circle"
+  | "capsule"
+  | "table"
+  | "card"
+  | "dotted";
+
+/**
+ * The shape a node is drawn with. A service's shape follows its own layer, or
+ * `layer` (its service's) when it has none; services without either are boxes.
+ */
+export function nodeShape(node: GraphNode, layer?: Layer): NodeShape {
+  switch (node.kind) {
+    case "system":
+    case "service":
+      return (node.layer ?? layer) === "frontend" ? "window" : "box";
+    case "module":
+      return "folder";
+    case "datastore":
+      return "cylinder";
+    case "queue":
+      return "pipe";
+    case "external":
+      return "circle";
+    case "route":
+      return "capsule";
+    case "page":
+      return "window";
+    case "model":
+      return "table";
+    case "unresolved":
+      return "dotted";
+    case "file":
+    case "symbol":
+      return "card";
+  }
+}
+
+/**
+ * A model's fields as one line for its table shape, in declaration order:
+ * `id · total · note?` (`?` marks an optional field). Empty for a model
+ * without fields; the canvas cuts the line to fit, and its tooltip has all.
+ */
+export function modelFieldsText(node: GraphNode): string {
+  if (node.kind !== "model") return "";
+  return node.fields.map((f) => `${f.name}${f.optional ? "?" : ""}`).join(" · ");
 }
 
 const KIND_NAMES: Readonly<Record<NodeKind, string>> = {

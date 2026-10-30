@@ -1104,3 +1104,14 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - **No second gate.** He called it "good for a first run"; the changes are reviewed in the M4b review doc's screenshots.
 - **Alternatives rejected:** folding every change into the M4b task that touches the same code (the shape change touches every node and would arrive late, after layout and trace were tuned for the old shapes); re-opening the gate for the shapes alone (he asked for the changes, not another approval round).
 - **Consequences:** five more tasks before M4b.1. The M6 incremental work (M6.7d3c onward) waits behind M4b in PROGRESS.md order.
+
+## ADR-0101: One shape per layer and kind, taken from system design drawings
+- **Context:** At the design gate (planning #2, ADR-0100) Abhinav found "too many similar shapes for different things": frontend and backend services were the same frame, and routes, pages, and models were the same card as files. He asked for a distinct shape per layer and kind that still follows today's style.
+- **Decision:**
+  - **Shapes come from what engineers already draw** (`nodeShape`): a client is a window (title band), a server a box, a folder a folder, a database a cylinder, a queue a cylinder lying down (pipe), an outside service a circle, an endpoint a capsule, a model an ER-style table with its fields. Files and symbols keep the card; unresolved stays dotted.
+  - **A shape is chosen by the node's own layer, then its service's.** A service is a window only when frontend; backend, infra, and unlayered services are boxes. Pages share the window so the frontend reads the same at both levels.
+  - **The icon stays the primary marker;** shapes are quiet outlines in the existing hairline and tints, drawn from `--gi-node-border` / `--gi-node-bg` so every state restyles them. Icon-first kinds change their tile's outline (`TILE_OUTLINES`, one table for the canvas and the README image), not the node, keeping "states restyle the node, never the tile".
+  - **Boxes are sized per shape** (`nodeSize`, `frameHeader`): windows add their band, tables their fields row, icon nodes a 64px tile slot. The visual test's overflow check covers every new shape.
+  - **The legend draws each outline** from `SHAPE_TEXT`, a record over `NodeShape`, so a new shape can't ship without a row. It grows to three columns (700px) to stay short.
+- **Alternatives rejected:** a colored left border per layer (an AI-design default and color-only); clip-path silhouettes (chevron routes, notched cards), which cut the border and the state rings; clouds for outside APIs (clip-art next to real logos); a second shape set for modules beyond the folder tab.
+- **Consequences:** every visual baseline changes; the README image shows windows, boxes, and the shaped tiles. Field names on model tables are the first per-node detail beyond counts, a step toward the richer diagram he asked for later.

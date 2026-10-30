@@ -1,11 +1,13 @@
 import type { GraphNode, Layer } from "@gitinside/schema";
 import type { HTMLAttributes, ReactNode } from "react";
-import { IconTile, NodeIcon, TILE_ICON_SIZE } from "../icons/Icon.js";
+import { IconTile, isTileShape, NodeIcon, TILE_ICON_SIZE } from "../icons/Icon.js";
 import {
   countText,
   DIFF_TEXT,
+  modelFieldsText,
   nodeAccessibleName,
   nodeLabel,
+  nodeShape,
   nodeSubtitle,
   nodeTier,
   type NodeCount,
@@ -73,7 +75,10 @@ function Badges({ counts }: Pick<DiagramNodeProps, "counts">) {
  * the container: services and modules are frames (a closed frame shows a
  * stacked edge, meaning it can be broken down; an open one holds `children`),
  * datastores, queues, and externals are icon-first, and everything else is a
- * compact card. States are data attributes styled in `styles/nodes.css`, so
+ * compact card. Within a tier, `nodeShape` gives each layer and kind its own
+ * outline (window, box, folder, capsule, table, and the icon tile's cylinder,
+ * pipe, or circle), with a model's fields on a row of their own. States are
+ * data attributes styled in `styles/nodes.css`, so
  * they combine freely and a theme switch re-renders nothing.
  *
  * Positioning, sizing, and events belong to the caller (the canvas in M4b);
@@ -98,12 +103,15 @@ export function DiagramNode({
   const label = nodeLabel(node);
   const subtitle = nodeSubtitle(node);
   const tileSize = tier === "icon" ? "lg" : "sm";
+  const shape = nodeShape(node, tint);
+  const fields = modelFieldsText(node);
 
   const attrs = {
     ...rest,
     className: className ? `gi-node ${className}` : "gi-node",
     "data-tier": tier,
     "data-kind": node.kind,
+    "data-shape": shape,
     "aria-label": nodeAccessibleName(node, { selected, emphasis, diff }),
     ...(tier === "frame" ? { "data-expanded": String(open) } : {}),
     ...(tint ? { "data-layer": tint } : {}),
@@ -115,7 +123,7 @@ export function DiagramNode({
 
   const head = (
     <>
-      <IconTile size={tileSize} layer={tint}>
+      <IconTile size={tileSize} layer={tint} shape={isTileShape(shape) ? shape : undefined}>
         <NodeIcon node={node} size={TILE_ICON_SIZE[tileSize]} />
       </IconTile>
       <span className="gi-node__text">
@@ -129,6 +137,11 @@ export function DiagramNode({
         )}
       </span>
       <Badges counts={counts} />
+      {fields && (
+        <code className="gi-node__fields" title={fields}>
+          {fields}
+        </code>
+      )}
       <DiffTag diff={diff} />
     </>
   );

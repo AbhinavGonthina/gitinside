@@ -2,8 +2,8 @@ import type { Layer } from "@gitinside/schema";
 import type { Point } from "../edges/geometry.js";
 import type { Rect } from "../chrome/describe.js";
 import { textWidth } from "../image/markup.js";
-import { countText, nodeTier, type NodeCount } from "../nodes/describe.js";
-import { frameCounts, nodeOf, type GraphIndex, type ViewEdge } from "./model.js";
+import { countText, nodeShape, nodeTier, type NodeCount } from "../nodes/describe.js";
+import { frameCounts, layerOf, nodeOf, type GraphIndex, type ViewEdge } from "./model.js";
 
 /**
  * A fixed, deterministic layout for the prototype (M4a.7): top-level nodes in
@@ -66,25 +66,43 @@ export function countsRowWidth(counts: readonly NodeCount[]): number {
   return Math.ceil(FRAME_COUNTS_INSET + badges + BADGE_GAP * (counts.length - 1) + COUNTS_SLACK);
 }
 
+/** Height a window's title band adds (nodes.css `--gi-band`): frames, then page cards. */
+export const WINDOW_BAND = { frame: 10, card: 6 } as const;
+
 /**
- * The box a closed node takes, by tier. Frames with count badges get a second
- * row, and grow wider when the badges need it, so they never wrap out of the
- * box (design gate, DESIGN_SYSTEM.md §1.1).
+ * Height of an open frame's header: {@link FRAME_HEADER}, plus the title band
+ * for a window (a frontend service).
+ */
+export function frameHeader(index: GraphIndex, id: string): number {
+  const node = nodeOf(index, id);
+  return FRAME_HEADER + (nodeShape(node, layerOf(index, id)) === "window" ? WINDOW_BAND.frame : 0);
+}
+
+/**
+ * The box a closed node takes, by tier and shape. Frames with count badges
+ * get a second row, and grow wider when the badges need it, so they never
+ * wrap out of the box (design gate, DESIGN_SYSTEM.md §1.1); windows add their
+ * title band, and a model's table adds its fields row.
  */
 export function nodeSize(index: GraphIndex, id: string): { width: number; height: number } {
   const node = nodeOf(index, id);
+  const shape = nodeShape(node, layerOf(index, id));
   switch (nodeTier(node)) {
     case "frame": {
       const counts = frameCounts(index, id);
+      const band = shape === "window" ? WINDOW_BAND.frame : 0;
       return {
         width: Math.max(MIN_FRAME_WIDTH, countsRowWidth(counts)),
-        height: counts.length > 0 ? 94 : 62,
+        height: (counts.length > 0 ? 94 : 62) + band,
       };
     }
     case "icon":
-      return { width: 136, height: 112 };
+      return { width: 136, height: 128 };
     case "card":
-      return { width: 232, height: 52 };
+      return {
+        width: 232,
+        height: shape === "table" ? 80 : shape === "window" ? 52 + WINDOW_BAND.card : 52,
+      };
   }
 }
 
@@ -124,7 +142,8 @@ export function layout(index: GraphIndex, open: string | null, edges: readonly V
     const closed = nodeSize(index, open);
     const width = Math.max(childWidth + 2 * FRAME_PAD, closed.width);
     const stacked = inner.reduce((h, c) => h + nodeSize(index, c.id).height, 0);
-    const height = FRAME_HEADER + stacked + CHILD_GAP * Math.max(inner.length - 1, 0) + FRAME_PAD;
+    const height =
+      frameHeader(index, open) + stacked + CHILD_GAP * Math.max(inner.length - 1, 0) + FRAME_PAD;
     sizes.set(open, { width, height });
   }
 
@@ -154,7 +173,7 @@ export function layout(index: GraphIndex, open: string | null, edges: readonly V
     const frame = boxes.get(open);
     if (frame) {
       const innerWidth = frame.width - 2 * FRAME_PAD;
-      let y = frame.y + FRAME_HEADER;
+      let y = frame.y + frameHeader(index, open);
       for (const c of inner) {
         const size = nodeSize(index, c.id);
         const icon = nodeTier(c) === "icon";

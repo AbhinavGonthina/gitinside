@@ -64,7 +64,7 @@ function KindSheet() {
   return (
     <Page
       title="Nodes"
-      note="Every kind in its container style: frames hold children, cards are compact, datastores, queues, and externals lead with their icon."
+      note="Every kind in its own shape: a frontend service is a window, a backend one a box, a module a folder; routes are capsules, pages windows, models tables; datastores, queues, and outside APIs lead with their icon on a cylinder, a pipe, and a circle."
     >
       {tiers.map(({ tier, title, min }) => (
         <section key={tier} style={{ display: "grid", gap: cssVar("space-12") }}>
@@ -77,6 +77,8 @@ function KindSheet() {
               gridTemplateColumns: `repeat(auto-fill, minmax(${min}px, 1fr))`,
               gap: cssVar("space-16"),
               justifyItems: tier === "icon" ? "start" : "stretch",
+              // Each shape keeps its own height (a table is taller than a capsule).
+              alignItems: "start",
             }}
           >
             {nodeSamples

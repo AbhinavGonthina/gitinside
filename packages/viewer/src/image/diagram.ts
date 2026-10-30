@@ -8,9 +8,28 @@ import type { Rect } from "../chrome/describe.js";
 import { edgeLabel, edgeLabelText, LINE_STYLE } from "../edges/describe.js";
 import { edgeGeometry, type Point } from "../edges/geometry.js";
 import type { Brand } from "../icons/brands.js";
-import { iconFor, TILE_ICON_SIZE } from "../icons/Icon.js";
-import { countText, nodeLabel, nodeSubtitle, nodeTier, type NodeText } from "../nodes/describe.js";
-import { nodeSize, pointAlong, routeEdges, type PlacedEdge } from "../prototype/layout.js";
+import {
+  iconFor,
+  isTileShape,
+  TILE_ICON_SIZE,
+  TILE_OUTLINES,
+  type TileShape,
+} from "../icons/Icon.js";
+import {
+  countText,
+  nodeLabel,
+  nodeShape,
+  nodeSubtitle,
+  nodeTier,
+  type NodeText,
+} from "../nodes/describe.js";
+import {
+  nodeSize,
+  pointAlong,
+  routeEdges,
+  WINDOW_BAND,
+  type PlacedEdge,
+} from "../prototype/layout.js";
 import {
   drawnEdge,
   frameCounts,
@@ -333,6 +352,20 @@ function tile(
   );
 }
 
+/** A shaped tile (cylinder, pipe, circle: `TILE_OUTLINES`) with its top-left corner at (x, y). */
+function shapedTile(node: GraphNode, shape: TileShape, x: number, y: number): string {
+  const ring = color("ring", node.layer, "border");
+  const o = TILE_OUTLINES[shape];
+  const half = TILE_ICON_SIZE.lg / 2;
+  return (
+    `<g transform="translate(${num(x)} ${num(y)})">` +
+    `<path d="${o.d}" style="fill:${v("s1")};stroke:${ring}"/>` +
+    (o.rim ? `<path d="${o.rim}" fill="none" style="stroke:${ring}"/>` : "") +
+    `</g>` +
+    iconMarkup(node, x + o.iconX - half, y + o.iconY - half, TILE_ICON_SIZE.lg)
+  );
+}
+
 /**
  * One line of node text: plain then code, as `<text>` with a mono `<tspan>`,
  * cut to `max` px. `anchor` is `start` or `middle`.
@@ -369,19 +402,46 @@ function textLine(
   })} style="fill:${v(style.muted ? "muted" : "text")}" xml:space="preserve">${out.join("")}</text>`;
 }
 
+/**
+ * A window's title band (nodes.css `[data-shape="window"]::before`): the top
+ * `band` px of a frame with corner radius `r`, and the hairline under it.
+ */
+function windowBand(
+  layer: Layer | undefined,
+  { x, y, width: w }: Rect,
+  r: number,
+  band: number,
+): string {
+  // Where the corner arc crosses the band's bottom edge.
+  const dx = r - Math.sqrt(r * r - (r - band) ** 2);
+  const left = x + 0.5 + dx;
+  const right = x + w - 0.5 - dx;
+  const by = y + band;
+  return (
+    `<path d="M${num(left)} ${num(by)}A${r} ${r} 0 0 1 ${num(x + 0.5 + r)} ${num(y + 0.5)}H${num(x + w - 0.5 - r)}A${r} ${r} 0 0 1 ${num(right)} ${num(by)}Z" style="fill:${color("band", layer, "s2")}"/>` +
+    `<line${attrs({ x1: left, y1: by - 0.5, x2: right, y2: by - 0.5 })} style="stroke:${color("frame-border", layer, "border")}"/>`
+  );
+}
+
 function frameNode(index: GraphIndex, node: GraphNode, box: Rect): string {
   const { layer } = node;
   const border = color("frame-border", layer, "border");
-  const { x, y, width: w, height: h } = box;
+  const { x, width: w, height: h } = box;
   const counts = frameCounts(index, node.id);
-  const rx = node.kind === "module" ? 12 : 16;
+  const shape = nodeShape(node);
+  // Radii as nodes.css: a window keeps the service's 16, a box is squarer, a folder is a module's 12.
+  const rx = shape === "window" ? 16 : shape === "box" ? 6 : 12;
+  const band = shape === "window" ? WINDOW_BAND.frame : 0;
   const out = [
     // The stacked edge (nodes.css `--gi-lip`): a sliver of border, then of tint, under the card.
-    `<rect${attrs({ x: x + 3, y: y + 9, width: w - 6, height: h - 6, rx })} style="fill:${border}"/>`,
-    `<rect${attrs({ x: x + 4, y: y + 10, width: w - 8, height: h - 8, rx })} style="fill:${color("lip", layer, "s1")}"/>`,
-    `<rect${attrs({ x: x + 0.5, y: y + 0.5, width: w - 1, height: h - 1, rx })} style="fill:${color("frame", layer, "s1")};stroke:${border}"/>`,
-    tile(node, x + 12, y + 15, 32, TILE_ICON_SIZE.sm, 6),
+    `<rect${attrs({ x: x + 3, y: box.y + 9, width: w - 6, height: h - 6, rx })} style="fill:${border}"/>`,
+    `<rect${attrs({ x: x + 4, y: box.y + 10, width: w - 8, height: h - 8, rx })} style="fill:${color("lip", layer, "s1")}"/>`,
+    `<rect${attrs({ x: x + 0.5, y: box.y + 0.5, width: w - 1, height: h - 1, rx })} style="fill:${color("frame", layer, "s1")};stroke:${border}"/>`,
+    band > 0 ? windowBand(layer, box, rx, band) : "",
   ];
+  // Content starts below the band.
+  const y = box.y + band;
+  out.push(tile(node, x + 12, y + 15, 32, TILE_ICON_SIZE.sm, 6));
   const textX = x + 56;
   const max = w - 56 - 16;
   out.push(textLine(nodeLabel(node), { x: textX, y: y + 28 }, max, 14, { weight: 600 }));
@@ -403,10 +463,21 @@ function frameNode(index: GraphIndex, node: GraphNode, box: Rect): string {
 function iconNode(node: GraphNode, box: Rect): string {
   const { x, y, width: w } = box;
   const cx = x + w / 2;
+  const s = nodeShape(node);
+  const shape = isTileShape(s) ? s : undefined;
+  const tileHeight = shape ? TILE_OUTLINES[shape].height : 56;
   return [
-    tile(node, cx - 28, y, 56, TILE_ICON_SIZE.lg, 12),
-    textLine(nodeLabel(node), { x: cx, y: y + 78 }, w, 13, { weight: 500, anchor: "middle" }),
-    textLine(nodeSubtitle(node), { x: cx, y: y + 96 }, w, 12, { muted: true, anchor: "middle" }),
+    shape
+      ? shapedTile(node, shape, cx - TILE_OUTLINES[shape].width / 2, y)
+      : tile(node, cx - 28, y, 56, TILE_ICON_SIZE.lg, 12),
+    textLine(nodeLabel(node), { x: cx, y: y + tileHeight + 22 }, w, 13, {
+      weight: 500,
+      anchor: "middle",
+    }),
+    textLine(nodeSubtitle(node), { x: cx, y: y + tileHeight + 40 }, w, 12, {
+      muted: true,
+      anchor: "middle",
+    }),
   ].join("");
 }
 

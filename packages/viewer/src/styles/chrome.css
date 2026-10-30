@@ -598,13 +598,25 @@
 
 /* Two columns keep the legend short enough to open over a laptop-height canvas. */
 .gi-legend {
-  width: 560px;
+  width: 700px;
 }
 
 .gi-legend__columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1.2fr 1fr;
   column-gap: var(--space-24);
+}
+
+/* Node shapes in outline, the muted hairline the nodes use at rest. */
+.gi-legend__shape {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}
+
+.gi-legend__shape .gi-legend__band {
+  fill: color-mix(in srgb, var(--text-muted) 35%, transparent);
+  stroke: none;
 }
 
 .gi-legend__group h3 {
