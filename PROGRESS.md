@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7c. Wrapper inlining as per-service facts (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.7d. Per-service fact bundles for every program stage + global composition (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -143,7 +143,7 @@ M6.7c. Wrapper inlining as per-service facts (M5.13 and M5.14b wait on #3–#7; 
 - [x] M6.6 gitinside diff CLI (paths or git refs) + Mermaid summary {model: opus}
 - [x] M6.7a Disk LRU fact cache (`openDiskCache`: versioned keys, atomic writes, 2 GB cap, failures are misses) + ADR-0090 for the incremental design {model: opus}
 - [x] M6.7b Observed inputs: record every repo path each service's program host and detectors read or probe (content hash or absent), incl. other services' files; `verifyInputs`; a test that the log covers every read {model: opus}
-- [ ] M6.7c Wrapper inlining as per-service facts (wrapper URL templates, calls to wrappers) + a global binding step; no output change (goldens, eval) {model: opus}
+- [x] M6.7c Wrapper inlining as per-service facts (wrapper URL templates, calls to wrappers) + a global binding step; no output change (goldens, eval) {model: opus}
 - [ ] M6.7d Per-service serializable fact bundles for every program stage + global composition; `analyze` rebuilt as facts → compose; no output change (goldens, eval) {model: opus}
 - [ ] M6.7e `analyze({ cache })`: reuse clean services' facts, build clean programs only when needed; warm == cold bytes over fixture edits (edit, add, delete, cross-service import, tsconfig); CLI `--cache <dir>`, diff's two ref sides share it {model: opus}
 - [ ] M6.7f Worker cache volume (2 GB): public folder + per-installation private folders (deleted on uninstall, M8.5); compose + container check {model: opus}
@@ -184,6 +184,8 @@ M6.7c. Wrapper inlining as per-service facts (M5.13 and M5.14b wait on #3–#7; 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.7c: `collectHttpFacts` (`packages/analyzer/src/wrappers.ts`, ADR-0092) gives each service plain-data `HttpFacts`: direct requests, its wrappers with their uncalled requests, and its calls to wrappers anywhere, inlined in the caller's analysis (a wrapper in another program is recorded as reached via `programOf`). `bindWrappers` is the global step (drop a called wrapper's own requests, sort). `HttpRequest` holds no TS nodes: `label`/`expression` are computed with it, not in `buildHttpEdges`. Global URL templates were rejected: `normalize` isn't compositional over arguments. The only global input left is the wrapper-name filter (M6.7e). 3 new tests (JSON round-trip binds identically; disabling the reach record fails one); analyzer 678 green (first full run had one failure cut from the output, rerun clean). Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110). Next: M6.7d.
 
 - 2026-10-29 · M6.7b: each service gets its own compiler host that logs reads (SHA-256 of bytes), file/folder probes, and its root-file listing into an `InputLog` (`packages/analyzer/src/inputs.ts`, ADR-0091); the tsconfig lookup and the shared manifest cache no longer bypass it. `SymbolResolver.reached` records other programs used (`importTarget`, `programOf(path, from)`); `serviceInputs` merges them transitively; `createInputVerifier` returns the first changed input. Global inputs (workspace layout, limits, TS libs) are left to M6.7e's key; reverse dependencies (wrappers, router prefixes) to M6.7c/d. 25 new tests (2 log units, fs-spy coverage over 13 fixtures, 10 on a temp monorepo); mutating the tsconfig probe or the `importTarget` hop fails 3. Analyzer 675 green; eval re-recorded (unchanged: TP 28, FP 1, FN 110). Next: M6.7c.
 
