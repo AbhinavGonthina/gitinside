@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.4b. Broken edges needing new analyzer facts (PARAMETERS_ADDED, FIELD_REMOVED) (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.5. Property tests (fast-check) (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -138,7 +138,7 @@ M6.4b. Broken edges needing new analyzer facts (PARAMETERS_ADDED, FIELD_REMOVED)
 - [x] M6.2 Node/edge classification with per-kind fingerprints {model: opus}
 - [x] M6.3 Rename/move detection with tuned thresholds {model: opus}
 - [x] M6.4a Broken-edge detection incl. head re-resolution: `TARGET_REMOVED` / `ROUTE_CHANGED` for routes, relative imports, Prisma models; route grammar shared via the schema {model: opus}
-- [ ] M6.4b Broken edges needing new analyzer facts: required parameter counts on symbols + call-site argument counts (`PARAMETERS_ADDED`), field names a Prisma call uses that the model lacks (`FIELD_REMOVED`); schema + goldens + eval re-record {model: opus}
+- [x] M6.4b Broken edges needing new analyzer facts: required parameter counts on symbols + call-site argument counts (`PARAMETERS_ADDED`), field names a Prisma call uses that the model lacks (`FIELD_REMOVED`); schema + goldens + eval re-record {model: opus}
 - [ ] M6.5 Property tests (fast-check) {model: opus}
 - [ ] M6.6 gitinside diff CLI (paths or git refs) + Mermaid summary {model: opus}
 - [ ] M6.7 Incremental cache (content-hash facts, importer invalidation, disk LRU) {model: opus}
@@ -179,6 +179,8 @@ M6.4b. Broken edges needing new analyzer facts (PARAMETERS_ADDED, FIELD_REMOVED)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.4b: new analyzer facts (ADR-0088): symbols get `requiredParams` (TypeScript's count; TS files only, none for overloads or inherited constructors), edge sites become `CallSite` with `args` (calls, absent behind a spread) and `missingFields` (Prisma names the model lacks, minus `AND`/`OR`/`NOT`, `_` selectors, compound keys). `detectBroken` checks surviving edges per site: `PARAMETERS_ADDED` (count rose; site passes ≥ old, < new), `FIELD_REMOVED` (site names a field base had). `parseGraphDiff` validates by reason; `requiredParams` is a symbol fingerprint. `diff-broken` pair now has 6 broken edges; every golden gained `args`/`requiredParams`. Tests: schema 33, diff 105 (98.97% lines), analyzer 621 alone (the shared-mounts timing test failed once under full `pnpm test` load), viewer 471, web 321, worker 454 + 16 skipped. Eval re-recorded, numbers unchanged (TP 28, FP 1, FN 110). Next: M6.5.
 
 - 2026-10-29 · M6.4a: M6.4 split into a (graph-only reasons) and b (`PARAMETERS_ADDED`/`FIELD_REMOVED`, which need new analyzer facts). `detectBroken` (`packages/diff/src/broken.ts`, ADR-0087): a base edge to a gone (not renamed) target is broken when the head source (or its rename) has an unresolved call of the same kind that re-resolves to it: HTTP label ⇒ method + path matched against the route, relative import specifier ⇒ file path, Prisma accessor ⇒ model. Handler serving a new route ⇒ `ROUTE_CHANGED`. The route grammar moved to `@gitinside/schema` (`routes.ts`), re-exported by the analyzer; `parseGraphDiff` now checks broken edges are removed edges with removed targets and sources in head. New fixture pair `diff-broken-base/head` (4 broken + 1 removed-with-caller). Diff 93 tests, 98.9% lines; schema 30; analyzer green (the known shared-mounts timing test failed under load at 25 s, 2 s alone). Eval re-recorded (unchanged). Next: M6.4b.
 
