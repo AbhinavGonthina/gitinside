@@ -328,97 +328,141 @@ export function buildImportGraph(
   workspace: Workspace,
   sourceFiles: readonly string[],
 ): { nodes: GraphNode[]; edges: GraphEdge[]; warnings: AnalysisWarning[] } {
-  const sources = new Set(sourceFiles);
-  const nodes: GraphNode[] = [];
-  const edges = new Map<string, GraphEdge>();
-  const warnings: AnalysisWarning[] = [];
   const manifests: ManifestCache = new Map();
+  return composeImports(
+    programs.map((sp) => collectImportFacts(sp, workspace, sourceFiles, manifests)),
+  );
+}
 
-  for (const sp of programs) {
-    const options = sp.program.getCompilerOptions();
-    const pathsKeys = Object.keys(options.paths ?? {});
-    const resolveModule = createModuleResolver(sp, workspace, manifests);
+/** One import of a file by a service's file, before merging into edges. */
+export interface ImportFact {
+  /** The importing file's node ID. */
+  from: string;
+  /** The imported file's node ID, or the import's `unresolved` node ID. */
+  to: string;
+  /** `exact` or `heuristic` for a file, `unresolved` for an unresolved node. */
+  confidence: Confidence;
+  /** The specifier's location. */
+  site: SourceLocation;
+}
 
-    for (const file of sp.rootFiles) {
-      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-      if (!sourceFile) continue;
-      const fromId = fileNodeId(sp.service, file);
+/**
+ * What one service's files import (see {@link buildImportGraph}). Plain data (JSON
+ * round-trips), and a function of the service's observed inputs only (ADR-0090).
+ */
+export interface ImportFacts {
+  /** The service's key. */
+  service: string;
+  /** Imports in file and source order. */
+  imports: ImportFact[];
+  /** `unresolved` nodes of local-looking imports that resolve to no repo file, in source order. */
+  unresolved: GraphNode[];
+  /** `IMPORT_OUTSIDE_SERVICE` warnings, in source order. */
+  warnings: AnalysisWarning[];
+}
 
-      for (const site of extractImports(sourceFile)) {
-        const { specifier, literal } = site;
-        if (specifier === "" || ASSET_EXTENSIONS.has(extensionOf(specifier))) continue;
-        const position = sourceFile.getLineAndCharacterOfPosition(literal.getStart(sourceFile));
-        const location: SourceLocation = {
-          file,
-          line: position.line + 1,
-          column: position.character + 1,
-        };
+/**
+ * The imports of one service's root files (see {@link buildImportGraph} for the rules).
+ * `sourceFiles` is the inventory's source list; `manifests` may be shared between services.
+ */
+export function collectImportFacts(
+  sp: ServiceProgram,
+  workspace: Workspace,
+  sourceFiles: readonly string[],
+  manifests: ManifestCache = new Map(),
+): ImportFacts {
+  const sources = new Set(sourceFiles);
+  const facts: ImportFacts = { service: sp.service.key, imports: [], unresolved: [], warnings: [] };
+  const options = sp.program.getCompilerOptions();
+  const pathsKeys = Object.keys(options.paths ?? {});
+  const resolveModule = createModuleResolver(sp, workspace, manifests);
 
-        const resolved = resolveModule(specifier, sourceFile, literal);
-        if (resolved) {
-          const target = serviceForFile(workspace, resolved.path);
-          if (!target || !sources.has(resolved.path)) {
-            warnings.push({
-              code: "IMPORT_OUTSIDE_SERVICE",
-              file,
-              message: `"${specifier}" at ${location.line}:${location.column} resolves to ${resolved.path}, which belongs to no service`,
-            });
-            continue;
-          }
-          const toId = fileNodeId(target, resolved.path);
-          const id = edgeId("imports", fromId, toId);
-          const existing = edges.get(id);
-          if (existing) {
-            existing.sites.push(location);
-            if (resolved.confidence === "exact") existing.confidence = "exact";
-          } else {
-            edges.set(id, {
-              id,
-              kind: "imports",
-              from: fromId,
-              to: toId,
-              confidence: resolved.confidence,
-              sites: [location],
-            });
-          }
+  for (const file of sp.rootFiles) {
+    const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+    if (!sourceFile) continue;
+    const from = fileNodeId(sp.service, file);
+
+    for (const { specifier, literal } of extractImports(sourceFile)) {
+      if (specifier === "" || ASSET_EXTENSIONS.has(extensionOf(specifier))) continue;
+      const position = sourceFile.getLineAndCharacterOfPosition(literal.getStart(sourceFile));
+      const site: SourceLocation = {
+        file,
+        line: position.line + 1,
+        column: position.character + 1,
+      };
+
+      const resolved = resolveModule(specifier, sourceFile, literal);
+      if (resolved) {
+        const target = serviceForFile(workspace, resolved.path);
+        if (!target || !sources.has(resolved.path)) {
+          facts.warnings.push({
+            code: "IMPORT_OUTSIDE_SERVICE",
+            file,
+            message: `"${specifier}" at ${site.line}:${site.column} resolves to ${resolved.path}, which belongs to no service`,
+          });
           continue;
         }
-
-        const mustBeLocal =
-          isRelative(specifier) ||
-          /^(@\/|~\/|#)/.test(specifier) ||
-          workspaceTarget(workspace, specifier) !== undefined ||
-          pathsKeys.some((key) => matchesPathsKey(key, specifier));
-        if (!mustBeLocal) continue;
-
-        const unresolvedId = nodeId(
-          "unresolved",
-          sp.service.key,
-          `${withinService(sp.service, file)}:${location.line}:${location.column}`,
-        );
-        nodes.push({
-          id: unresolvedId,
-          kind: "unresolved",
-          label: specifier,
-          parentId: nodeId("service", sp.service.key, ""),
-          reason: "UNKNOWN_SYMBOL",
-          expression: specifier,
-          source: location,
-        });
-        const id = edgeId("imports", fromId, unresolvedId);
-        edges.set(id, {
-          id,
-          kind: "imports",
-          from: fromId,
-          to: unresolvedId,
-          confidence: "unresolved",
-          reason: "UNKNOWN_SYMBOL",
-          sites: [location],
-        });
+        const to = fileNodeId(target, resolved.path);
+        facts.imports.push({ from, to, confidence: resolved.confidence, site });
+        continue;
       }
+
+      const mustBeLocal =
+        isRelative(specifier) ||
+        /^(@\/|~\/|#)/.test(specifier) ||
+        workspaceTarget(workspace, specifier) !== undefined ||
+        pathsKeys.some((key) => matchesPathsKey(key, specifier));
+      if (!mustBeLocal) continue;
+
+      const to = nodeId(
+        "unresolved",
+        sp.service.key,
+        `${withinService(sp.service, file)}:${site.line}:${site.column}`,
+      );
+      facts.unresolved.push({
+        id: to,
+        kind: "unresolved",
+        label: specifier,
+        parentId: nodeId("service", sp.service.key, ""),
+        reason: "UNKNOWN_SYMBOL",
+        expression: specifier,
+        source: site,
+      });
+      facts.imports.push({ from, to, confidence: "unresolved", site });
     }
   }
+  return facts;
+}
 
+/**
+ * The global step over every service's {@link ImportFacts}, in program order: one `imports`
+ * edge per importing and imported file (every site listed, `exact` if any import is), sorted
+ * by ID with sites in file order; unresolved nodes sorted by ID; warnings in order.
+ */
+export function composeImports(all: readonly ImportFacts[]): {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  warnings: AnalysisWarning[];
+} {
+  const edges = new Map<string, GraphEdge>();
+  for (const { from, to, confidence, site } of all.flatMap((f) => f.imports)) {
+    const id = edgeId("imports", from, to);
+    const existing = edges.get(id);
+    if (existing) {
+      existing.sites.push(site);
+      if (confidence === "exact") existing.confidence = "exact";
+    } else {
+      edges.set(id, {
+        id,
+        kind: "imports",
+        from,
+        to,
+        confidence,
+        ...(confidence === "unresolved" ? { reason: "UNKNOWN_SYMBOL" as const } : {}),
+        sites: [site],
+      });
+    }
+  }
   const sortedEdges = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
   for (const edge of sortedEdges) {
     edge.sites.sort(
@@ -426,8 +470,8 @@ export function buildImportGraph(
     );
   }
   return {
-    nodes: nodes.sort((a, b) => compareStrings(a.id, b.id)),
+    nodes: all.flatMap((f) => f.unresolved).sort((a, b) => compareStrings(a.id, b.id)),
     edges: sortedEdges,
-    warnings,
+    warnings: all.flatMap((f) => f.warnings),
   };
 }

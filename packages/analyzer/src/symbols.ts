@@ -373,33 +373,40 @@ export function symbolNodeId(service: WorkspacePackage, path: string, qualified:
  * or its class symbol for methods. `source` spans the declaration, starting after any JSDoc.
  */
 export function buildSymbolNodes(programs: readonly ServiceProgram[]): GraphNode[] {
+  return programs.flatMap((sp) => collectSymbolNodes(sp));
+}
+
+/**
+ * The `symbol` nodes of one service's root files, in file and declaration order (see
+ * {@link buildSymbolNodes}). They are the service's symbol facts: plain data, and a function
+ * of its files' text only.
+ */
+export function collectSymbolNodes(sp: ServiceProgram): GraphNode[] {
   const nodes: GraphNode[] = [];
-  for (const sp of programs) {
-    for (const file of sp.rootFiles) {
-      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-      if (!sourceFile) continue;
-      for (const symbol of extractSymbols(sourceFile)) {
-        const start = sourceFile.getLineAndCharacterOfPosition(symbol.node.getStart(sourceFile));
-        const end = sourceFile.getLineAndCharacterOfPosition(symbol.node.getEnd());
-        nodes.push({
-          id: symbolNodeId(sp.service, file, symbol.qualified),
-          kind: "symbol",
-          label: symbol.name,
-          parentId:
-            symbol.parent === undefined
-              ? fileNodeId(sp.service, file)
-              : symbolNodeId(sp.service, file, symbol.parent),
-          symbolKind: symbol.symbolKind,
-          exported: symbol.exported,
-          ...(symbol.requiredParams === undefined ? {} : { requiredParams: symbol.requiredParams }),
-          source: {
-            file,
-            line: start.line + 1,
-            column: start.character + 1,
-            endLine: end.line + 1,
-          },
-        });
-      }
+  for (const file of sp.rootFiles) {
+    const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+    if (!sourceFile) continue;
+    for (const symbol of extractSymbols(sourceFile)) {
+      const start = sourceFile.getLineAndCharacterOfPosition(symbol.node.getStart(sourceFile));
+      const end = sourceFile.getLineAndCharacterOfPosition(symbol.node.getEnd());
+      nodes.push({
+        id: symbolNodeId(sp.service, file, symbol.qualified),
+        kind: "symbol",
+        label: symbol.name,
+        parentId:
+          symbol.parent === undefined
+            ? fileNodeId(sp.service, file)
+            : symbolNodeId(sp.service, file, symbol.parent),
+        symbolKind: symbol.symbolKind,
+        exported: symbol.exported,
+        ...(symbol.requiredParams === undefined ? {} : { requiredParams: symbol.requiredParams }),
+        source: {
+          file,
+          line: start.line + 1,
+          column: start.character + 1,
+          endLine: end.line + 1,
+        },
+      });
     }
   }
   return nodes;

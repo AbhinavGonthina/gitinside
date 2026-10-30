@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { SYSTEM_ID, type AnalysisWarning, type ArchitectureGraph } from "@gitinside/schema";
 import { assembleGraph } from "./assemble.js";
-import { buildCallEdges, createSymbolResolver } from "./calls.js";
+import { collectCallFacts, composeCallEdges, createSymbolResolver } from "./calls.js";
 import {
   collectExpressFacts,
   composeExpressRoutes,
@@ -13,7 +13,7 @@ import {
 import { errorText } from "./failures.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { collectHttpCalls } from "./http.js";
-import { buildImportGraph } from "./imports.js";
+import { collectImportFacts, composeImports, type ManifestCache } from "./imports.js";
 import { buildInfra, relinkStores } from "./infra.js";
 import { AnalysisError, buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildHttpEdges, createRouteMatcher } from "./match.js";
@@ -22,7 +22,7 @@ import { buildPrisma } from "./prisma.js";
 import { buildServicePrograms } from "./program.js";
 import { buildQueueEdges } from "./queues.js";
 import { buildSdkEdges } from "./sdk.js";
-import { buildSymbolNodes } from "./symbols.js";
+import { collectSymbolNodes } from "./symbols.js";
 import { createUrlNormalizer } from "./url.js";
 import { ANALYZER_VERSION } from "./version.js";
 import { detectWorkspace, serviceNodes } from "./workspace.js";
@@ -171,7 +171,13 @@ export async function analyze(
   );
   const imports = await detector(
     "imports",
-    () => buildImportGraph(programs, workspace, inventory.sourceFiles),
+    () => {
+      // Per-service facts, then the global merge (ADR-0098).
+      const manifests: ManifestCache = new Map();
+      return composeImports(
+        programs.map((sp) => collectImportFacts(sp, workspace, inventory.sourceFiles, manifests)),
+      );
+    },
     none,
   );
   const resolver = createSymbolResolver(programs, workspace);
@@ -206,10 +212,10 @@ export async function analyze(
   );
   const stored = relinkStores(prisma, infra.links);
   const files = await stage("files", () => buildFileNodes(root, workspace, inventory.sourceFiles));
-  const symbols = await stage("symbols", () => buildSymbolNodes(programs));
+  const symbols = await stage("symbols", () => programs.flatMap((sp) => collectSymbolNodes(sp)));
   const calls = await detector(
     "calls",
-    () => buildCallEdges(programs, resolver),
+    () => composeCallEdges(programs.map((sp) => collectCallFacts(sp, resolver))),
     () => [],
   );
   const http = await detector(

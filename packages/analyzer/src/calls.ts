@@ -396,49 +396,84 @@ export function buildCallEdges(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
 ): GraphEdge[] {
-  const edges = new Map<string, GraphEdge>();
-  for (const sp of programs) {
-    for (const file of sp.rootFiles) {
-      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-      const byNode = sourceFile && resolver.callers.get(sourceFile);
-      if (!sourceFile || !byNode) continue;
+  return composeCallEdges(programs.map((sp) => collectCallFacts(sp, resolver)));
+}
 
-      const visit = (node: ts.Node, caller: string | undefined): void => {
-        const owner = byNode.get(node) ?? caller;
-        if (owner !== undefined && (ts.isCallExpression(node) || ts.isNewExpression(node))) {
-          const target = resolver.resolve(sp, node.expression);
-          if (target && target.id !== owner) {
-            const name = calleeName(node.expression) ?? node;
-            const position = sourceFile.getLineAndCharacterOfPosition(name.getStart(sourceFile));
-            const args = node.arguments ?? [];
-            const site: CallSite = {
+/** One resolved call in a service's file, before merging into edges. */
+export interface CallFact {
+  /** The calling symbol's node ID. */
+  from: string;
+  /** The called symbol's node ID. */
+  to: string;
+  confidence: Confidence;
+  site: CallSite;
+}
+
+/**
+ * The resolved calls in one service's files (see {@link buildCallEdges}). Plain data (JSON
+ * round-trips). Callees in other programs are reached through the resolver, so their inputs
+ * are the service's inputs too (ADR-0091).
+ */
+export interface CallFacts {
+  /** The service's key. */
+  service: string;
+  /** Calls in file and source order. */
+  calls: CallFact[];
+}
+
+/** The resolved calls in one service's root files (see {@link buildCallEdges} for the rules). */
+export function collectCallFacts(sp: ServiceProgram, resolver: SymbolResolver): CallFacts {
+  const calls: CallFact[] = [];
+  for (const file of sp.rootFiles) {
+    const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+    const byNode = sourceFile && resolver.callers.get(sourceFile);
+    if (!sourceFile || !byNode) continue;
+
+    const visit = (node: ts.Node, caller: string | undefined): void => {
+      const owner = byNode.get(node) ?? caller;
+      if (owner !== undefined && (ts.isCallExpression(node) || ts.isNewExpression(node))) {
+        const target = resolver.resolve(sp, node.expression);
+        if (target && target.id !== owner) {
+          const name = calleeName(node.expression) ?? node;
+          const position = sourceFile.getLineAndCharacterOfPosition(name.getStart(sourceFile));
+          const args = node.arguments ?? [];
+          calls.push({
+            from: owner,
+            to: target.id,
+            confidence: target.confidence,
+            site: {
               file,
               line: position.line + 1,
               column: position.character + 1,
               ...(args.some(ts.isSpreadElement) ? {} : { args: args.length }),
-            };
-            const id = edgeId("calls", owner, target.id);
-            const existing = edges.get(id);
-            if (existing) {
-              existing.sites.push(site);
-              if (target.confidence === "exact") existing.confidence = "exact";
-            } else {
-              edges.set(id, {
-                id,
-                kind: "calls",
-                from: owner,
-                to: target.id,
-                confidence: target.confidence,
-                sites: [site],
-              });
-            }
-          }
+            },
+          });
         }
-        ts.forEachChild(node, (child) => {
-          visit(child, owner);
-        });
-      };
-      visit(sourceFile, undefined);
+      }
+      ts.forEachChild(node, (child) => {
+        visit(child, owner);
+      });
+    };
+    visit(sourceFile, undefined);
+  }
+  return { service: sp.service.key, calls };
+}
+
+/**
+ * The global step over every service's {@link CallFacts}, in program order: one `calls` edge
+ * per caller and callee (every site listed, `exact` if any call is), sorted by ID with sites
+ * in file order.
+ */
+export function composeCallEdges(all: readonly CallFacts[]): GraphEdge[] {
+  const edges = new Map<string, GraphEdge>();
+  for (const { from, to, confidence, site } of all.flatMap((f) => f.calls)) {
+    const id = edgeId("calls", from, to);
+    const existing = edges.get(id);
+    if (existing) {
+      existing.sites.push(site);
+      if (confidence === "exact") existing.confidence = "exact";
+    } else {
+      edges.set(id, { id, kind: "calls", from, to, confidence, sites: [site] });
     }
   }
 
