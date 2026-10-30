@@ -330,7 +330,7 @@ export function TracePanel({
           </span>
         </div>
         <div className="gi-inspector__title">
-          <h2>{current.title}</h2>
+          <h2 className="gi-explorer__hop">{current.title}</h2>
         </div>
         {site && (
           <p className="gi-inspector__location">
