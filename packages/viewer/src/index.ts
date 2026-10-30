@@ -165,6 +165,18 @@ export type {
   LayoutResult,
   PlacedEdge,
 } from "./layout/elk.js";
+export {
+  createLayoutCache,
+  createLayoutEngine,
+  LAYOUT_CACHE_SIZE,
+  layoutKey,
+} from "./layout/engine.js";
+export type {
+  LayoutCache,
+  LayoutEngine,
+  LayoutEngineOptions,
+  LayoutWorkerFactory,
+} from "./layout/engine.js";
 export { ExplorerPrototype } from "./prototype/ExplorerPrototype.js";
 export type { ExplorerPrototypeProps } from "./prototype/ExplorerPrototype.js";
 export type { UiIconName } from "./chrome/uiIcons.js";

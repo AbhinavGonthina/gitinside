@@ -159,7 +159,19 @@ export function elkGraph(input: LayoutInput): ElkNode {
       targets: [e.to],
       // ELK skips a label without text (it's left at 0, 0 and gets no room),
       // so the label carries a placeholder; only its size matters here.
-      labels: [{ id: `${e.id}#label`, text: " ", width: e.label.width, height: e.label.height }],
+      labels: [
+        {
+          id: `${e.id}#label`,
+          text: " ",
+          width: e.label.width,
+          height: e.label.height,
+          // The pill sits on its line (DESIGN_SYSTEM §3), so ELK routes the
+          // line through the room it keeps (a label option, ignored on the
+          // root). Placed beside the line and moved onto it, the pills of two
+          // parallel edges 11px apart covered each other (M4b.2b).
+          layoutOptions: { "elk.edgeLabels.inline": "true" },
+        },
+      ],
     }),
   );
   return root;
@@ -186,9 +198,9 @@ function midpoint(points: readonly Point[]): Point {
 }
 
 /**
- * The point of a polyline nearest to `p`. ELK places a label beside its line
- * (with room kept for it); the pill is drawn on the line, so it moves to the
- * nearest point there.
+ * The point of a polyline nearest to `p`. Inline labels already sit on their
+ * line, give or take ELK's rounding and a bend's jog; the pill is drawn on
+ * the line, so it moves to the nearest point there.
  */
 function nearestOnLine(points: readonly Point[], p: Point): Point {
   let best = points[0] as Point;

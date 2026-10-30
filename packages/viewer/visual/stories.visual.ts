@@ -49,6 +49,13 @@ for (const c of cases) {
       page.locator(`#storybook-root > .gi-root[data-theme="${c.theme}"]`),
     ).toBeAttached();
     await expect(page.locator("body.sb-show-errordisplay")).toHaveCount(0);
+    // Laid-out stories (M4b.2b) draw once their Web Worker answers; a story
+    // that fell back to the main thread means the worker broke in a browser.
+    await expect(page.locator('[data-layout="pending"]')).toHaveCount(0);
+    await expect(
+      page.locator('[data-layout-runs-in="main"]'),
+      "laid out in the worker",
+    ).toHaveCount(0);
 
     // The screenshot must show the real styles and fonts, not a fallback, and
     // the theme's canvas behind the whole page (no white iframe edge).
@@ -92,6 +99,36 @@ for (const c of cases) {
         .map((n) => n.getAttribute("aria-label") ?? n.textContent ?? ""),
     );
     expect(spills, "every node's content fits its box").toEqual([]);
+
+    // Each edge label the layout made room for is no wider than that room:
+    // its size was estimated from its words before anything was drawn.
+    // And no two laid-out pills cover each other.
+    const labels = await page.evaluate(() => {
+      const pills = [
+        ...document.querySelectorAll<HTMLElement>(".gi-edge-label[data-measured-width]"),
+      ].map((l) => ({
+        text: l.textContent ?? "",
+        room: Number(l.dataset.measuredWidth),
+        r: l.getBoundingClientRect(),
+      }));
+      return {
+        wide: pills.filter((p) => p.r.width > p.room + 0.5).map((p) => `${p.text}: ${p.r.width}px`),
+        covered: pills.flatMap((a, i) =>
+          pills
+            .slice(i + 1)
+            .filter(
+              ({ r: b }) =>
+                a.r.left < b.right &&
+                b.left < a.r.right &&
+                a.r.top < b.bottom &&
+                b.top < a.r.bottom,
+            )
+            .map((b) => `${a.text} / ${b.text}`),
+        ),
+      };
+    });
+    expect(labels.wide, "every edge label fits the room the layout kept").toEqual([]);
+    expect(labels.covered, "no edge label covers another").toEqual([]);
 
     await expect(page).toHaveScreenshot(c.snapshot, { fullPage: true });
     expect(errors, "no errors while rendering").toEqual([]);

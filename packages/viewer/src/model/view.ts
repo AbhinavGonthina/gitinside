@@ -7,7 +7,7 @@ import { canOpen, type HierarchyIndex } from "./hierarchy.js";
  * each inside the frame it's drawn in, and the graph's edges lifted to their
  * visible ends (UX.md "Edge aggregation"). A pure function of the index and
  * the expansion set, so the same state always gives the same view, and the
- * layout (M4b.2) can cache by `open`.
+ * layout (M4b.2) can cache by `open` and `hidden`.
  *
  * Routes first (design gate, ADR-0105): an open service shows its routes and
  * pages from anywhere inside it as an `entries` section ahead of its folders.
@@ -55,6 +55,8 @@ export interface GraphView {
   childrenOf: ReadonlyMap<string, readonly string[]>;
   /** The nodes actually open, sorted: the requested ones that are visible and can open. */
   open: readonly string[];
+  /** The edge kinds left off, sorted. With `open`, all a view depends on besides the graph. */
+  hidden: readonly EdgeKind[];
   edges: readonly ViewEdge[];
 }
 
@@ -145,12 +147,14 @@ export function buildView(
   };
   for (const top of index.children.get(index.root.id) ?? []) place(top, null, "contents", 0);
 
+  const hidden = options.hiddenKinds ?? DEFAULT_HIDDEN_KINDS;
   return {
     nodes,
     byId,
     childrenOf,
     open: [...open].sort(compareStrings),
-    edges: liftEdges(index, byId, options.hiddenKinds ?? DEFAULT_HIDDEN_KINDS),
+    hidden: [...hidden].sort(compareStrings),
+    edges: liftEdges(index, byId, hidden),
   };
 }
 
