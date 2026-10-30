@@ -140,7 +140,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - A Playwright screenshot of a page opened on a raw `.svg` file hangs until timeout. Inline the SVG with `page.setContent(...)` and shoot `page.locator("svg")`.
 - After a mutation check, rerun the test on the restored code before calling the fix proven (M4b.2b: a fix applied before its test existed did nothing, and the browser check caught it). Write the regression test first, see it fail, then fix.
 - A new story fails `main`'s visual job until its Linux baselines exist. Push the commit to `ci/<task>`, run `gh workflow run "Visual baselines" --ref ci/<task>`, download as above, and keep only the new or intentionally changed images: a capture also rewrites a few untouched baselines with sub-tolerance noise (`git restore --staged --worktree` those).
-- A dispatched workflow can sit queued for 10+ minutes, and a background `gh run watch` with the default timeout (10 min) is killed first (M4b.3b1). Give it `timeout: 3600000`.<!-- lessons:end -->
+- A dispatched workflow can sit queued for 10+ minutes, and a background `gh run watch` with the default timeout (10 min) is killed first (M4b.3b1). Give it `timeout: 3600000`. `gh run watch` also exits 1 on a GitHub API 502 mid-run; check `gh run view <id>` before reading that as a failure, or poll with a scratch `node -e` loop that ignores errors.
+- A vitest test that runs ELK several times in-thread can pass under `test` but hit the 5 s default under CI's `coverage` (M4b.3b1). Give such suites an explicit `{ timeout }` that's no shorter than their own `waitFor` budgets.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
