@@ -116,6 +116,12 @@
   white-space: normal;
 }
 
+/* Play, Pause, and Replay share one width, so the buttons beside them hold still. */
+.gi-explorer__play {
+  justify-content: center;
+  min-width: 84px;
+}
+
 /* The trace player's step list. */
 
 .gi-explorer__steps {

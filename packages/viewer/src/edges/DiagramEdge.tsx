@@ -43,6 +43,12 @@ export interface DiagramEdgeProps
   layer?: Layer | undefined;
   /** Draw particles travelling source to target (turned off by reduced motion). */
   flow?: boolean;
+  /**
+   * The trace player's current hop: a pulse travels the line every trace hop
+   * (900ms), `"backward"` when the request goes target to source (a queue to
+   * the worker consuming it). Turned off by reduced motion.
+   */
+  pulse?: "forward" | "backward" | undefined;
   /** For an aggregated edge: how many edges it stands for. */
   count?: number | undefined;
 }
@@ -63,6 +69,7 @@ export function DiagramEdge({
   ends,
   layer,
   flow = false,
+  pulse,
   count,
   hovered,
   selected,
@@ -107,6 +114,10 @@ export function DiagramEdge({
             }
           />
         ))}
+      {pulse && (
+        // pathLength 100: the dash and its travel are percentages of the line, whatever its length.
+        <path className="gi-edge__pulse" d={g.flowPath} pathLength={100} data-pulse={pulse} />
+      )}
     </g>
   );
 }

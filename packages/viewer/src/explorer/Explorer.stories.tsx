@@ -123,3 +123,31 @@ export const TracingUnresolved: Story = {
   name: "Tracing, unresolved",
   render: () => <Explore initialOpen={["service:web/"]} traceStart="page:web//" initialStep={2} />,
 };
+
+/**
+ * The trace picker (M4b.6b): with no start and nothing traceable selected, T
+ * lists the pages and routes that have a request path, here searched for
+ * "orders".
+ */
+export const TracePicker: Story = {
+  name: "Trace picker",
+  render: () => <Explore traceStart={undefined} />,
+  play: async ({ canvasElement }) => {
+    canvasElement
+      .querySelector(".gi-explorer")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true }));
+    // The picker is drawn on React's next render.
+    let field: HTMLInputElement | null = null;
+    for (let tries = 0; !field && tries < 50; tries++) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      field = canvasElement.querySelector<HTMLInputElement>(".gi-palette input");
+    }
+    if (!field) throw new Error("The trace picker didn't open");
+    // React tracks an input's value: set it the way typing does, then say so.
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+      field,
+      "orders",
+    );
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  },
+};

@@ -1,5 +1,5 @@
 import type { GraphNode, Layer } from "@gitinside/schema";
-import { useId, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { IconTile, NodeIcon, TILE_ICON_SIZE } from "../icons/Icon.js";
 import { kindName, nodeLabel } from "../nodes/describe.js";
 import { Kbd } from "./controls.js";
@@ -33,6 +33,16 @@ export interface CommandPaletteProps {
    * ignores the pointer, and leaves the accessibility tree. Default `"open"`.
    */
   state?: "open" | "closing" | undefined;
+  /** The dialog's accessible name. Default "Search the diagram". */
+  label?: string | undefined;
+  /** The field's placeholder and accessible name. Default "Search services, files, routes". */
+  placeholder?: string | undefined;
+  /** What to say when nothing matches, instead of the search hints. */
+  empty?: ReactNode;
+  /** What Enter does, in the footer ("to open" by default). */
+  pickVerb?: string | undefined;
+  /** Move focus into the field when it opens. */
+  autoFocus?: boolean | undefined;
 }
 
 /** Names drawn in the mono face (code-like), like on the canvas. */
@@ -58,17 +68,37 @@ export function CommandPalette({
   onPick,
   onClose,
   state = "open",
+  label = "Search the diagram",
+  placeholder = "Search services, files, routes",
+  empty,
+  pickVerb = "open",
+  autoFocus = false,
 }: CommandPaletteProps) {
   const id = useId();
   const listId = `${id}-results`;
   const optionId = (i: number) => `${id}-option-${i}`;
   const active = results.length ? Math.min(Math.max(activeIndex, 0), results.length - 1) : -1;
+  // Focus the field on every open, also when reopened mid-exit (the same
+  // element, so an `autoFocus` attribute wouldn't fire again).
+  const fieldRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (autoFocus && state === "open") fieldRef.current?.focus();
+  }, [autoFocus, state]);
+  // Arrow keys can move the active result past the list's edge: keep it in view.
+  const listRef = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    const option = listRef.current?.children[active];
+    if (option instanceof HTMLElement) option.scrollIntoView?.({ block: "nearest" });
+  }, [active]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const n = results.length;
     if (event.key === "Escape") {
       event.preventDefault();
       onClose?.();
+    } else if (event.key === "Tab") {
+      // The field is the dialog's only stop: Tab mustn't leave a modal dialog.
+      event.preventDefault();
     } else if (n && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
       event.preventDefault();
       onActiveIndexChange?.((active + (event.key === "ArrowDown" ? 1 : -1) + n) % n);
@@ -89,7 +119,7 @@ export function CommandPalette({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Search the diagram"
+        aria-label={label}
         className="gi-palette"
         onClick={(e) => e.stopPropagation()}
       >
@@ -101,8 +131,9 @@ export function CommandPalette({
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={active >= 0 ? optionId(active) : undefined}
-            aria-label="Search services, files, routes"
-            placeholder="Search services, files, routes"
+            aria-label={placeholder}
+            placeholder={placeholder}
+            ref={fieldRef}
             spellCheck={false}
             autoComplete="off"
             value={query}
@@ -111,7 +142,13 @@ export function CommandPalette({
           />
           <Kbd keys={["Esc"]} />
         </div>
-        <ul id={listId} role="listbox" aria-label="Results" className="gi-palette__results">
+        <ul
+          ref={listRef}
+          id={listId}
+          role="listbox"
+          aria-label="Results"
+          className="gi-palette__results"
+        >
           {results.map((r, i) => {
             const tint = r.node.layer ?? r.layer;
             const segments = highlightSegments(r.node.label, r.matches);
@@ -144,7 +181,9 @@ export function CommandPalette({
         </ul>
         {results.length === 0 && (
           <p className="gi-palette__empty" role="status">
-            {query ? (
+            {empty !== undefined ? (
+              empty
+            ) : query ? (
               <>
                 Nothing matches “{query}”. Try a route like <code>POST /api/orders</code> or a file
                 name.
@@ -159,7 +198,7 @@ export function CommandPalette({
             <Kbd keys={["↑", "↓"]} /> to move
           </span>
           <span>
-            <Kbd keys={["Enter"]} /> to open
+            <Kbd keys={["Enter"]} /> to {pickVerb}
           </span>
           <span>
             <Kbd keys={["Esc"]} /> to close

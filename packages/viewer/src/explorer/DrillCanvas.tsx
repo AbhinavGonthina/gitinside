@@ -26,9 +26,14 @@ export interface BoxLook {
   emphasis?: NodeEmphasis | undefined;
 }
 
-/** How a line and its pill look: selected, its part in a trace, and particles flowing along it. */
+/**
+ * How a line and its pill look: selected, its part in a trace, particles
+ * flowing along it, and the current hop's pulse (which way the request goes
+ * along the drawn line).
+ */
 export interface LineLook extends BoxLook {
   flow?: boolean | undefined;
+  pulse?: "forward" | "backward" | undefined;
 }
 
 /** Props for {@link DrillCanvas}. */
@@ -383,7 +388,7 @@ export function DrillCanvas({
               const e = edges.get(placed.id);
               if (!e) return null;
               const { edge, count } = drawnEdge(e);
-              const { selected, emphasis, flow } = lineLook?.(e) ?? {};
+              const { selected, emphasis, flow, pulse } = lineLook?.(e) ?? {};
               return (
                 <DiagramEdge
                   key={placed.id}
@@ -395,6 +400,7 @@ export function DrillCanvas({
                   selected={selected}
                   emphasis={emphasis}
                   flow={flow ?? false}
+                  pulse={pulse}
                   data-inner={insideOneService(index, e) ? "" : undefined}
                 />
               );

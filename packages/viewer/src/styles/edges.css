@@ -191,6 +191,50 @@
   r: 4px;
 }
 
+/*
+ * The pulse (M4b.6b, UX.md "a pulse travels each hop"): on the current hop,
+ * a short, wider dash runs source to target once per trace hop, eased like a
+ * glide and fading at both ends. Mixed toward the text color so it reads on
+ * its own trace-colored line in both themes. At rest (animations off, as in
+ * the visual baselines) it isn't drawn.
+ */
+
+.gi-edge__pulse {
+  fill: none;
+  stroke: color-mix(in srgb, var(--trace) 55%, var(--text));
+  stroke-width: calc(var(--gi-edge-width) + 3px);
+  stroke-linecap: round;
+  stroke-dasharray: 14 100;
+  stroke-dashoffset: 14;
+  opacity: 0;
+  animation: gi-edge-hop var(--duration-trace-hop) var(--ease-layout) infinite;
+  pointer-events: none;
+}
+
+.gi-edge__pulse[data-pulse="backward"] {
+  animation-direction: reverse;
+}
+
+@keyframes gi-edge-hop {
+  0% {
+    stroke-dashoffset: 14;
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    stroke-dashoffset: -100;
+    opacity: 0;
+  }
+}
+
 /* State: dimmed (off the request path). Hover brings it partway back. */
 
 .gi-edge[data-emphasis="dimmed"] {
@@ -245,9 +289,16 @@
   }
 }
 
-/* Reduced motion: no particles, no pulse (the dashes and label still say "broken"). */
+/*
+ * Reduced motion: no particles, no hop pulse (the current hop's width and halo
+ * still mark it), no broken pulse (the dashes and label still say "broken").
+ */
 @media (prefers-reduced-motion: reduce) {
   .gi-edge__particle {
+    display: none;
+  }
+
+  .gi-edge__pulse {
     display: none;
   }
 
