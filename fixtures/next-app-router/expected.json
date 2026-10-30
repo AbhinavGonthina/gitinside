@@ -173,6 +173,7 @@
       "kind": "symbol",
       "label": "Product",
       "parentId": "file:next-app-router/app/(shop)/products/[id]/page.tsx",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 3,
@@ -187,6 +188,7 @@
       "kind": "symbol",
       "label": "GET",
       "parentId": "file:next-app-router/app/api/items/route.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 3,
@@ -201,6 +203,7 @@
       "kind": "symbol",
       "label": "POST",
       "parentId": "file:next-app-router/app/api/items/route.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 7,
@@ -215,6 +218,7 @@
       "kind": "symbol",
       "label": "Home",
       "parentId": "file:next-app-router/app/page.tsx",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 3,

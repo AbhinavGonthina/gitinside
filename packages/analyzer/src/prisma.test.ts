@@ -5,7 +5,7 @@ import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
-import { modelAccessor, namedFields, parsePrismaSchema } from "./prisma.js";
+import { fieldUse, modelAccessor, parsePrismaSchema } from "./prisma.js";
 
 let dir: string;
 beforeEach(async () => {
@@ -158,7 +158,7 @@ describe("modelAccessor", () => {
   });
 });
 
-describe("namedFields", () => {
+describe("fieldUse", () => {
   const argument = (code: string): ts.Expression => {
     const sourceFile = ts.createSourceFile("a.ts", `f(${code})`, ts.ScriptTarget.ES2022, true);
     const statement = sourceFile.statements[0] as ts.ExpressionStatement;
@@ -183,11 +183,26 @@ describe("namedFields", () => {
     ["{ [key]: { id: true } }", []],
     ["args", []],
   ])("finds the fields %s names", (code, expected) => {
-    expect(namedFields(argument(code), fields)).toEqual(expected);
+    expect(fieldUse(argument(code), fields)).toEqual({ named: expected, missing: [] });
+  });
+
+  it.each([
+    ["{ where: { nickname: x, email: y } }", ["email"], ["nickname"]],
+    ['{ distinct: ["nmae"], orderBy: { age: "asc" } }', [], ["age", "nmae"]],
+    [
+      "{ where: { OR: [{ nickname: a }] }, data: { status }, other: { gone: 1 } }",
+      [],
+      ["nickname", "status"],
+    ],
+    ["{ where: { email_name: { email: e, name: n } } }", [], []],
+    ["{ where: { email_tenant: x } }", [], ["email_tenant"]],
+    ["{ select: { _count: { select: { posts: true } } }, _sum: { _all: true } }", [], []],
+  ])("keeps the names %s uses that the model lacks", (code, named, missing) => {
+    expect(fieldUse(argument(code), fields)).toEqual({ named, missing });
   });
 
   it("returns nothing without an argument", () => {
-    expect(namedFields(undefined, fields)).toEqual([]);
+    expect(fieldUse(undefined, fields)).toEqual({ named: [], missing: [] });
   });
 });
 

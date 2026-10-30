@@ -84,10 +84,40 @@ describe("call edges", () => {
       to: "symbol:app/src/db.ts#save",
       confidence: "exact",
       sites: [
-        { file: "src/orders.ts", line: 10, column: 3 },
-        { file: "src/orders.ts", line: 11, column: 3 },
+        { file: "src/orders.ts", line: 10, column: 3, args: 1 },
+        { file: "src/orders.ts", line: 11, column: 3, args: 1 },
       ],
     });
+  });
+
+  it("records each call's argument count, except through a spread", async () => {
+    await put(
+      "a.ts",
+      [
+        "export function f(a: number, b?: number, ...rest: number[]) { return a; }",
+        "export class C { constructor(public x: number) {} }",
+        "export function g(xs: [number]) {",
+        "  f(1);",
+        "  f(1, 2, 3);",
+        "  f(...xs);",
+        "  f();",
+        "  new C(1);",
+        "  // @ts-expect-error: no parentheses",
+        "  return new C;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const graph = await analyze(dir);
+    const sites = (to: string) =>
+      graph.edges
+        .find((e) => e.kind === "calls" && e.to === `symbol:app/a.ts#${to}`)
+        ?.sites.map((s) => `${s.line}:${s.args ?? "?"}`);
+    expect(sites("f")).toEqual(["4:1", "5:3", "6:?", "7:0"]);
+    expect(sites("C")).toEqual(["8:1", "10:0"]);
+    const required = (name: string) => graph.nodes.find((n) => n.id === `symbol:app/a.ts#${name}`);
+    expect(required("f")).toMatchObject({ requiredParams: 1 });
+    expect(required("C")).toMatchObject({ requiredParams: 1 });
   });
 
   it("skips recursion, nested-function callees, computed callees, and top-level calls", async () => {
@@ -249,8 +279,8 @@ describe("call edges", () => {
       ]);
       const format = graph.edges.find((e) => e.to === "symbol:shared/src/format.ts#format");
       expect(format?.sites).toEqual([
-        { file: "apps/web/app.ts", line: 4, column: 3 },
-        { file: "apps/web/app.ts", line: 5, column: 10 },
+        { file: "apps/web/app.ts", line: 4, column: 3, args: 1 },
+        { file: "apps/web/app.ts", line: 5, column: 10, args: 1 },
       ]);
     });
 

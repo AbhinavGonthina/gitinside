@@ -181,6 +181,47 @@ describe("extractSymbols", () => {
     ).toEqual(["dup function"]);
   });
 
+  it("counts required parameters the way TypeScript does, in TypeScript files only", () => {
+    const params = (code: string, fileName = "/repo/a.ts") =>
+      extractSymbols(ts.createSourceFile(fileName, code, ts.ScriptTarget.ES2022, true)).map(
+        (s) => `${s.qualified}=${s.requiredParams ?? "?"}`,
+      );
+    expect(
+      params(`
+        export function f(this: Window, a: string, b?: number, c = 1, ...rest: string[]) {}
+        export function g(a = 1, b: number) {}
+        export const h = ({ x }: { x: number }, y: number) => x + y;
+        export const v = 1;
+        export function over(a: string): void;
+        export function over(a: string, b: string): void;
+        export function over(a: string, b?: string) {}
+        export class Plain { m(a: number) {} p = (a: number, b: number) => a + b; }
+        export class Built { constructor(a: number, b?: number) {} }
+        export class Child extends Plain {}
+        export class Many { constructor(a: number); constructor(a: number, b?: number) {} }
+        export class Dup { o(a: number): void; o(a: number, b?: number) {} }
+        export default function (a: number) {}
+      `),
+    ).toEqual([
+      "f=1",
+      "g=2",
+      "h=2",
+      "v=?",
+      "over=?",
+      "Plain=0",
+      "Plain.m=1",
+      "Plain.p=2",
+      "Built=1",
+      "Child=?",
+      "Many=?",
+      "Dup=0",
+      "Dup.o=?",
+      "default=1",
+    ]);
+    expect(params("exports.x = function (a) {};", "/repo/a.js")).toEqual(["x=?"]);
+    expect(params("module.exports = { m(a, b) {}, n: (a) => a };")).toEqual(["m=2", "n=1"]);
+  });
+
   it("only looks at top-level statements", () => {
     expect(
       summary(`
@@ -236,6 +277,7 @@ describe("symbol nodes", () => {
         parentId: "file:api/src/routes/orders.ts",
         symbolKind: "function",
         exported: true,
+        requiredParams: 0,
         source: { file: "apps/api/src/routes/orders.ts", line: 2, column: 1, endLine: 4 },
       },
       {
@@ -245,6 +287,7 @@ describe("symbol nodes", () => {
         parentId: "file:api/src/routes/orders.ts",
         symbolKind: "class",
         exported: true,
+        requiredParams: 0,
         source: { file: "apps/api/src/routes/orders.ts", line: 6, column: 1, endLine: 8 },
       },
       {
@@ -254,6 +297,7 @@ describe("symbol nodes", () => {
         parentId: "symbol:api/src/routes/orders.ts#Orders",
         symbolKind: "method",
         exported: true,
+        requiredParams: 0,
         source: { file: "apps/api/src/routes/orders.ts", line: 7, column: 3, endLine: 7 },
       },
     ]);
@@ -266,6 +310,8 @@ describe("symbol nodes", () => {
     const ids = graph.nodes.filter((n) => n.kind === "symbol").map((n) => n.id);
     expect(ids).toContain("symbol:app/server.js#start");
     expect(ids).toContain("symbol:app/broken.ts#ok");
+    const start = graph.nodes.find((n) => n.id === "symbol:app/server.js#start");
+    expect(start && "requiredParams" in start).toBe(false);
     expect(graph.warnings.some((w) => w.code === "SYNTAX_ERROR" && w.file === "broken.ts")).toBe(
       true,
     );

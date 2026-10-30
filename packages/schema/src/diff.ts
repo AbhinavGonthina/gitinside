@@ -190,13 +190,26 @@ function checkIntegrity(diff: DiffShape, ctx: z.RefinementCtx): void {
     (message) => issue(`broken ${message}`),
   );
 
-  // A broken edge's target is gone and its source isn't (DESIGN.md §8 properties).
+  // A broken edge's source is in head. Its target is gone (`TARGET_REMOVED`,
+  // `ROUTE_CHANGED`), or still there but changed (`PARAMETERS_ADDED`, `FIELD_REMOVED`:
+  // the edge itself survives, ADR-0088).
   const removedNodes = new Set(nodes.removed);
   const removedEdges = new Set(edges.removed);
+  const changedNodes = new Set([
+    ...nodes.modified.map((c) => c.node.id),
+    ...nodes.renamed.map((r) => r.from),
+  ]);
   for (const b of diff.broken) {
-    if (!removedEdges.has(b.edge)) issue(`broken edge ${b.edge} isn't a removed edge`);
-    if (!removedNodes.has(b.to))
-      issue(`broken edge ${b.edge} targets ${b.to}, which isn't removed`);
+    if (b.reason === "TARGET_REMOVED" || b.reason === "ROUTE_CHANGED") {
+      if (!removedEdges.has(b.edge)) issue(`broken edge ${b.edge} isn't a removed edge`);
+      if (!removedNodes.has(b.to))
+        issue(`broken edge ${b.edge} targets ${b.to}, which isn't removed`);
+    } else {
+      if (removedEdges.has(b.edge)) issue(`broken edge ${b.edge} (${b.reason}) was removed`);
+      if (!changedNodes.has(b.to)) {
+        issue(`broken edge ${b.edge} (${b.reason}) targets ${b.to}, which isn't modified`);
+      }
+    }
     if (removedNodes.has(b.from) || nodes.renamed.some((r) => r.from === b.from)) {
       issue(`broken edge ${b.edge} comes from ${b.from}, which isn't in head`);
     }

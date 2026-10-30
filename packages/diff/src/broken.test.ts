@@ -7,6 +7,7 @@ import {
   edgeId,
   nodeId,
   parseGraph,
+  parseGraphDiff,
   stringifyGraph,
   type ArchitectureGraph,
   type GraphEdge,
@@ -32,7 +33,7 @@ describe("broken connections in the diff-broken fixture pair", () => {
   const diff = diffGraphs(base, head);
   const p = "diff-broken";
 
-  it("finds exactly the four connections the README lists, with their head call sites", () => {
+  it("finds exactly the six connections the README lists, with their head call sites", () => {
     expect(
       diff.broken.map(({ from, to, reason, detail, sites }) => ({
         from,
@@ -42,6 +43,13 @@ describe("broken connections in the diff-broken fixture pair", () => {
         sites: sites.map((s) => `${s.file}:${s.line}:${s.column}`),
       })),
     ).toEqual([
+      {
+        from: `symbol:${p}/src/pricing.ts#quote`,
+        to: `symbol:${p}/src/pricing.ts#withTax`,
+        reason: "PARAMETERS_ADDED",
+        detail: "withTax now needs 2 arguments (was 1)",
+        sites: ["src/pricing.ts:6:10"],
+      },
       {
         from: `symbol:${p}/src/client.ts#cancelOrder`,
         to: `route:${p}/DELETE /api/orders/:id`,
@@ -70,8 +78,15 @@ describe("broken connections in the diff-broken fixture pair", () => {
         detail: "model Invoice was removed",
         sites: ["src/handlers.ts:13:41"],
       },
+      {
+        from: `symbol:${p}/src/handlers.ts#openOrders`,
+        to: `model:${p}/Order`,
+        reason: "FIELD_REMOVED",
+        detail: "Order.status was removed",
+        sites: ["src/handlers.ts:18:23"],
+      },
     ]);
-    expect(diff.summary.broken).toBe(4);
+    expect(diff.summary.broken).toBe(6);
   });
 
   it("doesn't flag GET /api/health, removed together with its only caller", () => {
@@ -437,6 +452,163 @@ describe("detectBroken: imports and Prisma models", () => {
     };
     const base = graph("a1b2c3f", [...BASE_NODES, helper], [edge("calls", caller, helper.id)]);
     expect(reasons(base, graph("d4e5f60", BASE_NODES, []))).toEqual([]);
+  });
+});
+
+describe("detectBroken: targets that survive with a changed contract", () => {
+  const helper = (requiredParams: number | undefined): GraphNode => ({
+    id: nodeId("symbol", "api", "src/server.ts#price"),
+    kind: "symbol",
+    label: "price",
+    parentId: serverFile,
+    symbolKind: "function",
+    exported: true,
+    ...(requiredParams === undefined ? {} : { requiredParams }),
+  });
+  const helperId = nodeId("symbol", "api", "src/server.ts#price");
+  /** Base `price` needs `was`, head needs `needs`; head's sites pass `args` each. */
+  const paramsPair = (
+    was: number | undefined,
+    needs: number | undefined,
+    args: (number | undefined)[],
+  ) => {
+    const base = graph(
+      "a1b2c3f",
+      [...BASE_NODES, helper(was)],
+      [
+        edge("calls", caller, helperId, {
+          sites: [{ ...loc("apps/api/src/client.ts", 4), args: 1 }],
+        }),
+      ],
+    );
+    const sites = args.map((n, i) => ({
+      ...loc("apps/api/src/client.ts", 10 + i),
+      ...(n === undefined ? {} : { args: n }),
+    }));
+    const head = graph(
+      "d4e5f60",
+      [...BASE_NODES, helper(needs)],
+      [edge("calls", caller, helperId, { sites })],
+    );
+    return { base, head };
+  };
+
+  it("flags the calls that pass what used to be enough, but no longer is", () => {
+    const { base, head } = paramsPair(1, 3, [1, 2, 3, undefined, 0]);
+    const diff = diffGraphs(base, head);
+    expect(diff.broken).toEqual([
+      {
+        edge: edgeId("calls", caller, helperId),
+        from: caller,
+        to: helperId,
+        reason: "PARAMETERS_ADDED",
+        detail: "price now needs 3 arguments (was 1)",
+        sites: [loc("apps/api/src/client.ts", 10), loc("apps/api/src/client.ts", 11)],
+      },
+    ]);
+    expect(diff.nodes.modified.map((c) => [c.node.id, c.changes])).toEqual([
+      [helperId, ["requiredParams"]],
+    ]);
+    expect(() => parseGraphDiff(diff)).not.toThrow();
+    expect(stringifyGraph(applyDiff(base, diff))).toBe(stringifyGraph(head));
+  });
+
+  it.each([
+    ["the count fell", 2, 1, [1]],
+    ["the count is unchanged", 1, 1, [1]],
+    ["every call already passes enough", 1, 2, [2, 3]],
+    ["the count was unknown in base", undefined, 2, [1]],
+    ["the count is unknown in head", 1, undefined, [1]],
+    ["the only call is a spread", 1, 2, [undefined]],
+  ] as const)("isn't broken when %s", (_why, was, needs, args) => {
+    const { base, head } = paramsPair(was, needs, [...args]);
+    expect(reasons(base, head)).toEqual([]);
+  });
+
+  it("follows a renamed target and a renamed caller", () => {
+    const { base, head } = paramsPair(1, 2, [1]);
+    const caller2 = nodeId("symbol", "api", "src/client.ts#loadAll");
+    const helper2 = nodeId("symbol", "api", "src/server.ts#priceOf");
+    const move = (id: string) => (id === caller ? caller2 : id === helperId ? helper2 : id);
+    const moved = graph(
+      "d4e5f60",
+      head.nodes.map((n) => ({ ...n, id: move(n.id) })),
+      head.edges.map((e) => ({
+        ...e,
+        id: edgeId(e.kind, move(e.from), move(e.to)),
+        from: move(e.from),
+        to: move(e.to),
+      })),
+    );
+    const renames = new Map([
+      [caller, caller2],
+      [helperId, helper2],
+    ]);
+    expect(detectBroken(base, moved, renames).map((b) => [b.from, b.to, b.reason])).toEqual([
+      [caller2, helperId, "PARAMETERS_ADDED"],
+    ]);
+  });
+
+  const order = (fields: string[]): GraphNode => ({
+    id: nodeId("model", "api", "Order"),
+    kind: "model",
+    label: "Order",
+    parentId: serverFile,
+    fields: fields.map((name) => ({ name, type: "String", optional: false })),
+  });
+  const orderId = nodeId("model", "api", "Order");
+  /** Base `Order` has `before`, head has `after`; head's sites name `missing` each. */
+  const fieldPair = (before: string[], after: string[], missing: string[][]) => {
+    const base = graph("a1b2c3f", [...BASE_NODES, order(before)], [edge("reads", caller, orderId)]);
+    const sites = missing.map((names, i) => ({
+      ...loc("apps/api/src/client.ts", 10 + i),
+      ...(names.length === 0 ? {} : { missingFields: names }),
+    }));
+    const head = graph(
+      "d4e5f60",
+      [...BASE_NODES, order(after)],
+      [edge("reads", caller, orderId, { sites })],
+    );
+    return { base, head };
+  };
+
+  it("flags the calls that still name a removed field", () => {
+    const { base, head } = fieldPair(
+      ["id", "status", "total"],
+      ["id"],
+      [[], ["status"], ["total", "typo"]],
+    );
+    const diff = diffGraphs(base, head);
+    expect(
+      diff.broken.map(({ reason, detail, sites }) => ({
+        reason,
+        detail,
+        lines: sites.map((s) => s.line),
+      })),
+    ).toEqual([
+      {
+        reason: "FIELD_REMOVED",
+        detail: "Order.status and Order.total were removed",
+        lines: [11, 12],
+      },
+    ]);
+    expect(() => parseGraphDiff(diff)).not.toThrow();
+
+    const one = fieldPair(["id", "status"], ["id"], [["status"]]);
+    expect(reasons(one.base, one.head)).toEqual(["FIELD_REMOVED: Order.status was removed"]);
+    const three = fieldPair(["a", "b", "c", "id"], ["id"], [["a", "b", "c"]]);
+    expect(reasons(three.base, three.head)).toEqual([
+      "FIELD_REMOVED: Order.a, Order.b, and Order.c were removed",
+    ]);
+  });
+
+  it.each([
+    ["no call names the removed field", ["id", "status"], ["id"], [[]]],
+    ["the missing name never existed (a typo)", ["id"], ["id"], [["stauts"]]],
+    ["the field was added, not removed", ["id"], ["id", "status"], [[]]],
+  ])("isn't broken when %s", (_why, before, after, missing) => {
+    const { base, head } = fieldPair(before, after, missing);
+    expect(reasons(base, head)).toEqual([]);
   });
 });
 

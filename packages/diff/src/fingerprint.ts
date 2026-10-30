@@ -14,8 +14,8 @@ export const NODE_INCIDENTAL = ["label", "source"] as const;
  *   parent or layer changes where and how the diagram draws it.
  * - Labels are derived from the ID or the fingerprint fields (a route's "GET /x", a
  *   file's base name), so a label change alone is incidental, as are source positions.
- * - Symbols carry no signature or body hash in the schema, so a function whose body
- *   changed shows up through its file's `hash`, not through the symbol.
+ * - A symbol's only signature fact is `requiredParams` (ADR-0088); it carries no body
+ *   hash, so a function whose body changed shows up through its file's `hash`.
  */
 export const NODE_FINGERPRINTS: {
   readonly [K in NodeKind]: readonly Exclude<keyof NodeOf<K>, "id" | "label" | "source">[];
@@ -24,7 +24,7 @@ export const NODE_FINGERPRINTS: {
   service: ["kind", "parentId", "layer", "root", "framework"],
   module: ["kind", "parentId", "layer", "path"],
   file: ["kind", "parentId", "layer", "path", "hash"],
-  symbol: ["kind", "parentId", "layer", "symbolKind", "exported"],
+  symbol: ["kind", "parentId", "layer", "symbolKind", "exported", "requiredParams"],
   route: ["kind", "parentId", "layer", "method", "path"],
   page: ["kind", "parentId", "layer", "path"],
   model: ["kind", "parentId", "layer", "fields"],

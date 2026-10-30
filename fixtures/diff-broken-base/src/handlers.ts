@@ -21,3 +21,7 @@ export async function invoiceTotal(orderId: number) {
   const invoices = await prisma.invoice.findMany({ where: { orderId } });
   return invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
 }
+
+export async function openOrders() {
+  return prisma.order.findMany({ where: { status: "open" } });
+}

@@ -3,6 +3,21 @@
   "edges": [
     {
       "confidence": "exact",
+      "from": "symbol:diff-broken/src/pricing.ts#quote",
+      "id": "calls:symbol:diff-broken/src/pricing.ts#quote->symbol:diff-broken/src/pricing.ts#withTax",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/pricing.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:diff-broken/src/pricing.ts#withTax"
+    },
+    {
+      "confidence": "exact",
       "from": "route:diff-broken/GET /api/orders",
       "id": "handles:route:diff-broken/GET /api/orders->symbol:diff-broken/src/handlers.ts#listOrders",
       "kind": "handles",
@@ -148,6 +163,23 @@
     },
     {
       "confidence": "exact",
+      "from": "symbol:diff-broken/src/handlers.ts#openOrders",
+      "id": "reads:symbol:diff-broken/src/handlers.ts#openOrders->model:diff-broken/Order",
+      "kind": "reads",
+      "sites": [
+        {
+          "column": 23,
+          "file": "src/handlers.ts",
+          "line": 18,
+          "missingFields": [
+            "status"
+          ]
+        }
+      ],
+      "to": "model:diff-broken/Order"
+    },
+    {
+      "confidence": "exact",
       "from": "model:diff-broken/Order",
       "id": "stores:model:diff-broken/Order->datastore:infra/diff-broken/prisma/schema.prisma#db",
       "kind": "stores",
@@ -217,12 +249,20 @@
       "path": "src/db.ts"
     },
     {
-      "hash": "32b84f91163f1512c54c66d27f929af7da55caa9d496a655b755c798e5a935db",
+      "hash": "3d8852fabd5fe64a7258c004b5e8323f90dda525ed510f8745f945aa1bd178c6",
       "id": "file:diff-broken/src/handlers.ts",
       "kind": "file",
       "label": "handlers.ts",
       "parentId": "module:diff-broken/src",
       "path": "src/handlers.ts"
+    },
+    {
+      "hash": "154404544ac8db4ade21c7d65123163bea61e32d8b4b67ff9194620e73737558",
+      "id": "file:diff-broken/src/pricing.ts",
+      "kind": "file",
+      "label": "pricing.ts",
+      "parentId": "module:diff-broken/src",
+      "path": "src/pricing.ts"
     },
     {
       "hash": "4f86bcc78a475dbaf1fc83e35fe04a71e6352bfbe9c03fa2db7c1825c19f1f3d",
@@ -314,6 +354,7 @@
       "kind": "symbol",
       "label": "cancelOrder",
       "parentId": "file:diff-broken/src/client.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 13,
@@ -328,6 +369,7 @@
       "kind": "symbol",
       "label": "label",
       "parentId": "file:diff-broken/src/client.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 17,
@@ -342,6 +384,7 @@
       "kind": "symbol",
       "label": "loadOrders",
       "parentId": "file:diff-broken/src/client.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 5,
@@ -356,6 +399,7 @@
       "kind": "symbol",
       "label": "placeOrder",
       "parentId": "file:diff-broken/src/client.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 9,
@@ -384,6 +428,7 @@
       "kind": "symbol",
       "label": "createOrder",
       "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 10,
@@ -398,6 +443,7 @@
       "kind": "symbol",
       "label": "invoiceTotal",
       "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 15,
@@ -412,11 +458,57 @@
       "kind": "symbol",
       "label": "listOrders",
       "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 6,
         "file": "src/handlers.ts",
         "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/handlers.ts#openOrders",
+      "kind": "symbol",
+      "label": "openOrders",
+      "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "src/handlers.ts",
+        "line": 17
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/pricing.ts#quote",
+      "kind": "symbol",
+      "label": "quote",
+      "parentId": "file:diff-broken/src/pricing.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/pricing.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/pricing.ts#withTax",
+      "kind": "symbol",
+      "label": "withTax",
+      "parentId": "file:diff-broken/src/pricing.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "src/pricing.ts",
+        "line": 1
       },
       "symbolKind": "function"
     },

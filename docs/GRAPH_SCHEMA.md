@@ -29,7 +29,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 | `service` | `root`, `framework?` | system | `service:api/` |
 | `module` | `path` | service | `module:api/src/routes` |
 | `file` | `path`, `hash` (SHA-256 of content) | module or service | `file:api/src/routes/orders.ts` |
-| `symbol` | `symbolKind` (function, class, method, variable), `exported` | file, or class for methods | `symbol:api/src/routes/orders.ts#createOrder` |
+| `symbol` | `symbolKind` (function, class, method, variable), `exported`, `requiredParams?` (arguments a call must pass; a class's are its constructor's; TypeScript files only, none for overloads or inherited constructors, ADR-0088) | file, or class for methods | `symbol:api/src/routes/orders.ts#createOrder` |
 | `route` | `method`, `path` (e.g. `/api/users/:id`, full path after mounts) | file that declares it | `route:api/POST /api/orders` (service = the app that serves it) |
 | `page` | `path` (URL path) | file | `page:web//checkout` |
 | `model` | `fields[]` (`name`, `type`, `optional`; `type` keeps `[]` for lists) | the `.prisma` file that declares it | `model:api/Order` |
@@ -53,10 +53,15 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 ## Edges
 
 ```ts
-{ id, kind, from, to, confidence, label?, reason?, fields?: string[], sites: SourceLocation[] }
+{ id, kind, from, to, confidence, label?, reason?, fields?: string[], sites: CallSite[] }
+CallSite = { file, line, column, endLine?, args?: number, missingFields?: string[] }
 ```
 
-`fields` appears only on `reads`/`writes` edges to a model: the model fields the call sites name in `select`, `where`, `data`, and similar arguments, sorted (ADR-0028). M6 uses it to flag a removed field that is still read.
+`fields` appears only on `reads`/`writes` edges to a model: the model fields the call sites name in `select`, `where`, `data`, and similar arguments, sorted (ADR-0028).
+
+Call sites carry facts about that one call, which the diff checks against head's target (ADR-0088):
+- `args` (on `calls` edges): how many arguments the call passes; absent when a spread argument (`f(...xs)`) hides the count.
+- `missingFields` (on `reads`/`writes` edges to a model): names the call uses as fields that the model doesn't declare, sorted; absent when there are none. Query keywords (`AND`/`OR`/`NOT`, `_count` and other `_` selectors, compound unique keys like `email_tenantId`) aren't listed.
 
 - There is one edge per `(kind, from, to)`, with ID `edgeId(kind, from, to)`, i.e. `<kind>:<from>-><to>`. Each call site that produced it is listed in `sites`.
 - Edges connect leaf-level nodes (symbols, routes, pages, models, datastores, externals). The viewer aggregates them upward to whatever level is visible.
@@ -91,6 +96,8 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 5. `confidence: "unresolved"` is used exactly when the target is an `unresolved` node.
 6. No unknown fields (strict objects).
 
+New optional fields (`requiredParams`, `args`, `missingFields`, ADR-0088) don't change the version: graphs written before them still parse.
+
 ## Canonical serialization
 
 `stringifyGraph(graph)` is the only way graphs are written (snapshots, golden files, R2):
@@ -124,13 +131,13 @@ BrokenEdge = { edge, from, to, reason, detail, sites }
 ```
 
 - **Complete on its own:** added, changed, and renamed items carry the whole head record, removed items their base ID, so `applyDiff(base, diff)` rebuilds head byte for byte.
-- **`modified` vs. `updated`:** both mean "same ID, different record". `modified` is a change a reviewer cares about (a fingerprint field: a file's hash, a model's fields, an edge's confidence); `updated` covers everything else (a source line that moved, the sites of an edge) and isn't shown as a change. Fingerprint fields (`NODE_FINGERPRINTS` in `packages/diff/src/fingerprint.ts`, ADR-0085): `kind`, `parentId`, and `layer` for every node, plus service `root`/`framework`, module `path`, file `path`/`hash`, symbol `symbolKind`/`exported`, route `method`/`path`, page `path`, model `fields` (compared as a set by name, so reordering is `updated`), datastore `engine`, queue `engine`/`name`, external `host`, unresolved `reason`/`expression`/`detail`. `label` and `source` are never fingerprints. For edges, every field but `sites`.
+- **`modified` vs. `updated`:** both mean "same ID, different record". `modified` is a change a reviewer cares about (a fingerprint field: a file's hash, a model's fields, an edge's confidence); `updated` covers everything else (a source line that moved, the sites of an edge) and isn't shown as a change. Fingerprint fields (`NODE_FINGERPRINTS` in `packages/diff/src/fingerprint.ts`, ADR-0085): `kind`, `parentId`, and `layer` for every node, plus service `root`/`framework`, module `path`, file `path`/`hash`, symbol `symbolKind`/`exported`/`requiredParams`, route `method`/`path`, page `path`, model `fields` (compared as a set by name, so reordering is `updated`), datastore `engine`, queue `engine`/`name`, external `host`, unresolved `reason`/`expression`/`detail`. `label` and `source` are never fingerprints. For edges, every field but `sites`.
 - **`renamed`:** a base item that reappears under another ID (`from` is its base ID). Edges whose endpoints were renamed get new IDs (`edgeId` embeds them), so they're listed as renamed edges, not as removed + added.
 - **`changes`:** the names of the record's top-level fields that differ, never `id`. At least one for `modified` and `updated`; possibly none for a pure rename.
-- **`broken`:** a base edge (`edge`) whose source (`from`) still exists in head and still makes the call, but whose target (`to`, its base ID) no longer answers it. `reason` is `TARGET_REMOVED`, `ROUTE_CHANGED`, `PARAMETERS_ADDED`, or `FIELD_REMOVED`; `detail` says it in words; `sites` are the head call sites.
+- **`broken`:** a base edge (`edge`) whose source (`from`) still exists in head and still makes the call, but whose target (`to`, its base ID) no longer answers it. `reason` is `TARGET_REMOVED`, `ROUTE_CHANGED` (the target is gone), `PARAMETERS_ADDED`, or `FIELD_REMOVED` (the target and the edge survive, but the target changed under the call, ADR-0088); `detail` says it in words; `sites` are the head call sites that still make the broken call, as plain locations.
 - **Warnings** are a multiset: head's are base's minus `removed` (one occurrence each) plus `added`.
 
-**Integrity rules** (enforced by `parseGraphDiff`): records are valid graph nodes and edges; each node ID and each edge ID appears in at most one list (a rename's `from` and head ID both count); each base edge is broken at most once, and a broken edge is a removed edge whose target is a removed node and whose source is in head (ADR-0087); `summary` matches the lists (`summarizeDiff`); no unknown fields.
+**Integrity rules** (enforced by `parseGraphDiff`): records are valid graph nodes and edges; each node ID and each edge ID appears in at most one list (a rename's `from` and head ID both count); each base edge is broken at most once; a broken edge's source is in head; a `TARGET_REMOVED`/`ROUTE_CHANGED` edge is a removed edge to a removed node (ADR-0087), a `PARAMETERS_ADDED`/`FIELD_REMOVED` edge isn't removed and its target is modified or renamed (ADR-0088); `summary` matches the lists (`summarizeDiff`); no unknown fields.
 
 **Canonical serialization:** `stringifyDiff(diff)` is the only way diffs are written. Entries are sorted by head ID (removed IDs as strings), `changes` by name, broken edges by edge ID then reason, sites and warnings as in graphs; keys sorted, 2-space indent, trailing newline.
 

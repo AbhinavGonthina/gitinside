@@ -116,6 +116,7 @@
       "kind": "symbol",
       "label": "acmeItems",
       "parentId": "file:ambiguous-routes/src/client.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 5,
@@ -130,6 +131,7 @@
       "kind": "symbol",
       "label": "orgItems",
       "parentId": "file:ambiguous-routes/src/client.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 11,

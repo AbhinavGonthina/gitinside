@@ -259,7 +259,7 @@ For each call (method M, pattern P), compare with every route (method M', patter
    - **Unresolved nodes:** the same call in the same (or moved) file, paired in source order.
    - Ties are left unmatched, never broken by guessing. Each match is a `renamed` pair, and edges are remapped through it; a node whose parent was renamed is `updated`, not `modified`.
 3. **Classify:**
-   - **Nodes:** `added`, `removed`, `modified` (same ID, different fingerprint: e.g. a file's hash, a route's method/path, a model's fields; per-kind table in ADR-0085), `updated` (same ID and fingerprint, other facts such as a source line differ), `renamed`. Symbols carry no signature yet, so their body changes show through their file's hash.
+   - **Nodes:** `added`, `removed`, `modified` (same ID, different fingerprint: e.g. a file's hash, a route's method/path, a model's fields; per-kind table in ADR-0085), `updated` (same ID and fingerprint, other facts such as a source line differ), `renamed`. A symbol's only signature fact is its required parameter count (ADR-0088), so body changes show through its file's hash.
    - **Edges:** `added`, `removed`, `modified` (confidence, label, reason, or fields), `updated` (call sites only), `renamed`.
 4. **Broken edges:** a head edge E from S to T is **broken** if S exists in head and still references T, but T is removed in head, or T is modified incompatibly. Incompatible means:
    - A route's method or path changed.
@@ -268,7 +268,8 @@ For each call (method M, pattern P), compare with every route (method M', patter
 
    Also check base edges whose target was removed but whose source in head still contains the same call site. Detect this by re-running the resolver on head and finding unresolved calls whose base resolution pointed at the removed target.
    - **How (`detectBroken`, ADR-0087):** head's analyzer already turned such calls into `unresolved` nodes, so the diff re-resolves each one from the (possibly renamed) source against the removed base target: an HTTP call's method and path against the route (the route grammar shared through `@gitinside/schema`), a relative import specifier against the file's path, a Prisma accessor against the model's name. A removed route whose handler now serves a new route is `ROUTE_CHANGED`; otherwise `TARGET_REMOVED`.
-   - Required parameters and removed model fields need facts the graph doesn't carry yet (M6.4b). Calls to removed functions, aliased imports, and queue/page/external edges aren't detected.
+   - **Changed but present targets (ADR-0088):** the analyzer records each TypeScript symbol's `requiredParams`, each call site's argument count (`args`), and the names a Prisma call uses that its model lacks (`missingFields` on the site). A surviving `calls` edge is `PARAMETERS_ADDED` when the count rose and a head site passes the old count but not the new one; a surviving `reads`/`writes` edge is `FIELD_REMOVED` when a head site names a field base's model had and head's lacks. Only the offending sites are listed.
+   - Calls to removed functions, aliased imports, queue/page/external edges, JavaScript parameters, overloads, and type-only changes aren't detected.
 5. **Output:** a `GraphDiff` (GRAPH_SCHEMA.md): head records for added, changed, and renamed items, base IDs for removed ones, broken edges, and summary counts, so the diff alone rebuilds head from base (ADR-0084). Diffs are sorted and deterministic (`stringifyDiff`).
 
 **Properties (fast-check):**

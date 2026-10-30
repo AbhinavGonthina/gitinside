@@ -8,6 +8,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 1,
           "column": 10,
           "file": "src/http.ts",
           "line": 15
@@ -22,6 +23,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 2,
           "column": 10,
           "file": "src/projects.ts",
           "line": 8
@@ -36,6 +38,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 1,
           "column": 10,
           "file": "src/projects.ts",
           "line": 12
@@ -50,6 +53,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 1,
           "column": 10,
           "file": "src/projects.ts",
           "line": 4
@@ -192,6 +196,7 @@
       "kind": "symbol",
       "label": "request",
       "parentId": "file:wrapper-fetch/src/http.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 7,
@@ -206,6 +211,7 @@
       "kind": "symbol",
       "label": "requestRaw",
       "parentId": "file:wrapper-fetch/src/http.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 12,
@@ -220,6 +226,7 @@
       "kind": "symbol",
       "label": "requestVia",
       "parentId": "file:wrapper-fetch/src/http.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 16,
@@ -234,6 +241,7 @@
       "kind": "symbol",
       "label": "createProject",
       "parentId": "file:wrapper-fetch/src/projects.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 9,
@@ -248,6 +256,7 @@
       "kind": "symbol",
       "label": "legacyProjects",
       "parentId": "file:wrapper-fetch/src/projects.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 13,
@@ -262,6 +271,7 @@
       "kind": "symbol",
       "label": "listProjects",
       "parentId": "file:wrapper-fetch/src/projects.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 5,
