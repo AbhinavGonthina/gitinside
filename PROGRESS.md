@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7. Incremental cache (content-hash facts, importer invalidation, disk LRU) (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.7b. Observed inputs per service (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -141,7 +141,12 @@ M6.7. Incremental cache (content-hash facts, importer invalidation, disk LRU) (M
 - [x] M6.4b Broken edges needing new analyzer facts: required parameter counts on symbols + call-site argument counts (`PARAMETERS_ADDED`), field names a Prisma call uses that the model lacks (`FIELD_REMOVED`); schema + goldens + eval re-record {model: opus}
 - [x] M6.5 Property tests (fast-check) {model: opus}
 - [x] M6.6 gitinside diff CLI (paths or git refs) + Mermaid summary {model: opus}
-- [ ] M6.7 Incremental cache (content-hash facts, importer invalidation, disk LRU) {model: opus}
+- [x] M6.7a Disk LRU fact cache (`openDiskCache`: versioned keys, atomic writes, 2 GB cap, failures are misses) + ADR-0090 for the incremental design {model: opus}
+- [ ] M6.7b Observed inputs: record every repo path each service's program host and detectors read or probe (content hash or absent), incl. other services' files; `verifyInputs`; a test that the log covers every read {model: opus}
+- [ ] M6.7c Wrapper inlining as per-service facts (wrapper URL templates, calls to wrappers) + a global binding step; no output change (goldens, eval) {model: opus}
+- [ ] M6.7d Per-service serializable fact bundles for every program stage + global composition; `analyze` rebuilt as facts → compose; no output change (goldens, eval) {model: opus}
+- [ ] M6.7e `analyze({ cache })`: reuse clean services' facts, build clean programs only when needed; warm == cold bytes over fixture edits (edit, add, delete, cross-service import, tsconfig); CLI `--cache <dir>`, diff's two ref sides share it {model: opus}
+- [ ] M6.7f Worker cache volume (2 GB): public folder + per-installation private folders (deleted on uninstall, M8.5); compose + container check {model: opus}
 - [ ] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
 - [ ] M6.9 Viewer diff mode (overlay, stable layout, changes list) {model: opus}
 - [ ] M6.10 docs/walkthroughs/diff.md {model: opus}
@@ -179,6 +184,8 @@ M6.7. Incremental cache (content-hash facts, importer invalidation, disk LRU) (M
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.7a: M6.7 split into a–f (ADR-0090): the unit of reuse is a service's facts, validated against every input its analysis read or probed (transitive, so warm == cold), since direct-importer invalidation per file could change the graph and the checker needs whole programs anyway. `openDiskCache` (`packages/analyzer/src/cache.ts`): gzipped JSON entries named by SHA-256 of a key prefixed with entry format + schema + analyzer versions (full key compared on read), temp-file + rename writes, LRU by file time down to 90% of a 2 GB cap after relisting (other processes' entries count), corrupt entries deleted as misses, failed writes counted. 13 tests (an LRU-order mutation fails two); analyzer 650 green. Not wired into `analyze` yet. Eval re-recorded (unchanged: TP 28, FP 1, FN 110). Next: M6.7b.
 
 - 2026-10-29 · M6.6: `gitinside diff <base> <head> [--repo] [--format json|mermaid] [--out]` added to the analyzer's CLI, which now depends on `@gitinside/diff` (ADR-0089). Each side (`revisions.ts`, `openSide`) is a graph file, a folder, or a ref: `rev-parse --end-of-options`, then a temp `git worktree` with `core.hooksPath` set to an empty folder (the hook test fails without it), removed in a `finally`; both trees' text feeds rename detection. `renderMermaidSummary` (`packages/diff/src/mermaid.ts`): broken connections first, then changed architecture-level nodes, then cross-boundary edges lifted to them; 40-node cap with a note; look-alike labels get their service or file; allowlist escaping. Analyzer 637, diff 122 (mermaid.ts 98% lines), full `pnpm test` green, web build OK. Smoke run on this repo m4a..HEAD: 18 nodes. Eval re-recorded (lockfile; unchanged). Next: M6.7.
 
