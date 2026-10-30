@@ -148,6 +148,23 @@ export {
   weaker,
 } from "./model/view.js";
 export type { GraphView, Section, ViewEdge, ViewNode, ViewOptions } from "./model/view.js";
+export { closedSize, edgeLabelSize, frameCounts, openHeader, viewNodeSize } from "./layout/size.js";
+export type { Size, SizeContext } from "./layout/size.js";
+export {
+  ELK_OPTIONS,
+  elkGraph,
+  LAYOUT_PAD,
+  layoutInput,
+  readLayout,
+  runLayout,
+} from "./layout/elk.js";
+export type {
+  LayoutEdge,
+  LayoutInput,
+  LayoutNode,
+  LayoutResult,
+  PlacedEdge,
+} from "./layout/elk.js";
 export { ExplorerPrototype } from "./prototype/ExplorerPrototype.js";
 export type { ExplorerPrototypeProps } from "./prototype/ExplorerPrototype.js";
 export type { UiIconName } from "./chrome/uiIcons.js";

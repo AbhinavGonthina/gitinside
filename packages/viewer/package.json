@@ -37,6 +37,7 @@
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
     "@gitinside/schema": "workspace:*",
+    "elkjs": "0.12.1",
     "simple-icons": "16.36.0"
   },
   "devDependencies": {

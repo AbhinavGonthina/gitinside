@@ -1,8 +1,16 @@
 import type { Layer } from "@gitinside/schema";
 import type { Point } from "../edges/geometry.js";
 import type { Rect } from "../chrome/describe.js";
-import { textWidth } from "../image/markup.js";
-import { countText, nodeShape, nodeTier, type NodeCount } from "../nodes/describe.js";
+import {
+  BADGE_CHROME,
+  BADGE_GAP,
+  COUNTS_SLACK,
+  countsRowWidth,
+  FRAME_COUNTS_INSET,
+  MIN_FRAME_WIDTH,
+  WINDOW_BAND,
+} from "../layout/size.js";
+import { nodeShape, nodeTier } from "../nodes/describe.js";
 import { frameCounts, layerOf, nodeOf, type GraphIndex, type ViewEdge } from "./model.js";
 
 /**
@@ -36,38 +44,16 @@ const COLUMN: Readonly<Record<Layer, number>> = {
   external: 2,
 };
 
-/** A closed frame's narrowest width. */
-export const MIN_FRAME_WIDTH = 248;
-/**
- * Horizontal space around a closed frame's count row (nodes.css): the 1px
- * borders, the 12px left and 16px right padding, and the 44px indent that
- * lines the row up with the name.
- */
-export const FRAME_COUNTS_INSET = 2 + 12 + 16 + 44;
-/** A count badge's padding and borders around its text (`.gi-badge`), and the gap between badges. */
-export const BADGE_CHROME = 2 * 7 + 2;
-export const BADGE_GAP = 4;
-/**
- * Spare room on the count row. The estimate is only a few px over Geist's
- * real widths on short words, and Linux draws text a few px wider than
- * Windows: `@shop/web`'s row fit by 2px here and wrapped in CI.
- */
-export const COUNTS_SLACK = 16;
-
-/**
- * The width a closed frame's count row needs to stay on one line. Text is
- * estimated, a little on the wide side ({@link textWidth}), because the
- * layout runs before anything is drawn (and in tests, where nothing is).
- * No badges need only the inset.
- */
-export function countsRowWidth(counts: readonly NodeCount[]): number {
-  if (counts.length === 0) return FRAME_COUNTS_INSET;
-  const badges = counts.reduce((w, c) => w + textWidth(countText(c), 12) + BADGE_CHROME, 0);
-  return Math.ceil(FRAME_COUNTS_INSET + badges + BADGE_GAP * (counts.length - 1) + COUNTS_SLACK);
-}
-
-/** Height a window's title band adds (nodes.css `--gi-band`): frames, then page cards. */
-export const WINDOW_BAND = { frame: 10, card: 6 } as const;
+// The count row's measurements are shared with the explorer's layout (M4b.2).
+export {
+  BADGE_CHROME,
+  BADGE_GAP,
+  COUNTS_SLACK,
+  countsRowWidth,
+  FRAME_COUNTS_INSET,
+  MIN_FRAME_WIDTH,
+  WINDOW_BAND,
+};
 
 /**
  * Height of an open frame's header: {@link FRAME_HEADER}, plus the title band
