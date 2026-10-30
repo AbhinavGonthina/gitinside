@@ -211,3 +211,21 @@ export const rateLimits = pgTable(
     check("rate_limits_count_check", sql`${t.count} >= 0`),
   ],
 );
+
+/**
+ * Requests made to the snapshot bucket per UTC calendar month and per process kind
+ * (`worker` or `web`), counted against Oracle Object Storage's 50,000 a month (ADR-0096).
+ */
+export const storeRequests = pgTable(
+  "store_requests",
+  {
+    monthStart: timestampTz("month_start").notNull(),
+    source: text("source").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.monthStart, t.source] }),
+    check("store_requests_source_check", sql`${t.source} in ('worker', 'web')`),
+    check("store_requests_count_check", sql`${t.count} >= 0`),
+  ],
+);

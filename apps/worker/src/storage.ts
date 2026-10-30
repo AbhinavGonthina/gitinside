@@ -33,6 +33,8 @@ import {
  *   than under-count the bucket), and deletes that treat a missing object as done.
  * - **Credentials** come from `SNAPSHOTS_*` variables (ADR-0055, ADR-0095) and appear in no
  *   error or log.
+ * - **Request counting** ({@link countingFetch}, ADR-0096): the worker and the web app pass
+ *   a `fetch` that counts each request in Postgres, against the free 50,000 a month.
  */
 
 /** What identifies a public snapshot. */
@@ -439,6 +441,34 @@ export function createObjectStore(
       }
       throw await refusal(response, "PUT");
     },
+  };
+}
+
+/** Options for {@link countingFetch}. */
+export interface CountingFetchOptions {
+  /** Count one request (`countStoreRequests` in `@gitinside/db`). */
+  count: () => Promise<void>;
+  /** Called when counting failed; the request itself goes on regardless. */
+  onCountError: (error: unknown) => void;
+  /** Default the global `fetch`. */
+  fetch?: typeof fetch;
+}
+
+/**
+ * A `fetch` for {@link createObjectStore} that counts every request it sends (ADR-0096), so
+ * the quota check can compare the month's total with Oracle's 50,000 free requests. Every
+ * attempt is counted, refused or not: an overcount only raises the alarm early. The count
+ * runs alongside the request and is awaited with it (a serverless instance may freeze
+ * after answering), but a failed count never fails the request.
+ */
+export function countingFetch(options: CountingFetchOptions): typeof fetch {
+  const base = options.fetch ?? fetch;
+  return async (input, init) => {
+    const counted = Promise.resolve()
+      .then(options.count)
+      .catch((error: unknown) => options.onCountError(error));
+    const [response] = await Promise.all([base(input, init), counted]);
+    return response;
   };
 }
 

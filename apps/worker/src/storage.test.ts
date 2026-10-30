@@ -8,6 +8,7 @@ import { s3Error, startFakeS3, type FakeS3 } from "./s3.testkit.js";
 import {
   SNAPSHOT_CACHE_CONTROL,
   StorageError,
+  countingFetch,
   createObjectStore,
   oracleS3Host,
   privateSnapshotKey,
@@ -447,6 +448,83 @@ describe("createObjectStore", () => {
       message: `DELETE at ${new URL(s3.endpoint).host} failed`,
     });
     s3 = await startFakeS3(); // for afterEach
+  });
+});
+
+describe("countingFetch", () => {
+  const ok = () => Promise.resolve(new Response("ok"));
+
+  it("counts every request, refused or failed, and returns the response untouched", async () => {
+    let counted = 0;
+    const responses = [new Response("a"), new Response("no", { status: 403 })];
+    const counting = countingFetch({
+      count: async () => void counted++,
+      onCountError: () => expect.unreachable(),
+      fetch: async () => {
+        const next = responses.shift();
+        if (next === undefined) throw new TypeError("fetch failed");
+        return next;
+      },
+    });
+    expect(await (await counting("https://x.example/a")).text()).toBe("a");
+    expect((await counting("https://x.example/b")).status).toBe(403);
+    await expect(counting("https://x.example/c")).rejects.toThrow("fetch failed");
+    expect(counted).toBe(3);
+  });
+
+  it("waits for the count before answering", async () => {
+    let finishCount: () => void = () => undefined;
+    let answered = false;
+    const counting = countingFetch({
+      count: () => new Promise<void>((resolve) => (finishCount = resolve)),
+      onCountError: () => expect.unreachable(),
+      fetch: ok,
+    });
+    const answer = counting("https://x.example/").then(() => (answered = true));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(answered).toBe(false);
+    finishCount();
+    await answer;
+    expect(answered).toBe(true);
+  });
+
+  it("reports a failed count, thrown or rejected, and still answers", async () => {
+    const errors: unknown[] = [];
+    for (const count of [
+      () => Promise.reject(new Error("rejected")),
+      () => {
+        throw new Error("thrown");
+      },
+    ]) {
+      const counting = countingFetch({ count, onCountError: (e) => errors.push(e), fetch: ok });
+      expect(await (await counting("https://x.example/")).text()).toBe("ok");
+    }
+    expect(errors.map((e) => (e as Error).message)).toEqual(["rejected", "thrown"]);
+  });
+
+  it("counts each request a store makes, listing pages included", async () => {
+    const s3 = await startFakeS3();
+    try {
+      for (const name of ["a", "b", "c"]) {
+        s3.objects.set(name, { body: Buffer.alloc(1), headers: {}, lastModified: new Date(0) });
+      }
+      let counted = 0;
+      const store = createObjectStore(
+        { endpoint: s3.endpoint, bucket: s3.bucket, credentials: s3.credentials },
+        {
+          listPageSize: 2,
+          fetch: countingFetch({ count: async () => void counted++, onCountError: () => {} }),
+        },
+      );
+      const keys: string[] = [];
+      for await (const object of store.list()) keys.push(object.key);
+      expect(keys).toEqual(["a", "b", "c"]);
+      expect(counted).toBe(2);
+      await store.delete("a");
+      expect(counted).toBe(3);
+    } finally {
+      await s3.close();
+    }
   });
 });
 

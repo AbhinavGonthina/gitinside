@@ -93,6 +93,7 @@ describe("migrations", () => {
       "pull_requests",
       "rate_limits",
       "repos",
+      "store_requests",
       "users",
     ]);
   });

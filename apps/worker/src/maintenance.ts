@@ -1,7 +1,19 @@
-import { databaseSizeBytes, pruneRateLimits, type AnyDatabase } from "@gitinside/db";
+import {
+  countStoreRequests,
+  databaseSizeBytes,
+  pruneRateLimits,
+  storeRequestsThisMonth,
+  type AnyDatabase,
+} from "@gitinside/db";
 import type { CompletedJobs, WorkerLog } from "./queue.js";
 import { runRetention, type RetentionPolicy, type RetentionReport } from "./retention.js";
-import type { ObjectStore } from "./storage.js";
+import {
+  countingFetch,
+  createObjectStore,
+  type ObjectStore,
+  type ObjectStoreOptions,
+  type StoreConfig,
+} from "./storage.js";
 
 /**
  * The worker's hourly maintenance (ADR-0078), keeping GitInside inside its free tiers
@@ -11,7 +23,8 @@ import type { ObjectStore } from "./storage.js";
  *    completed jobs), delete orphans.
  * 2. **Rate-limit pruning** (`pruneRateLimits`): drop windows that ended over an hour ago.
  * 3. **Quota check** ({@link measureQuotas}): measure the bucket (a fresh listing, after
- *    retention deleted what it could) and the database, against {@link QUOTA_LIMITS}. Each
+ *    retention deleted what it could), the database, and the month's bucket requests
+ *    (`store_requests`, ADR-0096), against {@link QUOTA_LIMITS}. Each
  *    resource at or past {@link QUOTA_ALARM_RATIO} logs a `quota_alarm` line, which is
  *    the signal to open a `needs-abhinav` issue (DESIGN.md §12). The worker can't open one
  *    itself: it holds no token that may write issues.
@@ -21,7 +34,7 @@ import type { ObjectStore } from "./storage.js";
  * (so a crash loop still runs it), then an hour after each run ends, never two at once.
  */
 
-/** The free tiers' storage limits, in bytes. */
+/** The free tiers' limits: storage in bytes, bucket requests per month. */
 export interface QuotaLimits {
   /**
    * Oracle Object Storage's Always Free 20 GB (ADR-0095), counted as 20 × 10⁹ bytes (the
@@ -33,12 +46,18 @@ export interface QuotaLimits {
    * asks for the figure Neon shows; replace this when it's reported.
    */
   databaseBytes: number;
+  /**
+   * Oracle Object Storage's Always Free 50,000 API requests a month (SPEC §5, ADR-0096),
+   * worker and web together, as `store_requests` counts them.
+   */
+  monthlyRequests: number;
 }
 
 /** The limits {@link measureQuotas} checks by default. */
 export const QUOTA_LIMITS: QuotaLimits = {
   bucketBytes: 20_000_000_000,
   databaseBytes: 1_000_000_000,
+  monthlyRequests: 50_000,
 };
 
 /** Usage at or past this share of a limit raises the alarm (SECURITY.md T9). */
@@ -46,35 +65,75 @@ export const QUOTA_ALARM_RATIO = 0.8;
 
 /** One resource measured against its limit. */
 export interface QuotaUsage {
-  resource: "bucket" | "database";
-  usedBytes: number;
-  limitBytes: number;
-  /** `usedBytes / limitBytes` as a percentage, rounded down to 0.1. */
+  resource: "bucket" | "database" | "requests";
+  /** What `used` and `limit` count: stored bytes, or bucket requests this UTC month. */
+  unit: "bytes" | "requests";
+  used: number;
+  limit: number;
+  /** `used / limit` as a percentage, rounded down to 0.1. */
   percent: number;
   /** At or past {@link QUOTA_ALARM_RATIO}. */
   alarm: boolean;
+  /** For `requests`: who made them. */
+  bySource?: { worker: number; web: number };
 }
 
-/** Compare measured bytes with the limits. Pure; bucket first, then database. */
-export function checkQuotas(
-  used: { bucketBytes: number; databaseBytes: number },
-  limits: QuotaLimits = QUOTA_LIMITS,
-): QuotaUsage[] {
+/** What {@link checkQuotas} compares with the limits. */
+export interface MeasuredUsage {
+  bucketBytes: number;
+  databaseBytes: number;
+  /** Bucket requests this UTC month, per source. */
+  requests: { worker: number; web: number };
+}
+
+/** Compare measured usage with the limits. Pure; bucket, then database, then requests. */
+export function checkQuotas(used: MeasuredUsage, limits: QuotaLimits = QUOTA_LIMITS): QuotaUsage[] {
   const usage = (
     resource: QuotaUsage["resource"],
-    usedBytes: number,
-    limitBytes: number,
+    unit: QuotaUsage["unit"],
+    amount: number,
+    limit: number,
   ): QuotaUsage => ({
     resource,
-    usedBytes,
-    limitBytes,
-    percent: Math.floor((usedBytes / limitBytes) * 1000) / 10,
-    alarm: usedBytes >= limitBytes * QUOTA_ALARM_RATIO,
+    unit,
+    used: amount,
+    limit,
+    percent: Math.floor((amount / limit) * 1000) / 10,
+    alarm: amount >= limit * QUOTA_ALARM_RATIO,
   });
+  const { worker, web } = used.requests;
   return [
-    usage("bucket", used.bucketBytes, limits.bucketBytes),
-    usage("database", used.databaseBytes, limits.databaseBytes),
+    usage("bucket", "bytes", used.bucketBytes, limits.bucketBytes),
+    usage("database", "bytes", used.databaseBytes, limits.databaseBytes),
+    {
+      ...usage("requests", "requests", worker + web, limits.monthlyRequests),
+      bySource: { worker, web },
+    },
   ];
+}
+
+/**
+ * The worker's bucket client, counting each request as `worker` in `store_requests`
+ * (ADR-0096). A count that fails is logged as `store_request_count_failed`, and the
+ * request goes on.
+ */
+export function createCountedStore(
+  config: StoreConfig,
+  db: AnyDatabase,
+  log: WorkerLog,
+  /** `fetch` is the one requests go out through once counted (tests fake it). */
+  options: ObjectStoreOptions = {},
+): ObjectStore {
+  const { fetch: base, ...rest } = options;
+  return createObjectStore(config, {
+    ...rest,
+    fetch: countingFetch({
+      count: () => countStoreRequests(db, "worker"),
+      onCountError: (error) =>
+        log({ event: "store_request_count_failed", message: errorMessage(error) }),
+      ...(base === undefined ? {} : { fetch: base }),
+    }),
+  });
 }
 
 /** What {@link measureQuotas} reads. */
@@ -85,14 +144,16 @@ export interface QuotaDeps {
 }
 
 /**
- * Measure the whole bucket (its listing, what the free tier counts) and the database, and check them.
- * Read-only. Rejects if either can't be measured.
+ * Measure the whole bucket (its listing, what the free tier counts), the database, and the
+ * month's bucket requests (read last, so the listing's own requests are in it), and check
+ * them. Deletes nothing. Rejects if any can't be measured.
  */
 export async function measureQuotas(deps: QuotaDeps): Promise<QuotaUsage[]> {
   let bucketBytes = 0;
   for await (const object of deps.store.list()) bucketBytes += object.size;
   const databaseBytes = await databaseSizeBytes(deps.db);
-  return checkQuotas({ bucketBytes, databaseBytes }, deps.limits);
+  const { worker, web } = await storeRequestsThisMonth(deps.db);
+  return checkQuotas({ bucketBytes, databaseBytes, requests: { worker, web } }, deps.limits);
 }
 
 /** Log one `quota` line with every resource, then a `quota_alarm` line per resource in alarm. */

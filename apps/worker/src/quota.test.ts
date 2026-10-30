@@ -69,8 +69,9 @@ describe("runQuota", () => {
       time: expect.any(String),
       event: "quota",
       quotas: [
-        { resource: "bucket", usedBytes: 40, limitBytes: 20_000_000_000, alarm: false },
-        { resource: "database", limitBytes: 1_000_000_000, alarm: false },
+        { resource: "bucket", used: 40, limit: 20_000_000_000, alarm: false },
+        { resource: "database", limit: 1_000_000_000, alarm: false },
+        { resource: "requests", unit: "requests", limit: 50_000, alarm: false },
       ],
     });
     expect(closes).toBe(1);
@@ -78,7 +79,13 @@ describe("runQuota", () => {
 
   it("exits 2 with a quota_alarm line when a resource is at 80% or more", async () => {
     const code = await runQuota(
-      io({ limits: { bucketBytes: 50, databaseBytes: Number.MAX_SAFE_INTEGER } }),
+      io({
+        limits: {
+          bucketBytes: 50,
+          databaseBytes: Number.MAX_SAFE_INTEGER,
+          monthlyRequests: Number.MAX_SAFE_INTEGER,
+        },
+      }),
     );
     expect(code).toBe(QUOTA_ALARM_EXIT);
     expect(QUOTA_ALARM_EXIT).toBe(2);
