@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.3. Semantic drill-down with animated in-place transitions (M5.13 and M5.14b wait on #3, #5, #7)
+M4b.3b. The explorer on the drill-down canvas (M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -89,7 +89,8 @@ M4b.3. Semantic drill-down with animated in-place transitions (M5.13 and M5.14b 
 - [x] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility; a service's first level leads with its routes and pages, then its folders (design gate, UX.md) {model: opus}
 - [x] M4b.2a Node and edge-label sizes measured from content, not fixed per tier (design gate fit) + ELK layout of a view (compound frames, stable ordering, routes in a service's first column, absolute boxes and routes), deterministic {model: opus}
 - [x] M4b.2b ELK in a Web Worker (in-thread fallback) + layout cache per expansion state (`view.open` + hidden kinds) + a story drawing the laid-out fixture with real nodes and edges, screenshots, real-browser fit check {model: opus}
-- [ ] M4b.3 Semantic drill-down with animated in-place transitions + reduced motion (routes first at the service level) {model: opus}
+- [x] M4b.3a Drill-down canvas: expansion state (open in order, Esc closes the last opened, collapse to a frame), `DrillCanvas` drawing a view from the layout cache with animated in-place transitions (boxes glide, children emerge from the opened node's center, closed ones fold into it, edges fade in after; interruptible; reduced motion instant), focus kept on the toggled node, a story + motion frames + baselines {model: opus}
+- [ ] M4b.3b The explorer on the drill-down canvas: `ExplorerPrototype`'s one-level model and column layout replaced by the view model, ELK, and `DrillCanvas` (multi-level drill, routes first, breadcrumbs from `viewTrail`, selection and trace mapped to visible boxes), website on it, prototype model removed, screenshots, baselines {model: opus}
 - [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
 - [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub; the code sample links to the file and line, design gate) {model: opus}
 - [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus}
@@ -195,6 +196,8 @@ M4b.3. Semantic drill-down with animated in-place transitions (M5.13 and M5.14b 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.3a: Drill-down canvas (ADR-0108). M4b.3 split: 3a canvas + motion, 3b the explorer on it. `explorer/drill.ts`: open nodes in opening order (`openIn`, `upFrom` for Esc, `collapseTo` for breadcrumbs, `useDrill`); `explorer/transition.ts`: pure `planTransition` (glide from old rect, emerge from the opened node's center, fold into the closed one's); `DrillCanvas` plays it with Web Animations (layout tokens, interruptible, lines fade in after, reduced motion instant), keeps the old level until the next layout, keeps focus on the toggled node. Found in the self-critique: an open file's row centered behind its routes; fixed + a new visual-spec check (proved by re-applying the bug in-page). Viewer 621 (34 new), root typecheck + lint + viewer build green; baselines from Linux CI. No eval delta. Next: M4b.3b.
 
 - 2026-10-30 · M4b.2b: ELK in a Web Worker + layout cache (ADR-0107, `ae613f7`). `@gitinside/viewer/layout-worker` is ELK's own worker script; `createLayoutEngine({ worker })` drives it through elkjs's API, falls back to the main thread for good if the worker can't start or fails (in-thread ELK is a dynamic import). `createLayoutCache` keeps 32 states per graph keyed by `view.open` + the new `view.hidden`. Found in the self-critique: two parallel edges' pills covered each other; fixed with ELK's per-label `edgeLabels.inline` (ignored on the root) + an overlap test. Story "Explorer/Layout" (3 states) in a real worker; the visual spec now fails on a fallback, a label wider than its room, or covered pills. Viewer 587 (16 new), root typecheck + lint + web build green; baselines from Linux CI. No eval delta. Next: M4b.3.
 
