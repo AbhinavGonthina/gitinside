@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.0a. Node content fits its container (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on #3, #5, #7)
+M4b.0b. A distinct shape per layer and per card kind (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -81,7 +81,7 @@ M4b.0a. Node content fits its container (design gate #2 closed 2026-10-30; M5.13
 - [x] M4a.9 M4a-review.md with screenshots + needs-abhinav design-approval issue; UI work then waits for approval {model: opus}
 
 ### M4b: Interactive explorer
-- [ ] M4b.0a Design gate fix: node content fits its container (`@shop/web`'s count badges wrapped out of its closed frame): closed frames sized from their counts, a real-browser check that no node's content overflows its box in any story, re-captured baselines (DESIGN_SYSTEM §1.1, ADR-0100) {model: opus}
+- [x] M4b.0a Design gate fix: node content fits its container (`@shop/web`'s count badges wrapped out of its closed frame): closed frames sized from their counts, a real-browser check that no node's content overflows its box in any story, re-captured baselines (DESIGN_SYSTEM §1.1, ADR-0100) {model: opus}
 - [ ] M4b.0b Design gate: a distinct shape per layer (frontend vs backend services, data, queue, external) and per card kind (route, page, model vs file/symbol), same quiet style, icon still the primary marker; legend's shapes table, README image, screenshots, baselines {model: opus}
 - [ ] M4b.0c Design gate: the current trace hop stands out (its two nodes and edge clearly stronger than the rest of the lit path, at the system level and inside a service), screenshots, baselines {model: opus}
 - [ ] M4b.0d Design gate: a new GitInside mark (top bar, favicon, README badge), screenshots, baselines {model: opus}
@@ -194,6 +194,8 @@ M4b.0a. Node content fits its container (design gate #2 closed 2026-10-30; M5.13
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.0a: Abhinav closed the design gate (#2) with changes. Recorded in DESIGN_SYSTEM §1.1, UX.md, and ADR-0100, split into M4b.0a–e ahead of M4b.1, and the M4b tags removed (`ff112af`). Fix: `nodeSize` widens a closed frame to its count row's estimated width (`countsRowWidth`: `textWidth` + badge chrome + 16px spare). `@shop/web` had fit by 2px on Windows and wrapped on Linux. The visual spec now fails any story where a node's content overflows its box. Viewer 472 (1 new), web 327, root typecheck + lint green. The 8 prototype baselines were re-captured on Linux CI (run 41011859808, overflow check passed there). Viewer-only, no eval delta. Next: M4b.0b.
 
 - 2026-10-29 · M6.7d3b: Next.js is `collectNextFacts(sp)` (the service's route/page nodes, edges, warnings; IDs carry the service key) + `composeNextRoutes` (merge, sort). Prisma's schema stays global (`buildPrismaSchemas`, with `usesPrisma`); client calls are `PrismaFacts` recorded without the schema (`PrismaCall`: raw, or accessor + origin service + confidence + `fieldNames`), and `composePrisma` does the model lookup, `splitFields` (fields vs `missingFields`), owner binding, and the merge (ADR-0099). Analyzer 709 (9 new: round-tripped facts compose to analyze's output on 5 fixtures + 2 workspace repos; a client's facts unchanged when the schema loses a field it uses; unscanned facts compose to nothing, mutation-checked). First full run failed 96 tests in 3 files ("buildExpressRoutes is not a function"), each green alone and the rerun green (709/709). Root typecheck + lint green. Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110), `--check` byte-for-byte. Next: M6.7d3c.
 
