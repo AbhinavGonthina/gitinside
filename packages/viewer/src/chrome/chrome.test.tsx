@@ -452,7 +452,11 @@ describe("inspector", () => {
     expect(container.querySelector("[data-token]")).toBeNull();
     expect(texts()).toEqual(plain);
 
-    await waitFor(() => expect(figure.getAttribute("data-syntax")).toBe("done"));
+    // A cold load is Shiki's core, its regex engine, the grammar, and the
+    // grammar's warm-up (42ccf3f): well over waitFor's 1 s default here.
+    await waitFor(() => expect(figure.getAttribute("data-syntax")).toBe("done"), {
+      timeout: 10_000,
+    });
     expect(texts()).toEqual(plain);
     // The context line opened a doc comment, so the first line is all comment.
     const first = container.querySelectorAll(".gi-code__line code")[0]!;
