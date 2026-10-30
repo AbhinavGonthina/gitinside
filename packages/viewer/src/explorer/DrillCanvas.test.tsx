@@ -5,7 +5,7 @@ import { createLayoutCache, type LayoutCache } from "../layout/engine.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { REDUCED_MOTION_QUERY } from "../motion.js";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import { durations } from "../tokens.js";
 import { DrillCanvas } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";

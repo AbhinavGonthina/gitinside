@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { buildHierarchy } from "../model/hierarchy.js";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import { CHECKOUT_TRACE, checkTrace, traceNodes } from "./trace.js";
 
 const index = buildHierarchy(shopDemo());

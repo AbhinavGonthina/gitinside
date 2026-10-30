@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { buildHierarchy } from "../model/hierarchy.js";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import { effectiveOpen } from "../model/view.js";
 import { closeIn, collapseTo, isShown, openIn, revealIn, upFrom, useDrill } from "./drill.js";
 

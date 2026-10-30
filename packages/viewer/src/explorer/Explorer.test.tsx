@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
-import { shopDemo, shopDemoSources } from "../prototype/shopDemo.testkit.js";
+import { shopDemo, shopDemoSources } from "../shopDemo.testkit.js";
 import { durations } from "../tokens.js";
 import * as stories from "./Explorer.stories.js";
 import { Explorer } from "./Explorer.js";

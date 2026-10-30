@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import { connectionsOf } from "./connections.js";
 import { buildHierarchy } from "./hierarchy.js";
 

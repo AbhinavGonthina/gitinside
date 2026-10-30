@@ -5,7 +5,7 @@ import type { Rect } from "../chrome/describe.js";
 import type { Point } from "../edges/geometry.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView, type GraphView } from "../model/view.js";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import {
   ELK_OPTIONS,
   elkGraph,

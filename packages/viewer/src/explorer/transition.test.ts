@@ -3,7 +3,7 @@ import type { Rect } from "../chrome/describe.js";
 import type { LayoutResult } from "../layout/elk.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import { centeredOn, planTransition, type Shown } from "./transition.js";
 
 const index = buildHierarchy(shopDemo());

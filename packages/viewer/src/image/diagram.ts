@@ -24,22 +24,11 @@ import {
   nodeTier,
   type NodeText,
 } from "../nodes/describe.js";
-import {
-  nodeSize,
-  pointAlong,
-  routeEdges,
-  WINDOW_BAND,
-  type PlacedEdge,
-} from "../prototype/layout.js";
-import {
-  drawnEdge,
-  frameCounts,
-  indexGraph,
-  liftEdges,
-  type GraphIndex,
-  type ViewEdge,
-} from "../prototype/model.js";
+import { frameCounts, WINDOW_BAND } from "../layout/size.js";
+import { buildHierarchy, type HierarchyIndex } from "../model/hierarchy.js";
+import { buildView, drawnEdge, type ViewEdge } from "../model/view.js";
 import { scaleTokens } from "../tokens.js";
+import { imageNodeSize, pointAlong, routeEdges, type PlacedEdge } from "./layout.js";
 import { attrs, esc, fit, glyphMarkup, num, textWidth } from "./markup.js";
 import { paletteCss, v, type ImageTheme } from "./palette.js";
 
@@ -58,15 +47,17 @@ import { paletteCss, v, type ImageTheme } from "./palette.js";
  *   ({@link rowsFor} in big repos) wraps into balanced, top-aligned
  *   sub-columns, so a repo with ten
  *   datastores isn't one tall stripe and the rows of a wrapped column line up.
- * - **Lines** are the canvas's lifted edges (`liftEdges`: one per kind and
- *   pair, aggregates as counts, weakest confidence wins), routed so they don't
- *   cross boxes in the common cases: between neighbors as on the prototype;
+ * - **Lines** are the canvas's lifted edges (`buildView` with nothing open:
+ *   one per kind and pair, aggregates as counts, weakest confidence wins),
+ *   routed so they don't cross boxes in the common cases: between neighbors
+ *   straight or with one bend (`layout.ts`);
  *   into or out of a wrapped sub-column through the gap between its rows (in
  *   at the top, out at the bottom); between two boxes of one sub-column that
  *   aren't neighbors, down a lane beside it.
- * - **Not handled** (M4b.2's ELK layout will): a frontend → data line passes
- *   the backend column at its source's height and can cross a box there;
- *   labels of busy columns can overlap.
+ * - **Not handled:** a frontend → data line passes the backend column at
+ *   its source's height and can cross a box there; labels of busy columns
+ *   can overlap. The canvas's ELK layout avoids both, but it's asynchronous
+ *   and `renderDiagram` isn't, so the image keeps its own arithmetic.
  * - **Untrusted text:** every label, host, and path is escaped (`esc`), and
  *   nothing from the graph reaches an attribute name, a style, or a URL.
  */
@@ -122,7 +113,7 @@ export interface DiagramImageOptions {
 export function topLevelCounts(
   graph: ArchitectureGraph,
 ): { value: number; noun: string; plural?: string }[] {
-  const index = indexGraph(graph);
+  const index = buildHierarchy(graph);
   const top = index.children.get(index.root.id) ?? [];
   const kinds: { kind: GraphNode["kind"]; noun: string; plural?: string }[] = [
     { kind: "service", noun: "service" },
@@ -190,7 +181,7 @@ interface Placement {
 }
 
 /** Places the top-level nodes in layer columns, wrapping tall ones. */
-function place(index: GraphIndex, top: readonly GraphNode[]): Placement {
+function place(index: HierarchyIndex, top: readonly GraphNode[]): Placement {
   const layers: GraphNode[][] = [[], [], []];
   for (const n of top) layers[COLUMN[n.layer ?? "backend"]]?.push(n);
   const rank = (n: GraphNode) => KIND_ORDER[n.kind] ?? 0;
@@ -206,7 +197,7 @@ function place(index: GraphIndex, top: readonly GraphNode[]): Placement {
     const rows = Math.ceil(ids.length / count);
     for (let i = 0; i < count; i++) {
       const chunk = ids.slice(i * rows, (i + 1) * rows);
-      const sizes = chunk.map((id) => nodeSize(index, id));
+      const sizes = chunk.map((id) => imageNodeSize(index, id));
       subs.push({
         ids: chunk,
         group,
@@ -229,7 +220,7 @@ function place(index: GraphIndex, top: readonly GraphNode[]): Placement {
     // A layer column is centered; its sub-columns share its top, so their rows line up.
     let y = PAD + (tallest - (groupHeight[sub.group] ?? 0)) / 2;
     sub.ids.forEach((id, row) => {
-      const size = nodeSize(index, id);
+      const size = imageNodeSize(index, id);
       boxes.set(id, { x: x + (sub.width - size.width) / 2, y, ...size });
       slots.set(id, { group: sub.group, column, row });
       y += size.height + ROW_GAP;
@@ -277,7 +268,7 @@ function gapRoute(from: Rect, to: Rect, a: Column, b: Column, before: number): P
 /**
  * Routes the lifted edges (see the module comment): lanes beside a
  * sub-column (one per edge, outwards), {@link gapRoute} into and out of
- * wrapped sub-columns, and the prototype's routing for the rest.
+ * wrapped sub-columns, and `routeEdges` for the rest.
  */
 function routeAll(edges: readonly ViewEdge[], placement: Placement): PlacedEdge[] {
   const { boxes, slots, columns } = placement;
@@ -424,7 +415,7 @@ function windowBand(
   );
 }
 
-function frameNode(index: GraphIndex, node: GraphNode, box: Rect): string {
+function frameNode(index: HierarchyIndex, node: GraphNode, box: Rect): string {
   const { layer } = node;
   const border = color("frame-border", layer, "border");
   const { x, width: w, height: h } = box;
@@ -493,7 +484,7 @@ function cardNode(node: GraphNode, box: Rect): string {
   ].join("");
 }
 
-function nodeMarkup(index: GraphIndex, node: GraphNode, box: Rect): string {
+function nodeMarkup(index: HierarchyIndex, node: GraphNode, box: Rect): string {
   switch (nodeTier(node)) {
     case "frame":
       return frameNode(index, node, box);
@@ -504,7 +495,7 @@ function nodeMarkup(index: GraphIndex, node: GraphNode, box: Rect): string {
   }
 }
 
-function edgeMarkup(index: GraphIndex, placed: PlacedEdge): string {
+function edgeMarkup(index: HierarchyIndex, placed: PlacedEdge): string {
   const { view } = placed;
   const geometry = edgeGeometry(placed.points);
   const source = index.byId.get(view.from);
@@ -576,7 +567,7 @@ function footer(graph: ArchitectureGraph, width: number, top: number): string {
 
 /** The image's layout: a box per top-level node, routed lines, and the drawing's size. */
 export interface TopLevelLayout {
-  index: GraphIndex;
+  index: HierarchyIndex;
   top: readonly GraphNode[];
   boxes: ReadonlyMap<string, Rect>;
   /** In graph order. */
@@ -588,9 +579,10 @@ export interface TopLevelLayout {
 
 /** Lays out a graph's top level for {@link renderDiagram}. */
 export function layoutTopLevel(graph: ArchitectureGraph): TopLevelLayout {
-  const index = indexGraph(graph);
+  const index = buildHierarchy(graph);
   const top = index.children.get(index.root.id) ?? [];
-  const edges = liftEdges(index, new Set(top.map((n) => n.id)));
+  // Nothing open: the top level, with edges lifted to it (imports hidden).
+  const { edges } = buildView(index, []);
   const placement = place(index, top);
   const routed = routeAll(edges, placement);
   const laneRight = Math.max(...routed.flatMap((p) => p.points.map((q) => q.x)), 0);

@@ -5,7 +5,7 @@ import { contrastRatio } from "./contrast.js";
 import { renderBadge } from "./image/badge.js";
 import { renderDiagram } from "./image/diagram.js";
 import { MARK_NODE, MARK_PATH, markMarkup, markStroke } from "./mark.js";
-import { shopDemo } from "./prototype/shopDemo.testkit.js";
+import { shopDemo } from "./shopDemo.testkit.js";
 import { themeTokens } from "./tokens.js";
 
 afterEach(cleanup);
