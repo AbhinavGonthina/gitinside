@@ -71,7 +71,7 @@ import {
 } from "@gitinside/schema";
 import { fileNodeId, withinService } from "./files.js";
 import type { UrlBase } from "./url.js";
-import { clip, CONFIDENCE_RANK, redactedText, weaker } from "./values.js";
+import { clip, CONFIDENCE_RANK, weaker } from "./values.js";
 import { serviceForFile, type Workspace } from "./workspace.js";
 import type { HttpRequest } from "./wrappers.js";
 
@@ -334,30 +334,6 @@ export function externalNode(host: string): GraphNode {
   };
 }
 
-/**
- * The source text an unresolved request shows as its `expression`: the wrapper call when
- * inlined, else the `fetch`/axios call, with secrets masked by {@link redactedText} (only the
- * URL's text before any `?` is kept).
- */
-function requestExpression(request: HttpRequest): string {
-  if (request.via) return redactedText(request.via.call, request.via.url);
-  const url = request.call.url?.expression;
-  const base = request.call.baseURL?.expression;
-  return redactedText(
-    request.call.call,
-    [url, base].filter((e) => e !== undefined),
-  );
-}
-
-/** What the unresolved node of a request shows: the URL as read, else its source text. */
-function requestLabel(request: HttpRequest): string {
-  const method = request.method ?? "?";
-  if (request.url.resolved) return clip(`${method} ${request.url.text}`);
-  if (request.via) return `${method} ${requestExpression(request)}`;
-  const url = request.call.url?.expression;
-  return `${method} ${url ? redactedText(url, [url]) : requestExpression(request)}`;
-}
-
 /** The graph output of the HTTP stage, plus every request's match. */
 export interface HttpEdges {
   /** `external` and `unresolved` nodes, sorted by ID. */
@@ -375,8 +351,8 @@ export interface HttpEdges {
  * - A literal external host: an `external` node (`external:ext/<host>`, under the system)
  *   and an `external_call` edge to it, `exact` unless the request itself is weaker.
  * - Anything else: an `unresolved` node at the request's site (the wrapper call when
- *   inlined) with the reason and its detail, and an `unresolved` `http` edge to it. The node
- *   is kept even when the request has no source node.
+ *   inlined) with the reason and its detail, the request's `label` and `expression`, and an
+ *   `unresolved` `http` edge to it. The node is kept even when the request has no source node.
  *
  * Requests with the same (kind, source, target) merge into one edge listing every site, at
  * the strongest confidence; the edge keeps a reason only when every site gave it (so
@@ -466,10 +442,10 @@ export function buildHttpEdges(
           node = {
             id: to,
             kind: "unresolved",
-            label: requestLabel(request),
+            label: request.label,
             parentId: nodeId("service", service.key, ""),
             reason: match.reason,
-            expression: requestExpression(request),
+            expression: request.expression,
             detail: match.detail,
             source: request.site,
           };

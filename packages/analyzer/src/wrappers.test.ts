@@ -6,9 +6,15 @@ import { createSymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
 import { collectHttpCalls } from "./http.js";
 import { buildInventory } from "./inventory.js";
-import { buildServicePrograms } from "./program.js";
+import { buildServicePrograms, type ServiceProgram } from "./program.js";
 import { createUrlNormalizer } from "./url.js";
-import { inlineWrappers, type HttpRequest } from "./wrappers.js";
+import {
+  bindWrappers,
+  collectHttpFacts,
+  inlineWrappers,
+  type HttpFacts,
+  type HttpRequest,
+} from "./wrappers.js";
 import { detectWorkspace } from "./workspace.js";
 
 let dir: string;
@@ -39,6 +45,50 @@ async function requests(): Promise<HttpRequest[]> {
     createUrlNormalizer(resolver),
     express.inlineHandlers,
   );
+}
+
+/** The per-service facts of the temp repo, with the programs and resolver behind them. */
+async function facts() {
+  const inventory = await buildInventory(dir);
+  const workspace = await detectWorkspace(dir, inventory.files);
+  const programs = buildServicePrograms(dir, workspace, inventory);
+  const resolver = createSymbolResolver(programs, workspace);
+  const express = buildExpressRoutes(programs, resolver);
+  const sites = collectHttpCalls(programs, resolver, express.inlineHandlers);
+  const normalizer = createUrlNormalizer(resolver);
+  return {
+    programs,
+    resolver,
+    facts: collectHttpFacts(sites, programs, resolver, normalizer, express.inlineHandlers),
+  };
+}
+
+/** `file:line METHOD url`, plus `<- wrapper` when inlined. */
+const brief = (r: HttpRequest): string =>
+  `${r.file}:${r.site.line} ${r.method ?? "?"} ${r.url.resolved ? r.url.text : r.url.reason}` +
+  (r.via ? ` <- ${r.via.slice(r.via.lastIndexOf("#") + 1)}` : "");
+
+/** A workspace with an SDK of wrappers and a web app calling one of them. */
+async function sdkAndWeb(importPath: string): Promise<void> {
+  await put("package.json", JSON.stringify({ name: "root", workspaces: ["packages/*"] }));
+  await put("packages/sdk/package.json", JSON.stringify({ name: "@acme/sdk" }));
+  await put("packages/sdk/src/index.ts", [
+    "export function getJson(path: string) {",
+    "  return fetch(`/api${path}`);",
+    "}",
+    "export function unused(path: string) {",
+    "  return fetch(`/other${path}`);",
+    "}",
+    'export const ping = () => fetch("/api/ping");',
+  ]);
+  await put(
+    "packages/web/package.json",
+    JSON.stringify({ name: "web", dependencies: { "@acme/sdk": "*" } }),
+  );
+  await put("packages/web/src/page.ts", [
+    `import { getJson } from "${importPath}";`,
+    'export const load = () => getJson("/teams");',
+  ]);
 }
 
 /**
@@ -303,5 +353,73 @@ describe("inlineWrappers", () => {
     const [request] = await requests();
     expect(request?.owners).toEqual(["route:api/GET /proxy"]);
     expect(request?.url.resolved && request.url.text).toBe("https://up.example.com/data");
+  });
+});
+
+describe("collectHttpFacts + bindWrappers (M6.7c)", () => {
+  /** The facts of the service whose files are under `folder`. */
+  const of = (all: Awaited<ReturnType<typeof facts>>, folder: string): HttpFacts => {
+    const sp = all.programs.find((p) => p.rootFiles.some((f) => f.startsWith(folder)));
+    const found = all.facts.find((f) => f.service === sp?.service.key);
+    if (!found) throw new Error(`no facts for ${folder}`);
+    return found;
+  };
+
+  it("keeps a wrapper's own requests in its service and its calls in the caller's", async () => {
+    await sdkAndWeb("@acme/sdk");
+    const all = await facts();
+    expect(all.facts.map((f) => f.service)).toEqual(all.programs.map((p) => p.service.key));
+    const sdk = of(all, "packages/sdk/");
+    const web = of(all, "packages/web/");
+    expect(sdk.requests.map(brief)).toEqual(["packages/sdk/src/index.ts:7 GET /api/ping"]);
+    expect(sdk.wrappers.map((w) => [w.name, w.requests.map(brief)])).toEqual([
+      ["getJson", ["packages/sdk/src/index.ts:2 GET /api{}"]],
+      ["unused", ["packages/sdk/src/index.ts:5 GET /other{}"]],
+    ]);
+    expect(sdk.calls).toEqual([]);
+    expect(web.requests).toEqual([]);
+    expect(web.wrappers).toEqual([]);
+    expect(web.calls.map((c) => c.requests.map(brief))).toEqual([
+      ["packages/web/src/page.ts:2 GET /api/teams <- getJson"],
+    ]);
+    // A called wrapper's own request is dropped; an uncalled one's stays.
+    expect(bindWrappers(all.facts).map(brief)).toEqual([
+      "packages/sdk/src/index.ts:5 GET /other{}",
+      "packages/sdk/src/index.ts:7 GET /api/ping",
+      "packages/web/src/page.ts:2 GET /api/teams <- getJson",
+    ]);
+  });
+
+  it("binds facts that went through JSON to the same requests", async () => {
+    await sdkAndWeb("@acme/sdk");
+    await put("packages/web/src/more.ts", [
+      'import axios from "axios";',
+      'const api = axios.create({ baseURL: "https://api.example.com" });',
+      "export const send = (path: string, method: string) => api.request({ url: path, method });",
+      'export const a = () => send("/x?token=abc", "POST");',
+      "export const b = (u: string) => fetch(u);",
+    ]);
+    const { facts: live } = await facts();
+    const copied = JSON.parse(JSON.stringify(live)) as HttpFacts[];
+    expect(copied).toEqual(live);
+    expect(bindWrappers(copied)).toEqual(bindWrappers(live));
+    // Nothing secret survives into the text an unresolved node would show.
+    expect(JSON.stringify(live)).not.toContain("token=abc");
+  });
+
+  it("records a wrapper in another service's program as reached by its caller", async () => {
+    // A relative import TypeScript resolves itself, so the resolver records no hop.
+    await sdkAndWeb("../../sdk/src/index");
+    const all = await facts();
+    const web = all.programs.find((p) => p.rootFiles.some((f) => f.startsWith("packages/web/")));
+    const sdk = all.programs.find((p) => p.rootFiles.some((f) => f.startsWith("packages/sdk/")));
+    expect(web && sdk).toBeTruthy();
+    if (!web || !sdk) return;
+    expect(of(all, "packages/web/").calls.map((c) => c.wrapper)).toEqual([
+      "symbol:sdk/src/index.ts#getJson",
+    ]);
+    const keys = (set: ReadonlySet<ServiceProgram>) => [...set].map((p) => p.service.key);
+    expect(keys(all.resolver.reached(web))).toEqual([sdk.service.key]);
+    expect(keys(all.resolver.reached(sdk))).toEqual([]);
   });
 });
