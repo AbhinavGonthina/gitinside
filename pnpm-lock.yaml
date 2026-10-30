@@ -286,6 +286,9 @@ importers:
       '@gitinside/schema':
         specifier: workspace:*
         version: link:../schema
+      elkjs:
+        specifier: 0.12.1
+        version: 0.12.1
       simple-icons:
         specifier: 16.36.0
         version: 16.36.0
@@ -2252,6 +2255,9 @@ packages:
 
   electron-to-chromium@1.5.467:
     resolution: {integrity: sha512-Nw9X371rtZmYcBSnEijnCDONILjs93biCZO34juC7MBOmK8E+GFnyD4T/WvyrlJkppul7oxg6TwvtKst9SODTw==}
+
+  elkjs@0.12.1:
+    resolution: {integrity: sha512-IhMYKHE4S2vtx0QrhBP3lYOIKDeIiJXBrdq9MGYkuB8ZHqhrBnHNfSUndjXFewrX1CPK8chwq+2NA0K0hliYuw==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -4950,6 +4956,8 @@ snapshots:
   eastasianwidth@0.2.0: {}
 
   electron-to-chromium@1.5.467: {}
+
+  elkjs@0.12.1: {}
 
   emoji-regex@8.0.0: {}
 

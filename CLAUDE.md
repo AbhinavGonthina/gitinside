@@ -136,7 +136,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Local prototype screenshots taken right at load catch edges mid fade-in (600ms), so lines look missing. Wait ~1.2 s before shooting. Likewise, two README SVGs inlined in one HTML page share the `.gi` palette (the last `<style>` wins); shoot each theme on its own page.
 - `npx prettier --write` exits 2 ("No parser could be inferred") when given an `.svg`, though it formats the other files. Leave `.svg` files out of the list.
 - Screenshots taken "a few ms after a click" can't catch a 120–240ms animation reliably. For motion frames, `page.clock.install()` before `goto` (JS exit timers wait for `page.clock.runFor`), then pause `document.getAnimations()` at a chosen `currentTime` and shoot (`apps/web/dist/motion-shots.mjs`, M4b.0e).
-- An entrance animation with `animation-fill-mode: both` stays in effect after it ends, so Linux CI's baselines differ by a few pixels of text (M4b.0e: 16 stories, 6–303 px), though `animations: "disabled"` finishes it. Give entrances no fill; only exits need `both`.<!-- lessons:end -->
+- An entrance animation with `animation-fill-mode: both` stays in effect after it ends, so Linux CI's baselines differ by a few pixels of text (M4b.0e: 16 stories, 6–303 px), though `animations: "disabled"` finishes it. Give entrances no fill; only exits need `both`.
+- A Playwright screenshot of a page opened on a raw `.svg` file hangs until timeout. Inline the SVG with `page.setContent(...)` and shoot `page.locator("svg")`.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
