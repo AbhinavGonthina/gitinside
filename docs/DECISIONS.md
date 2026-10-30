@@ -1125,3 +1125,12 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - **Words too:** accessible names say "Current step of the request path" (`EMPHASIS_TEXT`), and the legend has a row for it.
 - **Alternatives rejected:** a step-number badge on the current edge (a hop inside one box has no edge to carry it); dimming the rest of the path partway (it would read as "off the path", which already means 20%); a pulsing ring on the current nodes (motion is M4b.0e's pass, and a pulse on every step change is busy).
 - **Consequences:** the trace and state baselines change. M4b.6 (the real trace mode) keeps this split: its step player sets `current`, and its BFS sets `traced`.
+
+## ADR-0103: The GitInside mark is a "G" whose bar runs inward to a node
+- **Context:** At the design gate (planning #2) Abhinav was "not a fan of the logo right now". The old mark, a rounded square with a smaller square inside, read as a generic app icon and as the viewer's own "break down" control. Its geometry was also copied by hand into five places (top bar, site header, favicon, README badge, README image).
+- **Decision:**
+  - **The shape:** the rounded frame services are drawn in, opened at the top right into a "G", whose bar runs inward and ends on a filled node: an edge reaching inside the repo, "Git inside your repo". The frame takes the text color and the node the accent, so the mark follows the theme; round caps and joins, like the interface icons.
+  - **One geometry:** `packages/viewer/src/mark.ts` (`MARK_PATH`, `MARK_NODE`, `markStroke`, `markMarkup`) is the source for `LogoMark` and the two README renderers. The favicon stays a static `app/icon.svg` (Next serves it as is), and a web test checks it against those values and the theme tokens.
+  - **Stroke by size:** 2 units at 20px and up, 2.5 below (badge 12px, image footer 16px, browser tab), so the line holds when small.
+- **Alternatives rejected:** a git branch glyph inside the frame (every git tool's mark); a node leaving the frame through a gap (reads as "outside", the opposite of the name); a square node (echoes the old mark and the break-down icon); a separate dot on the G's top terminal (noise at 16px).
+- **Consequences:** the top bar's baselines change (Chrome top bars, layout, and every prototype story). The README badge and image change for every repo, but neither carries a version, so readers simply get the new mark on the next 10-minute refresh.

@@ -123,6 +123,7 @@ export {
 } from "./chrome/describe.js";
 export type { MinimapFit, Rect, RepoRef, TextSegment } from "./chrome/describe.js";
 export { LogoMark, UiIcon, uiIconNames, uiIcons } from "./chrome/uiIcons.js";
+export { MARK_NODE, MARK_PATH, markStroke } from "./mark.js";
 export { ExplorerPrototype } from "./prototype/ExplorerPrototype.js";
 export type { ExplorerPrototypeProps } from "./prototype/ExplorerPrototype.js";
 export type { UiIconName } from "./chrome/uiIcons.js";

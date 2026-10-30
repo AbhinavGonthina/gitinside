@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { MARK_NODE, MARK_PATH, markStroke } from "../mark.js";
 
 /**
  * Interface icons for the chrome (buttons, menus, overlays). They follow the
@@ -99,9 +100,9 @@ export function UiIcon({ name, size = 16 }: { name: UiIconName; size?: number })
 }
 
 /**
- * The GitInside mark: a frame with a node inside it, "git inside your repo".
- * The frame is drawn in the text color and the node in the accent, so the
- * mark follows the theme.
+ * The GitInside mark (`mark.ts`): a "G" drawn as an open frame whose bar runs
+ * inward to a node, an edge reaching inside the repo. The frame is drawn in
+ * the text color and the node in the accent, so the mark follows the theme.
  */
 export function LogoMark({ size = 20 }: { size?: number }) {
   return (
@@ -113,8 +114,14 @@ export function LogoMark({ size = 20 }: { size?: number }) {
       fill="none"
       aria-hidden
     >
-      <rect x="3" y="3" width="18" height="18" rx="5.5" stroke="currentColor" strokeWidth={2} />
-      <rect className="gi-logo-mark__node" x="9" y="9" width="8" height="8" rx="2" />
+      <path
+        d={MARK_PATH}
+        stroke="currentColor"
+        strokeWidth={markStroke(size)}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle className="gi-logo-mark__node" {...MARK_NODE} />
     </svg>
   );
 }
