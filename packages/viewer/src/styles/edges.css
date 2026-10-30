@@ -168,13 +168,27 @@
   opacity: 0.5;
 }
 
-/* State: traced (on the request path). */
+/*
+ * State: traced (on the request path) and current (the hop the player is
+ * on). The path is a plain trace line; the current hop is wider, haloed, and
+ * its particles are larger, so it reads first wherever the whole path is lit.
+ */
 
 .gi-edge[data-emphasis="traced"] {
   --gi-edge-color: var(--trace);
   --gi-edge-particle: var(--trace);
-  --gi-edge-halo: color-mix(in srgb, var(--trace) 16%, transparent);
-  --gi-edge-width: 2.5px;
+  --gi-edge-width: 1.75px;
+}
+
+.gi-edge[data-emphasis="current"] {
+  --gi-edge-color: var(--trace);
+  --gi-edge-particle: var(--trace);
+  --gi-edge-halo: color-mix(in srgb, var(--trace) 26%, transparent);
+  --gi-edge-width: 3px;
+}
+
+.gi-edge[data-emphasis="current"] .gi-edge__particle {
+  r: 4px;
 }
 
 /* State: dimmed (off the request path). Hover brings it partway back. */
@@ -199,9 +213,9 @@
   --gi-edge-width: 2px;
 }
 
-.gi-edge[data-selected][data-emphasis="traced"] {
-  --gi-edge-halo: color-mix(in srgb, var(--trace) 22%, transparent);
-  --gi-edge-width: 2.5px;
+.gi-edge[data-selected][data-emphasis="current"] {
+  --gi-edge-halo: color-mix(in srgb, var(--trace) 26%, transparent);
+  --gi-edge-width: 3px;
 }
 
 /*
@@ -331,7 +345,14 @@
 }
 
 .gi-edge-label[data-emphasis="traced"] {
+  --gi-label-border: color-mix(in srgb, var(--trace) 70%, var(--border));
+  color: var(--text);
+}
+
+.gi-edge-label[data-emphasis="current"] {
   --gi-label-border: var(--trace);
+  background: color-mix(in srgb, var(--trace) 14%, var(--surface-1));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--trace) 22%, transparent);
   color: var(--text);
 }
 

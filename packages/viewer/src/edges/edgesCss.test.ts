@@ -57,6 +57,7 @@ describe("edges.css", () => {
     "data-broken",
     'data-emphasis="dimmed"',
     'data-emphasis="traced"',
+    'data-emphasis="current"',
     'data-diff="added"',
     'data-diff="changed"',
     'data-diff="removed"',
@@ -64,6 +65,18 @@ describe("edges.css", () => {
     const escaped = attr.replace(/[[\]"]/g, "\\$&");
     expect(body).toMatch(new RegExp(`^\\.gi-edge(?!-)[^{\\n]*\\[${escaped}\\]`, "m"));
     expect(body).toMatch(new RegExp(`^\\.gi-edge-label[^{\\n]*\\[${escaped}\\]`, "m"));
+  });
+
+  it("draws the current hop wider than the rest of the path, with a halo (design gate)", () => {
+    const rule = (emphasis: string) =>
+      new RegExp(`^\\.gi-edge\\[data-emphasis="${emphasis}"\\] \\{([^}]*)\\}`, "m").exec(
+        body,
+      )?.[1] ?? "";
+    const width = (emphasis: string) =>
+      Number(/--gi-edge-width: ([\d.]+)px/.exec(rule(emphasis))?.[1]);
+    expect(width("current")).toBeGreaterThan(width("traced"));
+    expect(rule("current")).toContain("--gi-edge-halo: color-mix(");
+    expect(rule("traced")).not.toContain("--gi-edge-halo");
   });
 
   // WCAG 1.4.11: edges are essential graphics, so the resting line must

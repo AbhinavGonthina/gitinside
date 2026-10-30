@@ -219,8 +219,18 @@ export function nodeSubtitle(node: GraphNode): NodeText {
   }
 }
 
-/** How a node is currently emphasized: off the trace path, or on it. */
-export type NodeEmphasis = "dimmed" | "traced";
+/**
+ * How a node is emphasized while tracing: off the path, on it, or an end of
+ * the hop the player is on (`current`, drawn stronger than the rest of the
+ * path so the reader sees where in the flow they are, DESIGN_SYSTEM.md §1.1).
+ */
+export type NodeEmphasis = "dimmed" | "traced" | "current";
+
+/** Emphasis in words, for accessible names. */
+export const EMPHASIS_TEXT: Readonly<Record<Exclude<NodeEmphasis, "dimmed">, string>> = {
+  traced: "On the request path",
+  current: "Current step of the request path",
+};
 
 /** A node's state in diff mode. */
 export type NodeDiff = "added" | "changed" | "removed";
@@ -249,7 +259,7 @@ export const DIFF_TEXT: Readonly<Record<NodeDiff, string>> = {
 export function nodeAccessibleName(node: GraphNode, state: NodeState = {}): string {
   const out = [`${node.label}, ${kindName(node).toLowerCase()}`];
   if (state.selected) out.push("Selected");
-  if (state.emphasis === "traced") out.push("On the request path");
+  if (state.emphasis && state.emphasis !== "dimmed") out.push(EMPHASIS_TEXT[state.emphasis]);
   if (state.diff) out.push(`${DIFF_TEXT[state.diff]} in this change`);
   return out.join(". ");
 }

@@ -169,6 +169,9 @@ describe("describe", () => {
     expect(nodeAccessibleName(route, { selected: true, emphasis: "traced" })).toBe(
       "POST /api/orders, route. Selected. On the request path",
     );
+    expect(nodeAccessibleName(route, { emphasis: "current" })).toBe(
+      "POST /api/orders, route. Current step of the request path",
+    );
     expect(nodeAccessibleName(sample("module"), { diff: "removed", emphasis: "dimmed" })).toBe(
       "routes, module. Removed in this change",
     );
@@ -408,7 +411,7 @@ describe("Nodes stories", () => {
     for (const attr of ["data-hover", "data-selected"]) {
       expect(container.querySelectorAll(`[${attr}]`)).toHaveLength(nodeSamples.length);
     }
-    for (const value of ["dimmed", "traced"]) {
+    for (const value of ["dimmed", "traced", "current"]) {
       expect(container.querySelectorAll(`[data-emphasis='${value}']`)).toHaveLength(
         nodeSamples.length,
       );

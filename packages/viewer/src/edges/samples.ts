@@ -83,6 +83,7 @@ export const edgeStates: readonly { name: string; state: EdgeState; flow?: boole
   { name: "Hover", state: { hovered: true } },
   { name: "Selected", state: { selected: true } },
   { name: "Traced", state: { emphasis: "traced" }, flow: true },
+  { name: "Current hop", state: { emphasis: "current" }, flow: true },
   { name: "Dimmed", state: { emphasis: "dimmed" } },
   { name: "Added", state: { diff: "added" } },
   { name: "Changed", state: { diff: "changed" } },

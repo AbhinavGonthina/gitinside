@@ -200,6 +200,7 @@ export const nodeStates: readonly { name: string; state: NodeState }[] = [
   { name: "Selected", state: { selected: true } },
   { name: "Dimmed", state: { emphasis: "dimmed" } },
   { name: "Traced", state: { emphasis: "traced" } },
+  { name: "Current hop", state: { emphasis: "current" } },
   { name: "Added", state: { diff: "added" } },
   { name: "Changed", state: { diff: "changed" } },
   { name: "Removed", state: { diff: "removed" } },

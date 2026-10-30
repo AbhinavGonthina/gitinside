@@ -279,11 +279,13 @@ function DiagramSheet({ mode }: { mode: Mode }) {
   const trace = mode === "trace";
   const onPath: NodeState = trace ? { emphasis: "traced" } : {};
   const offPath: NodeState = trace ? { emphasis: "dimmed" } : {};
+  // The player is on the route → handler hop.
+  const hopEnd: NodeState = trace ? { emphasis: "current" } : {};
 
   const nodes: Placed[] = [
     { node: web.node, x: 32, y: 104, width: 240, state: onPath },
-    { node: route.node, x: 512, y: 120, width: 248, state: onPath },
-    { node: handler.node, x: 512, y: 264, width: 248, layer: "backend", state: onPath },
+    { node: route.node, x: 512, y: 120, width: 248, state: hopEnd },
+    { node: handler.node, x: 512, y: 264, width: 248, layer: "backend", state: hopEnd },
     { node: model.node, x: 960, y: 264, width: 200, state: onPath },
     { node: store.node, x: 992, y: 404, width: 136, state: onPath },
     {
@@ -323,7 +325,7 @@ function DiagramSheet({ mode }: { mode: Mode }) {
         { x: 636, y: 264 },
       ],
       flow: trace,
-      state: path,
+      state: trace ? { emphasis: "current" } : {},
     },
     {
       sample: { ...writes, edge: { ...writes.edge, confidence: "exact" } },
@@ -384,7 +386,8 @@ function DiagramSheet({ mode }: { mode: Mode }) {
   const notes = {
     plain:
       "A request leaves the web app, hits its route, and reaches Postgres. Flow particles show direction; a dotted edge keeps the call that couldn't be resolved.",
-    trace: "The request path in the trace color with flow along it; everything else dims to 20%.",
+    trace:
+      "The request path in the trace color with flow along it, the current hop (route → handler) strongest; everything else dims to 20%.",
     diff: "A pull request removed DELETE /api/orders/:id while the web app still calls it: the broken edge pulses in red and says why. The Stripe call is new.",
   };
   return (

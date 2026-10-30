@@ -442,17 +442,25 @@
   text-decoration-color: var(--diff-removed);
 }
 
-/* State: traced (on the request path) */
+/*
+ * State: traced (on the request path) and current (an end of the hop the
+ * player is on). The rest of the path keeps a quiet trace hairline so the
+ * current hop's ring, glow, and tint are clearly the strongest thing on it.
+ */
 
 .gi-node[data-emphasis="traced"] {
   --gi-node-border: var(--trace);
-  --gi-state-shadow: 0 0 0 1px var(--trace),
-    0 0 0 5px color-mix(in srgb, var(--trace) 18%, transparent);
 }
 
-.gi-node[data-tier="card"][data-emphasis="traced"],
-.gi-node[data-expanded="false"][data-emphasis="traced"] {
-  --gi-node-bg: color-mix(in srgb, var(--trace) 6%, var(--surface-1));
+.gi-node[data-emphasis="current"] {
+  --gi-node-border: var(--trace);
+  --gi-state-shadow: 0 0 0 1px var(--trace),
+    0 0 0 6px color-mix(in srgb, var(--trace) 24%, transparent);
+}
+
+.gi-node[data-tier="card"][data-emphasis="current"],
+.gi-node[data-expanded="false"][data-emphasis="current"] {
+  --gi-node-bg: color-mix(in srgb, var(--trace) 10%, var(--surface-1));
 }
 
 /* State: dimmed (off the request path). Hover brings it partway back. */
@@ -477,13 +485,18 @@
   --gi-node-bg: color-mix(in srgb, var(--accent) 9%, var(--surface-1));
 }
 
-.gi-node[data-selected][data-emphasis="traced"] {
+.gi-node[data-selected][data-emphasis="current"] {
   --gi-state-shadow: 0 0 0 1px var(--accent),
-    0 0 0 5px color-mix(in srgb, var(--trace) 22%, transparent);
+    0 0 0 6px color-mix(in srgb, var(--trace) 24%, transparent);
 }
 
 /* The lip follows the border color so a selected closed frame reads as one object. */
-.gi-node[data-expanded="false"]:is([data-selected], [data-emphasis="traced"], [data-diff]) {
+.gi-node[data-expanded="false"]:is(
+    [data-selected],
+    [data-emphasis="traced"],
+    [data-emphasis="current"],
+    [data-diff]
+  ) {
   --gi-lip: 0 6px 0 -4px var(--gi-node-bg),
     0 6px 0 -3px color-mix(in srgb, var(--gi-node-border) 60%, var(--border));
 }

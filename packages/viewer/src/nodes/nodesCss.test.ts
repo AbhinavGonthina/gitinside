@@ -23,12 +23,24 @@ describe("nodes.css", () => {
     for (const t of transitions) expect(t).not.toMatch(/\d+m?s\b/);
   });
 
-  it.each(["data-hover", "data-selected", 'data-emphasis="dimmed"', 'data-emphasis="traced"'])(
-    "styles the %s state",
-    (attr) => {
-      expect(css).toContain(`[${attr}]`);
-    },
-  );
+  it.each([
+    "data-hover",
+    "data-selected",
+    'data-emphasis="dimmed"',
+    'data-emphasis="traced"',
+    'data-emphasis="current"',
+  ])("styles the %s state", (attr) => {
+    expect(css).toContain(`[${attr}]`);
+  });
+
+  it("rings only the current hop's nodes; the rest of the path keeps a hairline (design gate)", () => {
+    const rule = (emphasis: string) =>
+      new RegExp(`\\.gi-node\\[data-emphasis="${emphasis}"\\] \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+    expect(rule("current")).toContain("--gi-state-shadow");
+    expect(rule("current")).toContain("--gi-node-border: var(--trace);");
+    expect(rule("traced")).not.toContain("--gi-state-shadow");
+    expect(rule("traced")).toContain("--gi-node-border: var(--trace);");
+  });
 
   it.each(["added", "changed", "removed"])("styles the %s diff state", (diff) => {
     expect(css).toContain(`.gi-node[data-diff="${diff}"]`);

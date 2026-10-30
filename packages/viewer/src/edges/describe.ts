@@ -1,5 +1,11 @@
 import type { Confidence, EdgeKind, GraphEdge } from "@gitinside/schema";
-import { DIFF_TEXT, REASON_TEXT, type NodeDiff, type NodeEmphasis } from "../nodes/describe.js";
+import {
+  DIFF_TEXT,
+  EMPHASIS_TEXT,
+  REASON_TEXT,
+  type NodeDiff,
+  type NodeEmphasis,
+} from "../nodes/describe.js";
 
 /**
  * Words and line styles for drawing an edge (DESIGN_SYSTEM.md §3). Like the
@@ -135,7 +141,7 @@ export function edgeAccessibleName(
     CONFIDENCE_TEXT[edge.confidence],
   ];
   if (options.selected) out.push("Selected");
-  if (options.emphasis === "traced") out.push("On the request path");
+  if (options.emphasis && options.emphasis !== "dimmed") out.push(EMPHASIS_TEXT[options.emphasis]);
   if (options.diff) out.push(`${DIFF_TEXT[options.diff]} in this change`);
   if (options.broken) out.push(`Broken: ${options.broken}`);
   return out.join(". ");

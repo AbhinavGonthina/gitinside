@@ -143,24 +143,39 @@ describe("ExplorerPrototype", () => {
     expect(heading().textContent).toBe("page /checkout renders Checkout");
     expect(screen.getByText(/Happens inside @shop\/web; break it down to watch it/)).toBeTruthy();
     expect(screen.getByText("Tracing")).toBeTruthy();
-    expect(node("@shop/web")?.getAttribute("data-emphasis")).toBe("traced");
+    // The first hop happens inside @shop/web, so that box is the current hop.
+    const emphasis = (label: string) => node(label)?.getAttribute("data-emphasis");
+    expect(emphasis("@shop/web")).toBe("current");
+    expect(emphasis("@shop/api")).toBe("traced");
     expect(container.querySelectorAll(".gi-edge[data-emphasis='traced']")).toHaveLength(3);
+    expect(container.querySelectorAll(".gi-edge[data-emphasis='current']")).toHaveLength(0);
     expect(container.querySelectorAll(".gi-edge__particle").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /Next step/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next step/ }));
     expect(heading().textContent).toBe("placeOrder requests POST /api/orders");
     expect(screen.getByText(/Heuristic match\. Goes from @shop\/web to @shop\/api/)).toBeTruthy();
-    expect(container.querySelector(".gi-edge[data-selected]")?.getAttribute("data-kind")).toBe(
-      "http",
-    );
+    // The hop's two ends and its edge are current; the rest of the path stays traced.
+    expect(emphasis("@shop/web")).toBe("current");
+    expect(emphasis("@shop/api")).toBe("current");
+    expect(emphasis("db")).toBe("traced");
+    const hop = container.querySelectorAll(".gi-edge[data-emphasis='current']");
+    expect([...hop].map((e) => e.getAttribute("data-kind"))).toEqual(["http"]);
+    expect(container.querySelectorAll(".gi-edge[data-emphasis='traced']")).toHaveLength(2);
+    expect(container.querySelector(".gi-edge-label[data-emphasis='current']")).not.toBeNull();
+    // The trace owns the edges' look; nothing is drawn as selected meanwhile.
+    expect(container.querySelector(".gi-edge[data-selected]")).toBeNull();
+    expect(hop[0]?.getAttribute("aria-label")).toMatch(/Current step of the request path$/);
     expect(screen.getByText("const res = await fetch(`${API_URL}/api/orders`, {")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     expect(heading().textContent).toBe("Checkout calls placeOrder");
     fireEvent.click(screen.getByRole("button", { name: /createOrder writes Order/ }));
     expect(screen.getByText("Step 5 of 8")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Break down @shop\/api/ }));
-    expect(node("src")?.getAttribute("data-emphasis")).toBe("traced");
+    // Inside the service, the boxes holding the hop's ends are current, the open frame neither.
+    expect(emphasis("src")).toBe("current");
+    expect(emphasis("prisma")).toBe("current");
+    expect(emphasis("@shop/web")).toBe("traced");
     expect(node("@shop/api")?.hasAttribute("data-emphasis")).toBe(false);
     // Inside a module the prototype can't open, it doesn't offer to.
     fireEvent.click(screen.getByRole("button", { name: /handled by createOrder/ }));
