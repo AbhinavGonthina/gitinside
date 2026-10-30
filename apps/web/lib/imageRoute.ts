@@ -1,7 +1,5 @@
-import { findPublishedAnalysis } from "@gitinside/db";
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
 import { badgeMessage, renderBadge, renderDiagram, type ImageTheme } from "@gitinside/viewer/image";
-import { StorageError, type ObjectStore } from "@gitinside/worker/storage";
 import { IMAGE_CSP } from "./csp";
 import { parseRepoPath } from "./repoUrl";
 import { viewRepo, type RepoViewDeps } from "./repoView";
@@ -25,6 +23,10 @@ import { viewRepo, type RepoViewDeps } from "./repoView";
  * - **Cached 10 minutes** by browsers, GitHub's image proxy, and the CDN
  *   ({@link IMAGE_CACHE_CONTROL}), so a busy README costs one lookup per 10 minutes. When
  *   something failed on our side the link-only badge is cached for a minute only.
+ * - **The graph comes through the CDN** ({@link cdnGraphReader}, ADR-0097): the image asks
+ *   our own `/api/graph` URL, cached a day, instead of the bucket, so the bucket is read
+ *   about once per commit per day per CDN region however often the image is drawn (Oracle's
+ *   free tier allows 50,000 requests a month, ADR-0096).
  * - **Always an image:** an `<img>` can't show an error page, so failures are logged by
  *   name and answered with the link-only badge, never a 5xx. Only a path that isn't one of
  *   our image URLs (no `.svg`) is a 404.
@@ -32,10 +34,35 @@ import { viewRepo, type RepoViewDeps } from "./repoView";
  *   origin, so it may not run scripts or load anything.
  */
 
-/** What the image routes read: everything {@link viewRepo} needs, and the snapshot bucket. */
+/** What the image routes read: everything {@link viewRepo} needs, and the graphs. */
 export interface ImageRouteDeps {
   view: RepoViewDeps;
-  store: Pick<ObjectStore, "get">;
+  /** The answer of `GET <path>`, `path` being a view's `graphUrl` ({@link cdnGraphReader}). */
+  graph: (path: string) => Promise<Response>;
+}
+
+/** How long an image waits for its graph before it gives up (the link-only badge). */
+export const GRAPH_READ_TIMEOUT_MS = 10_000;
+
+/**
+ * Read graphs from `origin`'s `/api/graph` (ADR-0097), through the CDN that caches it a day.
+ * `origin` is the image request's own: on Vercel a request only reaches this function
+ * through one of the project's hosts, so this never asks another site.
+ */
+export function cdnGraphReader(
+  origin: string,
+  fetchImpl: typeof fetch = fetch,
+): ImageRouteDeps["graph"] {
+  const base = new URL(origin);
+  return async (path) => {
+    const url = new URL(path, base);
+    // `graphUrl` is always a path; a `//host/…` one would leave our origin.
+    if (url.origin !== base.origin) throw new TypeError("graph path leaves the origin");
+    return fetchImpl(url, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(GRAPH_READ_TIMEOUT_MS),
+    });
+  };
 }
 
 /** Which image a route serves. */
@@ -66,44 +93,33 @@ function linkOnly(cacheControl = IMAGE_CACHE_CONTROL): Response {
   return svg(renderBadge({ message: LINK_ONLY_MESSAGE, tone: "muted" }), cacheControl);
 }
 
-/** Log one failure by name (and S3 status/code) only: a message can carry connection details. */
-function logFailure(event: string, error: unknown): void {
-  const fields =
-    error instanceof StorageError
-      ? { status: error.status ?? null, s3Code: error.s3Code ?? null }
-      : {};
-  console.error(
-    JSON.stringify({ event, error: error instanceof Error ? error.name : "unknown", ...fields }),
-  );
-}
-
 /** `?theme=`: `dark`, `light`, or `auto` for anything else (GitHub's `<picture>` asks for one). */
 export function imageTheme(value: string | null | undefined): ImageTheme {
   return THEMES.find((t) => t === value) ?? "auto";
 }
 
-/** The newest finished analysis of the commit `view` settled on, read and schema-checked. */
+/**
+ * The graph `view` settled on, from its `graphUrl` (the stored spelling, so every case
+ * variant of an image shares one cache entry), schema-checked. `undefined`, logged by
+ * status, when `/api/graph` doesn't answer with one.
+ */
 async function loadGraph(
-  ref: { owner: string; repo: string; sha: string },
+  graphUrl: string,
   deps: ImageRouteDeps,
 ): Promise<ArchitectureGraph | undefined> {
-  const published = await findPublishedAnalysis(deps.view.db, {
-    owner: ref.owner,
-    name: ref.repo,
-    sha: ref.sha,
-  });
-  if (published === undefined) return undefined;
-  const object = await deps.store.get(published.analysis.snapshotKey);
-  if (object === undefined) {
-    console.error(JSON.stringify({ event: "image_object_missing" }));
+  const response = await deps.graph(graphUrl);
+  if (response.status !== 200) {
+    await response.body?.cancel();
+    console.error(JSON.stringify({ event: "image_graph_unavailable", status: response.status }));
     return undefined;
   }
-  return parseGraph(JSON.parse(await new Response(object.body).text()));
+  return parseGraph(JSON.parse(await response.text()));
 }
 
 /**
  * Answer one image request. `params.repo` is the path's last segment, `.svg` included.
- * `deps` is `undefined` when the database or the bucket isn't configured.
+ * `deps` is `undefined` when the database isn't configured (without the bucket,
+ * `/api/graph` answers 503 and the image is the link-only badge for a minute).
  */
 export async function handleImageRequest(
   kind: ImageKind,
@@ -124,7 +140,7 @@ export async function handleImageRequest(
   try {
     const view = await viewRepo(ref, deps.view);
     if (view.status !== "ready") return linkOnly();
-    const graph = await loadGraph(view, deps);
+    const graph = await loadGraph(view.graphUrl, deps);
     if (graph === undefined) return linkOnly(FAILED_IMAGE_CACHE_CONTROL);
     const body =
       kind === "badge"
@@ -132,7 +148,13 @@ export async function handleImageRequest(
         : renderDiagram(graph, { theme: imageTheme(options.theme) });
     return svg(body, IMAGE_CACHE_CONTROL);
   } catch (error) {
-    logFailure(error instanceof StorageError ? "image_read_failed" : "image_failed", error);
+    // By name only: a message can carry connection details.
+    console.error(
+      JSON.stringify({
+        event: "image_failed",
+        error: error instanceof Error ? error.name : "unknown",
+      }),
+    );
     return linkOnly(FAILED_IMAGE_CACHE_CONTROL);
   }
 }

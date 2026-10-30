@@ -7,9 +7,11 @@
  * cacheable `308` to the canonical URL before anything is looked up, so a loop of made-up
  * queries costs one redirect each and never reaches the database.
  *
- * Not handled: case variants of the owner and repo in the path (`/Acme/shop` vs.
+ * Not handled here: case variants of the owner and repo in the path (`/Acme/shop` vs.
  * `/acme/shop`) are distinct cache keys that each reach the database; they're bounded by the
- * name's length, not unbounded like a query.
+ * name's length, not unbounded like a query. None of them costs its own bucket read:
+ * `/api/graph` redirects them to the stored spelling first, and the images read the graph
+ * by that spelling (ADR-0097).
  */
 
 /** Cache headers of a redirect to the canonical URL (it never changes). */

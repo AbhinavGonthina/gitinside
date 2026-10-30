@@ -2,6 +2,7 @@ import { findPublishedAnalysis, type AnyDatabase } from "@gitinside/db";
 import { StorageError, type ObjectStore } from "@gitinside/worker/storage";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import { parseRepoPath } from "./repoUrl";
+import { graphPath } from "./repoView";
 
 /**
  * `GET /api/graph/:owner/:repo/:sha` (docs/DESIGN.md §11, ADR-0068): one commit's
@@ -16,6 +17,10 @@ import { parseRepoPath } from "./repoUrl";
  * - **Cached by the CDN** for a day (`s-maxage`) and by browsers for 5 minutes: a commit's
  *   graph only changes when a newer analyzer version re-analyzes it, and serving the older
  *   one for a while is harmless. Errors are `no-store`.
+ * - **One URL per graph** (ADR-0097): a path spelled differently from the stored repo
+ *   (`/api/graph/ACME/shop/…` for `Acme/Shop`) is a `308` to the stored spelling, answered
+ *   after the database lookup but before any bucket read, so case variants share one
+ *   cache entry and one bucket read instead of one each.
  */
 
 /** What the route reads: the analysis rows and the snapshot bucket. */
@@ -26,6 +31,12 @@ export interface GraphRouteDeps {
 
 /** Cache headers of a served graph. */
 export const GRAPH_CACHE_CONTROL = "public, max-age=300, s-maxage=86400";
+/**
+ * Cache headers of the redirect to the stored spelling: an hour, not a day, since a repo
+ * renamed in case only (`Shop` → `shop`) makes the old redirect point back at a path that
+ * now redirects to it, until the cached one expires.
+ */
+export const SPELLING_REDIRECT_CACHE_CONTROL = "public, max-age=300, s-maxage=3600";
 
 const SHA = /^[0-9a-f]{40}$/;
 const NOT_FOUND = {
@@ -70,6 +81,16 @@ export async function handleGraphRequest(
       sha: params.sha,
     });
     if (published === undefined) return json(404, NOT_FOUND);
+    const { owner, name } = published.repo;
+    if (owner !== ref.owner || name !== ref.repo) {
+      return new Response(null, {
+        status: 308,
+        headers: {
+          location: graphPath(owner, name, params.sha),
+          "cache-control": SPELLING_REDIRECT_CACHE_CONTROL,
+        },
+      });
+    }
     const object = await deps.store.get(published.analysis.snapshotKey);
     if (object === undefined) {
       // A `done` row always had its object; retention (M5.12) or a manual delete removed it.

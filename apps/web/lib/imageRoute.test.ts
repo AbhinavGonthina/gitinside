@@ -15,9 +15,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import shopDemo from "../../../fixtures/shop-demo/expected.json";
 import { IMAGE_CSP } from "./csp";
 import { fakeGitHub, type FakeGitHub, type FakeRepo } from "./github.testkit";
+import { handleGraphRequest } from "./graphRoute";
 import {
   FAILED_IMAGE_CACHE_CONTROL,
+  GRAPH_READ_TIMEOUT_MS,
   IMAGE_CACHE_CONTROL,
+  cdnGraphReader,
   LINK_ONLY_MESSAGE,
   handleImageRequest,
   imageTheme,
@@ -39,6 +42,7 @@ let shop: FakeRepo;
 let gh: FakeGitHub;
 let objects: Map<string, string>;
 let reads: string[];
+let graphPaths: string[];
 let enqueued: AnalyzeJob[];
 let failure: Error | undefined;
 let deps: ImageRouteDeps;
@@ -57,6 +61,7 @@ beforeEach(async () => {
   gh = fakeGitHub([shop]);
   objects = new Map([[key(OLD), JSON.stringify(shopDemo)]]);
   reads = [];
+  graphPaths = [];
   enqueued = [];
   failure = undefined;
   const worker: Pick<WorkerClient, "enqueue"> = {
@@ -73,14 +78,27 @@ beforeEach(async () => {
       analyzerVersion: VERSION,
       heads: createHeadCache(),
     },
-    store: {
-      async get(k): Promise<ObjectBody | undefined> {
-        reads.push(k);
-        if (failure) throw failure;
-        const text = objects.get(k);
-        if (text === undefined) return undefined;
-        return { body: new Response(text).body!, contentType: "application/json" };
-      },
+    // The real `/api/graph` handler over a fake bucket, as the CDN would reach it.
+    async graph(path) {
+      graphPaths.push(path);
+      const [, owner, repo, sha] = /^\/api\/graph\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(path)!;
+      const params = {
+        owner: decodeURIComponent(owner!),
+        repo: decodeURIComponent(repo!),
+        sha: sha!,
+      };
+      return handleGraphRequest(params, {
+        db: t.db,
+        store: {
+          async get(k): Promise<ObjectBody | undefined> {
+            reads.push(k);
+            if (failure) throw failure;
+            const text = objects.get(k);
+            if (text === undefined) return undefined;
+            return { body: new Response(text).body!, contentType: "application/json" };
+          },
+        },
+      });
     },
   };
 });
@@ -122,6 +140,8 @@ describe("handleImageRequest", () => {
     expectImage(response, IMAGE_CACHE_CONTROL);
     expect(await response.text()).toBe(renderBadge({ message: badgeMessage(GRAPH) }));
     expect(badgeMessage(GRAPH)).toMatch(/^\d+ services? · /);
+    // Through the day-cached graph URL in the stored spelling, never the bucket directly.
+    expect(graphPaths).toEqual([`/api/graph/Acme/Shop/${OLD}`]);
     expect(reads).toEqual([key(OLD)]);
     expect(enqueued).toEqual([]);
   });
@@ -211,20 +231,35 @@ describe("handleImageRequest", () => {
     expect(await response.text()).toBe(LINK_ONLY);
   });
 
-  it("is the link-only badge for a minute when storage fails, logging status and code only", async () => {
+  it("is the link-only badge for a minute when storage fails, logging the graph's status", async () => {
     await publish();
     failure = new StorageError("GET answered 403 AccessDenied", 403, "AccessDenied");
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const response = await diagram();
     expectImage(response, FAILED_IMAGE_CACHE_CONTROL);
     expect(await response.text()).toBe(LINK_ONLY);
+    expect(log).toHaveBeenLastCalledWith(
+      JSON.stringify({ event: "image_graph_unavailable", status: 503 }),
+    );
+  });
+
+  it("is the link-only badge for a minute when the graph can't be fetched, logged by name", async () => {
+    await publish();
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const timedOut: ImageRouteDeps = {
+      ...deps,
+      graph: () => Promise.reject(new DOMException("The operation timed out.", "TimeoutError")),
+    };
+    const response = await handleImageRequest(
+      "badge",
+      { owner: "acme", repo: "shop.svg" },
+      {},
+      timedOut,
+    );
+    expectImage(response, FAILED_IMAGE_CACHE_CONTROL);
+    expect(await response.text()).toBe(LINK_ONLY);
     expect(log).toHaveBeenCalledWith(
-      JSON.stringify({
-        event: "image_read_failed",
-        error: "StorageError",
-        status: 403,
-        s3Code: "AccessDenied",
-      }),
+      JSON.stringify({ event: "image_failed", error: "TimeoutError" }),
     );
   });
 
@@ -233,7 +268,9 @@ describe("handleImageRequest", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
     objects.clear();
     expectImage(await badge(), FAILED_IMAGE_CACHE_CONTROL);
-    expect(log).toHaveBeenCalledWith(JSON.stringify({ event: "image_object_missing" }));
+    expect(log).toHaveBeenLastCalledWith(
+      JSON.stringify({ event: "image_graph_unavailable", status: 404 }),
+    );
 
     objects.set(key(OLD), '{"nodes":"</svg><script>"}');
     const response = await badge();
@@ -260,5 +297,28 @@ describe("handleImageRequest", () => {
     const response = await handleImageRequest("badge", { owner: "a", repo: "b.svg" }, {}, broken);
     expectImage(response, FAILED_IMAGE_CACHE_CONTROL);
     expect(log).toHaveBeenCalledWith(JSON.stringify({ event: "image_failed", error: "TypeError" }));
+  });
+});
+
+describe("cdnGraphReader", () => {
+  it("asks the image's own origin for the graph, with a timeout", async () => {
+    const calls: { url: string; init: RequestInit | undefined }[] = [];
+    const read = cdnGraphReader("https://gitinside.test", async (input, init) => {
+      calls.push({ url: String(input), init });
+      return new Response("{}");
+    });
+    await read(`/api/graph/Acme/Shop/${OLD}`);
+    expect(calls.map((c) => c.url)).toEqual([`https://gitinside.test/api/graph/Acme/Shop/${OLD}`]);
+    expect(calls[0]?.init?.headers).toEqual({ accept: "application/json" });
+    expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
+    expect(GRAPH_READ_TIMEOUT_MS).toBe(10_000);
+  });
+
+  it("never leaves the origin", async () => {
+    const fetchSpy = vi.fn(async () => new Response("{}"));
+    const read = cdnGraphReader("https://gitinside.test", fetchSpy);
+    await expect(read("//evil.example/api/graph/a/b/c")).rejects.toThrow(TypeError);
+    await expect(read("https://evil.example/x")).rejects.toThrow(TypeError);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

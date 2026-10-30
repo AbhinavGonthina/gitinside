@@ -9,7 +9,7 @@ afterEach(() => {
 const params = (repo: string) => ({ params: Promise.resolve({ owner: "acme", repo }) });
 
 describe("GET /api/diagram/:owner/:repo.svg", () => {
-  it("is the link-only badge until the database and bucket are configured", async () => {
+  it("is the link-only badge until the database is configured", async () => {
     vi.stubEnv("DATABASE_URL", "");
     const url = "https://gitinside.test/api/diagram/acme/shop.svg?theme=dark";
     const response = await GET(new Request(url), params("shop.svg"));
