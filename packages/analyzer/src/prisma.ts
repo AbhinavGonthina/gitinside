@@ -40,7 +40,11 @@
  * - Fields: top-level keys of `select`, `include`, `omit`, `where` (through `AND`/`OR`/
  *   `NOT`), `having`, `orderBy`, `cursor`, `distinct`, `by`, `data`, `create`, `update`,
  *   and the aggregate selectors (`_count`, …) that name a field of the model are listed in
- *   the edge's `fields`, sorted.
+ *   the edge's `fields`, sorted. Names there that the model lacks are kept on the call's
+ *   site as `missingFields` (a removed or misspelled field, which the diff flags as
+ *   `FIELD_REMOVED`, ADR-0088), except `AND`/`OR`/`NOT`, `_`-prefixed selectors, and
+ *   compound unique keys whose `_`-separated parts are all fields (`email_tenantId`). A
+ *   named compound key (`@@unique(name: "…")`) is listed as missing.
  * - Raw queries: `$queryRaw`, `$queryRawUnsafe`, `$queryRawTyped` (reads) and `$executeRaw`,
  *   `$executeRawUnsafe`, `$runCommandRaw` (writes) on a traced client, tagged or called,
  *   become `unresolved` nodes with reason `RAW_QUERY`, because the model is unknown.
@@ -68,6 +72,7 @@ import {
   edgeId,
   nodeId,
   type AnalysisWarning,
+  type CallSite,
   type Confidence,
   type GraphEdge,
   type GraphNode,
@@ -338,14 +343,31 @@ function propertyText(name: ts.PropertyName | undefined): string | undefined {
 }
 
 /**
- * The fields of a model a query argument names (see the file comment for which keys count),
- * sorted. Only names in `fields` are kept, so `AND`, `_count`, and typos drop out.
+ * Whether a key a query uses as a field name is something else Prisma accepts there:
+ * `AND`/`OR`/`NOT`, an `_`-prefixed selector (`_count`, `_all`, `_relevance`), or a
+ * compound unique key made of the model's fields (`email_tenantId`).
  */
-export function namedFields(
+function isQueryKeyword(name: string, fields: ReadonlySet<string>): boolean {
+  if (LOGICAL_KEYS.has(name) || name.startsWith("_")) return true;
+  const parts = name.split("_");
+  return parts.length > 1 && parts.every((part) => fields.has(part));
+}
+
+/**
+ * The names a query argument uses as fields of a model (see the file comment for which
+ * keys count), sorted: `named` are fields the model has, `missing` are names it lacks (a
+ * removed or misspelled field) that aren't query keywords (see {@link isQueryKeyword}).
+ */
+export function fieldUse(
   argument: ts.Expression | undefined,
   fields: ReadonlySet<string>,
-): string[] {
+): { named: string[]; missing: string[] } {
   const found = new Set<string>();
+  const missing = new Set<string>();
+  const use = (name: string): void => {
+    if (fields.has(name)) found.add(name);
+    else if (!isQueryKeyword(name, fields)) missing.add(name);
+  };
   const collect = (expression: ts.Expression, logical: boolean): void => {
     const e = unwrap(expression);
     if (ts.isArrayLiteralExpression(e)) {
@@ -353,7 +375,7 @@ export function namedFields(
       return;
     }
     if (ts.isStringLiteralLike(e)) {
-      if (fields.has(e.text)) found.add(e.text);
+      use(e.text);
       return;
     }
     if (!ts.isObjectLiteralExpression(e)) return;
@@ -363,21 +385,22 @@ export function namedFields(
       }
       const name = propertyText(property.name);
       if (name === undefined) continue;
-      if (fields.has(name)) found.add(name);
-      else if (logical && LOGICAL_KEYS.has(name) && ts.isPropertyAssignment(property)) {
+      if (logical && LOGICAL_KEYS.has(name) && ts.isPropertyAssignment(property)) {
         collect(property.initializer, true);
+      } else {
+        use(name);
       }
     }
   };
   const top = argument && unwrap(argument);
-  if (!top || !ts.isObjectLiteralExpression(top)) return [];
+  if (!top || !ts.isObjectLiteralExpression(top)) return { named: [], missing: [] };
   for (const property of top.properties) {
     if (!ts.isPropertyAssignment(property)) continue;
     const key = propertyText(property.name);
     if (key === undefined || !FIELD_KEYS.has(key)) continue;
     collect(property.initializer, key === "where" || key === "having");
   }
-  return [...found].sort(compareStrings);
+  return { named: [...found].sort(compareStrings), missing: [...missing].sort(compareStrings) };
 }
 
 /** The location of a node's first token. */
@@ -845,7 +868,7 @@ function scanClientCalls(
     from: string,
     to: string,
     confidence: Confidence,
-    site: SourceLocation,
+    site: CallSite,
     fields: readonly string[],
     reason?: UnresolvedReason,
   ): void => {
@@ -956,9 +979,10 @@ function scanClientCalls(
             addEdge(kind, owner, id, "unresolved", site, [], found.reason);
           return;
         }
-        const fields = namedFields(call.arguments[0], found.model.fields);
+        const { named, missing } = fieldUse(call.arguments[0], found.model.fields);
+        const used: CallSite = missing.length > 0 ? { ...site, missingFields: missing } : site;
         for (const owner of owners) {
-          addEdge(kind, owner, found.model.id, found.confidence, site, fields);
+          addEdge(kind, owner, found.model.id, found.confidence, used, named);
         }
       };
 

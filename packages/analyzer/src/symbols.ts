@@ -18,6 +18,8 @@ export interface ExtractedSymbol {
   exported: boolean;
   /** Qualified name of the containing class, for methods. */
   parent?: string;
+  /** Arguments a call must pass (see {@link requiredParameters}), when known. */
+  requiredParams?: number;
   /** The declaration node. Its span is the symbol's source location; later passes use it for calls. */
   node: ts.Node;
 }
@@ -87,6 +89,48 @@ function commonJsExport(
   return undefined;
 }
 
+/**
+ * How many arguments a call to `fn` must pass, as TypeScript counts them: the position
+ * of the last parameter without `?`, a default, or `...`. A `this` parameter isn't one.
+ */
+export function requiredParameters(fn: ts.SignatureDeclaration): number {
+  const positional = fn.parameters.filter(
+    (p) => !(ts.isIdentifier(p.name) && p.name.text === "this"),
+  );
+  let required = 0;
+  positional.forEach((p, i) => {
+    if (!p.questionToken && !p.initializer && !p.dotDotDotToken) required = i + 1;
+  });
+  return required;
+}
+
+/**
+ * The required argument count of a function, method, arrow, or class value (its own
+ * constructor's; none and no `extends` means 0), else undefined: other values, a class
+ * with several constructor signatures, or one that inherits its constructor.
+ */
+function callableParameters(value: ts.Node | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const node = ts.isExpression(value) ? unwrap(value) : value;
+  if (
+    ts.isFunctionDeclaration(node) ||
+    ts.isFunctionExpression(node) ||
+    ts.isArrowFunction(node) ||
+    ts.isMethodDeclaration(node)
+  ) {
+    return requiredParameters(node);
+  }
+  if (!ts.isClassLike(node)) return undefined;
+  const constructors = node.members.filter(ts.isConstructorDeclaration);
+  const [only] = constructors;
+  if (constructors.length > 1) return undefined;
+  if (only) return requiredParameters(only);
+  const extendsSomething = (node.heritageClauses ?? []).some(
+    (c) => c.token === ts.SyntaxKind.ExtendsKeyword,
+  );
+  return extendsSomething ? undefined : 0;
+}
+
 /** Identifiers bound by a declaration name, including every name in a destructuring pattern. */
 function boundNames(name: ts.BindingName): ts.Identifier[] {
   if (ts.isIdentifier(name)) return [name];
@@ -115,6 +159,10 @@ function boundNames(name: ts.BindingName): ts.Identifier[] {
  *   default exports). In a `module.exports = { … }` object, function values and methods are
  *   functions, class values are classes, and other values are variables.
  * - On name collisions the first declaration wins.
+ * - `requiredParams` for functions, methods, function-valued variables and properties, and
+ *   classes (their constructor), in TypeScript files only: in JavaScript every parameter is
+ *   optional to the checker, so a count would claim more than the code does. Overloaded
+ *   functions and methods get none (callers see the overloads, not the implementation).
  *
  * Not handled: nested declarations (functions inside functions, namespaces, blocks);
  * constructors (`new X()` resolves to the class) and get/set accessors; computed or empty
@@ -156,6 +204,19 @@ export function extractSymbols(sourceFile: ts.SourceFile): ExtractedSymbol[] {
   }
 
   // Pass 2: declarations, in order.
+  const javascript = /\.[cm]?jsx?$/.test(sourceFile.fileName);
+  /** The `requiredParams` part of a symbol whose callable value is `value`. */
+  const params = (value: ts.Node | undefined, overloaded = false): { requiredParams?: number } => {
+    const count = javascript || overloaded ? undefined : callableParameters(value);
+    return count === undefined ? {} : { requiredParams: count };
+  };
+  const functionNames = new Map<string, number>();
+  for (const statement of sourceFile.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.name) {
+      const name = statement.name.text;
+      functionNames.set(name, (functionNames.get(name) ?? 0) + 1);
+    }
+  }
   const symbols: ExtractedSymbol[] = [];
   const seen = new Set<string>();
   const add = (symbol: ExtractedSymbol): void => {
@@ -170,7 +231,12 @@ export function extractSymbols(sourceFile: ts.SourceFile): ExtractedSymbol[] {
     node: ts.Node,
   ): void => {
     if (name === "" || seen.has(name)) return;
-    add({ qualified: name, name, symbolKind: "class", exported, node });
+    add({ qualified: name, name, symbolKind: "class", exported, node, ...params(declaration) });
+    const memberNames = new Map<string, number>();
+    for (const member of declaration.members) {
+      const text = ts.isMethodDeclaration(member) ? propertyName(member.name) : undefined;
+      if (text !== undefined) memberNames.set(text, (memberNames.get(text) ?? 0) + 1);
+    }
     for (const member of declaration.members) {
       const isMethod = ts.isMethodDeclaration(member)
         ? member.body !== undefined || hasModifier(member, ts.SyntaxKind.AbstractKeyword)
@@ -187,6 +253,9 @@ export function extractSymbols(sourceFile: ts.SourceFile): ExtractedSymbol[] {
         exported,
         parent: name,
         node: member,
+        ...(ts.isMethodDeclaration(member)
+          ? params(member, (memberNames.get(memberName) ?? 0) > 1)
+          : params(ts.isPropertyDeclaration(member) ? member.initializer : undefined)),
       });
     }
   };
@@ -197,9 +266,10 @@ export function extractSymbols(sourceFile: ts.SourceFile): ExtractedSymbol[] {
     if (kind === "class" && ts.isClassExpression(e)) {
       addClass(e.name?.text ?? name, e, true, node);
     } else if (kind === "function" && ts.isFunctionExpression(e) && e.name) {
-      add({ qualified: e.name.text, name: e.name.text, symbolKind: kind, exported: true, node });
+      const own = e.name.text;
+      add({ qualified: own, name: own, symbolKind: kind, exported: true, node, ...params(e) });
     } else {
-      add({ qualified: name, name, symbolKind: kind, exported: true, node });
+      add({ qualified: name, name, symbolKind: kind, exported: true, node, ...params(e) });
     }
   };
 
@@ -216,6 +286,7 @@ export function extractSymbols(sourceFile: ts.SourceFile): ExtractedSymbol[] {
         symbolKind: "function",
         exported: exportModifier || exportedNames.has(name),
         node: statement,
+        ...params(statement, (functionNames.get(name) ?? 0) > 1),
       });
     } else if (ts.isClassDeclaration(statement)) {
       const name = statement.name?.text ?? "default";
@@ -242,7 +313,14 @@ export function extractSymbols(sourceFile: ts.SourceFile): ExtractedSymbol[] {
         if (kind === "class" && init) {
           addClass(name, unwrap(init) as ts.ClassExpression, exported, declaration);
         } else if (kind === "function" || exported) {
-          add({ qualified: name, name, symbolKind: kind, exported, node: declaration });
+          add({
+            qualified: name,
+            name,
+            symbolKind: kind,
+            exported,
+            node: declaration,
+            ...params(init),
+          });
         }
       }
     } else if (ts.isExportAssignment(statement)) {
@@ -268,6 +346,7 @@ export function extractSymbols(sourceFile: ts.SourceFile): ExtractedSymbol[] {
                 symbolKind: "function",
                 exported: true,
                 node: property,
+                ...params(property),
               });
             }
           } else if (ts.isPropertyAssignment(property)) {
@@ -312,6 +391,7 @@ export function buildSymbolNodes(programs: readonly ServiceProgram[]): GraphNode
               : symbolNodeId(sp.service, file, symbol.parent),
           symbolKind: symbol.symbolKind,
           exported: symbol.exported,
+          ...(symbol.requiredParams === undefined ? {} : { requiredParams: symbol.requiredParams }),
           source: {
             file,
             line: start.line + 1,

@@ -8,12 +8,28 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 1,
           "column": 10,
           "file": "src/client.ts",
           "line": 20
         }
       ],
       "to": "symbol:diff-broken/src/legacy.ts#formatCents"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:diff-broken/src/pricing.ts#quote",
+      "id": "calls:symbol:diff-broken/src/pricing.ts#quote->symbol:diff-broken/src/pricing.ts#withTax",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/pricing.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:diff-broken/src/pricing.ts#withTax"
     },
     {
       "confidence": "exact",
@@ -206,6 +222,23 @@
     },
     {
       "confidence": "exact",
+      "fields": [
+        "status"
+      ],
+      "from": "symbol:diff-broken/src/handlers.ts#openOrders",
+      "id": "reads:symbol:diff-broken/src/handlers.ts#openOrders->model:diff-broken/Order",
+      "kind": "reads",
+      "sites": [
+        {
+          "column": 23,
+          "file": "src/handlers.ts",
+          "line": 26
+        }
+      ],
+      "to": "model:diff-broken/Order"
+    },
+    {
+      "confidence": "exact",
       "from": "model:diff-broken/Invoice",
       "id": "stores:model:diff-broken/Invoice->datastore:infra/diff-broken/prisma/schema.prisma#db",
       "kind": "stores",
@@ -282,7 +315,7 @@
       }
     },
     {
-      "hash": "1d1a4a5b8ec57f9a1aeae93acc5e0e4e88d50421a4df6660b1170af7a5ad88cd",
+      "hash": "acfd8eaf8239041ce15d40a8358a91bcf7e93db05afb0c0b570c7b3d871950d1",
       "id": "file:diff-broken/prisma/schema.prisma",
       "kind": "file",
       "label": "schema.prisma",
@@ -306,7 +339,7 @@
       "path": "src/db.ts"
     },
     {
-      "hash": "d251d132610f4439c1b385386c3300a9c332a21afe01975540ed3cd11a453eab",
+      "hash": "ba649fb248df625ac76d81f78b2a47c1d36bf602b0ffea4c56ee2245fe256478",
       "id": "file:diff-broken/src/handlers.ts",
       "kind": "file",
       "label": "handlers.ts",
@@ -320,6 +353,14 @@
       "label": "legacy.ts",
       "parentId": "module:diff-broken/src",
       "path": "src/legacy.ts"
+    },
+    {
+      "hash": "e76f31e953dffeb49c4caee70cbb7a741545cb9143e55200d3a460c1e23ba6aa",
+      "id": "file:diff-broken/src/pricing.ts",
+      "kind": "file",
+      "label": "pricing.ts",
+      "parentId": "module:diff-broken/src",
+      "path": "src/pricing.ts"
     },
     {
       "hash": "bc4661882f309eb412fd37ba1aa122fd4f2f1d8eb930da3eeeef8437579d4e1a",
@@ -354,9 +395,9 @@
       "parentId": "file:diff-broken/prisma/schema.prisma",
       "source": {
         "column": 1,
-        "endLine": 15,
+        "endLine": 16,
         "file": "prisma/schema.prisma",
-        "line": 11
+        "line": 12
       }
     },
     {
@@ -370,6 +411,11 @@
           "name": "total",
           "optional": false,
           "type": "Int"
+        },
+        {
+          "name": "status",
+          "optional": false,
+          "type": "String"
         }
       ],
       "id": "model:diff-broken/Order",
@@ -379,7 +425,7 @@
       "parentId": "file:diff-broken/prisma/schema.prisma",
       "source": {
         "column": 1,
-        "endLine": 9,
+        "endLine": 10,
         "file": "prisma/schema.prisma",
         "line": 6
       }
@@ -469,6 +515,7 @@
       "kind": "symbol",
       "label": "cancelOrder",
       "parentId": "file:diff-broken/src/client.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 13,
@@ -483,6 +530,7 @@
       "kind": "symbol",
       "label": "label",
       "parentId": "file:diff-broken/src/client.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 21,
@@ -497,6 +545,7 @@
       "kind": "symbol",
       "label": "loadOrders",
       "parentId": "file:diff-broken/src/client.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 5,
@@ -511,6 +560,7 @@
       "kind": "symbol",
       "label": "ping",
       "parentId": "file:diff-broken/src/client.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 17,
@@ -525,6 +575,7 @@
       "kind": "symbol",
       "label": "placeOrder",
       "parentId": "file:diff-broken/src/client.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 9,
@@ -553,6 +604,7 @@
       "kind": "symbol",
       "label": "createOrder",
       "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 10,
@@ -567,6 +619,7 @@
       "kind": "symbol",
       "label": "deleteOrder",
       "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 14,
@@ -581,6 +634,7 @@
       "kind": "symbol",
       "label": "health",
       "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 18,
@@ -595,6 +649,7 @@
       "kind": "symbol",
       "label": "invoiceTotal",
       "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 23,
@@ -609,6 +664,7 @@
       "kind": "symbol",
       "label": "listOrders",
       "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 6,
@@ -619,14 +675,60 @@
     },
     {
       "exported": true,
+      "id": "symbol:diff-broken/src/handlers.ts#openOrders",
+      "kind": "symbol",
+      "label": "openOrders",
+      "parentId": "file:diff-broken/src/handlers.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 27,
+        "file": "src/handlers.ts",
+        "line": 25
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
       "id": "symbol:diff-broken/src/legacy.ts#formatCents",
       "kind": "symbol",
       "label": "formatCents",
       "parentId": "file:diff-broken/src/legacy.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 3,
         "file": "src/legacy.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/pricing.ts#quote",
+      "kind": "symbol",
+      "label": "quote",
+      "parentId": "file:diff-broken/src/pricing.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/pricing.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-broken/src/pricing.ts#withTax",
+      "kind": "symbol",
+      "label": "withTax",
+      "parentId": "file:diff-broken/src/pricing.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "src/pricing.ts",
         "line": 1
       },
       "symbolKind": "function"

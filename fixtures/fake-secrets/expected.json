@@ -8,6 +8,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 2,
           "column": 10,
           "file": "src/sync.ts",
           "line": 33
@@ -269,6 +270,7 @@
       "kind": "symbol",
       "label": "countAccounts",
       "parentId": "file:fake-secrets/src/sync.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 39,
@@ -283,6 +285,7 @@
       "kind": "symbol",
       "label": "items",
       "parentId": "file:fake-secrets/src/sync.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 25,
@@ -297,6 +300,7 @@
       "kind": "symbol",
       "label": "notify",
       "parentId": "file:fake-secrets/src/sync.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 15,
@@ -311,6 +315,7 @@
       "kind": "symbol",
       "label": "pull",
       "parentId": "file:fake-secrets/src/sync.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 34,
@@ -325,6 +330,7 @@
       "kind": "symbol",
       "label": "pushToPartner",
       "parentId": "file:fake-secrets/src/sync.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 10,
@@ -339,6 +345,7 @@
       "kind": "symbol",
       "label": "report",
       "parentId": "file:fake-secrets/src/sync.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 20,
@@ -353,6 +360,7 @@
       "kind": "symbol",
       "label": "signed",
       "parentId": "file:fake-secrets/src/sync.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 30,

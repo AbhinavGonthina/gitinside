@@ -3,9 +3,9 @@ import {
   compareStrings,
   edgeId,
   type AnalysisWarning,
+  type CallSite,
   type Confidence,
   type GraphEdge,
-  type SourceLocation,
 } from "@gitinside/schema";
 import { errorText } from "./failures.js";
 import { createModuleResolver, type ManifestCache } from "./imports.js";
@@ -357,7 +357,9 @@ export function createSymbolResolver(
  *   that service's checker. The edge takes the import's confidence (`exact` or `heuristic`).
  *
  * All other edges are `exact`. Calls from one symbol to the same callee share one edge, with
- * every call site (the callee name's position) listed.
+ * every call site (the callee name's position) listed. Each site records how many arguments
+ * the call passes (`args`; `new C` without parentheses passes 0), except when an argument is
+ * a spread (`f(...xs)`), whose length isn't known statically.
  *
  * Not handled, and producing no edge: calls at file top level (there is no caller symbol);
  * recursion (self-edges); calls to nested functions, constructors, accessors, third-party
@@ -386,10 +388,12 @@ export function buildCallEdges(
           if (target && target.id !== owner) {
             const name = calleeName(node.expression) ?? node;
             const position = sourceFile.getLineAndCharacterOfPosition(name.getStart(sourceFile));
-            const site: SourceLocation = {
+            const args = node.arguments ?? [];
+            const site: CallSite = {
               file,
               line: position.line + 1,
               column: position.character + 1,
+              ...(args.some(ts.isSpreadElement) ? {} : { args: args.length }),
             };
             const id = edgeId("calls", owner, target.id);
             const existing = edges.get(id);

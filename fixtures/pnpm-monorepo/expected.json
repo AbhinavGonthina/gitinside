@@ -83,6 +83,7 @@
       "kind": "symbol",
       "label": "greet",
       "parentId": "file:shared/src/index.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 3,

@@ -146,6 +146,7 @@
       "kind": "symbol",
       "label": "handler",
       "parentId": "file:next-pages-api/pages/api/echo/[id].ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 5,
@@ -160,6 +161,7 @@
       "kind": "symbol",
       "label": "handler",
       "parentId": "file:next-pages-api/pages/api/hello.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 9,
@@ -174,6 +176,7 @@
       "kind": "symbol",
       "label": "Index",
       "parentId": "file:next-pages-api/pages/index.tsx",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 3,

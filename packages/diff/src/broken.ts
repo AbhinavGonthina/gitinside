@@ -2,10 +2,12 @@ import {
   ALIGN,
   alignSegments,
   compareStrings,
+  edgeId,
   HttpMethod,
   parseRoutePath,
   type ArchitectureGraph,
   type BrokenEdge,
+  type CallSite,
   type GraphEdge,
   type GraphNode,
   type SourceLocation,
@@ -181,6 +183,64 @@ function add<T>(map: Map<string, T[]>, key: string, value: T): void {
 const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
   compareStrings(a.file, b.file) || a.line - b.line || a.column - b.column;
 
+/** A call site as a plain location, without the call's own facts. */
+const locationOf = ({ file, line, column, endLine }: CallSite): SourceLocation =>
+  endLine === undefined ? { file, line, column } : { file, line, column, endLine };
+
+const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** "A", "A and B", "A, B, and C". */
+const listWords = (words: readonly string[]): string =>
+  words.length <= 2
+    ? words.join(" and ")
+    : `${words.slice(0, -1).join(", ")}, and ${words[words.length - 1] ?? ""}`;
+
+/**
+ * For a base edge whose target survives (`target` in base, `now` in head, `edge` the head
+ * edge between the same endpoints): the head sites that the target's change breaks.
+ * - `calls` ⇒ symbol: its required argument count rose, and the call passes at least the
+ *   old count (it worked) but fewer than the new one (`PARAMETERS_ADDED`).
+ * - `reads`/`writes` ⇒ model: a field was removed that the call still names
+ *   (`FIELD_REMOVED`).
+ */
+function contractBreak(
+  target: GraphNode,
+  now: GraphNode,
+  edge: GraphEdge,
+): (Pick<BrokenEdge, "reason" | "detail"> & { sites: CallSite[] }) | undefined {
+  if (edge.kind === "calls" && target.kind === "symbol" && now.kind === "symbol") {
+    const was = target.requiredParams;
+    const needs = now.requiredParams;
+    if (was === undefined || needs === undefined || needs <= was) return undefined;
+    const sites = edge.sites.filter((s) => s.args !== undefined && s.args >= was && s.args < needs);
+    if (sites.length === 0) return undefined;
+    return {
+      reason: "PARAMETERS_ADDED",
+      detail: `${now.label} now needs ${plural(needs, "argument")} (was ${was})`,
+      sites,
+    };
+  }
+  if ((edge.kind === "reads" || edge.kind === "writes") && target.kind === "model") {
+    if (now.kind !== "model") return undefined;
+    const kept = new Set(now.fields.map((f) => f.name));
+    const removed = new Set(target.fields.map((f) => f.name).filter((name) => !kept.has(name)));
+    const named = new Set<string>();
+    const sites = edge.sites.filter((s) => {
+      const hits = (s.missingFields ?? []).filter((name) => removed.has(name));
+      for (const name of hits) named.add(name);
+      return hits.length > 0;
+    });
+    if (sites.length === 0) return undefined;
+    const fields = [...named].sort(compareStrings).map((name) => `${now.label}.${name}`);
+    return {
+      reason: "FIELD_REMOVED",
+      detail: `${listWords(fields)} ${fields.length === 1 ? "was" : "were"} removed`,
+      sites,
+    };
+  }
+  return undefined;
+}
+
 /**
  * Broken connections (DESIGN.md §8 step 4, ADR-0087): base edges whose target is gone
  * from head (removed, not renamed) while their source, or what it was renamed to, still
@@ -193,11 +253,19 @@ const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
  * - `reads`/`writes` ⇒ model: an `UNKNOWN_SYMBOL` Prisma call through the model's accessor.
  * Each broken edge lists the head call sites that still make the call.
  *
+ * Base edges whose target survives (by ID or rename) are broken when the target's contract
+ * changed under a call that still exists in head (ADR-0088):
+ * - `calls` ⇒ symbol: `PARAMETERS_ADDED` when the symbol's `requiredParams` rose and a head
+ *   site passes at least the old count but fewer than the new one (sites without `args`,
+ *   i.e. spreads, are never flagged).
+ * - `reads`/`writes` ⇒ model: `FIELD_REMOVED` when a field was dropped from the model and a
+ *   head site still names it (its `missingFields`). A renamed field reads as removed.
+ *
  * Doesn't handle (no head evidence in the graph): calls to removed functions (unresolved
  * calls make no node), aliased or package imports (`@/x`, `@acme/shared`), clipped URL
- * labels, `renders`/`publishes`/`consumes`/`external_call`/`stores` edges, removed
- * model fields and added required parameters (`FIELD_REMOVED`, `PARAMETERS_ADDED`: the
- * graph doesn't record them yet, M6.4b).
+ * labels, `renders`/`publishes`/`consumes`/`external_call`/`stores` edges, symbols with no
+ * `requiredParams` (JavaScript, overloads, inherited constructors), parameters whose type
+ * changed, and model fields whose type changed or became required.
  */
 export function detectBroken(
   base: ArchitectureGraph,
@@ -251,7 +319,7 @@ export function detectBroken(
     }
     const sites = new Map<string, SourceLocation>();
     for (const site of calls.flatMap((e) => e.sites)) {
-      sites.set(`${site.file}:${site.line}:${site.column}`, site);
+      sites.set(`${site.file}:${site.line}:${site.column}`, locationOf(site));
     }
     out.push({
       edge: edge.id,
@@ -262,6 +330,27 @@ export function detectBroken(
         [...replacedBy.values()].sort((a, b) => compareStrings(a.id, b.id)),
       ),
       sites: [...sites.values()].sort(compareLocations),
+    });
+  }
+
+  // Targets that survive but changed their contract (ADR-0088).
+  const headEdges = new Map(head.edges.map((e) => [e.id, e]));
+  for (const edge of base.edges) {
+    const target = baseNodes.get(edge.to);
+    const from = renames.get(edge.from) ?? edge.from;
+    const to = renames.get(edge.to) ?? edge.to;
+    const now = headNodes.get(to);
+    const still = headEdges.get(edgeId(edge.kind, from, to));
+    if (target === undefined || now === undefined || still === undefined) continue;
+    const found = contractBreak(target, now, still);
+    if (found === undefined) continue;
+    out.push({
+      edge: edge.id,
+      from,
+      to: target.id,
+      reason: found.reason,
+      detail: found.detail,
+      sites: found.sites.map(locationOf).sort(compareLocations),
     });
   }
   return out.sort((a, b) => compareStrings(a.edge, b.edge));

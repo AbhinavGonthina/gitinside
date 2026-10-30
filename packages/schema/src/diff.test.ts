@@ -210,6 +210,36 @@ describe("GraphDiff", () => {
     expect(messages(removedSource)).toHaveLength(1);
   });
 
+  it("requires a PARAMETERS_ADDED or FIELD_REMOVED edge to survive, to a modified target", () => {
+    const writes = edgeId("writes", handler, model);
+    const fieldGone = sampleDiff();
+    fieldGone.broken.push({
+      edge: writes,
+      from: handler,
+      to: model,
+      reason: "FIELD_REMOVED",
+      detail: "Order.total was removed",
+      sites: [loc("apps/api/src/orders.ts", 12)],
+    });
+    fieldGone.summary = summarizeDiff(fieldGone);
+    expect(messages(fieldGone)).toEqual([]);
+
+    const removed = sampleDiff();
+    removed.edges.removed.push(writes);
+    removed.edges.modified = [];
+    removed.broken = [{ ...fieldGone.broken[1]!, reason: "PARAMETERS_ADDED" }];
+    removed.summary = summarizeDiff(removed);
+    expect(messages(removed)).toEqual([`broken edge ${writes} (PARAMETERS_ADDED) was removed`]);
+
+    const unchanged = sampleDiff();
+    unchanged.nodes.modified = [];
+    unchanged.broken.push(fieldGone.broken[1]!);
+    unchanged.summary = summarizeDiff(unchanged);
+    expect(messages(unchanged)).toEqual([
+      `broken edge ${writes} (FIELD_REMOVED) targets ${model}, which isn't modified`,
+    ]);
+  });
+
   it("requires modified and updated entries to name a change, and never `id`", () => {
     const d = sampleDiff();
     d.nodes.modified[0] = { ...d.nodes.modified[0]!, changes: [] };

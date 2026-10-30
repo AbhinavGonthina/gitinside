@@ -124,6 +124,7 @@
       "kind": "symbol",
       "label": "archive",
       "parentId": "file:external-sdk/src/billing.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 17,
@@ -138,6 +139,7 @@
       "kind": "symbol",
       "label": "charge",
       "parentId": "file:external-sdk/src/billing.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 8,
@@ -152,6 +154,7 @@
       "kind": "symbol",
       "label": "sendReceipt",
       "parentId": "file:external-sdk/src/billing.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 12,
@@ -166,6 +169,7 @@
       "kind": "symbol",
       "label": "verify",
       "parentId": "file:external-sdk/src/billing.ts",
+      "requiredParams": 3,
       "source": {
         "column": 1,
         "endLine": 22,

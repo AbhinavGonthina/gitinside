@@ -81,6 +81,18 @@ export const SourceLocation = z
   .strict();
 export type SourceLocation = z.infer<typeof SourceLocation>;
 
+/**
+ * Where an edge's call is made, plus facts about that one call that the diff checks
+ * against head's target (ADR-0088).
+ */
+export const CallSite = SourceLocation.extend({
+  /** For `calls` edges: how many arguments the call passes; absent when a spread hides it. */
+  args: z.number().int().nonnegative().optional(),
+  /** For `reads`/`writes` edges to a model: names the call uses as fields the model lacks, sorted. */
+  missingFields: z.array(z.string().min(1)).min(1).optional(),
+}).strict();
+export type CallSite = z.infer<typeof CallSite>;
+
 const nodeBase = {
   id: z.string().min(1),
   label: z.string().min(1),
@@ -119,6 +131,11 @@ export const GraphNode = z.discriminatedUnion("kind", [
       kind: z.literal("symbol"),
       symbolKind: z.enum(["function", "class", "method", "variable"]),
       exported: z.boolean(),
+      /**
+       * How many arguments a call must pass: parameters without `?`, a default, or `...`
+       * (a class's: its constructor's). Absent when not known from the declaration alone.
+       */
+      requiredParams: z.number().int().nonnegative().optional(),
     })
     .strict(),
   z
@@ -169,7 +186,7 @@ export const GraphEdge = z
     reason: UnresolvedReason.optional(),
     /** For `reads`/`writes`: the model fields the call sites name, sorted. */
     fields: z.array(z.string().min(1)).optional(),
-    sites: z.array(SourceLocation),
+    sites: z.array(CallSite),
   })
   .strict();
 export type GraphEdge = z.infer<typeof GraphEdge>;

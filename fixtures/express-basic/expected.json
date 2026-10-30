@@ -125,6 +125,7 @@
       "kind": "symbol",
       "label": "createUser",
       "parentId": "file:express-basic/src/users.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 12,
@@ -139,6 +140,7 @@
       "kind": "symbol",
       "label": "listUsers",
       "parentId": "file:express-basic/src/users.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 7,

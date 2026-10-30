@@ -135,6 +135,7 @@
       "kind": "symbol",
       "label": "createOrder",
       "parentId": "file:axios-baseurl-instance/src/orders.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 10,
@@ -149,6 +150,7 @@
       "kind": "symbol",
       "label": "getOrder",
       "parentId": "file:axios-baseurl-instance/src/orders.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 6,

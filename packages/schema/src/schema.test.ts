@@ -185,6 +185,33 @@ describe("ArchitectureGraph", () => {
     expect(ArchitectureGraph.safeParse(g).success).toBe(false);
   });
 
+  it("accepts call-site facts (argument counts, missing fields), but not empty or unknown ones", () => {
+    const g = sampleGraph();
+    const site = loc("apps/api/src/orders.ts", 51);
+    g.edges[1] = { ...g.edges[1]!, sites: [{ ...site, args: 0, missingFields: ["state"] }] };
+    expect(messages(g)).toEqual([]);
+    for (const bad of [{ args: -1 }, { args: 1.5 }, { missingFields: [] }, { calls: 1 }]) {
+      g.edges[1] = { ...g.edges[1]!, sites: [{ ...site, ...bad }] };
+      expect(ArchitectureGraph.safeParse(g).success).toBe(false);
+    }
+  });
+
+  it("accepts a symbol's required parameter count, but not a negative one", () => {
+    const g = sampleGraph();
+    const symbol = {
+      id: nodeId("symbol", "api", "src/orders.ts#create"),
+      kind: "symbol" as const,
+      label: "create",
+      parentId: nodeId("service", "api", ""),
+      symbolKind: "function" as const,
+      exported: true,
+    };
+    g.nodes.push({ ...symbol, requiredParams: 2 });
+    expect(messages(g)).toEqual([]);
+    g.nodes[g.nodes.length - 1] = { ...symbol, requiredParams: -1 };
+    expect(ArchitectureGraph.safeParse(g).success).toBe(false);
+  });
+
   it("rejects unknown fields", () => {
     const g = sampleGraph() as unknown as { extra: number };
     g.extra = 1;

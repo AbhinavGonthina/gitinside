@@ -128,6 +128,7 @@
       "kind": "symbol",
       "label": "loadMe",
       "parentId": "file:web/src/users.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 13,
@@ -142,6 +143,7 @@
       "kind": "symbol",
       "label": "loadUser",
       "parentId": "file:web/src/users.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 7,
@@ -156,6 +158,7 @@
       "kind": "symbol",
       "label": "track",
       "parentId": "file:web/src/users.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 18,

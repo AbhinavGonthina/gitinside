@@ -8,6 +8,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 1,
           "column": 10,
           "file": "index.js",
           "line": 4

@@ -8,6 +8,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 2,
           "column": 9,
           "file": "apps/api/src/orders/handlers.ts",
           "line": 14
@@ -22,6 +23,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 1,
           "column": 33,
           "file": "apps/web/app/checkout/page.tsx",
           "line": 6
@@ -36,6 +38,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 0,
           "column": 24,
           "file": "apps/web/app/orders/page.tsx",
           "line": 4
@@ -50,6 +53,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 0,
           "column": 23,
           "file": "apps/web/app/page.tsx",
           "line": 4
@@ -634,6 +638,7 @@
       "kind": "symbol",
       "label": "chargeOrder",
       "parentId": "file:api/src/billing/stripe.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 7,
@@ -662,6 +667,7 @@
       "kind": "symbol",
       "label": "createOrder",
       "parentId": "file:api/src/orders/handlers.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 16,
@@ -676,6 +682,7 @@
       "kind": "symbol",
       "label": "listOrders",
       "parentId": "file:api/src/orders/handlers.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 8,
@@ -704,6 +711,7 @@
       "kind": "symbol",
       "label": "Checkout",
       "parentId": "file:web/app/checkout/page.tsx",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 7,
@@ -718,6 +726,7 @@
       "kind": "symbol",
       "label": "Orders",
       "parentId": "file:web/app/orders/page.tsx",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 6,
@@ -732,6 +741,7 @@
       "kind": "symbol",
       "label": "Home",
       "parentId": "file:web/app/page.tsx",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 6,
@@ -746,6 +756,7 @@
       "kind": "symbol",
       "label": "latestPosts",
       "parentId": "file:web/lib/cms.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 5,
@@ -760,6 +771,7 @@
       "kind": "symbol",
       "label": "listOrders",
       "parentId": "file:web/lib/orders.ts",
+      "requiredParams": 0,
       "source": {
         "column": 1,
         "endLine": 15,
@@ -774,6 +786,7 @@
       "kind": "symbol",
       "label": "placeOrder",
       "parentId": "file:web/lib/orders.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 10,

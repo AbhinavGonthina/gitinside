@@ -8,6 +8,7 @@
       "kind": "calls",
       "sites": [
         {
+          "args": 1,
           "column": 52,
           "file": "src/orders/routes.ts",
           "line": 12
@@ -190,6 +191,7 @@
       "kind": "symbol",
       "label": "createOrder",
       "parentId": "file:diff-rename/src/orders/routes.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 18,
@@ -204,6 +206,7 @@
       "kind": "symbol",
       "label": "listOrders",
       "parentId": "file:diff-rename/src/orders/routes.ts",
+      "requiredParams": 2,
       "source": {
         "column": 1,
         "endLine": 13,
@@ -232,6 +235,7 @@
       "kind": "symbol",
       "label": "formatAmount",
       "parentId": "file:diff-rename/src/util/format.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 5,
@@ -246,6 +250,7 @@
       "kind": "symbol",
       "label": "formatCount",
       "parentId": "file:diff-rename/src/util/format.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 9,
