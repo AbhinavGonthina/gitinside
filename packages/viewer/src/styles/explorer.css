@@ -45,9 +45,6 @@
 /* The fitted box takes the scaled size; the canvas inside keeps diagram coordinates. */
 .gi-explorer__fit {
   position: relative;
-  transition:
-    width var(--duration-layout) var(--ease-layout),
-    height var(--duration-layout) var(--ease-layout);
 }
 
 .gi-explorer__drill {
@@ -55,6 +52,16 @@
   top: 0;
   left: 0;
   transform-origin: 0 0;
+}
+
+/* Refits move with the layout; the first fit, on load, is drawn as is. */
+.gi-explorer[data-settled] .gi-explorer__fit {
+  transition:
+    width var(--duration-layout) var(--ease-layout),
+    height var(--duration-layout) var(--ease-layout);
+}
+
+.gi-explorer[data-settled] .gi-explorer__drill {
   transition: transform var(--duration-layout) var(--ease-layout);
 }
 
