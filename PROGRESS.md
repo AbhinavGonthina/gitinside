@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.5b. Shiki in the code preview (M5.13 and M5.14b wait on #3, #5)
+M4b.6. Trace mode (M5.13 and M5.14b wait on #3, #5)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -95,7 +95,7 @@ M4b.5b. Shiki in the code preview (M5.13 and M5.14b wait on #3, #5)
 - [x] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
 - [x] M4b.4b Zoom-dependent detail (UX.md "Drill-down"): labels, counts, and edge labels appear progressively with zoom; at low zoom only service names and aggregated edges; screenshots, baselines {model: opus}
 - [x] M4b.5a Inspector content: a "From the code" summary per kind from graph facts (what it calls, reads, writes, renders, handles), "Open on GitHub" at the exact line whenever a node has a source (with or without code text), the code sample's path linking to the file and line (design gate), code loaded on selection through a `loadSource` prop (the website's from `raw.githubusercontent.com` at the analyzed SHA, size-capped, CSP `connect-src`), loading and couldn't-load states; tests, screenshots {model: opus}
-- [ ] M4b.5b Shiki in the code preview: lazy and fine-grained (TS/TSX/JS/JSON/Prisma/YAML), JavaScript regex engine (no WASM under the CSP), tokens rendered as React spans (no HTML, SECURITY T10) in token colors for dark and light, plain text until loaded; tests, screenshots, baselines {model: opus}
+- [x] M4b.5b Shiki in the code preview: lazy and fine-grained (TS/TSX/JS/JSON/Prisma/YAML), JavaScript regex engine (no WASM under the CSP), tokens rendered as React spans (no HTML, SECURITY T10) in token colors for dark and light, plain text until loaded; tests, screenshots, baselines {model: opus}
 - [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus}
 - [ ] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
 - [ ] M4b.8 Filters {model: opus}
@@ -217,6 +217,8 @@ M4b.5b. Shiki in the code preview (M5.13 and M5.14b wait on #3, #5)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-30 M4b.5b** Shiki in the code preview (ADR-0116): core, JavaScript regex engine (no WASM), and one grammar per language as lazy chunks; one CSS-variable theme for both themes, five `--syntax-*` tokens at ≥ 4.5:1 on the canvas and the selected line; tokens as React spans, never HTML (T10); plain until loaded, colored in place, 200 lines of context. Visual tests wait for no `pending`/`plain` preview. Viewer 737, web 329, typecheck/lint/web build green; eval regenerated for the lockfile (numbers unchanged). Still weak: no real-browser check under the website's CSP (the diagram page needs a database).
 
 - 2026-10-30 · M4b.5a: inspector content (`188e58f`, ADR-0115). First acted on Abhinav's #9–#11 (`acda824`, planning `83a40ed`): SPEC §2/4/5/6/10/11 + DISCOVERY D5.6/D8 for Cloud Run, ADR-0114 (Cloud Tasks, job state in Neon), M5.16 (VS Code stress test), M5.17 (Cloud Run rework), M5.18 (abuse limits) before M5.13; #7 closed (no A record needed), #12 opened (Turnstile). Task: `summary.tsx` leads per kind + a sentence per connection kind (other services' names carry their service, grouped); `sources.ts` loads code on selection (`loadSource`; the website's from `raw.githubusercontent.com` at the SHA, 2 MB, no cookies/redirects/binaries), loading + couldn't-load states; Open on GitHub action (`LinkButton`); the code sample's path links to file and line. CSP `connect-src` + that origin only. Viewer 680+, web 329, root typecheck + lint green; cache test mutation-checked; screenshots in `docs/milestones/M4b/inspector/`. The first Linux capture showed a folder's empty Facts section: path added, empty sections hidden (`ccaebbe`); baselines `a422c60`. Still weak: no real-browser check of the raw fetch under the site's CSP (the diagram page needs a DB). No eval delta. Next: M4b.5b.
 
