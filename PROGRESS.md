@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.12d. Count Oracle Object Storage requests against the 50k/month free tier, then M6.7d3 (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
+M5.12d2. Put every snapshot read behind the CDN cache (README images via `/api/graph`), then M6.7d3 (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -124,7 +124,8 @@ M5.12d. Count Oracle Object Storage requests against the 50k/month free tier, th
 - [x] M5.12a Snapshot retention: bucket list/delete (ListObjectsV2), db reads/deletes, pure `planRetention` (latest 5 per public repo, PR pins, superseded versions, orphans, 8 GB budget from the listing), `runRetention` (rows before objects) {model: opus}
 - [x] M5.12b Retention schedule in the worker + quota check: R2 (listing) and Neon (`pg_database_size`) against their free limits, `quota_alarm` log at 80%, prune old rate-limit windows, a `quota` command for M5.13's smoke test {model: opus}
 - [x] M5.12c Snapshot store on Oracle Object Storage (PROPOSALS P-2, #5): `SNAPSHOTS_*` config (namespace, region, keys, bucket ⇒ the S3-compatible endpoint, region signing), egress allowlist host from it, retention budget and bucket quota from 20 GB; web + worker + infra + docs {model: opus}
-- [ ] M5.12d Stay inside Oracle's 50k object requests/month: count the store requests worker and web make per month, `quota_alarm` at 80%, and check every snapshot read is behind the CDN cache {model: opus}
+- [x] M5.12d1 Count Oracle Object Storage requests (50k/month): `store_requests` per UTC month and source, `countingFetch` in the worker's and web's stores, a `requests` quota with `quota_alarm` at 80% (ADR-0096) {model: opus}
+- [ ] M5.12d2 Every snapshot read behind the CDN cache: README images read the graph through the day-cached `/api/graph` URL instead of the bucket (each image URL now reads its snapshot every 10 min, ≈ 4,300 requests/month per busy URL, ADR-0096), and case variants of a graph path redirect to the stored spelling before any bucket read {model: opus}
 - [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review) {model: opus} {blocked: #3 #5 #7}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
@@ -186,6 +187,8 @@ M5.12d. Count Oracle Object Storage requests against the 50k/month free tier, th
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M5.12d1: M5.12d split into d1 (counting) and d2 (README image reads behind the CDN: each image URL reads its snapshot on every 10-minute miss, the largest share of the 50k budget). New `store_requests` table (migration `0001`), one upsert per request per UTC month and source (`countStoreRequests`, `storeRequestsThisMonth`). `countingFetch` (`@gitinside/worker/storage`) counts every attempt alongside it, awaited; a failed count is logged (`store_request_count_failed`) and never fails the request. Worker (`createCountedStore`, main + quota-bin) and web (`graphDepsFromEnv`) both count. `measureQuotas` adds `requests` vs 50,000 (`bySource`); usage lines are now `{ resource, unit, used, limit, percent, alarm }` (ADR-0096). 12 new tests (db 4, worker 7, web 1). Full `pnpm test` green except web's known PGlite timeout under load (web alone 322/322; worker 466 + 16 Redis-skipped, those 16 green on CI via draft PR #10). Next: M5.12d2.
 
 - 2026-10-29 · M5.12c: Abhinav chose P-2 option 1 in #5 (Oracle Object Storage; DNS at name.com). SPEC §5/§4/§10/§11 and P-2 updated; M5.12c/d added ahead of M6.7d3; #5 retitled with bucket + Customer Secret Key steps, #7 got name.com steps. Store settings are now `SNAPSHOTS_NAMESPACE/REGION/ACCESS_KEY_ID/SECRET_ACCESS_KEY/BUCKET` (ADR-0095): endpoint built by `oracleS3Host` (no-dot labels only, same rule in `egress-hosts.sh`), signing region = Oracle's region (the fake S3 now checks it), quota 20 GB, retention budget 16 GB. Worker, web, infra (provision, check.mjs), docs updated. 4 new tests; worker and web green, `egress-hosts.sh` checked locally with Git's `sh` (CI's container check runs it for real). Next: M5.12d.
 
