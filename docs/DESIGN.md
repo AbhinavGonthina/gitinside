@@ -82,8 +82,8 @@ flowchart LR
   - Uploads the gzipped snapshot to R2 (`storage.ts`, signed with our own SigV4, keyed per repo, SHA, and analyzer version; ADR-0062), writes metadata to Postgres, and reports progress through BullMQ.
   - Runs in one process with the enqueue API (`bin.ts` ⇒ `main.ts`, ADR-0065): config from env checked up front, the startup sweep (job folders, then rows left `running`) before any job, and on SIGTERM an ordered shutdown (API, worker, queue, database).
 - **`packages/schema`:** TS types + Zod for `architecture.json`. Imported everywhere.
-- **`packages/analyzer`:** library + CLI (`gitinside analyze <path>`).
-- **`packages/diff`:** library + CLI (`gitinside diff <base> <head>`).
+- **`packages/analyzer`:** library + the `gitinside` CLI: `gitinside analyze <path>`, and `gitinside diff <base> <head>` (each side a graph file, a folder, or a git commit checked out into a temporary worktree; ADR-0089).
+- **`packages/diff`:** library: `diffGraphs`, `applyDiff`, and `renderMermaidSummary` (the Mermaid summary of a diff). No Node or TypeScript dependency, so browsers can use it.
 - **`packages/viewer`:** React components for the explorer (React Flow + ELK). Used by `apps/web` and Storybook.
 
 ## 5. Analyzer pipeline
@@ -271,6 +271,7 @@ For each call (method M, pattern P), compare with every route (method M', patter
    - **Changed but present targets (ADR-0088):** the analyzer records each TypeScript symbol's `requiredParams`, each call site's argument count (`args`), and the names a Prisma call uses that its model lacks (`missingFields` on the site). A surviving `calls` edge is `PARAMETERS_ADDED` when the count rose and a head site passes the old count but not the new one; a surviving `reads`/`writes` edge is `FIELD_REMOVED` when a head site names a field base's model had and head's lacks. Only the offending sites are listed.
    - Calls to removed functions, aliased imports, queue/page/external edges, JavaScript parameters, overloads, and type-only changes aren't detected.
 5. **Output:** a `GraphDiff` (GRAPH_SCHEMA.md): head records for added, changed, and renamed items, base IDs for removed ones, broken edges, and summary counts, so the diff alone rebuilds head from base (ADR-0084). Diffs are sorted and deterministic (`stringifyDiff`).
+6. **Mermaid summary** (`renderMermaidSummary`, ADR-0089), for `gitinside diff --format mermaid` and the PR comment: a `flowchart LR` of broken connections first (source to base target), then changed services, routes, pages, models, datastores, queues, and external hosts, then changed cross-boundary edges (`http`, `reads`, `writes`, `stores`, `publishes`, `consumes`, `external_call`) lifted to the nearest drawn node and merged per pair. The change is in words ("Removed", "Renamed from …") and in a colored, for removals dashed, border. At most 40 nodes, the rest counted in a note. Two nodes that would read the same name their service (else their declaring file). Labels are cut at 60 characters and every character outside `[A-Za-z0-9 ._,()/:@-]` is written as a `#<code>;` entity (SECURITY.md T10).
 
 **Properties (fast-check):**
 - `diff(g, g)` is empty.

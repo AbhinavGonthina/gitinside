@@ -28,6 +28,7 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@gitinside/diff": "workspace:*",
     "@gitinside/schema": "workspace:*",
     "typescript": "5.6.3",
     "yaml": "2.6.1"

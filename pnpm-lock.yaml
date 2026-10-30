@@ -186,6 +186,9 @@ importers:
 
   packages/analyzer:
     dependencies:
+      '@gitinside/diff':
+        specifier: workspace:*
+        version: link:../diff
       '@gitinside/schema':
         specifier: workspace:*
         version: link:../schema
