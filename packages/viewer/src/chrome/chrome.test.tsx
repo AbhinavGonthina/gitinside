@@ -425,7 +425,10 @@ describe("inspector", () => {
     expect(lines[1]?.hasAttribute("data-highlight")).toBe(true);
     expect(lines[0]?.hasAttribute("data-highlight")).toBe(false);
     expect(lines[1]?.querySelector("code")?.textContent).toBe(" ");
-    const link = screen.getByRole("link", { name: /Open on GitHub/ });
+    // The code sample's path is the link to the file and line (design gate).
+    const link = screen.getByRole("link", { name: "a.ts" });
+    expect(link.getAttribute("href")).toBe("https://github.com/acme/shop/blob/abc1234/a.ts#L8");
+    expect(link.getAttribute("title")).toBe("Open a.ts at line 8 on GitHub");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
   });
@@ -433,6 +436,22 @@ describe("inspector", () => {
   it("has no GitHub link without a permalink", () => {
     render(<CodePreview path="a.ts" startLine={1} lines={["x"]} />);
     expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("keeps its frame and link while loading, and says when the file couldn't load", () => {
+    const href = "https://github.com/acme/shop/blob/abc1234/a.ts#L3";
+    const { container, rerender } = render(
+      <CodePreview path="a.ts" startLine={3} lines={["ignored"]} href={href} status="loading" />,
+    );
+    expect(screen.getByRole("figure").getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByRole("status").textContent).toBe("Loading the code");
+    expect(container.querySelector(".gi-code__line")).toBeNull();
+    expect(screen.getByRole("link", { name: "a.ts" }).getAttribute("href")).toBe(href);
+
+    rerender(<CodePreview path="a.ts" startLine={3} lines={[]} href={href} status="failed" />);
+    expect(screen.getByRole("figure").hasAttribute("aria-busy")).toBe(false);
+    expect(screen.getByRole("status").textContent).toBe("Couldn't load this file.");
+    expect(screen.getByRole("link", { name: "a.ts" })).toBeTruthy();
   });
 });
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { Button, Explorer, UiIcon } from "@gitinside/viewer";
+import { Button, createGitHubSourceLoader, Explorer, UiIcon } from "@gitinside/viewer";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { headStatus, loadGraph, short, type GraphLoad } from "../../../lib/repoStatus";
 import type { HeadState } from "../../../lib/repoView";
 import { AddToReadme } from "./AddToReadme";
@@ -45,6 +45,11 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
   const failure = useRef<HTMLParagraphElement>(null);
   const status = headStatus(owner, repo, head);
   const { analyze, busy, error } = useAnalyze(owner, repo);
+  // Code previews read the public file at this commit straight from GitHub (ADR-0115).
+  const loadSource = useMemo(
+    () => createGitHubSourceLoader({ owner, name: repo, sha }),
+    [owner, repo, sha],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -101,7 +106,12 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
             Loading the diagram
           </p>
         ) : load.ok ? (
-          <Explorer graph={load.graph} topBar={false} layoutWorker={layoutWorker} />
+          <Explorer
+            graph={load.graph}
+            topBar={false}
+            layoutWorker={layoutWorker}
+            loadSource={loadSource}
+          />
         ) : (
           <div className="diagram-page__state">
             <p className="progress__failure" role="alert" tabIndex={-1} ref={failure}>

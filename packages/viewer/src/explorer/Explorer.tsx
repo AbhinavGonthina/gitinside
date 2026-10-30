@@ -43,6 +43,7 @@ import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./Dril
 import { useDrill, type Expansion } from "./drill.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { NodePanel, TracePanel } from "./panels.js";
+import { useSourceAccess, type SourceLoader } from "./sources.js";
 import { checkTrace, traceNodes, type TraceScript, type TraceStep } from "./trace.js";
 import type { Shown } from "./transition.js";
 
@@ -51,6 +52,12 @@ export interface ExplorerProps {
   graph: ArchitectureGraph;
   /** File text by repo-relative path, for code previews. Missing files show no preview. */
   sources?: Readonly<Record<string, string>> | undefined;
+  /**
+   * Loads a file's text when the inspector needs it (e.g. `createGitHubSourceLoader`),
+   * for files not in `sources`. Each path is loaded once; a failed load says so in the
+   * code preview. Without either, nodes show no code, only their GitHub link.
+   */
+  loadSource?: SourceLoader | undefined;
   /** The scripted request path the Trace button plays (until M4b.6). Without one, Trace is disabled. */
   trace?: TraceScript | undefined;
   /** Start with these nodes broken down, in opening order (the last one is closed first by Esc). */
@@ -106,6 +113,7 @@ function deepestOpen(view: GraphView, expansion: Expansion): string | undefined 
 export function Explorer({
   graph,
   sources,
+  loadSource,
   trace,
   initialOpen = [],
   initialSelected = null,
@@ -115,6 +123,7 @@ export function Explorer({
   layoutWorker,
 }: ExplorerProps) {
   const index = useMemo(() => buildHierarchy(graph), [graph]);
+  const sourceAccess = useSourceAccess(sources, loadSource);
   const engine = useMemo(() => createLayoutEngine({ worker: layoutWorker }), [layoutWorker]);
   useEffect(() => () => engine.dispose(), [engine]);
   const cache = useMemo(() => createLayoutCache(index, engine), [index, engine]);
@@ -491,7 +500,7 @@ export function Explorer({
             steps={steps}
             step={step}
             view={view}
-            sources={sources}
+            sources={sourceAccess}
             repo={repo}
             onStep={setStep}
             onBreakDown={breakDown}
@@ -503,7 +512,7 @@ export function Explorer({
             canBreakDown={selectedView !== undefined && selectedView.canOpen && !selectedView.open}
             canTrace={trace !== undefined && selectedNode?.id === trace.start}
             hasTrace={trace !== undefined}
-            sources={sources}
+            sources={sourceAccess}
             repo={repo}
             onSelect={reveal}
             onBreakDown={breakDown}

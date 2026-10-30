@@ -1,4 +1,10 @@
-import type { ButtonHTMLAttributes, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
+import type {
+  AnchorHTMLAttributes,
+  ButtonHTMLAttributes,
+  HTMLAttributes,
+  KeyboardEvent,
+  ReactNode,
+} from "react";
 import { useRef } from "react";
 import { UiIcon, type UiIconName } from "./uiIcons.js";
 
@@ -47,6 +53,40 @@ export function Button({
       {children !== undefined && <span className="gi-button__label">{children}</span>}
       {shortcut && <Kbd keys={shortcut} />}
     </button>
+  );
+}
+
+/** Props for {@link LinkButton}. */
+export interface LinkButtonProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
+  href: string;
+  variant?: ButtonVariant;
+  size?: "sm" | "md";
+  icon?: UiIconName | undefined;
+  /** An icon after the label, e.g. `open-external` for a link that leaves the site. */
+  trailingIcon?: UiIconName | undefined;
+}
+
+/** A link that looks like a {@link Button}, for actions that go somewhere (Open on GitHub). */
+export function LinkButton({
+  variant = "secondary",
+  size = "md",
+  icon,
+  trailingIcon,
+  children,
+  className,
+  ...rest
+}: LinkButtonProps) {
+  return (
+    <a
+      {...rest}
+      className={className ? `gi-button ${className}` : "gi-button"}
+      data-variant={variant}
+      data-size={size}
+    >
+      {icon && <UiIcon name={icon} />}
+      {children !== undefined && <span className="gi-button__label">{children}</span>}
+      {trailingIcon && <UiIcon name={trailingIcon} />}
+    </a>
   );
 }
 

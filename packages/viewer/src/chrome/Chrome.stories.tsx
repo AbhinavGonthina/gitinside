@@ -12,6 +12,7 @@ import {
   Button,
   IconButton,
   Kbd,
+  LinkButton,
   SegmentedControl,
   StatusChip,
   Toggle,
@@ -238,6 +239,16 @@ function RouteInspector({ onSelect }: { onSelect?: (id: string) => void }) {
         <Button variant="primary" size="sm" icon="trace">
           Trace from here
         </Button>
+        <LinkButton
+          href={githubLineUrl(sampleRepo, routeCode.path, 14) ?? "#"}
+          target="_blank"
+          rel="noreferrer noopener"
+          variant="quiet"
+          size="sm"
+          trailingIcon="open-external"
+        >
+          Open on GitHub
+        </LinkButton>
       </InspectorActions>
     </Inspector>
   );
@@ -319,6 +330,23 @@ function InspectorSheet() {
         {panel(<RouteInspector />)}
         {panel(<UnresolvedInspector />)}
         {panel(<ServiceInspector />)}
+      </div>
+      <div style={{ display: "flex", gap: cssVar("space-24"), alignItems: "flex-start" }}>
+        {(["loading", "failed"] as const).map((status) => (
+          <div key={status} style={{ display: "grid", gap: cssVar("space-8"), width: 320 }}>
+            <span style={muted}>
+              {status === "loading" ? "Code on its way" : "Code that couldn't load"}
+            </span>
+            <CodePreview
+              path={routeCode.path}
+              startLine={14}
+              lines={[]}
+              highlight={14}
+              href={githubLineUrl(sampleRepo, routeCode.path, 14)}
+              status={status}
+            />
+          </div>
+        ))}
       </div>
     </Page>
   );

@@ -36,6 +36,11 @@
     color var(--duration-fast) var(--ease-standard);
 }
 
+/* A link drawn as a button (LinkButton): no underline, even on hover. */
+a.gi-button {
+  text-decoration: none;
+}
+
 .gi-button[data-size="sm"] {
   height: 28px;
   padding: 0 10px;
@@ -1028,26 +1033,51 @@
   font-size: var(--font-size-12);
 }
 
-.gi-code__header > code {
+.gi-code__header code {
   overflow: hidden;
   font-size: var(--font-size-12);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* The path links to the file and line on GitHub (design gate); a long path truncates, the icon stays. */
 .gi-code__link {
   display: inline-flex;
-  flex: none;
+  min-width: 0;
   align-items: center;
   gap: var(--space-4);
   color: var(--text);
-  font-weight: var(--font-weight-medium);
   text-decoration: none;
+}
+
+.gi-code__link > svg {
+  flex: none;
+  color: var(--text-muted);
 }
 
 .gi-code__link:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.gi-code__link:hover > svg {
+  color: var(--text);
+}
+
+/* Loading keeps the frame of 15 lines (19px each, plus the body's padding), so nothing jumps. */
+.gi-code__status {
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--space-12);
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+}
+
+.gi-code__status[data-status="loading"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 297px;
 }
 
 .gi-code__body {

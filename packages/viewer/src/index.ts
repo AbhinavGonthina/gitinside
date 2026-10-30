@@ -68,6 +68,7 @@ export {
   Button,
   IconButton,
   Kbd,
+  LinkButton,
   SegmentedControl,
   StatusChip,
   Toggle,
@@ -76,6 +77,7 @@ export type {
   ButtonProps,
   ButtonVariant,
   IconButtonProps,
+  LinkButtonProps,
   Segment,
   SegmentedControlProps,
   StatusChipProps,
@@ -214,6 +216,8 @@ export { DRAG_THRESHOLD } from "./explorer/gestures.js";
 export type { CameraMotion } from "./explorer/gestures.js";
 export { CHECKOUT_TRACE, checkTrace, traceNodes } from "./explorer/trace.js";
 export type { TraceScript, TraceStep } from "./explorer/trace.js";
+export { createGitHubSourceLoader, MAX_SOURCE_BYTES } from "./explorer/sources.js";
+export type { GitHubSourceLoaderOptions, SourceLoader } from "./explorer/sources.js";
 export { Explorer } from "./explorer/Explorer.js";
 export type { ExplorerProps } from "./explorer/Explorer.js";
 export type { UiIconName } from "./chrome/uiIcons.js";
