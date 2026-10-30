@@ -5,7 +5,7 @@ import { textWidth } from "../image/markup.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView, type ViewEdge } from "../model/view.js";
 import { countText } from "../nodes/describe.js";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import {
   closedSize,
   countsRowWidth,

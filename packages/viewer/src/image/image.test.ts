@@ -4,7 +4,7 @@ import { contrastRatio } from "../contrast.js";
 import { glyphNames } from "../icons/glyphs.js";
 import { TILE_OUTLINES } from "../icons/Icon.js";
 import { themeTokens } from "../tokens.js";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import { BADGE_COLORS, BADGE_HEIGHT, renderBadge } from "./badge.js";
 import {
   BADGE_MESSAGE_MAX,

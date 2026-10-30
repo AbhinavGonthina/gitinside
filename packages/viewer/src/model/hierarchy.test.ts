@@ -1,7 +1,7 @@
 // @vitest-environment node
 import type { GraphNode } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import {
   ancestry,
   buildHierarchy,

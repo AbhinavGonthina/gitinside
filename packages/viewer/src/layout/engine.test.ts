@@ -3,7 +3,7 @@ import ELK from "elkjs/lib/elk.bundled.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
-import { shopDemo } from "../prototype/shopDemo.testkit.js";
+import { shopDemo } from "../shopDemo.testkit.js";
 import { layoutInput, runLayout, type LayoutInput, type LayoutResult } from "./elk.js";
 import {
   createLayoutCache,
