@@ -12,6 +12,7 @@ export async function GET(
   const search = diagramSearch(request.url);
   const redirect = redirectToCanonical(request.url, search);
   if (redirect !== undefined) return redirect;
-  const theme = new URL(request.url).searchParams.get("theme");
-  return handleImageRequest("diagram", await params, { theme }, imageDepsFromEnv());
+  const url = new URL(request.url);
+  const theme = url.searchParams.get("theme");
+  return handleImageRequest("diagram", await params, { theme }, imageDepsFromEnv(url.origin));
 }

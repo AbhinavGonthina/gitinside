@@ -3,7 +3,12 @@ import { analyses, completeAnalysis, repos, startAnalysis, upsertRepo } from "@g
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { StorageError, type ObjectBody } from "@gitinside/worker/storage";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { GRAPH_CACHE_CONTROL, handleGraphRequest, type GraphRouteDeps } from "./graphRoute";
+import {
+  GRAPH_CACHE_CONTROL,
+  SPELLING_REDIRECT_CACHE_CONTROL,
+  handleGraphRequest,
+  type GraphRouteDeps,
+} from "./graphRoute";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 
 const SHA = "d".repeat(40);
@@ -60,17 +65,32 @@ async function publish(visibility: "public" | "private" = "public") {
   });
 }
 
-const params = (owner = "acme", repo = "shop", sha = SHA) => ({ owner, repo, sha });
+const params = (owner = "Acme", repo = "Shop", sha = SHA) => ({ owner, repo, sha });
 
 describe("handleGraphRequest", () => {
   it("streams a published commit's graph, cacheable", async () => {
     await publish();
-    const response = await handleGraphRequest(params("ACME", "Shop"), deps);
+    const response = await handleGraphRequest(params("Acme", "Shop"), deps);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/json; charset=utf-8");
     expect(response.headers.get("cache-control")).toBe(GRAPH_CACHE_CONTROL);
     expect(await response.text()).toBe(GRAPH);
     expect(reads).toEqual([KEY]);
+  });
+
+  it("redirects other spellings of the repo to the stored one before reading the bucket", async () => {
+    await publish();
+    for (const [owner, repo] of [
+      ["acme", "shop"],
+      ["ACME", "Shop"],
+      ["Acme", "SHOP"],
+    ]) {
+      const response = await handleGraphRequest(params(owner, repo), deps);
+      expect(response.status, `${owner}/${repo}`).toBe(308);
+      expect(response.headers.get("location")).toBe(`/api/graph/Acme/Shop/${SHA}`);
+      expect(response.headers.get("cache-control")).toBe(SPELLING_REDIRECT_CACHE_CONTROL);
+    }
+    expect(reads).toEqual([]);
   });
 
   it("is a 404, read from nowhere, for bad names, bad SHAs, and unknown commits", async () => {

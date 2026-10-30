@@ -9,7 +9,7 @@ import {
 } from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
 import type { GraphRouteDeps } from "./graphRoute";
-import type { ImageRouteDeps } from "./imageRoute";
+import { cdnGraphReader, type ImageRouteDeps } from "./imageRoute";
 import type { JobRouteDeps } from "./jobRoute";
 import { createHeadCache, type RepoViewDeps } from "./repoView";
 import { createWorkerClient } from "./worker";
@@ -24,7 +24,7 @@ import { createWorkerClient } from "./worker";
  * - `GITHUB_TOKEN`: optional, raises GitHub's limit from 60 to 5,000 requests an hour.
  * - `SNAPSHOTS_*` (ADR-0055, ADR-0068, ADR-0095): `/api/graph` reads snapshots with them, alongside
  *   `DATABASE_URL`; the repo page needs only the database (and the worker to re-analyze).
- *   The README images need both (ADR-0072). Every bucket request is counted as `web` in
+ *   The README images read graphs through `/api/graph` (ADR-0072, ADR-0097). Every bucket request is counted as `web` in
  *   `store_requests` (ADR-0096), against Oracle's free 50,000 a month.
  *
  * One database connection per serverless instance (`max: 1`), opened on first use and kept.
@@ -109,13 +109,16 @@ export function graphDepsFromEnv(env: Env = process.env): GraphRouteDeps | undef
 }
 
 /**
- * The README images' deps (ADR-0072): the repo page's, plus the `SNAPSHOTS_*` bucket the graph is
- * read from; `undefined` without either (the images are then the link-only badge).
+ * The README images' deps (ADR-0072, ADR-0097): the repo page's, plus graphs read from
+ * `origin`'s day-cached `/api/graph`, never from the bucket directly; `undefined` without
+ * the database (the images are then the link-only badge).
  */
-export function imageDepsFromEnv(env: Env = process.env): ImageRouteDeps | undefined {
-  const graph = graphDepsFromEnv(env);
-  const view = graph && repoViewDepsFromEnv(env);
-  return graph && view && { view, store: graph.store };
+export function imageDepsFromEnv(
+  origin: string,
+  env: Env = process.env,
+): ImageRouteDeps | undefined {
+  const view = repoViewDepsFromEnv(env);
+  return view && { view, graph: cdnGraphReader(origin) };
 }
 
 /** One process-wide memory of GitHub's answers (lib/repoView.ts). */

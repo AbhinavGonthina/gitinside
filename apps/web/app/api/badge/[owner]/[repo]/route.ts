@@ -11,6 +11,6 @@ export async function GET(
 ): Promise<Response> {
   return (
     redirectToCanonical(request.url, "") ??
-    handleImageRequest("badge", await params, {}, imageDepsFromEnv())
+    handleImageRequest("badge", await params, {}, imageDepsFromEnv(new URL(request.url).origin))
   );
 }

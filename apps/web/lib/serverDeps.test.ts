@@ -102,18 +102,33 @@ describe("graphDepsFromEnv", () => {
 });
 
 describe("imageDepsFromEnv", () => {
-  it("is the repo page's deps plus the bucket; the worker stays optional", () => {
-    const deps = imageDepsFromEnv({ ...ENV, ...BUCKET });
-    expect(typeof deps?.store.get).toBe("function");
+  const ORIGIN = "https://gitinside.test";
+
+  it("is the repo page's deps; the worker stays optional", () => {
+    const deps = imageDepsFromEnv(ORIGIN, ENV);
     expect(deps?.view.heads).toBe(repoViewDepsFromEnv(ENV)?.heads);
     expect(
-      imageDepsFromEnv({ ...ENV, ...BUCKET, WORKER_URL: undefined })?.view.worker,
+      imageDepsFromEnv(ORIGIN, { ...ENV, WORKER_URL: undefined })?.view.worker,
     ).toBeUndefined();
   });
 
-  it("is undefined without the database or the bucket", () => {
-    expect(imageDepsFromEnv(ENV)).toBeUndefined();
-    expect(imageDepsFromEnv({ ...ENV, ...BUCKET, DATABASE_URL: "" })).toBeUndefined();
+  it("reads graphs from the origin's /api/graph, never the bucket (ADR-0097)", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", async (input: URL) => {
+      requests.push(input.href);
+      return new Response("{}");
+    });
+    try {
+      const deps = imageDepsFromEnv(ORIGIN, { ...ENV, ...BUCKET });
+      await deps?.graph("/api/graph/Acme/Shop/abc");
+      expect(requests).toEqual([`${ORIGIN}/api/graph/Acme/Shop/abc`]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("is undefined without the database", () => {
+    expect(imageDepsFromEnv(ORIGIN, { ...ENV, ...BUCKET, DATABASE_URL: "" })).toBeUndefined();
   });
 });
 
