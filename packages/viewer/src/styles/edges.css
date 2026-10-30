@@ -278,8 +278,11 @@
   line-height: 18px;
   white-space: nowrap;
   transform: translate(-50%, -50%);
+  /* The current hop's tint and ring move with the hop, like its line. */
   transition:
     border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
     opacity var(--duration-standard) var(--ease-standard);
 }
 

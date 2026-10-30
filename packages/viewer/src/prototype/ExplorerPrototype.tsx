@@ -16,6 +16,7 @@ import {
 import { Breadcrumbs, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
 import { TopBar } from "../chrome/TopBar.js";
 import { DiagramEdge, EdgeLabel } from "../edges/DiagramEdge.js";
+import { usePresence } from "../motion.js";
 import { CONFIDENCE_TEXT } from "../edges/describe.js";
 import { brandForFramework } from "../icons/brands.js";
 import { DiagramNode } from "../nodes/DiagramNode.js";
@@ -225,6 +226,7 @@ export function ExplorerPrototype({
   const [selected, setSelected] = useState<string | null>(initialSelected);
   const [step, setStep] = useState<number | null>(initialStep);
   const [legend, setLegend] = useState(false);
+  const legendState = usePresence(legend);
   const [announcement, setAnnouncement] = useState("");
 
   const visible = useMemo(() => visibleIds(index, open), [index, open]);
@@ -555,7 +557,14 @@ export function ExplorerPrototype({
             data-place="bottom-right"
             onClick={(e) => e.stopPropagation()}
           >
-            {legend && <Legend onClose={closeLegend} />}
+            {legendState && (
+              <Legend
+                data-state={legendState}
+                inert={legendState === "closing" || undefined}
+                aria-hidden={legendState === "closing" || undefined}
+                onClose={closeLegend}
+              />
+            )}
             <div className="gi-proto__map">
               <div className="gi-overlay">
                 <Button
@@ -649,7 +658,8 @@ function NodePanel({
     edge: c.edge,
   });
   return (
-    <Inspector>
+    // Keyed by the selection: a new node's content swaps in (chrome.css) and starts scrolled to the top.
+    <Inspector key={node.id}>
       <InspectorHeader node={node} layer={layerOf(index, node.id)} location={locationOf(node)} />
       <InspectorSummary>{summaryOf(index, node)}</InspectorSummary>
       {isRoot ? (
@@ -749,9 +759,11 @@ function TracePanel({
   const hidden = inside ? descendants(index, inside.id).length > 0 : false;
   // The prototype drills one level: only a closed top-level node can be broken down.
   const breakable = inside !== undefined && topLevelOf(index, inside.id) === inside.id;
+  // The step's header, summary, and code are keyed by the step so they swap in
+  // (chrome.css); the steps list and the player's buttons stay, keeping focus.
   return (
     <Inspector>
-      <header className="gi-inspector__header">
+      <header key={`header-${step}`} className="gi-inspector__header">
         <div className="gi-inspector__chips">
           <span className="gi-chip">Request path</span>
           <span className="gi-chip">
@@ -769,7 +781,7 @@ function TracePanel({
           </p>
         )}
       </header>
-      <InspectorSummary>
+      <InspectorSummary key={`summary-${step}`}>
         {CONFIDENCE_TEXT[current.edge.confidence]}
         {current.edge.reason ? ` (${REASON_TEXT[current.edge.reason]})` : ""}.
         {inside && hidden
@@ -780,7 +792,7 @@ function TracePanel({
           : ""}
       </InspectorSummary>
       {code && (
-        <InspectorSection title="Code">
+        <InspectorSection key={`code-${step}`} title="Code">
           <CodePreview {...code} />
         </InspectorSection>
       )}

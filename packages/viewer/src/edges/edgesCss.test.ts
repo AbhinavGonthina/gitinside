@@ -37,6 +37,13 @@ describe("edges.css", () => {
     for (const t of timed) expect(t).not.toMatch(/\d+m?s\b/);
   });
 
+  it("moves the label's fill and ring with the hop instead of snapping them (M4b.0e)", () => {
+    const rule = /^\.gi-edge-label \{([^}]*)\}/m.exec(body)?.[1] ?? "";
+    for (const property of ["border-color", "background-color", "box-shadow", "opacity"]) {
+      expect(rule).toMatch(new RegExp(`${property} var\\(--duration-`));
+    }
+  });
+
   it("turns off flow particles and the broken pulse under reduced motion", () => {
     const reduced = body.slice(body.indexOf("@media (prefers-reduced-motion: reduce)"));
     expect(reduced).toMatch(/\.gi-edge__particle\s*\{\s*display: none;/);

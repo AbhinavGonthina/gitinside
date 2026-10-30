@@ -13,7 +13,7 @@ Abhinav's review of [M4a-review.md](milestones/M4a-review.md), in his words wher
 - **Change: a service's first level leads with its routes,** then its folders (question 4). See UX.md "Drill-down" (M4b.1, M4b.3).
 - **Change: the code sample links to the file on GitHub,** at the commit and line (M4b.5).
 - **Change: a new GitInside mark.** "Not a fan of the logo right now" (M4b.0d, done: the "G" mark, §4 Chrome).
-- **Change: natural motion everywhere,** so it runs like a smooth modern web app, and it should look as little AI-coded as possible while staying polished and clean (M4b.0e; every M4b task).
+- **Change: natural motion everywhere,** so it runs like a smooth modern web app, and it should look as little AI-coded as possible while staying polished and clean (M4b.0e, done: §4 "What moves, and how"; every later M4b task keeps to it).
 
 ## 1. Direction: "Living system diagram"
 
@@ -175,7 +175,14 @@ Source of truth: `packages/viewer/src/tokens.ts` and `src/styles/tokens.css`, wh
 - Trace hop (900ms).
 - One orchestrated moment on first load: services settle into place.
 - `prefers-reduced-motion` makes every transition instant and turns off flow particles. The stylesheet sets every `--duration-*` to `0ms`; JS animation reads `durations` from `tokens.ts` and must check the same media query.
-- Easing: `--ease-standard` `cubic-bezier(0.2, 0, 0, 1)` for hover and panels, `--ease-layout` `cubic-bezier(0.65, 0, 0.35, 1)` (ease-in-out cubic) for glides.
+- Easing: `--ease-standard` `cubic-bezier(0.2, 0, 0, 1)` for hover and panels, `--ease-layout` `cubic-bezier(0.65, 0, 0.35, 1)` (ease-in-out cubic) for glides, `--ease-exit` `cubic-bezier(0.4, 0, 1, 1)` (accelerating) for anything leaving. No easing overshoots (tested).
+- **What moves, and how** (M4b.0e, ADR-0104; frames in `docs/milestones/M4b/motion-*`):
+  - **Hover and selection:** fill, border, and ring change over `fast`; a shape's drawn parts (window band, folder tab, table rule) change with the box rather than snapping ahead of it. An edge's line, arrow, and label (border, fill, ring) follow the same timing, so the current trace hop's tint moves with its line.
+  - **Inspector content swap:** a new selection's content fades in where the old one was (opacity, 2px rise, `standard`); the panel itself never moves. The explorer keys the panel by selection, so it also starts scrolled to the top. In trace mode only the step's header, summary, and code swap; the steps list and the player's buttons stay, keeping focus.
+  - **Overlays** (legend, status chips): in with opacity and a 4px rise over `standard`; out with a fade over `fast` on `--ease-exit`. Leaving is faster than arriving.
+  - **Command palette:** the scrim fades in; the dialog settles 6px down toward its place. Both leave together with the overlay exit.
+  - **Exits stay mounted** for their `fast` exit through `usePresence` (`motion.ts`), which sets `data-state="closing"` and makes the leaving overlay inert (no pointer, out of the accessibility tree); reopening mid-exit keeps the same element. Under reduced motion it unmounts at once.
+  - **Not used, because they read as generated UI:** scale-in or zoom pops, blur-ins, springs and bounces, staggered list cascades, hover lifts with growing shadows, shimmer, and slides longer than a few pixels. Tests reject `scale`, `blur`, and `rotate` in the chrome's keyframes and moves over 6px.
 
 **Chrome** (implemented in M4a.6, `packages/viewer/src/chrome/`; approved at the design gate, changes in §1.1; ADR-0051). Story **Components/Chrome** shows Controls, Top bar, Inspector, Canvas overlays, Command palette (with and without results), and Layout (everything around a small diagram).
 - **Controls:**

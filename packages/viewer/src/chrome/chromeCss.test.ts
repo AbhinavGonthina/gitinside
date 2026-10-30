@@ -30,6 +30,40 @@ describe("chrome.css", () => {
     );
   });
 
+  it("brings overlays in at the standard duration and takes them out faster, inert (M4b.0e)", () => {
+    const rule = (selector: string) =>
+      new RegExp(`(?:^|\\n)${selector.replace(/[.[\]"=*]/g, "\\$&")} \\{([^}]*)\\}`).exec(
+        body,
+      )?.[1] ?? "";
+    for (const enter of [".gi-popover", ".gi-palette-scrim", ".gi-palette", ".gi-status"]) {
+      expect(rule(enter)).toMatch(
+        /animation: gi-[a-z-]+-in var\(--duration-standard\) var\(--ease-standard\)/,
+      );
+    }
+    for (const exit of [
+      '.gi-popover[data-state="closing"]',
+      '.gi-palette-scrim[data-state="closing"]',
+    ]) {
+      expect(rule(exit)).toMatch(
+        /animation: gi-fade-out var\(--duration-fast\) var\(--ease-exit\)/,
+      );
+      expect(rule(exit)).toContain("pointer-events: none;");
+    }
+    expect(rule(".gi-inspector > *")).toMatch(/animation: gi-swap-in var\(--duration-standard\)/);
+  });
+
+  it("moves overlays without AI-looking defaults: no scale, blur, or bounce (ADR-0104)", () => {
+    const keyframes = body.match(/@keyframes gi-[a-z-]+ \{[\s\S]*?\n\}/g) ?? [];
+    expect(keyframes.length).toBeGreaterThan(4);
+    for (const k of keyframes) {
+      expect(k).not.toMatch(/\bscale\b|blur\(|rotate/);
+      // Movement stays a few pixels: a nudge, not a slide.
+      for (const [, px] of k.matchAll(/translate: 0 (-?\d+)px/g)) {
+        expect(Math.abs(Number(px))).toBeLessThanOrEqual(6);
+      }
+    }
+  });
+
   it("styles each button variant and the palette's active result", () => {
     for (const v of ["primary", "secondary", "quiet"]) {
       expect(css).toContain(`.gi-button[data-variant="${v}"]`);

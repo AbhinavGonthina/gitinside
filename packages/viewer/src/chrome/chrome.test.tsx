@@ -450,6 +450,17 @@ describe("CommandPalette", () => {
     expect(field.getAttribute("aria-controls")).toBe(screen.getByRole("listbox").id);
   });
 
+  it("while closing, plays its exit out of reach of the pointer and screen readers (M4b.0e)", () => {
+    const { container, rerender } = render(<CommandPalette query="" results={[]} />);
+    const scrim = container.querySelector(".gi-palette-scrim") as HTMLElement;
+    expect(scrim.dataset.state).toBe("open");
+    expect(scrim.hasAttribute("inert")).toBe(false);
+    rerender(<CommandPalette query="" results={[]} state="closing" />);
+    expect(scrim.dataset.state).toBe("closing");
+    expect(scrim.hasAttribute("inert")).toBe(true);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("marks the matched characters and draws code-like names in mono", () => {
     render(<CommandPalette query="ord" results={paletteResults} />);
     const route = screen.getAllByRole("option")[0] as HTMLElement;

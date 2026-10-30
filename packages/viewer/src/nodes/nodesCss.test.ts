@@ -23,6 +23,13 @@ describe("nodes.css", () => {
     for (const t of transitions) expect(t).not.toMatch(/\d+m?s\b/);
   });
 
+  it("changes a shape's drawn parts with the box, so the band and tab don't snap ahead (M4b.0e)", () => {
+    const rule =
+      /\.gi-node::before,\s*\.gi-node \.gi-node__fields \{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toContain("background-color var(--duration-fast) var(--ease-standard)");
+    expect(rule).toContain("border-color var(--duration-fast) var(--ease-standard)");
+  });
+
   it.each([
     "data-hover",
     "data-selected",

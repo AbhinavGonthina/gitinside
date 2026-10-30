@@ -180,6 +180,21 @@ describe("scale tokens", () => {
     expect(scaleTokens["duration-layout"]).toBe(`${durations.layout}ms`);
     expect(scaleTokens["duration-trace-hop"]).toBe(`${durations["trace-hop"]}ms`);
   });
+
+  it("ease without overshoot, and exits accelerate away (ADR-0104)", () => {
+    const eases = Object.entries(scaleTokens).filter(([n]) => n.startsWith("ease-"));
+    expect(eases.map(([n]) => n)).toEqual(["ease-standard", "ease-layout", "ease-exit"]);
+    for (const [, value] of eases) {
+      const points = /^cubic-bezier\(([^)]*)\)$/.exec(value)?.[1]?.split(",").map(Number) ?? [];
+      expect(points).toHaveLength(4);
+      // y outside [0, 1] is a bounce or a wind-up: a generated-UI tell.
+      for (const y of [points[1], points[3]]) expect(y).toBeGreaterThanOrEqual(0);
+      for (const y of [points[1], points[3]]) expect(y).toBeLessThanOrEqual(1);
+    }
+    // Exits start slow and leave fast; entrances do the opposite.
+    const [x1, y1] = scaleTokens["ease-exit"].slice(13, -1).split(",").map(Number);
+    expect(x1! > y1!).toBe(true);
+  });
 });
 
 describe("cssVar", () => {
