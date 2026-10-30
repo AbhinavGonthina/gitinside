@@ -120,22 +120,108 @@ export type IconTileSize = "sm" | "lg";
 /** Icon size inside each tile size, in px. */
 export const TILE_ICON_SIZE: Readonly<Record<IconTileSize, number>> = { sm: 20, lg: 32 };
 
+/** The outlines a large tile can take instead of the rounded square: datastores, queues, outside APIs. */
+export type TileShape = "cylinder" | "pipe" | "circle";
+
+/** A tile outline: its box, the path drawn (filled), an optional rim line, and where the icon centers. */
+export interface TileOutline {
+  width: number;
+  height: number;
+  /** Outline path, on a 1px hairline drawn at half-pixel offsets. */
+  d: string;
+  /** Stroked only: the front edge that makes a cylinder read as one. */
+  rim?: string;
+  iconX: number;
+  iconY: number;
+}
+
+/**
+ * Tile outlines by shape, the one source for the canvas ({@link IconTile})
+ * and the README image. All are 64px tall, so icon-first nodes line up:
+ * - `cylinder`: a datastore, upright, with its top rim; the icon sits in the body.
+ * - `pipe`: a queue, a cylinder lying down with its open end on the right.
+ * - `circle`: an outside API, the world beyond the repo.
+ */
+export const TILE_OUTLINES: Readonly<Record<TileShape, TileOutline>> = {
+  cylinder: {
+    width: 56,
+    height: 64,
+    d: "M0.5 7A27.5 6.5 0 0 1 55.5 7V57A27.5 6.5 0 0 1 0.5 57Z",
+    rim: "M0.5 7A27.5 6.5 0 0 0 55.5 7",
+    iconX: 28,
+    iconY: 37,
+  },
+  pipe: {
+    width: 84,
+    height: 64,
+    d: "M7.5 6.5H76.5A7 25.5 0 0 1 76.5 57.5H7.5A7 25.5 0 0 1 7.5 6.5Z",
+    rim: "M76.5 6.5A7 25.5 0 0 0 76.5 57.5",
+    iconX: 37,
+    iconY: 32,
+  },
+  circle: {
+    width: 64,
+    height: 64,
+    d: "M32 2.5A29.5 29.5 0 1 1 32 61.5A29.5 29.5 0 1 1 32 2.5Z",
+    iconX: 32,
+    iconY: 32,
+  },
+};
+
+/** Whether a node shape (`nodeShape`) is drawn by its icon tile's outline. */
+export function isTileShape(shape: string): shape is TileShape {
+  return Object.hasOwn(TILE_OUTLINES, shape);
+}
+
 /** Props for {@link IconTile}. */
 export interface IconTileProps {
   size?: IconTileSize;
   /** Rings the tile in the layer's color (a restrained accent, never a fill). */
   layer?: Layer | undefined;
+  /** Large tiles only: draw this outline instead of the rounded square. */
+  shape?: TileShape | undefined;
   children: ReactNode;
 }
 
+/** Padding that moves a centered icon to (`iconX`, `iconY`) in its box. */
+function iconOffset({ width, height, iconX, iconY }: TileOutline): CSSProperties {
+  const dx = 2 * iconX - width;
+  const dy = 2 * iconY - height;
+  return {
+    width,
+    height,
+    ...(dx > 0 ? { paddingLeft: dx } : dx < 0 ? { paddingRight: -dx } : {}),
+    ...(dy > 0 ? { paddingTop: dy } : dy < 0 ? { paddingBottom: -dy } : {}),
+  };
+}
+
 /**
- * The neutral rounded tile logos and glyphs sit on, so mixed brand colors stay
+ * The neutral tile logos and glyphs sit on, so mixed brand colors stay
  * harmonious (DESIGN_SYSTEM.md §3). Always `surface-1`, the surface
- * {@link brandFill} checks contrast against.
+ * {@link brandFill} checks contrast against. A rounded square, or for large
+ * tiles one of {@link TILE_OUTLINES}, so the kind shows in the outline too.
  */
-export function IconTile({ size = "sm", layer, children }: IconTileProps) {
+export function IconTile({ size = "sm", layer, shape, children }: IconTileProps) {
+  const outline = size === "lg" && shape ? TILE_OUTLINES[shape] : undefined;
   return (
-    <span className="gi-icon-tile" data-size={size} {...(layer ? { "data-layer": layer } : {})}>
+    <span
+      className="gi-icon-tile"
+      data-size={size}
+      {...(layer ? { "data-layer": layer } : {})}
+      {...(outline && shape ? { "data-shape": shape, style: iconOffset(outline) } : {})}
+    >
+      {outline && (
+        <svg
+          className="gi-icon-tile__outline"
+          width={outline.width}
+          height={outline.height}
+          viewBox={`0 0 ${outline.width} ${outline.height}`}
+          aria-hidden
+        >
+          <path d={outline.d} />
+          {outline.rim && <path className="gi-icon-tile__rim" d={outline.rim} />}
+        </svg>
+      )}
       {children}
     </span>
   );

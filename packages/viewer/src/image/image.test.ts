@@ -2,6 +2,7 @@ import type { ArchitectureGraph, GraphEdge, GraphNode } from "@gitinside/schema"
 import { describe, expect, it } from "vitest";
 import { contrastRatio } from "../contrast.js";
 import { glyphNames } from "../icons/glyphs.js";
+import { TILE_OUTLINES } from "../icons/Icon.js";
 import { themeTokens } from "../tokens.js";
 import { shopDemo } from "../prototype/shopDemo.testkit.js";
 import { BADGE_COLORS, BADGE_HEIGHT, renderBadge } from "./badge.js";
@@ -195,6 +196,44 @@ describe("renderDiagram", () => {
     for (const n of top) expect(text).toContain(n.label);
     expect(svg).not.toMatch(/NaN|undefined|Infinity/);
     expectVarsDefined(svg);
+  });
+
+  it("draws the canvas's shapes: a window, a box, a cylinder, a pipe, and a circle (design gate)", () => {
+    const svg = renderDiagram(
+      graphOf([
+        { ...service("web"), layer: "frontend" },
+        service("api"),
+        datastore("db"),
+        {
+          id: "queue:jobs",
+          kind: "queue",
+          label: "jobs",
+          parentId: root.id,
+          layer: "infra",
+          engine: "redis",
+          name: "jobs",
+        },
+        {
+          id: "external:x",
+          kind: "external",
+          label: "api.stripe.com",
+          parentId: root.id,
+          layer: "external",
+          host: "api.stripe.com",
+        },
+      ]),
+      { theme: "dark" },
+    );
+    parse(svg);
+    expectVarsDefined(svg);
+    // One title band, the frontend service's; the backend box has the squarer corners.
+    expect(svg.match(/var\(--band-frontend\)/g)).toHaveLength(1);
+    expect(svg).not.toContain("--band-backend)");
+    expect(svg).toMatch(/rx="6" style="fill:var\(--frame-backend\)/);
+    expect(svg).toMatch(/rx="16" style="fill:var\(--frame-frontend\)/);
+    for (const shape of ["cylinder", "pipe", "circle"] as const) {
+      expect(svg).toContain(`d="${TILE_OUTLINES[shape].d}"`);
+    }
   });
 
   it("gives the same bytes for the same graph", () => {

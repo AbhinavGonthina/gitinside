@@ -51,6 +51,8 @@ export function imageColors(theme: Theme, brands: readonly Brand[]): Record<stri
     const color = t[`layer-${layer}`];
     // The same mixes as nodes.css (closed frame), icons.css (tile ring), and edges.css (line).
     out[`frame-${layer}`] = mix(color, 10, t["surface-1"]);
+    // A window's title band: 22% of the layer over the closed frame's fill.
+    out[`band-${layer}`] = mix(color, 22, mix(color, 10, t["surface-1"]));
     out[`lip-${layer}`] = mix(color, 5, t["surface-1"]);
     out[`frame-border-${layer}`] = mix(color, 45, t.border);
     out[`ring-${layer}`] = mix(color, 60, t.border);

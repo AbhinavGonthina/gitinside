@@ -43,6 +43,35 @@
 }
 
 /*
+ * Shaped tiles (datastore cylinder, queue pipe, outside-API circle): the
+ * outline is an SVG behind the icon, in the same fill and ring as the square.
+ * Size and icon offset come from TILE_OUTLINES (src/icons/Icon.tsx).
+ */
+.gi-icon-tile[data-shape] {
+  position: relative;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+
+.gi-icon-tile__outline {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  fill: var(--surface-1);
+  stroke: var(--gi-ring);
+  stroke-width: 1;
+}
+
+.gi-icon-tile__outline .gi-icon-tile__rim {
+  fill: none;
+}
+
+.gi-icon-tile[data-shape] > :not(.gi-icon-tile__outline) {
+  position: relative;
+}
+
+/*
  * The layer ring is a restrained accent: the layer color mixed into the
  * hairline, so it tints the tile without outshining the logo. Layer is also
  * named in the legend and inspector, so the ring is never the only signal.

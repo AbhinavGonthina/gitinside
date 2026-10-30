@@ -13,6 +13,7 @@ import {
   FRAME_HEADER,
   FRAME_PAD,
   fitScale,
+  frameHeader,
   layout,
   MIN_FRAME_WIDTH,
   nodeSize,
@@ -20,6 +21,7 @@ import {
   PARALLEL_GAP,
   pointAlong,
   route,
+  WINDOW_BAND,
 } from "./layout.js";
 import { frameCounts, indexGraph, liftEdges, visibleIds } from "./model.js";
 import { shopDemo } from "./shopDemo.testkit.js";
@@ -85,7 +87,7 @@ describe("layout", () => {
       if (!open) continue;
       const frame = boxes.get(open) as Rect;
       const children = (index.children.get(open) ?? []).map((n) => boxes.get(n.id) as Rect);
-      expect(children[0]?.y).toBe(frame.y + FRAME_HEADER);
+      expect(children[0]?.y).toBe(frame.y + frameHeader(index, open));
       for (const c of children) expect(inside(c, frame)).toBe(true);
       for (const [i, c] of children.slice(1).entries()) {
         const above = children[i] as Rect;
@@ -102,8 +104,21 @@ describe("layout", () => {
   it("sizes nodes by tier, giving frames with counts a second row", () => {
     expect(nodeSize(index, "service:api/")).toEqual({ width: 248, height: 94 });
     expect(nodeSize(index, "module:web/lib")).toEqual({ width: 248, height: 62 });
-    expect(nodeSize(index, "datastore:infra/db")).toEqual({ width: 136, height: 112 });
+    expect(nodeSize(index, "datastore:infra/db")).toEqual({ width: 136, height: 128 });
     expect(nodeSize(index, "unresolved:web/lib/cms.ts:3:21")).toEqual({ width: 232, height: 52 });
+  });
+
+  it("adds a window's title band and a table's fields row to the box (design gate)", () => {
+    // A frontend service is a window, open or closed; a backend one is a box and gets nothing.
+    expect(nodeSize(index, "service:web/").height).toBe(94 + WINDOW_BAND.frame);
+    expect(frameHeader(index, "service:web/")).toBe(FRAME_HEADER + WINDOW_BAND.frame);
+    expect(frameHeader(index, "service:api/")).toBe(FRAME_HEADER);
+    const pages = [...index.byId.values()].filter((n) => n.kind === "page");
+    const models = [...index.byId.values()].filter((n) => n.kind === "model");
+    expect(pages.length).toBeGreaterThan(0);
+    expect(models.length).toBeGreaterThan(0);
+    for (const p of pages) expect(nodeSize(index, p.id).height).toBe(52 + WINDOW_BAND.card);
+    for (const m of models) expect(nodeSize(index, m.id).height).toBe(80);
   });
 
   it("widens a closed frame until its count badges fit on one row", () => {
@@ -111,7 +126,7 @@ describe("layout", () => {
     const counts = frameCounts(index, "service:web/");
     expect(counts.map(countText)).toEqual(["3 pages", "1 unresolved call"]);
     const { width, height } = nodeSize(index, "service:web/");
-    expect(height).toBe(94);
+    expect(height).toBe(94 + WINDOW_BAND.frame);
     expect(width).toBeGreaterThan(248);
     expect(width).toBe(Math.max(MIN_FRAME_WIDTH, countsRowWidth(counts)));
     // The row's own width: indent and padding, each badge's text and chrome, the gaps between.

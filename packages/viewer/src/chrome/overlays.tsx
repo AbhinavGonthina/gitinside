@@ -2,8 +2,7 @@ import type { Confidence, Layer, NodeKind } from "@gitinside/schema";
 import type { HTMLAttributes } from "react";
 import { DiagramEdge } from "../edges/DiagramEdge.js";
 import { CONFIDENCE_TEXT } from "../edges/describe.js";
-import { Glyph } from "../icons/glyphs.js";
-import { DIFF_TEXT, type NodeDiff } from "../nodes/describe.js";
+import { DIFF_TEXT, type NodeDiff, type NodeShape } from "../nodes/describe.js";
 import { IconButton } from "./controls.js";
 import { boundsOf, LAYER_NAMES, minimapFit, toMinimap, zoomText, type Rect } from "./describe.js";
 import { UiIcon } from "./uiIcons.js";
@@ -221,7 +220,10 @@ export function Legend({ onClose, className, ...rest }: LegendProps) {
           <LayerAndConnection />
         </div>
         <div>
-          <ShapeAndHighlight />
+          <Shapes />
+        </div>
+        <div>
+          <Highlights />
         </div>
       </div>
     </section>
@@ -267,31 +269,118 @@ function LayerAndConnection() {
   );
 }
 
-/** The legend's second column: what container shape and highlights mean. */
-function ShapeAndHighlight() {
+/**
+ * What each node shape stands for, in the legend's order (frames, cards, icon
+ * tiles). A record over every `NodeShape`, so a new shape can't miss its row.
+ */
+export const SHAPE_TEXT: Readonly<Record<NodeShape, string>> = {
+  window: "Window: frontend app, page",
+  box: "Box: backend service",
+  folder: "Folder: module",
+  capsule: "Capsule: route",
+  table: "Table: model and its fields",
+  card: "Card: file, function",
+  cylinder: "Cylinder: datastore",
+  pipe: "Pipe: queue",
+  circle: "Circle: outside API",
+  dotted: "Dotted: in the code, not linked",
+};
+
+const SHAPES = Object.keys(SHAPE_TEXT) as NodeShape[];
+
+/**
+ * A shape's outline at legend size (24 × 16), the same silhouettes as
+ * nodes.css and `TILE_OUTLINES`, drawn in the muted hairline.
+ */
+function ShapeSwatch({ shape }: { shape: NodeShape | "stacked" }) {
+  const outline = (() => {
+    switch (shape) {
+      case "window":
+        return (
+          <>
+            <rect x={2.5} y={2.5} width={19} height={11} rx={3} />
+            <path className="gi-legend__band" d="M2.5 6.5V5.5a3 3 0 0 1 3-3h13a3 3 0 0 1 3 3v1Z" />
+          </>
+        );
+      case "box":
+        return <rect x={2.5} y={2.5} width={19} height={11} rx={1.5} />;
+      case "folder":
+        return (
+          <>
+            <path d="M4.5 4.5V3.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" />
+            <rect x={2.5} y={4.5} width={19} height={9} rx={2} />
+          </>
+        );
+      case "capsule":
+        return <rect x={2.5} y={4.5} width={19} height={7} rx={3.5} />;
+      case "table":
+        return (
+          <>
+            <rect x={3.5} y={2.5} width={17} height={11} rx={1.5} />
+            <path d="M3.5 7.5h17" />
+          </>
+        );
+      case "card":
+        return <rect x={3.5} y={3.5} width={17} height={9} rx={2.5} />;
+      case "cylinder":
+        return (
+          <>
+            <path d="M7.5 3.5a4.5 1.5 0 0 1 9 0v9a4.5 1.5 0 0 1-9 0Z" />
+            <path d="M7.5 3.5a4.5 1.5 0 0 0 9 0" />
+          </>
+        );
+      case "pipe":
+        return (
+          <>
+            <path d="M5.5 3.5h12a1.5 4.5 0 0 1 0 9h-12a1.5 4.5 0 0 1 0-9Z" />
+            <path d="M17.5 3.5a1.5 4.5 0 0 0 0 9" />
+          </>
+        );
+      case "circle":
+        return <circle cx={12} cy={8} r={5.5} />;
+      case "dotted":
+        return <rect x={3.5} y={3.5} width={17} height={9} rx={2.5} strokeDasharray="1 2" />;
+      case "stacked":
+        return (
+          <>
+            <path d="M4.5 12.5v1a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-1" />
+            <rect x={2.5} y={1.5} width={19} height={11} rx={2} />
+          </>
+        );
+    }
+  })();
+  return (
+    <svg className="gi-legend__shape" width={24} height={16} viewBox="0 0 24 16" aria-hidden>
+      {outline}
+    </svg>
+  );
+}
+
+/** The legend's second column: what each node shape means. */
+function Shapes() {
+  return (
+    <div className="gi-legend__group">
+      <h3>Shape</h3>
+      <ul>
+        {SHAPES.map((shape) => (
+          <li key={shape}>
+            <ShapeSwatch shape={shape} />
+            {SHAPE_TEXT[shape]}
+          </li>
+        ))}
+        <li>
+          <ShapeSwatch shape="stacked" />
+          Stacked edge: opens in place
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+/** The legend's third column: what highlights mean. */
+function Highlights() {
   return (
     <>
-      <div className="gi-legend__group">
-        <h3>Shape</h3>
-        <ul>
-          <li>
-            <Glyph name="module" size={16} />
-            Frame: service or folder, opens in place
-          </li>
-          <li>
-            <Glyph name="file" size={16} />
-            Card: file, function, route, model
-          </li>
-          <li>
-            <Glyph name="datastore" size={16} />
-            Icon: datastore, queue, outside API
-          </li>
-          <li>
-            <Glyph name="unresolved" size={16} />
-            Dotted: in the code, not linked
-          </li>
-        </ul>
-      </div>
       <div className="gi-legend__group">
         <h3>Highlight</h3>
         <ul>

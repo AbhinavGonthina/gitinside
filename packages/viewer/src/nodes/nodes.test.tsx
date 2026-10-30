@@ -2,12 +2,15 @@ import { NodeKind, UnresolvedReason, type GraphNode } from "@gitinside/schema";
 import { composeStories } from "@storybook/react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { IconTile, TILE_OUTLINES } from "../icons/Icon.js";
 import { DiagramNode } from "./DiagramNode.js";
 import {
   countText,
   kindName,
+  modelFieldsText,
   nodeAccessibleName,
   nodeLabel,
+  nodeShape,
   nodeSubtitle,
   nodeTier,
   REASON_TEXT,
@@ -40,6 +43,48 @@ describe("nodeTier", () => {
         ? ({ ...base, id: "system:root", kind, parentId: null } as const)
         : sample(kind);
     expect(nodeTier(node)).toBe(tier);
+  });
+});
+
+describe("nodeShape", () => {
+  it.each([
+    ["service", "window"],
+    ["module", "folder"],
+    ["file", "card"],
+    ["symbol", "card"],
+    ["route", "capsule"],
+    ["page", "window"],
+    ["model", "table"],
+    ["unresolved", "dotted"],
+    ["datastore", "cylinder"],
+    ["queue", "pipe"],
+    ["external", "circle"],
+  ] as const)("draws a %s as a %s", (kind, shape) => {
+    expect(nodeShape(sample(kind))).toBe(shape);
+  });
+
+  it("draws a frontend service as a window and any other service as a box (design gate)", () => {
+    const svc = { ...base, id: "s", kind: "service", root: "apps/x" } as const;
+    expect(nodeShape({ ...svc, layer: "frontend" })).toBe("window");
+    expect(nodeShape({ ...svc, layer: "backend" })).toBe("box");
+    expect(nodeShape({ ...svc, layer: "infra" })).toBe("box");
+    expect(nodeShape(svc)).toBe("box");
+    // The node's own layer wins over an inherited one.
+    expect(nodeShape(svc, "frontend")).toBe("window");
+    expect(nodeShape({ ...svc, layer: "backend" }, "frontend")).toBe("box");
+  });
+
+  it("gives every node kind a shape, and frontend and backend services different ones", () => {
+    const shapes = new Set(nodeSamples.map((s) => nodeShape(s.node, s.layer)));
+    expect(shapes.size).toBe(10);
+  });
+
+  it("lists a model's fields in declaration order, marking optional ones", () => {
+    expect(modelFieldsText(sample("model"))).toBe(
+      "id · total · status · userId · note? · createdAt",
+    );
+    expect(modelFieldsText({ ...base, id: "md", kind: "model", fields: [] })).toBe("");
+    expect(modelFieldsText(sample("file"))).toBe("");
   });
 });
 
@@ -158,6 +203,69 @@ describe("DiagramNode", () => {
     expect(el.querySelector(".gi-icon-tile")?.getAttribute("data-size")).toBe("lg");
     expect(el.querySelector("[data-brand='postgresql']")).not.toBeNull();
     expect(el.querySelector(".gi-node__subtitle")?.textContent).toBe("PostgreSQL");
+  });
+
+  it.each([
+    ["datastore", "cylinder", 56],
+    ["queue", "pipe", 84],
+    ["external", "circle", 64],
+  ] as const)("draws a %s's tile as a %s outline", (kind, shape, width) => {
+    const { getByRole } = render(<DiagramNode node={sample(kind)} />);
+    const el = getByRole("group");
+    expect(el.dataset["shape"]).toBe(shape);
+    const tile = el.querySelector<HTMLElement>(".gi-icon-tile");
+    expect(tile?.dataset["shape"]).toBe(shape);
+    expect(tile?.style.width).toBe(`${width}px`);
+    expect(tile?.style.height).toBe("64px");
+    const outline = tile?.querySelector("svg.gi-icon-tile__outline");
+    expect(outline?.getAttribute("aria-hidden")).toBe("true");
+    expect(outline?.querySelector("path")?.getAttribute("d")).toBe(TILE_OUTLINES[shape].d);
+    // The icon is still there, on top of the outline.
+    expect(tile?.lastElementChild?.matches(".gi-brand, .gi-glyph")).toBe(true);
+  });
+
+  it("keeps the rounded square for small tiles, whatever the node", () => {
+    const { container } = render(
+      <IconTile size="sm" shape="cylinder">
+        <span />
+      </IconTile>,
+    );
+    const tile = container.querySelector<HTMLElement>(".gi-icon-tile");
+    expect(tile?.dataset["shape"]).toBeUndefined();
+    expect(tile?.querySelector("svg")).toBeNull();
+  });
+
+  it("moves the icon to the outline's icon point", () => {
+    for (const shape of Object.keys(TILE_OUTLINES) as (keyof typeof TILE_OUTLINES)[]) {
+      const o = TILE_OUTLINES[shape];
+      const { container } = render(
+        <IconTile size="lg" shape={shape}>
+          <span />
+        </IconTile>,
+      );
+      const style = container.querySelector<HTMLElement>(".gi-icon-tile")?.style;
+      const left = parseFloat(style?.paddingLeft || "0") - parseFloat(style?.paddingRight || "0");
+      const top = parseFloat(style?.paddingTop || "0") - parseFloat(style?.paddingBottom || "0");
+      // A centered child of the padded box sits at (width + left) / 2, (height + top) / 2.
+      expect((o.width + left) / 2).toBe(o.iconX);
+      expect((o.height + top) / 2).toBe(o.iconY);
+      cleanup();
+    }
+  });
+
+  it("draws a model as a table, its fields on a row of their own", () => {
+    const { getByRole } = render(<DiagramNode node={sample("model")} />);
+    const el = getByRole("group", { name: "Order, model" });
+    expect(el.dataset["shape"]).toBe("table");
+    const fields = el.querySelector(".gi-node__fields");
+    expect(fields?.tagName).toBe("CODE");
+    expect(fields?.textContent).toBe("id · total · status · userId · note? · createdAt");
+    expect(fields?.getAttribute("title")).toBe(fields?.textContent);
+    // Other kinds have no fields row.
+    cleanup();
+    const { getByRole: get } = render(<DiagramNode node={sample("route")} />);
+    expect(get("group").dataset["shape"]).toBe("capsule");
+    expect(get("group").querySelector(".gi-node__fields")).toBeNull();
   });
 
   it("inherits the service's layer only when the node has none", () => {
