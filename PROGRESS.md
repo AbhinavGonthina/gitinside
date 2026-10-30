@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.2. ELK layout in a Web Worker (M5.13 and M5.14b wait on #3, #5, #7)
+M4b.2b. ELK in a Web Worker + layout cache (M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -87,7 +87,8 @@ M4b.2. ELK layout in a Web Worker (M5.13 and M5.14b wait on #3, #5, #7)
 - [x] M4b.0d Design gate: a new GitInside mark (top bar, favicon, README badge), screenshots, baselines {model: opus}
 - [x] M4b.0e Design gate: motion pass (hover, select, inspector content swap, overlays, palette open/close: token durations, reduced motion), no AI-looking defaults {model: opus}
 - [x] M4b.1 Viewer graph model: hierarchy index, edge aggregation, visibility; a service's first level leads with its routes and pages, then its folders (design gate, UX.md) {model: opus}
-- [ ] M4b.2 ELK layout in a Web Worker with stable ordering + layout cache; node sizes measured from content, not fixed per tier (design gate fit) {model: opus}
+- [x] M4b.2a Node and edge-label sizes measured from content, not fixed per tier (design gate fit) + ELK layout of a view (compound frames, stable ordering, routes in a service's first column, absolute boxes and routes), deterministic {model: opus}
+- [ ] M4b.2b ELK in a Web Worker (in-thread fallback) + layout cache per expansion state (`view.open` + hidden kinds) + a story drawing the laid-out fixture with real nodes and edges, screenshots, real-browser fit check {model: opus}
 - [ ] M4b.3 Semantic drill-down with animated in-place transitions + reduced motion (routes first at the service level) {model: opus}
 - [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
 - [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub; the code sample links to the file and line, design gate) {model: opus}
@@ -194,6 +195,8 @@ M4b.2. ELK layout in a Web Worker (M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.2a: ELK layout of a view (ADR-0106). M4b.2 split: 2a sizes + layout, 2b worker + cache + story. `layout/size.ts` measures every node and edge label from its words, badges, and fields (floors and ceilings per tier; badges never wrap); `layout/elk.ts` runs one layered, left-to-right ELK pass with open nodes as compound nodes, routes held to a service's first column (`FIRST`), model order kept, labels moved onto their lines. Found: ELK ignores labels without `text` (placeholder added). Viewer 571 (34 new: determinism, nesting, no overlaps, ends on boxes, labels on lines), root typecheck + lint + viewer build green. elkjs 0.12.1 added (lockfile ⇒ eval re-run). No UI change yet, so no screenshots. Next: M4b.2b.
 
 - 2026-10-30 · M4b.1: Viewer graph model (ADR-0105, `5b5c0e0`). `buildHierarchy` (`model/hierarchy.ts`) indexes a graph once: tree children, depth, service, kind counts inside each node, each service's routes and pages in route-table order. `buildView` (`model/view.ts`) maps any expansion set to visible nodes (frame, `entries`/`contents` section, level), the effective open set (layout cache key), and edges lifted to their innermost visible ends. Routes first: an open service draws its routes and pages ahead of its folders until their file opens, then they move into it (drawn once). A test checks every graph edge is drawn exactly once or lies inside one visible node. Viewer 537 (21 new), root typecheck + lint green. The prototype keeps its own model until M4b.3. No UI change, so no screenshots; no eval delta. Next: M4b.2.
 
