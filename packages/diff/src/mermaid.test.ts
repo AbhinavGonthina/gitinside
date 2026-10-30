@@ -228,7 +228,7 @@ describe("renderMermaidSummary on hand-built graphs", () => {
   });
 
   it("names the service when two drawn nodes would read the same", () => {
-    const pg = (service: string): GraphNode => ({
+    const pg = (service: string): Extract<GraphNode, { kind: "datastore" }> => ({
       id: nodeId("datastore", service, "postgres"),
       kind: "datastore",
       label: "postgres",
