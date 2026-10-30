@@ -18,6 +18,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 ## Drill-down (semantic zoom)
 
 - **Levels:** System → Services → Modules → Files → Symbols (routes, pages, and models appear at the file level).
+- **A service's first level leads with its routes** (design gate, ADR-0100): breaking a service down shows its entry points first (routes and pages, each linked to the file that defines it), then its folders as module frames, as the analyzer groups them. The levels below stay the same, and a route still appears inside its file when that file is opened.
 - **Opening a node:** double-click, Enter, or the inspector's "Break down" button. The node expands **in place**: its frame grows, siblings glide aside, and children emerge from the parent's center (600ms layout motion). It never re-renders the whole canvas abruptly.
 - **Going up:** Esc, or a breadcrumb, collapses back.
 - **Zoom-dependent detail:** labels, counts, and edge labels appear progressively. At low zoom, show only service names and aggregated edges.
@@ -31,7 +32,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
   - A summary sentence templated from graph facts. It's labeled "From the code", because there's no AI in v1.
   - Facts (counts, path, framework).
   - **Calls** and **Called by** lists (clickable; selecting flies there, drilling if needed).
-  - Code preview (Shiki, the 15 lines around the source location).
+  - Code preview (Shiki, the 15 lines around the source location), with a link to the file and line on GitHub at the analyzed commit (design gate).
   - **Open on GitHub** at the exact line, using the commit SHA permalink.
 - **Unresolved nodes** explain why ("URL built from `CMS_URL` at runtime").
 

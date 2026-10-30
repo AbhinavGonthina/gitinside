@@ -1,6 +1,19 @@
 # Design system
 
-**Status:** starting brief. M4a turns this into tokens and components, then Abhinav approves the result at the design gate (ADR-0017). Update this file with every approved change. Decisions: D6.1–D6.4.
+**Status:** M4a's visual language passed the design gate on 2026-10-30 ([planning #2](https://github.com/AbhinavGonthina/gitinside-planning/issues/2)), with the changes in §1.1 still to make (tasks M4b.0a–M4b.0e, ADR-0100). Update this file with every approved change. Decisions: D6.1–D6.4.
+
+### 1.1 Design gate outcome (2026-10-30)
+
+Abhinav's review of [M4a-review.md](milestones/M4a-review.md), in his words where it matters:
+
+- **Kept as is:** tokens, logos, glyphs, edge confidence styles, node states, the inspector ("looks clean"), the command palette ("kinda like Mac, that's nice"), the broken-down service's sidebar, the code sample in the inspector, and the light theme ("looks clean and good"). Overall it reads as a system design diagram he'd explore in both themes, "good for a first run"; the diagram should get richer later.
+- **Fix: content must fit its container.** `@shop/web`'s count badges wrapped onto a second line and spilled out of its closed frame. Every node is sized from its content (M4b.0a).
+- **Change: a distinct shape per layer and kind** (gate questions 1 and 2). Too many similar shapes stand for different things. Each layer gets its own shape that makes sense in a system design drawing (a frontend service doesn't look like a backend service; data is already separate), and routes, pages, and models get shapes of their own instead of sharing the card. Shapes stay in today's style (quiet, hairline, tinted) and the icon stays the primary marker, so §2's "plain primitive as the only marker" still holds (M4b.0b).
+- **Change: the current trace hop stands out** (question 3). Where the whole path is lit, the reader must still see where in the flow they are: the current hop's nodes and edge are clearly stronger than the rest of the path (M4b.0c).
+- **Change: a service's first level leads with its routes,** then its folders (question 4). See UX.md "Drill-down" (M4b.1, M4b.3).
+- **Change: the code sample links to the file on GitHub,** at the commit and line (M4b.5).
+- **Change: a new GitInside mark.** "Not a fan of the logo right now" (M4b.0d).
+- **Change: natural motion everywhere,** so it runs like a smooth modern web app, and it should look as little AI-coded as possible while staying polished and clean (M4b.0e; every M4b task).
 
 ## 1. Direction: "Living system diagram"
 
@@ -49,7 +62,7 @@ Every M4a review checks screenshots against this list.
 
 The legend is always one click away and is generated from these same tokens.
 
-**Node components** (implemented in M4a.4, `packages/viewer/src/nodes/`; pending the design gate; ADR-0049). Story **Components/Nodes** shows Kinds, States (every kind × every state), and Frames.
+**Node components** (implemented in M4a.4, `packages/viewer/src/nodes/`; approved at the design gate, changes in §1.1; ADR-0049). Story **Components/Nodes** shows Kinds, States (every kind × every state), and Frames.
 - **Tiers:**
   - **Frames** (service, module). Closed: a solid card tinted 10% with the layer, a layer-mixed border, counts on their own row, and a **stacked edge** beneath meaning "there is more inside; break it down". Open: translucent (6% layer tint), header row on top, children inside; nested frames deepen the tint. Service radius 16, module 12.
   - **Cards** (file, symbol, route, page, model, unresolved): `surface-1`, radius 10, small tile, name and muted subtitle, counts on the right. Symbols, page paths, and unresolved expressions use Geist Mono; a route's method sits in a quiet mono chip before its path.
@@ -63,7 +76,7 @@ The legend is always one click away and is generated from these same tokens.
   - **Dimmed:** 20% opacity (50% on hover).
   - **Diff:** a worded tag on the top edge ("Added", "Changed", "Removed") with a colored dot, plus a diff-colored border and tint. Removed is also dashed, ghosted to 50%, and struck through.
 
-**Edge components** (implemented in M4a.5, `packages/viewer/src/edges/`; pending the design gate; ADR-0050). Story **Components/Edges** shows Confidence, Kinds, States (every confidence × every state), and a small diagram in plain, Trace, and Diff modes.
+**Edge components** (implemented in M4a.5, `packages/viewer/src/edges/`; approved at the design gate, changes in §1.1; ADR-0050). Story **Components/Edges** shows Confidence, Kinds, States (every confidence × every state), and a small diagram in plain, Trace, and Diff modes.
 - **Geometry:** drawn from route points (ELK's in M4b). Bends are rounded (radius 10, less on short jogs); the line stops at the arrowhead's base.
 - **Line style = confidence:** solid (exact); solid with a small dot just off the source (pattern); dashed 6/4 (heuristic); dotted, with an open chevron arrowhead (unresolved). Arrowheads are filled 8×8 triangles otherwise.
 - **Color:** the source's layer, 70% mixed into `--text-muted` at rest (≥ 3:1 on every surface, tested), full layer color and 2px on hover.
@@ -76,7 +89,7 @@ The legend is always one click away and is generated from these same tokens.
   - **Broken:** pulsing red dashes whatever the confidence, and the pill says what broke ("Route removed in this PR").
 - **Flow:** two particles per edge travel source to target (a canvas ring keeps them visible on a same-colored line). Reduced motion removes them and stops the broken pulse.
 
-**Icons** (implemented in M4a.3, `packages/viewer/src/icons/`; pending the design gate; ADR-0048)
+**Icons** (implemented in M4a.3, `packages/viewer/src/icons/`; approved at the design gate, changes in §1.1; ADR-0048)
 - **Brand logos:** from Simple Icons 16.36 (CC0 icons; trademarks belong to their owners and are used only to identify the technology). Mapped only from the node's own field: `service.framework`, `datastore.engine` / `queue.engine`, and `external.host` (which covers the SDK hosts). A host matches its suffix at a label boundary, and the longest suffix wins (`maps.googleapis.com` is Google Maps). The tables are in `brands.ts`; story **Foundations/Icons → Logos** shows all of them.
   - **No logo, so the kind's glyph:** brands Simple Icons doesn't ship (OpenAI, AWS, Microsoft SQL Server, Twilio, Slack, SendGrid, Postmark, Memcached, Typesense, Redpanda), unknown hosts, IPs, and loopback. Never a guessed logo.
   - **Tile:** logos and glyphs sit on a neutral rounded tile, always `--surface-1` with a hairline: `sm` 32px (radius 6, 20px icon) for card rows, `lg` 56px (radius 12, 32px icon) for icon-first nodes. Node states restyle the node, never the tile.
@@ -92,7 +105,7 @@ The legend is always one click away and is generated from these same tokens.
   - Queue: messages in a pipe. Unknown external: a globe.
   - Unresolved: a question mark in a dotted ring, echoing the dotted line of unresolved edges.
 
-## 4. Tokens (implemented in M4a.2; pending the design gate)
+## 4. Tokens (implemented in M4a.2; approved at the design gate, changes in §1.1)
 
 Source of truth: `packages/viewer/src/tokens.ts` and `src/styles/tokens.css`, which a test keeps identical (ADR-0047). The Storybook story **Foundations/Tokens** shows every value in both themes.
 
@@ -153,7 +166,7 @@ Source of truth: `packages/viewer/src/tokens.ts` and `src/styles/tokens.css`, wh
 - `prefers-reduced-motion` makes every transition instant and turns off flow particles. The stylesheet sets every `--duration-*` to `0ms`; JS animation reads `durations` from `tokens.ts` and must check the same media query.
 - Easing: `--ease-standard` `cubic-bezier(0.2, 0, 0, 1)` for hover and panels, `--ease-layout` `cubic-bezier(0.65, 0, 0.35, 1)` (ease-in-out cubic) for glides.
 
-**Chrome** (implemented in M4a.6, `packages/viewer/src/chrome/`; pending the design gate; ADR-0051). Story **Components/Chrome** shows Controls, Top bar, Inspector, Canvas overlays, Command palette (with and without results), and Layout (everything around a small diagram).
+**Chrome** (implemented in M4a.6, `packages/viewer/src/chrome/`; approved at the design gate, changes in §1.1; ADR-0051). Story **Components/Chrome** shows Controls, Top bar, Inspector, Canvas overlays, Command palette (with and without results), and Layout (everything around a small diagram).
 - **Controls:**
   - **Buttons:** `primary` (accent fill, canvas-colored text, ≥ 4.5:1 tested) for the one main action on a surface, `secondary` (`surface-1` + hairline), `quiet` (muted text, `surface-2` on hover) for toolbars. 32px in the top bar, 28px in overlays and the inspector, radius 6. A shortcut hint sits inside the button as key caps.
   - **Switch** (`role="switch"`), **segmented control** (a radio group: one tab stop, arrow keys move), **key caps** (Geist, not mono: keys aren't code), **chips** (kind, layer with a dot, commit), **counts**.
