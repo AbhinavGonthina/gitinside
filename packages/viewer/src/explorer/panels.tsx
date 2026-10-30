@@ -93,6 +93,10 @@ function factsOf(index: HierarchyIndex, node: GraphNode): Fact[] {
       }
       facts.push({ label: "Root", value: node.root || "(repo root)", code: Boolean(node.root) });
       break;
+    case "module":
+    case "file":
+      facts.push({ label: "Path", value: node.path, code: true });
+      break;
     case "model":
       facts.push({ label: "Fields", value: node.fields.map((f) => f.name).join(", ") });
       break;
@@ -164,6 +168,7 @@ export function NodePanel({
   const { incoming, outgoing } = connectionsOf(index, node.id);
   const source = "source" in node ? node.source : undefined;
   const github = source ? githubLineUrl(repo, source.file, source.line) : undefined;
+  const facts = factsOf(index, node);
   const isRoot = node.id === index.root.id;
   const connection = (c: NodeConnection) => ({
     node: c.other,
@@ -190,9 +195,11 @@ export function NodePanel({
         </InspectorSection>
       ) : (
         <>
-          <InspectorSection title="Facts">
-            <FactList facts={factsOf(index, node)} />
-          </InspectorSection>
+          {facts.length > 0 && (
+            <InspectorSection title="Facts">
+              <FactList facts={facts} />
+            </InspectorSection>
+          )}
           <InspectorSection title="Called by" count={incoming.length}>
             <ConnectionList
               items={incoming.map(connection)}
