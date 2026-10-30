@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7d. Per-service fact bundles for every program stage + global composition (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.7d2. Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -22,7 +22,7 @@ M6.7d. Per-service fact bundles for every program stage + global composition (M5
 - [#2](https://github.com/AbhinavGonthina/gitinside-planning/issues/2) **M4a design gate:** approve the visual language (docs/milestones/M4a-review.md). Blocks all of M4b; on close: apply his comments to DESIGN_SYSTEM.md and the components (drop "pending the design gate"), then remove the M4b `{blocked: design gate #2}` tags.
 - [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Oracle Cloud Always Free signup + worker VM. Blocks M5.13; on close: record region/shape for benchmark labels.
 - [#4](https://github.com/AbhinavGonthina/gitinside-planning/issues/4) Neon free project. Blocks M5.13; on close: size M5.12 retention from the storage limit he reports (SPEC assumes 1 GB).
-- [#5](https://github.com/AbhinavGonthina/gitinside-planning/issues/5) Cloudflare R2 bucket + scoped token. Blocks M5.13; R2 bills past its free tier (PROPOSALS P-1); on close: read his answer on the card and where the domain's DNS is hosted.
+- [#5](https://github.com/AbhinavGonthina/gitinside-planning/issues/5) Snapshot storage. He answered "no card on Cloudflare" (P-1 option 1 out); asked him to pick from PROPOSALS P-2 (recommended: Oracle Object Storage, Always Free, S3-compatible). Blocks M5.13; on answer: re-target the snapshot store's config and retention budget, update SPEC §5 via the proposal, and ask where the domain's DNS is hosted.
 - [#6](https://github.com/AbhinavGonthina/gitinside-planning/issues/6) Vercel Hobby. M5.2 landed and #6 is commented: Part B (import `apps/web`, env vars per ADR-0055, domain) can start. Blocks M5.13.
 - [#7](https://github.com/AbhinavGonthina/gitinside-planning/issues/7) DNS: CNAME `gitinside` → Vercel, A `worker.gitinside` → VM. After #3 and #6 Part B. Blocks M5.13.
 
@@ -144,7 +144,9 @@ M6.7d. Per-service fact bundles for every program stage + global composition (M5
 - [x] M6.7a Disk LRU fact cache (`openDiskCache`: versioned keys, atomic writes, 2 GB cap, failures are misses) + ADR-0090 for the incremental design {model: opus}
 - [x] M6.7b Observed inputs: record every repo path each service's program host and detectors read or probe (content hash or absent), incl. other services' files; `verifyInputs`; a test that the log covers every read {model: opus}
 - [x] M6.7c Wrapper inlining as per-service facts (wrapper URL templates, calls to wrappers) + a global binding step; no output change (goldens, eval) {model: opus}
-- [ ] M6.7d Per-service serializable fact bundles for every program stage + global composition; `analyze` rebuilt as facts → compose; no output change (goldens, eval) {model: opus}
+- [x] M6.7d1 Express as per-service facts (router creations, parameter bindings, route and `use` registrations with router references, resolved handlers) + a global composition step; `inlineHandlers` keyed by node key; no output change (goldens, eval) {model: opus}
+- [ ] M6.7d2 Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (handler keys, bound to route IDs after Express composition); no output change {model: opus}
+- [ ] M6.7d3 Per-service serializable fact bundles for every remaining program stage (imports, symbols, calls, Next.js, Prisma client uses, SDK, queues, TypeScript and resolver warnings) + global composition; `analyze` rebuilt as facts → compose; JSON round-trip test; no output change (goldens, eval) {model: opus}
 - [ ] M6.7e `analyze({ cache })`: reuse clean services' facts, build clean programs only when needed; warm == cold bytes over fixture edits (edit, add, delete, cross-service import, tsconfig); CLI `--cache <dir>`, diff's two ref sides share it {model: opus}
 - [ ] M6.7f Worker cache volume (2 GB): public folder + per-installation private folders (deleted on uninstall, M8.5); compose + container check {model: opus}
 - [ ] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
@@ -184,6 +186,8 @@ M6.7d. Per-service fact bundles for every program stage + global composition (M5
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.7d1: M6.7d split into d1–d3. Express is now `collectExpressFacts` per service (creations, parameter bindings, route/`use` registrations with `RouterRef`s, resolved handlers, inline-handler node keys) + `composeExpressRoutes` (old passes and mount walk over facts, no TypeScript; ADR-0093); `inlineHandlers` keyed by node key (`inlineRoutesOf`). 3 new tests (JSON round-trip compose == one-shot on 4 fixtures; a router's facts unchanged when its mount moves in another service; no-router repo collects creations only). Analyzer 684, full suite green (web's PGlite timing test failed once under load, 321/321 alone; worker 454 alone). Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110), `--check` byte-for-byte. Also fixed `main`'s CI, red since M6.6 on a diff test type error (`d79b0fe`), and answered #5 (no card on Cloudflare) with PROPOSALS P-2. Next: M6.7d2.
 
 - 2026-10-29 · M6.7c: `collectHttpFacts` (`packages/analyzer/src/wrappers.ts`, ADR-0092) gives each service plain-data `HttpFacts`: direct requests, its wrappers with their uncalled requests, and its calls to wrappers anywhere, inlined in the caller's analysis (a wrapper in another program is recorded as reached via `programOf`). `bindWrappers` is the global step (drop a called wrapper's own requests, sort). `HttpRequest` holds no TS nodes: `label`/`expression` are computed with it, not in `buildHttpEdges`. Global URL templates were rejected: `normalize` isn't compositional over arguments. The only global input left is the wrapper-name filter (M6.7e). 3 new tests (JSON round-trip binds identically; disabling the reach record fails one); analyzer 678 green (first full run had one failure cut from the output, rerun clean). Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110). Next: M6.7d.
 
