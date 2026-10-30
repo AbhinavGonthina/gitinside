@@ -286,6 +286,11 @@ describe("Explorer", { timeout: 30_000 }, () => {
     await setup({ initialSelected: "external:ext/api.stripe.com" });
     expect(screen.getByText("api.stripe.com", { selector: "dd code" })).toBeTruthy();
     cleanup();
+    // A folder's facts start with its path (its Facts section was empty before).
+    await setup({ initialSelected: "module:web/lib" });
+    expect(screen.getByText("Path", { selector: "dt" })).toBeTruthy();
+    expect(screen.getByText("apps/web/lib", { selector: "dd code" })).toBeTruthy();
+    cleanup();
     await setup({ initialSelected: "datastore:infra/db" });
     expect(screen.getByText("postgres")).toBeTruthy();
   });
