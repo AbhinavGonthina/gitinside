@@ -13,9 +13,13 @@ import {
   stopWorker,
   type WorkerLog,
 } from "./queue.js";
-import { runMaintenance, scheduleMaintenance, type MaintenanceSchedule } from "./maintenance.js";
+import {
+  createCountedStore,
+  runMaintenance,
+  scheduleMaintenance,
+  type MaintenanceSchedule,
+} from "./maintenance.js";
 import { createAnalysisRecorder } from "./record.js";
-import { createObjectStore } from "./storage.js";
 
 /**
  * The worker process (ADR-0065): one container on the VM runs the BullMQ worker and the
@@ -27,7 +31,8 @@ import { createObjectStore } from "./storage.js";
  *    analyses still `running` from before this start `failed` (`JOB_INTERRUPTED`). A job that
  *    BullMQ re-runs moves its row back to `running`.
  * 3. Connect to Redis and check it answers, so a bad `REDIS_URL` fails here, loudly.
- * 4. Start the worker (recorder + `publish` = bucket then Postgres), the hourly maintenance
+ * 4. Start the worker (recorder + `publish` = bucket then Postgres; every bucket request
+ *    counted in `store_requests`, ADR-0096), the hourly maintenance
  *    (retention, rate-limit pruning, quota check; maintenance.ts), then the enqueue API.
  *
  * **Shutdown** ({@link RunningWorker.stop}, on SIGTERM or SIGINT): stop accepting API
@@ -132,7 +137,7 @@ export async function startWorkerProcess(
       ...options.github,
       ...(config.githubToken === undefined ? {} : { token: config.githubToken }),
     };
-    const store = createObjectStore(config.store);
+    const store = createCountedStore(config.store, db, log);
     const recorder = createAnalysisRecorder({
       db,
       store,

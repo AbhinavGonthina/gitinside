@@ -1,5 +1,12 @@
 // @vitest-environment node
-import { analyses, rateLimits, repos } from "@gitinside/db";
+import {
+  analyses,
+  countStoreRequests,
+  rateLimits,
+  repos,
+  storeRequests,
+  storeRequestsThisMonth,
+} from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -8,6 +15,7 @@ import {
   QUOTA_ALARM_RATIO,
   QUOTA_LIMITS,
   checkQuotas,
+  createCountedStore,
   measureQuotas,
   runMaintenance,
   scheduleMaintenance,
@@ -20,34 +28,72 @@ const HOUR = 60 * 60 * 1000;
 const sha = (n: number) => n.toString(16).padStart(40, "0");
 const key = (n: number) => `public/acme/shop/${sha(n)}/0.1.0.json.gz`;
 
+const NO_REQUESTS = { worker: 0, web: 0 };
+const UNLIMITED = {
+  bucketBytes: Number.MAX_SAFE_INTEGER,
+  databaseBytes: Number.MAX_SAFE_INTEGER,
+  monthlyRequests: Number.MAX_SAFE_INTEGER,
+};
+
 describe("checkQuotas", () => {
   it("reports each resource against its limit, in alarm from 80%", () => {
     expect(
       checkQuotas(
-        { bucketBytes: 7_999_999_999, databaseBytes: 800 },
-        { bucketBytes: 10_000_000_000, databaseBytes: 1000 },
+        {
+          bucketBytes: 7_999_999_999,
+          databaseBytes: 800,
+          requests: { worker: 30_000, web: 9_999 },
+        },
+        { bucketBytes: 10_000_000_000, databaseBytes: 1000, monthlyRequests: 50_000 },
       ),
     ).toEqual([
       {
         resource: "bucket",
-        usedBytes: 7_999_999_999,
-        limitBytes: 10_000_000_000,
+        unit: "bytes",
+        used: 7_999_999_999,
+        limit: 10_000_000_000,
         percent: 79.9,
         alarm: false,
       },
-      { resource: "database", usedBytes: 800, limitBytes: 1000, percent: 80, alarm: true },
+      { resource: "database", unit: "bytes", used: 800, limit: 1000, percent: 80, alarm: true },
+      {
+        resource: "requests",
+        unit: "requests",
+        used: 39_999,
+        limit: 50_000,
+        percent: 79.9,
+        alarm: false,
+        bySource: { worker: 30_000, web: 9_999 },
+      },
     ]);
   });
 
+  it("counts worker and web requests together against the month's limit", () => {
+    const [, , requests] = checkQuotas({
+      bucketBytes: 0,
+      databaseBytes: 0,
+      requests: { worker: 1, web: 39_999 },
+    });
+    expect(requests).toMatchObject({ used: 40_000, limit: 50_000, percent: 80, alarm: true });
+  });
+
   it("uses the free tiers' limits by default, and reports past 100%", () => {
-    const [bucket, database] = checkQuotas({ bucketBytes: 0, databaseBytes: 1_500_000_000 });
+    const [bucket, database] = checkQuotas({
+      bucketBytes: 0,
+      databaseBytes: 1_500_000_000,
+      requests: NO_REQUESTS,
+    });
     expect(bucket).toMatchObject({
-      limitBytes: QUOTA_LIMITS.bucketBytes,
+      limit: QUOTA_LIMITS.bucketBytes,
       percent: 0,
       alarm: false,
     });
-    expect(database).toMatchObject({ limitBytes: 1_000_000_000, percent: 150, alarm: true });
-    expect(QUOTA_LIMITS).toEqual({ bucketBytes: 20_000_000_000, databaseBytes: 1_000_000_000 });
+    expect(database).toMatchObject({ limit: 1_000_000_000, percent: 150, alarm: true });
+    expect(QUOTA_LIMITS).toEqual({
+      bucketBytes: 20_000_000_000,
+      databaseBytes: 1_000_000_000,
+      monthlyRequests: 50_000,
+    });
   });
 
   it("has retention keep the bucket at or under the alarm point", () => {
@@ -72,6 +118,7 @@ describe("with a database and a bucket", () => {
   });
   beforeEach(async () => {
     await t.db.delete(rateLimits);
+    await t.db.delete(storeRequests);
     await t.db.delete(analyses);
     await t.db.delete(repos);
     s3 = await startFakeS3();
@@ -104,12 +151,56 @@ describe("with a database and a bucket", () => {
   const store = () =>
     createObjectStore({ endpoint: s3.endpoint, bucket: s3.bucket, credentials: s3.credentials });
 
-  it("measureQuotas sums the whole listing and measures the database", async () => {
+  it("measureQuotas sums the whole listing and measures the database and the month's requests", async () => {
     s3.objects.set("other/file", { body: Buffer.alloc(7), headers: {}, lastModified: new Date(0) });
-    const [bucket, database] = await measureQuotas({ db: t.db, store: store() });
-    expect(bucket).toMatchObject({ resource: "bucket", usedBytes: 607, alarm: false });
+    await countStoreRequests(t.db, "web", 41);
+    const [bucket, database, requests] = await measureQuotas({ db: t.db, store: store() });
+    expect(bucket).toMatchObject({ resource: "bucket", used: 607, alarm: false });
     expect(database?.resource).toBe("database");
-    expect(database?.usedBytes).toBeGreaterThan(0);
+    expect(database?.used).toBeGreaterThan(0);
+    expect(requests).toMatchObject({
+      resource: "requests",
+      used: 41,
+      limit: 50_000,
+      bySource: { worker: 0, web: 41 },
+    });
+  });
+
+  it("a counted store records every request as the worker's, its own listing included", async () => {
+    s3.objects.set("other/file", { body: Buffer.alloc(7), headers: {}, lastModified: new Date(0) });
+    const counted = createCountedStore(
+      { endpoint: s3.endpoint, bucket: s3.bucket, credentials: s3.credentials },
+      t.db,
+      log,
+      { listPageSize: 3 },
+    );
+    await counted.put("public/x", Buffer.from("{}"), {
+      contentType: "application/json",
+      cacheControl: "no-store",
+    });
+    expect(await counted.get("public/x")).toBeDefined();
+    expect(await counted.get("public/missing")).toBeUndefined(); // refused, still a request
+    await counted.delete("public/x");
+    expect(await storeRequestsThisMonth(t.db)).toMatchObject({ worker: 4, web: 0 });
+
+    // 7 objects in pages of 3: 3 listing requests, counted before the total is read.
+    const [, , requests] = await measureQuotas({ db: t.db, store: counted });
+    expect(requests).toMatchObject({ used: 7, bySource: { worker: 7, web: 0 } });
+    expect(lines).toEqual([]);
+  });
+
+  it("a request goes on when its count fails, and the failure is logged", async () => {
+    const down = () => {
+      throw new Error("db down");
+    };
+    const broken = { insert: down } as unknown as TestDb["db"];
+    const counted = createCountedStore(
+      { endpoint: s3.endpoint, bucket: s3.bucket, credentials: s3.credentials },
+      broken,
+      log,
+    );
+    expect(await counted.get(key(1))).toBeDefined();
+    expect(lines).toEqual([{ event: "store_request_count_failed", message: "db down" }]);
   });
 
   it("runs retention, prunes old rate-limit windows, then measures what is left", async () => {
@@ -128,7 +219,7 @@ describe("with a database and a bucket", () => {
       deletedObjects: 1,
     });
     expect(report.rateLimitsPruned).toBe(1);
-    expect(report.quotas?.[0]).toMatchObject({ resource: "bucket", usedBytes: 500 });
+    expect(report.quotas?.[0]).toMatchObject({ resource: "bucket", used: 500 });
     expect(lines.map((line) => line.event)).toEqual([
       "retention_run",
       "rate_limits_pruned",
@@ -142,17 +233,37 @@ describe("with a database and a bucket", () => {
       db: t.db,
       store: store(),
       log,
-      limits: { bucketBytes: 600, databaseBytes: Number.MAX_SAFE_INTEGER },
+      limits: { ...UNLIMITED, bucketBytes: 600 },
     });
     const alarms = lines.filter((line) => line.event === "quota_alarm");
     expect(alarms).toEqual([
       {
         event: "quota_alarm",
         resource: "bucket",
-        usedBytes: 500,
-        limitBytes: 600,
+        unit: "bytes",
+        used: 500,
+        limit: 600,
         percent: 83.3,
         alarm: true,
+      },
+    ]);
+  });
+
+  it("logs a quota_alarm for requests once the month's count reaches 80%", async () => {
+    await countStoreRequests(t.db, "worker", 30_000);
+    await countStoreRequests(t.db, "web", 10_000);
+    await runMaintenance({ db: t.db, store: store(), log });
+    const alarms = lines.filter((line) => line.event === "quota_alarm");
+    expect(alarms).toEqual([
+      {
+        event: "quota_alarm",
+        resource: "requests",
+        unit: "requests",
+        used: 40_000,
+        limit: 50_000,
+        percent: 80,
+        alarm: true,
+        bySource: { worker: 30_000, web: 10_000 },
       },
     ]);
   });

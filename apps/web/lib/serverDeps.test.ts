@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   SIGNED_OUT_HOURLY_LIMIT,
   analyzeDepsFromEnv,
@@ -64,6 +64,28 @@ describe("graphDepsFromEnv", () => {
     const deps = graphDepsFromEnv({ DATABASE_URL: ENV.DATABASE_URL, ...BUCKET });
     expect(typeof deps?.store.get).toBe("function");
     expect(deps?.db).toBe(analyzeDepsFromEnv(ENV)?.db);
+  });
+
+  it("counts each bucket request, and a count that fails doesn't fail the read", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", async (input: URL) => {
+      requests.push(input.pathname);
+      return new Response("<Error><Code>NoSuchKey</Code></Error>", { status: 404 });
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      // The database at ENV.DATABASE_URL refuses connections, so the count fails.
+      const deps = graphDepsFromEnv({ DATABASE_URL: ENV.DATABASE_URL, ...BUCKET });
+      expect(await deps?.store.get("public/acme/shop/x.json.gz")).toBeUndefined();
+      expect(requests).toEqual(["/gitinside-snapshots/public/acme/shop/x.json.gz"]);
+      expect(errors.mock.calls.map(([line]) => JSON.parse(String(line)))).toEqual([
+        { event: "store_request_count_failed", error: expect.any(String) },
+      ]);
+      expect(String(errors.mock.calls)).not.toContain("pw@");
+    } finally {
+      errors.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("is undefined when a variable is missing or malformed", () => {

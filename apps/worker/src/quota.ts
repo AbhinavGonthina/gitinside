@@ -1,15 +1,16 @@
-import { createDb } from "@gitinside/db";
+import { createDb, type AnyDatabase } from "@gitinside/db";
 import { ConfigError, quotaConfigFromEnv, type QuotaConfig } from "./config.js";
 import { createJsonLog } from "./log.js";
 import type { DbConnection } from "./main.js";
-import { logQuotas, measureQuotas, type QuotaLimits } from "./maintenance.js";
-import { createObjectStore, type ObjectStore, type StoreConfig } from "./storage.js";
+import { createCountedStore, logQuotas, measureQuotas, type QuotaLimits } from "./maintenance.js";
+import type { ObjectStore, StoreConfig } from "./storage.js";
 
 /**
  * `node dist/quota-bin.js` (`pnpm --filter @gitinside/worker quota`; on the VM,
  * `docker compose exec worker node dist/quota-bin.js`): the quota check M5.13's smoke test
- * runs (ADR-0078). It measures the bucket and the database against the free limits and
- * prints the worker's own `quota` / `quota_alarm` JSON lines. Read-only: it deletes nothing.
+ * runs (ADR-0078). It measures the bucket, the database, and the month's bucket requests
+ * (ADR-0096) against the free limits and prints the worker's own `quota` / `quota_alarm`
+ * JSON lines. It deletes nothing; it only adds its own listing to the request count.
  *
  * Reads `DATABASE_URL` and the `SNAPSHOTS_*` variables only. Exit codes: 0 when every resource is
  * under 80%, 2 when any is in alarm, 1 when the config is invalid or a measurement failed.
@@ -22,8 +23,8 @@ export interface QuotaIo {
   write: (line: string) => void;
   /** Default `createDb` on the URL, one connection. */
   openDb?: (url: string) => DbConnection;
-  /** Default `createObjectStore`. */
-  openStore?: (config: StoreConfig) => Pick<ObjectStore, "list">;
+  /** Default {@link createCountedStore}: the check's own listing counts as worker requests. */
+  openStore?: (config: StoreConfig, db: AnyDatabase) => Pick<ObjectStore, "list">;
   limits?: QuotaLimits;
 }
 
@@ -46,7 +47,10 @@ export async function runQuota(io: QuotaIo): Promise<number> {
   try {
     const quotas = await measureQuotas({
       db,
-      store: (io.openStore ?? createObjectStore)(config.store),
+      store: (io.openStore ?? ((store, db) => createCountedStore(store, db, log)))(
+        config.store,
+        db,
+      ),
       ...(io.limits === undefined ? {} : { limits: io.limits }),
     });
     logQuotas(log, quotas);

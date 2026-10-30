@@ -14,6 +14,7 @@ export * from "./analyses.js";
 export * from "./rateLimits.js";
 export * from "./retention.js";
 export * from "./maintenance.js";
+export * from "./storeRequests.js";
 export { schema };
 
 /** A Drizzle database bound to GitInside's schema. */

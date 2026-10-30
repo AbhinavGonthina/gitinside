@@ -461,9 +461,17 @@ describe("startWorkerProcess", () => {
         "worker_stopping",
         "worker_stopped",
       ]);
-      expect(parse(lines).find((line) => line.event === "quota")).toMatchObject({
-        quotas: [{ resource: "bucket", usedBytes: 9 }, { resource: "database" }],
+      const quota = parse(lines).find((line) => line.event === "quota");
+      expect(quota).toMatchObject({
+        quotas: [
+          { resource: "bucket", used: 9 },
+          { resource: "database" },
+          { resource: "requests", bySource: { web: 0 } },
+        ],
       });
+      // The worker's store is counted: at least retention's and the quota check's listings.
+      const [, , requests] = (quota as { quotas: { used: number }[] }).quotas;
+      expect(requests?.used).toBeGreaterThanOrEqual(2);
     });
 
     it("closes the worker and queue when the port is taken", async () => {

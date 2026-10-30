@@ -68,7 +68,7 @@ Create a new VM as in #3, point the DNS record at its IP (#7), and follow **Firs
 | Restart | `sudo systemctl restart gitinside` |
 | Stop | `sudo systemctl stop gitinside` |
 | Health from the VM | `curl http://127.0.0.1:8080/health` |
-| Quota check (Object Storage and Neon vs. the free limits; exit 2 at 80%) | `sudo docker compose -f /opt/gitinside/infra/oracle/compose.yml exec worker node dist/quota-bin.js` |
+| Quota check (Object Storage bytes and this month's requests, and Neon, vs. the free limits; exit 2 at 80%) | `sudo docker compose -f /opt/gitinside/infra/oracle/compose.yml exec worker node dist/quota-bin.js` |
 | Quota alarms from the hourly maintenance | `sudo docker compose -f /opt/gitinside/infra/oracle/compose.yml logs worker \| grep quota_alarm` |
 | Rotate the Redis password | `sudo rm /etc/gitinside/redis.env`, then run `provision.sh` again (it generates a new one and recreates both containers) |
 | Rotate the HMAC secret | Set `ENQUEUE_HMAC_SECRET_PREVIOUS` to the old value and `ENQUEUE_HMAC_SECRET` to the new one, restart, update Vercel, then remove `…_PREVIOUS` and restart again |

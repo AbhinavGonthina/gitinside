@@ -1,7 +1,12 @@
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
-import { createDb, type AnyDatabase, type DbHandle } from "@gitinside/db";
+import { countStoreRequests, createDb, type AnyDatabase, type DbHandle } from "@gitinside/db";
 import { MIN_SECRET_LENGTH } from "@gitinside/worker/hmac";
-import { createObjectStore, storeConfigFromEnv } from "@gitinside/worker/storage";
+import {
+  countingFetch,
+  createObjectStore,
+  storeConfigFromEnv,
+  type StoreConfig,
+} from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
 import type { GraphRouteDeps } from "./graphRoute";
 import type { ImageRouteDeps } from "./imageRoute";
@@ -19,7 +24,8 @@ import { createWorkerClient } from "./worker";
  * - `GITHUB_TOKEN`: optional, raises GitHub's limit from 60 to 5,000 requests an hour.
  * - `SNAPSHOTS_*` (ADR-0055, ADR-0068, ADR-0095): `/api/graph` reads snapshots with them, alongside
  *   `DATABASE_URL`; the repo page needs only the database (and the worker to re-analyze).
- *   The README images need both (ADR-0072).
+ *   The README images need both (ADR-0072). Every bucket request is counted as `web` in
+ *   `store_requests` (ADR-0096), against Oracle's free 50,000 a month.
  *
  * One database connection per serverless instance (`max: 1`), opened on first use and kept.
  */
@@ -80,14 +86,26 @@ export function analyzeDepsFromEnv(env: Env = process.env): AnalyzeDeps | undefi
 
 /** `/api/graph`'s deps (ADR-0068): the database and the `SNAPSHOTS_*` bucket, else `undefined`. */
 export function graphDepsFromEnv(env: Env = process.env): GraphRouteDeps | undefined {
-  let store: GraphRouteDeps["store"];
+  let config: StoreConfig;
   try {
-    store = createObjectStore(storeConfigFromEnv(env));
+    config = storeConfigFromEnv(env);
   } catch {
     return undefined; // a missing or malformed SNAPSHOTS_* variable; named nowhere public
   }
   const db = database(env);
-  return db && { db, store };
+  if (!db) return undefined;
+  const fetch = countingFetch({
+    count: () => countStoreRequests(db, "web"),
+    // By name only: a message can carry connection details.
+    onCountError: (error) =>
+      console.error(
+        JSON.stringify({
+          event: "store_request_count_failed",
+          error: error instanceof Error ? error.name : "unknown",
+        }),
+      ),
+  });
+  return { db, store: createObjectStore(config, { fetch }) };
 }
 
 /**
