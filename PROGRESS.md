@@ -14,17 +14,15 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7d2. Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (M5.13 and M5.14b wait on #3–#7; M4b waits for the design gate #2)
+M6.7d3. Per-service fact bundles for every remaining program stage + `analyze` as facts → compose (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
 - [#2](https://github.com/AbhinavGonthina/gitinside-planning/issues/2) **M4a design gate:** approve the visual language (docs/milestones/M4a-review.md). Blocks all of M4b; on close: apply his comments to DESIGN_SYSTEM.md and the components (drop "pending the design gate"), then remove the M4b `{blocked: design gate #2}` tags.
 - [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Oracle Cloud Always Free signup + worker VM. Blocks M5.13; on close: record region/shape for benchmark labels.
-- [#4](https://github.com/AbhinavGonthina/gitinside-planning/issues/4) Neon free project. Blocks M5.13; on close: size M5.12 retention from the storage limit he reports (SPEC assumes 1 GB).
 - [#5](https://github.com/AbhinavGonthina/gitinside-planning/issues/5) Snapshot storage. He answered "no card on Cloudflare" (P-1 option 1 out); asked him to pick from PROPOSALS P-2 (recommended: Oracle Object Storage, Always Free, S3-compatible). Blocks M5.13; on answer: re-target the snapshot store's config and retention budget, update SPEC §5 via the proposal, and ask where the domain's DNS is hosted.
-- [#6](https://github.com/AbhinavGonthina/gitinside-planning/issues/6) Vercel Hobby. M5.2 landed and #6 is commented: Part B (import `apps/web`, env vars per ADR-0055, domain) can start. Blocks M5.13.
-- [#7](https://github.com/AbhinavGonthina/gitinside-planning/issues/7) DNS: CNAME `gitinside` → Vercel, A `worker.gitinside` → VM. After #3 and #6 Part B. Blocks M5.13.
+- [#7](https://github.com/AbhinavGonthina/gitinside-planning/issues/7) DNS: CNAME `gitinside` → Vercel (target known from #6), A `worker.gitinside` → VM. After #3. Blocks M5.13.
 
 ## Blockers
 - none
@@ -125,7 +123,7 @@ M6.7d2. Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (M5
 - [x] M5.11 Security test suite with malicious fixtures {model: opus}
 - [x] M5.12a Snapshot retention: bucket list/delete (ListObjectsV2), db reads/deletes, pure `planRetention` (latest 5 per public repo, PR pins, superseded versions, orphans, 8 GB budget from the listing), `runRetention` (rows before objects) {model: opus}
 - [x] M5.12b Retention schedule in the worker + quota check: R2 (listing) and Neon (`pg_database_size`) against their free limits, `quota_alarm` log at 80%, prune old rate-limit windows, a `quota` command for M5.13's smoke test {model: opus}
-- [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review) {model: opus} {blocked: #3 #4 #5 #6 #7}
+- [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review) {model: opus} {blocked: #3 #5 #7}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
 - [x] M5.14c M5 review follow-up (ADR-0079, ADR-0080): guard `getTypeAtLocation` like `getSymbolAtLocation` (eval re-record) {model: opus}
@@ -145,7 +143,7 @@ M6.7d2. Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (M5
 - [x] M6.7b Observed inputs: record every repo path each service's program host and detectors read or probe (content hash or absent), incl. other services' files; `verifyInputs`; a test that the log covers every read {model: opus}
 - [x] M6.7c Wrapper inlining as per-service facts (wrapper URL templates, calls to wrappers) + a global binding step; no output change (goldens, eval) {model: opus}
 - [x] M6.7d1 Express as per-service facts (router creations, parameter bindings, route and `use` registrations with router references, resolved handlers) + a global composition step; `inlineHandlers` keyed by node key; no output change (goldens, eval) {model: opus}
-- [ ] M6.7d2 Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (handler keys, bound to route IDs after Express composition); no output change {model: opus}
+- [x] M6.7d2 Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (handler keys, bound to route IDs after Express composition); no output change {model: opus}
 - [ ] M6.7d3 Per-service serializable fact bundles for every remaining program stage (imports, symbols, calls, Next.js, Prisma client uses, SDK, queues, TypeScript and resolver warnings) + global composition; `analyze` rebuilt as facts → compose; JSON round-trip test; no output change (goldens, eval) {model: opus}
 - [ ] M6.7e `analyze({ cache })`: reuse clean services' facts, build clean programs only when needed; warm == cold bytes over fixture edits (edit, add, delete, cross-service import, tsconfig); CLI `--cache <dir>`, diff's two ref sides share it {model: opus}
 - [ ] M6.7f Worker cache volume (2 GB): public folder + per-installation private folders (deleted on uninstall, M8.5); compose + container check {model: opus}
@@ -186,6 +184,8 @@ M6.7d2. Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (M5
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.7d2: new `packages/analyzer/src/owners.ts` (ADR-0094): walks record `Owners` (node keys of the arrow/function expressions around a call up to the nearest symbol, plus fallback IDs) via `ownersAt`; `bindOwners` maps the innermost listed inline handler to its routes after Express composition. HTTP binds in `bindWrappers(facts, inlineHandlers)`; Prisma (`PrismaUse`), SDK, and queues bind after their walks in walk order; `inlineRoutesOf` removed. 5 new tests (4 `owners.test.ts` units; an inline handler's HTTP facts unchanged when another service remounts its router). Dropping the outer-handler chain fails 2 unit tests (goldens alone don't catch it). Analyzer 689, full `pnpm test` green. Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110), `--check` byte-for-byte. Also #4 (Neon, 1 GB, us-east-1) and #6 (Vercel live, CNAME target for #7) closed: removed from Needs Abhinav and M5.13's tag. Next: M6.7d3.
 
 - 2026-10-29 · M6.7d1: M6.7d split into d1–d3. Express is now `collectExpressFacts` per service (creations, parameter bindings, route/`use` registrations with `RouterRef`s, resolved handlers, inline-handler node keys) + `composeExpressRoutes` (old passes and mount walk over facts, no TypeScript; ADR-0093); `inlineHandlers` keyed by node key (`inlineRoutesOf`). 3 new tests (JSON round-trip compose == one-shot on 4 fixtures; a router's facts unchanged when its mount moves in another service; no-router repo collects creations only). Analyzer 684, full suite green (web's PGlite timing test failed once under load, 321/321 alone; worker 454 alone). Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110), `--check` byte-for-byte. Also fixed `main`'s CI, red since M6.6 on a diff test type error (`d79b0fe`), and answered #5 (no card on Cloudflare) with PROPOSALS P-2. Next: M6.7d2.
 
