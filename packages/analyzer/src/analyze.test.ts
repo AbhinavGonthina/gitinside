@@ -55,9 +55,9 @@ vi.mock("./express.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./express.js")>();
   return {
     ...actual,
-    buildExpressRoutes: (...args: Parameters<typeof actual.buildExpressRoutes>) => {
+    composeExpressRoutes: (...args: Parameters<typeof actual.composeExpressRoutes>) => {
       if (failing.express !== undefined) throw failing.express;
-      return actual.buildExpressRoutes(...args);
+      return actual.composeExpressRoutes(...args);
     },
   };
 });

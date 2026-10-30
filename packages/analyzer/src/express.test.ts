@@ -1,10 +1,25 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ArchitectureGraph } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
-import { joinPath } from "./express.js";
+import { createSymbolResolver } from "./calls.js";
+import {
+  buildExpressRoutes,
+  collectExpressFacts,
+  composeExpressRoutes,
+  joinPath,
+  rootFileServices,
+  routerCreations,
+  type ExpressFacts,
+} from "./express.js";
+import { buildInventory } from "./inventory.js";
+import { buildServicePrograms } from "./program.js";
+import { detectWorkspace } from "./workspace.js";
+
+const FIXTURES = fileURLToPath(new URL("../../../fixtures/", import.meta.url));
 
 let dir: string;
 beforeEach(async () => {
@@ -55,6 +70,92 @@ describe("joinPath", () => {
     ["/api", "*", "/api/*"],
   ])("joins %j and %j into %j", (prefix, path, expected) => {
     expect(joinPath(prefix, path)).toBe(expected);
+  });
+});
+
+/** The programs of the repo at `root`, its per-service Express facts, and the composition input. */
+async function expressFacts(root: string) {
+  const inventory = await buildInventory(root);
+  const workspace = await detectWorkspace(root, inventory.files);
+  const programs = buildServicePrograms(root, workspace, inventory);
+  const resolver = createSymbolResolver(programs, workspace);
+  const hasRouters = programs.some((sp) => routerCreations(sp).length > 0);
+  return {
+    programs,
+    resolver,
+    workspace,
+    rootFiles: rootFileServices(programs),
+    facts: programs.map((sp) => collectExpressFacts(sp, resolver, hasRouters)),
+  };
+}
+
+/** The facts of one service, by key. */
+function factsOf(all: readonly ExpressFacts[], service: string): ExpressFacts {
+  const found = all.find((f) => f.service === service);
+  if (!found) throw new Error(`no facts for ${service}`);
+  return found;
+}
+
+describe("express facts", () => {
+  it.each(["express-basic", "express-nested-routers", "ambiguous-routes", "shop-demo"])(
+    "composes %s from JSON round-tripped facts exactly as the one-shot detector",
+    async (name) => {
+      const root = join(FIXTURES, name);
+      const { workspace, rootFiles, facts } = await expressFacts(root);
+      const revived = JSON.parse(JSON.stringify(facts)) as ExpressFacts[];
+      const composed = composeExpressRoutes(revived, workspace.packages, rootFiles);
+      const fresh = await expressFacts(root);
+      const oneShot = buildExpressRoutes(fresh.programs, fresh.resolver);
+      expect(composed.nodes.length).toBeGreaterThan(0);
+      expect(composed).toEqual(oneShot);
+    },
+  );
+
+  it("keeps a router's facts independent of the service that mounts it", async () => {
+    await put("package.json", JSON.stringify({ name: "root", workspaces: ["packages/*"] }));
+    await put(
+      "packages/routes/package.json",
+      JSON.stringify({ name: "routes", dependencies: { express: "4" } }),
+    );
+    await put("packages/routes/src/users.ts", [
+      'import { Router } from "express";',
+      "export function list() {}",
+      "export const users = Router();",
+      'users.get("/users", list);',
+    ]);
+    await put(
+      "packages/api/package.json",
+      JSON.stringify({ name: "api", dependencies: { express: "4" } }),
+    );
+    const server = (prefix: string) => [
+      'import express from "express";',
+      'import { users } from "../../routes/src/users";',
+      "const app = express();",
+      `app.use("${prefix}", users);`,
+    ];
+    await put("packages/api/src/server.ts", server("/v1"));
+    const before = await expressFacts(dir);
+    await put("packages/api/src/server.ts", server("/v2"));
+    const after = await expressFacts(dir);
+
+    // The mount moved, but the router's service saw the same thing both times.
+    expect(factsOf(after.facts, "routes")).toEqual(factsOf(before.facts, "routes"));
+    expect(factsOf(after.facts, "api")).not.toEqual(factsOf(before.facts, "api"));
+    const ids = (input: typeof before) =>
+      composeExpressRoutes(input.facts, input.workspace.packages, input.rootFiles).nodes.map(
+        (n) => n.id,
+      );
+    expect(ids(before)).toEqual(["route:api/GET /v1/users"]);
+    expect(ids(after)).toEqual(["route:api/GET /v2/users"]);
+  });
+
+  it("collects only creations when no service creates a router", async () => {
+    await put("package.json", JSON.stringify({ name: "plain" }));
+    await put("src/index.ts", ["function register(app: unknown) {}", "register({});"]);
+    const { facts } = await expressFacts(dir);
+    expect(facts).toEqual([
+      { service: "plain", creations: [], scanned: false, bindings: [], registrations: [] },
+    ]);
   });
 });
 

@@ -64,7 +64,12 @@ import {
   type SourceLocation,
 } from "@gitinside/schema";
 import { calleeName, type SymbolResolver } from "./calls.js";
-import { isFunctionWithBody, returnedExpressions, type FunctionWithBody } from "./express.js";
+import {
+  inlineRoutesOf,
+  isFunctionWithBody,
+  returnedExpressions,
+  type FunctionWithBody,
+} from "./express.js";
 import { fileNodeId, withinService } from "./files.js";
 import { functionOf, importBinding, locationOf, requiredModule } from "./http.js";
 import type { ServiceProgram } from "./program.js";
@@ -263,7 +268,7 @@ export function buildQueueEdges(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
   workspace: Workspace,
-  inlineHandlers: ReadonlyMap<ts.Node, readonly string[]> = new Map(),
+  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): QueueEdges {
   const { symbolAt, constString } = createValueReader(resolver);
 
@@ -611,13 +616,16 @@ export function buildQueueEdges(
   /** The owners of the code around a node: the innermost symbol or inline handler's routes. */
   const enclosingOwners = (sp: ServiceProgram, node: ts.Node): readonly string[] | undefined => {
     const byNode = resolver.callers.get(node.getSourceFile());
+    const file = sp.toRepoPath(node.getSourceFile().fileName);
+    // Inline handlers are found in root files only, as the symbols in `byNode` are.
+    const rootFile = byNode ? file : undefined;
     for (let n: ts.Node | undefined = node; n; n = n.parent) {
-      const routes = inlineHandlers.get(n);
+      const routes =
+        rootFile === undefined ? undefined : inlineRoutesOf(inlineHandlers, rootFile, n);
       if (routes) return routes;
       const symbol = byNode?.get(n);
       if (symbol !== undefined) return [symbol];
     }
-    const file = sp.toRepoPath(node.getSourceFile().fileName);
     const service = file === undefined ? undefined : serviceForFile(workspace, file);
     return service && file !== undefined ? [fileNodeId(service, file)] : undefined;
   };
@@ -691,7 +699,9 @@ export function buildQueueEdges(
         const service = serviceForFile(workspace, file);
         const visit = (node: ts.Node, owners: readonly string[]): void => {
           const symbol = byNode.get(node);
-          const current = inlineHandlers.get(node) ?? (symbol !== undefined ? [symbol] : owners);
+          const current =
+            inlineRoutesOf(inlineHandlers, file, node) ??
+            (symbol !== undefined ? [symbol] : owners);
           if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
             const sources =
               current.length > 0 ? current : service ? [fileNodeId(service, file)] : [];

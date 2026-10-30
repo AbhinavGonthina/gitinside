@@ -2,6 +2,11 @@
  * Express route detector (M1.10): `route` nodes, `handles` edges, and `DYNAMIC_ROUTE`
  * unresolved nodes, from Express apps and routers found with the type checker.
  *
+ * Two steps (ADR-0093): `collectExpressFacts` reads one service's program into plain data,
+ * with every router a registration uses left as a reference; `composeExpressRoutes` decides
+ * which nodes are routers and composes full paths over all services' facts, without
+ * TypeScript, since a router's prefixes come from whichever files mount it.
+ *
  * Patterns handled:
  * - Apps and routers: `express()`, `express.Router()`, `Router()` (named import), and the same
  *   through `require("express")`, `import * as express`, and `import express = require()`.
@@ -53,10 +58,11 @@ import {
   type HttpMethod,
   type SourceLocation,
 } from "@gitinside/schema";
-import { nodeKey, type SymbolResolver } from "./calls.js";
+import { nodeKey, type CallTarget, type SymbolResolver } from "./calls.js";
 import { fileNodeId, withinService } from "./files.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
+import type { WorkspacePackage } from "./workspace.js";
 
 /** Express route methods and the HTTP method each registers. */
 const METHODS: ReadonlyMap<string, HttpMethod> = new Map([
@@ -89,11 +95,117 @@ type ExpressRole = "module" | "Router" | "Express" | "Application";
 
 const NAMED_ROLES: ReadonlySet<string> = new Set(["Router", "Express", "Application"]);
 
+/** Where a router is: its node key (see `nodeKey`), file, and position. */
+export interface RouterSite {
+  key: string;
+  file: string;
+  location: SourceLocation;
+}
+
+/** An app or router created with `express` (or a parameter typed as one) in a service's files. */
+export interface RouterCreation extends RouterSite {
+  kind: "app" | "router";
+}
+
+/**
+ * The router an expression stands for, decided once every router is known: the node `key`
+ * if it is a router, else the first of `then` that is one (a chained call's receiver, or the
+ * values a factory function returns). Only nodes that can become routers (creation calls and
+ * parameters) keep a `key`, and references that can never reach one are left out.
+ */
+export interface RouterRef {
+  key?: string;
+  then?: RouterRef[];
+}
+
+/** An argument passed to a function parameter, which becomes a router if the argument is one. */
+export interface ParameterBinding {
+  argument: RouterRef;
+  parameter: RouterSite;
+  /** Where the argument is (part of the mount's key). */
+  site: SourceLocation;
+}
+
+/** One handler argument of a route. */
+export interface HandlerFact {
+  site: SourceLocation;
+  /** Node keys of the inline functions the handler is (see `inlineFunctions`). */
+  inline: string[];
+  /** The symbol node it names, if any. */
+  target?: CallTarget;
+}
+
+/** One route registration: a method, its router-relative path(s), and its handlers. */
+export interface RouteFact {
+  type: "route";
+  /** The router it registers on. */
+  router: RouterRef;
+  method: HttpMethod;
+  /** Static paths, absent when the path expression isn't static. */
+  paths?: string[];
+  /** Source text of the path expression. */
+  pathText: string;
+  /** Where the method name is (the route's `source`). */
+  site: SourceLocation;
+  /** Where the path expression is (the unresolved node's ID and `source`). */
+  pathSite: SourceLocation;
+  file: string;
+  /** Its handlers; empty when the paths aren't static (a dynamic route has no edges). */
+  handlers: HandlerFact[];
+}
+
+/** One `x.use(prefix?, ...children)` call. */
+export interface UseFact {
+  type: "use";
+  /** The router it mounts on. */
+  router: RouterRef;
+  /** Static prefixes (`[""]` without a prefix), absent when the prefix isn't static. */
+  prefixes?: string[];
+  prefixText: string;
+  /** Where the call is (part of the mount's key). */
+  site: SourceLocation;
+  children: RouterRef[];
+}
+
+/**
+ * What one service's program says about Express, as plain data (ADR-0090): routers created
+ * in its files, and its route registrations, mounts, and parameter bindings with the routers
+ * they use left as {@link RouterRef}s. Which nodes are routers, and so every full path, is
+ * decided by {@link composeExpressRoutes} over all services' facts, since a router can be
+ * mounted, or passed to a function, from another service's files.
+ */
+export interface ExpressFacts {
+  /** Key of the service whose program found these. */
+  service: string;
+  creations: RouterCreation[];
+  /**
+   * False when the repo had no routers, so only `creations` were collected (the rest would be
+   * wasted checker work). Facts collected that way are stale once any service creates one.
+   */
+  scanned: boolean;
+  bindings: ParameterBinding[];
+  /** Routes and `use` calls, in source order. */
+  registrations: (RouteFact | UseFact)[];
+}
+
+/** Express routes of the whole repo, from {@link composeExpressRoutes}. */
+export interface ExpressRoutes {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  warnings: AnalysisWarning[];
+  /**
+   * The sorted IDs of the routes each inline handler function serves, by the function's node
+   * key; look one up with {@link inlineRoutesOf}.
+   */
+  inlineHandlers: Map<string, string[]>;
+}
+
 /** An app (`express()`) or a router (`Router()`, or a parameter bound to one). */
 interface RouterObject {
   key: string;
   kind: "app" | "router";
-  sp: ServiceProgram;
+  /** The service whose program has the router's file as a root (its routes' ID prefix). */
+  service: string;
   file: string;
   location: SourceLocation;
   routes: RouteRecord[];
@@ -101,20 +213,10 @@ interface RouterObject {
   mounted: boolean;
 }
 
-/** One route registration: a method, its router-relative path(s), and its handlers. */
+/** A route registration and the service whose program found it. */
 interface RouteRecord {
-  method: HttpMethod;
-  /** Static paths, or undefined when the path expression isn't static. */
-  paths: string[] | undefined;
-  /** Source text of the path expression. */
-  pathText: string;
-  /** Where the method name is (the route's `source`). */
-  site: SourceLocation;
-  /** Where the path expression is (the unresolved node's ID and `source`). */
-  pathSite: SourceLocation;
-  handlers: ts.Expression[];
-  sp: ServiceProgram;
-  file: string;
+  fact: RouteFact;
+  service: WorkspacePackage;
 }
 
 /** A child router reachable from a parent under some prefix(es). */
@@ -324,91 +426,91 @@ function compareLocations(a: SourceLocation, b: SourceLocation): number {
   return compareStrings(a.file, b.file) || a.line - b.line || a.column - b.column;
 }
 
-/**
- * Detect Express routes in every service program (see the file comment for the patterns).
- * Returns `route` nodes (parented to the declaring file, ID `route:<service>/<METHOD> <path>`
- * where the service is the root app's), `handles` edges (route → handler symbol),
- * `DYNAMIC_ROUTE` unresolved nodes, and warnings. Everything is sorted.
- *
- * `inlineHandlers` maps each inline handler function (see `inlineFunctions`) to the sorted
- * IDs of the routes it serves, so later detectors can attribute calls inside it to the route.
- */
-export function buildExpressRoutes(
-  programs: readonly ServiceProgram[],
-  resolver: SymbolResolver,
-): {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  warnings: AnalysisWarning[];
-  inlineHandlers: Map<ts.Node, string[]>;
-} {
-  const inlineHandlers = new Map<ts.Node, string[]>();
-  const routers = new Map<string, RouterObject>();
-
-  const keyOf = (sp: ServiceProgram, node: ts.Node): string | undefined => {
-    const path = sp.toRepoPath(node.getSourceFile().fileName);
-    return path === undefined ? undefined : nodeKey(path, node);
-  };
-
-  const addRouter = (
-    sp: ServiceProgram,
-    node: ts.Node,
-    kind: "app" | "router",
-  ): RouterObject | undefined => {
-    const key = keyOf(sp, node);
-    const file = sp.toRepoPath(node.getSourceFile().fileName);
-    if (key === undefined || file === undefined) return undefined;
-    const existing = routers.get(key);
-    if (existing) return existing;
-    const router: RouterObject = {
-      key,
-      kind,
-      sp: resolver.programOf(file, sp) ?? sp,
-      file,
-      location: locationOf(node, file),
-      routes: [],
-      mounts: [],
-      mounted: false,
-    };
-    routers.set(key, router);
-    return router;
-  };
-
-  // Root source files that bind `express`, with their bindings. Only these can create routers.
-  const files: { sp: ServiceProgram; file: string; sourceFile: ts.SourceFile }[] = [];
-  for (const sp of programs) {
-    for (const file of sp.rootFiles) {
-      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-      if (sourceFile) files.push({ sp, file, sourceFile });
-    }
+/** A service program's root source files that it has parsed. */
+function rootSources(sp: ServiceProgram): { file: string; sourceFile: ts.SourceFile }[] {
+  const files: { file: string; sourceFile: ts.SourceFile }[] = [];
+  for (const file of sp.rootFiles) {
+    const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+    if (sourceFile) files.push({ file, sourceFile });
   }
-  const forEachNode = (callback: (sp: ServiceProgram, file: string, node: ts.Node) => void) => {
-    for (const { sp, file, sourceFile } of files) {
-      const visit = (node: ts.Node): void => {
-        callback(sp, file, node);
-        ts.forEachChild(node, visit);
-      };
-      visit(sourceFile);
-    }
-  };
+  return files;
+}
 
-  // Pass 1: apps and routers created with `express`, and parameters typed as one.
-  for (const { sp, sourceFile } of files) {
+/** Where a node is, with its node key, when its file is in the repo. */
+function routerSite(sp: ServiceProgram, node: ts.Node): RouterSite | undefined {
+  const file = sp.toRepoPath(node.getSourceFile().fileName);
+  if (file === undefined) return undefined;
+  return { key: nodeKey(file, node), file, location: locationOf(node, file) };
+}
+
+/**
+ * The apps and routers created with `express` in a service's root files, and parameters typed
+ * as one, in source order. Syntax only, so it's cheap: a repo where no service has any needs
+ * no other Express facts.
+ */
+export function routerCreations(sp: ServiceProgram): RouterCreation[] {
+  const creations: RouterCreation[] = [];
+  for (const { sourceFile } of rootSources(sp)) {
     const bindings = expressBindings(sourceFile);
     if (bindings.size === 0) continue;
+    const add = (node: ts.Node, kind: "app" | "router" | undefined): void => {
+      const site = kind && routerSite(sp, node);
+      if (kind && site) creations.push({ ...site, kind });
+    };
     const visit = (node: ts.Node): void => {
       if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
-        const kind = creationKind(node, bindings);
-        if (kind) addRouter(sp, node, kind);
+        add(node, creationKind(node, bindings));
       } else if (ts.isParameter(node)) {
-        const kind = typeKind(node.type, bindings);
-        if (kind) addRouter(sp, node, kind);
+        add(node, typeKind(node.type, bindings));
       }
       ts.forEachChild(node, visit);
     };
     visit(sourceFile);
   }
-  if (routers.size === 0) return { nodes: [], edges: [], warnings: [], inlineHandlers };
+  return creations;
+}
+
+/**
+ * Collect one service's {@link ExpressFacts} with its program (see the file comment for the
+ * patterns). `repoHasRouters` is whether any service has {@link routerCreations}; without
+ * one, nothing else can be a route, so only the creations are collected.
+ */
+export function collectExpressFacts(
+  sp: ServiceProgram,
+  resolver: SymbolResolver,
+  repoHasRouters: boolean,
+): ExpressFacts {
+  const facts: ExpressFacts = {
+    service: sp.service.key,
+    creations: routerCreations(sp),
+    scanned: repoHasRouters,
+    bindings: [],
+    registrations: [],
+  };
+  if (!repoHasRouters) return facts;
+  const files = rootSources(sp);
+  const forEachNode = (callback: (file: string, node: ts.Node) => void) => {
+    for (const { file, sourceFile } of files) {
+      const visit = (node: ts.Node): void => {
+        callback(file, node);
+        ts.forEachChild(node, visit);
+      };
+      visit(sourceFile);
+    }
+  };
+  const bindingsByFile = new Map<ts.SourceFile, Map<string, ExpressRole>>();
+  /** True for nodes that may be routers: creation calls and parameters (typed or bound). */
+  const mayBeRouter = (node: ts.Node): boolean => {
+    if (ts.isParameter(node)) return true;
+    if (!ts.isCallExpression(node) && !ts.isNewExpression(node)) return false;
+    const sourceFile = node.getSourceFile();
+    let bindings = bindingsByFile.get(sourceFile);
+    if (!bindings) {
+      bindings = expressBindings(sourceFile);
+      bindingsByFile.set(sourceFile, bindings);
+    }
+    return bindings.size > 0 && creationKind(node, bindings) !== undefined;
+  };
 
   /** The value an expression evaluates to: the initializer, function, or parameter it names. */
   const valueOf = (
@@ -471,35 +573,35 @@ export function buildExpressRoutes(
     return undefined;
   };
 
-  /** The router an expression refers to, if any. */
-  const routerOf = (
-    sp: ServiceProgram,
-    expression: ts.Expression,
-    hops = 0,
-  ): RouterObject | undefined => {
+  /** What router an expression may refer to (see {@link RouterRef}). */
+  const refOf = (expression: ts.Expression, hops = 0): RouterRef | undefined => {
     if (hops > MAX_HOPS) return undefined;
     const value = valueOf(sp, expression, hops);
     if (!value) return undefined;
-    const key = keyOf(sp, value);
-    const known = key === undefined ? undefined : routers.get(key);
-    if (known) return known;
-    if (!ts.isCallExpression(value) && !ts.isNewExpression(value)) return undefined;
-    const callee = unwrap(value.expression);
-    // `router.get(…)` and `router.use(…)` return the router, so chained calls keep it.
-    if (
-      ts.isPropertyAccessExpression(callee) &&
-      (METHODS.has(callee.name.text) || callee.name.text === "use")
-    ) {
-      return routerOf(sp, callee.expression, hops + 1);
+    const key = mayBeRouter(value) ? routerSite(sp, value)?.key : undefined;
+    const then: RouterRef[] = [];
+    if (ts.isCallExpression(value) || ts.isNewExpression(value)) {
+      const callee = unwrap(value.expression);
+      if (
+        ts.isPropertyAccessExpression(callee) &&
+        (METHODS.has(callee.name.text) || callee.name.text === "use")
+      ) {
+        // `router.get(…)` and `router.use(…)` return the router, so chained calls keep it.
+        const ref = refOf(callee.expression, hops + 1);
+        if (ref) then.push(ref);
+      } else {
+        // A factory function that returns a router.
+        const fn = valueOf(sp, value.expression, hops + 1);
+        if (fn && isFunctionWithBody(fn)) {
+          for (const returned of returnedExpressions(fn)) {
+            const ref = refOf(returned, hops + 2);
+            if (ref) then.push(ref);
+          }
+        }
+      }
     }
-    // A factory function that returns a router.
-    const fn = valueOf(sp, value.expression, hops + 1);
-    if (!fn || !isFunctionWithBody(fn)) return undefined;
-    for (const returned of returnedExpressions(fn)) {
-      const router = routerOf(sp, returned, hops + 2);
-      if (router) return router;
-    }
-    return undefined;
+    if (key === undefined && then.length === 0) return undefined;
+    return { ...(key === undefined ? {} : { key }), ...(then.length > 0 ? { then } : {}) };
   };
 
   /** Static path strings for a path expression, or undefined when it isn't static. */
@@ -556,41 +658,25 @@ export function buildExpressRoutes(
     return undefined;
   };
 
-  // Pass 2: bind function parameters to the routers passed in, until nothing new appears.
-  const mountKeys = new Set<string>();
-  const addMount = (parent: RouterObject, mount: Mount): void => {
-    if (mountKeys.has(mount.key)) return;
-    mountKeys.add(mount.key);
-    parent.mounts.push(mount);
-    mount.child.mounted = true;
-  };
-  for (let round = 0; round < MAX_ROUNDS; round++) {
-    const before = routers.size;
-    forEachNode((sp, file, node) => {
-      if (!ts.isCallExpression(node) || node.arguments.length === 0) return;
-      const fn = valueOf(sp, node.expression, 0);
-      if (!fn || !isFunctionWithBody(fn)) return;
-      node.arguments.forEach((argument, index) => {
-        const parameter = fn.parameters[index];
-        if (!parameter || parameter.dotDotDotToken || !ts.isIdentifier(parameter.name)) return;
-        if (node.arguments.slice(0, index + 1).some(ts.isSpreadElement)) return;
-        const router = routerOf(sp, argument);
-        const bound = router && addRouter(sp, parameter, "router");
-        if (!router || !bound || bound === router) return;
-        const site = locationOf(argument, file);
-        addMount(router, {
-          child: bound,
-          prefixes: [""],
-          prefixText: "",
-          key: `${router.key}->${bound.key}@${site.file}:${site.line}:${site.column}`,
-        });
-      });
+  // Arguments that may bind function parameters to routers.
+  forEachNode((file, node) => {
+    if (!ts.isCallExpression(node) || node.arguments.length === 0) return;
+    const fn = valueOf(sp, node.expression, 0);
+    if (!fn || !isFunctionWithBody(fn)) return;
+    node.arguments.forEach((argument, index) => {
+      const parameter = fn.parameters[index];
+      if (!parameter || parameter.dotDotDotToken || !ts.isIdentifier(parameter.name)) return;
+      if (node.arguments.slice(0, index + 1).some(ts.isSpreadElement)) return;
+      const ref = refOf(argument);
+      const site = ref && routerSite(sp, parameter);
+      if (ref && site) {
+        facts.bindings.push({ argument: ref, parameter: site, site: locationOf(argument, file) });
+      }
     });
-    if (routers.size === before) break;
-  }
+  });
 
-  // Pass 3: routes and mounts.
-  forEachNode((sp, file, node) => {
+  // Routes and mounts.
+  forEachNode((file, node) => {
     if (!ts.isCallExpression(node)) return;
     const callee = unwrap(node.expression);
     if (!ts.isPropertyAccessExpression(callee)) return;
@@ -604,7 +690,7 @@ export function buildExpressRoutes(
         base = unwrap(inner.expression);
       }
       const baseCallee = ts.isCallExpression(base) ? unwrap(base.expression) : undefined;
-      let router: RouterObject | undefined;
+      let router: RouterRef | undefined;
       let pathArg: ts.Expression | undefined;
       let handlers: readonly ts.Expression[];
       if (
@@ -615,49 +701,187 @@ export function buildExpressRoutes(
         base.arguments[0] !== undefined
       ) {
         // `router.route(path).get(h).post(h)`
-        router = routerOf(sp, baseCallee.expression);
+        router = refOf(baseCallee.expression);
         pathArg = base.arguments[0];
         handlers = node.arguments;
         if (handlers.length === 0) return;
       } else {
         if (node.arguments.length < 2) return;
-        router = routerOf(sp, callee.expression);
+        router = refOf(callee.expression);
         pathArg = node.arguments[0];
         handlers = node.arguments.slice(1);
       }
       if (!router || !pathArg) return;
-      router.routes.push({
+      const paths = staticPaths(sp, pathArg);
+      facts.registrations.push({
+        type: "route",
+        router,
         method,
-        paths: staticPaths(sp, pathArg),
+        ...(paths === undefined ? {} : { paths }),
         pathText: pathArg.getText(),
         site: locationOf(callee.name, file),
         pathSite: locationOf(pathArg, file),
-        handlers: handlers.flatMap((h) => {
-          const e = unwrap(h);
-          return ts.isArrayLiteralExpression(e) ? [...e.elements] : [h];
-        }),
-        sp,
         file,
+        // A dynamic path is drawn without edges, so its handlers aren't resolved.
+        handlers:
+          paths === undefined
+            ? []
+            : handlers
+                .flatMap((h) => {
+                  const e = unwrap(h);
+                  return ts.isArrayLiteralExpression(e) ? [...e.elements] : [h];
+                })
+                .map((handler) => {
+                  const target = resolver.resolve(sp, handler);
+                  return {
+                    site: locationOf(handler, file),
+                    inline: inlineFunctions(handler).map((fn) => nodeKey(file, fn)),
+                    ...(target ? { target } : {}),
+                  };
+                }),
       });
     } else if (name === "use") {
       const first = node.arguments[0];
-      const router = first && routerOf(sp, callee.expression);
+      const router = first && refOf(callee.expression);
       if (!first || !router) return;
       const prefixes = staticPaths(sp, first);
       const hasPrefix = prefixes !== undefined || isPathSyntax(first);
-      const site = locationOf(node, file);
-      for (const argument of node.arguments.slice(hasPrefix ? 1 : 0)) {
-        const child = routerOf(sp, argument);
+      const resolved = hasPrefix ? prefixes : [""];
+      facts.registrations.push({
+        type: "use",
+        router,
+        ...(resolved === undefined ? {} : { prefixes: resolved }),
+        prefixText: hasPrefix ? first.getText() : "",
+        site: locationOf(node, file),
+        children: node.arguments
+          .slice(hasPrefix ? 1 : 0)
+          .flatMap((argument) => refOf(argument) ?? []),
+      });
+    }
+  });
+  return facts;
+}
+
+/**
+ * The service key of the program each root file belongs to, from `ServiceProgram.rootFiles`
+ * (or `programRootFiles` without programs). Input to {@link composeExpressRoutes}.
+ */
+export function rootFileServices(programs: readonly ServiceProgram[]): Map<string, string> {
+  const services = new Map<string, string>();
+  for (const sp of programs) for (const file of sp.rootFiles) services.set(file, sp.service.key);
+  return services;
+}
+
+/**
+ * Express routes from every service's {@link ExpressFacts}, in program order: decide which
+ * nodes are routers (creations, then parameters bound to one, until nothing new appears),
+ * attach registrations to them, and walk the mounts from every router nothing mounts.
+ * Returns `route` nodes (parented to the declaring file, ID `route:<service>/<METHOD> <path>`
+ * where the service is the root app's), `handles` edges (route → handler symbol),
+ * `DYNAMIC_ROUTE` unresolved nodes, and warnings. Everything is sorted.
+ *
+ * `services` must include every service named in the facts, and `rootFiles` is
+ * {@link rootFileServices}.
+ */
+export function composeExpressRoutes(
+  facts: readonly ExpressFacts[],
+  services: readonly WorkspacePackage[],
+  rootFiles: ReadonlyMap<string, string>,
+): ExpressRoutes {
+  const byKey = new Map(services.map((s) => [s.key, s]));
+  const serviceOf = (key: string): WorkspacePackage => {
+    const service = byKey.get(key);
+    if (!service) throw new Error(`Express facts name an unknown service: ${key}`);
+    return service;
+  };
+  const inlineHandlers = new Map<string, string[]>();
+  const routers = new Map<string, RouterObject>();
+
+  const addRouter = (
+    site: RouterSite,
+    kind: "app" | "router",
+    from: ExpressFacts,
+  ): RouterObject => {
+    const existing = routers.get(site.key);
+    if (existing) return existing;
+    const router: RouterObject = {
+      key: site.key,
+      kind,
+      service: rootFiles.get(site.file) ?? from.service,
+      file: site.file,
+      location: site.location,
+      routes: [],
+      mounts: [],
+      mounted: false,
+    };
+    routers.set(site.key, router);
+    return router;
+  };
+  const routerOf = (ref: RouterRef): RouterObject | undefined => {
+    const known = ref.key === undefined ? undefined : routers.get(ref.key);
+    if (known) return known;
+    for (const next of ref.then ?? []) {
+      const router = routerOf(next);
+      if (router) return router;
+    }
+    return undefined;
+  };
+
+  // Pass 1: apps and routers created with `express`, and parameters typed as one.
+  for (const f of facts) for (const creation of f.creations) addRouter(creation, creation.kind, f);
+  if (routers.size === 0) return { nodes: [], edges: [], warnings: [], inlineHandlers };
+
+  // Pass 2: bind function parameters to the routers passed in, until nothing new appears.
+  const mountKeys = new Set<string>();
+  const addMount = (parent: RouterObject, mount: Mount): void => {
+    if (mountKeys.has(mount.key)) return;
+    mountKeys.add(mount.key);
+    parent.mounts.push(mount);
+    mount.child.mounted = true;
+  };
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    const before = routers.size;
+    for (const f of facts) {
+      for (const binding of f.bindings) {
+        const router = routerOf(binding.argument);
+        if (!router) continue;
+        const bound = addRouter(binding.parameter, "router", f);
+        if (bound === router) continue;
+        const site = binding.site;
+        addMount(router, {
+          child: bound,
+          prefixes: [""],
+          prefixText: "",
+          key: `${router.key}->${bound.key}@${site.file}:${site.line}:${site.column}`,
+        });
+      }
+    }
+    if (routers.size === before) break;
+  }
+
+  // Pass 3: routes and mounts.
+  for (const f of facts) {
+    const service = serviceOf(f.service);
+    for (const registration of f.registrations) {
+      const router = routerOf(registration.router);
+      if (!router) continue;
+      if (registration.type === "route") {
+        router.routes.push({ fact: registration, service });
+        continue;
+      }
+      const site = registration.site;
+      for (const ref of registration.children) {
+        const child = routerOf(ref);
         if (!child || child === router) continue;
         addMount(router, {
           child,
-          prefixes: hasPrefix ? prefixes : [""],
-          prefixText: hasPrefix ? first.getText() : "",
+          prefixes: registration.prefixes,
+          prefixText: registration.prefixText,
           key: `${router.key}->${child.key}@${site.file}:${site.line}:${site.column}`,
         });
       }
     }
-  });
+  }
 
   // Compose: walk from every router nothing mounts, emitting routes under each base path.
   const nodes = new Map<string, GraphNode>();
@@ -687,8 +911,7 @@ export function buildExpressRoutes(
     return false;
   };
 
-  const emit = (route: RouteRecord, base: Base, rootService: ServiceProgram): void => {
-    const service = route.sp.service;
+  const emit = ({ fact: route, service }: RouteRecord, base: Base, rootService: string): void => {
     if (route.paths === undefined || "dynamic" in base) {
       const parts = [
         "dynamic" in base ? base.dynamic : base.path,
@@ -711,7 +934,7 @@ export function buildExpressRoutes(
         parentId: nodeId("service", service.key, ""),
         reason: "DYNAMIC_ROUTE",
         expression,
-        source: route.pathSite,
+        source: { ...route.pathSite },
       });
       return;
     }
@@ -719,7 +942,7 @@ export function buildExpressRoutes(
       if (!spend()) return;
       const path = joinPath(base.path, local);
       const label = `${route.method} ${path}`;
-      const id = nodeId("route", rootService.service.key, label);
+      const id = nodeId("route", rootService, label);
       keep({
         id,
         kind: "route",
@@ -728,17 +951,17 @@ export function buildExpressRoutes(
         layer: "backend",
         method: route.method,
         path,
-        source: route.site,
+        source: { ...route.site },
       });
       for (const handler of route.handlers) {
-        for (const fn of inlineFunctions(handler)) {
+        for (const fn of handler.inline) {
           const ids = inlineHandlers.get(fn) ?? [];
           if (!ids.includes(id)) ids.push(id);
           inlineHandlers.set(fn, ids);
         }
-        const target = resolver.resolve(route.sp, handler);
+        const target = handler.target;
         if (!target) continue;
-        const site = locationOf(handler, route.file);
+        const site = { ...handler.site };
         const edge = edgeId("handles", id, target.id);
         const existing = edges.get(edge);
         if (!existing) {
@@ -759,12 +982,7 @@ export function buildExpressRoutes(
   };
 
   const visited = new Set<RouterObject>();
-  const walk = (
-    router: RouterObject,
-    base: Base,
-    root: ServiceProgram,
-    stack: Set<RouterObject>,
-  ): void => {
+  const walk = (router: RouterObject, base: Base, root: string, stack: Set<RouterObject>): void => {
     if (stack.has(router) || !spend()) return;
     stack.add(router);
     visited.add(router);
@@ -798,7 +1016,7 @@ export function buildExpressRoutes(
         message: `router at ${root.location.line}:${root.location.column} is never mounted on an app; its routes use paths relative to the router`,
       });
     }
-    walk(root, { path: "/" }, root.sp, new Set());
+    walk(root, { path: "/" }, root.service, new Set());
   };
   const ordered = [...routers.values()].sort((a, b) => compareLocations(a.location, b.location));
   for (const router of ordered) if (!router.mounted) start(router);
@@ -816,4 +1034,35 @@ export function buildExpressRoutes(
       (a, b) => compareStrings(a.file ?? "", b.file ?? "") || compareStrings(a.message, b.message),
     ),
   };
+}
+
+/**
+ * Detect Express routes in every service program: {@link collectExpressFacts} per program,
+ * then {@link composeExpressRoutes}.
+ */
+export function buildExpressRoutes(
+  programs: readonly ServiceProgram[],
+  resolver: SymbolResolver,
+): ExpressRoutes {
+  const hasRouters = programs.some((sp) => routerCreations(sp).length > 0);
+  return composeExpressRoutes(
+    programs.map((sp) => collectExpressFacts(sp, resolver, hasRouters)),
+    programs.map((sp) => sp.service),
+    rootFileServices(programs),
+  );
+}
+
+/**
+ * The routes an inline handler function serves (see {@link ExpressRoutes.inlineHandlers}),
+ * for a node in the root file `file` of the program being walked.
+ */
+export function inlineRoutesOf(
+  inlineHandlers: ReadonlyMap<string, readonly string[]>,
+  file: string,
+  node: ts.Node,
+): readonly string[] | undefined {
+  if (inlineHandlers.size === 0 || !(ts.isArrowFunction(node) || ts.isFunctionExpression(node))) {
+    return undefined;
+  }
+  return inlineHandlers.get(nodeKey(file, node));
 }

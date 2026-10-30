@@ -246,7 +246,7 @@ axios is harder than fetch because instances carry state (`baseURL`) and travel 
   - **axios called directly** (`axios(...)`, `api(...)`): `isStringValued` picks `(url, config)` or `(config)`.
   - **`x.request(config)`** and **shorthands**: `get/delete/head/options(url, config)` and `post/put/patch(url, data, config)` (the `*Form` variants strip `Form` to get the method). The config is argument 1 or 2 accordingly.
 - **The walk** (712–742): for each root file of each program, a recursive `visit` carries `owners`:
-  - `resolver.callers` maps declaration nodes to symbol IDs (built in M1.9). Entering a node that declares a symbol makes that symbol the owner; entering an inline Express handler makes its routes the owners (`inlineHandlers`, so `app.get("/x", async () => fetch(…))` belongs to the route).
+  - `resolver.callers` maps declaration nodes to symbol IDs (built in M1.9). Entering a node that declares a symbol makes that symbol the owner; entering an inline Express handler makes its routes the owners (`inlineHandlers`, keyed by the function's node key and read with `inlineRoutesOf`, so `app.get("/x", async () => fetch(…))` belongs to the route).
   - Because the owner is replaced on the way down, the innermost symbol wins.
   - Each recognized call becomes a site; `site` is the location of the callee name (`fetch` or the `get` in `api.get`).
 - The result is sorted by file, line, column with `compareStrings`, never `localeCompare` (determinism).

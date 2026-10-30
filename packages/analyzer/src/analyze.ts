@@ -4,7 +4,12 @@ import { performance } from "node:perf_hooks";
 import { SYSTEM_ID, type AnalysisWarning, type ArchitectureGraph } from "@gitinside/schema";
 import { assembleGraph } from "./assemble.js";
 import { buildCallEdges, createSymbolResolver } from "./calls.js";
-import { buildExpressRoutes } from "./express.js";
+import {
+  collectExpressFacts,
+  composeExpressRoutes,
+  rootFileServices,
+  routerCreations,
+} from "./express.js";
 import { errorText } from "./failures.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { collectHttpCalls } from "./http.js";
@@ -172,8 +177,13 @@ export async function analyze(
   const resolver = createSymbolResolver(programs, workspace);
   const express = await detector(
     "express",
-    () => buildExpressRoutes(programs, resolver),
-    () => ({ ...none(), inlineHandlers: new Map() }),
+    () => {
+      // Per-service facts, then the global composition (ADR-0093).
+      const hasRouters = programs.some((sp) => routerCreations(sp).length > 0);
+      const facts = programs.map((sp) => collectExpressFacts(sp, resolver, hasRouters));
+      return composeExpressRoutes(facts, workspace.packages, rootFileServices(programs));
+    },
+    () => ({ ...none(), inlineHandlers: new Map<string, string[]>() }),
   );
   const next = await detector("next", () => buildNextRoutes(programs, resolver), none);
   const prisma = await detector(
