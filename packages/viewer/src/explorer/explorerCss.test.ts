@@ -19,14 +19,19 @@ describe("explorer.css", () => {
     expect(body).not.toMatch(/\brgba?\(|\bhsla?\(/);
   });
 
-  it("moves the fit with the layout duration token, so reduced motion makes it instant", () => {
+  it("moves a refit with the layout duration token, but not the first fit on load", () => {
     const timed = body.match(/\b(?:transition|animation):[^;]*;/g) ?? [];
     expect(timed.length).toBeGreaterThan(0);
     for (const t of timed) expect(t).not.toMatch(/\d+m?s\b/);
+    expect(body).toMatch(/\.gi-explorer__drill \{[^}]*transform-origin: 0 0;/);
     expect(body).toMatch(
-      /\.gi-explorer__drill \{[^}]*transform-origin: 0 0;[^}]*transform var\(--duration-layout\)/,
+      /\.gi-explorer\[data-settled\] \.gi-explorer__drill \{\s*transition: transform var\(--duration-layout\)/,
     );
-    expect(body).toMatch(/\.gi-explorer__fit \{[^}]*width var\(--duration-layout\)/);
+    expect(body).toMatch(
+      /\.gi-explorer\[data-settled\] \.gi-explorer__fit \{[^}]*width var\(--duration-layout\)/,
+    );
+    // Unsettled, nothing on the fit moves.
+    expect(body).not.toMatch(/^\.gi-explorer__(?:fit|drill) \{[^}]*transition/m);
   });
 
   it("never sets text in the trace color, which is only 3:1 in light (M4a review)", () => {

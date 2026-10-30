@@ -118,6 +118,15 @@ export function Explorer({
   }, []);
   const size = shown?.layout ?? { width: 0, height: 0 };
   const scale = fitScale(size, canvas);
+  // The first fit is drawn as is; only later ones move (explorer.css), so the
+  // diagram doesn't zoom out on load.
+  const [settled, setSettled] = useState(false);
+  const fitted = canvas.width > 0 && shown !== undefined;
+  useEffect(() => {
+    if (!fitted || settled) return;
+    const frame = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(frame);
+  }, [fitted, settled]);
 
   const tracing = step !== null && trace !== undefined;
   const current: TraceStep | undefined = tracing ? steps[step] : undefined;
@@ -291,6 +300,7 @@ export function Explorer({
       className="gi-explorer"
       data-bare={topBar ? undefined : ""}
       data-layout-runs-in={runsIn}
+      data-settled={settled ? "" : undefined}
       onKeyDown={onKeyDown}
     >
       {topBar && <TopBar repo={repo} tracing={tracing} onTrace={trace ? toggleTrace : undefined} />}

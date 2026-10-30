@@ -101,12 +101,17 @@ for (const c of cases) {
     expect(spills, "every node's content fits its box").toEqual([]);
 
     // An open box's own row sits at its top, in the header room the layout
-    // kept (M4b.3a: an open file's row centered behind its routes).
+    // kept (M4b.3a: an open file's row centered behind its routes): at most
+    // 24px down, plus a window's 10px title band, in diagram px (the
+    // explorer scales its canvas to fit, M4b.3b1).
     const sunk = await page.evaluate(() =>
       [...document.querySelectorAll<HTMLElement>(".gi-drill__node[data-open] > .gi-node")]
         .filter((n) => {
           const tile = n.querySelector(".gi-icon-tile");
-          return tile && tile.getBoundingClientRect().top - n.getBoundingClientRect().top > 24;
+          const box = n.getBoundingClientRect();
+          const scale = n.offsetHeight > 0 ? box.height / n.offsetHeight : 1;
+          const band = n.dataset.shape === "window" ? 10 : 0;
+          return tile && (tile.getBoundingClientRect().top - box.top) / scale > 24 + band;
         })
         .map((n) => n.getAttribute("aria-label") ?? ""),
     );
