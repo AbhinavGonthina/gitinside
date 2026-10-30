@@ -83,6 +83,16 @@ for (const c of cases) {
     expect(look.geist, "Geist loaded").toBe(true);
     expect(look.mono, "Geist Mono loaded where it's used").toBe(true);
 
+    // No node's content spills out of its box (design gate: count badges
+    // wrapped out of a closed frame). Overflowing children grow scrollHeight
+    // and scrollWidth even with overflow visible; only a browser can measure it.
+    const spills = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(".gi-node")]
+        .filter((n) => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1)
+        .map((n) => n.getAttribute("aria-label") ?? n.textContent ?? ""),
+    );
+    expect(spills, "every node's content fits its box").toEqual([]);
+
     await expect(page).toHaveScreenshot(c.snapshot, { fullPage: true });
     expect(errors, "no errors while rendering").toEqual([]);
   });

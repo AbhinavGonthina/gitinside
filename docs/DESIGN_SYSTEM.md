@@ -64,7 +64,7 @@ The legend is always one click away and is generated from these same tokens.
 
 **Node components** (implemented in M4a.4, `packages/viewer/src/nodes/`; approved at the design gate, changes in §1.1; ADR-0049). Story **Components/Nodes** shows Kinds, States (every kind × every state), and Frames.
 - **Tiers:**
-  - **Frames** (service, module). Closed: a solid card tinted 10% with the layer, a layer-mixed border, counts on their own row, and a **stacked edge** beneath meaning "there is more inside; break it down". Open: translucent (6% layer tint), header row on top, children inside; nested frames deepen the tint. Service radius 16, module 12.
+  - **Frames** (service, module). Closed: a solid card tinted 10% with the layer, a layer-mixed border, counts on their own row (the frame widens past 248px rather than let them wrap out of it; a visual test checks no node's content overflows), and a **stacked edge** beneath meaning "there is more inside; break it down". Open: translucent (6% layer tint), header row on top, children inside; nested frames deepen the tint. Service radius 16, module 12.
   - **Cards** (file, symbol, route, page, model, unresolved): `surface-1`, radius 10, small tile, name and muted subtitle, counts on the right. Symbols, page paths, and unresolved expressions use Geist Mono; a route's method sits in a quiet mono chip before its path.
   - **Icon-first** (datastore, queue, external): large tile, name beneath, engine or brand beneath that. No container until a state needs one.
   - **Unresolved:** a dotted card on the canvas color, its reason in words ("URL built from CMS_URL at runtime").
