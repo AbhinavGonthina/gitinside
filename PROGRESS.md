@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.3b1. The explorer on the drill-down canvas (M5.13 and M5.14b wait on #3, #5, #7)
+M4b.3b2. Prototype model removed, website layout in a Web Worker (M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -90,7 +90,7 @@ M4b.3b1. The explorer on the drill-down canvas (M5.13 and M5.14b wait on #3, #5,
 - [x] M4b.2a Node and edge-label sizes measured from content, not fixed per tier (design gate fit) + ELK layout of a view (compound frames, stable ordering, routes in a service's first column, absolute boxes and routes), deterministic {model: opus}
 - [x] M4b.2b ELK in a Web Worker (in-thread fallback) + layout cache per expansion state (`view.open` + hidden kinds) + a story drawing the laid-out fixture with real nodes and edges, screenshots, real-browser fit check {model: opus}
 - [x] M4b.3a Drill-down canvas: expansion state (open in order, Esc closes the last opened, collapse to a frame), `DrillCanvas` drawing a view from the layout cache with animated in-place transitions (boxes glide, children emerge from the opened node's center, closed ones fold into it, edges fade in after; interruptible; reduced motion instant), focus kept on the toggled node, a story + motion frames + baselines {model: opus}
-- [ ] M4b.3b1 The explorer on the drill-down canvas: `Explorer` replaces `ExplorerPrototype` (view model, ELK, `DrillCanvas`; multi-level drill, routes first, breadcrumbs from `viewTrail`, selection and trace mapped to visible boxes, connections drill to their node), website on it, stories, screenshots, baselines {model: opus}
+- [x] M4b.3b1 The explorer on the drill-down canvas: `Explorer` replaces `ExplorerPrototype` (view model, ELK, `DrillCanvas`; multi-level drill, routes first, breadcrumbs from `viewTrail`, selection and trace mapped to visible boxes, connections drill to their node), website on it, stories, screenshots, baselines {model: opus}
 - [ ] M4b.3b2 Prototype model removed: the README image off `prototype/model.ts` and `prototype/layout.ts` (hierarchy index, its own column layout, same bytes), `prototype/` deleted; the website's layout in a Web Worker (`next build` check) {model: opus}
 - [ ] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
 - [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub; the code sample links to the file and line, design gate) {model: opus}
@@ -197,6 +197,8 @@ M4b.3b1. The explorer on the drill-down canvas (M5.13 and M5.14b wait on #3, #5,
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.3b1: The explorer on the drill-down canvas (ADR-0109, `fa52e81`). `Explorer` replaces `ExplorerPrototype`: view model + ELK + `DrillCanvas`, any depth, routes first, breadcrumbs from `viewTrail`, hidden selections/trace hops light their innermost box, inspector connections drill only as far as needed (`revealIn`); the website draws it (main-thread layout until 3b2). Linux capture failed the open-row check (screen px on a scaled canvas, a window's title band): fixed in `512bbfc`, which also stops the first fit zooming on load (`data-settled`). Viewer 630, web 329, root typecheck + lint green; baselines from Linux CI (`3510e2d`). No eval delta. Still weak: the 40% fit floor lets a deep view run under the inspector until M4b.4. Next: M4b.3b2.
 
 - 2026-10-30 · M4b.3a: Drill-down canvas (ADR-0108). M4b.3 split: 3a canvas + motion, 3b the explorer on it. `explorer/drill.ts`: open nodes in opening order (`openIn`, `upFrom` for Esc, `collapseTo` for breadcrumbs, `useDrill`); `explorer/transition.ts`: pure `planTransition` (glide from old rect, emerge from the opened node's center, fold into the closed one's); `DrillCanvas` plays it with Web Animations (layout tokens, interruptible, lines fade in after, reduced motion instant), keeps the old level until the next layout, keeps focus on the toggled node. Found in the self-critique: an open file's row centered behind its routes; fixed + a new visual-spec check (proved by re-applying the bug in-page). Viewer 621 (34 new), root typecheck + lint + viewer build green; baselines from Linux CI. No eval delta. Next: M4b.3b.
 
