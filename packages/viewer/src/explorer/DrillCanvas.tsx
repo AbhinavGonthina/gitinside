@@ -65,7 +65,7 @@ interface Pending {
 }
 
 /** Nodes open in one view and not the other, outermost first. */
-function toggledBetween(a: GraphView, b: GraphView): string[] {
+export function toggledBetween(a: GraphView, b: GraphView): string[] {
   const inA = new Set(a.open);
   const inB = new Set(b.open);
   const ids = [...a.open.filter((id) => !inB.has(id)), ...b.open.filter((id) => !inA.has(id))];

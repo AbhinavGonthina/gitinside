@@ -436,6 +436,233 @@ describe("Explorer", { timeout: 30_000 }, () => {
   });
 });
 
+/** The camera drawn on the canvas, read back from its transform. */
+function cameraOf(container: HTMLElement) {
+  const transform = container.querySelector<HTMLElement>(".gi-explorer__drill")?.style.transform;
+  const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(transform ?? "");
+  if (!m) throw new Error(`no camera in ${transform}`);
+  return { x: Number(m[1]), y: Number(m[2]), zoom: Number(m[3]) };
+}
+
+/** A box's top-left corner as drawn on the canvas (its layout place through the camera). */
+function onCanvas(container: HTMLElement, el: HTMLElement | null) {
+  const wrapper = el?.parentElement;
+  if (!wrapper) throw new Error("no box");
+  const c = cameraOf(container);
+  return {
+    x: parseFloat(wrapper.style.left) * c.zoom + c.x,
+    y: parseFloat(wrapper.style.top) * c.zoom + c.y,
+  };
+}
+
+describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
+  // Room for the system level at 100%.
+  const CANVAS = { width: 1600, height: 1000 };
+  // jsdom has no layout: every observed element reports a 1600 × 1000 canvas.
+  // Nor PointerEvent (jsdom 25): without one, fired pointer events lose their
+  // pointer ID and coordinates.
+  beforeEach(() => {
+    vi.stubGlobal(
+      "PointerEvent",
+      class extends MouseEvent {
+        readonly pointerId: number;
+        readonly pointerType: string;
+        constructor(type: string, init: PointerEventInit = {}) {
+          super(type, init);
+          this.pointerId = init.pointerId ?? 0;
+          this.pointerType = init.pointerType ?? "mouse";
+        }
+      },
+    );
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(private readonly report: ResizeObserverCallback) {}
+        observe() {
+          this.report(
+            [{ contentRect: CANVAS } as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+      },
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const level = () =>
+    screen.getByRole("group", { name: "Zoom" }).querySelector("output")?.textContent;
+  const canvas = () => screen.getByRole("region", { name: "Diagram" });
+
+  it("fits the level centered, zooms with the buttons and keys, and fits again with 0", async () => {
+    const { container, press } = await setup();
+    const fit = cameraOf(container);
+    expect(fit.zoom).toBe(1);
+    expect(fit.x).toBeGreaterThan(0);
+    expect(level()).toBe("100%");
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(level()).toBe("125%");
+    fireEvent.click(screen.getByRole("button", { name: "Zoom out" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom out" }));
+    expect(level()).toBe("80%");
+    // The buttons don't reach the canvas's click, which clears the selection.
+    await press("+");
+    await press("=");
+    expect(level()).toBe("125%");
+    await press("-");
+    expect(level()).toBe("100%");
+    expect(cameraOf(container)).toEqual(fit);
+    await press("+");
+    await press("0");
+    expect(cameraOf(container)).toEqual(fit);
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fit to screen" }));
+    expect(cameraOf(container)).toEqual(fit);
+    // Zoom buttons and keys glide like a panel; a refit after drilling with the layout.
+    expect(container.querySelector(".gi-explorer__drill")?.getAttribute("data-camera-motion")).toBe(
+      "standard",
+    );
+  });
+
+  it("zooms around the pointer with Ctrl + wheel, and pans with the wheel", async () => {
+    const { container } = await setup();
+    const fit = cameraOf(container);
+    fireEvent.wheel(canvas(), { deltaY: -125, ctrlKey: true, clientX: 300, clientY: 200 });
+    const zoomed = cameraOf(container);
+    expect(zoomed.zoom).toBeCloseTo(Math.SQRT2, 2);
+    // The diagram point under the pointer stays under it.
+    expect((300 - zoomed.x) / zoomed.zoom).toBeCloseTo((300 - fit.x) / fit.zoom, 0);
+    expect(container.querySelector(".gi-explorer__drill")?.getAttribute("data-camera-motion")).toBe(
+      "none",
+    );
+
+    fireEvent.wheel(canvas(), { deltaX: 30, deltaY: 40 });
+    expect(cameraOf(container)).toEqual({ ...zoomed, x: zoomed.x - 30, y: zoomed.y - 40 });
+    // Lines (deltaMode 1) are 16px; Shift turns a vertical wheel sideways.
+    fireEvent.wheel(canvas(), { deltaY: 2, deltaMode: 1, shiftKey: true });
+    expect(cameraOf(container).x).toBe(zoomed.x - 30 - 32);
+  });
+
+  it("pans by dragging, even from a box, without selecting or clearing on the release", async () => {
+    const { container, box, heading } = await setup({ initialSelected: API });
+    const fit = cameraOf(container);
+    const web = box(WEB) as HTMLElement;
+    fireEvent.pointerDown(web, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(web, { pointerId: 1, clientX: 160, clientY: 90 });
+    expect(canvas().hasAttribute("data-panning")).toBe(true);
+    fireEvent.pointerUp(web, { pointerId: 1, clientX: 160, clientY: 90 });
+    fireEvent.click(web);
+    expect(cameraOf(container)).toEqual({ ...fit, x: fit.x + 60, y: fit.y - 10 });
+    expect(canvas().hasAttribute("data-panning")).toBe(false);
+    expect(heading().textContent).toBe("@shop/api");
+
+    // A press that barely moves is still a click.
+    fireEvent.pointerDown(web, { pointerId: 2, button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(web, { pointerId: 2, clientX: 102, clientY: 101 });
+    fireEvent.pointerUp(web, { pointerId: 2, clientX: 102, clientY: 101 });
+    fireEvent.click(web);
+    expect(heading().textContent).toBe("@shop/web");
+    expect(cameraOf(container).x).toBe(fit.x + 60);
+
+    // The overlays keep their own pointer: no pan from the zoom controls.
+    const zoomIn = screen.getByRole("button", { name: "Zoom in" });
+    fireEvent.pointerDown(zoomIn, { pointerId: 3, button: 0, clientX: 900, clientY: 20 });
+    fireEvent.pointerMove(zoomIn, { pointerId: 3, clientX: 700, clientY: 20 });
+    expect(cameraOf(container).x).toBe(fit.x + 60);
+  });
+
+  it("pinch-zooms with two fingers around their midpoint", async () => {
+    const { container } = await setup();
+    const fit = cameraOf(container);
+    const c = canvas();
+    fireEvent.pointerDown(c, { pointerId: 1, pointerType: "touch", clientX: 400, clientY: 300 });
+    fireEvent.pointerDown(c, { pointerId: 2, pointerType: "touch", clientX: 600, clientY: 300 });
+    fireEvent.pointerMove(c, { pointerId: 2, pointerType: "touch", clientX: 800, clientY: 300 });
+    const pinched = cameraOf(container);
+    // The fingers went from 200px apart to 400px: twice the zoom (the 200% limit).
+    expect(pinched.zoom).toBe(2);
+    // The midpoint moved from 500 to 600, and the diagram with it.
+    expect((600 - pinched.x) / pinched.zoom).toBeCloseTo((500 - fit.x) / fit.zoom, 1);
+  });
+
+  it("never pans the diagram off the canvas", async () => {
+    const { container } = await setup();
+    for (let i = 0; i < 40; i++) fireEvent.wheel(canvas(), { deltaX: 500 });
+    const far = cameraOf(container);
+    const drill = container.querySelector<HTMLElement>(".gi-drill__stage") as HTMLElement;
+    const width = parseFloat(drill.style.width);
+    // The diagram's right edge stays 48px in from the canvas's left.
+    expect(far.x + width * far.zoom).toBeCloseTo(48, 1);
+  });
+
+  it("keeps a broken-down box in place once the camera is hand-set; follows the fit until then", async () => {
+    const { container, box, act } = await setup();
+    const fit = cameraOf(container);
+    await act(() => fireEvent.doubleClick(box(API) as HTMLElement));
+    // Still fitted: the bigger level is refitted, gliding with the layout.
+    const refit = cameraOf(container);
+    expect(refit).not.toEqual(fit);
+    expect(container.querySelector(".gi-explorer__drill")?.getAttribute("data-camera-motion")).toBe(
+      "layout",
+    );
+    await act(() =>
+      fireEvent.keyDown(container.querySelector(".gi-explorer") as Element, { key: "Escape" }),
+    );
+    expect(cameraOf(container)).toEqual(fit);
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    const before = onCanvas(container, box(API));
+    await act(() => fireEvent.doubleClick(box(API) as HTMLElement));
+    const after = onCanvas(container, box(API));
+    expect(after.x).toBeCloseTo(before.x, 1);
+    expect(after.y).toBeCloseTo(before.y, 1);
+    expect(cameraOf(container).zoom).toBe(1.25);
+  });
+
+  it("flies to a connection picked in the inspector when it's off the canvas", async () => {
+    const { container, box, act } = await setup({ initialSelected: ROUTE });
+    // Zoomed in on the top-left corner, far from the web app's files.
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.wheel(canvas(), { deltaX: -5000, deltaY: -5000 });
+    await act(() => fireEvent.click(screen.getByRole("button", { name: /placeOrder/ })));
+    const corner = onCanvas(container, box(PLACE_ORDER));
+    const { width, height } = (box(PLACE_ORDER)?.parentElement as HTMLElement).style;
+    const zoom = cameraOf(container).zoom;
+    expect(corner.x).toBeGreaterThanOrEqual(0);
+    expect(corner.y).toBeGreaterThanOrEqual(0);
+    expect(corner.x + parseFloat(width) * zoom).toBeLessThanOrEqual(CANVAS.width);
+    expect(corner.y + parseFloat(height) * zoom).toBeLessThanOrEqual(CANVAS.height);
+  });
+
+  it("moves the view to where the minimap is pressed, and follows a drag on it", async () => {
+    const { container } = await setup();
+    const map = screen.getByRole("img", { name: /Minimap/ });
+    vi.spyOn(map, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 200, height: 128 }),
+    );
+    const frame = container.querySelector(".gi-minimap__viewport") as SVGRectElement;
+    // Fitted at 100%, the frame is the canvas: as wide in diagram px.
+    const scale = Number(frame.getAttribute("width")) / CANVAS.width;
+    fireEvent.pointerDown(map, { pointerId: 1, button: 0, clientX: 100, clientY: 64 });
+    const pressed = cameraOf(container);
+    fireEvent.pointerMove(map, { pointerId: 1, clientX: 110, clientY: 64 });
+    const dragged = cameraOf(container);
+    expect(dragged.x - pressed.x).toBeCloseTo(-10 / scale, 0);
+    fireEvent.pointerUp(map, { pointerId: 1 });
+    fireEvent.pointerMove(map, { pointerId: 1, clientX: 150, clientY: 64 });
+    expect(cameraOf(container)).toEqual(dragged);
+  });
+
+  it("leaves + − 0 to a text field", async () => {
+    const { container } = await setup();
+    const input = document.createElement("input");
+    container.querySelector(".gi-explorer")?.append(input);
+    fireEvent.keyDown(input, { key: "+" });
+    expect(level()).toBe("100%");
+  });
+});
+
 describe("Explorer stories", { timeout: 30_000 }, () => {
   const all = composeStories(stories);
   // jsdom has no Worker: the stories' layouts fall back to the main thread, with a warning.

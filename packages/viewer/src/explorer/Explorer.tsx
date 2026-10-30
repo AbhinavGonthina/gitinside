@@ -26,9 +26,21 @@ import {
 } from "../model/view.js";
 import { usePresence } from "../motion.js";
 import { nodeAccessibleName, nodeLabel } from "../nodes/describe.js";
-import { DrillCanvas, type BoxLook, type LineLook } from "./DrillCanvas.js";
+import {
+  centerOn,
+  ensureVisible,
+  fitCamera,
+  holdInPlace,
+  keepInView,
+  sameCamera,
+  stepZoom,
+  visibleRect,
+  type Camera,
+  type Size,
+} from "./camera.js";
+import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
-import { fitScale } from "./fit.js";
+import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { NodePanel, TracePanel } from "./panels.js";
 import { checkTrace, traceNodes, type TraceScript, type TraceStep } from "./trace.js";
 import type { Shown } from "./transition.js";
@@ -75,8 +87,11 @@ function deepestOpen(view: GraphView, expansion: Expansion): string | undefined 
  * plays a scripted request path (M4b.6 brings the search) on whatever boxes
  * hold its hops at the current depth.
  *
- * Layouts come from ELK, in the host's Web Worker when given one. Until pan
- * and zoom (M4b.4), each level is fitted to the canvas.
+ * Layouts come from ELK, in the host's Web Worker when given one. Each level
+ * is fitted to the canvas until the user pans (drag, wheel, or the minimap)
+ * or zooms (Ctrl or ⌘ + wheel, a pinch, − / +, or the zoom buttons); from
+ * then on the camera is theirs, and breaking a node down keeps that node
+ * where it was on the canvas, until they fit again (0 or the fit button).
  */
 export function Explorer({
   graph,
@@ -104,9 +119,10 @@ export function Explorer({
   const [shown, setShown] = useState<Shown>();
   const [runsIn, setRunsIn] = useState<LayoutEngine["runsIn"]>();
 
-  // Fit the drawn level to the canvas (there is no pan or zoom until M4b.4).
+  // The camera (M4b.4): fitted to each level until the user pans or zooms,
+  // then theirs until they fit again (0 or the fit button).
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [canvas, setCanvas] = useState({ width: 0, height: 0 });
+  const [canvas, setCanvas] = useState<Size>({ width: 0, height: 0 });
   useEffect(() => {
     const el = canvasRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
@@ -116,10 +132,29 @@ export function Explorer({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  const size = shown?.layout ?? { width: 0, height: 0 };
-  const scale = fitScale(size, canvas);
-  // The first fit is drawn as is; only later ones move (explorer.css), so the
-  // diagram doesn't zoom out on load.
+  const size: Size = shown?.layout ?? { width: 0, height: 0 };
+  const [handSet, setHandSet] = useState<Camera | null>(null);
+  const camera = handSet ?? fitCamera(size, canvas);
+  const [cameraMotion, setCameraMotion] = useState<CameraMotion>("layout");
+  const live = useRef({ camera, size, canvas });
+  live.current = { camera, size, canvas };
+  /** Moves the camera by hand, keeping part of the diagram in view. */
+  function moveCamera(next: Camera, motion: CameraMotion) {
+    const { size: diagram, canvas: room, camera: now } = live.current;
+    const kept = keepInView(next, diagram, room);
+    if (sameCamera(kept, now) && handSet !== null) return;
+    setCameraMotion(motion);
+    setHandSet(kept);
+  }
+  function fitView() {
+    setCameraMotion("standard");
+    setHandSet(null);
+  }
+  const zoomBy = (direction: 1 | -1) =>
+    moveCamera(stepZoom(live.current.camera, direction, live.current.canvas), "standard");
+  useCanvasGestures(canvasRef, live, moveCamera);
+  // The first fit is drawn as is; only later moves glide (explorer.css), so
+  // the diagram doesn't zoom out on load.
   const [settled, setSettled] = useState(false);
   const fitted = canvas.width > 0 && shown !== undefined;
   useEffect(() => {
@@ -127,6 +162,36 @@ export function Explorer({
     const frame = requestAnimationFrame(() => setSettled(true));
     return () => cancelAnimationFrame(frame);
   }, [fitted, settled]);
+
+  /**
+   * A new layout: a fitted camera refits with it; a hand-set one moves so the
+   * node just broken down or closed keeps its corner where it was, gliding
+   * with the boxes.
+   */
+  function onLayout(next: Shown) {
+    const prev = shown;
+    setShown(next);
+    setRunsIn(engine.runsIn);
+    setCameraMotion("layout");
+    if (!prev || handSet === null) return;
+    const toggled = toggledBetween(prev.view, next.view)[0];
+    const before = prev.layout.boxes.find((b) => b.id === toggled);
+    const after = next.layout.boxes.find((b) => b.id === toggled);
+    if (before && after) setHandSet((c) => c && holdInPlace(c, before, after));
+  }
+
+  // A connection picked in the inspector: once its level is drawn, fly to it
+  // if it's off the canvas (UX.md "selecting flies there, drilling if needed").
+  const flyTo = useRef<string | null>(null);
+  useEffect(() => {
+    const id = flyTo.current;
+    if (!id || !shown || shown.view !== view) return;
+    flyTo.current = null;
+    const box = shown.layout.boxes.find((b) => b.id === id);
+    if (!box) return;
+    const next = ensureVisible(live.current.camera, box, live.current.canvas);
+    if (next !== live.current.camera) moveCamera(next, "layout");
+  });
 
   const tracing = step !== null && trace !== undefined;
   const current: TraceStep | undefined = tracing ? steps[step] : undefined;
@@ -217,7 +282,12 @@ export function Explorer({
    */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.key === "Escape") {
+    if (event.key === "+" || event.key === "=" || event.key === "-" || event.key === "0") {
+      if (isTextEntry(event.target)) return;
+      if (event.key === "0") fitView();
+      else zoomBy(event.key === "-" ? -1 : 1);
+      event.preventDefault();
+    } else if (event.key === "Escape") {
       if (legend) closeLegend();
       else if (tracing) toggleTrace();
       else if (goUp()) {
@@ -233,6 +303,7 @@ export function Explorer({
 
   /** A connection in the inspector: drill until its node is a box, and select it (UX.md). */
   function reveal(id: string) {
+    flyTo.current = id;
     drill.reveal(id);
     select(id);
   }
@@ -312,28 +383,21 @@ export function Explorer({
           aria-label="Diagram"
           onClick={() => select(null)}
         >
-          <div className="gi-explorer__scroll">
-            <div
-              className="gi-explorer__fit"
-              style={{ width: size.width * scale, height: size.height * scale }}
-            >
-              <DrillCanvas
-                className="gi-explorer__drill"
-                style={{ transform: `scale(${scale})` }}
-                index={index}
-                view={view}
-                cache={cache}
-                onOpen={breakDown}
-                onSelect={select}
-                boxLook={boxLook}
-                lineLook={lineLook}
-                onLayout={(next) => {
-                  setShown(next);
-                  setRunsIn(engine.runsIn);
-                }}
-              />
-            </div>
-          </div>
+          <DrillCanvas
+            className="gi-explorer__drill"
+            data-camera-motion={cameraMotion}
+            style={{
+              transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
+            }}
+            index={index}
+            view={view}
+            cache={cache}
+            onOpen={breakDown}
+            onSelect={select}
+            boxLook={boxLook}
+            lineLook={lineLook}
+            onLayout={onLayout}
+          />
           <div className="gi-explorer__pin" data-place="top-left">
             {tracing && trace && (
               <StatusChip tone="trace" exitLabel="Exit trace" onExit={toggleTrace}>
@@ -345,7 +409,13 @@ export function Explorer({
             )}
           </div>
           <div className="gi-explorer__pin" data-place="top-right">
-            <ZoomControls zoom={scale} />
+            <ZoomControls
+              zoom={camera.zoom}
+              onZoomIn={() => zoomBy(1)}
+              onZoomOut={() => zoomBy(-1)}
+              onFit={fitView}
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
           <div
             className="gi-explorer__pin"
@@ -381,7 +451,14 @@ export function Explorer({
               </div>
               <Minimap
                 nodes={minimapNodes}
-                viewport={{ x: 0, y: 0, width: size.width, height: size.height }}
+                viewport={
+                  canvas.width > 0
+                    ? visibleRect(camera, canvas)
+                    : { x: 0, y: 0, width: size.width, height: size.height }
+                }
+                onNavigate={(p) =>
+                  moveCamera(centerOn(live.current.camera, p, live.current.canvas), "none")
+                }
               />
             </div>
           </div>
@@ -416,6 +493,14 @@ export function Explorer({
         {announcement}
       </div>
     </div>
+  );
+}
+
+/** A field that takes typed text, where + − 0 are characters, not zoom keys. */
+function isTextEntry(target: EventTarget): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || target.matches("input, textarea, select"))
   );
 }
 

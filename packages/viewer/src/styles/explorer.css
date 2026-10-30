@@ -1,10 +1,9 @@
 /*
  * The explorer (M4b.3b, src/explorer/Explorer.tsx): the layout from UX.md
  * around the drill-down canvas (drill.css), the overlays pinned to the
- * canvas corners, and the trace player's step list. The canvas is fitted
- * to its room until pan and zoom (M4b.4); the fit moves with the layout
- * duration token, so reduced motion makes it instant. Colors come from
- * tokens only.
+ * canvas corners, and the trace player's step list. The canvas pans and
+ * zooms (M4b.4); its camera moves with the duration tokens, so reduced
+ * motion makes it instant. Colors come from tokens only.
  */
 
 .gi-explorer {
@@ -27,26 +26,24 @@
   min-height: 0;
 }
 
+/*
+ * The canvas pans and zooms (gestures.ts): touches and drags move the
+ * camera, not the page, and dragging doesn't select text.
+ */
 .gi-explorer__canvas {
   position: relative;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  touch-action: none;
+  user-select: none;
 }
 
-.gi-explorer__scroll {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  overflow: auto;
+.gi-explorer__canvas[data-panning] {
+  cursor: grabbing;
 }
 
-/* The fitted box takes the scaled size; the canvas inside keeps diagram coordinates. */
-.gi-explorer__fit {
-  position: relative;
-}
-
+/* The camera: one transform on the canvas, which keeps diagram coordinates inside. */
 .gi-explorer__drill {
   position: absolute;
   top: 0;
@@ -54,15 +51,17 @@
   transform-origin: 0 0;
 }
 
-/* Refits move with the layout; the first fit, on load, is drawn as is. */
-.gi-explorer[data-settled] .gi-explorer__fit {
-  transition:
-    width var(--duration-layout) var(--ease-layout),
-    height var(--duration-layout) var(--ease-layout);
+/*
+ * Camera moves: refits and drilling glide with the layout, the zoom buttons
+ * and keys like a panel; the pointer, wheel, and minimap move it at once.
+ * The first fit, on load, is drawn as is.
+ */
+.gi-explorer[data-settled] .gi-explorer__drill[data-camera-motion="layout"] {
+  transition: transform var(--duration-layout) var(--ease-layout);
 }
 
-.gi-explorer[data-settled] .gi-explorer__drill {
-  transition: transform var(--duration-layout) var(--ease-layout);
+.gi-explorer[data-settled] .gi-explorer__drill[data-camera-motion="standard"] {
+  transition: transform var(--duration-standard) var(--ease-standard);
 }
 
 /* A box that can't break down further selects on click. */
