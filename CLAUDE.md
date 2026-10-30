@@ -129,7 +129,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - A mutation check's revert Edit can fail on "2 matches" (the mutated text also occurs elsewhere), leaving the mutation in place. Mutate a string that's unique in the file, and Grep for the restored line before formatting or committing.
 - `git init` in a test repo names the branch after the machine's `init.defaultBranch` (here `master`). Pass `--initial-branch=main` when a test uses the branch name.
 - `main`'s CI stayed red for six pushes (M6.6–M6.7c), unnoticed: a type error in a diff test (`mermaid.test.ts`) failed `pnpm typecheck`, so CI's test and coverage steps never ran. Run root `pnpm typecheck` (not one package's) before committing, and check `gh run list --branch main --limit 3` at the start of a task and after pushing.
-- Write replaces the whole file, so a placeholder Write to an existing doc (M6.7d3a: `docs/DECISIONS.md`) wipes it. To append, Edit the file's last lines; if it happens, `git restore <file>` (only safe with no uncommitted edits).<!-- lessons:end -->
+- Write replaces the whole file, so a placeholder Write to an existing doc (M6.7d3a: `docs/DECISIONS.md`) wipes it. To append, Edit the file's last lines; if it happens, `git restore <file>` (only safe with no uncommitted edits).
+- A full analyzer run once failed 96 tests in three files with "buildExpressRoutes is not a function" (M6.7d3b), though no import cycle existed, each file passed alone, and a rerun was 709/709. If many tests fail at once with a missing export that plainly exists, rerun once (nothing else running) before debugging.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 

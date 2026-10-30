@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7d3b. Next.js routes and Prisma client uses as per-service facts (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
+M6.7d3c. SDK and queue edges as per-service facts (M5.13 and M5.14b wait on #3, #5, #7; M4b waits for the design gate #2)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -148,7 +148,7 @@ M6.7d3b. Next.js routes and Prisma client uses as per-service facts (M5.13 and M
 - [x] M6.7d1 Express as per-service facts (router creations, parameter bindings, route and `use` registrations with router references, resolved handlers) + a global composition step; `inlineHandlers` keyed by node key; no output change (goldens, eval) {model: opus}
 - [x] M6.7d2 Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (handler keys, bound to route IDs after Express composition); no output change {model: opus}
 - [x] M6.7d3a Imports, symbols, and calls as per-service facts (`collectImportFacts` + `composeImports`, `collectSymbolNodes`, `collectCallFacts` + `composeCallEdges`), wired into `analyze`; JSON round-trip test; no output change (goldens, eval) {model: opus}
-- [ ] M6.7d3b Next.js routes and Prisma client uses as per-service facts + global composition (Prisma schema stays global); no output change {model: opus}
+- [x] M6.7d3b Next.js routes and Prisma client uses as per-service facts + global composition (Prisma schema stays global); no output change {model: opus}
 - [ ] M6.7d3c SDK and queue edges as per-service facts + global composition; no output change {model: opus}
 - [ ] M6.7d3d Resolver warnings per asking service + a `ServiceFacts` bundle per service; `analyze` rebuilt as facts → compose; whole-bundle JSON round-trip test; no output change (goldens, eval) {model: opus}
 - [ ] M6.7e `analyze({ cache })`: reuse clean services' facts, build clean programs only when needed; warm == cold bytes over fixture edits (edit, add, delete, cross-service import, tsconfig); CLI `--cache <dir>`, diff's two ref sides share it {model: opus}
@@ -190,6 +190,8 @@ M6.7d3b. Next.js routes and Prisma client uses as per-service facts (M5.13 and M
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-29 · M6.7d3b: Next.js is `collectNextFacts(sp)` (the service's route/page nodes, edges, warnings; IDs carry the service key) + `composeNextRoutes` (merge, sort). Prisma's schema stays global (`buildPrismaSchemas`, with `usesPrisma`); client calls are `PrismaFacts` recorded without the schema (`PrismaCall`: raw, or accessor + origin service + confidence + `fieldNames`), and `composePrisma` does the model lookup, `splitFields` (fields vs `missingFields`), owner binding, and the merge (ADR-0099). Analyzer 709 (9 new: round-tripped facts compose to analyze's output on 5 fixtures + 2 workspace repos; a client's facts unchanged when the schema loses a field it uses; unscanned facts compose to nothing, mutation-checked). First full run failed 96 tests in 3 files ("buildExpressRoutes is not a function"), each green alone and the rerun green (709/709). Root typecheck + lint green. Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110), `--check` byte-for-byte. Next: M6.7d3c.
 
 - 2026-10-29 · M6.7d3a: M6.7d3 split into a–d. Imports and calls are now one record per site per service (`collectImportFacts`: `ImportFact`s, unresolved nodes, `IMPORT_OUTSIDE_SERVICE` warnings; `collectCallFacts`: `CallFact`s), merged globally by `composeImports` / `composeCallEdges` with the old rules; symbols are `collectSymbolNodes(sp)` concatenated (ADR-0098). `analyze` calls the two steps; the `build*` functions remain as collect-then-compose. Analyzer 700 (11 new: round-tripped facts compose to analyze's edges/nodes on fixtures + a workspace repo; a package's facts unchanged when another service starts importing/calling it; merge rules). Root typecheck + lint green. Goldens unchanged; eval re-recorded (TP 28, FP 1, FN 110), `--check` byte-for-byte. Next: M6.7d3b.
 
