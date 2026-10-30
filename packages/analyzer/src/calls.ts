@@ -126,8 +126,18 @@ export function guardedChecker(
 
 /** Resolves expressions to symbol nodes across all service programs. */
 export interface SymbolResolver {
-  /** The program whose root files include `path` (repo-relative), if any. */
-  programOf(path: string): ServiceProgram | undefined;
+  /**
+   * The program whose root files include `path` (repo-relative), if any, for use by the
+   * analysis of `from`'s service (recorded in {@link reached}).
+   */
+  programOf(path: string, from: ServiceProgram): ServiceProgram | undefined;
+  /**
+   * Programs other than `sp` that the analysis of `sp`'s service has reached so far, through
+   * {@link importTarget} (also inside {@link resolve}) or {@link programOf}. Their inputs are
+   * inputs of `sp`'s facts too (`serviceInputs` in `inputs.ts`), so detectors must reach
+   * other services' programs only through those two methods.
+   */
+  reached(sp: ServiceProgram): ReadonlySet<ServiceProgram>;
   /**
    * The type checker of a program, created once. Its `getSymbolAtLocation` and
    * `getTypeAtLocation` never throw (see {@link guardedChecker}); expressions they failed on
@@ -193,6 +203,17 @@ export function createSymbolResolver(
     }
   }
 
+  const reached = new Map<ServiceProgram, Set<ServiceProgram>>();
+  /** Record that `from`'s analysis used `to`'s program; returns `to`. */
+  const reach = <T extends ServiceProgram | undefined>(from: ServiceProgram, to: T): T => {
+    if (to && to !== from) {
+      const set = reached.get(from);
+      if (set) set.add(to);
+      else reached.set(from, new Set([to]));
+    }
+    return to;
+  };
+
   const manifests: ManifestCache = new Map();
   const failures = new Map<string, AnalysisWarning>();
   const contexts = new Map<ServiceProgram, Context>();
@@ -251,7 +272,7 @@ export function createSymbolResolver(
       declaration.getSourceFile(),
       site.literal,
     );
-    const targetSp = resolved && programByFile.get(resolved.path);
+    const targetSp = resolved && reach(ctx.sp, programByFile.get(resolved.path));
     if (!resolved || !targetSp) return undefined;
     const checker = contextOf(targetSp).checker;
     const sourceFile = targetSp.program.getSourceFile(targetSp.toAbsolute(resolved.path));
@@ -329,7 +350,8 @@ export function createSymbolResolver(
   };
 
   return {
-    programOf: (path) => programByFile.get(path),
+    programOf: (path, from) => reach(from, programByFile.get(path)),
+    reached: (sp) => reached.get(sp) ?? new Set(),
     checkerOf: (sp) => contextOf(sp).checker,
     warnings: () => [...failures.values()],
     callers,

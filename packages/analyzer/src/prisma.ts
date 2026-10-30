@@ -627,7 +627,7 @@ function scanClientCalls(
   /** The service that owns the file a node is in, as the analyzer splits files. */
   const serviceOf = (sp: ServiceProgram, node: ts.Node): WorkspacePackage => {
     const path = sp.toRepoPath(node.getSourceFile().fileName);
-    return (path === undefined ? undefined : resolver.programOf(path)?.service) ?? sp.service;
+    return (path === undefined ? undefined : resolver.programOf(path, sp)?.service) ?? sp.service;
   };
 
   /** True when an entity or expression names `PrismaClient` or a class extending it. */

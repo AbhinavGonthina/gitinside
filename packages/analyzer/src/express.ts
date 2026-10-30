@@ -363,7 +363,7 @@ export function buildExpressRoutes(
     const router: RouterObject = {
       key,
       kind,
-      sp: resolver.programOf(file) ?? sp,
+      sp: resolver.programOf(file, sp) ?? sp,
       file,
       location: locationOf(node, file),
       routes: [],

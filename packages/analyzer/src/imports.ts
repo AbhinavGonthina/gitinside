@@ -194,7 +194,10 @@ export interface ResolvedImport {
   confidence: Confidence;
 }
 
-/** Parsed `package.json` files by package folder, shared between resolvers. */
+/**
+ * Parsed `package.json` files, shared between resolvers, by reading service and package folder:
+ * each service reads a manifest through its own host once, so the read is in its observed inputs.
+ */
 export type ManifestCache = Map<string, Record<string, unknown> | undefined>;
 
 /**
@@ -234,7 +237,8 @@ export function createModuleResolver(
   };
 
   const manifestOf = (pkg: WorkspacePackage): Record<string, unknown> | undefined => {
-    if (manifests.has(pkg.dir)) return manifests.get(pkg.dir);
+    const key = `${sp.service.key}\n${pkg.dir}`;
+    if (manifests.has(key)) return manifests.get(key);
     const path = pkg.dir === "" ? "package.json" : `${pkg.dir}/package.json`;
     let manifest: Record<string, unknown> | undefined;
     try {
@@ -245,7 +249,7 @@ export function createModuleResolver(
     } catch {
       manifest = undefined;
     }
-    manifests.set(pkg.dir, manifest);
+    manifests.set(key, manifest);
     return manifest;
   };
 
