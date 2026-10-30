@@ -1,19 +1,27 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { Rect } from "../chrome/describe.js";
+import { textWidth } from "../image/markup.js";
+import { countText } from "../nodes/describe.js";
 import {
+  BADGE_CHROME,
+  BADGE_GAP,
   CHILD_GAP,
+  countsRowWidth,
+  COUNTS_SLACK,
+  FRAME_COUNTS_INSET,
   FRAME_HEADER,
   FRAME_PAD,
   fitScale,
   layout,
+  MIN_FRAME_WIDTH,
   nodeSize,
   PAD,
   PARALLEL_GAP,
   pointAlong,
   route,
 } from "./layout.js";
-import { indexGraph, liftEdges, visibleIds } from "./model.js";
+import { frameCounts, indexGraph, liftEdges, visibleIds } from "./model.js";
 import { shopDemo } from "./shopDemo.testkit.js";
 
 const index = indexGraph(shopDemo());
@@ -83,15 +91,39 @@ describe("layout", () => {
         const above = children[i] as Rect;
         expect(c.y - (above.y + above.height)).toBe(CHILD_GAP);
       }
-      expect(frame.width).toBe(nodeSize(index, open).width + 2 * FRAME_PAD);
+      // As wide as its widest child plus padding, never narrower than when closed.
+      const widest = Math.max(
+        ...(index.children.get(open) ?? []).map((n) => nodeSize(index, n.id).width),
+      );
+      expect(frame.width).toBe(Math.max(widest + 2 * FRAME_PAD, nodeSize(index, open).width));
     }
   });
 
   it("sizes nodes by tier, giving frames with counts a second row", () => {
-    expect(nodeSize(index, "service:web/")).toEqual({ width: 248, height: 94 });
+    expect(nodeSize(index, "service:api/")).toEqual({ width: 248, height: 94 });
     expect(nodeSize(index, "module:web/lib")).toEqual({ width: 248, height: 62 });
     expect(nodeSize(index, "datastore:infra/db")).toEqual({ width: 136, height: 112 });
     expect(nodeSize(index, "unresolved:web/lib/cms.ts:3:21")).toEqual({ width: 232, height: 52 });
+  });
+
+  it("widens a closed frame until its count badges fit on one row", () => {
+    // `@shop/web` has "3 pages" and "1 unresolved call": they wrapped out of a 248px frame (design gate).
+    const counts = frameCounts(index, "service:web/");
+    expect(counts.map(countText)).toEqual(["3 pages", "1 unresolved call"]);
+    const { width, height } = nodeSize(index, "service:web/");
+    expect(height).toBe(94);
+    expect(width).toBeGreaterThan(248);
+    expect(width).toBe(Math.max(MIN_FRAME_WIDTH, countsRowWidth(counts)));
+    // The row's own width: indent and padding, each badge's text and chrome, the gaps between.
+    expect(countsRowWidth(counts)).toBe(
+      Math.ceil(
+        FRAME_COUNTS_INSET +
+          counts.reduce((w, c) => w + textWidth(countText(c), 12) + BADGE_CHROME, 0) +
+          BADGE_GAP +
+          COUNTS_SLACK,
+      ),
+    );
+    expect(countsRowWidth([])).toBe(FRAME_COUNTS_INSET);
   });
 
   it("routes an edge to each visible edge, spreading parallel ones with their labels", () => {

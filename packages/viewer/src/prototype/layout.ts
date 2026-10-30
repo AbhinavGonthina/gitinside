@@ -1,7 +1,8 @@
 import type { Layer } from "@gitinside/schema";
 import type { Point } from "../edges/geometry.js";
 import type { Rect } from "../chrome/describe.js";
-import { nodeTier } from "../nodes/describe.js";
+import { textWidth } from "../image/markup.js";
+import { countText, nodeTier, type NodeCount } from "../nodes/describe.js";
 import { frameCounts, nodeOf, type GraphIndex, type ViewEdge } from "./model.js";
 
 /**
@@ -35,12 +36,51 @@ const COLUMN: Readonly<Record<Layer, number>> = {
   external: 2,
 };
 
-/** The box a closed node takes, by tier. Frames with count badges get a second row. */
+/** A closed frame's narrowest width. */
+export const MIN_FRAME_WIDTH = 248;
+/**
+ * Horizontal space around a closed frame's count row (nodes.css): the 1px
+ * borders, the 12px left and 16px right padding, and the 44px indent that
+ * lines the row up with the name.
+ */
+export const FRAME_COUNTS_INSET = 2 + 12 + 16 + 44;
+/** A count badge's padding and borders around its text (`.gi-badge`), and the gap between badges. */
+export const BADGE_CHROME = 2 * 7 + 2;
+export const BADGE_GAP = 4;
+/**
+ * Spare room on the count row. The estimate is only a few px over Geist's
+ * real widths on short words, and Linux draws text a few px wider than
+ * Windows: `@shop/web`'s row fit by 2px here and wrapped in CI.
+ */
+export const COUNTS_SLACK = 16;
+
+/**
+ * The width a closed frame's count row needs to stay on one line. Text is
+ * estimated, a little on the wide side ({@link textWidth}), because the
+ * layout runs before anything is drawn (and in tests, where nothing is).
+ * No badges need only the inset.
+ */
+export function countsRowWidth(counts: readonly NodeCount[]): number {
+  if (counts.length === 0) return FRAME_COUNTS_INSET;
+  const badges = counts.reduce((w, c) => w + textWidth(countText(c), 12) + BADGE_CHROME, 0);
+  return Math.ceil(FRAME_COUNTS_INSET + badges + BADGE_GAP * (counts.length - 1) + COUNTS_SLACK);
+}
+
+/**
+ * The box a closed node takes, by tier. Frames with count badges get a second
+ * row, and grow wider when the badges need it, so they never wrap out of the
+ * box (design gate, DESIGN_SYSTEM.md §1.1).
+ */
 export function nodeSize(index: GraphIndex, id: string): { width: number; height: number } {
   const node = nodeOf(index, id);
   switch (nodeTier(node)) {
-    case "frame":
-      return { width: 248, height: frameCounts(index, id).length > 0 ? 94 : 62 };
+    case "frame": {
+      const counts = frameCounts(index, id);
+      return {
+        width: Math.max(MIN_FRAME_WIDTH, countsRowWidth(counts)),
+        height: counts.length > 0 ? 94 : 62,
+      };
+    }
     case "icon":
       return { width: 136, height: 112 };
     case "card":
