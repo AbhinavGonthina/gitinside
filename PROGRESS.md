@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.4b. Zoom-dependent detail (M5.13 and M5.14b wait on #3, #5, #7)
+M4b.5. Inspector (M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -93,7 +93,7 @@ M4b.4b. Zoom-dependent detail (M5.13 and M5.14b wait on #3, #5, #7)
 - [x] M4b.3b1 The explorer on the drill-down canvas: `Explorer` replaces `ExplorerPrototype` (view model, ELK, `DrillCanvas`; multi-level drill, routes first, breadcrumbs from `viewTrail`, selection and trace mapped to visible boxes, connections drill to their node), website on it, stories, screenshots, baselines {model: opus}
 - [x] M4b.3b2 Prototype model removed: the README image off `prototype/model.ts` and `prototype/layout.ts` (hierarchy index, its own column layout, same bytes), `prototype/` deleted; the website's layout in a Web Worker (`next build` check) {model: opus}
 - [x] M4b.4 Breadcrumbs, minimap, pan/zoom/fit {model: opus}
-- [ ] M4b.4b Zoom-dependent detail (UX.md "Drill-down"): labels, counts, and edge labels appear progressively with zoom; at low zoom only service names and aggregated edges; screenshots, baselines {model: opus}
+- [x] M4b.4b Zoom-dependent detail (UX.md "Drill-down"): labels, counts, and edge labels appear progressively with zoom; at low zoom only service names and aggregated edges; screenshots, baselines {model: opus}
 - [ ] M4b.5 Inspector (summary template, facts, connections, Shiki preview, Open on GitHub; the code sample links to the file and line, design gate) {model: opus}
 - [ ] M4b.6 Trace mode (path BFS, dimming, pulse, step player, cross-level behavior) {model: opus}
 - [ ] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
@@ -201,6 +201,8 @@ M4b.4b. Zoom-dependent detail (M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.4b: zoom-dependent detail (`a1fe2b5`, ADR-0113). `detailAt`: full from 65%, names from 40% (the fit's floor), outline below; text fades in `drill.css` (`data-detail`, `data-inner` lines), no box moves. Names keeps the selection's, current hop's, and broken pills; outline keeps service names, cross-service lines, and anything selected/traced/hovered/focused. Service names scale up to stay 12px on screen. `Explorer` gains `initialZoom`; stories Zoomed out + Outline. Fixed a machine-dependent race in the fly-to test (failed here at HEAD). Linux capture caught names overflowing mid-glide (width snapped, scale glided): scale now snaps (`92cacbf`). Real-browser scratch run (computed opacity, name heights, no overflow); viewer 659, web 329, root typecheck + lint green; Linux baselines from CI. No eval delta. Next: M4b.5.
 
 - 2026-10-30 · M4b.4: pan, zoom, fit, navigable minimap (`3a4dccd`, ADR-0112). A pure camera (`camera.ts`) follows the fit until the user pans or zooms (wheel, drag, Ctrl/⌘ + wheel, pinch, − + 0, buttons, minimap); then a broken-down node holds still on screen while its frame grows; a connection picked in the inspector flies into view. Planned #8 as M5.15a–c. Real-browser scratch run (zoom around the pointer, captured drags, no click after a drag, held node every frame, reduced motion) + Linux baselines; viewer 644, web 329, root typecheck + lint green. No eval delta. Split off M4b.4b (zoom-dependent detail). Next: M4b.4b.
 
