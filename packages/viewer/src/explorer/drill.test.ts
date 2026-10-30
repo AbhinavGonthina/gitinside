@@ -2,7 +2,8 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { shopDemo } from "../prototype/shopDemo.testkit.js";
-import { closeIn, collapseTo, openIn, upFrom, useDrill } from "./drill.js";
+import { effectiveOpen } from "../model/view.js";
+import { closeIn, collapseTo, isShown, openIn, revealIn, upFrom, useDrill } from "./drill.js";
 
 const index = buildHierarchy(shopDemo());
 const API = "service:api/";
@@ -62,7 +63,48 @@ describe("collapseTo", () => {
   });
 });
 
+describe("isShown and revealIn", () => {
+  const ROUTE = "route:api/POST /api/orders";
+  const PLACE_ORDER = "symbol:web/lib/orders.ts#placeOrder";
+  const shown = (expansion: readonly string[], id: string) =>
+    isShown(index, effectiveOpen(index, expansion), id);
+
+  it("knows which nodes are their own box", () => {
+    expect(shown([], API)).toBe(true);
+    expect(shown([], index.root.id)).toBe(false);
+    expect(shown([], SRC)).toBe(false);
+    expect(shown([API], SRC)).toBe(true);
+    // A route is an entry at its service's first level, wherever its file is.
+    expect(shown([API], ROUTE)).toBe(true);
+    expect(shown([], ROUTE)).toBe(false);
+    expect(shown([API], "unknown")).toBe(false);
+  });
+
+  it("opens a node's closed ancestors, outermost first, until it's drawn", () => {
+    expect(revealIn(index, [], PLACE_ORDER)).toEqual([
+      WEB,
+      "module:web/lib",
+      "file:web/lib/orders.ts",
+    ]);
+    // A route only needs its service.
+    expect(revealIn(index, [], ROUTE)).toEqual([API]);
+  });
+
+  it("keeps open nodes where they are, and changes nothing for a shown node", () => {
+    expect(revealIn(index, [WEB, API], ORDERS)).toEqual([WEB, API, SRC]);
+    const expansion = [API];
+    expect(revealIn(index, expansion, SRC)).toBe(expansion);
+    expect(revealIn(index, expansion, index.root.id)).toBe(expansion);
+  });
+});
+
 describe("useDrill", () => {
+  it("reveals a node deep inside", () => {
+    const { result } = renderHook(() => useDrill(index));
+    act(() => result.current.reveal(ORDERS));
+    expect(result.current.view.byId.has(ORDERS)).toBe(true);
+  });
+
   it("builds the view for its expansion and moves through it", () => {
     const { result } = renderHook(() => useDrill(index));
     expect(result.current.view.open).toEqual([]);

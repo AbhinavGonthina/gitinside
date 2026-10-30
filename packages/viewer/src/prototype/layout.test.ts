@@ -12,7 +12,6 @@ import {
   FRAME_COUNTS_INSET,
   FRAME_HEADER,
   FRAME_PAD,
-  fitScale,
   frameHeader,
   layout,
   MIN_FRAME_WIDTH,
@@ -193,7 +192,7 @@ describe("route", () => {
   });
 });
 
-describe("pointAlong and fitScale", () => {
+describe("pointAlong", () => {
   it("finds a point by length along a polyline, clamped to its ends", () => {
     const line = [
       { x: 0, y: 0 },
@@ -205,12 +204,5 @@ describe("pointAlong and fitScale", () => {
     expect(pointAlong(line, 2)).toEqual({ x: 10, y: 30 });
     expect(pointAlong([{ x: 3, y: 4 }], 0.5)).toEqual({ x: 3, y: 4 });
     expect(() => pointAlong([], 0.5)).toThrow();
-  });
-
-  it("fits the diagram in the canvas, between 40% and 100%", () => {
-    expect(fitScale({ width: 1000, height: 500 }, { width: 0, height: 0 })).toBe(1);
-    expect(fitScale({ width: 500, height: 300 }, { width: 2000, height: 2000 })).toBe(1);
-    expect(fitScale({ width: 1048, height: 400 }, { width: 1000, height: 900 })).toBe(0.9);
-    expect(fitScale({ width: 10000, height: 400 }, { width: 1000, height: 900 })).toBe(0.4);
   });
 });

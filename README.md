@@ -4,7 +4,7 @@
 
 See how any codebase really works. Break it down from services to functions, trace every request, and catch broken connections before they ship.
 
-(Status: in development. M1 (analyzer CLI), M2 (cross-service links + infra), M3 (accuracy eval harness), and M4a (design system + prototype, awaiting design approval) are done; the website is in progress (M5), and the interactive explorer and PR bot come next.)
+(Status: in development. M1 (analyzer CLI), M2 (cross-service links + infra), M3 (accuracy eval harness), and M4a (design system + prototype, approved) are done; the interactive explorer (M4b, now drilling down to functions) and the website (M5, built and awaiting deploy) are in progress, and the PR bot comes next.)
 
 ## Quickstart (analyzer CLI)
 

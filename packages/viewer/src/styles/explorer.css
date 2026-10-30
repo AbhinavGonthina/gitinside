@@ -1,0 +1,160 @@
+/*
+ * The explorer (M4b.3b, src/explorer/Explorer.tsx): the layout from UX.md
+ * around the drill-down canvas (drill.css), the overlays pinned to the
+ * canvas corners, and the trace player's step list. The canvas is fitted
+ * to its room until pan and zoom (M4b.4); the fit moves with the layout
+ * duration token, so reduced motion makes it instant. Colors come from
+ * tokens only.
+ */
+
+.gi-explorer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 640px;
+  background: var(--canvas);
+  color: var(--text);
+}
+
+/* Without its top bar (the website's diagram page brings its own). */
+.gi-explorer[data-bare] {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.gi-explorer__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  min-height: 0;
+}
+
+.gi-explorer__canvas {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gi-explorer__scroll {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+}
+
+/* The fitted box takes the scaled size; the canvas inside keeps diagram coordinates. */
+.gi-explorer__fit {
+  position: relative;
+  transition:
+    width var(--duration-layout) var(--ease-layout),
+    height var(--duration-layout) var(--ease-layout);
+}
+
+.gi-explorer__drill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  transition: transform var(--duration-layout) var(--ease-layout);
+}
+
+/* A box that can't break down further selects on click. */
+.gi-explorer__drill .gi-drill__node > .gi-node:not([data-can-open]) {
+  cursor: pointer;
+}
+
+/* Overlays pinned to the canvas corners (UX.md "Layout"). */
+
+.gi-explorer__pin {
+  position: absolute;
+  display: grid;
+  gap: var(--space-8);
+}
+
+.gi-explorer__pin[data-place="top-left"] {
+  top: var(--space-16);
+  left: var(--space-16);
+}
+
+.gi-explorer__pin[data-place="top-right"] {
+  top: var(--space-16);
+  right: var(--space-16);
+}
+
+.gi-explorer__pin[data-place="bottom-left"] {
+  bottom: var(--space-16);
+  left: var(--space-16);
+}
+
+.gi-explorer__pin[data-place="bottom-right"] {
+  right: var(--space-16);
+  bottom: var(--space-16);
+  justify-items: end;
+}
+
+.gi-explorer__map {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+}
+
+/* The trace player's step list. */
+
+.gi-explorer__steps {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gi-explorer__step {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  width: 100%;
+  padding: 6px var(--space-8);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--font-size-13);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.gi-explorer__step:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* The trace color marks the current step as a bar (a graphic, 3:1); its text stays --text (4.5:1). */
+.gi-explorer__step[aria-current="step"] {
+  background: color-mix(in srgb, var(--trace) 12%, var(--surface-1));
+  box-shadow: inset 3px 0 0 var(--trace);
+  color: var(--text);
+}
+
+.gi-explorer__step-number {
+  flex: none;
+  min-width: 18px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gi-explorer__step[aria-current="step"] .gi-explorer__step-number {
+  color: var(--text);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Read by screen readers, not drawn. */
+.gi-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
