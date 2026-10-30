@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.6b. Trace picker + player (M5.13 and M5.14b wait on #3, #5)
+M4b.7. Ctrl+K command palette (M5.13 and M5.14b wait on #3, #5)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -97,7 +97,7 @@ M4b.6b. Trace picker + player (M5.13 and M5.14b wait on #3, #5)
 - [x] M4b.5a Inspector content: a "From the code" summary per kind from graph facts (what it calls, reads, writes, renders, handles), "Open on GitHub" at the exact line whenever a node has a source (with or without code text), the code sample's path linking to the file and line (design gate), code loaded on selection through a `loadSource` prop (the website's from `raw.githubusercontent.com` at the analyzed SHA, size-capped, CSP `connect-src`), loading and couldn't-load states; tests, screenshots {model: opus}
 - [x] M4b.5b Shiki in the code preview: lazy and fine-grained (TS/TSX/JS/JSON/Prisma/YAML), JavaScript regex engine (no WASM under the CSP), tokens rendered as React spans (no HTML, SECURITY T10) in token colors for dark and light, plain text until loaded; tests, screenshots, baselines {model: opus}
 - [x] M4b.6a Computed request path (ADR-0117): `traceFrom` (BFS reach within 12 hops over renders/calls/http/handles/reads/writes/stores/external_call/publishes, `consumes` backwards; steps depth-first in call order; cut-off nodes listed), replacing the scripted trace; "Trace from here" on every page and route with a hop, T and the top-bar button trace the selected page or route (else `traceStart`), so the website traces too; an unresolved end quotes the node's reason; tests, story, baselines {model: opus}
-- [ ] M4b.6b Trace picker + player: a searchable list of pages and routes from the top bar and T when nothing traceable is selected (replacing the "select a page or route" message), play/pause auto-advancing the steps, a pulse travelling the current hop (900ms, off under reduced motion); tests, screenshots, baselines {model: opus}
+- [x] M4b.6b Trace picker + player: a searchable list of pages and routes from the top bar and T when nothing traceable is selected (replacing the "select a page or route" message), play/pause auto-advancing the steps, a pulse travelling the current hop (900ms, off under reduced motion); tests, screenshots, baselines {model: opus}
 - [ ] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
 - [ ] M4b.8 Filters {model: opus}
 - [ ] M4b.9 Deep links {model: opus}
@@ -218,6 +218,9 @@ M4b.6b. Trace picker + player (M5.13 and M5.14b wait on #3, #5)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-30 M4b.6b** Trace picker + player (ADR-0118). With nothing traceable selected and no `traceStart`, T and the Trace button open a picker of every page and route with a request path (the palette's shell, every word matched in the name or file, Enter traces, focus back where it was). Play/pause advances a step every 2.7 s and stops on the last (Replay); a hand-picked step pauses it. A pulse runs the current hop's line over 900ms, the request's way (backward for a queue's consumer), off under reduced motion and hidden at rest.
+  - Browser checks found two focus bugs, now tested: a picker reopened mid-exit (same element) didn't refocus its field (`autoFocus` fires on mount only); and opened with nothing focused, a pick left focus on the inert field, so the browser dropped it to the page. Also fixed: the root's focus ring boxed the palette's field twice. Mutation checks: the backward pulse, the T-in-field guard, and the blur all turn a test red; a redundant `defaultPrevented` guard was removed.
 
 - **2026-10-30 M4b.6a** Computed request path (ADR-0117): `traceFrom` reaches everything within 12 hops (breadth-first), then lists the steps depth-first in call order, so they read like the request runs; `consumes` goes queue → worker, `imports` aren't followed, cut-off nodes are listed under the steps, an unresolved end quotes its reason. The script is gone; on shop-demo the computed path equals it hop for hop. Trace from here on every page/route with a hop, T/top bar trace the selection (else `traceStart`), so the website traces too. Story "Tracing, unresolved"; call-order mutation turned 4 tests red. Its first Linux baseline showed a step title cut at the inspector's edge: titles wrap now, checked in the visual spec (`530b148`). Also gave the inspector's cold-Shiki test a 10 s budget (failed alone at 1 s, `493cda1`). M4b.6 split: 6b is the picker, play/pause, and the pulse.
 
