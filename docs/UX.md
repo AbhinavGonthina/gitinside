@@ -18,7 +18,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 ## Drill-down (semantic zoom)
 
 - **Levels:** System → Services → Modules → Files → Symbols (routes, pages, and models appear at the file level).
-- **A service's first level leads with its routes** (design gate, ADR-0100): breaking a service down shows its entry points first (routes and pages, each linked to the file that defines it), then its folders as module frames, as the analyzer groups them. The levels below stay the same, and a route still appears inside its file when that file is opened.
+- **A service's first level leads with its routes** (design gate, ADR-0100): breaking a service down shows its entry points first (routes and pages, each linked to the file that defines it), then its folders as module frames, as the analyzer groups them. The levels below stay the same, and a route still appears inside its file when that file is opened (it moves there from the service's entries, so it's drawn once; ADR-0105).
 - **Opening a node:** double-click, Enter, or the inspector's "Break down" button. The node expands **in place**: its frame grows, siblings glide aside, and children emerge from the parent's center (600ms layout motion). It never re-renders the whole canvas abruptly.
 - **Going up:** Esc, or a breadcrumb, collapses back.
 - **Zoom-dependent detail:** labels, counts, and edge labels appear progressively. At low zoom, show only service names and aggregated edges.
