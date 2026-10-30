@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.0b. A distinct shape per layer and per card kind (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on #3, #5, #7)
+M4b.0c. The current trace hop stands out (design gate #2 closed 2026-10-30; M5.13 and M5.14b wait on #3, #5, #7)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -82,7 +82,7 @@ M4b.0b. A distinct shape per layer and per card kind (design gate #2 closed 2026
 
 ### M4b: Interactive explorer
 - [x] M4b.0a Design gate fix: node content fits its container (`@shop/web`'s count badges wrapped out of its closed frame): closed frames sized from their counts, a real-browser check that no node's content overflows its box in any story, re-captured baselines (DESIGN_SYSTEM §1.1, ADR-0100) {model: opus}
-- [ ] M4b.0b Design gate: a distinct shape per layer (frontend vs backend services, data, queue, external) and per card kind (route, page, model vs file/symbol), same quiet style, icon still the primary marker; legend's shapes table, README image, screenshots, baselines {model: opus}
+- [x] M4b.0b Design gate: a distinct shape per layer (frontend vs backend services, data, queue, external) and per card kind (route, page, model vs file/symbol), same quiet style, icon still the primary marker; legend's shapes table, README image, screenshots, baselines {model: opus}
 - [ ] M4b.0c Design gate: the current trace hop stands out (its two nodes and edge clearly stronger than the rest of the lit path, at the system level and inside a service), screenshots, baselines {model: opus}
 - [ ] M4b.0d Design gate: a new GitInside mark (top bar, favicon, README badge), screenshots, baselines {model: opus}
 - [ ] M4b.0e Design gate: motion pass (hover, select, inspector content swap, overlays, palette open/close: token durations, reduced motion), no AI-looking defaults {model: opus}
@@ -194,6 +194,8 @@ M4b.0b. A distinct shape per layer and per card kind (design gate #2 closed 2026
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-30 · M4b.0b: Shapes from system design drawings (ADR-0101): `nodeShape` gives frontend services and pages a window (title band), other services a box (radius 6), modules a folder (tab), routes a capsule, models an ER-style table listing their fields, and the datastore / queue / outside-API tiles a cylinder / pipe / circle (`TILE_OUTLINES`, shared with the README image). `nodeSize`/`frameHeader` size each shape; the legend draws every outline from `SHAPE_TEXT` in a third column. Viewer 495 (23 new), web 327, root typecheck + lint green; local overflow check clean on every story, screenshots in `docs/milestones/M4b/`. Baselines re-captured on Linux CI. Viewer-only, no eval delta. Next: M4b.0c.
 
 - 2026-10-30 · M4b.0a: Abhinav closed the design gate (#2) with changes. Recorded in DESIGN_SYSTEM §1.1, UX.md, and ADR-0100, split into M4b.0a–e ahead of M4b.1, and the M4b tags removed (`ff112af`). Fix: `nodeSize` widens a closed frame to its count row's estimated width (`countsRowWidth`: `textWidth` + badge chrome + 16px spare). `@shop/web` had fit by 2px on Windows and wrapped on Linux. The visual spec now fails any story where a node's content overflows its box. Viewer 472 (1 new), web 327, root typecheck + lint green. The 8 prototype baselines were re-captured on Linux CI (run 41011859808, overflow check passed there). Viewer-only, no eval delta. Next: M4b.0b.
 

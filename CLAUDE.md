@@ -132,7 +132,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Write replaces the whole file, so a placeholder Write to an existing doc (M6.7d3a: `docs/DECISIONS.md`) wipes it. To append, Edit the file's last lines; if it happens, `git restore <file>` (only safe with no uncommitted edits).
 - A full analyzer run once failed 96 tests in three files with "buildExpressRoutes is not a function" (M6.7d3b), though no import cycle existed, each file passed alone, and a rerun was 709/709. If many tests fail at once with a missing export that plainly exists, rerun once (nothing else running) before debugging.
 - `gh run download -D <dir>` fails with "file exists" if the folder already has those files (e.g. `visual/baselines/`). Run `git rm -r -q <dir>` first, download, then `git add <dir>`: git then shows only the images that changed.
-- A layout bug that shows only in Linux CI screenshots (text a few px wider than on Windows) won't reproduce in a local Playwright check. Put the check in `visual/stories.visual.ts` and let the baseline capture run prove it on Linux.<!-- lessons:end -->
+- A layout bug that shows only in Linux CI screenshots (text a few px wider than on Windows) won't reproduce in a local Playwright check. Put the check in `visual/stories.visual.ts` and let the baseline capture run prove it on Linux.
+- Local prototype screenshots taken right at load catch edges mid fade-in (600ms), so lines look missing. Wait ~1.2 s before shooting. Likewise, two README SVGs inlined in one HTML page share the `.gi` palette (the last `<style>` wins); shoot each theme on its own page.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
