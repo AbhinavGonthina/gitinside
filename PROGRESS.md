@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.15 Milestone verification + M4b-review.md + tag m4 (M5.13 and M5.14b wait on #3)
+M4b.15b M4b review fixes, explorer state (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -112,7 +112,14 @@ M4b.15 Milestone verification + M4b-review.md + tag m4 (M5.13 and M5.14b wait on
 - [x] M4b.13b2 Fix what keeps 2,000 visible nodes from 60fps in M4b.13b1's report: pan/zoom already holds 59.9fps (synthetic 2,000, cal.com 1,000), but cal.com's first ELK layout takes 56 s at 1,000 visible nodes and doesn't finish in 10 min at 2,000, so it can't be measured there. Profile the layout (ELK options, compound depth, edge count), fix, re-run `pnpm bench:render`, commit the new report {model: opus}
 - [x] M4b.14a Explorer E2E on the website (ADR-0132): a `seeded` server of the production build on PGlite over the wire protocol with one finished analysis of `fixtures/shop-demo`, the graph and GitHub reads answered by the test; load (Web Worker layout under the CSP, tips), drill down (double-click, Enter, Esc), select, trace + deep link across a reload, code preview from GitHub + Open on GitHub at the line {model: opus}
 - [x] M4b.14b Website visual tests: key screens (landing, the repo page's diagram, a selection, a trace) in dark and light against Linux baselines in CI's `web-e2e` container, captured by the "Visual baselines" workflow; skipped off Linux {model: opus}
-- [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
+- [x] M4b.15a Milestone verification: full suite, E2E, visual, coverage, render benchmark, fresh-eyes review of `ff112af..HEAD`, CLI + explorer smoke test on a real repo, M4b-review.md (tag after the fixes) {model: opus}
+- [ ] M4b.15b M4b review fixes, explorer state: Esc and reveal respect filters (`upFrom`/`revealIn` on the filtered open set); a mouse pan ends when `buttons` is 0 (release outside the canvas); the trace step clamped when the graph changes; `cutOff` only for nodes with something new past them; regression tests first {model: opus}
+- [ ] M4b.15c M4b review fix: culling during a camera glide covers the start and the destination windows (palette pick, far Tab on a big level); tests {model: opus}
+- [ ] M4b.15d M4b review fixes, focus and chrome: focus kept in Filters after Clear and a folder chip's removal; Add to README and Share never open together; the deep-link note's dismiss keeps focus and its status is announced; no-app headings h2 → h3; a scroll hint in Filters; tests, screenshots {model: opus}
+- [ ] M4b.15e M4b review fixes, code loader: `.`, `..`, and empty path segments refused in the code loader and the GitHub link; the 2 MB cap enforced while streaming the body; tests {model: opus}
+- [ ] M4b.15f M4b review fix, readability on real repos: after a drill-down the camera frames the opened node's entries at a readable size instead of the 40% floor; in a trace it frames the current hop's two ends; the inspector keeps the step's title in view; screenshots (shop-demo + taxonomy), baselines {model: opus}
+- [ ] M4b.15g M4b review fixes, small: the layout engine survives React StrictMode (created in an effect or lazily); the render report says "time to first drawn layout"; tests {model: opus}
+- [ ] M4b.15h Re-run the milestone checks after M4b.15b–g, finish M4b-review.md (outcomes, CI numbers), tag m4 {model: opus}
 
 ### M5: Website (public) + live badge
 - [x] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
@@ -224,6 +231,8 @@ M4b.15 Milestone verification + M4b-review.md + tag m4 (M5.13 and M5.14b wait on
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.15a** M4b verified: `pnpm test` 2,812 passed (16 Redis/Postgres skips), typecheck, lint, E2E 18/18, CI green (both visual jobs). Render bench holds 59.9 fps at 2,000 nodes. Two fresh-eyes reviewers: no high, 6 medium, 10 low; smoke test on taxonomy works end to end but broken-down views sit at 40% and are hard to read. M4b.15 split: fixes in M4b.15b–g, re-check and tag `m4` in M4b.15h. `docs/milestones/M4b-review.md`.
 
 - **2026-10-31 M4b.14b** Website visual tests (ADR-0133): a `visual` Playwright project on the seeded server shoots landing, diagram, selection (code colored), and trace (step 3) in dark and light at 1280×800 against `apps/web/e2e/baselines/`, compared by CI's `web-e2e` job, captured by the Visual baselines workflow's new `capture-web` job; skipped off Linux. The first capture showed the repo page stretched to 1110px by a long inspector (minimap and legend below the window): the explorer is now pinned to the canvas's box, with a new E2E (977px before, red). Still weak for M4b.15: after a drill-down the camera sits at 40% with Stripe/db under the inspector, and a trace's inspector scrolls the step title out of view. Web only, no eval delta.
 
