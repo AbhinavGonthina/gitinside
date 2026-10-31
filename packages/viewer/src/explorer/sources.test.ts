@@ -94,6 +94,81 @@ describe("createGitHubSourceLoader", () => {
     expect(await fits("a.ts")).toBe("abcd");
   });
 
+  it("refuses a path with a dot, dot-dot, or empty segment without fetching (it could read another repo)", async () => {
+    const fetch = vi.fn(async () => response("x"));
+    const load = createGitHubSourceLoader(repo, { fetch });
+    for (const path of [
+      "../../other/repo/a.ts",
+      "src/../a.ts",
+      "./a.ts",
+      "src//a.ts",
+      "/a.ts",
+      "",
+    ]) {
+      expect(await load(path)).toBeUndefined();
+    }
+    for (const bad of [{ owner: ".." }, { name: "." }, { sha: ".." }]) {
+      expect(
+        await createGitHubSourceLoader({ ...repo, ...bad }, { fetch })("a.ts"),
+      ).toBeUndefined();
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("stops reading a body without a length once it passes the cap", async () => {
+    let pulls = 0;
+    let cancelled = false;
+    // An endless chunked body: only stopping early lets this test finish.
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls++;
+        controller.enqueue(new Uint8Array(3).fill(0x61));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const load = createGitHubSourceLoader(repo, {
+      maxBytes: 4,
+      fetch: async () => new Response(body, { status: 200 }),
+    });
+    expect(await load("a.ts")).toBeUndefined();
+    expect(pulls).toBeLessThanOrEqual(3);
+    expect(cancelled).toBe(true);
+  });
+
+  it("joins a chunked body that fits the cap", async () => {
+    const chunks = ["ab", "c", "d"].map((s) => new TextEncoder().encode(s));
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        const chunk = chunks.shift();
+        if (chunk) controller.enqueue(chunk);
+        else controller.close();
+      },
+    });
+    const load = createGitHubSourceLoader(repo, {
+      maxBytes: 4,
+      fetch: async () => new Response(body, { status: 200 }),
+    });
+    expect(await load("a.ts")).toBe("abcd");
+  });
+
+  it("decodes a character split across chunks", async () => {
+    const bytes = new TextEncoder().encode("é");
+    const chunks = [bytes.slice(0, 1), bytes.slice(1)];
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        const chunk = chunks.shift();
+        if (chunk) controller.enqueue(chunk);
+        else controller.close();
+      },
+    });
+    const load = createGitHubSourceLoader(repo, {
+      fetch: async () => new Response(body, { status: 200 }),
+    });
+    expect(await load("a.ts")).toBe("é");
+  });
+
   it("refuses binary files", async () => {
     const load = createGitHubSourceLoader(repo, {
       fetch: async () => response(new Uint8Array([0x61, 0x00, 0x62])),
