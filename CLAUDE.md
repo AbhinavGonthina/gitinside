@@ -160,7 +160,9 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - When one package fails in root `pnpm test`, turbo stops the rest, so a package can end with no result at all (M4b.7: viewer). Rerun each package that didn't finish with `pnpm --filter <pkg> test`.
 - An overlay closed through `usePresence` stays mounted (inert, `data-state="closing"`) in jsdom, so `querySelector(".gi-filters")` still finds it after Esc. Query `[data-state="open"]`, and scope role queries to the overlay: the canvas has its own `group` named "Connections".
 - CI's `visual` job and the "Visual baselines" workflow build only what the viewer imports before Storybook (`pnpm --filter "@gitinside/viewer^..." build`). A new workspace dependency of the viewer failed that job when it built only the schema (M4b.10a); keep the `^...` filter rather than naming packages.
-- A Storybook `play` (or script) that calls `.click()` doesn't focus the button, so code restoring focus to "the opener" gets `<body>`. Fall back to the control that opens it, and check focus after Esc in the browser run.<!-- lessons:end -->
+- A Storybook `play` (or script) that calls `.click()` doesn't focus the button, so code restoring focus to "the opener" gets `<body>`. Fall back to the control that opens it, and check focus after Esc in the browser run.
+- jsdom's `Blob` has no `text()` (and no `URL.createObjectURL`, `Image.decode`, or 2D canvas). Read blobs in tests with `FileReader`, stub the rest, and prove downloads and rasterizing in a real-browser run (`page.waitForEvent("download")`).
+- A web page test that waits for the explorer's main-thread ELK layout took 5 s alone but 13 s in a full parallel `pnpm test` (M4b.10b). Give such a `waitFor` ≥ 25 s and the test a longer timeout still.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
