@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.16 Low follow-ups from the M4b.15h re-check review (M5.13 and M5.14b wait on #3)
+M5.15a Progress page (#8): job link copy button + "keeps running if you leave" (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -120,7 +120,7 @@ M4b.16 Low follow-ups from the M4b.15h re-check review (M5.13 and M5.14b wait on
 - [x] M4b.15f M4b review fix, readability on real repos: after a drill-down the camera frames the opened node's entries at a readable size instead of the 40% floor; in a trace it frames the current hop's two ends; the inspector keeps the step's title in view; screenshots (shop-demo + taxonomy), baselines {model: opus}
 - [x] M4b.15g M4b review fixes, small: the layout engine survives React StrictMode (created in an effect or lazily); the render report says "time to first drawn layout"; tests {model: opus}
 - [x] M4b.15h Re-run the milestone checks after M4b.15b–g, finish M4b-review.md (outcomes, CI numbers), tag m4 {model: opus}
-- [ ] M4b.16 Low follow-ups from the M4b.15h re-check review: `scroll-padding-top` under the sticky trace step header so a focused step isn't covered (WCAG 2.4.11, checked in a browser); store the clamped trace step (`setStep`) so a graph that grows again doesn't jump back; the deep-link note read once in browse mode; Add to README resets "Copied" when the bar closes it; regression tests first {model: opus}
+- [x] M4b.16 Low follow-ups from the M4b.15h re-check review: `scroll-padding-top` under the sticky trace step header so a focused step isn't covered (WCAG 2.4.11, checked in a browser); store the clamped trace step (`setStep`) so a graph that grows again doesn't jump back; the deep-link note read once in browse mode; Add to README resets "Copied" when the bar closes it; regression tests first {model: opus}
 
 ### M5: Website (public) + live badge
 - [x] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
@@ -232,6 +232,8 @@ M4b.16 Low follow-ups from the M4b.15h re-check review (M5.13 and M5.14b wait on
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.16** Re-check lows R2–R5 fixed (`bcf139a`, `d9f1828`): the inspector's `scroll-padding-top` follows the sticky step header's measured height (Chromium, Shift+Tab: code preview 112px covered → 0, dark and light); the clamped trace step is stored during render; the link note's visible copy is `aria-hidden` (live region only); Add to README resets "Copied" however it closes. Each test failed first or with its fix removed. `pnpm test` all green (viewer 1005, web 344), typecheck, lint. No eval delta.
 
 - **2026-10-31 M4b.15h** M4b re-checked and tagged `m4`. Uncached `turbo run test --force`: 2,856 passed, 16 skipped; E2E 18/18; CI on `cecc479` green (2,873 tests, none skipped; coverage unchanged, all above target); render bench re-run 59.9 fps at 2,000 on both graphs. A third reviewer of the fixes (`2ff21df..HEAD`) found one medium, `frameHop` at 25% on a canvas ≤ 320px tall, fixed in `cecc479` (margins capped at a quarter; test red first), and four lows queued as M4b.16. Review doc finished. No eval delta.
 
