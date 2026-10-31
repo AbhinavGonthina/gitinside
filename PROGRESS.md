@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.12. Onboarding hints + empty/error states (M5.13 and M5.14b wait on #3)
+M4b.12b. Empty and error states (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -104,7 +104,8 @@ M4b.12. Onboarding hints + empty/error states (M5.13 and M5.14b wait on #3)
 - [x] M4b.10a Export renderers (pure, deterministic, escaped): `renderViewSvg` (the current view from its ELK layout: open frames as containers, closed nodes, routed lines and pills, dark or light, standalone SVG) and `viewMermaid` (a Mermaid `flowchart` of the visible level, open nodes as subgraphs, labels escaped like the diff's); tests {model: opus}
 - [x] M4b.10b Export from the share menu: SVG (dark/light), PNG (the SVG rasterized at 2×), Mermaid (copy + download) of the view on screen; explorer + website wiring; tests, screenshots, baselines {model: opus}
 - [x] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
-- [ ] M4b.12 Onboarding hints + empty/error states {model: opus}
+- [x] M4b.12a Onboarding hints (UX.md): on a first visit, 3 dismissible hints in sequence (zoom in → select → trace), each moved on by doing it or Next, a hint already done (deep link) or impossible (nothing to trace) left out; "Don't show again" and finishing them remembered per browser (`localStorage`, failures tolerated), × only for this visit; the explorer's `onboarding` store, the website on it; tests, screenshots, baselines {model: opus}
+- [ ] M4b.12b Empty and error states: a graph with no TS/JS app (UX.md's copy), the analysis's warnings shown (what wasn't analyzed and why, ADR-0070), the website's graph that fails to load or parse; tests, screenshots, baselines {model: opus}
 - [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus}
 - [ ] M4b.14 Playwright E2E + visual tests {model: opus}
 - [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
@@ -219,6 +220,8 @@ M4b.12. Onboarding hints + empty/error states (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.12a** Onboarding hints (ADR-0127). M4b.12 split: hints now, empty/error states as 12b. The explorer's `onboarding` store (opt-in, so no other story or baseline moved) shows "Tip 1 of 3" at the canvas's top: zoom in → select → trace, each moved on by doing it or Next; Done or "Don't show again" is remembered (`browserOnboarding`: `localStorage`, errors swallowed), × and Esc only for this visit; hints a deep link already did or the repo can't do are left out. The website passes `browserOnboarding()`. 13 new viewer tests + 1 story test + 1 page test; two mutation checks turned them red. Chromium run (both themes, reduced motion): focus stays on Next → Done, Esc lands on a box whose keys work, double-click / click / T move it on. Screenshots in `docs/milestones/M4b/onboarding/`. Viewer + web only, no eval delta.
 
 - **2026-10-31 M4b.11** Keyboard + screen readers (ADR-0126): the canvas's boxes are a WAI-ARIA tree (`treeitem` with level, set position, `aria-expanded`, `aria-selected`; the name no longer says "Selected"), arrows move to the nearest box that way (`nearestBox`), keyboard focus brings its box into view (clicks don't move the camera; `overflow: clip` so nothing scrolls), and a selection is announced with what it calls and what calls it. The browser run found a too-big frame centered with its name off-screen: `ensureVisible` now shows a box's top-left part that fits. Not tried with a real screen reader, Firefox, or Safari.
 
