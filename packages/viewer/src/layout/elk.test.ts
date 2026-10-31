@@ -11,8 +11,10 @@ import {
   elkGraph,
   LAYOUT_PAD,
   layoutInput,
+  MODEL_ORDER_LIMIT,
   readLayout,
   runLayout,
+  THOROUGHNESS_LIMIT,
   type LayoutInput,
   type LayoutResult,
 } from "./elk.js";
@@ -125,6 +127,51 @@ describe("elkGraph", () => {
       "elk.layered.layering.layerConstraint": "FIRST",
     });
     expect(graph.edges?.map((e) => e.id)).toEqual(input.edges.map((e) => e.id));
+  });
+
+  /** A flat input of `nodes` boxes and `edges` lines (each from one box to the next, cycling). */
+  const flat = (nodes: number, edges: number): LayoutInput => ({
+    nodes: Array.from({ length: nodes }, (_, i) => ({
+      id: `n${i}`,
+      parent: null,
+      width: 100,
+      height: 40,
+    })),
+    edges: Array.from({ length: edges }, (_, i) => ({
+      id: `e${i}`,
+      from: `n${i % nodes}`,
+      to: `n${(i + 1) % nodes}`,
+      label: { width: 20, height: 22 },
+    })),
+  });
+
+  it("keeps model order and full thoroughness up to MODEL_ORDER_LIMIT nodes and edges", () => {
+    const options = elkGraph(flat(100, MODEL_ORDER_LIMIT - 100)).layoutOptions;
+    expect(options).toEqual(ELK_OPTIONS);
+    // Every shop demo state (the stories' graph) is small, so its layouts don't change.
+    for (const state of STATES) {
+      const { nodes, edges } = layoutInput(index, buildView(index, state));
+      expect(nodes.length + edges.length).toBeLessThanOrEqual(MODEL_ORDER_LIMIT);
+    }
+  });
+
+  it("drops model order above MODEL_ORDER_LIMIT nodes and edges", () => {
+    const options = elkGraph(flat(100, MODEL_ORDER_LIMIT - 99)).layoutOptions;
+    expect(options).toEqual({
+      ...ELK_OPTIONS,
+      "elk.layered.considerModelOrder.strategy": "NONE",
+    });
+  });
+
+  it("makes one crossing-minimization pass above THOROUGHNESS_LIMIT nodes and edges", () => {
+    const at = elkGraph(flat(1000, THOROUGHNESS_LIMIT - 1000)).layoutOptions;
+    expect(at?.["elk.layered.thoroughness"]).toBeUndefined();
+    const over = elkGraph(flat(1000, THOROUGHNESS_LIMIT - 999)).layoutOptions;
+    expect(over).toEqual({
+      ...ELK_OPTIONS,
+      "elk.layered.considerModelOrder.strategy": "NONE",
+      "elk.layered.thoroughness": "1",
+    });
   });
 
   it("rejects a node listed before its parent", () => {

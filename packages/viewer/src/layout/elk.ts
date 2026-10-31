@@ -22,7 +22,9 @@ import { edgeLabelSize, FRAME_PAD, openHeader, viewNodeSize, type Size } from ".
  * Stable ordering: ELK keeps the input's order where the edges leave it a
  * choice (`considerModelOrder`), and the input follows the view's drawing
  * order (graph order, routes first), so the same view always gets the same
- * layout and related views keep their nodes in the same order. A service's
+ * layout and related views keep their nodes in the same order. Big views
+ * (over {@link MODEL_ORDER_LIMIT} nodes and edges) give that up: there it
+ * cost minutes. They stay deterministic (fixed seed). A service's
  * routes and pages go in its first column (ELK's `FIRST` layer constraint;
  * partitions are ignored across levels of a compound graph), then its folders.
  */
@@ -76,7 +78,7 @@ export interface LayoutResult {
 /** Space around the whole diagram. */
 export const LAYOUT_PAD = 40;
 
-/** Layout options for the root (ELK's IDs; values are strings). */
+/** Layout options for the root (ELK's IDs; values are strings), as a view up to {@link MODEL_ORDER_LIMIT} gets them. */
 export const ELK_OPTIONS: Readonly<LayoutOptions> = {
   "elk.algorithm": "layered",
   "elk.direction": "RIGHT",
@@ -100,6 +102,33 @@ export const ELK_OPTIONS: Readonly<LayoutOptions> = {
   "elk.layered.spacing.edgeEdgeBetweenLayers": "14",
   "elk.spacing.edgeLabel": "6",
 };
+
+/**
+ * Above this many nodes plus edges, ELK lays out without model order
+ * (M4b.13b2, ADR-0131). Its model-order sort grows steeply with the dummy
+ * nodes long edges leave in each column: on cal.com's levels it took 0.2 s
+ * at 164 nodes and edges, 0.9 s at 297, 13.6 s at 438, and 18 of 24 s at
+ * 500 nodes (1,151 with edges). Smaller views (every story) keep it.
+ */
+export const MODEL_ORDER_LIMIT = 200;
+
+/**
+ * Above this many nodes plus edges, crossing minimization makes one pass
+ * instead of ELK's default seven (ADR-0131): cal.com at 2,000 visible nodes
+ * (4,328 with edges) went from 40 s to 15 s, at the cost of a few more
+ * crossings on a level too big to read at once anyway.
+ */
+export const THOROUGHNESS_LIMIT = 3000;
+
+/** The root's options for an input: {@link ELK_OPTIONS}, made cheaper for a big view. */
+function rootOptions(input: LayoutInput): LayoutOptions {
+  const items = input.nodes.length + input.edges.length;
+  return {
+    ...ELK_OPTIONS,
+    ...(items > MODEL_ORDER_LIMIT ? { "elk.layered.considerModelOrder.strategy": "NONE" } : {}),
+    ...(items > THOROUGHNESS_LIMIT ? { "elk.layered.thoroughness": "1" } : {}),
+  };
+}
 
 /**
  * The layout's input for a view: each visible node's size measured from its
@@ -130,7 +159,7 @@ export function layoutInput(index: HierarchyIndex, view: GraphView): LayoutInput
 
 /** ELK's graph for an input: compound nodes for open ones, every edge on the root. */
 export function elkGraph(input: LayoutInput): ElkNode {
-  const root: ElkNode = { id: "__root", layoutOptions: { ...ELK_OPTIONS }, children: [] };
+  const root: ElkNode = { id: "__root", layoutOptions: rootOptions(input), children: [] };
   const byId = new Map<string, ElkNode>();
   for (const n of input.nodes) {
     const options: LayoutOptions = {};
