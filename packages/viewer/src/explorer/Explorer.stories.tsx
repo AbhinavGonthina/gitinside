@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 import type { ArchitectureGraph } from "@gitinside/schema";
 import type { Meta, StoryObj } from "@storybook/react";
+import { withTestFiles } from "../model/filterSamples.js";
+import { DEFAULT_FILTERS } from "../model/filters.js";
 import { Explorer, type ExplorerProps } from "./Explorer.js";
 
 // The explorer (M4b.3b) on the analyzer's own output for fixtures/shop-demo:
@@ -146,6 +148,29 @@ export const Search: Story = {
   render: () => <Explore />,
   play: async ({ canvasElement }) => {
     await typeInPalette(canvasElement, { key: "k", ctrlKey: true }, "orders");
+  },
+};
+
+/**
+ * The filters (M4b.8b) on the demo plus a test folder, a spec, and a config
+ * file: tests and config hidden by default, models hidden by hand, the chip
+ * saying how much is off, and the popover open from the top bar.
+ */
+export const Filters: Story = {
+  render: () => (
+    <Explore
+      graph={withTestFiles(graph)}
+      initialOpen={["service:api/", "module:api/src"]}
+      initialFilters={{ ...DEFAULT_FILTERS, kinds: ["model"] }}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    canvasElement.querySelector<HTMLButtonElement>(".gi-topbar__filters")?.click();
+    for (let tries = 0; tries < 50; tries++) {
+      if (canvasElement.querySelector('.gi-filters[data-state="open"]')) return;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error("The filters didn't open");
   },
 };
 

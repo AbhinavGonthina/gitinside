@@ -1,6 +1,8 @@
 import { composeStories } from "@storybook/react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SAMPLE_TESTS, withTestFiles } from "../model/filterSamples.js";
+import { NO_FILTERS } from "../model/filters.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { shopDemo, shopDemoSources } from "../shopDemo.testkit.js";
@@ -1116,6 +1118,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     expect(Object.keys(all).sort()).toEqual([
       "BrokenDown",
       "DrilledDeep",
+      "Filters",
       "Outline",
       "Overview",
       "Search",
@@ -1179,5 +1182,184 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     await waitFor(() =>
       expect(document.activeElement?.getAttribute("aria-label")).toBe("orders, module. Selected"),
     );
+  });
+
+  it("open the filters popover in the filters story, with the chip saying what's off", async () => {
+    const { container } = render(<all.Filters />);
+    await settle();
+    await act(async () => all.Filters.play?.({ canvasElement: container }));
+    expect(container.querySelector('.gi-filters[data-state="open"]')).not.toBeNull();
+    expect(container.querySelector(".gi-status__open")?.textContent).toBe("2 filters · 7 hidden");
+    expect(container.querySelector('.gi-drill__node[data-node-id="model:api/Order"]')).toBeNull();
+  });
+});
+
+describe("Explorer filters", { timeout: 30_000 }, () => {
+  const testGraph = withTestFiles(graph);
+  const CREATES = "symbol:api/src/__tests__/orders.test.ts#createsAnOrder";
+  const filtersButton = (container: HTMLElement) =>
+    within(container.querySelector(".gi-topbar") as HTMLElement).getByRole("button", {
+      name: /^Filters/,
+    });
+  /** The open popover (a closing one stays for its exit, inert). */
+  const popover = () => document.querySelector<HTMLElement>('.gi-filters[data-state="open"]');
+  const chip = () => document.querySelector(".gi-status__open");
+  /** A choice in the popover's group, by its text. */
+  const choice = (group: string, name: RegExp) => {
+    const open = popover();
+    if (!open) throw new Error("the filters aren't open");
+    const found = within(within(open).getByRole("group", { name: group }))
+      .getAllByRole("button")
+      .find((b) => name.test(b.textContent ?? ""));
+    if (!found) throw new Error(`no ${String(name)} in ${group}`);
+    return found;
+  };
+
+  it("starts with tests and config hidden, and says so on the canvas only when that hides something", async () => {
+    const { container, box } = await setup({ graph: testGraph, initialOpen: [API, SRC] });
+    expect(filtersButton(container).textContent).toBe("Filters1");
+    expect(chip()?.textContent).toBe("1 filter · 6 hidden");
+    expect(box(SAMPLE_TESTS)).toBeNull();
+    expect(box(SRC)).not.toBeNull();
+    cleanup();
+    // The shop demo has no tests: the setting is on, but there's nothing to say on the canvas.
+    const shop = await setup();
+    expect(filtersButton(shop.container).textContent).toBe("Filters1");
+    expect(chip()).toBeNull();
+  });
+
+  it("opens from the top bar, filters the canvas as you choose, and closes with Esc", async () => {
+    const { container, box } = await setup({ graph: testGraph });
+    const button = filtersButton(container);
+    button.focus();
+    fireEvent.click(button);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(
+      screen.getByRole("switch", { name: "Hide tests and config" }),
+    );
+    fireEvent.click(choice("Layers", /Backend/));
+    await settle();
+    expect(box(API)).toBeNull();
+    expect(box(WEB)).not.toBeNull();
+    expect(filtersButton(container).textContent).toBe("Filters2");
+    expect(chip()?.textContent).toMatch(/^2 filters · \d+ hidden$/);
+    // Esc closes only the popover, focus back on the button.
+    fireEvent.keyDown(document.activeElement as Element, { key: "Escape" });
+    expect(popover()).toBeNull();
+    expect(document.activeElement).toBe(button);
+    expect(box(WEB)).not.toBeNull();
+  });
+
+  it("opened with nothing focused, Esc leaves focus on what opens it, not the page", async () => {
+    const { container } = await setup({ graph: testGraph });
+    // A click that doesn't focus (a story's play, a script): the page has focus.
+    fireEvent.click(filtersButton(container));
+    fireEvent.keyDown(screen.getByRole("switch", { name: "Hide tests and config" }), {
+      key: "Escape",
+    });
+    expect(popover()).toBeNull();
+    expect(document.activeElement).toBe(filtersButton(container));
+  });
+
+  it("clears from the chip, keeping imports off; shows imports when asked", async () => {
+    const { container, box } = await setup({ graph: testGraph, initialOpen: [API, SRC] });
+    const imports = () => container.querySelectorAll('.gi-edge[data-kind="imports"]').length;
+    expect(imports()).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    await settle();
+    expect(box(SAMPLE_TESTS)).not.toBeNull();
+    expect(chip()).toBeNull();
+    expect(filtersButton(container).textContent).toBe("Filters");
+    expect(imports()).toBe(0);
+    fireEvent.click(filtersButton(container));
+    fireEvent.click(choice("Connections", /Imports/));
+    await settle();
+    expect(imports()).toBeGreaterThan(0);
+    // Showing more than the default isn't a filter.
+    expect(filtersButton(container).textContent).toBe("Filters");
+  });
+
+  it("closes on a press outside it, and the chip opens it on the canvas", async () => {
+    const { container } = await setup({ graph: testGraph });
+    fireEvent.click(chip() as HTMLElement);
+    expect(popover()?.closest('[data-place="top-left"]')).not.toBeNull();
+    // A press inside it doesn't close it; one on the canvas does.
+    fireEvent.mouseDown(screen.getByRole("switch", { name: "Hide tests and config" }));
+    expect(popover()).not.toBeNull();
+    fireEvent.mouseDown(screen.getByRole("region", { name: "Diagram" }));
+    expect(popover()).toBeNull();
+    // From the top bar, it opens under the zoom controls.
+    fireEvent.click(filtersButton(container));
+    expect(popover()?.closest('[data-place="top-right"]')).not.toBeNull();
+    fireEvent.click(filtersButton(container));
+    expect(popover()).toBeNull();
+  });
+
+  it("without its top bar, opens from a Filters button on the canvas", async () => {
+    await setup({ topBar: false, initialFilters: NO_FILTERS });
+    expect(chip()).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    expect(popover()).not.toBeNull();
+  });
+
+  it("finds a hidden node in search, says so, and shows it when picked", async () => {
+    const { container, box, heading } = await setup({ graph: testGraph });
+    fireEvent.keyDown(container.querySelector(".gi-explorer") as Element, {
+      key: "k",
+      ctrlKey: true,
+    });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "createsAnOrder" } });
+    const [first] = screen.getAllByRole("option");
+    expect(first?.textContent).toMatch(/FunctionHidden by filters$/);
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+    expect(heading().textContent).toBe("createsAnOrder");
+    await settle();
+    await waitFor(() => expect(box(CREATES)?.hasAttribute("data-selected")).toBe(true));
+    expect(filtersButton(container).textContent).toBe("Filters");
+  });
+
+  it("says when the selection is hidden, and shows it again", async () => {
+    // At the system level, the closed service box holds the selected route.
+    const { box, heading } = await setup({ initialSelected: ROUTE });
+    expect(box(API)?.hasAttribute("data-selected")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+    fireEvent.click(choice("Kinds", /Routes/));
+    await settle();
+    // A hidden selection isn't drawn as its service.
+    expect(box(API)?.hasAttribute("data-selected")).toBe(false);
+    expect(heading().textContent).toBe("POST/api/orders");
+    expect(screen.getByRole("heading", { name: "Hidden by filters" })).toBeTruthy();
+    const show = screen.getByRole("button", { name: "Show on canvas" });
+    show.focus();
+    fireEvent.click(show);
+    await settle();
+    expect(box(API)?.hasAttribute("data-selected")).toBe(true);
+    // The button went with the note: focus moves to the box holding the selection.
+    await waitFor(() => expect(document.activeElement).toBe(box(API)));
+    expect(screen.queryByRole("heading", { name: "Hidden by filters" })).toBeNull();
+  });
+
+  it("traces through hidden nodes, says which, and shows a hidden start", async () => {
+    const { container, press } = await setup({
+      initialFilters: { ...NO_FILTERS, kinds: ["symbol"] },
+    });
+    await press("t");
+    expect(screen.getByText("Step 1 of 8")).toBeTruthy();
+    expect(screen.getByText(/Checkout is hidden by filters\.$/)).toBeTruthy();
+    const show = screen.getByRole("button", { name: "Show Checkout" });
+    show.focus();
+    fireEvent.click(show);
+    await settle();
+    expect(screen.queryByText(/is hidden by filters/)).toBeNull();
+    // The button is gone: focus goes to the current step, so T and Esc keep working.
+    await waitFor(() => expect(document.activeElement?.getAttribute("aria-current")).toBe("step"));
+    expect(filtersButton(container).textContent).toBe("Filters");
+    cleanup();
+    // Tracing from a page the filters hide shows it first.
+    const hidden = await setup({ initialFilters: { ...NO_FILTERS, kinds: ["page"] } });
+    expect(hidden.box(CHECKOUT)).toBeNull();
+    await hidden.press("t");
+    expect(screen.getByText("Step 1 of 8")).toBeTruthy();
+    expect(filtersButton(hidden.container).textContent).toBe("Filters");
   });
 });

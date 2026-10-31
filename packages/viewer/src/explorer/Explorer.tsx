@@ -1,7 +1,8 @@
-import type { ArchitectureGraph, GraphNode } from "@gitinside/schema";
+import type { ArchitectureGraph, EdgeKind, GraphNode } from "@gitinside/schema";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Button, StatusChip } from "../chrome/controls.js";
 import type { RepoRef } from "../chrome/describe.js";
+import { FiltersPopover } from "../chrome/FiltersPopover.js";
 import { Breadcrumbs, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
 import { TopBar } from "../chrome/TopBar.js";
 import {
@@ -11,6 +12,15 @@ import {
   type LayoutWorkerFactory,
 } from "../layout/engine.js";
 import {
+  activeFilterCount,
+  DEFAULT_FILTERS,
+  filterOptions,
+  filtersShowing,
+  hiddenNodes,
+  NO_FILTERS,
+  type Filters,
+} from "../model/filters.js";
+import {
   buildHierarchy,
   isWithin,
   layerOf,
@@ -18,6 +28,7 @@ import {
   type HierarchyIndex,
 } from "../model/hierarchy.js";
 import {
+  DEFAULT_HIDDEN_KINDS,
   viewTrail,
   visibleAncestor,
   type GraphView,
@@ -84,9 +95,12 @@ export interface ExplorerProps {
    * usual.
    */
   initialZoom?: number | undefined;
+  /** Start with these filters instead of `DEFAULT_FILTERS` (tests and config hidden). */
+  initialFilters?: Filters | undefined;
   /**
    * Draw the explorer's own top bar (default). The website turns it off and shows its own
-   * repo bar: the top bar's search, filters, and share do nothing until later M4b tasks.
+   * repo bar; Ctrl+K still searches, and a Filters button or the filters chip on the canvas
+   * opens the filters. Share does nothing until a later M4b task.
    */
   topBar?: boolean;
   /** Makes the layout worker (see `LayoutWorkerFactory`). Without one, layouts run on the main thread. */
@@ -136,6 +150,7 @@ export function Explorer({
   initialSelected = null,
   initialStep = null,
   initialZoom,
+  initialFilters = DEFAULT_FILTERS,
   topBar = true,
   layoutWorker,
 }: ExplorerProps) {
@@ -144,7 +159,30 @@ export function Explorer({
   const engine = useMemo(() => createLayoutEngine({ worker: layoutWorker }), [layoutWorker]);
   useEffect(() => () => engine.dispose(), [engine]);
   const cache = useMemo(() => createLayoutCache(index, engine), [index, engine]);
-  const drill = useDrill(index, initialOpen);
+  // The filters (M4b.8b): nodes and confidence levels, and connection kinds (imports off).
+  const [filters, setFilters] = useState<Filters>(initialFilters);
+  const [hiddenKinds, setHiddenKinds] = useState<ReadonlySet<EdgeKind>>(DEFAULT_HIDDEN_KINDS);
+  /** Every node the filters leave off the canvas. */
+  const filtered = useMemo(() => hiddenNodes(index, filters), [index, filters]);
+  const options = useMemo(() => filterOptions(index), [index]);
+  const filterCount =
+    activeFilterCount(filters) +
+    [...hiddenKinds].filter((k) => !DEFAULT_HIDDEN_KINDS.has(k)).length;
+  /** Connections the filters take off, beyond the kinds hidden by default. */
+  const linesOff = useMemo(() => {
+    const confidence = new Set(filters.confidence);
+    return graph.edges.filter((e) =>
+      hiddenKinds.has(e.kind)
+        ? !DEFAULT_HIDDEN_KINDS.has(e.kind)
+        : confidence.has(e.confidence) || filtered.has(e.from) || filtered.has(e.to),
+    ).length;
+  }, [graph, filters, hiddenKinds, filtered]);
+  const [filtering, setFiltering] = useState(false);
+  const filtersState = usePresence(filtering);
+  /** Where the popover opened from: the top bar's button, or the canvas (chip or button). */
+  const [filtersFrom, setFiltersFrom] = useState<"top" | "canvas">("top");
+  const filtersOpener = useRef<HTMLElement | null>(null);
+  const drill = useDrill(index, initialOpen, { filters, hiddenKinds });
   const view = drill.view;
 
   const [selected, setSelected] = useState<string | null>(initialSelected);
@@ -281,17 +319,17 @@ export function Explorer({
   const current: TraceStep | undefined = tracing ? steps[step] : undefined;
   /** The boxes holding each node on the path, at the current depth. */
   const pathBoxes = useMemo(
-    () => holders(index, view, tracing ? traceNodes(path) : []),
-    [tracing, path, index, view],
+    () => holders(index, view, filtered, tracing ? traceNodes(path) : []),
+    [tracing, path, index, view, filtered],
   );
   const hopIds = useMemo(() => new Set(steps.map((s) => s.edge.id)), [steps]);
   /** The current hop's two ends as drawn: the boxes holding them (one box for a hop inside it). */
   const hopBoxes = useMemo(
-    () => holders(index, view, current ? [current.from.id, current.to.id] : []),
-    [current, index, view],
+    () => holders(index, view, filtered, current ? [current.from.id, current.to.id] : []),
+    [current, index, view, filtered],
   );
   /** The box the current hop leaves from, which sets the pulse's direction. */
-  const hopStart = current ? visibleAncestor(index, view, current.from.id) : undefined;
+  const hopStart = current ? drawnAs(index, view, filtered, current.from.id) : undefined;
 
   // The player: each step stays up for PLAY_STEP_MS, and play stops on the last.
   useEffect(() => {
@@ -322,16 +360,16 @@ export function Explorer({
       root.querySelector<HTMLElement>(".gi-explorer__step[aria-current]")?.focus();
       return;
     }
-    const start = traced ? visibleAncestor(index, view, traced) : undefined;
+    const start = traced ? drawnAs(index, view, filtered, traced) : undefined;
     if (start) boxElement(root, start)?.focus();
-  }, [tracing, step, traced, index, view]);
+  }, [tracing, step, traced, index, view, filtered]);
 
   const selectedNode = selected ? index.byId.get(selected) : undefined;
   /** Whether the selection is a page or route with a request path. */
   const selectionTraces = selectedNode !== undefined && canTraceFrom(index, selectedNode);
   /** What T and the Trace button trace: the selection if it can be, else `traceStart`. */
   const startable = selectionTraces ? selectedNode.id : fallbackStart;
-  const selectedBox = selected ? visibleAncestor(index, view, selected) : undefined;
+  const selectedBox = selected ? drawnAs(index, view, filtered, selected) : undefined;
   const repo: RepoRef = graph.repo;
 
   function select(id: string | null) {
@@ -359,8 +397,103 @@ export function Explorer({
     setAnnouncement(`Back to ${nodeOf(index, id).label}`);
   }
 
-  /** Starts tracing the request path from a node, at its first step. */
+  /**
+   * Takes off the filters that hide a node (`filtersShowing`), so it's drawn
+   * again; the chip and the Filters count show what's left. Says so.
+   */
+  function showNode(id: string) {
+    if (!filtered.has(id)) return;
+    refocus.current = true;
+    setFilters(filtersShowing(index, filters, id));
+    setAnnouncement(`Changed the filters to show ${nodeOf(index, id).label}`);
+  }
+
+  /** Clear: shows everything the filters hide. Connection kinds hidden by default stay as they are. */
+  function clearFilters() {
+    setFilters(NO_FILTERS);
+    setHiddenKinds(new Set([...hiddenKinds].filter((k) => DEFAULT_HIDDEN_KINDS.has(k))));
+    setAnnouncement("Filters cleared");
+  }
+
+  /** The top bar's Filters button, the filters chip, or the canvas's Filters button: open or close the popover. */
+  function toggleFilters(from: "top" | "canvas") {
+    if (filtering) {
+      closeFilters();
+      return;
+    }
+    filtersOpener.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setFiltersFrom(from);
+    setFiltering(true);
+  }
+
+  /**
+   * Closes the popover; focus inside it goes back to what opened it (the
+   * button or chip it opened from, when the page had focus), unless `stay`
+   * (a press elsewhere put it there).
+   */
+  function closeFilters(stay = false) {
+    const root = rootRef.current;
+    const opener = filtersOpener.current;
+    filtersOpener.current = null;
+    const inside = root?.querySelector(".gi-filters")?.contains(document.activeElement);
+    const back =
+      opener?.isConnected && opener !== document.body
+        ? opener
+        : root?.querySelector<HTMLElement>(
+            filtersFrom === "top" ? ".gi-topbar__filters" : "[data-filters-opener]",
+          );
+    if (!stay && inside && back) back.focus();
+    else if (inside && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setFiltering(false);
+  }
+
+  // Showing a hidden node removes the button that did it (Show on canvas, a
+  // step's Show), which drops focus to the page. Once the canvas is drawn,
+  // put it on the current step while tracing, else on the selection's box.
+  const refocus = useRef(false);
+  useEffect(() => {
+    if (!refocus.current) return;
+    const root = rootRef.current;
+    const active = document.activeElement;
+    const lost = !active || active === document.body || !active.isConnected;
+    if (!root || !lost) {
+      refocus.current = false;
+      return;
+    }
+    if (tracing) {
+      const current = root.querySelector<HTMLElement>(".gi-explorer__step[aria-current]");
+      if (current) {
+        refocus.current = false;
+        current.focus();
+      }
+      return;
+    }
+    // Wait for the new view's boxes: the old layout's may be replaced.
+    if (shown?.view !== view) return;
+    refocus.current = false;
+    const target = selectedBox ? boxElement(root, selectedBox) : null;
+    target?.focus();
+  });
+
+  // A press outside the popover (and not on what opens it) closes it, leaving focus where the press put it.
+  const closeOnPress = useRef(closeFilters);
+  closeOnPress.current = closeFilters;
+  useEffect(() => {
+    if (!filtering) return;
+    const onPress = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(".gi-filters, .gi-topbar__filters, [data-filters-opener]")) return;
+      closeOnPress.current(true);
+    };
+    document.addEventListener("mousedown", onPress);
+    return () => document.removeEventListener("mousedown", onPress);
+  }, [filtering]);
+
+  /** Starts tracing the request path from a node, at its first step, showing it if the filters hide it. */
   function startTrace(id: string) {
+    showNode(id);
     setTraced(id);
     setStep(0);
     setPlaying(false);
@@ -494,6 +627,7 @@ export function Explorer({
     } else if (event.key === "Escape") {
       if (searching) closeSearch();
       else if (picking) closePicker();
+      else if (filtering) closeFilters();
       else if (legend) closeLegend();
       else if (tracing) toggleTrace();
       else if (goUp()) {
@@ -509,8 +643,12 @@ export function Explorer({
     }
   }
 
-  /** A connection in the inspector: drill until its node is a box, and select it (UX.md). */
+  /**
+   * A connection in the inspector or a palette pick: show it if the filters
+   * hide it, drill until it's a box, and select it (UX.md).
+   */
   function reveal(id: string) {
+    showNode(id);
     flyTo.current = id;
     drill.reveal(id);
     select(id);
@@ -572,6 +710,22 @@ export function Explorer({
 
   const selectedView = selectedNode ? view.byId.get(selectedNode.id) : undefined;
 
+  /** The popover, under what opened it (the top bar's button, or the canvas's chip or button). */
+  const filtersPopover = () =>
+    filtersState && (
+      <FiltersPopover
+        autoFocus
+        state={filtersState}
+        options={options}
+        filters={filters}
+        hiddenKinds={hiddenKinds}
+        onFiltersChange={setFilters}
+        onHiddenKindsChange={setHiddenKinds}
+        onClear={filterCount > 0 ? clearFilters : undefined}
+        onClose={() => closeFilters()}
+      />
+    );
+
   return (
     <div
       ref={rootRef}
@@ -586,6 +740,9 @@ export function Explorer({
           repo={repo}
           mac={mac}
           onSearch={toggleSearch}
+          filterCount={filterCount}
+          filtersOpen={filtering}
+          onFilters={() => toggleFilters("top")}
           tracing={tracing}
           onTrace={toggleTrace}
         />
@@ -614,21 +771,58 @@ export function Explorer({
             onLayout={onLayout}
             zoom={camera.zoom}
           />
-          <div className="gi-explorer__pin" data-place="top-left">
+          <div
+            className="gi-explorer__pin"
+            data-place="top-left"
+            onClick={(e) => e.stopPropagation()}
+          >
             {tracing && (
               <StatusChip tone="trace" exitLabel="Exit trace" onExit={toggleTrace}>
                 Tracing <code>{traceName(path.start)}</code>
               </StatusChip>
             )}
+            {filtered.size > 0 || linesOff > 0 ? (
+              <StatusChip exitLabel="Clear filters" onExit={clearFilters}>
+                <button
+                  type="button"
+                  className="gi-status__open"
+                  data-filters-opener=""
+                  aria-expanded={filtering}
+                  onClick={() => toggleFilters("canvas")}
+                >
+                  {filtersText(filterCount, filtered.size, linesOff)}
+                </button>
+              </StatusChip>
+            ) : (
+              !topBar && (
+                <div className="gi-overlay gi-explorer__filters-button">
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    icon="filter"
+                    data-filters-opener=""
+                    aria-expanded={filtering}
+                    onClick={() => toggleFilters("canvas")}
+                  >
+                    Filters
+                  </Button>
+                </div>
+              )
+            )}
+            {filtersFrom === "canvas" && filtersPopover()}
           </div>
-          <div className="gi-explorer__pin" data-place="top-right">
+          <div
+            className="gi-explorer__pin"
+            data-place="top-right"
+            onClick={(e) => e.stopPropagation()}
+          >
             <ZoomControls
               zoom={camera.zoom}
               onZoomIn={() => zoomBy(1)}
               onZoomOut={() => zoomBy(-1)}
               onFit={fitView}
-              onClick={(e) => e.stopPropagation()}
             />
+            {filtersFrom === "top" && filtersPopover()}
           </div>
           <div
             className="gi-explorer__pin"
@@ -689,6 +883,8 @@ export function Explorer({
             onStep={goToStep}
             onPlay={togglePlay}
             onBreakDown={breakDown}
+            filtered={filtered}
+            onShow={showNode}
           />
         ) : (
           <NodePanel
@@ -703,12 +899,15 @@ export function Explorer({
             onSelect={reveal}
             onBreakDown={breakDown}
             onTrace={startTrace}
+            filteredOut={selectedNode !== undefined && filtered.has(selectedNode.id)}
+            onShow={showNode}
           />
         )}
       </div>
       {pickerState && (
         <TracePicker
           choices={choices}
+          hidden={filtered}
           state={pickerState}
           onPick={pickTrace}
           onClose={closePicker}
@@ -717,6 +916,7 @@ export function Explorer({
       {searchState && (
         <SearchPalette
           entries={entries}
+          hidden={filtered}
           state={searchState}
           onPick={pickSearch}
           onClose={closeSearch}
@@ -727,6 +927,15 @@ export function Explorer({
       </div>
     </div>
   );
+}
+
+/** The filters chip: how many are on, then how many nodes they hide (or connections, when no node). */
+export function filtersText(count: number, nodes: number, lines: number): string {
+  const n = (x: number, one: string, many: string) =>
+    `${x.toLocaleString("en-US")} ${x === 1 ? one : many}`;
+  const off =
+    nodes > 0 ? n(nodes, "hidden", "hidden") : n(lines, "connection hidden", "connections hidden");
+  return `${n(count, "filter", "filters")} · ${off}`;
 }
 
 /** A trace's start in the status chip: a page's path, a route's method and path (GET and POST share one). */
@@ -768,11 +977,29 @@ function boxElement(root: HTMLElement | null, id: string): HTMLElement | null {
   return wrapper?.querySelector<HTMLElement>(":scope > .gi-node") ?? null;
 }
 
-/** The boxes holding each of `ids` in a view (the root holds nothing drawn). */
-function holders(index: HierarchyIndex, view: GraphView, ids: Iterable<string>): Set<string> {
+/**
+ * The box a node is drawn as: itself or the nearest visible node holding it.
+ * A node the filters hide has none; it isn't drawn as its parent either.
+ */
+function drawnAs(
+  index: HierarchyIndex,
+  view: GraphView,
+  filtered: ReadonlySet<string>,
+  id: string,
+): string | undefined {
+  return filtered.has(id) ? undefined : visibleAncestor(index, view, id);
+}
+
+/** The boxes holding each of `ids` in a view (the root and filtered nodes hold nothing drawn). */
+function holders(
+  index: HierarchyIndex,
+  view: GraphView,
+  filtered: ReadonlySet<string>,
+  ids: Iterable<string>,
+): Set<string> {
   const out = new Set<string>();
   for (const id of ids) {
-    const box = visibleAncestor(index, view, id);
+    const box = drawnAs(index, view, filtered, id);
     if (box) out.add(box);
   }
   return out;

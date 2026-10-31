@@ -113,6 +113,8 @@ export type {
   InspectorHeaderProps,
   InspectorProps,
 } from "./chrome/Inspector.js";
+export { CONNECTION_NAMES, FiltersPopover, KIND_PLURALS } from "./chrome/FiltersPopover.js";
+export type { FiltersPopoverProps } from "./chrome/FiltersPopover.js";
 export { CommandPalette } from "./chrome/CommandPalette.js";
 export type { CommandPaletteProps, PaletteResult } from "./chrome/CommandPalette.js";
 export {
@@ -154,7 +156,9 @@ export {
   activeFilterCount,
   DEFAULT_FILTERS,
   FILTER_KINDS,
+  filterOptions,
   filtersKey,
+  filtersShowing,
   hiddenNodes,
   isTestOrConfig,
   isUnder,
@@ -162,7 +166,7 @@ export {
   normalizeFilters,
   normalizeFolder,
 } from "./model/filters.js";
-export type { Filters } from "./model/filters.js";
+export type { FilterOption, FilterOptions, Filters } from "./model/filters.js";
 export { closedSize, edgeLabelSize, frameCounts, openHeader, viewNodeSize } from "./layout/size.js";
 export type { Size, SizeContext } from "./layout/size.js";
 export {

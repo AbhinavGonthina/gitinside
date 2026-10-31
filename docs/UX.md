@@ -57,6 +57,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 - Popover from the top bar, with toggles by layer, kind, and confidence, a folder include/exclude, and "Hide tests and config" (on by default).
 - Active filters show as a chip, with "Clear".
 - Model done in M4b.8a (ADR-0120): a hidden node takes what's inside it along, and a folder left empty goes too; its connections are dropped, not redrawn from its parent. Hiding a confidence hides lines only. Tests and config are found by name (`*.test.*`, `*.spec.*`, `*.config.*`, `__tests__/`, `tests/`, `e2e/`, …).
+- Popover and chip done in M4b.8b (ADR-0121): only what the graph has is offered, with counts; connection kinds (imports off by default) are toggles too; a folder not in the repo is refused with a message. The chip ("2 filters · 7 hidden") shows only when something is hidden; its text opens the popover, its × clears. Going to a hidden node (search, the trace picker, a connection, a trace's start or step) takes off just the filters hiding it; a hidden selection or hop says so in the inspector, with a Show button.
 
 ## Diff mode (M6)
 

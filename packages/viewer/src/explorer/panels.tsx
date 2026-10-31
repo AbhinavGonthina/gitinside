@@ -159,6 +159,10 @@ export interface NodePanelProps {
   onSelect: (id: string) => void;
   onBreakDown: (id: string) => void;
   onTrace: (id: string) => void;
+  /** The filters hide the node, so the canvas doesn't draw it. */
+  filteredOut?: boolean | undefined;
+  /** Takes off the filters hiding the node (**Show on canvas**). */
+  onShow?: ((id: string) => void) | undefined;
 }
 
 /** The inspector for a selected node, or the repo overview for the root. */
@@ -174,6 +178,8 @@ export function NodePanel({
   onSelect,
   onBreakDown,
   onTrace,
+  filteredOut = false,
+  onShow,
 }: NodePanelProps) {
   const { incoming, outgoing } = connectionsOf(index, node.id);
   const source = "source" in node ? node.source : undefined;
@@ -190,6 +196,13 @@ export function NodePanel({
     <Inspector key={node.id}>
       <InspectorHeader node={node} layer={layerOf(index, node.id)} location={locationOf(node)} />
       <InspectorSummary>{summaryOf(index, node)}</InspectorSummary>
+      {filteredOut && (
+        <InspectorSection title="Hidden by filters">
+          <p className="gi-inspector__empty">
+            The filters leave this off the canvas, with its connections.
+          </p>
+        </InspectorSection>
+      )}
       {isRoot ? (
         <InspectorSection title="Start here">
           <p className="gi-inspector__empty">
@@ -232,8 +245,13 @@ export function NodePanel({
           <CodeSection access={sources} repo={repo} site={source} />
         </>
       )}
-      {(canBreakDown || canTrace || github) && (
+      {(canBreakDown || canTrace || github || (filteredOut && onShow)) && (
         <InspectorActions>
+          {filteredOut && onShow && (
+            <Button variant="primary" size="sm" onClick={() => onShow(node.id)}>
+              Show on canvas
+            </Button>
+          )}
           {canBreakDown && (
             <Button
               variant="primary"
@@ -247,7 +265,7 @@ export function NodePanel({
           )}
           {canTrace && (
             <Button
-              variant={canBreakDown ? "secondary" : "primary"}
+              variant={canBreakDown || (filteredOut && onShow) ? "secondary" : "primary"}
               size="sm"
               icon="trace"
               onClick={() => onTrace(node.id)}
@@ -260,7 +278,7 @@ export function NodePanel({
               href={github}
               target="_blank"
               rel="noreferrer noopener"
-              variant={canBreakDown || canTrace ? "quiet" : "secondary"}
+              variant={canBreakDown || canTrace || (filteredOut && onShow) ? "quiet" : "secondary"}
               size="sm"
               trailingIcon="open-external"
             >
@@ -304,6 +322,10 @@ export interface TracePanelProps {
   /** Play or pause; play on the last step starts over. */
   onPlay: () => void;
   onBreakDown: (id: string) => void;
+  /** Nodes the filters hide: a step with an end among them says so. */
+  filtered?: ReadonlySet<string> | undefined;
+  /** Takes off the filters hiding a node (**Show** on such a step). */
+  onShow?: ((id: string) => void) | undefined;
 }
 
 /**
@@ -322,12 +344,18 @@ export function TracePanel({
   onStep,
   onPlay,
   onBreakDown,
+  filtered,
+  onShow,
 }: TracePanelProps) {
   const current = steps[step];
   if (!current) return null;
   const site = current.site;
-  const from = visibleAncestor(index, view, current.from.id);
-  const to = visibleAncestor(index, view, current.to.id);
+  // An end the filters hide has no box: it isn't drawn as its parent either.
+  const offCanvas = [current.from, current.to].find((n) => filtered?.has(n.id));
+  const drawnAs = (id: string) =>
+    filtered?.has(id) ? undefined : visibleAncestor(index, view, id);
+  const from = drawnAs(current.from.id);
+  const to = drawnAs(current.to.id);
   // Both ends in one closed box: the hop happens inside it, out of sight.
   const inside =
     from !== undefined && from === to && !view.byId.get(from)?.open
@@ -363,10 +391,19 @@ export function TracePanel({
           ? ` ${sentence(current.to.detail)}`
           : ""}
         {inside && hidden ? ` Happens inside ${inside.label}; break it down to watch it.` : ""}
+        {offCanvas ? ` ${offCanvas.label} is hidden by filters.` : ""}
         {from && to && from !== to
           ? ` Goes from ${nodeOf(index, from).label} to ${nodeOf(index, to).label} on the canvas.`
           : ""}
       </InspectorSummary>
+      {offCanvas && onShow && (
+        // Beside the note it answers; the player's row below is full.
+        <div key={`show-${step}`} className="gi-explorer__show">
+          <Button variant="secondary" size="sm" onClick={() => onShow(offCanvas.id)}>
+            Show {offCanvas.label}
+          </Button>
+        </div>
+      )}
       <CodeSection key={`code-${step}`} access={sources} repo={repo} site={site} />
       <InspectorSection title="Steps" count={steps.length}>
         <ol className="gi-explorer__steps">

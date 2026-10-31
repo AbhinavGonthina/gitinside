@@ -1,6 +1,6 @@
 import { compareStrings } from "@gitinside/schema";
-import type { Confidence, GraphNode, Layer, NodeKind } from "@gitinside/schema";
-import type { HierarchyIndex } from "./hierarchy.js";
+import type { Confidence, EdgeKind, GraphNode, Layer, NodeKind } from "@gitinside/schema";
+import { ancestry, type HierarchyIndex } from "./hierarchy.js";
 
 /**
  * The explorer's filters (M4b.8, UX.md "Filters", ADR-0120): which nodes and
@@ -212,4 +212,117 @@ export function hiddenNodes(index: HierarchyIndex, filters: Filters): ReadonlySe
   };
   for (const top of index.children.get(index.root.id) ?? []) visit(top, false);
   return hidden;
+}
+
+/**
+ * The filters with what hides `id` taken off, so a node picked in search, a
+ * trace's start, or a step's hidden end can be shown (M4b.8b). First only
+ * the rules that hit the node or a node above it go: their layers and kinds,
+ * the tests-and-config toggle if one of their paths is a test or config one,
+ * the excluded folders holding them, and, with folders included, the
+ * nearest of their paths is included too. Everything else stays. If the
+ * node is still hidden (a folder emptied by rules on what's inside it),
+ * the first whole rule whose removal alone shows it goes, in a fixed order
+ * (tests and config, kinds, excluded folders, included folders, layers),
+ * else they go in that order until it shows. Hidden confidence
+ * levels stay: they never hide nodes. Returns `filters` itself when `id`
+ * isn't hidden.
+ */
+export function filtersShowing(index: HierarchyIndex, filters: Filters, id: string): Filters {
+  if (!hiddenNodes(index, filters).has(id)) return filters;
+  const chain = ancestry(index, id).filter((n) => n.id !== index.root.id);
+  const paths = chain.flatMap((n) => repoPath(n) ?? []);
+  const own = new Set<string>(chain.flatMap((n) => [n.kind, ...(n.layer ? [n.layer] : [])]));
+  const nearest = paths[0];
+  let next: Filters = {
+    ...filters,
+    layers: filters.layers.filter((l) => !own.has(l)),
+    kinds: filters.kinds.filter((k) => !own.has(k)),
+    hideTestsAndConfig: filters.hideTestsAndConfig && !paths.some(isTestOrConfig),
+    exclude: filters.exclude.filter((f) => !paths.some((p) => isUnder(p, normalizeFolder(f)))),
+    include:
+      filters.include.length > 0 && nearest !== undefined && nearest !== ""
+        ? [...filters.include, nearest]
+        : filters.include,
+  };
+  const relax: ((f: Filters) => Filters)[] = [
+    (f) => ({ ...f, hideTestsAndConfig: false }),
+    (f) => ({ ...f, kinds: [] }),
+    (f) => ({ ...f, exclude: [] }),
+    (f) => ({ ...f, include: [] }),
+    (f) => ({ ...f, layers: [] }),
+  ];
+  const shows = (f: Filters) => !hiddenNodes(index, f).has(id);
+  if (!shows(next)) {
+    // One whole rule if that's enough, else each in turn until it shows.
+    const one = relax.map((step) => step(next)).find(shows);
+    if (one) next = one;
+    else for (const step of relax) if (!shows(next)) next = step(next);
+  }
+  return normalizeFilters(next);
+}
+
+/** A filter choice with how many of it the graph has. */
+export interface FilterOption<T extends string> {
+  value: T;
+  count: number;
+}
+
+/** What the filters popover offers for one graph: only what the graph has, with counts. */
+export interface FilterOptions {
+  /** Nodes by their own layer (services, datastores, queues, outside APIs), in the legend's order. */
+  layers: FilterOption<Layer>[];
+  /** Nodes by kind, in {@link FILTER_KINDS} order. */
+  kinds: FilterOption<NodeKind>[];
+  /** Connections by kind, in {@link EDGE_KIND_ORDER}. */
+  edgeKinds: FilterOption<EdgeKind>[];
+  /** Connections by confidence, strongest first. */
+  confidence: FilterOption<Confidence>[];
+  /** Every service root and folder path, sorted: the folder field's suggestions and check. */
+  folders: string[];
+}
+
+const LAYER_ORDER: readonly Layer[] = ["frontend", "backend", "data", "infra", "external"];
+const CONFIDENCE_ORDER: readonly Confidence[] = ["exact", "pattern", "heuristic", "unresolved"];
+/** Connection kinds in the schema's order (code, then requests, then data and queues). */
+export const EDGE_KIND_ORDER: readonly EdgeKind[] = [
+  "imports",
+  "calls",
+  "http",
+  "handles",
+  "renders",
+  "reads",
+  "writes",
+  "stores",
+  "publishes",
+  "consumes",
+  "external_call",
+];
+
+/** Counts the graph's nodes and connections for the filters popover ({@link FilterOptions}). */
+export function filterOptions(index: HierarchyIndex): FilterOptions {
+  const tally = <T extends string>(values: Iterable<T>) => {
+    const counts = new Map<T, number>();
+    for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+    return counts;
+  };
+  const inOrder = <T extends string>(order: readonly T[], counts: Map<T, number>) =>
+    order.flatMap((value) => {
+      const count = counts.get(value);
+      return count ? [{ value, count }] : [];
+    });
+  const nodes = index.graph.nodes.filter((n) => n.id !== index.root.id);
+  const edgeKinds = tally(index.graph.edges.map((e) => e.kind));
+  const folders = new Set<string>();
+  for (const n of nodes) {
+    const path = n.kind === "service" ? n.root : n.kind === "module" ? n.path : "";
+    if (path) folders.add(path);
+  }
+  return {
+    layers: inOrder(LAYER_ORDER, tally(nodes.flatMap((n) => n.layer ?? []))),
+    kinds: inOrder(FILTER_KINDS, tally(nodes.map((n) => n.kind))),
+    edgeKinds: inOrder(EDGE_KIND_ORDER, edgeKinds),
+    confidence: inOrder(CONFIDENCE_ORDER, tally(index.graph.edges.map((e) => e.confidence))),
+    folders: [...folders].sort(compareStrings),
+  };
 }

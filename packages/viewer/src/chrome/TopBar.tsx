@@ -26,6 +26,8 @@ export interface TopBarProps extends Omit<HTMLAttributes<HTMLElement>, "children
   diff?: { value: DiffView; onChange?: ((view: DiffView) => void) | undefined } | undefined;
   /** How many filters are active, shown on the Filters button. */
   filterCount?: number;
+  /** The filters popover is open (the button's `aria-expanded`); unset when there's none. */
+  filtersOpen?: boolean | undefined;
   onFilters?: (() => void) | undefined;
   onShare?: (() => void) | undefined;
   /** A trace is running: the trace button becomes "Exit trace". */
@@ -47,6 +49,7 @@ export function TopBar({
   onSearch,
   diff,
   filterCount = 0,
+  filtersOpen,
   onFilters,
   onShare,
   tracing = false,
@@ -95,7 +98,13 @@ export function TopBar({
             onChange={diff.onChange}
           />
         )}
-        <Button variant="quiet" icon="filter" onClick={onFilters}>
+        <Button
+          variant="quiet"
+          icon="filter"
+          className="gi-topbar__filters"
+          aria-expanded={filtersOpen}
+          onClick={onFilters}
+        >
           Filters
           {filterCount > 0 && <span className="gi-count">{filterCount}</span>}
         </Button>

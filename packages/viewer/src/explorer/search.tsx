@@ -180,16 +180,19 @@ export interface SearchPaletteProps {
   state: "open" | "closing";
   onPick: (id: string) => void;
   onClose: () => void;
+  /** Nodes the filters hide, marked in the results. */
+  hidden?: ReadonlySet<string> | undefined;
 }
 
 /** The Ctrl+K palette: the shell, holding its own query and active row. */
-export function SearchPalette({ entries, state, onPick, onClose }: SearchPaletteProps) {
+export function SearchPalette({ entries, state, onPick, onClose, hidden }: SearchPaletteProps) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const results = useMemo(() => searchNodes(entries, query), [entries, query]);
   return (
     <CommandPalette
       autoFocus
+      hidden={hidden}
       state={state}
       query={query}
       results={results}

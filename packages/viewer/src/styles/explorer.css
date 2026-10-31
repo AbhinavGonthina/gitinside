@@ -77,14 +77,19 @@
   gap: var(--space-8);
 }
 
+/* The top pins hold the filters popover under what opened it, so they sit above the minimap's pin. */
 .gi-explorer__pin[data-place="top-left"] {
+  z-index: 1;
   top: var(--space-16);
   left: var(--space-16);
+  justify-items: start;
 }
 
 .gi-explorer__pin[data-place="top-right"] {
+  z-index: 1;
   top: var(--space-16);
   right: var(--space-16);
+  justify-items: end;
 }
 
 .gi-explorer__pin[data-place="bottom-left"] {
@@ -114,6 +119,11 @@
   overflow: visible;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+/* A step's Show button, under the summary that says its end is hidden by filters. */
+.gi-explorer__show {
+  margin: calc(-1 * var(--space-8)) 20px var(--space-16);
 }
 
 /* Play, Pause, and Replay share one width, so the buttons beside them hold still. */
