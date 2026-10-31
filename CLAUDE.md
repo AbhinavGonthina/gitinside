@@ -178,7 +178,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Explorer camera moves count as glides only once `data-settled` is set (a `requestAnimationFrame` after the first fit), which a fast test can beat after `setup()` (M4b.15c). `waitFor` that attribute before testing glide behaviour, and wrap a bare `el.focus()` in `act` so the explorer's focus effect runs before the next assertion.
 - Web tests that draw the explorer print a long "couldn't start the layout worker" stack each (jsdom has no `Worker`), so the output is cut off before the failure list. Run `pnpm --filter @gitinside/web test -- --silent` (optionally with a file filter) to see which tests failed.
 - `packages/analyzer/dist/smoke.json` is overwritten by every smoke run, so a later script can shoot a different repo than its name says (M4b.15f: "taxonomy" was wanderlust). Analyze to a file named after the repo, and check the top bar's repo name in the first screenshot.
-- A framing check that tests "wholly on the canvas" misses boxes under the minimap, chips, or legend (M4b.15f). Look at the screenshot, not just the numbers.<!-- lessons:end -->
+- A framing check that tests "wholly on the canvas" misses boxes under the minimap, chips, or legend (M4b.15f). Look at the screenshot, not just the numbers.
+- To change a committed benchmark report's wording without re-measuring, re-render its `.md` from the JSON next to it: a scratch `bench/dist/*.mts` importing `../src/renderReport.ts`, run with `node --experimental-transform-types` (M4b.15g). Never hand-edit the numbers.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
