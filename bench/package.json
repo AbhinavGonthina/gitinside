@@ -9,12 +9,14 @@
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "bench": "node dist/analysis.js",
+    "bench:stress": "node dist/stress.js",
     "bench:render": "vite build --config render/vite.config.ts && node dist/render.js"
   },
   "dependencies": {
     "@gitinside/analyzer": "workspace:*",
     "@gitinside/schema": "workspace:*",
-    "@gitinside/viewer": "workspace:*"
+    "@gitinside/viewer": "workspace:*",
+    "@gitinside/worker": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
