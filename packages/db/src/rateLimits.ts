@@ -28,17 +28,23 @@ export interface RateLimitResult {
  * Count one request against `key` in the current hour, unless `limit` requests are already
  * counted there. The insert-or-increment only increments below the limit, so a refused
  * request changes nothing.
+ *
+ * `at` counts at a fixed moment instead of the database clock's `now()`, for tests whose
+ * requests must share one window (or straddle two) whenever they run. Callers in production
+ * leave it out.
  */
 export async function consumeRateLimit(
   db: AnyDatabase,
   key: string,
   limit: number,
+  at?: Date,
 ): Promise<RateLimitResult> {
   if (!Number.isSafeInteger(limit) || limit < 1) {
     throw new Error("limit must be a positive integer");
   }
+  const moment = at === undefined ? sql`now()` : sql`${at.toISOString()}::timestamptz`;
   // Truncated in UTC, so connections with different session time zones share one window.
-  const window = sql`date_trunc('hour', now(), 'UTC')`;
+  const window = sql`date_trunc('hour', ${moment}, 'UTC')`;
   const [counted] = await db
     .insert(rateLimits)
     .values({ key, windowStart: window, count: 1 })

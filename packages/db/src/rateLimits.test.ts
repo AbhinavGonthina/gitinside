@@ -53,12 +53,33 @@ describe("consumeRateLimit", () => {
   });
 
   it("gives exactly `limit` slots to requests racing for them", async () => {
+    // Pinned to one moment: on the database clock, a race at the top of the hour splits over
+    // two windows (CI at 15:00:00 UTC got 10 of 12 allowed).
+    const at = new Date("2026-10-31T14:59:59.999Z");
     const results = await Promise.all(
-      Array.from({ length: 12 }, () => consumeRateLimit(t.db, "ip:race", 5)),
+      Array.from({ length: 12 }, () => consumeRateLimit(t.db, "ip:race", 5, at)),
     );
     expect(results.filter((r) => r.allowed)).toHaveLength(5);
     const [row] = await t.db.select().from(rateLimits);
     expect(row?.count).toBe(5);
+  });
+
+  it("gives each window its own `limit` when a race straddles the hour", async () => {
+    const before = new Date("2026-10-31T14:59:59.999Z");
+    const after = new Date("2026-10-31T15:00:00.000Z");
+    const results = await Promise.all(
+      Array.from({ length: 12 }, (_, i) =>
+        consumeRateLimit(t.db, "ip:race", 5, i % 2 === 0 ? before : after),
+      ),
+    );
+    const allowedIn = (start: string) =>
+      results.filter((r) => r.allowed && r.windowStart.toISOString() === start).length;
+    expect(allowedIn("2026-10-31T14:00:00.000Z")).toBe(5);
+    expect(allowedIn("2026-10-31T15:00:00.000Z")).toBe(5);
+    const refused = results.filter((r) => !r.allowed);
+    expect(refused.map((r) => r.count)).toEqual([5, 5]);
+    const rows = await t.db.select().from(rateLimits);
+    expect(rows.map((r) => r.count)).toEqual([5, 5]);
   });
 
   it("refuses a limit that isn't a positive integer", async () => {
