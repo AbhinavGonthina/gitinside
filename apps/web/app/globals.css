@@ -658,14 +658,19 @@ code {
 }
 
 .diagram-page__canvas {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 640px;
 }
 
+/* Pinned to the canvas's box, so a long inspector (a trace's steps, a code
+   sample) scrolls inside itself instead of stretching the page and pushing
+   the minimap and legend below the window (M4b.14b's trace screenshot). */
 .diagram-page__canvas > .gi-explorer {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   height: auto;
 }
 

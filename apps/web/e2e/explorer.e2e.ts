@@ -171,6 +171,34 @@ test("select a page, trace its request, and reopen the same view from the link",
   expect(errors).toEqual([]);
 });
 
+test("a long inspector scrolls inside itself; the page stays the window's height", async ({
+  page,
+}) => {
+  // M4b.14b's trace screenshot: the steps stretched the page to 1110px at 800px, pushing the
+  // minimap and legend below the window.
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await serveRepo(page);
+  await open(page);
+  await box(page, WEB).dblclick();
+  await settle(page);
+  await box(page, CHECKOUT).click();
+  await page.getByRole("button", { name: /Trace from here/ }).click();
+  await expect(page.getByText("Step 1 of 8")).toBeVisible();
+
+  const size = await page.evaluate(() => {
+    const inspector = document.querySelector(".gi-inspector");
+    return {
+      page: document.documentElement.scrollHeight,
+      inspector: inspector ? inspector.scrollHeight - inspector.clientHeight : 0,
+    };
+  });
+  expect(size.page).toBe(800);
+  expect(size.inspector, "the inspector itself overflows and scrolls").toBeGreaterThan(0);
+  await expect(page.getByRole("button", { name: "Legend" })).toBeInViewport();
+  expect(errors).toEqual([]);
+});
+
 test("a selection's code loads from GitHub at the commit, and Open on GitHub goes to its line", async ({
   page,
   context,
