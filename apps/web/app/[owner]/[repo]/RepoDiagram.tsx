@@ -13,6 +13,7 @@ import {
   withState,
   type DecodedState,
   type ExplorerState,
+  type ViewExport,
 } from "@gitinside/viewer";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -56,13 +57,16 @@ const layoutWorker = () =>
  * against the loaded graph), and each change it reports replaces the query in place
  * (`history.replaceState`, no new history entry). What part of a link this commit doesn't
  * have is named in a note above the diagram. Copy link gives the commit's permalink with
- * the state.
+ * the state. Export (M4b.10b) saves the view the explorer has drawn (its `exportRef`) as
+ * SVG, PNG, or Mermaid, made in the browser.
  */
 export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramProps) {
   const [load, setLoad] = useState<GraphLoad | undefined>(undefined);
   // Bumped by "Try again".
   const [attempt, setAttempt] = useState(0);
   const failure = useRef<HTMLParagraphElement>(null);
+  // The view on screen, kept by the explorer, for the share menu's Export.
+  const exportRef = useRef<ViewExport | undefined>(undefined);
   const status = headStatus(owner, repo, head);
   const { analyze, busy, error } = useAnalyze(owner, repo);
   // Code previews read the public file at this commit straight from GitHub (ADR-0115).
@@ -139,6 +143,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
           variant="secondary"
           size="sm"
           link={() => shareUrl(window.location.origin, owner, repo, sha, linkQuery)}
+          exports={() => exportRef.current}
         />
         <a className="repo-bar__github" href={githubHref(owner, repo)} rel="noopener noreferrer">
           Open on GitHub
@@ -169,6 +174,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
               initialFilters={linked.state.filters}
               initialHiddenKinds={linked.state.hiddenKinds}
               onStateChange={onStateChange}
+              exportRef={exportRef}
             />
           )
         ) : (

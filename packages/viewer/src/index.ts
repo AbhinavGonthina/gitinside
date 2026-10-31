@@ -116,6 +116,7 @@ export type {
 export { CONNECTION_NAMES, FiltersPopover, KIND_PLURALS } from "./chrome/FiltersPopover.js";
 export type { FiltersPopoverProps } from "./chrome/FiltersPopover.js";
 export {
+  EXPORT_MESSAGES,
   LINK_COPIED_MESSAGE,
   LINK_COPIED_MS,
   LINK_COPY_FAILED_MESSAGE,
@@ -250,6 +251,17 @@ export {
   withState,
 } from "./explorer/deepLink.js";
 export type { DecodedState, ExplorerState, IgnoredParam } from "./explorer/deepLink.js";
+export {
+  exportName,
+  MAX_CANVAS_AREA,
+  MAX_CANVAS_SIDE,
+  PNG_SCALE,
+  pngScale,
+  saveFile,
+  svgToPng,
+  viewExport,
+} from "./export/files.js";
+export type { Png, ViewExport } from "./export/files.js";
 export { viewMermaid } from "./export/mermaid.js";
 export { renderViewSvg } from "./export/svg.js";
 export type { ViewSvgOptions } from "./export/svg.js";

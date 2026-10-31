@@ -77,6 +77,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 
 - From the share menu: SVG and PNG of the current view (visible nodes only, both themes), or Mermaid (`flowchart`) of the current level.
 - Renderers done in M4b.10a (ADR-0124): the SVG is the view at the canvas's layout positions (open frames, boxes, lines, pills, and a footer with the repo and commit), always at full detail, without the selection or trace. The Mermaid lists the visible nodes, a broken-down node as a subgraph around its inside, lines labelled as on the canvas (heuristic and unresolved ones dotted).
+- In the share menu since M4b.10b (ADR-0125): under the link, **Export this view** has SVG and PNG with a Dark / Light choice (starting from the screen's theme), and Mermaid saved as `.mmd` or copied. The PNG is the SVG at 2× (smaller only when a browser's canvas limit requires it, and it says so). Files are made in the browser and named `owner-name-sha7[-theme]`; a live region says what was saved.
 
 ## Website flows
 
