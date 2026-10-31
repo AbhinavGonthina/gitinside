@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.15f M4b review fix, readability on real repos (M5.13 and M5.14b wait on #3)
+M4b.15g M4b review fixes, small (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -117,7 +117,7 @@ M4b.15f M4b review fix, readability on real repos (M5.13 and M5.14b wait on #3)
 - [x] M4b.15c M4b review fix: culling during a camera glide covers the start and the destination windows (palette pick, far Tab on a big level); tests {model: opus}
 - [x] M4b.15d M4b review fixes, focus and chrome: focus kept in Filters after Clear and a folder chip's removal; Add to README and Share never open together; the deep-link note's dismiss keeps focus and its status is announced; no-app headings h2 → h3; a scroll hint in Filters; tests, screenshots {model: opus}
 - [x] M4b.15e M4b review fixes, code loader: `.`, `..`, and empty path segments refused in the code loader and the GitHub link; the 2 MB cap enforced while streaming the body; tests {model: opus}
-- [ ] M4b.15f M4b review fix, readability on real repos: after a drill-down the camera frames the opened node's entries at a readable size instead of the 40% floor; in a trace it frames the current hop's two ends; the inspector keeps the step's title in view; screenshots (shop-demo + taxonomy), baselines {model: opus}
+- [x] M4b.15f M4b review fix, readability on real repos: after a drill-down the camera frames the opened node's entries at a readable size instead of the 40% floor; in a trace it frames the current hop's two ends; the inspector keeps the step's title in view; screenshots (shop-demo + taxonomy), baselines {model: opus}
 - [ ] M4b.15g M4b review fixes, small: the layout engine survives React StrictMode (created in an effect or lazily); the render report says "time to first drawn layout"; tests {model: opus}
 - [ ] M4b.15h Re-run the milestone checks after M4b.15b–g, finish M4b-review.md (outcomes, CI numbers), tag m4 {model: opus}
 
@@ -231,6 +231,8 @@ M4b.15f M4b review fix, readability on real repos (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.15f** Review finding 6 (`59dd75c`, baselines `c903730`, ADR-0134): `autoCamera` fits a level that reads whole at 80% (`READABLE_ZOOM`), else frames the node broken down last from its name and entries at ≥ 80%; 0 still shows the whole level. `frameHop` frames each trace step's two ends clear of the corner overlays (`HOP_MARGIN`; the first browser run had an end under the minimap). The trace header is sticky. With the framing disabled, 3 new explorer tests failed. Chromium on shop-demo + taxonomy (`docs/milestones/M4b/framing/`): every hop's ends on screen, taxonomy at 80% with 8 of 23 entries readable. Viewer 1000/1000 (one states-test focus flake under load, green alone and on rerun), web 343/343, typecheck, lint; 14 story + 4 web baselines re-captured. No eval delta.
 
 - **2026-10-31 M4b.15e** Review findings 9, 10 (`61eb924`): `repoFileParts` (chrome/describe.ts) refuses a `.`, `..`, or empty segment in the owner, name, SHA, or path, so the code loader fetches nothing and `githubLineUrl` gives no link for a path that could leave the repo; the loader reads the body as a stream and cancels it once past the 2 MB cap. Regression tests failed first (the endless chunked body ran out of memory). Viewer 988/988, web 343/343, typecheck, lint. ADR-0115 and SECURITY T10 updated. No eval delta.
 
