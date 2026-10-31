@@ -155,7 +155,9 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Shiki gives each line 500 ms (`tokenizeTimeLimit`), then colors the rest like its start. A cold grammar on slow CI hit it (M4b.5b: green here, red on CI). Anything timing-dependent needs a warm-up or no limit; read CI's result before calling a task done.
 - A background `pnpm test` here takes ~8 min, and web's suite starts last (after the viewer build), so its result appears only at the end. Do other work (session log, screenshot script) and wait for the completion notification instead of repeatedly grepping the output file.
 - jsdom doesn't implement `inert`: focus left in a closing (inert) overlay stays there in tests, but a browser drops it to `<body>` and the explorer's keys stop working (M4b.6b). Check where focus lands after an overlay closes in the real-browser screenshot run too.
-- A Storybook `play` that presses a key on the explorer must wait (poll) for what it opens before querying it: React draws it on a later render.<!-- lessons:end -->
+- A Storybook `play` that presses a key on the explorer must wait (poll) for what it opens before querying it: React draws it on a later render.
+- `getByRole("option", { name: /…/ })` doesn't find the command palette's results (M4b.7), though they're there. Pick the option by `textContent` from `getAllByRole("option")`.
+- When one package fails in root `pnpm test`, turbo stops the rest, so a package can end with no result at all (M4b.7: viewer). Rerun each package that didn't finish with `pnpm --filter <pkg> test`.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 

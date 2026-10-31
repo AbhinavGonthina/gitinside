@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.7. Ctrl+K command palette (M5.13 and M5.14b wait on #3, #5)
+M4b.8. Filters (M5.13 and M5.14b wait on #3, #5)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -98,7 +98,7 @@ M4b.7. Ctrl+K command palette (M5.13 and M5.14b wait on #3, #5)
 - [x] M4b.5b Shiki in the code preview: lazy and fine-grained (TS/TSX/JS/JSON/Prisma/YAML), JavaScript regex engine (no WASM under the CSP), tokens rendered as React spans (no HTML, SECURITY T10) in token colors for dark and light, plain text until loaded; tests, screenshots, baselines {model: opus}
 - [x] M4b.6a Computed request path (ADR-0117): `traceFrom` (BFS reach within 12 hops over renders/calls/http/handles/reads/writes/stores/external_call/publishes, `consumes` backwards; steps depth-first in call order; cut-off nodes listed), replacing the scripted trace; "Trace from here" on every page and route with a hop, T and the top-bar button trace the selected page or route (else `traceStart`), so the website traces too; an unresolved end quotes the node's reason; tests, story, baselines {model: opus}
 - [x] M4b.6b Trace picker + player: a searchable list of pages and routes from the top bar and T when nothing traceable is selected (replacing the "select a page or route" message), play/pause auto-advancing the steps, a pulse travelling the current hop (900ms, off under reduced motion); tests, screenshots, baselines {model: opus}
-- [ ] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
+- [x] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
 - [ ] M4b.8 Filters {model: opus}
 - [ ] M4b.9 Deep links {model: opus}
 - [ ] M4b.10 Export SVG / PNG / Mermaid {model: opus}
@@ -218,6 +218,10 @@ M4b.7. Ctrl+K command palette (M5.13 and M5.14b wait on #3, #5)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M4b.7** Ctrl+K command palette (ADR-0119): `searchNodes` ranks every node but the system by tiers (whole name, start, word start, anywhere, letters in order, then path), kinds breaking ties, at most 50, deterministic in any input order. Ctrl+K / ⌘K toggles it in the explorer and on the page with nothing focused; the top bar's field opens it. A pick drills, selects, focuses the box, and zooms in to read it (`zoomToBox`, up to 100%, never out).
+  - Focus kept in the dialog (M4a review): Tab and presses inside it leave focus in the field; Esc or the scrim gives it back. Found while testing: the M4b.6b picker's Esc ran its close twice (the field's Esc bubbled to the explorer), and the second blurred the control focus had just returned to; the "redundant" `defaultPrevented` guard removed then was needed. Restored, with a regression test that fails without it.
+  - Browser run (both themes): the first pick landed at the fitted 40%, an unreadable box, which led to `zoomToBox`. Mutation checks on the guard, the `mousedown` focus keep, and the zoom-in each turn a test red. New story Explorer/Search; screenshots in `docs/milestones/M4b/search/`.
 
 - **2026-10-30 M4b.6b** Trace picker + player (ADR-0118). With nothing traceable selected and no `traceStart`, T and the Trace button open a picker of every page and route with a request path (the palette's shell, every word matched in the name or file, Enter traces, focus back where it was). Play/pause advances a step every 2.7 s and stops on the last (Replay); a hand-picked step pauses it. A pulse runs the current hop's line over 900ms, the request's way (backward for a queue's consumer), off under reduced motion and hidden at rest.
   - Browser checks found two focus bugs, now tested: a picker reopened mid-exit (same element) didn't refocus its field (`autoFocus` fires on mount only); and opened with nothing focused, a pick left focus on the inert field, so the browser dropped it to the page. Also fixed: the root's focus ring boxed the palette's field twice. Mutation checks: the backward pulse, the T-in-field guard, and the blur all turn a test red; a redundant `defaultPrevented` guard was removed.
