@@ -1,14 +1,21 @@
+import { compareStrings } from "@gitinside/schema";
 import {
+  memo,
+  useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
+  type FocusEvent,
   type HTMLAttributes,
   type KeyboardEvent,
+  type RefObject,
 } from "react";
 import type { Rect } from "../chrome/describe.js";
 import { DiagramEdge, EdgeLabel } from "../edges/DiagramEdge.js";
+import type { PlacedEdge } from "../layout/elk.js";
 import type { LayoutCache } from "../layout/engine.js";
 import { edgeLabelSize, frameCounts } from "../layout/size.js";
 import { layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
@@ -18,6 +25,7 @@ import { DiagramNode } from "../nodes/DiagramNode.js";
 import { nodeTier, type NodeEmphasis } from "../nodes/describe.js";
 import { durations, scaleTokens } from "../tokens.js";
 import { ARROW_KEYS, nearestBox, type Direction } from "./a11y.js";
+import { cull, CULL_FROM, cullWindow } from "./cull.js";
 import { detailAt, insideOneService, serviceNameScale } from "./detail.js";
 import { planTransition, type BoxExit, type Shown, type TransitionPlan } from "./transition.js";
 
@@ -57,13 +65,186 @@ export interface DrillCanvasProps
   onLayout?: ((shown: Shown) => void) | undefined;
   /** The host camera's zoom, which sets how much text is drawn (`detail.ts`; default 1). */
   zoom?: number | undefined;
+  /**
+   * The part of the stage on screen (`visibleRect`, stage coordinates). With
+   * it, a big level draws only what's near it (`cull.ts`); without, everything.
+   */
+  viewport?: Rect | undefined;
+  /** Boxes drawn wherever they are, because the host may focus them (the selection, a trace's start). */
+  keep?: readonly string[] | undefined;
+  /** How many boxes and lines a level needs before it's culled (default {@link CULL_FROM}). */
+  cullFrom?: number | undefined;
 }
 
-/** Boxes leaving the canvas, kept for their fold. `generation` tells one transition's from the next's. */
+/**
+ * Boxes leaving the canvas, kept for their fold, and where each moving box's
+ * glide starts (so culling keeps it until it has slid out). `generation`
+ * tells one transition's from the next's.
+ */
 interface Leaving {
   generation: number;
   boxes: readonly BoxExit[];
+  from: ReadonlyMap<string, Rect>;
 }
+
+const NO_GLIDES: ReadonlyMap<string, Rect> = new Map();
+const NO_SIBLINGS: readonly string[] = [];
+
+/** What a box does on a click, double-click, or key, read when it happens (so boxes needn't re-render when it changes). */
+interface BoxActions {
+  select: ((id: string) => void) | undefined;
+  open: (n: ViewNode) => void;
+  keyDown: (event: KeyboardEvent<HTMLElement>, n: ViewNode) => void;
+}
+
+interface CanvasBoxProps {
+  index: HierarchyIndex;
+  n: ViewNode;
+  rect: Rect;
+  leaving: boolean;
+  /** The IDs drawn beside it under the same parent, for its place in the tree. */
+  siblings: readonly string[];
+  selected: boolean;
+  emphasis: NodeEmphasis | undefined;
+  selectable: boolean;
+  actions: RefObject<BoxActions>;
+  register: (id: string, leaving: boolean, el: HTMLElement | null) => void;
+}
+
+/**
+ * One box, memoized: a camera move re-renders the canvas (its zoom sets the
+ * detail level), but a box whose node, place, and look are unchanged isn't
+ * drawn again. Its handlers read `actions` when they fire.
+ *
+ * As an item of the canvas's tree (WAI-ARIA `treeitem`) it carries its depth
+ * and place among its siblings (the boxes aren't nested in the DOM, so these
+ * give the tree its shape), broken down or not when it can be, and selected
+ * or not. A box folding away is hidden instead.
+ */
+const CanvasBox = memo(function CanvasBox({
+  index,
+  n,
+  rect,
+  leaving,
+  siblings,
+  selected,
+  emphasis,
+  selectable,
+  actions,
+  register,
+}: CanvasBoxProps) {
+  const frame = nodeTier(n.node) === "frame";
+  const ref = useCallback(
+    (el: HTMLElement | null) => register(n.id, leaving, el),
+    [register, n.id, leaving],
+  );
+  const tree = leaving
+    ? {}
+    : {
+        role: "treeitem",
+        "aria-level": n.level + 1,
+        "aria-setsize": siblings.length,
+        "aria-posinset": siblings.indexOf(n.id) + 1,
+        "aria-expanded": n.open || n.canOpen ? n.open : undefined,
+        "aria-selected": selected,
+      };
+  return (
+    <div
+      ref={ref}
+      className="gi-drill__node"
+      data-node-id={n.id}
+      data-open={n.open ? "" : undefined}
+      data-leaving={leaving ? "" : undefined}
+      aria-hidden={leaving || undefined}
+      inert={leaving || undefined}
+      style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
+    >
+      <DiagramNode
+        {...tree}
+        node={n.node}
+        layer={layerOf(index, n.id)}
+        counts={frame && !n.open ? frameCounts(index, n.id) : []}
+        expanded={n.open}
+        selected={selected}
+        emphasis={emphasis}
+        tabIndex={leaving ? -1 : 0}
+        data-can-open={n.canOpen && !n.open ? "" : undefined}
+        onClick={
+          leaving || !selectable
+            ? undefined
+            : (e) => {
+                e.stopPropagation();
+                actions.current.select?.(n.id);
+              }
+        }
+        onDoubleClick={
+          leaving
+            ? undefined
+            : (e) => {
+                e.stopPropagation();
+                actions.current.open(n);
+              }
+        }
+        onKeyDown={leaving ? undefined : (e) => actions.current.keyDown(e, n)}
+      />
+    </div>
+  );
+});
+
+interface CanvasLineProps extends LineLook {
+  index: HierarchyIndex;
+  e: ViewEdge;
+  placed: PlacedEdge;
+}
+
+/** One line, memoized like {@link CanvasBox}. */
+const CanvasLine = memo(function CanvasLine({
+  index,
+  e,
+  placed,
+  selected,
+  emphasis,
+  flow,
+  pulse,
+}: CanvasLineProps) {
+  const { edge, count } = drawnEdge(e);
+  return (
+    <DiagramEdge
+      edge={edge}
+      count={count}
+      points={placed.points}
+      layer={layerOf(index, e.from)}
+      ends={{ from: nodeOf(index, e.from).label, to: nodeOf(index, e.to).label }}
+      selected={selected}
+      emphasis={emphasis}
+      flow={flow ?? false}
+      pulse={pulse}
+      data-inner={insideOneService(index, e) ? "" : undefined}
+    />
+  );
+});
+
+/** One line's pill, memoized like {@link CanvasBox}. */
+const CanvasPill = memo(function CanvasPill({
+  index,
+  e,
+  placed,
+  selected,
+  emphasis,
+}: Omit<CanvasLineProps, "flow" | "pulse">) {
+  const { edge, count } = drawnEdge(e);
+  return (
+    <EdgeLabel
+      edge={edge}
+      count={count}
+      layer={layerOf(index, e.from)}
+      selected={selected}
+      emphasis={emphasis}
+      data-measured-width={edgeLabelSize(e).width}
+      style={{ left: placed.label.x, top: placed.label.y }}
+    />
+  );
+});
 
 /** What the commit after a swap still has to do: play the plan, and put focus back. */
 interface Pending {
@@ -152,6 +333,12 @@ function fadeInAfter(el: Element | null) {
  * is drawn as `data-detail` and the service names' scale as
  * `--gi-name-scale`, with `data-inner` on each line between two boxes of one
  * service; `drill.css` fades and scales, so zooming never resizes a box.
+ *
+ * For big levels (M4b.13a, ADR-0129), with the host's `viewport`, only the
+ * boxes, lines, and pills near it are in the page (`cull.ts`); the focused
+ * box, the host's `keep` boxes, an arrow key's target, and boxes gliding out
+ * are drawn wherever they are. Boxes, lines, and pills are memoized, so a
+ * camera move re-renders only what its look or the culling changed.
  */
 export function DrillCanvas({
   index,
@@ -163,6 +350,9 @@ export function DrillCanvas({
   lineLook,
   onLayout,
   zoom = 1,
+  viewport,
+  keep,
+  cullFrom = CULL_FROM,
   className,
   style,
   ...rest
@@ -171,7 +361,11 @@ export function DrillCanvas({
     const layout = cache.peek(view);
     return layout ? { view, layout } : undefined;
   });
-  const [leaving, setLeaving] = useState<Leaving>({ generation: 0, boxes: [] });
+  const [leaving, setLeaving] = useState<Leaving>({ generation: 0, boxes: [], from: NO_GLIDES });
+  /** The box with focus, drawn wherever the camera goes so focus isn't lost to culling. */
+  const [focused, setFocused] = useState<string | null>(null);
+  /** A culled box an arrow key moved to: drawn, then focused. */
+  const [stepTo, setStepTo] = useState<string | null>(null);
   const [error, setError] = useState<string>();
 
   const stageRef = useRef<HTMLDivElement>(null);
@@ -232,7 +426,11 @@ export function DrillCanvas({
         toggled: prev ? toggledBetween(prev.view, next.view) : [],
         hadFocus,
       };
-      setLeaving((l) => ({ generation: l.generation + 1, boxes: plan?.exits ?? [] }));
+      setLeaving((l) => ({
+        generation: l.generation + 1,
+        boxes: plan?.exits ?? [],
+        from: plan ? new Map(plan.moves.map((m) => [m.id, m.from])) : NO_GLIDES,
+      }));
       setShown(next);
       onLayoutRef.current?.(next);
     };
@@ -264,16 +462,19 @@ export function DrillCanvas({
         const el = boxEls.current.get(m.id);
         if (el) glide(el, m.to, m.from, m.to, [m.emerging ? 0 : 1, 1]);
       }
-      const { generation, boxes } = leavingRef.current;
+      const { generation, boxes, from } = leavingRef.current;
       for (const e of boxes) {
         const el = leavingEls.current.get(e.node.id);
         if (el) glide(el, e.from, e.from, e.to, [1, 0], "forwards");
       }
       fadeInAfter(linesRef.current);
       fadeInAfter(labelsRef.current);
-      if (boxes.length > 0) {
+      if (boxes.length > 0 || from.size > 0) {
         timer = setTimeout(
-          () => setLeaving((l) => (l.generation === generation ? { generation, boxes: [] } : l)),
+          () =>
+            setLeaving((l) =>
+              l.generation === generation ? { generation, boxes: [], from: NO_GLIDES } : l,
+            ),
           durations.layout,
         );
       }
@@ -303,9 +504,20 @@ export function DrillCanvas({
   function step(from: string, direction: Direction) {
     const boxes = shownRef.current?.layout.boxes;
     const to = boxes ? nearestBox(boxes, from, direction) : undefined;
-    const el = to ? boxEls.current.get(to)?.querySelector<HTMLElement>(":scope > .gi-node") : null;
-    el?.focus({ preventScroll: true });
+    if (to === undefined) return;
+    const el = boxEls.current.get(to)?.querySelector<HTMLElement>(":scope > .gi-node");
+    // A culled box has no element yet: draw it, then focus it (below).
+    if (el) el.focus({ preventScroll: true });
+    else setStepTo(to);
   }
+  useLayoutEffect(() => {
+    if (stepTo === null) return;
+    setStepTo(null);
+    boxEls.current
+      .get(stepTo)
+      ?.querySelector<HTMLElement>(":scope > .gi-node")
+      ?.focus({ preventScroll: true });
+  }, [stepTo]);
 
   /**
    * Enter breaks a box down, or selects one that can't open further (UX.md);
@@ -328,77 +540,39 @@ export function DrillCanvas({
     else onSelect?.(n.id);
   }
 
-  /**
-   * A box as an item of the canvas's tree (WAI-ARIA `treeitem`): its depth
-   * and place among its siblings (the boxes aren't nested in the DOM, so these
-   * give the tree its shape), broken down or not when it can be, and selected
-   * or not. A box folding away is hidden instead.
-   */
-  const treeItem = (n: ViewNode, selected: boolean) => {
-    const siblings = drawn?.childrenOf.get(n.parent ?? index.root.id) ?? [];
-    return {
-      role: "treeitem",
-      "aria-level": n.level + 1,
-      "aria-setsize": siblings.length,
-      "aria-posinset": siblings.indexOf(n.id) + 1,
-      "aria-expanded": n.open || n.canOpen ? n.open : undefined,
-      "aria-selected": selected,
-    };
-  };
+  const actions = useRef<BoxActions>({ select: onSelect, open, keyDown: onKeyDown });
+  actions.current = { select: onSelect, open, keyDown: onKeyDown };
+  const register = useCallback((id: string, leavingBox: boolean, el: HTMLElement | null) => {
+    const map = leavingBox ? leavingEls.current : boxEls.current;
+    if (el) map.set(id, el);
+    else map.delete(id);
+  }, []);
 
-  const box = (n: ViewNode, rect: Rect, leavingBox: boolean) => {
-    const frame = nodeTier(n.node) === "frame";
-    const look = leavingBox ? {} : (boxLook?.(n) ?? {});
-    const register = (el: HTMLElement | null) => {
-      const map = leavingBox ? leavingEls.current : boxEls.current;
-      if (el) map.set(n.id, el);
-      else map.delete(n.id);
-    };
-    return (
-      <div
-        key={leavingBox ? `leaving:${n.id}` : n.id}
-        ref={register}
-        className="gi-drill__node"
-        data-node-id={n.id}
-        data-open={n.open ? "" : undefined}
-        data-leaving={leavingBox ? "" : undefined}
-        aria-hidden={leavingBox || undefined}
-        inert={leavingBox || undefined}
-        style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
-      >
-        <DiagramNode
-          {...(leavingBox ? {} : treeItem(n, look.selected ?? false))}
-          node={n.node}
-          layer={layerOf(index, n.id)}
-          counts={frame && !n.open ? frameCounts(index, n.id) : []}
-          expanded={n.open}
-          selected={look.selected ?? false}
-          emphasis={look.emphasis}
-          tabIndex={leavingBox ? -1 : 0}
-          data-can-open={n.canOpen && !n.open ? "" : undefined}
-          onClick={
-            leavingBox || !onSelect
-              ? undefined
-              : (e) => {
-                  e.stopPropagation();
-                  onSelect(n.id);
-                }
-          }
-          onDoubleClick={
-            leavingBox
-              ? undefined
-              : (e) => {
-                  e.stopPropagation();
-                  open(n);
-                }
-          }
-          onKeyDown={leavingBox ? undefined : (e) => onKeyDown(e, n)}
-        />
-      </div>
-    );
-  };
+  /** Tracks the focused box, so culling keeps it drawn. */
+  function onFocusChange(event: FocusEvent<HTMLElement>, entering: boolean) {
+    const target = entering ? event.target : event.relatedTarget;
+    const owner = target instanceof Element ? target.closest<HTMLElement>(".gi-drill__node") : null;
+    const id = owner && !owner.hasAttribute("data-leaving") ? (owner.dataset.nodeId ?? null) : null;
+    setFocused(id);
+  }
 
-  const edges = new Map((drawn?.edges ?? []).map((e) => [e.id, e]));
+  // What's drawn: on a big level only what's near the camera's view (cull.ts).
+  const win = viewport ? cullWindow(viewport) : undefined;
+  const winKey = win ? `${win.x},${win.y},${win.width},${win.height}` : "";
+  const kept = [...(keep ?? []), ...(focused === null ? [] : [focused])];
+  if (stepTo !== null) kept.push(stepTo);
+  const keptKey = kept.sort(compareStrings).join("\n");
+  const layout = shown?.layout;
+  const culled = useMemo(
+    () =>
+      layout &&
+      cull(layout, win, new Set(keptKey === "" ? [] : keptKey.split("\n")), leaving.from, cullFrom),
+    // `win` and the kept IDs by value, so a camera move inside one tile keeps the same sets.
+    [layout, winKey, keptKey, leaving.from, cullFrom],
+  );
+  const edges = useMemo(() => new Map((drawn?.edges ?? []).map((e) => [e.id, e])), [drawn]);
+  const siblingsOf = (n: ViewNode) =>
+    drawn?.childrenOf.get(n.parent ?? index.root.id) ?? NO_SIBLINGS;
   return (
     <div
       {...rest}
@@ -415,12 +589,48 @@ export function DrillCanvas({
           className="gi-drill__stage"
           style={{ width: shown.layout.width, height: shown.layout.height }}
         >
-          <div className="gi-drill__boxes" role="tree" aria-label="Architecture">
-            {leaving.boxes.map((e) => box(e.node, e.from, true))}
+          <div
+            className="gi-drill__boxes"
+            role="tree"
+            aria-label="Architecture"
+            onFocus={(e) => onFocusChange(e, true)}
+            onBlur={(e) => onFocusChange(e, false)}
+          >
+            {leaving.boxes.map((e) => (
+              <CanvasBox
+                key={`leaving:${e.node.id}`}
+                index={index}
+                n={e.node}
+                rect={e.from}
+                leaving
+                siblings={NO_SIBLINGS}
+                selected={false}
+                emphasis={undefined}
+                selectable={false}
+                actions={actions}
+                register={register}
+              />
+            ))}
             {/* One stable list in drawing order, so Tab reads a frame, then its inside. */}
             {shown.layout.boxes.map((b) => {
               const n = drawn.byId.get(b.id);
-              return n ? box(n, b, false) : null;
+              if (!n || !culled?.boxes.has(b.id)) return null;
+              const look = boxLook?.(n) ?? {};
+              return (
+                <CanvasBox
+                  key={n.id}
+                  index={index}
+                  n={n}
+                  rect={b}
+                  leaving={false}
+                  siblings={siblingsOf(n)}
+                  selected={look.selected ?? false}
+                  emphasis={look.emphasis}
+                  selectable={onSelect !== undefined}
+                  actions={actions}
+                  register={register}
+                />
+              );
             })}
           </div>
           <svg
@@ -433,22 +643,18 @@ export function DrillCanvas({
           >
             {shown.layout.edges.map((placed) => {
               const e = edges.get(placed.id);
-              if (!e) return null;
-              const { edge, count } = drawnEdge(e);
+              if (!e || !culled?.edges.has(placed.id)) return null;
               const { selected, emphasis, flow, pulse } = lineLook?.(e) ?? {};
               return (
-                <DiagramEdge
+                <CanvasLine
                   key={placed.id}
-                  edge={edge}
-                  count={count}
-                  points={placed.points}
-                  layer={layerOf(index, e.from)}
-                  ends={{ from: nodeOf(index, e.from).label, to: nodeOf(index, e.to).label }}
+                  index={index}
+                  e={e}
+                  placed={placed}
                   selected={selected}
                   emphasis={emphasis}
-                  flow={flow ?? false}
+                  flow={flow}
                   pulse={pulse}
-                  data-inner={insideOneService(index, e) ? "" : undefined}
                 />
               );
             })}
@@ -456,19 +662,16 @@ export function DrillCanvas({
           <div ref={labelsRef} className="gi-drill__labels">
             {shown.layout.edges.map((placed) => {
               const e = edges.get(placed.id);
-              if (!e) return null;
-              const { edge, count } = drawnEdge(e);
+              if (!e || !culled?.edges.has(placed.id)) return null;
               const { selected, emphasis } = lineLook?.(e) ?? {};
               return (
-                <EdgeLabel
+                <CanvasPill
                   key={placed.id}
-                  edge={edge}
-                  count={count}
-                  layer={layerOf(index, e.from)}
+                  index={index}
+                  e={e}
+                  placed={placed}
                   selected={selected}
                   emphasis={emphasis}
-                  data-measured-width={edgeLabelSize(e).width}
-                  style={{ left: placed.label.x, top: placed.label.y }}
                 />
               );
             })}
