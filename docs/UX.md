@@ -98,6 +98,8 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 
 On the first visit to a diagram, show 3 dismissible hints in sequence (zoom in → select → trace). "Don't show again" is stored per browser.
 
+Done in M4b.12a (ADR-0127): one small card at the top of the canvas ("Tip 1 of 3", the title and a sentence, "Don't show again", Next). Breaking a node down, selecting one, or starting a trace moves on from the hint asking for it, as Next does; on the last, Done. Finishing them is remembered like "Don't show again"; the close button or Esc hides them for this visit only. A hint a deep link has already done, or one this repo can't do (nothing to trace), is left out. The website keeps the choice in `localStorage`.
+
 ## Keyboard and accessibility
 
 | Key | Action |

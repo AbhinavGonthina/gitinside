@@ -60,6 +60,7 @@ import { encodeState, withState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
+import { hintSteps, OnboardingHint, type HintStep, type OnboardingStore } from "./onboarding.js";
 import { NodePanel, TracePanel } from "./panels.js";
 import { traceChoices, TracePicker } from "./picker.js";
 import { SearchPalette, searchEntries } from "./search.js";
@@ -137,6 +138,12 @@ export interface ExplorerProps {
    * filters chip on the canvas opens the filters.
    */
   topBar?: boolean;
+  /**
+   * Shows the first-visit hints (zoom in → select → trace) unless `done()`,
+   * and `remember()`s when they're finished or turned off
+   * (`browserOnboarding()`: per browser). Without one, no hints.
+   */
+  onboarding?: OnboardingStore | undefined;
   /** Makes the layout worker (see `LayoutWorkerFactory`). Without one, layouts run on the main thread. */
   layoutWorker?: LayoutWorkerFactory | undefined;
 }
@@ -197,6 +204,7 @@ export function Explorer({
   linkTo = pageLink,
   exportRef,
   topBar = true,
+  onboarding,
   layoutWorker,
 }: ExplorerProps) {
   const index = useMemo(() => buildHierarchy(graph), [graph]);
@@ -444,11 +452,66 @@ export function Explorer({
   const selectedBox = selected ? drawnAs(index, view, filtered, selected) : undefined;
   const repo: RepoRef = graph.repo;
 
+  // First-visit hints (M4b.12a, UX.md "Onboarding"): chosen once from what
+  // the explorer opened with, after mount, so a server render (no storage)
+  // matches the first client one. Kept while the last one plays its exit.
+  const [hints, setHints] = useState<{ steps: readonly HintStep[]; at: number } | null>(null);
+  const [hintsOn, setHintsOn] = useState(false);
+  const hintState = usePresence(hintsOn);
+  const hintStart = useRef({
+    canBreakDown: [...view.byId.values()].some((n) => n.canOpen && !n.open),
+    opened: view.open.length > 0,
+    selected: selected !== null,
+    canTrace: startable !== undefined || choices.length > 0,
+    tracing,
+  });
+  const hintsChecked = useRef(false);
+  useEffect(() => {
+    if (hintsChecked.current || !onboarding) return;
+    hintsChecked.current = true;
+    if (onboarding.done()) return;
+    const steps = hintSteps(hintStart.current);
+    if (steps.length === 0) return;
+    setHints({ steps, at: 0 });
+    setHintsOn(true);
+  }, [onboarding]);
+
+  /** Next (or Done): the next hint, or, after the last, none, remembered. */
+  function nextHint() {
+    if (!hints) return;
+    if (hints.at + 1 < hints.steps.length) setHints({ ...hints, at: hints.at + 1 });
+    else endHints(true);
+  }
+
+  /**
+   * Hides the hints: for good (`remember`: Done, "Don't show again"), or for
+   * this visit (the close button, Esc). Focus inside goes to the selection's
+   * box or the first box, so the keys go on working.
+   */
+  function endHints(remember: boolean) {
+    if (remember) onboarding?.remember();
+    const root = rootRef.current;
+    if (root?.querySelector(".gi-hint")?.contains(document.activeElement)) {
+      const box = selectedBox ? boxElement(root, selectedBox) : null;
+      (
+        box ?? root.querySelector<HTMLElement>(".gi-drill__node:not([data-leaving]) > .gi-node")
+      )?.focus();
+    }
+    setHintsOn(false);
+  }
+
+  /** The reader did what a hint says: if it's the one showing, it moves on. */
+  function hintDone(step: HintStep) {
+    if (hintsOn && hints?.steps[hints.at] === step) nextHint();
+  }
+
   /** Selects a node (or none), saying what it connects to (UX.md). */
   function select(id: string | null) {
     setSelected(id);
-    if (id) setAnnouncement(selectionAnnouncement(index, id, hiddenKinds));
-    else if (selected) setAnnouncement("Selection cleared");
+    if (id) {
+      setAnnouncement(selectionAnnouncement(index, id, hiddenKinds));
+      hintDone("select");
+    } else if (selected) setAnnouncement("Selection cleared");
   }
 
   /**
@@ -480,6 +543,7 @@ export function Explorer({
     if (!n?.canOpen || n.open) return;
     drill.open(id);
     setAnnouncement(`Broke down ${n.node.label}`);
+    hintDone("zoom");
   }
 
   function goUp(): boolean {
@@ -596,6 +660,7 @@ export function Explorer({
     setStep(0);
     setPlaying(false);
     setAnnouncement(`Tracing from ${nodeOf(index, id).label}`);
+    hintDone("trace");
   }
 
   /**
@@ -723,7 +788,10 @@ export function Explorer({
       else zoomBy(event.key === "-" ? -1 : 1);
       event.preventDefault();
     } else if (event.key === "Escape") {
-      if (searching) closeSearch();
+      // Esc in a hint closes the hints (for this visit), nothing else.
+      if (hintsOn && event.target instanceof Element && event.target.closest(".gi-hint")) {
+        endHints(false);
+      } else if (searching) closeSearch();
       else if (picking) closePicker();
       else if (filtering) closeFilters();
       else if (legend) closeLegend();
@@ -807,6 +875,7 @@ export function Explorer({
   );
 
   const selectedView = selectedNode ? view.byId.get(selectedNode.id) : undefined;
+  const hint = hints?.steps[hints.at];
 
   /** The popover, under what opened it (the top bar's button, or the canvas's chip or button). */
   const filtersPopover = () =>
@@ -855,6 +924,24 @@ export function Explorer({
           onClick={() => select(null)}
           onFocus={(event) => followFocus(event.target)}
         >
+          {/* First in the canvas, so Tab meets the hint before the boxes it's about. */}
+          {hintState && hint !== undefined && hints && (
+            <div
+              className="gi-explorer__pin"
+              data-place="top-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <OnboardingHint
+                step={hint}
+                position={hints.at}
+                total={hints.steps.length}
+                state={hintState}
+                onNext={nextHint}
+                onClose={() => endHints(false)}
+                onNever={() => endHints(true)}
+              />
+            </div>
+          )}
           <DrillCanvas
             className="gi-explorer__drill"
             data-camera-motion={cameraMotion}

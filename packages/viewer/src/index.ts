@@ -265,6 +265,19 @@ export type { Png, ViewExport } from "./export/files.js";
 export { viewMermaid } from "./export/mermaid.js";
 export { renderViewSvg } from "./export/svg.js";
 export type { ViewSvgOptions } from "./export/svg.js";
+export {
+  browserOnboarding,
+  hintSteps,
+  memoryOnboarding,
+  ONBOARDING_KEY,
+  OnboardingHint,
+} from "./explorer/onboarding.js";
+export type {
+  HintContext,
+  HintStep,
+  OnboardingHintProps,
+  OnboardingStore,
+} from "./explorer/onboarding.js";
 export { Explorer } from "./explorer/Explorer.js";
 export type { ExplorerProps } from "./explorer/Explorer.js";
 export type { UiIconName } from "./chrome/uiIcons.js";

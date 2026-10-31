@@ -47,6 +47,19 @@ describe("explorer.css", () => {
     );
   });
 
+  it("brings a hint in without a fill and fades it out faster, like the other overlays (M4b.12a)", () => {
+    // An entrance with `both` stays in effect after it ends and moved Linux baselines (M4b.0e).
+    expect(body).toMatch(
+      /\.gi-hint \{[^}]*animation: gi-rise-in var\(--duration-standard\) var\(--ease-standard\);/,
+    );
+    expect(body).toMatch(
+      /\.gi-hint\[data-state="closing"\] \{[^}]*animation: gi-fade-out var\(--duration-fast\) var\(--ease-exit\) both;[^}]*pointer-events: none;/,
+    );
+    expect(body).toMatch(
+      /\.gi-hint__body \{[^}]*animation: gi-swap-in var\(--duration-standard\)[^;]*;/,
+    );
+  });
+
   it("never sets text in the trace color, which is only 3:1 in light (M4a review)", () => {
     // --trace meets the 3:1 graphics bar, not the 4.5:1 text bar, so the current
     // step is marked with a bar and its text stays --text.

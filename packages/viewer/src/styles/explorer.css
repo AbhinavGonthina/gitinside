@@ -106,6 +106,71 @@
   justify-items: end;
 }
 
+/* The first-visit hint (M4b.12a), centered at the top, clear of the corners' overlays. */
+.gi-explorer__pin[data-place="top-center"] {
+  top: var(--space-16);
+  left: 50%;
+  translate: -50% 0;
+  width: min(304px, calc(100% - 2 * var(--space-16)));
+}
+
+/*
+ * A hint is a small popover (elevation 2): it rises in like the other
+ * overlays and fades out faster; between hints only its words swap.
+ */
+.gi-hint {
+  box-sizing: border-box;
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-2);
+  user-select: text;
+  animation: gi-rise-in var(--duration-standard) var(--ease-standard);
+}
+
+.gi-hint[data-state="closing"] {
+  animation: gi-fade-out var(--duration-fast) var(--ease-exit) both;
+  pointer-events: none;
+}
+
+.gi-hint__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gi-hint__count {
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.gi-hint__body {
+  padding-right: var(--space-8);
+  animation: gi-swap-in var(--duration-standard) var(--ease-standard);
+}
+
+.gi-hint__body h2 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-semibold);
+}
+
+.gi-hint__body p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  line-height: 1.5;
+}
+
+.gi-hint__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  margin-top: var(--space-12);
+}
+
 .gi-explorer__map {
   display: flex;
   align-items: flex-end;

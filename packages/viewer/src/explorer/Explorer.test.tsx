@@ -1229,6 +1229,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "BrokenDown",
       "DrilledDeep",
       "Filters",
+      "Onboarding",
       "Outline",
       "Overview",
       "Search",
@@ -1261,6 +1262,18 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
         /^Unresolved \(No route in the repo matches\)\. The env var CMS_URL isn't named like an API base URL/,
       ),
     ).toBeTruthy();
+  });
+
+  it("show the first of three hints in the onboarding story, and none in the others", async () => {
+    const { container } = render(<all.Onboarding />);
+    await settle();
+    const hint = container.querySelector('.gi-hint[data-state="open"]');
+    expect(hint?.querySelector("h2")?.textContent).toBe("Zoom in");
+    expect(hint?.textContent).toContain("Tip 1 of 3");
+    cleanup();
+    const overview = render(<all.Overview />);
+    await settle();
+    expect(overview.container.querySelector(".gi-hint")).toBeNull();
   });
 
   it("open the trace picker and search it in the picker story", async () => {
