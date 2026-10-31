@@ -186,7 +186,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - `onTestFinished(() => vi.useRealTimers())` passes vitest but fails typecheck (the arrow returns `VitestUtils`, not `void`). Use a block body: `onTestFinished(() => { vi.useRealTimers(); })`.
 - In a full `pnpm test` (or the whole worker suite) here, a `job.test.ts` case that downloads from the fake GitHub server can fail with `DOWNLOAD_FAILED` instead of its expected code (M5.15b: a different case each run), while the file alone passes. If only such cases fail, rerun `pnpm --filter @gitinside/worker test -- job.test` and confirm on CI.
 - To wait on a long background job without polling, run `node -e "setTimeout(()=>{},540000)"` in the foreground (timeout ≤ 600000), then Read its output file. A headless run that ends its turn may not be re-invoked.
-- On this laptop `resourceUsage().maxRSS` is the peak working set, and it read below V8's heap (M5.16a: 7,335 vs 9,696 MiB) once memory was paged out. For a memory limit, record `process.memoryUsage().heapTotal` too, not RSS alone.<!-- lessons:end -->
+- On this laptop `resourceUsage().maxRSS` is the peak working set, and it read below V8's heap (M5.16a: 7,335 vs 9,696 MiB) once memory was paged out. For a memory limit, record `process.memoryUsage().heapTotal` too, not RSS alone.
+- An `at`-style fixed moment can't reproduce a bug from two statements each reading `now()` (one literal serves both). In a `db.transaction`, create a `public.now()` that returns a different time per call (a sequence), `set local search_path = public, pg_catalog`, call the code, then drop it (M5.16a2).<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
