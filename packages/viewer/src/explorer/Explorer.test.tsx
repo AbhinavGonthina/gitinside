@@ -7,8 +7,10 @@ import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { shopDemo, shopDemoSources } from "../shopDemo.testkit.js";
 import { durations } from "../tokens.js";
+import { decodeState, DEFAULT_STATE, encodeState, type ExplorerState } from "./deepLink.js";
 import * as stories from "./Explorer.stories.js";
 import { Explorer, PLAY_STEP_MS } from "./Explorer.js";
+import { traceFrom } from "./trace.js";
 
 const CHECKOUT = "page:web//checkout";
 
@@ -1361,5 +1363,84 @@ describe("Explorer filters", { timeout: 30_000 }, () => {
     await hidden.press("t");
     expect(screen.getByText("Step 1 of 8")).toBeTruthy();
     expect(filtersButton(hidden.container).textContent).toBe("Filters");
+  });
+});
+
+describe("Explorer deep links", { timeout: 30_000 }, () => {
+  const routeSteps = traceFrom(index, ROUTE).steps.length;
+
+  it("opens a linked trace at its step, with no `traceStart`", async () => {
+    await setup({ traceStart: undefined, initialTrace: ROUTE, initialStep: 1 });
+    expect(screen.getByText(`Step 2 of ${routeSteps}`)).toBeTruthy();
+    expect(screen.getByText("POST /api/orders", { selector: ".gi-status code" })).toBeTruthy();
+    cleanup();
+    // Its first step when no step is given; a start that can't be traced is ignored.
+    await setup({ traceStart: undefined, initialTrace: ROUTE });
+    expect(screen.getByText(`Step 1 of ${routeSteps}`)).toBeTruthy();
+    cleanup();
+    await setup({ traceStart: undefined, initialTrace: API });
+    expect(screen.queryByText(/^Step \d+ of/)).toBeNull();
+  });
+
+  it("opens with the linked connection kinds hidden", async () => {
+    const { container } = await setup({ initialOpen: [WEB], initialHiddenKinds: ["calls"] });
+    expect(container.querySelectorAll('.gi-edge[data-kind="calls"]')).toHaveLength(0);
+    expect(container.querySelectorAll('.gi-edge[data-kind="imports"]').length).toBeGreaterThan(0);
+  });
+
+  it("reports what a link keeps as it changes, not on the first render", async () => {
+    const onStateChange = vi.fn<(state: ExplorerState) => void>();
+    const { box, press, act } = await setup({ onStateChange, initialSelected: WEB });
+    expect(onStateChange).not.toHaveBeenCalled();
+    const last = () => encodeState(onStateChange.mock.lastCall?.[0] ?? DEFAULT_STATE);
+    await act(() => fireEvent.doubleClick(box(API) as HTMLElement));
+    expect(last()).toBe("open=service:api/&sel=service:web/");
+    fireEvent.click(box(ROUTE) as HTMLElement);
+    expect(last()).toBe("open=service:api/&sel=route:api/POST%20/api/orders");
+    await press("t");
+    expect(last()).toBe(
+      "open=service:api/&sel=route:api/POST%20/api/orders&trace=route:api/POST%20/api/orders",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(last()).toMatch(/&trace=route:api\/POST%20\/api\/orders&step=2$/);
+    // Ending the trace drops it from the link (the start is kept only for focus).
+    await press("Escape");
+    expect(last()).toBe("open=service:api/&sel=route:api/POST%20/api/orders");
+    // Closing a level, and the filters.
+    await press("Escape");
+    expect(last()).toBe("sel=route:api/POST%20/api/orders");
+    fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+    fireEvent.click(screen.getByRole("switch", { name: "Hide tests and config" }));
+    await settle();
+    expect(last()).toBe("sel=route:api/POST%20/api/orders&tests=shown");
+    // A state change a link doesn't keep (zoom) reports nothing.
+    const calls = onStateChange.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(onStateChange).toHaveBeenCalledTimes(calls);
+  });
+
+  it("reopens a reported state as it was", async () => {
+    const onStateChange = vi.fn<(state: ExplorerState) => void>();
+    const first = await setup({ onStateChange });
+    await first.act(() => fireEvent.doubleClick(first.box(API) as HTMLElement));
+    await first.act(() => fireEvent.doubleClick(first.box(SRC) as HTMLElement));
+    fireEvent.click(first.box(ROUTE) as HTMLElement);
+    await first.press("t");
+    const link = encodeState(onStateChange.mock.lastCall?.[0] ?? DEFAULT_STATE);
+    cleanup();
+    const { state } = decodeState(link, index);
+    const again = await setup({
+      traceStart: undefined,
+      initialOpen: state.open,
+      initialSelected: state.selected,
+      initialTrace: state.trace,
+      initialStep: state.step,
+      initialFilters: state.filters,
+      initialHiddenKinds: state.hiddenKinds,
+    });
+    expect(again.isOpen(API)).toBe(true);
+    expect(again.isOpen(SRC)).toBe(true);
+    expect(screen.getByText(`Step 1 of ${routeSteps}`)).toBeTruthy();
+    expect(again.crumbs()).toBe("shop-demo@shop/apisrc");
   });
 });

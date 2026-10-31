@@ -235,6 +235,8 @@ export { canTraceFrom, TRACE_DEPTH, traceFrom, traceNodes } from "./explorer/tra
 export type { Trace, TraceStep } from "./explorer/trace.js";
 export { createGitHubSourceLoader, MAX_SOURCE_BYTES } from "./explorer/sources.js";
 export type { GitHubSourceLoaderOptions, SourceLoader } from "./explorer/sources.js";
+export { decodeState, DEFAULT_STATE, encodeState, STATE_PARAMS } from "./explorer/deepLink.js";
+export type { DecodedState, ExplorerState, IgnoredParam } from "./explorer/deepLink.js";
 export { Explorer } from "./explorer/Explorer.js";
 export type { ExplorerProps } from "./explorer/Explorer.js";
 export type { UiIconName } from "./chrome/uiIcons.js";

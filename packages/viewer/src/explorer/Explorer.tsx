@@ -1,3 +1,4 @@
+import { compareStrings } from "@gitinside/schema";
 import type { ArchitectureGraph, EdgeKind, GraphNode } from "@gitinside/schema";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Button, StatusChip } from "../chrome/controls.js";
@@ -52,6 +53,7 @@ import {
   type Camera,
   type Size,
 } from "./camera.js";
+import { encodeState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
@@ -87,7 +89,13 @@ export interface ExplorerProps {
   initialOpen?: Expansion;
   /** Start with this node selected. */
   initialSelected?: string | null;
-  /** Start tracing from `traceStart`, at this step (0-based). */
+  /**
+   * Start tracing from this page or route (e.g. a deep link's `trace`), at
+   * `initialStep` or its first step. Ignored if it isn't in the graph or has
+   * no request path.
+   */
+  initialTrace?: string | null | undefined;
+  /** Start tracing at this step (0-based): from `initialTrace`, else from `traceStart`. */
   initialStep?: number | null;
   /**
    * Start at this zoom (clamped to 25–200%), centered on the first level, as
@@ -97,6 +105,16 @@ export interface ExplorerProps {
   initialZoom?: number | undefined;
   /** Start with these filters instead of `DEFAULT_FILTERS` (tests and config hidden). */
   initialFilters?: Filters | undefined;
+  /** Start with these connection kinds hidden instead of `DEFAULT_HIDDEN_KINDS` (imports). */
+  initialHiddenKinds?: readonly EdgeKind[] | undefined;
+  /**
+   * Called after the reader breaks down, closes, selects, traces, steps, or
+   * filters, with the state a deep link restores (`encodeState`); not for
+   * the state the explorer opened with, nor for changes a deep link doesn't
+   * keep (camera, play/pause). The initial props take a decoded state back
+   * (`decodeState`).
+   */
+  onStateChange?: ((state: ExplorerState) => void) | undefined;
   /**
    * Draw the explorer's own top bar (default). The website turns it off and shows its own
    * repo bar; Ctrl+K still searches, and a Filters button or the filters chip on the canvas
@@ -148,9 +166,12 @@ export function Explorer({
   traceStart,
   initialOpen = [],
   initialSelected = null,
+  initialTrace = null,
   initialStep = null,
   initialZoom,
   initialFilters = DEFAULT_FILTERS,
+  initialHiddenKinds,
+  onStateChange,
   topBar = true,
   layoutWorker,
 }: ExplorerProps) {
@@ -161,7 +182,9 @@ export function Explorer({
   const cache = useMemo(() => createLayoutCache(index, engine), [index, engine]);
   // The filters (M4b.8b): nodes and confidence levels, and connection kinds (imports off).
   const [filters, setFilters] = useState<Filters>(initialFilters);
-  const [hiddenKinds, setHiddenKinds] = useState<ReadonlySet<EdgeKind>>(DEFAULT_HIDDEN_KINDS);
+  const [hiddenKinds, setHiddenKinds] = useState<ReadonlySet<EdgeKind>>(() =>
+    initialHiddenKinds ? new Set(initialHiddenKinds) : DEFAULT_HIDDEN_KINDS,
+  );
   /** Every node the filters leave off the canvas. */
   const filtered = useMemo(() => hiddenNodes(index, filters), [index, filters]);
   const options = useMemo(() => filterOptions(index), [index]);
@@ -191,10 +214,12 @@ export function Explorer({
   const fallbackStart =
     traceStartNode && canTraceFrom(index, traceStartNode) ? traceStartNode.id : undefined;
   // The trace's start outlives the trace, so focus can go back to it on exit.
-  const [traced, setTraced] = useState<string | null>(
-    fallbackStart !== undefined && initialStep !== null ? fallbackStart : null,
-  );
-  const [step, setStep] = useState<number | null>(traced === null ? null : initialStep);
+  const [traced, setTraced] = useState<string | null>(() => {
+    const linked = initialTrace === null ? undefined : index.byId.get(initialTrace);
+    if (linked && canTraceFrom(index, linked)) return linked.id;
+    return fallbackStart !== undefined && initialStep !== null ? fallbackStart : null;
+  });
+  const [step, setStep] = useState<number | null>(traced === null ? null : (initialStep ?? 0));
   // A new graph without the traced node ends the trace rather than throwing.
   const path = useMemo(
     () => (traced && index.byId.has(traced) ? traceFrom(index, traced) : undefined),
@@ -322,6 +347,24 @@ export function Explorer({
     () => holders(index, view, filtered, tracing ? traceNodes(path) : []),
     [tracing, path, index, view, filtered],
   );
+  // What a deep link keeps (M4b.9): reported when it changes, not on the first render.
+  const openNow = new Set(view.open);
+  const linkState: ExplorerState = {
+    open: drill.expansion.filter((id) => openNow.has(id)),
+    selected,
+    trace: tracing ? traced : null,
+    step: tracing ? step : null,
+    filters,
+    hiddenKinds: [...hiddenKinds].sort(compareStrings),
+  };
+  const linkKey = encodeState(linkState);
+  const reportedKey = useRef(linkKey);
+  useEffect(() => {
+    if (reportedKey.current === linkKey) return;
+    reportedKey.current = linkKey;
+    onStateChange?.(linkState);
+  });
+
   const hopIds = useMemo(() => new Set(steps.map((s) => s.edge.id)), [steps]);
   /** The current hop's two ends as drawn: the boxes holding them (one box for a hop inside it). */
   const hopBoxes = useMemo(

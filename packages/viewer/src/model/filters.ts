@@ -282,8 +282,15 @@ export interface FilterOptions {
   folders: string[];
 }
 
-const LAYER_ORDER: readonly Layer[] = ["frontend", "backend", "data", "infra", "external"];
-const CONFIDENCE_ORDER: readonly Confidence[] = ["exact", "pattern", "heuristic", "unresolved"];
+/** Every layer, in the legend's order. */
+export const LAYER_ORDER: readonly Layer[] = ["frontend", "backend", "data", "infra", "external"];
+/** Every confidence level, strongest first. */
+export const CONFIDENCE_ORDER: readonly Confidence[] = [
+  "exact",
+  "pattern",
+  "heuristic",
+  "unresolved",
+];
 /** Connection kinds in the schema's order (code, then requests, then data and queues). */
 export const EDGE_KIND_ORDER: readonly EdgeKind[] = [
   "imports",
