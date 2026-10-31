@@ -1,6 +1,6 @@
 import type { ArchitectureGraph } from "@gitinside/schema";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { shopDemo } from "../shopDemo.testkit.js";
 import { Explorer } from "./Explorer.js";
 
@@ -108,6 +108,38 @@ describe("Explorer states", { timeout: 30_000 }, () => {
     // Clicked again with the overview already up, focus goes there too.
     (container.querySelector(".gi-explorer__warnings button") as HTMLElement).focus();
     fireEvent.click(screen.getByRole("button", { name: "2 warnings" }));
+    expect(document.activeElement).toBe(section);
+  });
+
+  it("focuses the warnings even when the chip is clicked before the last render's effects ran", async () => {
+    render(<Explorer graph={warned} initialSelected="service:api/" />);
+    await settle();
+    const drill = document.querySelector(".gi-drill") as HTMLElement;
+    const canvas = document.querySelector(".gi-explorer__canvas") as HTMLElement;
+    // A render outside act (a wheel pan), with React's Scheduler yielding
+    // after every task, so its effects wait for a later task, as they do on
+    // a loaded machine; the chip is clicked in between (M5.16b1).
+    const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    env.IS_REACT_ACT_ENVIRONMENT = false;
+    let time = performance.now();
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => (time += 10));
+    onTestFinished(() => {
+      clock.mockRestore();
+      env.IS_REACT_ACT_ENVIRONMENT = true;
+    });
+    await new Promise<void>((resolve) => {
+      new MutationObserver((_, observer) => {
+        observer.disconnect();
+        resolve();
+      }).observe(drill, { attributes: true, attributeFilter: ["style"] });
+      canvas.dispatchEvent(
+        new WheelEvent("wheel", { deltaY: 40, bubbles: true, cancelable: true }),
+      );
+    });
+    clock.mockRestore();
+    env.IS_REACT_ACT_ENVIRONMENT = true;
+    fireEvent.click(screen.getByRole("button", { name: "2 warnings" }));
+    const section = await screen.findByRole("region", { name: /^Warnings/ });
     expect(document.activeElement).toBe(section);
   });
 
