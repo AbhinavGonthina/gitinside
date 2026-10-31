@@ -157,7 +157,9 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - jsdom doesn't implement `inert`: focus left in a closing (inert) overlay stays there in tests, but a browser drops it to `<body>` and the explorer's keys stop working (M4b.6b). Check where focus lands after an overlay closes in the real-browser screenshot run too.
 - A Storybook `play` that presses a key on the explorer must wait (poll) for what it opens before querying it: React draws it on a later render.
 - `getByRole("option", { name: /…/ })` doesn't find the command palette's results (M4b.7), though they're there. Pick the option by `textContent` from `getAllByRole("option")`.
-- When one package fails in root `pnpm test`, turbo stops the rest, so a package can end with no result at all (M4b.7: viewer). Rerun each package that didn't finish with `pnpm --filter <pkg> test`.<!-- lessons:end -->
+- When one package fails in root `pnpm test`, turbo stops the rest, so a package can end with no result at all (M4b.7: viewer). Rerun each package that didn't finish with `pnpm --filter <pkg> test`.
+- An overlay closed through `usePresence` stays mounted (inert, `data-state="closing"`) in jsdom, so `querySelector(".gi-filters")` still finds it after Esc. Query `[data-state="open"]`, and scope role queries to the overlay: the canvas has its own `group` named "Connections".
+- A Storybook `play` (or script) that calls `.click()` doesn't focus the button, so code restoring focus to "the opener" gets `<body>`. Fall back to the control that opens it, and check focus after Esc in the browser run.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 

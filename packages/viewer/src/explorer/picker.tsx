@@ -63,10 +63,12 @@ export interface TracePickerProps {
   state: "open" | "closing";
   onPick: (id: string) => void;
   onClose: () => void;
+  /** Nodes the filters hide, marked in the list (tracing one shows it). */
+  hidden?: ReadonlySet<string> | undefined;
 }
 
 /** The picker dialog: the palette's shell, holding its own query and active row. */
-export function TracePicker({ choices, state, onPick, onClose }: TracePickerProps) {
+export function TracePicker({ choices, state, onPick, onClose, hidden }: TracePickerProps) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const results = useMemo(() => filterChoices(choices, query), [choices, query]);
@@ -76,6 +78,7 @@ export function TracePicker({ choices, state, onPick, onClose }: TracePickerProp
       placeholder="Trace from a page or route"
       pickVerb="trace"
       autoFocus
+      hidden={hidden}
       state={state}
       query={query}
       results={results}

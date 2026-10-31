@@ -561,6 +561,21 @@ a.gi-button {
   background: var(--gi-status);
 }
 
+/* A chip's text that opens what it's about (the filters chip opens the filters). */
+.gi-status__open {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.gi-status__open:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* The trace dot breathes with the trace hop; reduced motion holds it still. */
 .gi-status[data-tone="trace"] .gi-status__dot {
   animation: gi-status-pulse var(--duration-trace-hop) var(--ease-layout) infinite alternate;
@@ -630,6 +645,137 @@ a.gi-button {
   margin: 0;
   font-size: var(--font-size-14);
   font-weight: var(--font-weight-semibold);
+}
+
+/*
+ * The filters popover (M4b.8b): a column of quiet groups that scrolls inside
+ * the canvas. A choice is a pill pressed while what it names is shown; off,
+ * it goes muted with a dashed edge, so "hidden" never depends on color alone.
+ */
+.gi-filters {
+  display: grid;
+  /* One column as wide as the popover: the folder field's own width mustn't widen it. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-12);
+  width: 320px;
+  max-height: min(600px, calc(100vh - 140px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  user-select: text;
+}
+
+/* The tests switch sits at the left like the groups below, not stretched across. */
+.gi-filters__tests {
+  justify-self: start;
+}
+
+.gi-filters__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.gi-filters__group h3 {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+}
+
+.gi-filters__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gi-filters__choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 var(--space-8);
+  border: 1px dashed color-mix(in srgb, var(--text-muted) 60%, transparent);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--font-size-12);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.gi-filters__choice[aria-pressed="true"] {
+  border-style: solid;
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.gi-filters__choice:hover {
+  color: var(--text);
+}
+
+.gi-filters__count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gi-filters__folder {
+  display: flex;
+  gap: 6px;
+}
+
+.gi-filters__field {
+  box-sizing: border-box;
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+}
+
+.gi-filters__field::placeholder {
+  color: var(--text-muted);
+}
+
+.gi-filters__field[aria-invalid="true"] {
+  border-color: var(--diff-removed);
+}
+
+.gi-filters__problem {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+}
+
+.gi-filters__folders {
+  display: grid;
+  gap: 2px;
+  margin: var(--space-8) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gi-filters__folders li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  font-size: var(--font-size-13);
+}
+
+.gi-filters__folders code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  overflow-wrap: anywhere;
 }
 
 /* Two columns keep the legend short enough to open over a laptop-height canvas. */
@@ -1291,6 +1437,13 @@ code.gi-palette__name {
   flex: none;
   color: var(--text-muted);
   font-size: var(--font-size-12);
+  text-align: right;
+}
+
+/* A result the filters hide: said under its kind, since picking it shows it again. */
+.gi-palette__hidden {
+  display: block;
+  font-style: normal;
 }
 
 .gi-palette__empty {

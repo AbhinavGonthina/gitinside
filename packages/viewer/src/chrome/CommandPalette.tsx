@@ -43,6 +43,8 @@ export interface CommandPaletteProps {
   pickVerb?: string | undefined;
   /** Move focus into the field when it opens. */
   autoFocus?: boolean | undefined;
+  /** Nodes the filters hide: their results say so (picking one shows it). */
+  hidden?: ReadonlySet<string> | undefined;
 }
 
 /** Names drawn in the mono face (code-like), like on the canvas. */
@@ -74,6 +76,7 @@ export function CommandPalette({
   empty,
   pickVerb = "open",
   autoFocus = false,
+  hidden,
 }: CommandPaletteProps) {
   const id = useId();
   const listId = `${id}-results`;
@@ -181,7 +184,12 @@ export function CommandPalette({
                   </Name>
                   {r.path && <code className="gi-palette__path">{r.path}</code>}
                 </span>
-                <span className="gi-palette__kind">{kindName(r.node)}</span>
+                <span className="gi-palette__kind">
+                  {kindName(r.node)}
+                  {hidden?.has(r.node.id) && (
+                    <span className="gi-palette__hidden">Hidden by filters</span>
+                  )}
+                </span>
               </li>
             );
           })}

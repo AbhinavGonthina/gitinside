@@ -1,11 +1,21 @@
 // @vitest-environment node
-import type { ArchitectureGraph, GraphEdge, GraphNode } from "@gitinside/schema";
+import { EdgeKind } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
 import { shopDemo } from "../shopDemo.testkit.js";
 import {
+  SAMPLE_NEXT_CONFIG as NEXT_CONFIG,
+  SAMPLE_ORDERS_TEST as ORDERS_TEST,
+  SAMPLE_SPEC as SPEC,
+  SAMPLE_TESTS as TESTS,
+  withTestFiles,
+} from "./filterSamples.js";
+import {
   activeFilterCount,
   DEFAULT_FILTERS,
+  EDGE_KIND_ORDER,
+  filterOptions,
   filtersKey,
+  filtersShowing,
   hiddenNodes,
   isTestOrConfig,
   isUnder,
@@ -17,71 +27,9 @@ import {
 import { buildHierarchy } from "./hierarchy.js";
 import { buildView, effectiveOpen, type GraphView } from "./view.js";
 
-const HASH = "0".repeat(64);
-const file = (id: string, parentId: string, path: string): GraphNode => ({
-  id,
-  kind: "file",
-  label: path.split("/").pop() ?? path,
-  parentId,
-  path,
-  hash: HASH,
-});
-const fn = (file: string, name: string): GraphNode => ({
-  id: `symbol:${file.slice("file:".length)}#${name}`,
-  kind: "symbol",
-  label: name,
-  parentId: file,
-  symbolKind: "function",
-  exported: true,
-});
-const calls = (from: string, to: string): GraphEdge => ({
-  id: `calls:${from}->${to}`,
-  kind: "calls",
-  from,
-  to,
-  confidence: "exact",
-  sites: [],
-});
-
-// The shop demo plus what real repos carry next to the app: a test folder,
-// a spec beside its code, and a config file at a service's root.
-const TESTS = "module:api/src/__tests__";
-const ORDERS_TEST = "file:api/src/__tests__/orders.test.ts";
-const SPEC = "file:api/src/orders/handlers.spec.ts";
-const NEXT_CONFIG = "file:web/next.config.mjs";
+// The shop demo plus a test folder, a spec beside its code, and a config file.
 const CREATE = "symbol:api/src/orders/handlers.ts#createOrder";
-
-function withTests(): ArchitectureGraph {
-  const g = shopDemo();
-  return {
-    ...g,
-    nodes: [
-      ...g.nodes,
-      {
-        id: TESTS,
-        kind: "module",
-        label: "__tests__",
-        parentId: "module:api/src",
-        path: "apps/api/src/__tests__",
-      },
-      file(ORDERS_TEST, TESTS, "apps/api/src/__tests__/orders.test.ts"),
-      fn(ORDERS_TEST, "createsAnOrder"),
-      file(SPEC, "module:api/src/orders", "apps/api/src/orders/handlers.spec.ts"),
-      fn(SPEC, "listsOrders"),
-      file(NEXT_CONFIG, "service:web/", "apps/web/next.config.mjs"),
-    ],
-    edges: [
-      ...g.edges,
-      calls("symbol:api/src/__tests__/orders.test.ts#createsAnOrder", CREATE),
-      calls(
-        "symbol:api/src/orders/handlers.spec.ts#listsOrders",
-        "symbol:api/src/orders/handlers.ts#listOrders",
-      ),
-    ],
-  };
-}
-
-const index = buildHierarchy(withTests());
+const index = buildHierarchy(withTestFiles(shopDemo()));
 const shop = buildHierarchy(shopDemo());
 const ids = (view: GraphView) => view.nodes.map((n) => n.id);
 const lifted = (view: GraphView) =>
@@ -331,5 +279,125 @@ describe("buildView with filters", () => {
     const none = buildView(shop, ALL, { filters: NO_FILTERS });
     expect(ids(none)).toEqual(ids(plain));
     expect(none.edges).toEqual(plain.edges);
+  });
+});
+
+describe("filtersShowing", () => {
+  const shown = (i: typeof index, f: Filters, id: string) => {
+    const next = filtersShowing(i, f, id);
+    expect(hiddenNodes(i, next).has(id)).toBe(false);
+    return next;
+  };
+
+  it("returns the same filters when the node isn't hidden", () => {
+    const f = filters({ kinds: ["model"] });
+    expect(filtersShowing(shop, f, "route:api/GET /api/orders")).toBe(f);
+  });
+
+  it("takes off only the rules that hit the node or what holds it", () => {
+    // A symbol in a test file: the tests toggle goes, the kinds and layers stay.
+    const f = filters({ hideTestsAndConfig: true, kinds: ["model"], layers: ["external"] });
+    expect(shown(index, f, "symbol:api/src/__tests__/orders.test.ts#createsAnOrder")).toEqual(
+      filters({ kinds: ["model"], layers: ["external"] }),
+    );
+    // A route under a hidden layer and a hidden kind: both go, the rest stays.
+    const g = filters({ layers: ["backend", "external"], kinds: ["route", "model"] });
+    expect(shown(shop, g, "route:api/POST /api/orders")).toEqual(
+      filters({ layers: ["external"], kinds: ["model"] }),
+    );
+  });
+
+  it("drops the excluded folders holding it, and keeps the others", () => {
+    const f = filters({ exclude: ["./apps/api/", "apps/api/src/orders", "apps/web/lib"] });
+    expect(shown(shop, f, "symbol:api/src/orders/handlers.ts#createOrder")).toEqual(
+      filters({ exclude: ["apps/web/lib"] }),
+    );
+  });
+
+  it("adds the node's own path to the included folders", () => {
+    const f = filters({ include: ["apps/api/src/routes"] });
+    expect(shown(shop, f, "file:api/src/db.ts")).toEqual(
+      filters({ include: ["apps/api/src/db.ts", "apps/api/src/routes"] }),
+    );
+    // Nodes without a path take their file's.
+    expect(shown(shop, f, CREATE)).toEqual(
+      filters({ include: ["apps/api/src/orders/handlers.ts", "apps/api/src/routes"] }),
+    );
+  });
+
+  it("takes off one whole rule for a folder emptied by what's inside it, if that's enough", () => {
+    const f = filters({ exclude: ["apps/web/app/checkout/page.tsx"], kinds: ["model"] });
+    // Only the excluded file emptied the folder, so only the folders go.
+    expect(shown(shop, f, "module:web/app/checkout")).toEqual(filters({ kinds: ["model"] }));
+  });
+
+  it("takes off whole rules in order when no one rule is enough", () => {
+    // A folder whose only file is both a test and excluded: neither rule alone shows it.
+    const i = buildHierarchy({
+      ...index.graph,
+      nodes: [
+        ...index.graph.nodes,
+        {
+          id: "module:api/src/checks",
+          kind: "module",
+          label: "checks",
+          parentId: "module:api/src",
+          path: "apps/api/src/checks",
+        },
+        {
+          id: "file:api/src/checks/a.test.ts",
+          kind: "file",
+          label: "a.test.ts",
+          parentId: "module:api/src/checks",
+          path: "apps/api/src/checks/a.test.ts",
+          hash: "0".repeat(64),
+        },
+      ],
+    });
+    const f = filters({
+      hideTestsAndConfig: true,
+      exclude: ["apps/api/src/checks/a.test.ts"],
+      layers: ["data"],
+    });
+    expect(shown(i, f, "module:api/src/checks")).toEqual(filters({ layers: ["data"] }));
+  });
+
+  it("keeps hidden confidence levels: they hide lines, not nodes", () => {
+    const f = filters({ confidence: ["heuristic"], kinds: ["page"] });
+    expect(shown(shop, f, "page:web//checkout")).toEqual(filters({ confidence: ["heuristic"] }));
+  });
+});
+
+describe("filterOptions", () => {
+  it("offers only what the graph has, with counts, in a fixed order", () => {
+    const options = filterOptions(shop);
+    expect(options.layers.map((o) => o.value)).toEqual(["frontend", "backend", "data", "external"]);
+    expect(options.kinds.map((o) => o.value)).toEqual([
+      "route",
+      "page",
+      "symbol",
+      "model",
+      "datastore",
+      "external",
+      "unresolved",
+    ]);
+    expect(options.kinds.find((o) => o.value === "route")?.count).toBe(
+      shop.graph.nodes.filter((n) => n.kind === "route").length,
+    );
+    // Connection kinds in the schema's order, the way a request reads.
+    expect(EDGE_KIND_ORDER).toEqual(EdgeKind.options);
+    const kinds = options.edgeKinds.map((o) => o.value);
+    expect(kinds).toEqual(EDGE_KIND_ORDER.filter((k) => kinds.includes(k)));
+    expect(kinds[0]).toBe("imports");
+    expect(options.edgeKinds.reduce((n, o) => n + o.count, 0)).toBe(shop.graph.edges.length);
+    expect(options.confidence.reduce((n, o) => n + o.count, 0)).toBe(shop.graph.edges.length);
+  });
+
+  it("lists service roots and folders, sorted, for the folder field", () => {
+    const { folders } = filterOptions(index);
+    expect(folders).toContain("apps/api");
+    expect(folders).toContain("apps/api/src/__tests__");
+    expect(folders).not.toContain("apps/api/src/db.ts");
+    expect(folders).toEqual([...folders].sort());
   });
 });
