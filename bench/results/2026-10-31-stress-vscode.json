@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "date": "2026-10-31",
+    "repo": {
+      "name": "vscode",
+      "url": "https://github.com/microsoft/vscode",
+      "sha": "11ba54a90a0ff8720cf47c086f5a9948eef9cf2c"
+    },
+    "gitinsideSha": "a8a01cdcdbb589ae12f6dcd814caa8575551519d",
+    "analyzerVersion": "0.1.0",
+    "heapMb": 12288,
+    "machine": {
+      "label": "dev machine",
+      "cpu": "13th Gen Intel(R) Core(TM) i7-13700H",
+      "cores": 20,
+      "ramGiB": 15.6,
+      "os": "win32 10.0.26300",
+      "node": "v22.13.0"
+    },
+    "limits": {
+      "maxTarBytes": 524288000,
+      "maxEntries": 100000,
+      "maxSourceFiles": 20000,
+      "maxHeapMb": 3072,
+      "timeoutMs": 300000
+    }
+  },
+  "data": {
+    "download": {
+      "compressedBytes": 67062901,
+      "ms": 9697.4398
+    },
+    "extraction": {
+      "tarBytes": 343408640,
+      "entries": 25233,
+      "files": 20722,
+      "directories": 4510,
+      "skipped": 1,
+      "ms": 68989.6011
+    },
+    "inventory": {
+      "files": 20098,
+      "sourceFiles": 15184,
+      "warnings": 72,
+      "ms": 24187.242200000008
+    },
+    "runs": [
+      {
+        "ok": true,
+        "result": {
+          "totalMs": 875894.7567,
+          "stages": {
+            "inventory": 21100.162,
+            "workspace": 8.6916999999994,
+            "programs": 156330.3464,
+            "imports": 28433.90829999998,
+            "express": 431.8460999999952,
+            "next": 1.8006999999925029,
+            "prisma": 8.55370000001858,
+            "infra": 94.8408000000054,
+            "files": 36680.537899999996,
+            "symbols": 1674.4886999999871,
+            "calls": 221332.73780000003,
+            "http": 325043.0584,
+            "sdk": 61015.30680000002,
+            "queues": 2315.883700000006,
+            "assemble": 19616.064000000013
+          },
+          "maxRssBytes": 7691747328,
+          "heapTotalBytes": 10167328768,
+          "graphSha256": "ffbc52027c055b7ac9953356fb789c86d146736ed64c9a438ee9e1cd50b2b0e2",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 1,
+            "nodes.module": 2644,
+            "nodes.file": 15184,
+            "nodes.symbol": 131566,
+            "nodes.unresolved": 1456,
+            "nodes.external": 6,
+            "edges.imports": 154078,
+            "edges.calls": 250703,
+            "edges.external_call": 17,
+            "edges.http": 128,
+            "warnings": 93
+          }
+        }
+      }
+    ]
+  }
+}

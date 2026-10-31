@@ -149,11 +149,12 @@ describe("renderStressReport", () => {
   it("prints the limits table, the first limit hit, and the measured numbers", () => {
     const md = renderStressReport(META, data([{ ok: true, result: result() }]));
     expect(md).toContain("https://github.com/x/big at `abc`");
-    expect(md).toContain("analyzed once in a fresh Node process each");
+    expect(md).toContain("analyzed once in a fresh Node process per run");
     expect(md).toContain("heap 12,288 MB instead of 3,072 MB");
     expect(md).toContain("| `LIMIT_SIZE` | extraction | 500 MiB | 700 MiB | **over** |");
     expect(md).toContain("| `LIMIT_ENTRIES` | extraction | 100,000 | 12,000 | within |");
     expect(md).toContain("**First limit hit in production:** `LIMIT_SIZE`, during extraction.");
+    expect(md).toContain("| `LIMIT_MEMORY` | analysis | 3,072 MB heap |");
     expect(md).toContain("| Tarball (gzipped) | 90 MiB (94.4 MB) |");
     expect(md).toContain("| Source files (`LIMIT_FILES` counts these) | 25,000 |");
     expect(md).toContain(
@@ -164,6 +165,19 @@ describe("renderStressReport", () => {
     expect(md.indexOf("| edges.calls |")).toBeLessThan(md.indexOf("| nodes.file |"));
     // One run: nothing to compare graphs with.
     expect(md).not.toContain("Graphs identical");
+  });
+
+  it("names every limit passed in the earliest step, since their order there isn't measured", () => {
+    const md = renderStressReport(
+      META,
+      data([{ ok: true, result: result() }], {
+        extraction: { tarBytes: MIB, entries: 3, files: 2, directories: 1, skipped: 0, ms: 1 },
+        inventory: { files: 2, sourceFiles: 2, warnings: 0, ms: 1 },
+      }),
+    );
+    expect(md).toContain(
+      "**First limit hit in production:** `LIMIT_MEMORY` or `LIMIT_TIME`, during analysis, whichever the job reaches first (these numbers don't say which).",
+    );
   });
 
   it("reports failed runs and compares graphs across runs that finished", () => {

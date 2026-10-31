@@ -151,7 +151,7 @@ export function checkLimits(limits: ProductionLimits, data: StressData): LimitCh
       {
         code: "LIMIT_MEMORY",
         where: "analysis",
-        limit: `${limits.maxHeapMb} MB heap`,
+        limit: `${count(limits.maxHeapMb)} MB heap`,
         measured: "no run finished",
         over: null,
       },
@@ -170,7 +170,7 @@ export function checkLimits(limits: ProductionLimits, data: StressData): LimitCh
     {
       code: "LIMIT_MEMORY",
       where: "analysis",
-      limit: `${limits.maxHeapMb} MB heap`,
+      limit: `${count(limits.maxHeapMb)} MB heap`,
       measured: `peak RSS ${mib(run.maxRssBytes)}, final heap ${mib(heap)}`,
       over: heap > heapCap ? true : run.maxRssBytes <= heapCap ? false : null,
     },
@@ -188,11 +188,27 @@ export function checkLimits(limits: ProductionLimits, data: StressData): LimitCh
 const verdict = (over: boolean | null): string =>
   over === null ? "can't tell" : over ? "**over**" : "within";
 
+/**
+ * The report's "first limit hit" line. Steps run one after another, so the earliest step with
+ * a limit passed is known; within a step (size and entries while extracting, memory and time
+ * while analyzing) the limits are checked together and the benchmark doesn't measure which
+ * one a capped job would reach first, so all of that step's are named.
+ */
+function firstHit(checks: readonly LimitCheck[]): string {
+  const first = checks.find((c) => c.over === true);
+  if (first === undefined) return "**First limit hit in production:** none of the limits above.";
+  const codes = checks
+    .filter((c) => c.where === first.where && c.over === true)
+    .map((c) => `\`${c.code}\``);
+  return codes.length === 1
+    ? `**First limit hit in production:** ${codes.join("")}, during ${first.where}.`
+    : `**First limit hit in production:** ${codes.join(" or ")}, during ${first.where}, whichever the job reaches first (these numbers don't say which).`;
+}
+
 /** Render the committed Markdown report. Numbers are printed exactly as measured. */
 export function renderStressReport(meta: StressMeta, data: StressData): string {
   const m = meta.machine;
   const checks = checkLimits(meta.limits, data);
-  const first = checks.find((c) => c.over === true);
   const run = firstOk(data.runs);
   const okRuns = data.runs.filter((r) => r.ok);
   const identical =
@@ -206,7 +222,7 @@ export function renderStressReport(meta: StressMeta, data: StressData): string {
     "",
     `- **Repo:** ${meta.repo.url} at \`${meta.repo.sha}\``,
     `- **Analyzer:** ${meta.analyzerVersion} (gitinside \`${meta.gitinsideSha}\`)`,
-    `- **Method:** the repo's tarball downloaded like the worker does, extracted with the worker's extractor, then analyzed ${data.runs.length === 1 ? "once" : `${data.runs.length} times`} in a fresh Node process each, with production's limits lifted (size, entries, source files; heap ${count(meta.heapMb)} MB instead of ${count(meta.limits.maxHeapMb)} MB; no time limit). Parse only: nothing in the repo is installed or run.`,
+    `- **Method:** the repo's tarball downloaded like the worker does, extracted with the worker's extractor, then analyzed ${data.runs.length === 1 ? "once" : `${data.runs.length} times`} in a fresh Node process per run, with production's limits lifted (size, entries, source files; heap ${count(meta.heapMb)} MB instead of ${count(meta.limits.maxHeapMb)} MB; no time limit). Parse only: nothing in the repo is installed or run.`,
     `- **Machine:** ${m.label}: ${m.cpu} (${m.cores} logical cores), ${m.ramGiB} GiB RAM, ${m.os}, Node ${m.node}`,
     ...(identical === null
       ? []
@@ -220,9 +236,7 @@ export function renderStressReport(meta: StressMeta, data: StressData): string {
       (c) => `| \`${c.code}\` | ${c.where} | ${c.limit} | ${c.measured} | ${verdict(c.over)} |`,
     ),
     "",
-    first === undefined
-      ? "**First limit hit in production:** none of the limits above."
-      : `**First limit hit in production:** \`${first.code}\`, during ${first.where}.`,
+    firstHit(checks),
     "",
     "## Download and extraction",
     "",
