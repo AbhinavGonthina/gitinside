@@ -17,6 +17,20 @@ For each repo in `repos.json` (pinned SHA), `src/analysis.ts`:
 
 Every run also hashes the canonical graph bytes; the report says whether all runs produced the same graph.
 
+## Stress (very large repos)
+
+```sh
+pnpm bench:stress                       # from the repo root; builds first
+pnpm bench:stress -- --runs 2 --heap-mb 12288 --label "laptop"
+```
+
+For each repo in `repos.json` `stress` (pinned SHA; microsoft/vscode, #10), `src/stress.ts` measures what production would meet, without production's limits:
+
+1. Downloads the tarball the way the worker does (`openTarball`) to `bench/.repos/<name>-<sha7>.tar.gz` and extracts it with the worker's own `extractTarball`, its 500 MiB and 100,000-entry limits lifted, so the decompressed size and entry count are the numbers those limits check. Both are recorded in `bench/.repos/<name>-<sha7>.json`; a rerun reuses the tree. Nothing in it is installed or run.
+2. Takes the analyzer's inventory with the 20,000-source-file limit lifted (the exact `LIMIT_FILES` count).
+3. Runs `analyze` `--runs` times (default 1, no warm-up), each in a fresh Node process with `--max-old-space-size` from `--heap-mb` (default 12,288 instead of the worker's 3,072), no time limit, and the file limit lifted.
+4. Writes `results/<date>-stress-<name>.md`: every production limit (`LIMIT_SIZE`, `LIMIT_ENTRIES`, `LIMIT_FILES`, `LIMIT_MEMORY`, `LIMIT_TIME`, read from the code that enforces them) against what was measured, the first one a job would hit, per-stage times with when each ended (so the stage running at 5 minutes is known), and the graph size; the raw numbers go in the `.json` next to it. Observations are added by hand.
+
 ## Render fps
 
 ```sh

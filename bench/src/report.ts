@@ -8,6 +8,8 @@ export interface RunResult {
   stages: Record<string, number>;
   /** Peak resident set size of the run's process, in bytes. */
   maxRssBytes: number;
+  /** V8's heap size when `analyze` returned, in bytes (a floor for the peak heap). */
+  heapTotalBytes?: number;
   /** SHA-256 of the canonical graph bytes, to check runs agree. */
   graphSha256: string;
   /** Node counts by kind, plus edge and warning totals. */

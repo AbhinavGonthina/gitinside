@@ -22,9 +22,19 @@ export interface BenchRepo {
 
 /** The repos the analysis benchmark runs on (bench/repos.json `analysis`). */
 export async function benchRepos(): Promise<BenchRepo[]> {
-  return (
-    JSON.parse(await readFile(join(BENCH, "repos.json"), "utf8")) as { analysis: BenchRepo[] }
-  ).analysis;
+  return (await reposFile()).analysis;
+}
+
+/** The repos the stress benchmark runs on (bench/repos.json `stress`). */
+export async function stressRepos(): Promise<BenchRepo[]> {
+  return (await reposFile()).stress;
+}
+
+async function reposFile(): Promise<{ analysis: BenchRepo[]; stress: BenchRepo[] }> {
+  return JSON.parse(await readFile(join(BENCH, "repos.json"), "utf8")) as {
+    analysis: BenchRepo[];
+    stress: BenchRepo[];
+  };
 }
 
 /** Run git with LFS smudging off, so checkout never downloads or runs anything extra. */
