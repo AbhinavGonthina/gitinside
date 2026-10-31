@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.14b Website visual tests (M5.13 and M5.14b wait on #3)
+M4b.15 Milestone verification + M4b-review.md + tag m4 (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -111,7 +111,7 @@ M4b.14b Website visual tests (M5.13 and M5.14b wait on #3)
 - [x] M4b.13b1 `bench/render`: a synthetic and a real graph (cal.com) at 500 / 1,000 / 2,000 visible nodes, Playwright pans and zooms for 10 s, fps from `requestAnimationFrame` deltas (median, p5), `bench/results/` report; tests {model: opus}
 - [x] M4b.13b2 Fix what keeps 2,000 visible nodes from 60fps in M4b.13b1's report: pan/zoom already holds 59.9fps (synthetic 2,000, cal.com 1,000), but cal.com's first ELK layout takes 56 s at 1,000 visible nodes and doesn't finish in 10 min at 2,000, so it can't be measured there. Profile the layout (ELK options, compound depth, edge count), fix, re-run `pnpm bench:render`, commit the new report {model: opus}
 - [x] M4b.14a Explorer E2E on the website (ADR-0132): a `seeded` server of the production build on PGlite over the wire protocol with one finished analysis of `fixtures/shop-demo`, the graph and GitHub reads answered by the test; load (Web Worker layout under the CSP, tips), drill down (double-click, Enter, Esc), select, trace + deep link across a reload, code preview from GitHub + Open on GitHub at the line {model: opus}
-- [ ] M4b.14b Website visual tests: key screens (landing, the repo page's diagram, a selection, a trace) in dark and light against Linux baselines in CI's `web-e2e` container, captured by the "Visual baselines" workflow; skipped off Linux {model: opus}
+- [x] M4b.14b Website visual tests: key screens (landing, the repo page's diagram, a selection, a trace) in dark and light against Linux baselines in CI's `web-e2e` container, captured by the "Visual baselines" workflow; skipped off Linux {model: opus}
 - [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
 
 ### M5: Website (public) + live badge
@@ -224,6 +224,8 @@ M4b.14b Website visual tests (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.14b** Website visual tests (ADR-0133): a `visual` Playwright project on the seeded server shoots landing, diagram, selection (code colored), and trace (step 3) in dark and light at 1280×800 against `apps/web/e2e/baselines/`, compared by CI's `web-e2e` job, captured by the Visual baselines workflow's new `capture-web` job; skipped off Linux. The first capture showed the repo page stretched to 1110px by a long inspector (minimap and legend below the window): the explorer is now pinned to the canvas's box, with a new E2E (977px before, red). Still weak for M4b.15: after a drill-down the camera sits at 40% with Stripe/db under the inspector, and a trace's inspector scrolls the step title out of view. Web only, no eval delta.
 
 - **2026-10-31 M4b.14a** Explorer E2E on the website (ADR-0132). M4b.14 split: E2E now, website visual baselines as 14b. A second `next start` of the production build (`seeded`) reads PGlite in memory served over Postgres's wire protocol (`@electric-sql/pglite-socket`, `e2e/database.ts`), migrated and seeded with one finished analysis of `fixtures/shop-demo` through the db package's own functions; the tests answer `/api/graph` and `raw.githubusercontent.com` with the fixture. 4 tests in `explorer.e2e.ts` (load + worker + tips, drill down, select + trace + deep link across a reload, code preview + Open on GitHub); 17/17 E2E locally, no Docker. A mutation (CSP `connect-src` without GitHub's raw origin) turned two red. Web only, lockfile changed (eval report regenerated).
 
