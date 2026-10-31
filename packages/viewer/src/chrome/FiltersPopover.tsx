@@ -103,7 +103,10 @@ function flip<T>(list: readonly T[], value: T): T[] {
  * has is offered), and a folder field to show one folder alone or hide it.
  * A choice is pressed while what it names is shown. A folder that isn't in
  * the graph is refused with a message rather than filtering nothing. It's
- * a non-modal popover: Esc or the close button closes it.
+ * a non-modal popover: Esc or the close button closes it. Focus never drops
+ * out of it to the page (M4b.15d): Clear moves it to the tests switch as it
+ * turns itself off, and a folder chip's remove button to the next chip, the
+ * one before, or the folder field.
  */
 export function FiltersPopover({
   options,
@@ -146,6 +149,28 @@ export function FiltersPopover({
     event.preventDefault();
     addFolder("exclude");
   };
+  // Clear turns itself off and a folder chip's button goes with it, so focus on
+  // either moves first (to a control that stays) rather than being lost.
+  const hasFocus = () => root.current?.contains(document.activeElement) ?? false;
+  const clear = () => {
+    if (hasFocus()) root.current?.querySelector<HTMLElement>("[role=switch]")?.focus();
+    onClear?.();
+  };
+  /** Takes a folder chip off: focus goes to the next chip, else the one before, else the field. */
+  const removeFolder = (button: HTMLElement, patch: Partial<Filters>) => {
+    if (hasFocus()) {
+      const chips = [
+        ...(root.current?.querySelectorAll<HTMLElement>(".gi-filters__folders button") ?? []),
+      ];
+      const at = chips.indexOf(button);
+      (
+        chips[at + 1] ??
+        chips[at - 1] ??
+        root.current?.querySelector<HTMLElement>(".gi-filters__field")
+      )?.focus();
+    }
+    change(patch);
+  };
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== "Escape" || event.defaultPrevented) return;
     event.preventDefault();
@@ -166,7 +191,7 @@ export function FiltersPopover({
       <header className="gi-popover__header">
         <h2>Filters</h2>
         <span className="gi-filters__actions">
-          <Button variant="quiet" size="sm" disabled={!onClear} onClick={onClear}>
+          <Button variant="quiet" size="sm" disabled={!onClear} onClick={clear}>
             Clear
           </Button>
           {onClose && <IconButton icon="close" label="Close filters" size="sm" onClick={onClose} />}
@@ -257,7 +282,11 @@ export function FiltersPopover({
                     icon="close"
                     size="sm"
                     label={`Stop showing only ${f}`}
-                    onClick={() => change({ include: filters.include.filter((x) => x !== f) })}
+                    onClick={(e) =>
+                      removeFolder(e.currentTarget, {
+                        include: filters.include.filter((x) => x !== f),
+                      })
+                    }
                   />
                 </li>
               ))}
@@ -270,7 +299,11 @@ export function FiltersPopover({
                     icon="close"
                     size="sm"
                     label={`Show ${f} again`}
-                    onClick={() => change({ exclude: filters.exclude.filter((x) => x !== f) })}
+                    onClick={(e) =>
+                      removeFolder(e.currentTarget, {
+                        exclude: filters.exclude.filter((x) => x !== f),
+                      })
+                    }
                   />
                 </li>
               ))}

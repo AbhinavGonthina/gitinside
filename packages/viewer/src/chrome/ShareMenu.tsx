@@ -51,6 +51,13 @@ export interface ShareMenuProps {
   variant?: ButtonVariant;
   size?: "sm" | "md";
   className?: string | undefined;
+  /**
+   * Open or closed, when its owner decides (e.g. a page bar with one menu
+   * open at a time); unset, the menu keeps its own state.
+   */
+  open?: boolean | undefined;
+  /** Called with `true` when the button asks to open, `false` when Esc, the button, or a press outside closes it. */
+  onOpenChange?: ((open: boolean) => void) | undefined;
 }
 
 type CopyState = "idle" | "copied" | "failed";
@@ -67,6 +74,10 @@ type CopyState = "idle" | "copied" | "failed";
  * view on screen as an SVG or a PNG (the SVG at {@link PNG_SCALE}×) in the
  * chosen theme (the screen's, to start with), or as Mermaid, saved or
  * copied. Every file is made in the browser; nothing is uploaded.
+ *
+ * With `open` and `onOpenChange`, its owner decides when it's open, so a bar
+ * with another menu (the website's Add to README) keeps one open at a time
+ * (M4b.15d).
  */
 export function ShareMenu({
   link,
@@ -74,8 +85,15 @@ export function ShareMenu({
   variant = "quiet",
   size = "md",
   className,
+  open: openProp,
+  onOpenChange,
 }: ShareMenuProps) {
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = openProp ?? ownOpen;
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next);
+    onOpenChange?.(next);
+  };
   const state = usePresence(open);
   const [copy, setCopy] = useState<CopyState>("idle");
   const [theme, setTheme] = useState<Theme>("dark");
@@ -95,9 +113,15 @@ export function ShareMenu({
     if (state === "open") root.current?.querySelector<HTMLElement>(".gi-share__copy")?.focus();
   }, [state]);
 
-  // Each open starts on the screen's theme.
+  // Each open starts on the screen's theme; each close (its own, or its owner's) forgets what it said.
   useEffect(() => {
-    if (open) setTheme(themeAround(root.current));
+    if (open) {
+      setTheme(themeAround(root.current));
+      return;
+    }
+    clearTimeout(timer.current);
+    setCopy("idle");
+    setExportStatus("");
   }, [open]);
 
   useEffect(() => {
@@ -115,9 +139,6 @@ export function ShareMenu({
     if (inside && !stay)
       root.current?.querySelector<HTMLButtonElement>(".gi-share-menu__trigger")?.focus();
     else if (inside && document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    clearTimeout(timer.current);
-    setCopy("idle");
-    setExportStatus("");
     setOpen(false);
   }
 

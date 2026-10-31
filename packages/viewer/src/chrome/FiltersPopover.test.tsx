@@ -1,5 +1,6 @@
 import { EdgeKind, type Confidence } from "@gitinside/schema";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FILTER_KINDS, NO_FILTERS, type FilterOptions, type Filters } from "../model/filters.js";
 import { CONNECTION_NAMES, FiltersPopover, KIND_PLURALS } from "./FiltersPopover.js";
@@ -162,6 +163,55 @@ describe("FiltersPopover", () => {
     expect(outer.mock.results[0]?.value).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  /** The popover over filters it keeps itself, Clear on only while something is filtered (like the explorer's). */
+  function Stateful({ initial }: { initial: Filters }) {
+    const [filters, setFilters] = useState(initial);
+    const filtered = filters.include.length + filters.exclude.length + filters.layers.length > 0;
+    return (
+      <FiltersPopover
+        options={OPTIONS}
+        filters={filters}
+        hiddenKinds={new Set()}
+        onFiltersChange={setFilters}
+        onClear={filtered ? () => setFilters(NO_FILTERS) : undefined}
+        onClose={() => {}}
+      />
+    );
+  }
+
+  it("keeps focus in the popover when Clear turns itself off", () => {
+    render(<Stateful initial={{ ...NO_FILTERS, layers: ["backend"] }} />);
+    const clear = screen.getByRole("button", { name: "Clear" }) as HTMLButtonElement;
+    clear.focus();
+    fireEvent.click(clear);
+    expect(clear.disabled).toBe(true);
+    expect(document.activeElement).toBe(
+      screen.getByRole("switch", { name: "Hide tests and config" }),
+    );
+  });
+
+  it("moves focus to the next folder chip when one is taken off, then to the field", () => {
+    render(<Stateful initial={{ ...NO_FILTERS, include: ["apps/api"], exclude: ["apps/web"] }} />);
+    const first = screen.getByRole("button", { name: "Stop showing only apps/api" });
+    first.focus();
+    fireEvent.click(first);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Show apps/web again" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show apps/web again" }));
+    expect(document.activeElement).toBe(screen.getByRole("combobox", { name: "Folders" }));
+  });
+
+  it("moves focus to the chip before when the last one is taken off", () => {
+    render(<Stateful initial={{ ...NO_FILTERS, include: ["apps/api"], exclude: ["apps/web"] }} />);
+    const last = screen.getByRole("button", { name: "Show apps/web again" });
+    last.focus();
+    fireEvent.click(last);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Stop showing only apps/api" }),
+    );
   });
 
   it("disables Clear with nothing to clear, and is inert while closing", () => {

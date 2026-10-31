@@ -60,6 +60,27 @@ describe("ShareMenu", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Copy link" }));
   });
 
+  it("can be opened and closed by its owner, reporting its own opens and closes", () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <ShareMenu link={() => LINK} open={false} onOpenChange={onOpenChange} />,
+    );
+    const button = screen.getByRole("button", { name: "Share" });
+    fireEvent.click(button);
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    // Still closed until the owner says so.
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    rerender(<ShareMenu link={() => LINK} open onOpenChange={onOpenChange} />);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(panel()).not.toBeNull();
+    fireEvent.keyDown(field(), { key: "Escape" });
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    // Closed from outside (another menu opened): the panel goes.
+    rerender(<ShareMenu link={() => LINK} open={false} onOpenChange={onOpenChange} />);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(panel()).toBeNull();
+  });
+
   it("copies the link, says so, and goes back to Copy link", async () => {
     vi.useFakeTimers();
     const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue();

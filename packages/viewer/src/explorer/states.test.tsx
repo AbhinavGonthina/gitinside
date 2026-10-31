@@ -62,6 +62,18 @@ describe("Explorer states", { timeout: 30_000 }, () => {
     expect(within(skipped).getByText("symbolic link not followed")).toBeTruthy();
   });
 
+  it("nests the no-app card's headings without skipping a level", () => {
+    const { container } = render(<Explorer graph={noApp} topBar={false} />);
+    const levels = [...container.querySelectorAll("h1, h2, h3, h4, h5, h6")].map((h) =>
+      Number(h.tagName.slice(1)),
+    );
+    // The card's title, "What the analysis skipped", then each group's title.
+    expect(levels[0]).toBe(2);
+    expect(levels).toContain(4);
+    for (const [i, level] of levels.entries())
+      if (i > 0) expect(level).toBeLessThanOrEqual((levels[i - 1] ?? 0) + 1);
+  });
+
   it("shows no warnings section when there are none", () => {
     render(<Explorer graph={{ ...noApp, warnings: [] }} topBar={false} />);
     expect(screen.queryByRole("region", { name: "Warnings" })).toBeNull();

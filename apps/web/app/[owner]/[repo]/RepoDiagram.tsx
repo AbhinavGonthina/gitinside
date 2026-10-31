@@ -61,7 +61,8 @@ const onboarding = browserOnboarding();
  * Deep links (M4b.9b, ADR-0123): the explorer opens from the page's query (`decodeState`
  * against the loaded graph), and each change it reports replaces the query in place
  * (`history.replaceState`, no new history entry). What part of a link this commit doesn't
- * have is named in a note above the diagram. Copy link gives the commit's permalink with
+ * have is named in a note above the diagram (read out through a live region that's there
+ * from the start; dismissing it moves focus into the diagram). Copy link gives the commit's permalink with
  * the state. Export (M4b.10b) saves the view the explorer has drawn (its `exportRef`) as
  * SVG, PNG, or Mermaid, made in the browser.
  *
@@ -95,6 +96,21 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
   const linkQuery = query ?? (linked ? encodeState(linked.state) : "");
   const [dismissed, setDismissed] = useState<DecodedState>();
   const note = linked && linked !== dismissed ? ignoredNote(linked.ignored, sha) : undefined;
+  const canvas = useRef<HTMLDivElement>(null);
+  // Add to README and Share share a spot under the bar, so only one is open at a time.
+  const [menu, setMenu] = useState<"readme" | "share">();
+  const openMenu = (which: "readme" | "share", open: boolean) =>
+    setMenu((current) => (open ? which : current === which ? undefined : current));
+
+  /** Hides the note; its Dismiss had focus, so focus goes on to the diagram, next in the page. */
+  const dismissNote = () => {
+    const button = document.activeElement;
+    setDismissed(linked);
+    if (button instanceof HTMLElement && button.closest(".diagram-page__note"))
+      canvas.current
+        ?.querySelector<HTMLElement>("a[href], button:not(:disabled), input, [tabindex='0']")
+        ?.focus();
+  };
 
   const onStateChange = (state: ExplorerState) => {
     const next = encodeState(state);
@@ -148,10 +164,17 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
             {error}
           </p>
         )}
-        <AddToReadme owner={owner} repo={repo} />
+        <AddToReadme
+          owner={owner}
+          repo={repo}
+          open={menu === "readme"}
+          onOpenChange={(open) => openMenu("readme", open)}
+        />
         <ShareMenu
           variant="secondary"
           size="sm"
+          open={menu === "share"}
+          onOpenChange={(open) => openMenu("share", open)}
           link={() => shareUrl(window.location.origin, owner, repo, sha, linkQuery)}
           exports={() => exportRef.current}
         />
@@ -159,13 +182,17 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
           Open on GitHub
         </a>
       </div>
+      {/* Mounted empty with the page, so the note arriving is a change a screen reader reads. */}
+      <p className="visually-hidden" aria-live="polite">
+        {note ?? ""}
+      </p>
       {note && (
         <div className="diagram-page__note">
-          <p role="status">{note}</p>
-          <IconButton icon="close" label="Dismiss" size="sm" onClick={() => setDismissed(linked)} />
+          <p>{note}</p>
+          <IconButton icon="close" label="Dismiss" size="sm" onClick={dismissNote} />
         </div>
       )}
-      <div className="diagram-page__canvas">
+      <div className="diagram-page__canvas" ref={canvas}>
         {load === undefined ? (
           <p className="diagram-page__state" role="status">
             Loading the diagram
