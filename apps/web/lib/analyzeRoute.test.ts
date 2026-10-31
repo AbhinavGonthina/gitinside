@@ -8,7 +8,7 @@ import { fakeGitHub } from "./github.testkit";
 const SHA = "f".repeat(40);
 
 /** Deps whose database must never be reached: the requests below stop before it. */
-function depsWithoutDb(worker?: AnalyzeDeps["worker"]): AnalyzeDeps {
+function depsWithoutDb(): AnalyzeDeps {
   const gh = fakeGitHub([{ id: 1, owner: "acme", name: "shop", sha: SHA }]);
   return {
     db: new Proxy({} as AnalyzeDeps["db"], {
@@ -16,7 +16,7 @@ function depsWithoutDb(worker?: AnalyzeDeps["worker"]): AnalyzeDeps {
         throw new Error("database unreachable");
       },
     }),
-    worker: worker ?? { enqueue: async () => ({ id: `analyze-${"0".repeat(32)}`, created: true }) },
+    queue: { createTask: async () => ({ created: true }) },
     github: { fetch: gh.fetch },
     analyzerVersion: "0.1.0",
     rateLimitSecret: "r".repeat(43),

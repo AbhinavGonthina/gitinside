@@ -15,6 +15,8 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_NOT_FOUND");
   },
 }));
+// The repo page reads Vercel's OIDC token from its request (ADR-0142); none here.
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
 afterEach(cleanup);
 

@@ -225,17 +225,28 @@ export async function hideRepo(db: AnyDatabase, id: string): Promise<boolean> {
   return rows.length > 0;
 }
 
+/** What {@link queueAnalysis} returns: the row after the call. */
+export interface QueuedAnalysis {
+  id: string;
+  status: AnalysisSummary["status"];
+  /** Whether this call put the row in the queue (inserted it, or moved it from `failed`). */
+  entered: boolean;
+  /** When the row last entered the queue: names its Cloud Tasks task (ADR-0141). */
+  queuedAt: Date;
+}
+
 /**
- * Record that the web app queued a job for this commit: insert a `queued` row, or move a
+ * Record that the web app is queuing a job for this commit: insert a `queued` row, or move a
  * `failed` one back to `queued` (a new job will run it again: attempts start over, and it
  * joins the back of the queue). `queued`, `running`, and `done` rows are left as they are;
- * the returned status is the row's after the call.
+ * the returned status is the row's after the call, and `entered` says whether this call
+ * queued it.
  */
 export async function queueAnalysis(
   db: AnyDatabase,
   key: AnalysisKey,
   options: JobOptions = {},
-): Promise<{ id: string; status: AnalysisSummary["status"] }> {
+): Promise<QueuedAnalysis> {
   const queued = {
     status: "queued" as const,
     errorCode: null,
@@ -257,10 +268,10 @@ export async function queueAnalysis(
       set: queued,
       setWhere: eq(analyses.status, "failed"),
     })
-    .returning({ id: analyses.id });
-  if (row !== undefined) return { id: row.id, status: "queued" };
+    .returning({ id: analyses.id, queuedAt: analyses.queuedAt });
+  if (row !== undefined) return { ...row, status: "queued", entered: true };
   const [existing] = await db
-    .select({ id: analyses.id, status: analyses.status })
+    .select({ id: analyses.id, status: analyses.status, queuedAt: analyses.queuedAt })
     .from(analyses)
     .where(
       and(
@@ -269,7 +280,7 @@ export async function queueAnalysis(
         eq(analyses.analyzerVersion, key.analyzerVersion),
       ),
     );
-  return existing as { id: string; status: AnalysisSummary["status"] };
+  return { ...(existing as Omit<QueuedAnalysis, "entered">), entered: false };
 }
 
 /**

@@ -1,7 +1,8 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { RepoRef } from "../../../lib/repoUrl";
 import { viewRepo } from "../../../lib/repoView";
-import { repoViewDepsFromEnv } from "../../../lib/serverDeps";
+import { repoViewDepsFromEnv, VERCEL_OIDC_HEADER } from "../../../lib/serverDeps";
 import { NotAnalyzed } from "./NotAnalyzed";
 import { RepoDiagram } from "./RepoDiagram";
 import { RepoUnavailable } from "./RepoNotice";
@@ -13,7 +14,8 @@ import { RepoUnavailable } from "./RepoNotice";
  * a component, so tests can await and render it.
  */
 export async function repoScreen(ref: RepoRef, sha?: string) {
-  const deps = repoViewDepsFromEnv();
+  const oidcToken = (await headers()).get(VERCEL_OIDC_HEADER);
+  const deps = repoViewDepsFromEnv(process.env, oidcToken);
   if (deps === undefined) return <RepoUnavailable owner={ref.owner} repo={ref.repo} />;
   let view: Awaited<ReturnType<typeof viewRepo>>;
   try {

@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { FAKE_GCP, fakeGoogle } from "./google.testkit";
 import {
   SIGNED_OUT_HOURLY_LIMIT,
   analyzeDepsFromEnv,
@@ -9,13 +10,42 @@ import {
   jobDepsFromEnv,
   repoViewDepsFromEnv,
 } from "./serverDeps";
+import { WorkerUnavailableError } from "./worker";
 
 const ENV = {
   // Never connected to: postgres.js opens connections on the first query only.
   DATABASE_URL: "postgres://user:pw@127.0.0.1:1/gitinside",
-  WORKER_URL: "https://worker.example",
+  WORKER_URL: FAKE_GCP.workerUrl,
   ENQUEUE_HMAC_SECRET: "h".repeat(43),
+  GCP_PROJECT_ID: FAKE_GCP.project,
+  GCP_REGION: FAKE_GCP.location,
+  GCP_TASKS_QUEUE: FAKE_GCP.queue,
+  GCP_WORKLOAD_IDENTITY_PROVIDER: FAKE_GCP.audience,
+  GCP_ENQUEUE_SERVICE_ACCOUNT: FAKE_GCP.enqueuer,
+  GCP_INVOKER_SERVICE_ACCOUNT: FAKE_GCP.invoker,
 };
+
+const JOB = { owner: "acme", repo: "shop", sha: "f".repeat(40) };
+
+/**
+ * Google behind the global `fetch`, trusting only `enqueuer` (each test names its own: the
+ * token source is kept per identity for the process, with its cached token).
+ */
+function withGoogle(enqueuer: string) {
+  const google = fakeGoogle({
+    audience: FAKE_GCP.audience,
+    subjectToken: FAKE_GCP.subjectToken,
+    serviceAccount: enqueuer,
+    queues: [
+      `projects/${FAKE_GCP.project}/locations/${FAKE_GCP.location}/queues/${FAKE_GCP.queue}`,
+    ],
+  });
+  vi.stubGlobal("fetch", google.fetch);
+  onTestFinished(() => {
+    vi.unstubAllGlobals();
+  });
+  return { google, env: { ...ENV, GCP_ENQUEUE_SERVICE_ACCOUNT: enqueuer } };
+}
 
 describe("analyzeDepsFromEnv", () => {
   it("builds the deps from the environment", () => {
@@ -38,16 +68,61 @@ describe("analyzeDepsFromEnv", () => {
     expect(c?.db).not.toBe(a?.db);
   });
 
-  it("is undefined when something is missing or unsafe", () => {
+  it("is undefined when something is missing or malformed", () => {
     for (const name of Object.keys(ENV)) {
       expect(analyzeDepsFromEnv({ ...ENV, [name]: undefined }), name).toBeUndefined();
       expect(analyzeDepsFromEnv({ ...ENV, [name]: "" }), name).toBeUndefined();
     }
-    expect(analyzeDepsFromEnv({ ...ENV, ENQUEUE_HMAC_SECRET: "short" })).toBeUndefined();
-    expect(analyzeDepsFromEnv({ ...ENV, WORKER_URL: "not a url" })).toBeUndefined();
-    const plain = { ...ENV, WORKER_URL: "http://127.0.0.1:8080" };
-    expect(analyzeDepsFromEnv({ ...plain, NODE_ENV: "production" })).toBeUndefined();
-    expect(analyzeDepsFromEnv(plain)).toBeDefined();
+    for (const bad of [
+      { ENQUEUE_HMAC_SECRET: "short" },
+      { WORKER_URL: "not a url" },
+      // Cloud Run is https only; the OIDC token's audience is the origin.
+      { WORKER_URL: "http://127.0.0.1:8080" },
+      { WORKER_URL: `${FAKE_GCP.workerUrl}/run` },
+      { GCP_PROJECT_ID: "Not A Project" },
+      { GCP_REGION: "us-east4/../x" },
+      { GCP_TASKS_QUEUE: "a/b" },
+      { GCP_WORKLOAD_IDENTITY_PROVIDER: "projects/1/providers/vercel" },
+      { GCP_ENQUEUE_SERVICE_ACCOUNT: "enqueue@example.com" },
+    ]) {
+      expect(analyzeDepsFromEnv({ ...ENV, ...bad }), JSON.stringify(bad)).toBeUndefined();
+    }
+  });
+
+  it("creates tasks with the request's Vercel OIDC token, through Google's STS", async () => {
+    const { google, env } = withGoogle("enqueue-header@gitinside-demo.iam.gserviceaccount.com");
+    const deps = analyzeDepsFromEnv(env, FAKE_GCP.subjectToken);
+    expect(await deps?.queue.createTask(JOB, "analyze-test-1")).toEqual({ created: true });
+    expect(google.requests.map((r) => r.split("/")[0])).toEqual([
+      "POST sts.googleapis.com",
+      "POST iamcredentials.googleapis.com",
+      "POST cloudtasks.googleapis.com",
+    ]);
+    expect(google.tasks[0]?.httpRequest).toMatchObject({
+      url: `${FAKE_GCP.workerUrl}/run`,
+      oidcToken: { serviceAccountEmail: FAKE_GCP.invoker, audience: FAKE_GCP.workerUrl },
+    });
+    // The access token is kept for the process: the next request goes straight to the queue.
+    await analyzeDepsFromEnv(env)?.queue.createTask(JOB, "analyze-test-2");
+    expect(google.requests.slice(3).map((r) => r.split("/")[0])).toEqual([
+      "POST cloudtasks.googleapis.com",
+    ]);
+  });
+
+  it("falls back to VERCEL_OIDC_TOKEN (local development)", async () => {
+    const { google, env } = withGoogle("enqueue-env@gitinside-demo.iam.gserviceaccount.com");
+    const deps = analyzeDepsFromEnv({ ...env, VERCEL_OIDC_TOKEN: FAKE_GCP.subjectToken });
+    expect(await deps?.queue.createTask(JOB, "analyze-test-3")).toEqual({ created: true });
+    expect(google.tasks).toHaveLength(1);
+  });
+
+  it("without any OIDC token the queue is unavailable, asking Google nothing", async () => {
+    const { google, env } = withGoogle("enqueue-none@gitinside-demo.iam.gserviceaccount.com");
+    const deps = analyzeDepsFromEnv(env, null);
+    await expect(deps?.queue.createTask(JOB, "analyze-test-4")).rejects.toThrow(
+      new WorkerUnavailableError("google token: no platform OIDC token"),
+    );
+    expect(google.requests).toEqual([]);
   });
 });
 
@@ -104,11 +179,12 @@ describe("graphDepsFromEnv", () => {
 describe("imageDepsFromEnv", () => {
   const ORIGIN = "https://gitinside.test";
 
-  it("is the repo page's deps; the worker stays optional", () => {
+  it("is the repo page's deps; the queue stays optional", () => {
     const deps = imageDepsFromEnv(ORIGIN, ENV);
     expect(deps?.view.heads).toBe(repoViewDepsFromEnv(ENV)?.heads);
+    expect(typeof deps?.view.queue?.createTask).toBe("function");
     expect(
-      imageDepsFromEnv(ORIGIN, { ...ENV, WORKER_URL: undefined })?.view.worker,
+      imageDepsFromEnv(ORIGIN, { ...ENV, GCP_TASKS_QUEUE: undefined })?.view.queue,
     ).toBeUndefined();
   });
 
@@ -133,17 +209,24 @@ describe("imageDepsFromEnv", () => {
 });
 
 describe("repoViewDepsFromEnv", () => {
-  it("needs only the database; the worker is optional", () => {
+  it("needs only the database; the queue is optional", () => {
     const deps = repoViewDepsFromEnv(ENV);
     expect(deps).toMatchObject({ analyzerVersion: ANALYZER_VERSION, github: {} });
-    expect(typeof deps?.worker?.enqueue).toBe("function");
+    expect(typeof deps?.queue?.createTask).toBe("function");
     // One memory of GitHub's answers for the whole process.
     expect(repoViewDepsFromEnv(ENV)?.heads).toBe(deps?.heads);
     expect(repoViewDepsFromEnv({ ...ENV, GITHUB_TOKEN: "t" })?.github).toEqual({ token: "t" });
-    const noWorker = repoViewDepsFromEnv({ ...ENV, WORKER_URL: undefined });
-    expect(noWorker).toBeDefined();
-    expect(noWorker?.worker).toBeUndefined();
+    const noQueue = repoViewDepsFromEnv({ ...ENV, WORKER_URL: undefined });
+    expect(noQueue).toBeDefined();
+    expect(noQueue?.queue).toBeUndefined();
     expect(repoViewDepsFromEnv({ ...ENV, DATABASE_URL: "" })).toBeUndefined();
+  });
+
+  it("check-on-view creates tasks with the page request's OIDC token", async () => {
+    const { google, env } = withGoogle("enqueue-view@gitinside-demo.iam.gserviceaccount.com");
+    const deps = repoViewDepsFromEnv(env, FAKE_GCP.subjectToken);
+    expect(await deps?.queue?.createTask(JOB, "analyze-test-5")).toEqual({ created: true });
+    expect(google.tasks).toHaveLength(1);
   });
 });
 

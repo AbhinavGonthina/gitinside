@@ -24,7 +24,14 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_NOT_FOUND");
   },
 }));
-vi.mock("../../../lib/serverDeps", () => ({ repoViewDepsFromEnv: vi.fn() }));
+vi.mock("../../../lib/serverDeps", () => ({
+  repoViewDepsFromEnv: vi.fn(),
+  VERCEL_OIDC_HEADER: "x-vercel-oidc-token",
+}));
+// Vercel's OIDC token arrives with the page's request (ADR-0142).
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ "x-vercel-oidc-token": "page-oidc" }),
+}));
 vi.mock("../../../lib/repoView", async (original) => ({
   ...(await original<typeof import("../../../lib/repoView")>()),
   viewRepo: vi.fn(),
@@ -105,6 +112,8 @@ describe("repo page", () => {
     vi.mocked(viewRepo).mockResolvedValue({ status: "not-analyzed", owner: "Acme", repo: "Shop" });
     render(await RepoPage({ params: params("acme", "shop") }));
     expect(viewRepo).toHaveBeenCalledWith({ owner: "acme", repo: "shop" }, deps);
+    // Check-on-view enqueues with the request's own OIDC token.
+    expect(repoViewDepsFromEnv).toHaveBeenCalledWith(process.env, "page-oidc");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Acme / Shop");
     expect(screen.getByRole("button", { name: "Analyze" })).toBeTruthy();
   });

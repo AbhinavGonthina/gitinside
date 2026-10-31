@@ -27,7 +27,8 @@ import {
   type ImageRouteDeps,
 } from "./imageRoute";
 import { createHeadCache } from "./repoView";
-import type { AnalyzeJob, WorkerClient } from "./worker";
+import type { TaskQueue } from "./cloudTasks";
+import type { AnalyzeJob } from "./worker";
 
 const OLD = "a".repeat(40);
 const NEW = "b".repeat(40);
@@ -64,17 +65,16 @@ beforeEach(async () => {
   graphPaths = [];
   enqueued = [];
   failure = undefined;
-  const worker: Pick<WorkerClient, "enqueue"> = {
-    async enqueue(job) {
+  const queue: TaskQueue = {
+    async createTask(job) {
       enqueued.push(job);
-      // The real client only returns IDs the worker could issue (worker.ts's JOB_ID).
-      return { id: `analyze-${job.sha.slice(0, 32)}`, created: true };
+      return { created: true };
     },
   };
   deps = {
     view: {
       db: t.db,
-      worker,
+      queue,
       github: { fetch: gh.fetch },
       analyzerVersion: VERSION,
       heads: createHeadCache(),

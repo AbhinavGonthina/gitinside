@@ -348,20 +348,30 @@ describe("queueAnalysis", () => {
     return { repoId, sha: SHA, analyzerVersion: VERSION };
   }
 
-  it("inserts a queued row", async () => {
+  it("inserts a queued row, entered by this call, with its queue entry time", async () => {
     const queued = await queueAnalysis(t.db, await key());
-    expect(queued.status).toBe("queued");
-    expect(await analysis(queued.id)).toMatchObject({
-      status: "queued",
-      startedAt: null,
-      finishedAt: null,
-    });
+    expect(queued).toMatchObject({ status: "queued", entered: true });
+    const row = await analysis(queued.id);
+    expect(row).toMatchObject({ status: "queued", startedAt: null, finishedAt: null });
+    expect(queued.queuedAt).toEqual(row.queuedAt);
   });
 
-  it("moves a failed row back to queued, clearing the failure", async () => {
+  it("gives a second call the same entry, not entered by it", async () => {
+    const [one, two] = [`analyze-${"1".repeat(32)}`, `analyze-${"2".repeat(32)}`];
+    const first = await queueAnalysis(t.db, await key(), { jobId: one });
+    const second = await queueAnalysis(t.db, await key(), { jobId: two });
+    expect(second).toEqual({ ...first, entered: false });
+    expect((await analysis(first.id)).jobId).toBe(one);
+  });
+
+  it("moves a failed row back to queued, clearing the failure, with a new entry time", async () => {
     const id = await started();
+    const before = new Date("2026-01-01T00:00:00Z");
+    await t.db.update(analyses).set({ queuedAt: before }).where(eq(analyses.id, id));
     await failAnalysis(t.db, id, "DOWNLOAD_FAILED");
-    expect(await queueAnalysis(t.db, await key())).toEqual({ id, status: "queued" });
+    const queued = await queueAnalysis(t.db, await key());
+    expect(queued).toMatchObject({ id, status: "queued", entered: true });
+    expect(queued.queuedAt.getTime()).toBeGreaterThan(before.getTime());
     expect(await analysis(id)).toMatchObject({
       status: "queued",
       errorCode: null,
@@ -374,9 +384,19 @@ describe("queueAnalysis", () => {
 
   it("leaves running and done rows alone", async () => {
     const id = await started();
-    expect(await queueAnalysis(t.db, await key())).toEqual({ id, status: "running" });
+    const { queuedAt } = await analysis(id);
+    expect(await queueAnalysis(t.db, await key())).toEqual({
+      id,
+      status: "running",
+      entered: false,
+      queuedAt,
+    });
     await completeAnalysis(t.db, id, { snapshotKey: "k", stats: STATS });
-    expect(await queueAnalysis(t.db, await key())).toEqual({ id, status: "done" });
+    expect(await queueAnalysis(t.db, await key())).toMatchObject({
+      id,
+      status: "done",
+      entered: false,
+    });
     expect((await analysis(id)).snapshotKey).toBe("k");
   });
 });

@@ -1,16 +1,9 @@
-import {
-  consumeRateLimit,
-  findAnalysis,
-  queueAnalysis,
-  refundRateLimit,
-  upsertRepo,
-  type AnyDatabase,
-} from "@gitinside/db";
+import { consumeRateLimit, findAnalysis, refundRateLimit, upsertRepo } from "@gitinside/db";
 import { rateLimitKey } from "./clientIp";
+import { enqueueAnalysis, type EnqueueDeps } from "./enqueue";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import { resolveRepo, type GitHubOptions, type ResolveFailure } from "./github";
 import { parseRepoUrl } from "./repoUrl";
-import { WorkerUnavailableError, type WorkerClient } from "./worker";
 
 /**
  * What `POST /api/analyze` does once the body is read (docs/DESIGN.md §11, ADR-0066):
@@ -23,20 +16,15 @@ import { WorkerUnavailableError, type WorkerClient } from "./worker";
  * 4. **Dedupe:** a commit already `queued` or `running` gets the same job back (the job ID
  *    is derived from the commit), again without counting against the limit.
  * 5. **Rate limit** anything else: a new analysis counts against the caller's hourly
- *    window (5 signed out). The slot is given back if the queue turns out to be down or
- *    the job already existed (someone else's request covered the commit first).
- * 6. **Enqueue** through the signed worker API; when this request created the job, record
- *    the repo and a `queued` row so the next request sees it in flight. If that write
- *    fails, the job still stands and the answer is still `202` (logged by name).
+ *    window (5 signed out). The slot is given back unless this request queued the commit
+ *    (the queue was down, or someone else's request queued it first).
+ * 6. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
+ *    named from it; a row whose task can't be created is failed, and the answer is `503`.
  */
 
-/** Everything {@link requestAnalysis} talks to. */
-export interface AnalyzeDeps {
-  db: AnyDatabase;
-  worker: Pick<WorkerClient, "enqueue">;
+/** Everything {@link requestAnalysis} talks to (`analyzerVersion` is part of the cache key). */
+export interface AnalyzeDeps extends EnqueueDeps {
   github: GitHubOptions;
-  /** `@gitinside/analyzer/version`: part of the cache key. */
-  analyzerVersion: string;
   /** Server secret the rate-limit keys are derived from (`rateLimitKey`). */
   rateLimitSecret: string;
   /** New analyses per hour for a signed-out address. */
@@ -124,36 +112,18 @@ export async function requestAnalysis(
     charged = limit.windowStart;
   }
 
-  let job: { id: string; created: boolean };
-  try {
-    job = await deps.worker.enqueue(commit);
-  } catch (error) {
-    if (!(error instanceof WorkerUnavailableError)) throw error;
-    if (charged) await refundRateLimit(deps.db, key, charged);
-    return { status: 503, body: { error: "UNAVAILABLE", message: UNAVAILABLE_MESSAGE } };
+  const queued = await enqueueAnalysis(repo, deps);
+  // Only a new analysis this request queued keeps the slot.
+  const isNew = queued.status === "queued" && queued.entered;
+  if (charged && !isNew) await refundRateLimit(deps.db, key, charged);
+  switch (queued.status) {
+    case "done":
+      return { status: 200, body: { status: "done", ...commit } };
+    case "unavailable":
+      return { status: 503, body: { error: "UNAVAILABLE", message: UNAVAILABLE_MESSAGE } };
+    default:
+      return { status: 202, body: { status: "queued", jobId: queued.jobId, ...commit } };
   }
-  if (job.created) {
-    // Only a head start: the worker inserts the row itself when the job starts, and the
-    // job exists now, so a failed write mustn't turn into an error the slot was spent on.
-    try {
-      const { id: repoId } = await upsertRepo(deps.db, repo);
-      await queueAnalysis(
-        deps.db,
-        { repoId, sha: repo.sha, analyzerVersion: deps.analyzerVersion },
-        { jobId: job.id },
-      );
-    } catch (error) {
-      console.error(
-        JSON.stringify({
-          event: "queue_record_failed",
-          error: error instanceof Error ? error.name : "unknown",
-        }),
-      );
-    }
-  } else if (charged) {
-    await refundRateLimit(deps.db, key, charged);
-  }
-  return { status: 202, body: { status: "queued", jobId: job.id, ...commit } };
 }
 
 function rateLimited(resetAt: Date, deps: AnalyzeDeps): AnalyzeResponse {
