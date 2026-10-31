@@ -173,7 +173,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - To find a slow ELK layout's step, dump `layoutInput` to JSON and run `elk.layout(elkGraph(input), { logging: true, measureExecutionTime: true })` in a scratch script under `bench/dist/` (load elkjs with `createRequire(import.meta.resolve("@gitinside/viewer"))`). Its `executionTime` values are in units of 10⁶ ms; sum self time per step name.
 - `pnpm --filter @gitinside/web e2e -- --project=seeded` hands Playwright a literal `--`, so the flag is ignored and every project runs. Drop the `--`: `pnpm --filter @gitinside/web e2e --project=seeded`.
 - Playwright's `click()` on an explorer box that's off the camera's view retries until timeout ("element is outside of the viewport"): the canvas pans by transform, not scroll. Select it through Ctrl+K + Enter or the keyboard, or pan there first.
-- E2E pages that need the database: the `seeded` project (`apps/web/e2e/database.ts`, PGlite over the wire protocol) runs locally without Docker. Answer the browser's outside reads with `page.route`, and give cross-origin answers `access-control-allow-origin: *`.<!-- lessons:end -->
+- E2E pages that need the database: the `seeded` project (`apps/web/e2e/database.ts`, PGlite over the wire protocol) runs locally without Docker. Answer the browser's outside reads with `page.route`, and give cross-origin answers `access-control-allow-origin: *`.
+- `fireEvent.pointerMove` sends `buttons: 0` (no button held) unless told otherwise, and the canvas ends a gesture on such a move (M4b.15b). Pass `buttons: 1` for a drag in explorer tests.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 

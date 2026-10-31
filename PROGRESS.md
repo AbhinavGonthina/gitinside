@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.15b M4b review fixes, explorer state (M5.13 and M5.14b wait on #3)
+M4b.15c M4b review fix, culling during a camera glide (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -113,7 +113,7 @@ M4b.15b M4b review fixes, explorer state (M5.13 and M5.14b wait on #3)
 - [x] M4b.14a Explorer E2E on the website (ADR-0132): a `seeded` server of the production build on PGlite over the wire protocol with one finished analysis of `fixtures/shop-demo`, the graph and GitHub reads answered by the test; load (Web Worker layout under the CSP, tips), drill down (double-click, Enter, Esc), select, trace + deep link across a reload, code preview from GitHub + Open on GitHub at the line {model: opus}
 - [x] M4b.14b Website visual tests: key screens (landing, the repo page's diagram, a selection, a trace) in dark and light against Linux baselines in CI's `web-e2e` container, captured by the "Visual baselines" workflow; skipped off Linux {model: opus}
 - [x] M4b.15a Milestone verification: full suite, E2E, visual, coverage, render benchmark, fresh-eyes review of `ff112af..HEAD`, CLI + explorer smoke test on a real repo, M4b-review.md (tag after the fixes) {model: opus}
-- [ ] M4b.15b M4b review fixes, explorer state: Esc and reveal respect filters (`upFrom`/`revealIn` on the filtered open set); a mouse pan ends when `buttons` is 0 (release outside the canvas); the trace step clamped when the graph changes; `cutOff` only for nodes with something new past them; regression tests first {model: opus}
+- [x] M4b.15b M4b review fixes, explorer state: Esc and reveal respect filters (`upFrom`/`revealIn` on the filtered open set); a mouse pan ends when `buttons` is 0 (release outside the canvas); the trace step clamped when the graph changes; `cutOff` only for nodes with something new past them; regression tests first {model: opus}
 - [ ] M4b.15c M4b review fix: culling during a camera glide covers the start and the destination windows (palette pick, far Tab on a big level); tests {model: opus}
 - [ ] M4b.15d M4b review fixes, focus and chrome: focus kept in Filters after Clear and a folder chip's removal; Add to README and Share never open together; the deep-link note's dismiss keeps focus and its status is announced; no-app headings h2 → h3; a scroll hint in Filters; tests, screenshots {model: opus}
 - [ ] M4b.15e M4b review fixes, code loader: `.`, `..`, and empty path segments refused in the code loader and the GitHub link; the 2 MB cap enforced while streaming the body; tests {model: opus}
@@ -231,6 +231,8 @@ M4b.15b M4b review fixes, explorer state (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.15b** Review findings 1, 2, 7, 8 fixed (`6166ff5`): `upFrom`/`revealIn` judge "open" on the filtered canvas (Esc skips a hidden broken-down service, which stays broken down; reveal takes the filters it shows a node under), a pointermove with no button held ends a press released outside the canvas, the trace step is clamped to the last when a new graph shortens the path, and `cutOff` needs a hop to a node off the path. 6 regression tests; with the fixes reverted all 6 failed. Viewer 969/969, typecheck, lint. Viewer only, no eval delta.
 
 - **2026-10-31 M4b.15a** M4b verified: `pnpm test` 2,812 passed (16 Redis/Postgres skips), typecheck, lint, E2E 18/18, CI green (both visual jobs). Render bench holds 59.9 fps at 2,000 nodes. Two fresh-eyes reviewers: no high, 6 medium, 10 low; smoke test on taxonomy works end to end but broken-down views sit at 40% and are hard to read. M4b.15 split: fixes in M4b.15b–g, re-check and tag `m4` in M4b.15h. `docs/milestones/M4b-review.md`.
 
