@@ -165,6 +165,21 @@ describe("RepoDiagram", () => {
     expect(inspector.getByRole("heading", { level: 2 }).textContent).toBe("shop-demo");
   });
 
+  it("shows the first-visit hints until this browser turns them off (M4b.12a)", async () => {
+    localStorage.clear();
+    fetchMock.mockImplementation(graphResponse);
+    renderDiagram({ state: "current" });
+    const hint = await screen.findByRole("region", { name: "Zoom in" }, { timeout: 25_000 });
+    expect(hint.textContent).toContain("Tip 1 of 3");
+    fireEvent.click(within(hint).getByRole("button", { name: "Don't show again" }));
+    expect(localStorage.getItem("gitinside.onboarding")).toBe("done");
+    cleanup();
+    renderDiagram({ state: "current" });
+    expect(await screen.findByRole("region", { name: "Diagram" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Zoom in" })).toBeNull();
+    localStorage.clear();
+  }, 40_000);
+
   it("shows the repo, its commit on GitHub, and how it relates to the latest", async () => {
     fetchMock.mockImplementation(graphResponse);
     renderDiagram({ state: "updating", sha: NEWER, jobId: JOB });

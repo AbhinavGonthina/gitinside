@@ -3,7 +3,9 @@ import type { ArchitectureGraph } from "@gitinside/schema";
 import type { Meta, StoryObj } from "@storybook/react";
 import { withTestFiles } from "../model/filterSamples.js";
 import { DEFAULT_FILTERS } from "../model/filters.js";
+import { useState } from "react";
 import { Explorer, type ExplorerProps } from "./Explorer.js";
+import { memoryOnboarding } from "./onboarding.js";
 
 // The explorer (M4b.3b) on the analyzer's own output for fixtures/shop-demo:
 // the golden graph, and the fixture's source files for the code previews.
@@ -194,6 +196,18 @@ export const Share: Story = {
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     throw new Error("The share menu didn't open");
+  },
+};
+
+/**
+ * A first visit (M4b.12a): the first of three hints, zoom in → select →
+ * trace, at the top of the canvas. Here they're kept in memory, so each
+ * visit to the story starts over.
+ */
+export const Onboarding: Story = {
+  render: function Render() {
+    const [store] = useState(() => memoryOnboarding());
+    return <Explore onboarding={store} />;
   },
 };
 

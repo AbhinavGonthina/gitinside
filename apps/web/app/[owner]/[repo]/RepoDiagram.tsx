@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  browserOnboarding,
   buildHierarchy,
   Button,
   createGitHubSourceLoader,
@@ -44,6 +45,9 @@ const layoutWorker = () =>
     type: "module",
     name: "gitinside-layout",
   });
+
+/** The first-visit hints, remembered in this browser's `localStorage` (M4b.12a). */
+const onboarding = browserOnboarding();
 
 /**
  * The diagram page (ADR-0069): a repo bar (name, commit, how it relates to the latest
@@ -175,6 +179,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
               initialHiddenKinds={linked.state.hiddenKinds}
               onStateChange={onStateChange}
               exportRef={exportRef}
+              onboarding={onboarding}
             />
           )
         ) : (
