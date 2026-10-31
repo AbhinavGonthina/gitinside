@@ -82,6 +82,39 @@ describe("consumeRateLimit", () => {
     expect(rows.map((r) => r.count)).toEqual([5, 5]);
   });
 
+  it("refuses on the full window's row when the clock passes the hour mid-call", async () => {
+    await t.db.insert(rateLimits).values({
+      key: "ip:edge",
+      windowStart: new Date("2026-10-31T14:00:00.000Z"),
+      count: 5,
+    });
+    const result = await t.db.transaction(async (tx) => {
+      // A `now()` ahead of `pg_catalog`'s on the search path: 14:59:59.999 the first time it's
+      // read, the next hour after that, like a database clock crossing the hour between two
+      // statements.
+      await tx.execute(sql`create sequence fake_clock_reads`);
+      await tx.execute(sql`create function public.now() returns timestamptz language sql volatile
+        as $$ select case when nextval('fake_clock_reads') = 1
+          then '2026-10-31T14:59:59.999Z'::timestamptz
+          else '2026-10-31T15:00:00.000Z'::timestamptz end $$`);
+      await tx.execute(sql`set local search_path = public, pg_catalog`);
+      const refused = await consumeRateLimit(tx, "ip:edge", 5);
+      await tx.execute(sql`drop function public.now()`);
+      await tx.execute(sql`drop sequence fake_clock_reads`);
+      return refused;
+    });
+    expect(result).toEqual({
+      allowed: false,
+      count: 5,
+      windowStart: new Date("2026-10-31T14:00:00.000Z"),
+      resetAt: new Date("2026-10-31T15:00:00.000Z"),
+    });
+    const rows = await t.db.select().from(rateLimits);
+    expect(rows.map((r) => [r.windowStart.toISOString(), r.count])).toEqual([
+      ["2026-10-31T14:00:00.000Z", 5],
+    ]);
+  });
+
   it("refuses a limit that isn't a positive integer", async () => {
     await expect(consumeRateLimit(t.db, "ip:a", 0)).rejects.toThrow("positive integer");
     await expect(consumeRateLimit(t.db, "ip:a", 1.5)).rejects.toThrow("positive integer");

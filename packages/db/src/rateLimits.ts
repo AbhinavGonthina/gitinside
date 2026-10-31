@@ -43,28 +43,38 @@ export async function consumeRateLimit(
     throw new Error("limit must be a positive integer");
   }
   const moment = at === undefined ? sql`now()` : sql`${at.toISOString()}::timestamptz`;
-  // Truncated in UTC, so connections with different session time zones share one window.
-  const window = sql`date_trunc('hour', ${moment}, 'UTC')`;
-  const [counted] = await db
-    .insert(rateLimits)
-    .values({ key, windowStart: window, count: 1 })
-    .onConflictDoUpdate({
-      target: [rateLimits.key, rateLimits.windowStart],
-      set: { count: sql`${rateLimits.count} + 1` },
-      setWhere: sql`${rateLimits.count} < ${limit}`,
-    })
-    .returning({ count: rateLimits.count, windowStart: rateLimits.windowStart });
-  if (counted !== undefined) {
-    return { allowed: true, ...counted, resetAt: hourAfter(counted.windowStart) };
-  }
+  // The window is read from the clock once, in the statement that counts, and returned even
+  // when the request is refused: a second `now()` for the refused path could land in the
+  // next hour and find no row. Truncated in UTC, so connections with different session time
+  // zones share one window.
+  const result: unknown = await db.execute(sql`
+    with w as (select date_trunc('hour', ${moment}, 'UTC') as window_start),
+    counted as (
+      insert into ${rateLimits} (key, window_start, count)
+        select ${key}, window_start, 1 from w
+      on conflict (key, window_start) do update set count = ${rateLimits}.count + 1
+        where ${rateLimits}.count < ${limit}
+      returning count)
+    select extract(epoch from window_start)::text as window_start,
+      (select count from counted)::text as count
+    from w`);
+  // postgres.js returns an array of rows, PGlite an object with `rows`.
+  const [row] = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as {
+    window_start: string;
+    count: string | null;
+  }[];
+  if (row === undefined) throw new Error("the rate-limit count returned no row");
+  const windowStart = new Date(Number(row.window_start) * 1000);
+  const resetAt = hourAfter(windowStart);
+  if (row.count !== null) return { allowed: true, count: Number(row.count), windowStart, resetAt };
+  // Refused: the row exists (the conflict that skipped the update was on it, committed before
+  // this next statement, and rows are never deleted inside their own hour or the next).
   const [full] = await db
-    .select({ count: rateLimits.count, windowStart: rateLimits.windowStart })
+    .select({ count: rateLimits.count })
     .from(rateLimits)
-    .where(and(eq(rateLimits.key, key), eq(rateLimits.windowStart, window)));
-  // The row exists: the conflict that skipped the update was on it, and rows are never
-  // deleted inside their own hour.
-  const row = full as { count: number; windowStart: Date };
-  return { allowed: false, ...row, resetAt: hourAfter(row.windowStart) };
+    .where(and(eq(rateLimits.key, key), eq(rateLimits.windowStart, windowStart)));
+  if (full === undefined) throw new Error("the full rate-limit window's row is missing");
+  return { allowed: false, count: full.count, windowStart, resetAt };
 }
 
 /**
