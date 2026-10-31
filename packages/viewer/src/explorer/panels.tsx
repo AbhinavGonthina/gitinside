@@ -395,7 +395,7 @@ export function TracePanel({
   // (chrome.css); the steps list and the player's buttons stay, keeping focus.
   return (
     <Inspector>
-      <header key={`header-${step}`} className="gi-inspector__header">
+      <header key={`header-${step}`} className="gi-inspector__header gi-explorer__hop-header">
         <div className="gi-inspector__chips">
           <span className="gi-chip">Request path</span>
           <span className="gi-chip">

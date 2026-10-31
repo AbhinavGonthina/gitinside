@@ -5,10 +5,14 @@ import {
   clampZoom,
   ensureVisible,
   fitCamera,
+  frameHop,
   holdInPlace,
+  HOP_MARGIN,
   keepInView,
   KEEP_IN_VIEW,
   panBy,
+  placeRect,
+  READABLE_ZOOM,
   sameCamera,
   stepZoom,
   visibleRect,
@@ -49,6 +53,61 @@ describe("camera", () => {
       x: 0,
       y: 0,
     });
+  });
+
+  it("places a rect too big at a zoom with its top-left corner at the inset, centered where it fits (M4b.15f)", () => {
+    // A tall column at 80%: its top at the inset, centered across.
+    const column = { x: 600, y: 300, width: 300, height: 1800 };
+    const c = placeRect(column, canvas, READABLE_ZOOM);
+    expect(c.zoom).toBe(READABLE_ZOOM);
+    expect(onCanvas(c, { x: 600, y: 300 }).y).toBe(FIT_INSET.y);
+    expect(onCanvas(c, { x: 750, y: 0 }).x).toBe(canvas.width / 2);
+    // Wider than the canvas too: the left edge at the inset.
+    const wide = placeRect({ x: 100, y: 0, width: 5000, height: 5000 }, canvas, READABLE_ZOOM);
+    expect(onCanvas(wide, { x: 100, y: 0 })).toEqual({ x: FIT_INSET.x, y: FIT_INSET.y });
+    // A small rect is centered both ways; an unmeasured canvas gets 100% at the origin.
+    const small = placeRect({ x: 1000, y: 1000, width: 200, height: 100 }, canvas, 0.9);
+    expect(onCanvas(small, { x: 1100, y: 1050 })).toEqual({ x: 500, y: 400 });
+    expect(placeRect(column, { width: 0, height: 0 }, 0.5)).toEqual({ zoom: 1, x: 0, y: 0 });
+  });
+
+  it("leaves a trace hop's camera alone when both ends are on the canvas at a readable zoom", () => {
+    const camera = { zoom: 1, x: 0, y: 0 };
+    const rect = { x: 100, y: 200, width: 400, height: 200 };
+    expect(frameHop(camera, rect, canvas)).toBe(camera);
+    // Zoomed in further by hand, and they still fit: kept.
+    const closer = { zoom: 1.2, x: 0, y: -50 };
+    expect(frameHop(closer, rect, canvas)).toBe(closer);
+  });
+
+  it("keeps a hop's ends clear of the overlays in the canvas's corners", () => {
+    const camera = { zoom: 1, x: 0, y: 0 };
+    // On the canvas, but its bottom where the minimap is: moved up to the center.
+    const low = { x: 100, y: 500, width: 400, height: 200 };
+    expect(700).toBeGreaterThan(canvas.height - HOP_MARGIN.y);
+    const c = frameHop(camera, low, canvas);
+    expect(c).not.toBe(camera);
+    expect(onCanvas(c, { x: 300, y: 600 })).toEqual({ x: 500, y: 400 });
+  });
+
+  it("zooms a hop's ends in to the readable zoom, centered, when they fit at it", () => {
+    const far = { zoom: 0.4, x: 24, y: 64 };
+    const rect = { x: 100, y: 100, width: 400, height: 200 };
+    const c = frameHop(far, rect, canvas);
+    expect(c.zoom).toBe(READABLE_ZOOM);
+    expect(onCanvas(c, { x: 300, y: 200 })).toEqual({ x: 500, y: 400 });
+  });
+
+  it("zooms out as far as it takes to show both ends of a long hop, and pans to an end off the canvas", () => {
+    const camera = { zoom: 1, x: 0, y: 0 };
+    const long = { x: 0, y: 0, width: 3000, height: 200 };
+    const c = frameHop(camera, long, canvas);
+    expect(c.zoom).toBe(clampZoom((canvas.width - 96) / 3000));
+    expect(onCanvas(c, { x: 1500, y: 100 })).toEqual({ x: 500, y: 400 });
+    // Same zoom, but one end off the canvas: centered on the two.
+    const off = frameHop(camera, { x: 1200, y: 100, width: 300, height: 100 }, canvas);
+    expect(off.zoom).toBe(1);
+    expect(onCanvas(off, { x: 1350, y: 150 })).toEqual({ x: 500, y: 400 });
   });
 
   it("zooms around a point, keeping the diagram point under it", () => {
