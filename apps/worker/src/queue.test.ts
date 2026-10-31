@@ -4,12 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { UnrecoverableError, type Job, type Worker } from "bullmq";
 import request from "supertest";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { JobProgress } from "@gitinside/db";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEnqueueHandler, jobIdFor, type JobRequest } from "./api.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import { signRequest } from "./hmac.js";
 import { BENCH_MODEL, MIN_SAMPLES, expectedMs } from "./estimate.js";
-import type { JobDeps, JobOutcome } from "./job.js";
+import type { JobDeps, JobOutcome, JobRecorder } from "./job.js";
 import {
   JOB_OPTIONS,
   MAX_STALLED_COUNT,
@@ -403,6 +404,71 @@ describe("createProcessor", () => {
       },
       { stage: "upload", progress: 90, found: { services, routes: 3 } },
     ]);
+  });
+
+  /** A recorder that keeps each progress write once `write` (if any) resolves for it. */
+  function progressRecorder(write?: (progress: JobProgress) => Promise<void>) {
+    const written: { id: string; progress: JobProgress }[] = [];
+    const recorder: JobRecorder = {
+      start: async (request) => ({
+        analysisId: "row",
+        repoId: "repo",
+        visibility: "public",
+        owner: request.owner,
+        name: request.repo,
+      }),
+      failed: async () => undefined,
+      progress: async (id, progress) => {
+        await write?.(progress);
+        written.push({ id, progress });
+      },
+    };
+    return { recorder, written };
+  }
+
+  it("writes every progress update to the recorder too, in order, under the job's ID", async () => {
+    const { job, progress } = fakeJob(REQUEST);
+    let slow = 2;
+    const { recorder, written } = progressRecorder(async () => {
+      // The first writes take longest, so a write that didn't wait would overtake them.
+      if (slow-- > 0) await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    const services = { count: 1, names: ["api"] };
+    const run: JobDeps["run"] = async (child, options) => {
+      options.onProgress?.({ step: "workspace" });
+      options.onFound?.({ services });
+      return writeGraph(child);
+    };
+    await createProcessor({ ...deps(run), recorder }, undefined, { now: () => 1 })(
+      job,
+      "t",
+      undefined,
+    );
+    await vi.waitFor(() => expect(written).toHaveLength(progress.length));
+    expect(written.map((w) => w.progress)).toEqual(progress);
+    expect(new Set(written.map((w) => w.id))).toEqual(new Set([job.id]));
+  });
+
+  it("logs a failed progress write and carries on, the job's outcome unchanged", async () => {
+    const logs: Record<string, unknown>[] = [];
+    const { job } = fakeJob(REQUEST);
+    const { recorder, written } = progressRecorder(async (progress) => {
+      if (progress.stage === "extract") throw new Error("db down");
+    });
+    const outcome = await createProcessor({ ...deps(), recorder }, (e) => void logs.push(e))(
+      job,
+      "t",
+      undefined,
+    );
+    expect(outcome.stats).toEqual(STATS);
+    await vi.waitFor(() => expect(written.map((w) => w.progress.stage)).toContain("upload"));
+    expect(written.map((w) => w.progress.stage)).toEqual(["download", "analyze", "upload"]);
+    expect(logs).toContainEqual({
+      event: "progress_record_failed",
+      id: job.id,
+      stage: "extract",
+      message: "db down",
+    });
   });
 
   it("fails permanent failures with UnrecoverableError carrying only the code", async () => {

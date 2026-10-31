@@ -74,13 +74,20 @@ export async function upsertRepo(db: AnyDatabase, facts: RepoFacts): Promise<{ i
   });
 }
 
+/** The job a write belongs to, when the caller knows it (ADR-0139). */
+export interface JobOptions {
+  /** The queue's job ID, `analyze-<32 hex>`; stored on the row so `findJob` finds it. */
+  jobId?: string;
+}
+
 /**
  * Mark the analysis `running` (inserting the row if the web app didn't), clearing what a
- * failed earlier attempt left. A `done` row is returned unchanged.
+ * failed earlier attempt left and counting the attempt. A `done` row is returned unchanged.
  */
 export async function startAnalysis(
   db: AnyDatabase,
   key: AnalysisKey,
+  options: JobOptions = {},
 ): Promise<{ id: string; status: "running" | "done" }> {
   const running = {
     status: "running" as const,
@@ -89,13 +96,15 @@ export async function startAnalysis(
     snapshotKey: null,
     stats: null,
     finishedAt: null,
+    progress: null,
+    ...(options.jobId === undefined ? {} : { jobId: options.jobId }),
   };
   const [row] = await db
     .insert(analyses)
-    .values({ ...key, ...running })
+    .values({ ...key, ...running, attempts: 1 })
     .onConflictDoUpdate({
       target: [analyses.repoId, analyses.sha, analyses.analyzerVersion],
-      set: running,
+      set: { ...running, attempts: sql`${analyses.attempts} + 1` },
       setWhere: ne(analyses.status, "done"),
     })
     .returning({ id: analyses.id });
@@ -217,12 +226,14 @@ export async function hideRepo(db: AnyDatabase, id: string): Promise<boolean> {
 
 /**
  * Record that the web app queued a job for this commit: insert a `queued` row, or move a
- * `failed` one back to `queued` (a new job will run it again). `queued`, `running`, and
- * `done` rows are left as they are; the returned status is the row's after the call.
+ * `failed` one back to `queued` (a new job will run it again: attempts start over, and it
+ * joins the back of the queue). `queued`, `running`, and `done` rows are left as they are;
+ * the returned status is the row's after the call.
  */
 export async function queueAnalysis(
   db: AnyDatabase,
   key: AnalysisKey,
+  options: JobOptions = {},
 ): Promise<{ id: string; status: AnalysisSummary["status"] }> {
   const queued = {
     status: "queued" as const,
@@ -231,6 +242,10 @@ export async function queueAnalysis(
     stats: null,
     startedAt: null,
     finishedAt: null,
+    attempts: 0,
+    queuedAt: sql`now()`,
+    progress: null,
+    ...(options.jobId === undefined ? {} : { jobId: options.jobId }),
   };
   const [row] = await db
     .insert(analyses)
@@ -255,11 +270,15 @@ export async function queueAnalysis(
   return existing as { id: string; status: AnalysisSummary["status"] };
 }
 
-/** Back to `queued` after a failed attempt that will be retried. Only a `running` row moves. */
+/**
+ * Back to `queued` after a failed attempt that will be retried, at the back of the queue
+ * (the retry waits out a backoff anyway) and without the attempt's progress. Only a
+ * `running` row moves.
+ */
 export async function requeueAnalysis(db: AnyDatabase, id: string): Promise<boolean> {
   const rows = await db
     .update(analyses)
-    .set({ status: "queued" })
+    .set({ status: "queued", queuedAt: sql`now()`, progress: null })
     .where(and(eq(analyses.id, id), eq(analyses.status, "running")))
     .returning({ id: analyses.id });
   return rows.length > 0;
@@ -283,6 +302,7 @@ export async function completeAnalysis(
       stats: result.stats,
       errorCode: null,
       finishedAt: sql`now()`,
+      progress: null,
     })
     .where(and(eq(analyses.id, id), ne(analyses.status, "done")))
     .returning({ id: analyses.id });
@@ -315,7 +335,13 @@ export async function failAnalysis(
 ): Promise<boolean> {
   const rows = await db
     .update(analyses)
-    .set({ status: "failed", errorCode, snapshotKey: null, finishedAt: sql`now()` })
+    .set({
+      status: "failed",
+      errorCode,
+      snapshotKey: null,
+      finishedAt: sql`now()`,
+      progress: null,
+    })
     .where(and(eq(analyses.id, id), inArray(analyses.status, ["queued", "running"])))
     .returning({ id: analyses.id });
   return rows.length > 0;
@@ -334,7 +360,12 @@ export async function failInterruptedAnalyses(
 ): Promise<number> {
   const rows = await db
     .update(analyses)
-    .set({ status: "failed", errorCode: INTERRUPTED_CODE, finishedAt: sql`now()` })
+    .set({
+      status: "failed",
+      errorCode: INTERRUPTED_CODE,
+      finishedAt: sql`now()`,
+      progress: null,
+    })
     .where(and(eq(analyses.status, "running"), lt(analyses.startedAt, startedBefore)))
     .returning({ id: analyses.id });
   return rows.length;

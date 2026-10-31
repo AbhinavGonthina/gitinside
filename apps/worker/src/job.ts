@@ -1,5 +1,6 @@
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
+import type { JobProgress } from "@gitinside/db";
 import type { JobRequest } from "./api.js";
 import { ExtractError, extractTarball, type ExtractLimits, type SkippedEntry } from "./extract.js";
 import { JobFailure } from "./failure.js";
@@ -59,10 +60,18 @@ export interface RecordedJob {
  * the recorder handles the rest of its lifecycle.
  */
 export interface JobRecorder {
-  /** Before the download: look the repo up on GitHub, upsert it, mark the analysis running. */
-  start(request: JobRequest, signal: AbortSignal): Promise<RecordedJob>;
+  /**
+   * Before the download: look the repo up on GitHub, upsert it, mark the analysis running
+   * as job `jobId` (ADR-0139).
+   */
+  start(request: JobRequest, signal: AbortSignal, jobId: string): Promise<RecordedJob>;
   /** After a failed attempt: `final` marks the analysis failed, otherwise queued again. */
   failed(job: RecordedJob, code: string, final: boolean): Promise<void>;
+  /**
+   * Where job `jobId`'s running attempt is, for the progress page (ADR-0139). The queue's
+   * processor calls it with each progress update, one at a time, and only logs a failure.
+   */
+  progress?(jobId: string, progress: JobProgress): Promise<void>;
 }
 
 /** What a finished job returns (the BullMQ return value). */
@@ -133,7 +142,7 @@ async function fetchSource(
     context.signal === undefined ? timeout : AbortSignal.any([context.signal, timeout]);
   try {
     if (deps.recorder !== undefined) {
-      attempt.record = await deps.recorder.start(context.request, signal);
+      attempt.record = await deps.recorder.start(context.request, signal, context.id);
     }
     const { owner, repo, sha } = context.request;
     const body = await openTarball({ owner, repo, sha }, { ...deps.download, signal });

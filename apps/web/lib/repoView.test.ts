@@ -171,6 +171,9 @@ describe("viewRepo", () => {
       { sha: OLD, status: "done", version: VERSION },
       { sha: NEW, status: "queued", version: VERSION },
     ]);
+    // The progress page finds the row by the job's ID (ADR-0139).
+    const stored = await t.db.select({ sha: analyses.sha, jobId: analyses.jobId }).from(analyses);
+    expect(stored.find((row) => row.sha === NEW)?.jobId).toBe(jobId);
     expect(await repoSlots()).toBe(1);
 
     // The next view finds it in flight: the same job back, nothing charged.

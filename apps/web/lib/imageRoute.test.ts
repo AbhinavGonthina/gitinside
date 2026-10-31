@@ -67,7 +67,8 @@ beforeEach(async () => {
   const worker: Pick<WorkerClient, "enqueue"> = {
     async enqueue(job) {
       enqueued.push(job);
-      return { id: `analyze-${job.sha.slice(0, 8)}`, created: true };
+      // The real client only returns IDs the worker could issue (worker.ts's JOB_ID).
+      return { id: `analyze-${job.sha.slice(0, 32)}`, created: true };
     },
   };
   deps = {

@@ -137,11 +137,11 @@ export async function requestAnalysis(
     // job exists now, so a failed write mustn't turn into an error the slot was spent on.
     try {
       const { id: repoId } = await upsertRepo(deps.db, repo);
-      await queueAnalysis(deps.db, {
-        repoId,
-        sha: repo.sha,
-        analyzerVersion: deps.analyzerVersion,
-      });
+      await queueAnalysis(
+        deps.db,
+        { repoId, sha: repo.sha, analyzerVersion: deps.analyzerVersion },
+        { jobId: job.id },
+      );
     } catch (error) {
       console.error(
         JSON.stringify({

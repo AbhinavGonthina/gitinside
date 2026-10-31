@@ -233,7 +233,11 @@ export async function viewRepo(
   }
   if (job.created) {
     const { id: repoId } = await upsertRepo(db, head);
-    await queueAnalysis(db, { repoId, sha: head.sha, analyzerVersion: deps.analyzerVersion });
+    await queueAnalysis(
+      db,
+      { repoId, sha: head.sha, analyzerVersion: deps.analyzerVersion },
+      { jobId: job.id },
+    );
   } else if (charged) {
     await refundRateLimit(db, key, charged);
   }

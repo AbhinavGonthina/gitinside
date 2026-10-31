@@ -352,8 +352,8 @@ function estimatePoint({ stage, step }: StoredProgress): EstimatePoint | undefin
 
 /**
  * The job processor BullMQ calls: validate the stored request, run {@link processJob},
- * report stages as progress (with the time expected from each step on, once the file count
- * is known), and turn failures into what BullMQ understands (a plain `Error` is retried, an
+ * report stages as progress to BullMQ and to the recorder's Postgres row (with the time
+ * expected from each step on, once the file count is known), and turn failures into what BullMQ understands (a plain `Error` is retried, an
  * `UnrecoverableError` isn't). Both carry only the code.
  */
 export function createProcessor(
@@ -391,9 +391,28 @@ export function createProcessor(
     // retry starts over, so nothing from an earlier attempt shows.
     let latest: StoredProgress = { stage: "download", progress: STAGE_PROGRESS.download };
     let found: FoundFacts | undefined;
+    // Postgres gets every update too (ADR-0139), one write at a time so they land in order;
+    // the job never waits for them, and a failed one is only logged.
+    let written = Promise.resolve();
+    const record = (progress: StoredProgress) => {
+      const write = jobDeps.recorder?.progress?.bind(jobDeps.recorder);
+      if (write === undefined) return;
+      written = written
+        .then(() => write(id, progress))
+        .catch((error: unknown) => {
+          log({
+            event: "progress_record_failed",
+            id,
+            stage: progress.stage,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        });
+    };
     const store = (progress: StoredProgress) => {
       latest = progress;
-      return job.updateProgress(found === undefined ? progress : { ...progress, found });
+      const stored = found === undefined ? progress : { ...progress, found };
+      record(stored);
+      return job.updateProgress(stored);
     };
     // When the current stage or step started, and the source files (from `programs` on).
     let place = "";

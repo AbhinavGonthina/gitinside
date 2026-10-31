@@ -1,10 +1,12 @@
 import {
   completeAnalysis,
   failAnalysis,
+  recordJobProgress,
   requeueAnalysis,
   startAnalysis,
   upsertRepo,
   type AnyDatabase,
+  type JobProgress,
 } from "@gitinside/db";
 import type { JobRequest } from "./api.js";
 import { JobFailure } from "./failure.js";
@@ -32,6 +34,8 @@ import {
  *   immutable key, which is harmless.
  * - **failed:** a final failure marks the row `failed` with its code; one that will be
  *   retried marks it `queued`.
+ * - **progress** (ADR-0139): the row carries the job ID from the start, and each progress
+ *   update the queue stores is written to it too, so the progress page can read Postgres.
  */
 
 /** Options for {@link createAnalysisRecorder}. */
@@ -53,7 +57,11 @@ export interface AnalysisRecorder extends JobRecorder {
 export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecorder {
   const { db, store, analyzerVersion } = options;
 
-  async function start(request: JobRequest, signal: AbortSignal): Promise<RecordedJob> {
+  async function start(
+    request: JobRequest,
+    signal: AbortSignal,
+    jobId: string,
+  ): Promise<RecordedJob> {
     const facts = await fetchRepoFacts(
       { owner: request.owner, repo: request.repo },
       { ...options.github, signal },
@@ -70,11 +78,11 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
         visibility,
         defaultBranch: facts.defaultBranch,
       });
-      const { id: analysisId } = await startAnalysis(db, {
-        repoId,
-        sha: request.sha,
-        analyzerVersion,
-      });
+      const { id: analysisId } = await startAnalysis(
+        db,
+        { repoId, sha: request.sha, analyzerVersion },
+        { jobId },
+      );
       return { analysisId, repoId, visibility, owner: facts.owner, name: facts.name };
     } catch (error) {
       throw new JobFailure("RECORD_FAILED", "writing the job's start failed", { cause: error });
@@ -124,5 +132,9 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
     else await requeueAnalysis(db, record.analysisId);
   }
 
-  return { start, publish, failed };
+  async function progress(jobId: string, current: JobProgress): Promise<void> {
+    await recordJobProgress(db, jobId, current);
+  }
+
+  return { start, publish, failed, progress };
 }

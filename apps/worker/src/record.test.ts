@@ -137,6 +137,9 @@ describe("createAnalysisRecorder", () => {
       status: "done",
       snapshotKey: key,
       errorCode: null,
+      jobId: ID,
+      attempts: 1,
+      progress: null,
     });
     const stored = s3.objects.get(key);
     expect(gunzipSync(stored!.body).toString()).toBe(GRAPH);
@@ -222,7 +225,22 @@ describe("createAnalysisRecorder", () => {
     });
     await processJob({ id: ID, request: REQUEST }, deps(healthy));
     await fresh.close();
-    expect(await onlyAnalysis()).toMatchObject({ id: queued.id, status: "done" });
+    expect(await onlyAnalysis()).toMatchObject({ id: queued.id, status: "done", attempts: 2 });
+  });
+
+  it("writes progress to the running row under the job's ID (ADR-0139)", async () => {
+    const r = recorder();
+    const seen: unknown[] = [];
+    const run: JobDeps["run"] = async (child) => {
+      await r.progress?.(ID, { stage: "analyze", progress: 38, step: "programs", count: 2 });
+      seen.push((await onlyAnalysis()).progress);
+      return writeGraph(child);
+    };
+    await processJob({ id: ID, request: REQUEST }, deps(r, { run }));
+    expect(seen).toEqual([{ stage: "analyze", progress: 38, step: "programs", count: 2 }]);
+    // Once done there's nothing to show, and a late write changes nothing.
+    await r.progress?.(ID, { stage: "upload", progress: 90 });
+    expect((await onlyAnalysis()).progress).toBeNull();
   });
 
   it("fails the start as the retriable RECORD_FAILED when the database is down", async () => {
