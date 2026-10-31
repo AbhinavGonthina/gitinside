@@ -56,6 +56,14 @@ export function AddToReadme({
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  // However it closes (its own button, Esc, or the repo bar opening Share), it opens
+  // again on Copy, without an old "Copied" or "Couldn't copy" (M4b.16).
+  useEffect(() => {
+    if (open) return;
+    clearTimeout(timer.current);
+    setCopy("idle");
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {

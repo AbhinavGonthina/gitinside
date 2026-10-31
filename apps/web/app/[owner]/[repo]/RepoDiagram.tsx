@@ -182,13 +182,15 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
           Open on GitHub
         </a>
       </div>
-      {/* Mounted empty with the page, so the note arriving is a change a screen reader reads. */}
+      {/* Mounted empty with the page, so the note arriving is a change a screen reader reads.
+          It's the only copy screen readers get: the visible one is hidden from them, so browse
+          mode doesn't read it twice (M4b.16). */}
       <p className="visually-hidden" aria-live="polite">
         {note ?? ""}
       </p>
       {note && (
         <div className="diagram-page__note">
-          <p>{note}</p>
+          <p aria-hidden="true">{note}</p>
           <IconButton icon="close" label="Dismiss" size="sm" onClick={dismissNote} />
         </div>
       )}
