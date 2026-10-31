@@ -1614,6 +1614,9 @@ describe("Explorer deep links", { timeout: 30_000 }, () => {
   it("keeps `exportRef` on the view as drawn, and exports from the top bar's share menu", async () => {
     const exportRef: { current: ViewExport | undefined } = { current: undefined };
     const { box, act } = await setup({ exportRef });
+    // The ref is set in an effect after the layout's render, which `settle()`
+    // can beat under CI's coverage (M4b.13b2).
+    await waitFor(() => expect(exportRef.current).toBeDefined());
     const top = exportRef.current;
     expect(top?.name).toBe("fixtures-shop-demo");
     expect(top?.mermaid()).not.toContain("subgraph");
