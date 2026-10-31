@@ -278,8 +278,10 @@ export function Explorer({
     [index, traced],
   );
   const steps = path?.steps ?? [];
-  // A new graph with a shorter path keeps the trace on its last step.
+  // A new graph with a shorter path keeps the trace on its last step, and that
+  // step is stored, so a graph that lengthens the path again stays on it (M4b.16).
   const step = stepAsked === null ? null : Math.max(0, Math.min(stepAsked, steps.length - 1));
+  if (step !== stepAsked) setStep(step);
   const [playing, setPlaying] = useState(false);
   // The picker T and the Trace button open when there's nothing to trace yet.
   const choices = useMemo(() => traceChoices(index), [index]);

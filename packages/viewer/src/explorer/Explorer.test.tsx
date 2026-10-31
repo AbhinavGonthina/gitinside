@@ -1,7 +1,7 @@
 import { composeStories } from "@storybook/react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { StrictMode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { ViewExport } from "../export/files.js";
 import { asWorker, FakeWorker, layouts } from "../layout/fakeWorker.testkit.js";
 import { SAMPLE_TESTS, withTestFiles } from "../model/filterSamples.js";
@@ -1022,6 +1022,15 @@ describe("Explorer framing on a small canvas (M4b.15f)", { timeout: 30_000 }, ()
     const title = within(screen.getByRole("complementary")).getByRole("heading", { level: 2 });
     expect(title.closest("header")?.classList.contains("gi-explorer__hop-header")).toBe(true);
   });
+
+  it("keeps a focused step clear of that header: the inspector's scroll padding is its height (M4b.16)", async () => {
+    const tall = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(96);
+    onTestFinished(() => tall.mockRestore());
+    const { press } = await setup();
+    await press("t");
+    const inspector = screen.getByRole("complementary");
+    expect(inspector.style.getPropertyValue("--gi-hop-header")).toBe("96px");
+  });
 });
 
 describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
@@ -1745,6 +1754,10 @@ describe("Explorer deep links", { timeout: 30_000 }, () => {
     expect(left).toBe(routeSteps - 2);
     expect(screen.getByText(`Step ${left} of ${left}`)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Next step" }).hasAttribute("disabled")).toBe(true);
+    // The clamped step is the trace's step now: the full graph again doesn't jump back.
+    rerender(<Explorer graph={graph} sources={sources} {...props} />);
+    await settle();
+    expect(screen.getByText(`Step ${left} of ${routeSteps}`)).toBeTruthy();
   });
 
   it("opens with the linked connection kinds hidden", async () => {

@@ -1,5 +1,5 @@
 import type { AnalysisWarning, GraphNode } from "@gitinside/schema";
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Button, Kbd, LinkButton } from "../chrome/controls.js";
 import { githubLineUrl, type RepoRef } from "../chrome/describe.js";
 import { WarningList } from "../chrome/EmptyState.js";
@@ -376,6 +376,24 @@ export function TracePanel({
   filtered,
   onShow,
 }: TracePanelProps) {
+  const header = useRef<HTMLElement>(null);
+  // The sticky header covers the inspector's top, so focus scrolling a step
+  // into view keeps it below the header (scroll padding, WCAG 2.4.11; M4b.16).
+  useEffect(() => {
+    const el = header.current;
+    const panel = el?.parentElement;
+    if (!el || !panel) return;
+    const measure = () => panel.style.setProperty("--gi-hop-header", `${el.offsetHeight}px`);
+    measure();
+    const observer =
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+    observer?.observe(el);
+    // The same inspector can go on to show a node, which has no sticky header.
+    return () => {
+      observer?.disconnect();
+      panel.style.removeProperty("--gi-hop-header");
+    };
+  }, [step]);
   const current = steps[step];
   if (!current) return null;
   const site = current.site;
@@ -395,7 +413,11 @@ export function TracePanel({
   // (chrome.css); the steps list and the player's buttons stay, keeping focus.
   return (
     <Inspector>
-      <header key={`header-${step}`} className="gi-inspector__header gi-explorer__hop-header">
+      <header
+        key={`header-${step}`}
+        ref={header}
+        className="gi-inspector__header gi-explorer__hop-header"
+      >
         <div className="gi-inspector__chips">
           <span className="gi-chip">Request path</span>
           <span className="gi-chip">
