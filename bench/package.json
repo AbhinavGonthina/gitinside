@@ -10,6 +10,7 @@
     "coverage": "vitest run --coverage",
     "bench": "node dist/analysis.js",
     "bench:stress": "node dist/stress.js",
+    "bench:capped": "node dist/capped.js",
     "bench:render": "vite build --config render/vite.config.ts && node dist/render.js"
   },
   "dependencies": {

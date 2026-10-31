@@ -255,6 +255,18 @@ describe("analyze", () => {
       code: "LIMIT_FILES",
     });
   });
+
+  it("fails with LIMIT_SOURCE_SIZE over the source-size limit, before building programs", async () => {
+    await writeFile(join(dir, "a.ts"), "export const a = 1;\n");
+    const stages: string[] = [];
+    await expect(
+      analyze(dir, {
+        limits: { maxSourceBytes: 10 },
+        onProgress: ({ stage }) => stages.push(stage),
+      }),
+    ).rejects.toMatchObject({ code: "LIMIT_SOURCE_SIZE" });
+    expect(stages).toEqual(["inventory"]);
+  });
 });
 
 describe("runCli", () => {

@@ -100,7 +100,7 @@ fetch → inventory → parse → resolve → detect → build graph → link cr
    - Enforce limits: total size ≤ 500 MB extracted and ≤ 100,000 entries. Files over 2 MB are written, and the analyzer's inventory skips them with a `SKIPPED_LARGE` warning, as on a checkout.
 2. **Inventory:**
    - Walk files (sorted, for determinism). Skip `node_modules/`, `.git/`, `dist/`, `build/`, `.next/`, `coverage/`, vendored dirs, and generated files (header markers like `@generated`, or `*.min.js`).
-   - Count source files (`.ts .tsx .js .jsx .mjs .cjs .prisma`). Over 20,000 ⇒ fail with `LIMIT_FILES`.
+   - Count source files (`.ts .tsx .js .jsx .mjs .cjs .prisma`). Over 20,000 ⇒ fail with `LIMIT_FILES`; over 50 MB together (sizes from the walk) ⇒ fail with `LIMIT_SOURCE_SIZE`, before any parsing (ADR-0137: a repo that size runs out of the worker's 3 GB minutes into parsing).
    - Detect workspaces: root `package.json` `workspaces`, `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`. Each workspace package with a `package.json` becomes a **service candidate**. A single-package repo is one service.
 3. **Parse:** per service, build a `ts.Program` from its `tsconfig.json`, or synthesized options if absent: `allowJs`, `jsx: preserve`, `skipLibCheck`, `noEmit`, `types: []`, and `paths`/`baseUrl` honored.
    - There is no `node_modules` on disk, so external imports resolve to an `external package` placeholder.
@@ -342,7 +342,7 @@ Built in steps M6.7a–f (ADR-0090).
 | Situation | Behavior |
 |---|---|
 | Dynamic routes, DI, reflection, routes built in loops | Not guessed. Recorded as unresolved with a reason, and visible in the UI |
-| Over 20k files / 5 min / 500 MB | Fails with `LIMIT_*`; the UI suggests a subfolder (`?path=apps/web`) |
+| Over 20k files / 50 MB of source / 5 min / 500 MB | Fails with `LIMIT_*`; the UI suggests a subfolder (`?path=apps/web`) |
 | Missing or invalid tsconfig | Synthesized defaults (§5.3); warning in stats |
 | Syntax errors in a file | The file is parsed with errors; the TS AST is still traversed; warning recorded |
 | Monorepo with circular workspace deps | Services are still created; cycle warning |

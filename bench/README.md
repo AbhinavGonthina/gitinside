@@ -27,9 +27,17 @@ pnpm bench:stress -- --runs 2 --heap-mb 12288 --label "laptop"
 For each repo in `repos.json` `stress` (pinned SHA; microsoft/vscode, #10), `src/stress.ts` measures what production would meet, without production's limits:
 
 1. Downloads the tarball the way the worker does (`openTarball`) to `bench/.repos/<name>-<sha7>.tar.gz` and extracts it with the worker's own `extractTarball`, its 500 MiB and 100,000-entry limits lifted, so the decompressed size and entry count are the numbers those limits check. Both are recorded in `bench/.repos/<name>-<sha7>.json`; a rerun reuses the tree. Nothing in it is installed or run.
-2. Takes the analyzer's inventory with the 20,000-source-file limit lifted (the exact `LIMIT_FILES` count).
-3. Runs `analyze` `--runs` times (default 1, no warm-up), each in a fresh Node process with `--max-old-space-size` from `--heap-mb` (default 12,288 instead of the worker's 3,072), no time limit, and the file limit lifted.
-4. Writes `results/<date>-stress-<name>.md`: every production limit (`LIMIT_SIZE`, `LIMIT_ENTRIES`, `LIMIT_FILES`, `LIMIT_MEMORY`, `LIMIT_TIME`, read from the code that enforces them) against what was measured, the first one a job would hit, per-stage times with when each ended (so the stage running at 5 minutes is known), and the graph size; the raw numbers go in the `.json` next to it. Observations are added by hand.
+2. Takes the analyzer's inventory with the 20,000-source-file and 50 MB source-size limits lifted (the exact `LIMIT_FILES` and `LIMIT_SOURCE_SIZE` counts).
+3. Runs `analyze` `--runs` times (default 1, no warm-up), each in a fresh Node process with `--max-old-space-size` from `--heap-mb` (default 12,288 instead of the worker's 3,072), no time limit, and both inventory limits lifted.
+4. Writes `results/<date>-stress-<name>.md`: every production limit (`LIMIT_SIZE`, `LIMIT_ENTRIES`, `LIMIT_FILES`, `LIMIT_SOURCE_SIZE`, `LIMIT_MEMORY`, `LIMIT_TIME`, read from the code that enforces them) against what was measured, the first one a job would hit, per-stage times with when each ended (so the stage running at 5 minutes is known), and the graph size; the raw numbers go in the `.json` next to it. Observations are added by hand.
+
+## Capped runs (what a job's analysis step gets)
+
+```sh
+pnpm bench:capped .repos/calcom .repos/vscode-11ba54a-tree/src/vs/editor   # folders relative to bench/
+```
+
+`src/capped.ts` runs each folder through the worker's own sandboxed runner (`runAnalysis`: 3 GB heap, 5 minutes, no network, the analyzer's default limits), one after another, and prints a JSON line per folder: source files and MiB, outcome or failure code, time, the last analyzer step seen and when, and stage times. It calibrated the 50 MB source-size limit (ADR-0137, `results/2026-10-31-capped-vscode.md`); to measure folders over that limit, raise `MAX_SOURCE_MB` in `packages/analyzer/src/inventory.ts` and rebuild first.
 
 ## Render fps
 

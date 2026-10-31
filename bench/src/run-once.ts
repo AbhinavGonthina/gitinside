@@ -7,7 +7,8 @@ import { countGraph, type RunResult } from "./report.js";
 // One measured `analyze` run. analysis.ts and stress.ts spawn this in a fresh process per run
 // so peak RSS belongs to that run alone.
 // Usage: node run-once.js <dir> <owner> <name> <sha> [--no-file-limit]
-// `--no-file-limit` lifts the analyzer's 20,000 source-file limit (the stress benchmark only).
+// `--no-file-limit` lifts the analyzer's source-file and source-size limits (the stress
+// benchmark only).
 // Prints one JSON RunResult line on stdout.
 
 const [dir, owner, name, sha, ...rest] = process.argv.slice(2);
@@ -22,7 +23,9 @@ const graph = await analyze(dir, {
   owner,
   name,
   sha,
-  ...(rest.includes("--no-file-limit") ? { limits: { maxSourceFiles: Infinity } } : {}),
+  ...(rest.includes("--no-file-limit")
+    ? { limits: { maxSourceFiles: Infinity, maxSourceBytes: Infinity } }
+    : {}),
   onStage: (stage, ms) => {
     stages[stage] = ms;
   },

@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { MAX_SOURCE_MB } from "@gitinside/analyzer";
 import { describe, expect, it } from "vitest";
 import {
   MISSING_MESSAGE,
@@ -126,6 +127,7 @@ describe("failureView", () => {
   it("permanent failures say what happened and point to a smaller repo, without a retry", () => {
     for (const code of [
       "LIMIT_FILES",
+      "LIMIT_SOURCE_SIZE",
       "LIMIT_SIZE",
       "LIMIT_ENTRIES",
       "LIMIT_TIME",
@@ -137,6 +139,9 @@ describe("failureView", () => {
       expect(view.message, code).toMatch(/Try a smaller repo\.$/);
     }
     expect(failureView("LIMIT_FILES").message).toContain("20,000 source files");
+    expect(failureView("LIMIT_SOURCE_SIZE").message).toBe(
+      `This repo has over ${MAX_SOURCE_MB} MB of source code, the limit for one analysis. Try a smaller repo.`,
+    );
     expect(failureView("REPO_NOT_PUBLIC").message).toBe(failureView("REPO_NOT_FOUND").message);
     expect(failureView("REPO_NOT_PUBLIC").message).toContain("Private repos aren't supported yet");
     expect(failureView("TAR_UNSAFE_PATH").retry).toBe(false);
