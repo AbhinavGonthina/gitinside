@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.16a Stress benchmark (#10): microsoft/vscode through bench/, parse only (M5.13 and M5.14b wait on #3)
+M5.16a1 Flaky `consumeRateLimit` race test at the hour boundary (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -153,7 +153,8 @@ M5.16a Stress benchmark (#10): microsoft/vscode through bench/, parse only (M5.1
 - [x] M5.15a Progress page (#8): job link copy button + "the analysis keeps running if you leave; reopen this link any time" (reopened link shows live progress, or opens the diagram when done), tests, screenshots {model: opus}
 - [x] M5.15b Progress page (#8): repo facts as found: analyzer progress events carry the facts each stage produced (service names, route count, data stores and external services), streamed through the worker's BullMQ progress and SSE; shown calmly as the diagram assembling, nothing guessed; tests, screenshots {model: opus}
 - [x] M5.15c Progress page (#8): estimated time left from measured data (file count or tarball size vs bench results and past job durations from `stats` stage timings), updated per stage, "Taking longer than usual" when over, none until computable, never negative; ADR, tests, screenshots {model: opus}
-- [ ] M5.16a Stress benchmark (#10): `microsoft/vscode` at a pinned commit through `bench/`, parse only (never installed or run), without the worker's 3 GB / 5 min caps; wall clock, peak RSS, per-stage times, graph size, file count, tarball and decompressed size + entry count vs the extraction limits (500 MB / 100,000); `bench/results/` write-up with hand-written observations (where time and memory go, which production limit it hits first) {model: opus}
+- [x] M5.16a Stress benchmark (#10): `microsoft/vscode` at a pinned commit through `bench/`, parse only (never installed or run), without the worker's 3 GB / 5 min caps; wall clock, peak RSS, per-stage times, graph size, file count, tarball and decompressed size + entry count vs the extraction limits (500 MB / 100,000); `bench/results/` write-up with hand-written observations (where time and memory go, which production limit it hits first) {model: opus}
+- [ ] M5.16a1 Flaky `consumeRateLimit` race test (`packages/db/src/rateLimits.test.ts`): CI on `681ceb6` got 10 of 12 racing requests allowed with limit 5, at 15:00:00 UTC; `date_trunc('hour', now())` split the race over two windows. Make the test independent of the hour boundary (all requests in one window, e.g. pinned `now()` or retried across a boundary), keep the exact-`limit` assertion; red first by forcing a boundary {model: opus}
 - [ ] M5.16b What a VS Code-sized repo does in production (#10): which limit stops it and how early, what the progress page says; make it fail fast (refuse before parsing, e.g. from the inventory count or the tarball's size) with a clear message; tests; what the analyzer would need to handle it (per-service programs, M6.7 cache), without raising the caps {model: opus}
 - [ ] M5.16c Supported size written down (#10): "repos up to about N files / M MB" from M5.16a and cal.com, in the docs, the landing page, and the `LIMIT_*` error copy; VS Code in EVALUATION.md's benchmark list as a standing stress test if useful {model: opus}
 - [ ] M5.17a Jobs in Neon (ADR-0114, #9): job rows carry `queued` / running / done / failed, attempts, stage + progress + counts; the progress page's SSE, queue position (queued rows ahead), and the job link read Neon instead of the worker's `GET /jobs/:id`; tests (PGlite) {model: opus}
@@ -232,6 +233,8 @@ M5.16a Stress benchmark (#10): microsoft/vscode through bench/, parse only (M5.1
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M5.16a** VS Code stress benchmark (`a8a01cd`, results `e26a093`, #10): `pnpm bench:stress` downloads with the worker's `openTarball`, extracts with its `extractTarball` (limits lifted), and analyzes uncapped. VS Code at `11ba54a` is inside every pre-parse limit (328 MiB of 500, 25,233 of 100,000 entries, 15,184 of 20,000 source files) but took 14 min 36 s with a 9,696 MiB final heap: production would parse, then fail on `LIMIT_MEMORY`/`LIMIT_TIME`. `http` 37% of the time, one service (no workspaces). The report's "first limit" line wrongly picked memory by table order; fixed (test red first) and re-rendered from the JSON. Bench 45/45, typecheck, lint. Queued M5.16a1: CI's `rateLimits` race test flakes at the hour boundary. Eval re-recorded (lockfile), no delta.
 
 - **2026-10-31 M5.15c** Time left on the progress page (`3d5fd17`, #8, ADR-0136): from `programs` on, the worker stores each step's start and the time expected to the end (median ms per source file per step over the last 50 finished analyses, or the cal.com benchmark until 5; plus median upload when measured); `GET /jobs/:id` answers `leftMs` (≥ 0) on the worker's clock; the page says "About 40 s left" / "About 3 min left" / "Taking longer than usual" under the bar on a reserved line. Found and fixed an M5.15b bug: the API's `publicStatus` dropped `found` (test red first). `pnpm test` all green (worker 533, web 364, db 73), typecheck, lint. Chromium dark/light at 1440/390 (`docs/milestones/M5/eta/`): stages don't move when the estimate arrives. No eval delta.
 
