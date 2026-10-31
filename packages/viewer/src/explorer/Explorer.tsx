@@ -453,6 +453,12 @@ export function Explorer({
   /** What T and the Trace button trace: the selection if it can be, else `traceStart`. */
   const startable = selectionTraces ? selectedNode.id : fallbackStart;
   const selectedBox = selected ? drawnAs(index, view, filtered, selected) : undefined;
+  /** Boxes the canvas draws even when culled (M4b.13a): focus goes back to these. */
+  const traceStartBox = traced ? drawnAs(index, view, filtered, traced) : undefined;
+  const keptBoxes = useMemo(
+    () => [selectedBox, traceStartBox].filter((id): id is string => id !== undefined),
+    [selectedBox, traceStartBox],
+  );
   const repo: RepoRef = graph.repo;
 
   // First-visit hints (M4b.12a, UX.md "Onboarding"): chosen once from what
@@ -1011,6 +1017,8 @@ export function Explorer({
             lineLook={lineLook}
             onLayout={onLayout}
             zoom={camera.zoom}
+            viewport={canvas.width > 0 ? visibleRect(camera, canvas) : undefined}
+            keep={keptBoxes}
           />
           <div
             className="gi-explorer__pin"

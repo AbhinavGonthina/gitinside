@@ -1,12 +1,13 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { LayoutInput, LayoutResult } from "../layout/elk.js";
+import { layoutInput, type LayoutInput, type LayoutResult } from "../layout/elk.js";
 import { createLayoutCache, type LayoutCache } from "../layout/engine.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { REDUCED_MOTION_QUERY } from "../motion.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import { durations } from "../tokens.js";
+import { nearestBox } from "./a11y.js";
 import { DrillCanvas } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
 
@@ -360,5 +361,83 @@ describe("DrillCanvas", () => {
     expect(screen.getByRole("alert").textContent).toBe(
       "Couldn't lay out this level: ELK ran out of memory",
     );
+  });
+});
+
+describe("DrillCanvas culling (M4b.13a)", () => {
+  // fakeLayout puts box i at x = 100·i, so a 100px viewport at 0,0 culls to
+  // the window -512…512 (cullWindow): boxes 0–5 (box -1 doesn't exist).
+  const view = buildView(index, [API, "module:api/src"]);
+  const near = { x: 0, y: 0, width: 100, height: 100 };
+  const far = { x: 900, y: 0, width: 100, height: 100 };
+  const drawnIds = () =>
+    [...document.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving])")].map(
+      (el) => el.dataset.nodeId,
+    );
+
+  async function draw(props: Partial<Parameters<typeof DrillCanvas>[0]> = {}) {
+    const cache = quickCache();
+    await cache.layout(view);
+    const utils = render(<DrillCanvas index={index} view={view} cache={cache} {...props} />);
+    return { ...utils, cache };
+  }
+
+  it("draws only the boxes near the viewport once a level is big enough", async () => {
+    expect(view.nodes.length).toBeGreaterThan(8);
+    await draw({ viewport: near, cullFrom: 1 });
+    expect(drawnIds()).toEqual(view.nodes.slice(0, 6).map((n) => n.id));
+  });
+
+  it("culls the lines and pills far from the viewport", async () => {
+    await draw({ viewport: far, cullFrom: 1 });
+    // Every fake line runs at x 0–50 (pills reach 265), left of the window 512–1536.
+    expect(document.querySelectorAll(".gi-drill__lines .gi-edge")).toHaveLength(0);
+    expect(document.querySelectorAll(".gi-drill__labels .gi-edge-label")).toHaveLength(0);
+    expect(drawnIds().length).toBeGreaterThan(0);
+  });
+
+  it("draws everything below the threshold, or without a viewport", async () => {
+    const { rerender, cache } = await draw({ viewport: near });
+    expect(view.nodes.length + view.edges.length).toBeLessThan(400);
+    expect(drawnIds()).toHaveLength(view.nodes.length);
+    rerender(<DrillCanvas index={index} view={view} cache={cache} cullFrom={1} />);
+    expect(drawnIds()).toHaveLength(view.nodes.length);
+  });
+
+  it("keeps the host's boxes drawn wherever they are", async () => {
+    const last = view.nodes.at(-1)?.id as string;
+    await draw({ viewport: near, cullFrom: 1, keep: [last] });
+    expect(drawnIds()).toContain(last);
+    expect(drawnIds()).toHaveLength(7);
+  });
+
+  it("keeps the focused box drawn when the camera moves away from it", async () => {
+    const first = view.nodes[0]?.id as string;
+    const { rerender, cache } = await draw({ viewport: near, cullFrom: 1 });
+    act(() => nodeEl(first)?.focus());
+    rerender(<DrillCanvas index={index} view={view} cache={cache} viewport={far} cullFrom={1} />);
+    expect(drawnIds()).toContain(first);
+    expect(document.activeElement).toBe(nodeEl(first));
+    // Once focus leaves, it's culled like the rest.
+    act(() => (document.activeElement as HTMLElement).blur());
+    expect(drawnIds()).not.toContain(first);
+  });
+
+  it("draws a culled box an arrow key moves to, then focuses it", async () => {
+    const layout = fakeLayout(layoutInput(index, view));
+    // A drawn box whose nearest neighbour to the right is culled.
+    const from = layout.boxes.find((b, i) => {
+      const to = nearestBox(layout.boxes, b.id, "right");
+      return i < 6 && to !== undefined && layout.boxes.findIndex((c) => c.id === to) >= 6;
+    });
+    expect(from).toBeDefined();
+    const to = nearestBox(layout.boxes, from?.id as string, "right") as string;
+    await draw({ viewport: near, cullFrom: 1 });
+    expect(drawnIds()).not.toContain(to);
+    act(() => nodeEl(from?.id as string)?.focus());
+    fireEvent.keyDown(nodeEl(from?.id as string) as HTMLElement, { key: "ArrowRight" });
+    await flush();
+    expect(drawnIds()).toContain(to);
+    expect(document.activeElement).toBe(nodeEl(to));
   });
 });
