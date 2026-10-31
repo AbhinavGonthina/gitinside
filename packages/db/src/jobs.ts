@@ -13,9 +13,10 @@ import type { AnyDatabase } from "./analyses.js";
 import { analyses, repos, type JobProgress } from "./schema.js";
 
 /**
- * Store where the running attempt of job `jobId` is. Only a `running` row is written, so a
- * late update from an attempt that already finished, failed, or went back to the queue
- * changes nothing. Returns whether a row was written.
+ * Store where the running attempt of job `jobId` is, stamped with the database's `now()`
+ * (`progress_at`), so a reader can age `leftMs` on that one clock (ADR-0140). Only a
+ * `running` row is written, so a late update from an attempt that already finished, failed,
+ * or went back to the queue changes nothing. Returns whether a row was written.
  */
 export async function recordJobProgress(
   db: AnyDatabase,
@@ -24,7 +25,7 @@ export async function recordJobProgress(
 ): Promise<boolean> {
   const rows = await db
     .update(analyses)
-    .set({ progress })
+    .set({ progress, progressAt: sql`now()` })
     .where(and(eq(analyses.jobId, jobId), eq(analyses.status, "running")))
     .returning({ id: analyses.id });
   return rows.length > 0;
@@ -40,6 +41,11 @@ export interface JobRecord {
   attempts: number;
   /** While `running`, once the worker wrote it; as stored, so check it before showing it. */
   progress: JobProgress | null;
+  /**
+   * With `progress`: milliseconds since it was written, by the database's clock (the same
+   * clock that stamped it), so `progress.leftMs - progressAgeMs` is the time left now.
+   */
+  progressAgeMs?: number;
   /** Private jobs (M8) need an access check before anything about them is shown. */
   visibility: "public" | "private";
   /** While `queued`: how many `queued` rows entered the queue before it (0 = next). */
@@ -50,6 +56,7 @@ export interface JobRecord {
  * The job with ID `jobId`, or `undefined` if no row has it. If several rows do (a repo
  * deleted and created again with the same commits), the newest is the job. The position
  * counts every `queued` row ahead in queue order (when each last entered the queue, then ID).
+ * The progress's age is `now()` minus `progress_at`, never below 0.
  */
 export async function findJob(db: AnyDatabase, jobId: string): Promise<JobRecord | undefined> {
   const [row] = await db
@@ -64,7 +71,11 @@ export async function findJob(db: AnyDatabase, jobId: string): Promise<JobRecord
         select count(*)::int from ${analyses} as ahead
         where ahead.status = 'queued'
           and (ahead.queued_at, ahead.id) < (${analyses.queuedAt}, ${analyses.id})
-      ) end`.mapWith((value: unknown) => (value === null ? null : Number(value))),
+      ) end`.mapWith(nullableNumber),
+      // `greatest` skips nulls, so without the `case` no progress would read as age 0.
+      progressAgeMs: sql<number | null>`case when ${analyses.progressAt} is not null then
+        greatest(0, floor(extract(epoch from (now() - ${analyses.progressAt})) * 1000))::bigint
+      end`.mapWith(nullableNumber),
     })
     .from(analyses)
     .innerJoin(repos, eq(repos.id, analyses.repoId))
@@ -72,6 +83,15 @@ export async function findJob(db: AnyDatabase, jobId: string): Promise<JobRecord
     .orderBy(desc(analyses.createdAt), desc(analyses.id))
     .limit(1);
   if (row === undefined) return undefined;
-  const { position, ...job } = row;
-  return position === null ? job : { ...job, position };
+  const { position, progressAgeMs, ...job } = row;
+  return {
+    ...job,
+    ...(progressAgeMs === null ? {} : { progressAgeMs }),
+    ...(position === null ? {} : { position }),
+  };
+}
+
+/** A count from SQL (`int` or `bigint`, which drivers may return as a string), or null. */
+function nullableNumber(value: unknown): number | null {
+  return value === null ? null : Number(value);
 }

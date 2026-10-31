@@ -6,12 +6,12 @@ import {
   startAnalysis,
   upsertRepo,
   type AnyDatabase,
-  type JobProgress,
 } from "@gitinside/db";
 import type { JobRequest } from "./api.js";
 import { JobFailure } from "./failure.js";
 import { fetchRepoFacts, type DownloadOptions } from "./github.js";
 import type { JobArtifact, JobRecorder, RecordedJob } from "./job.js";
+import { recordedProgress, type StoredProgress } from "./progress.js";
 import {
   privateSnapshotKey,
   publicSnapshotKey,
@@ -34,8 +34,10 @@ import {
  *   immutable key, which is harmless.
  * - **failed:** a final failure marks the row `failed` with its code; one that will be
  *   retried marks it `queued`.
- * - **progress** (ADR-0139): the row carries the job ID from the start, and each progress
- *   update the queue stores is written to it too, so the progress page can read Postgres.
+ * - **progress** (ADR-0139, ADR-0140): the row carries the job ID from the start, and each
+ *   progress update the queue stores is written to it too, so the progress page can read
+ *   Postgres. The estimate is written as the time left at the write, never as a moment on
+ *   this process's clock.
  */
 
 /** Options for {@link createAnalysisRecorder}. */
@@ -46,6 +48,8 @@ export interface RecorderOptions {
   analyzerVersion: string;
   /** How to reach GitHub's API; the same settings as the job's download. */
   github?: Omit<DownloadOptions, "signal">;
+  /** The clock progress's `since` was read from (the queue's processor's). Default `Date.now`. */
+  now?: () => number;
 }
 
 /** A {@link JobRecorder} plus the job's `publish` step. */
@@ -132,8 +136,10 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
     else await requeueAnalysis(db, record.analysisId);
   }
 
-  async function progress(jobId: string, current: JobProgress): Promise<void> {
-    await recordJobProgress(db, jobId, current);
+  async function progress(jobId: string, current: StoredProgress): Promise<void> {
+    // The estimate's `since` is this process's clock, so the time left is taken here, on it;
+    // the database stamps the write with its own clock for readers (ADR-0140).
+    await recordJobProgress(db, jobId, recordedProgress(current, (options.now ?? Date.now)()));
   }
 
   return { start, publish, failed, progress };

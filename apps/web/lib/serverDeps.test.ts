@@ -148,15 +148,14 @@ describe("repoViewDepsFromEnv", () => {
 });
 
 describe("jobDepsFromEnv", () => {
-  it("needs only the worker, not the database", () => {
-    const deps = jobDepsFromEnv({ ...ENV, DATABASE_URL: undefined });
-    expect(typeof deps?.worker.status).toBe("function");
+  it("needs only the database, not the worker (ADR-0139)", () => {
+    const deps = jobDepsFromEnv({ DATABASE_URL: ENV.DATABASE_URL });
+    expect(typeof deps?.findJob).toBe("function");
+    expect(Object.keys(deps ?? {})).toEqual(["findJob"]);
   });
 
-  it("is undefined without a usable worker URL and secret", () => {
-    expect(jobDepsFromEnv({ ...ENV, WORKER_URL: undefined })).toBeUndefined();
-    expect(jobDepsFromEnv({ ...ENV, ENQUEUE_HMAC_SECRET: "short" })).toBeUndefined();
-    const plain = { ...ENV, WORKER_URL: "http://127.0.0.1:8080", NODE_ENV: "production" };
-    expect(jobDepsFromEnv(plain)).toBeUndefined();
+  it("is undefined without the database, whatever the worker's settings", () => {
+    expect(jobDepsFromEnv({ ...ENV, DATABASE_URL: undefined })).toBeUndefined();
+    expect(jobDepsFromEnv({ ...ENV, DATABASE_URL: "" })).toBeUndefined();
   });
 });

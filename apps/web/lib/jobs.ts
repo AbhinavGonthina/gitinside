@@ -1,19 +1,21 @@
+import type { JobRecord } from "@gitinside/db";
 import {
   describeFound,
   describeProgress,
   describeTimeLeft,
   formatCount,
+  parseRecordedProgress,
+  timeLeft,
   type FoundLine,
   type JobStage,
 } from "@gitinside/worker/progress";
 import { SUPPORTED_SIZE, SUPPORTED_SOURCE_FILES, SUPPORTED_SOURCE_SIZE } from "./limits";
 import { UNAVAILABLE_MESSAGE } from "./messages";
-import type { WorkerJobStatus } from "./worker";
 
 /**
- * What the progress page shows for a job (UX.md "Analyze", ADR-0067): the worker's status
- * turned into words once, on the server, so `GET /api/jobs/:id` and its SSE variant send the
- * same thing and the browser only renders it.
+ * What the progress page shows for a job (UX.md "Analyze", ADR-0067): the job's `analyses`
+ * row (ADR-0139) turned into words once, on the server, so `GET /api/jobs/:id` and its SSE
+ * variant send the same thing and the browser only renders it.
  */
 
 /** The steps the page lists, in order: waiting for a slot, then the worker's stages. */
@@ -50,9 +52,9 @@ export type JobView =
   | { state: "done" }
   /** It failed: `message` says what happened and what to do; `retry` if trying again could help. */
   | { state: "failed"; errorCode: string; message: string; retry: boolean }
-  /** The worker doesn't know this job (never added, or past its 24 hours). */
+  /** No row has this job (never queued, or removed since), or it isn't public. */
   | { state: "missing"; message: string }
-  /** The worker can't be reached right now; the page keeps listening. */
+  /** The database can't be reached right now; the page keeps listening. */
   | { state: "unavailable"; message: string };
 
 /** The states after which nothing changes, so the stream ends. */
@@ -61,7 +63,7 @@ export function isFinal(view: JobView): boolean {
 }
 
 export const MISSING_MESSAGE =
-  "We couldn't find this analysis. It may have finished over a day ago: open the diagram, or analyze the repo again.";
+  "We couldn't find this analysis. It may have been removed since: open the diagram, or analyze the repo again.";
 
 const NOT_PUBLIC = {
   reason: "We couldn't find a public GitHub repo with that name.",
@@ -141,39 +143,53 @@ export function queueText(position: number | undefined): string {
   return `${formatCount(position)} ahead of you`;
 }
 
+/** The shape of our own failure codes; anything else stored is shown as `WORKER_ERROR`. */
+const ERROR_CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
+
 /**
- * The view for a worker status (`undefined`: the worker doesn't know the job). Diff jobs are
- * the PR bot's (M8), never shown here, so they read as missing.
+ * The view for a job's row (`undefined`: no row has the job). A private repo's job reads as
+ * missing until M8's access check, so nothing about it shows. The row's `progress` is checked
+ * with the worker's own parser, and anything malformed is left out (the page then says
+ * "Downloading", as for a running row with none yet). The time left is what the worker wrote
+ * minus the row's age, both measured on the database's clock (ADR-0140), never compared with
+ * this server's.
  */
-export function jobView(status: WorkerJobStatus | undefined): JobView {
-  if (status === undefined || status.kind !== "analyze") {
+export function jobView(job: JobRecord | undefined): JobView {
+  if (job === undefined || job.visibility !== "public") {
     return { state: "missing", message: MISSING_MESSAGE };
   }
-  switch (status.state) {
+  switch (job.status) {
     case "queued":
       return {
         state: "queued",
         step: "queue",
         progress: 0,
-        text: queueText(status.position),
-        ...(status.position === undefined ? {} : { position: status.position }),
+        text: queueText(job.position),
+        ...(job.position === undefined ? {} : { position: job.position }),
       };
     case "running": {
+      const progress = parseRecordedProgress(job.progress);
       // Running but no progress stored yet: the download is what starts first.
-      const stage = status.stage ?? "download";
+      const stage = progress?.stage ?? "download";
+      const leftMs =
+        progress?.leftMs === undefined
+          ? undefined
+          : timeLeft(progress.leftMs, 0, job.progressAgeMs ?? 0);
       return {
         state: "running",
         step: stage,
-        progress: status.progress ?? 0,
-        text: describeProgress(stage, status.step, status.count),
-        found: status.found === undefined ? [] : describeFound(status.found),
-        ...(status.leftMs === undefined ? {} : { timeLeft: describeTimeLeft(status.leftMs) }),
+        progress: progress?.progress ?? 0,
+        text: describeProgress(stage, progress?.step, progress?.count),
+        found: progress?.found === undefined ? [] : describeFound(progress.found),
+        ...(leftMs === undefined ? {} : { timeLeft: describeTimeLeft(leftMs) }),
       };
     }
     case "done":
       return { state: "done" };
     case "failed":
-      return failureView(status.errorCode ?? "WORKER_ERROR");
+      return failureView(
+        job.errorCode !== null && ERROR_CODE.test(job.errorCode) ? job.errorCode : "WORKER_ERROR",
+      );
   }
 }
 

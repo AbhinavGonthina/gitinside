@@ -1,21 +1,27 @@
+import { findJob, type AnyDatabase, type JobRecord } from "@gitinside/db";
 import { UNAVAILABLE_VIEW, isFinal, jobView, type JobView } from "./jobs";
-import { WorkerUnavailableError, type WorkerClient } from "./worker";
 
 /**
  * `GET /api/jobs/:id` and its SSE variant `GET /api/jobs/:id/events` (docs/DESIGN.md §11,
  * ADR-0067), apart from Next.js so tests call them with plain values.
  *
- * Both answer with a {@link JobView}: the worker's status, checked and put into words. The
- * stream asks the worker every {@link EventOptions.intervalMs}, sends a `status` event only
- * when the view changes, and ends after a final view (done, failed, missing) or after
- * {@link EventOptions.lifetimeMs}. The browser's `EventSource` reconnects by itself after
- * `retry`, so a long analysis is a chain of short requests, each well inside a serverless
- * function's time limit, and a closed tab stops the polling at once.
+ * Both answer with a {@link JobView}: the job's `analyses` row (ADR-0139, ADR-0140), checked
+ * and put into words; the worker is never asked. The stream reads the row every
+ * {@link EventOptions.intervalMs}, sends a `status` event only when the view changes, and
+ * ends after a final view (done, failed, missing) or after {@link EventOptions.lifetimeMs}.
+ * The browser's `EventSource` reconnects by itself after `retry`, so a long analysis is a
+ * chain of short requests, each well inside a serverless function's time limit, and a closed
+ * tab stops the polling at once.
  */
 
-/** What the job routes talk to: the worker's `GET /jobs/:id`. */
+/** What the job routes read: a job's row by its ID (`findJob`). */
 export interface JobRouteDeps {
-  worker: Pick<WorkerClient, "status">;
+  findJob(id: string): Promise<JobRecord | undefined>;
+}
+
+/** The job routes' deps over `db`. */
+export function jobRouteDeps(db: AnyDatabase): JobRouteDeps {
+  return { findJob: (id) => findJob(db, id) };
 }
 
 /** The only job IDs the web app shows: analyses (diff jobs are the PR bot's). */
@@ -35,21 +41,21 @@ export interface EventOptions {
 
 const NOT_FOUND = { error: "JOB_NOT_FOUND", message: "There's no analysis with that ID." };
 
-/** The view for `id` now. Every failure to ask is "unavailable"; nothing about it is shown. */
+/**
+ * The view for `id` now. Every failure to read is "unavailable" and logged by name only (a
+ * message can carry connection details); nothing about it is shown.
+ */
 async function currentView(id: string, deps: JobRouteDeps | undefined): Promise<JobView> {
   if (deps === undefined) return UNAVAILABLE_VIEW;
   try {
-    return jobView(await deps.worker.status(id));
+    return jobView(await deps.findJob(id));
   } catch (error) {
-    if (!(error instanceof WorkerUnavailableError)) {
-      // Name only, as in /api/analyze: a message can carry connection details.
-      console.error(
-        JSON.stringify({
-          event: "job_status_failed",
-          error: error instanceof Error ? error.name : "unknown",
-        }),
-      );
-    }
+    console.error(
+      JSON.stringify({
+        event: "job_status_failed",
+        error: error instanceof Error ? error.name : "unknown",
+      }),
+    );
     return UNAVAILABLE_VIEW;
   }
 }

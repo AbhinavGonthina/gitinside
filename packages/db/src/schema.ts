@@ -103,11 +103,11 @@ export interface AnalysisStats {
 }
 
 /**
- * Where a running attempt is (ADR-0064, ADR-0139), as the worker writes it: its stage and
- * coarse progress (0–100), inside `analyze` the analyzer's step and its count, what the
- * attempt has found so far (#8, capped), and once estimated, when the stage or step started
- * (epoch ms, the worker's clock) and the milliseconds expected from then to the end. The
- * worker's `StoredProgress` is this shape; readers check every field before showing it.
+ * Where a running attempt is (ADR-0064, ADR-0139, ADR-0140), as the worker writes it: its
+ * stage and coarse progress (0–100), inside `analyze` the analyzer's step and its count, what
+ * the attempt has found so far (#8, capped), and once estimated, the milliseconds it had left
+ * when written (measured on the worker's own clock). Readers subtract the time since the row's
+ * `progress_at`, on the database's clock, and check every field before showing it.
  */
 export interface JobProgress {
   stage: string;
@@ -115,8 +115,7 @@ export interface JobProgress {
   step?: string;
   count?: number;
   found?: object;
-  since?: number;
-  expectMs?: number;
+  leftMs?: number;
 }
 
 /**
@@ -153,6 +152,8 @@ export const analyses = pgTable(
     queuedAt: timestampTz("queued_at").notNull().defaultNow(),
     /** Where the running attempt is; null in every other status. */
     progress: jsonb("progress").$type<JobProgress>(),
+    /** When `progress` was written, by the database's clock; null exactly when it is. */
+    progressAt: timestampTz("progress_at"),
   },
   (t) => [
     unique("analyses_repo_sha_version_key").on(t.repoId, t.sha, t.analyzerVersion),
@@ -165,6 +166,7 @@ export const analyses = pgTable(
     check("analyses_job_id_check", sql`${t.jobId} ~ '^analyze-[0-9a-f]{32}$'`),
     check("analyses_attempts_check", sql`${t.attempts} >= 0`),
     check("analyses_progress_check", sql`${t.progress} is null or ${t.status} = 'running'`),
+    check("analyses_progress_at_check", sql`(${t.progress} is null) = (${t.progressAt} is null)`),
     check(
       "analyses_status_check",
       sql`case ${t.status}

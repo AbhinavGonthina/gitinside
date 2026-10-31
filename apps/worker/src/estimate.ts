@@ -11,14 +11,16 @@
  *   upload, so with it "Saving the diagram" gets no estimate and the analysis's own doesn't
  *   include it.
  * - **What's sent:** the processor stores, at each step's start, what that step and every
- *   later one should take ({@link expectedMs}) and when it started; the status subtracts the
- *   time since ({@link timeLeft}). Past the expectation it's 0, which the page shows as
+ *   later one should take ({@link expectedMs}) and when it started; the time since is
+ *   subtracted on the worker's clock (`timeLeft`, progress.ts), and the database row ages that
+ *   on its own clock (ADR-0140). Past the expectation it's 0, which the page shows as
  *   "Taking longer than usual", never a negative number.
  *
- * No dependencies beyond progress.ts, so the website could compute the same thing once jobs
- * live in Postgres (M5.17a).
+ * No dependencies beyond progress.ts.
  */
 import { ANALYZER_STEPS, type AnalyzerStep } from "./progress.js";
+
+export { timeLeft } from "./progress.js";
 
 /** One finished analysis's timings, as `analyses.stats` holds them. */
 export interface TimingSample {
@@ -139,13 +141,4 @@ export function expectedMs(
     0,
   );
   return Math.round(analysis + (model.uploadMs ?? 0));
-}
-
-/**
- * Milliseconds left of `expectMs` that began at `since` (epoch ms, the worker's clock), at
- * `now`: never negative, 0 once past the expectation. A clock that went back counts as no time
- * passed.
- */
-export function timeLeft(expectMs: number, since: number, now: number): number {
-  return Math.max(0, Math.round(expectMs - Math.max(0, now - since)));
 }

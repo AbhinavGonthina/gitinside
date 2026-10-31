@@ -12,8 +12,103 @@ import {
   foundFacts,
   isAnalyzerStep,
   parseFoundFacts,
+  parseRecordedProgress,
+  parseStoredProgress,
+  recordedProgress,
   stepProgress,
+  timeLeft,
 } from "./progress.js";
+
+/** Malformed in both shapes: what neither parser may pass on. */
+const MALFORMED_PROGRESS: unknown[] = [
+  0,
+  null,
+  [],
+  { stage: "hacking", progress: 30 },
+  { stage: "analyze", progress: 101 },
+  { stage: "analyze", progress: 1.5 },
+  { stage: "analyze", progress: -1 },
+  { stage: "toString", progress: 1 },
+  { stage: "analyze", progress: 40, step: "hacking" },
+  { stage: "upload", progress: 90, step: "programs" },
+  { stage: "analyze", progress: 40, step: "programs", count: -1 },
+  { stage: "analyze", progress: 40, step: "programs", count: "1" },
+  { stage: "analyze", progress: 40, count: 3 },
+  { stage: "analyze", progress: 40, found: { routes: -1 } },
+  { stage: "analyze", progress: 40, found: { services: { count: 1, names: ["a‮b"] } } },
+];
+
+describe("parseStoredProgress", () => {
+  it.each([
+    ...MALFORMED_PROGRESS,
+    { stage: "analyze", progress: 40, since: 1 },
+    { stage: "analyze", progress: 40, expectMs: 1 },
+    { stage: "analyze", progress: 40, since: -1, expectMs: 1 },
+    { stage: "analyze", progress: 40, since: 1, expectMs: "1" },
+    { stage: "analyze", progress: 40, since: 1, expectMs: 0.5 },
+  ])("refuses %j", (value) => {
+    expect(parseStoredProgress(value)).toBeUndefined();
+  });
+
+  it("copies only the documented fields", () => {
+    const found = { services: { count: 1, names: ["api"] } };
+    const value = { stage: "analyze", progress: 38, step: "programs", count: 4, found };
+    const parsed = parseStoredProgress({ ...value, since: 5, expectMs: 9, extra: "secret" });
+    expect(parsed).toEqual({ ...value, since: 5, expectMs: 9 });
+    expect(parsed?.found?.services?.names).not.toBe(found.services.names);
+  });
+});
+
+describe("recordedProgress", () => {
+  it("turns the estimate into the time left now, on the same clock as `since`", () => {
+    const stored = { stage: "analyze" as const, progress: 70, step: "calls" as const };
+    expect(recordedProgress({ ...stored, since: 10_000, expectMs: 30_000 }, 25_500)).toEqual({
+      ...stored,
+      leftMs: 14_500,
+    });
+    expect(recordedProgress({ ...stored, since: 10_000, expectMs: 30_000 }, 90_000)).toEqual({
+      ...stored,
+      leftMs: 0,
+    });
+    expect(recordedProgress(stored, 25_500)).toEqual(stored);
+  });
+
+  it("keeps what was found", () => {
+    const found = { routes: 3 };
+    expect(recordedProgress({ stage: "upload", progress: 90, found }, 1)).toEqual({
+      stage: "upload",
+      progress: 90,
+      found,
+    });
+  });
+});
+
+describe("parseRecordedProgress", () => {
+  it.each([
+    ...MALFORMED_PROGRESS,
+    { stage: "analyze", progress: 40, leftMs: -1 },
+    { stage: "analyze", progress: 40, leftMs: 1.5 },
+    { stage: "analyze", progress: 40, leftMs: "1" },
+  ])("refuses %j", (value) => {
+    expect(parseRecordedProgress(value)).toBeUndefined();
+  });
+
+  it("copies only the documented fields, dropping a stored estimate's worker-clock fields", () => {
+    const value = { stage: "analyze", progress: 70, step: "calls", leftMs: 0 };
+    expect(parseRecordedProgress({ ...value, since: 5, expectMs: 9, extra: 1 })).toEqual(value);
+    expect(parseRecordedProgress({ stage: "download", progress: 0 })).toEqual({
+      stage: "download",
+      progress: 0,
+    });
+  });
+});
+
+describe("timeLeft", () => {
+  it("counts down from `since` and stops at 0", () => {
+    expect(timeLeft(10_000, 1_000, 4_500)).toBe(6_500);
+    expect(timeLeft(10_000, 1_000, 99_000)).toBe(0);
+  });
+});
 
 describe("foundFacts", () => {
   it("keeps the first names of each list with the full count, and the counts as they are", () => {

@@ -97,6 +97,7 @@ export async function startAnalysis(
     stats: null,
     finishedAt: null,
     progress: null,
+    progressAt: null,
     ...(options.jobId === undefined ? {} : { jobId: options.jobId }),
   };
   const [row] = await db
@@ -245,6 +246,7 @@ export async function queueAnalysis(
     attempts: 0,
     queuedAt: sql`now()`,
     progress: null,
+    progressAt: null,
     ...(options.jobId === undefined ? {} : { jobId: options.jobId }),
   };
   const [row] = await db
@@ -278,7 +280,7 @@ export async function queueAnalysis(
 export async function requeueAnalysis(db: AnyDatabase, id: string): Promise<boolean> {
   const rows = await db
     .update(analyses)
-    .set({ status: "queued", queuedAt: sql`now()`, progress: null })
+    .set({ status: "queued", queuedAt: sql`now()`, progress: null, progressAt: null })
     .where(and(eq(analyses.id, id), eq(analyses.status, "running")))
     .returning({ id: analyses.id });
   return rows.length > 0;
@@ -303,6 +305,7 @@ export async function completeAnalysis(
       errorCode: null,
       finishedAt: sql`now()`,
       progress: null,
+      progressAt: null,
     })
     .where(and(eq(analyses.id, id), ne(analyses.status, "done")))
     .returning({ id: analyses.id });
@@ -341,6 +344,7 @@ export async function failAnalysis(
       snapshotKey: null,
       finishedAt: sql`now()`,
       progress: null,
+      progressAt: null,
     })
     .where(and(eq(analyses.id, id), inArray(analyses.status, ["queued", "running"])))
     .returning({ id: analyses.id });
@@ -365,6 +369,7 @@ export async function failInterruptedAnalyses(
       errorCode: INTERRUPTED_CODE,
       finishedAt: sql`now()`,
       progress: null,
+      progressAt: null,
     })
     .where(and(eq(analyses.status, "running"), lt(analyses.startedAt, startedBefore)))
     .returning({ id: analyses.id });
