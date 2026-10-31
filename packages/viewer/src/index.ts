@@ -250,6 +250,9 @@ export {
   withState,
 } from "./explorer/deepLink.js";
 export type { DecodedState, ExplorerState, IgnoredParam } from "./explorer/deepLink.js";
+export { viewMermaid } from "./export/mermaid.js";
+export { renderViewSvg } from "./export/svg.js";
+export type { ViewSvgOptions } from "./export/svg.js";
 export { Explorer } from "./explorer/Explorer.js";
 export type { ExplorerProps } from "./explorer/Explorer.js";
 export type { UiIconName } from "./chrome/uiIcons.js";

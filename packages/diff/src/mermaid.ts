@@ -108,8 +108,11 @@ export function escapeMermaidLabel(text: string): string {
   return cut.map((c) => (SAFE_CHAR.test(c) ? c : `#${c.codePointAt(0) ?? 0};`)).join("");
 }
 
-/** Mermaid's opening and closing brackets per kind: a shape per kind, as in the viewer. */
-function shape(kind: NodeKind): [string, string] {
+/**
+ * Mermaid's opening and closing brackets per kind: a shape per kind, as in the viewer.
+ * Shared with the viewer's Mermaid export, so both draw a kind the same way.
+ */
+export function mermaidShape(kind: NodeKind): [string, string] {
   switch (kind) {
     case "route":
     case "page":
@@ -280,7 +283,7 @@ export function renderMermaidSummary(
     } else if (change !== undefined) {
       text += ` - ${STATUS_WORDS[change.status]}`;
     }
-    const [open, close] = shape(node.kind);
+    const [open, close] = mermaidShape(node.kind);
     const name = names.get(id) as string;
     lines.push(`  ${name}${open}"${escapeMermaidLabel(text)}"${close}`);
     if (change !== undefined)

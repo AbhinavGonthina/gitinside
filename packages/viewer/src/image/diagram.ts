@@ -25,7 +25,7 @@ import {
   type NodeText,
 } from "../nodes/describe.js";
 import { frameCounts, WINDOW_BAND } from "../layout/size.js";
-import { buildHierarchy, type HierarchyIndex } from "../model/hierarchy.js";
+import { buildHierarchy, layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { buildView, drawnEdge, type ViewEdge } from "../model/view.js";
 import { scaleTokens } from "../tokens.js";
 import { imageNodeSize, pointAlong, routeEdges, type PlacedEdge } from "./layout.js";
@@ -80,10 +80,11 @@ const LAYER_GAP = 160;
 const WRAP_GAP = 72;
 const ROW_GAP = 40;
 const LANE_GAP = 14;
-const FOOTER = 44;
+/** The footer's height (`footer`). */
+export const FOOTER = 44;
 const LABEL_MAX = LAYER_GAP - 24;
 /** Narrow diagrams still leave room for the footer. */
-const MIN_WIDTH = 480;
+export const MIN_WIDTH = 480;
 
 const COLUMN: Readonly<Record<Layer, number>> = {
   frontend: 0,
@@ -312,7 +313,7 @@ function routeAll(edges: readonly ViewEdge[], placement: Placement): PlacedEdge[
 }
 
 /** `var(--<prefix>-<layer>)`, or `var(--<fallback>)` for a node without a layer. */
-function color(prefix: string, layer: Layer | undefined, fallback: string): string {
+export function color(prefix: string, layer: Layer | undefined, fallback: string): string {
   return layer ? v(`${prefix}-${layer}`) : v(fallback);
 }
 
@@ -328,15 +329,17 @@ function iconMarkup(node: GraphNode, x: number, y: number, size: number): string
   return `<g transform="translate(${num(x)} ${num(y)}) scale(${num(s)})" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:${v("muted")}">${glyphMarkup(choice.glyph)}</g>`;
 }
 
-function tile(
+/** A square icon tile, ringed in its layer's color (`layer`: a nested node's service's). */
+export function tile(
   node: GraphNode,
   x: number,
   y: number,
   size: number,
   iconSize: number,
   rx: number,
+  layer: Layer | undefined = node.layer,
 ): string {
-  const ring = color("ring", node.layer, "border");
+  const ring = color("ring", layer, "border");
   const inset = (size - iconSize) / 2;
   return (
     `<rect${attrs({ x: x + 0.5, y: y + 0.5, width: size - 1, height: size - 1, rx })} style="fill:${v("s1")};stroke:${ring}"/>` +
@@ -345,8 +348,14 @@ function tile(
 }
 
 /** A shaped tile (cylinder, pipe, circle: `TILE_OUTLINES`) with its top-left corner at (x, y). */
-function shapedTile(node: GraphNode, shape: TileShape, x: number, y: number): string {
-  const ring = color("ring", node.layer, "border");
+function shapedTile(
+  node: GraphNode,
+  shape: TileShape,
+  x: number,
+  y: number,
+  layer: Layer | undefined = node.layer,
+): string {
+  const ring = color("ring", layer, "border");
   const o = TILE_OUTLINES[shape];
   const half = TILE_ICON_SIZE.lg / 2;
   return (
@@ -362,7 +371,7 @@ function shapedTile(node: GraphNode, shape: TileShape, x: number, y: number): st
  * One line of node text: plain then code, as `<text>` with a mono `<tspan>`,
  * cut to `max` px. `anchor` is `start` or `middle`.
  */
-function textLine(
+export function textLine(
   line: NodeText & { method?: string },
   at: Point,
   max: number,
@@ -398,7 +407,7 @@ function textLine(
  * A window's title band (nodes.css `[data-shape="window"]::before`): the top
  * `band` px of a frame with corner radius `r`, and the hairline under it.
  */
-function windowBand(
+export function windowBand(
   layer: Layer | undefined,
   { x, y, width: w }: Rect,
   r: number,
@@ -415,12 +424,31 @@ function windowBand(
   );
 }
 
-function frameNode(index: HierarchyIndex, node: GraphNode, box: Rect): string {
-  const { layer } = node;
+/**
+ * A folder's tab (nodes.css `[data-shape="folder"]::before`): 44px wide,
+ * 7px tall, on the top edge of a frame whose top is `y`, 12px in from `x`.
+ */
+export function folderTab(x: number, y: number, fill: string, stroke: string): string {
+  const r = 6;
+  const left = x + 12.5;
+  const right = x + 12 + 44 - 0.5;
+  const top = y - 7 + 0.5;
+  // Down to the frame's border line, so the tab's fill meets it.
+  const bottom = y + 1;
+  return `<path d="M${num(left)} ${num(bottom)}V${num(top + r)}A${r} ${r} 0 0 1 ${num(left + r)} ${num(top)}H${num(right - r)}A${r} ${r} 0 0 1 ${num(right)} ${num(top + r)}V${num(bottom)}" style="fill:${fill};stroke:${stroke}"/>`;
+}
+
+/** A closed frame (service or folder): its stacked edge, name row, and count badges. `layer`: its service's. */
+export function frameNode(
+  index: HierarchyIndex,
+  node: GraphNode,
+  box: Rect,
+  layer: Layer | undefined = node.layer,
+): string {
   const border = color("frame-border", layer, "border");
   const { x, width: w, height: h } = box;
   const counts = frameCounts(index, node.id);
-  const shape = nodeShape(node);
+  const shape = nodeShape(node, layer);
   // Radii as nodes.css: a window keeps the service's 16, a box is squarer, a folder is a module's 12.
   const rx = shape === "window" ? 16 : shape === "box" ? 6 : 12;
   const band = shape === "window" ? WINDOW_BAND.frame : 0;
@@ -430,10 +458,11 @@ function frameNode(index: HierarchyIndex, node: GraphNode, box: Rect): string {
     `<rect${attrs({ x: x + 4, y: box.y + 10, width: w - 8, height: h - 8, rx })} style="fill:${color("lip", layer, "s1")}"/>`,
     `<rect${attrs({ x: x + 0.5, y: box.y + 0.5, width: w - 1, height: h - 1, rx })} style="fill:${color("frame", layer, "s1")};stroke:${border}"/>`,
     band > 0 ? windowBand(layer, box, rx, band) : "",
+    shape === "folder" ? folderTab(x, box.y, color("frame", layer, "s1"), border) : "",
   ];
   // Content starts below the band.
   const y = box.y + band;
-  out.push(tile(node, x + 12, y + 15, 32, TILE_ICON_SIZE.sm, 6));
+  out.push(tile(node, x + 12, y + 15, 32, TILE_ICON_SIZE.sm, 6, layer));
   const textX = x + 56;
   const max = w - 56 - 16;
   out.push(textLine(nodeLabel(node), { x: textX, y: y + 28 }, max, 14, { weight: 600 }));
@@ -452,16 +481,21 @@ function frameNode(index: HierarchyIndex, node: GraphNode, box: Rect): string {
   return out.join("");
 }
 
-function iconNode(node: GraphNode, box: Rect): string {
+/** An icon-first node (datastore, queue, outside API): its shaped tile with the name beneath. */
+export function iconNode(
+  node: GraphNode,
+  box: Rect,
+  layer: Layer | undefined = node.layer,
+): string {
   const { x, y, width: w } = box;
   const cx = x + w / 2;
-  const s = nodeShape(node);
+  const s = nodeShape(node, layer);
   const shape = isTileShape(s) ? s : undefined;
   const tileHeight = shape ? TILE_OUTLINES[shape].height : 56;
   return [
     shape
-      ? shapedTile(node, shape, cx - TILE_OUTLINES[shape].width / 2, y)
-      : tile(node, cx - 28, y, 56, TILE_ICON_SIZE.lg, 12),
+      ? shapedTile(node, shape, cx - TILE_OUTLINES[shape].width / 2, y, layer)
+      : tile(node, cx - 28, y, 56, TILE_ICON_SIZE.lg, 12, layer),
     textLine(nodeLabel(node), { x: cx, y: y + tileHeight + 22 }, w, 13, {
       weight: 500,
       anchor: "middle",
@@ -495,11 +529,12 @@ function nodeMarkup(index: HierarchyIndex, node: GraphNode, box: Rect): string {
   }
 }
 
-function edgeMarkup(index: HierarchyIndex, placed: PlacedEdge): string {
+/** A routed line in its source's layer color, dashed or dotted by confidence, with its arrowhead. */
+export function edgeMarkup(index: HierarchyIndex, placed: PlacedEdge): string {
   const { view } = placed;
   const geometry = edgeGeometry(placed.points);
-  const source = index.byId.get(view.from);
-  const stroke = color("edge", source?.layer, "muted");
+  // A nested source takes its service's layer, as on the canvas.
+  const stroke = color("edge", layerOf(index, view.from), "muted");
   const style = LINE_STYLE[view.confidence];
   // The same dashes and widths as edges.css.
   const line = attrs({
@@ -524,9 +559,10 @@ function edgeMarkup(index: HierarchyIndex, placed: PlacedEdge): string {
   return out.join("");
 }
 
-function labelMarkup(placed: PlacedEdge): string {
+/** A line's label pill, centered on its label point, its text cut to fit `max` px. */
+export function labelMarkup(placed: PlacedEdge, max = LABEL_MAX): string {
   const { edge, count } = drawnEdge(placed.view);
-  const text = fit(edgeLabelText(edgeLabel(edge, count)), LABEL_MAX, 11);
+  const text = fit(edgeLabelText(edgeLabel(edge, count)), max, 11);
   const width = Math.ceil(textWidth(text, 11)) + 14;
   const { x, y } = placed.label;
   return (
@@ -536,7 +572,7 @@ function labelMarkup(placed: PlacedEdge): string {
 }
 
 /** Every logo the drawn nodes use, by slug, so the palette defines just those. */
-function brandsOf(nodes: readonly GraphNode[]): Brand[] {
+export function brandsOf(nodes: readonly GraphNode[]): Brand[] {
   const out = new Map<string, Brand>();
   for (const n of nodes) {
     const choice = iconFor(n);
@@ -545,7 +581,8 @@ function brandsOf(nodes: readonly GraphNode[]): Brand[] {
   return [...out.values()].sort((a, b) => compareStrings(a.slug, b.slug));
 }
 
-function footer(graph: ArchitectureGraph, width: number, top: number): string {
+/** The image's footer at `top`: a rule, `owner/name sha` on the left, the mark and "GitInside" on the right. */
+export function footer(graph: ArchitectureGraph, width: number, top: number): string {
   const y = top + 26;
   const { owner, name, sha } = graph.repo;
   const repo = `${owner}/${name}`;
@@ -615,7 +652,7 @@ export function renderDiagram(graph: ArchitectureGraph, options: DiagramImageOpt
             const box = boxes.get(n.id);
             return box ? nodeMarkup(index, n, box) : "";
           }),
-          ...routed.map(labelMarkup),
+          ...routed.map((p) => labelMarkup(p)),
         ].join("");
 
   return [
