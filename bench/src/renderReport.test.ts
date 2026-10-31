@@ -89,6 +89,15 @@ describe("renderRenderReport", () => {
     expect(report.match(/^\| (synthetic|calcom) \|/gm)).toHaveLength(4);
   });
 
+  it("calls the layout column what it measures: time to the first drawn layout (M4b.15g)", () => {
+    // Opening the page, the bundle, the worker's start, and ELK, not ELK alone.
+    expect(report).toContain("| Boxes in the DOM | Time to first drawn layout | Idle fps |");
+    expect(report).toContain(
+      "**Time to first drawn layout** is from opening the page until the canvas has drawn its first layout",
+    );
+    expect(report).not.toContain("| First layout |");
+  });
+
   it("says where it ran and how", () => {
     expect(report).toContain("# Render benchmark (2026-10-31)");
     expect(report).toContain("`abc123`");
