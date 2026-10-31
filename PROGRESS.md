@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.12b2. The website's graph that fails to load or parse, on the empty-state card (M5.13 and M5.14b wait on #3)
+M4b.13. Viewport culling + bench/render fps at 2,000 nodes (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -106,7 +106,7 @@ M4b.12b2. The website's graph that fails to load or parse, on the empty-state ca
 - [x] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
 - [x] M4b.12a Onboarding hints (UX.md): on a first visit, 3 dismissible hints in sequence (zoom in → select → trace), each moved on by doing it or Next, a hint already done (deep link) or impossible (nothing to trace) left out; "Don't show again" and finishing them remembered per browser (`localStorage`, failures tolerated), × only for this visit; the explorer's `onboarding` store, the website on it; tests, screenshots, baselines {model: opus}
 - [x] M4b.12b1 Empty state + warnings in the explorer: a graph with no TS/JS app gets one card with UX.md's copy (no canvas, search, filters, or trace; what was skipped listed), the analysis's warnings in the repo overview (grouped under plain titles, file + the analyzer's message, "Show all") and a warnings chip on the canvas moving focus to them (ADR-0070); tests, stories, screenshots, baselines {model: opus}
-- [ ] M4b.12b2 The website's graph that fails to load or parse on the same card (`EmptyState`, error tone, Try again when retryable, focus on it); tests, screenshots {model: opus}
+- [x] M4b.12b2 The website's graph that fails to load or parse on the same card (`EmptyState`, error tone, Try again when retryable, focus on it); tests, screenshots {model: opus}
 - [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus}
 - [ ] M4b.14 Playwright E2E + visual tests {model: opus}
 - [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
@@ -221,6 +221,8 @@ M4b.12b2. The website's graph that fails to load or parse, on the empty-state ca
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.12b2** The website's graph that fails to load or parse now gets the explorer's `EmptyState` card in the error tone (ADR-0128 addendum) instead of a bare red line: `loadGraph` failures carry a `title` ("The diagram didn't load" / "The saved diagram couldn't be read") plus the message, the card is the alert and takes focus, Try again only when retryable, and a failed retry refocuses the new card. 2 page tests rewritten, `loadGraph`'s tests updated, 1 new copy test; a mutation check (focus not moved) turned both page tests red. Chromium under the real CSP (scratch page, `next start`), dark + light + 390px: focused, centered, no overflow, Tab → Try again → Enter draws the diagram. Shots in `docs/milestones/M4b/states/web-failure-*`. Web only, no eval delta.
 
 - **2026-10-31 M4b.12b1** "No app" card + warnings (ADR-0128). M4b.12b split: the explorer's states now, the website's load/parse failure on the same card as 12b2. A graph with no `file` node gets one `EmptyState` card (UX.md's copy, what was skipped) instead of a diagram, with a top bar of only the mark and repo; warnings are grouped under plain titles (`groupWarnings`, unknown codes kept under the code; a test checks every analyzer code has a title) in the repo overview, reached from a "N warnings" chip that moves focus there. Browser run caught the card off-screen at 390px (the top bar kept a 160px search column); fixed. 14 new tests, two mutation checks red, stories Warnings + No app with Linux baselines.
 
