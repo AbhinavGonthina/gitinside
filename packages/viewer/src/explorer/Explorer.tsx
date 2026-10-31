@@ -62,6 +62,7 @@ import { encodeState, withState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
+import { useGlideSpan } from "./glide.js";
 import { hintSteps, OnboardingHint, type HintStep, type OnboardingStore } from "./onboarding.js";
 import { NodePanel, TracePanel, WARNINGS_SECTION } from "./panels.js";
 import { traceChoices, TracePicker } from "./picker.js";
@@ -148,6 +149,8 @@ export interface ExplorerProps {
   onboarding?: OnboardingStore | undefined;
   /** Makes the layout worker (see `LayoutWorkerFactory`). Without one, layouts run on the main thread. */
   layoutWorker?: LayoutWorkerFactory | undefined;
+  /** How many boxes and lines a level needs before the canvas culls it (default `CULL_FROM`). */
+  cullFrom?: number | undefined;
 }
 
 /** This page's URL with a state's query (the default `linkTo`). */
@@ -208,6 +211,7 @@ export function Explorer({
   topBar = true,
   onboarding,
   layoutWorker,
+  cullFrom,
 }: ExplorerProps) {
   const index = useMemo(() => buildHierarchy(graph), [graph]);
   const hasApp = useMemo(() => hasSourceFiles(graph), [graph]);
@@ -344,6 +348,12 @@ export function Explorer({
     const frame = requestAnimationFrame(() => setSettled(true));
     return () => cancelAnimationFrame(frame);
   }, [fitted, settled]);
+  // What the canvas culls to: the view, and while the camera glides, where it glides from too.
+  const onScreen = useGlideSpan(
+    canvas.width > 0 ? visibleRect(camera, canvas) : undefined,
+    cameraMotion,
+    settled,
+  );
 
   /**
    * A new layout: a fitted camera refits with it; a hand-set one moves so the
@@ -1022,8 +1032,9 @@ export function Explorer({
             lineLook={lineLook}
             onLayout={onLayout}
             zoom={camera.zoom}
-            viewport={canvas.width > 0 ? visibleRect(camera, canvas) : undefined}
+            viewport={onScreen}
             keep={keptBoxes}
+            cullFrom={cullFrom}
           />
           <div
             className="gi-explorer__pin"

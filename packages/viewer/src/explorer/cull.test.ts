@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LayoutResult } from "../layout/elk.js";
-import { bounds, cull, CULL_FROM, CULL_TILE, cullWindow, intersects } from "./cull.js";
+import { bounds, cull, CULL_FROM, CULL_TILE, cullWindow, intersects, span } from "./cull.js";
 
 /** A grid of `count` 100×40 boxes, 10 a row, 200px apart, each joined to the next by a straight line. */
 function grid(count: number): Pick<LayoutResult, "boxes" | "edges"> {
@@ -47,6 +47,19 @@ describe("bounds", () => {
       ]),
     ).toEqual({ x: -5, y: 20, width: 35, height: 50 });
     expect(bounds([])).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+  });
+});
+
+describe("span", () => {
+  it("holds both rects, apart or nested", () => {
+    const a = { x: 0, y: 0, width: 100, height: 50 };
+    expect(span(a, { x: 300, y: -20, width: 10, height: 10 })).toEqual({
+      x: 0,
+      y: -20,
+      width: 310,
+      height: 70,
+    });
+    expect(span(a, { x: 10, y: 10, width: 5, height: 5 })).toEqual(a);
   });
 });
 
