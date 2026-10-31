@@ -72,12 +72,17 @@ export function signRequest(
  * Check a request's signature headers against every accepted secret, in constant time per
  * secret (`timingSafeEqual` on fixed 32-byte digests). Header values are the raw strings Node
  * gives (`undefined` when absent; a repeated header arrives as an array and is refused).
+ *
+ * A signature may be up to `maxAgeSeconds` old (default {@link MAX_CLOCK_SKEW_SECONDS}): a
+ * Cloud Tasks push is signed when the task is created and can wait in the queue far longer
+ * (run.ts). It may never be more than {@link MAX_CLOCK_SKEW_SECONDS} in the future.
  */
 export function verifyRequest(
   secrets: readonly string[],
   parts: SignedParts,
   headers: { timestamp: unknown; signature: unknown },
   nowMs: number = Date.now(),
+  { maxAgeSeconds = MAX_CLOCK_SKEW_SECONDS }: { maxAgeSeconds?: number } = {},
 ): { ok: true } | { ok: false; reason: VerifyFailure } {
   const { timestamp, signature } = headers;
   if (timestamp === undefined || signature === undefined) {
@@ -86,7 +91,8 @@ export function verifyRequest(
   if (typeof timestamp !== "string" || !TIMESTAMP.test(timestamp)) {
     return { ok: false, reason: "BAD_TIMESTAMP" };
   }
-  if (Math.abs(nowMs / 1000 - Number(timestamp)) > MAX_CLOCK_SKEW_SECONDS) {
+  const age = nowMs / 1000 - Number(timestamp);
+  if (age > maxAgeSeconds || age < -MAX_CLOCK_SKEW_SECONDS) {
     return { ok: false, reason: "STALE_TIMESTAMP" };
   }
   const hex = typeof signature === "string" ? SIGNATURE.exec(signature)?.[1] : undefined;

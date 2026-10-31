@@ -6,7 +6,7 @@ import { JobFailure } from "./failure.js";
 import { openTarball, type DownloadOptions } from "./github.js";
 import type { FoundFacts, JobStage, StepProgress, StoredProgress } from "./progress.js";
 import type { AnalysisStats } from "./protocol.js";
-import { runAnalysis, type RunOptions, type RunResult } from "./runner.js";
+import { DEFAULT_RUNNER_LIMITS, runAnalysis, type RunOptions, type RunResult } from "./runner.js";
 
 /**
  * One job, start to finish (docs/SECURITY.md §3; ADR-0061):
@@ -122,6 +122,24 @@ export interface JobContext {
   onFound?: (found: FoundFacts) => Promise<void> | void;
   /** The queue won't retry this attempt, so even a retriable failure is final. Default false. */
   lastAttempt?: boolean;
+  /**
+   * Milliseconds left in the attempt's whole budget (run.ts: Cloud Run's request timeout,
+   * ADR-0114). The download and the analysis each get at most what's left minus
+   * {@link PUBLISH_RESERVE_MS}; without it, each has only its own budget.
+   */
+  timeLeft?: () => number;
+}
+
+/**
+ * Kept back from the download's and the analysis's budgets when the attempt has a deadline:
+ * storing the graph (bucket, then Postgres) and recording the outcome must still fit.
+ */
+export const PUBLISH_RESERVE_MS = 20_000;
+
+/** What's left for a stage: its own budget, cut to the attempt's remaining time if it has one. */
+function stageBudget(context: JobContext, own: number): number {
+  if (context.timeLeft === undefined) return own;
+  return Math.min(own, context.timeLeft() - PUBLISH_RESERVE_MS);
 }
 
 const JOB_FOLDER_ID = /^[A-Za-z0-9_-]{1,100}$/;
@@ -137,7 +155,9 @@ async function fetchSource(
   dest: string,
   attempt: { record?: RecordedJob },
 ): Promise<Awaited<ReturnType<typeof extractTarball>>> {
-  const timeout = AbortSignal.timeout(deps.downloadTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS);
+  const budget = stageBudget(context, deps.downloadTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS);
+  if (budget <= 0) throw new JobFailure("DOWNLOAD_TIMEOUT", "no time left for the download");
+  const timeout = AbortSignal.timeout(budget);
   const signal =
     context.signal === undefined ? timeout : AbortSignal.any([context.signal, timeout]);
   try {
@@ -184,10 +204,20 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
     await context.onStage?.("analyze");
     const run = deps.run ?? runAnalysis;
     const { owner, repo, sha } = context.request;
+    const limits = deps.runOptions?.limits;
+    let timeoutMs: number | undefined;
+    if (context.timeLeft !== undefined) {
+      const own = limits?.timeoutMs ?? DEFAULT_RUNNER_LIMITS.timeoutMs;
+      const left = stageBudget(context, own);
+      // A cut budget in whole seconds, so LIMIT_TIME's log line doesn't show a fraction.
+      timeoutMs = left < own ? Math.floor(left / 1000) * 1000 : own;
+      if (timeoutMs <= 0) throw new JobFailure("LIMIT_TIME", "no time left for the analysis");
+    }
     const result = await run(
       { src, out, owner, name: repo, sha },
       {
         ...deps.runOptions,
+        ...(timeoutMs === undefined ? {} : { limits: { ...limits, timeoutMs } }),
         ...(context.signal === undefined ? {} : { signal: context.signal }),
         ...(context.onStep === undefined
           ? {}
