@@ -21,7 +21,7 @@ These are mandatory standards. Nobody reviews each autopilot step, so the tests 
 | Integration | Vitest + Supertest, real Redis/Postgres via Docker in CI | `apps/web`, `apps/worker`, `packages/db` (PGlite locally, CI's Postgres service when `TEST_DATABASE_URL` is set; ADR-0057) | every push |
 | Component | Storybook stories (every state, light/dark) | `packages/viewer` | every push (build) |
 | Visual regression | Playwright screenshots | stories + key screens | every push, Linux CI only |
-| E2E | Playwright | `apps/web/e2e` | push to main |
+| E2E | Playwright | `apps/web/e2e`: the unconfigured site, and the explorer on a seeded PGlite database (ADR-0132) | push to main |
 | Security | Vitest + malicious fixtures | `fixtures/malicious/*`, worker extraction | every push |
 | Eval / bench | scripts | `eval/`, `bench/` | on demand + milestone gates |
 
@@ -45,6 +45,10 @@ Fixtures are never executed: no `npm install`, no scripts. Tests only call the a
 | everything else | ≥ 70% |
 
 Coverage is a floor, not a goal. Don't write tests that only touch lines.
+
+## E2E
+
+- `pnpm turbo run build --filter=@gitinside/web`, then `pnpm --filter @gitinside/web e2e` (Windows or Linux, no Docker). Two servers of the production build: `unconfigured` (no database or worker; `site.e2e.ts`) and `seeded`, reading PGlite served over Postgres's wire protocol with one finished analysis of `fixtures/shop-demo` (`database.ts`; `explorer.e2e.ts` drives load, drill down, select, trace, the code preview, and Open on GitHub). The browser's graph and GitHub reads are answered by the tests (ADR-0132). Any console error or warning, a CSP violation included, fails a test.
 
 ## Visual regression
 
