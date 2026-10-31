@@ -87,6 +87,20 @@ describe("verifyRequest", () => {
     });
   });
 
+  it("accepts an older signature up to maxAgeSeconds, but never one further in the future", () => {
+    const day = { maxAgeSeconds: 24 * 60 * 60 };
+    const skew = MAX_CLOCK_SKEW_SECONDS * 1000;
+    expect(verifyRequest([SECRET], PARTS, valid, NOW + 86_400_000, day)).toEqual({ ok: true });
+    expect(verifyRequest([SECRET], PARTS, valid, NOW + 86_401_000, day)).toEqual({
+      ok: false,
+      reason: "STALE_TIMESTAMP",
+    });
+    expect(verifyRequest([SECRET], PARTS, valid, NOW - skew - 1000, day)).toEqual({
+      ok: false,
+      reason: "STALE_TIMESTAMP",
+    });
+  });
+
   it("refuses missing headers", () => {
     expect(
       verifyRequest([SECRET], PARTS, { timestamp: undefined, signature: valid.signature }, NOW),

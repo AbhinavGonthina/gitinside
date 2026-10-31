@@ -1,0 +1,216 @@
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { runAttempt, type ProcessorEstimates, type WorkerLog } from "./attempt.js";
+import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyRequest } from "./hmac.js";
+import { MAX_BODY_BYTES, isJson, readBody, send } from "./http.js";
+import type { JobDeps } from "./job.js";
+import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
+
+/**
+ * The worker's Cloud Run endpoint (ADR-0114): Cloud Tasks pushes each job to `POST /run`,
+ * and the request runs it start to finish (download ⇒ extract ⇒ child ⇒ publish).
+ *
+ * - **Who may call:** Cloud Run's IAM admits only the queue's invoker service account (its
+ *   OIDC token); on top of that, the body must carry the website's HMAC signature
+ *   (hmac.ts), checked on the raw bytes before anything is parsed or routed. The signature
+ *   is dated when the task was created, so it's accepted up to {@link MAX_TASK_AGE_SECONDS}
+ *   old (a task can wait in the queue and between retries).
+ * - **One job per request, one request at a time** (Cloud Run concurrency 1). A request that
+ *   arrives while a job runs is answered `429 BUSY`, which Cloud Tasks retries.
+ * - **One deadline:** the job has {@link JOB_BUDGET_MS} from the request's arrival, inside
+ *   Cloud Run's 5-minute request timeout (ADR-0111). The download and the child's kill time
+ *   come from what's left (job.ts, `PUBLISH_RESERVE_MS` kept back for publishing).
+ * - **Attempts:** Cloud Tasks counts them (`X-CloudTasks-TaskRetryCount`, 0 on the first);
+ *   the queue allows {@link MAX_ATTEMPTS} (M5.17e sets it). Progress goes to the job's Neon
+ *   row (the recorder), never back in the answer.
+ * - **The answer tells Cloud Tasks whether to retry:** `200` for success and for a failure
+ *   that's final (permanent, or the last attempt; the row already says `failed`), `503` for
+ *   a retriable failure with attempts left (the row is `queued` again). A request that is
+ *   refused before it runs (`400`, `401`, `413`, `415`) is a bug or a forgery; Cloud Tasks
+ *   retries it too, and it fails the same way each time without doing any work.
+ * - **Cancelled:** if the caller hangs up (Cloud Tasks gave up) or the process shuts down
+ *   (`signal`), the job is killed and fails with the retriable `CANCELLED`.
+ */
+
+/** The path Cloud Tasks pushes to (apps/web's `RUN_PATH`). */
+export const RUN_PATH = "/run";
+/** Attempts the queue makes; the last one's failure is final (M5.17e configures the queue). */
+export const MAX_ATTEMPTS = 3;
+/**
+ * The job's whole budget from the request's arrival: Cloud Run's 300 s request timeout less
+ * 20 s to record a failure, delete the job folder, and answer.
+ */
+export const JOB_BUDGET_MS = 280_000;
+/**
+ * How old a push's signature may be: a day. Tasks are signed when created, then wait for a
+ * free worker (at most 2 run at once) and between retries.
+ */
+export const MAX_TASK_AGE_SECONDS = 24 * 60 * 60;
+/** Cloud Tasks' count of earlier attempts at this task. */
+export const RETRY_COUNT_HEADER = "x-cloudtasks-taskretrycount";
+
+const RETRY_COUNT = /^[0-9]{1,6}$/;
+
+/** Options for {@link createRunHandler}. */
+export interface RunHandlerOptions {
+  deps: JobDeps;
+  /** Accepted signing secrets: the current one first, the previous one during a rollover. */
+  secrets: readonly string[];
+  /** Part of every job ID, as in the website's `jobIdFor`. */
+  analyzerVersion: string;
+  log?: WorkerLog;
+  estimates?: ProcessorEstimates;
+  /** Fires on shutdown: the running job is cancelled. */
+  signal?: AbortSignal;
+  /** Default {@link JOB_BUDGET_MS}. */
+  budgetMs?: number;
+  /** Wall clock for the signature's age (tests fix it). Default `Date.now`. */
+  now?: () => number;
+  /** Monotonic clock for the budget (tests step it). Default `performance.now`. */
+  clock?: () => number;
+  /** Largest accepted body. Default `MAX_BODY_BYTES`. */
+  maxBodyBytes?: number;
+}
+
+/** The handler, and whether a job is running (for the entry point's shutdown and tests). */
+export interface RunHandler {
+  (req: IncomingMessage, res: ServerResponse): void;
+  busy(): boolean;
+}
+
+/** The attempt number Cloud Tasks says this is (1 on the first; 1 if the header is unusable). */
+export function attemptFrom(header: unknown): number {
+  return typeof header === "string" && RETRY_COUNT.test(header) ? Number(header) + 1 : 1;
+}
+
+/** Build the `POST /run` handler. It never throws: anything unexpected is `500 INTERNAL`. */
+export function createRunHandler(options: RunHandlerOptions): RunHandler {
+  const { deps, secrets, analyzerVersion } = options;
+  const log = options.log ?? (() => undefined);
+  const now = options.now ?? Date.now;
+  const clock = options.clock ?? (() => performance.now());
+  const budgetMs = options.budgetMs ?? JOB_BUDGET_MS;
+  const maxBodyBytes = options.maxBodyBytes ?? MAX_BODY_BYTES;
+  if (secrets.length === 0) throw new Error("POST /run needs at least one secret");
+  let running = false;
+
+  async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const arrived = clock();
+    const target = req.url ?? "/";
+    const method = req.method ?? "GET";
+    const path = target.split("?", 1)[0] as string;
+
+    const declared = Number(req.headers["content-length"] ?? 0);
+    if (declared > maxBodyBytes) {
+      req.resume();
+      send(res, 413, { error: "BODY_TOO_LARGE" }, { connection: "close" });
+      return;
+    }
+    const body = await readBody(req, maxBodyBytes);
+    if (body === undefined) {
+      send(res, 413, { error: "BODY_TOO_LARGE" }, { connection: "close" });
+      return;
+    }
+    const verdict = verifyRequest(
+      secrets,
+      { method, path: target, body },
+      { timestamp: req.headers[TIMESTAMP_HEADER], signature: req.headers[SIGNATURE_HEADER] },
+      now(),
+      { maxAgeSeconds: MAX_TASK_AGE_SECONDS },
+    );
+    if (!verdict.ok) {
+      send(res, 401, { error: verdict.reason });
+      return;
+    }
+    if (path !== RUN_PATH) {
+      send(res, 404, { error: "NOT_FOUND" });
+      return;
+    }
+    if (method !== "POST") {
+      send(res, 405, { error: "METHOD_NOT_ALLOWED" }, { allow: "POST" });
+      return;
+    }
+    if (!isJson(req)) {
+      send(res, 415, { error: "UNSUPPORTED_MEDIA_TYPE" });
+      return;
+    }
+    let data: unknown;
+    try {
+      data = JSON.parse(body.toString("utf8"));
+    } catch {
+      send(res, 400, { error: "INVALID_JSON" });
+      return;
+    }
+    let id: string;
+    try {
+      id = jobIdFor(parseJobRequest(data), analyzerVersion);
+    } catch (error) {
+      if (!(error instanceof JobRequestError)) throw error;
+      send(res, 400, { error: "INVALID_REQUEST", message: error.message });
+      return;
+    }
+    if (running) {
+      send(res, 429, { error: "BUSY" });
+      return;
+    }
+
+    running = true;
+    // The job stops if the caller hangs up before the answer, or on shutdown.
+    const hangUp = new AbortController();
+    const onClose = () => {
+      if (!res.writableFinished) hangUp.abort();
+    };
+    res.on("close", onClose);
+    const signal =
+      options.signal === undefined
+        ? hangUp.signal
+        : AbortSignal.any([hangUp.signal, options.signal]);
+    const attempt = attemptFrom(req.headers[RETRY_COUNT_HEADER]);
+    const lastAttempt = attempt >= MAX_ATTEMPTS;
+    try {
+      const result = await runAttempt(
+        {
+          id,
+          data,
+          attempt,
+          lastAttempt,
+          signal,
+          timeLeft: () => budgetMs - (clock() - arrived),
+        },
+        deps,
+        log,
+        options.estimates,
+      );
+      if (result.ok) {
+        send(res, 200, { id, state: "done" });
+      } else if (result.failure.retriable && !lastAttempt) {
+        send(res, 503, { error: result.failure.code });
+      } else {
+        send(res, 200, { id, state: "failed", errorCode: result.failure.code });
+      }
+    } finally {
+      running = false;
+      res.off("close", onClose);
+    }
+  }
+
+  const handler = ((req: IncomingMessage, res: ServerResponse) => {
+    handle(req, res).catch(() => {
+      if (!res.headersSent) send(res, 500, { error: "INTERNAL" });
+      else res.destroy();
+    });
+  }) as RunHandler;
+  handler.busy = () => running;
+  return handler;
+}
+
+/**
+ * An HTTP server around {@link createRunHandler}. Headers must arrive within 10 s; the
+ * request itself may take as long as the job (Cloud Run's timeout bounds it).
+ */
+export function createRunServer(options: RunHandlerOptions): Server {
+  const server = createServer(createRunHandler(options));
+  server.headersTimeout = 10_000;
+  server.requestTimeout = 0;
+  server.keepAliveTimeout = 5_000;
+  return server;
+}

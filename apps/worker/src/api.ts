@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyRequest } from "./hmac.js";
+import { MAX_BODY_BYTES, isJson, readBody, send } from "./http.js";
 import type { FoundFacts } from "./progress.js";
 import {
   JobRequestError,
@@ -26,6 +27,7 @@ import {
  * The queue itself is an interface, backed by BullMQ in queue.ts.
  */
 
+export { MAX_BODY_BYTES } from "./http.js";
 export {
   JobRequestError,
   jobIdFor,
@@ -85,30 +87,11 @@ export interface EnqueueApiOptions {
   maxBodyBytes?: number;
 }
 
-/** A job body is a few hundred bytes; anything far past that is refused unread. */
-export const MAX_BODY_BYTES = 16 * 1024;
 /** How long `/health` waits for the queue. */
 export const HEALTH_TIMEOUT_MS = 2_000;
 
 const JOB_ID = /^(?:analyze|diff)-[0-9a-f]{32}$/;
 const JOB_PATH = /^\/jobs\/([^/]+)$/;
-
-function send(
-  res: ServerResponse,
-  status: number,
-  body: object,
-  headers: Record<string, string> = {},
-): void {
-  const text = JSON.stringify(body);
-  res.writeHead(status, {
-    "content-type": "application/json; charset=utf-8",
-    "content-length": String(Buffer.byteLength(text)),
-    "cache-control": "no-store",
-    "x-content-type-options": "nosniff",
-    ...headers,
-  });
-  res.end(text);
-}
 
 /** Copy only the documented fields, so nothing the queue stores internally reaches a caller. */
 function publicStatus(status: JobStatus): JobStatus {
@@ -127,22 +110,6 @@ function publicStatus(status: JobStatus): JobStatus {
     ...(position === undefined ? {} : { position }),
     ...(errorCode === undefined ? {} : { errorCode }),
   };
-}
-
-/** Read the body up to `max` bytes; `undefined` if it's larger (the rest is drained unread). */
-function readBody(req: IncomingMessage, max: number): Promise<Buffer | undefined> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-    let tooLarge = false;
-    req.on("data", (chunk: Buffer) => {
-      size += chunk.length;
-      if (size > max) tooLarge = true;
-      if (!tooLarge) chunks.push(chunk);
-    });
-    req.on("end", () => resolve(tooLarge ? undefined : Buffer.concat(chunks)));
-    req.on("error", reject);
-  });
 }
 
 async function healthy(queue: JobQueue): Promise<boolean> {
@@ -214,8 +181,7 @@ export function createEnqueueHandler(
         send(res, 405, { error: "METHOD_NOT_ALLOWED" }, { allow: "POST" });
         return;
       }
-      const type = req.headers["content-type"] ?? "";
-      if (!/^application\/json\s*(?:;|$)/i.test(type)) {
+      if (!isJson(req)) {
         send(res, 415, { error: "UNSUPPORTED_MEDIA_TYPE" });
         return;
       }

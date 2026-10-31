@@ -6,34 +6,15 @@ import {
   type Job,
   type JobsOptions,
 } from "bullmq";
-import {
-  JobRequestError,
-  parseJobRequest,
-  type JobKind,
-  type JobQueue,
-  type JobRequest,
-  type JobStatus,
-} from "./api.js";
-import {
-  BENCH_MODEL,
-  expectedMs,
-  timeLeft,
-  timingModel,
-  type EstimatePoint,
-  type TimingSample,
-} from "./estimate.js";
-import { FAILURE_CODE, JobFailure, RETRIABLE_CODES } from "./failure.js";
-import { processJob, type JobDeps, type JobOutcome } from "./job.js";
-import {
-  STAGE_PROGRESS,
-  parseStoredProgress,
-  stepProgress,
-  type FoundFacts,
-  type StepProgress,
-  type StoredProgress,
-} from "./progress.js";
+import type { JobKind, JobQueue, JobRequest, JobStatus } from "./api.js";
+import { runAttempt, type ProcessorEstimates, type WorkerLog } from "./attempt.js";
+import { timeLeft } from "./estimate.js";
+import { FAILURE_CODE, RETRIABLE_CODES } from "./failure.js";
+import type { JobDeps, JobOutcome } from "./job.js";
+import { parseStoredProgress, type StoredProgress } from "./progress.js";
 
 export type { StoredProgress } from "./progress.js";
+export { progressForStep, type ProcessorEstimates, type WorkerLog } from "./attempt.js";
 
 /**
  * The BullMQ side of the worker (ADR-0014, ADR-0061): the {@link JobQueue} the enqueue API
@@ -71,16 +52,6 @@ export const JOB_OPTIONS: JobsOptions = {
   removeOnComplete: { age: 24 * 60 * 60, count: 1_000 },
   removeOnFail: { age: 24 * 60 * 60, count: 1_000 },
 };
-
-/** The progress stored when an analyzer step starts (or its count becomes known). */
-export function progressForStep({ step, count }: StepProgress): StoredProgress {
-  return {
-    stage: "analyze",
-    progress: stepProgress(step),
-    step,
-    ...(count === undefined ? {} : { count }),
-  };
-}
 
 /** The status fields of checked stored progress at `now`, and nothing else stored with it. */
 function runningFields(
@@ -280,9 +251,6 @@ export function createBullJobQueue(options: BullQueueOptions): BullJobQueue {
   };
 }
 
-/** One structured log line (DESIGN.md §13); the worker's entry point writes them as JSON. */
-export type WorkerLog = (event: Record<string, unknown>) => void;
-
 /** Options for {@link createAnalysisWorker}. */
 export interface AnalysisWorkerOptions {
   connection: ConnectionOptions;
@@ -298,28 +266,10 @@ export interface AnalysisWorkerOptions {
   estimates?: ProcessorEstimates;
 }
 
-/** Where the processor's time estimates come from (estimate.ts, ADR-0136). */
-export interface ProcessorEstimates {
-  /**
-   * Recent finished analyses' stats, read once per attempt. Without it, while it's pending,
-   * or if it fails (logged as `estimate_samples_failed`), the benchmark's rates are used.
-   */
-  samples?: () => Promise<readonly TimingSample[]>;
-  /** Clock for when each stage or step started. Default `Date.now`. */
-  now?: () => number;
-}
-
-/** Where `progress` is for {@link expectedMs}, if it's somewhere an estimate can be made. */
-function estimatePoint({ stage, step }: StoredProgress): EstimatePoint | undefined {
-  if (stage === "upload") return { stage };
-  return stage === "analyze" && step !== undefined ? { stage, step } : undefined;
-}
-
 /**
- * The job processor BullMQ calls: validate the stored request, run {@link processJob},
- * report stages as progress to BullMQ and to the recorder's Postgres row (with the time
- * expected from each step on, once the file count is known), and turn failures into what BullMQ understands (a plain `Error` is retried, an
- * `UnrecoverableError` isn't). Both carry only the code.
+ * The job processor BullMQ calls: one {@link runAttempt} with BullMQ's progress, attempt
+ * count, and abort signal, its failure turned into what BullMQ understands (a plain `Error`
+ * is retried, an `UnrecoverableError` isn't). Both carry only the code.
  */
 export function createProcessor(
   deps: JobDeps,
@@ -332,107 +282,24 @@ export function createProcessor(
 ) => Promise<JobOutcome> {
   // Three declared parameters: BullMQ passes the abort signal only to processors that
   // take it (Function.length >= 3).
-  const jobDeps: JobDeps = { log, ...deps };
-  const now = estimates.now ?? Date.now;
   return async (job, token, signal) => {
     void token;
-    const id = job.id ?? "";
     const attempt = job.attemptsMade + 1;
-    // Past jobs' rates once they're read; the benchmark's until then.
-    let model = BENCH_MODEL;
-    void estimates.samples?.().then(
-      (samples) => {
-        model = timingModel(samples);
+    const result = await runAttempt(
+      {
+        id: job.id ?? "",
+        data: job.data,
+        attempt,
+        lastAttempt: attempt >= (job.opts.attempts ?? 1),
+        ...(signal === undefined ? {} : { signal }),
+        report: (progress) => job.updateProgress(progress),
       },
-      (error: unknown) => {
-        log({
-          event: "estimate_samples_failed",
-          id,
-          message: error instanceof Error ? error.message : String(error),
-        });
-      },
+      deps,
+      log,
+      estimates,
     );
-    // What this attempt has found stays in every later update, the upload stage's too; a
-    // retry starts over, so nothing from an earlier attempt shows.
-    let latest: StoredProgress = { stage: "download", progress: STAGE_PROGRESS.download };
-    let found: FoundFacts | undefined;
-    // Postgres gets every update too (ADR-0139), one write at a time so they land in order;
-    // the job never waits for them, and a failed one is only logged.
-    let written = Promise.resolve();
-    const record = (progress: StoredProgress) => {
-      const write = jobDeps.recorder?.progress?.bind(jobDeps.recorder);
-      if (write === undefined) return;
-      written = written
-        .then(() => write(id, progress))
-        .catch((error: unknown) => {
-          log({
-            event: "progress_record_failed",
-            id,
-            stage: progress.stage,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        });
-    };
-    const store = (progress: StoredProgress) => {
-      latest = progress;
-      const stored = found === undefined ? progress : { ...progress, found };
-      record(stored);
-      return job.updateProgress(stored);
-    };
-    // When the current stage or step started, and the source files (from `programs` on).
-    let place = "";
-    let since = now();
-    let files: number | undefined;
-    const estimated = (progress: StoredProgress): StoredProgress => {
-      const here = `${progress.stage}/${progress.step ?? ""}`;
-      if (here !== place) {
-        place = here;
-        since = now();
-      }
-      if (progress.step === "programs" && progress.count !== undefined) files = progress.count;
-      const point = estimatePoint(progress);
-      const expectMs = point === undefined ? undefined : expectedMs(model, point, files);
-      return expectMs === undefined ? progress : { ...progress, since, expectMs };
-    };
-    let failure: JobFailure;
-    try {
-      const request = parseJobRequest(job.data);
-      const outcome = await processJob(
-        {
-          id,
-          request,
-          ...(signal === undefined ? {} : { signal }),
-          onStage: (stage) => store(estimated({ stage, progress: STAGE_PROGRESS[stage] })),
-          onStep: (step) => store(estimated(progressForStep(step))),
-          onFound: (facts) => {
-            found = facts;
-            return store(latest);
-          },
-          lastAttempt: attempt >= (job.opts.attempts ?? 1),
-        },
-        jobDeps,
-      );
-      log({ event: "job_done", id, attempt, nodes: outcome.stats.nodes, ...outcome.timings });
-      return outcome;
-    } catch (error) {
-      failure =
-        error instanceof JobFailure
-          ? error
-          : error instanceof JobRequestError
-            ? new JobFailure("INVALID_REQUEST", error.message)
-            : new JobFailure(
-                "WORKER_ERROR",
-                error instanceof Error ? error.message : String(error),
-              );
-    }
-    log({
-      event: "job_failed",
-      id,
-      attempt,
-      code: failure.code,
-      retriable: failure.retriable,
-      detail: failure.detail,
-    });
+    if (result.ok) return result.outcome;
+    const { failure } = result;
     throw failure.retriable ? new Error(failure.code) : new UnrecoverableError(failure.code);
   };
 }

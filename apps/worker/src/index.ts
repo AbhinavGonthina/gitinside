@@ -57,6 +57,7 @@ export {
 } from "./github.js";
 export {
   DEFAULT_DOWNLOAD_TIMEOUT_MS,
+  PUBLISH_RESERVE_MS,
   SKIPPED_SAMPLE_SIZE,
   STAGE_PROGRESS,
   processJob,
@@ -100,6 +101,24 @@ export {
   type StoredProgress,
   type WorkerLog,
 } from "./queue.js";
+export {
+  runAttempt,
+  type AttemptInput,
+  type AttemptResult,
+  type ProcessorEstimates,
+} from "./attempt.js";
+export {
+  JOB_BUDGET_MS,
+  MAX_ATTEMPTS,
+  MAX_TASK_AGE_SECONDS,
+  RETRY_COUNT_HEADER,
+  RUN_PATH,
+  attemptFrom,
+  createRunHandler,
+  createRunServer,
+  type RunHandler,
+  type RunHandlerOptions,
+} from "./run.js";
 export {
   EMPTY_PAYLOAD_HASH,
   amzDate,
