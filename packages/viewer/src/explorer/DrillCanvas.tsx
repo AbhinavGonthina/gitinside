@@ -17,6 +17,7 @@ import { prefersReducedMotion } from "../motion.js";
 import { DiagramNode } from "../nodes/DiagramNode.js";
 import { nodeTier, type NodeEmphasis } from "../nodes/describe.js";
 import { durations, scaleTokens } from "../tokens.js";
+import { ARROW_KEYS, nearestBox, type Direction } from "./a11y.js";
 import { detailAt, insideOneService, serviceNameScale } from "./detail.js";
 import { planTransition, type BoxExit, type Shown, type TransitionPlan } from "./transition.js";
 
@@ -139,6 +140,13 @@ function fadeInAfter(el: Element | null) {
  * a trace. Esc is the host's too. When opening or closing replaces the
  * focused box's element, focus goes to the toggled box. `data-layout` is
  * "pending" until the first layout is drawn.
+ *
+ * For keyboards and screen readers (M4b.11, ADR-0126) the boxes are a
+ * WAI-ARIA tree: each is a `treeitem` with its level, place among its
+ * siblings, `aria-expanded` when it can break down, and `aria-selected`.
+ * Every box is a Tab stop, in drawing order (a frame, then its inside), and
+ * an arrow key moves focus to the nearest box that way (`nearestBox`)
+ * without scrolling; the host's camera follows focus.
  *
  * `zoom` thins the text out for a zoomed-out camera (`detail.ts`): the level
  * is drawn as `data-detail` and the service names' scale as
@@ -291,8 +299,26 @@ export function DrillCanvas({
     if (n.canOpen && !n.open) onOpen?.(n.id);
   }
 
-  /** Enter breaks a box down, or selects one that can't open further (UX.md); Space selects. */
+  /** Moves focus to the box an arrow key points at, if any, without scrolling (the host's camera follows). */
+  function step(from: string, direction: Direction) {
+    const boxes = shownRef.current?.layout.boxes;
+    const to = boxes ? nearestBox(boxes, from, direction) : undefined;
+    const el = to ? boxEls.current.get(to)?.querySelector<HTMLElement>(":scope > .gi-node") : null;
+    el?.focus({ preventScroll: true });
+  }
+
+  /**
+   * Enter breaks a box down, or selects one that can't open further (UX.md);
+   * Space selects; an arrow key moves to the nearest box that way.
+   */
   function onKeyDown(event: KeyboardEvent<HTMLElement>, n: ViewNode) {
+    const direction = ARROW_KEYS[event.key];
+    if (direction && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      // Kept from the page even at an edge, which would otherwise scroll.
+      event.preventDefault();
+      step(n.id, direction);
+      return;
+    }
     const opens = event.key === "Enter" && n.canOpen && !n.open && onOpen !== undefined;
     const selects = (event.key === "Enter" || event.key === " ") && !opens && onSelect;
     if (!opens && !selects) return;
@@ -301,6 +327,24 @@ export function DrillCanvas({
     if (opens) open(n);
     else onSelect?.(n.id);
   }
+
+  /**
+   * A box as an item of the canvas's tree (WAI-ARIA `treeitem`): its depth
+   * and place among its siblings (the boxes aren't nested in the DOM, so these
+   * give the tree its shape), broken down or not when it can be, and selected
+   * or not. A box folding away is hidden instead.
+   */
+  const treeItem = (n: ViewNode, selected: boolean) => {
+    const siblings = drawn?.childrenOf.get(n.parent ?? index.root.id) ?? [];
+    return {
+      role: "treeitem",
+      "aria-level": n.level + 1,
+      "aria-setsize": siblings.length,
+      "aria-posinset": siblings.indexOf(n.id) + 1,
+      "aria-expanded": n.open || n.canOpen ? n.open : undefined,
+      "aria-selected": selected,
+    };
+  };
 
   const box = (n: ViewNode, rect: Rect, leavingBox: boolean) => {
     const frame = nodeTier(n.node) === "frame";
@@ -323,6 +367,7 @@ export function DrillCanvas({
         style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
       >
         <DiagramNode
+          {...(leavingBox ? {} : treeItem(n, look.selected ?? false))}
           node={n.node}
           layer={layerOf(index, n.id)}
           counts={frame && !n.open ? frameCounts(index, n.id) : []}
@@ -370,12 +415,14 @@ export function DrillCanvas({
           className="gi-drill__stage"
           style={{ width: shown.layout.width, height: shown.layout.height }}
         >
-          {leaving.boxes.map((e) => box(e.node, e.from, true))}
-          {/* One stable list in drawing order, so Tab reads a frame, then its inside. */}
-          {shown.layout.boxes.map((b) => {
-            const n = drawn.byId.get(b.id);
-            return n ? box(n, b, false) : null;
-          })}
+          <div className="gi-drill__boxes" role="tree" aria-label="Architecture">
+            {leaving.boxes.map((e) => box(e.node, e.from, true))}
+            {/* One stable list in drawing order, so Tab reads a frame, then its inside. */}
+            {shown.layout.boxes.map((b) => {
+              const n = drawn.byId.get(b.id);
+              return n ? box(n, b, false) : null;
+            })}
+          </div>
           <svg
             ref={linesRef}
             className="gi-drill__lines"

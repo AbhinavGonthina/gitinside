@@ -27,6 +27,16 @@
   z-index: 2;
 }
 
+/*
+ * The boxes' tree (M4b.11): covers the stage so boxes keep stage
+ * coordinates, and makes no stacking context (no z-index), so the boxes
+ * still layer with the lines and pills.
+ */
+.gi-drill__boxes {
+  position: absolute;
+  inset: 0;
+}
+
 .gi-drill__node[data-open] {
   z-index: 0;
 }

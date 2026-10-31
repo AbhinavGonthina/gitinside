@@ -28,13 +28,16 @@
 
 /*
  * The canvas pans and zooms (gestures.ts): touches and drags move the
- * camera, not the page, and dragging doesn't select text.
+ * camera, not the page, and dragging doesn't select text. `clip` (not a
+ * scroll container) keeps Tab to a box off the edge from scrolling it, which
+ * would knock the camera out of step; the camera follows focus instead.
  */
 .gi-explorer__canvas {
   position: relative;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  overflow: clip;
   touch-action: none;
   user-select: none;
 }

@@ -39,8 +39,9 @@ import {
   type ViewNode,
 } from "../model/view.js";
 import { usePresence } from "../motion.js";
-import { nodeAccessibleName, nodeLabel } from "../nodes/describe.js";
+import { nodeLabel } from "../nodes/describe.js";
 import { durations } from "../tokens.js";
+import { selectionAnnouncement } from "./a11y.js";
 import {
   centerOn,
   clampZoom,
@@ -443,10 +444,36 @@ export function Explorer({
   const selectedBox = selected ? drawnAs(index, view, filtered, selected) : undefined;
   const repo: RepoRef = graph.repo;
 
+  /** Selects a node (or none), saying what it connects to (UX.md). */
   function select(id: string | null) {
     setSelected(id);
-    if (id) setAnnouncement(nodeAccessibleName(nodeOf(index, id), { selected: true }));
+    if (id) setAnnouncement(selectionAnnouncement(index, id, hiddenKinds));
+    else if (selected) setAnnouncement("Selection cleared");
   }
+
+  /**
+   * A box focused from the keyboard (Tab, an arrow key, focus put back after
+   * a change): the camera glides to it if it isn't wholly on the canvas, once
+   * the box's layout is the one drawn (focus put back after breaking down
+   * comes before the explorer has the new layout). A click's focus leaves
+   * the camera alone, so a box half off the edge doesn't jump away from the
+   * pointer.
+   */
+  const [focusedBox, setFocusedBox] = useState<{ id: string } | null>(null);
+  function followFocus(target: EventTarget) {
+    if (!(target instanceof HTMLElement) || !target.matches(".gi-drill__node > .gi-node")) return;
+    const id = target.parentElement?.dataset.nodeId;
+    if (id !== undefined && keyboardFocus(target)) setFocusedBox({ id });
+  }
+  useEffect(() => {
+    if (!focusedBox || shown?.view !== view) return;
+    setFocusedBox(null);
+    const box = shown.layout.boxes.find((b) => b.id === focusedBox.id);
+    if (!box) return;
+    const { camera: now, canvas: room } = live.current;
+    const next = ensureVisible(now, box, room);
+    if (next !== now) moveCamera(next, "standard");
+  });
 
   function breakDown(id: string) {
     const n = view.byId.get(id);
@@ -826,6 +853,7 @@ export function Explorer({
           role="region"
           aria-label="Diagram"
           onClick={() => select(null)}
+          onFocus={(event) => followFocus(event.target)}
         >
           <DrillCanvas
             className="gi-explorer__drill"
@@ -1039,6 +1067,18 @@ function isTextEntry(target: EventTarget): boolean {
     target instanceof HTMLElement &&
     (target.isContentEditable || target.matches("input, textarea, select"))
   );
+}
+
+/**
+ * Whether an element's focus came from the keyboard (`:focus-visible`), not a
+ * click. Where the selector isn't supported, it counts as the keyboard's.
+ */
+function keyboardFocus(el: HTMLElement): boolean {
+  try {
+    return el.matches(":focus-visible");
+  } catch {
+    return true;
+  }
 }
 
 /** A node's box on the canvas (not one folding away), the element that takes focus. */
