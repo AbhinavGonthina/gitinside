@@ -183,7 +183,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Root `pnpm test` on an unchanged tree replays every result from Turbo's cache in under a second (M4b.15h). For a milestone re-check, run `npx turbo run test --force` in the background and confirm "0 cached".
 - `pnpm bench:render` records "+ uncommitted changes" if any file is edited while it runs, even docs. Commit first and edit nothing until it finishes, or say in the commit what was uncommitted.
 - A `vi.spyOn(...)` restored on a test's last line stays in place when an assertion fails first, and fails unrelated later tests in the file (M4b.16: a mocked `offsetHeight`). Restore it with `onTestFinished(() => spy.mockRestore())` right after creating it.
-- `onTestFinished(() => vi.useRealTimers())` passes vitest but fails typecheck (the arrow returns `VitestUtils`, not `void`). Use a block body: `onTestFinished(() => { vi.useRealTimers(); })`.<!-- lessons:end -->
+- `onTestFinished(() => vi.useRealTimers())` passes vitest but fails typecheck (the arrow returns `VitestUtils`, not `void`). Use a block body: `onTestFinished(() => { vi.useRealTimers(); })`.
+- In a full `pnpm test` (or the whole worker suite) here, a `job.test.ts` case that downloads from the fake GitHub server can fail with `DOWNLOAD_FAILED` instead of its expected code (M5.15b: a different case each run), while the file alone passes. If only such cases fail, rerun `pnpm --filter @gitinside/worker test -- job.test` and confirm on CI.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
