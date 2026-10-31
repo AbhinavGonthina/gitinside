@@ -40,7 +40,12 @@ export default tseslint.config(
   },
   {
     // The viewer runs in the browser.
-    files: ["packages/viewer/src/**", "packages/viewer/.storybook/**", "apps/web/app/**"],
+    files: [
+      "packages/viewer/src/**",
+      "packages/viewer/.storybook/**",
+      "apps/web/app/**",
+      "bench/render/**",
+    ],
     languageOptions: { globals: { ...globals.browser } },
   },
   {
