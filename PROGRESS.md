@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.9b. Deep links on the website (M5.13 and M5.14b wait on #3)
+M4b.10. Export SVG / PNG / Mermaid (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -100,7 +100,7 @@ M4b.9b. Deep links on the website (M5.13 and M5.14b wait on #3)
 - [x] M4b.8a Filter model (ADR-0120): layer, node kind, confidence, folder include/exclude, hide tests and config (by path convention); a hidden node takes its inside along, emptied folders go, its connections are dropped (not lifted); `buildView({ filters })`, the layout cache key, `useDrill`; tests {model: opus}
 - [x] M4b.8b Filters popover from the top bar (layers, kinds, connections incl. imports, confidence, folders, "Hide tests and config" on by default) + active-filter chip with "Clear" + the explorer on `DEFAULT_FILTERS` (selection, trace, search, and reveal of a hidden node); tests, screenshots, baselines {model: opus}
 - [x] M4b.9a Deep-link codec (ADR-0122): `encodeState` / `decodeState` for the drill-down path, selection, trace start and step, and filters (only what differs from the default, readable IDs, every value checked against the graph, what doesn't apply listed in `ignored`); the explorer's `initialTrace`, `initialHiddenKinds`, and `onStateChange`; tests {model: opus}
-- [ ] M4b.9b Deep links on the website: the repo page opens from `location.search` (a note when part of the link doesn't apply to this commit) and keeps the URL in step with `history.replaceState`; a share menu with Copy link (explorer top bar and the website's repo bar, next to "Add to README"); tests, screenshots {model: opus}
+- [x] M4b.9b Deep links on the website: the repo page opens from `location.search` (a note when part of the link doesn't apply to this commit) and keeps the URL in step with `history.replaceState`; a share menu with Copy link (explorer top bar and the website's repo bar, next to "Add to README"); tests, screenshots {model: opus}
 - [ ] M4b.10 Export SVG / PNG / Mermaid {model: opus}
 - [ ] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
 - [ ] M4b.12 Onboarding hints + empty/error states {model: opus}
@@ -218,6 +218,8 @@ M4b.9b. Deep links on the website (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-30 M4b.9b** (ADR-0123): the repo page decodes `location.search` against the loaded graph into the explorer's `initial*` props and writes each `onStateChange` back with `history.replaceState` (path and hash kept, no new history entries). What a link left out is named above the canvas, with Dismiss. New `ShareMenu` (viewer): Share → the link in a read-only field + Copy link (refused copy selects it; Esc stays in the menu); the explorer's top bar draws it (`share` slot, `linkTo`), the website's repo bar has one beside "Add to README", sharing the commit's permalink. 6 menu + 2 explorer + 5 lib + 3 page tests; a mutation removing `replaceState` turns the page test red. Real browser (Storybook and `next start` under the CSP): focus, clipboard, Esc order, reload restoring the view; the panel moved 4px clear of the top bar. Screenshots in `docs/milestones/M4b/share/`. Viewer + web only, no eval delta.
 
 - **2026-10-30 M4b.9a** (ADR-0122): M4b.9 split into the codec (now) and the website wiring + Copy link (9b). `explorer/deepLink.ts` writes only what differs from the default (`open`, `sel`, `trace`, `step` 1-based, `hide*`, `only`, `tests=shown`), keeps `/ : @` readable, and checks every value against the graph, listing what doesn't apply in `ignored`. The explorer gained `initialTrace`, `initialHiddenKinds`, and `onStateChange` (by encoding, not on first render). 16 codec + 4 explorer tests; three mutation checks each turned one red. Viewer only, no eval delta.
 
