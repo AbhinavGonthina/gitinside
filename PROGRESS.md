@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.13b1. `bench/render`: fps at 500 / 1,000 / 2,000 visible nodes (M5.13 and M5.14b wait on #3)
+M4b.13b2. Big real levels' first layout (cal.com at 2,000 visible nodes) so 60fps can be measured there (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -108,8 +108,8 @@ M4b.13b1. `bench/render`: fps at 500 / 1,000 / 2,000 visible nodes (M5.13 and M5
 - [x] M4b.12b1 Empty state + warnings in the explorer: a graph with no TS/JS app gets one card with UX.md's copy (no canvas, search, filters, or trace; what was skipped listed), the analysis's warnings in the repo overview (grouped under plain titles, file + the analyzer's message, "Show all") and a warnings chip on the canvas moving focus to them (ADR-0070); tests, stories, screenshots, baselines {model: opus}
 - [x] M4b.12b2 The website's graph that fails to load or parse on the same card (`EmptyState`, error tone, Try again when retryable, focus on it); tests, screenshots {model: opus}
 - [x] M4b.13a Viewport culling in `DrillCanvas` (above a size threshold: only boxes, lines, and pills near the camera's view are drawn, the window snapped to tiles; the selection, the trace start, the focused box, an arrow key's target, and gliding boxes always drawn) + boxes, lines, and pills memoized so a camera move doesn't re-render them; tests {model: opus}
-- [ ] M4b.13b1 `bench/render`: a synthetic and a real graph (cal.com) at 500 / 1,000 / 2,000 visible nodes, Playwright pans and zooms for 10 s, fps from `requestAnimationFrame` deltas (median, p5), `bench/results/` report; tests {model: opus}
-- [ ] M4b.13b2 Fix what keeps 2,000 visible nodes under 60fps median in M4b.13b1's report (profile, fix, re-run the bench, commit the new report) {model: opus}
+- [x] M4b.13b1 `bench/render`: a synthetic and a real graph (cal.com) at 500 / 1,000 / 2,000 visible nodes, Playwright pans and zooms for 10 s, fps from `requestAnimationFrame` deltas (median, p5), `bench/results/` report; tests {model: opus}
+- [ ] M4b.13b2 Fix what keeps 2,000 visible nodes from 60fps in M4b.13b1's report: pan/zoom already holds 59.9fps (synthetic 2,000, cal.com 1,000), but cal.com's first ELK layout takes 56 s at 1,000 visible nodes and doesn't finish in 10 min at 2,000, so it can't be measured there. Profile the layout (ELK options, compound depth, edge count), fix, re-run `pnpm bench:render`, commit the new report {model: opus}
 - [ ] M4b.14 Playwright E2E + visual tests {model: opus}
 - [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
 
@@ -223,6 +223,9 @@ M4b.13b1. `bench/render`: fps at 500 / 1,000 / 2,000 visible nodes (M5.13 and M5
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-10-31 M4b.13b1: `pnpm bench:render` (ADR-0130): a Vite production build of the explorer, Playwright panning/zooming headless Chromium for 10 s from the busiest spot at 25%, fps from rAF timestamps; exact synthetic sizes and cal.com opened to 500/1,000/2,000 (`openToReach`). Report `bench/results/2026-10-31-render.md`: synthetic 2,000 at 59.9 fps median (meets 60), cal.com 500/1,000 at 59.9, cal.com 2,000 not measured (first ELK layout not done in 10 min; 56 s at 1,000) → M4b.13b2.
+  Trials caught two bench bugs before the report: a stopped rAF loop doubling the next recording's frames (median "Infinity"), and the fitted camera on cal.com's sparse layout drawing 0 boxes (now a scan to the busiest spot). 31 bench tests.
 
 - **2026-10-31 M4b.13a** Viewport culling (ADR-0129). M4b.13 split: culling + memoized drawing now, the fps bench as 13b. From 400 boxes and lines a level draws only what overlaps a window around the camera's view (half a view each side, snapped to 512px tiles, `cull.ts`); the selection's and trace start's boxes (the explorer's `keep`), the focused box, an arrow key's culled target, and boxes gliding out are always drawn. Boxes, lines, and pills are memoized components, so a camera move doesn't re-render them. Small levels are unchanged (no story or baseline moved). 10 `cull` + 6 canvas tests; a mutation (focused box and arrow target not kept) turned two red. Not yet run in a real browser at scale: 13b's harness does that. Viewer only, no eval delta.
 
