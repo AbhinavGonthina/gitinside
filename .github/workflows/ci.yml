@@ -110,7 +110,9 @@ jobs:
 
   # The website's production build in Chromium: CSP with hydration, fonts,
   # tokens, the theme cookie, the repo form, and the explorer on a seeded
-  # PGlite database (apps/web/e2e, ADR-0132).
+  # PGlite database (apps/web/e2e, ADR-0132), and its key screens in dark and
+  # light against apps/web/e2e/baselines/ (ADR-0133). Re-capture with the
+  # "Visual baselines" workflow.
   web-e2e:
     runs-on: ubuntu-latest
     container:
