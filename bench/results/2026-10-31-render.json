@@ -1,7 +1,7 @@
 {
   "meta": {
     "date": "2026-10-31",
-    "gitinsideSha": "2e00aa284c1991f0010463e9b99b1e8de6c1e94c",
+    "gitinsideSha": "d3d13b816bc8f4c192b480f8dd9ce82d1cda9cf4",
     "machine": {
       "label": "dev machine",
       "cpu": "13th Gen Intel(R) Core(TM) i7-13700H",
@@ -29,7 +29,71 @@
       "target": 500,
       "nodes": 500,
       "lines": 720,
-      "layoutMs": 1038.1525000000256,
+      "layoutMs": 1014.8310000000056,
+      "frames": {
+        "start": 203,
+        "drawn": {
+          "min": 193,
+          "max": 209
+        },
+        "idle": {
+          "frames": 120,
+          "seconds": 1.9998999999999996,
+          "medianFps": 59.880239520962,
+          "p5Fps": 59.88023952095548,
+          "meanFps": 60.00300015000751,
+          "longFrames": 0,
+          "worstMs": 16.80000000000109
+        },
+        "moving": {
+          "frames": 596,
+          "seconds": 10.0163,
+          "medianFps": 59.880239520962,
+          "p5Fps": 59.88023952095548,
+          "meanFps": 59.50301009354752,
+          "longFrames": 1,
+          "worstMs": 66.69999999999891
+        }
+      }
+    },
+    {
+      "graph": "calcom",
+      "target": 500,
+      "nodes": 500,
+      "lines": 651,
+      "layoutMs": 2004.6308999999892,
+      "frames": {
+        "start": 118,
+        "drawn": {
+          "min": 107,
+          "max": 119
+        },
+        "idle": {
+          "frames": 120,
+          "seconds": 2,
+          "medianFps": 59.880239520968516,
+          "p5Fps": 59.523809523812105,
+          "meanFps": 60,
+          "longFrames": 0,
+          "worstMs": 16.80000000000291
+        },
+        "moving": {
+          "frames": 598,
+          "seconds": 10.049634000000001,
+          "medianFps": 59.88023952095548,
+          "p5Fps": 59.523809523812105,
+          "meanFps": 59.5046545973714,
+          "longFrames": 0,
+          "worstMs": 49.900000000001455
+        }
+      }
+    },
+    {
+      "graph": "synthetic",
+      "target": 1000,
+      "nodes": 1000,
+      "lines": 1470,
+      "layoutMs": 1004.6006000000052,
       "frames": {
         "start": 203,
         "drawn": {
@@ -46,27 +110,27 @@
           "worstMs": 16.799999999999272
         },
         "moving": {
-          "frames": 599,
-          "seconds": 10.049599999999998,
-          "medianFps": 59.880239520962,
+          "frames": 578,
+          "seconds": 10.049700000000001,
+          "medianFps": 59.88023952095548,
           "p5Fps": 59.523809523812105,
-          "meanFps": 59.60436236268111,
-          "longFrames": 1,
-          "worstMs": 66.70000000000073
+          "meanFps": 57.514154651382626,
+          "longFrames": 3,
+          "worstMs": 116.60000000000218
         }
       }
     },
     {
       "graph": "calcom",
-      "target": 500,
-      "nodes": 500,
-      "lines": 651,
-      "layoutMs": 18419.203699999984,
+      "target": 1000,
+      "nodes": 1000,
+      "lines": 1018,
+      "layoutMs": 2494.8097000000416,
       "frames": {
-        "start": 118,
+        "start": 108,
         "drawn": {
-          "min": 121,
-          "max": 129
+          "min": 123,
+          "max": 142
         },
         "idle": {
           "frames": 121,
@@ -79,76 +143,12 @@
         },
         "moving": {
           "frames": 599,
-          "seconds": 10.082900000000002,
+          "seconds": 10.116300000000003,
           "medianFps": 59.880239520968516,
           "p5Fps": 59.523809523824994,
-          "meanFps": 59.40751172777672,
-          "longFrames": 0,
-          "worstMs": 50
-        }
-      }
-    },
-    {
-      "graph": "synthetic",
-      "target": 1000,
-      "nodes": 1000,
-      "lines": 1470,
-      "layoutMs": 1504.147100000002,
-      "frames": {
-        "start": 203,
-        "drawn": {
-          "min": 193,
-          "max": 209
-        },
-        "idle": {
-          "frames": 121,
-          "seconds": 2.0167000000000006,
-          "medianFps": 59.880239520962,
-          "p5Fps": 59.88023952095548,
-          "meanFps": 59.99900828085484,
-          "longFrames": 0,
-          "worstMs": 16.80000000000109
-        },
-        "moving": {
-          "frames": 580,
-          "seconds": 10.032900000000001,
-          "medianFps": 59.88023952095548,
-          "p5Fps": 59.523809523812105,
-          "meanFps": 57.80980573911829,
-          "longFrames": 3,
-          "worstMs": 133.29999999999927
-        }
-      }
-    },
-    {
-      "graph": "calcom",
-      "target": 1000,
-      "nodes": 1000,
-      "lines": 1018,
-      "layoutMs": 56084.65510000003,
-      "frames": {
-        "start": 112,
-        "drawn": {
-          "min": 106,
-          "max": 124
-        },
-        "idle": {
-          "frames": 120,
-          "seconds": 1.9999000000000087,
-          "medianFps": 59.880239520968516,
-          "p5Fps": 59.88023952091634,
-          "meanFps": 60.00300015000724,
-          "longFrames": 0,
-          "worstMs": 16.80000000000291
-        },
-        "moving": {
-          "frames": 598,
-          "seconds": 10.0495,
-          "medianFps": 59.880239520968516,
-          "p5Fps": 59.88023952091634,
-          "meanFps": 59.50544803224041,
-          "longFrames": 0,
-          "worstMs": 50
+          "meanFps": 59.211371746587176,
+          "longFrames": 1,
+          "worstMs": 66.69999999999709
         }
       }
     },
@@ -157,7 +157,7 @@
       "target": 2000,
       "nodes": 2000,
       "lines": 2970,
-      "layoutMs": 3007.887300000002,
+      "layoutMs": 1475.552800000005,
       "frames": {
         "start": 209,
         "drawn": {
@@ -166,21 +166,21 @@
         },
         "idle": {
           "frames": 121,
-          "seconds": 2.0165999999999986,
+          "seconds": 2.016699999999997,
           "medianFps": 59.880239520968516,
-          "p5Fps": 59.88023952095548,
-          "meanFps": 60.00198353664588,
+          "p5Fps": 59.523809523812105,
+          "meanFps": 59.99900828085495,
           "longFrames": 0,
           "worstMs": 16.799999999999272
         },
         "moving": {
           "frames": 587,
-          "seconds": 10.049599999999998,
+          "seconds": 10.049600000000002,
           "medianFps": 59.880239520968516,
           "p5Fps": 59.523809523812105,
-          "meanFps": 58.41028498646713,
+          "meanFps": 58.41028498646711,
           "longFrames": 2,
-          "worstMs": 133.40000000000146
+          "worstMs": 133.3000000000029
         }
       }
     },
@@ -189,8 +189,32 @@
       "target": 2000,
       "nodes": 2000,
       "lines": 2328,
-      "layoutMs": 600000,
-      "frames": null
+      "layoutMs": 9152.083900000027,
+      "frames": {
+        "start": 141,
+        "drawn": {
+          "min": 55,
+          "max": 145
+        },
+        "idle": {
+          "frames": 121,
+          "seconds": 2.0165,
+          "medianFps": 59.880239521125056,
+          "p5Fps": 59.88023952070763,
+          "meanFps": 60.004959087527894,
+          "longFrames": 0,
+          "worstMs": 16.800000000046566
+        },
+        "moving": {
+          "frames": 579,
+          "seconds": 10.132900000000022,
+          "medianFps": 59.880239521125056,
+          "p5Fps": 59.52380952364454,
+          "meanFps": 57.14060140729689,
+          "longFrames": 2,
+          "worstMs": 100
+        }
+      }
     }
   ]
 }
