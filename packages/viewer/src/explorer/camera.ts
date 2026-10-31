@@ -148,6 +148,27 @@ export function ensureVisible(camera: Camera, box: Rect, canvas: Size, margin = 
 }
 
 /**
+ * How the explorer flies to a command palette pick: centered on `box` at
+ * 100%, or less if that's what it takes to fit the box with `margin` to
+ * spare. A camera already zoomed in at least that far only pans if it must
+ * ({@link ensureVisible}); it never zooms out.
+ */
+export function zoomToBox(camera: Camera, box: Rect, canvas: Size, margin = 24): Camera {
+  if (canvas.width <= 0 || canvas.height <= 0) return camera;
+  const fits = Math.min(
+    (canvas.width - 2 * margin) / Math.max(box.width, 1),
+    (canvas.height - 2 * margin) / Math.max(box.height, 1),
+  );
+  const zoom = clampZoom(Math.min(1, fits));
+  if (camera.zoom >= zoom) return ensureVisible(camera, box, canvas, margin);
+  return centerOn(
+    { zoom, x: 0, y: 0 },
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+    canvas,
+  );
+}
+
+/**
  * The camera moved so a box that went from `before` to `after` (diagram
  * coordinates, e.g. the node just broken down) keeps its top-left corner where
  * it was on the canvas: drilling with a hand-set camera doesn't throw the

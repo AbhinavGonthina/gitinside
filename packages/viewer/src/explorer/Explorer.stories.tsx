@@ -133,21 +133,35 @@ export const TracePicker: Story = {
   name: "Trace picker",
   render: () => <Explore traceStart={undefined} />,
   play: async ({ canvasElement }) => {
-    canvasElement
-      .querySelector(".gi-explorer")
-      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true }));
-    // The picker is drawn on React's next render.
-    let field: HTMLInputElement | null = null;
-    for (let tries = 0; !field && tries < 50; tries++) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      field = canvasElement.querySelector<HTMLInputElement>(".gi-palette input");
-    }
-    if (!field) throw new Error("The trace picker didn't open");
-    // React tracks an input's value: set it the way typing does, then say so.
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
-      field,
-      "orders",
-    );
-    field.dispatchEvent(new Event("input", { bubbles: true }));
+    await typeInPalette(canvasElement, { key: "t" }, "orders");
   },
 };
+
+/**
+ * The command palette (M4b.7): Ctrl+K searches every node by name and path,
+ * here "orders": folders, the component, and the function named so first,
+ * then files, the page, routes, and functions that start a word with it.
+ */
+export const Search: Story = {
+  render: () => <Explore />,
+  play: async ({ canvasElement }) => {
+    await typeInPalette(canvasElement, { key: "k", ctrlKey: true }, "orders");
+  },
+};
+
+/** Opens a palette with a key on the explorer and types `text` into its field. */
+async function typeInPalette(canvasElement: HTMLElement, key: KeyboardEventInit, text: string) {
+  canvasElement
+    .querySelector(".gi-explorer")
+    ?.dispatchEvent(new KeyboardEvent("keydown", { ...key, bubbles: true }));
+  // The palette is drawn on React's next render.
+  let field: HTMLInputElement | null = null;
+  for (let tries = 0; !field && tries < 50; tries++) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    field = canvasElement.querySelector<HTMLInputElement>(".gi-palette input");
+  }
+  if (!field) throw new Error("The palette didn't open");
+  // React tracks an input's value: set it the way typing does, then say so.
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(field, text);
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+}

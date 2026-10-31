@@ -523,6 +523,89 @@ describe("Explorer", { timeout: 30_000 }, () => {
     expect(screen.getByText("Step 1 of 3")).toBeTruthy();
   });
 
+  it("closes the picker with Esc, focus back on the box it opened from", async () => {
+    const { box } = await setup({ traceStart: undefined });
+    const api = box(API) as HTMLElement;
+    api.focus();
+    fireEvent.keyDown(api, { key: "t" });
+    const field = screen.getByRole("combobox", { name: "Trace from a page or route" });
+    expect(document.activeElement).toBe(field);
+    // The field's Esc bubbles to the explorer, which mustn't close it a second time (and drop focus).
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Trace a request" })).toBeNull();
+    expect(document.activeElement).toBe(api);
+  });
+
+  it("searches every node with Ctrl+K and flies to the pick, drilling down (UX.md)", async () => {
+    const { container, box, isOpen, heading } = await setup();
+    const palette = () => screen.queryByRole("dialog", { name: "Search the diagram" });
+    const field = () => screen.getByRole("combobox", { name: "Search services, files, routes" });
+    const api = box(API) as HTMLElement;
+    api.focus();
+    fireEvent.keyDown(api, { key: "k", ctrlKey: true });
+    expect(palette()).not.toBeNull();
+    expect(document.activeElement).toBe(field());
+    // Esc closes only the palette, focus back where it was; T and + typed in it are text.
+    fireEvent.keyDown(field(), { key: "t" });
+    fireEvent.keyDown(field(), { key: "+" });
+    expect(screen.queryByText(/^Step 1/)).toBeNull();
+    fireEvent.keyDown(field(), { key: "Escape" });
+    expect(palette()).toBeNull();
+    expect(document.activeElement).toBe(api);
+    // ⌘K opens it too, and Ctrl+K again closes it.
+    fireEvent.keyDown(api, { key: "K", metaKey: true });
+    expect(palette()).not.toBeNull();
+    fireEvent.keyDown(field(), { key: "k", ctrlKey: true });
+    expect(palette()).toBeNull();
+    // Ctrl+Shift+K is not the shortcut.
+    fireEvent.keyDown(api, { key: "K", ctrlKey: true, shiftKey: true });
+    expect(palette()).toBeNull();
+
+    // A function three levels down: Enter drills to its file, selects it, and focuses its box.
+    fireEvent.keyDown(api, { key: "k", ctrlKey: true });
+    fireEvent.change(field(), { target: { value: "place order" } });
+    expect(screen.getAllByRole("option")[0]?.textContent).toBe(
+      "placeOrderapps/web/lib/orders.tsFunction",
+    );
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(palette()).toBeNull();
+    expect(heading().textContent).toBe("placeOrder");
+    await settle();
+    expect(isOpen(WEB)).toBe(true);
+    expect(isOpen("module:web/lib")).toBe(true);
+    expect(isOpen("file:web/lib/orders.ts")).toBe(true);
+    expect(box(PLACE_ORDER)?.hasAttribute("data-selected")).toBe(true);
+    await waitFor(() => expect(document.activeElement).toBe(box(PLACE_ORDER)));
+    expect(container.querySelector("[aria-live]")?.textContent).toBe(
+      "placeOrder, function. Selected",
+    );
+  });
+
+  it("opens the palette from the top bar's field and with Ctrl+K on the page", async () => {
+    const { container, heading } = await setup();
+    const palette = () => screen.queryByRole("dialog", { name: "Search the diagram" });
+    const topBar = within(container.querySelector(".gi-topbar") as HTMLElement);
+    const search = topBar.getByRole("button", { name: /Search services, files, routes/ });
+    expect(search.getAttribute("aria-keyshortcuts")).toBe("Control+K");
+    search.focus();
+    fireEvent.click(search);
+    expect(palette()).not.toBeNull();
+    // A click on the scrim closes it, focus back on the field it opened from.
+    fireEvent.click(container.querySelector(".gi-palette-scrim") as HTMLElement);
+    expect(palette()).toBeNull();
+    expect(document.activeElement).toBe(search);
+    // Nothing focused: Ctrl+K on the page opens it; a click picks.
+    search.blur();
+    expect(fireEvent.keyDown(document.body, { key: "k", ctrlKey: true })).toBe(false);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "stripe" } });
+    const stripe = screen
+      .getAllByRole("option")
+      .find((o) => o.textContent?.startsWith("api.stripe.com"));
+    fireEvent.click(stripe as HTMLElement);
+    expect(palette()).toBeNull();
+    expect(heading().textContent).toBe("api.stripe.com");
+  });
+
   it("says where a long path stops (UX.md: up to 12 hops)", async () => {
     const chain = Array.from({ length: 15 }, (_, k) => ({
       id: `symbol:api/src/chain.ts#f${k}`,
@@ -966,6 +1049,26 @@ describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
     });
   });
 
+  it("zooms in on a palette pick until it reads at 100%, centered", async () => {
+    const { container, box } = await setup();
+    // Zoomed out to the outline, where a function's name isn't drawn.
+    for (let i = 0; i < 5; i++) fireEvent.click(screen.getByRole("button", { name: "Zoom out" }));
+    expect(level()).toBe("33%");
+    const root = container.querySelector(".gi-explorer") as HTMLElement;
+    fireEvent.keyDown(root, { key: "k", ctrlKey: true });
+    const field = screen.getByRole("combobox", { name: "Search services, files, routes" });
+    fireEvent.change(field, { target: { value: "placeOrder" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await settle();
+    await waitFor(() => {
+      expect(level()).toBe("100%");
+      const corner = onCanvas(container, box(PLACE_ORDER));
+      const { width, height } = (box(PLACE_ORDER)?.parentElement as HTMLElement).style;
+      expect(corner.x + parseFloat(width) / 2).toBeCloseTo(CANVAS.width / 2, 0);
+      expect(corner.y + parseFloat(height) / 2).toBeCloseTo(CANVAS.height / 2, 0);
+    });
+  });
+
   it("moves the view to where the minimap is pressed, and follows a drag on it", async () => {
     const { container } = await setup();
     const map = screen.getByRole("img", { name: /Minimap/ });
@@ -1015,6 +1118,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "DrilledDeep",
       "Outline",
       "Overview",
+      "Search",
       "TracePicker",
       "Tracing",
       "TracingBrokenDown",
@@ -1057,5 +1161,23 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     fireEvent.keyDown(document.activeElement as Element, { key: "Enter" });
     expect(screen.getByText(/^Step 1 of \d+$/)).toBeTruthy();
     expect(document.activeElement?.getAttribute("aria-current")).toBe("step");
+  });
+
+  it("open the command palette and search it in the search story", async () => {
+    const { container } = render(<all.Search />);
+    await settle();
+    await act(async () => all.Search.play?.({ canvasElement: container }));
+    expect(screen.getByRole("dialog", { name: "Search the diagram" })).toBeTruthy();
+    const names = screen
+      .getAllByRole("option")
+      .map((o) => o.querySelector(".gi-palette__name")?.textContent);
+    expect(names.slice(0, 4)).toEqual(["orders", "orders", "Orders", "orders"]);
+    expect(names).toContain("POST /api/orders");
+    // Opened with nothing focused: once picked, focus lands on the picked box.
+    fireEvent.keyDown(document.activeElement as Element, { key: "Enter" });
+    await settle();
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute("aria-label")).toBe("orders, module. Selected"),
+    );
   });
 });

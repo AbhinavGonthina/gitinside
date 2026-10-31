@@ -50,6 +50,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 - **Opening it:** Ctrl+K or Cmd+K, or the top-bar field.
 - **What it searches:** fuzzy match over services, modules, files, symbols, routes (`POST /api/orders`), pages, models, and externals. Results show kind and path.
 - **Keys:** Enter flies to the result, drilling as needed, and selects it. Arrow keys navigate; Esc closes.
+- Done in M4b.7 (ADR-0119): every word must match the name (whole, start, word start, anywhere, or its letters in order) or the path, ranked in that order with kinds breaking ties; up to 50 results. A pick zooms in until it reads (up to 100%) and takes focus. Focus stays in the dialog until it closes, then goes back where it was.
 
 ## Filters
 
