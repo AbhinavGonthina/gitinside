@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { RepoRef } from "../chrome/describe.js";
+import { repoFileParts, type RepoRef } from "../chrome/describe.js";
 
 /**
  * Where the inspector's code previews come from (M4b.5a, ADR-0115). A graph
@@ -123,8 +123,11 @@ export interface GitHubSourceLoaderOptions {
  * Loads a public repo's files from `raw.githubusercontent.com` at the analyzed
  * commit, from the viewer's browser (nothing is proxied or stored by us).
  * Gives `undefined` without a commit SHA (a branch could have moved since the
- * analysis), on any non-200 answer, for files over the size cap, and for
- * binary files (a NUL byte), so the inspector says it couldn't load the file.
+ * analysis), for a path that could leave the repo (`.`, `..`, or empty
+ * segments, {@link repoFileParts}), on any non-200 answer, for files over the
+ * size cap (by `content-length`, and while the body streams, so a chunked
+ * answer stops at the cap rather than downloading in full), and for binary
+ * files (a NUL byte), so the inspector says it couldn't load the file.
  * Private repos (M8) need a signed-in route instead.
  */
 export function createGitHubSourceLoader(
@@ -134,16 +137,50 @@ export function createGitHubSourceLoader(
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
   const maxBytes = options.maxBytes ?? MAX_SOURCE_BYTES;
   return async (path) => {
-    const { sha } = repo;
-    if (!sha) return undefined;
-    const segments = path.split("/").map(encodeURIComponent).join("/");
-    const url = `https://raw.githubusercontent.com/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}/${encodeURIComponent(sha)}/${segments}`;
+    const parts = repoFileParts(repo, path);
+    if (!parts) return undefined;
+    const url = `https://raw.githubusercontent.com/${parts.repo}/${parts.sha}/${parts.path}`;
     const response = await fetchImpl(url, { credentials: "omit", redirect: "error" });
-    if (response.status !== 200) return undefined;
+    if (response.status !== 200) {
+      void response.body?.cancel().catch(() => undefined);
+      return undefined;
+    }
     const length = Number(response.headers.get("content-length"));
-    if (Number.isFinite(length) && length > maxBytes) return undefined;
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength > maxBytes || bytes.includes(0)) return undefined;
+    if (Number.isFinite(length) && length > maxBytes) {
+      void response.body?.cancel().catch(() => undefined);
+      return undefined;
+    }
+    const bytes = await readCapped(response, maxBytes);
+    if (!bytes || bytes.includes(0)) return undefined;
     return new TextDecoder().decode(bytes);
   };
+}
+
+/**
+ * A response body's bytes, or undefined once more than `maxBytes` arrive:
+ * the stream is cancelled then, so an answer without a length (or with a
+ * wrong one) never downloads past the cap.
+ */
+async function readCapped(response: Response, maxBytes: number): Promise<Uint8Array | undefined> {
+  if (!response.body) return new Uint8Array(0);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      return undefined;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }

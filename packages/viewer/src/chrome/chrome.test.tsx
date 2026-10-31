@@ -65,6 +65,30 @@ describe("githubLineUrl", () => {
   it("gives no link without a SHA, rather than a branch that may have moved", () => {
     expect(githubLineUrl({ owner: "acme", name: "shop" }, "a.ts", 1)).toBeUndefined();
   });
+
+  it("gives no link for a path with a dot, dot-dot, or empty segment (it could leave the repo)", () => {
+    for (const path of [
+      "../../other/repo/a.ts",
+      "src/../a.ts",
+      "./a.ts",
+      "src//a.ts",
+      "/a.ts",
+      "src/",
+      "",
+    ]) {
+      expect(githubLineUrl(sampleRepo, path, 1)).toBeUndefined();
+    }
+    // Dots inside a name are fine.
+    expect(githubLineUrl(sampleRepo, ".github/a..b.ts")).toBe(
+      `https://github.com/acme/shop/blob/${sampleRepo.sha}/.github/a..b.ts`,
+    );
+  });
+
+  it("gives no link when the owner, name, or SHA is a dot segment", () => {
+    expect(githubLineUrl({ ...sampleRepo, owner: ".." }, "a.ts")).toBeUndefined();
+    expect(githubLineUrl({ ...sampleRepo, name: "." }, "a.ts")).toBeUndefined();
+    expect(githubLineUrl({ ...sampleRepo, sha: ".." }, "a.ts")).toBeUndefined();
+  });
 });
 
 describe("minimap geometry", () => {

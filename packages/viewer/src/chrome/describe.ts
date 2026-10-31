@@ -28,19 +28,49 @@ export function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
 
+/** A file at a commit as URL path pieces, each segment encoded. */
+export interface RepoFileParts {
+  /** `owner/name`. */
+  repo: string;
+  /** The commit SHA. */
+  sha: string;
+  /** The repo-relative path. */
+  path: string;
+}
+
+/**
+ * A file at the analyzed commit as encoded URL path pieces, for GitHub links
+ * and raw file reads. `encodeURIComponent` leaves `.` and `..` as they are,
+ * and URLs resolve those, so a graph path like `../../other/repo/a.ts` would
+ * point into another repo; such segments (and empty ones, as in `a//b` or a
+ * leading `/`) anywhere in the owner, name, SHA, or path give undefined, as
+ * does a missing SHA. Our analyzer never writes them, but a graph is data
+ * and isn't trusted here.
+ */
+export function repoFileParts(repo: RepoRef, path: string): RepoFileParts | undefined {
+  if (!repo.sha) return undefined;
+  const file = path.split("/");
+  const segments = [repo.owner, repo.name, repo.sha, ...file];
+  if (segments.some((s) => s === "" || s === "." || s === "..")) return undefined;
+  return {
+    repo: `${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`,
+    sha: encodeURIComponent(repo.sha),
+    path: file.map(encodeURIComponent).join("/"),
+  };
+}
+
 /**
  * A permalink to a file at the analyzed commit, at a line when given
  * (UX.md "Open on GitHub at the exact line"). Each path segment is encoded,
  * so spaces and `#` in file names can't break the link. Without a SHA there
  * is no permalink, so this returns undefined rather than linking a branch
- * that may have moved.
+ * that may have moved; likewise for a path that could leave the repo
+ * ({@link repoFileParts}).
  */
 export function githubLineUrl(repo: RepoRef, path: string, line?: number): string | undefined {
-  if (!repo.sha) return undefined;
-  const segments = path.split("/").map(encodeURIComponent).join("/");
-  const owner = encodeURIComponent(repo.owner);
-  const name = encodeURIComponent(repo.name);
-  return `https://github.com/${owner}/${name}/blob/${repo.sha}/${segments}${line ? `#L${line}` : ""}`;
+  const parts = repoFileParts(repo, path);
+  if (!parts) return undefined;
+  return `https://github.com/${parts.repo}/blob/${parts.sha}/${parts.path}${line ? `#L${line}` : ""}`;
 }
 
 /** Zoom as a percentage for the zoom controls: 0.754 ⇒ "75%". */
