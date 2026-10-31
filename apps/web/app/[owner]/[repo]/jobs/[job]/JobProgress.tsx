@@ -3,9 +3,10 @@
 import { Button } from "@gitinside/viewer";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { PROGRESS_STEPS, UNAVAILABLE_VIEW, type JobView } from "../../../../../lib/jobs";
 import { repoHref, startAnalysis } from "../../../../../lib/startAnalysis";
+import { COPIED_MS } from "../../AddToReadme";
 
 /** Props for {@link JobProgress}. */
 export interface JobProgressProps {
@@ -18,6 +19,74 @@ export interface JobProgressProps {
 
 /** A view still moving: the steps list is drawn for it. */
 type LiveView = Extract<JobView, { state: "queued" | "running" }>;
+
+// "Copied" stays on the job link's button as long as on Add to README's.
+export { COPIED_MS };
+
+/** What the job link's live region says after a copy, or after one the browser refused. */
+export const JOB_LINK_COPIED = "Copied. Open it any time to check on the analysis.";
+export const JOB_LINK_COPY_FAILED = "Couldn't copy. The link is selected: copy it yourself.";
+
+/**
+ * The job link with a Copy button (#8): the analysis runs on the worker whether or not this
+ * tab stays open, so the page says so and hands over its own address to come back to. The
+ * address is read after mounting (the server doesn't know the origin it's reached at),
+ * without the query or hash. A refused copy (no clipboard on an insecure origin, or
+ * permission denied) selects the link in its field instead.
+ */
+function JobLink() {
+  const [link, setLink] = useState("");
+  const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+  const field = useRef<HTMLInputElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const noteId = useId();
+
+  useEffect(() => {
+    setLink(`${window.location.origin}${window.location.pathname}`);
+    return () => clearTimeout(timer.current);
+  }, []);
+
+  const copyLink = async () => {
+    clearTimeout(timer.current);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopy("copied");
+      timer.current = setTimeout(() => setCopy("idle"), COPIED_MS);
+    } catch {
+      setCopy("failed");
+      field.current?.focus();
+      field.current?.select();
+    }
+  };
+
+  return (
+    <div className="progress__share">
+      <p className="progress__keep" id={noteId}>
+        The analysis keeps running if you leave. Reopen this link any time: it shows the progress,
+        or opens the diagram once it&apos;s ready.
+      </p>
+      <div className="progress__link">
+        <input
+          className="progress__url"
+          ref={field}
+          type="text"
+          readOnly
+          value={link}
+          aria-label="Job link"
+          aria-describedby={noteId}
+          spellCheck={false}
+          onFocus={(event) => event.currentTarget.select()}
+        />
+        <Button variant="secondary" size="sm" onClick={copyLink} disabled={!link}>
+          {copy === "copied" ? "Copied" : "Copy link"}
+        </Button>
+      </div>
+      <p className="progress__copy-status" role="status">
+        {copy === "copied" ? JOB_LINK_COPIED : copy === "failed" ? JOB_LINK_COPY_FAILED : ""}
+      </p>
+    </div>
+  );
+}
 
 const STATES = new Set(["queued", "running", "done", "failed", "missing", "unavailable"]);
 
@@ -53,7 +122,8 @@ const CHECK = (
  * stages with the worker's own words ("Parsing 1,204 files") and the queue position ("2
  * ahead of you"), and opens the diagram when it's saved. A failure replaces the list with
  * what happened and what to do; if the worker is unreachable the last known progress stays
- * on screen with UX.md's notice while the browser keeps reconnecting.
+ * on screen with UX.md's notice while the browser keeps reconnecting. While it runs, the
+ * job link can be copied to come back to ({@link JobLink}).
  */
 export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
   const router = useRouter();
@@ -144,6 +214,9 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
             </Button>
           )}
           <p className="notice__links">
+            {/* A link reopened after its job is gone (#8): the repo page shows its latest
+                diagram, or offers to analyze it. A failed job made no diagram to open. */}
+            {ended.state === "missing" && <Link href={home}>Open the diagram</Link>}
             <Link href="/">Analyze another repo</Link>
             <a href={github} rel="noopener noreferrer">
               Open on GitHub
@@ -208,6 +281,7 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
           {notice}
         </p>
       )}
+      <JobLink />
       <p className="notice__links">
         <a href={github} rel="noopener noreferrer">
           Open on GitHub

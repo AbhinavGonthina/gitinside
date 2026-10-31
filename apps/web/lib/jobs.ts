@@ -41,7 +41,7 @@ export function isFinal(view: JobView): boolean {
 }
 
 export const MISSING_MESSAGE =
-  "We couldn't find this analysis. It may have finished over a day ago. Analyze the repo again.";
+  "We couldn't find this analysis. It may have finished over a day ago: open the diagram, or analyze the repo again.";
 
 const NOT_PUBLIC = {
   reason: "We couldn't find a public GitHub repo with that name.",
