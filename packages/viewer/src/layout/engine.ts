@@ -138,14 +138,15 @@ export const LAYOUT_CACHE_SIZE = 32;
 
 /**
  * The cache key of a view's layout: its open nodes and hidden edge kinds,
- * both sorted. For one graph, a view is a pure function of these two, so
- * asking for an inner node inside a closed one shares the closed state's key.
+ * both sorted, and its filters' key. For one graph, a view is a pure function
+ * of these three, so asking for an inner node inside a closed one shares the
+ * closed state's key.
  */
-export function layoutKey(view: Pick<GraphView, "open" | "hidden">): string {
-  return JSON.stringify([view.open, view.hidden]);
+export function layoutKey(view: Pick<GraphView, "open" | "hidden" | "filtered">): string {
+  return JSON.stringify([view.open, view.hidden, view.filtered]);
 }
 
-/** Layouts of one graph's views, one per expansion state (`view.open` + hidden kinds). */
+/** Layouts of one graph's views, one per expansion state (`view.open` + hidden kinds + filters). */
 export interface LayoutCache {
   /**
    * The view's layout: the cached one, else laid out by the engine. Asking

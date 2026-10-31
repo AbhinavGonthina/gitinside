@@ -96,7 +96,8 @@ export interface Drill {
 
 /**
  * Holds a drill-down state for one graph and builds its view. `initial` is
- * read once; pass a stable `hiddenKinds` set (a new one rebuilds the view).
+ * read once; pass a stable `hiddenKinds` set and `filters` object (a new one
+ * rebuilds the view).
  */
 export function useDrill(
   index: HierarchyIndex,
@@ -109,9 +110,14 @@ export function useDrill(
   // (`expansion` is read for the open set `openKey` stands for).
   const openKey = JSON.stringify([...effectiveOpen(index, expansion)].sort(compareStrings));
   const hiddenKinds = options?.hiddenKinds;
+  const filters = options?.filters;
   const view = useMemo(
-    () => buildView(index, expansion, hiddenKinds ? { hiddenKinds } : {}),
-    [index, openKey, hiddenKinds],
+    () =>
+      buildView(index, expansion, {
+        ...(hiddenKinds ? { hiddenKinds } : {}),
+        ...(filters ? { filters } : {}),
+      }),
+    [index, openKey, hiddenKinds, filters],
   );
   return {
     expansion,
