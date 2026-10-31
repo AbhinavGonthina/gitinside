@@ -26,6 +26,8 @@ export interface InventoryResult {
   files: number;
   /** Kept source files, the number `LIMIT_FILES` checks. */
   sourceFiles: number;
+  /** Their bytes together, the number `LIMIT_SOURCE_SIZE` checks (absent before M5.16b). */
+  sourceBytes?: number;
   warnings: number;
   ms: number;
 }
@@ -43,6 +45,8 @@ export interface ProductionLimits {
   maxEntries: number;
   /** The analyzer's `maxSourceFiles` (`LIMIT_FILES`). */
   maxSourceFiles: number;
+  /** The analyzer's `maxSourceBytes` (`LIMIT_SOURCE_SIZE`; absent before M5.16b). */
+  maxSourceBytes?: number;
   /** The analysis child's `--max-old-space-size` in MB (`LIMIT_MEMORY`). */
   maxHeapMb: number;
   /** The analysis child's time limit (`LIMIT_TIME`). */
@@ -114,7 +118,8 @@ function firstOk(runs: readonly StressRun[]): RunResult | null {
 
 /**
  * Check each production limit against the measurements, in the order a job meets them:
- * extraction (size, entries), the inventory (files), then the analysis child (memory, time).
+ * extraction (size, entries), the inventory (files, then source size when both the limit and
+ * the measurement exist), then the analysis child (memory, time).
  *
  * Memory is checked against peak RSS and the heap left when `analyze` returned: RSS at or
  * under the cap means the heap stayed under it, a final heap over it means the peak passed
@@ -146,6 +151,16 @@ export function checkLimits(limits: ProductionLimits, data: StressData): LimitCh
       over: data.inventory.sourceFiles > limits.maxSourceFiles,
     },
   ];
+  const { sourceBytes } = data.inventory;
+  if (limits.maxSourceBytes !== undefined && sourceBytes !== undefined) {
+    checks.push({
+      code: "LIMIT_SOURCE_SIZE",
+      where: "inventory",
+      limit: `${mib(limits.maxSourceBytes)} of source`,
+      measured: `${mib(sourceBytes)} of source`,
+      over: sourceBytes > limits.maxSourceBytes,
+    });
+  }
   if (run === null) {
     checks.push(
       {
@@ -222,7 +237,7 @@ export function renderStressReport(meta: StressMeta, data: StressData): string {
     "",
     `- **Repo:** ${meta.repo.url} at \`${meta.repo.sha}\``,
     `- **Analyzer:** ${meta.analyzerVersion} (gitinside \`${meta.gitinsideSha}\`)`,
-    `- **Method:** the repo's tarball downloaded like the worker does, extracted with the worker's extractor, then analyzed ${data.runs.length === 1 ? "once" : `${data.runs.length} times`} in a fresh Node process per run, with production's limits lifted (size, entries, source files; heap ${count(meta.heapMb)} MB instead of ${count(meta.limits.maxHeapMb)} MB; no time limit). Parse only: nothing in the repo is installed or run.`,
+    `- **Method:** the repo's tarball downloaded like the worker does, extracted with the worker's extractor, then analyzed ${data.runs.length === 1 ? "once" : `${data.runs.length} times`} in a fresh Node process per run, with production's limits lifted (size, entries, source files${meta.limits.maxSourceBytes === undefined ? "" : ", source size"}; heap ${count(meta.heapMb)} MB instead of ${count(meta.limits.maxHeapMb)} MB; no time limit). Parse only: nothing in the repo is installed or run.`,
     `- **Machine:** ${m.label}: ${m.cpu} (${m.cores} logical cores), ${m.ramGiB} GiB RAM, ${m.os}, Node ${m.node}`,
     ...(identical === null
       ? []
@@ -257,6 +272,9 @@ export function renderStressReport(meta: StressMeta, data: StressData): string {
     "|---|---:|",
     `| Files kept | ${count(inv.files)} |`,
     `| Source files (\`LIMIT_FILES\` counts these) | ${count(inv.sourceFiles)} |`,
+    ...(inv.sourceBytes === undefined
+      ? []
+      : [`| Source size (\`LIMIT_SOURCE_SIZE\` counts this) | ${mib(inv.sourceBytes)} |`]),
     `| Skip warnings | ${count(inv.warnings)} |`,
     `| Time | ${ms(inv.ms)} |`,
     "",

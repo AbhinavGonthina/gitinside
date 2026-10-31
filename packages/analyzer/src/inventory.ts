@@ -54,15 +54,31 @@ const GENERATED_MARKER =
 export interface InventoryLimits {
   /** Fail with `LIMIT_FILES` above this many source files. Default 20,000. */
   maxSourceFiles: number;
+  /**
+   * Fail with `LIMIT_SOURCE_SIZE` when the kept source files add up to more than this many
+   * bytes, before any parsing: a repo this size would run out of memory or time minutes
+   * into the analysis instead (M5.16b). Default {@link MAX_SOURCE_MB} MB.
+   */
+  maxSourceBytes: number;
   /** Skip (with a warning) any file larger than this. Default 2 MB. */
   maxFileBytes: number;
   /** Skip (with a warning) directories nested deeper than this. Default 64. */
   maxDepth: number;
 }
 
+const MIB = 1024 * 1024;
+
+/**
+ * The default source-size limit in MB (MiB). Under the worker's caps, VS Code folders of 59
+ * MB analyzed in under a minute and 80 MB ran out of memory (ADR-0137,
+ * bench/results/2026-10-31-capped-vscode.md); 50 leaves room for a slower CPU.
+ */
+export const MAX_SOURCE_MB = 50;
+
 /** Default inventory limits. */
 export const DEFAULT_LIMITS: InventoryLimits = {
   maxSourceFiles: 20_000,
+  maxSourceBytes: MAX_SOURCE_MB * MIB,
   maxFileBytes: 2 * 1024 * 1024,
   maxDepth: 64,
 };
@@ -73,6 +89,8 @@ export interface Inventory {
   files: string[];
   /** The subset of `files` with a source extension, same order. */
   sourceFiles: string[];
+  /** The bytes of `sourceFiles` together (what `LIMIT_SOURCE_SIZE` checks). */
+  sourceBytes: number;
   /** Skipped files and directories, sorted by file then code. */
   warnings: AnalysisWarning[];
 }
@@ -120,7 +138,9 @@ async function readHead(path: string): Promise<string> {
  * Handles: the {@link IGNORED_DIRS} list, symlinks (never followed, warned), files over
  * `maxFileBytes` (skipped, warned), directories deeper than `maxDepth` (skipped, warned),
  * generated files (`*.min.js` and header markers in source files; skipped, warned).
- * Throws {@link AnalysisError} `LIMIT_FILES` when the kept source files exceed `maxSourceFiles`.
+ * Throws {@link AnalysisError} `LIMIT_FILES` when the kept source files exceed `maxSourceFiles`,
+ * else `LIMIT_SOURCE_SIZE` when their bytes exceed `maxSourceBytes` (sizes come from the
+ * walk's own `lstat`, so the check reads no file).
  *
  * Not handled: `.gitignore` (see {@link IGNORED_DIRS}); generated files without a marker,
  * such as bundles that aren't named `*.min.js`.
@@ -129,8 +149,12 @@ export async function buildInventory(
   root: string,
   limits: Partial<InventoryLimits> = {},
 ): Promise<Inventory> {
-  const { maxSourceFiles, maxFileBytes, maxDepth } = { ...DEFAULT_LIMITS, ...limits };
+  const { maxSourceFiles, maxSourceBytes, maxFileBytes, maxDepth } = {
+    ...DEFAULT_LIMITS,
+    ...limits,
+  };
   const files: string[] = [];
+  let sourceBytes = 0;
   const warnings: AnalysisWarning[] = [];
   const skip = (code: string, file: string, message: string): void => {
     warnings.push({ code, file, message });
@@ -172,6 +196,7 @@ export async function buildInventory(
       skip("SKIPPED_GENERATED", path, "generated file skipped (header marker)");
     } else {
       files.push(path);
+      if (isSource(path)) sourceBytes += size;
     }
   }
 
@@ -187,5 +212,12 @@ export async function buildInventory(
       `this repo has ${formatCount(sourceFiles.length)} source files, over the ${formatCount(maxSourceFiles)} limit. Try analyzing a subfolder.`,
     );
   }
-  return { files, sourceFiles, warnings };
+  if (sourceBytes > maxSourceBytes) {
+    // Rounded up, so the measured size never reads as the limit itself.
+    throw new AnalysisError(
+      "LIMIT_SOURCE_SIZE",
+      `this repo has ${formatCount(Math.ceil(sourceBytes / MIB))} MB of source code, over the ${formatCount(Math.round(maxSourceBytes / MIB))} MB limit. Try analyzing a subfolder.`,
+    );
+  }
+  return { files, sourceFiles, sourceBytes, warnings };
 }

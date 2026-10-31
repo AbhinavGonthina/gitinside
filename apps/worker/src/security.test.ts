@@ -5,6 +5,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { createGzip, gzipSync } from "node:zlib";
+import { MAX_SOURCE_MB } from "@gitinside/analyzer";
 import { compareStrings } from "@gitinside/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { JobRequest } from "./api.js";
@@ -450,6 +451,24 @@ describe("too-many-files: file and entry limits (T3)", () => {
       }));
       const failure = await failedJob(tarballFrom(entries, TOP));
       expect(failure.code).toBe("LIMIT_FILES");
+      expect(failure.retriable).toBe(false);
+      expectOnlyTheSandboxedChild();
+      expect(await listing(root)).toEqual(["jobs/"]);
+    },
+    SLOW,
+  );
+
+  it(
+    "fails with the analyzer's LIMIT_SOURCE_SIZE just over the source-size limit (M5.16b)",
+    async () => {
+      // 2 MiB files are the largest the analyzer keeps; one more than the limit holds.
+      const count = MAX_SOURCE_MB / 2 + 1;
+      const entries: TestEntry[] = Array.from({ length: count }, (_, i) => {
+        const head = `export const v${i} = ${i};\n// `;
+        return { name: `src/f${i}.ts`, body: `${head}${"x".repeat(2 * MIB - head.length)}` };
+      });
+      const failure = await failedJob(tarballFrom(entries, TOP));
+      expect(failure.code).toBe("LIMIT_SOURCE_SIZE");
       expect(failure.retriable).toBe(false);
       expectOnlyTheSandboxedChild();
       expect(await listing(root)).toEqual(["jobs/"]);

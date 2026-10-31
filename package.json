@@ -16,6 +16,7 @@
     "bench": "turbo run build && pnpm --filter @gitinside/bench run bench",
     "bench:render": "turbo run build && pnpm --filter @gitinside/bench run bench:render",
     "bench:stress": "turbo run build && pnpm --filter @gitinside/bench run bench:stress",
+    "bench:capped": "turbo run build && pnpm --filter @gitinside/bench run bench:capped",
     "eval": "turbo run build && pnpm --filter @gitinside/eval run eval"
   },
   "devDependencies": {

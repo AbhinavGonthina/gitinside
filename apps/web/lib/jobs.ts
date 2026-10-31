@@ -79,6 +79,10 @@ const PERMANENT: Readonly<Record<string, { reason: string; advice?: string }>> =
     reason: "This repo has over 20,000 source files, the limit for one analysis.",
     advice: SMALLER,
   },
+  LIMIT_SOURCE_SIZE: {
+    reason: "This repo has over 50 MB of source code, the limit for one analysis.",
+    advice: SMALLER,
+  },
   LIMIT_SIZE: {
     reason: "This repo is over 500 MB unpacked, the limit for one analysis.",
     advice: SMALLER,

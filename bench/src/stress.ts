@@ -34,8 +34,8 @@ import {
 // Stress benchmark (#10): for each repo in bench/repos.json `stress`, download its tarball the
 // way the worker does (`openTarball`), extract it with the worker's `extractTarball` with the
 // size and entry limits lifted, take the analyzer's inventory, and run `analyze` in a fresh
-// process with the 20,000-file limit lifted, a large heap, and no time limit. The report
-// compares every measurement with the production limit it meets. Parse only: nothing in the
+// process with the source-file and source-size limits lifted, a large heap, and no time limit.
+// The report compares every measurement with the production limit it meets. Parse only: nothing in the
 // repo is installed or run. The tarball and the extracted tree stay under bench/.repos/
 // (gitignored) with the download and extraction numbers next to them, so a rerun skips both.
 //
@@ -50,6 +50,7 @@ const LIMITS: ProductionLimits = {
   maxTarBytes: DEFAULT_EXTRACT_LIMITS.maxBytes,
   maxEntries: DEFAULT_EXTRACT_LIMITS.maxEntries,
   maxSourceFiles: DEFAULT_LIMITS.maxSourceFiles,
+  maxSourceBytes: DEFAULT_LIMITS.maxSourceBytes,
   maxHeapMb: DEFAULT_RUNNER_LIMITS.maxHeapMb,
   timeoutMs: DEFAULT_RUNNER_LIMITS.timeoutMs,
 };
@@ -104,13 +105,14 @@ async function prepare(repo: BenchRepo): Promise<{ dir: string } & Prepared> {
   return { dir, ...prepared };
 }
 
-/** The analyzer's inventory with the file limit lifted, so the count is exact. */
+/** The analyzer's inventory with its file and size limits lifted, so the counts are exact. */
 async function inventory(dir: string): Promise<InventoryResult> {
   const start = performance.now();
-  const inv = await buildInventory(dir, { maxSourceFiles: Infinity });
+  const inv = await buildInventory(dir, { maxSourceFiles: Infinity, maxSourceBytes: Infinity });
   return {
     files: inv.files.length,
     sourceFiles: inv.sourceFiles.length,
+    sourceBytes: inv.sourceBytes,
     warnings: inv.warnings.length,
     ms: performance.now() - start,
   };

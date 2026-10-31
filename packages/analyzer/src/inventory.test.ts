@@ -169,6 +169,44 @@ describe("buildInventory", () => {
     expect(inv.sourceFiles).toEqual(["a.ts", "b.ts"]);
   });
 
+  it("fails with LIMIT_SOURCE_SIZE when the source files' bytes are over the limit", async () => {
+    await put("a.ts", "x".repeat(600 * 1024));
+    await put("b.ts", "x".repeat(600 * 1024));
+    const error = await buildInventory(dir, { maxSourceBytes: 1024 * 1024 }).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(AnalysisError);
+    expect((error as AnalysisError).code).toBe("LIMIT_SOURCE_SIZE");
+    expect((error as AnalysisError).message).toBe(
+      "LIMIT_SOURCE_SIZE: this repo has 2 MB of source code, over the 1 MB limit. Try analyzing a subfolder.",
+    );
+  });
+
+  it("counts only kept source files' bytes and allows exactly the limit", async () => {
+    await put("a.ts", "x".repeat(60));
+    await put("b.prisma", "x".repeat(40));
+    await put("data.json", "x".repeat(500));
+    await put("node_modules/dep/index.js", "x".repeat(500));
+    await put("big.ts", "x".repeat(500));
+    await put("c.min.js", "x".repeat(500));
+    await put("gen.ts", `// @generated\n${"x".repeat(500)}`);
+    const inv = await buildInventory(dir, { maxSourceBytes: 100, maxFileBytes: 200 });
+    expect(inv.sourceFiles).toEqual(["a.ts", "b.prisma"]);
+    expect(inv.sourceBytes).toBe(100);
+    await put("c.ts", "x");
+    await expect(
+      buildInventory(dir, { maxSourceBytes: 100, maxFileBytes: 200 }),
+    ).rejects.toMatchObject({ code: "LIMIT_SOURCE_SIZE" });
+  });
+
+  it("reports LIMIT_FILES before LIMIT_SOURCE_SIZE when both are over", async () => {
+    await put("a.ts", "x".repeat(50));
+    await put("b.ts", "x".repeat(50));
+    await expect(
+      buildInventory(dir, { maxSourceFiles: 1, maxSourceBytes: 10 }),
+    ).rejects.toMatchObject({ code: "LIMIT_FILES" });
+  });
+
   it("is deterministic across runs", async () => {
     await put("z/y.ts");
     await put("A.ts");

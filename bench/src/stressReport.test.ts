@@ -123,6 +123,27 @@ describe("checkLimits", () => {
     });
   });
 
+  it("checks source size after the file count when both the limit and the size are known", () => {
+    const sized = (sourceBytes: number) =>
+      data([{ ok: true, result: result() }], {
+        inventory: { files: 1, sourceFiles: 1, sourceBytes, warnings: 0, ms: 1 },
+      });
+    const limits = { ...LIMITS, maxSourceBytes: 40 * MIB };
+    const over = checkLimits(limits, sized(201 * MIB));
+    expect(over.map((c) => c.code).slice(2, 4)).toEqual(["LIMIT_FILES", "LIMIT_SOURCE_SIZE"]);
+    expect(over[3]).toEqual({
+      code: "LIMIT_SOURCE_SIZE",
+      where: "inventory",
+      limit: "40 MiB of source",
+      measured: "201 MiB of source",
+      over: true,
+    });
+    expect(byCode(checkLimits(limits, sized(40 * MIB))).LIMIT_SOURCE_SIZE).toBe(false);
+    // A report from before M5.16b has neither, so the row is left out.
+    expect(byCode(checkLimits(LIMITS, sized(MIB)))).not.toHaveProperty("LIMIT_SOURCE_SIZE");
+    expect(byCode(checkLimits(limits, data([])))).not.toHaveProperty("LIMIT_SOURCE_SIZE");
+  });
+
   it("tells memory from RSS under the cap, a final heap over it, or not at all", () => {
     const memory = (r: RunResult): boolean | null =>
       byCode(checkLimits(LIMITS, data([{ ok: true, result: r }]))).LIMIT_MEMORY ?? null;
@@ -211,6 +232,21 @@ describe("renderStressReport", () => {
     );
     expect(md).toContain("**First limit hit in production:** none of the limits above.");
     expect(md).toContain("Every stage ended within the 5 min 0 s limit.");
+  });
+
+  it("names the source size and its limit once both are measured", () => {
+    const md = renderStressReport(
+      { ...META, limits: { ...LIMITS, maxSourceBytes: 40 * MIB } },
+      data([{ ok: true, result: result() }], {
+        inventory: { files: 9, sourceFiles: 9, sourceBytes: 201 * MIB, warnings: 0, ms: 1 },
+      }),
+    );
+    expect(md).toContain("production's limits lifted (size, entries, source files, source size;");
+    expect(md).toContain(
+      "| `LIMIT_SOURCE_SIZE` | inventory | 40 MiB of source | 201 MiB of source | **over** |",
+    );
+    expect(md).toContain("| Source size (`LIMIT_SOURCE_SIZE` counts this) | 201 MiB |");
+    expect(renderStressReport(META, data([]))).not.toContain("Source size");
   });
 
   it("leaves out stages and graph size when no run finished", () => {
