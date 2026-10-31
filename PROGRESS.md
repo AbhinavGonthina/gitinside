@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.15e M4b review fixes, code loader (M5.13 and M5.14b wait on #3)
+M4b.15f M4b review fix, readability on real repos (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -116,7 +116,7 @@ M4b.15e M4b review fixes, code loader (M5.13 and M5.14b wait on #3)
 - [x] M4b.15b M4b review fixes, explorer state: Esc and reveal respect filters (`upFrom`/`revealIn` on the filtered open set); a mouse pan ends when `buttons` is 0 (release outside the canvas); the trace step clamped when the graph changes; `cutOff` only for nodes with something new past them; regression tests first {model: opus}
 - [x] M4b.15c M4b review fix: culling during a camera glide covers the start and the destination windows (palette pick, far Tab on a big level); tests {model: opus}
 - [x] M4b.15d M4b review fixes, focus and chrome: focus kept in Filters after Clear and a folder chip's removal; Add to README and Share never open together; the deep-link note's dismiss keeps focus and its status is announced; no-app headings h2 → h3; a scroll hint in Filters; tests, screenshots {model: opus}
-- [ ] M4b.15e M4b review fixes, code loader: `.`, `..`, and empty path segments refused in the code loader and the GitHub link; the 2 MB cap enforced while streaming the body; tests {model: opus}
+- [x] M4b.15e M4b review fixes, code loader: `.`, `..`, and empty path segments refused in the code loader and the GitHub link; the 2 MB cap enforced while streaming the body; tests {model: opus}
 - [ ] M4b.15f M4b review fix, readability on real repos: after a drill-down the camera frames the opened node's entries at a readable size instead of the 40% floor; in a trace it frames the current hop's two ends; the inspector keeps the step's title in view; screenshots (shop-demo + taxonomy), baselines {model: opus}
 - [ ] M4b.15g M4b review fixes, small: the layout engine survives React StrictMode (created in an effect or lazily); the render report says "time to first drawn layout"; tests {model: opus}
 - [ ] M4b.15h Re-run the milestone checks after M4b.15b–g, finish M4b-review.md (outcomes, CI numbers), tag m4 {model: opus}
@@ -231,6 +231,8 @@ M4b.15e M4b review fixes, code loader (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.15e** Review findings 9, 10 (`61eb924`): `repoFileParts` (chrome/describe.ts) refuses a `.`, `..`, or empty segment in the owner, name, SHA, or path, so the code loader fetches nothing and `githubLineUrl` gives no link for a path that could leave the repo; the loader reads the body as a stream and cancels it once past the 2 MB cap. Regression tests failed first (the endless chunked body ran out of memory). Viewer 988/988, web 343/343, typecheck, lint. ADR-0115 and SECURITY T10 updated. No eval delta.
 
 - **2026-10-31 M4b.15d** Review findings 4, 5, 11, 12, 16 (`fb05a03`): Clear and a folder chip's × move focus to a control that stays before they go; `ShareMenu` and `AddToReadme` take optional `open`/`onOpenChange` and the repo bar keeps one open; the deep-link note is read out through a live region mounted empty, and Dismiss moves focus into the diagram; a CSS scroll shade in Filters (Filters baselines re-captured). Finding 12 didn't hold (h2 → h3 → h4 already); a test pins it. Regression tests failed first (4 viewer; 2 web under mutation). Viewer 982/982, web 343/343, typecheck, lint. No eval delta.
 
