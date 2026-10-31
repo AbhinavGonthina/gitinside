@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.12b1. Empty state + warnings in the explorer (M5.13 and M5.14b wait on #3)
+M4b.12b2. The website's graph that fails to load or parse, on the empty-state card (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -105,7 +105,7 @@ M4b.12b1. Empty state + warnings in the explorer (M5.13 and M5.14b wait on #3)
 - [x] M4b.10b Export from the share menu: SVG (dark/light), PNG (the SVG rasterized at 2×), Mermaid (copy + download) of the view on screen; explorer + website wiring; tests, screenshots, baselines {model: opus}
 - [x] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
 - [x] M4b.12a Onboarding hints (UX.md): on a first visit, 3 dismissible hints in sequence (zoom in → select → trace), each moved on by doing it or Next, a hint already done (deep link) or impossible (nothing to trace) left out; "Don't show again" and finishing them remembered per browser (`localStorage`, failures tolerated), × only for this visit; the explorer's `onboarding` store, the website on it; tests, screenshots, baselines {model: opus}
-- [ ] M4b.12b1 Empty state + warnings in the explorer: a graph with no TS/JS app gets one card with UX.md's copy (no canvas, search, filters, or trace; what was skipped listed), the analysis's warnings in the repo overview (grouped under plain titles, file + the analyzer's message, "Show all") and a warnings chip on the canvas moving focus to them (ADR-0070); tests, stories, screenshots, baselines {model: opus}
+- [x] M4b.12b1 Empty state + warnings in the explorer: a graph with no TS/JS app gets one card with UX.md's copy (no canvas, search, filters, or trace; what was skipped listed), the analysis's warnings in the repo overview (grouped under plain titles, file + the analyzer's message, "Show all") and a warnings chip on the canvas moving focus to them (ADR-0070); tests, stories, screenshots, baselines {model: opus}
 - [ ] M4b.12b2 The website's graph that fails to load or parse on the same card (`EmptyState`, error tone, Try again when retryable, focus on it); tests, screenshots {model: opus}
 - [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus}
 - [ ] M4b.14 Playwright E2E + visual tests {model: opus}
