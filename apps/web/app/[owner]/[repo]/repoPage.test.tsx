@@ -323,6 +323,10 @@ describe("RepoDiagram", () => {
     expect(live?.textContent).toBe(
       "Part of this link doesn't apply to commit aaaaaaa, so it was left out: hidden layer space.",
     );
+    // Browse mode reads it once (M4b.16): the visible copy is hidden from screen readers.
+    const shown = document.querySelector(".diagram-page__note p");
+    expect(shown?.textContent).toBe(live?.textContent);
+    expect(shown?.getAttribute("aria-hidden")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(live?.isConnected).toBe(true);
     expect(live?.textContent).toBe("");
@@ -488,6 +492,19 @@ describe("AddToReadme", () => {
     expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
     expect(screen.getByRole("status").textContent).toBe("");
     vi.useRealTimers();
+  });
+
+  it("goes back to Copy when the repo bar closes it (M4b.16)", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue();
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    const { rerender } = render(<AddToReadme owner="acme" repo="shop" open />);
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Copy" })));
+    expect(screen.getByRole("button", { name: "Copied" })).toBeTruthy();
+    // The share menu opening closes it from outside, then it opens again at once.
+    rerender(<AddToReadme owner="acme" repo="shop" open={false} />);
+    rerender(<AddToReadme owner="acme" repo="shop" open />);
+    expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("");
   });
 
   it("selects the Markdown when the browser refuses to copy", async () => {
