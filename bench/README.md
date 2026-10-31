@@ -28,7 +28,7 @@ pnpm bench:render -- --label "laptop"   # label the machine; --seconds sets the 
 
 1. Builds the cases: a synthetic graph at exactly 500, 1,000, and 2,000 visible nodes (`src/renderGraphs.ts`: 10 services broken down into routes or pages, with lines between them), and the first repo in `repos.json` (checked out and analyzed as above), opened shallowest first until the level is as close to each target as it gets without passing it, under the explorer's default filters.
 2. Builds `render/` with Vite (production React, ELK in a Web Worker, like the website) and serves it on a local port.
-3. For each case, in headless Chromium at 1440×900: waits for the first layout, records 2 s idle (the display's frame rate, the ceiling), then records `requestAnimationFrame` timestamps while Playwright pans and zooms for 10 s (wheel pan, Ctrl+wheel zoom in, a drag, Ctrl+wheel zoom out, wheel pan back).
+3. For each case, in headless Chromium at 1440×900: waits for the first layout (up to 10 minutes; a case still laying out is reported as not measured), zooms out to 25% and scans the level a canvas at a time to park the camera where the most boxes are drawn, records 2 s idle (the display's frame rate, the ceiling), then records `requestAnimationFrame` timestamps while Playwright pans and zooms for 10 s (wheel pan, Ctrl+wheel zoom in, a drag, Ctrl+wheel zoom out, wheel pan back).
 4. Writes `results/<date>-render.md` (median and p5 fps per case, boxes in the DOM, first-layout time, machine) and the raw numbers as `.json`.
 
-Commit the code before running, so the report's commit reproduces it.
+`--only <text>` runs only the cases whose ID contains it (e.g. `--only calcom-1000`) and writes no report, for debugging. Commit the code before running, so the report's commit reproduces it.
