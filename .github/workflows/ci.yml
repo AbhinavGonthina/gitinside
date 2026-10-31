@@ -109,7 +109,8 @@ jobs:
             packages/viewer/dist/visual-results/
 
   # The website's production build in Chromium: CSP with hydration, fonts,
-  # tokens, the theme cookie, the repo form (apps/web/e2e).
+  # tokens, the theme cookie, the repo form, and the explorer on a seeded
+  # PGlite database (apps/web/e2e, ADR-0132).
   web-e2e:
     runs-on: ubuntu-latest
     container:
