@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.15c M4b review fix, culling during a camera glide (M5.13 and M5.14b wait on #3)
+M4b.15d M4b review fixes, focus and chrome (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -114,7 +114,7 @@ M4b.15c M4b review fix, culling during a camera glide (M5.13 and M5.14b wait on 
 - [x] M4b.14b Website visual tests: key screens (landing, the repo page's diagram, a selection, a trace) in dark and light against Linux baselines in CI's `web-e2e` container, captured by the "Visual baselines" workflow; skipped off Linux {model: opus}
 - [x] M4b.15a Milestone verification: full suite, E2E, visual, coverage, render benchmark, fresh-eyes review of `ff112af..HEAD`, CLI + explorer smoke test on a real repo, M4b-review.md (tag after the fixes) {model: opus}
 - [x] M4b.15b M4b review fixes, explorer state: Esc and reveal respect filters (`upFrom`/`revealIn` on the filtered open set); a mouse pan ends when `buttons` is 0 (release outside the canvas); the trace step clamped when the graph changes; `cutOff` only for nodes with something new past them; regression tests first {model: opus}
-- [ ] M4b.15c M4b review fix: culling during a camera glide covers the start and the destination windows (palette pick, far Tab on a big level); tests {model: opus}
+- [x] M4b.15c M4b review fix: culling during a camera glide covers the start and the destination windows (palette pick, far Tab on a big level); tests {model: opus}
 - [ ] M4b.15d M4b review fixes, focus and chrome: focus kept in Filters after Clear and a folder chip's removal; Add to README and Share never open together; the deep-link note's dismiss keeps focus and its status is announced; no-app headings h2 → h3; a scroll hint in Filters; tests, screenshots {model: opus}
 - [ ] M4b.15e M4b review fixes, code loader: `.`, `..`, and empty path segments refused in the code loader and the GitHub link; the 2 MB cap enforced while streaming the body; tests {model: opus}
 - [ ] M4b.15f M4b review fix, readability on real repos: after a drill-down the camera frames the opened node's entries at a readable size instead of the 40% floor; in a trace it frames the current hop's two ends; the inspector keeps the step's title in view; screenshots (shop-demo + taxonomy), baselines {model: opus}
@@ -231,6 +231,8 @@ M4b.15c M4b review fix, culling during a camera glide (M5.13 and M5.14b wait on 
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.15c** Review finding 3 fixed (`6dc7de4`): while the camera glides, the culling window spans where it glides from and to (`useGlideSpan`, `glide.ts`; an interrupted glide keeps its first start; narrows after the move's duration token + 100 ms; pointer moves, the first fit, and reduced motion cull to the view alone), ADR-0129 amended. The explorer takes `cullFrom` like `DrillCanvas`. A regression test (far Tab on a culled level) failed before the fix and with the span removed; 6 hook tests, `span` test. Viewer 977/977, typecheck, lint. Viewer only, no eval delta.
 
 - **2026-10-31 M4b.15b** Review findings 1, 2, 7, 8 fixed (`6166ff5`): `upFrom`/`revealIn` judge "open" on the filtered canvas (Esc skips a hidden broken-down service, which stays broken down; reveal takes the filters it shows a node under), a pointermove with no button held ends a press released outside the canvas, the trace step is clamped to the last when a new graph shortens the path, and `cutOff` needs a hop to a node off the path. 6 regression tests; with the fixes reverted all 6 failed. Viewer 969/969, typecheck, lint. Viewer only, no eval delta.
 
