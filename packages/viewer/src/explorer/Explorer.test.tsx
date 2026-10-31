@@ -1676,6 +1676,42 @@ describe("Explorer filters", { timeout: 30_000 }, () => {
     expect(screen.queryByRole("heading", { name: "Hidden by filters" })).toBeNull();
   });
 
+  it("focuses the selection's box even when Show on canvas is clicked before the last render's effects ran", async () => {
+    const { box } = await setup({ initialSelected: ROUTE });
+    fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+    fireEvent.click(choice("Kinds", /Routes/));
+    await settle();
+    const show = screen.getByRole("button", { name: "Show on canvas" });
+    show.focus();
+    const drill = document.querySelector(".gi-drill") as HTMLElement;
+    const canvas = document.querySelector(".gi-explorer__canvas") as HTMLElement;
+    // A render outside act (a wheel pan), with React's Scheduler yielding
+    // after every task, so its effects wait for a later task, as they do on
+    // a loaded machine; Show on canvas is clicked in between (M5.17b3).
+    const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    env.IS_REACT_ACT_ENVIRONMENT = false;
+    let time = performance.now();
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => (time += 10));
+    onTestFinished(() => {
+      clock.mockRestore();
+      env.IS_REACT_ACT_ENVIRONMENT = true;
+    });
+    await new Promise<void>((resolve) => {
+      new MutationObserver((_, observer) => {
+        observer.disconnect();
+        resolve();
+      }).observe(drill, { attributes: true, attributeFilter: ["style"] });
+      canvas.dispatchEvent(
+        new WheelEvent("wheel", { deltaY: 40, bubbles: true, cancelable: true }),
+      );
+    });
+    clock.mockRestore();
+    env.IS_REACT_ACT_ENVIRONMENT = true;
+    fireEvent.click(show);
+    await settle();
+    await waitFor(() => expect(document.activeElement).toBe(box(API)));
+  });
+
   it("traces through hidden nodes, says which, and shows a hidden start", async () => {
     const { container, press } = await setup({
       initialFilters: { ...NO_FILTERS, kinds: ["symbol"] },
