@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.14 Playwright E2E + visual tests (M5.13 and M5.14b wait on #3)
+M4b.14b Website visual tests (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -110,7 +110,8 @@ M4b.14 Playwright E2E + visual tests (M5.13 and M5.14b wait on #3)
 - [x] M4b.13a Viewport culling in `DrillCanvas` (above a size threshold: only boxes, lines, and pills near the camera's view are drawn, the window snapped to tiles; the selection, the trace start, the focused box, an arrow key's target, and gliding boxes always drawn) + boxes, lines, and pills memoized so a camera move doesn't re-render them; tests {model: opus}
 - [x] M4b.13b1 `bench/render`: a synthetic and a real graph (cal.com) at 500 / 1,000 / 2,000 visible nodes, Playwright pans and zooms for 10 s, fps from `requestAnimationFrame` deltas (median, p5), `bench/results/` report; tests {model: opus}
 - [x] M4b.13b2 Fix what keeps 2,000 visible nodes from 60fps in M4b.13b1's report: pan/zoom already holds 59.9fps (synthetic 2,000, cal.com 1,000), but cal.com's first ELK layout takes 56 s at 1,000 visible nodes and doesn't finish in 10 min at 2,000, so it can't be measured there. Profile the layout (ELK options, compound depth, edge count), fix, re-run `pnpm bench:render`, commit the new report {model: opus}
-- [ ] M4b.14 Playwright E2E + visual tests {model: opus}
+- [x] M4b.14a Explorer E2E on the website (ADR-0132): a `seeded` server of the production build on PGlite over the wire protocol with one finished analysis of `fixtures/shop-demo`, the graph and GitHub reads answered by the test; load (Web Worker layout under the CSP, tips), drill down (double-click, Enter, Esc), select, trace + deep link across a reload, code preview from GitHub + Open on GitHub at the line {model: opus}
+- [ ] M4b.14b Website visual tests: key screens (landing, the repo page's diagram, a selection, a trace) in dark and light against Linux baselines in CI's `web-e2e` container, captured by the "Visual baselines" workflow; skipped off Linux {model: opus}
 - [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
 
 ### M5: Website (public) + live badge
@@ -223,6 +224,8 @@ M4b.14 Playwright E2E + visual tests (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.14a** Explorer E2E on the website (ADR-0132). M4b.14 split: E2E now, website visual baselines as 14b. A second `next start` of the production build (`seeded`) reads PGlite in memory served over Postgres's wire protocol (`@electric-sql/pglite-socket`, `e2e/database.ts`), migrated and seeded with one finished analysis of `fixtures/shop-demo` through the db package's own functions; the tests answer `/api/graph` and `raw.githubusercontent.com` with the fixture. 4 tests in `explorer.e2e.ts` (load + worker + tips, drill down, select + trace + deep link across a reload, code preview + Open on GitHub); 17/17 E2E locally, no Docker. A mutation (CSP `connect-src` without GitHub's raw origin) turned two red. Web only, lockfile changed (eval report regenerated).
 
 - **2026-10-31 M4b.13b2** Big views lay out without ELK's model order (ADR-0131). ELK's own step timer on dumped cal.com inputs put 18 of 24 s (500 nodes) in its model-order sort, whatever the strategy; above 200 nodes plus edges it's now off, and above 3,000 crossing minimization makes one pass, not seven. Smaller views (every story) are unchanged, so no baseline moved. Re-run `bench/results/2026-10-31-render.md`: cal.com's first layout 18.4 s → 2.0 s (500), 56 s → 2.5 s (1,000), >10 min → 9.2 s (2,000), and 2,000 pans at 59.9 fps median on both graphs. 3 new tests (a boundary mutation turned one red). CI's coverage run then caught a race in an explorer test (`exportRef` read before its effect), fixed in `f82b555`. Viewer only, no eval delta.
 
