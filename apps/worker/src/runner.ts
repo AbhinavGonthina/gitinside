@@ -2,10 +2,11 @@ import { spawn } from "node:child_process";
 import { realpath, stat } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { StepProgress } from "./progress.js";
+import type { FoundFacts, StepProgress } from "./progress.js";
 import {
   parseChildJob,
   parseChildReport,
+  parseFoundLine,
   parseProgressLine,
   type AnalysisStats,
   type ChildJob,
@@ -71,6 +72,8 @@ export interface RunOptions {
    * seen before that are hints only.
    */
   onProgress?: (progress: StepProgress) => void;
+  /** Gets each found line from the child, already validated (#8). Hints only, like steps. */
+  onFound?: (found: FoundFacts) => void;
 }
 
 /** The outcome of {@link runAnalysis}. `durationMs` is wall clock from spawn to exit. */
@@ -89,7 +92,9 @@ export type RunResult =
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_APP_ROOT = resolve(HERE, "../../..");
-const STDOUT_MAX_BYTES = 64 * 1024;
+// Room for ~20 progress lines and 7 found lines at their caps (3 lists × 8 names × 64
+// four-byte characters ≈ 6 KB each), the report, and slack.
+const STDOUT_MAX_BYTES = 128 * 1024;
 const STDERR_TAIL_CHARS = 8 * 1024;
 /** What V8 prints when it hits `--max-old-space-size`. */
 const OUT_OF_MEMORY = /JavaScript heap out of memory|Reached heap limit|near heap limit/;
@@ -172,7 +177,7 @@ export async function runAnalysis(job: ChildJob, options: RunOptions = {}): Prom
     windowsHide: true,
   });
 
-  // stdout is progress lines, then the report line. Anything after the report, or past the
+  // stdout is progress and found lines, then the report line. Anything after the report, or past the
   // byte cap, breaks the protocol.
   let pending = "";
   let stdoutBytes = 0;
@@ -184,8 +189,13 @@ export async function runAnalysis(job: ChildJob, options: RunOptions = {}): Prom
       return;
     }
     const progress = parseProgressLine(line);
-    if (progress === undefined) reportLine = line;
-    else options.onProgress?.(progress);
+    if (progress !== undefined) {
+      options.onProgress?.(progress);
+      return;
+    }
+    const found = parseFoundLine(line);
+    if (found !== undefined) options.onFound?.(found);
+    else reportLine = line;
   };
   child.stdout.setEncoding("utf8");
   child.stdout.on("data", (chunk: string) => {

@@ -45,7 +45,13 @@ describe("jobView", () => {
       jobView(
         status({ state: "running", stage: "analyze", progress: 34, step: "programs", count: 1204 }),
       ),
-    ).toEqual({ state: "running", step: "analyze", progress: 34, text: "Parsing 1,204 files" });
+    ).toEqual({
+      state: "running",
+      step: "analyze",
+      progress: 34,
+      text: "Parsing 1,204 files",
+      found: [],
+    });
     expect(
       jobView(status({ state: "running", stage: "analyze", step: "http", count: 87 })),
     ).toMatchObject({ text: "Linking 87 calls to routes", progress: 0 });
@@ -61,6 +67,32 @@ describe("jobView", () => {
       step: "download",
       progress: 0,
       text: "Downloading",
+      found: [],
+    });
+  });
+
+  it("a running job says what the analyzer has found so far, in words (#8)", () => {
+    const view = jobView(
+      status({
+        state: "running",
+        stage: "upload",
+        progress: 90,
+        found: {
+          services: { count: 2, names: ["@shop/api", "@shop/web"] },
+          routes: 2,
+          pages: 3,
+          stores: { count: 1, names: ["db"] },
+          externals: { count: 0, names: [] },
+        },
+      }),
+    );
+    expect(view).toMatchObject({
+      step: "upload",
+      found: [
+        { key: "services", label: "2 services", text: "@shop/api, @shop/web" },
+        { key: "routes", label: "Entry points", text: "2 routes, 3 pages" },
+        { key: "stores", label: "Data", text: "db" },
+      ],
     });
   });
 

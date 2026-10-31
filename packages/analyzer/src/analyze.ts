@@ -12,6 +12,7 @@ import {
 } from "./express.js";
 import { errorText } from "./failures.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
+import { createFindings, type AnalysisFindings } from "./findings.js";
 import { collectHttpCalls } from "./http.js";
 import { collectImportFacts, composeImports, type ManifestCache } from "./imports.js";
 import { buildInfra, relinkStores } from "./infra.js";
@@ -29,6 +30,7 @@ import { detectWorkspace, serviceNodes } from "./workspace.js";
 import { bindWrappers, collectHttpFacts } from "./wrappers.js";
 
 export { ANALYZER_VERSION };
+export { findingsOf, type AnalysisFindings } from "./findings.js";
 
 /** Pipeline stages reported to {@link AnalyzeOptions.onStage}, in the order they run. */
 export const ANALYSIS_STAGES = [
@@ -79,6 +81,13 @@ export interface AnalyzeOptions {
    * collected them. Like timings, progress never enters the graph.
    */
   onProgress?: (event: AnalysisProgress) => void;
+  /**
+   * Called after each stage that finds services (`workspace`), routes and pages (`express`,
+   * `next`), data stores (`infra`, `queues`), or external services (`http`, `sdk`), with
+   * everything found so far. The last call equals {@link findingsOf} on the returned graph's
+   * nodes. Like progress, findings never enter the graph.
+   */
+  onFound?: (found: AnalysisFindings) => void;
 }
 
 /**
@@ -161,9 +170,13 @@ export async function analyze(
     });
   }
   const none = () => ({ nodes: [], edges: [], warnings: [] });
+  // Added in assembly's part order, so the first node with an ID is the one the graph keeps.
+  const found = createFindings(options.onFound);
 
   const inventory = await stage("inventory", () => buildInventory(root, options.limits));
   const workspace = await stage("workspace", () => detectWorkspace(root, inventory.files));
+  const services = serviceNodes(workspace);
+  found.add(["services"], services);
   const programs = await stage(
     "programs",
     () => buildServicePrograms(root, workspace, inventory),
@@ -191,11 +204,13 @@ export async function analyze(
     },
     () => ({ ...none(), inlineHandlers: new Map<string, string[]>() }),
   );
+  found.add(["routes"], express.nodes);
   const next = await detector(
     "next",
     () => composeNextRoutes(programs.map((sp) => collectNextFacts(sp, resolver))),
     none,
   );
+  found.add(["routes", "pages"], next.nodes);
   const prisma = await detector(
     "prisma",
     async () => {
@@ -212,6 +227,7 @@ export async function analyze(
     () => ({ nodes: [], warnings: [], links: new Map() }),
   );
   const stored = relinkStores(prisma, infra.links);
+  found.add(["stores"], [...stored.nodes, ...infra.nodes]);
   const files = await stage("files", () => buildFileNodes(root, workspace, inventory.sourceFiles));
   const symbols = await stage("symbols", () => programs.flatMap((sp) => collectSymbolNodes(sp)));
   const calls = await detector(
@@ -232,16 +248,19 @@ export async function analyze(
     },
     () => ({ nodes: [], edges: [], matches: [] }),
   );
+  found.add(["externals"], http.nodes);
   const sdk = await detector(
     "sdk",
     () => buildSdkEdges(programs, resolver, workspace, express.inlineHandlers),
     () => ({ nodes: [], edges: [] }),
   );
+  found.add(["externals"], sdk.nodes);
   const queues = await detector(
     "queues",
     () => buildQueueEdges(programs, resolver, workspace, express.inlineHandlers),
     () => ({ nodes: [], edges: [] }),
   );
+  found.add(["stores"], queues.nodes);
   const name = options.name ?? (await defaultName(root, inventory.files));
   // Part order is precedence: a custom Express server can register the same route as a
   // Next.js file, and Express's node wins (ADR-0027).
@@ -257,10 +276,7 @@ export async function analyze(
         { source: "inventory", warnings: inventory.warnings },
         {
           source: "workspace",
-          nodes: [
-            { id: SYSTEM_ID, kind: "system", label: name, parentId: null },
-            ...serviceNodes(workspace),
-          ],
+          nodes: [{ id: SYSTEM_ID, kind: "system", label: name, parentId: null }, ...services],
           warnings: workspace.warnings,
         },
         { source: "typescript", warnings: programs.flatMap((p) => p.warnings) },

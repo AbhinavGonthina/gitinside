@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { StepProgress } from "./progress.js";
+import type { FoundFacts, StepProgress } from "./progress.js";
 import {
   DEFAULT_RUNNER_LIMITS,
   childArgs,
@@ -52,11 +52,22 @@ function findings(result: Awaited<ReturnType<typeof runAnalysis>>): Record<strin
 describe("runAnalysis with the real analyzer", () => {
   it("writes the same bytes as the golden graph and reports its stats and steps", async () => {
     const steps: StepProgress[] = [];
+    const found: FoundFacts[] = [];
     const result = await runAnalysis(
       { src, out, owner: "fixtures", name: "express-basic" },
-      { scriptsDir: DIST, onProgress: (step) => steps.push(step) },
+      {
+        scriptsDir: DIST,
+        onProgress: (step) => steps.push(step),
+        onFound: (facts) => found.push(facts),
+      },
     );
     expect(result.ok).toBe(true);
+    expect(found.at(-1)).toMatchObject({
+      routes: 3,
+      pages: 0,
+      stores: { count: 0, names: [] },
+      externals: { count: 0, names: [] },
+    });
     expect(steps[0]).toEqual({ step: "inventory" });
     expect(steps.find(({ step }) => step === "programs")?.count).toBeGreaterThan(0);
     expect(steps.at(-1)).toEqual({ step: "assemble" });
@@ -164,7 +175,7 @@ describe("runAnalysis outcomes", () => {
   it.each([
     ["an uncaught error", "crash"],
     ["no report", "silent"],
-    ["over 64 KiB of stdout", "noisy"],
+    ["over 128 KiB of stdout", "noisy"],
     ["a report the graph file doesn't match", "lie"],
     ["a line after the report", "after"],
     ["two reports", "twice"],
@@ -181,6 +192,22 @@ describe("runAnalysis outcomes", () => {
       { step: "inventory" },
       { step: "programs", count: 1204 },
       { step: "http", count: 87 },
+    ]);
+    expect(result).toMatchObject({ ok: false, code: "LIMIT_FILES" });
+  });
+
+  it("passes found lines on in order, between progress lines (#8)", async () => {
+    const events: unknown[] = [];
+    const result = await runProbe("found", "x", {
+      onProgress: (step) => events.push(step),
+      onFound: (found) => events.push({ found }),
+    });
+    const services = { count: 2, names: ["api", "web"] };
+    expect(events).toEqual([
+      { step: "workspace" },
+      { found: { services } },
+      { step: "programs", count: 3 },
+      { found: { services, routes: 12 } },
     ]);
     expect(result).toMatchObject({ ok: false, code: "LIMIT_FILES" });
   });

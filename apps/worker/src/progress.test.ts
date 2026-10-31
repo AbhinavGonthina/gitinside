@@ -2,12 +2,108 @@ import { ANALYSIS_STAGES } from "@gitinside/analyzer";
 import { describe, expect, it } from "vitest";
 import {
   ANALYZER_STEPS,
+  FOUND_NAME_LENGTH,
+  FOUND_NAMES_MAX,
   STAGE_PROGRESS,
+  describeFound,
   describeProgress,
   formatCount,
+  foundFacts,
   isAnalyzerStep,
+  parseFoundFacts,
   stepProgress,
 } from "./progress.js";
+
+describe("foundFacts", () => {
+  it("keeps the first names of each list with the full count, and the counts as they are", () => {
+    const services = Array.from({ length: 10 }, (_, i) => `svc-${i}`);
+    expect(
+      foundFacts({ services, routes: 12, pages: 0, stores: [], externals: ["api.stripe.com"] }),
+    ).toEqual({
+      services: { count: 10, names: services.slice(0, FOUND_NAMES_MAX) },
+      routes: 12,
+      pages: 0,
+      stores: { count: 0, names: [] },
+      externals: { count: 1, names: ["api.stripe.com"] },
+    });
+    expect(foundFacts({})).toEqual({});
+  });
+
+  it("caps long names and replaces hidden characters, so what it makes always parses", () => {
+    const long = "😀".repeat(FOUND_NAME_LENGTH + 1);
+    const facts = foundFacts({ services: [long, "evil‮txt.exe", "tab\there"] });
+    const names = facts.services?.names ?? [];
+    expect(Array.from(names[0] ?? "")).toHaveLength(FOUND_NAME_LENGTH);
+    expect(names[0]?.endsWith("😀…")).toBe(true);
+    expect(names.slice(1)).toEqual(["evil�txt.exe", "tab�here"]);
+    expect(parseFoundFacts(facts)).toEqual(facts);
+  });
+});
+
+describe("parseFoundFacts", () => {
+  it.each([
+    null,
+    [],
+    "x",
+    { routes: -1 },
+    { routes: 1.5 },
+    { pages: "3" },
+    { other: 1 },
+    { services: ["api"] },
+    { services: { count: 1 } },
+    { services: { count: 1, names: ["api"], extra: 1 } },
+    { services: { count: 0, names: ["api"] } },
+    { services: { count: 1, names: [""] } },
+    { services: { count: 1, names: [3] } },
+    { services: { count: 1, names: ["x".repeat(FOUND_NAME_LENGTH + 1)] } },
+    { services: { count: 9, names: Array.from({ length: 9 }, (_, i) => `s${i}`) } },
+    { stores: { count: 1, names: ["a\u0000b"] } },
+    { externals: { count: 1, names: ["a​b"] } },
+  ])("refuses %j", (value) => {
+    expect(parseFoundFacts(value)).toBeUndefined();
+  });
+
+  it("copies a well-formed value", () => {
+    const value = { services: { count: 3, names: ["a", "b"] }, routes: 0, pages: 2 };
+    const parsed = parseFoundFacts(value);
+    expect(parsed).toEqual(value);
+    expect(parsed?.services?.names).not.toBe(value.services.names);
+  });
+});
+
+describe("describeFound", () => {
+  it("says what was found in a fixed order, with the rest counted", () => {
+    expect(
+      describeFound({
+        externals: { count: 1, names: ["api.stripe.com"] },
+        stores: { count: 2, names: ["postgres", "redis"] },
+        pages: 3,
+        routes: 1_204,
+        services: { count: 11, names: ["a", "b", "c", "d", "e", "f", "g", "h"] },
+      }),
+    ).toEqual([
+      { key: "services", label: "11 services", text: "a, b, c, d, e, f, g, h, and 3 more" },
+      { key: "routes", label: "Entry points", text: "1,204 routes, 3 pages" },
+      { key: "stores", label: "Data", text: "postgres, redis" },
+      { key: "externals", label: "Outside services", text: "api.stripe.com" },
+    ]);
+  });
+
+  it("leaves out what wasn't looked for yet or wasn't found, with singulars", () => {
+    expect(describeFound({})).toEqual([]);
+    expect(
+      describeFound({
+        services: { count: 1, names: ["app"] },
+        routes: 0,
+        pages: 1,
+        stores: { count: 0, names: [] },
+      }),
+    ).toEqual([
+      { key: "services", label: "Service", text: "app" },
+      { key: "routes", label: "Entry points", text: "1 page" },
+    ]);
+  });
+});
 
 describe("ANALYZER_STEPS", () => {
   it("is the analyzer's stage list, in order", () => {

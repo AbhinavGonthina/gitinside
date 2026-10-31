@@ -3,8 +3,10 @@
  *
  * A job moves through four {@link JobStage}s. Inside `analyze`, the child streams the
  * analyzer's own stages (its {@link AnalyzerStep}s) with counts where the analyzer knows
- * them, and the worker stores the latest as BullMQ progress. The progress page (M5.7) turns
- * the stored facts into text with {@link describeProgress}.
+ * them, and the worker stores the latest as BullMQ progress, together with what the analyzer
+ * has found so far ({@link FoundFacts}: services, routes, data stores, outside services; #8).
+ * The progress page (M5.7) turns the stored facts into text with {@link describeProgress} and
+ * {@link describeFound}.
  *
  * This module has no dependencies, so the child protocol and the website can import it
  * (`@gitinside/worker/progress`) without loading the analyzer or BullMQ.
@@ -51,6 +53,156 @@ export interface StepProgress {
   step: AnalyzerStep;
   /** Source files for `programs`, requests for `http`. */
   count?: number;
+}
+
+/** Names the analysis found, as stored and sent: the first few, and how many there are. */
+export interface FoundNames {
+  /** Every name found (at least `names.length`). */
+  count: number;
+  /** The first {@link FOUND_NAMES_MAX}, sorted as the analyzer sorts them, each capped. */
+  names: string[];
+}
+
+/**
+ * What the analysis has found so far (#8): the analyzer's findings with each list capped, so
+ * a repo can't make the stored progress big. A key appears once its stage has run.
+ */
+export interface FoundFacts {
+  services?: FoundNames;
+  routes?: number;
+  pages?: number;
+  /** Datastores and queues. */
+  stores?: FoundNames;
+  /** External services (literal hosts, SDKs). */
+  externals?: FoundNames;
+}
+
+/** Names kept per list; the rest are counted. */
+export const FOUND_NAMES_MAX = 8;
+/** Characters kept per name; longer ones end in `…`. */
+export const FOUND_NAME_LENGTH = 64;
+
+// Control and format characters (bidi overrides included) never reach a page.
+const HIDDEN_CHARS = /[\p{Cc}\p{Cf}]/gu;
+const HAS_HIDDEN_CHAR = /[\p{Cc}\p{Cf}]/u;
+const LIST_KEYS = ["services", "stores", "externals"] as const;
+const COUNT_KEYS = ["routes", "pages"] as const;
+
+/** A name as stored: hidden characters replaced, at most {@link FOUND_NAME_LENGTH} characters. */
+function foundName(name: string): string {
+  const chars = Array.from(name.replace(HIDDEN_CHARS, "�"));
+  if (chars.length <= FOUND_NAME_LENGTH) return chars.join("");
+  return `${chars.slice(0, FOUND_NAME_LENGTH - 1).join("")}…`;
+}
+
+/** The analyzer's findings (`AnalysisFindings`), capped for storage. */
+export function foundFacts(findings: {
+  services?: readonly string[];
+  routes?: number;
+  pages?: number;
+  stores?: readonly string[];
+  externals?: readonly string[];
+}): FoundFacts {
+  const facts: FoundFacts = {};
+  for (const key of LIST_KEYS) {
+    const names = findings[key];
+    if (names !== undefined) {
+      facts[key] = { count: names.length, names: names.slice(0, FOUND_NAMES_MAX).map(foundName) };
+    }
+  }
+  for (const key of COUNT_KEYS) {
+    const count = findings[key];
+    if (count !== undefined) facts[key] = count;
+  }
+  return facts;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const isCount = (value: unknown): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+
+function isFoundName(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value !== "" &&
+    Array.from(value).length <= FOUND_NAME_LENGTH &&
+    !HAS_HIDDEN_CHAR.test(value)
+  );
+}
+
+function parseFoundNames(value: unknown): FoundNames | undefined {
+  if (!isRecord(value) || Object.keys(value).length !== 2) return undefined;
+  const { count, names } = value;
+  if (!isCount(count) || !Array.isArray(names) || names.length > FOUND_NAMES_MAX) return undefined;
+  if (names.length > count || !names.every(isFoundName)) return undefined;
+  return { count, names: [...names] };
+}
+
+/**
+ * `value` as {@link FoundFacts} if it is exactly that shape (known keys only, lists within
+ * the caps, names without hidden characters), else `undefined`. Every hop checks it: the
+ * child's line, the stored progress, and the website's copy of the status.
+ */
+export function parseFoundFacts(value: unknown): FoundFacts | undefined {
+  if (!isRecord(value)) return undefined;
+  const facts: FoundFacts = {};
+  for (const [key, field] of Object.entries(value)) {
+    if ((LIST_KEYS as readonly string[]).includes(key)) {
+      const names = parseFoundNames(field);
+      if (names === undefined) return undefined;
+      facts[key as (typeof LIST_KEYS)[number]] = names;
+    } else if ((COUNT_KEYS as readonly string[]).includes(key) && isCount(field)) {
+      facts[key as (typeof COUNT_KEYS)[number]] = field;
+    } else {
+      return undefined;
+    }
+  }
+  return facts;
+}
+
+/** One line of what was found, for the progress page: "Services" / "@shop/api, @shop/web". */
+export interface FoundLine {
+  key: "services" | "routes" | "stores" | "externals";
+  label: string;
+  text: string;
+}
+
+/** `a, b, and 3 more`: the names, then how many weren't kept. */
+function nameList({ count, names }: FoundNames): string {
+  const rest = count - names.length;
+  return rest > 0 ? `${names.join(", ")}, and ${formatCount(rest)} more` : names.join(", ");
+}
+
+/**
+ * The words for what was found, in a fixed order, leaving out anything not found (yet):
+ * services, routes and pages ("2 routes, 3 pages"), data stores, external services.
+ */
+export function describeFound(found: FoundFacts): FoundLine[] {
+  const lines: FoundLine[] = [];
+  const { services, routes = 0, pages = 0, stores, externals } = found;
+  if (services !== undefined && services.count > 0) {
+    lines.push({
+      key: "services",
+      label: services.count === 1 ? "Service" : `${formatCount(services.count)} services`,
+      text: nameList(services),
+    });
+  }
+  const entries = [
+    ...(routes > 0 ? [plural(routes, "route")] : []),
+    ...(pages > 0 ? [plural(pages, "page")] : []),
+  ];
+  if (entries.length > 0)
+    lines.push({ key: "routes", label: "Entry points", text: entries.join(", ") });
+  if (stores !== undefined && stores.count > 0) {
+    lines.push({ key: "stores", label: "Data", text: nameList(stores) });
+  }
+  if (externals !== undefined && externals.count > 0) {
+    lines.push({ key: "externals", label: "Outside services", text: nameList(externals) });
+  }
+  return lines;
 }
 
 /** Whether `value` names an analyzer step. */

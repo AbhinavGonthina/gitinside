@@ -100,6 +100,41 @@ describe("JobProgress", () => {
     expect((bar.firstElementChild as HTMLElement).style.width).toBe("34%");
   });
 
+  it("shows what the analyzer found as it finds it, under the stages (#8)", () => {
+    show();
+    const running = {
+      state: "running",
+      step: "analyze",
+      progress: 34,
+      text: "Parsing files",
+    } as const;
+    const facts = () =>
+      Array.from(document.querySelectorAll(".progress__fact"), (row) => [
+        row.querySelector("dt")?.textContent,
+        row.querySelector("dd")?.textContent,
+      ]);
+    // Nothing found yet (or a server from before #8): no section at all.
+    latest().send(running);
+    expect(screen.queryByRole("region", { name: "Found so far" })).toBeNull();
+    latest().send({ ...running, found: [] });
+    expect(screen.queryByRole("region", { name: "Found so far" })).toBeNull();
+
+    const services = { key: "services", label: "2 services", text: "api, web" } as const;
+    latest().send({ ...running, found: [services] });
+    expect(screen.getByRole("region", { name: "Found so far" })).toBeTruthy();
+    expect(facts()).toEqual([["2 services", "api, web"]]);
+    const first = document.querySelector(".progress__fact dd");
+
+    const routes = { key: "routes", label: "Entry points", text: "12 routes" } as const;
+    latest().send({ ...running, step: "upload", progress: 90, found: [services, routes] });
+    expect(facts()).toEqual([
+      ["2 services", "api, web"],
+      ["Entry points", "12 routes"],
+    ]);
+    // The row already shown stays put (its entrance doesn't replay); only the new one eases in.
+    expect(document.querySelector(".progress__fact dd")).toBe(first);
+  });
+
   it("opens the diagram when it's saved, and stops listening", () => {
     show();
     latest().send({ state: "done" });

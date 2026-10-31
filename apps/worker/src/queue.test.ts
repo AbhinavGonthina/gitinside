@@ -131,6 +131,24 @@ describe("statusFromJob", () => {
     });
   });
 
+  it("shows what was found, while saving the diagram too", () => {
+    const found = { services: { count: 1, names: ["app"] }, routes: 4, pages: 0 };
+    expect(
+      statusFromJob({
+        ...job,
+        state: "active",
+        progress: { stage: "upload", progress: 90, found },
+      }),
+    ).toEqual({
+      id: "analyze-1",
+      kind: "analyze",
+      state: "running",
+      stage: "upload",
+      progress: 90,
+      found,
+    });
+  });
+
   it.each([
     0,
     { stage: "hacking", progress: 30 },
@@ -143,6 +161,8 @@ describe("statusFromJob", () => {
     { stage: "analyze", progress: 40, step: "programs", count: -1 },
     { stage: "analyze", progress: 40, step: "programs", count: "1" },
     { stage: "analyze", progress: 40, count: 3 },
+    { stage: "analyze", progress: 40, found: { routes: -1 } },
+    { stage: "analyze", progress: 40, found: { services: { count: 1, names: ["a‮b"] } } },
     null,
   ])("ignores progress that isn't ours: %j", (progress) => {
     expect(statusFromJob({ ...job, state: "active", progress })).toEqual({
@@ -233,6 +253,33 @@ describe("createProcessor", () => {
       { stage: "analyze", progress: 38, step: "programs", count: 12 },
       { stage: "analyze", progress: 74, step: "http", count: 4 },
       { stage: "upload", progress: 90 },
+    ]);
+  });
+
+  it("keeps what was found in every later update, the upload stage's too (#8)", async () => {
+    const { job, progress } = fakeJob(REQUEST);
+    const services = { count: 2, names: ["api", "web"] };
+    const run: JobDeps["run"] = async (child, options) => {
+      options.onProgress?.({ step: "workspace" });
+      options.onFound?.({ services });
+      options.onProgress?.({ step: "programs", count: 12 });
+      options.onFound?.({ services, routes: 3 });
+      return writeGraph(child);
+    };
+    await createProcessor(deps(run))(job, "t", undefined);
+    expect(progress.slice(2)).toEqual([
+      { stage: "analyze", progress: 30 },
+      { stage: "analyze", progress: 34, step: "workspace" },
+      { stage: "analyze", progress: 34, step: "workspace", found: { services } },
+      { stage: "analyze", progress: 38, step: "programs", count: 12, found: { services } },
+      {
+        stage: "analyze",
+        progress: 38,
+        step: "programs",
+        count: 12,
+        found: { services, routes: 3 },
+      },
+      { stage: "upload", progress: 90, found: { services, routes: 3 } },
     ]);
   });
 

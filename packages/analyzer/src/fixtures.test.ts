@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ArchitectureGraph, GraphEdge, SourceLocation } from "@gitinside/schema";
-import { analyze } from "./analyze.js";
+import { analyze, findingsOf, type AnalysisFindings } from "./analyze.js";
 import { serializeGraph } from "./assemble.js";
 import { createSymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
@@ -48,11 +48,19 @@ const NAMES = [
 ];
 
 describe.each(NAMES)("fixture %s", (name) => {
-  it("matches expected.json byte for byte", async () => {
-    const text = serializeGraph(await run(name));
+  it("matches expected.json byte for byte, and its last findings are the graph's", async () => {
+    const found: AnalysisFindings[] = [];
+    const graph = await analyze(join(FIXTURES, name), {
+      owner: "fixtures",
+      name,
+      onFound: (event) => found.push(event),
+    });
+    const text = serializeGraph(graph);
     const goldenPath = join(FIXTURES, name, "expected.json");
     if (process.env.UPDATE_GOLDEN === "1") await writeFile(goldenPath, text);
     expect(text).toBe(await readFile(goldenPath, "utf8"));
+    // Nothing reported along the way that the diagram won't show (#8).
+    expect(found.at(-1)).toEqual(findingsOf(graph.nodes));
   });
 });
 

@@ -95,7 +95,20 @@ describe("parseJobStatus", () => {
     });
   });
 
+  it("keeps what was found, copied field by field (#8)", () => {
+    const found = { services: { count: 3, names: ["api", "web"] }, routes: 4 };
+    const running = { id, kind: "analyze", state: "running", stage: "analyze", found };
+    expect(parseJobStatus(running)).toEqual(running);
+    expect(parseJobStatus(running)?.found?.services?.names).not.toBe(found.services.names);
+  });
+
   it.each([
+    ["found with an unknown key", { ...ok, found: { secrets: 1 } }],
+    ["found with a bidi override", { ...ok, found: { stores: { count: 1, names: ["a‮b"] } } }],
+    [
+      "found with too many names",
+      { ...ok, found: { stores: { count: 9, names: Array(9).fill("x") } } },
+    ],
     ["not an object", null],
     ["an array", []],
     ["a bad ID", { ...ok, id: "x" }],

@@ -4,7 +4,7 @@ import type { JobRequest } from "./api.js";
 import { ExtractError, extractTarball, type ExtractLimits, type SkippedEntry } from "./extract.js";
 import { JobFailure } from "./failure.js";
 import { openTarball, type DownloadOptions } from "./github.js";
-import type { JobStage, StepProgress } from "./progress.js";
+import type { FoundFacts, JobStage, StepProgress } from "./progress.js";
 import type { AnalysisStats } from "./protocol.js";
 import { runAnalysis, type RunOptions, type RunResult } from "./runner.js";
 
@@ -109,6 +109,8 @@ export interface JobContext {
    * job doesn't wait for it, and its failure is logged (`progress_failed`), never the job's.
    */
   onStep?: (progress: StepProgress) => Promise<void> | void;
+  /** What the analysis has found so far (#8), as the child streams it. Best effort, like `onStep`. */
+  onFound?: (found: FoundFacts) => Promise<void> | void;
   /** The queue won't retry this attempt, so even a retriable failure is final. Default false. */
   lastAttempt?: boolean;
 }
@@ -178,7 +180,16 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
       {
         ...deps.runOptions,
         ...(context.signal === undefined ? {} : { signal: context.signal }),
-        ...(context.onStep === undefined ? {} : { onProgress: reportStep(context, deps) }),
+        ...(context.onStep === undefined
+          ? {}
+          : { onProgress: bestEffort(context, deps, context.onStep, (p) => ({ step: p.step })) }),
+        ...(context.onFound === undefined
+          ? {}
+          : {
+              onFound: bestEffort(context, deps, context.onFound, (f) => ({
+                found: Object.keys(f),
+              })),
+            }),
       },
     );
     if (!result.ok) throw new JobFailure(result.code, result.stderrTail);
@@ -220,16 +231,22 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
 }
 
 /**
- * The runner's progress callback: pass each step to `context.onStep` at once (so updates
- * reach the queue in order) without waiting, logging a failure instead of throwing it.
+ * A runner callback: pass each event to `report` at once (so updates reach the queue in
+ * order) without waiting, logging a failure (`progress_failed`, with `describe`'s fields)
+ * instead of throwing it.
  */
-function reportStep(context: JobContext, deps: JobDeps): (progress: StepProgress) => void {
-  return (progress) => {
-    void (async () => context.onStep?.(progress))().catch((error: unknown) => {
+function bestEffort<T>(
+  context: JobContext,
+  deps: JobDeps,
+  report: (event: T) => Promise<void> | void,
+  describe: (event: T) => Record<string, unknown>,
+): (event: T) => void {
+  return (event) => {
+    void (async () => report(event))().catch((error: unknown) => {
       deps.log?.({
         event: "progress_failed",
         id: context.id,
-        step: progress.step,
+        ...describe(event),
         message: error instanceof Error ? error.message : String(error),
       });
     });

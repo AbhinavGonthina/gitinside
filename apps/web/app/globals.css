@@ -381,6 +381,61 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+/* What the analyzer has found so far (#8): a short list of term and names
+   under the stages, each row easing in as its stage reports it, so the
+   page fills in like the diagram assembling. No fill mode: a finished
+   entrance leaves nothing behind. Reduced motion zeroes the duration. */
+.progress__found {
+  margin: 0 0 var(--space-32);
+}
+
+.progress__found-title {
+  margin: 0 0 var(--space-12);
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-medium);
+}
+
+/* A fixed term column (wider than "Outside services"), so the names don't
+   shift right when a longer term arrives. */
+.progress__facts {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: var(--space-8) var(--space-16);
+  margin: 0;
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-body);
+}
+
+.progress__fact {
+  display: contents;
+}
+
+.progress__fact dt {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress__fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress__fact dt,
+.progress__fact dd {
+  animation: progress-fact-in var(--duration-standard) var(--ease-standard);
+}
+
+@keyframes progress-fact-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 /* Failures and the unavailable notice read in body text with a bar, like the
    landing form's errors (DESIGN_SYSTEM.md §4: diff colors never color text). */
 .progress__failure,

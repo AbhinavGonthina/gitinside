@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseChildJob, parseChildReport, parseProgressLine, progressLine } from "./protocol.js";
+import {
+  foundLine,
+  parseChildJob,
+  parseChildReport,
+  parseFoundLine,
+  parseProgressLine,
+  progressLine,
+} from "./protocol.js";
 
 const STATS = {
   files: 1,
@@ -62,6 +69,27 @@ describe("progress lines", () => {
     ["a text count", JSON.stringify({ progress: { step: "http", count: "1" } })],
   ])("aren't %s", (_, text) => {
     expect(parseProgressLine(text)).toBeUndefined();
+  });
+});
+
+describe("found lines", () => {
+  it("round-trip on one line, names with newlines and quotes included", () => {
+    const found = { services: { count: 2, names: ['a "b"', "c�d"] }, routes: 3 };
+    const line = foundLine(found);
+    expect(line.endsWith("\n")).toBe(true);
+    expect(line.slice(0, -1)).not.toContain("\n");
+    expect(parseFoundLine(line.slice(0, -1))).toEqual(found);
+  });
+
+  it.each([
+    ["half a line", '{"found":{"rou'],
+    ["a progress line", progressLine({ step: "http" })],
+    ["a report", JSON.stringify({ ok: true, stats: STATS })],
+    ["found with more beside it", JSON.stringify({ found: {}, ok: true })],
+    ["a name with a newline", JSON.stringify({ found: { stores: { count: 1, names: ["a\nb"] } } })],
+    ["a wrong shape", JSON.stringify({ found: { routes: [] } })],
+  ])("aren't %s", (_, text) => {
+    expect(parseFoundLine(text)).toBeUndefined();
   });
 });
 

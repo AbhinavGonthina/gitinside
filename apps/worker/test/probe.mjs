@@ -44,7 +44,7 @@ switch (job.owner) {
   case "silent":
     break;
   case "noisy":
-    process.stdout.write("x".repeat(100 * 1024));
+    process.stdout.write("x".repeat(200 * 1024));
     report({ ok: false, code: "LIMIT_FILES", message: "after noise" });
     break;
   case "lie":
@@ -63,6 +63,14 @@ switch (job.owner) {
     await new Promise((done) => setTimeout(done, 50));
     process.stdout.write('rams","count":1204}}\n');
     report({ progress: { step: "http", count: 87 } });
+    report({ ok: false, code: "LIMIT_FILES", message: "LIMIT_FILES: too many files" });
+    break;
+  case "found":
+    // Found lines between progress lines, then the report.
+    report({ progress: { step: "workspace" } });
+    report({ found: { services: { count: 2, names: ["api", "web"] } } });
+    report({ progress: { step: "programs", count: 3 } });
+    report({ found: { services: { count: 2, names: ["api", "web"] }, routes: 12 } });
     report({ ok: false, code: "LIMIT_FILES", message: "LIMIT_FILES: too many files" });
     break;
   case "after":
