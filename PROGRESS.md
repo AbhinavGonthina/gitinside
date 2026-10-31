@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.15c Progress page (#8): estimated time left from measured data (M5.13 and M5.14b wait on #3)
+M5.16a Stress benchmark (#10): microsoft/vscode through bench/, parse only (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -152,7 +152,7 @@ M5.15c Progress page (#8): estimated time left from measured data (M5.13 and M5.
 - [x] M5.12d2 Every snapshot read behind the CDN cache: README images read the graph through the day-cached `/api/graph` URL instead of the bucket (each image URL now reads its snapshot every 10 min, ≈ 4,300 requests/month per busy URL, ADR-0096), and case variants of a graph path redirect to the stored spelling before any bucket read {model: opus}
 - [x] M5.15a Progress page (#8): job link copy button + "the analysis keeps running if you leave; reopen this link any time" (reopened link shows live progress, or opens the diagram when done), tests, screenshots {model: opus}
 - [x] M5.15b Progress page (#8): repo facts as found: analyzer progress events carry the facts each stage produced (service names, route count, data stores and external services), streamed through the worker's BullMQ progress and SSE; shown calmly as the diagram assembling, nothing guessed; tests, screenshots {model: opus}
-- [ ] M5.15c Progress page (#8): estimated time left from measured data (file count or tarball size vs bench results and past job durations from `stats` stage timings), updated per stage, "Taking longer than usual" when over, none until computable, never negative; ADR, tests, screenshots {model: opus}
+- [x] M5.15c Progress page (#8): estimated time left from measured data (file count or tarball size vs bench results and past job durations from `stats` stage timings), updated per stage, "Taking longer than usual" when over, none until computable, never negative; ADR, tests, screenshots {model: opus}
 - [ ] M5.16a Stress benchmark (#10): `microsoft/vscode` at a pinned commit through `bench/`, parse only (never installed or run), without the worker's 3 GB / 5 min caps; wall clock, peak RSS, per-stage times, graph size, file count, tarball and decompressed size + entry count vs the extraction limits (500 MB / 100,000); `bench/results/` write-up with hand-written observations (where time and memory go, which production limit it hits first) {model: opus}
 - [ ] M5.16b What a VS Code-sized repo does in production (#10): which limit stops it and how early, what the progress page says; make it fail fast (refuse before parsing, e.g. from the inventory count or the tarball's size) with a clear message; tests; what the analyzer would need to handle it (per-service programs, M6.7 cache), without raising the caps {model: opus}
 - [ ] M5.16c Supported size written down (#10): "repos up to about N files / M MB" from M5.16a and cal.com, in the docs, the landing page, and the `LIMIT_*` error copy; VS Code in EVALUATION.md's benchmark list as a standing stress test if useful {model: opus}
@@ -232,6 +232,8 @@ M5.15c Progress page (#8): estimated time left from measured data (M5.13 and M5.
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M5.15c** Time left on the progress page (`3d5fd17`, #8, ADR-0136): from `programs` on, the worker stores each step's start and the time expected to the end (median ms per source file per step over the last 50 finished analyses, or the cal.com benchmark until 5; plus median upload when measured); `GET /jobs/:id` answers `leftMs` (≥ 0) on the worker's clock; the page says "About 40 s left" / "About 3 min left" / "Taking longer than usual" under the bar on a reserved line. Found and fixed an M5.15b bug: the API's `publicStatus` dropped `found` (test red first). `pnpm test` all green (worker 533, web 364, db 73), typecheck, lint. Chromium dark/light at 1440/390 (`docs/milestones/M5/eta/`): stages don't move when the estimate arrives. No eval delta.
 
 - **2026-10-31 M5.15b** "Found so far" on the progress page (`987be5e`, #8, ADR-0135): `analyze({ onFound })` reports the services, routes/pages, data stores, and outside services in the nodes each stage produced; the last report equals `findingsOf(graph.nodes)` on all 23 fixtures. Child `{"found"}` lines → BullMQ progress (kept through upload, reset on retry) → SSE, capped (8 names, 64 chars, hidden characters replaced) and re-checked at every hop; stdout cap 64 → 128 KiB. Analyzer 715, web 358, worker green alone (job.test 42/42; two download-stage tests flaked under the full parallel run), typecheck, lint. Chromium dark/light at 1440/390 (`docs/milestones/M5/found/`): the first shots showed names shifting right as "Outside services" arrived; fixed term column. Eval re-recorded, no delta.
 
