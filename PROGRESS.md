@@ -14,14 +14,12 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.8b. Filters popover, chip, explorer wiring (M5.13 and M5.14b wait on #3, #5)
+M4b.9. Deep links (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
 - [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Google Cloud signup for the worker on Cloud Run (ADR-0111): project, $1 budget, spend cap if offered. Kept open: the remaining steps (APIs, Workload Identity Federation, secrets) get posted there by M5.17e, and he must hear before trial day 90 that the guardrails are verified. Blocks M5.17e, M5.13.
-- [#5](https://github.com/AbhinavGonthina/gitinside-planning/issues/5) Snapshot storage. He chose PROPOSALS P-2 option 1 (Oracle Object Storage; SPEC §5 updated, M5.12c/d added). Now asks for the bucket + a Customer Secret Key on the Oracle account, values into the worker's env and Vercel. Blocks M5.13.
-- [#12](https://github.com/AbhinavGonthina/gitinside-planning/issues/12) Cloudflare Turnstile widget (free, no card) for the Analyze bot check (#11); keys into Vercel and `apps/web/.env.local`. Blocks M5.18e.
 
 ## Blockers
 - none
@@ -100,7 +98,7 @@ M4b.8b. Filters popover, chip, explorer wiring (M5.13 and M5.14b wait on #3, #5)
 - [x] M4b.6b Trace picker + player: a searchable list of pages and routes from the top bar and T when nothing traceable is selected (replacing the "select a page or route" message), play/pause auto-advancing the steps, a pulse travelling the current hop (900ms, off under reduced motion); tests, screenshots, baselines {model: opus}
 - [x] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
 - [x] M4b.8a Filter model (ADR-0120): layer, node kind, confidence, folder include/exclude, hide tests and config (by path convention); a hidden node takes its inside along, emptied folders go, its connections are dropped (not lifted); `buildView({ filters })`, the layout cache key, `useDrill`; tests {model: opus}
-- [ ] M4b.8b Filters popover from the top bar (layers, kinds, connections incl. imports, confidence, folders, "Hide tests and config" on by default) + active-filter chip with "Clear" + the explorer on `DEFAULT_FILTERS` (selection, trace, search, and reveal of a hidden node); tests, screenshots, baselines {model: opus}
+- [x] M4b.8b Filters popover from the top bar (layers, kinds, connections incl. imports, confidence, folders, "Hide tests and config" on by default) + active-filter chip with "Clear" + the explorer on `DEFAULT_FILTERS` (selection, trace, search, and reveal of a hidden node); tests, screenshots, baselines {model: opus}
 - [ ] M4b.9 Deep links {model: opus}
 - [ ] M4b.10 Export SVG / PNG / Mermaid {model: opus}
 - [ ] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
@@ -153,9 +151,9 @@ M4b.8b. Filters popover, chip, explorer wiring (M5.13 and M5.14b wait on #3, #5)
 - [ ] M5.18b Abuse (#11): size check before any download or compute from GitHub's repo `size` (threshold from M5.16a), refused with a clear message; tests {model: opus}
 - [ ] M5.18c Abuse (#11): per-repo limit on `/api/analyze`: at most one new analysis per repo per 30 min whoever asks (on top of 5/h per IP and check-on-view's 6/h), message with the retry time; tests {model: opus}
 - [ ] M5.18d Abuse (#11): monthly compute budget: Cloud Run vCPU- and GiB-seconds per UTC month estimated from job durations × 1 vCPU / 4 GiB (like `store_requests`), plus Cloud Tasks operations; new analyses stop at 80% of the free allowance ("Analysis is paused until <date>"), diagrams keep working; `quota` command; tests {model: opus}
-- [ ] M5.18e Abuse (#11): Cloudflare Turnstile (free, no card) on Analyze for signed-out visitors, only when traffic looks automated (an IP's or the site's rate over a threshold); server-side token check; fail visibly; tests {model: opus} {blocked: #12}
+- [ ] M5.18e Abuse (#11): Cloudflare Turnstile (free, no card) on Analyze for signed-out visitors, only when traffic looks automated (an IP's or the site's rate over a threshold); server-side token check; fail visibly; tests (keys are in Vercel Production + Preview and `apps/web/.env.local`, #12) {model: opus}
 - [ ] M5.18f SECURITY.md T9 with the final numbers from M5.18a–e and the Cloud Run guardrails {model: opus}
-- [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review; confirm an image's self-request to `/api/graph` is a CDN hit, `x-vercel-cache: HIT`, with `store_requests` unchanged, ADR-0097; worker on Cloud Run with the guardrails verified, ADR-0111) {model: opus} {blocked: #3 #5}
+- [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review; confirm an image's self-request to `/api/graph` is a CDN hit, `x-vercel-cache: HIT`, with `store_requests` unchanged, ADR-0097; worker on Cloud Run with the guardrails verified, ADR-0111; the five `SNAPSHOTS_*` values are in Vercel Production, the worker's go into Cloud Run's secrets, #5) {model: opus} {blocked: #3}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
 - [x] M5.14c M5 review follow-up (ADR-0079, ADR-0080): guard `getTypeAtLocation` like `getSymbolAtLocation` (eval re-record) {model: opus}
@@ -219,6 +217,8 @@ M4b.8b. Filters popover, chip, explorer wiring (M5.13 and M5.14b wait on #3, #5)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M4b.8b** Filters popover, chip, and explorer wiring (ADR-0121). The explorer starts on `DEFAULT_FILTERS`; the top bar's Filters (count) opens a non-modal popover of pill choices (only what the graph has, with counts: layers, kinds, connection kinds incl. imports, confidence), the tests switch, and a folder field that refuses folders the repo lacks. The chip ("2 filters · 7 hidden", × clears) shows only when something is hidden; without the top bar a canvas Filters button stands in. Search, the picker, connections, and trace starts take off only the filters hiding their node (`filtersShowing`); a hidden selection or hop says so with a Show button. Browser run found three bugs (clipped popover, focus lost after Esc and after Show), each now tested; mutation checks on `drawnAs` and the refocus turn tests red. #5 and #12 closed: M5.18e unblocked, M5.13 waits on #3 only.
 
 - **M4b.8a** Filter model (ADR-0120): `model/filters.ts` hides nodes by layer, kind (routes, pages, symbols, models, infrastructure, unresolved), test/config path (naming conventions; the graph has no flag), and folder include/exclude; a hidden node takes its inside along, emptied folders go, and its edges are dropped, not lifted to the parent. Confidence hides lines only. `buildView({ filters })`, `view.filtered` in `layoutKey`, `useDrill`. Without filters the view (and the README image) is unchanged. M4b.8 was split: the popover, chip, and explorer wiring are M4b.8b.
 
