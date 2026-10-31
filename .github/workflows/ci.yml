@@ -96,7 +96,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @gitinside/schema build
+      # The viewer's workspace dependencies (schema, diff), which it imports from their dist.
+      - run: pnpm --filter "@gitinside/viewer^..." build
       - run: pnpm --filter @gitinside/viewer build-storybook
       - run: pnpm --filter @gitinside/viewer visual
       - if: failure()
