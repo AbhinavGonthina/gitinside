@@ -660,8 +660,8 @@ export function Explorer({
    */
   function showNode(id: string): Filters {
     if (!filtered.has(id)) return filters;
-    refocus.current = true;
     const next = filtersShowing(index, filters, id);
+    refocus.current = next;
     setFilters(next);
     setAnnouncement(`Changed the filters to show ${nodeOf(index, id).label}`);
     return next;
@@ -710,27 +710,31 @@ export function Explorer({
   // Showing a hidden node removes the button that did it (Show on canvas, a
   // step's Show), which drops focus to the page. Once the canvas is drawn,
   // put it on the current step while tracing, else on the selection's box.
-  const refocus = useRef(false);
+  // Holds the filters it was shown under: only a render with them has
+  // removed the button. An earlier render's effects can still run after the
+  // click, with the button focused, and mustn't take that as focus kept
+  // (M5.17b3).
+  const refocus = useRef<Filters | null>(null);
   useEffect(() => {
-    if (!refocus.current) return;
+    if (refocus.current !== filters) return;
     const root = rootRef.current;
     const active = document.activeElement;
     const lost = !active || active === document.body || !active.isConnected;
     if (!root || !lost) {
-      refocus.current = false;
+      refocus.current = null;
       return;
     }
     if (tracing) {
       const current = root.querySelector<HTMLElement>(".gi-explorer__step[aria-current]");
       if (current) {
-        refocus.current = false;
+        refocus.current = null;
         current.focus();
       }
       return;
     }
     // Wait for the new view's boxes: the old layout's may be replaced.
     if (shown?.view !== view) return;
-    refocus.current = false;
+    refocus.current = null;
     const target = selectedBox ? boxElement(root, selectedBox) : null;
     target?.focus();
   });
