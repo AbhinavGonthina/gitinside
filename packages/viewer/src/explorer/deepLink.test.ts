@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { NO_FILTERS } from "../model/filters.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { shopDemo } from "../shopDemo.testkit.js";
-import { decodeState, DEFAULT_STATE, encodeState, type ExplorerState } from "./deepLink.js";
+import {
+  decodeState,
+  DEFAULT_STATE,
+  encodeState,
+  withState,
+  type ExplorerState,
+} from "./deepLink.js";
 import { traceFrom } from "./trace.js";
 
 const index = buildHierarchy(shopDemo());
@@ -195,5 +201,12 @@ describe("decodeState", () => {
       state: state({ selected: SRC }),
       ignored: [],
     });
+  });
+});
+
+describe("withState", () => {
+  it("adds a state's query to a page, and nothing for the default state", () => {
+    expect(withState("/acme/shop", "sel=service:api/")).toBe("/acme/shop?sel=service:api/");
+    expect(withState("/acme/shop", encodeState(DEFAULT_STATE))).toBe("/acme/shop");
   });
 });

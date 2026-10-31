@@ -627,6 +627,36 @@ code {
   font-size: var(--font-size-13);
 }
 
+/* The share menu's panel hangs from the bar's right edge too, for the same reason. */
+.repo-bar .gi-share-menu {
+  position: static;
+}
+
+.repo-bar .gi-share {
+  top: calc(100% - var(--space-4));
+  right: var(--space-24);
+  width: min(400px, calc(100vw - 48px));
+}
+
+/* A deep link that doesn't fully apply to this commit says what was left out. */
+.diagram-page__note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-4) var(--space-16) var(--space-4) var(--space-24);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+.diagram-page__note p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
+}
+
 .diagram-page__canvas {
   display: flex;
   flex: 1;

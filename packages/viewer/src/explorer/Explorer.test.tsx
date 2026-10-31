@@ -1443,4 +1443,31 @@ describe("Explorer deep links", { timeout: 30_000 }, () => {
     expect(screen.getByText(`Step 1 of ${routeSteps}`)).toBeTruthy();
     expect(again.crumbs()).toBe("shop-demo@shop/apisrc");
   });
+
+  it("shares the current state's link from the top bar, through `linkTo`", async () => {
+    const linkTo = vi.fn((query: string) => `https://example.test/acme/shop?${query}`);
+    const { box, act, isOpen } = await setup({ linkTo });
+    await act(() => fireEvent.doubleClick(box(API) as HTMLElement));
+    fireEvent.click(box(ROUTE) as HTMLElement);
+    const share = screen.getByRole("button", { name: "Share" });
+    fireEvent.click(share);
+    expect(share.getAttribute("aria-expanded")).toBe("true");
+    const field = screen.getByRole("textbox", { name: "Link to this view" }) as HTMLInputElement;
+    expect(field.value).toBe(
+      "https://example.test/acme/shop?open=service:api/&sel=route:api/POST%20/api/orders",
+    );
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Copy link" }));
+    // Esc closes only the menu: the explorer stays at its level, focus back on Share.
+    fireEvent.keyDown(document.activeElement as Element, { key: "Escape" });
+    expect(share.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(share);
+    expect(isOpen(API)).toBe(true);
+  });
+
+  it("links to this page by default, just the page at the opening state", async () => {
+    await setup();
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+    const field = screen.getByRole("textbox", { name: "Link to this view" }) as HTMLInputElement;
+    expect(field.value).toBe(`${window.location.origin}${window.location.pathname}`);
+  });
 });

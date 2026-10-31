@@ -115,6 +115,13 @@ export type {
 } from "./chrome/Inspector.js";
 export { CONNECTION_NAMES, FiltersPopover, KIND_PLURALS } from "./chrome/FiltersPopover.js";
 export type { FiltersPopoverProps } from "./chrome/FiltersPopover.js";
+export {
+  LINK_COPIED_MESSAGE,
+  LINK_COPIED_MS,
+  LINK_COPY_FAILED_MESSAGE,
+  ShareMenu,
+} from "./chrome/ShareMenu.js";
+export type { ShareMenuProps } from "./chrome/ShareMenu.js";
 export { CommandPalette } from "./chrome/CommandPalette.js";
 export type { CommandPaletteProps, PaletteResult } from "./chrome/CommandPalette.js";
 export {
@@ -235,7 +242,13 @@ export { canTraceFrom, TRACE_DEPTH, traceFrom, traceNodes } from "./explorer/tra
 export type { Trace, TraceStep } from "./explorer/trace.js";
 export { createGitHubSourceLoader, MAX_SOURCE_BYTES } from "./explorer/sources.js";
 export type { GitHubSourceLoaderOptions, SourceLoader } from "./explorer/sources.js";
-export { decodeState, DEFAULT_STATE, encodeState, STATE_PARAMS } from "./explorer/deepLink.js";
+export {
+  decodeState,
+  DEFAULT_STATE,
+  encodeState,
+  STATE_PARAMS,
+  withState,
+} from "./explorer/deepLink.js";
 export type { DecodedState, ExplorerState, IgnoredParam } from "./explorer/deepLink.js";
 export { Explorer } from "./explorer/Explorer.js";
 export type { ExplorerProps } from "./explorer/Explorer.js";

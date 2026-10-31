@@ -238,6 +238,66 @@ describe("RepoDiagram", () => {
     expect(screen.queryByRole("region", { name: "Diagram" })).toBeNull();
   });
 
+  it("opens from the page's link and keeps the link in step, without new history entries", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    const link = "?open=service:api/&sel=route:api/POST%20/api/orders";
+    window.history.replaceState({}, "", `/acme/shop${link}#top`);
+    const entries = window.history.length;
+    renderDiagram({ state: "current" });
+    await screen.findByRole("region", { name: "Diagram" });
+    const inspector = within(screen.getByRole("complementary"));
+    await waitFor(() =>
+      // The method and the path are separate spans.
+      expect(inspector.getByRole("heading", { level: 2 }).textContent).toBe("POST/api/orders"),
+    );
+    expect(window.location.search).toBe(link);
+    expect(document.querySelector(".diagram-page__note")).toBeNull();
+    // Esc goes up a level: the link drops `open`, keeping the path and hash.
+    fireEvent.keyDown(document.querySelector(".gi-explorer") as Element, { key: "Escape" });
+    await waitFor(() => expect(window.location.search).toBe("?sel=route:api/POST%20/api/orders"));
+    expect(window.location.pathname).toBe("/acme/shop");
+    expect(window.location.hash).toBe("#top");
+    expect(window.history.length).toBe(entries);
+    // Clearing the selection leaves no query at all.
+    fireEvent.keyDown(document.querySelector(".gi-explorer") as Element, { key: "Escape" });
+    await waitFor(() => expect(window.location.search).toBe(""));
+  });
+
+  it("says what part of a link this commit doesn't have, until dismissed", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    window.history.replaceState({}, "", "/acme/shop?sel=route:api/GET%20/gone&hideLayers=space");
+    renderDiagram({ state: "current" });
+    await screen.findByRole("region", { name: "Diagram" });
+    const note = document.querySelector(".diagram-page__note");
+    expect(note?.textContent).toBe(
+      "Part of this link doesn't apply to commit aaaaaaa, so it was left out: selected route:api/GET /gone; hidden layer space.",
+    );
+    // The rest of the diagram opens as usual.
+    const inspector = within(screen.getByRole("complementary"));
+    expect(inspector.getByRole("heading", { level: 2 }).textContent).toBe("shop-demo");
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(document.querySelector(".diagram-page__note")).toBeNull();
+  });
+
+  it("shares the commit's permalink with the current state from the repo bar", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    window.history.replaceState({}, "", "/acme/shop?open=service:api/");
+    renderDiagram({ state: "current" });
+    await screen.findByRole("region", { name: "Diagram" });
+    const share = screen.getByRole("button", { name: "Share" });
+    fireEvent.click(share);
+    const field = () =>
+      (screen.getByRole("textbox", { name: "Link to this view" }) as HTMLInputElement).value;
+    const origin = window.location.origin;
+    expect(field()).toBe(`${origin}/acme/shop/${SHA}?open=service:api/`);
+    // Close it, go up a level, and share again: the link follows the view.
+    fireEvent.click(share);
+    fireEvent.keyDown(document.querySelector(".gi-explorer") as Element, { key: "Escape" });
+    await waitFor(() => expect(window.location.search).toBe(""));
+    fireEvent.click(share);
+    expect(field()).toBe(`${origin}/acme/shop/${SHA}`);
+  });
+
   it("stops loading when it goes away", async () => {
     let signal: AbortSignal | undefined;
     fetchMock.mockImplementation((_url, init) => {
