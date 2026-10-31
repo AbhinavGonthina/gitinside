@@ -56,8 +56,9 @@ function isCode(node: GraphNode): boolean {
  * dialog over a scrim with a search field and a list of results, each with
  * its icon, name (matched characters marked), kind, and path. It is a
  * combobox: focus stays in the field, arrow keys move the active result,
- * Enter opens it, Esc closes. Fuzzy matching itself is M4b.7; this draws
- * whatever results it is given.
+ * Enter opens it, Esc closes; Tab and presses inside the dialog leave focus
+ * in the field. It draws whatever results it is given (the explorer's
+ * search is `searchNodes`, its trace picker `filterChoices`).
  */
 export function CommandPalette({
   query,
@@ -122,6 +123,12 @@ export function CommandPalette({
         aria-label={label}
         className="gi-palette"
         onClick={(e) => e.stopPropagation()}
+        // Focus stays in the field: a press on a result, the hints, or the
+        // dialog's edge would otherwise move it to the page, where arrows,
+        // Enter, and Esc do nothing.
+        onMouseDown={(e) => {
+          if (e.target !== fieldRef.current) e.preventDefault();
+        }}
       >
         <div className="gi-palette__field">
           <UiIcon name="search" size={18} />

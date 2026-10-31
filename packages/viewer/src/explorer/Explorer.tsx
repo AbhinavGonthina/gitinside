@@ -37,6 +37,7 @@ import {
   sameCamera,
   stepZoom,
   visibleRect,
+  zoomToBox,
   type Camera,
   type Size,
 } from "./camera.js";
@@ -45,6 +46,7 @@ import { useDrill, type Expansion } from "./drill.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { NodePanel, TracePanel } from "./panels.js";
 import { traceChoices, TracePicker } from "./picker.js";
+import { SearchPalette, searchEntries } from "./search.js";
 import { useSourceAccess, type SourceLoader } from "./sources.js";
 import { canTraceFrom, traceFrom, traceNodes, type TraceStep } from "./trace.js";
 import type { Shown } from "./transition.js";
@@ -112,7 +114,9 @@ function deepestOpen(view: GraphView, expansion: Expansion): string | undefined 
  * (`traceFrom`) step by step, on whatever boxes hold its hops at the current
  * depth; with nothing to start from, they open a searchable picker of pages
  * and routes. The player steps by hand or plays (a step every
- * {@link PLAY_STEP_MS}), and a pulse travels the current hop.
+ * {@link PLAY_STEP_MS}), and a pulse travels the current hop. Ctrl+K, ⌘K,
+ * or the top bar's search field opens the command palette over every node
+ * (`searchNodes`); a pick drills to it, selects it, and focuses its box.
  *
  * Layouts come from ELK, in the host's Web Worker when given one. Each level
  * is fitted to the canvas until the user pans (drag, wheel, or the minimap)
@@ -164,7 +168,17 @@ export function Explorer({
   const choices = useMemo(() => traceChoices(index), [index]);
   const [picking, setPicking] = useState(false);
   const pickerState = usePresence(picking);
-  const pickerOpener = useRef<HTMLElement | null>(null);
+  // The Ctrl+K palette (M4b.7), over every node.
+  const entries = useMemo(() => searchEntries(index), [index]);
+  const [searching, setSearching] = useState(false);
+  const searchState = usePresence(searching);
+  /** Where focus was when the picker or the palette opened, to go back to. */
+  const dialogOpener = useRef<HTMLElement | null>(null);
+  // "⌘ K" on Apple keyboards; read after mount, so a server render matches the first client one.
+  const [mac, setMac] = useState(false);
+  useEffect(() => {
+    setMac(typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent));
+  }, []);
   const [legend, setLegend] = useState(false);
   const legendState = usePresence(legend);
   const [announcement, setAnnouncement] = useState("");
@@ -173,6 +187,7 @@ export function Explorer({
 
   // The camera (M4b.4): fitted to each level until the user pans or zooms,
   // then theirs until they fit again (0 or the fit button).
+  const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvas, setCanvas] = useState<Size>({ width: 0, height: 0 });
   useEffect(() => {
@@ -244,15 +259,22 @@ export function Explorer({
 
   // A connection picked in the inspector: once its level is drawn, fly to it
   // if it's off the canvas (UX.md "selecting flies there, drilling if needed").
+  // A palette pick also zooms in until it's readable and moves focus to its
+  // box, so the keys go on from there.
   const flyTo = useRef<string | null>(null);
+  const fromPalette = useRef(false);
   useEffect(() => {
     const id = flyTo.current;
     if (!id || !shown || shown.view !== view) return;
     flyTo.current = null;
+    const picked = fromPalette.current;
+    fromPalette.current = false;
+    if (picked) boxElement(rootRef.current, id)?.focus({ preventScroll: true });
     const box = shown.layout.boxes.find((b) => b.id === id);
     if (!box) return;
-    const next = ensureVisible(live.current.camera, box, live.current.canvas);
-    if (next !== live.current.camera) moveCamera(next, "layout");
+    const { camera: now, canvas: room } = live.current;
+    const next = picked ? zoomToBox(now, box, room) : ensureVisible(now, box, room);
+    if (next !== now) moveCamera(next, "layout");
   });
 
   const tracing = step !== null && path !== undefined;
@@ -286,7 +308,6 @@ export function Explorer({
   // step player's buttons, "Trace from here", a disabled "Next step"), which
   // drops focus to the page and makes T and Esc stop working. Put it back: on
   // the current step while tracing, else on the box the trace started from.
-  const rootRef = useRef<HTMLDivElement>(null);
   const lastTrace = useRef({ tracing, step });
   useEffect(() => {
     const prev = lastTrace.current;
@@ -302,10 +323,7 @@ export function Explorer({
       return;
     }
     const start = traced ? visibleAncestor(index, view, traced) : undefined;
-    const wrapper = [
-      ...root.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving])"),
-    ].find((el) => el.dataset.nodeId === start);
-    wrapper?.querySelector<HTMLElement>(":scope > .gi-node")?.focus();
+    if (start) boxElement(root, start)?.focus();
   }, [tracing, step, traced, index, view]);
 
   const selectedNode = selected ? index.byId.get(selected) : undefined;
@@ -360,22 +378,70 @@ export function Explorer({
       setAnnouncement("Trace ended");
     } else if (startable) startTrace(startable);
     else {
-      pickerOpener.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      rememberOpener();
       setPicking(true);
     }
   }
 
-  /** Closes the picker, focus back where it was when it opened (the Trace button, a box). */
-  function closePicker() {
-    const opener = pickerOpener.current;
-    pickerOpener.current = null;
-    if (opener?.isConnected && opener !== document.body) opener.focus();
+  function rememberOpener() {
+    dialogOpener.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+
+  /**
+   * Focus out of a closing picker or palette: back where it was when it
+   * opened (the Trace button, a box), unless `stay` (something else takes it).
+   */
+  function leaveDialog(stay = false) {
+    const opener = dialogOpener.current;
+    dialogOpener.current = null;
+    if (!stay && opener?.isConnected && opener !== document.body) opener.focus();
     // Nothing to go back to: leave the closing (inert) field, so a trace's
-    // first step can take focus instead of the page.
+    // first step or the picked box can take focus instead of the page.
     else if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  }
+
+  /** Closes the picker, focus back where it was when it opened. */
+  function closePicker() {
+    leaveDialog();
     setPicking(false);
   }
+
+  /** Ctrl+K, ⌘K, or the top bar's search field: open the palette, or close it. */
+  function toggleSearch() {
+    if (searching) closeSearch();
+    else if (!picking) {
+      rememberOpener();
+      setSearching(true);
+    }
+  }
+
+  function closeSearch() {
+    leaveDialog();
+    setSearching(false);
+  }
+
+  /** A palette result: drill until it's a box, select it, fly there (zooming in to read it), and focus it (UX.md). */
+  function pickSearch(id: string) {
+    leaveDialog(true);
+    setSearching(false);
+    fromPalette.current = true;
+    reveal(id);
+  }
+
+  // Ctrl+K with focus on the page itself (nothing focused yet) opens it too.
+  const searchKey = useRef(toggleSearch);
+  searchKey.current = toggleSearch;
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      const onPage = event.target === document.body || event.target === document.documentElement;
+      if (!onPage || event.defaultPrevented || !isSearchKey(event)) return;
+      event.preventDefault();
+      searchKey.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   /** A page or route picked in the picker: trace it. */
   function pickTrace(id: string) {
@@ -407,18 +473,27 @@ export function Explorer({
   }
 
   /**
-   * Esc: close the picker or the legend → exit trace → go up a level → clear selection
-   * (UX.md keyboard table). T toggles trace.
+   * Esc: close the palette, the picker, or the legend → exit trace → go up a
+   * level → clear selection (UX.md keyboard table). T toggles trace, Ctrl+K
+   * or ⌘K the palette.
    */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (isSearchKey(event)) {
+      toggleSearch();
+      event.preventDefault();
+      return;
+    }
     if (event.ctrlKey || event.metaKey || event.altKey) return;
+    // A dialog's field handled it (its Esc closes only the dialog).
+    if (event.defaultPrevented) return;
     if (event.key === "+" || event.key === "=" || event.key === "-" || event.key === "0") {
       if (isTextEntry(event.target)) return;
       if (event.key === "0") fitView();
       else zoomBy(event.key === "-" ? -1 : 1);
       event.preventDefault();
     } else if (event.key === "Escape") {
-      if (picking) closePicker();
+      if (searching) closeSearch();
+      else if (picking) closePicker();
       else if (legend) closeLegend();
       else if (tracing) toggleTrace();
       else if (goUp()) {
@@ -506,7 +581,15 @@ export function Explorer({
       data-settled={settled ? "" : undefined}
       onKeyDown={onKeyDown}
     >
-      {topBar && <TopBar repo={repo} tracing={tracing} onTrace={toggleTrace} />}
+      {topBar && (
+        <TopBar
+          repo={repo}
+          mac={mac}
+          onSearch={toggleSearch}
+          tracing={tracing}
+          onTrace={toggleTrace}
+        />
+      )}
       <div className="gi-explorer__main">
         <div
           ref={canvasRef}
@@ -631,6 +714,14 @@ export function Explorer({
           onClose={closePicker}
         />
       )}
+      {searchState && (
+        <SearchPalette
+          entries={entries}
+          state={searchState}
+          onPick={pickSearch}
+          onClose={closeSearch}
+        />
+      )}
       <div className="gi-visually-hidden" aria-live="polite">
         {announcement}
       </div>
@@ -645,12 +736,36 @@ function traceName(node: GraphNode): string {
   return label.method ? `${label.method} ${name}` : name;
 }
 
+/** Ctrl+K or ⌘K, the palette's shortcut (with no other modifier). */
+function isSearchKey(event: {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+}): boolean {
+  return (
+    (event.ctrlKey || event.metaKey) &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === "k"
+  );
+}
+
 /** A field that takes typed text, where + − 0 are characters, not zoom keys. */
 function isTextEntry(target: EventTarget): boolean {
   return (
     target instanceof HTMLElement &&
     (target.isContentEditable || target.matches("input, textarea, select"))
   );
+}
+
+/** A node's box on the canvas (not one folding away), the element that takes focus. */
+function boxElement(root: HTMLElement | null, id: string): HTMLElement | null {
+  const wrapper = [
+    ...(root?.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving])") ?? []),
+  ].find((el) => el.dataset.nodeId === id);
+  return wrapper?.querySelector<HTMLElement>(":scope > .gi-node") ?? null;
 }
 
 /** The boxes holding each of `ids` in a view (the root holds nothing drawn). */

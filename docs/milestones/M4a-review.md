@@ -103,7 +103,7 @@ A subagent with no prior context reviewed `m3..HEAD` against SPEC.md, ROADMAP M4
 | 3 | Medium | The current trace step's number was `--trace` text: 3.71:1 in light (AA text needs 4.5:1). Token tests only hold `--trace` to the 3:1 graphics bar. | Fixed: a 3px trace bar marks the step; text stays `--text`; a CSS test forbids trace-colored text. |
 | 4 | Low | Canvas nodes are focusable `role="group"` with click handlers, and selection and expansion are only in `aria-label` text; no arrow keys. | **Deferred to M4b.11**, which builds keyboard navigation and screen-reader support for the real canvas. |
 | 5 | Low | Esc didn't close the legend first (UX.md: popover → trace → level → selection). | Fixed, with focus back on the Legend button. |
-| 6 | Low | The palette shell is `aria-modal` but doesn't take or trap focus. | **Deferred to M4b.7** (the palette is a shell until then). |
+| 6 | Low | The palette shell is `aria-modal` but doesn't take or trap focus. | **Deferred to M4b.7** (the palette is a shell until then). Done in M4b.7: focus moves into the field on open, stays there (Tab, presses in the dialog), and goes back on close (ADR-0119). |
 | 7 | Low | The visual spec didn't fail on a baseline no story produces, and only checked Geist, not Geist Mono. | Fixed: an orphan check (compare runs only) and a mono check wherever mono is used. |
 | 8 | Low | `ci.yml` had no `permissions:`, so jobs got the repo's default token. | Fixed: `contents: read`. |
 | 9 | Low | `brands` sorted with a hand-written comparator instead of `compareStrings`; a stale doc comment in `trace.ts`. | Fixed. |

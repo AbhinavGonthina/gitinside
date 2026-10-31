@@ -15,6 +15,7 @@ import {
   wheelZoomFactor,
   ZOOM,
   zoomAt,
+  zoomToBox,
 } from "./camera.js";
 import { FIT_INSET } from "./fit.js";
 
@@ -137,6 +138,22 @@ describe("camera", () => {
     const edge = { x: 900, y: 100, width: 200, height: 100 };
     expect(ensureVisible(start, edge, canvas)).not.toBe(start);
     expect(ensureVisible(start, away, { width: 0, height: 0 })).toBe(start);
+  });
+
+  it("zooms in on a palette pick to 100%, less for a box that wouldn't fit, never out", () => {
+    const small = { x: 300, y: 200, width: 200, height: 100 };
+    const fitted = { zoom: 0.4, x: 0, y: 0 };
+    const flown = zoomToBox(fitted, small, canvas);
+    expect(flown.zoom).toBe(1);
+    expect(onCanvas(flown, { x: 400, y: 250 })).toEqual({ x: 500, y: 400 });
+    // A frame twice the canvas's width: as close as fits with the margin.
+    const wide = { x: 0, y: 0, width: 1904, height: 400 };
+    expect(zoomToBox(fitted, wide, canvas).zoom).toBe(0.5);
+    // Already zoomed in: only pans if it must, like ensureVisible.
+    const close = { zoom: 1.5, x: -300, y: -200 };
+    expect(zoomToBox(close, small, canvas)).toBe(close);
+    expect(zoomToBox(close, { ...small, x: 2000 }, canvas).zoom).toBe(1.5);
+    expect(zoomToBox(fitted, small, { width: 0, height: 0 })).toBe(fitted);
   });
 
   it("holds a moved box's corner in place on the canvas", () => {
