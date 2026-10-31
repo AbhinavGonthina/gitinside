@@ -54,6 +54,8 @@ export interface WorkerJobStatus {
   count?: number;
   /** What the analysis has found so far (#8); names come from the repo, checked for shape. */
   found?: FoundFacts;
+  /** Milliseconds the job should still take, 0 once past its estimate (ADR-0136). */
+  leftMs?: number;
   position?: number;
   errorCode?: string;
 }
@@ -79,7 +81,7 @@ const isCount = (value: unknown): value is number =>
  */
 export function parseJobStatus(value: unknown): WorkerJobStatus | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const { id, kind, state, stage, progress, step, count, found, position, errorCode } =
+  const { id, kind, state, stage, progress, step, count, found, leftMs, position, errorCode } =
     value as Record<string, unknown>;
   if (typeof id !== "string" || !JOB_ID.test(id)) return undefined;
   if (kind !== "analyze" && kind !== "diff") return undefined;
@@ -92,6 +94,7 @@ export function parseJobStatus(value: unknown): WorkerJobStatus | undefined {
   if (count !== undefined && !isCount(count)) return undefined;
   const facts = found === undefined ? undefined : parseFoundFacts(found);
   if (found !== undefined && facts === undefined) return undefined;
+  if (leftMs !== undefined && !isCount(leftMs)) return undefined;
   if (position !== undefined && !isCount(position)) return undefined;
   if (errorCode !== undefined && !(typeof errorCode === "string" && CODE.test(errorCode))) {
     return undefined;
@@ -105,6 +108,7 @@ export function parseJobStatus(value: unknown): WorkerJobStatus | undefined {
     ...(step === undefined ? {} : { step }),
     ...(count === undefined ? {} : { count }),
     ...(facts === undefined ? {} : { found: facts }),
+    ...(leftMs === undefined ? {} : { leftMs }),
     ...(position === undefined ? {} : { position }),
     ...(errorCode === undefined ? {} : { errorCode }),
   };

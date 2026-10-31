@@ -7,6 +7,7 @@ import {
   STAGE_PROGRESS,
   describeFound,
   describeProgress,
+  describeTimeLeft,
   formatCount,
   foundFacts,
   isAnalyzerStep,
@@ -145,6 +146,25 @@ describe("formatCount", () => {
     [1234567, "1,234,567"],
   ])("formats %i as %s", (count, text) => {
     expect(formatCount(count)).toBe(text);
+  });
+});
+
+describe("describeTimeLeft", () => {
+  it.each([
+    [0, "Taking longer than usual"],
+    [1, "A few seconds left"],
+    [9_999, "A few seconds left"],
+    [10_000, "About 10 s left"],
+    [10_001, "About 20 s left"],
+    [41_500, "About 50 s left"],
+    [50_000, "About 50 s left"],
+    [50_001, "About 1 min left"],
+    [89_999, "About 1 min left"],
+    [90_000, "About 2 min left"],
+    [185_000, "About 3 min left"],
+    [3_600_000 * 20, "About 1,200 min left"],
+  ])("%d ms ⇒ %s", (ms, text) => {
+    expect(describeTimeLeft(ms)).toBe(text);
   });
 });
 

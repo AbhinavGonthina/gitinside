@@ -102,7 +102,16 @@ describe("parseJobStatus", () => {
     expect(parseJobStatus(running)?.found?.services?.names).not.toBe(found.services.names);
   });
 
+  it("keeps the time left, 0 included", () => {
+    const running = { id, kind: "analyze", state: "running", stage: "analyze", leftMs: 41_500 };
+    expect(parseJobStatus(running)).toEqual(running);
+    expect(parseJobStatus({ ...running, leftMs: 0 })?.leftMs).toBe(0);
+  });
+
   it.each([
+    ["a negative time left", { ...ok, leftMs: -1 }],
+    ["a fractional time left", { ...ok, leftMs: 1.5 }],
+    ["a time left as text", { ...ok, leftMs: "40" }],
     ["found with an unknown key", { ...ok, found: { secrets: 1 } }],
     ["found with a bidi override", { ...ok, found: { stores: { count: 1, names: ["a‮b"] } } }],
     [

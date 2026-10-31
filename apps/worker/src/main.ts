@@ -1,8 +1,14 @@
 import type { AddressInfo } from "node:net";
 import { ANALYZER_VERSION } from "@gitinside/analyzer";
-import { createDb, failInterruptedAnalyses, type AnyDatabase } from "@gitinside/db";
+import {
+  createDb,
+  failInterruptedAnalyses,
+  recentAnalysisStats,
+  type AnyDatabase,
+} from "@gitinside/db";
 import { createEnqueueServer } from "./api.js";
 import { ConfigError, redisConnection, workerConfigFromEnv, type WorkerConfig } from "./config.js";
+import { SAMPLE_LIMIT } from "./estimate.js";
 import type { DownloadOptions } from "./github.js";
 import { sweepJobsRoot, type JobDeps } from "./job.js";
 import { createJsonLog } from "./log.js";
@@ -32,7 +38,8 @@ import { createAnalysisRecorder } from "./record.js";
  *    BullMQ re-runs moves its row back to `running`.
  * 3. Connect to Redis and check it answers, so a bad `REDIS_URL` fails here, loudly.
  * 4. Start the worker (recorder + `publish` = bucket then Postgres; every bucket request
- *    counted in `store_requests`, ADR-0096), the hourly maintenance
+ *    counted in `store_requests`, ADR-0096; time estimates from the latest finished
+ *    analyses' stats, ADR-0136), the hourly maintenance
  *    (retention, rate-limit pruning, quota check; maintenance.ts), then the enqueue API.
  *
  * **Shutdown** ({@link RunningWorker.stop}, on SIGTERM or SIGINT): stop accepting API
@@ -159,6 +166,7 @@ export async function startWorkerProcess(
       connection,
       ...prefix,
       log,
+      estimates: { samples: () => recentAnalysisStats(db, SAMPLE_LIMIT) },
       deps: {
         ...options.jobDeps,
         jobsRoot: config.jobsRoot,

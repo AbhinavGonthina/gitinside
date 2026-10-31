@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { createEnqueueHandler, jobIdFor, type JobRequest } from "./api.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import { signRequest } from "./hmac.js";
+import { BENCH_MODEL, MIN_SAMPLES, expectedMs } from "./estimate.js";
 import type { JobDeps, JobOutcome } from "./job.js";
 import {
   JOB_OPTIONS,
@@ -149,8 +150,31 @@ describe("statusFromJob", () => {
     });
   });
 
+  it("counts the time left down from the step's start, stopping at 0", () => {
+    const progress = { ...progressForStep({ step: "calls" }), since: 10_000, expectMs: 30_000 };
+    const at = (now: number) => statusFromJob({ ...job, state: "active", progress }, now);
+    expect(at(10_000)?.leftMs).toBe(30_000);
+    expect(at(25_500)?.leftMs).toBe(14_500);
+    expect(at(40_000)?.leftMs).toBe(0);
+    expect(at(90_000)?.leftMs).toBe(0);
+    expect(at(10_000)).toEqual({
+      id: "analyze-1",
+      kind: "analyze",
+      state: "running",
+      stage: "analyze",
+      progress: 70,
+      step: "calls",
+      leftMs: 30_000,
+    });
+  });
+
   it.each([
     0,
+    { stage: "analyze", progress: 40, since: 1 },
+    { stage: "analyze", progress: 40, expectMs: 1 },
+    { stage: "analyze", progress: 40, since: -1, expectMs: 1 },
+    { stage: "analyze", progress: 40, since: 1, expectMs: "1" },
+    { stage: "analyze", progress: 40, since: 1, expectMs: 0.5 },
     { stage: "hacking", progress: 30 },
     { stage: "analyze", progress: 101 },
     { stage: "analyze", progress: 1.5 },
@@ -247,13 +271,99 @@ describe("createProcessor", () => {
       options.onProgress?.({ step: "http", count: 4 });
       return writeGraph(child);
     };
-    await createProcessor(deps(run))(job, "t", undefined);
+    await createProcessor(deps(run), undefined, { now: () => 5_000 })(job, "t", undefined);
+    // From `programs` on, with the benchmark's rates (no samples): what's left from each
+    // step's start; no upload time was measured, so saving has none.
+    const bench = (step: "programs" | "http") =>
+      expectedMs(BENCH_MODEL, { stage: "analyze", step }, 12);
     expect(progress.slice(2)).toEqual([
       { stage: "analyze", progress: 30 },
-      { stage: "analyze", progress: 38, step: "programs", count: 12 },
-      { stage: "analyze", progress: 74, step: "http", count: 4 },
+      {
+        stage: "analyze",
+        progress: 38,
+        step: "programs",
+        count: 12,
+        since: 5_000,
+        expectMs: bench("programs"),
+      },
+      {
+        stage: "analyze",
+        progress: 74,
+        step: "http",
+        count: 4,
+        since: 5_000,
+        expectMs: bench("http"),
+      },
       { stage: "upload", progress: 90 },
     ]);
+  });
+
+  it("estimates from past jobs once read, timing each step from its own start", async () => {
+    const { job, progress } = fakeJob(REQUEST);
+    // 2 ms per file parsing, 1 ms linking calls, 300 ms saving.
+    const sample = { files: 10, stageMs: { programs: 20, calls: 10 }, jobMs: { upload: 300 } };
+    let clock = 0;
+    const run: JobDeps["run"] = async (child, options) => {
+      options.onProgress?.({ step: "inventory" });
+      options.onProgress?.({ step: "programs", count: 100 });
+      options.onProgress?.({ step: "calls" });
+      options.onProgress?.({ step: "http", count: 4 });
+      return writeGraph(child);
+    };
+    await createProcessor(deps(run), undefined, {
+      samples: async () => Array.from({ length: MIN_SAMPLES }, () => sample),
+      now: () => (clock += 1_000),
+    })(job, "t", undefined);
+    expect(progress.slice(2)).toEqual([
+      { stage: "analyze", progress: 30 },
+      // Before the file count: nothing to estimate from.
+      { stage: "analyze", progress: 30, step: "inventory" },
+      {
+        stage: "analyze",
+        progress: 38,
+        step: "programs",
+        count: 100,
+        since: expect.any(Number),
+        expectMs: 200 + 100 + 300,
+      },
+      { stage: "analyze", progress: 70, step: "calls", since: expect.any(Number), expectMs: 400 },
+      {
+        stage: "analyze",
+        progress: 74,
+        step: "http",
+        count: 4,
+        since: expect.any(Number),
+        expectMs: 300,
+      },
+      { stage: "upload", progress: 90, since: expect.any(Number), expectMs: 300 },
+    ]);
+    // Each step's own start: later steps started later.
+    const starts = progress.slice(4).map((p) => (p as { since: number }).since);
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+    expect(new Set(starts).size).toBe(starts.length);
+  });
+
+  it("falls back to the benchmark when past jobs can't be read, and logs it", async () => {
+    const logs: Record<string, unknown>[] = [];
+    const { job, progress } = fakeJob(REQUEST);
+    const run: JobDeps["run"] = async (child, options) => {
+      options.onProgress?.({ step: "programs", count: 12 });
+      return writeGraph(child);
+    };
+    await createProcessor(deps(run), (e) => void logs.push(e), {
+      samples: () => Promise.reject(new Error("db down")),
+      now: () => 7,
+    })(job, "t", undefined);
+    expect(progress[3]).toMatchObject({
+      step: "programs",
+      since: 7,
+      expectMs: expectedMs(BENCH_MODEL, { stage: "analyze", step: "programs" }, 12),
+    });
+    expect(logs).toContainEqual({
+      event: "estimate_samples_failed",
+      id: job.id,
+      message: "db down",
+    });
   });
 
   it("keeps what was found in every later update, the upload stage's too (#8)", async () => {
@@ -266,17 +376,29 @@ describe("createProcessor", () => {
       options.onFound?.({ services, routes: 3 });
       return writeGraph(child);
     };
-    await createProcessor(deps(run))(job, "t", undefined);
+    await createProcessor(deps(run), undefined, { now: () => 1 })(job, "t", undefined);
+    const estimate = {
+      since: 1,
+      expectMs: expectedMs(BENCH_MODEL, { stage: "analyze", step: "programs" }, 12),
+    };
     expect(progress.slice(2)).toEqual([
       { stage: "analyze", progress: 30 },
       { stage: "analyze", progress: 34, step: "workspace" },
       { stage: "analyze", progress: 34, step: "workspace", found: { services } },
-      { stage: "analyze", progress: 38, step: "programs", count: 12, found: { services } },
       {
         stage: "analyze",
         progress: 38,
         step: "programs",
         count: 12,
+        ...estimate,
+        found: { services },
+      },
+      {
+        stage: "analyze",
+        progress: 38,
+        step: "programs",
+        count: 12,
+        ...estimate,
         found: { services, routes: 3 },
       },
       { stage: "upload", progress: 90, found: { services, routes: 3 } },
@@ -455,7 +577,8 @@ describe.runIf(REDIS_URL !== undefined)("BullMQ on Redis", () => {
     expect(await queue.get(idFor(1))).toMatchObject({ state: "running", progress: 30 });
     step();
     await until(async () => (await queue.get(idFor(1)))?.step === "programs");
-    expect(await queue.get(idFor(1))).toEqual({
+    const running = await queue.get(idFor(1));
+    expect(running).toEqual({
       id: idFor(1),
       kind: "analyze",
       state: "running",
@@ -463,7 +586,12 @@ describe.runIf(REDIS_URL !== undefined)("BullMQ on Redis", () => {
       progress: 38,
       step: "programs",
       count: 1204,
+      leftMs: expect.any(Number),
     });
+    // The benchmark's estimate for 1,204 files, less the moment since parsing started.
+    const expected = expectedMs(BENCH_MODEL, { stage: "analyze", step: "programs" }, 1204) ?? 0;
+    expect(running?.leftMs).toBeGreaterThan(expected - 10_000);
+    expect(running?.leftMs).toBeLessThanOrEqual(expected);
     release();
     await until(async () => (await queue.get(idFor(1)))?.state === "done");
   });

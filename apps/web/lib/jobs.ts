@@ -1,6 +1,7 @@
 import {
   describeFound,
   describeProgress,
+  describeTimeLeft,
   formatCount,
   type FoundLine,
   type JobStage,
@@ -33,9 +34,17 @@ export type JobView =
   /**
    * Running `step`; `text` is the worker's current words ("Parsing 1,204 files"), `found`
    * what the analyzer has found so far (#8), empty until it finds something. {@link jobView}
-   * always sets it; a page still open from before #8 gets views without it.
+   * always sets it; a page still open from before #8 gets views without it. `timeLeft`, once
+   * the worker can estimate it (ADR-0136): "About 40 s left", or "Taking longer than usual".
    */
-  | { state: "running"; step: JobStage; progress: number; text: string; found?: FoundLine[] }
+  | {
+      state: "running";
+      step: JobStage;
+      progress: number;
+      text: string;
+      found?: FoundLine[];
+      timeLeft?: string;
+    }
   /** The diagram is saved: the page opens it. */
   | { state: "done" }
   /** It failed: `message` says what happened and what to do; `retry` if trying again could help. */
@@ -147,6 +156,7 @@ export function jobView(status: WorkerJobStatus | undefined): JobView {
         progress: status.progress ?? 0,
         text: describeProgress(stage, status.step, status.count),
         found: status.found === undefined ? [] : describeFound(status.found),
+        ...(status.leftMs === undefined ? {} : { timeLeft: describeTimeLeft(status.leftMs) }),
       };
     }
     case "done":

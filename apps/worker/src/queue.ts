@@ -14,6 +14,14 @@ import {
   type JobRequest,
   type JobStatus,
 } from "./api.js";
+import {
+  BENCH_MODEL,
+  expectedMs,
+  timeLeft,
+  timingModel,
+  type EstimatePoint,
+  type TimingSample,
+} from "./estimate.js";
 import { FAILURE_CODE, JobFailure, RETRIABLE_CODES } from "./failure.js";
 import { processJob, type JobDeps, type JobOutcome } from "./job.js";
 import {
@@ -74,6 +82,12 @@ export interface StoredProgress {
   step?: AnalyzerStep;
   count?: number;
   found?: FoundFacts;
+  /**
+   * Once an estimate can be made (estimate.ts): when this stage or step started (epoch ms,
+   * the worker's clock), and the milliseconds expected from then to the end. Both or neither.
+   */
+  since?: number;
+  expectMs?: number;
 }
 
 /** The progress stored when an analyzer step starts (or its count becomes known). */
@@ -91,7 +105,7 @@ const isCount = (value: unknown): value is number =>
 
 function isStoredProgress(value: unknown): value is StoredProgress {
   if (typeof value !== "object" || value === null) return false;
-  const { stage, progress, step, count, found } = value as Record<string, unknown>;
+  const { stage, progress, step, count, found, since, expectMs } = value as Record<string, unknown>;
   return (
     typeof stage === "string" &&
     Object.hasOwn(STAGE_PROGRESS, stage) &&
@@ -99,18 +113,16 @@ function isStoredProgress(value: unknown): value is StoredProgress {
     progress <= 100 &&
     (step === undefined || (stage === "analyze" && isAnalyzerStep(step))) &&
     (count === undefined || (step !== undefined && isCount(count))) &&
-    (found === undefined || parseFoundFacts(found) !== undefined)
+    (found === undefined || parseFoundFacts(found) !== undefined) &&
+    (since === undefined ? expectMs === undefined : isCount(since) && isCount(expectMs))
   );
 }
 
-/** The status fields of stored progress, and nothing else stored with it. */
-function runningFields({
-  stage,
-  progress,
-  step,
-  count,
-  found,
-}: StoredProgress): Partial<JobStatus> {
+/** The status fields of stored progress at `now`, and nothing else stored with it. */
+function runningFields(
+  { stage, progress, step, count, found, since, expectMs }: StoredProgress,
+  now: number,
+): Partial<JobStatus> {
   const facts = found === undefined ? undefined : parseFoundFacts(found);
   return {
     stage,
@@ -118,6 +130,9 @@ function runningFields({
     ...(step === undefined ? {} : { step }),
     ...(count === undefined ? {} : { count }),
     ...(facts === undefined ? {} : { found: facts }),
+    ...(since === undefined || expectMs === undefined
+      ? {}
+      : { leftMs: timeLeft(expectMs, since, now) }),
   };
 }
 
@@ -147,10 +162,10 @@ export interface JobSnapshot {
 /**
  * Map a BullMQ job to the API's {@link JobStatus}: waiting, delayed (a retry's backoff),
  * and prioritized jobs are `queued` (only waiting ones have a position); active is
- * `running` with its stage; completed is `done`; failed has its code. `unknown` (gone,
- * or never added) is `undefined`.
+ * `running` with its stage (and the time left at `now`, once estimated); completed is `done`;
+ * failed has its code. `unknown` (gone, or never added) is `undefined`.
  */
-export function statusFromJob(job: JobSnapshot): JobStatus | undefined {
+export function statusFromJob(job: JobSnapshot, now: number = Date.now()): JobStatus | undefined {
   const base = { id: job.id, kind: job.kind };
   switch (job.state) {
     case "waiting":
@@ -168,7 +183,7 @@ export function statusFromJob(job: JobSnapshot): JobStatus | undefined {
       return {
         ...base,
         state: "running",
-        ...(isStoredProgress(job.progress) ? runningFields(job.progress) : {}),
+        ...(isStoredProgress(job.progress) ? runningFields(job.progress, now) : {}),
       };
     case "completed":
       return { ...base, state: "done" };
@@ -314,16 +329,37 @@ export interface AnalysisWorkerOptions {
   lockDuration?: number;
   stalledInterval?: number;
   log?: WorkerLog;
+  /** Where time estimates come from; default the benchmark's rates alone. */
+  estimates?: ProcessorEstimates;
+}
+
+/** Where the processor's time estimates come from (estimate.ts, ADR-0136). */
+export interface ProcessorEstimates {
+  /**
+   * Recent finished analyses' stats, read once per attempt. Without it, while it's pending,
+   * or if it fails (logged as `estimate_samples_failed`), the benchmark's rates are used.
+   */
+  samples?: () => Promise<readonly TimingSample[]>;
+  /** Clock for when each stage or step started. Default `Date.now`. */
+  now?: () => number;
+}
+
+/** Where `progress` is for {@link expectedMs}, if it's somewhere an estimate can be made. */
+function estimatePoint({ stage, step }: StoredProgress): EstimatePoint | undefined {
+  if (stage === "upload") return { stage };
+  return stage === "analyze" && step !== undefined ? { stage, step } : undefined;
 }
 
 /**
  * The job processor BullMQ calls: validate the stored request, run {@link processJob},
- * report stages as progress, and turn failures into what BullMQ understands (a plain
- * `Error` is retried, an `UnrecoverableError` isn't). Both carry only the code.
+ * report stages as progress (with the time expected from each step on, once the file count
+ * is known), and turn failures into what BullMQ understands (a plain `Error` is retried, an
+ * `UnrecoverableError` isn't). Both carry only the code.
  */
 export function createProcessor(
   deps: JobDeps,
   log: WorkerLog = () => undefined,
+  estimates: ProcessorEstimates = {},
 ): (
   job: Job<JobRequest, JobOutcome>,
   token: string | undefined,
@@ -332,10 +368,25 @@ export function createProcessor(
   // Three declared parameters: BullMQ passes the abort signal only to processors that
   // take it (Function.length >= 3).
   const jobDeps: JobDeps = { log, ...deps };
+  const now = estimates.now ?? Date.now;
   return async (job, token, signal) => {
     void token;
     const id = job.id ?? "";
     const attempt = job.attemptsMade + 1;
+    // Past jobs' rates once they're read; the benchmark's until then.
+    let model = BENCH_MODEL;
+    void estimates.samples?.().then(
+      (samples) => {
+        model = timingModel(samples);
+      },
+      (error: unknown) => {
+        log({
+          event: "estimate_samples_failed",
+          id,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      },
+    );
     // What this attempt has found stays in every later update, the upload stage's too; a
     // retry starts over, so nothing from an earlier attempt shows.
     let latest: StoredProgress = { stage: "download", progress: STAGE_PROGRESS.download };
@@ -343,6 +394,21 @@ export function createProcessor(
     const store = (progress: StoredProgress) => {
       latest = progress;
       return job.updateProgress(found === undefined ? progress : { ...progress, found });
+    };
+    // When the current stage or step started, and the source files (from `programs` on).
+    let place = "";
+    let since = now();
+    let files: number | undefined;
+    const estimated = (progress: StoredProgress): StoredProgress => {
+      const here = `${progress.stage}/${progress.step ?? ""}`;
+      if (here !== place) {
+        place = here;
+        since = now();
+      }
+      if (progress.step === "programs" && progress.count !== undefined) files = progress.count;
+      const point = estimatePoint(progress);
+      const expectMs = point === undefined ? undefined : expectedMs(model, point, files);
+      return expectMs === undefined ? progress : { ...progress, since, expectMs };
     };
     let failure: JobFailure;
     try {
@@ -352,8 +418,8 @@ export function createProcessor(
           id,
           request,
           ...(signal === undefined ? {} : { signal }),
-          onStage: (stage) => store({ stage, progress: STAGE_PROGRESS[stage] }),
-          onStep: (step) => store(progressForStep(step)),
+          onStage: (stage) => store(estimated({ stage, progress: STAGE_PROGRESS[stage] })),
+          onStep: (step) => store(estimated(progressForStep(step))),
           onFound: (facts) => {
             found = facts;
             return store(latest);
@@ -394,7 +460,7 @@ export function createAnalysisWorker(
   const log = options.log ?? (() => undefined);
   const worker = new Worker<JobRequest, JobOutcome>(
     QUEUE_NAME,
-    createProcessor(options.deps, log),
+    createProcessor(options.deps, log, options.estimates),
     {
       connection: options.connection,
       ...(options.prefix === undefined ? {} : { prefix: options.prefix }),

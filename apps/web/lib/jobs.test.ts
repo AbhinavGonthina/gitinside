@@ -96,6 +96,18 @@ describe("jobView", () => {
     });
   });
 
+  it("a running job says how long it has left once the worker estimates it (#8)", () => {
+    const running = { state: "running", stage: "analyze", step: "calls" } as const;
+    expect(jobView(status({ ...running, leftMs: 41_500 }))).toMatchObject({
+      text: "Linking function calls",
+      timeLeft: "About 50 s left",
+    });
+    expect(jobView(status({ ...running, leftMs: 0 }))).toMatchObject({
+      timeLeft: "Taking longer than usual",
+    });
+    expect(jobView(status(running))).not.toHaveProperty("timeLeft");
+  });
+
   it("done, failed, missing, and diff jobs", () => {
     expect(jobView(status({ state: "done" }))).toEqual({ state: "done" });
     expect(jobView(status({ state: "failed", errorCode: "LIMIT_TIME" }))).toEqual(
