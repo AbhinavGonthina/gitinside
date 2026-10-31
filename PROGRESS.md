@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.15h Re-run the milestone checks after M4b.15b–g, finish M4b-review.md, tag m4 (M5.13 and M5.14b wait on #3)
+M4b.16 Low follow-ups from the M4b.15h re-check review (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -119,7 +119,8 @@ M4b.15h Re-run the milestone checks after M4b.15b–g, finish M4b-review.md, tag
 - [x] M4b.15e M4b review fixes, code loader: `.`, `..`, and empty path segments refused in the code loader and the GitHub link; the 2 MB cap enforced while streaming the body; tests {model: opus}
 - [x] M4b.15f M4b review fix, readability on real repos: after a drill-down the camera frames the opened node's entries at a readable size instead of the 40% floor; in a trace it frames the current hop's two ends; the inspector keeps the step's title in view; screenshots (shop-demo + taxonomy), baselines {model: opus}
 - [x] M4b.15g M4b review fixes, small: the layout engine survives React StrictMode (created in an effect or lazily); the render report says "time to first drawn layout"; tests {model: opus}
-- [ ] M4b.15h Re-run the milestone checks after M4b.15b–g, finish M4b-review.md (outcomes, CI numbers), tag m4 {model: opus}
+- [x] M4b.15h Re-run the milestone checks after M4b.15b–g, finish M4b-review.md (outcomes, CI numbers), tag m4 {model: opus}
+- [ ] M4b.16 Low follow-ups from the M4b.15h re-check review: `scroll-padding-top` under the sticky trace step header so a focused step isn't covered (WCAG 2.4.11, checked in a browser); store the clamped trace step (`setStep`) so a graph that grows again doesn't jump back; the deep-link note read once in browse mode; Add to README resets "Copied" when the bar closes it; regression tests first {model: opus}
 
 ### M5: Website (public) + live badge
 - [x] M5.1 Open needs-abhinav signup issues (Oracle VM, Neon, R2, Vercel, DNS CNAME) with step-by-step instructions {model: opus}
@@ -231,6 +232,8 @@ M4b.15h Re-run the milestone checks after M4b.15b–g, finish M4b-review.md, tag
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.15h** M4b re-checked and tagged `m4`. Uncached `turbo run test --force`: 2,856 passed, 16 skipped; E2E 18/18; CI on `cecc479` green (2,873 tests, none skipped; coverage unchanged, all above target); render bench re-run 59.9 fps at 2,000 on both graphs. A third reviewer of the fixes (`2ff21df..HEAD`) found one medium, `frameHop` at 25% on a canvas ≤ 320px tall, fixed in `cecc479` (margins capped at a quarter; test red first), and four lows queued as M4b.16. Review doc finished. No eval delta.
 
 - **2026-10-31 M4b.15g** Review findings 13, 14 (`f67ef05`, `2cc40f7`): under StrictMode the explorer's first level never drew (the simulated unmount disposed the `useMemo` engine mid-layout and the remount shared that rejected layout from the cache); the engine is now made and disposed in one effect, and `DrillCanvas` stays pending without a cache. The StrictMode test stayed "pending" before the fix. The render report's column is "Time to first drawn layout" with a line saying what it covers; the committed report re-rendered from its JSON (same numbers). Viewer 1003/1003, web 343/343, bench 32/32, typecheck, lint. No eval delta.
 
