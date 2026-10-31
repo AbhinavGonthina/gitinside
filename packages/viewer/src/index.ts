@@ -278,6 +278,10 @@ export type {
   OnboardingHintProps,
   OnboardingStore,
 } from "./explorer/onboarding.js";
+export { EmptyState, WarningList } from "./chrome/EmptyState.js";
+export type { EmptyStateProps, WarningListProps } from "./chrome/EmptyState.js";
+export { groupWarnings, hasSourceFiles, WARNING_TITLES, warningCount } from "./model/warnings.js";
+export type { WarningGroup } from "./model/warnings.js";
 export { Explorer } from "./explorer/Explorer.js";
 export type { ExplorerProps } from "./explorer/Explorer.js";
 export type { UiIconName } from "./chrome/uiIcons.js";

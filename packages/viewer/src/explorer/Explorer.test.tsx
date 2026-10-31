@@ -1229,6 +1229,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "BrokenDown",
       "DrilledDeep",
       "Filters",
+      "NoApp",
       "Onboarding",
       "Outline",
       "Overview",
@@ -1238,6 +1239,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "Tracing",
       "TracingBrokenDown",
       "TracingUnresolved",
+      "Warnings",
       "ZoomedOut",
     ]);
     for (const Story of [
@@ -1262,6 +1264,17 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
         /^Unresolved \(No route in the repo matches\)\. The env var CMS_URL isn't named like an API base URL/,
       ),
     ).toBeTruthy();
+  });
+
+  it("show the warnings in the warnings story and the no-app card in its story", async () => {
+    render(<all.Warnings />);
+    await settle();
+    expect(screen.getByRole("button", { name: "9 warnings" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show all 7" })).toBeTruthy();
+    cleanup();
+    const { container } = render(<all.NoApp />);
+    expect(screen.getByRole("heading", { name: /couldn't find a TypeScript/ })).toBeTruthy();
+    expect(container.querySelector(".gi-drill")).toBeNull();
   });
 
   it("show the first of three hints in the onboarding story, and none in the others", async () => {

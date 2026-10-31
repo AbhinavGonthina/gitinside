@@ -46,6 +46,27 @@
   cursor: grabbing;
 }
 
+/*
+ * No app to draw (M4b.12b): the canvas holds one card, centered, and scrolls
+ * if the card's warnings outgrow it; there's no inspector beside it.
+ */
+.gi-explorer[data-empty] .gi-explorer__main {
+  grid-template-columns: minmax(0, 1fr);
+  /* Else the explorer's track grows to the card's min-content on a narrow screen. */
+  min-width: 0;
+}
+
+/* One column as wide as the canvas, so the card's `min(520px, 100%)` can shrink. */
+.gi-explorer[data-empty] .gi-explorer__canvas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  padding: var(--space-24);
+  overflow: auto;
+  touch-action: auto;
+  user-select: text;
+}
+
 /* The camera: one transform on the canvas, which keeps diagram coordinates inside. */
 .gi-explorer__drill {
   position: absolute;
@@ -98,6 +119,11 @@
 .gi-explorer__pin[data-place="bottom-left"] {
   bottom: var(--space-16);
   left: var(--space-16);
+}
+
+/* The warnings chip (M4b.12b), a footnote above the breadcrumbs, as wide as its words. */
+.gi-explorer__warnings {
+  justify-self: start;
 }
 
 .gi-explorer__pin[data-place="bottom-right"] {

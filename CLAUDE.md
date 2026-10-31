@@ -165,7 +165,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - A web page test that waits for the explorer's main-thread ELK layout took 5 s alone but 13 s in a full parallel `pnpm test` (M4b.10b). Give such a `waitFor` ≥ 25 s and the test a longer timeout still.
 - `.focus()` on the element that already has focus fires no focus event, so a test of a focus handler that re-focuses the same box sees nothing (M4b.11). `blur()` it first, or focus another element.
 - A scratch script run with `node <repo-relative path>` resolves relative paths from the repo root (where the Bash tool runs), not from the script's folder.
-- A browser overflow check (`scrollWidth > clientWidth`) flags `.gi-visually-hidden` text, which is clipped to 1px on purpose (M4b.12a). Exclude it, and print which element overflows rather than a bare true/false.<!-- lessons:end -->
+- A browser overflow check (`scrollWidth > clientWidth`) flags `.gi-visually-hidden` text, which is clipped to 1px on purpose (M4b.12a). Exclude it, and print which element overflows rather than a bare true/false.
+- Storybook's root (`.storybook/preview.css`) is `width: fit-content`, so a story at a narrow viewport grows to its content and looks clipped (M4b.12b1). For a narrow check, set `.gi-root`'s width to `100%` first, then walk up the parents printing widths to find what grows.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 

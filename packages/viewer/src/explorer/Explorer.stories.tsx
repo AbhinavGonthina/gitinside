@@ -211,6 +211,52 @@ export const Onboarding: Story = {
   },
 };
 
+/** What the analyzer says about files it skipped or couldn't read (M4b.12b). */
+const WARNINGS = [
+  { code: "SYNTAX_ERROR", message: "';' expected.", file: "apps/web/lib/legacy/cart.ts" },
+  { code: "SKIPPED_LARGE", message: "file is 3145728 bytes; skipped", file: "data/seed.json" },
+  ...Array.from({ length: 7 }, (_, i) => ({
+    code: "SKIPPED_GENERATED",
+    message: "generated file skipped (minified)",
+    file: `apps/web/public/vendor/chart.${i + 1}.min.js`,
+  })),
+];
+
+/**
+ * The analysis's warnings (M4b.12b): a chip above the breadcrumbs says how
+ * many, and the repo overview lists them by kind, with the file and the
+ * analyzer's own words; a long kind shows five and "Show all".
+ */
+export const Warnings: Story = {
+  render: () => <Explore graph={{ ...graph, warnings: WARNINGS }} />,
+};
+
+/**
+ * A repo with no TypeScript or JavaScript app (UX.md "States", M4b.12b): one
+ * card where the diagram would be, with what the analysis skipped; no canvas,
+ * search, filters, share, or trace.
+ */
+export const NoApp: Story = {
+  name: "No app",
+  render: () => (
+    <Explore
+      graph={{
+        ...graph,
+        nodes: graph.nodes.filter((n) => ["system", "service", "datastore"].includes(n.kind)),
+        edges: [],
+        warnings: [
+          {
+            code: "TSCONFIG_MISSING",
+            message: "no tsconfig.json found; using defaults",
+            file: "apps/web",
+          },
+          { code: "SKIPPED_SYMLINK", message: "symbolic link not followed", file: "docs/latest" },
+        ],
+      }}
+    />
+  ),
+};
+
 /** Opens a palette with a key on the explorer and types `text` into its field. */
 async function typeInPalette(canvasElement: HTMLElement, key: KeyboardEventInit, text: string) {
   canvasElement

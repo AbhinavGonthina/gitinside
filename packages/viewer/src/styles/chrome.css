@@ -309,6 +309,11 @@ a.gi-button {
   background: var(--surface-1);
 }
 
+/* Only the mark and the repo (no diagram to act on, M4b.12b): no search column to keep. */
+.gi-topbar[data-actions="none"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .gi-topbar__start,
 .gi-topbar__end {
   display: flex;
@@ -1566,4 +1571,144 @@ code.gi-palette__name {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/*
+ * States in place of the diagram (M4b.12b): one quiet card where the canvas
+ * would be, flat (elevation 1, it isn't over anything). A failure is marked
+ * with a rule in the removed color beside the words, never red text.
+ */
+
+.gi-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-12);
+  box-sizing: border-box;
+  width: min(520px, 100%);
+  padding: var(--space-24);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-module);
+  background: var(--surface-1);
+  color: var(--text);
+  user-select: text;
+}
+
+.gi-empty[data-tone="error"] {
+  box-shadow: inset 3px 0 0 var(--diff-removed);
+}
+
+.gi-empty:focus {
+  outline: none;
+}
+
+.gi-empty__title {
+  margin: 0;
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.gi-empty__body {
+  display: grid;
+  gap: var(--space-16);
+  width: 100%;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-body);
+}
+
+.gi-empty__body p {
+  margin: 0;
+}
+
+.gi-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
+}
+
+.gi-empty__section {
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--border);
+}
+
+.gi-empty__section h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The analysis's warnings (M4b.12b): a title per kind, then file and message. */
+
+.gi-warnings {
+  display: grid;
+  gap: var(--space-16);
+  margin-top: var(--space-12);
+}
+
+.gi-empty__section .gi-warnings {
+  margin-top: 0;
+}
+
+.gi-warnings__group {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gi-warnings__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-medium);
+}
+
+.gi-warnings__items {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gi-warnings__items li {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
+}
+
+/* A path is cut at the end on one line; the full path is in the tooltip. */
+.gi-warnings__items code {
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gi-warnings .gi-button {
+  margin-left: -8px;
+}
+
+/* Moved to from the canvas's warnings chip: the ring sits inside the scrolling inspector. */
+.gi-inspector__section[data-section="warnings"]:focus-visible {
+  outline-offset: -2px;
 }

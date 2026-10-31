@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.12b. Empty and error states (M5.13 and M5.14b wait on #3)
+M4b.12b1. Empty state + warnings in the explorer (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -105,7 +105,8 @@ M4b.12b. Empty and error states (M5.13 and M5.14b wait on #3)
 - [x] M4b.10b Export from the share menu: SVG (dark/light), PNG (the SVG rasterized at 2×), Mermaid (copy + download) of the view on screen; explorer + website wiring; tests, screenshots, baselines {model: opus}
 - [x] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
 - [x] M4b.12a Onboarding hints (UX.md): on a first visit, 3 dismissible hints in sequence (zoom in → select → trace), each moved on by doing it or Next, a hint already done (deep link) or impossible (nothing to trace) left out; "Don't show again" and finishing them remembered per browser (`localStorage`, failures tolerated), × only for this visit; the explorer's `onboarding` store, the website on it; tests, screenshots, baselines {model: opus}
-- [ ] M4b.12b Empty and error states: a graph with no TS/JS app (UX.md's copy), the analysis's warnings shown (what wasn't analyzed and why, ADR-0070), the website's graph that fails to load or parse; tests, screenshots, baselines {model: opus}
+- [ ] M4b.12b1 Empty state + warnings in the explorer: a graph with no TS/JS app gets one card with UX.md's copy (no canvas, search, filters, or trace; what was skipped listed), the analysis's warnings in the repo overview (grouped under plain titles, file + the analyzer's message, "Show all") and a warnings chip on the canvas moving focus to them (ADR-0070); tests, stories, screenshots, baselines {model: opus}
+- [ ] M4b.12b2 The website's graph that fails to load or parse on the same card (`EmptyState`, error tone, Try again when retryable, focus on it); tests, screenshots {model: opus}
 - [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus}
 - [ ] M4b.14 Playwright E2E + visual tests {model: opus}
 - [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
@@ -220,6 +221,8 @@ M4b.12b. Empty and error states (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.12b1** "No app" card + warnings (ADR-0128). M4b.12b split: the explorer's states now, the website's load/parse failure on the same card as 12b2. A graph with no `file` node gets one `EmptyState` card (UX.md's copy, what was skipped) instead of a diagram, with a top bar of only the mark and repo; warnings are grouped under plain titles (`groupWarnings`, unknown codes kept under the code; a test checks every analyzer code has a title) in the repo overview, reached from a "N warnings" chip that moves focus there. Browser run caught the card off-screen at 390px (the top bar kept a 160px search column); fixed. 14 new tests, two mutation checks red, stories Warnings + No app with Linux baselines.
 
 - **2026-10-31 M4b.12a** Onboarding hints (ADR-0127). M4b.12 split: hints now, empty/error states as 12b. The explorer's `onboarding` store (opt-in, so no other story or baseline moved) shows "Tip 1 of 3" at the canvas's top: zoom in → select → trace, each moved on by doing it or Next; Done or "Don't show again" is remembered (`browserOnboarding`: `localStorage`, errors swallowed), × and Esc only for this visit; hints a deep link already did or the repo can't do are left out. The website passes `browserOnboarding()`. 13 new viewer tests + 1 story test + 1 page test; two mutation checks turned them red. Chromium run (both themes, reduced motion): focus stays on Next → Done, Esc lands on a box whose keys work, double-click / click / T move it on. Screenshots in `docs/milestones/M4b/onboarding/`. Viewer + web only, no eval delta.
 

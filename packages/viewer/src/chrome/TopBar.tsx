@@ -35,6 +35,11 @@ export interface TopBarProps extends Omit<HTMLAttributes<HTMLElement>, "children
   /** A trace is running: the trace button becomes "Exit trace". */
   tracing?: boolean;
   onTrace?: (() => void) | undefined;
+  /**
+   * Draw the search field and the actions (default). Off when there's no
+   * diagram to search, filter, share, or trace: the mark and repo stay.
+   */
+  actions?: boolean;
 }
 
 /**
@@ -57,31 +62,25 @@ export function TopBar({
   share,
   tracing = false,
   onTrace,
+  actions = true,
   className,
   ...rest
 }: TopBarProps) {
   const mod = mac ? "⌘" : "Ctrl";
+  if (!actions) {
+    return (
+      <header
+        {...rest}
+        className={className ? `gi-topbar ${className}` : "gi-topbar"}
+        data-actions="none"
+      >
+        <TopBarStart repo={repo} branch={branch} />
+      </header>
+    );
+  }
   return (
     <header {...rest} className={className ? `gi-topbar ${className}` : "gi-topbar"}>
-      <div className="gi-topbar__start">
-        <span className="gi-wordmark">
-          <LogoMark />
-          <span>GitInside</span>
-        </span>
-        <span className="gi-topbar__divider" aria-hidden />
-        <span className="gi-repo">
-          <span className="gi-repo__name">
-            <span className="gi-repo__owner">{repo.owner} /</span> {repo.name}
-          </span>
-          {(branch ?? repo.sha) && (
-            <span className="gi-chip" title={repo.sha ? `Commit ${repo.sha}` : undefined}>
-              <UiIcon name="commit" size={14} />
-              {branch && <span>{branch}</span>}
-              {repo.sha && <code>{shortSha(repo.sha)}</code>}
-            </span>
-          )}
-        </span>
-      </div>
+      <TopBarStart repo={repo} branch={branch} />
       <button
         type="button"
         className="gi-search-field"
@@ -127,5 +126,30 @@ export function TopBar({
         </Button>
       </div>
     </header>
+  );
+}
+
+/** The top bar's start: the wordmark, then the repo and the commit (or branch) it was analyzed at. */
+function TopBarStart({ repo, branch }: { repo: RepoRef; branch: string | undefined }) {
+  return (
+    <div className="gi-topbar__start">
+      <span className="gi-wordmark">
+        <LogoMark />
+        <span>GitInside</span>
+      </span>
+      <span className="gi-topbar__divider" aria-hidden />
+      <span className="gi-repo">
+        <span className="gi-repo__name">
+          <span className="gi-repo__owner">{repo.owner} /</span> {repo.name}
+        </span>
+        {(branch ?? repo.sha) && (
+          <span className="gi-chip" title={repo.sha ? `Commit ${repo.sha}` : undefined}>
+            <UiIcon name="commit" size={14} />
+            {branch && <span>{branch}</span>}
+            {repo.sha && <code>{shortSha(repo.sha)}</code>}
+          </span>
+        )}
+      </span>
+    </div>
   );
 }
