@@ -132,10 +132,21 @@ export function centerOn(camera: Camera, p: Point, canvas: Size): Camera {
 /**
  * The camera unchanged if `box` (diagram coordinates) is wholly on the canvas
  * with `margin` canvas px to spare, else centered on the box: how the
- * explorer flies to a connection picked in the inspector.
+ * explorer flies to a connection picked in the inspector, and follows
+ * keyboard focus. A box too big for the canvas at this zoom (a broken-down
+ * frame) counts as its top-left part that fits, where its name is, so it's
+ * that part that's brought into view.
  */
-export function ensureVisible(camera: Camera, box: Rect, canvas: Size, margin = 24): Camera {
+export function ensureVisible(camera: Camera, whole: Rect, canvas: Size, margin = 24): Camera {
   if (canvas.width <= 0 || canvas.height <= 0) return camera;
+  const room = (length: number, space: number) =>
+    Math.min(length, Math.max(0, (space - 2 * margin) / camera.zoom));
+  const box = {
+    x: whole.x,
+    y: whole.y,
+    width: room(whole.width, canvas.width),
+    height: room(whole.height, canvas.height),
+  };
   const left = box.x * camera.zoom + camera.x;
   const top = box.y * camera.zoom + camera.y;
   const inside =

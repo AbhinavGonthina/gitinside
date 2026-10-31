@@ -113,6 +113,8 @@ On the first visit to a diagram, show 3 dismissible hints in sequence (zoom in â
 
 A screen-reader live region announces the selection: "routes/orders, module. Calls payments, db. Called by web." Focus is always visible. `prefers-reduced-motion` turns transitions instant and pulses off.
 
+Done in M4b.11 (ADR-0126): the boxes are a tree ("Architecture") of tree items with their level, place among their siblings, broken down or not, and selected or not. Arrows with a modifier are left to the browser and screen reader. A box focused from the keyboard glides into view (a box bigger than the canvas by its top-left corner, where its name is); a click doesn't move the camera. The announcement names each end once, five per list, then "and N more"; clearing the selection says "Selection cleared".
+
 ## Copy rules
 
 - Sentence case and plain verbs.

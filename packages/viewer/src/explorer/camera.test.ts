@@ -140,6 +140,22 @@ describe("camera", () => {
     expect(ensureVisible(start, away, { width: 0, height: 0 })).toBe(start);
   });
 
+  it("brings a box too big for the canvas into view by its top-left corner (M4b.11)", () => {
+    const start = { zoom: 1, x: 0, y: 0 };
+    // Twice the canvas each way, far to the right: its corner lands at the margin.
+    const big = { x: 3000, y: 500, width: 2000, height: 1600 };
+    const flown = ensureVisible(start, big, canvas);
+    expect(onCanvas(flown, { x: big.x, y: big.y })).toEqual({ x: 24, y: 24 });
+    // With its corner already in view, the camera stays, though most of it is off the canvas.
+    expect(ensureVisible(flown, big, canvas)).toBe(flown);
+    // Too wide but not too tall: its left end, centered top to bottom.
+    const wide = { x: 3000, y: 500, width: 2000, height: 100 };
+    expect(onCanvas(ensureVisible(start, wide, canvas), { x: wide.x, y: wide.y + 50 })).toEqual({
+      x: 24,
+      y: 400,
+    });
+  });
+
   it("zooms in on a palette pick to 100%, less for a box that wouldn't fit, never out", () => {
     const small = { x: 300, y: 200, width: 200, height: 100 };
     const fitted = { zoom: 0.4, x: 0, y: 0 };

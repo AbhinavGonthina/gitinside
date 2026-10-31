@@ -118,12 +118,83 @@ describe("Explorer", { timeout: 30_000 }, () => {
     expect(heading().textContent).toBe("shop-demo");
   });
 
-  it("announces the selection to screen readers", async () => {
+  it("announces the selection and what it connects to, and its clearing (UX.md)", async () => {
     const { container, box } = await setup();
+    const live = () => container.querySelector('[aria-live="polite"]')?.textContent;
     fireEvent.click(box("datastore:infra/db") as HTMLElement);
-    expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe(
-      "db, datastore. Selected",
+    expect(live()).toBe("db, datastore. Called by Order.");
+    fireEvent.click(box(API) as HTMLElement);
+    // The web app's two calls to it, its payment provider, and its database, in graph order.
+    expect(live()).toBe(
+      "@shop/api, service. Calls api.stripe.com, db. Called by listOrders, placeOrder.",
     );
+    fireEvent.click(screen.getByRole("region", { name: "Diagram" }));
+    expect(live()).toBe("Selection cleared");
+  });
+
+  it("draws the boxes as a tree: level, place, broken down, selected (M4b.11)", async () => {
+    const { box, act } = await setup({ initialSelected: ROUTE });
+    const tree = screen.getByRole("tree", { name: "Architecture" });
+    const top = buildView(index, []).childrenOf.get(index.root.id) ?? [];
+    expect(within(tree).getAllByRole("treeitem")).toHaveLength(top.length);
+    const api = box(API) as HTMLElement;
+    expect(api.getAttribute("role")).toBe("treeitem");
+    expect(api.getAttribute("aria-level")).toBe("1");
+    expect(api.getAttribute("aria-setsize")).toBe(String(top.length));
+    expect(api.getAttribute("aria-posinset")).toBe(String(top.indexOf(API) + 1));
+    expect(api.getAttribute("aria-expanded")).toBe("false");
+    // The box holding the selection is selected; the state isn't repeated in its name.
+    expect(api.getAttribute("aria-selected")).toBe("true");
+    expect(api.getAttribute("aria-label")).toBe("@shop/api, service");
+    // Nothing inside a datastore: no expanded state at all.
+    const db = box("datastore:infra/db") as HTMLElement;
+    expect(db.hasAttribute("aria-expanded")).toBe(false);
+    expect(db.getAttribute("aria-selected")).toBe("false");
+
+    await act(() => fireEvent.keyDown(api, { key: "Enter" }));
+    expect(box(API)?.getAttribute("aria-expanded")).toBe("true");
+    const inside = buildView(index, [API]).childrenOf.get(API) ?? [];
+    const route = box(ROUTE) as HTMLElement;
+    expect(route.getAttribute("aria-level")).toBe("2");
+    expect(route.getAttribute("aria-setsize")).toBe(String(inside.length));
+    expect(route.getAttribute("aria-posinset")).toBe(String(inside.indexOf(ROUTE) + 1));
+    expect(route.getAttribute("aria-selected")).toBe("true");
+    expect(box(API)?.getAttribute("aria-selected")).toBe("false");
+  });
+
+  it("moves focus to the nearest box with the arrow keys", async () => {
+    const { container, box } = await setup();
+    const rect = (id: string) => {
+      const el = box(id)?.parentElement as HTMLElement;
+      return { x: parseFloat(el.style.left), y: parseFloat(el.style.top) };
+    };
+    const ids = buildView(index, []).childrenOf.get(index.root.id) ?? [];
+    // The leftmost box, then right as far as it goes, each step further right.
+    const first = [...ids].sort((a, b) => rect(a).x - rect(b).x)[0] as string;
+    (box(first) as HTMLElement).focus();
+    const visited = [first];
+    for (;;) {
+      const from = document.activeElement as HTMLElement;
+      const event = fireEvent.keyDown(from, { key: "ArrowRight" });
+      // The page never scrolls on an arrow, even at the last box.
+      expect(event).toBe(false);
+      const to = (document.activeElement as HTMLElement).parentElement?.dataset.nodeId;
+      if (!to || to === visited.at(-1)) break;
+      expect(rect(to).x).toBeGreaterThan(rect(visited.at(-1) as string).x);
+      visited.push(to);
+    }
+    expect(visited.length).toBeGreaterThan(1);
+    // Left goes back the way it came.
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(box(visited.at(-2) as string));
+    // With a modifier, an arrow is left alone (the browser's or a screen reader's).
+    const before = document.activeElement;
+    expect(fireEvent.keyDown(before as HTMLElement, { key: "ArrowLeft", shiftKey: true })).toBe(
+      true,
+    );
+    expect(document.activeElement).toBe(before);
+    // Arrows don't select or break down.
+    expect(container.querySelector("[data-selected]")).toBeNull();
   });
 
   it("breaks a service down in place, routes first, and goes back up with Esc or a breadcrumb", async () => {
@@ -582,7 +653,7 @@ describe("Explorer", { timeout: 30_000 }, () => {
     expect(box(PLACE_ORDER)?.hasAttribute("data-selected")).toBe(true);
     await waitFor(() => expect(document.activeElement).toBe(box(PLACE_ORDER)));
     expect(container.querySelector("[aria-live]")?.textContent).toBe(
-      "placeOrder, function. Selected",
+      "placeOrder, function. Calls POST /api/orders. Called by Checkout.",
     );
   });
 
@@ -1035,6 +1106,42 @@ describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
     expect(cameraOf(container).zoom).toBe(1.25);
   });
 
+  it("moves the camera to a box focused from the keyboard when it's off the canvas (M4b.11)", async () => {
+    const { container, box } = await setup();
+    const fitted = cameraOf(container);
+    const wholly = (id: string) => {
+      const corner = onCanvas(container, box(id));
+      const { width, height } = (box(id)?.parentElement as HTMLElement).style;
+      const zoom = cameraOf(container).zoom;
+      return (
+        corner.x >= 0 &&
+        corner.y >= 0 &&
+        corner.x + parseFloat(width) * zoom <= CANVAS.width &&
+        corner.y + parseFloat(height) * zoom <= CANVAS.height
+      );
+    };
+    // Focus on a box already in view leaves a fitted camera fitted.
+    (box(API) as HTMLElement).focus();
+    await waitFor(() => expect(document.activeElement).toBe(box(API)));
+    expect(cameraOf(container)).toEqual(fitted);
+    // Zoomed in and panned far off, every box is off the canvas.
+    for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.wheel(canvas(), { deltaX: 5000, deltaY: 5000 });
+    expect(wholly(API)).toBe(false);
+    (box(API) as HTMLElement).blur();
+    (box(API) as HTMLElement).focus();
+    await waitFor(() => expect(wholly(API)).toBe(true));
+    // An arrow key's box comes into view too.
+    fireEvent.wheel(canvas(), { deltaX: 5000, deltaY: 5000 });
+    fireEvent.keyDown(box(API) as HTMLElement, { key: "ArrowLeft" });
+    const left = (document.activeElement as HTMLElement).parentElement?.dataset.nodeId as string;
+    expect(left).not.toBe(API);
+    await waitFor(() => expect(wholly(left)).toBe(true));
+    expect(container.querySelector(".gi-explorer__drill")?.getAttribute("data-camera-motion")).toBe(
+      "standard",
+    );
+  });
+
   it("flies to a connection picked in the inspector when it's off the canvas", async () => {
     const { container, box, act } = await setup({ initialSelected: ROUTE });
     // Zoomed in on the top-left corner, far from the web app's files.
@@ -1194,9 +1301,10 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     // Opened with nothing focused: once picked, focus lands on the picked box.
     fireEvent.keyDown(document.activeElement as Element, { key: "Enter" });
     await settle();
-    await waitFor(() =>
-      expect(document.activeElement?.getAttribute("aria-label")).toBe("orders, module. Selected"),
-    );
+    await waitFor(() => {
+      expect(document.activeElement?.getAttribute("aria-label")).toBe("orders, module");
+      expect(document.activeElement?.getAttribute("aria-selected")).toBe("true");
+    });
   });
 
   it("open the filters popover in the filters story, with the chip saying what's off", async () => {

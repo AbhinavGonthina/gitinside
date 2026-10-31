@@ -299,6 +299,21 @@ describe("DiagramNode", () => {
     );
   });
 
+  it("leaves selection out of the name when the caller's role carries it (M4b.11)", () => {
+    const { getByRole } = render(
+      <DiagramNode
+        node={sample("symbol")}
+        selected
+        emphasis="traced"
+        role="treeitem"
+        aria-selected
+      />,
+    );
+    const el = getByRole("treeitem", { selected: true });
+    expect(el.hasAttribute("data-selected")).toBe(true);
+    expect(el.getAttribute("aria-label")).toBe("createOrder, function. On the request path");
+  });
+
   it("sets no state attributes by default", () => {
     const { getByRole } = render(<DiagramNode node={sample("symbol")} />);
     const el = getByRole("group");

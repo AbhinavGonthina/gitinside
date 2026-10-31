@@ -82,7 +82,10 @@ function Badges({ counts }: Pick<DiagramNodeProps, "counts">) {
  * they combine freely and a theme switch re-renders nothing.
  *
  * Positioning, sizing, and events belong to the caller (the canvas in M4b);
- * extra HTML attributes are passed to the root element.
+ * extra HTML attributes are passed to the root element. The root is a
+ * `group` named with its states in words; a caller giving it a role with
+ * real states (the canvas's `treeitem` with `aria-selected`) gets a name
+ * without "Selected".
  */
 export function DiagramNode({
   node,
@@ -105,6 +108,8 @@ export function DiagramNode({
   const tileSize = tier === "icon" ? "lg" : "sm";
   const shape = nodeShape(node, tint);
   const fields = modelFieldsText(node);
+  // A role that carries selection (the canvas's tree items) says it; the name doesn't repeat it.
+  const named = rest["aria-selected"] === undefined && selected;
 
   const attrs = {
     ...rest,
@@ -112,7 +117,7 @@ export function DiagramNode({
     "data-tier": tier,
     "data-kind": node.kind,
     "data-shape": shape,
-    "aria-label": nodeAccessibleName(node, { selected, emphasis, diff }),
+    "aria-label": nodeAccessibleName(node, { selected: named, emphasis, diff }),
     ...(tier === "frame" ? { "data-expanded": String(open) } : {}),
     ...(tint ? { "data-layer": tint } : {}),
     ...(hovered ? { "data-hover": "" } : {}),
