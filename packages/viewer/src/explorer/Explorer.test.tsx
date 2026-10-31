@@ -1203,6 +1203,40 @@ describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
     });
   });
 
+  it("keeps drawing where a camera glide starts until it lands, on a culled level (M4b.15c)", async () => {
+    const { container, box } = await setup({ initialOpen: [WEB, API, SRC], cullFrom: 1 });
+    const drawn = () =>
+      [...container.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving])")].map(
+        (el) => el.dataset.nodeId as string,
+      );
+    // Select the box farthest from the top-left corner (a selection is always drawn).
+    const place = (id: string) => {
+      const style = (box(id)?.parentElement as HTMLElement).style;
+      return parseFloat(style.left) + parseFloat(style.top);
+    };
+    const far = drawn().reduce((a, b) => (place(b) > place(a) ? b : a));
+    fireEvent.click(box(far) as HTMLElement);
+    // Zoomed in on the top-left corner: only what's near it is drawn.
+    for (let i = 0; i < 8; i++) fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.wheel(canvas(), { deltaX: -50_000, deltaY: -50_000 });
+    const start = drawn();
+    // Camera moves glide once the first fit is on screen (a frame after load).
+    await waitFor(() =>
+      expect(container.querySelector(".gi-explorer")?.hasAttribute("data-settled")).toBe(true),
+    );
+    // Focus on the far box glides the camera there ("standard", 240 ms).
+    act(() => (box(far) as HTMLElement).focus());
+    expect(container.querySelector(".gi-explorer__drill")?.getAttribute("data-camera-motion")).toBe(
+      "standard",
+    );
+    // While it glides, the boxes it leaves are still on screen: still drawn.
+    expect(drawn()).toEqual(expect.arrayContaining(start));
+    // Landed, the canvas draws only what's near the destination.
+    await waitFor(() => expect(start.filter((id) => !drawn().includes(id))).not.toEqual([]), {
+      timeout: 5_000,
+    });
+  });
+
   it("moves the view to where the minimap is pressed, and follows a drag on it", async () => {
     const { container } = await setup();
     const map = screen.getByRole("img", { name: /Minimap/ });

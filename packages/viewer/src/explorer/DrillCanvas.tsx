@@ -66,8 +66,9 @@ export interface DrillCanvasProps
   /** The host camera's zoom, which sets how much text is drawn (`detail.ts`; default 1). */
   zoom?: number | undefined;
   /**
-   * The part of the stage on screen (`visibleRect`, stage coordinates). With
-   * it, a big level draws only what's near it (`cull.ts`); without, everything.
+   * The part of the stage on screen (`visibleRect`, stage coordinates; while
+   * the host's camera glides, all it passes over: `useGlideSpan`). With it, a
+   * big level draws only what's near it (`cull.ts`); without, everything.
    */
   viewport?: Rect | undefined;
   /** Boxes drawn wherever they are, because the host may focus them (the selection, a trace's start). */

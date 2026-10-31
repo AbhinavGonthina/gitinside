@@ -45,6 +45,15 @@ export function bounds(points: readonly { x: number; y: number }[]): Rect {
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
+/** The smallest rect holding both rects. */
+export function span(a: Rect, b: Rect): Rect {
+  const left = Math.min(a.x, b.x);
+  const top = Math.min(a.y, b.y);
+  const right = Math.max(a.x + a.width, b.x + b.width);
+  const bottom = Math.max(a.y + a.height, b.y + b.height);
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
 /**
  * The part of the diagram to draw for a visible rect (`visibleRect`): grown
  * by half its size on every side, so a quick pan or a zoom out doesn't
