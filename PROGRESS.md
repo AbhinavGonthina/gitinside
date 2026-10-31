@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.8. Filters (M5.13 and M5.14b wait on #3, #5)
+M4b.8b. Filters popover, chip, explorer wiring (M5.13 and M5.14b wait on #3, #5)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -99,7 +99,8 @@ M4b.8. Filters (M5.13 and M5.14b wait on #3, #5)
 - [x] M4b.6a Computed request path (ADR-0117): `traceFrom` (BFS reach within 12 hops over renders/calls/http/handles/reads/writes/stores/external_call/publishes, `consumes` backwards; steps depth-first in call order; cut-off nodes listed), replacing the scripted trace; "Trace from here" on every page and route with a hop, T and the top-bar button trace the selected page or route (else `traceStart`), so the website traces too; an unresolved end quotes the node's reason; tests, story, baselines {model: opus}
 - [x] M4b.6b Trace picker + player: a searchable list of pages and routes from the top bar and T when nothing traceable is selected (replacing the "select a page or route" message), play/pause auto-advancing the steps, a pulse travelling the current hop (900ms, off under reduced motion); tests, screenshots, baselines {model: opus}
 - [x] M4b.7 Ctrl+K command palette (incl. focus moved into and kept in the dialog, M4a review) {model: opus}
-- [ ] M4b.8 Filters {model: opus}
+- [x] M4b.8a Filter model (ADR-0120): layer, node kind, confidence, folder include/exclude, hide tests and config (by path convention); a hidden node takes its inside along, emptied folders go, its connections are dropped (not lifted); `buildView({ filters })`, the layout cache key, `useDrill`; tests {model: opus}
+- [ ] M4b.8b Filters popover from the top bar (layers, kinds, connections incl. imports, confidence, folders, "Hide tests and config" on by default) + active-filter chip with "Clear" + the explorer on `DEFAULT_FILTERS` (selection, trace, search, and reveal of a hidden node); tests, screenshots, baselines {model: opus}
 - [ ] M4b.9 Deep links {model: opus}
 - [ ] M4b.10 Export SVG / PNG / Mermaid {model: opus}
 - [ ] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
@@ -218,6 +219,8 @@ M4b.8. Filters (M5.13 and M5.14b wait on #3, #5)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M4b.8a** Filter model (ADR-0120): `model/filters.ts` hides nodes by layer, kind (routes, pages, symbols, models, infrastructure, unresolved), test/config path (naming conventions; the graph has no flag), and folder include/exclude; a hidden node takes its inside along, emptied folders go, and its edges are dropped, not lifted to the parent. Confidence hides lines only. `buildView({ filters })`, `view.filtered` in `layoutKey`, `useDrill`. Without filters the view (and the README image) is unchanged. M4b.8 was split: the popover, chip, and explorer wiring are M4b.8b.
 
 - **M4b.7** Ctrl+K command palette (ADR-0119): `searchNodes` ranks every node but the system by tiers (whole name, start, word start, anywhere, letters in order, then path), kinds breaking ties, at most 50, deterministic in any input order. Ctrl+K / ⌘K toggles it in the explorer and on the page with nothing focused; the top bar's field opens it. A pick drills, selects, focuses the box, and zooms in to read it (`zoomToBox`, up to 100%, never out).
   - Focus kept in the dialog (M4a review): Tab and presses inside it leave focus in the field; Esc or the scrim gives it back. Found while testing: the M4b.6b picker's Esc ran its close twice (the field's Esc bubbled to the explorer), and the second blurred the control focus had just returned to; the "redundant" `defaultPrevented` guard removed then was needed. Restored, with a regression test that fails without it.
