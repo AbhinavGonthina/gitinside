@@ -1,0 +1,71 @@
+import { failAnalysis, queueAnalysis, upsertRepo, type AnyDatabase } from "@gitinside/db";
+import { jobIdFor } from "@gitinside/worker/request";
+import { taskIdFor, type TaskQueue } from "./cloudTasks";
+import type { ResolvedRepo } from "./github";
+import { WorkerUnavailableError } from "./worker";
+
+/**
+ * Queue one commit's analysis on Cloud Tasks (ADR-0139, ADR-0141), for `/api/analyze` and
+ * check-on-view alike:
+ *
+ * 1. **The row first.** The repo and a `queued` row are written (`queueAnalysis`), under the
+ *    job ID the worker derives too (`jobIdFor` from `@gitinside/worker/request`). The row is
+ *    the dedupe: a commit already `running` or `done` gets no task.
+ * 2. **Then the task,** named from the row's queue entry (`taskIdFor(jobId, queued_at)`), so
+ *    two requests racing for one entry create one task, and a failed job queued again gets a
+ *    fresh name.
+ * 3. **No task, no queued row.** If the task can't be created, the row this call queued is
+ *    failed with {@link QUEUE_UNAVAILABLE} (retryable: "Analyze again"), so it never sits in
+ *    everyone's queue position with nothing to run it. A row another request queued is left
+ *    to that request. If a racing request did create the task, the worker's start moves the
+ *    failed row to `running` anyway.
+ */
+
+/** The error code of a row whose task couldn't be created. Not permanent: retrying can pass. */
+export const QUEUE_UNAVAILABLE = "QUEUE_UNAVAILABLE";
+
+/** Everything {@link enqueueAnalysis} talks to. */
+export interface EnqueueDeps {
+  db: AnyDatabase;
+  queue: Pick<TaskQueue, "createTask">;
+  /** `@gitinside/analyzer/version`: part of the row's key and the job ID. */
+  analyzerVersion: string;
+}
+
+/** Where the commit's analysis stands after {@link enqueueAnalysis}. */
+export type EnqueueResult =
+  /** Finished meanwhile (a racing job): nothing queued. */
+  | { status: "done" }
+  /**
+   * In the queue or running. `entered`: this call queued it (a new analysis, charged to
+   * whoever asked); otherwise it was already in flight.
+   */
+  | { status: "queued" | "running"; jobId: string; entered: boolean }
+  /** The task couldn't be created; a row this call queued is failed. */
+  | { status: "unavailable" };
+
+/** Queue `repo`'s commit (GitHub's facts, as resolved) unless it's already in flight or done. */
+export async function enqueueAnalysis(
+  repo: ResolvedRepo,
+  deps: EnqueueDeps,
+): Promise<EnqueueResult> {
+  const job = { owner: repo.owner, repo: repo.name, sha: repo.sha };
+  const jobId = jobIdFor({ kind: "analyze", ...job }, deps.analyzerVersion);
+  const { id: repoId } = await upsertRepo(deps.db, repo);
+  const row = await queueAnalysis(
+    deps.db,
+    { repoId, sha: repo.sha, analyzerVersion: deps.analyzerVersion },
+    { jobId },
+  );
+  if (row.status === "done") return { status: "done" };
+  if (row.status === "running") return { status: "running", jobId, entered: false };
+
+  try {
+    await deps.queue.createTask(job, taskIdFor(jobId, row.queuedAt));
+  } catch (error) {
+    if (row.entered) await failAnalysis(deps.db, row.id, QUEUE_UNAVAILABLE);
+    if (error instanceof WorkerUnavailableError) return { status: "unavailable" };
+    throw error;
+  }
+  return { status: "queued", jobId, entered: row.entered };
+}

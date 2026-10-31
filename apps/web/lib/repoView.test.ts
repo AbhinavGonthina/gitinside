@@ -9,6 +9,7 @@ import {
   upsertRepo,
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
+import { jobIdFor } from "@gitinside/worker";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { fakeGitHub, type FakeGitHub, type FakeRepo } from "./github.testkit";
 import {
@@ -18,35 +19,21 @@ import {
   viewRepo,
   type RepoViewDeps,
 } from "./repoView";
-import { WorkerUnavailableError, type AnalyzeJob, type WorkerClient } from "./worker";
+import { QUEUE_UNAVAILABLE } from "./enqueue";
+import { fakeTaskQueue } from "./google.testkit";
 
 const OLD = "a".repeat(40);
 const NEW = "b".repeat(40);
 const VERSION = "0.2.0";
 const ID = 4242;
-
-/** A worker that dedupes by commit like the real one, and can be switched off. */
-function fakeWorker() {
-  const jobs = new Set<string>();
-  const calls: AnalyzeJob[] = [];
-  let down = false;
-  const client: Pick<WorkerClient, "enqueue"> = {
-    async enqueue(job) {
-      calls.push(job);
-      if (down) throw new WorkerUnavailableError("status 503");
-      const id = `analyze-${job.sha.slice(0, 32)}`;
-      const created = !jobs.has(id);
-      jobs.add(id);
-      return { id, created };
-    },
-  };
-  return { client, calls, jobs, setDown: (value: boolean) => void (down = value) };
-}
+/** The worker's job ID for a commit of the shop at this analyzer version. */
+const jobFor = (sha: string) =>
+  jobIdFor({ kind: "analyze", owner: "acme", repo: "shop", sha }, VERSION);
 
 let t: TestDb;
 let shop: FakeRepo;
 let gh: FakeGitHub;
-let worker: ReturnType<typeof fakeWorker>;
+let tasks: ReturnType<typeof fakeTaskQueue>;
 let clock: number;
 let deps: RepoViewDeps;
 
@@ -62,11 +49,11 @@ beforeEach(async () => {
   await t.db.delete(rateLimits);
   shop = { id: ID, owner: "Acme", name: "Shop", sha: OLD };
   gh = fakeGitHub([shop]);
-  worker = fakeWorker();
+  tasks = fakeTaskQueue("v".repeat(43));
   clock = 1_000_000;
   deps = {
     db: t.db,
-    worker: worker.client,
+    queue: tasks.queue,
     github: { fetch: gh.fetch },
     analyzerVersion: VERSION,
     heads: createHeadCache({ now: () => clock }),
@@ -142,7 +129,7 @@ describe("viewRepo", () => {
       status: "missing",
     });
     expect(gh.requests).toEqual([]);
-    expect(worker.calls).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
   });
 
   it("shows an up-to-date diagram, asking GitHub at most once a minute", async () => {
@@ -156,17 +143,17 @@ describe("viewRepo", () => {
     clock += 2_000;
     await viewRepo({ owner: "acme", repo: "shop" }, deps);
     expect(gh.requests).toHaveLength(4);
-    expect(worker.calls).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
   });
 
   it("re-analyzes a new commit once, charged to the repo, and keeps showing the old diagram", async () => {
     await done(OLD);
     shop.sha = NEW;
-    const jobId = `analyze-${NEW.slice(0, 32)}`;
+    const jobId = jobFor(NEW);
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "updating", sha: NEW, jobId }),
     );
-    expect(worker.calls).toEqual([{ owner: "Acme", repo: "Shop", sha: NEW }]);
+    expect(tasks.jobs()).toEqual([{ kind: "analyze", owner: "Acme", repo: "Shop", sha: NEW }]);
     expect(await rows()).toEqual([
       { sha: OLD, status: "done", version: VERSION },
       { sha: NEW, status: "queued", version: VERSION },
@@ -197,9 +184,7 @@ describe("viewRepo", () => {
   it("re-analyzes the same commit when the analyzer version changed", async () => {
     await done(OLD, "0.1.0");
     const view = await viewRepo({ owner: "acme", repo: "shop" }, deps);
-    expect(view).toEqual(
-      ready(OLD, { state: "updating", sha: OLD, jobId: `analyze-${OLD.slice(0, 32)}` }, "0.1.0"),
-    );
+    expect(view).toEqual(ready(OLD, { state: "updating", sha: OLD, jobId: jobFor(OLD) }, "0.1.0"));
     expect(await rows()).toContainEqual({ sha: OLD, status: "queued", version: VERSION });
   });
 
@@ -210,7 +195,7 @@ describe("viewRepo", () => {
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(NEW, { state: "current" }),
     );
-    expect(worker.calls).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
   });
 
   it("doesn't re-run a failed analysis of the latest commit on view", async () => {
@@ -225,7 +210,7 @@ describe("viewRepo", () => {
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "behind", sha: NEW, reason: "failed", errorCode: "LIMIT_FILES" }),
     );
-    expect(worker.calls).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
   });
 
   it("asks GitHub again once a newer analysis is published within the minute (M5 review)", async () => {
@@ -245,7 +230,7 @@ describe("viewRepo", () => {
     // The new answer is remembered as before.
     await viewRepo({ owner: "acme", repo: "shop" }, deps);
     expect(gh.requests).toHaveLength(4);
-    expect(worker.calls).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
   });
 
   it("stops after the repo's hourly budget of re-analyses", async () => {
@@ -259,31 +244,53 @@ describe("viewRepo", () => {
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "behind", sha: third, reason: "limited" }),
     );
-    expect(worker.calls.map((c) => c.sha)).toEqual([NEW]);
+    expect(tasks.jobs()).toMatchObject([{ sha: NEW }]);
     expect(RECHECKS_PER_HOUR).toBe(6);
   });
 
-  it("gives the slot back when the worker is down or the job already existed", async () => {
+  it("gives the slot back when the queue is down, and tries again on the next view", async () => {
     await done(OLD);
     shop.sha = NEW;
-    worker.setDown(true);
+    tasks.setDown(true);
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "behind", sha: NEW, reason: "unavailable" }),
     );
     expect(await repoSlots()).toBe(0);
-    expect(await rows()).toHaveLength(1);
+    // Not left queued with no task to run it.
+    expect(await rows()).toContainEqual({ sha: NEW, status: "failed", version: VERSION });
 
-    worker.setDown(false);
-    worker.jobs.add(`analyze-${NEW.slice(0, 32)}`); // someone else's request made it
-    const view = await viewRepo({ owner: "acme", repo: "shop" }, deps);
-    expect(view).toMatchObject({ head: { state: "updating", sha: NEW } });
-    expect(await repoSlots()).toBe(0);
+    // A row that never got its task isn't a failed analysis: the next view queues it.
+    tasks.setDown(false);
+    clock += 61_000;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "updating", sha: NEW, jobId: jobFor(NEW) }),
+    );
+    expect(tasks.google.tasks).toHaveLength(1);
+    expect(await repoSlots()).toBe(1);
+    const stored = await t.db.select().from(analyses);
+    expect(stored.find((r) => r.sha === NEW)?.errorCode).toBeNull();
   });
 
-  it("reports a newer commit without analyzing it when no worker is configured", async () => {
+  it("without a queue, a row that never got its task is behind (unavailable), not failed", async () => {
+    await done(OLD);
+    const { id } = await startAnalysis(t.db, {
+      repoId: await repoId(),
+      sha: NEW,
+      analyzerVersion: VERSION,
+    });
+    await failAnalysis(t.db, id, QUEUE_UNAVAILABLE);
+    shop.sha = NEW;
+    deps.queue = undefined;
+    // Without a queue it isn't retried, and it's no reason to say the analysis failed.
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "behind", sha: NEW, reason: "unavailable" }),
+    );
+  });
+
+  it("reports a newer commit without analyzing it when no queue is configured", async () => {
     await done(OLD);
     shop.sha = NEW;
-    deps.worker = undefined;
+    deps.queue = undefined;
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "behind", sha: NEW, reason: "unavailable" }),
     );
@@ -292,12 +299,13 @@ describe("viewRepo", () => {
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "updating", sha: NEW }),
     );
-    // A worker that's down while the commit is in flight says the same.
-    deps.worker = worker.client;
-    worker.setDown(true);
+    // With a queue, even a down one, a running commit needs no task: its job is linked.
+    deps.queue = tasks.queue;
+    tasks.setDown(true);
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
-      ready(OLD, { state: "updating", sha: NEW }),
+      ready(OLD, { state: "updating", sha: NEW, jobId: jobFor(NEW) }),
     );
+    expect(tasks.google.requests).toEqual([]);
   });
 
   it("still shows the diagram when GitHub can't be asked, and doesn't remember the failure", async () => {
@@ -350,7 +358,7 @@ describe("viewRepo", () => {
       owner: "Acme",
       repo: "Shop",
     });
-    expect(worker.calls).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
   });
 });
 

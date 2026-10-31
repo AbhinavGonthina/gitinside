@@ -14,6 +14,8 @@
  *
  * Errors use Google's shape, `{ error: { code, message, status } }`.
  */
+import { createTaskQueue } from "./cloudTasks";
+import { createGoogleTokenSource } from "./googleAuth";
 
 export interface FakeGoogleOptions {
   /** The provider's resource name STS accepts as `audience`. */
@@ -165,4 +167,64 @@ export function fakeGoogle(options: FakeGoogleOptions): FakeGoogle {
   };
 
   return { fetch: fakeFetch, tasks, requests, failNext: (r) => void failures.push(r) };
+}
+
+/** Names {@link fakeTaskQueue}'s Google setup uses. */
+export const FAKE_GCP = {
+  project: "gitinside-demo",
+  location: "us-east4",
+  queue: "analyses",
+  audience:
+    "//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/vercel/providers/vercel",
+  enqueuer: "enqueue@gitinside-demo.iam.gserviceaccount.com",
+  invoker: "tasks-invoker@gitinside-demo.iam.gserviceaccount.com",
+  workerUrl: "https://worker-abc123-uk.a.run.app",
+  subjectToken: "vercel-oidc",
+} as const;
+
+/**
+ * The real queue client and token source against a fake Google, for code that enqueues:
+ * `google.tasks` holds what was created, `jobs()` their decoded bodies in order, and
+ * `setDown(true)` makes every Google request fail like a network error.
+ */
+export function fakeTaskQueue(secret: string) {
+  const google = fakeGoogle({
+    audience: FAKE_GCP.audience,
+    subjectToken: FAKE_GCP.subjectToken,
+    serviceAccount: FAKE_GCP.enqueuer,
+    queues: [
+      `projects/${FAKE_GCP.project}/locations/${FAKE_GCP.location}/queues/${FAKE_GCP.queue}`,
+    ],
+  });
+  let down = false;
+  const fetch: typeof globalThis.fetch = (input, init) =>
+    down ? Promise.reject(new TypeError("fetch failed")) : google.fetch(input, init);
+  const tokens = createGoogleTokenSource({
+    subjectToken: async () => FAKE_GCP.subjectToken,
+    audience: FAKE_GCP.audience,
+    serviceAccount: FAKE_GCP.enqueuer,
+    fetch,
+  });
+  const queue = createTaskQueue({
+    queue: { project: FAKE_GCP.project, location: FAKE_GCP.location, queue: FAKE_GCP.queue },
+    workerUrl: FAKE_GCP.workerUrl,
+    invokerServiceAccount: FAKE_GCP.invoker,
+    secret,
+    token: () => tokens.token(),
+    fetch,
+  });
+  return {
+    queue,
+    google,
+    /** Each created task's job, as the worker will read it. */
+    jobs: () =>
+      google.tasks.map(
+        (task) => JSON.parse(Buffer.from(task.httpRequest.body, "base64").toString()) as unknown,
+      ),
+    /** The task IDs created, in order. */
+    taskIds: () => google.tasks.map((task) => task.name.slice(task.name.lastIndexOf("/") + 1)),
+    setDown: (value: boolean) => {
+      down = value;
+    },
+  };
 }

@@ -3,15 +3,13 @@ import {
   findAnalysis,
   findPublishedAnalysis,
   hideRepo,
-  queueAnalysis,
   refundRateLimit,
-  upsertRepo,
   type AnyDatabase,
   type PublishedAnalysis,
 } from "@gitinside/db";
+import { QUEUE_UNAVAILABLE, enqueueAnalysis, type EnqueueDeps } from "./enqueue";
 import { resolveRepo, type GitHubOptions, type ResolveResult } from "./github";
 import type { RepoRef } from "./repoUrl";
-import { WorkerUnavailableError, type WorkerClient } from "./worker";
 
 /**
  * What a repo page shows, with check-on-view re-analysis (SPEC §3 "Viewing re-analyzes
@@ -29,7 +27,8 @@ import { WorkerUnavailableError, type WorkerClient } from "./worker";
  * 4. **Up to date** when the shown analysis is that commit by this analyzer version.
  *    Otherwise the newer commit's own state decides: finished ⇒ shown instead; in flight
  *    ⇒ `updating`; failed ⇒ `behind` with its code (a failure isn't re-run on every view;
- *    "Analyze again" retries one that could pass); none ⇒ enqueued.
+ *    "Analyze again" retries one that could pass); none, or a row whose task was never
+ *    created (`QUEUE_UNAVAILABLE`) ⇒ enqueued on Cloud Tasks (`enqueueAnalysis`).
  * 5. **Who pays:** re-analysis on view is charged to the repo, not the visitor
  *    (`repo:<GitHub ID>`, {@link RECHECKS_PER_HOUR} per hour), since a README image or a
  *    shared link is viewed by many people at once, and only a repo someone already paid to
@@ -76,8 +75,8 @@ export function createHeadCache(
 /** Everything {@link viewRepo} talks to. */
 export interface RepoViewDeps {
   db: AnyDatabase;
-  /** Without a worker (not configured), newer commits are reported but not analyzed. */
-  worker: Pick<WorkerClient, "enqueue"> | undefined;
+  /** Without a queue (not configured), newer commits are reported but not analyzed. */
+  queue: EnqueueDeps["queue"] | undefined;
   github: GitHubOptions;
   /** `@gitinside/analyzer/version`. */
   analyzerVersion: string;
@@ -204,7 +203,8 @@ export async function viewRepo(
     });
     if (latest !== undefined) return ready(latest, { state: "current" });
   }
-  if (existing?.status === "failed") {
+  // A job that never got its task failed no analysis: try again, as if it had no row.
+  if (existing?.status === "failed" && existing.errorCode !== QUEUE_UNAVAILABLE) {
     // `failed` rows always carry a code (schema.ts); the fallback is the worker's own.
     const errorCode = existing.errorCode ?? "WORKER_ERROR";
     return ready(published, { state: "behind", sha: head.sha, reason: "failed", errorCode });
@@ -212,7 +212,7 @@ export async function viewRepo(
   const inFlight = existing?.status === "queued" || existing?.status === "running";
   const updating: HeadState = { state: "updating", sha: head.sha };
   const unavailable: HeadState = { state: "behind", sha: head.sha, reason: "unavailable" };
-  if (deps.worker === undefined) return ready(published, inFlight ? updating : unavailable);
+  if (deps.queue === undefined) return ready(published, inFlight ? updating : unavailable);
 
   const key = `repo:${head.providerRepoId}`;
   let charged: Date | undefined;
@@ -223,23 +223,28 @@ export async function viewRepo(
     }
     charged = limit.windowStart;
   }
-  let job: { id: string; created: boolean };
-  try {
-    job = await deps.worker.enqueue({ owner: head.owner, repo: head.name, sha: head.sha });
-  } catch (error) {
-    if (!(error instanceof WorkerUnavailableError)) throw error;
-    if (charged) await refundRateLimit(db, key, charged);
-    return ready(published, inFlight ? updating : unavailable);
+  const queued = await enqueueAnalysis(head, {
+    db,
+    queue: deps.queue,
+    analyzerVersion: deps.analyzerVersion,
+  });
+  const isNew = queued.status === "queued" && queued.entered;
+  if (charged && !isNew) await refundRateLimit(db, key, charged);
+  switch (queued.status) {
+    case "done": {
+      // Finished since the lookup above (a racing job).
+      const latest = await findPublishedAnalysis(db, {
+        owner: published.repo.owner,
+        name: published.repo.name,
+        sha: head.sha,
+      });
+      return latest === undefined
+        ? ready(published, updating)
+        : ready(latest, { state: "current" });
+    }
+    case "unavailable":
+      return ready(published, unavailable);
+    default:
+      return ready(published, { state: "updating", sha: head.sha, jobId: queued.jobId });
   }
-  if (job.created) {
-    const { id: repoId } = await upsertRepo(db, head);
-    await queueAnalysis(
-      db,
-      { repoId, sha: head.sha, analyzerVersion: deps.analyzerVersion },
-      { jobId: job.id },
-    );
-  } else if (charged) {
-    await refundRateLimit(db, key, charged);
-  }
-  return ready(published, { state: "updating", sha: head.sha, jobId: job.id });
 }

@@ -26,6 +26,10 @@
       "types": "./dist/progress.d.ts",
       "import": "./dist/progress.js"
     },
+    "./request": {
+      "types": "./dist/request.d.ts",
+      "import": "./dist/request.js"
+    },
     "./runner": {
       "types": "./dist/runner.d.ts",
       "import": "./dist/runner.js"

@@ -1,5 +1,5 @@
 import { handleAnalyzeRequest } from "../../../lib/analyzeRoute";
-import { analyzeDepsFromEnv } from "../../../lib/serverDeps";
+import { analyzeDepsFromEnv, VERCEL_OIDC_HEADER } from "../../../lib/serverDeps";
 
 /**
  * `POST /api/analyze` `{ url }`: resolve the repo's latest commit, then return its cached
@@ -8,5 +8,8 @@ import { analyzeDepsFromEnv } from "../../../lib/serverDeps";
 export const dynamic = "force-dynamic";
 
 export function POST(request: Request): Promise<Response> {
-  return handleAnalyzeRequest(request, analyzeDepsFromEnv());
+  return handleAnalyzeRequest(
+    request,
+    analyzeDepsFromEnv(process.env, request.headers.get(VERCEL_OIDC_HEADER)),
+  );
 }
