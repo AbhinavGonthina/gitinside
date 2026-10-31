@@ -227,6 +227,23 @@ export function formatCount(count: number): string {
   return String(count).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+/** What the page says once a job has run past its estimate. */
+export const TAKING_LONGER = "Taking longer than usual";
+
+/**
+ * The words for the time a job has left (`leftMs`, estimate.ts; #8): coarse on purpose, so
+ * they change every few seconds at most and never pretend to be exact. 0 (past the estimate)
+ * is {@link TAKING_LONGER}; under 10 s "A few seconds left"; under a minute rounded up to
+ * 10 s ("About 40 s left"); then whole minutes ("About 3 min left").
+ */
+export function describeTimeLeft(leftMs: number): string {
+  if (leftMs <= 0) return TAKING_LONGER;
+  if (leftMs < 10_000) return "A few seconds left";
+  const seconds = Math.ceil(leftMs / 10_000) * 10;
+  if (seconds < 60) return `About ${seconds} s left`;
+  return `About ${formatCount(Math.max(1, Math.round(leftMs / 60_000)))} min left`;
+}
+
 const STAGE_TEXT: Readonly<Record<JobStage, string>> = {
   download: "Downloading",
   extract: "Unpacking",

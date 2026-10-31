@@ -8,8 +8,9 @@
  *   {@link hideRepo} when GitHub says a published repo went private or away. The worker calls {@link upsertRepo} and {@link startAnalysis} when a
  *   job starts, {@link completeAnalysis} after the snapshot is in object storage (so a `done`
  *   row always has its object), {@link requeueAnalysis} when an attempt fails but will be
- *   retried, {@link failAnalysis} when the last one fails, and
- *   {@link failInterruptedAnalyses} at startup.
+ *   retried, {@link failAnalysis} when the last one fails,
+ *   {@link failInterruptedAnalyses} at startup, and {@link recentAnalysisStats} when a job
+ *   starts (for its time estimate).
  * - **`done` is final:** a later attempt never touches a `done` row (the snapshot it names
  *   exists and is immutable), so a redundant job can't hide a cached result.
  * - **Times** come from the database's clock (`now()`), one clock for every writer.
@@ -286,6 +287,24 @@ export async function completeAnalysis(
     .where(and(eq(analyses.id, id), ne(analyses.status, "done")))
     .returning({ id: analyses.id });
   return rows.length > 0;
+}
+
+/**
+ * The stats of the `limit` most recently finished `done` analyses, newest first, of any repo
+ * or visibility (counts and timings only, nothing that names a repo). The worker estimates a
+ * running job's time left from them (ADR-0136).
+ */
+export async function recentAnalysisStats(
+  db: AnyDatabase,
+  limit: number,
+): Promise<AnalysisStats[]> {
+  const rows = await db
+    .select({ stats: analyses.stats })
+    .from(analyses)
+    .where(and(eq(analyses.status, "done"), sql`${analyses.stats} is not null`))
+    .orderBy(desc(analyses.finishedAt), desc(analyses.id))
+    .limit(limit);
+  return rows.flatMap(({ stats }) => (stats === null ? [] : [stats]));
 }
 
 /** Mark a `queued` or `running` analysis `failed` with `errorCode`. */

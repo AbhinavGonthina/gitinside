@@ -148,9 +148,10 @@ const CHECK = (
  * stages with the worker's own words ("Parsing 1,204 files") and the queue position ("2
  * ahead of you"), and opens the diagram when it's saved. A failure replaces the list with
  * what happened and what to do; if the worker is unreachable the last known progress stays
- * on screen with UX.md's notice while the browser keeps reconnecting. While it runs, what
- * the analyzer has found shows under the stages ({@link FoundSoFar}), and the job link can
- * be copied to come back to ({@link JobLink}).
+ * on screen with UX.md's notice while the browser keeps reconnecting. While it runs, the
+ * worker's estimate of the time left shows under the bar once it has one, what the analyzer
+ * has found shows under the stages ({@link FoundSoFar}), and the job link can be copied to
+ * come back to ({@link JobLink}).
  */
 export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
   const router = useRouter();
@@ -259,6 +260,8 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
   const detail = live?.text ?? "Checking the queue";
   const progress = live?.progress ?? 0;
   const currentLabel = PROGRESS_STEPS[currentIndex]?.label ?? "";
+  // Only the worker's estimate from measured times; nothing until it has one (ADR-0136).
+  const timeLeft = live?.state === "running" ? live.timeLeft : undefined;
 
   return (
     <main className="notice progress">
@@ -273,10 +276,11 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={progress}
-        aria-valuetext={`${currentLabel}: ${detail}`}
+        aria-valuetext={`${currentLabel}: ${detail}${timeLeft ? `. ${timeLeft}` : ""}`}
       >
         <span className="progress__fill" style={{ width: `${progress}%` }} />
       </div>
+      <p className="progress__eta">{timeLeft}</p>
       <ol className="progress__steps">
         {PROGRESS_STEPS.map(({ step, label }, index) => {
           const status =

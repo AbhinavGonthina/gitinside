@@ -54,6 +54,11 @@ export interface JobStatus {
   count?: number;
   /** While running, once the analyzer has found something: what it found so far (#8). */
   found?: FoundFacts;
+  /**
+   * While running, once it can be estimated (estimate.ts): milliseconds the job should still
+   * take, 0 once it has run past what was expected. Never negative.
+   */
+  leftMs?: number;
   /** Jobs ahead of this one while queued (0 = next). */
   position?: number;
   /** Set when `failed`: `LIMIT_TIME`, `TAR_INVALID`, … */
@@ -188,7 +193,8 @@ function send(
 
 /** Copy only the documented fields, so nothing the queue stores internally reaches a caller. */
 function publicStatus(status: JobStatus): JobStatus {
-  const { id, kind, state, stage, progress, step, count, position, errorCode } = status;
+  const { id, kind, state, stage, progress, step, count, found, leftMs, position, errorCode } =
+    status;
   return {
     id,
     kind,
@@ -197,6 +203,8 @@ function publicStatus(status: JobStatus): JobStatus {
     ...(progress === undefined ? {} : { progress }),
     ...(step === undefined ? {} : { step }),
     ...(count === undefined ? {} : { count }),
+    ...(found === undefined ? {} : { found }),
+    ...(leftMs === undefined ? {} : { leftMs }),
     ...(position === undefined ? {} : { position }),
     ...(errorCode === undefined ? {} : { errorCode }),
   };

@@ -276,7 +276,7 @@ describe("GET /jobs/:id", () => {
     });
   });
 
-  it("returns a running job's stage, step, and count", async () => {
+  it("returns a running job's stage, step, count, findings, and time left", async () => {
     const { app, queue } = setup();
     const { body } = await enqueue(app, JOB);
     const entry = queue.jobs.get(body.id);
@@ -289,6 +289,8 @@ describe("GET /jobs/:id", () => {
       progress: 38,
       step: "programs",
       count: 1204,
+      found: { services: { count: 1, names: ["web"] }, routes: 3 },
+      leftMs: 41_500,
     };
     const path = `/jobs/${body.id}`;
     const res = await app.get(path).set(signed("GET", path));

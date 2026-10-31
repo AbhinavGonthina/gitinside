@@ -10,6 +10,7 @@ import {
   findPublishedAnalysis,
   hideRepo,
   queueAnalysis,
+  recentAnalysisStats,
   repos,
   requeueAnalysis,
   startAnalysis,
@@ -172,6 +173,37 @@ describe("completeAnalysis", () => {
     expect(await analysis(id)).toMatchObject({ status: "done", errorCode: null });
     expect(await completeAnalysis(t.db, id, { snapshotKey: "public/x", stats: STATS })).toBe(false);
     expect((await analysis(id)).snapshotKey).toBe("public/k");
+  });
+});
+
+describe("recentAnalysisStats", () => {
+  it("returns done analyses' stats, newest finish first, up to the limit", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    const start = (n: number) =>
+      startAnalysis(t.db, { repoId, sha: String(n).repeat(40), analyzerVersion: VERSION });
+    for (const n of [1, 2, 3]) {
+      const { id } = await start(n);
+      await completeAnalysis(t.db, id, { snapshotKey: `k${n}`, stats: { ...STATS, files: n } });
+      // Finished on days 1, 3, 2: the order comes from the finish time, not the insert.
+      const day = [1, 3, 2][n - 1]!;
+      await t.db
+        .update(analyses)
+        .set({ finishedAt: new Date(Date.UTC(2026, 9, day)) })
+        .where(eq(analyses.id, id));
+    }
+    await failAnalysis(t.db, (await start(4)).id, "LIMIT_TIME");
+    await start(5);
+
+    expect((await recentAnalysisStats(t.db, 10)).map((s) => s.files)).toEqual([2, 3, 1]);
+    expect(await recentAnalysisStats(t.db, 2)).toEqual([
+      { ...STATS, files: 2 },
+      { ...STATS, files: 3 },
+    ]);
+  });
+
+  it("is empty with no finished analyses", async () => {
+    await started();
+    expect(await recentAnalysisStats(t.db, 10)).toEqual([]);
   });
 });
 

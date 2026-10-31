@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { TAKING_LONGER } from "@gitinside/worker/progress";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { failureView, type JobView } from "../../../../../lib/jobs";
 import { COPIED_MS, JOB_LINK_COPIED, JOB_LINK_COPY_FAILED, JobProgress } from "./JobProgress";
@@ -133,6 +134,45 @@ describe("JobProgress", () => {
     ]);
     // The row already shown stays put (its entrance doesn't replay); only the new one eases in.
     expect(document.querySelector(".progress__fact dd")).toBe(first);
+  });
+
+  it("shows the time left under the bar only once the worker estimates it (#8)", () => {
+    show();
+    const eta = () => document.querySelector(".progress__eta");
+    const bar = () => screen.getByRole("progressbar");
+    // Its line is there from the start, empty, so nothing moves when the estimate arrives.
+    expect(eta()?.textContent).toBe("");
+    const running = {
+      state: "running",
+      step: "analyze",
+      progress: 30,
+      text: "Listing files",
+    } as const;
+    latest().send(running);
+    expect(eta()?.textContent).toBe("");
+    expect(bar().getAttribute("aria-valuetext")).toBe("Analyzing: Listing files");
+
+    latest().send({
+      ...running,
+      progress: 38,
+      text: "Parsing 1,204 files",
+      timeLeft: "About 40 s left",
+    });
+    expect(eta()?.textContent).toBe("About 40 s left");
+    expect(bar().getAttribute("aria-valuetext")).toBe(
+      "Analyzing: Parsing 1,204 files. About 40 s left",
+    );
+    latest().send({
+      ...running,
+      progress: 70,
+      text: "Linking function calls",
+      timeLeft: TAKING_LONGER,
+    });
+    expect(eta()?.textContent).toBe("Taking longer than usual");
+
+    // Back in the queue (a retry): no estimate carried over.
+    latest().send({ state: "queued", step: "queue", progress: 0, text: "You're next" });
+    expect(eta()?.textContent).toBe("");
   });
 
   it("opens the diagram when it's saved, and stops listening", () => {

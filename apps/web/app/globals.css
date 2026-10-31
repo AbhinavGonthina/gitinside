@@ -265,7 +265,7 @@ code {
    the job reads as a request traveling through the pipeline. */
 .progress__bar {
   height: 4px;
-  margin: 0 0 var(--space-32);
+  margin: 0 0 var(--space-8);
   overflow: hidden;
   border-radius: var(--radius-pill);
   background: var(--border);
@@ -277,6 +277,18 @@ code {
   border-radius: inherit;
   background: var(--accent);
   transition: width var(--duration-standard) var(--ease-standard);
+}
+
+/* The time left (#8, ADR-0136), under the bar's end. Its line is kept even
+   while empty, so the estimate arriving doesn't push the stages down. */
+.progress__eta {
+  min-height: calc(var(--font-size-13) * 1.5);
+  margin: 0 0 var(--space-16);
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .progress__steps {
