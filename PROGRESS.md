@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.16a1 Flaky `consumeRateLimit` race test at the hour boundary (M5.13 and M5.14b wait on #3)
+M5.16a2 `consumeRateLimit`'s refused path across the hour boundary (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -154,7 +154,8 @@ M5.16a1 Flaky `consumeRateLimit` race test at the hour boundary (M5.13 and M5.14
 - [x] M5.15b Progress page (#8): repo facts as found: analyzer progress events carry the facts each stage produced (service names, route count, data stores and external services), streamed through the worker's BullMQ progress and SSE; shown calmly as the diagram assembling, nothing guessed; tests, screenshots {model: opus}
 - [x] M5.15c Progress page (#8): estimated time left from measured data (file count or tarball size vs bench results and past job durations from `stats` stage timings), updated per stage, "Taking longer than usual" when over, none until computable, never negative; ADR, tests, screenshots {model: opus}
 - [x] M5.16a Stress benchmark (#10): `microsoft/vscode` at a pinned commit through `bench/`, parse only (never installed or run), without the worker's 3 GB / 5 min caps; wall clock, peak RSS, per-stage times, graph size, file count, tarball and decompressed size + entry count vs the extraction limits (500 MB / 100,000); `bench/results/` write-up with hand-written observations (where time and memory go, which production limit it hits first) {model: opus}
-- [ ] M5.16a1 Flaky `consumeRateLimit` race test (`packages/db/src/rateLimits.test.ts`): CI on `681ceb6` got 10 of 12 racing requests allowed with limit 5, at 15:00:00 UTC; `date_trunc('hour', now())` split the race over two windows. Make the test independent of the hour boundary (all requests in one window, e.g. pinned `now()` or retried across a boundary), keep the exact-`limit` assertion; red first by forcing a boundary {model: opus}
+- [x] M5.16a1 Flaky `consumeRateLimit` race test (`packages/db/src/rateLimits.test.ts`): CI on `681ceb6` got 10 of 12 racing requests allowed with limit 5, at 15:00:00 UTC; `date_trunc('hour', now())` split the race over two windows. Make the test independent of the hour boundary (all requests in one window, e.g. pinned `now()` or retried across a boundary), keep the exact-`limit` assertion; red first by forcing a boundary {model: opus}
+- [ ] M5.16a2 `consumeRateLimit`'s refused path across the hour (found in M5.16a1): a refused insert at :59.999 then the fallback `select` at :00.000 reads the new window, finds no row, and throws (`windowStart` undefined), a 500 instead of a 429. Read the refused row's window without a second `now()` (e.g. the key's newest row, or one statement); red first with the `at` clock {model: opus}
 - [ ] M5.16b What a VS Code-sized repo does in production (#10): which limit stops it and how early, what the progress page says; make it fail fast (refuse before parsing, e.g. from the inventory count or the tarball's size) with a clear message; tests; what the analyzer would need to handle it (per-service programs, M6.7 cache), without raising the caps {model: opus}
 - [ ] M5.16c Supported size written down (#10): "repos up to about N files / M MB" from M5.16a and cal.com, in the docs, the landing page, and the `LIMIT_*` error copy; VS Code in EVALUATION.md's benchmark list as a standing stress test if useful {model: opus}
 - [ ] M5.17a Jobs in Neon (ADR-0114, #9): job rows carry `queued` / running / done / failed, attempts, stage + progress + counts; the progress page's SSE, queue position (queued rows ahead), and the job link read Neon instead of the worker's `GET /jobs/:id`; tests (PGlite) {model: opus}
@@ -233,6 +234,8 @@ M5.16a1 Flaky `consumeRateLimit` race test at the hour boundary (M5.13 and M5.14
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5.16a1** (d4c74fa): the race test's flake was the UTC hour boundary (CI at 15:00:00 split 12 requests over two windows, 10 allowed). `consumeRateLimit` takes an optional `at` moment (production keeps the database clock); the race is pinned to one instant with the exact-5 assertion, and a new test races across 15:00 and expects 5 per window. Red first: the old assertion with forced boundary clocks got 10, as CI did. Found on the way: the refused path's second `now()` can throw across the hour (M5.16a2).
 
 - **2026-10-31 M5.16a** VS Code stress benchmark (`a8a01cd`, results `e26a093`, #10): `pnpm bench:stress` downloads with the worker's `openTarball`, extracts with its `extractTarball` (limits lifted), and analyzes uncapped. VS Code at `11ba54a` is inside every pre-parse limit (328 MiB of 500, 25,233 of 100,000 entries, 15,184 of 20,000 source files) but took 14 min 36 s with a 9,696 MiB final heap: production would parse, then fail on `LIMIT_MEMORY`/`LIMIT_TIME`. `http` 37% of the time, one service (no workspaces). The report's "first limit" line wrongly picked memory by table order; fixed (test red first) and re-rendered from the JSON. Bench 45/45, typecheck, lint. Queued M5.16a1: CI's `rateLimits` race test flakes at the hour boundary. Eval re-recorded (lockfile), no delta.
 
