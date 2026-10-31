@@ -78,6 +78,10 @@ async function analysisRows() {
   return t.db.select({ status: analyses.status, sha: analyses.sha }).from(analyses);
 }
 
+async function jobIds() {
+  return (await t.db.select({ jobId: analyses.jobId }).from(analyses)).map((r) => r.jobId);
+}
+
 async function slotsUsed(address = IP): Promise<number> {
   const rows = await t.db.select().from(rateLimits);
   return rows.find((r) => r.key === rateLimitKey(SECRET, address))?.count ?? 0;
@@ -110,6 +114,8 @@ describe("requestAnalysis", () => {
     });
     expect(worker.calls).toEqual([{ owner: "Acme", repo: "Shop", sha: SHA }]);
     expect(await analysisRows()).toEqual([{ status: "queued", sha: SHA }]);
+    // The progress page finds the row by the job's ID (ADR-0139).
+    expect(await jobIds()).toEqual([`analyze-${SHA.slice(0, 32)}`]);
     const [repo] = await t.db.select().from(repos);
     expect(repo).toMatchObject({ providerRepoId: SHOP.id, owner: "Acme", name: "Shop" });
     expect(await slotsUsed()).toBe(1);

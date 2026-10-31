@@ -11,6 +11,7 @@ import * as schema from "./schema.js";
 
 export * from "./schema.js";
 export * from "./analyses.js";
+export * from "./jobs.js";
 export * from "./rateLimits.js";
 export * from "./retention.js";
 export * from "./maintenance.js";

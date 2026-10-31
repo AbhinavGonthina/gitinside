@@ -103,8 +103,27 @@ export interface AnalysisStats {
 }
 
 /**
+ * Where a running attempt is (ADR-0064, ADR-0139), as the worker writes it: its stage and
+ * coarse progress (0–100), inside `analyze` the analyzer's step and its count, what the
+ * attempt has found so far (#8, capped), and once estimated, when the stage or step started
+ * (epoch ms, the worker's clock) and the milliseconds expected from then to the end. The
+ * worker's `StoredProgress` is this shape; readers check every field before showing it.
+ */
+export interface JobProgress {
+  stage: string;
+  progress: number;
+  step?: string;
+  count?: number;
+  found?: object;
+  since?: number;
+  expectMs?: number;
+}
+
+/**
  * One analysis of one commit by one analyzer version. The unique key is the
- * cache key: a new analyzer version re-analyzes, the same one reuses.
+ * cache key: a new analyzer version re-analyzes, the same one reuses. The row is also the
+ * analysis's job (ADR-0114, ADR-0139): its queue job ID, attempts, place in the queue, and
+ * live progress, so the progress page reads Postgres rather than the queue.
  */
 export const analyses = pgTable(
   "analyses",
@@ -122,11 +141,30 @@ export const analyses = pgTable(
     createdAt: timestampTz("created_at").notNull().defaultNow(),
     startedAt: timestampTz("started_at"),
     finishedAt: timestampTz("finished_at"),
+    /**
+     * The queue's job (`analyze-<32 hex>`, derived from the commit by the worker's
+     * `jobIdFor`); null until a job is known. Not unique: a repo deleted and created again
+     * under the same name with the same commits gets the same ID, so readers take the newest.
+     */
+    jobId: text("job_id"),
+    /** Attempts started (each move to `running`); back to 0 when a failed row is queued again. */
+    attempts: integer("attempts").notNull().default(0),
+    /** When the row last entered the queue: the queue position counts `queued` rows before it. */
+    queuedAt: timestampTz("queued_at").notNull().defaultNow(),
+    /** Where the running attempt is; null in every other status. */
+    progress: jsonb("progress").$type<JobProgress>(),
   },
   (t) => [
     unique("analyses_repo_sha_version_key").on(t.repoId, t.sha, t.analyzerVersion),
     index("analyses_repo_created_idx").on(t.repoId, t.createdAt),
+    index("analyses_job_id_idx").on(t.jobId),
+    index("analyses_queued_idx")
+      .on(t.queuedAt, t.id)
+      .where(sql`${t.status} = 'queued'`),
     check("analyses_sha_check", isSha(t.sha)),
+    check("analyses_job_id_check", sql`${t.jobId} ~ '^analyze-[0-9a-f]{32}$'`),
+    check("analyses_attempts_check", sql`${t.attempts} >= 0`),
+    check("analyses_progress_check", sql`${t.progress} is null or ${t.status} = 'running'`),
     check(
       "analyses_status_check",
       sql`case ${t.status}
