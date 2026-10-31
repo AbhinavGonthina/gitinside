@@ -1,8 +1,8 @@
 # M4b review: Interactive explorer
 
-**Tag:** `m4` (not yet: waits for the review fixes, M4b.15b–h) · **Range:** `ff112af..HEAD` (M4b.0a–M4b.14b, M4b.15a) · **Date:** 2026-10-31
+**Tag:** `m4` · **Range:** `ff112af..m4` (M4b.0a–M4b.14b, the review in M4b.15a, its fixes in M4b.15b–h) · **Date:** 2026-10-31
 
-> **Status: verified, fixes pending.** The full suite, E2E, visual tests, the render benchmark, and a real-repo smoke test are green, and two fresh-eyes reviewers found no high-severity issue. Their six medium findings and the readability problem the smoke test showed are queued as M4b.15b–g, and `m4` is tagged after them (M4b.15h), the same way M5.14 split its review fixes from its verification (ADR-0079).
+> **Status: verified and tagged.** The full suite, E2E, visual tests, the render benchmark, and a real-repo smoke test are green. Two fresh-eyes reviewers found no high-severity issue. Their findings and the readability problem the smoke test showed were fixed in M4b.15b–g, the same way M5.14 split its review fixes from its verification (ADR-0079). M4b.15h re-ran every check on the fixed code and had a third reviewer check the fixes. That review found one more medium issue, fixed before the tag, and four lows, queued as M4b.16 (see "Re-check after the fixes").
 
 ## What was built
 
@@ -52,14 +52,14 @@ Smoke test on `shadcn-ui/taxonomy` (1440×900, the production explorer build):
 - **Tests (local, `pnpm test` at `bf97930`):** 2,812 passed, 16 skipped (worker tests that need Redis or Postgres; they run on CI). By package: viewer 963, analyzer 709, worker 466, web 340, diff 122, eval 77, db 71, schema 33, bench 31. Typecheck and lint clean.
 - **E2E (local, `pnpm --filter @gitinside/web e2e`):** 18 passed in 20.1 s; the 9 website visual tests skip off Linux.
 - **CI on `bf97930`** (run [41196250018](https://github.com/AbhinavGonthina/gitinside/actions/runs/41196250018)): `web-e2e` (E2E + website visual), `visual` (every story in dark and light), `worker-image`, and `check` green. Coverage (lines / branches, CI's `pnpm coverage`): viewer 99.23% / 94.03%, analyzer 97.88% / 91.13%, diff 99.01% / 93.61%, web 98.66% / 97.56%, worker 96.14% / 94.72% (incl. the Redis/Postgres tests), db 98.91% / 91.89%, eval 99.48% / 96.04%, schema 94.62% / 87.96%, bench 100% / 95.45%. All above target (analyzer and diff ≥ 85%, others ≥ 70%).
-- **Render benchmark** (`bench/results/2026-10-31-render.md`, Chromium, one machine): median 59.9 fps panning and zooming at 2,000 visible nodes on both graphs (p5 59.5). Time to first drawn layout (opening the page to the canvas drawn, not ELK alone) at 2,000: 1,476 ms synthetic, 9,152 ms cal.com. The target ("≥ 60fps at 2,000 nodes", where 60 means the median rounds to 60, ADR-0130) holds.
+- **Render benchmark** (`bench/results/2026-10-31-render.md`, Chromium, one machine, re-run on the fixed code in M4b.15h): median 59.9 fps panning and zooming at 2,000 visible nodes on both graphs (p5 59.9 synthetic, 59.5 cal.com). Time to first drawn layout (opening the page to the canvas drawn, not ELK alone) at 2,000: 1,975 ms synthetic, 9,844 ms cal.com (M4b.15a's run: 1,476 ms and 9,152 ms). The target ("≥ 60fps at 2,000 nodes", where 60 means the median rounds to 60, ADR-0130) holds.
 - **Eval:** unchanged by M4b (no analyzer, schema, or eval changes; report `eval/results/` regenerated when M4b.14a changed the lockfile, same scores).
 
 ## Acceptance criteria (ROADMAP M4b)
 
 | Criterion | Result |
 |---|---|
-| UX.md interactions all work | Yes, with the review's medium bugs (Esc under a filter, a stuck pan, focus lost in Filters) queued as M4b.15b–d. Diff mode is M6/M8 by design. |
+| UX.md interactions all work | Yes. The review's medium bugs (Esc under a filter, a stuck pan, focus lost in Filters, culling mid-glide, unreadable drill-downs) were fixed in M4b.15b–f, and the re-check's medium one (trace framing on a short canvas) in M4b.15h. Diff mode is M6/M8 by design. |
 | E2E and visual tests green | Yes: 18/18 E2E locally; E2E and both visual jobs green on CI. |
 | ≥ 60fps pan/zoom at 2,000 nodes in `bench/results/` | Yes: 59.9 fps median at 2,000 on synthetic and cal.com. |
 
@@ -91,6 +91,12 @@ M4b.13b1's benchmark showed pan and zoom already at 60 fps, but cal.com's first 
 
 **What it showed** (see the screenshots above): after the drill-down the camera sits at the 40% floor, the box names are a few pixels tall, and most of the service is below the window. A route a user wants to click is off-screen, and Playwright's click on it timed out. In the trace, the camera centers on the start, so the step's other end (`app`) is off to the side. This is the same problem the M4b.14b baselines and the web reviewer flagged, and it's the biggest gap between the explorer and "a UI that looks genuinely good" on real repos. It's M4b.15f.
 
+**After M4b.15f** (same graph and window size, 1280×800, `docs/milestones/M4b/framing/`): the drill-down opens at 80% with the service's name and its first entries readable, and each trace step shows both ends of its hop clear of the minimap and chips. When a hop's two ends are far apart, the camera zooms out to fit both (48% on taxonomy's step 2), so names get small again there.
+
+| Broken down (80%) | Tracing `/dashboard/settings`, step 2 |
+|---|---|
+| ![](M4b/framing/taxonomy-drilled-dark.png) | ![](M4b/framing/taxonomy-trace-2-dark.png) |
+
 **Website:** the seeded E2E (above) drives the production site the same way on `fixtures/shop-demo`; the deployed site waits on M5.13.
 
 ## Fresh-eyes review
@@ -99,28 +105,52 @@ Two subagents with no prior context reviewed `ff112af..HEAD`: one the model, lay
 
 | # | Severity | Finding | Outcome |
 |---|---|---|---|
-| 1 | Medium | Esc ("up a level") and reveal ignore filters: `upFrom` (`drill.ts:35`) uses the unfiltered open set, so with a broken-down service hidden by a filter, Esc closes it off-screen, announces "Back to …", and doesn't clear the selection; the service is no longer broken down when shown again. | M4b.15b |
-| 2 | Medium | A pan gets stuck after a release outside the canvas: capture starts only past the 4 px threshold and `pointermove` doesn't check `buttons` (`gestures.ts:111`), so moving back over the canvas with no button held pans. | M4b.15b |
-| 3 | Medium | Culling uses the camera's destination while a 240 ms+ glide is on its way there (`Explorer.tsx:1020`), so on a big level everything outside the destination window vanishes during a palette pick or a far Tab. | M4b.15c |
-| 4 | Medium | Keyboard focus is lost in Filters: Clear disables itself while focused (`FiltersPopover.tsx:169`), and a folder chip's remove button unmounts, so Esc and the explorer's keys stop working. | M4b.15d |
-| 5 | Medium | Add to README and Share can be open at once, stacked in the same spot; Esc closes only the top one. | M4b.15d |
-| 6 | Medium (UI) | Broken-down views at 1280×800 are mostly unreadable (40% fit floor, names at about 4–5 px, the right side under the inspector), and in a trace the inspector scrolls so the step's title is cut off. The smoke test showed the same on taxonomy. | M4b.15f |
-| 7 | Low | A trace step isn't clamped when the graph changes under a live trace (`Explorer.tsx:257`). | M4b.15b |
-| 8 | Low | `cutOff` lists a depth-12 node even when everything past it is already on the path (`trace.ts:151`). | M4b.15b |
-| 9 | Low | A `.` or `..` path segment survives `encodeURIComponent` in the code loader and the GitHub link (`sources.ts:139`, `chrome/describe.ts:40`), so a crafted graph path could read another repo's file from raw.githubusercontent.com (no cookies, no redirects, escaped text; our analyzer never writes such paths). | M4b.15e |
-| 10 | Low | The 2 MB source cap is checked only from `content-length`; a chunked response downloads in full first. | M4b.15e |
-| 11 | Low | Dismissing the deep-link note unmounts its focused button, and the note's `role="status"` arrives already filled, so it may not be announced. | M4b.15d |
-| 12 | Low | The no-app card's headings skip from h2 to h4. | M4b.15d |
-| 13 | Low | Under React StrictMode (dev only), the layout engine is disposed by the simulated unmount and later layouts silently run on the main thread. | M4b.15g |
-| 14 | Low | The benchmark's "First layout" includes navigation, bundle parse, and the worker's start, not only ELK. | M4b.15g: rename it "time to first drawn layout" in the report. |
+| 1 | Medium | Esc ("up a level") and reveal ignore filters: `upFrom` (`drill.ts:35`) uses the unfiltered open set, so with a broken-down service hidden by a filter, Esc closes it off-screen, announces "Back to …", and doesn't clear the selection; the service is no longer broken down when shown again. | Fixed, M4b.15b (`6166ff5`) |
+| 2 | Medium | A pan gets stuck after a release outside the canvas: capture starts only past the 4 px threshold and `pointermove` doesn't check `buttons` (`gestures.ts:111`), so moving back over the canvas with no button held pans. | Fixed, M4b.15b (`6166ff5`) |
+| 3 | Medium | Culling uses the camera's destination while a 240 ms+ glide is on its way there (`Explorer.tsx:1020`), so on a big level everything outside the destination window vanishes during a palette pick or a far Tab. | Fixed, M4b.15c (`6dc7de4`): the window spans the glide's start and end |
+| 4 | Medium | Keyboard focus is lost in Filters: Clear disables itself while focused (`FiltersPopover.tsx:169`), and a folder chip's remove button unmounts, so Esc and the explorer's keys stop working. | Fixed, M4b.15d (`fb05a03`) |
+| 5 | Medium | Add to README and Share can be open at once, stacked in the same spot; Esc closes only the top one. | Fixed, M4b.15d (`fb05a03`) |
+| 6 | Medium (UI) | Broken-down views at 1280×800 are mostly unreadable (40% fit floor, names at about 4–5 px, the right side under the inspector), and in a trace the inspector scrolls so the step's title is cut off. The smoke test showed the same on taxonomy. | Fixed, M4b.15f (`59dd75c`, ADR-0134): a drill-down frames the opened node at ≥ 80%, each trace hop frames its two ends, and the step header is sticky |
+| 7 | Low | A trace step isn't clamped when the graph changes under a live trace (`Explorer.tsx:257`). | Fixed, M4b.15b (`6166ff5`) |
+| 8 | Low | `cutOff` lists a depth-12 node even when everything past it is already on the path (`trace.ts:151`). | Fixed, M4b.15b (`6166ff5`) |
+| 9 | Low | A `.` or `..` path segment survives `encodeURIComponent` in the code loader and the GitHub link (`sources.ts:139`, `chrome/describe.ts:40`), so a crafted graph path could read another repo's file from raw.githubusercontent.com (no cookies, no redirects, escaped text; our analyzer never writes such paths). | Fixed, M4b.15e (`61eb924`) |
+| 10 | Low | The 2 MB source cap is checked only from `content-length`; a chunked response downloads in full first. | Fixed, M4b.15e (`61eb924`): the cap is enforced while the body streams |
+| 11 | Low | Dismissing the deep-link note unmounts its focused button, and the note's `role="status"` arrives already filled, so it may not be announced. | Fixed, M4b.15d (`fb05a03`) |
+| 12 | Low | The no-app card's headings skip from h2 to h4. | Didn't hold: they already went h2 → h3 → h4. A test now pins that order (M4b.15d). |
+| 13 | Low | Under React StrictMode (dev only), the layout engine is disposed by the simulated unmount and later layouts silently run on the main thread. | Fixed, M4b.15g (`f67ef05`): the engine is made and disposed in one effect |
+| 14 | Low | The benchmark's "First layout" includes navigation, bundle parse, and the worker's start, not only ELK. | Fixed, M4b.15g (`2cc40f7`): the column is "Time to first drawn layout" |
 | 15 | Low | The address bar keeps a link's left-out parts until the first change, and each change replaces the whole query (drops `utm_*`). | Kept: Copy link always shares the cleaned state, and the note says what was left out. Written down here. |
-| 16 | Low | The Filters popover scrolls with no visible hint that Folders is below. | M4b.15d |
+| 16 | Low | The Filters popover scrolls with no visible hint that Folders is below. | Fixed, M4b.15d (`fb05a03`): a scroll shade |
 
 The reviewers also confirmed these were fine: no `innerHTML` or `dangerouslySetInnerHTML` anywhere in the viewer (T10), Shiki tokens as React spans with a plain-text fallback; SVG export escaping and determinism, Mermaid labels through the diff's escaper, export file names; deep-link decoding (bad escapes, `__proto__`, every value checked, canonical encoding); trace BFS/DFS with cycles and a 5,000-hop iterative test; the layout cache's shared promises, eviction, and fallback; culling's always-drawn set; every listener, observer, frame, and timer cleaned up; the CSP's single added host; the share menu's focus and live regions; reduced motion; the error card.
 
+## Re-check after the fixes (M4b.15h)
+
+Every check was run again on the fixed code, without Turbo's cache.
+
+- **Tests (local, `turbo run test --force` at `45d8643`):** 2,856 passed, 16 skipped (Redis/Postgres), 0 from cache. With the fix below, viewer is 1,004 and web 343 again.
+- **CI on `cecc479`** (run [41205416638](https://github.com/AbhinavGonthina/gitinside/actions/runs/41205416638)): `check`, `visual`, `web-e2e`, and `worker-image` green; 2,873 tests passed with none skipped (worker 482 with Redis and Postgres). Coverage (lines / branches): viewer 99.28% / 94.19%, analyzer 97.88% / 91.13%, diff 99.01% / 93.61%, web 98.68% / 97.48%, worker 96.14% / 94.72%, db 98.91% / 91.89%, eval 99.48% / 96.04%, schema 94.62% / 87.96%, bench 100% / 95.45%. All above target.
+- **E2E (local):** 18 passed in 21.3 s; the 9 website visual tests skip off Linux and ran green in CI's `web-e2e`.
+- **Typecheck and lint** clean.
+- **Render benchmark** re-run at `cecc479`: numbers above. Its report says "+ uncommitted changes" because PROGRESS.md and this doc were being edited, so no code was uncommitted.
+- **Smoke test:** the analyzer hasn't changed since M4b.15a's CLI run. M4b.15f's browser run on taxonomy is the after-fix check (screenshots under "Smoke test").
+- **Eval:** unchanged (no analyzer, schema, eval, or lockfile changes since).
+
+**Third fresh-eyes review**, of the fixes alone (`2ff21df..HEAD`): one subagent with no prior context checked each finding against the code and its regression test. It found 1–11, 13, 14, and 16 fixed; 12 was right not to change code. New findings:
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| R1 | Medium | `frameHop` keeps 160px above and below the hop, so on a canvas 320px tall or less there's no room left and every trace step zooms out to 25%. | Fixed in M4b.15h (`cecc479`): each margin is at most a quarter of the canvas. The regression test failed first (zoom 0.25). |
+| R2 | Low | The sticky step header can cover a focused step when Shift+Tab scrolls the inspector (no `scroll-padding-top`; WCAG 2.4.11). | M4b.16 |
+| R3 | Low | The clamped trace step isn't stored, so a graph that shortens the path and then lengthens it again goes back to the old step. | M4b.16 |
+| R4 | Low | The deep-link note's text is both in the live region and visible, so browse mode reads it twice. | M4b.16 |
+| R5 | Low | Add to README doesn't reset "Copied" when the bar closes it. | M4b.16 |
+| R6 | Low | Stale docs: ADR-0129 said a glide culls to its destination, and this doc still listed readability as open. | Fixed in M4b.15h (ADR-0129 in `cecc479`, this doc). |
+
 ## What's still weak
 
-- **Readability on real repos** (finding 6, M4b.15f). Drill-down, trace, and the inspector's scroll all need the camera to frame what matters at a readable size.
+- **Readability on real repos** is better but not solved. M4b.15f frames a drill-down at 80% and each trace hop's two ends, but a hop between far-apart boxes still zooms out until names are small (48% on taxonomy), and a big service shows only its first entries at a readable size.
+- **Four low findings from the re-check, queued as M4b.16:** the sticky step header can cover a focused step when the inspector scrolls (WCAG 2.4.11); a clamped trace step isn't stored, so a graph that grows again jumps back to the old step; the deep-link note is read twice in browse mode; Add to README doesn't reset "Copied" when the bar closes it.
 - **A 2,000-box first layout takes about 9 s** on cal.com, and the layout at that size is huge (about 77,000 × 122,000 px). Measured on one machine.
 - **Chromium only** in E2E, visual tests, and the benchmark.
 - **A failed code load can be retried more often than needed** (M4b.14a saw five requests for one blocked file).
