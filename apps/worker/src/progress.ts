@@ -12,7 +12,7 @@
  * (`@gitinside/worker/progress`) without loading the analyzer or BullMQ.
  */
 
-/** Where a running job is; `GET /jobs/:id` shows it. */
+/** Where a running job is; the progress page shows it. */
 export type JobStage = "download" | "extract" | "analyze" | "upload";
 
 /** Coarse progress (0–100) at the start of each stage. */
@@ -225,6 +225,97 @@ export function stepProgress(step: AnalyzerStep): number {
 /** `1204` ⇒ `1,204`, the same on every machine (no locale data involved). */
 export function formatCount(count: number): string {
   return String(count).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/**
+ * What a job stores as its BullMQ progress: the stage, while analyzing the analyzer's latest
+ * step and its count, and from the first finding on, what the attempt has found (#8).
+ */
+export interface StoredProgress {
+  stage: JobStage;
+  progress: number;
+  step?: AnalyzerStep;
+  count?: number;
+  found?: FoundFacts;
+  /**
+   * Once an estimate can be made (estimate.ts): when this stage or step started (epoch ms,
+   * the worker's clock), and the milliseconds expected from then to the end. Both or neither.
+   */
+  since?: number;
+  expectMs?: number;
+}
+
+/**
+ * What the `analyses` row holds as `progress` (ADR-0139, ADR-0140): {@link StoredProgress}
+ * with the estimate as the milliseconds left when it was written, so no reader ever compares
+ * the worker's clock with its own. The database stamps the write with its `now()`, and the
+ * website subtracts the time since on that same clock.
+ */
+export type RecordedProgress = Omit<StoredProgress, "since" | "expectMs"> & { leftMs?: number };
+
+/** The fields both shapes share, checked and copied, or `undefined` if one is malformed. */
+function parseProgressBase(value: unknown): RecordedProgress | undefined {
+  if (!isRecord(value)) return undefined;
+  const { stage, progress, step, count, found } = value;
+  if (typeof stage !== "string" || !Object.hasOwn(STAGE_PROGRESS, stage)) return undefined;
+  if (!isCount(progress) || progress > 100) return undefined;
+  if (step !== undefined && !(stage === "analyze" && isAnalyzerStep(step))) return undefined;
+  if (count !== undefined && !(step !== undefined && isCount(count))) return undefined;
+  const facts = found === undefined ? undefined : parseFoundFacts(found);
+  if (found !== undefined && facts === undefined) return undefined;
+  return {
+    stage: stage as JobStage,
+    progress,
+    ...(step === undefined ? {} : { step: step as AnalyzerStep }),
+    ...(count === undefined ? {} : { count: count as number }),
+    ...(facts === undefined ? {} : { found: facts }),
+  };
+}
+
+/**
+ * `value` as {@link StoredProgress} if every field is well formed (only those fields are
+ * copied), else `undefined`.
+ */
+export function parseStoredProgress(value: unknown): StoredProgress | undefined {
+  const base = parseProgressBase(value);
+  if (base === undefined || !isRecord(value)) return undefined;
+  const { since, expectMs } = value;
+  if (since === undefined && expectMs === undefined) return base;
+  if (!isCount(since) || !isCount(expectMs)) return undefined;
+  return { ...base, since, expectMs };
+}
+
+/**
+ * `value` as {@link RecordedProgress} if every field is well formed (only those fields are
+ * copied), else `undefined`. The website checks the row's `progress` with it before showing
+ * anything.
+ */
+export function parseRecordedProgress(value: unknown): RecordedProgress | undefined {
+  const base = parseProgressBase(value);
+  if (base === undefined || !isRecord(value)) return undefined;
+  const { leftMs } = value;
+  if (leftMs === undefined) return base;
+  return isCount(leftMs) ? { ...base, leftMs } : undefined;
+}
+
+/**
+ * Milliseconds left of `expectMs` that began at `since`, at `now` (both on one clock): never
+ * negative, 0 once past the expectation. A clock that went back counts as no time passed.
+ */
+export function timeLeft(expectMs: number, since: number, now: number): number {
+  return Math.max(0, Math.round(expectMs - Math.max(0, now - since)));
+}
+
+/**
+ * The row's {@link RecordedProgress} for `stored` at `now`, the clock `since` was read
+ * from (the worker's): the estimate becomes the time left at this moment.
+ */
+export function recordedProgress(
+  { since, expectMs, ...rest }: StoredProgress,
+  now: number,
+): RecordedProgress {
+  if (since === undefined || expectMs === undefined) return rest;
+  return { ...rest, leftMs: timeLeft(expectMs, since, now) };
 }
 
 /** What the page says once a job has run past its estimate. */

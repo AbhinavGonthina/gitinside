@@ -1,11 +1,10 @@
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import type { JobProgress } from "@gitinside/db";
 import type { JobRequest } from "./api.js";
 import { ExtractError, extractTarball, type ExtractLimits, type SkippedEntry } from "./extract.js";
 import { JobFailure } from "./failure.js";
 import { openTarball, type DownloadOptions } from "./github.js";
-import type { FoundFacts, JobStage, StepProgress } from "./progress.js";
+import type { FoundFacts, JobStage, StepProgress, StoredProgress } from "./progress.js";
 import type { AnalysisStats } from "./protocol.js";
 import { runAnalysis, type RunOptions, type RunResult } from "./runner.js";
 
@@ -68,10 +67,11 @@ export interface JobRecorder {
   /** After a failed attempt: `final` marks the analysis failed, otherwise queued again. */
   failed(job: RecordedJob, code: string, final: boolean): Promise<void>;
   /**
-   * Where job `jobId`'s running attempt is, for the progress page (ADR-0139). The queue's
-   * processor calls it with each progress update, one at a time, and only logs a failure.
+   * Where job `jobId`'s running attempt is, for the progress page (ADR-0139, ADR-0140). The
+   * queue's processor calls it with each progress update, one at a time, and only logs a
+   * failure.
    */
-  progress?(jobId: string, progress: JobProgress): Promise<void>;
+  progress?(jobId: string, progress: StoredProgress): Promise<void>;
 }
 
 /** What a finished job returns (the BullMQ return value). */

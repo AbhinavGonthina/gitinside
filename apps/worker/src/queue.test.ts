@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { UnrecoverableError, type Job, type Worker } from "bullmq";
 import request from "supertest";
-import type { JobProgress } from "@gitinside/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEnqueueHandler, jobIdFor, type JobRequest } from "./api.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
@@ -23,6 +22,7 @@ import {
   statusFromJob,
   stopWorker,
   type BullJobQueue,
+  type StoredProgress,
 } from "./queue.js";
 import type { RunResult } from "./runner.js";
 
@@ -407,8 +407,8 @@ describe("createProcessor", () => {
   });
 
   /** A recorder that keeps each progress write once `write` (if any) resolves for it. */
-  function progressRecorder(write?: (progress: JobProgress) => Promise<void>) {
-    const written: { id: string; progress: JobProgress }[] = [];
+  function progressRecorder(write?: (progress: StoredProgress) => Promise<void>) {
+    const written: { id: string; progress: StoredProgress }[] = [];
     const recorder: JobRecorder = {
       start: async (request) => ({
         analysisId: "row",

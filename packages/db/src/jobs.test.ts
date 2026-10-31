@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   analyses,
@@ -207,11 +207,44 @@ describe("recordJobProgress", () => {
     const latest: JobProgress = {
       ...PARSING,
       found: { services: { count: 1, names: ["@shop/api"] }, routes: 3 },
-      since: 1_793_000_000_000,
-      expectMs: 40_000,
+      leftMs: 40_000,
     };
     expect(await recordJobProgress(t.db, jobOf("1"), latest)).toBe(true);
     expect((await findJob(t.db, jobOf("1")))?.progress).toEqual(latest);
+  });
+
+  it("stamps each write with the database's time", async () => {
+    const id = await running();
+    const clock = sql`select (extract(epoch from clock_timestamp()) * 1000)::float8 as ms`;
+    const read = async () => {
+      const result = (await t.db.execute(clock)) as unknown as { rows: { ms: number }[] };
+      return Number(result.rows[0]?.ms);
+    };
+    const before = await read();
+    await recordJobProgress(t.db, jobOf("1"), PARSING);
+    const after = await read();
+    const { progressAt } = await row(id);
+    expect(progressAt?.getTime()).toBeGreaterThanOrEqual(Math.floor(before));
+    expect(progressAt?.getTime()).toBeLessThanOrEqual(Math.ceil(after));
+  });
+
+  it("gives findJob the progress's age on the database's clock", async () => {
+    const id = await running();
+    await recordJobProgress(t.db, jobOf("1"), { ...PARSING, leftMs: 40_000 });
+    // One transaction: `now()` is the same instant for the update and the read.
+    const job = await t.db.transaction(async (tx) => {
+      await tx
+        .update(analyses)
+        .set({ progressAt: sql`now() - interval '12.5 seconds'` })
+        .where(eq(analyses.id, id));
+      return findJob(tx, jobOf("1"));
+    });
+    expect(job).toMatchObject({ progress: { leftMs: 40_000 }, progressAgeMs: 12_500 });
+  });
+
+  it("gives no age without progress", async () => {
+    await running();
+    expect(await findJob(t.db, jobOf("1"))).not.toHaveProperty("progressAgeMs");
   });
 
   it("writes nothing unless the job is running", async () => {
@@ -239,7 +272,7 @@ describe("recordJobProgress", () => {
     const id = await running();
     await recordJobProgress(t.db, jobOf("1"), PARSING);
     await end(id);
-    expect((await row(id)).progress).toBeNull();
+    expect(await row(id)).toMatchObject({ progress: null, progressAt: null });
   });
 
   it("is cleared when a new attempt starts", async () => {
@@ -247,7 +280,7 @@ describe("recordJobProgress", () => {
     await recordJobProgress(t.db, jobOf("1"), PARSING);
     const key = { repoId: (await row(id)).repoId, sha: shaOf("1"), analyzerVersion: VERSION };
     await startAnalysis(t.db, key);
-    expect((await row(id)).progress).toBeNull();
+    expect(await row(id)).toMatchObject({ progress: null, progressAt: null });
   });
 });
 
@@ -258,6 +291,18 @@ describe("the database refuses", () => {
       await pgErrorCode(
         t.db.update(analyses).set({ progress: PARSING }).where(eq(analyses.id, id)),
       ),
+    ).toBe(CHECK);
+  });
+
+  it("progress without its write time, or a write time without progress", async () => {
+    const key = { repoId: await repoId(), sha: shaOf("1"), analyzerVersion: VERSION };
+    const { id } = await startAnalysis(t.db, key, { jobId: jobOf("1") });
+    const where = eq(analyses.id, id);
+    expect(await pgErrorCode(t.db.update(analyses).set({ progress: PARSING }).where(where))).toBe(
+      CHECK,
+    );
+    expect(
+      await pgErrorCode(t.db.update(analyses).set({ progressAt: new Date() }).where(where)),
     ).toBe(CHECK);
   });
 

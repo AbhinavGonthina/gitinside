@@ -70,8 +70,9 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-function recorder(db: AnyDatabase = t.db): AnalysisRecorder {
+function recorder(db: AnyDatabase = t.db, now?: () => number): AnalysisRecorder {
   return createAnalysisRecorder({
+    ...(now === undefined ? {} : { now }),
     db,
     store: createObjectStore({
       endpoint: s3.endpoint,
@@ -241,6 +242,20 @@ describe("createAnalysisRecorder", () => {
     // Once done there's nothing to show, and a late write changes nothing.
     await r.progress?.(ID, { stage: "upload", progress: 90 });
     expect((await onlyAnalysis()).progress).toBeNull();
+  });
+
+  it("writes the estimate as the time left now on the worker's clock, never its `since` (ADR-0140)", async () => {
+    const r = recorder(t.db, () => 25_500);
+    const seen: unknown[] = [];
+    const run: JobDeps["run"] = async (child) => {
+      const calls = { stage: "analyze" as const, progress: 70, step: "calls" as const };
+      await r.progress?.(ID, { ...calls, since: 10_000, expectMs: 30_000 });
+      const row = await onlyAnalysis();
+      seen.push(row.progress, row.progressAt instanceof Date);
+      return writeGraph(child);
+    };
+    await processJob({ id: ID, request: REQUEST }, deps(r, { run }));
+    expect(seen).toEqual([{ stage: "analyze", progress: 70, step: "calls", leftMs: 14_500 }, true]);
   });
 
   it("fails the start as the retriable RECORD_FAILED when the database is down", async () => {

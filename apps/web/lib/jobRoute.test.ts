@@ -1,41 +1,58 @@
 // @vitest-environment node
+import {
+  completeAnalysis,
+  queueAnalysis,
+  recordJobProgress,
+  startAnalysis,
+  upsertRepo,
+  type JobProgress,
+  type JobRecord,
+} from "@gitinside/db";
+import { createTestDb } from "@gitinside/db/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ANALYZE_JOB_ID, handleJobEvents, handleJobRequest, type JobRouteDeps } from "./jobRoute";
-import { UNAVAILABLE_VIEW, failureView } from "./jobs";
-import { WorkerUnavailableError, type WorkerJobStatus } from "./worker";
+import {
+  ANALYZE_JOB_ID,
+  handleJobEvents,
+  handleJobRequest,
+  jobRouteDeps,
+  type JobRouteDeps,
+} from "./jobRoute";
+import { MISSING_MESSAGE, UNAVAILABLE_VIEW, failureView } from "./jobs";
 
 const ID = `analyze-${"a".repeat(32)}`;
 const FAST = { intervalMs: 2, lifetimeMs: 2_000, heartbeatMs: 60_000, retryMs: 500 };
 
-/** A worker that answers each `status` call with the next entry (the last one repeats). */
-function scripted(answers: (WorkerJobStatus | undefined | Error)[]) {
+/** A database that answers each read with the next entry (the last one repeats). */
+function scripted(answers: (JobRecord | undefined | Error)[]) {
   const calls: string[] = [];
   const deps: JobRouteDeps = {
-    worker: {
-      async status(id) {
-        calls.push(id);
-        const answer = answers[Math.min(calls.length, answers.length) - 1];
-        if (answer instanceof Error) throw answer;
-        return answer;
-      },
+    async findJob(id) {
+      calls.push(id);
+      const answer = answers[Math.min(calls.length, answers.length) - 1];
+      if (answer instanceof Error) throw answer;
+      return answer;
     },
   };
   return { deps, calls };
 }
 
-const queued = (position?: number): WorkerJobStatus => ({
-  id: ID,
-  kind: "analyze",
-  state: "queued",
-  ...(position === undefined ? {} : { position }),
-});
-const running = (fields: Partial<WorkerJobStatus>): WorkerJobStatus => ({
-  id: ID,
-  kind: "analyze",
-  state: "running",
+const row = (fields: Partial<JobRecord>): JobRecord => ({
+  analysisId: "00000000-0000-4000-8000-000000000001",
+  status: "queued",
+  errorCode: null,
+  attempts: 0,
+  progress: null,
+  visibility: "public",
   ...fields,
 });
-const done: WorkerJobStatus = { id: ID, kind: "analyze", state: "done" };
+const queued = (position?: number): JobRecord => row(position === undefined ? {} : { position });
+const running = (progress?: JobProgress): JobRecord =>
+  row({
+    status: "running",
+    attempts: 1,
+    ...(progress === undefined ? {} : { progress, progressAgeMs: 0 }),
+  });
+const done: JobRecord = row({ status: "done" });
 
 /** The `status` events in a finished stream, parsed, plus the raw text. */
 async function events(response: Response) {
@@ -76,17 +93,86 @@ describe("handleJobRequest", () => {
     expect(calls).toEqual([ID]);
   });
 
-  it("a worker error is unavailable; an unexpected one is also logged, by name only", async () => {
+  it("a database error is unavailable, logged by name only", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const down = scripted([new WorkerUnavailableError("status 503")]);
-    expect(await (await handleJobRequest(ID, down.deps)).json()).toEqual(UNAVAILABLE_VIEW);
-    expect(log).not.toHaveBeenCalled();
-
     const broken = scripted([new RangeError("postgres://user:pw@host")]);
-    expect((await handleJobRequest(ID, broken.deps)).status).toBe(503);
+    const response = await handleJobRequest(ID, broken.deps);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual(UNAVAILABLE_VIEW);
     expect(log).toHaveBeenCalledWith(
       JSON.stringify({ event: "job_status_failed", error: "RangeError" }),
     );
+    expect(JSON.stringify(log.mock.calls)).not.toContain("pw@host");
+  });
+});
+
+describe("the job routes on the database (ADR-0139, ADR-0140)", { timeout: 60_000 }, () => {
+  const SHA = "a".repeat(40);
+  const FACTS = {
+    providerRepoId: 3_000_000_001,
+    owner: "acme",
+    name: "shop",
+    visibility: "public" as const,
+    defaultBranch: "main",
+  };
+
+  it("follow a job's row from the queue to done, the worker never asked", async () => {
+    const t = await createTestDb();
+    try {
+      const deps = jobRouteDeps(t.db);
+      const view = async () => (await handleJobRequest(ID, deps)).json();
+      expect(await view()).toMatchObject({ state: "missing", message: MISSING_MESSAGE });
+
+      const { id: repoId } = await upsertRepo(t.db, FACTS);
+      const key = { repoId, sha: SHA, analyzerVersion: "0.1.0" };
+      const other = { ...key, sha: "b".repeat(40) };
+      await queueAnalysis(t.db, other, { jobId: `analyze-${"b".repeat(32)}` });
+      // Past the clock's resolution, so the two rows can't enter the queue at the same instant.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await queueAnalysis(t.db, key, { jobId: ID });
+      expect(await view()).toMatchObject({ state: "queued", text: "1 ahead of you" });
+
+      await startAnalysis(t.db, key, { jobId: ID });
+      expect(await view()).toMatchObject({ state: "running", text: "Downloading" });
+      await recordJobProgress(t.db, ID, {
+        stage: "analyze",
+        progress: 34,
+        step: "programs",
+        count: 1204,
+        found: { routes: 2 },
+        // "About 50 s left" while the read comes within 5 s of the write.
+        leftMs: 45_000,
+      });
+      expect(await view()).toEqual({
+        state: "running",
+        step: "analyze",
+        progress: 34,
+        text: "Parsing 1,204 files",
+        found: [{ key: "routes", label: "Entry points", text: "2 routes" }],
+        timeLeft: "About 50 s left",
+      });
+
+      await completeAnalysis(t.db, (await startAnalysis(t.db, key)).id, {
+        snapshotKey: "k",
+        stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+      });
+      expect(await view()).toEqual({ state: "done" });
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("hide a private repo's job", async () => {
+    const t = await createTestDb();
+    try {
+      const { id: repoId } = await upsertRepo(t.db, { ...FACTS, visibility: "private" });
+      await queueAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: "0.1.0" }, { jobId: ID });
+      const response = await handleJobRequest(ID, jobRouteDeps(t.db));
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ state: "missing", message: MISSING_MESSAGE });
+    } finally {
+      await t.close();
+    }
   });
 });
 
@@ -135,7 +221,7 @@ describe("handleJobEvents", () => {
   });
 
   it("a failure and a missing job are final too", async () => {
-    const failed = scripted([{ ...done, state: "failed", errorCode: "LIMIT_FILES" }]);
+    const failed = scripted([row({ status: "failed", errorCode: "LIMIT_FILES" })]);
     const a = await events(handleJobEvents(ID, new AbortController().signal, failed.deps, FAST));
     expect(a.views).toEqual([failureView("LIMIT_FILES")]);
     expect(failed.calls).toHaveLength(1);
@@ -145,11 +231,12 @@ describe("handleJobEvents", () => {
     expect(b.views).toMatchObject([{ state: "missing" }]);
   });
 
-  it("says unavailable while the worker is down and carries on when it's back", async () => {
+  it("says unavailable while the database is down and carries on when it's back", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { deps } = scripted([
       queued(0),
-      new WorkerUnavailableError("request failed"),
-      new WorkerUnavailableError("request failed"),
+      new Error("connection refused"),
+      new Error("connection refused"),
       queued(0),
       done,
     ]);

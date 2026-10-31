@@ -26,14 +26,14 @@ import { FAILURE_CODE, JobFailure, RETRIABLE_CODES } from "./failure.js";
 import { processJob, type JobDeps, type JobOutcome } from "./job.js";
 import {
   STAGE_PROGRESS,
-  isAnalyzerStep,
-  parseFoundFacts,
+  parseStoredProgress,
   stepProgress,
-  type AnalyzerStep,
   type FoundFacts,
-  type JobStage,
   type StepProgress,
+  type StoredProgress,
 } from "./progress.js";
+
+export type { StoredProgress } from "./progress.js";
 
 /**
  * The BullMQ side of the worker (ADR-0014, ADR-0061): the {@link JobQueue} the enqueue API
@@ -72,24 +72,6 @@ export const JOB_OPTIONS: JobsOptions = {
   removeOnFail: { age: 24 * 60 * 60, count: 1_000 },
 };
 
-/**
- * What a job stores as its BullMQ progress: the stage, while analyzing the analyzer's latest
- * step and its count, and from the first finding on, what the attempt has found (#8).
- */
-export interface StoredProgress {
-  stage: JobStage;
-  progress: number;
-  step?: AnalyzerStep;
-  count?: number;
-  found?: FoundFacts;
-  /**
-   * Once an estimate can be made (estimate.ts): when this stage or step started (epoch ms,
-   * the worker's clock), and the milliseconds expected from then to the end. Both or neither.
-   */
-  since?: number;
-  expectMs?: number;
-}
-
 /** The progress stored when an analyzer step starts (or its count becomes known). */
 export function progressForStep({ step, count }: StepProgress): StoredProgress {
   return {
@@ -100,36 +82,17 @@ export function progressForStep({ step, count }: StepProgress): StoredProgress {
   };
 }
 
-const isCount = (value: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-
-function isStoredProgress(value: unknown): value is StoredProgress {
-  if (typeof value !== "object" || value === null) return false;
-  const { stage, progress, step, count, found, since, expectMs } = value as Record<string, unknown>;
-  return (
-    typeof stage === "string" &&
-    Object.hasOwn(STAGE_PROGRESS, stage) &&
-    isCount(progress) &&
-    progress <= 100 &&
-    (step === undefined || (stage === "analyze" && isAnalyzerStep(step))) &&
-    (count === undefined || (step !== undefined && isCount(count))) &&
-    (found === undefined || parseFoundFacts(found) !== undefined) &&
-    (since === undefined ? expectMs === undefined : isCount(since) && isCount(expectMs))
-  );
-}
-
-/** The status fields of stored progress at `now`, and nothing else stored with it. */
+/** The status fields of checked stored progress at `now`, and nothing else stored with it. */
 function runningFields(
   { stage, progress, step, count, found, since, expectMs }: StoredProgress,
   now: number,
 ): Partial<JobStatus> {
-  const facts = found === undefined ? undefined : parseFoundFacts(found);
   return {
     stage,
     progress,
     ...(step === undefined ? {} : { step }),
     ...(count === undefined ? {} : { count }),
-    ...(facts === undefined ? {} : { found: facts }),
+    ...(found === undefined ? {} : { found }),
     ...(since === undefined || expectMs === undefined
       ? {}
       : { leftMs: timeLeft(expectMs, since, now) }),
@@ -179,12 +142,14 @@ export function statusFromJob(job: JobSnapshot, now: number = Date.now()): JobSt
           ? { position: job.position }
           : {}),
       };
-    case "active":
+    case "active": {
+      const progress = parseStoredProgress(job.progress);
       return {
         ...base,
         state: "running",
-        ...(isStoredProgress(job.progress) ? runningFields(job.progress, now) : {}),
+        ...(progress === undefined ? {} : runningFields(progress, now)),
       };
+    }
     case "completed":
       return { ...base, state: "done" };
     case "failed":

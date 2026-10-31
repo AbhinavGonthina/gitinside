@@ -10,7 +10,7 @@ import {
 import type { AnalyzeDeps } from "./analyze";
 import type { GraphRouteDeps } from "./graphRoute";
 import { cdnGraphReader, type ImageRouteDeps } from "./imageRoute";
-import type { JobRouteDeps } from "./jobRoute";
+import { jobRouteDeps, type JobRouteDeps } from "./jobRoute";
 import { createHeadCache, type RepoViewDeps } from "./repoView";
 import { createWorkerClient } from "./worker";
 
@@ -20,7 +20,8 @@ import { createWorkerClient } from "./worker";
  *
  * - `DATABASE_URL` (Neon's pooled string), `WORKER_URL`, `ENQUEUE_HMAC_SECRET`: required.
  *   If one is missing or the secret is short, the API answers "temporarily unavailable"
- *   instead of failing on every request; nothing is logged with a value.
+ *   instead of failing on every request; nothing is logged with a value. Watching a job
+ *   needs only `DATABASE_URL`.
  * - `GITHUB_TOKEN`: optional, raises GitHub's limit from 60 to 5,000 requests an hour.
  * - `SNAPSHOTS_*` (ADR-0055, ADR-0068, ADR-0095): `/api/graph` reads snapshots with them, alongside
  *   `DATABASE_URL`; the repo page needs only the database (and the worker to re-analyze).
@@ -50,12 +51,12 @@ function workerConfig(env: Env): { url: string; secret: string } | undefined {
 }
 
 /**
- * The job routes' deps (`/api/jobs/:id`, ADR-0067): only the worker, so watching a job
- * needs no database connection. `undefined` if the worker isn't configured.
+ * The job routes' deps (`/api/jobs/:id`, ADR-0067, ADR-0139): only the database, where each
+ * job's row is, so watching a job never asks the worker. `undefined` without `DATABASE_URL`.
  */
 export function jobDepsFromEnv(env: Env = process.env): JobRouteDeps | undefined {
-  const config = workerConfig(env);
-  return config && { worker: createWorkerClient(config) };
+  const db = database(env);
+  return db && jobRouteDeps(db);
 }
 
 /** The shared connection for `DATABASE_URL`, or `undefined` if it isn't set. */
