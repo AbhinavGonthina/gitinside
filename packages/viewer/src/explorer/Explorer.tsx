@@ -586,8 +586,11 @@ export function Explorer({
   }
 
   // The warnings chip (M4b.12b): the repo overview, which lists them, with
-  // focus on its warnings once it's drawn.
-  const toWarnings = useRef(false);
+  // focus on its warnings once it's drawn. The ask is state, not a ref read
+  // by every effect pass: a click can come before an earlier render's
+  // effects have run (a loaded machine), and that pass, with the selection's
+  // inspector still up, would use it up (M5.16b1).
+  const [warningsAsked, setWarningsAsked] = useState(0);
   const focusWarnings = () =>
     rootRef.current
       ?.querySelector<HTMLElement>(`.gi-inspector [data-section="${WARNINGS_SECTION}"]`)
@@ -598,14 +601,12 @@ export function Explorer({
       focusWarnings();
       return;
     }
-    toWarnings.current = true;
+    setWarningsAsked((n) => n + 1);
     select(null);
   }
   useEffect(() => {
-    if (!toWarnings.current) return;
-    toWarnings.current = false;
-    focusWarnings();
-  });
+    if (warningsAsked > 0) focusWarnings();
+  }, [warningsAsked]);
 
   /**
    * A box focused from the keyboard (Tab, an arrow key, focus put back after
