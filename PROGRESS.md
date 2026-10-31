@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.17a2 Jobs in Neon, the reads (M5.13 and M5.14b wait on #3)
+M5.17b Enqueue through Cloud Tasks without an SDK (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -160,7 +160,7 @@ M5.17a2 Jobs in Neon, the reads (M5.13 and M5.14b wait on #3)
 - [x] M5.16b1 Flaky viewer test (`packages/viewer/src/explorer/states.test.tsx`, "goes to the warnings from the canvas's chip, clearing the selection, focus on them"): CI's `coverage` on `65c56fc` (run 41218564703) found focus on `<body>` instead of the warnings `<section>`, while the same run's `test` passed it. Find the race (focus moved before the section renders, or the chip's handler running before the selection clears), assert inside `waitFor` or fix the focus move; reproduce under load or `coverage` first {model: opus}
 - [x] M5.16c Supported size written down (#10): "repos up to about N files / M MB" from M5.16a and cal.com, in the docs, the landing page, and the `LIMIT_*` error copy; VS Code in EVALUATION.md's benchmark list as a standing stress test if useful {model: opus}
 - [x] M5.17a1 Jobs in Neon, the rows (ADR-0114, ADR-0139, #9): `analyses` rows carry the job ID, attempts, queue entry time, and progress (migration); `findJob` (status, code, progress, queue position = queued rows ahead) and `recordJobProgress`; the web app and the worker store the job ID, the worker writes each progress update (in order, best effort); tests (PGlite) {model: opus}
-- [ ] M5.17a2 Jobs in Neon, the reads (ADR-0114, #9): `/api/jobs/:id`, its SSE, and the job link read `findJob` instead of the worker's `GET /jobs/:id` (progress checked with the worker's parsers, time left on one clock: not the worker's `since` against the website's now, ADR-0139; private jobs hidden); `jobDepsFromEnv` needs only the database; tests (PGlite) {model: opus}
+- [x] M5.17a2 Jobs in Neon, the reads (ADR-0114, #9): `/api/jobs/:id`, its SSE, and the job link read `findJob` instead of the worker's `GET /jobs/:id` (progress checked with the worker's parsers, time left on one clock: not the worker's `since` against the website's now, ADR-0139; private jobs hidden); `jobDepsFromEnv` needs only the database; tests (PGlite) {model: opus}
 - [ ] M5.17b Enqueue through Cloud Tasks without an SDK (ADR-0114): `createTask` REST, task named from `repo@sha` (`ALREADY_EXISTS` = deduped), HMAC-signed body, OIDC push to the worker's service account; Vercel's Google token keyless via Workload Identity Federation (Vercel OIDC ⇒ STS ⇒ service-account impersonation); fake Google server tests; `/api/analyze` and check-on-view switched; verify the dispatch-deadline range and task-name reuse window {model: opus}
 - [ ] M5.17c Worker as a Cloud Run request handler: `POST /run` (HMAC on top of Cloud Run IAM) runs one job per request (download ⇒ extract ⇒ child ⇒ publish) under one deadline inside the 5 min request timeout (child kill time from what's left), progress to Neon, 3 attempts from Cloud Tasks (2xx for success and permanent failures, 5xx for retryable); sized for 1 vCPU / 4 GiB with `/tmp` in memory (heap cap from M5.16a and cal.com); BullMQ, Redis, and the enqueue server removed; fake Cloud Tasks server pushes in tests and local dev {model: opus}
 - [ ] M5.17d Cloud Run container: image (non-root, `PORT`, read-only except `/tmp`), CI container check without Redis or the egress gateway, `infra/oracle` replaced by `infra/gcp` (service, queue, IAM, docs) {model: opus}
@@ -236,6 +236,8 @@ M5.17a2 Jobs in Neon, the reads (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5.17a2** (`d203d69`, ADR-0140): `/api/jobs/:id` and its SSE read `findJob`; `jobDepsFromEnv` needs only `DATABASE_URL`, and the web's worker client keeps only `enqueue`. Time left on one clock: the worker's recorder writes `leftMs` (its own clock), the database stamps `progress_at` (migration `0003`), `findJob` returns the row's age on the database's clock, the page subtracts. Progress checked with the worker's `parseRecordedProgress`; private jobs read as missing. A mutation dropping the age subtraction failed the jobs test. Full `pnpm test` green (web 350, worker 581 + 16 skipped, db 103), typecheck, lint. No eval delta.
 
 - **M5.17a1** (`c63ca2c`, ADR-0139): M5.17a split in two. The `analyses` row now is the job: `job_id` (indexed, not unique; newest wins), `attempts`, `queued_at`, and `progress` (jsonb, only while running), migration `0002_analysis_jobs`. `findJob` reads a job with its queue position; `recordJobProgress` writes. The web app and the worker store the job ID, and the processor writes each progress update to the row, chained in order, best effort (mutation-checked). db 99, worker 537 (+16 Redis-only skipped), web 366, typecheck, lint. Next: M5.17a2 switches `/api/jobs/:id` and the SSE to `findJob`.
 
