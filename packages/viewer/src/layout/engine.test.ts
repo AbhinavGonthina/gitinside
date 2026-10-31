@@ -1,6 +1,8 @@
 // @vitest-environment node
 import ELK from "elkjs/lib/elk.bundled.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { NodeKind } from "@gitinside/schema";
+import { NO_FILTERS } from "../model/filters.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { shopDemo } from "../shopDemo.testkit.js";
@@ -194,13 +196,21 @@ function countingEngine() {
 }
 
 describe("createLayoutCache", () => {
-  it("keys a view by its open nodes and hidden kinds", () => {
-    expect(layoutKey(buildView(index, API_OPEN))).toBe('[["service:api/"],["imports"]]');
+  it("keys a view by its open nodes, hidden kinds, and filters", () => {
+    expect(layoutKey(buildView(index, API_OPEN))).toBe('[["service:api/"],["imports"],""]');
     // Asked open inside a closed node: the same state as nothing open.
     expect(layoutKey(buildView(index, ["module:api/src"]))).toBe(layoutKey(buildView(index, [])));
     expect(layoutKey(buildView(index, [], { hiddenKinds: new Set() }))).not.toBe(
       layoutKey(buildView(index, [])),
     );
+    const noStripe = { ...NO_FILTERS, layers: ["external" as const] };
+    expect(layoutKey(buildView(index, [], { filters: noStripe }))).not.toBe(
+      layoutKey(buildView(index, [])),
+    );
+    // Equal filters set in another order share a key.
+    const twoKinds = (kinds: NodeKind[]) =>
+      layoutKey(buildView(index, [], { filters: { ...NO_FILTERS, kinds } }));
+    expect(twoKinds(["route", "model"])).toBe(twoKinds(["model", "route", "model"]));
   });
 
   it("lays out each expansion state once, and shares a run still going", async () => {

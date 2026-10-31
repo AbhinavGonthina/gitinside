@@ -1,13 +1,14 @@
 import { compareStrings } from "@gitinside/schema";
 import type { Confidence, EdgeKind, GraphEdge, GraphNode, NodeKind } from "@gitinside/schema";
-import { canOpen, type HierarchyIndex } from "./hierarchy.js";
+import { filtersKey, hiddenNodes, NO_FILTERS, type Filters } from "./filters.js";
+import { type HierarchyIndex } from "./hierarchy.js";
 
 /**
  * What the canvas shows for one expansion state (M4b.1): the visible nodes,
  * each inside the frame it's drawn in, and the graph's edges lifted to their
  * visible ends (UX.md "Edge aggregation"). A pure function of the index and
  * the expansion set, so the same state always gives the same view, and the
- * layout (M4b.2) can cache by `open` and `hidden`.
+ * layout (M4b.2) can cache by `open`, `hidden`, and `filtered`.
  *
  * Routes first (design gate, ADR-0105): an open service shows its routes and
  * pages from anywhere inside it as an `entries` section ahead of its folders.
@@ -55,8 +56,13 @@ export interface GraphView {
   childrenOf: ReadonlyMap<string, readonly string[]>;
   /** The nodes actually open, sorted: the requested ones that are visible and can open. */
   open: readonly string[];
-  /** The edge kinds left off, sorted. With `open`, all a view depends on besides the graph. */
+  /** The edge kinds left off, sorted. */
   hidden: readonly EdgeKind[];
+  /**
+   * The node and confidence filters' key (`filtersKey`, "" when none apply).
+   * With `open` and `hidden`, all a view depends on besides the graph.
+   */
+  filtered: string;
   edges: readonly ViewEdge[];
 }
 
@@ -64,6 +70,8 @@ export interface GraphView {
 export interface ViewOptions {
   /** Edge kinds left off the canvas. Defaults to `DEFAULT_HIDDEN_KINDS`. */
   hiddenKinds?: ReadonlySet<EdgeKind>;
+  /** Nodes and confidence levels left off (M4b.8). Defaults to none (`NO_FILTERS`). */
+  filters?: Filters;
 }
 
 /** Hidden unless asked for: imports repeat the calls at every level above a file. */
@@ -91,18 +99,34 @@ export function weaker(a: Confidence, b: Confidence): Confidence {
  * The nodes that are really open for a requested set: each must be able to
  * open and sit under the root through open nodes only. A node asked open
  * inside a closed one is ignored now and opens again with it, so closing a
- * service and reopening it restores its inside.
+ * service and reopening it restores its inside. Nodes in `filtered` (see
+ * `hiddenNodes`) aren't on the canvas, and a node with nothing left inside
+ * can't open.
  */
-export function effectiveOpen(index: HierarchyIndex, expanded: Iterable<string>): Set<string> {
+export function effectiveOpen(
+  index: HierarchyIndex,
+  expanded: Iterable<string>,
+  filtered: ReadonlySet<string> = new Set(),
+): Set<string> {
   const asked = new Set(expanded);
   const open = new Set<string>();
-  const stack = [...(index.children.get(index.root.id) ?? [])];
+  const stack = shownChildren(index, index.root.id, filtered);
   for (let n = stack.pop(); n; n = stack.pop()) {
-    if (!asked.has(n.id) || !canOpen(index, n.id)) continue;
+    const kids = shownChildren(index, n.id, filtered);
+    if (!asked.has(n.id) || kids.length === 0) continue;
     open.add(n.id);
-    stack.push(...(index.children.get(n.id) ?? []));
+    stack.push(...kids);
   }
   return open;
+}
+
+/** A node's tree children that the filters leave on the canvas. */
+function shownChildren(
+  index: HierarchyIndex,
+  id: string,
+  filtered: ReadonlySet<string>,
+): GraphNode[] {
+  return (index.children.get(id) ?? []).filter((c) => !filtered.has(c.id));
 }
 
 /** Builds the view for an expansion state (node IDs asked to be open). */
@@ -111,7 +135,9 @@ export function buildView(
   expanded: Iterable<string>,
   options: ViewOptions = {},
 ): GraphView {
-  const open = effectiveOpen(index, expanded);
+  const filters = options.filters ?? NO_FILTERS;
+  const filtered = hiddenNodes(index, filters);
+  const open = effectiveOpen(index, expanded, filtered);
   const nodes: ViewNode[] = [];
   const byId = new Map<string, ViewNode>();
   const childrenOf = new Map<string, string[]>();
@@ -127,7 +153,7 @@ export function buildView(
       section,
       level,
       open: open.has(n.id),
-      canOpen: canOpen(index, n.id),
+      canOpen: shownChildren(index, n.id, filtered).length > 0,
     };
     nodes.push(view);
     byId.set(n.id, view);
@@ -137,42 +163,55 @@ export function buildView(
     if (!view.open) return;
     if (n.kind === "service") {
       for (const entry of index.entries.get(n.id) ?? []) {
-        if (!inFile(entry)) place(entry, n.id, "entries", level + 1);
+        if (!inFile(entry) && !filtered.has(entry.id)) place(entry, n.id, "entries", level + 1);
       }
     }
-    const kids = [...(index.children.get(n.id) ?? [])];
+    const kids = shownChildren(index, n.id, filtered);
     kids.sort((a, b) => rank(a) - rank(b));
     // A route or page reached here is in its open file, so it's drawn there.
     for (const child of kids) place(child, n.id, "contents", level + 1);
   };
-  for (const top of index.children.get(index.root.id) ?? []) place(top, null, "contents", 0);
+  for (const top of shownChildren(index, index.root.id, filtered)) {
+    place(top, null, "contents", 0);
+  }
 
   const hidden = options.hiddenKinds ?? DEFAULT_HIDDEN_KINDS;
+  const confidence = new Set(filters.confidence);
   return {
     nodes,
     byId,
     childrenOf,
     open: [...open].sort(compareStrings),
     hidden: [...hidden].sort(compareStrings),
-    edges: liftEdges(index, byId, hidden),
+    filtered: filtersKey(filters),
+    edges: liftEdges(
+      index,
+      byId,
+      (e) =>
+        hidden.has(e.kind) ||
+        confidence.has(e.confidence) ||
+        filtered.has(e.from) ||
+        filtered.has(e.to),
+    ),
   };
 }
 
 /**
  * The graph's edges lifted to their visible ends, one per (kind, from, to).
  * Edges that land inside one visible node vanish (they happen inside it), as
- * do hidden kinds. Ordered by the first graph edge each one stands for, so
- * the result is stable.
+ * do those `skip` filters out (a hidden kind or confidence, or a filtered
+ * end, which isn't redrawn to its parent). Ordered by the first graph edge
+ * each one stands for, so the result is stable.
  */
 function liftEdges(
   index: HierarchyIndex,
   visible: ReadonlyMap<string, ViewNode>,
-  hidden: ReadonlySet<EdgeKind>,
+  skip: (edge: GraphEdge) => boolean,
 ): ViewEdge[] {
   const memo = new Map<string, string | undefined>();
   const out = new Map<string, { view: ViewEdge; edges: GraphEdge[] }>();
   for (const edge of index.graph.edges) {
-    if (hidden.has(edge.kind)) continue;
+    if (skip(edge)) continue;
     const from = visibleHolder(index, edge.from, visible, memo);
     const to = visibleHolder(index, edge.to, visible, memo);
     if (!from || !to || from === to) continue;

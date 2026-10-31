@@ -150,6 +150,19 @@ export {
   weaker,
 } from "./model/view.js";
 export type { GraphView, Section, ViewEdge, ViewNode, ViewOptions } from "./model/view.js";
+export {
+  activeFilterCount,
+  DEFAULT_FILTERS,
+  FILTER_KINDS,
+  filtersKey,
+  hiddenNodes,
+  isTestOrConfig,
+  isUnder,
+  NO_FILTERS,
+  normalizeFilters,
+  normalizeFolder,
+} from "./model/filters.js";
+export type { Filters } from "./model/filters.js";
 export { closedSize, edgeLabelSize, frameCounts, openHeader, viewNodeSize } from "./layout/size.js";
 export type { Size, SizeContext } from "./layout/size.js";
 export {

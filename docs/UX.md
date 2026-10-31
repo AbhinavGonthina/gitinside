@@ -56,6 +56,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 
 - Popover from the top bar, with toggles by layer, kind, and confidence, a folder include/exclude, and "Hide tests and config" (on by default).
 - Active filters show as a chip, with "Clear".
+- Model done in M4b.8a (ADR-0120): a hidden node takes what's inside it along, and a folder left empty goes too; its connections are dropped, not redrawn from its parent. Hiding a confidence hides lines only. Tests and config are found by name (`*.test.*`, `*.spec.*`, `*.config.*`, `__tests__/`, `tests/`, `e2e/`, …).
 
 ## Diff mode (M6)
 
