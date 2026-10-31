@@ -8,9 +8,11 @@ import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { shopDemo, shopDemoSources } from "../shopDemo.testkit.js";
 import { durations } from "../tokens.js";
+import { fitCamera, READABLE_ZOOM } from "./camera.js";
 import { decodeState, DEFAULT_STATE, encodeState, type ExplorerState } from "./deepLink.js";
 import * as stories from "./Explorer.stories.js";
 import { Explorer, PLAY_STEP_MS } from "./Explorer.js";
+import { FIT_INSET, fitScale } from "./fit.js";
 import { traceFrom } from "./trace.js";
 
 const CHECKOUT = "page:web//checkout";
@@ -900,6 +902,100 @@ function onCanvas(container: HTMLElement, el: HTMLElement | null) {
     y: parseFloat(wrapper.style.top) * c.zoom + c.y,
   };
 }
+
+describe("Explorer framing on a small canvas (M4b.15f)", { timeout: 30_000 }, () => {
+  // Too small to read a broken-down service whole: its fit is under READABLE_ZOOM.
+  const SMALL = { width: 640, height: 400 };
+  beforeEach(() => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(private readonly report: ResizeObserverCallback) {}
+        observe() {
+          this.report(
+            [{ contentRect: SMALL } as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+      },
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const stage = (container: HTMLElement) => {
+    const style = (container.querySelector(".gi-drill__stage") as HTMLElement).style;
+    return { width: parseFloat(style.width), height: parseFloat(style.height) };
+  };
+  /** A box's place on the canvas, in canvas px. */
+  const placed = (container: HTMLElement, el: HTMLElement | null) => {
+    const corner = onCanvas(container, el);
+    const style = (el?.parentElement as HTMLElement).style;
+    const zoom = cameraOf(container).zoom;
+    return {
+      ...corner,
+      right: corner.x + parseFloat(style.width) * zoom,
+      bottom: corner.y + parseFloat(style.height) * zoom,
+    };
+  };
+  const wholly = (r: { x: number; y: number; right: number; bottom: number }) =>
+    r.x >= 0 && r.y >= 0 && r.right <= SMALL.width && r.bottom <= SMALL.height;
+
+  it("frames a broken-down service's name and entries at a readable size, and 0 shows it whole", async () => {
+    const { container, box, act, press } = await setup();
+    await act(() => fireEvent.doubleClick(box(API) as HTMLElement));
+    // The whole level would fit only below the readable zoom.
+    expect(fitScale(stage(container), SMALL)).toBeLessThan(READABLE_ZOOM);
+    await waitFor(() => expect(cameraOf(container).zoom).toBeGreaterThanOrEqual(READABLE_ZOOM));
+    // The service's name corner and its first route are on the canvas.
+    const frame = placed(container, box(API));
+    expect(frame.x).toBeGreaterThanOrEqual(FIT_INSET.x - 1);
+    expect(frame.y).toBeGreaterThanOrEqual(FIT_INSET.y - 1);
+    expect(wholly(placed(container, box(ROUTE)))).toBe(true);
+    // 0 is the whole level, at its (unreadable) fit.
+    await press("0");
+    expect(cameraOf(container).zoom).toBe(fitScale(stage(container), SMALL));
+    // Back up, the system level reads whole: fitted.
+    await press("Escape");
+    expect(cameraOf(container)).toEqual(fitCamera(stage(container), SMALL));
+  });
+
+  it("frames a deep link's last broken-down node too", async () => {
+    const { container, box } = await setup({ initialOpen: [WEB, API] });
+    await waitFor(() => expect(cameraOf(container).zoom).toBeGreaterThanOrEqual(READABLE_ZOOM));
+    expect(wholly(placed(container, box(ROUTE)))).toBe(true);
+  });
+
+  it("frames each trace step's two ends", async () => {
+    const { container, press } = await setup({ initialOpen: [WEB, API, SRC] });
+    await waitFor(() =>
+      expect(container.querySelector(".gi-explorer")?.hasAttribute("data-settled")).toBe(true),
+    );
+    // Panned far off: nothing of the path is on the canvas.
+    fireEvent.wheel(screen.getByRole("region", { name: "Diagram" }), { deltaX: 50_000 });
+    await press("t");
+    const steps = traceFrom(index, CHECKOUT).steps.length;
+    const ends = () =>
+      [...container.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving]) > .gi-node")]
+        .filter((el) => el.getAttribute("data-emphasis") === "current")
+        .map((el) => placed(container, el));
+    for (let i = 0; i < steps; i++) {
+      await waitFor(() => {
+        const now = ends();
+        expect(now.length).toBeGreaterThan(0);
+        for (const end of now) expect(wholly(end)).toBe(true);
+      });
+      if (i < steps - 1) fireEvent.click(screen.getByRole("button", { name: /Next step/ }));
+    }
+  });
+
+  it("keeps the step's title in a header that stays at the inspector's top", async () => {
+    const { press } = await setup();
+    await press("t");
+    const title = within(screen.getByRole("complementary")).getByRole("heading", { level: 2 });
+    expect(title.closest("header")?.classList.contains("gi-explorer__hop-header")).toBe(true);
+  });
+});
 
 describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
   // Room for the system level at 100%.

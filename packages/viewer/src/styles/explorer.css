@@ -215,6 +215,18 @@
   white-space: normal;
 }
 
+/*
+ * The step's header stays at the inspector's top while the rest scrolls
+ * under it (M4b.15f): stepping from the list or the buttons below, or focus
+ * put back on the current step, would otherwise scroll the title out of view.
+ */
+.gi-explorer__hop-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-1);
+}
+
 /* A step's Show button, under the summary that says its end is hidden by filters. */
 .gi-explorer__show {
   margin: calc(-1 * var(--space-8)) 20px var(--space-16);

@@ -41,23 +41,85 @@ export function clampZoom(zoom: number): number {
 }
 
 /**
+ * The lowest zoom the explorer frames something at when it picks the camera
+ * itself (after a drill-down, on a trace step; M4b.15f). Box names (13–14px)
+ * are drawn at about 11px and secondary text (12px) at about 10px, a step
+ * above `DETAIL_ZOOM.full` (65%), the least that still reads. The fit's 40%
+ * floor draws names at about 5px.
+ */
+export const READABLE_ZOOM = 0.8;
+
+/**
  * The camera that fits the diagram (`fitScale`: 40–100%): centered on an axis
  * where it fits, else starting at {@link FIT_INSET} so its first column (a
  * service's routes) is in view and the rest is a pan away. An unmeasured
  * canvas (0 × 0, as in tests) gets 100% at the origin.
  */
 export function fitCamera(diagram: Size, canvas: Size): Camera {
+  return placeRect({ x: 0, y: 0, ...diagram }, canvas, fitScale(diagram, canvas));
+}
+
+/**
+ * The camera at `zoom` that places `rect` (diagram coordinates) the way
+ * {@link fitCamera} places a whole diagram: centered on an axis where it
+ * fits, else with its top or left edge at {@link FIT_INSET}, so what starts
+ * there (a frame's name, its first column) is in view. An unmeasured canvas
+ * gets 100% at the origin.
+ */
+export function placeRect(rect: Rect, canvas: Size, zoom: number): Camera {
   if (canvas.width <= 0 || canvas.height <= 0) return { zoom: 1, x: 0, y: 0 };
-  const zoom = fitScale(diagram, canvas);
-  const place = (room: number, length: number, inset: number) => {
+  const place = (room: number, start: number, length: number, inset: number) => {
     const free = room - length * zoom;
-    return Math.round(free >= 2 * inset ? free / 2 : inset);
+    return Math.round((free >= 2 * inset ? free / 2 : inset) - start * zoom);
   };
   return {
     zoom,
-    x: place(canvas.width, diagram.width, FIT_INSET.x),
-    y: place(canvas.height, diagram.height, FIT_INSET.y),
+    x: place(canvas.width, rect.x, rect.width, FIT_INSET.x),
+    y: place(canvas.height, rect.y, rect.height, FIT_INSET.y),
   };
+}
+
+/**
+ * Room a trace hop's ends keep from the canvas's edges, in canvas px: clear
+ * of the overlays in its corners, the trace and filter chips on top and the
+ * minimap (about 140px tall) and legend below (M4b.15f).
+ */
+export const HOP_MARGIN = { x: 48, y: 160 } as const;
+
+/**
+ * How a trace step moves the camera (M4b.15f): the zoom stays as it is,
+ * raised to {@link READABLE_ZOOM} from below it, and lowered as far as it
+ * takes to show both ends of the hop (`rect`, their bounding box) with
+ * `margin` to spare. Unchanged (the same object) when that's the zoom
+ * already and both ends are wholly on the canvas; else centered on them.
+ */
+export function frameHop(
+  camera: Camera,
+  rect: Rect,
+  canvas: Size,
+  margin: { x: number; y: number } = HOP_MARGIN,
+): Camera {
+  if (canvas.width <= 0 || canvas.height <= 0) return camera;
+  const fits = clampZoom(
+    Math.min(
+      (canvas.width - 2 * margin.x) / Math.max(rect.width, 1),
+      (canvas.height - 2 * margin.y) / Math.max(rect.height, 1),
+    ),
+  );
+  const zoom = Math.min(fits, Math.max(camera.zoom, READABLE_ZOOM));
+  const left = rect.x * camera.zoom + camera.x;
+  const top = rect.y * camera.zoom + camera.y;
+  const inside =
+    left >= margin.x &&
+    top >= margin.y &&
+    left + rect.width * camera.zoom <= canvas.width - margin.x &&
+    top + rect.height * camera.zoom <= canvas.height - margin.y;
+  if (zoom === camera.zoom && inside) return camera;
+  return centerOn(
+    { zoom, x: 0, y: 0 },
+    { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
+    canvas,
+  );
 }
 
 /** The camera at `zoom` (clamped) with the diagram point under canvas point `at` kept there. */

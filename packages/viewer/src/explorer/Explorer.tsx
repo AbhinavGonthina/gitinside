@@ -49,6 +49,7 @@ import {
   clampZoom,
   ensureVisible,
   fitCamera,
+  frameHop,
   holdInPlace,
   keepInView,
   sameCamera,
@@ -61,6 +62,7 @@ import {
 import { encodeState, withState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
+import { autoCamera, boxesRect, lastOpened } from "./framing.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { useGlideSpan } from "./glide.js";
 import { hintSteps, OnboardingHint, type HintStep, type OnboardingStore } from "./onboarding.js";
@@ -185,10 +187,13 @@ function deepestOpen(view: GraphView, expansion: Expansion): string | undefined 
  * (`searchNodes`); a pick drills to it, selects it, and focuses its box.
  *
  * Layouts come from ELK, in the host's Web Worker when given one. Each level
- * is fitted to the canvas until the user pans (drag, wheel, or the minimap)
- * or zooms (Ctrl or ⌘ + wheel, a pinch, − / +, or the zoom buttons); from
- * then on the camera is theirs, and breaking a node down keeps that node
- * where it was on the canvas, until they fit again (0 or the fit button).
+ * is fitted to the canvas, or, when it's too big to read whole, framed on the
+ * node broken down last, from its name and entries, at a readable size
+ * (`autoCamera`), until the user pans (drag, wheel, or the minimap) or zooms
+ * (Ctrl or ⌘ + wheel, a pinch, − / +, or the zoom buttons); from then on the
+ * camera is theirs, and breaking a node down keeps that node where it was on
+ * the canvas, until they fit again (0 or the fit button: the whole level).
+ * Each trace step frames its hop's two ends (`frameHop`).
  * Text thins out as the camera zooms out (`detailAt`): subtitles, counts,
  * and edge labels first, then everything but service names and the lines
  * between services.
@@ -310,7 +315,15 @@ export function Explorer({
   }, []);
   const size: Size = shown?.layout ?? { width: 0, height: 0 };
   const [handSet, setHandSet] = useState<Camera | null>(null);
-  const camera = handSet ?? fitCamera(size, canvas);
+  // 0 and the fit button show the whole level, until the next drill-down or
+  // close; else the explorer frames the node broken down last when the
+  // level is too big to read whole (M4b.15f).
+  const [overview, setOverview] = useState(false);
+  const camera =
+    handSet ??
+    (overview
+      ? fitCamera(size, canvas)
+      : autoCamera(shown, canvas, lastOpened(drill.expansion, shown)));
   const [cameraMotion, setCameraMotion] = useState<CameraMotion>("layout");
   const live = useRef({ camera, size, canvas });
   live.current = { camera, size, canvas };
@@ -324,6 +337,7 @@ export function Explorer({
   }
   function fitView() {
     setCameraMotion("standard");
+    setOverview(true);
     setHandSet(null);
   }
   const zoomBy = (direction: 1 | -1) =>
@@ -356,17 +370,22 @@ export function Explorer({
   );
 
   /**
-   * A new layout: a fitted camera refits with it; a hand-set one moves so the
-   * node just broken down or closed keeps its corner where it was, gliding
-   * with the boxes.
+   * A new layout: a camera the explorer picks refits or reframes with it
+   * (`autoCamera`; a drill-down or close ends the overview 0 asked for); a
+   * hand-set one moves so the node just broken down or closed keeps its
+   * corner where it was, gliding with the boxes.
    */
   function onLayout(next: Shown) {
     const prev = shown;
     setShown(next);
     setRunsIn(engine.runsIn);
     setCameraMotion("layout");
-    if (!prev || handSet === null) return;
+    if (!prev) return;
     const toggled = toggledBetween(prev.view, next.view)[0];
+    if (handSet === null) {
+      if (toggled !== undefined) setOverview(false);
+      return;
+    }
     const before = prev.layout.boxes.find((b) => b.id === toggled);
     const after = next.layout.boxes.find((b) => b.id === toggled);
     if (before && after) setHandSet((c) => c && holdInPlace(c, before, after));
@@ -425,6 +444,27 @@ export function Explorer({
   );
   /** The box the current hop leaves from, which sets the pulse's direction. */
   const hopStart = current ? drawnAs(index, view, filtered, current.from.id) : undefined;
+
+  // A trace's start and each step frame the current hop's two ends at a
+  // readable size if they aren't both on the canvas at one (`frameHop`,
+  // M4b.15f), once per step, after the first fit and on the drawn layout.
+  // An open frame holding an end is left out: it's the closed boxes that light up.
+  const framedHop = useRef<string | null>(null);
+  useEffect(() => {
+    if (!tracing || !current) {
+      framedHop.current = null;
+      return;
+    }
+    const key = `${traced ?? ""}\n${step}`;
+    if (framedHop.current === key || !settled || shown?.view !== view) return;
+    framedHop.current = key;
+    const ends = [...hopBoxes].filter((id) => !view.byId.get(id)?.open);
+    const rect = boxesRect(shown.layout.boxes, ends);
+    if (!rect) return;
+    const { camera: now, canvas: room } = live.current;
+    const next = frameHop(now, rect, room);
+    if (next !== now) moveCamera(next, "layout");
+  });
 
   // The player: each step stays up for PLAY_STEP_MS, and play stops on the last.
   useEffect(() => {
