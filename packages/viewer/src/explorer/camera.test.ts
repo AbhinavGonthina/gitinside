@@ -110,6 +110,19 @@ describe("camera", () => {
     expect(onCanvas(off, { x: 1350, y: 150 })).toEqual({ x: 500, y: 400 });
   });
 
+  it("shrinks a hop's margins on a short canvas instead of zooming out to the minimum", () => {
+    // 320px tall: the full margins would leave no room at all (M4b.15h review).
+    const short = { width: 1000, height: 320 };
+    const camera = { zoom: 1, x: 0, y: 0 };
+    // Its bottom under the bottom quarter: moved to the center, at the same zoom.
+    const rect = { x: 100, y: 200, width: 300, height: 100 };
+    const c = frameHop(camera, rect, short);
+    expect(c.zoom).toBe(1);
+    expect(onCanvas(c, { x: 250, y: 250 })).toEqual({ x: 500, y: 160 });
+    // Already in the middle half of the short canvas: left alone.
+    expect(frameHop(c, rect, short)).toBe(c);
+  });
+
   it("zooms around a point, keeping the diagram point under it", () => {
     const start = { zoom: 0.8, x: 40, y: -12 };
     const at = { x: 610, y: 333 };

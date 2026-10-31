@@ -92,14 +92,20 @@ export const HOP_MARGIN = { x: 48, y: 160 } as const;
  * takes to show both ends of the hop (`rect`, their bounding box) with
  * `margin` to spare. Unchanged (the same object) when that's the zoom
  * already and both ends are wholly on the canvas; else centered on them.
+ * The margin on each side is at most a quarter of the canvas, so a short
+ * canvas keeps half its room for the hop instead of none (M4b.15h).
  */
 export function frameHop(
   camera: Camera,
   rect: Rect,
   canvas: Size,
-  margin: { x: number; y: number } = HOP_MARGIN,
+  wanted: { x: number; y: number } = HOP_MARGIN,
 ): Camera {
   if (canvas.width <= 0 || canvas.height <= 0) return camera;
+  const margin = {
+    x: Math.min(wanted.x, canvas.width / 4),
+    y: Math.min(wanted.y, canvas.height / 4),
+  };
   const fits = clampZoom(
     Math.min(
       (canvas.width - 2 * margin.x) / Math.max(rect.width, 1),
