@@ -82,7 +82,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 
 ## Website flows
 
-- **Landing:** headline "Git inside your repo.", supporting line, URL field ("Paste a GitHub repo URL"), demo repo gallery, "Sign in for private repos" (from M8).
+- **Landing:** headline "Git inside your repo.", supporting line, URL field ("Paste a GitHub repo URL"), demo repo gallery, "Sign in for private repos" (from M8). The hint under the field says what's supported, size included: "Public repos, no sign-in. TypeScript and JavaScript (React, Next.js, Express, Prisma), up to 20,000 source files and 50 MB of source code." (ADR-0138).
 - **Analyze:** submit, then the progress page with real stages ("Downloading", "Parsing 1,204 files", "Linking 87 calls to routes", "Laying out") and queue position ("2 ahead of you"). Once parsing starts, the time left shows under the bar ("About 40 s left", "About 3 min left"), estimated from the repo's file count and measured times of past analyses (the cal.com benchmark until there are five), updated per step; past the estimate it says "Taking longer than usual", and before parsing there's none (ADR-0136). It shows the error state with direction on failure. As the analyzer finds them, "Found so far" under the stages lists the services by name ("2 services: @shop/api, @shop/web"), the entry points ("12 routes, 3 pages"), the data stores, and the outside services, only what the analyzer itself produced, each row easing in as it arrives (ADR-0135). While it runs, the page says the analysis keeps going if you leave and offers its own link with Copy; reopening the link shows the live progress, or opens the diagram once it's done. A link reopened after its job is forgotten (24 hours) offers "Open the diagram" (the repo page) beside "Analyze again".
 - **Cached:** an instant redirect to the diagram.
 - **README badge:** in the share menu, "Add to README" gives Markdown for the badge or live image (a `<picture>` with one source per theme), with a preview and Copy. Until M4b brings the top bar back, the button sits on the repo bar (ADR-0073).
@@ -90,7 +90,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 ## States
 
 - **Empty repo or no TS/JS:** "We couldn't find a TypeScript or JavaScript app here. GitInside supports React, Next.js, Express, and Prisma in v1."
-- **Over the limit:** "This repo has 31,402 source files, over the 20,000 limit. Try a subfolder: …" with a path input.
+- **Over the limit:** "This repo has 31,402 source files, over the 20,000 limit. Try a subfolder: …" with a path input. Until subfolders are supported, the size limits say what's supported: "This repo has over 50 MB of source code. GitInside analyzes repos up to 20,000 source files and 50 MB of source code. Try a smaller repo." Running out of memory or time adds "A repo with many services can need that much (take that long) even under 50 MB of source code." (ADR-0138).
 - **Private without access:** "This diagram is private. Sign in with a GitHub account that can see this repo."
 - **Rate limited:** "You've analyzed 5 repos this hour. Try again at 14:32, or sign in for a higher limit."
 - **Worker unavailable:** "Analysis is temporarily unavailable. Already-analyzed repos still work."

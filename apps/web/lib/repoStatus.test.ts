@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import shopDemo from "../../../fixtures/shop-demo/expected.json";
+import { NBSP } from "./limits";
 import {
   headStatus,
   LOAD_FAILED_MESSAGE,
@@ -64,7 +65,7 @@ describe("headStatus", () => {
     const failed = { state: "behind", sha: NEWER, reason: "failed" } as const;
     expect(status({ ...failed, errorCode: "LIMIT_FILES" })).toEqual({
       tone: "behind",
-      text: "The latest commit, b1c2d3e, can't be analyzed, so this is an earlier one. This repo has over 20,000 source files, the limit for one analysis.",
+      text: `The latest commit, b1c2d3e, can't be analyzed, so this is an earlier one. This repo has over 20,000 source files. GitInside analyzes repos up to 20,000 source files and 50${NBSP}MB of source code.`,
     });
     expect(status({ ...failed, errorCode: "TAR_UNSAFE_PATH" })).toEqual({
       tone: "behind",

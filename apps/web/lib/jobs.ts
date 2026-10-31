@@ -6,6 +6,7 @@ import {
   type FoundLine,
   type JobStage,
 } from "@gitinside/worker/progress";
+import { SUPPORTED_SIZE, SUPPORTED_SOURCE_FILES, SUPPORTED_SOURCE_SIZE } from "./limits";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import type { WorkerJobStatus } from "./worker";
 
@@ -68,19 +69,25 @@ const NOT_PUBLIC = {
 };
 const SMALLER = "Try a smaller repo.";
 const ON_OUR_SIDE = "The analysis failed on our side. Try again.";
+const SUPPORTED = `GitInside analyzes repos ${SUPPORTED_SIZE}.`;
+const MANY_SERVICES = "A repo with many services can";
+const UNDER_SIZE = `even under ${SUPPORTED_SOURCE_SIZE} of source code.`;
 
 /**
  * Failures that would fail again on the same commit, in UX.md's voice: what happened, then
  * what to do. Anything else (a download that dropped, a worker restart, a crash) is
- * {@link ON_OUR_SIDE} with a retry. The numbers are the limits in docs/SECURITY.md T3.
+ * {@link ON_OUR_SIDE} with a retry. The numbers are the limits in docs/SECURITY.md T3. The
+ * two size limits say the supported size (M5.16c); memory and time are only checked once a
+ * repo is within it, so they say a repo that size can still be too much (cal.com's 113
+ * services took 2.4× VS Code's time per MB, bench/results/2026-10-31-capped-vscode.md).
  */
 const PERMANENT: Readonly<Record<string, { reason: string; advice?: string }>> = {
   LIMIT_FILES: {
-    reason: "This repo has over 20,000 source files, the limit for one analysis.",
+    reason: `This repo has over ${formatCount(SUPPORTED_SOURCE_FILES)} source files. ${SUPPORTED}`,
     advice: SMALLER,
   },
   LIMIT_SOURCE_SIZE: {
-    reason: "This repo has over 50 MB of source code, the limit for one analysis.",
+    reason: `This repo has over ${SUPPORTED_SOURCE_SIZE} of source code. ${SUPPORTED}`,
     advice: SMALLER,
   },
   LIMIT_SIZE: {
@@ -92,11 +99,11 @@ const PERMANENT: Readonly<Record<string, { reason: string; advice?: string }>> =
     advice: SMALLER,
   },
   LIMIT_TIME: {
-    reason: "The analysis took over 5 minutes, the limit for one repo.",
+    reason: `The analysis took over 5 minutes, the limit for one repo. ${MANY_SERVICES} take that long ${UNDER_SIZE}`,
     advice: SMALLER,
   },
   LIMIT_MEMORY: {
-    reason: "The analysis needed more memory than one repo may use.",
+    reason: `The analysis needed more memory than one repo may use. ${MANY_SERVICES} need that much ${UNDER_SIZE}`,
     advice: SMALLER,
   },
   REPO_NOT_FOUND: NOT_PUBLIC,

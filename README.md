@@ -18,6 +18,8 @@ node packages/analyzer/dist/cli.js analyze path/to/repo --out architecture.json
 
 The output is a schema-valid `architecture.json`, the same bytes every time for the same commit. It covers workspace services, modules, files, symbols, imports, calls, Express and Next.js routes, and Prisma models. It also links `fetch`/axios calls to the routes they hit, each with a confidence level (exact, pattern, heuristic). It adds external APIs (from literal hosts and allowlisted SDKs), docker-compose and `.env` datastores (key names and URL hosts only, never values), and BullMQ/Bull/Bee-Queue queues. Anything it can't resolve appears as an `unresolved` node or a warning, never a guess. Optional flags `--owner`, `--name`, and `--sha` record the repo identity.
 
+**Supported size:** repos up to 20,000 source files and 50 MB of source code (the `.ts .tsx .js .jsx .mjs .cjs .prisma` files left after ignored, generated, and over-2 MB files), in the CLI and on the website. A bigger repo fails at once with `LIMIT_FILES` or `LIMIT_SOURCE_SIZE`, before any parsing. Under the website's caps (3 GB of memory, 5 minutes) on a 20-core laptop, cal.com (5,073 files, 18 MB, 113 services) took 38 s and a 59 MB VS Code folder 51 s, while VS Code itself (15,184 files, 201 MB) is refused 0.5 s into the analysis. A repo of many services can still run out of memory or time under 50 MB. [Report](bench/results/2026-10-31-capped-vscode.md), ADR-0137.
+
 To see what a change does to the architecture, diff two commits, folders, or graph files:
 
 ```sh

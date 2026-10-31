@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NBSP } from "../lib/limits";
 import { RepoForm } from "./RepoForm";
 
 const push = vi.fn();
@@ -36,6 +37,10 @@ describe("RepoForm", () => {
     render(<RepoForm />);
     expect(field()).toHaveProperty("placeholder", "Paste a GitHub repo URL");
     expect(hint().textContent).toMatch(/^Public repos, no sign-in\./);
+    // The supported size is said before anyone pastes a repo over it (M5.16c).
+    expect(hint().textContent).toContain(
+      `up to 20,000 source files and 50${NBSP}MB of source code`,
+    );
     expect(hint().getAttribute("aria-live")).toBe("polite");
   });
 

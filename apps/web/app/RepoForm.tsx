@@ -3,6 +3,7 @@
 import { Button } from "@gitinside/viewer";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState, type FormEvent } from "react";
+import { SUPPORTED_SIZE } from "../lib/limits";
 import { parseRepoUrl } from "../lib/repoUrl";
 import { startAnalysis } from "../lib/startAnalysis";
 
@@ -85,7 +86,7 @@ export function RepoForm() {
         {error ??
           (pending
             ? "Checking the latest commit on GitHub…"
-            : "Public repos, no sign-in. TypeScript and JavaScript: React, Next.js, Express, Prisma.")}
+            : `Public repos, no sign-in. TypeScript and JavaScript (React, Next.js, Express, Prisma), ${SUPPORTED_SIZE}.`)}
       </p>
     </form>
   );
