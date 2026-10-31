@@ -1,10 +1,11 @@
 name: Visual baselines
 
-# Captures new visual regression baselines in the same container CI compares
-# in, and uploads them as an artifact. Nothing is committed by the workflow:
-# download the artifact (`gh run download <run> -n visual-baselines -D
-# packages/viewer/visual/baselines`), review the images, and commit them with
-# the reason in the body (docs/TESTING.md).
+# Captures new visual regression baselines in the same containers CI compares
+# in, and uploads them as artifacts. Nothing is committed by the workflow:
+# download an artifact (`gh run download <run> -n visual-baselines -D
+# packages/viewer/visual/baselines`, or `-n web-visual-baselines -D
+# apps/web/e2e/baselines`), review the images, and commit them with the reason
+# in the body (docs/TESTING.md).
 
 on:
   workflow_dispatch:
@@ -34,4 +35,26 @@ jobs:
         with:
           name: visual-baselines
           path: packages/viewer/visual/baselines/
+          if-no-files-found: error
+
+  # The website's key screens (apps/web/e2e/screens.visual.ts), as CI's web-e2e job runs them.
+  capture-web:
+    runs-on: ubuntu-latest
+    container:
+      # Keep in step with @playwright/test in apps/web/package.json.
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@gitinside/web
+      - run: pnpm --filter @gitinside/web e2e --project=visual --update-snapshots=all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-visual-baselines
+          path: apps/web/e2e/baselines/
           if-no-files-found: error

@@ -56,6 +56,7 @@ Coverage is a floor, not a goal. Don't write tests that only touch lines.
 - Baselines live in the repo. A change to a baseline must be intentional and mentioned in the commit body.
 - Every Storybook story is captured in dark and light (`packages/viewer/visual/`, ADR-0053): baselines are `visual/baselines/<story-id>--<theme>.png`, compared by CI's `visual` job in `mcr.microsoft.com/playwright:v<@playwright/test version>-noble`. Run locally (Linux) with `pnpm --filter @gitinside/viewer build-storybook` then `pnpm --filter @gitinside/viewer visual`.
 - To update baselines: run the **Visual baselines** workflow (`gh workflow run visual-baselines.yml`), download its artifact (`gh run download <run> -n visual-baselines -D packages/viewer/visual/baselines`), look at the changed images, and commit them with the reason. Bump the image tag in both workflows whenever `@playwright/test` changes.
+- The website's key screens (landing, the repo page's diagram, a selection, a trace) in dark and light (`apps/web/e2e/screens.visual.ts`, ADR-0133): baselines are `apps/web/e2e/baselines/<screen>--<theme>.png`, compared by CI's `web-e2e` job on the seeded server. The same workflow captures them (artifact `web-visual-baselines`, `-D apps/web/e2e/baselines`).
 - Every UI task also takes light and dark screenshots for the self-critique loop (CLAUDE.md), saved to `docs/milestones/` for review docs.
 
 ## Security tests (see SECURITY.md)
