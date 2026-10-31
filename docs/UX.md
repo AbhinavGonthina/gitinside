@@ -93,6 +93,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 - **Private without access:** "This diagram is private. Sign in with a GitHub account that can see this repo."
 - **Rate limited:** "You've analyzed 5 repos this hour. Try again at 14:32, or sign in for a higher limit."
 - **Worker unavailable:** "Analysis is temporarily unavailable. Already-analyzed repos still work."
+- **Diagram fails to load or parse** (M4b.12b2): the same card as "no app", in the error tone, where the diagram goes: "The diagram didn't load" (the server's words, or "Check your connection and try again") with Try again, or "The saved diagram couldn't be read" (nothing is drawn rather than part of it; the problem is on our side) with no retry. Focus moves to the card.
 
 ## Onboarding
 

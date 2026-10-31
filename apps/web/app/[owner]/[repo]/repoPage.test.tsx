@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import shopDemo from "../../../../../fixtures/shop-demo/expected.json";
 import { UNAVAILABLE_MESSAGE } from "../../../lib/messages";
 import { readmeMarkdown } from "../../../lib/readme";
-import { UNREADABLE_MESSAGE } from "../../../lib/repoStatus";
+import {
+  LOAD_FAILED_MESSAGE,
+  LOAD_FAILED_TITLE,
+  UNREADABLE_MESSAGE,
+  UNREADABLE_TITLE,
+} from "../../../lib/repoStatus";
 import { viewRepo, type RepoView, type RepoViewDeps } from "../../../lib/repoView";
 import { repoViewDepsFromEnv } from "../../../lib/serverDeps";
 import CommitPage, { generateMetadata as commitMetadata } from "./[sha]/page";
@@ -230,25 +235,38 @@ describe("RepoDiagram", () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/acme/shop/jobs/${JOB}`));
   });
 
-  it("puts a failure where the diagram goes, focused, with Try again when it could help", async () => {
+  it("puts a failure on the empty-state card, focused, with Try again when it could help", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ message: "Temporarily unavailable." }), { status: 503 }),
     );
     renderDiagram({ state: "current" });
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe("Temporarily unavailable.");
-    // Focus moves in an effect, which may run just after the alert first appears.
-    await waitFor(() => expect(document.activeElement).toBe(alert));
+    const card = await screen.findByRole("alert");
+    expect(card.classList.contains("gi-empty")).toBe(true);
+    expect(card.getAttribute("data-tone")).toBe("error");
+    expect(within(card).getByRole("heading", { level: 2 }).textContent).toBe(LOAD_FAILED_TITLE);
+    expect(within(card).getByText("Temporarily unavailable.")).toBeTruthy();
+    // Focus moves in an effect, which may run just after the card first appears.
+    await waitFor(() => expect(document.activeElement).toBe(card));
+    // Failing again brings focus to the new card, with the new words.
+    fetchMock.mockResolvedValueOnce(new Response("<html>", { status: 502 }));
+    fireEvent.click(within(card).getByRole("button", { name: "Try again" }));
+    const again = await screen.findByRole("alert");
+    expect(within(again).getByText(LOAD_FAILED_MESSAGE)).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(again));
     fetchMock.mockImplementation(graphResponse);
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    fireEvent.click(within(again).getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("region", { name: "Diagram" })).toBeTruthy();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("refuses a graph that fails the schema, without offering a pointless retry", async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ nodes: [] })));
     renderDiagram({ state: "current" });
-    expect((await screen.findByRole("alert")).textContent).toBe(UNREADABLE_MESSAGE);
+    const card = await screen.findByRole("alert");
+    expect(within(card).getByRole("heading", { level: 2 }).textContent).toBe(UNREADABLE_TITLE);
+    expect(within(card).getByText(UNREADABLE_MESSAGE)).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(card));
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Diagram" })).toBeNull();
   });

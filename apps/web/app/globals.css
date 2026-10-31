@@ -669,7 +669,7 @@ code {
   height: auto;
 }
 
-/* Loading and failure sit where the diagram will be. */
+/* Loading and failure (the viewer's empty-state card) sit where the diagram will be. */
 .diagram-page__state {
   display: flex;
   flex: 1;
@@ -681,13 +681,4 @@ code {
   padding: var(--space-24);
   color: var(--text-muted);
   font-size: var(--font-size-14);
-}
-
-.diagram-page__state .progress__failure {
-  max-width: 56ch;
-  margin: 0;
-}
-
-.diagram-page__state .progress__failure:focus {
-  outline: none;
 }

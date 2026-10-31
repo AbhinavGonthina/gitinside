@@ -90,14 +90,20 @@ export function headStatus(owner: string, repo: string, head: HeadState): HeadSt
   }
 }
 
-/** A loaded graph, or what to tell the visitor and whether trying again could help. */
+/**
+ * A loaded graph, or what to tell the visitor (a heading saying what happened, then why or
+ * what to do) and whether trying again could help.
+ */
 export type GraphLoad =
   | { ok: true; graph: ArchitectureGraph }
-  | { ok: false; message: string; retry: boolean };
+  | { ok: false; title: string; message: string; retry: boolean };
 
+export const LOAD_FAILED_TITLE = "The diagram didn't load";
+export const LOAD_FAILED_MESSAGE =
+  "Something went wrong between your browser and GitInside. Try again.";
+export const UNREADABLE_TITLE = "The saved diagram couldn't be read";
 export const UNREADABLE_MESSAGE =
-  "The saved diagram couldn't be read, so it isn't shown. The problem is on our side, not the repo's.";
-export const LOAD_FAILED_MESSAGE = "The diagram didn't load. Try again.";
+  "It isn't in a shape this page can draw, so nothing is shown rather than part of it. The problem is on our side, not the repo's.";
 
 /** The server's own message from an error body, if it sent one. */
 async function serverMessage(response: Response): Promise<string | undefined> {
@@ -127,13 +133,13 @@ export async function loadGraph(
     response = await doFetch(url, options.signal ? { signal: options.signal } : {});
   } catch (error) {
     if (options.signal?.aborted) throw error;
-    return { ok: false, message: OFFLINE_MESSAGE, retry: true };
+    return { ok: false, title: LOAD_FAILED_TITLE, message: OFFLINE_MESSAGE, retry: true };
   }
   if (!response.ok) {
     const message = await serverMessage(response);
     // 404: the snapshot is gone, so trying again can't help; anything else may pass.
     const retry = response.status !== 404;
-    return { ok: false, message: message ?? LOAD_FAILED_MESSAGE, retry };
+    return { ok: false, title: LOAD_FAILED_TITLE, message: message ?? LOAD_FAILED_MESSAGE, retry };
   }
   let text: string;
   try {
@@ -141,11 +147,11 @@ export async function loadGraph(
   } catch (error) {
     // The connection dropped mid-body: worth another try, unlike a bad graph.
     if (options.signal?.aborted) throw error;
-    return { ok: false, message: LOAD_FAILED_MESSAGE, retry: true };
+    return { ok: false, title: LOAD_FAILED_TITLE, message: LOAD_FAILED_MESSAGE, retry: true };
   }
   try {
     return { ok: true, graph: parseGraph(JSON.parse(text)) };
   } catch {
-    return { ok: false, message: UNREADABLE_MESSAGE, retry: false };
+    return { ok: false, title: UNREADABLE_TITLE, message: UNREADABLE_MESSAGE, retry: false };
   }
 }
