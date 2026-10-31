@@ -118,6 +118,11 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 - **Incremental:** apply the diff of 10 consecutive real commits one at a time and measure re-analysis time vs. a full run. Report the median speedup.
 - **Machines:** the Oracle Always Free VM (production) and Abhinav's dev machine. Each is labeled with CPU, RAM, OS, and Node version.
 
+**Stress and the supported size (M5.16, #10):**
+- **Repo:** microsoft/vscode at a pinned SHA (`bench/repos.json` `stress`), kept as a standing stress test: it is inside every limit before parsing (15,184 of 20,000 source files) but has 201 MiB of source, four times the 50 MB limit.
+- **Measured:** `pnpm bench:stress` (no caps: tarball, unpacked size and entries against the extraction limits, wall clock, final heap, per-stage times) and `pnpm bench:capped <folders>` (the worker's own runner at production's caps, per folder: outcome, time, last step). Rerun both when the analyzer's memory use changes (M6.7) and on the production worker (M5.13), and recalibrate `MAX_SOURCE_MB` from the capped runs.
+- **The supported size** (README, landing page, `LIMIT_*` copy; ADR-0138) is the inventory's two limits, "up to 20,000 source files and 50 MB of source code", with the largest finished runs quoted next to it: cal.com, 5,073 files / 18 MiB in 38 s, and VS Code's `src/vs/workbench/contrib`, 3,523 files / 59 MiB in 51 s, both on the dev laptop ([report](../bench/results/2026-10-31-capped-vscode.md)).
+
 **Rendering (M4b):**
 - A synthetic and a real graph at 500 / 1,000 / 2,000 visible nodes.
 - Playwright drives pan and zoom for 10 s; fps comes from `requestAnimationFrame` deltas (median and p5).

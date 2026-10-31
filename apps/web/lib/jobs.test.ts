@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { MAX_SOURCE_MB } from "@gitinside/analyzer";
 import { describe, expect, it } from "vitest";
+import { NBSP, SUPPORTED_SIZE } from "./limits";
 import {
   MISSING_MESSAGE,
   PROGRESS_STEPS,
@@ -135,13 +136,22 @@ describe("failureView", () => {
     ]) {
       const view = failureView(code);
       expect(view.retry, code).toBe(false);
-      expect(view.message, code).toMatch(/limit|may use/);
+      expect(view.message, code).toMatch(/limit|may use|GitInside analyzes/);
       expect(view.message, code).toMatch(/Try a smaller repo\.$/);
     }
-    expect(failureView("LIMIT_FILES").message).toContain("20,000 source files");
-    expect(failureView("LIMIT_SOURCE_SIZE").message).toBe(
-      `This repo has over ${MAX_SOURCE_MB} MB of source code, the limit for one analysis. Try a smaller repo.`,
+    // The size limits say what is supported, so a repo over one knows about the other (M5.16c).
+    expect(failureView("LIMIT_FILES").message).toBe(
+      `This repo has over 20,000 source files. GitInside analyzes repos ${SUPPORTED_SIZE}. Try a smaller repo.`,
     );
+    expect(failureView("LIMIT_SOURCE_SIZE").message).toBe(
+      `This repo has over ${MAX_SOURCE_MB}${NBSP}MB of source code. GitInside analyzes repos ${SUPPORTED_SIZE}. Try a smaller repo.`,
+    );
+    // Memory and time fail only after both size checks passed: say that's still possible.
+    for (const code of ["LIMIT_TIME", "LIMIT_MEMORY"]) {
+      expect(failureView(code).message, code).toContain(
+        `A repo with many services can ${code === "LIMIT_TIME" ? "take that long" : "need that much"} even under ${MAX_SOURCE_MB}${NBSP}MB of source code.`,
+      );
+    }
     expect(failureView("REPO_NOT_PUBLIC").message).toBe(failureView("REPO_NOT_FOUND").message);
     expect(failureView("REPO_NOT_PUBLIC").message).toContain("Private repos aren't supported yet");
     expect(failureView("TAR_UNSAFE_PATH").retry).toBe(false);
