@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.10. Export SVG / PNG / Mermaid (M5.13 and M5.14b wait on #3)
+M4b.10b. Export from the share menu: SVG / PNG / Mermaid (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -101,7 +101,8 @@ M4b.10. Export SVG / PNG / Mermaid (M5.13 and M5.14b wait on #3)
 - [x] M4b.8b Filters popover from the top bar (layers, kinds, connections incl. imports, confidence, folders, "Hide tests and config" on by default) + active-filter chip with "Clear" + the explorer on `DEFAULT_FILTERS` (selection, trace, search, and reveal of a hidden node); tests, screenshots, baselines {model: opus}
 - [x] M4b.9a Deep-link codec (ADR-0122): `encodeState` / `decodeState` for the drill-down path, selection, trace start and step, and filters (only what differs from the default, readable IDs, every value checked against the graph, what doesn't apply listed in `ignored`); the explorer's `initialTrace`, `initialHiddenKinds`, and `onStateChange`; tests {model: opus}
 - [x] M4b.9b Deep links on the website: the repo page opens from `location.search` (a note when part of the link doesn't apply to this commit) and keeps the URL in step with `history.replaceState`; a share menu with Copy link (explorer top bar and the website's repo bar, next to "Add to README"); tests, screenshots {model: opus}
-- [ ] M4b.10 Export SVG / PNG / Mermaid {model: opus}
+- [x] M4b.10a Export renderers (pure, deterministic, escaped): `renderViewSvg` (the current view from its ELK layout: open frames as containers, closed nodes, routed lines and pills, dark or light, standalone SVG) and `viewMermaid` (a Mermaid `flowchart` of the visible level, open nodes as subgraphs, labels escaped like the diff's); tests {model: opus}
+- [ ] M4b.10b Export from the share menu: SVG (dark/light), PNG (the SVG rasterized at 2×), Mermaid (copy + download) of the view on screen; explorer + website wiring; tests, screenshots, baselines {model: opus}
 - [ ] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
 - [ ] M4b.12 Onboarding hints + empty/error states {model: opus}
 - [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus}
@@ -218,6 +219,8 @@ M4b.10. Export SVG / PNG / Mermaid (M5.13 and M5.14b wait on #3)
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.10a** (ADR-0124): M4b.10 split into the renderers (now) and the share menu's Export with PNG (10b). `export/svg.ts` `renderViewSvg` draws the view at its ELK layout positions (translucent open frames, the README image's closed frames/tiles/lines/pills now exported from `image/diagram.ts` with the service's layer passed in, plus capsule, window, table, and dotted cards), one theme per file; README image bytes unchanged. `export/mermaid.ts` `viewMermaid` writes a `flowchart LR` with open nodes as subgraphs, using the diff's `escapeMermaidLabel` and newly exported `mermaidShape` (viewer now depends on `@gitinside/diff`). 7 tests; two mutation checks turn them red; shop demo rendered in both themes and checked by eye. Lockfile changed, so the eval report was regenerated.
 
 - **2026-10-30 M4b.9b** (ADR-0123): the repo page decodes `location.search` against the loaded graph into the explorer's `initial*` props and writes each `onStateChange` back with `history.replaceState` (path and hash kept, no new history entries). What a link left out is named above the canvas, with Dismiss. New `ShareMenu` (viewer): Share → the link in a read-only field + Copy link (refused copy selects it; Esc stays in the menu); the explorer's top bar draws it (`share` slot, `linkTo`), the website's repo bar has one beside "Add to README", sharing the commit's permalink. 6 menu + 2 explorer + 5 lib + 3 page tests; a mutation removing `replaceState` turns the page test red. Real browser (Storybook and `next start` under the CSP): focus, clipboard, Esc order, reload restoring the view; the panel moved 4px clear of the top bar. Screenshots in `docs/milestones/M4b/share/`. Viewer + web only, no eval delta.
 
