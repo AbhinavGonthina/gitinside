@@ -1,11 +1,12 @@
-import { isAnalyzerStep, type StepProgress } from "./progress.js";
+import { isAnalyzerStep, parseFoundFacts, type FoundFacts, type StepProgress } from "./progress.js";
 
 /**
  * The contract between the worker and the analysis child process (`child.ts`).
  *
  * The parent passes one {@link ChildJob} as JSON in `argv[2]`; the child writes the graph to
  * `job.out` and prints to stdout zero or more progress lines (`{"progress":{"step":…}}`, see
- * {@link progressLine}) followed by exactly one {@link ChildReport} line, the last. This
+ * {@link progressLine}) and found lines (`{"found":{…}}`, {@link foundLine}), followed by
+ * exactly one {@link ChildReport} line, the last. This
  * module has no dependency on the analyzer, so the runner can import it without loading
  * TypeScript.
  */
@@ -92,6 +93,26 @@ export function parseProgressLine(text: string): StepProgress | undefined {
   if (!isAnalyzerStep(step)) return undefined;
   if (count === undefined) return { step };
   return isCount(count) ? { step, count } : undefined;
+}
+
+/** The stdout line (with its newline) the child prints for what the analysis has found. */
+export function foundLine(found: FoundFacts): string {
+  return `${JSON.stringify({ found })}\n`;
+}
+
+/**
+ * Parse a stdout line as what was found, or return `undefined` if it isn't one. Only the
+ * capped shape passes ({@link parseFoundFacts}): the names come from the repo.
+ */
+export function parseFoundLine(text: string): FoundFacts | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!isRecord(value) || Object.keys(value).length !== 1) return undefined;
+  return parseFoundFacts(value.found);
 }
 
 /**

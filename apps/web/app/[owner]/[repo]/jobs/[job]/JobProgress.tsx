@@ -4,6 +4,7 @@ import { Button } from "@gitinside/viewer";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import type { FoundLine } from "@gitinside/worker/progress";
 import { PROGRESS_STEPS, UNAVAILABLE_VIEW, type JobView } from "../../../../../lib/jobs";
 import { repoHref, startAnalysis } from "../../../../../lib/startAnalysis";
 import { COPIED_MS } from "../../AddToReadme";
@@ -88,6 +89,31 @@ function JobLink() {
   );
 }
 
+/**
+ * What the analyzer has found so far (#8): one row per kind of finding, in a fixed order,
+ * each appearing as its stage reports it. Only the analyzer's own findings, never guesses;
+ * nothing at all until the first one.
+ */
+function FoundSoFar({ lines }: { lines: readonly FoundLine[] }) {
+  const titleId = useId();
+  if (lines.length === 0) return null;
+  return (
+    <section className="progress__found" aria-labelledby={titleId}>
+      <h2 className="progress__found-title" id={titleId}>
+        Found so far
+      </h2>
+      <dl className="progress__facts">
+        {lines.map(({ key, label, text }) => (
+          <div className="progress__fact" key={key}>
+            <dt>{label}</dt>
+            <dd>{text}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 const STATES = new Set(["queued", "running", "done", "failed", "missing", "unavailable"]);
 
 /** One `status` event's view, or `undefined` if it isn't one (same origin, but checked anyway). */
@@ -122,8 +148,9 @@ const CHECK = (
  * stages with the worker's own words ("Parsing 1,204 files") and the queue position ("2
  * ahead of you"), and opens the diagram when it's saved. A failure replaces the list with
  * what happened and what to do; if the worker is unreachable the last known progress stays
- * on screen with UX.md's notice while the browser keeps reconnecting. While it runs, the
- * job link can be copied to come back to ({@link JobLink}).
+ * on screen with UX.md's notice while the browser keeps reconnecting. While it runs, what
+ * the analyzer has found shows under the stages ({@link FoundSoFar}), and the job link can
+ * be copied to come back to ({@link JobLink}).
  */
 export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
   const router = useRouter();
@@ -273,6 +300,7 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
           );
         })}
       </ol>
+      <FoundSoFar lines={(live?.state === "running" && live.found) || []} />
       <p className="visually-hidden" role="status">
         {detail}
       </p>

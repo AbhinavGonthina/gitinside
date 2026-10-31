@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { ANALYSIS_STAGES, AnalysisError, analyze } from "@gitinside/analyzer";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runChildJob } from "./child.js";
-import type { StepProgress } from "./progress.js";
+import type { FoundFacts, StepProgress } from "./progress.js";
 
 const FIXTURE = fileURLToPath(new URL("../../../fixtures/no-tsconfig/", import.meta.url));
 
@@ -57,6 +57,25 @@ describe("runChildJob", () => {
     const programs = steps.find(({ step }) => step === "programs");
     expect(programs?.count).toBeGreaterThan(0);
     expect(steps.filter(({ step }) => step === "http").at(-1)).toHaveProperty("count");
+  });
+
+  it("passes what the analyzer found on, capped for storage (#8)", async () => {
+    const found: FoundFacts[] = [];
+    const names = Array.from({ length: 12 }, (_, i) => `svc-${String(i).padStart(2, "0")}`);
+    await runChildJob(
+      { src: FIXTURE, out: join(dir, "g.json"), owner: "a", name: "b" },
+      {
+        analyze: async (src, options) => {
+          options?.onFound?.({ services: names });
+          options?.onFound?.({ services: names, routes: 2 });
+          return analyze(src);
+        },
+      },
+      undefined,
+      (facts) => found.push(facts),
+    );
+    const services = { count: 12, names: names.slice(0, 8) };
+    expect(found).toEqual([{ services }, { services, routes: 2 }]);
   });
 
   it("passes the SHA to the analyzer only when given", async () => {

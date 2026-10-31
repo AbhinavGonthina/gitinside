@@ -173,6 +173,42 @@ describe("processJob analyzer steps", () => {
       { event: "progress_failed", id: ID, step: "programs", message: "still down" },
     ]);
   });
+
+  const findingRun: JobDeps["run"] = async (job, options) => {
+    options.onFound?.({ services: { count: 1, names: ["app"] } });
+    options.onFound?.({ services: { count: 1, names: ["app"] }, routes: 2 });
+    return fakeRun(job);
+  };
+
+  it("hands what was found to onFound in order, asking only when someone listens", async () => {
+    await processJob({ id: ID, request: REQUEST }, deps());
+    expect(fakeRun.mock.calls[0]?.[1]).not.toHaveProperty("onFound");
+    const found: unknown[] = [];
+    await processJob(
+      { id: ID, request: REQUEST, onFound: (facts) => void found.push(facts) },
+      deps({ run: findingRun }),
+    );
+    expect(found).toEqual([
+      { services: { count: 1, names: ["app"] } },
+      { services: { count: 1, names: ["app"] }, routes: 2 },
+    ]);
+  });
+
+  it("logs a failing found update by its keys (never the repo's names)", async () => {
+    const log = vi.fn();
+    const outcome = await processJob(
+      { id: ID, request: REQUEST, onFound: () => Promise.reject(new Error("redis down")) },
+      deps({ run: findingRun, log }),
+    );
+    expect(outcome.stats).toEqual(STATS);
+    await vi.waitFor(() => expect(log).toHaveBeenCalledTimes(2));
+    expect(log.mock.calls[1]?.[0]).toEqual({
+      event: "progress_failed",
+      id: ID,
+      found: ["services", "routes"],
+      message: "redis down",
+    });
+  });
 });
 
 describe("processJob downloads", () => {

@@ -99,6 +99,14 @@ describe("handleJobEvents", () => {
       running({ stage: "download", progress: 0 }),
       running({ stage: "analyze", progress: 34, step: "programs", count: 1204 }),
       running({ stage: "analyze", progress: 34, step: "programs", count: 1204 }),
+      // Something found is a change of its own, even on the same step (#8).
+      running({
+        stage: "analyze",
+        progress: 34,
+        step: "programs",
+        count: 1204,
+        found: { routes: 2 },
+      }),
       done,
     ]);
     const response = handleJobEvents(ID, new AbortController().signal, deps, FAST);
@@ -112,11 +120,18 @@ describe("handleJobEvents", () => {
     expect(views).toEqual([
       { state: "queued", step: "queue", progress: 0, text: "1 ahead of you", position: 1 },
       { state: "queued", step: "queue", progress: 0, text: "You're next", position: 0 },
-      { state: "running", step: "download", progress: 0, text: "Downloading" },
-      { state: "running", step: "analyze", progress: 34, text: "Parsing 1,204 files" },
+      { state: "running", step: "download", progress: 0, text: "Downloading", found: [] },
+      { state: "running", step: "analyze", progress: 34, text: "Parsing 1,204 files", found: [] },
+      {
+        state: "running",
+        step: "analyze",
+        progress: 34,
+        text: "Parsing 1,204 files",
+        found: [{ key: "routes", label: "Entry points", text: "2 routes" }],
+      },
       { state: "done" },
     ]);
-    expect(calls).toHaveLength(7);
+    expect(calls).toHaveLength(8);
   });
 
   it("a failure and a missing job are final too", async () => {

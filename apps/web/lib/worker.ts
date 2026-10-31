@@ -2,7 +2,9 @@ import { signRequest } from "@gitinside/worker/hmac";
 import {
   STAGE_PROGRESS,
   isAnalyzerStep,
+  parseFoundFacts,
   type AnalyzerStep,
+  type FoundFacts,
   type JobStage,
 } from "@gitinside/worker/progress";
 
@@ -50,6 +52,8 @@ export interface WorkerJobStatus {
   progress?: number;
   step?: AnalyzerStep;
   count?: number;
+  /** What the analysis has found so far (#8); names come from the repo, checked for shape. */
+  found?: FoundFacts;
   position?: number;
   errorCode?: string;
 }
@@ -75,10 +79,8 @@ const isCount = (value: unknown): value is number =>
  */
 export function parseJobStatus(value: unknown): WorkerJobStatus | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const { id, kind, state, stage, progress, step, count, position, errorCode } = value as Record<
-    string,
-    unknown
-  >;
+  const { id, kind, state, stage, progress, step, count, found, position, errorCode } =
+    value as Record<string, unknown>;
   if (typeof id !== "string" || !JOB_ID.test(id)) return undefined;
   if (kind !== "analyze" && kind !== "diff") return undefined;
   if (typeof state !== "string" || !STATES.has(state)) return undefined;
@@ -88,6 +90,8 @@ export function parseJobStatus(value: unknown): WorkerJobStatus | undefined {
   if (progress !== undefined && !(isCount(progress) && progress <= 100)) return undefined;
   if (step !== undefined && !isAnalyzerStep(step)) return undefined;
   if (count !== undefined && !isCount(count)) return undefined;
+  const facts = found === undefined ? undefined : parseFoundFacts(found);
+  if (found !== undefined && facts === undefined) return undefined;
   if (position !== undefined && !isCount(position)) return undefined;
   if (errorCode !== undefined && !(typeof errorCode === "string" && CODE.test(errorCode))) {
     return undefined;
@@ -100,6 +104,7 @@ export function parseJobStatus(value: unknown): WorkerJobStatus | undefined {
     ...(progress === undefined ? {} : { progress }),
     ...(step === undefined ? {} : { step }),
     ...(count === undefined ? {} : { count }),
+    ...(facts === undefined ? {} : { found: facts }),
     ...(position === undefined ? {} : { position }),
     ...(errorCode === undefined ? {} : { errorCode }),
   };

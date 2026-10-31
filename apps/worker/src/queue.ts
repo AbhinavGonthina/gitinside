@@ -19,8 +19,10 @@ import { processJob, type JobDeps, type JobOutcome } from "./job.js";
 import {
   STAGE_PROGRESS,
   isAnalyzerStep,
+  parseFoundFacts,
   stepProgress,
   type AnalyzerStep,
+  type FoundFacts,
   type JobStage,
   type StepProgress,
 } from "./progress.js";
@@ -63,14 +65,15 @@ export const JOB_OPTIONS: JobsOptions = {
 };
 
 /**
- * What a job stores as its BullMQ progress: the stage, and while analyzing, the analyzer's
- * latest step and its count.
+ * What a job stores as its BullMQ progress: the stage, while analyzing the analyzer's latest
+ * step and its count, and from the first finding on, what the attempt has found (#8).
  */
 export interface StoredProgress {
   stage: JobStage;
   progress: number;
   step?: AnalyzerStep;
   count?: number;
+  found?: FoundFacts;
 }
 
 /** The progress stored when an analyzer step starts (or its count becomes known). */
@@ -88,24 +91,33 @@ const isCount = (value: unknown): value is number =>
 
 function isStoredProgress(value: unknown): value is StoredProgress {
   if (typeof value !== "object" || value === null) return false;
-  const { stage, progress, step, count } = value as Record<string, unknown>;
+  const { stage, progress, step, count, found } = value as Record<string, unknown>;
   return (
     typeof stage === "string" &&
     Object.hasOwn(STAGE_PROGRESS, stage) &&
     isCount(progress) &&
     progress <= 100 &&
     (step === undefined || (stage === "analyze" && isAnalyzerStep(step))) &&
-    (count === undefined || (step !== undefined && isCount(count)))
+    (count === undefined || (step !== undefined && isCount(count))) &&
+    (found === undefined || parseFoundFacts(found) !== undefined)
   );
 }
 
 /** The status fields of stored progress, and nothing else stored with it. */
-function runningFields({ stage, progress, step, count }: StoredProgress): Partial<JobStatus> {
+function runningFields({
+  stage,
+  progress,
+  step,
+  count,
+  found,
+}: StoredProgress): Partial<JobStatus> {
+  const facts = found === undefined ? undefined : parseFoundFacts(found);
   return {
     stage,
     progress,
     ...(step === undefined ? {} : { step }),
     ...(count === undefined ? {} : { count }),
+    ...(facts === undefined ? {} : { found: facts }),
   };
 }
 
@@ -324,6 +336,14 @@ export function createProcessor(
     void token;
     const id = job.id ?? "";
     const attempt = job.attemptsMade + 1;
+    // What this attempt has found stays in every later update, the upload stage's too; a
+    // retry starts over, so nothing from an earlier attempt shows.
+    let latest: StoredProgress = { stage: "download", progress: STAGE_PROGRESS.download };
+    let found: FoundFacts | undefined;
+    const store = (progress: StoredProgress) => {
+      latest = progress;
+      return job.updateProgress(found === undefined ? progress : { ...progress, found });
+    };
     let failure: JobFailure;
     try {
       const request = parseJobRequest(job.data);
@@ -332,8 +352,12 @@ export function createProcessor(
           id,
           request,
           ...(signal === undefined ? {} : { signal }),
-          onStage: (stage) => job.updateProgress({ stage, progress: STAGE_PROGRESS[stage] }),
-          onStep: (step) => job.updateProgress(progressForStep(step)),
+          onStage: (stage) => store({ stage, progress: STAGE_PROGRESS[stage] }),
+          onStep: (step) => store(progressForStep(step)),
+          onFound: (facts) => {
+            found = facts;
+            return store(latest);
+          },
           lastAttempt: attempt >= (job.opts.attempts ?? 1),
         },
         jobDeps,

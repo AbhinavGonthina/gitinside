@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyRequest } from "./hmac.js";
+import type { FoundFacts } from "./progress.js";
 
 /**
  * The enqueue API: the only port the worker VM exposes, behind Caddy TLS (docs/DESIGN.md §11,
@@ -51,6 +52,8 @@ export interface JobStatus {
   step?: string;
   /** With `step`, when known: source files being parsed (`programs`), requests being linked (`http`). */
   count?: number;
+  /** While running, once the analyzer has found something: what it found so far (#8). */
+  found?: FoundFacts;
   /** Jobs ahead of this one while queued (0 = next). */
   position?: number;
   /** Set when `failed`: `LIMIT_TIME`, `TAR_INVALID`, … */

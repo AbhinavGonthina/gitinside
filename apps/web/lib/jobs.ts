@@ -1,4 +1,10 @@
-import { describeProgress, formatCount, type JobStage } from "@gitinside/worker/progress";
+import {
+  describeFound,
+  describeProgress,
+  formatCount,
+  type FoundLine,
+  type JobStage,
+} from "@gitinside/worker/progress";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import type { WorkerJobStatus } from "./worker";
 
@@ -24,8 +30,12 @@ export const PROGRESS_STEPS: readonly { step: ProgressStep; label: string }[] = 
 export type JobView =
   /** Waiting for a worker slot. `text`: "2 ahead of you", "You're next", "Waiting in the queue". */
   | { state: "queued"; step: "queue"; progress: 0; text: string; position?: number }
-  /** Running `step`; `text` is the worker's current words ("Parsing 1,204 files"). */
-  | { state: "running"; step: JobStage; progress: number; text: string }
+  /**
+   * Running `step`; `text` is the worker's current words ("Parsing 1,204 files"), `found`
+   * what the analyzer has found so far (#8), empty until it finds something. {@link jobView}
+   * always sets it; a page still open from before #8 gets views without it.
+   */
+  | { state: "running"; step: JobStage; progress: number; text: string; found?: FoundLine[] }
   /** The diagram is saved: the page opens it. */
   | { state: "done" }
   /** It failed: `message` says what happened and what to do; `retry` if trying again could help. */
@@ -136,6 +146,7 @@ export function jobView(status: WorkerJobStatus | undefined): JobView {
         step: stage,
         progress: status.progress ?? 0,
         text: describeProgress(stage, status.step, status.count),
+        found: status.found === undefined ? [] : describeFound(status.found),
       };
     }
     case "done":

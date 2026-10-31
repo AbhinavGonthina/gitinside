@@ -10,6 +10,7 @@ import {
   ANALYZER_VERSION,
   analyze,
   detectorFailure,
+  type AnalysisFindings,
   type AnalysisProgress,
 } from "./analyze.js";
 import { guardedChecker } from "./calls.js";
@@ -185,6 +186,49 @@ describe("analyze", () => {
       { stage: "queues" },
       { stage: "assemble" },
     ]);
+    expect(stringifyGraph(reported)).toBe(stringifyGraph(await analyze(dir, { name: "x" })));
+  });
+
+  it("reports what each stage found, adding to what earlier stages found", async () => {
+    const shop = fileURLToPath(new URL("../../../fixtures/shop-demo", import.meta.url));
+    const found: AnalysisFindings[] = [];
+    const events: string[] = [];
+    await analyze(shop, {
+      onProgress: ({ stage }) => events.push(stage),
+      onFound: (event) => {
+        found.push(event);
+        events.push(`found after ${events.at(-1) ?? ""}`);
+      },
+    });
+    const services = ["@shop/api", "@shop/web"];
+    expect(found).toEqual([
+      { services },
+      { services, routes: 2 },
+      { services, routes: 2, pages: 3 },
+      { services, routes: 2, pages: 3, stores: ["db"] },
+      { services, routes: 2, pages: 3, stores: ["db"], externals: [] },
+      { services, routes: 2, pages: 3, stores: ["db"], externals: ["api.stripe.com"] },
+      { services, routes: 2, pages: 3, stores: ["db"], externals: ["api.stripe.com"] },
+    ]);
+    // Each report follows its stage, before the next stage starts.
+    expect(events.filter((e) => e.startsWith("found"))).toEqual(
+      ["workspace", "express", "next", "infra", "http", "sdk", "queues"].map(
+        (stage) => `found after ${stage}`,
+      ),
+    );
+  });
+
+  it("reports a stage that looked and found nothing as 0 or [], without changing the graph", async () => {
+    await writeFile(join(dir, "a.ts"), "export const get = () => fetch('/api/a');");
+    const found: AnalysisFindings[] = [];
+    const reported = await analyze(dir, { name: "x", onFound: (event) => found.push(event) });
+    expect(found.at(-1)).toEqual({
+      services: ["app"],
+      routes: 0,
+      pages: 0,
+      stores: [],
+      externals: [],
+    });
     expect(stringifyGraph(reported)).toBe(stringifyGraph(await analyze(dir, { name: "x" })));
   });
 
