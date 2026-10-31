@@ -182,8 +182,10 @@ export {
   elkGraph,
   LAYOUT_PAD,
   layoutInput,
+  MODEL_ORDER_LIMIT,
   readLayout,
   runLayout,
+  THOROUGHNESS_LIMIT,
 } from "./layout/elk.js";
 export type {
   LayoutEdge,
