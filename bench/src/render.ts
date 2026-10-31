@@ -125,6 +125,66 @@ async function drive(page: Page, seconds: number): Promise<void> {
   if (current === 2) await page.mouse.up();
 }
 
+/** Leaf boxes (not open frames) in the DOM: what culling left drawn. */
+const leafBoxes = (page: Page): Promise<number> =>
+  page.evaluate(() => document.querySelectorAll(".gi-drill__node:not([data-open])").length);
+
+/** Wait for the camera move to render (and culling to catch up). */
+const settled = (page: Page): Promise<void> =>
+  page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 60))),
+  );
+
+/**
+ * Put the camera where the level is busiest, at the lowest zoom: the most
+ * boxes on screen, the heaviest view to pan. A big level is fitted at no
+ * less than 40% and centered, which on a sparse layout (cal.com's) can be
+ * empty canvas with a few long lines, so drawing nothing would be measured.
+ * Zooms out to the minimum around the center, then scans the level a canvas
+ * at a time from its top-left (the farthest a pan goes) and goes back to the
+ * spot with the most leaf boxes drawn. Returns that count.
+ */
+async function settle(page: Page): Promise<number> {
+  const box = await page.locator(".gi-explorer__canvas").boundingBox();
+  if (!box) throw new Error("no canvas");
+  const { width, height } = box;
+  await page.mouse.move(box.x + width / 2, box.y + height / 2);
+  await page.keyboard.down("Control");
+  // Each 500px of wheel halves the zoom; eight reach the floor from any fit.
+  for (let i = 0; i < 8; i++) await page.mouse.wheel(0, 500);
+  await page.keyboard.up("Control");
+  await settled(page);
+  const size = await page.evaluate(() => {
+    const stage = document.querySelector<HTMLElement>(".gi-drill__stage");
+    return {
+      width: parseFloat(stage?.style.width ?? "0"),
+      height: parseFloat(stage?.style.height ?? "0"),
+    };
+  });
+  // At 25% the level spans size / 4 canvas px; from the top-left stop it's a canvas further.
+  const cols = Math.ceil((size.width / 4 + width) / width);
+  const rows = Math.ceil((size.height / 4 + height) / height);
+  const topLeft = async () => {
+    await page.mouse.wheel(-1e7, -1e7);
+    await settled(page);
+  };
+  let best = { row: 0, col: 0, boxes: -1 };
+  for (let row = 0; row < rows; row++) {
+    await topLeft();
+    if (row > 0) await page.mouse.wheel(0, row * height);
+    for (let col = 0; col < cols; col++) {
+      if (col > 0) await page.mouse.wheel(width, 0);
+      await settled(page);
+      const boxes = await leafBoxes(page);
+      if (boxes > best.boxes) best = { row, col, boxes };
+    }
+  }
+  await topLeft();
+  await page.mouse.wheel(best.col * width, best.row * height);
+  await settled(page);
+  return leafBoxes(page);
+}
+
 /** One case: open it, wait for the first layout, sample idle, then pan and zoom. */
 async function measure(
   page: Page,
@@ -141,8 +201,10 @@ async function measure(
     return { layoutMs: LAYOUT_LIMIT_MS, frames: null };
   }
   const layoutMs = performance.now() - opened;
-  // The first fit and the edges' fade-in finish before anything is measured.
+  // The first fit and the edges' fade-in finish before anything is moved.
   await pause(1500);
+  const busiest = await settle(page);
+  await pause(1000);
   await record(page);
   await pause(IDLE_SECONDS * 1000);
   const idle = await stop(page);
@@ -152,6 +214,7 @@ async function measure(
   return {
     layoutMs,
     frames: {
+      start: busiest,
       drawn: { min: Math.min(...moving.boxes), max: Math.max(...moving.boxes) },
       idle: frameStats(idle.frames),
       moving: frameStats(moving.frames),
@@ -162,6 +225,8 @@ async function measure(
 async function main(): Promise<void> {
   const label = flag("label", "dev machine");
   const seconds = Number(flag("seconds", "10"));
+  // Before anything is written: this run's own report mustn't count as a local change.
+  const gitinsideSha = gitinsideCommit();
   if (!existsSync(join(PAGE, "index.html")))
     throw new Error("build the page first (pnpm bench:render)");
   const [repo] = await benchRepos();
@@ -199,8 +264,10 @@ async function main(): Promise<void> {
   const browser = await chromium.launch({ headless: true });
   const browserName = `Chromium ${browser.version()} (headless)`;
   const runs: RenderRun[] = [];
+  // --only <text> runs just the cases whose ID contains it, and writes no report.
+  const only = flag("only", "");
   try {
-    for (const c of cases) {
+    for (const c of cases.filter((c) => c.id.includes(only))) {
       const context = await browser.newContext({ viewport: VIEWPORT, colorScheme: "dark" });
       const page = await context.newPage();
       const pageErrors: string[] = [];
@@ -220,6 +287,7 @@ async function main(): Promise<void> {
       process.stderr.write(
         run.frames
           ? `${c.id}: ${run.nodes} nodes, layout ${Math.round(run.layoutMs)} ms, ` +
+              `${run.frames.start} boxes at the start, ` +
               `${run.frames.moving.medianFps.toFixed(1)} fps median, ` +
               `${run.frames.moving.p5Fps.toFixed(1)} p5\n`
           : `${c.id}: ${run.nodes} nodes, first layout not done after ${run.layoutMs} ms\n`,
@@ -230,11 +298,12 @@ async function main(): Promise<void> {
     await browser.close();
     server.close();
   }
+  if (only !== "") return;
 
   const date = today();
   const meta: RenderMeta = {
     date,
-    gitinsideSha: gitinsideCommit(),
+    gitinsideSha,
     machine: machine(label),
     browser: browserName,
     viewport: VIEWPORT,

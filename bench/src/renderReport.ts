@@ -6,6 +6,8 @@ export const TARGET_FPS = 60;
 
 /** What the page's frames measured once the first layout was drawn. */
 export interface FrameRun {
+  /** Leaf boxes drawn where the run started: the busiest spot at the lowest zoom. */
+  start: number;
   /** Fewest and most boxes in the DOM while panning and zooming (culling draws fewer). */
   drawn: { min: number; max: number };
   /** The page left alone for the idle sample: the display's own frame rate. */
@@ -86,10 +88,10 @@ function verdicts(runs: readonly RenderRun[]): string[] {
 function row(r: RenderRun): string {
   const head = `| ${r.graph} | ${int(r.target)} | ${int(r.nodes)} | ${int(r.lines)} |`;
   if (!r.frames) {
-    return `${head} – | not done after ${minutes(r.layoutMs)} | – | – | – | – | – |`;
+    return `${head} – | – | not done after ${minutes(r.layoutMs)} | – | – | – | – | – |`;
   }
-  const { drawn, idle, moving } = r.frames;
-  return `${head} ${int(drawn.min)}–${int(drawn.max)} | ${int(r.layoutMs)} ms | ${fps(idle.medianFps)} | ${fps(moving.medianFps)} | ${fps(moving.p5Fps)} | ${int(moving.longFrames)} of ${int(moving.frames)} | ${int(moving.worstMs)} ms |`;
+  const { start, drawn, idle, moving } = r.frames;
+  return `${head} ${int(start)} | ${int(drawn.min)}–${int(drawn.max)} | ${int(r.layoutMs)} ms | ${fps(idle.medianFps)} | ${fps(moving.medianFps)} | ${fps(moving.p5Fps)} | ${int(moving.longFrames)} of ${int(moving.frames)} | ${int(moving.worstMs)} ms |`;
 }
 
 /** Render the committed Markdown report. Numbers are printed exactly as measured. */
@@ -100,7 +102,7 @@ export function renderRenderReport(meta: RenderMeta, runs: readonly RenderRun[])
     "",
     `- **GitInside:** \`${meta.gitinsideSha}\``,
     `- **Graphs:** a synthetic graph (10 services broken down into routes or pages, \`bench/src/renderGraphs.ts\`) and ${meta.real.name} (${meta.real.url} at \`${meta.real.sha}\`), each opened to the level closest to 500, 1,000, and 2,000 visible nodes without passing it, under the explorer's default filters.`,
-    `- **Method:** the explorer in a production build (\`bench/render/\`), ${meta.browser}, ${meta.viewport.width}×${meta.viewport.height}, dark theme. After the first layout, ${meta.idleSeconds} s left idle, then ${meta.seconds} s of Playwright panning and zooming (wheel pan, Ctrl+wheel zoom in, a drag, Ctrl+wheel zoom out, wheel pan back). fps comes from \`requestAnimationFrame\` timestamps: the median, and p5 (the 95th-percentile frame time) (EVALUATION.md §2).`,
+    `- **Method:** the explorer in a production build (\`bench/render/\`), ${meta.browser}, ${meta.viewport.width}×${meta.viewport.height}, dark theme. After the first layout, the camera is zoomed out to the minimum (25%) and moved to the spot with the most boxes drawn (a scan, a canvas at a time), then ${meta.idleSeconds} s left idle, then ${meta.seconds} s of Playwright panning and zooming (wheel pan, Ctrl+wheel zoom in, a drag, Ctrl+wheel zoom out, wheel pan back). fps comes from \`requestAnimationFrame\` timestamps: the median, and p5 (the 95th-percentile frame time) (EVALUATION.md §2).`,
     `- **Machine:** ${m.label}: ${m.cpu} (${m.cores} logical cores), ${m.ramGiB} GiB RAM, ${m.os}, Node ${m.node}`,
     "",
     "## Result",
@@ -111,8 +113,8 @@ export function renderRenderReport(meta: RenderMeta, runs: readonly RenderRun[])
     "",
     "## Runs",
     "",
-    "| Graph | Target | Visible nodes | Lines | Boxes in the DOM | First layout | Idle fps | Median fps | p5 fps | Frames over 50 ms | Worst frame |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| Graph | Target | Visible nodes | Lines | Boxes on screen at the start | Boxes in the DOM | First layout | Idle fps | Median fps | p5 fps | Frames over 50 ms | Worst frame |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ...runs.map(row),
     "",
     "Raw numbers are in the JSON file next to this report.",

@@ -24,6 +24,7 @@ const run = (graph: string, target: number, medianFps: number): RenderRun => ({
   lines: 1234,
   layoutMs: 4321.4,
   frames: {
+    start: 412,
     drawn: { min: 180, max: 1993 },
     idle: stats(60),
     moving: stats(medianFps, medianFps / 2),
@@ -83,7 +84,7 @@ describe("renderRenderReport", () => {
 
   it("lists every run with its numbers", () => {
     expect(report).toContain(
-      "| synthetic | 500 | 493 | 1,234 | 180–1,993 | 4,321 ms | 60.0 | 60.0 | 30.0 | 3 of 600 | 120 ms |",
+      "| synthetic | 500 | 493 | 1,234 | 412 | 180–1,993 | 4,321 ms | 60.0 | 60.0 | 30.0 | 3 of 600 | 120 ms |",
     );
     expect(report.match(/^\| (synthetic|calcom) \|/gm)).toHaveLength(4);
   });
@@ -102,7 +103,7 @@ describe("renderRenderReport", () => {
       "- **calcom, 1,997 visible nodes:** **not measured**: the first layout didn't finish within 10 min, so there was nothing to pan.",
     );
     expect(stuck).toContain(
-      "| calcom | 2,000 | 1,997 | 4,000 | – | not done after 10 min | – | – | – | – | – |",
+      "| calcom | 2,000 | 1,997 | 4,000 | – | – | not done after 10 min | – | – | – | – | – |",
     );
   });
 });
