@@ -14,6 +14,7 @@
     "typecheck": "turbo run typecheck",
     "coverage": "turbo run coverage",
     "bench": "turbo run build && pnpm --filter @gitinside/bench run bench",
+    "bench:render": "turbo run build && pnpm --filter @gitinside/bench run bench:render",
     "eval": "turbo run build && pnpm --filter @gitinside/eval run eval"
   },
   "devDependencies": {

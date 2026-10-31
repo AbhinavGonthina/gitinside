@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.13b. `bench/render`: fps at 500 / 1,000 / 2,000 visible nodes (M5.13 and M5.14b wait on #3)
+M4b.13b1. `bench/render`: fps at 500 / 1,000 / 2,000 visible nodes (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -108,7 +108,8 @@ M4b.13b. `bench/render`: fps at 500 / 1,000 / 2,000 visible nodes (M5.13 and M5.
 - [x] M4b.12b1 Empty state + warnings in the explorer: a graph with no TS/JS app gets one card with UX.md's copy (no canvas, search, filters, or trace; what was skipped listed), the analysis's warnings in the repo overview (grouped under plain titles, file + the analyzer's message, "Show all") and a warnings chip on the canvas moving focus to them (ADR-0070); tests, stories, screenshots, baselines {model: opus}
 - [x] M4b.12b2 The website's graph that fails to load or parse on the same card (`EmptyState`, error tone, Try again when retryable, focus on it); tests, screenshots {model: opus}
 - [x] M4b.13a Viewport culling in `DrillCanvas` (above a size threshold: only boxes, lines, and pills near the camera's view are drawn, the window snapped to tiles; the selection, the trace start, the focused box, an arrow key's target, and gliding boxes always drawn) + boxes, lines, and pills memoized so a camera move doesn't re-render them; tests {model: opus}
-- [ ] M4b.13b `bench/render`: a synthetic and a real graph at 500 / 1,000 / 2,000 visible nodes, Playwright pans and zooms for 10 s, fps from `requestAnimationFrame` deltas (median, p5), `bench/results/` report; fix what keeps 2,000 under 60fps {model: opus}
+- [ ] M4b.13b1 `bench/render`: a synthetic and a real graph (cal.com) at 500 / 1,000 / 2,000 visible nodes, Playwright pans and zooms for 10 s, fps from `requestAnimationFrame` deltas (median, p5), `bench/results/` report; tests {model: opus}
+- [ ] M4b.13b2 Fix what keeps 2,000 visible nodes under 60fps median in M4b.13b1's report (profile, fix, re-run the bench, commit the new report) {model: opus}
 - [ ] M4b.14 Playwright E2E + visual tests {model: opus}
 - [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
 

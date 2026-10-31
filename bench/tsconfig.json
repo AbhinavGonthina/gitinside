@@ -3,6 +3,8 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
+    // render.ts passes functions to the browser (Playwright's page.evaluate).
+    "lib": ["ES2022", "DOM"],
     "types": ["node"]
   },
   "include": ["src"]
