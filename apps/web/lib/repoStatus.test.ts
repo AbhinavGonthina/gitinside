@@ -3,9 +3,11 @@ import shopDemo from "../../../fixtures/shop-demo/expected.json";
 import {
   headStatus,
   LOAD_FAILED_MESSAGE,
+  LOAD_FAILED_TITLE,
   loadGraph,
   short,
   UNREADABLE_MESSAGE,
+  UNREADABLE_TITLE,
 } from "./repoStatus";
 import { OFFLINE_MESSAGE } from "./startAnalysis";
 
@@ -110,6 +112,7 @@ describe("loadGraph", () => {
     const doFetch = vi.fn<typeof fetch>(() => Promise.reject(new TypeError("Failed to fetch")));
     expect(await loadGraph(URL, { fetch: doFetch })).toEqual({
       ok: false,
+      title: LOAD_FAILED_TITLE,
       message: OFFLINE_MESSAGE,
       retry: true,
     });
@@ -119,16 +122,16 @@ describe("loadGraph", () => {
     const body = (message: string) => JSON.stringify({ error: "X", message });
     expect(
       await loadGraph(URL, { fetch: respond(new Response(body("No diagram."), { status: 404 })) }),
-    ).toEqual({ ok: false, message: "No diagram.", retry: false });
+    ).toEqual({ ok: false, title: LOAD_FAILED_TITLE, message: "No diagram.", retry: false });
     expect(
       await loadGraph(URL, { fetch: respond(new Response(body("Down."), { status: 503 })) }),
-    ).toEqual({ ok: false, message: "Down.", retry: true });
+    ).toEqual({ ok: false, title: LOAD_FAILED_TITLE, message: "Down.", retry: true });
   });
 
   it("falls back to its own words when an error body has none", async () => {
     for (const body of ["<html>", "{}", '{"message":""}', "null"]) {
       expect(await loadGraph(URL, { fetch: respond(new Response(body, { status: 502 })) })).toEqual(
-        { ok: false, message: LOAD_FAILED_MESSAGE, retry: true },
+        { ok: false, title: LOAD_FAILED_TITLE, message: LOAD_FAILED_MESSAGE, retry: true },
       );
     }
   });
@@ -137,9 +140,20 @@ describe("loadGraph", () => {
     for (const body of ["{not json", "{}", JSON.stringify({ ...shopDemo, nodes: "x" })]) {
       expect(await loadGraph(URL, { fetch: respond(new Response(body)) })).toEqual({
         ok: false,
+        title: UNREADABLE_TITLE,
         message: UNREADABLE_MESSAGE,
         retry: false,
       });
+    }
+  });
+
+  it("never repeats its heading as the words under it", () => {
+    for (const [title, message] of [
+      [LOAD_FAILED_TITLE, LOAD_FAILED_MESSAGE],
+      [LOAD_FAILED_TITLE, OFFLINE_MESSAGE],
+      [UNREADABLE_TITLE, UNREADABLE_MESSAGE],
+    ] as const) {
+      expect(message.toLowerCase()).not.toContain(title.toLowerCase());
     }
   });
 
@@ -148,6 +162,7 @@ describe("loadGraph", () => {
     vi.spyOn(broken, "text").mockRejectedValue(new TypeError("network error"));
     expect(await loadGraph(URL, { fetch: respond(broken) })).toEqual({
       ok: false,
+      title: LOAD_FAILED_TITLE,
       message: LOAD_FAILED_MESSAGE,
       retry: true,
     });

@@ -6,6 +6,7 @@ import {
   Button,
   createGitHubSourceLoader,
   decodeState,
+  EmptyState,
   encodeState,
   Explorer,
   IconButton,
@@ -63,12 +64,17 @@ const onboarding = browserOnboarding();
  * have is named in a note above the diagram. Copy link gives the commit's permalink with
  * the state. Export (M4b.10b) saves the view the explorer has drawn (its `exportRef`) as
  * SVG, PNG, or Mermaid, made in the browser.
+ *
+ * A graph that fails to load or parse (M4b.12b2) gets the explorer's empty-state card in the
+ * error tone where the diagram goes: what happened, why or what to do, and Try again only when
+ * another attempt could help. Focus moves to the card, so a keyboard or screen-reader user
+ * lands on it.
  */
 export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramProps) {
   const [load, setLoad] = useState<GraphLoad | undefined>(undefined);
   // Bumped by "Try again".
   const [attempt, setAttempt] = useState(0);
-  const failure = useRef<HTMLParagraphElement>(null);
+  const failure = useRef<HTMLDivElement>(null);
   // The view on screen, kept by the explorer, for the share menu's Export.
   const exportRef = useRef<ViewExport | undefined>(undefined);
   const status = headStatus(owner, repo, head);
@@ -184,14 +190,22 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
           )
         ) : (
           <div className="diagram-page__state">
-            <p className="progress__failure" role="alert" tabIndex={-1} ref={failure}>
-              {load.message}
-            </p>
-            {load.retry && (
-              <Button variant="primary" onClick={() => setAttempt((n) => n + 1)}>
-                Try again
-              </Button>
-            )}
+            <EmptyState
+              ref={failure}
+              title={load.title}
+              tone="error"
+              role="alert"
+              tabIndex={-1}
+              actions={
+                load.retry ? (
+                  <Button variant="primary" onClick={() => setAttempt((n) => n + 1)}>
+                    Try again
+                  </Button>
+                ) : undefined
+              }
+            >
+              <p>{load.message}</p>
+            </EmptyState>
           </div>
         )}
       </div>
