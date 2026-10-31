@@ -217,8 +217,14 @@ describe("recordJobProgress", () => {
     const id = await running();
     const clock = sql`select (extract(epoch from clock_timestamp()) * 1000)::float8 as ms`;
     const read = async () => {
-      const result = (await t.db.execute(clock)) as unknown as { rows: { ms: number }[] };
-      return Number(result.rows[0]?.ms);
+      // postgres.js (CI's real Postgres) answers an array of rows, PGlite `{ rows }`.
+      const result: unknown = await t.db.execute(clock);
+      const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as {
+        ms: number | string;
+      }[];
+      const ms = Number(rows[0]?.ms);
+      expect(ms).toBeGreaterThan(0);
+      return ms;
     };
     const before = await read();
     await recordJobProgress(t.db, jobOf("1"), PARSING);
