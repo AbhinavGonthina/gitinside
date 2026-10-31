@@ -211,6 +211,20 @@ describe("the request path's rules", () => {
     expect(short.cutOff).toEqual([]);
   });
 
+  it(`doesn't call a node ${TRACE_DEPTH} hops out cut off when its hops lead back onto the path`, () => {
+    const chain = Array.from({ length: TRACE_DEPTH + 1 }, (_, k) => fn(`f${k}`));
+    const edges = chain.slice(1).map((n, k) => edge(chain[k] as GraphNode, n, "calls", k + 1));
+    // The last node calls back to the start and to its neighbour: nothing new past it.
+    const last = chain[TRACE_DEPTH] as GraphNode;
+    const back = [
+      edge(last, chain[0] as GraphNode),
+      edge(last, chain[TRACE_DEPTH - 1] as GraphNode),
+    ];
+    const trace = traceFrom(indexOf(chain, [...edges, ...back]), "symbol:a/x.ts#f0");
+    expect(trace.steps).toHaveLength(TRACE_DEPTH);
+    expect(trace.cutOff).toEqual([]);
+  });
+
   it("follows a 5,000-call chain without overflowing the stack", () => {
     const hub = fn("hub");
     const leaves = Array.from({ length: 5000 }, (_, k) => fn(`g${k}`));

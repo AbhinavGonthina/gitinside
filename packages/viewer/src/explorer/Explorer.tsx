@@ -254,13 +254,15 @@ export function Explorer({
     if (linked && canTraceFrom(index, linked)) return linked.id;
     return fallbackStart !== undefined && initialStep !== null ? fallbackStart : null;
   });
-  const [step, setStep] = useState<number | null>(traced === null ? null : (initialStep ?? 0));
+  const [stepAsked, setStep] = useState<number | null>(traced === null ? null : (initialStep ?? 0));
   // A new graph without the traced node ends the trace rather than throwing.
   const path = useMemo(
     () => (traced && index.byId.has(traced) ? traceFrom(index, traced) : undefined),
     [index, traced],
   );
   const steps = path?.steps ?? [];
+  // A new graph with a shorter path keeps the trace on its last step.
+  const step = stepAsked === null ? null : Math.max(0, Math.min(stepAsked, steps.length - 1));
   const [playing, setPlaying] = useState(false);
   // The picker T and the Trace button open when there's nothing to trace yet.
   const choices = useMemo(() => traceChoices(index), [index]);
@@ -593,12 +595,15 @@ export function Explorer({
   /**
    * Takes off the filters that hide a node (`filtersShowing`), so it's drawn
    * again; the chip and the Filters count show what's left. Says so.
+   * Returns the filters it's shown under.
    */
-  function showNode(id: string) {
-    if (!filtered.has(id)) return;
+  function showNode(id: string): Filters {
+    if (!filtered.has(id)) return filters;
     refocus.current = true;
-    setFilters(filtersShowing(index, filters, id));
+    const next = filtersShowing(index, filters, id);
+    setFilters(next);
     setAnnouncement(`Changed the filters to show ${nodeOf(index, id).label}`);
+    return next;
   }
 
   /** Clear: shows everything the filters hide. Connection kinds hidden by default stay as they are. */
@@ -845,9 +850,9 @@ export function Explorer({
    * hide it, drill until it's a box, and select it (UX.md).
    */
   function reveal(id: string) {
-    showNode(id);
+    const shownUnder = showNode(id);
     flyTo.current = id;
-    drill.reveal(id);
+    drill.reveal(id, shownUnder);
     select(id);
   }
 
