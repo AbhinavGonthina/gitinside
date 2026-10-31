@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { failureView, type JobView } from "../../../../../lib/jobs";
-import { JobProgress } from "./JobProgress";
+import { COPIED_MS, JOB_LINK_COPIED, JOB_LINK_COPY_FAILED, JobProgress } from "./JobProgress";
 
 const push = vi.fn();
 const replace = vi.fn();
@@ -78,7 +78,8 @@ describe("JobProgress", () => {
     show();
     latest().send({ state: "queued", step: "queue", progress: 0, text: "2 ahead of you" });
     expect(steps()[0]).toEqual(["current", "In the queue2 ahead of you"]);
-    expect(screen.getByRole("status").textContent).toBe("2 ahead of you");
+    // The job link's copy status is a second live region; this is the steps' one.
+    expect(screen.getAllByRole("status")[0]?.textContent).toBe("2 ahead of you");
   });
 
   it("marks the stages walked, the current one with the worker's words, the rest ahead", () => {
@@ -183,6 +184,79 @@ describe("JobProgress", () => {
     latest().send(JSON.stringify({ state: "exploded" }));
     latest().send(JSON.stringify(null));
     expect(steps()[0]).toEqual(["current", "In the queueChecking the queue"]);
+  });
+
+  it("says the analysis keeps running if you leave, with the job link to reopen (#8)", () => {
+    show();
+    expect(screen.getByText(/keeps running if you leave/).textContent).toBe(
+      "The analysis keeps running if you leave. Reopen this link any time: it shows the progress, or opens the diagram once it's ready.",
+    );
+    const link = screen.getByRole("textbox", { name: "Job link" }) as HTMLInputElement;
+    expect(link.readOnly).toBe(true);
+    expect(link.value).toBe(`${window.location.origin}/acme/shop/jobs/${JOB}`);
+  });
+
+  it("the job link leaves out the query and hash", () => {
+    window.history.replaceState(null, "", `/acme/shop/jobs/${JOB}?utm=x#top`);
+    show();
+    const link = screen.getByRole("textbox", { name: "Job link" }) as HTMLInputElement;
+    expect(link.value).toBe(`${window.location.origin}/acme/shop/jobs/${JOB}`);
+  });
+
+  it("Copy link copies the job link, says so, and goes back after a moment", async () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    show();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Copy link" })));
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/acme/shop/jobs/${JOB}`);
+    expect(screen.getByRole("button", { name: "Copied" })).toBeTruthy();
+    expect(screen.getByText(JOB_LINK_COPIED).getAttribute("role")).toBe("status");
+    await act(() => vi.advanceTimersByTimeAsync(COPIED_MS));
+    expect(screen.getByRole("button", { name: "Copy link" })).toBeTruthy();
+    expect(screen.queryByText(JOB_LINK_COPIED)).toBeNull();
+  });
+
+  it("a refused copy selects the link and says to copy it by hand", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockRejectedValue(new Error("no"));
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    show();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Copy link" })));
+    expect(screen.getByText(JOB_LINK_COPY_FAILED).getAttribute("role")).toBe("status");
+    const link = screen.getByRole("textbox", { name: "Job link" }) as HTMLInputElement;
+    expect(document.activeElement).toBe(link);
+    expect([link.selectionStart, link.selectionEnd]).toEqual([0, link.value.length]);
+    expect(screen.getByRole("button", { name: "Copy link" })).toBeTruthy();
+  });
+
+  it("keeps the job link on screen while the worker is unreachable", () => {
+    show();
+    latest().send({ state: "unavailable", message: "Analysis is temporarily unavailable." });
+    expect(screen.getByRole("textbox", { name: "Job link" })).toBeTruthy();
+  });
+
+  it("drops the job link once the analysis has failed: there's nothing to come back to", () => {
+    show();
+    latest().send(failureView("LIMIT_FILES"));
+    expect(screen.queryByRole("textbox", { name: "Job link" })).toBeNull();
+    expect(screen.queryByText(/keeps running/)).toBeNull();
+  });
+
+  it("a link reopened after the job is gone offers the repo's diagram (#8)", () => {
+    show();
+    latest().send({ state: "missing", message: "We couldn't find this analysis." });
+    expect(screen.getByRole("link", { name: "Open the diagram" }).getAttribute("href")).toBe(
+      "/acme/shop",
+    );
+  });
+
+  it("a failed analysis doesn't offer a diagram it never made", () => {
+    show();
+    latest().send(failureView("LIMIT_FILES"));
+    expect(screen.queryByRole("link", { name: "Open the diagram" })).toBeNull();
   });
 
   it("closes the stream when the page goes away", () => {
