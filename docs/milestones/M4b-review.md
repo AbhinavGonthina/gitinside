@@ -141,16 +141,15 @@ Every check was run again on the fixed code, without Turbo's cache.
 | # | Severity | Finding | Outcome |
 |---|---|---|---|
 | R1 | Medium | `frameHop` keeps 160px above and below the hop, so on a canvas 320px tall or less there's no room left and every trace step zooms out to 25%. | Fixed in M4b.15h (`cecc479`): each margin is at most a quarter of the canvas. The regression test failed first (zoom 0.25). |
-| R2 | Low | The sticky step header can cover a focused step when Shift+Tab scrolls the inspector (no `scroll-padding-top`; WCAG 2.4.11). | M4b.16 |
-| R3 | Low | The clamped trace step isn't stored, so a graph that shortens the path and then lengthens it again goes back to the old step. | M4b.16 |
-| R4 | Low | The deep-link note's text is both in the live region and visible, so browse mode reads it twice. | M4b.16 |
-| R5 | Low | Add to README doesn't reset "Copied" when the bar closes it. | M4b.16 |
+| R2 | Low | The sticky step header can cover a focused step when Shift+Tab scrolls the inspector (no `scroll-padding-top`; WCAG 2.4.11). | Fixed in M4b.16: the inspector's `scroll-padding-top` is the header's measured height + 8px. In Chromium, Shift+Tab up the inspector left the code preview 112px under the header before and 0px after (dark and light). |
+| R3 | Low | The clamped trace step isn't stored, so a graph that shortens the path and then lengthens it again goes back to the old step. | Fixed in M4b.16: the clamped step is stored during render. The regression test failed first. |
+| R4 | Low | The deep-link note's text is both in the live region and visible, so browse mode reads it twice. | Fixed in M4b.16: the visible copy is `aria-hidden`; the live region is the one screen readers get. Test failed with the fix removed. |
+| R5 | Low | Add to README doesn't reset "Copied" when the bar closes it. | Fixed in M4b.16: closing it any way resets the copy state. Test failed with the fix removed. |
 | R6 | Low | Stale docs: ADR-0129 said a glide culls to its destination, and this doc still listed readability as open. | Fixed in M4b.15h (ADR-0129 in `cecc479`, this doc). |
 
 ## What's still weak
 
 - **Readability on real repos** is better but not solved. M4b.15f frames a drill-down at 80% and each trace hop's two ends, but a hop between far-apart boxes still zooms out until names are small (48% on taxonomy), and a big service shows only its first entries at a readable size.
-- **Four low findings from the re-check, queued as M4b.16:** the sticky step header can cover a focused step when the inspector scrolls (WCAG 2.4.11); a clamped trace step isn't stored, so a graph that grows again jumps back to the old step; the deep-link note is read twice in browse mode; Add to README doesn't reset "Copied" when the bar closes it.
 - **A 2,000-box first layout takes about 9 s** on cal.com, and the layout at that size is huge (about 77,000 × 122,000 px). Measured on one machine.
 - **Chromium only** in E2E, visual tests, and the benchmark.
 - **A failed code load can be retried more often than needed** (M4b.14a saw five requests for one blocked file).
