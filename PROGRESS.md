@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.11. Keyboard navigation + screen-reader announcements (M5.13 and M5.14b wait on #3)
+M4b.12. Onboarding hints + empty/error states (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -103,7 +103,7 @@ M4b.11. Keyboard navigation + screen-reader announcements (M5.13 and M5.14b wait
 - [x] M4b.9b Deep links on the website: the repo page opens from `location.search` (a note when part of the link doesn't apply to this commit) and keeps the URL in step with `history.replaceState`; a share menu with Copy link (explorer top bar and the website's repo bar, next to "Add to README"); tests, screenshots {model: opus}
 - [x] M4b.10a Export renderers (pure, deterministic, escaped): `renderViewSvg` (the current view from its ELK layout: open frames as containers, closed nodes, routed lines and pills, dark or light, standalone SVG) and `viewMermaid` (a Mermaid `flowchart` of the visible level, open nodes as subgraphs, labels escaped like the diff's); tests {model: opus}
 - [x] M4b.10b Export from the share menu: SVG (dark/light), PNG (the SVG rasterized at 2×), Mermaid (copy + download) of the view on screen; explorer + website wiring; tests, screenshots, baselines {model: opus}
-- [ ] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
+- [x] M4b.11 Keyboard navigation + screen-reader announcements (incl. a real role/state pattern for canvas nodes, M4a review) {model: opus}
 - [ ] M4b.12 Onboarding hints + empty/error states {model: opus}
 - [ ] M4b.13 Viewport culling + bench/render fps at 2,000 nodes {model: opus}
 - [ ] M4b.14 Playwright E2E + visual tests {model: opus}
@@ -219,6 +219,8 @@ M4b.11. Keyboard navigation + screen-reader announcements (M5.13 and M5.14b wait
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.11** Keyboard + screen readers (ADR-0126): the canvas's boxes are a WAI-ARIA tree (`treeitem` with level, set position, `aria-expanded`, `aria-selected`; the name no longer says "Selected"), arrows move to the nearest box that way (`nearestBox`), keyboard focus brings its box into view (clicks don't move the camera; `overflow: clip` so nothing scrolls), and a selection is announced with what it calls and what calls it. The browser run found a too-big frame centered with its name off-screen: `ensureVisible` now shows a box's top-left part that fits. Not tried with a real screen reader, Firefox, or Safari.
 
 - **2026-10-31 M4b.10b** (ADR-0125): the share menu's "Export this view": SVG and PNG with a Dark/Light choice (starting from the screen's theme), Mermaid saved as `.mmd` or copied, all made in the browser from the view as drawn (`viewExport` over `Shown`). PNG = the SVG as a `blob:` image on a canvas at 2× (smaller only past canvas limits, and it says so). The website's repo-bar menu reads the explorer's new `exportRef`. 7 file + 9 menu + 2 explorer + 1 page tests; mutations (theme ignored, page's `exportRef` dropped) turn them red. Chromium run in both themes: real downloads (SVG 2108×408, PNG 4216×816, `.mmd`), clipboard, Esc back to Share; the first look wrapped "Copy Mermaid" alone, so Mermaid got its own row. New story Explorer/Share + a visual check that open popovers fit the page. Screenshots in `docs/milestones/M4b/export/`. Viewer + web only, no eval delta.
 
