@@ -3,6 +3,7 @@ import type { ArchitectureGraph, EdgeKind, GraphNode } from "@gitinside/schema";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Button, StatusChip } from "../chrome/controls.js";
 import type { RepoRef } from "../chrome/describe.js";
+import { EmptyState, WarningList } from "../chrome/EmptyState.js";
 import { FiltersPopover } from "../chrome/FiltersPopover.js";
 import { ShareMenu } from "../chrome/ShareMenu.js";
 import { viewExport, type ViewExport } from "../export/files.js";
@@ -38,6 +39,7 @@ import {
   type ViewEdge,
   type ViewNode,
 } from "../model/view.js";
+import { hasSourceFiles, warningCount } from "../model/warnings.js";
 import { usePresence } from "../motion.js";
 import { nodeLabel } from "../nodes/describe.js";
 import { durations } from "../tokens.js";
@@ -61,7 +63,7 @@ import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./Dril
 import { useDrill, type Expansion } from "./drill.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { hintSteps, OnboardingHint, type HintStep, type OnboardingStore } from "./onboarding.js";
-import { NodePanel, TracePanel } from "./panels.js";
+import { NodePanel, TracePanel, WARNINGS_SECTION } from "./panels.js";
 import { traceChoices, TracePicker } from "./picker.js";
 import { SearchPalette, searchEntries } from "./search.js";
 import { useSourceAccess, type SourceLoader } from "./sources.js";
@@ -208,6 +210,7 @@ export function Explorer({
   layoutWorker,
 }: ExplorerProps) {
   const index = useMemo(() => buildHierarchy(graph), [graph]);
+  const hasApp = useMemo(() => hasSourceFiles(graph), [graph]);
   const sourceAccess = useSourceAccess(sources, loadSource);
   const engine = useMemo(() => createLayoutEngine({ worker: layoutWorker }), [layoutWorker]);
   useEffect(() => () => engine.dispose(), [engine]);
@@ -513,6 +516,28 @@ export function Explorer({
       hintDone("select");
     } else if (selected) setAnnouncement("Selection cleared");
   }
+
+  // The warnings chip (M4b.12b): the repo overview, which lists them, with
+  // focus on its warnings once it's drawn.
+  const toWarnings = useRef(false);
+  const focusWarnings = () =>
+    rootRef.current
+      ?.querySelector<HTMLElement>(`.gi-inspector [data-section="${WARNINGS_SECTION}"]`)
+      ?.focus();
+  function showWarnings() {
+    // The overview is already up: nothing re-renders, so focus it now.
+    if (selected === null) {
+      focusWarnings();
+      return;
+    }
+    toWarnings.current = true;
+    select(null);
+  }
+  useEffect(() => {
+    if (!toWarnings.current) return;
+    toWarnings.current = false;
+    focusWarnings();
+  });
 
   /**
    * A box focused from the keyboard (Tab, an arrow key, focus put back after
@@ -893,6 +918,35 @@ export function Explorer({
       />
     );
 
+  // No TypeScript or JavaScript app (UX.md "States"): one card where the
+  // diagram would be, with what was skipped and why, instead of an empty
+  // service box with nothing to search, filter, or trace.
+  if (!hasApp) {
+    return (
+      <div ref={rootRef} className="gi-explorer" data-bare={topBar ? undefined : ""} data-empty="">
+        {topBar && <TopBar repo={repo} actions={false} />}
+        <div className="gi-explorer__main">
+          <div className="gi-explorer__canvas" role="region" aria-label="Diagram">
+            <EmptyState title="We couldn't find a TypeScript or JavaScript app here">
+              <p>GitInside supports React, Next.js, Express, and Prisma in v1.</p>
+              {graph.warnings.length > 0 && (
+                <section className="gi-empty__section" aria-label="Warnings">
+                  <h3>
+                    What the analysis skipped
+                    <span className="gi-count">
+                      {graph.warnings.length.toLocaleString("en-US")}
+                    </span>
+                  </h3>
+                  <WarningList warnings={graph.warnings} />
+                </section>
+              )}
+            </EmptyState>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={rootRef}
@@ -1016,6 +1070,14 @@ export function Explorer({
             data-place="bottom-left"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Not while tracing: the inspector is the trace's then. */}
+            {graph.warnings.length > 0 && !tracing && (
+              <StatusChip className="gi-explorer__warnings">
+                <button type="button" className="gi-status__open" onClick={showWarnings}>
+                  {warningCount(graph.warnings.length)}
+                </button>
+              </StatusChip>
+            )}
             <Breadcrumbs items={crumbs} onSelect={goTo} />
           </div>
           <div
@@ -1088,6 +1150,7 @@ export function Explorer({
             onTrace={startTrace}
             filteredOut={selectedNode !== undefined && filtered.has(selectedNode.id)}
             onShow={showNode}
+            warnings={graph.warnings}
           />
         )}
       </div>

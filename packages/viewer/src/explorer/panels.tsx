@@ -1,6 +1,8 @@
-import type { GraphNode } from "@gitinside/schema";
+import type { AnalysisWarning, GraphNode } from "@gitinside/schema";
+import { useId } from "react";
 import { Button, Kbd, LinkButton } from "../chrome/controls.js";
 import { githubLineUrl, type RepoRef } from "../chrome/describe.js";
+import { WarningList } from "../chrome/EmptyState.js";
 import {
   CodePreview,
   ConnectionList,
@@ -163,9 +165,14 @@ export interface NodePanelProps {
   filteredOut?: boolean | undefined;
   /** Takes off the filters hiding the node (**Show on canvas**). */
   onShow?: ((id: string) => void) | undefined;
+  /** The analysis's warnings, listed in the repo overview (M4b.12b). */
+  warnings?: readonly AnalysisWarning[] | undefined;
 }
 
-/** The inspector for a selected node, or the repo overview for the root. */
+/** The overview's warnings section, which the canvas's warnings chip moves focus to. */
+export const WARNINGS_SECTION = "warnings";
+
+/** The inspector for a selected node, or the repo overview (with the analysis's warnings) for the root. */
 export function NodePanel({
   index,
   node,
@@ -180,12 +187,14 @@ export function NodePanel({
   onTrace,
   filteredOut = false,
   onShow,
+  warnings = [],
 }: NodePanelProps) {
   const { incoming, outgoing } = connectionsOf(index, node.id);
   const source = "source" in node ? node.source : undefined;
   const github = source ? githubLineUrl(repo, source.file, source.line) : undefined;
   const facts = factsOf(index, node);
   const isRoot = node.id === index.root.id;
+  const warningsId = useId();
   const connection = (c: NodeConnection) => ({
     node: c.other,
     layer: layerOf(index, c.other.id),
@@ -221,7 +230,27 @@ export function NodePanel({
             )}
           </p>
         </InspectorSection>
-      ) : (
+      ) : null}
+      {isRoot && warnings.length > 0 && (
+        // Focusable from the chip, so a screen reader lands on its heading.
+        <section
+          className="gi-inspector__section"
+          data-section={WARNINGS_SECTION}
+          tabIndex={-1}
+          aria-labelledby={warningsId}
+        >
+          <h3 id={warningsId}>
+            Warnings
+            <span className="gi-count">{warnings.length.toLocaleString("en-US")}</span>
+          </h3>
+          <p className="gi-inspector__empty">
+            What the analysis skipped or couldn&apos;t read, and why. The diagram leaves these out
+            rather than guess.
+          </p>
+          <WarningList warnings={warnings} />
+        </section>
+      )}
+      {isRoot ? null : (
         <>
           {facts.length > 0 && (
             <InspectorSection title="Facts">
