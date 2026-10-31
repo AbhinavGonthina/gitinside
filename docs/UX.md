@@ -71,6 +71,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 - **Encoded in the URL:** repo, SHA, expansion path, selection, trace start and step, diff base, filters. For example: `/acme/shop/a1b2c3f?open=api,api/routes&sel=route:api/POST%20/api/orders&trace=page:web//checkout`.
 - **Copy link** in the top bar's share menu.
 - Encoding done in M4b.9a (ADR-0122): only what differs from the default is written (`open`, `sel`, `trace`, `step` 1-based, `hideLayers`, `hideKinds`, `hideConfidence`, `hideLines`, `only`, `hideFolders`, `tests=shown`). A link's node, step, or filter value that this commit doesn't have is left out and listed, so the page can say so.
+- On the website in M4b.9b (ADR-0123): the repo page opens from its query and keeps it in step as you explore (`history.replaceState`, so Back still leaves the page). A link that doesn't fully apply says so above the diagram ("Part of this link doesn't apply to commit a1b2c3d, so it was left out: …"), with Dismiss. Share (the explorer's top bar, or the repo bar next to "Add to README") shows the link with **Copy link**; the link is the commit's permalink, so it keeps opening the same diagram after newer commits.
 
 ## Export
 

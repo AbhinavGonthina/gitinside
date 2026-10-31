@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { Button, Kbd, SegmentedControl, type Segment } from "./controls.js";
 import { shortSha, type RepoRef } from "./describe.js";
 import { LogoMark, UiIcon } from "./uiIcons.js";
@@ -30,6 +30,8 @@ export interface TopBarProps extends Omit<HTMLAttributes<HTMLElement>, "children
   filtersOpen?: boolean | undefined;
   onFilters?: (() => void) | undefined;
   onShare?: (() => void) | undefined;
+  /** Drawn in place of the Share button, e.g. a `ShareMenu` with its own button. */
+  share?: ReactNode;
   /** A trace is running: the trace button becomes "Exit trace". */
   tracing?: boolean;
   onTrace?: (() => void) | undefined;
@@ -52,6 +54,7 @@ export function TopBar({
   filtersOpen,
   onFilters,
   onShare,
+  share,
   tracing = false,
   onTrace,
   className,
@@ -108,9 +111,11 @@ export function TopBar({
           Filters
           {filterCount > 0 && <span className="gi-count">{filterCount}</span>}
         </Button>
-        <Button variant="quiet" icon="share" onClick={onShare}>
-          Share
-        </Button>
+        {share ?? (
+          <Button variant="quiet" icon="share" onClick={onShare}>
+            Share
+          </Button>
+        )}
         <Button
           variant={tracing ? "secondary" : "primary"}
           icon={tracing ? "close" : "trace"}

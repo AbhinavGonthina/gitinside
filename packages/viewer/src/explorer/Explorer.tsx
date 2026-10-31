@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { Button, StatusChip } from "../chrome/controls.js";
 import type { RepoRef } from "../chrome/describe.js";
 import { FiltersPopover } from "../chrome/FiltersPopover.js";
+import { ShareMenu } from "../chrome/ShareMenu.js";
 import { Breadcrumbs, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
 import { TopBar } from "../chrome/TopBar.js";
 import {
@@ -53,7 +54,7 @@ import {
   type Camera,
   type Size,
 } from "./camera.js";
-import { encodeState, type ExplorerState } from "./deepLink.js";
+import { encodeState, withState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
@@ -116,13 +117,25 @@ export interface ExplorerProps {
    */
   onStateChange?: ((state: ExplorerState) => void) | undefined;
   /**
+   * The link the top bar's share menu copies, from the current state's query
+   * (`encodeState`, empty at the default state). Default: this page's URL
+   * with that query.
+   */
+  linkTo?: ((query: string) => string) | undefined;
+  /**
    * Draw the explorer's own top bar (default). The website turns it off and shows its own
-   * repo bar; Ctrl+K still searches, and a Filters button or the filters chip on the canvas
-   * opens the filters. Share does nothing until a later M4b task.
+   * repo bar (with its own share menu); Ctrl+K still searches, and a Filters button or the
+   * filters chip on the canvas opens the filters.
    */
   topBar?: boolean;
   /** Makes the layout worker (see `LayoutWorkerFactory`). Without one, layouts run on the main thread. */
   layoutWorker?: LayoutWorkerFactory | undefined;
+}
+
+/** This page's URL with a state's query (the default `linkTo`). */
+function pageLink(query: string): string {
+  if (typeof window === "undefined") return withState("", query);
+  return withState(`${window.location.origin}${window.location.pathname}`, query);
 }
 
 /** The node opened last that's still open on the canvas: the end of the breadcrumb trail. */
@@ -172,6 +185,7 @@ export function Explorer({
   initialFilters = DEFAULT_FILTERS,
   initialHiddenKinds,
   onStateChange,
+  linkTo = pageLink,
   topBar = true,
   layoutWorker,
 }: ExplorerProps) {
@@ -786,6 +800,7 @@ export function Explorer({
           filterCount={filterCount}
           filtersOpen={filtering}
           onFilters={() => toggleFilters("top")}
+          share={<ShareMenu link={() => linkTo(linkKey)} />}
           tracing={tracing}
           onTrace={toggleTrace}
         />

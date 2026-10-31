@@ -778,6 +778,70 @@ a.gi-button {
   overflow-wrap: anywhere;
 }
 
+/*
+ * The share menu (M4b.9b): a popover under its button, right-aligned so it
+ * stays on screen from the end of a bar. Above the canvas (and its
+ * overlays) that follows the bar in the page.
+ */
+.gi-share-menu {
+  position: relative;
+  flex: none;
+}
+
+.gi-share {
+  position: absolute;
+  z-index: 20;
+  /* Clear of the top bar's bottom edge (the button sits 10px above it). */
+  top: calc(100% + var(--space-12));
+  right: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  width: 340px;
+  text-align: left;
+}
+
+.gi-share__text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  line-height: 1.45;
+}
+
+.gi-share__link {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  text-overflow: ellipsis;
+}
+
+.gi-share__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-top: var(--space-4);
+}
+
+.gi-share__status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  line-height: 1.4;
+}
+
+.gi-share__copy {
+  flex: none;
+}
+
 /* Two columns keep the legend short enough to open over a laptop-height canvas. */
 .gi-legend {
   width: 700px;

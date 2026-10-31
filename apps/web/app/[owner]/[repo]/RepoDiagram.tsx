@@ -1,8 +1,22 @@
 "use client";
 
-import { Button, createGitHubSourceLoader, Explorer, UiIcon } from "@gitinside/viewer";
+import {
+  buildHierarchy,
+  Button,
+  createGitHubSourceLoader,
+  decodeState,
+  encodeState,
+  Explorer,
+  IconButton,
+  ShareMenu,
+  UiIcon,
+  withState,
+  type DecodedState,
+  type ExplorerState,
+} from "@gitinside/viewer";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ignoredNote, shareUrl } from "../../../lib/deepLink";
 import { headStatus, loadGraph, short, type GraphLoad } from "../../../lib/repoStatus";
 import type { HeadState } from "../../../lib/repoView";
 import { AddToReadme } from "./AddToReadme";
@@ -33,10 +47,16 @@ const layoutWorker = () =>
 /**
  * The diagram page (ADR-0069): a repo bar (name, commit, how it relates to the latest
  * commit), then the diagram. The graph is fetched in the browser from `/api/graph`, so the
- * page itself stays small and the CDN caches the graph per commit. "Add to README" lives on
- * the repo bar, since the explorer's share menu is hidden with its top bar. The diagram is the
+ * page itself stays small and the CDN caches the graph per commit. "Add to README" and the
+ * share menu live on the repo bar, since the explorer's top bar is hidden. The diagram is the
  * M4b explorer without its top bar, laid out in a Web Worker (the explorer falls back to the
  * main thread if the worker can't start).
+ *
+ * Deep links (M4b.9b, ADR-0123): the explorer opens from the page's query (`decodeState`
+ * against the loaded graph), and each change it reports replaces the query in place
+ * (`history.replaceState`, no new history entry). What part of a link this commit doesn't
+ * have is named in a note above the diagram. Copy link gives the commit's permalink with
+ * the state.
  */
 export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramProps) {
   const [load, setLoad] = useState<GraphLoad | undefined>(undefined);
@@ -51,9 +71,28 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
     [owner, repo, sha],
   );
 
+  // The page's link, read once per loaded graph: the explorer's initial props take it.
+  const linked = useMemo<DecodedState | undefined>(
+    () => (load?.ok ? decodeState(window.location.search, buildHierarchy(load.graph)) : undefined),
+    [load],
+  );
+  // The state's query since the explorer last reported, for Copy link.
+  const [query, setQuery] = useState<string>();
+  const linkQuery = query ?? (linked ? encodeState(linked.state) : "");
+  const [dismissed, setDismissed] = useState<DecodedState>();
+  const note = linked && linked !== dismissed ? ignoredNote(linked.ignored, sha) : undefined;
+
+  const onStateChange = (state: ExplorerState) => {
+    const next = encodeState(state);
+    setQuery(next);
+    const { pathname, hash } = window.location;
+    window.history.replaceState(window.history.state, "", withState(pathname, next) + hash);
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     setLoad(undefined);
+    setQuery(undefined);
     loadGraph(graphUrl, { signal: controller.signal }).then(setLoad, () => {
       // aborted: the page moved on
     });
@@ -96,22 +135,42 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
           </p>
         )}
         <AddToReadme owner={owner} repo={repo} />
+        <ShareMenu
+          variant="secondary"
+          size="sm"
+          link={() => shareUrl(window.location.origin, owner, repo, sha, linkQuery)}
+        />
         <a className="repo-bar__github" href={githubHref(owner, repo)} rel="noopener noreferrer">
           Open on GitHub
         </a>
       </div>
+      {note && (
+        <div className="diagram-page__note">
+          <p role="status">{note}</p>
+          <IconButton icon="close" label="Dismiss" size="sm" onClick={() => setDismissed(linked)} />
+        </div>
+      )}
       <div className="diagram-page__canvas">
         {load === undefined ? (
           <p className="diagram-page__state" role="status">
             Loading the diagram
           </p>
         ) : load.ok ? (
-          <Explorer
-            graph={load.graph}
-            topBar={false}
-            layoutWorker={layoutWorker}
-            loadSource={loadSource}
-          />
+          linked && (
+            <Explorer
+              graph={load.graph}
+              topBar={false}
+              layoutWorker={layoutWorker}
+              loadSource={loadSource}
+              initialOpen={linked.state.open}
+              initialSelected={linked.state.selected}
+              initialTrace={linked.state.trace}
+              initialStep={linked.state.step}
+              initialFilters={linked.state.filters}
+              initialHiddenKinds={linked.state.hiddenKinds}
+              onStateChange={onStateChange}
+            />
+          )
         ) : (
           <div className="diagram-page__state">
             <p className="progress__failure" role="alert" tabIndex={-1} ref={failure}>

@@ -119,6 +119,11 @@ export function encodeState(state: ExplorerState): string {
   return parts.join("&");
 }
 
+/** A page URL (no query) with a state's query from {@link encodeState}; just the page for the default state. */
+export function withState(page: string, query: string): string {
+  return query === "" ? page : `${page}?${query}`;
+}
+
 /** A query's parameters as raw value lists (the last of a repeated one wins); `+` reads as a space, like a form. */
 function parseQuery(query: string): Map<string, string[] | undefined> {
   const params = new Map<string, string[] | undefined>();
