@@ -470,7 +470,8 @@ describe("inspector", () => {
     // Tokens are text in spans, never markup (SECURITY.md T10).
     expect(container.querySelector("script")).toBeNull();
     expect(tokens.every((t) => t.tagName === "SPAN" && t.children.length === 0)).toBe(true);
-  });
+    // At least the cold load's 10 s wait: CI's coverage run hit the 5 s default.
+  }, 15_000);
 
   it("leaves a language it doesn't color plain", () => {
     const { container } = render(
