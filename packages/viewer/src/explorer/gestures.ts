@@ -109,6 +109,12 @@ export function useCanvasGestures(
 
     function onPointerMove(e: PointerEvent) {
       if (!gesture || !pointers.has(e.pointerId)) return;
+      // Released outside the canvas before the pan captured the pointer: the
+      // canvas never saw the release, so a move with no button held ends it.
+      if (e.buttons === 0) {
+        onPointerUp(e);
+        return;
+      }
       pointers.set(e.pointerId, local(e));
       const [first, second] = [...gesture.from.keys()];
       const a0 = first === undefined ? undefined : gesture.from.get(first);

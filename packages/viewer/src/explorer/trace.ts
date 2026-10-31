@@ -59,7 +59,7 @@ export interface Trace {
   steps: TraceStep[];
   /**
    * Nodes {@link TRACE_DEPTH} hops out that the path reaches but doesn't
-   * follow further, though they have hops of their own (in path order).
+   * follow further, though they have hops to nodes not on it (in path order).
    * Empty when the whole path fits.
    */
   cutOff: GraphNode[];
@@ -149,7 +149,9 @@ export function traceFrom(index: HierarchyIndex, start: string): Trace {
     followed.add(node.id);
     const out = hops.get(node.id) ?? [];
     if ((depth.get(node.id) ?? TRACE_DEPTH) >= TRACE_DEPTH) {
-      if (out.length > 0) cutOff.push(node);
+      // `depth` holds every node on the path, so only a hop to a node
+      // outside it leads somewhere the path doesn't show.
+      if (out.some((hop) => !depth.has(hop.to))) cutOff.push(node);
       return;
     }
     stack.push({ hops: out, next: 0, from: node });

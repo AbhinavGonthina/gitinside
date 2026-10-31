@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { shopDemo } from "../shopDemo.testkit.js";
+import { hiddenNodes, NO_FILTERS } from "../model/filters.js";
 import { effectiveOpen } from "../model/view.js";
 import { closeIn, collapseTo, isShown, openIn, revealIn, upFrom, useDrill } from "./drill.js";
 
@@ -44,6 +45,12 @@ describe("upFrom", () => {
   it("skips nodes remembered inside a closed one", () => {
     // SRC was opened last, but api is closed, so SRC isn't on the canvas.
     expect(upFrom(index, [WEB, SRC])).toEqual({ expansion: [SRC], closed: WEB });
+  });
+
+  it("skips nodes the filters hide, which stay broken down for when they're shown", () => {
+    const noWeb = hiddenNodes(index, { ...NO_FILTERS, layers: ["frontend"] });
+    expect(upFrom(index, [API, WEB], noWeb)).toEqual({ expansion: [WEB], closed: API });
+    expect(upFrom(index, [WEB], noWeb)).toEqual({ expansion: [WEB] });
   });
 
   it("has nothing to close at the system level", () => {
@@ -103,6 +110,27 @@ describe("useDrill", () => {
     const { result } = renderHook(() => useDrill(index));
     act(() => result.current.reveal(ORDERS));
     expect(result.current.view.byId.has(ORDERS)).toBe(true);
+  });
+
+  it("goes up and reveals on the canvas the filters leave", () => {
+    const noWeb = { ...NO_FILTERS, layers: ["frontend" as const] };
+    const { result } = renderHook(() => useDrill(index, [API, WEB], { filters: noWeb }));
+    let closed: string | undefined;
+    act(() => {
+      closed = result.current.up();
+    });
+    expect(closed).toBe(API);
+    expect(result.current.expansion).toEqual([WEB]);
+
+    // Shown again by the filters it's revealed under, web keeps its place.
+    act(() => result.current.open(API));
+    act(() => result.current.reveal("symbol:web/lib/orders.ts#placeOrder", NO_FILTERS));
+    expect(result.current.expansion).toEqual([
+      WEB,
+      API,
+      "module:web/lib",
+      "file:web/lib/orders.ts",
+    ]);
   });
 
   it("builds the view for its expansion and moves through it", () => {

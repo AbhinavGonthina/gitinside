@@ -1,6 +1,7 @@
 import { compareStrings } from "@gitinside/schema";
 import { useMemo, useState } from "react";
 import { ancestry, canOpen, isEntry, isWithin, type HierarchyIndex } from "../model/hierarchy.js";
+import { hiddenNodes, NO_FILTERS, type Filters } from "../model/filters.js";
 import { buildView, effectiveOpen, type GraphView, type ViewOptions } from "../model/view.js";
 
 /**
@@ -25,14 +26,17 @@ export function closeIn(expansion: Expansion, id: string): Expansion {
 
 /**
  * Going up a level (Esc): closes the most recently opened node that is on
- * the canvas now, skipping ones remembered inside a closed node. `closed` is
- * unset when nothing is open (the system level).
+ * the canvas now, skipping ones remembered inside a closed node and ones the
+ * filters hide (`filtered`, see `hiddenNodes`), which stay broken down for
+ * when they're shown again. `closed` is unset when nothing on the canvas is
+ * open (the system level).
  */
 export function upFrom(
   index: HierarchyIndex,
   expansion: Expansion,
+  filtered: ReadonlySet<string> = new Set(),
 ): { expansion: Expansion; closed?: string } {
-  const open = effectiveOpen(index, expansion);
+  const open = effectiveOpen(index, expansion, filtered);
   for (let i = expansion.length - 1; i >= 0; i--) {
     const id = expansion[i];
     if (id !== undefined && open.has(id)) {
@@ -67,13 +71,19 @@ export function isShown(index: HierarchyIndex, open: ReadonlySet<string>, id: st
  * Drills as far as needed to show `id` as its own box (UX.md: selecting a
  * connection "flies there, drilling if needed"): its closed ancestors open,
  * outermost first, stopping as soon as it's drawn, so a route only needs its
- * service. Open nodes keep their place in the order.
+ * service. Open nodes keep their place in the order. `filtered` is what the
+ * filters hide once `id` is shown, so "open" means open on the canvas.
  */
-export function revealIn(index: HierarchyIndex, expansion: Expansion, id: string): Expansion {
+export function revealIn(
+  index: HierarchyIndex,
+  expansion: Expansion,
+  id: string,
+  filtered: ReadonlySet<string> = new Set(),
+): Expansion {
   let next = expansion;
   const outward = ancestry(index, id).slice(1, -1).reverse();
   for (const a of outward) {
-    const open = effectiveOpen(index, next);
+    const open = effectiveOpen(index, next, filtered);
     if (isShown(index, open, id)) break;
     if (!open.has(a.id)) next = openIn(index, next, a.id);
   }
@@ -90,8 +100,12 @@ export interface Drill {
   /** Goes up a level; returns the node it closed, if any (for the announcement). */
   up(): string | undefined;
   collapseTo(id: string): void;
-  /** Opens what's needed to show `id` as its own box ({@link revealIn}). */
-  reveal(id: string): void;
+  /**
+   * Opens what's needed to show `id` as its own box ({@link revealIn}).
+   * `filters` are the ones it's shown under, when the caller changes them
+   * to show it (default: the hook's).
+   */
+  reveal(id: string, filters?: Filters): void;
 }
 
 /**
@@ -119,17 +133,21 @@ export function useDrill(
       }),
     [index, openKey, hiddenKinds, filters],
   );
+  const filtered = useMemo(() => hiddenNodes(index, filters ?? NO_FILTERS), [index, filters]);
   return {
     expansion,
     view,
     open: (id) => setExpansion((e) => openIn(index, e, id)),
     close: (id) => setExpansion((e) => closeIn(e, id)),
     up() {
-      const { expansion: next, closed } = upFrom(index, expansion);
+      const { expansion: next, closed } = upFrom(index, expansion, filtered);
       if (closed !== undefined) setExpansion(next);
       return closed;
     },
     collapseTo: (id) => setExpansion((e) => collapseTo(index, e, id)),
-    reveal: (id) => setExpansion((e) => revealIn(index, e, id)),
+    reveal(id, shownUnder) {
+      const hidden = shownUnder ? hiddenNodes(index, shownUnder) : filtered;
+      setExpansion((e) => revealIn(index, e, id, hidden));
+    },
   };
 }

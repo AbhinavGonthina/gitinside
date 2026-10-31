@@ -1035,7 +1035,7 @@ describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
     const fit = cameraOf(container);
     const web = box(WEB) as HTMLElement;
     fireEvent.pointerDown(web, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
-    fireEvent.pointerMove(web, { pointerId: 1, clientX: 160, clientY: 90 });
+    fireEvent.pointerMove(web, { pointerId: 1, buttons: 1, clientX: 160, clientY: 90 });
     expect(canvas().hasAttribute("data-panning")).toBe(true);
     fireEvent.pointerUp(web, { pointerId: 1, clientX: 160, clientY: 90 });
     fireEvent.click(web);
@@ -1045,7 +1045,7 @@ describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
 
     // A press that barely moves is still a click.
     fireEvent.pointerDown(web, { pointerId: 2, button: 0, clientX: 100, clientY: 100 });
-    fireEvent.pointerMove(web, { pointerId: 2, clientX: 102, clientY: 101 });
+    fireEvent.pointerMove(web, { pointerId: 2, buttons: 1, clientX: 102, clientY: 101 });
     fireEvent.pointerUp(web, { pointerId: 2, clientX: 102, clientY: 101 });
     fireEvent.click(web);
     expect(heading().textContent).toBe("@shop/web");
@@ -1054,8 +1054,24 @@ describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
     // The overlays keep their own pointer: no pan from the zoom controls.
     const zoomIn = screen.getByRole("button", { name: "Zoom in" });
     fireEvent.pointerDown(zoomIn, { pointerId: 3, button: 0, clientX: 900, clientY: 20 });
-    fireEvent.pointerMove(zoomIn, { pointerId: 3, clientX: 700, clientY: 20 });
+    fireEvent.pointerMove(zoomIn, { pointerId: 3, buttons: 1, clientX: 700, clientY: 20 });
     expect(cameraOf(container).x).toBe(fit.x + 60);
+  });
+
+  it("ends a press released outside the canvas at the next move with no button held", async () => {
+    const { container, box } = await setup();
+    const fit = cameraOf(container);
+    const web = box(WEB) as HTMLElement;
+    // Pressed and released before the pan started (so before capture): the canvas never sees the release.
+    fireEvent.pointerDown(web, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(canvas(), { pointerId: 1, buttons: 0, clientX: 160, clientY: 90 });
+    fireEvent.pointerMove(canvas(), { pointerId: 1, buttons: 0, clientX: 220, clientY: 80 });
+    expect(cameraOf(container)).toEqual(fit);
+    expect(canvas().hasAttribute("data-panning")).toBe(false);
+    // The next press pans from where it starts.
+    fireEvent.pointerDown(web, { pointerId: 2, button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(web, { pointerId: 2, buttons: 1, clientX: 110, clientY: 100 });
+    expect(cameraOf(container)).toEqual({ ...fit, x: fit.x + 10 });
   });
 
   it("pinch-zooms with two fingers around their midpoint", async () => {
@@ -1064,7 +1080,13 @@ describe("Explorer pan and zoom", { timeout: 30_000 }, () => {
     const c = canvas();
     fireEvent.pointerDown(c, { pointerId: 1, pointerType: "touch", clientX: 400, clientY: 300 });
     fireEvent.pointerDown(c, { pointerId: 2, pointerType: "touch", clientX: 600, clientY: 300 });
-    fireEvent.pointerMove(c, { pointerId: 2, pointerType: "touch", clientX: 800, clientY: 300 });
+    fireEvent.pointerMove(c, {
+      pointerId: 2,
+      pointerType: "touch",
+      buttons: 1,
+      clientX: 800,
+      clientY: 300,
+    });
     const pinched = cameraOf(container);
     // The fingers went from 200px apart to 400px: twice the zoom (the 200% limit).
     expect(pinched.zoom).toBe(2);
@@ -1511,6 +1533,27 @@ describe("Explorer filters", { timeout: 30_000 }, () => {
     expect(screen.getByText("Step 1 of 8")).toBeTruthy();
     expect(filtersButton(hidden.container).textContent).toBe("Filters");
   });
+
+  it("goes up past a broken-down service the filters hide, which stays broken down", async () => {
+    const { container, box, isOpen, heading, press } = await setup({
+      initialFilters: { ...NO_FILTERS, layers: ["frontend"] },
+      initialOpen: [API, WEB],
+      initialSelected: API,
+    });
+    const live = () => container.querySelector('[aria-live="polite"]')?.textContent;
+    expect(box(WEB)).toBeNull();
+    expect(isOpen(API)).toBe(true);
+    // Esc closes api (opened before web, but web isn't on the canvas)...
+    await press("Escape");
+    expect(isOpen(API)).toBe(false);
+    expect(live()).toBe("Back to shop-demo");
+    // ...then, with nothing left open on the canvas, clears the selection.
+    await press("Escape");
+    expect(heading().textContent).toBe("shop-demo");
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    await settle();
+    expect(isOpen(WEB)).toBe(true);
+  });
 });
 
 describe("Explorer deep links", { timeout: 30_000 }, () => {
@@ -1527,6 +1570,24 @@ describe("Explorer deep links", { timeout: 30_000 }, () => {
     cleanup();
     await setup({ traceStart: undefined, initialTrace: API });
     expect(screen.queryByText(/^Step \d+ of/)).toBeNull();
+  });
+
+  it("keeps a trace on its last step when a new graph shortens the path", async () => {
+    const props = { traceStart: undefined, initialTrace: ROUTE, initialStep: routeSteps - 1 };
+    const { rerender } = await setup(props);
+    expect(screen.getByText(`Step ${routeSteps} of ${routeSteps}`)).toBeTruthy();
+    // The same repo without the Stripe charge: two hops fewer.
+    const stripe = "symbol:api/src/billing/stripe.ts#chargeOrder";
+    const shorter = {
+      ...graph,
+      edges: graph.edges.filter((e) => e.from !== stripe && e.to !== stripe),
+    };
+    rerender(<Explorer graph={shorter} sources={sources} {...props} />);
+    await settle();
+    const left = traceFrom(buildHierarchy(shorter), ROUTE).steps.length;
+    expect(left).toBe(routeSteps - 2);
+    expect(screen.getByText(`Step ${left} of ${left}`)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Next step" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("opens with the linked connection kinds hidden", async () => {
