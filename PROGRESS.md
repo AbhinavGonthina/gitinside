@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.16b What a VS Code-sized repo does in production, and failing fast (M5.13 and M5.14b wait on #3)
+M5.16c Supported size written down (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -156,7 +156,7 @@ M5.16b What a VS Code-sized repo does in production, and failing fast (M5.13 and
 - [x] M5.16a Stress benchmark (#10): `microsoft/vscode` at a pinned commit through `bench/`, parse only (never installed or run), without the worker's 3 GB / 5 min caps; wall clock, peak RSS, per-stage times, graph size, file count, tarball and decompressed size + entry count vs the extraction limits (500 MB / 100,000); `bench/results/` write-up with hand-written observations (where time and memory go, which production limit it hits first) {model: opus}
 - [x] M5.16a1 Flaky `consumeRateLimit` race test (`packages/db/src/rateLimits.test.ts`): CI on `681ceb6` got 10 of 12 racing requests allowed with limit 5, at 15:00:00 UTC; `date_trunc('hour', now())` split the race over two windows. Make the test independent of the hour boundary (all requests in one window, e.g. pinned `now()` or retried across a boundary), keep the exact-`limit` assertion; red first by forcing a boundary {model: opus}
 - [x] M5.16a2 `consumeRateLimit`'s refused path across the hour (found in M5.16a1): a refused insert at :59.999 then the fallback `select` at :00.000 reads the new window, finds no row, and throws (`windowStart` undefined), a 500 instead of a 429. Read the refused row's window without a second `now()` (e.g. the key's newest row, or one statement); red first with the `at` clock {model: opus}
-- [ ] M5.16b What a VS Code-sized repo does in production (#10): which limit stops it and how early, what the progress page says; make it fail fast (refuse before parsing, e.g. from the inventory count or the tarball's size) with a clear message; tests; what the analyzer would need to handle it (per-service programs, M6.7 cache), without raising the caps {model: opus}
+- [x] M5.16b What a VS Code-sized repo does in production (#10): which limit stops it and how early, what the progress page says; make it fail fast (refuse before parsing, e.g. from the inventory count or the tarball's size) with a clear message; tests; what the analyzer would need to handle it (per-service programs, M6.7 cache), without raising the caps {model: opus}
 - [ ] M5.16c Supported size written down (#10): "repos up to about N files / M MB" from M5.16a and cal.com, in the docs, the landing page, and the `LIMIT_*` error copy; VS Code in EVALUATION.md's benchmark list as a standing stress test if useful {model: opus}
 - [ ] M5.17a Jobs in Neon (ADR-0114, #9): job rows carry `queued` / running / done / failed, attempts, stage + progress + counts; the progress page's SSE, queue position (queued rows ahead), and the job link read Neon instead of the worker's `GET /jobs/:id`; tests (PGlite) {model: opus}
 - [ ] M5.17b Enqueue through Cloud Tasks without an SDK (ADR-0114): `createTask` REST, task named from `repo@sha` (`ALREADY_EXISTS` = deduped), HMAC-signed body, OIDC push to the worker's service account; Vercel's Google token keyless via Workload Identity Federation (Vercel OIDC ⇒ STS ⇒ service-account impersonation); fake Google server tests; `/api/analyze` and check-on-view switched; verify the dispatch-deadline range and task-name reuse window {model: opus}
@@ -234,6 +234,8 @@ M5.16b What a VS Code-sized repo does in production, and failing fast (M5.13 and
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5.16b** (e712b7c): under the worker's caps VS Code passed every pre-parse check, then hit `LIMIT_MEMORY` 33 s into building its one program. New `LIMIT_SOURCE_SIZE`: the inventory sums kept source bytes (from its own `lstat`) and refuses over 50 MB before parsing, so VS Code fails 0.5 s into the child; website copy, security-suite case, ADR-0137. Calibrated with `pnpm bench:capped` (worker's real runner): 59 MiB finished in 51 s, 79.8 MiB ran out of memory; write-up with raw lines and what the analyzer would need in `bench/results/2026-10-31-capped-vscode.md`. Eval unchanged (b909e8b).
 
 - **M5.16a2** (9e2022b): `consumeRateLimit` reads the clock once, in a CTE of the counting statement, and returns the window even when refused; the refused path looks up that exact window (not a second `now()`), so a refusal at the top of the hour is a 429, not a 500. Red first with a fake `now()` ahead of `pg_catalog` on the search path (one transaction), crossing the hour between reads: the old code threw the TypeError. The `at` clock couldn't show it (one literal for both statements).
 
