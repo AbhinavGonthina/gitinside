@@ -168,6 +168,22 @@ for (const c of cases) {
     expect(labels.wide, "every edge label fits the room the layout kept").toEqual([]);
     expect(labels.covered, "no edge label covers another").toEqual([]);
 
+    // An open popover (filters, share) sits wholly on the page, and its
+    // controls fit it (M4b.10b: the share menu's Export row).
+    const clipped = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('.gi-popover[data-state="open"]')].flatMap((p) => {
+        const r = p.getBoundingClientRect();
+        const off =
+          r.left < 0 || r.top < 0 || r.right > window.innerWidth || r.bottom > window.innerHeight;
+        const spill = [...p.querySelectorAll<HTMLElement>(".gi-button")].some((b) => {
+          const br = b.getBoundingClientRect();
+          return br.right > r.right + 0.5 || b.scrollWidth > b.clientWidth + 1;
+        });
+        return off || spill ? [p.className] : [];
+      }),
+    );
+    expect(clipped, "open popovers fit the page and their buttons fit them").toEqual([]);
+
     await expect(page).toHaveScreenshot(c.snapshot, { fullPage: true });
     expect(errors, "no errors while rendering").toEqual([]);
   });

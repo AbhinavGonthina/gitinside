@@ -1,6 +1,7 @@
 import { composeStories } from "@storybook/react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ViewExport } from "../export/files.js";
 import { SAMPLE_TESTS, withTestFiles } from "../model/filterSamples.js";
 import { NO_FILTERS } from "../model/filters.js";
 import { buildHierarchy } from "../model/hierarchy.js";
@@ -1124,6 +1125,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "Outline",
       "Overview",
       "Search",
+      "Share",
       "TracePicker",
       "Tracing",
       "TracingBrokenDown",
@@ -1166,6 +1168,17 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     fireEvent.keyDown(document.activeElement as Element, { key: "Enter" });
     expect(screen.getByText(/^Step 1 of \d+$/)).toBeTruthy();
     expect(document.activeElement?.getAttribute("aria-current")).toBe("step");
+  });
+
+  it("open the share menu with its link and Export in the share story", async () => {
+    const { container } = render(<all.Share />);
+    await settle();
+    await act(async () => all.Share.play?.({ canvasElement: container }));
+    const field = screen.getByRole("textbox", { name: "Link to this view" }) as HTMLInputElement;
+    expect(field.value).toBe(
+      "https://gitinside.abhinavgonthina.dev/acme/shop/a1b2c3d?open=service:api/&sel=route:api/POST%20/api/orders",
+    );
+    expect(screen.getByRole("group", { name: "Export this view" })).toBeTruthy();
   });
 
   it("open the command palette and search it in the search story", async () => {
@@ -1462,6 +1475,25 @@ describe("Explorer deep links", { timeout: 30_000 }, () => {
     expect(share.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(share);
     expect(isOpen(API)).toBe(true);
+  });
+
+  it("keeps `exportRef` on the view as drawn, and exports from the top bar's share menu", async () => {
+    const exportRef: { current: ViewExport | undefined } = { current: undefined };
+    const { box, act } = await setup({ exportRef });
+    const top = exportRef.current;
+    expect(top?.name).toBe("fixtures-shop-demo");
+    expect(top?.mermaid()).not.toContain("subgraph");
+    await act(() => fireEvent.doubleClick(box(API) as HTMLElement));
+    await waitFor(() => expect(exportRef.current).not.toBe(top));
+    const opened = exportRef.current;
+    // The level on screen: the API broken down around its routes.
+    expect(opened?.mermaid()).toMatch(/subgraph n\d+ \["@shop\/api"\]/);
+    expect(opened?.mermaid()).toContain("POST /api/orders");
+    expect(opened?.svg("light")).toContain("@shop/api");
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+    const exporting = screen.getByRole("group", { name: "Export this view" });
+    for (const name of ["SVG", "PNG", "Mermaid", "Copy Mermaid"])
+      expect(within(exporting).getByRole("button", { name })).toBeTruthy();
   });
 
   it("links to this page by default, just the page at the opening state", async () => {

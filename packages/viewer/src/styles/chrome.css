@@ -842,6 +842,35 @@ a.gi-button {
   flex: none;
 }
 
+/*
+ * Export (M4b.10b): below the link, split off by a hairline. The images'
+ * row ends in their theme choice; Mermaid (no theme) has the row below.
+ */
+.gi-share__export {
+  display: grid;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--border);
+}
+
+.gi-share__export h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+}
+
+.gi-share__export-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.gi-share__export-row .gi-segmented {
+  margin-left: auto;
+}
+
 /* Two columns keep the legend short enough to open over a laptop-height canvas. */
 .gi-legend {
   width: 700px;

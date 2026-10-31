@@ -5,6 +5,7 @@ import { Button, StatusChip } from "../chrome/controls.js";
 import type { RepoRef } from "../chrome/describe.js";
 import { FiltersPopover } from "../chrome/FiltersPopover.js";
 import { ShareMenu } from "../chrome/ShareMenu.js";
+import { viewExport, type ViewExport } from "../export/files.js";
 import { Breadcrumbs, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
 import { TopBar } from "../chrome/TopBar.js";
 import {
@@ -123,6 +124,13 @@ export interface ExplorerProps {
    */
   linkTo?: ((query: string) => string) | undefined;
   /**
+   * Kept pointing at the view on screen as an export (`viewExport`: the
+   * drawn view at its layout), `undefined` until the first layout, for a
+   * host's own share menu (`ShareMenu`'s `exports`). The top bar's share
+   * menu exports it without this.
+   */
+  exportRef?: { current: ViewExport | undefined } | undefined;
+  /**
    * Draw the explorer's own top bar (default). The website turns it off and shows its own
    * repo bar (with its own share menu); Ctrl+K still searches, and a Filters button or the
    * filters chip on the canvas opens the filters.
@@ -186,6 +194,7 @@ export function Explorer({
   initialHiddenKinds,
   onStateChange,
   linkTo = pageLink,
+  exportRef,
   topBar = true,
   layoutWorker,
 }: ExplorerProps) {
@@ -260,6 +269,11 @@ export function Explorer({
   const legendState = usePresence(legend);
   const [announcement, setAnnouncement] = useState("");
   const [shown, setShown] = useState<Shown>();
+  // Export (M4b.10b): what's drawn, at the layout it was drawn at.
+  const exported = useMemo(() => shown && viewExport(index, shown), [index, shown]);
+  useEffect(() => {
+    if (exportRef) exportRef.current = exported;
+  }, [exportRef, exported]);
   const [runsIn, setRunsIn] = useState<LayoutEngine["runsIn"]>();
 
   // The camera (M4b.4): fitted to each level until the user pans or zooms,
@@ -800,7 +814,7 @@ export function Explorer({
           filterCount={filterCount}
           filtersOpen={filtering}
           onFilters={() => toggleFilters("top")}
-          share={<ShareMenu link={() => linkTo(linkKey)} />}
+          share={<ShareMenu link={() => linkTo(linkKey)} exports={() => exported} />}
           tracing={tracing}
           onTrace={toggleTrace}
         />

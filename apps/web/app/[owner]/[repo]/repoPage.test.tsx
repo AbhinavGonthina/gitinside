@@ -298,6 +298,29 @@ describe("RepoDiagram", () => {
     expect(field()).toBe(`${origin}/acme/shop/${SHA}`);
   });
 
+  it("exports the view the explorer has drawn from the repo bar's share menu", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue();
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    window.history.replaceState({}, "", "/acme/shop?open=service:api/");
+    renderDiagram({ state: "current" });
+    await screen.findByRole("region", { name: "Diagram" });
+    await waitFor(
+      () => expect(document.querySelector(".gi-drill")?.getAttribute("data-layout")).toBe("done"),
+      // 5 s alone here, 13 s in a full parallel `pnpm test`.
+      { timeout: 25_000 },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+    const exporting = within(screen.getByRole("group", { name: "Export this view" }));
+    await act(async () => fireEvent.click(exporting.getByRole("button", { name: "Copy Mermaid" })));
+    const mermaid = writeText.mock.lastCall?.[0] ?? "";
+    // The level on screen: the api broken down, its routes inside.
+    expect(mermaid).toMatch(/^%% fixtures\/shop-demo, drawn by GitInside/);
+    expect(mermaid).toMatch(/subgraph n\d+ \["@shop\/api"\]/);
+    expect(mermaid).toContain("POST /api/orders");
+    // ELK on the main thread, under coverage too: no shorter than the wait above.
+  }, 30_000);
+
   it("stops loading when it goes away", async () => {
     let signal: AbortSignal | undefined;
     fetchMock.mockImplementation((_url, init) => {

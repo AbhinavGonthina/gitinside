@@ -174,6 +174,29 @@ export const Filters: Story = {
   },
 };
 
+/**
+ * The share menu (M4b.9b, M4b.10b) open from the top bar with the api broken
+ * down: the link to this view with Copy link, then Export (SVG and PNG in the
+ * screen's theme, or Mermaid, saved or copied).
+ */
+export const Share: Story = {
+  render: () => (
+    <Explore
+      initialOpen={["service:api/"]}
+      initialSelected="route:api/POST /api/orders"
+      linkTo={(query) => `https://gitinside.abhinavgonthina.dev/acme/shop/a1b2c3d?${query}`}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    canvasElement.querySelector<HTMLButtonElement>(".gi-share-menu__trigger")?.click();
+    for (let tries = 0; tries < 50; tries++) {
+      if (canvasElement.querySelector('.gi-share[data-state="open"]')) return;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error("The share menu didn't open");
+  },
+};
+
 /** Opens a palette with a key on the explorer and types `text` into its field. */
 async function typeInPalette(canvasElement: HTMLElement, key: KeyboardEventInit, text: string) {
   canvasElement
