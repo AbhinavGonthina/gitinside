@@ -169,7 +169,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - Storybook's root (`.storybook/preview.css`) is `width: fit-content`, so a story at a narrow viewport grows to its content and looks clipped (M4b.12b1). For a narrow check, set `.gi-root`'s width to `100%` first, then walk up the parents printing widths to find what grows.
 - `git status` can list a file as ` M` with no diff (stale index stats; `git hash-object` equals the index entry), and `git update-index --refresh` won't clear it. Benchmark and eval runs then record "+ uncommitted changes". `git add <file>` refreshes it without changing content.
 - `git commit -F -` gets no stdin from the Bash tool and aborts with an empty message. Pass the subject and body as separate `-m` arguments.
-- Before trusting a render benchmark's fps, check what was on screen (boxes in the DOM, a screenshot): M4b.13b1's first run measured 59.9 fps on a camera parked over empty canvas (0 boxes drawn).<!-- lessons:end -->
+- Before trusting a render benchmark's fps, check what was on screen (boxes in the DOM, a screenshot): M4b.13b1's first run measured 59.9 fps on a camera parked over empty canvas (0 boxes drawn).
+- To find a slow ELK layout's step, dump `layoutInput` to JSON and run `elk.layout(elkGraph(input), { logging: true, measureExecutionTime: true })` in a scratch script under `bench/dist/` (load elkjs with `createRequire(import.meta.resolve("@gitinside/viewer"))`). Its `executionTime` values are in units of 10⁶ ms; sum self time per step name.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 

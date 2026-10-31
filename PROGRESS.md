@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M4b.13b2. Big real levels' first layout (cal.com at 2,000 visible nodes) so 60fps can be measured there (M5.13 and M5.14b wait on #3)
+M4b.14 Playwright E2E + visual tests (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -109,7 +109,7 @@ M4b.13b2. Big real levels' first layout (cal.com at 2,000 visible nodes) so 60fp
 - [x] M4b.12b2 The website's graph that fails to load or parse on the same card (`EmptyState`, error tone, Try again when retryable, focus on it); tests, screenshots {model: opus}
 - [x] M4b.13a Viewport culling in `DrillCanvas` (above a size threshold: only boxes, lines, and pills near the camera's view are drawn, the window snapped to tiles; the selection, the trace start, the focused box, an arrow key's target, and gliding boxes always drawn) + boxes, lines, and pills memoized so a camera move doesn't re-render them; tests {model: opus}
 - [x] M4b.13b1 `bench/render`: a synthetic and a real graph (cal.com) at 500 / 1,000 / 2,000 visible nodes, Playwright pans and zooms for 10 s, fps from `requestAnimationFrame` deltas (median, p5), `bench/results/` report; tests {model: opus}
-- [ ] M4b.13b2 Fix what keeps 2,000 visible nodes from 60fps in M4b.13b1's report: pan/zoom already holds 59.9fps (synthetic 2,000, cal.com 1,000), but cal.com's first ELK layout takes 56 s at 1,000 visible nodes and doesn't finish in 10 min at 2,000, so it can't be measured there. Profile the layout (ELK options, compound depth, edge count), fix, re-run `pnpm bench:render`, commit the new report {model: opus}
+- [x] M4b.13b2 Fix what keeps 2,000 visible nodes from 60fps in M4b.13b1's report: pan/zoom already holds 59.9fps (synthetic 2,000, cal.com 1,000), but cal.com's first ELK layout takes 56 s at 1,000 visible nodes and doesn't finish in 10 min at 2,000, so it can't be measured there. Profile the layout (ELK options, compound depth, edge count), fix, re-run `pnpm bench:render`, commit the new report {model: opus}
 - [ ] M4b.14 Playwright E2E + visual tests {model: opus}
 - [ ] M4b.15 Milestone verification + M4b-review.md + tag m4 {model: opus}
 
@@ -223,6 +223,8 @@ M4b.13b2. Big real levels' first layout (cal.com at 2,000 visible nodes) so 60fp
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M4b.13b2** Big views lay out without ELK's model order (ADR-0131). ELK's own step timer on dumped cal.com inputs put 18 of 24 s (500 nodes) in its model-order sort, whatever the strategy; above 200 nodes plus edges it's now off, and above 3,000 crossing minimization makes one pass, not seven. Smaller views (every story) are unchanged, so no baseline moved. Re-run `bench/results/2026-10-31-render.md`: cal.com's first layout 18.4 s → 2.0 s (500), 56 s → 2.5 s (1,000), >10 min → 9.2 s (2,000), and 2,000 pans at 59.9 fps median on both graphs. 3 new tests (a boundary mutation turned one red). CI's coverage run then caught a race in an explorer test (`exportRef` read before its effect), fixed in `f82b555`. Viewer only, no eval delta.
 
 - 2026-10-31 M4b.13b1: `pnpm bench:render` (ADR-0130): a Vite production build of the explorer, Playwright panning/zooming headless Chromium for 10 s from the busiest spot at 25%, fps from rAF timestamps; exact synthetic sizes and cal.com opened to 500/1,000/2,000 (`openToReach`). Report `bench/results/2026-10-31-render.md`: synthetic 2,000 at 59.9 fps median (meets 60), cal.com 500/1,000 at 59.9, cal.com 2,000 not measured (first ELK layout not done in 10 min; 56 s at 1,000) → M4b.13b2.
   Trials caught two bench bugs before the report: a stopped rAF loop doubling the next recording's frames (median "Infinity"), and the fitted camera on cal.com's sparse layout drawing 0 boxes (now a scan to the busiest spot). 31 bench tests.
