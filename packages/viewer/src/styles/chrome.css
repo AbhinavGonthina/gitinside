@@ -667,6 +667,27 @@ a.gi-button {
   overflow-y: auto;
   overscroll-behavior: contain;
   user-select: text;
+  /*
+   * A soft shade at an edge with more beyond it, so Folders below the fold is
+   * findable (M4b.15d). The covers scroll with the content (`local`) and hide
+   * the shades (`scroll`, fixed to the box) once that edge is reached.
+   */
+  background:
+    linear-gradient(var(--surface-raised) 40%, transparent) top / 100% 32px no-repeat local,
+    linear-gradient(transparent, var(--surface-raised) 60%) bottom / 100% 32px no-repeat local,
+    radial-gradient(
+        farthest-side at 50% 0,
+        color-mix(in srgb, var(--text-muted) 50%, transparent),
+        transparent
+      )
+      top / 100% 18px no-repeat scroll,
+    radial-gradient(
+        farthest-side at 50% 100%,
+        color-mix(in srgb, var(--text-muted) 50%, transparent),
+        transparent
+      )
+      bottom / 100% 18px no-repeat scroll,
+    var(--surface-raised);
 }
 
 /* The tests switch sits at the left like the groups below, not stretched across. */

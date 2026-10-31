@@ -312,6 +312,62 @@ describe("RepoDiagram", () => {
     expect(document.querySelector(".diagram-page__note")).toBeNull();
   });
 
+  it("announces the note through a live region that was there before it, emptied on dismiss", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    window.history.replaceState({}, "", "/acme/shop?hideLayers=space");
+    const { container } = renderDiagram({ state: "current" });
+    // Mounted empty with the page, so filling it is a change a screen reader reads out.
+    const live = container.querySelector('.diagram-page [aria-live="polite"]');
+    expect(live?.textContent).toBe("");
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(live?.textContent).toBe(
+      "Part of this link doesn't apply to commit aaaaaaa, so it was left out: hidden layer space.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(live?.isConnected).toBe(true);
+    expect(live?.textContent).toBe("");
+  });
+
+  it("moves focus into the diagram when the note's focused Dismiss goes", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    window.history.replaceState({}, "", "/acme/shop?hideLayers=space");
+    renderDiagram({ state: "current" });
+    const diagram = await screen.findByRole("region", { name: "Diagram" });
+    // The explorer's main-thread layout: 5 s alone, 13 s in a full parallel `pnpm test`.
+    await waitFor(
+      () => expect(diagram.querySelector(".gi-drill__node [tabindex='0']")).not.toBeNull(),
+      { timeout: 25_000 },
+    );
+    const dismiss = screen.getByRole("button", { name: "Dismiss" });
+    dismiss.focus();
+    fireEvent.click(dismiss);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(diagram.contains(document.activeElement)).toBe(true);
+  }, 30_000);
+
+  it("never has Add to README and Share open at once", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    renderDiagram({ state: "current" });
+    await screen.findByRole("region", { name: "Diagram" });
+    const readme = screen.getByRole("button", { name: "Add to README" });
+    const share = screen.getByRole("button", { name: "Share" });
+    // Keyboard presses: no pointer lands outside either menu to close the other.
+    fireEvent.click(readme);
+    expect(readme.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(share);
+    expect(share.getAttribute("aria-expanded")).toBe("true");
+    expect(readme.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("region", { name: "Add to README" })).toBeNull();
+    fireEvent.click(readme);
+    expect(readme.getAttribute("aria-expanded")).toBe("true");
+    expect(share.getAttribute("aria-expanded")).toBe("false");
+    expect(document.querySelector('.gi-share[data-state="open"]')).toBeNull();
+    // Esc closes the one that's open, and then neither is.
+    fireEvent.keyDown(screen.getByLabelText("Markdown"), { key: "Escape" });
+    expect(readme.getAttribute("aria-expanded")).toBe("false");
+    expect(share.getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("shares the commit's permalink with the current state from the repo bar", async () => {
     fetchMock.mockImplementation(graphResponse);
     window.history.replaceState({}, "", "/acme/shop?open=service:api/");

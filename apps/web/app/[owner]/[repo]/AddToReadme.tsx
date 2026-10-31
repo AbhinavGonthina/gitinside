@@ -25,9 +25,27 @@ type CopyState = "idle" | "copied" | "failed";
  * button. It is a disclosure, not a dialog: the page stays usable, Tab walks from the button
  * into the panel, and Esc (or a click outside) closes it, returning focus to the button if
  * it was inside. The snippet uses this site's own origin, read when the panel opens.
+ *
+ * With `open` and `onOpenChange`, the repo bar decides when it's open, so it and the share
+ * menu are never open together (M4b.15d); unset, it keeps its own state.
  */
-export function AddToReadme({ owner, repo }: { owner: string; repo: string }) {
-  const [open, setOpen] = useState(false);
+export function AddToReadme({
+  owner,
+  repo,
+  open: openProp,
+  onOpenChange,
+}: {
+  owner: string;
+  repo: string;
+  open?: boolean | undefined;
+  onOpenChange?: ((open: boolean) => void) | undefined;
+}) {
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = openProp ?? ownOpen;
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next);
+    onOpenChange?.(next);
+  };
   const [kind, setKind] = useState<ReadmeKind>("badge");
   const [copy, setCopy] = useState<CopyState>("idle");
   const root = useRef<HTMLDivElement>(null);
