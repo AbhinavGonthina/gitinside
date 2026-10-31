@@ -221,9 +221,17 @@ export function Explorer({
   const index = useMemo(() => buildHierarchy(graph), [graph]);
   const hasApp = useMemo(() => hasSourceFiles(graph), [graph]);
   const sourceAccess = useSourceAccess(sources, loadSource);
-  const engine = useMemo(() => createLayoutEngine({ worker: layoutWorker }), [layoutWorker]);
-  useEffect(() => () => engine.dispose(), [engine]);
-  const cache = useMemo(() => createLayoutCache(index, engine), [index, engine]);
+  // Made in an effect, not during render, so it's disposed by the same
+  // mount it was made in: React StrictMode's simulated unmount and remount
+  // (development) then gets a fresh engine and worker, rather than one already
+  // disposed (M4b.15g). The canvas waits for it.
+  const [engine, setEngine] = useState<LayoutEngine>();
+  useEffect(() => {
+    const made = createLayoutEngine({ worker: layoutWorker });
+    setEngine(made);
+    return () => made.dispose();
+  }, [layoutWorker]);
+  const cache = useMemo(() => engine && createLayoutCache(index, engine), [index, engine]);
   // The filters (M4b.8b): nodes and confidence levels, and connection kinds (imports off).
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [hiddenKinds, setHiddenKinds] = useState<ReadonlySet<EdgeKind>>(() =>
@@ -378,7 +386,7 @@ export function Explorer({
   function onLayout(next: Shown) {
     const prev = shown;
     setShown(next);
-    setRunsIn(engine.runsIn);
+    setRunsIn(engine?.runsIn);
     setCameraMotion("layout");
     if (!prev) return;
     const toggled = toggledBetween(prev.view, next.view)[0];

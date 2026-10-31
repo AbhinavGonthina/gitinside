@@ -1,7 +1,9 @@
 import { composeStories } from "@storybook/react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ViewExport } from "../export/files.js";
+import { asWorker, FakeWorker, layouts } from "../layout/fakeWorker.testkit.js";
 import { SAMPLE_TESTS, withTestFiles } from "../model/filterSamples.js";
 import { NO_FILTERS } from "../model/filters.js";
 import { buildHierarchy } from "../model/hierarchy.js";
@@ -107,6 +109,31 @@ describe("Explorer", { timeout: 30_000 }, () => {
     // One aggregated request edge, labeled with its count.
     expect(screen.getByText("2 requests")).toBeTruthy();
     expect(crumbs()).toBe("shop-demo");
+  });
+
+  it("keeps laying out in its worker under React StrictMode, and stops it on unmount (M4b.15g)", async () => {
+    // StrictMode mounts, unmounts, and mounts again in development: the
+    // simulated unmount mustn't leave the explorer without its worker.
+    const made: FakeWorker[] = [];
+    const layoutWorker = () => {
+      const fake = new FakeWorker();
+      made.push(fake);
+      return asWorker(fake);
+    };
+    const { container, unmount } = render(
+      <StrictMode>
+        <Explorer graph={graph} sources={sources} layoutWorker={layoutWorker} />
+      </StrictMode>,
+    );
+    await settle();
+    expect(screen.queryByRole("alert")).toBeNull();
+    const root = container.querySelector(".gi-explorer");
+    expect(root?.getAttribute("data-layout-runs-in")).toBe("worker");
+    const running = made.filter((w) => !w.terminated);
+    expect(running).toHaveLength(1);
+    expect(layouts(running[0] as FakeWorker)).toHaveLength(1);
+    unmount();
+    expect(made.every((w) => w.terminated)).toBe(true);
   });
 
   it("selects on click, highlights the node's edges, and clears on the canvas", async () => {

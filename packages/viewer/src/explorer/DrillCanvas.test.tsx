@@ -132,6 +132,18 @@ describe("DrillCanvas", () => {
     expect(wrapper(API)?.dataset.open).toBe("");
   });
 
+  it("stays pending without a cache, and lays out once one is given (M4b.15g)", async () => {
+    const view = buildView(index, []);
+    const { rerender } = render(<DrillCanvas index={index} view={view} cache={undefined} />);
+    await flush();
+    expect(canvas()?.dataset.layout).toBe("pending");
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    rerender(<DrillCanvas index={index} view={view} cache={quickCache()} />);
+    await flush();
+    expect(canvas()?.dataset.layout).toBe("done");
+  });
+
   it("draws its detail level and marks the lines inside one service (M4b.4b)", async () => {
     const cache = quickCache();
     const view = buildView(index, [API, "module:api/src"]);
