@@ -51,8 +51,11 @@ export interface DrillCanvasProps
   index: HierarchyIndex;
   /** The view to draw (from `useDrill` or `buildView`). */
   view: GraphView;
-  /** Layouts of `index`'s views, one cache for the graph's life. */
-  cache: Pick<LayoutCache, "layout" | "peek">;
+  /**
+   * Layouts of `index`'s views, one cache for the graph's life. Undefined
+   * until the host's layout engine has started: the level stays pending.
+   */
+  cache: Pick<LayoutCache, "layout" | "peek"> | undefined;
   /** Asked to break a node down (double-click or Enter on a box that can open). */
   onOpen?: ((id: string) => void) | undefined;
   /** Asked to select a box (click, Space, or Enter on a box that can't open further). */
@@ -359,7 +362,7 @@ export function DrillCanvas({
   ...rest
 }: DrillCanvasProps) {
   const [shown, setShown] = useState<Shown | undefined>(() => {
-    const layout = cache.peek(view);
+    const layout = cache?.peek(view);
     return layout ? { view, layout } : undefined;
   });
   const [leaving, setLeaving] = useState<Leaving>({ generation: 0, boxes: [], from: NO_GLIDES });
@@ -412,6 +415,7 @@ export function DrillCanvas({
   }
 
   useEffect(() => {
+    if (!cache) return;
     let live = true;
     const draw = (next: Shown) => {
       if (!live) return;

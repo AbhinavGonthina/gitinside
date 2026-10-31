@@ -14,67 +14,13 @@ import {
   layoutKey,
   type LayoutEngine,
 } from "./engine.js";
+import { asWorker, FakeWorker, layouts } from "./fakeWorker.testkit.js";
 
 const index = buildHierarchy(shopDemo());
 const elk = new ELK();
 const API_OPEN = ["service:api/"];
 const input = (expanded: readonly string[] = API_OPEN) =>
   layoutInput(index, buildView(index, expanded));
-
-type Message = { id: number; cmd: string; graph?: unknown; layoutOptions?: object };
-type Listener = (event: Event) => void;
-
-/**
- * A stand-in for the layout worker: answers ELK's worker messages with the
- * bundled ELK, after a structured clone each way as `postMessage` does.
- * `crash()` fires an error event as a worker that failed to load would.
- */
-class FakeWorker {
-  onmessage: ((event: { data: unknown }) => void) | null = null;
-  readonly received: Message[] = [];
-  terminated = false;
-  /** Answer nothing (a worker still loading, or hung). */
-  silent = false;
-  private readonly listeners = new Map<string, Listener[]>();
-
-  addEventListener(type: string, listener: Listener) {
-    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
-  }
-
-  postMessage(data: unknown) {
-    const message = structuredClone(data) as Message;
-    this.received.push(message);
-    if (this.silent) return;
-    setTimeout(() => void this.answer(message), 0);
-  }
-
-  terminate() {
-    this.terminated = true;
-  }
-
-  crash(type = "error", message = "Failed to load worker script") {
-    const event = Object.assign(new Event(type, { cancelable: true }), { message });
-    for (const listener of this.listeners.get(type) ?? []) listener(event);
-    return event;
-  }
-
-  private async answer(message: Message) {
-    if (this.terminated) return;
-    const reply = (data: object) => this.onmessage?.({ data: structuredClone(data) });
-    if (message.cmd !== "layout") return reply({ id: message.id });
-    try {
-      const graph = await elk.layout(message.graph as Parameters<typeof elk.layout>[0], {
-        layoutOptions: message.layoutOptions as Record<string, string>,
-      });
-      reply({ id: message.id, data: graph });
-    } catch (error) {
-      reply({ id: message.id, error: String(error) });
-    }
-  }
-}
-
-const asWorker = (fake: FakeWorker) => fake as unknown as Worker;
-const layouts = (fake: FakeWorker) => fake.received.filter((m) => m.cmd === "layout");
 
 afterEach(() => {
   vi.restoreAllMocks();
