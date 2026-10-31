@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.15a Progress page (#8): job link copy button + "keeps running if you leave" (M5.13 and M5.14b wait on #3)
+M5.15b Progress page (#8): repo facts as found (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -150,7 +150,7 @@ M5.15a Progress page (#8): job link copy button + "keeps running if you leave" (
 - [x] M5.12c Snapshot store on Oracle Object Storage (PROPOSALS P-2, #5): `SNAPSHOTS_*` config (namespace, region, keys, bucket ⇒ the S3-compatible endpoint, region signing), egress allowlist host from it, retention budget and bucket quota from 20 GB; web + worker + infra + docs {model: opus}
 - [x] M5.12d1 Count Oracle Object Storage requests (50k/month): `store_requests` per UTC month and source, `countingFetch` in the worker's and web's stores, a `requests` quota with `quota_alarm` at 80% (ADR-0096) {model: opus}
 - [x] M5.12d2 Every snapshot read behind the CDN cache: README images read the graph through the day-cached `/api/graph` URL instead of the bucket (each image URL now reads its snapshot every 10 min, ≈ 4,300 requests/month per busy URL, ADR-0096), and case variants of a graph path redirect to the stored spelling before any bucket read {model: opus}
-- [ ] M5.15a Progress page (#8): job link copy button + "the analysis keeps running if you leave; reopen this link any time" (reopened link shows live progress, or opens the diagram when done), tests, screenshots {model: opus}
+- [x] M5.15a Progress page (#8): job link copy button + "the analysis keeps running if you leave; reopen this link any time" (reopened link shows live progress, or opens the diagram when done), tests, screenshots {model: opus}
 - [ ] M5.15b Progress page (#8): repo facts as found: analyzer progress events carry the facts each stage produced (service names, route count, data stores and external services), streamed through the worker's BullMQ progress and SSE; shown calmly as the diagram assembling, nothing guessed; tests, screenshots {model: opus}
 - [ ] M5.15c Progress page (#8): estimated time left from measured data (file count or tarball size vs bench results and past job durations from `stats` stage timings), updated per stage, "Taking longer than usual" when over, none until computable, never negative; ADR, tests, screenshots {model: opus}
 - [ ] M5.16a Stress benchmark (#10): `microsoft/vscode` at a pinned commit through `bench/`, parse only (never installed or run), without the worker's 3 GB / 5 min caps; wall clock, peak RSS, per-stage times, graph size, file count, tarball and decompressed size + entry count vs the extraction limits (500 MB / 100,000); `bench/results/` write-up with hand-written observations (where time and memory go, which production limit it hits first) {model: opus}
@@ -232,6 +232,8 @@ M5.15a Progress page (#8): job link copy button + "keeps running if you leave" (
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-10-31 M5.15a** Job link on the progress page (`be3d114`, #8): while the job runs, "The analysis keeps running if you leave…" and the page's own address (no query or hash) in a read-only field with Copy link (min-width, so "Copied" doesn't move the field; a refused copy selects the link). A link reopened after the worker forgot the job offers "Open the diagram" beside "Analyze again"; failures show neither. 6 new tests failed first; web 352/352, typecheck, lint. Chromium under the real CSP, dark/light at 1440 and 390 (`docs/milestones/M5/job-link/`): clipboard holds the link, reset after 2 s, no overflow. No eval delta.
 
 - **2026-10-31 M4b.16** Re-check lows R2–R5 fixed (`bcf139a`, `d9f1828`): the inspector's `scroll-padding-top` follows the sticky step header's measured height (Chromium, Shift+Tab: code preview 112px covered → 0, dark and light); the clamped trace step is stored during render; the link note's visible copy is `aria-hidden` (live region only); Add to README resets "Copied" however it closes. Each test failed first or with its fix removed. `pnpm test` all green (viewer 1005, web 344), typecheck, lint. No eval delta.
 
