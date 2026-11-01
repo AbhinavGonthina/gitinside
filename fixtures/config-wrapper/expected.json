@@ -1,0 +1,349 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/services/api.ts#forward",
+      "id": "calls:symbol:web/src/services/api.ts#forward->symbol:web/src/services/fetcher.ts#httpRequest",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 44,
+          "file": "apps/web/src/services/api.ts",
+          "line": 17
+        }
+      ],
+      "to": "symbol:web/src/services/fetcher.ts#httpRequest"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/services/api.ts#getPost",
+      "id": "calls:symbol:web/src/services/api.ts#getPost->symbol:web/src/services/fetcher.ts#httpRequest",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 3,
+          "file": "apps/web/src/services/api.ts",
+          "line": 13
+        }
+      ],
+      "to": "symbol:web/src/services/fetcher.ts#httpRequest"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/services/api.ts#login",
+      "id": "calls:symbol:web/src/services/api.ts#login->symbol:web/src/services/fetcher.ts#httpRequest",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 3,
+          "file": "apps/web/src/services/api.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:web/src/services/fetcher.ts#httpRequest"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/services/api.ts#logout",
+      "id": "calls:symbol:web/src/services/api.ts#logout->symbol:web/src/services/fetcher.ts#httpRequest",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 29,
+          "file": "apps/web/src/services/api.ts",
+          "line": 15
+        }
+      ],
+      "to": "symbol:web/src/services/fetcher.ts#httpRequest"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:web/src/services/api.ts#forward",
+      "id": "http:symbol:web/src/services/api.ts#forward->unresolved:web/src/services/api.ts:17:44",
+      "kind": "http",
+      "reason": "WRAPPER_DEPTH",
+      "sites": [
+        {
+          "column": 44,
+          "file": "apps/web/src/services/api.ts",
+          "line": 17
+        }
+      ],
+      "to": "unresolved:web/src/services/api.ts:17:44"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/services/api.ts#getPost",
+      "id": "http:symbol:web/src/services/api.ts#getPost->route:api/GET /post/:id",
+      "kind": "http",
+      "label": "GET /post/:id",
+      "sites": [
+        {
+          "column": 3,
+          "file": "apps/web/src/services/api.ts",
+          "line": 13
+        }
+      ],
+      "to": "route:api/GET /post/:id"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/services/api.ts#login",
+      "id": "http:symbol:web/src/services/api.ts#login->route:api/POST /authenticate",
+      "kind": "http",
+      "label": "POST /authenticate",
+      "sites": [
+        {
+          "column": 3,
+          "file": "apps/web/src/services/api.ts",
+          "line": 6
+        }
+      ],
+      "to": "route:api/POST /authenticate"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/services/api.ts#logout",
+      "id": "http:symbol:web/src/services/api.ts#logout->route:api/DELETE /logout",
+      "kind": "http",
+      "label": "DELETE /logout",
+      "sites": [
+        {
+          "column": 29,
+          "file": "apps/web/src/services/api.ts",
+          "line": 15
+        }
+      ],
+      "to": "route:api/DELETE /logout"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:web/src/services/api.ts",
+      "id": "imports:file:web/src/services/api.ts->file:web/src/services/fetcher.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 25,
+          "file": "apps/web/src/services/api.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:web/src/services/fetcher.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "7641d961a76ba52cc8e3bfd7be3a0686ec74ccd44407445b1e36eab3614784c9",
+      "id": "file:api/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/server.ts"
+    },
+    {
+      "hash": "6c35efd43ac3bc925a254d2efa922f14a88c73d4f6d02fd57190bc56d8604d3d",
+      "id": "file:web/src/services/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "parentId": "module:web/src/services",
+      "path": "apps/web/src/services/api.ts"
+    },
+    {
+      "hash": "2c0760d814645dab69ccd438e88d70c516b99859e379eaa111effba7ea9951f4",
+      "id": "file:web/src/services/fetcher.ts",
+      "kind": "file",
+      "label": "fetcher.ts",
+      "parentId": "module:web/src/services",
+      "path": "apps/web/src/services/fetcher.ts"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "apps/api/src"
+    },
+    {
+      "id": "module:web/src/services",
+      "kind": "module",
+      "label": "services",
+      "parentId": "service:web/",
+      "path": "apps/web/src/services"
+    },
+    {
+      "id": "route:api/DELETE /logout",
+      "kind": "route",
+      "label": "DELETE /logout",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:api/src/server.ts",
+      "path": "/logout",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 13
+      }
+    },
+    {
+      "id": "route:api/GET /post/:id",
+      "kind": "route",
+      "label": "GET /post/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/post/:id",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:api/POST /authenticate",
+      "kind": "route",
+      "label": "POST /authenticate",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:api/src/server.ts",
+      "path": "/authenticate",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "@config/api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "apps/api"
+    },
+    {
+      "id": "service:web/",
+      "kind": "service",
+      "label": "@config/web",
+      "parentId": "system:root",
+      "root": "apps/web"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/api.ts#forward",
+      "kind": "symbol",
+      "label": "forward",
+      "parentId": "file:web/src/services/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 17,
+        "file": "apps/web/src/services/api.ts",
+        "line": 17
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/api.ts#getPost",
+      "kind": "symbol",
+      "label": "getPost",
+      "parentId": "file:web/src/services/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 13,
+        "file": "apps/web/src/services/api.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/api.ts#login",
+      "kind": "symbol",
+      "label": "login",
+      "parentId": "file:web/src/services/api.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 14,
+        "endLine": 10,
+        "file": "apps/web/src/services/api.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/api.ts#logout",
+      "kind": "symbol",
+      "label": "logout",
+      "parentId": "file:web/src/services/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 15,
+        "file": "apps/web/src/services/api.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/fetcher.ts#httpRequest",
+      "kind": "symbol",
+      "label": "httpRequest",
+      "parentId": "file:web/src/services/fetcher.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 7,
+        "endLine": 12,
+        "file": "apps/web/src/services/fetcher.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "config-wrapper",
+      "parentId": null
+    },
+    {
+      "detail": "the axios config is a parameter of the calling function, a wrapper more than one call deep",
+      "expression": "httpRequest<unknown>(config)",
+      "id": "unresolved:web/src/services/api.ts:17:44",
+      "kind": "unresolved",
+      "label": "? httpRequest<unknown>(config)",
+      "parentId": "service:web/",
+      "reason": "WRAPPER_DEPTH",
+      "source": {
+        "column": 44,
+        "file": "apps/web/src/services/api.ts",
+        "line": 17
+      }
+    }
+  ],
+  "repo": {
+    "name": "config-wrapper",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/api",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/web",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

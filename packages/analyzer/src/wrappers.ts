@@ -30,20 +30,30 @@
  *   `{ method }` where the value is a parameter (read as a const string), and spreads of a
  *   parameter over a default (`{ method: "GET", ...init }`: the last spread that sets
  *   `method` wins; a missing argument spreads nothing).
+ * - A whole axios config that is a parameter (`axios(req)`, `api.request(req)`, M5A.3c): the
+ *   caller's object literal or const object gives `url`, `baseURL` (else the instance's), and
+ *   `method`, so `httpRequest({ method: "POST", url: "/login" })` is `POST /login`. A caller
+ *   passing its own parameter on is `WRAPPER_DEPTH`; a config read through a spread, or with
+ *   no `url`, has no URL (`DYNAMIC_URL`).
+ * - Sites inside callbacks the wrapper declares (`new Promise(async (resolve) => { await
+ *   axios(req) })`): the wrapper is the innermost symbol around the site whose value is a
+ *   function containing it, and only that function's parameters are bound (M5A.3c). A
+ *   function the wrapper returns counts too: its requests are placed at the factory's call.
  *
  * Patterns not handled:
- * - Functions nested inside other functions, object literals that aren't exported `const`s
- *   (or `module.exports`), and wrappers only ever passed around as values (no visible
- *   call): their sites stay
- *   as they are, so a parameter at the start of the URL is `DYNAMIC_URL`.
+ * - Functions nested inside other functions as wrappers themselves (their parameters aren't
+ *   bound), object literals that aren't exported `const`s (or `module.exports`), and wrappers
+ *   only ever passed around as values (no visible call): their sites stay as they are, so a
+ *   parameter at the start of the URL is `DYNAMIC_URL`.
  * - A wrapper with visible callers that is also called invisibly (as a callback): only the
  *   visible calls become requests.
  * - Calls spelled with neither a wrapper's name nor an import alias (`const g = get; g()`),
  *   unless some wrapper in the repo has that name: they aren't resolved.
  * - Destructured parameters (`({ path }) => fetch(path)`), `arguments`, and parameters
  *   reassigned in the body (the caller's value is assumed to reach the call).
- * - A URL held entirely in a config parameter (`api.request(config)` with `config.url`), and
- *   axios instances passed as parameters: those sites are not collected or have no URL.
+ * - A config parameter read through properties (`axios({ url: config.path })`), a `baseURL`
+ *   in a shorthand call's config parameter (`api.get(path, config)`: the instance's applies),
+ *   and axios instances passed as parameters: those sites are not collected or have no URL.
  * - Inlining more than one level: the outer callers of a wrapper's caller are not followed.
  */
 import ts from "typescript";
@@ -65,7 +75,7 @@ import {
 import { bindOwners, NO_OWNERS, ownersAt, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
-import type { NormalizedUrl, UrlNormalizer } from "./url.js";
+import { WRAPPER_DEPTH_DETAIL, type NormalizedUrl, type UrlNormalizer } from "./url.js";
 import {
   clip,
   createValueReader,
@@ -260,14 +270,21 @@ export function collectHttpFacts(
     return source.fallback ? [...source.spreads, source.fallback] : source.spreads;
   };
 
-  /** The symbol node ID of the wrapper function a site sits directly in, if any. */
+  /**
+   * The symbol node ID of the wrapper function a site sits in, if any: the innermost symbol
+   * around the site whose value is a function containing it, directly or inside callbacks it
+   * declares (`new Promise(async (resolve) => { await axios(req) })`, M5A.3c).
+   */
   const wrapperOf = (site: HttpCallSite): { id: string; fn: FunctionWithBody } | undefined => {
-    const fn = enclosingFunction(site.call);
     const byNode = resolver.callers.get(site.call.getSourceFile());
-    if (!fn || !byNode) return undefined;
-    for (let n: ts.Node | undefined = fn; n; n = n.parent) {
-      const id = byNode.get(n);
-      if (id !== undefined) return valueFunction(n) === fn ? { id, fn } : undefined;
+    if (!byNode) return undefined;
+    let n: ts.Node | undefined = site.call.parent;
+    while (n && !byNode.has(n)) n = n.parent;
+    const id = n && byNode.get(n);
+    const fn = n && valueFunction(n);
+    if (id === undefined || !fn || !isFunctionWithBody(fn)) return undefined;
+    for (let f = enclosingFunction(site.call); f; f = enclosingFunction(f)) {
+      if (f === fn) return { id, fn };
     }
     return undefined;
   };
@@ -306,6 +323,8 @@ export function collectHttpFacts(
       const reads =
         fn !== undefined &&
         ([...read].some((d) => d.parent === fn) ||
+          (site.config !== undefined &&
+            parameterOf(site.config.value.sp, site.config.value.expression, fn) !== undefined) ||
           (site.methodSource !== undefined &&
             sourceExpressions(site.methodSource).some(
               (value) => parameterOf(value.sp, value.expression, fn) !== undefined,
@@ -370,13 +389,24 @@ export function collectHttpFacts(
     return callers;
   };
 
-  /** The `method` property of an object literal or const object (`null`: not readable). */
-  const methodProperty = (value: ProgramExpression): ConfigValue => {
+  /** A property of an object literal or const object (`null`: not readable). */
+  const literalProperty = (value: ProgramExpression, name: string): ConfigValue => {
     const e = unwrap(value.expression);
     const object = ts.isObjectLiteralExpression(e)
       ? { sp: value.sp, expression: e }
       : reader.constObject(value.sp, e, 0);
-    return object ? objectProperty(object.sp, object.expression, "method") : null;
+    return object ? objectProperty(object.sp, object.expression, name) : null;
+  };
+
+  /** The `method` property of an object literal or const object (`null`: not readable). */
+  const methodProperty = (value: ProgramExpression): ConfigValue =>
+    literalProperty(value, "method");
+
+  /** True when an expression names a parameter (of any function: the caller's, here). */
+  const isParameterName = (value: ProgramExpression): boolean => {
+    const e = unwrap(value.expression);
+    const d = ts.isIdentifier(e) ? reader.symbolAt(value.sp, e)?.valueDeclaration : undefined;
+    return d !== undefined && ts.isParameter(d);
   };
 
   /** The requests one call to a wrapper makes: one per site in the wrapper's body. */
@@ -440,14 +470,45 @@ export function collectHttpFacts(
       return methodValue(source.fallback);
     };
 
+    /**
+     * The URL of a site whose whole axios config is a parameter (M5A.3c): `url` and `baseURL`
+     * read from the caller's object literal or const object (no `baseURL` there: the
+     * instance's), with the nodes an unresolved request may show. A caller passing its own
+     * parameter on is `WRAPPER_DEPTH`; any other config it can't read has no URL.
+     */
+    const configUrl = (
+      config: NonNullable<HttpCallSite["config"]>,
+    ): { url: NormalizedUrl; shown: ts.Node[] } => {
+      const v = bound(config.value);
+      if (v !== null && v !== "missing" && isParameterName(v)) {
+        return {
+          url: { resolved: false, reason: "WRAPPER_DEPTH", detail: WRAPPER_DEPTH_DETAIL.config },
+          shown: [],
+        };
+      }
+      const url = v === null ? null : v === "missing" ? undefined : literalProperty(v, "url");
+      const base = v === null || v === "missing" ? undefined : literalProperty(v, "baseURL");
+      const target = {
+        url: url ?? null,
+        baseURL: base === undefined ? config.baseURL : base,
+      };
+      return {
+        url: normalizer.normalize(target, bindings),
+        shown: [url?.expression, base?.expression].filter((e) => e !== undefined),
+      };
+    };
+
     return wrapper.sites.map((site): HttpRequestFact => {
-      const url = normalizer.normalize(site, bindings);
+      const fromConfig = site.config && configUrl(site.config);
+      const url = fromConfig ? fromConfig.url : normalizer.normalize(site, bindings);
       const confidence = weaker(site.confidence, caller.confidence);
       const read = normalizer.parameters(site);
-      const urlArgs = wrapper.fn.parameters.flatMap((d, i) => {
-        const arg = args[i];
-        return read.has(d) && arg ? [arg] : [];
-      });
+      const urlArgs = fromConfig
+        ? fromConfig.shown
+        : wrapper.fn.parameters.flatMap((d, i) => {
+            const arg = args[i];
+            return read.has(d) && arg ? [arg] : [];
+          });
       const method = boundMethod(site);
       const expression = redactedText(caller.call, urlArgs);
       return {

@@ -208,6 +208,71 @@ describe("inlineWrappers", () => {
     ]);
   });
 
+  it("reads url, baseURL, and method from the caller's axios config (M5A.3c)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/fetcher.ts", [
+      'import axios, { AxiosRequestConfig } from "axios";',
+      'const api = axios.create({ baseURL: "https://api.example.com/v1" });',
+      "const httpRequest = <T>(req: AxiosRequestConfig): Promise<T> => {",
+      "  return new Promise(async (resolve, reject) => {",
+      "    try {",
+      "      const res = await axios(req);",
+      "      resolve(res.data);",
+      "    } catch (e) {",
+      "      reject(e);",
+      "    }",
+      "  });",
+      "};",
+      "export default httpRequest;",
+      "export function viaInstance(config: AxiosRequestConfig) {",
+      "  return api.request(config);",
+      "}",
+    ]);
+    await put("src/api.ts", [
+      'import httpRequest, { viaInstance } from "./fetcher";',
+      'const LOGOUT = { method: "DELETE", url: "/logout" } as const;',
+      "export const login = (username: string) =>",
+      '  httpRequest({ method: "POST", url: "/authenticate", data: { username } });',
+      "export const getPost = (id: string) => httpRequest({ url: `/post/${id}` });",
+      "export const logout = () => httpRequest(LOGOUT);",
+      'export const other = () => httpRequest({ baseURL: "https://other.example.com", url: "/x" });',
+      "export const pass = (config: object) => httpRequest(config);",
+      'export const noUrl = () => httpRequest({ method: "GET" });',
+      "export const spread = (extra: object) => httpRequest({ ...extra });",
+      'export const users = () => viaInstance({ url: "/users" });',
+      'export const absolute = () => viaInstance({ url: "/u", baseURL: "https://b.example.com" });',
+    ]);
+    expect(await summary()).toEqual([
+      "src/api.ts:4 POST /authenticate [login] <- src/fetcher.ts:6",
+      "src/api.ts:5 GET /post/{} [getPost] <- src/fetcher.ts:6",
+      "src/api.ts:6 DELETE /logout [logout] <- src/fetcher.ts:6",
+      "src/api.ts:7 GET https://other.example.com/x [other] <- src/fetcher.ts:6",
+      "src/api.ts:8 ? WRAPPER_DEPTH: the axios config is a parameter of the calling function, a wrapper more than one call deep [pass] <- src/fetcher.ts:6",
+      "src/api.ts:9 GET DYNAMIC_URL: the URL can't be read statically [noUrl] <- src/fetcher.ts:6",
+      "src/api.ts:10 ? DYNAMIC_URL: the URL can't be read statically [spread] <- src/fetcher.ts:6",
+      "src/api.ts:11 GET https://api.example.com/v1/users [users] <- src/fetcher.ts:15",
+      "src/api.ts:12 GET https://b.example.com/u [absolute] <- src/fetcher.ts:15",
+    ]);
+  });
+
+  it("shows the caller's url but masks the rest of its config on an unresolved request", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/fetcher.ts", [
+      'import axios from "axios";',
+      "export const send = (req: object) => axios(req);",
+    ]);
+    await put("src/api.ts", [
+      'import { send } from "./fetcher";',
+      "export const login = (base: string) =>",
+      '  send({ method: "POST", url: `${base}/login?k=secret`, data: { password: "hunter2" } });',
+    ]);
+    const [request] = await requests();
+    expect(request?.url.resolved).toBe(false);
+    expect(request?.expression).toBe(
+      'send({ method: "POST", url: `${base}/login?…`, data: { password: "…" } })',
+    );
+  });
+
   it("marks a URL that starts with the caller's own parameter WRAPPER_DEPTH", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/http.ts", [

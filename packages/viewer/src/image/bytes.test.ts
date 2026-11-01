@@ -104,6 +104,7 @@ const EXPECTED: Record<string, string[]> = {
   "axios-baseurl-instance": ["8f9e58cbf579f118", "db7a9fd293ab190f", "87b6aa201ac04dc1"],
   "checker-crash": ["9ad3cd1ca9d2a5d3", "d1fca9dd0afd2e51", "1032d01b33fc2f77"],
   "compose-and-env": ["b6618b99ea80f918", "23ed7bbed43183c3", "37f6b284edd90c05"],
+  "config-wrapper": ["9b37fdeb4f08d807", "d1474590e6a2dab0", "4e7661c56985e3aa"],
   "diff-broken-base": ["bcd4b43a268fe1d4", "8f4f6940b880d91a", "1697898c7befd3f1"],
   "diff-broken-head": ["857887a7f6f7aafb", "ad567ab1bb9a6594", "6e90d6f1aea7b8a5"],
   "diff-rename-base": ["91914401c85b3e45", "c0eb7ea5bad35329", "2a58638f769b631c"],
