@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.17c2c Sized for 1 vCPU / 4 GiB with `/tmp` in memory (M5.13 and M5.14b wait on #3)
+M5.17c2d Maintenance without an always-on process (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -167,7 +167,7 @@ M5.17c2c Sized for 1 vCPU / 4 GiB with `/tmp` in memory (M5.13 and M5.14b wait o
 - [x] M5.17c1 `POST /run` (ADR-0143): the processor's attempt shared as `runAttempt`; HMAC (a day's age for queued tasks) on top of Cloud Run IAM; one job per request under one 280 s deadline (download and child kill time from what's left, publish reserve); attempt from `X-CloudTasks-TaskRetryCount`, 3 attempts (200 for success, permanent, and last-attempt failures; 503 retriable); 429 while busy; cancelled on hang-up or shutdown; fake Cloud Tasks pusher; tests {model: opus}
 - [x] M5.17c2a The worker process on `POST /run` (ADR-0144): entry point serves it on `PORT` (Cloud Run), shutdown cancels the running job; config without Redis; startup sweep safe with 2 instances (by age, not process start); tests {model: opus}
 - [x] M5.17c2b A duplicate push for a `done` row answers 200 without re-running (no download, no child); a contract test that a task from the website's `createTask` is accepted by `/run`; tests {model: opus}
-- [ ] M5.17c2c Sized for 1 vCPU / 4 GiB with `/tmp` in memory: heap cap and extraction limits from M5.16a and cal.com (decompressed tarball + graph + heap within 4 GiB); ADR, tests {model: opus}
+- [x] M5.17c2c Sized for 1 vCPU / 4 GiB with `/tmp` in memory: heap cap and extraction limits from M5.16a and cal.com (decompressed tarball + graph + heap within 4 GiB); ADR, tests {model: opus}
 - [ ] M5.17c2d Maintenance without an always-on process (e.g. after a job when the last run is over an hour old, recorded in Neon so 2 instances don't both run it); `queued` rows past the task window and `running` rows past the request timeout failed by it; tests {model: opus}
 - [ ] M5.17c3 BullMQ, Redis, and the enqueue server removed (code, deps, tests, compose, docs); local dev pushes with the fake Cloud Tasks; DESIGN.md/SECURITY.md queue wording {model: opus}
 - [ ] M5.17d Cloud Run container: image (non-root, `PORT`, read-only except `/tmp`), CI container check without Redis or the egress gateway, `infra/oracle` replaced by `infra/gcp` (service, queue, IAM, docs) {model: opus}
@@ -251,6 +251,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5.17c2c** (`281049f`, ADR-0146): on Cloud Run `/tmp` is memory, and the VM's limits could need ~4.9 GiB of a 4 GiB instance. The child now reports peak RSS and final heap (stored in `analyses.stats`); `bench:capped --heap-mb`: cal.com and `src/vs/platform` (44.8 MiB source) finished under 2,048 MB (peak 1,993 / 2,139 MiB), so heap 2,560 MB, extraction 400 MiB / 60,000 entries. `budget.ts` sums heap, child overhead, worker, graph file, the tree (4 KiB per entry), and spare to 4,090 of 4,096 MiB; its test was red at the old limits. Web copy for `LIMIT_SIZE`/`LIMIT_ENTRIES` pinned to the worker's numbers. Worker 620 (+12 skipped), web 380, bench 47, typecheck, lint, eval reproduced. Results in `bench/results/2026-11-01-capped-memory.md`.
 
 - **2026-11-01 M5.17c2b** (`29ba77a`): `POST /run` asks the recorder's new `done(jobId)` (`findJob`) once a job may start and answers `200 done` with no GitHub call, download, or child; a failed lookup runs the job as before (ADR-0145). Contract test in `apps/web/lib/cloudTasks.test.ts`: a task from the website's `createTask` pushed to the worker's real handler is accepted under the website's job ID, and answered done when that row is. Mutation check: disabling the check turns the run test red.
 - **2026-11-01 #13** (`bf15e19`): Abhinav's instruction planned in: M5A (cross-service recall, after M5, before the rest of M6), ROADMAP and SPEC record the order after v1 (JS/TS frameworks, then other languages).
