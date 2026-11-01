@@ -159,6 +159,20 @@ export function sizeHoldMessage(errorCode: string, until: Date): string {
   ].join(" ");
 }
 
+/**
+ * Why a repo with `codeBytes` of TypeScript and JavaScript by GitHub's count isn't analyzed
+ * (`findTooMuchCode`, ADR-0154): GitHub's number, then the supported size.
+ */
+export function tooMuchCodeReason(codeBytes: number): string {
+  const mb = formatCount(Math.floor(codeBytes / (1024 * 1024)));
+  return `GitHub counts over ${mb}${NBSP}MB of TypeScript and JavaScript in this repo. ${SUPPORTED}`;
+}
+
+/** {@link tooMuchCodeReason} and what to do, for `/api/analyze`'s refusal. */
+export function tooMuchCodeMessage(codeBytes: number): string {
+  return `${tooMuchCodeReason(codeBytes)} ${SMALLER}`;
+}
+
 /** The page's words for a failed job. */
 export function failureView(errorCode: string): Extract<JobView, { state: "failed" }> {
   const entry = Object.hasOwn(PERMANENT, errorCode) ? PERMANENT[errorCode] : undefined;

@@ -7,6 +7,7 @@ import {
   type AnyDatabase,
   type PublishedAnalysis,
 } from "@gitinside/db";
+import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
 import { QUEUE_UNAVAILABLE, enqueueAnalysis, type EnqueueDeps } from "./enqueue";
 import { resolveRepo, type GitHubOptions, type ResolveResult } from "./github";
 import type { RepoRef } from "./repoUrl";
@@ -29,7 +30,9 @@ import { findSizeHold } from "./sizeHold";
  *    Otherwise the newer commit's own state decides: finished ⇒ shown instead; in flight
  *    ⇒ `updating`; failed ⇒ `behind` with its code (a failure isn't re-run on every view;
  *    "Analyze again" retries one that could pass); the repo held after a `LIMIT_*` failure
- *    (`findSizeHold`, #11) ⇒ `behind`, `too-big`; none, or a row whose task was never
+ *    (`findSizeHold`, #11) ⇒ `behind`, `too-big`; over twice the supported size of TypeScript
+ *    and JavaScript by GitHub's count (`findTooMuchCode`, ADR-0154) ⇒ `behind`,
+ *    `too-much-code`; none, or a row whose task was never
  *    created (`QUEUE_UNAVAILABLE`) ⇒ enqueued on Cloud Tasks (`enqueueAnalysis`).
  * 5. **Who pays:** re-analysis on view is charged to the repo, not the visitor
  *    (`repo:<GitHub ID>`, {@link RECHECKS_PER_HOUR} per hour), since a README image or a
@@ -83,6 +86,8 @@ export interface RepoViewDeps {
   /** `@gitinside/analyzer/version`. */
   analyzerVersion: string;
   heads: HeadCache;
+  /** GitHub's code counts by commit (`findTooMuchCode`); without it, asked every time. */
+  codeSizes?: CodeSizeCache;
   /** Default {@link RECHECKS_PER_HOUR}. */
   rechecksPerHour?: number;
 }
@@ -104,6 +109,11 @@ export type HeadState =
    * past week, so new ones wait until `until` (ISO 8601) unless it shrinks (#11).
    */
   | { state: "behind"; sha: string; reason: "too-big"; errorCode: string; until: string }
+  /**
+   * Newer than what's shown, but GitHub counts `codeBytes` of TypeScript and JavaScript in
+   * the repo, over twice the supported size, so it isn't analyzed (ADR-0154).
+   */
+  | { state: "behind"; sha: string; reason: "too-much-code"; codeBytes: number }
   /** GitHub couldn't be asked. */
   | { state: "unknown" };
 
@@ -230,6 +240,15 @@ export async function viewRepo(
         reason: "too-big",
         errorCode,
         until: until.toISOString(),
+      });
+    }
+    const codeBytes = await findTooMuchCode(head, deps.github, deps.codeSizes);
+    if (codeBytes !== undefined) {
+      return ready(published, {
+        state: "behind",
+        sha: head.sha,
+        reason: "too-much-code",
+        codeBytes,
       });
     }
   }

@@ -1,6 +1,7 @@
 /**
  * A fake GitHub REST API for tests: `fetch` answering `GET /repos/{owner}/{repo}` and
- * `GET /repos/{owner}/{repo}/commits/HEAD` (sha media type) like api.github.com does.
+ * `GET /repos/{owner}/{repo}/commits/HEAD` (sha media type), and
+ * `GET /repos/{owner}/{repo}/languages` like api.github.com does.
  * Names match ignoring case, as on GitHub.
  */
 
@@ -14,6 +15,8 @@ export interface FakeRepo {
   sha: string | null;
   /** GitHub's `size` in KiB; default 1,024. `null` leaves the field out. */
   sizeKb?: number | null;
+  /** `GET …/languages`'s answer, bytes by language; default 50,000 bytes of TypeScript. */
+  languages?: Record<string, unknown>;
 }
 
 export interface FakeGitHub {
@@ -64,6 +67,9 @@ export function fakeGitHub(repos: FakeRepo[]): FakeGitHub {
         return Response.json({ message: "Git Repository is empty." }, { status: 409 });
       }
       return new Response(repo.sha, { headers: { "content-type": "application/vnd.github.sha" } });
+    }
+    if (rest.join("/") === "languages") {
+      return Response.json(repo.languages ?? { TypeScript: 50_000 });
     }
     return Response.json({ message: "Not Found" }, { status: 404 });
   };

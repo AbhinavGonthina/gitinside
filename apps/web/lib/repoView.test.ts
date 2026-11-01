@@ -19,6 +19,7 @@ import {
   viewRepo,
   type RepoViewDeps,
 } from "./repoView";
+import { createCodeSizeCache } from "./codeSize";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeTaskQueue } from "./google.testkit";
 import { SIZE_HOLD_DAYS } from "./sizeHold";
@@ -241,6 +242,44 @@ describe("viewRepo", () => {
     expect(await repoSlots()).toBe(0);
 
     shop.sizeKb = 450_000;
+    clock += 61_000;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "updating", sha: third, jobId: jobFor(third) }),
+    );
+  });
+
+  it("doesn't analyze a newer commit with too much code by GitHub's count, asking once a commit (#11)", async () => {
+    await done(OLD);
+    Object.assign(shop, {
+      sha: NEW,
+      languages: { TypeScript: 220_594_269, JavaScript: 1_159_274 },
+    });
+    deps.codeSizes = createCodeSizeCache();
+    const behind = ready(OLD, {
+      state: "behind",
+      sha: NEW,
+      reason: "too-much-code",
+      codeBytes: 221_753_543,
+    });
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(behind);
+    expect(tasks.google.tasks).toEqual([]);
+    expect(await repoSlots()).toBe(0);
+    expect(await rows()).toEqual([{ sha: OLD, status: "done", version: VERSION }]);
+
+    // Past the head cache's minute: the repo and commit asked again, the count remembered.
+    clock += 61_000;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(behind);
+    expect(gh.requests.map((r) => new URL(r.url).pathname.split("/").pop())).toEqual([
+      "shop",
+      "HEAD",
+      "languages",
+      "shop",
+      "HEAD",
+    ]);
+
+    // A cleanup in the next commit gets it analyzed.
+    const third = "c".repeat(40);
+    Object.assign(shop, { sha: third, languages: { TypeScript: 40_000_000 } });
     clock += 61_000;
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "updating", sha: third, jobId: jobFor(third) }),

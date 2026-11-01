@@ -17,7 +17,8 @@ import { rateLimitKey } from "./clientIp";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
 import { fakeTaskQueue } from "./google.testkit";
-import { sizeHoldMessage } from "./jobs";
+import { MAX_GITHUB_CODE_BYTES } from "./codeSize";
+import { sizeHoldMessage, tooMuchCodeMessage } from "./jobs";
 
 const SHA = "e".repeat(40);
 const VERSION = "0.1.0";
@@ -300,6 +301,52 @@ describe("requestAnalysis", () => {
       });
       expect((await ask(900_000)).status).toBe(200);
       expect((await ask(900_000, "9".repeat(40))).status).toBe(202);
+    });
+  });
+
+  describe("a repo with too much code by GitHub's count (#11)", () => {
+    const HUGE = { TypeScript: 220_594_269, JavaScript: 1_159_274 }; // VS Code, 2026-10-31
+    const ask = (languages: Record<string, unknown>, extra: Partial<AnalyzeDeps> = {}) => {
+      gh = fakeGitHub([{ ...SHOP, languages }]);
+      return requestAnalysis("acme/shop", IP, { ...deps, github: { fetch: gh.fetch }, ...extra });
+    };
+
+    it("is refused before any slot, row, or task: GitHub's count and what to do", async () => {
+      const answer = await ask(HUGE);
+      expect(answer).toEqual({
+        status: 422,
+        body: { error: "REPO_TOO_BIG", message: tooMuchCodeMessage(221_753_543) },
+      });
+      expect(await slotsUsed()).toBe(0);
+      expect(await analysisRows()).toEqual([]);
+      expect(tasks.google.tasks).toEqual([]);
+    });
+
+    it("up to the limit, or with GitHub's count unknown, it's queued as usual", async () => {
+      expect((await ask({ TypeScript: MAX_GITHUB_CODE_BYTES })).status).toBe(202);
+      await t.db.delete(analyses);
+      expect((await ask({ TypeScript: "lots" })).status).toBe(202);
+      await t.db.delete(analyses);
+      // GitHub down for the count alone.
+      gh = fakeGitHub([{ ...SHOP, languages: HUGE }]);
+      const fetch: typeof gh.fetch = (input, init) =>
+        String(input).endsWith("/languages")
+          ? Promise.reject(new TypeError("fetch failed"))
+          : gh.fetch(input, init);
+      expect((await requestAnalysis("acme/shop", IP, { ...deps, github: { fetch } })).status).toBe(
+        202,
+      );
+    });
+
+    it("isn't asked for a commit in flight", async () => {
+      await ask({ TypeScript: 1 });
+      expect(gh.requests).toHaveLength(3); // repo, commit, languages
+      // In flight now: the same job back, GitHub's count not asked even if it grew.
+      expect((await ask(HUGE)).status).toBe(202);
+      expect(gh.requests.map((r) => new URL(r.url).pathname)).toEqual([
+        "/repos/acme/shop",
+        "/repos/Acme/Shop/commits/HEAD",
+      ]);
     });
   });
 

@@ -4,7 +4,7 @@ import type { RepoRef } from "./repoUrl";
  * Asking GitHub which commit to analyze (docs/DESIGN.md §11, ADR-0066): the repo's facts
  * (`GET /repos/{owner}/{repo}`), then its default branch's latest commit
  * (`GET /repos/{owner}/{repo}/commits/HEAD` with the `sha` media type, which answers with
- * the 40 hex characters alone).
+ * the 40 hex characters alone). Before new work, its languages (`fetchCodeBytes`, ADR-0154).
  *
  * - **Public repos only** until M8: a private repo is reported exactly like a missing one,
  *   so a configured token that can see private repos never reveals that one exists.
@@ -102,21 +102,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/**
- * Resolve a pasted repo to GitHub's facts and the latest commit on its default branch.
- * Never throws: every failure is a {@link ResolveFailure}.
- */
-export async function resolveRepo(
-  ref: RepoRef,
-  options: GitHubOptions = {},
-): Promise<ResolveResult> {
-  const doFetch = options.fetch ?? fetch;
-  const api = new URL(options.apiBase ?? "https://api.github.com");
-  const repoPath = (owner: string, repo: string) =>
-    `${api.pathname.replace(/\/$/, "")}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+/** GitHub's REST API on `options.apiBase`, read with `options`. */
+class GitHubApi {
+  readonly #api: URL;
 
-  async function get(path: string, accept: string): Promise<string> {
-    let url = new URL(path, api);
+  constructor(private readonly options: GitHubOptions) {
+    this.#api = new URL(options.apiBase ?? "https://api.github.com");
+  }
+
+  /** `/repos/{owner}/{repo}` under the API's base path. */
+  repoPath(owner: string, repo: string): string {
+    return `${this.#api.pathname.replace(/\/$/, "")}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  }
+
+  /** The body of a `200` for `path`, following same-origin redirects; else a {@link Failure}. */
+  async get(path: string, accept: string): Promise<string> {
+    const { options } = this;
+    const doFetch = options.fetch ?? fetch;
+    let url = new URL(path, this.#api);
     for (let hop = 0; ; hop++) {
       let response: Response;
       try {
@@ -141,20 +144,30 @@ export async function resolveRepo(
         }
       }
       await response.body?.cancel().catch(() => undefined);
-      const next = REDIRECT.has(response.status) ? sameOrigin(response, url, api) : undefined;
+      const next = REDIRECT.has(response.status) ? sameOrigin(response, url, this.#api) : undefined;
       if (next === undefined || hop >= MAX_REDIRECTS) throw new Failure(failureFor(response));
       url = next;
     }
   }
+}
 
+/**
+ * Resolve a pasted repo to GitHub's facts and the latest commit on its default branch.
+ * Never throws: every failure is a {@link ResolveFailure}.
+ */
+export async function resolveRepo(
+  ref: RepoRef,
+  options: GitHubOptions = {},
+): Promise<ResolveResult> {
+  const api = new GitHubApi(options);
   try {
-    const text = await get(repoPath(ref.owner, ref.repo), "application/vnd.github+json");
+    const text = await api.get(api.repoPath(ref.owner, ref.repo), "application/vnd.github+json");
     const facts = text.length > MAX_JSON_BYTES ? undefined : parseFacts(text);
     if (facts === undefined) return { ok: false, code: "GITHUB_UNAVAILABLE" };
     if (facts.private) return { ok: false, code: "REPO_NOT_FOUND" };
     // GitHub's own spelling, so a renamed repo's commit is asked for under its new name.
-    const commit = `${repoPath(facts.owner, facts.name)}/commits/HEAD`;
-    const sha = (await get(commit, "application/vnd.github.sha")).trim();
+    const commit = `${api.repoPath(facts.owner, facts.name)}/commits/HEAD`;
+    const sha = (await api.get(commit, "application/vnd.github.sha")).trim();
     if (!SHA.test(sha)) return { ok: false, code: "GITHUB_UNAVAILABLE" };
     const { id, owner, name, defaultBranch, sizeKb } = facts;
     return {
@@ -173,6 +186,58 @@ export async function resolveRepo(
     if (error instanceof Failure) return { ok: false, code: error.code };
     throw error;
   }
+}
+
+/**
+ * The languages GitHub reports (Linguist's names) that the analyzer parses. `.tsx` is counted
+ * under TypeScript and `.jsx` under JavaScript; `TSX` and `JSX` are summed in case an answer
+ * names them on their own. `.prisma` files are left out: they're small.
+ */
+export const ANALYZED_LANGUAGES: readonly string[] = ["JavaScript", "JSX", "TSX", "TypeScript"];
+
+/**
+ * GitHub's count of TypeScript and JavaScript bytes on the repo's default branch
+ * (`GET /repos/{owner}/{repo}/languages`, Linguist: vendored, generated, and documentation
+ * files left out), or `undefined` if GitHub can't be asked or its answer can't be read, so no
+ * rule acts on a guess. Never throws.
+ *
+ * Not exact: Linguist's exclusions aren't the analyzer's (`IGNORED_DIRS`, files over 2 MB),
+ * and GitHub recounts a little after a push, so the count can be the previous commit's.
+ * Measured against the analyzer's source size: VS Code 211 vs 201 MiB, cal.com 17.2 vs
+ * 18.0 MiB (ADR-0154).
+ */
+export async function fetchCodeBytes(
+  repo: Pick<ResolvedRepo, "owner" | "name">,
+  options: GitHubOptions = {},
+): Promise<number | undefined> {
+  const api = new GitHubApi(options);
+  try {
+    const path = `${api.repoPath(repo.owner, repo.name)}/languages`;
+    const text = await api.get(path, "application/vnd.github+json");
+    return text.length > MAX_JSON_BYTES ? undefined : parseCodeBytes(text);
+  } catch (error) {
+    if (error instanceof Failure) return undefined;
+    throw error;
+  }
+}
+
+/** The {@link ANALYZED_LANGUAGES}' bytes in a languages answer, or `undefined` if malformed. */
+function parseCodeBytes(text: string): number | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!isRecord(value)) return undefined;
+  let total = 0;
+  for (const language of ANALYZED_LANGUAGES) {
+    if (!Object.hasOwn(value, language)) continue;
+    const bytes = value[language];
+    if (typeof bytes !== "number" || !Number.isSafeInteger(bytes) || bytes < 0) return undefined;
+    total += bytes;
+  }
+  return total;
 }
 
 /**

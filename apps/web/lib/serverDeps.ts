@@ -8,6 +8,7 @@ import {
   type StoreConfig,
 } from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
+import { createCodeSizeCache } from "./codeSize";
 import type { GraphRouteDeps } from "./graphRoute";
 import { cdnGraphReader, type ImageRouteDeps } from "./imageRoute";
 import { jobRouteDeps, type JobRouteDeps } from "./jobRoute";
@@ -206,6 +207,7 @@ export function analyzeDepsFromEnv(
     analyzerVersion: ANALYZER_VERSION,
     rateLimitSecret: secret,
     hourlyLimit: SIGNED_OUT_HOURLY_LIMIT,
+    codeSizes,
   };
 }
 
@@ -249,6 +251,8 @@ export function imageDepsFromEnv(
 
 /** One process-wide memory of GitHub's answers (lib/repoView.ts). */
 const heads = createHeadCache();
+/** One process-wide memory of GitHub's code counts by commit (lib/codeSize.ts). */
+const codeSizes = createCodeSizeCache();
 
 /**
  * The repo page's deps (ADR-0068): the database, else `undefined` (the page then says
@@ -266,5 +270,6 @@ export function repoViewDepsFromEnv(
     github: env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN } : {},
     analyzerVersion: ANALYZER_VERSION,
     heads,
+    codeSizes,
   };
 }

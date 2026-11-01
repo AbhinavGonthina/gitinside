@@ -87,6 +87,15 @@ describe("headStatus", () => {
     );
   });
 
+  it("says GitHub's count when a newer commit has too much code, without a retry (#11)", () => {
+    expect(
+      status({ state: "behind", sha: NEWER, reason: "too-much-code", codeBytes: 221_753_543 }),
+    ).toEqual({
+      tone: "behind",
+      text: `The latest commit, b1c2d3e, wasn't analyzed, so this is an earlier one. GitHub counts over 211${NBSP}MB of TypeScript and JavaScript in this repo. GitInside analyzes repos up to 20,000 source files and 50${NBSP}MB of source code.`,
+    });
+  });
+
   it("doesn't claim the diagram is current when GitHub couldn't be asked", () => {
     expect(status({ state: "unknown" })).toEqual({
       tone: "behind",
