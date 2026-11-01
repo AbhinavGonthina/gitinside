@@ -79,7 +79,7 @@
   "heldOutBatches": [
     {
       "batch": 1,
-      "seen": "Picked and labeled in M5A.2b–c before the analyzer first ran on them, and never used to choose a fix, but their false positives and negatives were read during M5A.3g–3i, so they no longer show whether fixes generalize (ADR-0168)."
+      "seen": "Their false positives and negatives were read during M5A.3g–3i, though no fix was chosen from them (ADR-0168)."
     }
   ]
 }
