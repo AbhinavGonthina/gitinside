@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.4a3 Batch 2, repo 2 (`nemanjam/nextjs-prisma-boilerplate`): pin, label, then score once (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.5 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff, CLI smoke test on a real repo outside the eval, M5A-review.md (incl. batch 2's blind 45.8% / 35.5%), tag m5a (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -210,7 +210,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.4 Eval re-run on the original and held-out repos, ADR for any change in approach, README/EVALUATION numbers updated; if targets aren't met, list what's left and why (runtime-only URLs stay unresolved) {model: opus}
 - [x] M5A.4a1 Held-out batches (ADR-0168): `heldOut: <batch>` on each held-out repo and a `heldOutBatches` list in `repos.json` (each batch seen, with why, or unseen); the report gives each batch its own section and totals, marks batch 1 seen; EVALUATION.md; tests; regenerated report {model: opus}
 - [x] M5A.4a2 Fresh held-out batch 2, repo 1: pick 2 new public React/Next + Express (+ Prisma) repos of shapes and URL styles unlike the first eight (selection rules as M3.2, read but never analyzed), pin the first as unseen batch 2, draft and commit its labels; no scoring {model: opus}
-- [ ] M5A.4a3 Batch 2, repo 2: pin, draft and commit labels, then score once (`pnpm eval`); README/EVALUATION quote the first measurement as is; misses go to a diagnosis note, not into M5A fixes {model: opus}
+- [x] M5A.4a3 Batch 2, repo 2: pin, draft and commit labels, then score once (`pnpm eval`); README/EVALUATION quote the first measurement as is; misses go to a diagnosis note, not into M5A fixes {model: opus}
 - [ ] M5A.5 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff (generalization: no repo-specific cases), CLI smoke test on a real repo outside the eval, M5A-review.md, tag m5a {model: opus}
 
 ### M6: Graph diff + incremental analysis
@@ -269,6 +269,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.4a3** (`915a661` labels, `eee9e37` report, `b82f7e7` docs): pinned `nemanjam/nextjs-prisma-boilerplate` (`"heldOut": 2`), 14 labels at 14 sites from the code alone, committed before the analyzer ran; EVALUATION.md fixed three readings first (next-connect methods, a custom server's catch-all to Next is a pass-through, static files aren't routes). One blind run of batch 2: precision 45.8% (11/24), recall 35.5% (11/31); `--check` byte-identical, original five and batch 1 unchanged. Causes in `eval/results/2026-11-batch2-diagnosis.md`: next-connect `handler.get(…)` read as `ALL` (13 FN + 13 FP, right file and path) and SWR-invoked fetchers (7 FN); not fixed in M5A. README/EVALUATION quote it as is.
 
 - **2026-11-01 M5A.4a2** (`bf42d92`): batch 2 (unseen) opened with `harundogdu/twitter-clone` (MIT, Next.js pages router + Prisma, `"heldOut": 2`): 19 labels at 18 call sites from the code alone, never analyzed. New URL style: SWR keys handed to a `fetcher` the repo never calls, so labels sit at the `useSWR` calls; one ternary URL, one call to a route that doesn't exist (`null`), two open handlers labeled `ALL`. EVALUATION.md records both labeling readings and the second candidate, `nemanjam/nextjs-prisma-boilerplate` (`Routes.API.*` constants, next-connect). Validate + eval tests green; no scoring, so the committed report is stale vs the inputs until M5A.4a3.
 
