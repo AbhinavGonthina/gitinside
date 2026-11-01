@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.17f SECURITY.md review for the sandbox change (M5.17e, M5.13, and M5.14b wait on #3)
+M5.18a Abuse (#11): "too big" remembered per repo (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -174,7 +174,7 @@ M5.17f SECURITY.md review for the sandbox change (M5.17e, M5.13, and M5.14b wait
 - [x] M5.17d1 Cloud Run image + CI container check (`infra/gcp/check.mjs`): the image alone gives non-root (numeric `USER`), `HOST=0.0.0.0`, and nothing writable for its user outside `/tmp` (the platform applies no read-only root or capability drops); the check runs it as Cloud Run does (plain `docker run`, a non-default `PORT`, 1 vCPU / 4 GiB, in-memory `/tmp`, no init, no Redis or egress gateway): health, signed and unsigned `/run`, a filesystem write walk, a golden analysis in the image, SIGTERM within Cloud Run's 10 s; CI's `worker-image` job on it {model: opus}
 - [x] M5.17d2 `infra/oracle` replaced by `infra/gcp`: service (resources, timeout, concurrency, max instances, startup probe, no unauthenticated access), queue (2 dispatches, 3 attempts, backoff inside the signature window), IAM (runtime, invoker, enqueue accounts) as reviewed config + docs; `infra/oracle` deleted; README/DESIGN/SECURITY/TESTING paths {model: opus}
 - [ ] M5.17e Keyless deploy + cost guardrails as code (ADR-0111): GitHub Actions deploy via Workload Identity Federation (Artifact Registry within its free storage); Cloud Run max instances 2, concurrency 1, timeout 300 s, min instances 0, 1 vCPU / 4 GiB, no unauthenticated access; no NAT, load balancer, Memorystore, or static IP; budget alert ⇒ billing kill switch; a `verify-guardrails` script; post the remaining Google Cloud steps on #3 {model: opus} {blocked: #3}
-- [ ] M5.17f SECURITY.md review for the sandbox change (ADR-0111): §3 and T1–T9 against Cloud Run (no egress gateway; the analysis child still has no network, `netguard.ts`; the parent's egress; IAM-only invocation), tests for the controls that remain, DESIGN.md/SPEC wording {model: opus}
+- [x] M5.17f SECURITY.md review for the sandbox change (ADR-0111): §3 and T1–T9 against Cloud Run (no egress gateway; the analysis child still has no network, `netguard.ts`; the parent's egress; IAM-only invocation), tests for the controls that remain, DESIGN.md/SPEC wording {model: opus}
 - [ ] M5.18a Abuse (#11): "too big" remembered per repo, not per commit: after a `LIMIT_*` failure, refuse new analyses of that repo for 7 days unless its GitHub size dropped by half, with a message saying why and when; tests {model: opus}
 - [ ] M5.18b Abuse (#11): size check before any download or compute from GitHub's repo `size` (threshold from M5.16a), refused with a clear message; tests {model: opus}
 - [ ] M5.18c Abuse (#11): per-repo limit on `/api/analyze`: at most one new analysis per repo per 30 min whoever asks (on top of 5/h per IP and check-on-view's 6/h), message with the retry time; tests {model: opus}
@@ -253,6 +253,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-01 M5.17f: SECURITY.md reviewed for Cloud Run (ADR-0152). No free egress allowlist exists there (Direct VPC egress needs Cloud NAT; hostname rules need Cloud NGFW), so the analysis child's own guards are the network boundary; the worker process keeps ordinary egress, with its blast radius (four rotatable secrets; the GitHub token must be fine-grained, public repos read-only) written down. Checked that `process.binding`, inspector, WASI, `/proc/<parent>/environ` are refused and http2, Unix sockets, and the metadata server hit the guard; new probes in `runner.test.ts` (dropping the permission flags turns all five internals probes red). Assets, T1, T3, T4, T8, T9, §3, §4, DESIGN.md, SPEC §4, stale comments. No analyzer change, no eval delta.
 
 - **2026-11-01 M5.17d2** (`4c8d7a4`, ADR-0151): `infra/gcp/{service,queue,iam}.json` as reviewed config (JSON so the test needs no YAML dependency): Cloud Run us-east4, max 2 / min 0, concurrency 1, 300 s, 1 vCPU / 4 GiB, gen2, internal ingress (Google documents Cloud Tasks from the same project as allowed), startup probe; queue 2 dispatches, 3 attempts, 30/60 s backoff; three accounts, every binding on one resource, 4 Secret Manager secrets (free tier 6 versions). `apps/web/lib/gcpConfig.test.ts` (17) ties them to the code's constants; a maxScale/maxAttempts mutant failed 4. `infra/oracle` deleted; SECURITY.md no longer claims the egress allowlist (M5.17f decides its replacement). Web 410/410, typecheck, lint. No eval delta.
 
