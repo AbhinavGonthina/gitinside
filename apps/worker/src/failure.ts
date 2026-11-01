@@ -1,9 +1,9 @@
 /**
  * How a job fails (ADR-0061). Every failure has a stable code (stored as
- * `analyses.error_code` and returned by `GET /jobs/:id`) and says whether trying again
+ * `analyses.error_code` and shown by the website's job page) and says whether trying again
  * could help: a dropped connection or a GitHub rate limit can pass, a repo over the file
- * limit can't. The queue retries only retriable failures (`attempts: 3`); the others fail
- * the job at once.
+ * limit can't. `POST /run` asks Cloud Tasks to retry only retriable failures (3 attempts,
+ * run.ts); the others fail the job at once.
  */
 
 /** Short upper-case identifiers, never free text from the repo or a server. */
@@ -15,9 +15,9 @@ export const RETRIABLE_CODES: ReadonlySet<string> = new Set([
   "DOWNLOAD_FAILED",
   /** The download didn't finish within its budget. */
   "DOWNLOAD_TIMEOUT",
-  /** GitHub refused with a rate limit; the backoff waits it out. */
+  /** GitHub refused with a rate limit; the queue's retry backoff waits it out. */
   "GITHUB_RATE_LIMITED",
-  /** The worker shut down mid-job; the next worker runs it again. */
+  /** The worker shut down mid-job (or the push hung up); the next delivery runs it again. */
   "CANCELLED",
   /** Storing the result (the bucket, Postgres) failed. */
   "PUBLISH_FAILED",

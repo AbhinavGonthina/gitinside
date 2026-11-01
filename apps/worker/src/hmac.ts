@@ -1,7 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
- * Request signing for the enqueue API (docs/SECURITY.md T8, §4; ADR-0060).
+ * Request signing for the jobs the website queues for `POST /run` (docs/SECURITY.md T8, §4;
+ * ADR-0060, ADR-0143). `MAX_CLOCK_SKEW_SECONDS` is the default window; run.ts allows a
+ * queued task's signature a day.
  *
  * The web app signs every request with a shared secret; the worker checks it before it reads
  * anything else. The signed text binds the timestamp, method, path (with query), and the raw

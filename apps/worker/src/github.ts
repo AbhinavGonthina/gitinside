@@ -25,7 +25,7 @@ import { JobFailure } from "./failure.js";
  * The returned body is the raw gzip stream; extract.ts limits what comes out of it.
  */
 
-/** Where a tarball comes from. Names are checked by the enqueue API before a job exists. */
+/** Where a tarball comes from. Names are checked by `parseJobRequest` before a job runs. */
 export interface TarballSource {
   owner: string;
   repo: string;

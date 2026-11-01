@@ -17,8 +17,8 @@ import {
 } from "./progress.js";
 
 /**
- * One attempt at a job, whoever delivered it (BullMQ's processor in queue.ts, or Cloud Tasks'
- * push to `POST /run` in run.ts, ADR-0114): validate the request, run {@link processJob},
+ * One attempt at a job, as Cloud Tasks' push to `POST /run` delivers it (run.ts, ADR-0114):
+ * validate the request, run {@link processJob},
  * report each stage and step as progress (with the time expected from each step on, once the
  * file count is known, ADR-0136) to the caller and to the recorder's Postgres row
  * (ADR-0139), log the outcome, and turn every error into a {@link JobFailure}.
@@ -40,7 +40,7 @@ export interface ProcessorEstimates {
 
 /** What one attempt is given. */
 export interface AttemptInput {
-  /** The job ID (the queue's, or derived from the request by run.ts). */
+  /** The job ID (derived from the request by run.ts). */
   id: string;
   /** The job body as delivered; checked with `parseJobRequest` before anything runs. */
   data: unknown;
@@ -52,7 +52,7 @@ export interface AttemptInput {
   signal?: AbortSignal;
   /** Milliseconds left in the attempt's budget (run.ts's deadline); none without it. */
   timeLeft?: () => number;
-  /** Gets every progress update too (BullMQ's `job.updateProgress`). */
+  /** Gets every progress update too, awaited before the job goes on (tests watch with it). */
   report?: (progress: StoredProgress) => Promise<void>;
 }
 

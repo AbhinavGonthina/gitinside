@@ -46,20 +46,20 @@ flowchart LR
   subgraph Vercel["Vercel Hobby"]
     W["apps/web (Next.js)<br/>pages + route handlers<br/>webhooks"]
   end
-  subgraph Oracle["Oracle Always Free VM (Docker)"]
-    E["enqueue API<br/>(authenticated)"]
-    R[("Redis<br/>BullMQ")]
-    K["apps/worker<br/>BullMQ Worker"]
-    C["analysis child process<br/>(limits, no network except GitHub)"]
+  subgraph Google["Google Cloud"]
+    R[("Cloud Tasks<br/>max 2 at once, 3 attempts")]
+    K["apps/worker on Cloud Run<br/>POST /run, one job per request"]
+    C["analysis child process<br/>(limits, no network)"]
   end
-  PG[("Neon Postgres<br/>Drizzle")]
+  PG[("Neon Postgres<br/>Drizzle<br/>job rows + progress")]
   S3[("Oracle Object Storage<br/>snapshots")]
   GH["GitHub API + App webhooks"]
   U["Browser"]
 
   U --> W
-  W -->|"HTTPS + HMAC"| E --> R --> K --> C
-  C -->|"tarball"| GH
+  W -->|"create task (HMAC-signed job)"| R
+  R -->|"push, OIDC"| K --> C
+  K -->|"tarball"| GH
   K --> S3
   K --> PG
   W --> PG
@@ -73,14 +73,13 @@ flowchart LR
   - Landing page, the `/<owner>/<repo>[/<sha>]` diagram pages, the progress page, and the signed-in dashboard.
   - Route handlers: `/api/analyze`, `/api/jobs/:id`, `/api/badge/:owner/:repo.svg`, `/api/diagram/:owner/:repo.svg`, GitHub OAuth callback, GitHub App webhooks.
   - Never parses repos.
-- **Enqueue API** (small Node HTTP server on the VM, same image as the worker):
-  - Accepts `POST /enqueue` and `GET /jobs/:id`, authenticated with an HMAC shared secret, and talks to Redis.
-  - Exists because Redis must not be internet-exposed (ADR-0014).
-- **`apps/worker`** (BullMQ `Worker`, concurrency 2; `queue.ts`, `job.ts`, ADR-0061):
+- **The queue** (ADR-0114): Google Cloud Tasks. The web app writes the job's `queued` row in Neon, then creates a task whose body is the job, HMAC-signed (`apps/web/lib/enqueue.ts`, `cloudTasks.ts`, ADR-0141). Cloud Tasks pushes it to the worker with an OIDC token, at most 2 at once, up to 3 attempts. Job state and live progress are the Neon row, so nothing reads the worker to watch a job (ADR-0139). There is no Redis and no enqueue server (BullMQ was removed in M5.17c3).
+- **`apps/worker`** (a Cloud Run service; `run.ts`, `attempt.ts`, `job.ts`, ADR-0143, ADR-0144):
+  - `POST /run` checks the signature and runs one job inside the request, under one 280 s deadline. The answer decides the retry: 200 for success, a permanent failure, or the last attempt; 503 for a retriable failure with attempts left. A push for a job already `done` answers 200 without work (ADR-0145).
   - For each job, streams the tarball from GitHub into a fresh job folder, then forks a child process running `packages/analyzer`, with resource limits. The folder is deleted afterwards, and leftovers are swept at startup.
   - Retries only failures that can pass (network, rate limit, shutdown); deterministic ones (`LIMIT_*`, `TAR_*`, `REPO_NOT_FOUND`) fail on the first attempt.
-  - Uploads the gzipped snapshot to Oracle Object Storage through its S3-compatible API (`storage.ts`, signed with our own SigV4, keyed per repo, SHA, and analyzer version; ADR-0062, ADR-0095), writes metadata to Postgres, and reports progress through BullMQ.
-  - Runs in one process with the enqueue API (`bin.ts` ⇒ `main.ts`, ADR-0065): config from env checked up front, the startup sweep (job folders, then rows left `running`) before any job, and on SIGTERM an ordered shutdown (API, worker, queue, database).
+  - Uploads the gzipped snapshot to Oracle Object Storage through its S3-compatible API (`storage.ts`, signed with our own SigV4, keyed per repo, SHA, and analyzer version; ADR-0062, ADR-0095), writes metadata to Postgres, and writes each progress update to the job's row.
+  - One process (`bin.ts` ⇒ `main.ts`, ADR-0065, ADR-0144): config from env checked up front, the startup sweep (job folders, then rows left `running` past any request's life) before listening, and on SIGTERM an ordered shutdown (cancel the job, answer, stop maintenance, close the database).
 - **`packages/schema`:** TS types + Zod for `architecture.json`. Imported everywhere.
 - **`packages/analyzer`:** library + the `gitinside` CLI: `gitinside analyze <path>`, and `gitinside diff <base> <head>` (each side a graph file, a folder, or a git commit checked out into a temporary worktree; ADR-0089).
 - **`packages/diff`:** library: `diffGraphs`, `applyDiff`, and `renderMermaidSummary` (the Mermaid summary of a diff). No Node or TypeScript dependency, so browsers can use it.
@@ -314,7 +313,7 @@ Built in steps M6.7a–f (ADR-0090).
 - **Implementation:** `packages/db` (ADR-0057). IDs are random UUIDs; GitHub IDs are `bigint`; every table has `created_at`, and `repos`/`pull_requests` also `updated_at`. The database itself enforces SHAs (40 lowercase hex), the status ⇔ columns rule for `analyses` (`done` has a snapshot, `failed` an error code, both a finish time), non-negative counts, owner/name unique ignoring case, and cascading deletes from repos and users. Migrations are committed SQL under `packages/db/drizzle/`, applied with `pnpm --filter @gitinside/db migrate`.
 - **Writes** (ADR-0063, `packages/db/src/analyses.ts`): the worker upserts the repo from GitHub's own facts (ID, current name, visibility, default branch) and marks the analysis `running` at the start of each attempt, `queued` after an attempt that will be retried, `failed` after the last one, and `done` only after the snapshot is in the bucket. A `done` row is never changed again. At startup and in its hourly maintenance the worker fails rows `running` for over 360 s, left by a dead instance (`JOB_INTERRUPTED`), and the maintenance also fails rows `queued` for over a day and 10 minutes, which no task can still run (`QUEUE_UNAVAILABLE`, retryable; ADR-0147). Each start stores the job ID and counts the attempt, and while it runs the worker writes each progress update to the row (`recordJobProgress`, `packages/db/src/jobs.ts`); `findJob` reads a job by ID with its queue position (ADR-0139).
 - **Snapshot retention** (fits Oracle Object Storage's Always Free 20 GB, ADR-0095; R2's 10 GB until PROPOSALS P-2): keep the latest 5 SHAs per public repo plus any SHA referenced by a PR from the last 30 days. Evict the oldest first, globally, when usage passes 16 GB.
-  - **Implementation** (ADR-0077, `apps/worker/src/retention.ts`): a pure `planRetention` over the `done` rows, the bucket's own listing (what the free tier counts), and the pinned commits. Per public repo, each kept commit keeps only the analysis its permalink serves (older analyzer versions are `superseded`). Past 16 × 10⁹ bytes the oldest unpinned snapshots go, private ones included. Objects no row names are deleted after an hour. A run deletes rows before their objects, so a failure leaves an orphan for the next run, never a row without its graph. Between the two it removes each deleted row's completed BullMQ job (ADR-0082): the job ID comes from the commit, so a kept job would answer "done" for an analysis that no longer exists, and the commit couldn't be analyzed again for a day.
+  - **Implementation** (ADR-0077, `apps/worker/src/retention.ts`): a pure `planRetention` over the `done` rows, the bucket's own listing (what the free tier counts), and the pinned commits. Per public repo, each kept commit keeps only the analysis its permalink serves (older analyzer versions are `superseded`). Past 16 × 10⁹ bytes the oldest unpinned snapshots go, private ones included. Objects no row names are deleted after an hour. A run deletes rows before their objects, so a failure leaves an orphan for the next run, never a row without its graph. (Until M5.17c3 it also removed each deleted row's completed BullMQ job, ADR-0082; the job is now the row itself.)
   - **Schedule and quota check** (ADR-0078, ADR-0147, `apps/worker/src/maintenance.ts`): Cloud Run gives an instance CPU only during a request, so there is no timer: at the end of a job, before answering its push, an instance with at least a minute of the job's budget left claims the run in `maintenance_runs` (one statement on the database's clock; only if the last run started an hour or more ago, so one of two instances wins), and waits for it at most the job's time left. A run fails stale job rows (above), runs retention, prunes `rate_limits` windows that ended over an hour ago, and measures the bucket (a fresh listing), the database (`pg_database_size`), and the month's bucket requests (`store_requests`, counted by the worker and the web app through `countingFetch`, ADR-0096) against Object Storage's 20 GB and 50,000 requests a month and Neon's 1 GB. At 80% it logs `quota_alarm`; `pnpm --filter @gitinside/worker quota` prints the same check and exits 2 on an alarm.
 - **Private data:** stored under the installation prefix and deleted on uninstall.
 
@@ -332,11 +331,11 @@ Built in steps M6.7a–f (ADR-0090).
 | `POST /api/github/webhook` | `pull_request`, `push`, `installation`, `installation_repositories` (HMAC-verified) |
 | `GET /api/auth/github/callback` | OAuth (identity only) |
 
-**Worker enqueue API (VM, HMAC; `apps/worker/src/api.ts`, ADR-0060):** the website no longer calls it (it creates Cloud Tasks tasks, ADR-0141); it goes with BullMQ in M5.17c.
-- `POST /enqueue` `{ kind: 'analyze' | 'diff', owner, repo, sha, baseSha?, installationId? }` → `202 { id, created }`. The ID is derived from the commit and analyzer version, so a repeat is `created: false`.
-- `GET /jobs/:id` → `{ id, kind, state, stage?, progress?, step?, count?, position?, errorCode? }` (the website no longer asks it, ADR-0139; it goes with BullMQ in M5.17c). While `stage` is `analyze`, `step` is the analyzer stage running and `count` its size when known (source files for `programs`, requests for `http`); `describeProgress` in `@gitinside/worker/progress` turns them into the progress page's words ("Parsing 1,204 files", ADR-0064).
-- `GET /health` (unauthenticated) → `{ status: 'ok' | 'unavailable' }`
-- Signed with `X-GitInside-Timestamp` + `X-GitInside-Signature: v1=<hex>` (`@gitinside/worker/hmac`).
+**Worker (Cloud Run; `apps/worker/src/run.ts`, ADR-0143):** only Cloud Tasks' service account may call it (Cloud Run IAM), and each job is also HMAC-signed by the web app.
+- `POST /run` `{ kind: 'analyze' | 'diff', owner, repo, sha, baseSha?, installationId? }` (the task's body) → `200 { status: "done" | "failed", … }` when no retry should follow, `503` for a retriable failure with attempts left, `429` while busy, `401`/`400`/`413`/`415` for a request refused before it runs. The job ID is derived from the body and the analyzer version (`jobIdFor`); the attempt from `X-CloudTasks-TaskRetryCount`. While a job runs, its progress goes to its `analyses` row: the stage, and in `analyze` the analyzer stage running (`step`) and its size when known (`count`: source files for `programs`, requests for `http`); `describeProgress` in `@gitinside/worker/progress` turns them into the progress page's words ("Parsing 1,204 files", ADR-0064).
+- `GET /health` (unauthenticated) → `{ status: 'ok' }`
+- Signed with `X-GitInside-Timestamp` + `X-GitInside-Signature: v1=<hex>` (`@gitinside/worker/hmac`), accepted for a day so a task can wait in the queue.
+- (Until M5.17c3 the VM's worker also served an HMAC enqueue API, `POST /enqueue` and `GET /jobs/:id`, in front of BullMQ on Redis, ADR-0060, ADR-0061. Both are gone.)
 
 ## 12. Failure modes and limits
 
@@ -347,9 +346,9 @@ Built in steps M6.7a–f (ADR-0090).
 | Missing or invalid tsconfig | Synthesized defaults (§5.3); warning in stats |
 | Syntax errors in a file | The file is parsed with errors; the TS AST is still traversed; warning recorded |
 | Monorepo with circular workspace deps | Services are still created; cycle warning |
-| Worker crash mid-job | BullMQ stalled-job recovery re-queues it (`maxStalledCount: 2`; then `JOB_STALLED`). A stall doesn't use up one of the 3 attempts, so a job that both fails retriably and stalls can start up to 5 times (M5 review). A worker shutdown cancels running jobs, which run again after the restart |
-| Transient failure (GitHub down, rate limit, storage) | Retried with exponential backoff, 3 attempts; re-adding the job after that runs it again (ADR-0061) |
-| Oracle VM reclaimed | Rebuild from the provisioning script; queued jobs are lost (Redis); web shows "temporarily unavailable" and allows retry |
+| Worker crash mid-job | The push gets no answer, so Cloud Tasks delivers it again (one of its 3 attempts). The row left `running` is failed with `JOB_INTERRUPTED` once it's older than any request can live (360 s), at the next startup or maintenance run (ADR-0144, ADR-0147). A shutdown cancels the running job (`CANCELLED`, answered 503), which is then delivered again |
+| Transient failure (GitHub down, rate limit, storage) | Answered 503, so Cloud Tasks retries with its backoff, 3 attempts; after that the row is `failed` with a retryable code, and asking again queues it anew (ADR-0143) |
+| A task never created (the web function died between the row and the task) | The row stays `queued`; maintenance fails it with the retryable `QUEUE_UNAVAILABLE` once no task could still run it (a day and 10 minutes), and the next view queues it again (ADR-0147) |
 | GitHub API rate limit | Back off; use the installation token for private repos and the app-level token for public ones |
 | Free-tier quota close to the limit | Retention eviction (§10); a `needs-abhinav` issue at 80% |
 
@@ -357,5 +356,5 @@ Built in steps M6.7a–f (ADR-0090).
 
 - **Logs:** structured JSON logs from the worker, one event per line on stdout (`createJsonLog`, ADR-0065), rotated on disk by Docker's log driver. Codes, IDs, counts, and timings only; never a secret or connection string.
 - **Per-analysis timing** for each pipeline stage, stored in `analyses.stats` (feeds benchmarks).
-- **Health endpoint** on the enqueue API.
+- **Health endpoint** on the worker (`GET /health`, for Cloud Run's probes).
 - No third-party telemetry ($0, privacy).

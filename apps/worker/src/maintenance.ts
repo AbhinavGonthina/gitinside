@@ -8,7 +8,7 @@ import {
   storeRequestsThisMonth,
   type AnyDatabase,
 } from "@gitinside/db";
-import type { CompletedJobs, WorkerLog } from "./queue.js";
+import type { WorkerLog } from "./attempt.js";
 import { runRetention, type RetentionPolicy, type RetentionReport } from "./retention.js";
 import { MAX_TASK_AGE_SECONDS } from "./run.js";
 import {
@@ -27,8 +27,7 @@ import {
  *    for {@link INTERRUPTED_AFTER_SECONDS} (their instance died: no request lives that
  *    long) fail with `JOB_INTERRUPTED`; rows `queued` for {@link STALE_QUEUED_AFTER_SECONDS}
  *    (no task can still be accepted for them) fail with the retryable `QUEUE_UNAVAILABLE`.
- * 2. **Retention** ({@link runRetention}): evict snapshots past the rules (and their
- *    completed jobs), delete orphans.
+ * 2. **Retention** ({@link runRetention}): evict snapshots past the rules, delete orphans.
  * 3. **Rate-limit pruning** (`pruneRateLimits`): drop windows that ended over an hour ago.
  * 4. **Quota check** ({@link measureQuotas}): measure the bucket (a fresh listing, after
  *    retention deleted what it could), the database, and the month's bucket requests
@@ -197,8 +196,6 @@ export function logQuotas(log: WorkerLog, quotas: readonly QuotaUsage[]): void {
 /** What {@link runMaintenance} needs. */
 export interface MaintenanceDeps extends QuotaDeps {
   store: Pick<ObjectStore, "list" | "delete">;
-  /** Retention removes deleted rows' completed jobs from it (ADR-0082). */
-  jobs?: CompletedJobs;
   log: WorkerLog;
   /** Retention's clock and rules (tests fix them). */
   now?: () => Date;
@@ -251,7 +248,6 @@ export async function runMaintenance(deps: MaintenanceDeps): Promise<Maintenance
     runRetention({
       db,
       store,
-      ...(deps.jobs === undefined ? {} : { jobs: deps.jobs }),
       ...(deps.now === undefined ? {} : { now: deps.now }),
       ...(deps.policy === undefined ? {} : { policy: deps.policy }),
     }),

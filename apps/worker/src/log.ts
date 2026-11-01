@@ -1,4 +1,4 @@
-import type { WorkerLog } from "./queue.js";
+import type { WorkerLog } from "./attempt.js";
 
 /**
  * Structured logs (DESIGN.md §13): one JSON object per line on stdout, `time` first, then

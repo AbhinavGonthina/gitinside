@@ -19,7 +19,7 @@ import { WorkerUnavailableError, type AnalyzeJob } from "./worker";
  *   gives up on a request that's still running and pushes a second copy beside it.
  *
  * Every failure (no Google token, network, a refusal) is a {@link WorkerUnavailableError},
- * like the enqueue API's, so `/api/analyze` handles both the same way.
+ * which `/api/analyze` and check-on-view answer as "temporarily unavailable" (enqueue.ts).
  */
 
 /** Options for {@link createTaskQueue}. */

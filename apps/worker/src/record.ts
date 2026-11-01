@@ -8,11 +8,11 @@ import {
   upsertRepo,
   type AnyDatabase,
 } from "@gitinside/db";
-import type { JobRequest } from "./api.js";
 import { JobFailure } from "./failure.js";
 import { fetchRepoFacts, type DownloadOptions } from "./github.js";
 import type { JobArtifact, JobRecorder, RecordedJob } from "./job.js";
 import { recordedProgress, type StoredProgress } from "./progress.js";
+import type { JobRequest } from "./request.js";
 import {
   privateSnapshotKey,
   publicSnapshotKey,

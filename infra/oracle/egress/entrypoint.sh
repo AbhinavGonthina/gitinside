@@ -4,7 +4,7 @@
 # rules are the worker's too, and the worker (uid 1000, no capabilities) can't change them.
 #
 # - DNS: dnsmasq on 127.0.0.1 forwards only the allowlisted names, plus the stack's own
-#   single-label service names (`redis`), to Docker's resolver. Everything else is NXDOMAIN.
+#   single-label service names (CI's `postgres`), to Docker's resolver. Everything else is NXDOMAIN.
 #   Every IPv4 address it hands out for an allowlisted name goes into the `gitinside-allow`
 #   ipset; AAAA answers are dropped.
 # - Out: TCP to an address in that set on 443 (HTTPS) or 5432 (Postgres), anything to the
