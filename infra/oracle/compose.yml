@@ -1,7 +1,7 @@
 # The worker stack as it ran on the Oracle VM: the analysis worker, the egress gateway the
 # worker's traffic leaves through, and Caddy in front of `POST /run` (docs/SECURITY.md §3,
-# ADR-0074, ADR-0075). Production moves to Cloud Run (ADR-0111), and M5.17d replaces this
-# folder with infra/gcp; until then CI's container check keeps the image honest with it.
+# ADR-0074, ADR-0075). Production moves to Cloud Run (ADR-0111), and M5.17d2 replaces this
+# folder with infra/gcp; CI checks the image as Cloud Run runs it (infra/gcp/check.mjs).
 # infra/oracle/provision.sh installs a systemd unit that runs, from the checkout and as
 # root (the env file is root-only):
 #

@@ -1,6 +1,6 @@
 # The worker VM (Oracle Cloud Always Free)
 
-> **Being replaced.** Oracle had no A1 capacity for the account (ADR-0111), so the worker moves to Google Cloud Run, and M5.17d replaces this folder with `infra/gcp`. Until then CI's `worker-image` job still checks the image through this stack. The queue is Cloud Tasks (ADR-0114); BullMQ and Redis are gone (M5.17c3).
+> **Being replaced.** Oracle had no A1 capacity for the account (ADR-0111), so the worker moves to Google Cloud Run, and M5.17d2 replaces this folder with `infra/gcp`. CI's `worker-image` job now checks the image as Cloud Run runs it (`infra/gcp/check.mjs`, M5.17d1), so this stack is no longer checked. The queue is Cloud Tasks (ADR-0114); BullMQ and Redis are gone (M5.17c3).
 
 The analysis worker, the egress gateway, and Caddy run as one Docker Compose stack on an Ubuntu 24.04 VM (A1.Flex, 4 OCPU / 24 GB, ARM). Everything on the VM comes from this folder, so a reclaimed or broken VM is rebuilt by running one script again. Security background: [docs/SECURITY.md](../../docs/SECURITY.md) §3; decisions: ADR-0074 (image and stack), ADR-0075 (egress, Caddy, provisioning).
 
