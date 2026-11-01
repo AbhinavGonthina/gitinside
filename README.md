@@ -20,6 +20,18 @@ The output is a schema-valid `architecture.json`, the same bytes every time for 
 
 **Supported size:** repos up to 20,000 source files and 50 MB of source code (the `.ts .tsx .js .jsx .mjs .cjs .prisma` files left after ignored, generated, and over-2 MB files), in the CLI and on the website. A bigger repo fails at once with `LIMIT_FILES` or `LIMIT_SOURCE_SIZE`, before any parsing. Under the website's caps (3 GB of memory, 5 minutes) on a 20-core laptop, cal.com (5,073 files, 18 MB, 113 services) took 38 s and a 59 MB VS Code folder 51 s, while VS Code itself (15,184 files, 201 MB) is refused 0.5 s into the analysis. A repo of many services can still run out of memory or time under 50 MB. [Report](bench/results/2026-10-31-capped-vscode.md), ADR-0137. For Cloud Run's 4 GiB instances the heap cap is now 2,560 MB (and 400 MB unpacked, 60,000 files and folders); cal.com and a 45 MB VS Code folder still finished under 2,048 MB. [Report](bench/results/2026-11-01-capped-memory.md), ADR-0146.
 
+## Quickstart (website, local)
+
+The website queues each analysis on Google Cloud Tasks, which pushes it to the worker's `POST /run`. Locally, without a Google project, the website can push jobs straight to a worker on your machine instead:
+
+1. Start Postgres and migrate: `docker compose -f infra/docker-compose.dev.yml up -d`, then `pnpm --filter @gitinside/db migrate` with `DATABASE_URL=postgres://gitinside:gitinside@127.0.0.1:5432/gitinside`.
+2. Create `apps/worker/.env.local` from [apps/worker/.env.example](apps/worker/.env.example): that `DATABASE_URL`, an `ENQUEUE_HMAC_SECRET` (32 random bytes, base64url: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`), and the `SNAPSHOTS_*` of a bucket for development (never production's). Then `pnpm build` and `node --env-file=apps/worker/.env.local apps/worker/dist/bin.js` (listens on http://127.0.0.1:8080).
+3. Create `apps/web/.env.local` from [apps/web/.env.example](apps/web/.env.example): the same `DATABASE_URL`, `ENQUEUE_HMAC_SECRET`, and `SNAPSHOTS_*`, `WORKER_URL=http://127.0.0.1:8080`, `LOCAL_TASKS=push`, and no `GCP_*` variable. Then `pnpm --filter @gitinside/web dev` and open http://localhost:3000.
+
+Each job is signed and pushed as Cloud Tasks would push it, with its retries (3 attempts), one at a time; the dev server logs each delivery. This works only with a `localhost`, `127.0.0.1`, or `[::1]` worker and never on Vercel (ADR-0149).
+
+## Comparing commits
+
 To see what a change does to the architecture, diff two commits, folders, or graph files:
 
 ```sh
@@ -37,7 +49,7 @@ A pnpm + Turborepo monorepo:
 - `packages/analyzer` holds the analysis pipeline and the `gitinside` CLI (`analyze`, and `diff`, which analyzes both sides and calls `packages/diff`) (inventory → workspaces → per-service TypeScript programs → detectors → validated graph).
 - `packages/viewer` holds the explorer's React components and their Storybook (`pnpm --filter @gitinside/viewer storybook`).
 - `packages/db` holds the Postgres schema (Drizzle), committed SQL migrations, and the client shared by the web app and worker. Local Postgres: `docker compose -f infra/docker-compose.dev.yml up -d`, then `pnpm --filter @gitinside/db migrate` with `DATABASE_URL` from that file. Its tests run on in-memory PGlite, so they need no Docker.
-- `apps/web` is the website (Next.js App Router, built on the viewer's tokens and components): `pnpm build`, then `pnpm --filter @gitinside/web start` (or `dev`) and open http://localhost:3000. Analysis from the site arrives with the worker (M5.4–M5.8). Each analyzed repo's page has "Add to README", which gives the Markdown for a live badge or diagram image that stays current with the default branch.
+- `apps/web` is the website (Next.js App Router, built on the viewer's tokens and components): `pnpm build`, then `pnpm --filter @gitinside/web start` (or `dev`) and open http://localhost:3000. To analyze from the site locally, run the worker too ([Quickstart (website, local)](#quickstart-website-local)). Each analyzed repo's page has "Add to README", which gives the Markdown for a live badge or diagram image that stays current with the default branch.
 - `eval/` holds the accuracy eval (pinned repos, hand-written labels, scorer, committed reports).
 - `bench/` holds benchmarks, and `fixtures/` holds golden test repos.
 

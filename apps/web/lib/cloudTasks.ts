@@ -63,6 +63,11 @@ const QUEUE = /^[A-Za-z0-9-]{1,100}$/;
 const TASK_ID = /^[A-Za-z0-9_-]{1,500}$/;
 const JOB_ID = /^(?:analyze|diff)-[0-9a-f]{32}$/;
 
+/** Whether Cloud Tasks accepts `taskId` as a task's ID (letters, digits, `-`, `_`; ≤ 500). */
+export function isTaskId(taskId: string): boolean {
+  return TASK_ID.test(taskId);
+}
+
 /**
  * The task name for one queue entry of a job: `<job ID>-<entry time in ms>`. The job ID keeps
  * requests for one queue entry on one name (they share the row's `queued_at`), so a race
@@ -95,7 +100,7 @@ export function createTaskQueue(options: TaskQueueOptions): TaskQueue {
 
   return {
     async createTask(job, taskId) {
-      if (!TASK_ID.test(taskId)) throw new Error("taskId has characters Cloud Tasks refuses");
+      if (!isTaskId(taskId)) throw new Error("taskId has characters Cloud Tasks refuses");
       const body = new TextEncoder().encode(JSON.stringify({ kind: "analyze", ...job }));
       const signature = signRequest(
         options.secret,
