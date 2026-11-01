@@ -68,6 +68,8 @@ Root `package.json` has no name and no `workspaces`; `frontend/` and `backend/` 
 
 - `components/post-operations.tsx:29`, `deletePost(postId)` → `fetch(\`/api/posts/${postId}\`, { method: "DELETE" })`. The route is fixed inside the helper; `postId` only fills the `:postId` hole. The analyzer treats the function as a wrapper and predicts the route at the caller (`:92:39`), which is both the FN at 29 and the `unlabeled-site` FP at 92. **R10.** EVALUATION.md §1: "a `fetch`/axios call whose URL is fixed there (even inside a helper like `getUsers()`) is labeled at that call"; only a helper that takes the *path* is labeled at its callers.
 
+**Update (M5A.3j, ADR-0164):** fixed. Only a parameter in the URL's leading part makes a wrapper now; taxonomy 5/5, conversa back to 24/24 after M5A.3f, and WealthWise's Gemini call is a correct abstention.
+
 ### pankil-soni/conversa
 
 No misses: 24/24 true positives, 2 correct abstentions.

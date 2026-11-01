@@ -11,6 +11,7 @@ import {
   createUrlNormalizer,
   formatUrlPattern,
   joinBaseURL,
+  leadingHoles,
   patternParts,
   resolveURL,
   toUrlPattern,
@@ -174,6 +175,41 @@ describe("toUrlPattern", () => {
   it("collapses runaway concatenations to a hole", () => {
     const many = Array.from({ length: 300 }, (_, i) => (i % 2 === 0 ? t("/a") : H));
     expect(show(many)).toBe("DYNAMIC: the URL starts with a value only known at runtime");
+  });
+});
+
+describe("leadingHoles (M5A.3j)", () => {
+  /** `parts` with `P` marking a parameter hole; the leading ones, in order, as `true`. */
+  const P = (): UrlPart => ({ kind: "hole", param: true });
+  const leading = (parts: UrlPart[]): boolean[] => {
+    const found = leadingHoles(parts);
+    return parts.filter((p) => p.kind === "hole" && p.param).map((p) => found.has(p));
+  };
+
+  it.each<[string, UrlPart[], boolean[]]>([
+    ["the whole URL", [P()], [true]],
+    ["the URL then a query", [P(), t("?x=1")], [true]],
+    ["right after an env base", [env("API"), P()], [true]],
+    ["glued to the path's text", [t("/api"), P()], [true]],
+    ["glued after a literal origin's path", [t("https://a.example.com/v1"), P()], [true]],
+    ["the first segment after a base", [env("API"), t("/"), P()], [true]],
+    ["the first segment of a root path", [t("/"), P()], [true]],
+    ["in the host", [t("https://"), P(), t("/x")], [true]],
+    ["in the port", [t("http://localhost:"), P(), t("/x")], [true]],
+    ["a later segment", [env("API"), t("/conversation/"), P()], [false]],
+    ["a later root-relative segment", [t("/api/posts/"), P()], [false]],
+    ["a page-relative segment", [t("users/"), P()], [false]],
+    ["the query", [t("https://a.example.com/m?key="), P()], [false]],
+    ["the fragment", [t("/a#"), P()], [false]],
+    ["after another hole in its segment", [t("/c/"), P(), t("-"), P()], [false, false]],
+    ["a path, then an id", [env("API"), P(), t("/"), P()], [true, false]],
+    ["after a non-parameter hole that starts the URL", [H, P()], [true]],
+  ])("%s", (_name, parts, expected) => {
+    expect(leading(parts)).toEqual(expected);
+  });
+
+  it("ignores holes that aren't parameters", () => {
+    expect(leadingHoles([H, t("/x/"), H]).size).toBe(0);
   });
 });
 

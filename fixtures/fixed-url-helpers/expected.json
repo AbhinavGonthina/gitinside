@@ -1,0 +1,373 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:fixed-url-helpers/src/editor.ts#loadAuthors",
+      "id": "calls:symbol:fixed-url-helpers/src/editor.ts#loadAuthors->symbol:fixed-url-helpers/src/posts-api.ts#apiGet",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/editor.ts",
+          "line": 13
+        }
+      ],
+      "to": "symbol:fixed-url-helpers/src/posts-api.ts#apiGet"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fixed-url-helpers/src/editor.ts#openPost",
+      "id": "calls:symbol:fixed-url-helpers/src/editor.ts#openPost->symbol:fixed-url-helpers/src/posts-api.ts#postsApi.comments",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 75,
+          "file": "src/editor.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:fixed-url-helpers/src/posts-api.ts#postsApi.comments"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fixed-url-helpers/src/editor.ts#openPost",
+      "id": "calls:symbol:fixed-url-helpers/src/editor.ts#openPost->symbol:fixed-url-helpers/src/posts-api.ts#postsApi.read",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 56,
+          "file": "src/editor.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:fixed-url-helpers/src/posts-api.ts#postsApi.read"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fixed-url-helpers/src/editor.ts#removePost",
+      "id": "calls:symbol:fixed-url-helpers/src/editor.ts#removePost->symbol:fixed-url-helpers/src/posts-api.ts#deletePost",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 13,
+          "file": "src/editor.ts",
+          "line": 4
+        }
+      ],
+      "to": "symbol:fixed-url-helpers/src/posts-api.ts#deletePost"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fixed-url-helpers/src/editor.ts#loadAuthors",
+      "id": "http:symbol:fixed-url-helpers/src/editor.ts#loadAuthors->route:fixed-url-helpers/GET /api/authors",
+      "kind": "http",
+      "label": "GET /api/authors",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/editor.ts",
+          "line": 13
+        }
+      ],
+      "to": "route:fixed-url-helpers/GET /api/authors"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fixed-url-helpers/src/posts-api.ts#deletePost",
+      "id": "http:symbol:fixed-url-helpers/src/posts-api.ts#deletePost->route:fixed-url-helpers/DELETE /api/posts/:postId",
+      "kind": "http",
+      "label": "DELETE /api/posts/:postId",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/posts-api.ts",
+          "line": 3
+        }
+      ],
+      "to": "route:fixed-url-helpers/DELETE /api/posts/:postId"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fixed-url-helpers/src/posts-api.ts#postsApi.comments",
+      "id": "http:symbol:fixed-url-helpers/src/posts-api.ts#postsApi.comments->route:fixed-url-helpers/GET /api/posts/:postId/comments",
+      "kind": "http",
+      "label": "GET /api/posts/:postId/comments",
+      "sites": [
+        {
+          "column": 5,
+          "file": "src/posts-api.ts",
+          "line": 11
+        }
+      ],
+      "to": "route:fixed-url-helpers/GET /api/posts/:postId/comments"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fixed-url-helpers/src/posts-api.ts#postsApi.read",
+      "id": "http:symbol:fixed-url-helpers/src/posts-api.ts#postsApi.read->route:fixed-url-helpers/GET /api/posts/:postId",
+      "kind": "http",
+      "label": "GET /api/posts/:postId",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/posts-api.ts",
+          "line": 8
+        }
+      ],
+      "to": "route:fixed-url-helpers/GET /api/posts/:postId"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:fixed-url-helpers/src/editor.ts",
+      "id": "imports:file:fixed-url-helpers/src/editor.ts->file:fixed-url-helpers/src/posts-api.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 46,
+          "file": "src/editor.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:fixed-url-helpers/src/posts-api.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "191ef2c2c2ee547a47b17bdfa1892828a7645ae051981b2f2413126f75ede454",
+      "id": "file:fixed-url-helpers/src/editor.ts",
+      "kind": "file",
+      "label": "editor.ts",
+      "parentId": "module:fixed-url-helpers/src",
+      "path": "src/editor.ts"
+    },
+    {
+      "hash": "af5143fab06b28f24015e46b0d353a4e43b448d9d79be7daa56ecf298c05ae62",
+      "id": "file:fixed-url-helpers/src/posts-api.ts",
+      "kind": "file",
+      "label": "posts-api.ts",
+      "parentId": "module:fixed-url-helpers/src",
+      "path": "src/posts-api.ts"
+    },
+    {
+      "hash": "72a53c6d32bcad0fe1e5ee56c0ab9af4015e33678ea0682a4ca763bad3a4124b",
+      "id": "file:fixed-url-helpers/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:fixed-url-helpers/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:fixed-url-helpers/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:fixed-url-helpers/",
+      "path": "src"
+    },
+    {
+      "id": "route:fixed-url-helpers/DELETE /api/posts/:postId",
+      "kind": "route",
+      "label": "DELETE /api/posts/:postId",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:fixed-url-helpers/src/server.ts",
+      "path": "/api/posts/:postId",
+      "source": {
+        "column": 6,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:fixed-url-helpers/GET /api/authors",
+      "kind": "route",
+      "label": "GET /api/authors",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:fixed-url-helpers/src/server.ts",
+      "path": "/api/authors",
+      "source": {
+        "column": 6,
+        "file": "src/server.ts",
+        "line": 18
+      }
+    },
+    {
+      "id": "route:fixed-url-helpers/GET /api/posts/:postId",
+      "kind": "route",
+      "label": "GET /api/posts/:postId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:fixed-url-helpers/src/server.ts",
+      "path": "/api/posts/:postId",
+      "source": {
+        "column": 6,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:fixed-url-helpers/GET /api/posts/:postId/comments",
+      "kind": "route",
+      "label": "GET /api/posts/:postId/comments",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:fixed-url-helpers/src/server.ts",
+      "path": "/api/posts/:postId/comments",
+      "source": {
+        "column": 6,
+        "file": "src/server.ts",
+        "line": 14
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:fixed-url-helpers/",
+      "kind": "service",
+      "label": "fixed-url-helpers",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:fixed-url-helpers/src/editor.ts#loadAuthors",
+      "kind": "symbol",
+      "label": "loadAuthors",
+      "parentId": "file:fixed-url-helpers/src/editor.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "src/editor.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fixed-url-helpers/src/editor.ts#openPost",
+      "kind": "symbol",
+      "label": "openPost",
+      "parentId": "file:fixed-url-helpers/src/editor.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/editor.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fixed-url-helpers/src/editor.ts#removePost",
+      "kind": "symbol",
+      "label": "removePost",
+      "parentId": "file:fixed-url-helpers/src/editor.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/editor.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fixed-url-helpers/src/posts-api.ts#apiGet",
+      "kind": "symbol",
+      "label": "apiGet",
+      "parentId": "file:fixed-url-helpers/src/posts-api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/posts-api.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fixed-url-helpers/src/posts-api.ts#deletePost",
+      "kind": "symbol",
+      "label": "deletePost",
+      "parentId": "file:fixed-url-helpers/src/posts-api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/posts-api.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fixed-url-helpers/src/posts-api.ts#postsApi",
+      "kind": "symbol",
+      "label": "postsApi",
+      "parentId": "file:fixed-url-helpers/src/posts-api.ts",
+      "source": {
+        "column": 14,
+        "endLine": 12,
+        "file": "src/posts-api.ts",
+        "line": 7
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fixed-url-helpers/src/posts-api.ts#postsApi.comments",
+      "kind": "symbol",
+      "label": "comments",
+      "parentId": "symbol:fixed-url-helpers/src/posts-api.ts#postsApi",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 11,
+        "file": "src/posts-api.ts",
+        "line": 10
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fixed-url-helpers/src/posts-api.ts#postsApi.read",
+      "kind": "symbol",
+      "label": "read",
+      "parentId": "symbol:fixed-url-helpers/src/posts-api.ts#postsApi",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 8,
+        "file": "src/posts-api.ts",
+        "line": 8
+      },
+      "symbolKind": "method"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "fixed-url-helpers",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "fixed-url-helpers",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

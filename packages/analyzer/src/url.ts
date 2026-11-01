@@ -46,7 +46,8 @@
  * Parameters (M2.3): an identifier parameter is a hole marked `param`. While inlining a
  * wrapper call (`normalize(site, bindings)`), a bound parameter reads the caller's argument
  * in the caller's scope, and a URL or `baseURL` that still starts with an unbound parameter
- * is `WRAPPER_DEPTH` rather than `DYNAMIC_URL`. See `wrappers.ts`.
+ * is `WRAPPER_DEPTH` rather than `DYNAMIC_URL`. Only a parameter in the URL's leading part
+ * makes a function a wrapper ({@link leadingHoles}, M5A.3j). See `wrappers.ts`.
  *
  * Not handled (each becomes a hole, so usually `DYNAMIC_URL`):
  * - `let`/`var` variables, destructured parameters, function results, array
@@ -174,7 +175,6 @@ export type NormalizedUrl =
 export type ParameterBindings = ReadonlyMap<ts.ParameterDeclaration, ProgramExpression | undefined>;
 
 const HOLE: UrlPart = { kind: "hole" };
-const PARAM_HOLE: UrlPart = { kind: "hole", param: true };
 const OVERFLOW_HOLE: UrlPart = { kind: "hole", overflow: true };
 const text = (value: string): UrlPart => ({ kind: "text", text: value });
 
@@ -409,6 +409,60 @@ export function formatUrlPattern(pattern: UrlPattern): string {
   }
 }
 
+/** Stands for an env var, the page origin, or a hole while {@link leadingHoles} reads text. */
+const VALUE_MARK = "\u0000";
+
+/** A literal origin, or its start, at the start of a URL (`https://h:8080`, `https://`). */
+const LEADING_ORIGIN = /^([a-z][a-z\d+\-.]*:)?\/\/[^/?#]*/i;
+
+/**
+ * The parameter holes in a URL's parts that reach its leading part (M5A.3j, ADR-0164): only a
+ * parameter there makes a function a wrapper, since EVALUATION.md §1 places a request whose
+ * route the function fixes at the function's own call. A parameter hole is leading when no
+ * literal `?` or `#` comes before it and it is:
+ * - at the start, in the host or port, or right after the base (an env var, the page origin,
+ *   or a literal origin): `fetch(url)`, `${API}${path}`, `https://${host}/x`;
+ * - glued to the path's text, so the argument brings its own slash: `/api${path}`,
+ *   `https://h/v1${endpoint}` (unless its segment already holds a hole: `/c/${id}-${slug}`);
+ * - the first path segment: `${API}/${resource}`.
+ *
+ * A hole after a literal path segment and a `/` (`/posts/${id}`), or in the query, isn't.
+ * Not handled: a parameter glued to text inside a segment (`/posts/post-${id}`) reads like a
+ * path, and a first segment after a literal base's own path (`"https://h/api/" + resource`)
+ * like an id.
+ */
+export function leadingHoles(parts: readonly UrlPart[]): Set<UrlPart> {
+  const found = new Set<UrlPart>();
+  let before = "";
+  for (const part of parts) {
+    if (part.kind === "text") {
+      before += part.text;
+      continue;
+    }
+    if (part.kind === "hole" && part.param === true && leadingAt(before)) found.add(part);
+    before += VALUE_MARK;
+  }
+  return found;
+}
+
+/** True when a hole after `before` (text, with values as {@link VALUE_MARK}) is leading. */
+function leadingAt(before: string): boolean {
+  if (/[?#]/.test(before)) return false;
+  let path = before;
+  if (path.startsWith(VALUE_MARK)) {
+    path = path.slice(VALUE_MARK.length);
+  } else {
+    const origin = LEADING_ORIGIN.exec(path);
+    // Still in the host or port.
+    if (origin && origin[0].length === path.length) return true;
+    if (origin) path = path.slice(origin[0].length);
+  }
+  if (path === "") return true;
+  const segment = path.slice(path.lastIndexOf("/") + 1);
+  if (segment !== "") return !segment.includes(VALUE_MARK);
+  return /^\/+$/.test(path);
+}
+
 /**
  * Combine an axios `baseURL` with a request URL the way axios does: an absolute URL or an
  * empty base leaves the URL alone, an empty URL is the base, and otherwise one `/` joins
@@ -494,6 +548,14 @@ export interface UrlNormalizer {
   ): NormalizedUrl;
   /** The parameters a call site's URL and `baseURL` read, which a wrapper caller could bind. */
   parameters(site: Pick<HttpCallSite, "url" | "baseURL">): ReadonlySet<ts.ParameterDeclaration>;
+  /**
+   * The parameters that reach the leading part of a call site's URL or `baseURL`
+   * ({@link leadingHoles}): those that make its function a wrapper (M5A.3j). A parameter
+   * whose position is lost (`new URL(path, base)`) counts as leading.
+   */
+  leadingParameters(
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+  ): ReadonlySet<ts.ParameterDeclaration>;
 }
 
 /** Create a {@link UrlNormalizer} (see the file comment for what it reads). */
@@ -508,6 +570,8 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   let bindings: ParameterBindings | undefined;
   /** Parameters read without a binding during the current evaluation. */
   const used = new Set<ts.ParameterDeclaration>();
+  /** The parameter each unbound parameter's hole stands for (`leadingParameters`). */
+  const holes = new Map<UrlPart, ts.ParameterDeclaration>();
 
   /** True when an identifier names a global, not something the repo declares. */
   const isGlobal = (sp: ServiceProgram, identifier: ts.Identifier, name: string): boolean => {
@@ -591,7 +655,12 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       }
     }
     used.add(d);
-    return literalType(sp, e) ?? [PARAM_HOLE];
+    const literal = literalType(sp, e);
+    if (literal) return literal;
+    // A hole of its own, so `leadingParameters` can tell where this parameter landed.
+    const hole: UrlPart = { kind: "hole", param: true };
+    holes.set(hole, d);
+    return [hole];
   };
 
   const identifierParts = (sp: ServiceProgram, e: ts.Identifier, hops: number): UrlPart[] => {
@@ -764,6 +833,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     } finally {
       bindings = undefined;
       used.clear();
+      holes.clear();
     }
   };
 
@@ -806,8 +876,36 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     if (site.baseURL) parts(site.baseURL);
     const found = new Set(used);
     used.clear();
+    holes.clear();
     return found;
   };
 
-  return { parts, normalize, parameters };
+  const leadingParameters = (
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+  ): ReadonlySet<ts.ParameterDeclaration> => {
+    used.clear();
+    holes.clear();
+    const found = new Set<ts.ParameterDeclaration>();
+    /** Parameters with a hole of their own left in the URL's or base's parts. */
+    const placed = new Set<ts.ParameterDeclaration>();
+    // The URL and the base on their own: axios's join adds a `/` that the URL doesn't have.
+    for (const value of [site.url, site.baseURL]) {
+      if (!value) continue;
+      const p = parts(value);
+      const leading = leadingHoles(p);
+      for (const part of p) {
+        const d = holes.get(part);
+        if (!d) continue;
+        placed.add(d);
+        if (leading.has(part)) found.add(d);
+      }
+    }
+    // A parameter whose hole was absorbed (`new URL(path, base)`, a ternary) may be anywhere.
+    for (const d of used) if (!placed.has(d)) found.add(d);
+    used.clear();
+    holes.clear();
+    return found;
+  };
+
+  return { parts, normalize, parameters, leadingParameters };
 }
