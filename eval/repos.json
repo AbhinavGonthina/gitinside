@@ -28,6 +28,16 @@
       "why": "Vite React frontend and Express backend (routers mounted at /api/posts, /api/auth, /api/user). Most calls use an axios.create() instance whose baseURL is assigned afterwards via instance.defaults.baseURL from VITE_API_PATH; the rest call axios directly with that env var concatenated. ~109 source files."
     },
     {
+      "owner": "MananGandhi1810",
+      "name": "online-ide",
+      "url": "https://github.com/MananGandhi1810/online-ide",
+      "sha": "7c36e7cf05af91d17971165c235417862e68d3a7",
+      "license": "MIT",
+      "shape": "env-api-urls",
+      "why": "Held out (M5A.2b). Vite React frontend (frontend/) and an ESM Express + Prisma backend (backend/) side by side, no root package.json. Every request is an inline axios call (or one streaming fetch) on `${process.env.SERVER_URL}/...`, where process.env.SERVER_URL is substituted by vite.config.js `define` from REACT_APP_SERVER_URL, with no in-code fallback; template ternaries pick between two routes, and a router is mounted at a parameterized path (/editorial/:problemStatementId, mergeParams). The backend calls GitHub's OAuth and user APIs. ~80 JS source files.",
+      "heldOut": true
+    },
+    {
       "owner": "pankil-soni",
       "name": "conversa",
       "url": "https://github.com/pankil-soni/conversa",
