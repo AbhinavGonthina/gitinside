@@ -14,8 +14,9 @@ The analysis worker runs as a Cloud Run service that Cloud Tasks pushes each job
 | `github.json` | The Workload Identity pool `github` and its provider: which GitHub Actions tokens may become the deploy account |
 | `deploy.mjs` | CI's deploy (job `deploy`): build, push, render, replace both services, update the queue |
 | `check.mjs` | CI's check of the image as Cloud Run runs it, the kill switch included (job `worker-image`); never deployed |
+| `verify.mjs` | `pnpm verify-guardrails`: reads the live project back against these files (ADR-0171); run by hand |
 
-`apps/web/lib/gcpConfig.test.ts` checks these files against the code: the worker's attempts, job budget, signature window, memory budget, and required variables, the website's dispatch deadline, and ADR-0111's guardrails. `apps/web/lib/gcpDeploy.test.ts` checks the deploy: the script against a fake `gcloud`/`docker`, CI's job, the provider's condition, and the deploy account's IAM. Change a setting on one side only and they fail.
+`apps/web/lib/gcpConfig.test.ts` checks these files against the code: the worker's attempts, job budget, signature window, memory budget, and required variables, the website's dispatch deadline, and ADR-0111's guardrails. `apps/web/lib/gcpDeploy.test.ts` checks the deploy: the script against a fake `gcloud`/`docker`, CI's job, the provider's condition, and the deploy account's IAM. Change a setting on one side only and they fail. `apps/web/lib/gcpVerify.test.ts` runs `verify.mjs` against a fake Google built from these files.
 
 ## What runs
 
@@ -141,7 +142,7 @@ The deploy never creates a service, a queue, or a binding. The first time, the t
 
 ## Applying it
 
-M5.17e3 adds a `verify-guardrails` script, and M5.17e4 posts the one-time Google Cloud steps on planning issue #3. Until then nothing is deployed. By hand, with the placeholders filled in, the pieces map to:
+M5.17e4 posts the one-time Google Cloud steps on planning issue #3. Until then nothing is deployed. By hand, with the placeholders filled in, the pieces map to:
 
 ```sh
 gcloud run services replace service.json --region us-east4
@@ -152,10 +153,27 @@ gcloud tasks queues create analyses --location us-east4 \
   --max-retry-duration 0s --min-backoff 30s --max-backoff 120s --max-doublings 2 --log-sampling-ratio 1
 ```
 
+## Checking the live project (`verify.mjs`)
+
+From a checkout, signed in as the project's owner (`gcloud auth login`): `pnpm verify-guardrails`. It reads the project through Google's REST APIs, never changes anything, and prints one `MISMATCH` line per difference from these files; exit 0 only when every check matches. A part it can't read (a missing resource, a denied call) is a mismatch too.
+
+| Part | Compared with |
+|---|---|
+| Both Cloud Run services | `service.json`, `killswitch.json`: scale, concurrency, timeout, CPU and memory, ingress, CPU throttling and boost, execution environment, account, image (this registry's worker by digest), command, variables and secret references; no VPC egress; Ready |
+| The queue | `queue.json` |
+| IAM | Each policy `iam.json` names, and each account's and secret's: exactly its bindings. On the project, besides the kill switch's role, only the owner (a person, `roles/owner`), the Google APIs Service Agent's Editor, and Google's `*.serviceAgent` roles. No `allUsers`, no other basic role, no service account keys |
+| Workload Identity | The `github` provider's condition, mapping, and issuer (`github.json`) |
+| Billing | Billing on; the budget (`budget.json`); the topic and the subscription pushing to the kill switch's live URL (`pubsub.json`) |
+| Nothing billed by the hour | No Cloud NAT, forwarding rule (load balancer), reserved IP, Memorystore instance, or Serverless VPC Access connector (an API that's off counts as none) |
+| Artifact Registry | `registry.json`'s cleanup policies, not a dry run, no other repository in `us-east4`, under the free 0.5 GB |
+
+Not checked: the Vercel Workload Identity pool (no file here yet), secret values, whether the deploy's and the kill switch's roles are enough for what they do (the first deploy and the first over-budget message show that), and other projects on the billing account. Until CI's first deploy, both services run Google's sample image, which it reports. Run it after the setup, after any change in the console, and before the trial's day 90.
+
 ## Operations
 
 | Task | How |
 |---|---|
+| Check the guardrails | `pnpm verify-guardrails` (above) |
 | Logs (JSON lines) | Cloud Run → `gitinside-worker` → Logs, or `gcloud run services logs read gitinside-worker --region us-east4` |
 | Quota check (Object Storage bytes and requests, Neon, and the month's Cloud Run vCPU- and GB-seconds, requests, and Cloud Tasks operations as GitInside counts them, vs. the free limits; exit 2 at 80%, when new analyses are paused, ADR-0156) | From a checkout with the production values in `apps/worker/.env`: `pnpm --filter @gitinside/worker quota` |
 | Quota alarms from maintenance | Logs, filter `jsonPayload.event="quota_alarm"` |

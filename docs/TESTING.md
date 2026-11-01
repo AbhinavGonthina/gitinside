@@ -25,6 +25,7 @@ These are mandatory standards. Nobody reviews each autopilot step, so the tests 
 | Security | Vitest + malicious fixtures | `fixtures/malicious/*`, worker extraction | every push |
 | Container | `node infra/gcp/check.mjs` (Docker, Linux CI job `worker-image`) | the worker image run as Cloud Run runs it: non-root, nothing writable outside `/tmp`, signed `/run`, a golden analysis, SIGTERM (ADR-0150) | every push |
 | Deploy config | Vitest | `infra/gcp/{service,queue,iam}.json` against the code's limits and ADR-0111's guardrails (`apps/web/lib/gcpConfig.test.ts`, ADR-0151) | every push |
+| Live guardrails | `pnpm verify-guardrails` (`infra/gcp/verify.mjs`), tested against a fake Google (`apps/web/lib/gcpVerify.test.ts`) | the live Google Cloud project read back against `infra/gcp`: services, queue, IAM, budget and kill switch, nothing billed by the hour, registry size (ADR-0171) | the script: by hand after setup or a console change; its tests: every push |
 | Eval / bench | scripts | `eval/`, `bench/` | on demand + milestone gates |
 
 ## Fixture repos
