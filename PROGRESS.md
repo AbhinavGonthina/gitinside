@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.18b Abuse (#11): size check before any download from GitHub's repo `size` (M5.17e, M5.13, and M5.14b wait on #3)
+M5.18c Abuse (#11): per-repo limit on `/api/analyze`, one new analysis per repo per 30 min (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -176,7 +176,7 @@ M5.18b Abuse (#11): size check before any download from GitHub's repo `size` (M5
 - [ ] M5.17e Keyless deploy + cost guardrails as code (ADR-0111): GitHub Actions deploy via Workload Identity Federation (Artifact Registry within its free storage); Cloud Run max instances 2, concurrency 1, timeout 300 s, min instances 0, 1 vCPU / 4 GiB, no unauthenticated access; no NAT, load balancer, Memorystore, or static IP; budget alert ⇒ billing kill switch; a `verify-guardrails` script; post the remaining Google Cloud steps on #3 {model: opus} {blocked: #3}
 - [x] M5.17f SECURITY.md review for the sandbox change (ADR-0111): §3 and T1–T9 against Cloud Run (no egress gateway; the analysis child still has no network, `netguard.ts`; the parent's egress; IAM-only invocation), tests for the controls that remain, DESIGN.md/SPEC wording {model: opus}
 - [x] M5.18a Abuse (#11): "too big" remembered per repo, not per commit: after a `LIMIT_*` failure, refuse new analyses of that repo for 7 days unless its GitHub size dropped by half, with a message saying why and when; tests {model: opus}
-- [ ] M5.18b Abuse (#11): size check before any download or compute from GitHub's repo `size` (threshold from M5.16a), refused with a clear message; tests {model: opus}
+- [x] M5.18b Abuse (#11): size check before any download or compute from GitHub's repo `size` (threshold from M5.16a), refused with a clear message; tests (done with GitHub's languages count instead: `size` is mostly history, ADR-0154) {model: opus}
 - [ ] M5.18c Abuse (#11): per-repo limit on `/api/analyze`: at most one new analysis per repo per 30 min whoever asks (on top of 5/h per IP and check-on-view's 6/h), message with the retry time; tests {model: opus}
 - [ ] M5.18d Abuse (#11): monthly compute budget: Cloud Run vCPU- and GiB-seconds per UTC month estimated from job durations × 1 vCPU / 4 GiB (like `store_requests`), plus Cloud Tasks operations; new analyses stop at 80% of the free allowance ("Analysis is paused until <date>"), diagrams keep working; `quota` command; tests {model: opus}
 - [ ] M5.18e Abuse (#11): Cloudflare Turnstile (free, no card) on Analyze for signed-out visitors, only when traffic looks automated (an IP's or the site's rate over a threshold); server-side token check; fail visibly; tests (keys are in Vercel Production + Preview and `apps/web/.env.local`, #12) {model: opus}
@@ -253,6 +253,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5.18b** (`68a061a`, ADR-0154): GitHub's `size` can't be the pre-check: cal.com (1,160,419 KiB) works, VS Code (1,662,818 KiB) doesn't; both are mostly history. GitHub's languages count tracks the analyzer's source size (VS Code 211.5 vs 201 MiB, cal.com 17.3 vs 18.0), so `findTooMuchCode` (`apps/web/lib/codeSize.ts`) refuses new work over 2 × 50 MiB of TS/JS by that count, after the week's hold and before any slot, row, or task: `422 REPO_TOO_BIG` (no `retryAt`) on `/api/analyze`, `behind`/`too-much-code` on check-on-view. Unknown count ⇒ not refused; counts cached per repo and commit. `>` → `>=` failed 2 tests. Web 435, typecheck, lint. No eval delta.
 
 - **2026-11-01 M5.18a** (ADR-0153): `findLimitFailure` (db) finds a repo's newest `LIMIT_*` failure in the past 7 days (by GitHub ID, any commit, unless a later analysis finished); `sizeHold.ts` holds the repo unless GitHub's `size` is at most half the size stored on the failed row (`analyses.repo_size_kb`, migration `0005`; unknown ⇒ held). `/api/analyze` answers `422 REPO_TOO_BIG` with `retryAt`/`Retry-After` before any slot or task; check-on-view shows `behind`/`too-big` with the reason and UTC date. In-flight and finished commits still served. `<=` → `<` in the halving rule failed 2 tests. Web 420, db 118, typecheck, lint. No analyzer change, no eval delta.
 
