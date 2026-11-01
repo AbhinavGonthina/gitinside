@@ -1,5 +1,5 @@
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
-import { permanentFailure, sizeHoldMessage } from "./jobs";
+import { permanentFailure, sizeHoldMessage, tooMuchCodeReason } from "./jobs";
 import type { HeadState } from "./repoView";
 import { OFFLINE_MESSAGE, progressHref, repoHref } from "./startAnalysis";
 
@@ -50,6 +50,11 @@ function behindStatus(head: Extract<HeadState, { state: "behind" }>): HeadStatus
       return {
         tone: "behind",
         text: `The latest commit, ${latest}, wasn't analyzed, so this is an earlier one. ${sizeHoldMessage(head.errorCode, new Date(head.until))}`,
+      };
+    case "too-much-code":
+      return {
+        tone: "behind",
+        text: `The latest commit, ${latest}, wasn't analyzed, so this is an earlier one. ${tooMuchCodeReason(head.codeBytes)}`,
       };
     case "limited":
       return {

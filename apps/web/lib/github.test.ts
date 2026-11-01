@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { resolveRepo } from "./github";
-import { fakeGitHub } from "./github.testkit";
+import { fetchCodeBytes, resolveRepo } from "./github";
+import { fakeGitHub, type FakeGitHub } from "./github.testkit";
 
 const SHA = "d".repeat(40);
 const SHOP = {
@@ -236,5 +236,67 @@ describe("resolveRepo", () => {
       { fetch: gh.fetch, apiBase: "https://ghe.example/api/v3/" },
     );
     expect(gh.requests[0]?.url).toBe("https://ghe.example/api/v3/repos/acme/shop");
+  });
+});
+
+describe("fetchCodeBytes", () => {
+  const ask = (gh: FakeGitHub, token?: string) =>
+    fetchCodeBytes(
+      { owner: "Acme", name: "Shop" },
+      { fetch: gh.fetch, ...(token ? { token } : {}) },
+    );
+
+  it("sums the TypeScript and JavaScript bytes GitHub counts, nothing else", async () => {
+    const gh = fakeGitHub([
+      {
+        ...SHOP,
+        languages: { TypeScript: 1_000, JavaScript: 200, TSX: 30, JSX: 4, CSS: 99_999, Rust: 1 },
+      },
+    ]);
+    expect(await ask(gh, "t0ken")).toBe(1_234);
+    expect(gh.requests.map((r) => [r.url, r.accept, r.authorization])).toEqual([
+      [
+        "https://api.github.com/repos/Acme/Shop/languages",
+        "application/vnd.github+json",
+        "Bearer t0ken",
+      ],
+    ]);
+    // A repo with none of them (or no code at all) counts zero.
+    expect(await ask(fakeGitHub([{ ...SHOP, languages: { Go: 5_000 } }]))).toBe(0);
+    expect(await ask(fakeGitHub([{ ...SHOP, languages: {} }]))).toBe(0);
+  });
+
+  it("is unknown when GitHub can't be asked or answers something unreadable", async () => {
+    const answers: (Response | Error)[] = [
+      new TypeError("fetch failed"),
+      new Response("", { status: 502 }),
+      new Response("", { status: 403, headers: { "x-ratelimit-remaining": "0" } }),
+      new Response(null, { status: 301, headers: { location: "https://evil.example/x" } }),
+      new Response("{not json"),
+      Response.json([1, 2]),
+      Response.json({ TypeScript: "lots" }),
+      Response.json({ TypeScript: -1 }),
+      Response.json({ JavaScript: 1.5 }),
+      Response.json({ TypeScript: Number.MAX_SAFE_INTEGER + 1 }),
+      new Response(" ".repeat(1024 * 1024 + 1)),
+    ];
+    for (const answer of answers) {
+      const gh = fakeGitHub([SHOP]);
+      gh.failNext(answer);
+      expect(await ask(gh)).toBeUndefined();
+    }
+    // A missing repo too.
+    expect(await ask(fakeGitHub([]))).toBeUndefined();
+  });
+
+  it("follows a rename inside the API", async () => {
+    const gh = fakeGitHub([{ ...SHOP, languages: { TypeScript: 7 } }]);
+    gh.failNext(
+      new Response(null, {
+        status: 301,
+        headers: { location: "https://api.github.com/repos/acme/shop/languages" },
+      }),
+    );
+    expect(await ask(gh)).toBe(7);
   });
 });

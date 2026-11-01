@@ -1,7 +1,8 @@
 import { consumeRateLimit, findAnalysis, refundRateLimit, upsertRepo } from "@gitinside/db";
 import { rateLimitKey } from "./clientIp";
 import { enqueueAnalysis, type EnqueueDeps } from "./enqueue";
-import { sizeHoldMessage } from "./jobs";
+import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
+import { sizeHoldMessage, tooMuchCodeMessage } from "./jobs";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import { resolveRepo, type GitHubOptions, type ResolveFailure } from "./github";
 import { parseRepoUrl } from "./repoUrl";
@@ -19,7 +20,9 @@ import { findSizeHold, type SizeHold } from "./sizeHold";
  *    is derived from the commit), again without counting against the limit.
  * 5. **Too big:** a repo whose analysis hit a `LIMIT_*` limit in the past week is refused
  *    (`422 REPO_TOO_BIG`, saying why and until when) unless it has shrunk to half its size
- *    (`findSizeHold`, #11); no slot is used.
+ *    (`findSizeHold`, #11); so is one with over twice the supported source size of TypeScript
+ *    and JavaScript by GitHub's count (`422 REPO_TOO_BIG`, no `retryAt`: `findTooMuchCode`,
+ *    ADR-0154). No slot is used.
  * 6. **Rate limit** anything else: a new analysis counts against the caller's hourly
  *    window (5 signed out). The slot is given back unless this request queued the commit
  *    (the queue was down, or someone else's request queued it first).
@@ -34,6 +37,8 @@ export interface AnalyzeDeps extends EnqueueDeps {
   rateLimitSecret: string;
   /** New analyses per hour for a signed-out address. */
   hourlyLimit: number;
+  /** GitHub's code counts by commit (`findTooMuchCode`); without it, asked every time. */
+  codeSizes?: CodeSizeCache;
   /** Clock for "try again in N minutes" (tests fix it). Default `Date.now`. */
   now?: () => number;
 }
@@ -54,7 +59,10 @@ export type AnalyzeErrorCode =
 export interface AnalyzeError {
   error: AnalyzeErrorCode;
   message: string;
-  /** With `RATE_LIMITED`: when the window resets; with `REPO_TOO_BIG`: when the hold ends (ISO 8601). */
+  /**
+   * With `RATE_LIMITED`: when the window resets; with `REPO_TOO_BIG` after a `LIMIT_*`
+   * failure: when the hold ends (ISO 8601). None when the repo is refused on GitHub's count.
+   */
   retryAt?: string;
 }
 
@@ -117,6 +125,13 @@ export async function requestAnalysis(
   if (!inFlight) {
     const hold = await findSizeHold(deps.db, repo);
     if (hold !== undefined) return tooBig(hold, deps);
+    const codeBytes = await findTooMuchCode(repo, deps.github, deps.codeSizes);
+    if (codeBytes !== undefined) {
+      return {
+        status: 422,
+        body: { error: "REPO_TOO_BIG", message: tooMuchCodeMessage(codeBytes) },
+      };
+    }
   }
   const key = rateLimitKey(deps.rateLimitSecret, address);
   let charged: Date | undefined;
