@@ -1,0 +1,297 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/services/admin.ts#ban",
+      "id": "http:symbol:web/src/services/admin.ts#ban->route:api/POST /api/admin/users/:id/ban",
+      "kind": "http",
+      "label": "POST /api/admin/users/:id/ban",
+      "sites": [
+        {
+          "column": 42,
+          "file": "apps/web/src/services/admin.ts",
+          "line": 8
+        }
+      ],
+      "to": "route:api/POST /api/admin/users/:id/ban"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/services/admin.ts#listUsers",
+      "id": "http:symbol:web/src/services/admin.ts#listUsers->route:api/GET /api/admin/users",
+      "kind": "http",
+      "label": "GET /api/admin/users",
+      "sites": [
+        {
+          "column": 38,
+          "file": "apps/web/src/services/admin.ts",
+          "line": 6
+        }
+      ],
+      "to": "route:api/GET /api/admin/users"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/services/fetcher.ts#getUser",
+      "id": "http:symbol:web/src/services/fetcher.ts#getUser->route:api/GET /api/v1/users/:id",
+      "kind": "http",
+      "label": "GET /api/v1/users/:id",
+      "sites": [
+        {
+          "column": 46,
+          "file": "apps/web/src/services/fetcher.ts",
+          "line": 7
+        }
+      ],
+      "to": "route:api/GET /api/v1/users/:id"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:web/src/services/session.ts#refresh",
+      "id": "http:symbol:web/src/services/session.ts#refresh->unresolved:web/src/services/session.ts:9:38",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 38,
+          "file": "apps/web/src/services/session.ts",
+          "line": 9
+        }
+      ],
+      "to": "unresolved:web/src/services/session.ts:9:38"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "6ff9448936816250afe59893fa0079795848e0a3c6924a81f3acecda0e6a2370",
+      "id": "file:api/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/server.ts"
+    },
+    {
+      "hash": "0a3c059702a30c9656fb293fe56d1e9f7ccec2a2b8b7b07c39ae9a6b9a1b0e05",
+      "id": "file:web/src/services/admin.ts",
+      "kind": "file",
+      "label": "admin.ts",
+      "parentId": "module:web/src/services",
+      "path": "apps/web/src/services/admin.ts"
+    },
+    {
+      "hash": "1efab20232140efa571a8204ec0a2ab36413faed4315eac2e5e6f864229a0273",
+      "id": "file:web/src/services/fetcher.ts",
+      "kind": "file",
+      "label": "fetcher.ts",
+      "parentId": "module:web/src/services",
+      "path": "apps/web/src/services/fetcher.ts"
+    },
+    {
+      "hash": "d626224500ed38bba0e7cc07e3e4bbb90424aaca775c86974874324f7b06f414",
+      "id": "file:web/src/services/session.ts",
+      "kind": "file",
+      "label": "session.ts",
+      "parentId": "module:web/src/services",
+      "path": "apps/web/src/services/session.ts"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "apps/api/src"
+    },
+    {
+      "id": "module:web/src/services",
+      "kind": "module",
+      "label": "services",
+      "parentId": "service:web/",
+      "path": "apps/web/src/services"
+    },
+    {
+      "id": "route:api/GET /api/admin/users",
+      "kind": "route",
+      "label": "GET /api/admin/users",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/admin/users",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:api/GET /api/v1/users/:id",
+      "kind": "route",
+      "label": "GET /api/v1/users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/v1/users/:id",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:api/POST /api/admin/users/:id/ban",
+      "kind": "route",
+      "label": "POST /api/admin/users/:id/ban",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/admin/users/:id/ban",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 13
+      }
+    },
+    {
+      "id": "route:api/POST /api/v1/session/refresh",
+      "kind": "route",
+      "label": "POST /api/v1/session/refresh",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/v1/session/refresh",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 17
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "@defaults/api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "apps/api"
+    },
+    {
+      "id": "service:web/",
+      "kind": "service",
+      "label": "@defaults/web",
+      "parentId": "system:root",
+      "root": "apps/web"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/admin.ts#ban",
+      "kind": "symbol",
+      "label": "ban",
+      "parentId": "file:web/src/services/admin.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 8,
+        "file": "apps/web/src/services/admin.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/admin.ts#listUsers",
+      "kind": "symbol",
+      "label": "listUsers",
+      "parentId": "file:web/src/services/admin.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 6,
+        "file": "apps/web/src/services/admin.ts",
+        "line": 6
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/fetcher.ts#getUser",
+      "kind": "symbol",
+      "label": "getUser",
+      "parentId": "file:web/src/services/fetcher.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 7,
+        "file": "apps/web/src/services/fetcher.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/session.ts#configure",
+      "kind": "symbol",
+      "label": "configure",
+      "parentId": "file:web/src/services/session.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "apps/web/src/services/session.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/services/session.ts#refresh",
+      "kind": "symbol",
+      "label": "refresh",
+      "parentId": "file:web/src/services/session.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 9,
+        "file": "apps/web/src/services/session.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "axios-defaults",
+      "parentId": null
+    },
+    {
+      "detail": "the axios baseURL can't be read statically",
+      "expression": "session.post(\"/session/refresh\")",
+      "id": "unresolved:web/src/services/session.ts:9:38",
+      "kind": "unresolved",
+      "label": "POST \"/session/refresh\"",
+      "parentId": "service:web/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 38,
+        "file": "apps/web/src/services/session.ts",
+        "line": 9
+      }
+    }
+  ],
+  "repo": {
+    "name": "axios-defaults",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/api",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/web",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

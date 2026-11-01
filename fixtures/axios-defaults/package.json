@@ -1,0 +1,1 @@
+{ "name": "axios-defaults", "private": true, "workspaces": ["apps/*"] }
