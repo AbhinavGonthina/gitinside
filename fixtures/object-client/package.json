@@ -1,0 +1,1 @@
+{ "name": "object-client", "private": true, "workspaces": ["apps/*"] }

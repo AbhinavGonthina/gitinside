@@ -1,0 +1,490 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/hooks/use-accounts.ts#createAccount",
+      "id": "calls:symbol:web/src/hooks/use-accounts.ts#createAccount->symbol:web/src/lib/api-client.ts#apiClient.post",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 20,
+          "file": "apps/web/src/hooks/use-accounts.ts",
+          "line": 13
+        }
+      ],
+      "to": "symbol:web/src/lib/api-client.ts#apiClient.post"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/hooks/use-accounts.ts#deleteAccount",
+      "id": "calls:symbol:web/src/hooks/use-accounts.ts#deleteAccount->symbol:web/src/lib/api-client.ts#apiClient.delete",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 20,
+          "file": "apps/web/src/hooks/use-accounts.ts",
+          "line": 21
+        }
+      ],
+      "to": "symbol:web/src/lib/api-client.ts#apiClient.delete"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/hooks/use-accounts.ts#listAccounts",
+      "id": "calls:symbol:web/src/hooks/use-accounts.ts#listAccounts->symbol:web/src/lib/api-client.ts#apiClient.get",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 20,
+          "file": "apps/web/src/hooks/use-accounts.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:web/src/lib/api-client.ts#apiClient.get"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/hooks/use-accounts.ts#renameAccount",
+      "id": "calls:symbol:web/src/hooks/use-accounts.ts#renameAccount->symbol:web/src/lib/api-client.ts#apiClient.patch",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 20,
+          "file": "apps/web/src/hooks/use-accounts.ts",
+          "line": 17
+        }
+      ],
+      "to": "symbol:web/src/lib/api-client.ts#apiClient.patch"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/lib/api-client.ts#apiClient.delete",
+      "id": "calls:symbol:web/src/lib/api-client.ts#apiClient.delete->symbol:web/src/lib/api-client.ts#headers",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 78,
+          "file": "apps/web/src/lib/api-client.ts",
+          "line": 39
+        }
+      ],
+      "to": "symbol:web/src/lib/api-client.ts#headers"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/lib/api-client.ts#apiClient.get",
+      "id": "calls:symbol:web/src/lib/api-client.ts#apiClient.get->symbol:web/src/lib/api-client.ts#headers",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 82,
+          "file": "apps/web/src/lib/api-client.ts",
+          "line": 16
+        }
+      ],
+      "to": "symbol:web/src/lib/api-client.ts#headers"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/lib/api-client.ts#apiClient.patch",
+      "id": "calls:symbol:web/src/lib/api-client.ts#apiClient.patch->symbol:web/src/lib/api-client.ts#headers",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 22,
+          "file": "apps/web/src/lib/api-client.ts",
+          "line": 32
+        }
+      ],
+      "to": "symbol:web/src/lib/api-client.ts#headers"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/src/lib/api-client.ts#apiClient.post",
+      "id": "calls:symbol:web/src/lib/api-client.ts#apiClient.post->symbol:web/src/lib/api-client.ts#headers",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 22,
+          "file": "apps/web/src/lib/api-client.ts",
+          "line": 23
+        }
+      ],
+      "to": "symbol:web/src/lib/api-client.ts#headers"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/hooks/use-accounts.ts#createAccount",
+      "id": "http:symbol:web/src/hooks/use-accounts.ts#createAccount->route:api/POST /api/v1/accounts",
+      "kind": "http",
+      "label": "POST /api/v1/accounts",
+      "sites": [
+        {
+          "column": 20,
+          "file": "apps/web/src/hooks/use-accounts.ts",
+          "line": 13
+        }
+      ],
+      "to": "route:api/POST /api/v1/accounts"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/hooks/use-accounts.ts#deleteAccount",
+      "id": "http:symbol:web/src/hooks/use-accounts.ts#deleteAccount->route:api/DELETE /api/v1/accounts/:id",
+      "kind": "http",
+      "label": "DELETE /api/v1/accounts/:id",
+      "sites": [
+        {
+          "column": 20,
+          "file": "apps/web/src/hooks/use-accounts.ts",
+          "line": 21
+        }
+      ],
+      "to": "route:api/DELETE /api/v1/accounts/:id"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/hooks/use-accounts.ts#listAccounts",
+      "id": "http:symbol:web/src/hooks/use-accounts.ts#listAccounts->route:api/GET /api/v1/accounts",
+      "kind": "http",
+      "label": "GET /api/v1/accounts",
+      "sites": [
+        {
+          "column": 20,
+          "file": "apps/web/src/hooks/use-accounts.ts",
+          "line": 9
+        }
+      ],
+      "to": "route:api/GET /api/v1/accounts"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/hooks/use-accounts.ts#renameAccount",
+      "id": "http:symbol:web/src/hooks/use-accounts.ts#renameAccount->route:api/PATCH /api/v1/accounts/:id",
+      "kind": "http",
+      "label": "PATCH /api/v1/accounts/:id",
+      "sites": [
+        {
+          "column": 20,
+          "file": "apps/web/src/hooks/use-accounts.ts",
+          "line": 17
+        }
+      ],
+      "to": "route:api/PATCH /api/v1/accounts/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:web/src/hooks/use-accounts.ts",
+      "id": "imports:file:web/src/hooks/use-accounts.ts->file:web/src/lib/api-client.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 27,
+          "file": "apps/web/src/hooks/use-accounts.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:web/src/lib/api-client.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "751ddf87074455660a54b4edad3011489781d8600fa8703a12e43a450884cb0e",
+      "id": "file:api/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/server.ts"
+    },
+    {
+      "hash": "d0bfffc3eb900b959048cea4aa5ea383c4f6065d690ea2a004475cf0e3be5db7",
+      "id": "file:web/src/hooks/use-accounts.ts",
+      "kind": "file",
+      "label": "use-accounts.ts",
+      "parentId": "module:web/src/hooks",
+      "path": "apps/web/src/hooks/use-accounts.ts"
+    },
+    {
+      "hash": "4a95bd49bcb049aa7b2b065de903d3dbaa751322c2dfe22c9a8003bbeb19da3e",
+      "id": "file:web/src/lib/api-client.ts",
+      "kind": "file",
+      "label": "api-client.ts",
+      "parentId": "module:web/src/lib",
+      "path": "apps/web/src/lib/api-client.ts"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "apps/api/src"
+    },
+    {
+      "id": "module:web/src/hooks",
+      "kind": "module",
+      "label": "hooks",
+      "parentId": "service:web/",
+      "path": "apps/web/src/hooks"
+    },
+    {
+      "id": "module:web/src/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "service:web/",
+      "path": "apps/web/src/lib"
+    },
+    {
+      "id": "route:api/DELETE /api/v1/accounts/:id",
+      "kind": "route",
+      "label": "DELETE /api/v1/accounts/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/v1/accounts/:id",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 17
+      }
+    },
+    {
+      "id": "route:api/GET /api/v1/accounts",
+      "kind": "route",
+      "label": "GET /api/v1/accounts",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/v1/accounts",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:api/PATCH /api/v1/accounts/:id",
+      "kind": "route",
+      "label": "PATCH /api/v1/accounts/:id",
+      "layer": "backend",
+      "method": "PATCH",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/v1/accounts/:id",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 13
+      }
+    },
+    {
+      "id": "route:api/POST /api/v1/accounts",
+      "kind": "route",
+      "label": "POST /api/v1/accounts",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/v1/accounts",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "@object/api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "apps/api"
+    },
+    {
+      "id": "service:web/",
+      "kind": "service",
+      "label": "@object/web",
+      "parentId": "system:root",
+      "root": "apps/web"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/hooks/use-accounts.ts#createAccount",
+      "kind": "symbol",
+      "label": "createAccount",
+      "parentId": "file:web/src/hooks/use-accounts.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "apps/web/src/hooks/use-accounts.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/hooks/use-accounts.ts#deleteAccount",
+      "kind": "symbol",
+      "label": "deleteAccount",
+      "parentId": "file:web/src/hooks/use-accounts.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 22,
+        "file": "apps/web/src/hooks/use-accounts.ts",
+        "line": 20
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/hooks/use-accounts.ts#listAccounts",
+      "kind": "symbol",
+      "label": "listAccounts",
+      "parentId": "file:web/src/hooks/use-accounts.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "apps/web/src/hooks/use-accounts.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/hooks/use-accounts.ts#renameAccount",
+      "kind": "symbol",
+      "label": "renameAccount",
+      "parentId": "file:web/src/hooks/use-accounts.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "apps/web/src/hooks/use-accounts.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/lib/api-client.ts#apiClient",
+      "kind": "symbol",
+      "label": "apiClient",
+      "parentId": "file:web/src/lib/api-client.ts",
+      "source": {
+        "column": 14,
+        "endLine": 41,
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 8
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/lib/api-client.ts#apiClient.delete",
+      "kind": "symbol",
+      "label": "delete",
+      "parentId": "symbol:web/src/lib/api-client.ts#apiClient",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 40,
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 38
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/lib/api-client.ts#apiClient.get",
+      "kind": "symbol",
+      "label": "get",
+      "parentId": "symbol:web/src/lib/api-client.ts#apiClient",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 18,
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 9
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/lib/api-client.ts#apiClient.patch",
+      "kind": "symbol",
+      "label": "patch",
+      "parentId": "symbol:web/src/lib/api-client.ts#apiClient",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 36,
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 29
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/lib/api-client.ts#apiClient.post",
+      "kind": "symbol",
+      "label": "post",
+      "parentId": "symbol:web/src/lib/api-client.ts#apiClient",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 27,
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 20
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": false,
+      "id": "symbol:web/src/lib/api-client.ts#headers",
+      "kind": "symbol",
+      "label": "headers",
+      "parentId": "file:web/src/lib/api-client.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "object-client",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "object-client",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/api",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/web",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

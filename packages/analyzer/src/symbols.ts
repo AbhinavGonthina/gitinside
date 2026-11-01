@@ -150,7 +150,9 @@ function boundNames(name: ts.BindingName): ts.Identifier[] {
  *   (`handle = () => {}`). Method IDs are `Class.method`; methods inherit the class's `exported`.
  * - Top-level `const`/`let`/`var`: a function or arrow value is a `function` symbol whether
  *   or not it's exported; any other value is a `variable` symbol only when exported.
- *   Exported destructuring patterns yield one variable per bound name.
+ *   Exported destructuring patterns yield one variable per bound name. An exported `const`
+ *   holding an object literal also yields its methods and function-valued properties as
+ *   `obj.method` methods (M5A.3b); a `let`/`var` or unexported object doesn't.
  * - Exports: the `export` modifier, local `export { a, b as c }`, `export default x`,
  *   `export = x`, and CommonJS `module.exports = x | { … }`, `exports.x = …`,
  *   `module.exports.x = …`. Exporting an identifier marks the local declaration exported
@@ -259,6 +261,38 @@ export function extractSymbols(sourceFile: ts.SourceFile): ExtractedSymbol[] {
       });
     }
   };
+  /**
+   * The methods of an exported `const` object literal (`export const api = { get() {} }`):
+   * method declarations with a body and properties whose value is a function or arrow, as
+   * `api.get` (M5A.3b). Getters, setters, shorthand, spread, computed, and nested objects
+   * aren't followed.
+   */
+  const addObjectMethods = (name: string, object: ts.ObjectLiteralExpression): void => {
+    for (const property of object.properties) {
+      let value: ts.Node;
+      if (ts.isMethodDeclaration(property) && property.body !== undefined) {
+        value = property;
+      } else if (
+        ts.isPropertyAssignment(property) &&
+        valueKind(property.initializer) === "function"
+      ) {
+        value = property.initializer;
+      } else {
+        continue;
+      }
+      const memberName = propertyName(property.name);
+      if (memberName === undefined) continue;
+      add({
+        qualified: `${name}.${memberName}`,
+        name: memberName,
+        symbolKind: "method",
+        exported: true,
+        parent: name,
+        node: property,
+        ...params(value),
+      });
+    }
+  };
   /** A symbol for an exported inline value (`export default …`, `exports.x = …`). */
   const addValue = (name: string, value: ts.Expression, node: ts.Node): void => {
     const e = unwrap(value);
@@ -321,6 +355,11 @@ export function extractSymbols(sourceFile: ts.SourceFile): ExtractedSymbol[] {
             node: declaration,
             ...params(init),
           });
+          const object = init && unwrap(init);
+          const isConst = (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
+          if (exported && isConst && object && ts.isObjectLiteralExpression(object)) {
+            addObjectMethods(name, object);
+          }
         }
       }
     } else if (ts.isExportAssignment(statement)) {
