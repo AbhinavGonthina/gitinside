@@ -160,6 +160,8 @@ describe("upsertRepo", () => {
         const [row] = await tx.insert(repos).values(FACTS).returning({ id: repos.id });
         second = upsertRepo(t.db, { ...FACTS, providerRepoId: 3_000_000_002 });
         for (let waited = 0; ; waited += 20) {
+          // A transaction reads `pg_stat_activity` once and caches it; poll fresh each time.
+          await tx.execute(sql`select pg_stat_clear_snapshot()`);
           const result: unknown = await tx.execute(
             sql`select count(*)::int as n from pg_stat_activity
                 where datname = current_database() and wait_event_type = 'Lock'`,
