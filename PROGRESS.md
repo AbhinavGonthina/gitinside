@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.3g R7: wider API-base env names (`*_API_PATH`, …) from a documented list, FPs measured on all five repos (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.3h R8: URL alternatives held in a variable (ternary through a `const`, a `let`), one edge per alternative (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -204,8 +204,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.3e1 R5b (39, found in M5A.3e): an Express app or router held in a class property declared without an initializer and assigned once in the constructor (`public app: express.Application;` + `this.app = express()`, foodie's `app.ts`) is that app; a second assignment, or one outside the constructor, stays unknown; fixture + golden, eval delta {model: opus}
 - [x] M5A.3f R6 (15): sibling top-level folders with their own `package.json` become services when the root declares no workspaces (each with its tsconfig and `paths`); effect on every fixture and eval graph checked; fixture + golden, eval delta {model: opus}
 - [x] M5A.3j R10 (moved up after M5A.3f: now 9 FN + 14 FP in conversa, plus the diagnosis's 1 FN + 1 FP + 1 abstention): only a parameter reaching the URL's leading part makes a function a wrapper; one filling a later hole or the query stays a hole at the inner site (conversa's `get: (id) => fetch(\`${API_BASE}/conversation/${id}\`)` stays at `api.ts`); fixture + golden, eval delta {model: opus}
-- [ ] M5A.3g R7 (7): wider API-base env names (`*_API_PATH`, `*_API_HOST`, `*_API`, `*_SERVER_URL`, …) from a documented list, FPs measured on all five repos; tests, eval delta {model: opus}
-- [ ] M5A.3h R8 (4): URL alternatives held in a variable (ternary through a `const`, a `let` with every assignment before the call readable) give one edge per alternative (ADR-0041); fixture + golden, eval delta {model: opus}
+- [x] M5A.3g R7 (7): wider API-base env names (`*_API_PATH`, `*_API_HOST`, `*_API`, `*_SERVER_URL`, …) from a documented list, FPs measured on all five repos; tests, eval delta {model: opus}
+- [ ] M5A.3h R8 (4): URL alternatives held in a variable (ternary through a `const`, a `let` with every assignment before the call readable) give one edge per alternative (ADR-0041); also a ternary whose branches differ only after `?` (held-out online-ide's `/user/submissions${page ? "?page=" + page : ""}` is now `AMBIGUOUS` with `/user/:id`); fixture + golden, eval delta {model: opus}
 - [ ] M5A.3i R9 (3): `http` sites anchored at the call expression's start (EVALUATION.md §1), not the method name (`axios⏎ .get(`); goldens, eval delta {model: opus}
 - [ ] M5A.4 Eval re-run on the original and held-out repos, ADR for any change in approach, README/EVALUATION numbers updated; if targets aren't met, list what's left and why (runtime-only URLs stay unresolved) {model: opus}
 - [ ] M5A.5 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff (generalization: no repo-specific cases), CLI smoke test on a real repo outside the eval, M5A-review.md, tag m5a {model: opus}
@@ -266,6 +266,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.3g** (`d672090`, `676b34c`, `c62ff84`, ADR-0165): an env base counts as this repo's API when its name is one of `API`, `API_URL`/`URI`/`PATH`/`HOST`/`ORIGIN`/`ROOT`/`BASE`/`ENDPOINT`, `BASE_URL`, `SERVER_URL`, `BACKEND_URL`, alone or after `PREFIX_` (`API_BASE_ENV_ENDINGS`); the unresolved detail is shorter, so 5 goldens and 7 shop-demo visual baselines changed in that text only. Mutation-checked. Eval: original five TP 116 ⇒ 133, FP 0 ⇒ 1, FN 22 ⇒ 5 (99.3% / 96.4%, wanderlust 17/22); held-out 57 ⇒ 58 TP, FP 0 ⇒ 17 (77.3% / 74.4%): 17 of the 18 new FPs are R9's one-line-off sites, one is R8 (added to M5A.3h).
 
 - **2026-11-01 M5A.3j** (`b333148`, `77edbd9`, ADR-0164): a parameter makes a function a wrapper only when its hole reaches the URL's (or `baseURL`'s) leading part: the start, host/port, right after the base, glued to the path's text, or the first segment, never after `?`/`#` (`leadingHoles` in `url.ts`); a parameter whose position is lost still counts. Fixture `fixed-url-helpers`; no other golden changed; mutation-checked. Eval: original five TP 106 ⇒ 116, FP 15 ⇒ 0, FN 32 ⇒ 22 (precision 100.0%, recall 84.1%); held-out TP 43 ⇒ 57, FP 14 ⇒ 0 (100.0% / 73.1%, mern-ecommerce 39/39).
 
