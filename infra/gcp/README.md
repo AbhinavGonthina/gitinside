@@ -133,7 +133,7 @@ docker build ─▶ push us-east4-docker.pkg.dev/gitinside-513223/gitinside/work
 | Image | pinned by digest in both services | The services run exactly what was pushed, whatever the tag later points to |
 | Render | on the parsed JSON, string by string; `IMAGE` must be this registry's worker by digest, other values identifiers | A repo variable can't change a service's structure |
 | Actions | `google-github-actions/auth` and `setup-gcloud` pinned by commit | They hold the job's Google credentials |
-| Registry | keep the 3 most recent versions, delete anything else older than an hour; CI fails if the image passes 150 MB gzipped (`check.mjs`) | 3 × 150 MB fits Artifact Registry's free 0.5 GB: the running image, the one before, and one from a deploy that failed half way. Cleanup runs about daily, so a day with many deploys can pass 0.5 GB for hours, cents at most |
+| Registry | keep the 3 most recent versions, delete anything else older than an hour; CI fails if the image passes 150 MB gzipped (`check.mjs`; 85.9 MB on 2026-11-01) | 3 × 150 MB fits Artifact Registry's free 0.5 GB: the running image, the one before, and one from a deploy that failed half way. Cleanup runs about daily, so a day with many deploys can pass 0.5 GB for hours, cents at most |
 
 **Repo variables** (Settings → Secrets and variables → Actions → Variables; identifiers, none secret): `GCP_PROJECT_NUMBER`, `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_BUCKET`, `SNAPSHOTS_ACCESS_KEY_ID`. The secrets stay in Secret Manager.
 
