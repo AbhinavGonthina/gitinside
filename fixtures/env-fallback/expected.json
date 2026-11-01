@@ -296,7 +296,7 @@
       "parentId": null
     },
     {
-      "detail": "the env var STATS_HOST isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "detail": "the env var STATS_HOST isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "expression": "fetch(`${STATS}/users/${event}`)",
       "id": "unresolved:web/src/client.ts:22:9",
       "kind": "unresolved",

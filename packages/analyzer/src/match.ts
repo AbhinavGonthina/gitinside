@@ -8,8 +8,9 @@
  *    the caller's own service and `heuristic` for routes in other services (it assumes a proxy
  *    or rewrite sends them there). Page-relative URLs (`api/x`) are `heuristic`: the page's
  *    folder is unknown, so the path is read from the root. An env-var base is `heuristic` when
- *    its name looks like an API base (`API_URL`, `BASE_URL`, `*_API_URL`, `*_BASE_URL`) or
- *    the code's fallback for it is a loopback URL (`?? "http://localhost:9000"`, ADR-0158);
+ *    its name is on the list of API-base names ({@link API_BASE_ENV_ENDINGS}: `API_URL`,
+ *    `VITE_API_PATH`, `NEXT_PUBLIC_BACKEND_URL`, …, ADR-0165) or the code's fallback for it is
+ *    a loopback URL (`?? "http://localhost:9000"`, ADR-0158);
  *    any other env var matches nothing. A literal loopback host (`localhost`, `127.0.0.1`,
  *    `[::1]`, `0.0.0.0`, `*.localhost`, any port) is `heuristic` against every service; any
  *    other literal host is an external API and is never matched to a route.
@@ -129,8 +130,33 @@ const LEVELS = ["exact", "pattern", "heuristic"] as const;
 const EXACT = CONFIDENCE_RANK.exact;
 const HEURISTIC = CONFIDENCE_RANK.heuristic;
 
-/** Env var names read as "the base URL of an API in this repo" (DESIGN.md §7.2). */
-const API_BASE_ENV = /^(?:.+_)?(?:API|BASE)_URL$/;
+/**
+ * Endings of env var names read as "the base URL of an API in this repo" (DESIGN.md §7.2,
+ * ADR-0165). A name matches when it is one of these, or ends with `_` and one of these
+ * (`VITE_API_PATH`, `NEXT_PUBLIC_BACKEND_URL`). Case-sensitive: env names are upper case by
+ * convention. Not listed, on purpose: a bare host or URL (`*_HOST`, `*_URL`: `ANALYTICS_HOST`,
+ * `CMS_URL`), `*_APP_URL` (often the site's own origin), `*_BASE_PATH` (Next's page prefix),
+ * and API settings that aren't a base (`*_API_KEY`, `*_API_VERSION`).
+ */
+const API_BASE_ENV_ENDINGS = [
+  "API",
+  "API_URL",
+  "API_URI",
+  "API_PATH",
+  "API_HOST",
+  "API_ORIGIN",
+  "API_ROOT",
+  "API_BASE",
+  "API_ENDPOINT",
+  "BASE_URL",
+  "SERVER_URL",
+  "BACKEND_URL",
+] as const;
+
+const API_BASE_ENV = new RegExp(`^(?:.+_)?(?:${API_BASE_ENV_ENDINGS.join("|")})$`);
+
+/** The start of the list, shown when an env var's name isn't on it. */
+const API_BASE_ENV_HINT = "*_API_URL, *_API_PATH, …";
 
 /** True when a host (with optional port) is the local machine. */
 export function isLoopbackHost(host: string): boolean {
@@ -260,7 +286,7 @@ export function createRouteMatcher(
         return {
           kind: "unresolved",
           reason: "NO_MATCHING_ROUTE",
-          detail: `the env var ${base.name} isn't named like an API base URL (*_API_URL, *_BASE_URL)`,
+          detail: `the env var ${base.name} isn't named like an API base (${API_BASE_ENV_HINT})`,
         };
       }
       const caller = serviceForFile(workspace, request.file)?.key;

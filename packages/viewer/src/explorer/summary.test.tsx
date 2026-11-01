@@ -86,7 +86,7 @@ describe("summaryOf", () => {
 
   it("explains an unresolved call from its reason, capitalized, and what made it", () => {
     expect(summary("unresolved:web/lib/cms.ts:3:21")).toBe(
-      "The env var CMS_URL isn't named like an API base URL (*_API_URL, *_BASE_URL), so it can't be linked. It's shown, not dropped. Requested by latestPosts.",
+      "The env var CMS_URL isn't named like an API base (*_API_URL, *_API_PATH, …), so it can't be linked. It's shown, not dropped. Requested by latestPosts.",
     );
   });
 });

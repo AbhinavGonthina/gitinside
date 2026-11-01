@@ -446,7 +446,7 @@ A match makes three independent assumptions. Each gets a level, and the match ta
 
 ```mermaid
 flowchart LR
-  B["Base level<br/>path: exact same service, heuristic other<br/>page: heuristic<br/>env *_API_URL/*_BASE_URL: heuristic<br/>loopback host: heuristic"] --> W
+  B["Base level<br/>path: exact same service, heuristic other<br/>page: heuristic<br/>env API-base name (*_API_URL, *_API_PATH, …): heuristic<br/>loopback host: heuristic"] --> W
   M["Method level<br/>equal / ALL route / HEAD→GET: exact<br/>unknown method: heuristic"] --> W
   P["Path level<br/>alignSegments():<br/>exact or pattern"] --> W
   W["max(...) = match level"] --> R["then weaker(level, request.confidence)"]
