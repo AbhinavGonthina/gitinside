@@ -48,6 +48,16 @@
       "heldOut": 1
     },
     {
+      "owner": "nemanjam",
+      "name": "nextjs-prisma-boilerplate",
+      "url": "https://github.com/nemanjam/nextjs-prisma-boilerplate",
+      "sha": "239c284cd453ae78fbae123827657a1e2bc464b9",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 2 (M5A.4a3). Single-package Next.js pages router app with Prisma, served by a custom Express server (server/index.ts: express.static for /uploads, then server.all('*') handing every request to Next). API routes are next-connect handlers (handler.get(…), handler.post(…), 405 for other methods). Every client request is in a react-query hook calling one axios.create() instance without baseURL, with paths from a Routes.API constants object (`${Routes.API.POSTS}${id}`, Routes.API.PROFILE beside the dynamic /api/users/[id]); one helper takes a whole image URL. Tests use supertest and msw (not fetch/axios, not labeled). ~200 TS/JS source files incl. tests.",
+      "heldOut": 2
+    },
+    {
       "owner": "pankil-soni",
       "name": "conversa",
       "url": "https://github.com/pankil-soni/conversa",

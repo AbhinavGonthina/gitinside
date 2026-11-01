@@ -1,0 +1,97 @@
+{
+  "repo": "nemanjam/nextjs-prisma-boilerplate",
+  "sha": "239c284cd453ae78fbae123827657a1e2bc464b9",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "lib-client/react-query/auth/useCreateUser.ts", "line": 10 },
+      "method": "POST",
+      "target": { "file": "pages/api/users/index.ts", "line": 33, "route": "POST /api/users" },
+      "notes": "createUser: axiosInstance.post(Routes.API.USERS, user) on the one axios.create() instance (lib-client/react-query/axios.ts, no baseURL, so root-relative on the same Next app); Routes.API.USERS = '/api/users/' (lib-client/constants.ts; trailing slash because next.config.js sets trailingSlash: true, no trailing slash in the route spelling). pages/api/users/index.ts is a next-connect handler (apiHandler() = nc(ncOptions), onNoMatch answers 405), so its methods are the handler.get/handler.post registrations; the route line is that handler.post call"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/auth/useMe.ts", "line": 13 },
+      "method": "GET",
+      "target": { "file": "pages/api/users/[id].ts", "line": 33, "route": "GET /api/users/:id" },
+      "notes": "getUser(id): axiosInstance.get(`${Routes.API.USERS}${id}`) = /api/users/<id>; the id parameter fills a later hole, not the path's leading part, so the label stays at this call. pages/api/users/profile.ts is the only static sibling, and a session id is a cuid, never 'profile'"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/posts/useCreatePost.ts", "line": 10 },
+      "method": "POST",
+      "target": { "file": "pages/api/posts/index.ts", "line": 50, "route": "POST /api/posts" },
+      "notes": "createPost: axiosInstance.post(Routes.API.POSTS, post), Routes.API.POSTS = '/api/posts/'; next-connect handler.post"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/posts/useDeletePost.ts", "line": 9 },
+      "method": "DELETE",
+      "target": { "file": "pages/api/posts/[id].ts", "line": 73, "route": "DELETE /api/posts/:id" },
+      "notes": "deletePost(id): axiosInstance.delete(`${Routes.API.POSTS}${id}`); next-connect handler.delete"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/posts/usePost.ts", "line": 9 },
+      "method": "GET",
+      "target": { "file": "pages/api/posts/[id].ts", "line": 31, "route": "GET /api/posts/:id" },
+      "notes": "getPost(id): axiosInstance.get(`${Routes.API.POSTS}${id}`); next-connect handler.get"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/posts/usePosts.ts", "line": 14 },
+      "method": "GET",
+      "target": { "file": "pages/api/posts/index.ts", "line": 30, "route": "GET /api/posts" },
+      "notes": "getPosts(params): axiosInstance.get(Routes.API.POSTS, { params }), params only fill the query; called twice in usePosts (query and next-page prefetch), one request expression"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/posts/useUpdatePost.ts", "line": 9 },
+      "method": "PATCH",
+      "target": { "file": "pages/api/posts/[id].ts", "line": 51, "route": "PATCH /api/posts/:id" },
+      "notes": "updatePost({ id, post }): axiosInstance.patch(`${Routes.API.POSTS}${id}`, post); next-connect handler.patch"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/seed/useCreateSeed.ts", "line": 12 },
+      "method": "POST",
+      "target": { "file": "pages/api/seed/index.ts", "line": 8, "route": "POST /api/seed" },
+      "notes": "createSeed: axiosInstance.post(Routes.API.SEED), Routes.API.SEED = '/api/seed/'; the seed handler registers handler.post and handler.get"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/users/useDeleteUser.ts", "line": 9 },
+      "method": "DELETE",
+      "target": { "file": "pages/api/users/[id].ts", "line": 80, "route": "DELETE /api/users/:id" },
+      "notes": "deleteUser(id): axiosInstance.delete(`${Routes.API.USERS}${id}`); next-connect handler.delete"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/users/useImage.ts", "line": 48 },
+      "method": "GET",
+      "target": null,
+      "notes": "getImage(imageUrl) is an exported helper whose request (axiosInstance.get(imageUrl, { responseType: 'blob' }), line 11) takes the whole URL as a parameter, so the label is at its one call, here. imageUrl is getAvatarPath(user) (user.image when it is a full URL, a runtime value on any host, else `/uploads/avatars/${…}`) or getHeaderImagePath(user) (`/uploads/headers/${…}`), lib-client/imageLoaders.ts. /uploads/* is served by the custom server's server.use('/uploads', express.static(…)) (server/index.ts:16), static files, not a route; no pages/ or pages/api/ file serves /uploads. So the request reaches no route in the repo"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/users/useUpdateUser.ts", "line": 27 },
+      "method": "PATCH",
+      "target": { "file": "pages/api/users/[id].ts", "line": 44, "route": "PATCH /api/users/:id" },
+      "notes": "updateUser({ id, … }): axiosInstance.patch(`${Routes.API.USERS}${id}`, formData, config); next-connect handler.patch (multer middleware first)"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/users/useUser.ts", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "pages/api/users/profile.ts",
+        "line": 21,
+        "route": "GET /api/users/profile"
+      },
+      "notes": "getUser(params): axiosInstance.get(Routes.API.PROFILE, { params }), Routes.API.PROFILE = '/api/users/profile/'. Both pages/api/users/profile.ts and pages/api/users/[id].ts could match; Next.js dispatches a static segment before a dynamic one, so profile.ts"
+    },
+    {
+      "callSite": { "file": "lib-client/react-query/users/useUsers.ts", "line": 13 },
+      "method": "GET",
+      "target": { "file": "pages/api/users/index.ts", "line": 41, "route": "GET /api/users" },
+      "notes": "getUsers(params): axiosInstance.get(Routes.API.USERS, { params }), params only fill the query; next-connect handler.get"
+    },
+    {
+      "callSite": { "file": "notes/code/useMe.ts", "line": 31 },
+      "method": "GET",
+      "target": { "file": "pages/api/users/[id].ts", "line": 33, "route": "GET /api/users/:id" },
+      "notes": "An older copy of useMe kept under notes/ (imported by nothing, and line 65 is a stray top-level statement); scope is the whole repo, so its axiosInstance.get(`${Routes.API.USERS}${id}`) is labeled like lib-client's"
+    }
+  ]
+}
