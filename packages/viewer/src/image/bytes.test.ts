@@ -127,6 +127,7 @@ const EXPECTED: Record<string, string[]> = {
   "prisma-relations": ["fa788ac8d8cf3cce", "2f9ca2e017f04955", "686703b2cc019fb1"],
   "queues-bullmq": ["171ff8834dc5fe07", "1da2d0e97f6b2736", "a82cb33a1ba7a479"],
   "shop-demo": ["a293bcabb8929d22", "d5cbf1bed672075b", "24c3b4e9fa0d57ac"],
+  "sibling-apps": ["661d856493c7cb37", "fd9db09229cd509d", "3397c2b738f0e5c3"],
   "syntax-error": ["55396ca32388bd0f", "9cb7f0340d7cb270", "7b0e096375125e04"],
   "wrapper-fetch": ["12360e06fae71333", "791e0ed4bfa41857", "f3719fe458b7bffc"],
 };

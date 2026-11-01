@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "check": "node scripts/check.mjs"
+  },
+  "devDependencies": {
+    "prettier": "3.3.3"
+  }
+}

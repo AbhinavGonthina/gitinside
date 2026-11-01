@@ -133,6 +133,57 @@ describe("detectWorkspace", () => {
     expect(summary(await detect())).toEqual([["app", "", "app"]]);
   });
 
+  it("makes top-level folders with a package.json services when no workspaces are declared", async () => {
+    await tree({
+      "package.json": { devDependencies: { husky: "9" } },
+      "frontend/package.json": { name: "frontend", dependencies: { react: "18" } },
+      "frontend/src/main.tsx": "",
+      "backend/package.json": { dependencies: { express: "4" } },
+      "backend/server.js": "",
+      "backend/tools/package.json": { name: "tools" },
+      "docs/README.md": "",
+    });
+    const ws = await detect();
+    expect(ws.tools).toEqual([]);
+    expect(ws.warnings).toEqual([]);
+    expect(ws.packages.map((p) => [p.key, p.dir, p.name, p.packageName, p.framework])).toEqual([
+      ["backend", "backend", "backend", undefined, "express"],
+      ["frontend", "frontend", "frontend", "frontend", "react"],
+    ]);
+  });
+
+  it("keeps the root a service beside them when it has source files of its own", async () => {
+    await tree({
+      "package.json": { name: "shop", dependencies: { express: "4" } },
+      "server.js": "",
+      "client/package.json": { name: "client", dependencies: { react: "18" } },
+      "client/src/index.js": "",
+    });
+    expect(summary(await detect())).toEqual([
+      ["shop", "", "shop"],
+      ["client", "client", "client"],
+    ]);
+
+    // Files nested under the root (not in a sibling) count too, under the `app` key.
+    await tree({ "package.json": {}, "scripts/seed.mjs": "" });
+    await rm(join(dir, "server.js"));
+    expect(summary(await detect())).toEqual([
+      ["app", "", "app"],
+      ["client", "client", "client"],
+    ]);
+  });
+
+  it("ignores sibling folders once any workspace config is declared", async () => {
+    await tree({
+      "package.json": { workspaces: ["apps/*"] },
+      "frontend/package.json": { name: "frontend" },
+      "src/index.ts": "",
+    });
+    const ws = await detect();
+    expect(summary(ws)).toEqual([["app", "", "app"]]);
+    expect(ws.warnings.map((w) => w.code)).toEqual(["WORKSPACE_NO_MATCH"]);
+  });
+
   it("reads npm/yarn workspaces arrays and yarn's { packages } form", async () => {
     await tree({
       "package.json": { workspaces: { packages: ["apps/*", "packages/*"] } },
