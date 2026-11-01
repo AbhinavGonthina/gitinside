@@ -35,6 +35,13 @@ export interface AnalysisStats {
   graphBytes: number;
   /** Wall-clock milliseconds per analyzer stage, rounded, in stage order. */
   stageMs: Record<string, number>;
+  /**
+   * The child's peak resident memory (`process.resourceUsage().maxRSS`) and V8's heap once the
+   * graph is serialized (`heapTotal`), in bytes: what the memory budget is sized from
+   * (budget.ts). The child always reports them; test fakes may leave them out.
+   */
+  peakRssBytes?: number;
+  heapBytes?: number;
 }
 
 /** The child's one-line answer. A failure here is a known analyzer failure (`LIMIT_FILES`). */
@@ -136,8 +143,12 @@ export function parseChildReport(text: string): ChildReport | undefined {
   }
   if (value.ok !== true || !isRecord(value.stats)) return undefined;
   const { files, nodes, edges, unresolved, warnings, graphBytes, stageMs } = value.stats;
+  const { peakRssBytes, heapBytes } = value.stats;
   if (![files, nodes, edges, unresolved, warnings, graphBytes].every(isCount)) return undefined;
   if (!isRecord(stageMs) || !Object.values(stageMs).every(isCount)) return undefined;
+  if (![peakRssBytes, heapBytes].every((bytes) => bytes === undefined || isCount(bytes))) {
+    return undefined;
+  }
   return {
     ok: true,
     stats: {
@@ -148,6 +159,8 @@ export function parseChildReport(text: string): ChildReport | undefined {
       warnings: warnings as number,
       graphBytes: graphBytes as number,
       stageMs: stageMs as Record<string, number>,
+      ...(peakRssBytes === undefined ? {} : { peakRssBytes: peakRssBytes as number }),
+      ...(heapBytes === undefined ? {} : { heapBytes: heapBytes as number }),
     },
   };
 }

@@ -41,6 +41,13 @@ describe("runChildJob", () => {
     if (report.ok) {
       expect(Object.keys(report.stats.stageMs)[0]).toBe("inventory");
       expect(Object.values(report.stats.stageMs).every(Number.isInteger)).toBe(true);
+      // This process's own readings, in whole bytes. (On Windows the peak RSS is the peak
+      // working set, which can read below the heap once memory is paged out, so they aren't
+      // compared.)
+      const { peakRssBytes = 0, heapBytes = 0 } = report.stats;
+      expect(Number.isSafeInteger(peakRssBytes) && Number.isSafeInteger(heapBytes)).toBe(true);
+      expect(heapBytes).toBeGreaterThan(1024 * 1024);
+      expect(peakRssBytes).toBeGreaterThan(1024 * 1024);
     }
   });
 

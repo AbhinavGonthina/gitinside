@@ -12,6 +12,14 @@ export const SUPPORTED_SOURCE_FILES = 20_000;
 /** The source-size limit in MB (MiB), the analyzer's `MAX_SOURCE_MB`. */
 export const SUPPORTED_SOURCE_MB = 50;
 
+/**
+ * The worker's extraction limits (`DEFAULT_EXTRACT_LIMITS`; limits.test.ts keeps them equal):
+ * the unpacked size in MB (MiB) and the files and folders in GitHub's download, sized for a
+ * 4 GiB Cloud Run instance (ADR-0146).
+ */
+export const SUPPORTED_UNPACKED_MB = 400;
+export const SUPPORTED_ENTRIES = 60_000;
+
 /** A no-break space (U+00A0), written as a code so it can't pass for a plain one. */
 export const NBSP = String.fromCharCode(0xa0);
 

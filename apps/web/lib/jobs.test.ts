@@ -201,6 +201,13 @@ describe("failureView", () => {
     expect(failureView("LIMIT_SOURCE_SIZE").message).toBe(
       `This repo has over ${MAX_SOURCE_MB}${NBSP}MB of source code. GitInside analyzes repos ${SUPPORTED_SIZE}. Try a smaller repo.`,
     );
+    // The extraction limits, as the worker applies them (ADR-0146).
+    expect(failureView("LIMIT_SIZE").message).toBe(
+      `This repo is over 400${NBSP}MB unpacked, the limit for one analysis. Try a smaller repo.`,
+    );
+    expect(failureView("LIMIT_ENTRIES").message).toBe(
+      "This repo has over 60,000 files and folders, the limit for one analysis. Try a smaller repo.",
+    );
     // Memory and time fail only after both size checks passed: say that's still possible.
     for (const code of ["LIMIT_TIME", "LIMIT_MEMORY"]) {
       expect(failureView(code).message, code).toContain(

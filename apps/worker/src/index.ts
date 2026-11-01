@@ -14,6 +14,12 @@ export {
   type JobStatus,
 } from "./api.js";
 export {
+  INSTANCE_MEMORY_MIB,
+  MEMORY_ALLOWANCES_MIB,
+  memoryBudget,
+  type MemoryBudget,
+} from "./budget.js";
+export {
   CONFIG_DEFAULTS,
   ConfigError,
   quotaConfigFromEnv,

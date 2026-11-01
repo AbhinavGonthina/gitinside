@@ -109,6 +109,16 @@ describe("parseChildReport", () => {
     expect(report).toEqual({ ok: true, stats: STATS });
   });
 
+  it("keeps the child's memory readings when present (M5.17c2c)", () => {
+    const stats = { ...STATS, peakRssBytes: 2_000_000_000, heapBytes: 1_500_000_000 };
+    expect(parseChildReport(JSON.stringify({ ok: true, stats }))).toEqual({ ok: true, stats });
+    const rssOnly = { ...STATS, peakRssBytes: 7 };
+    expect(parseChildReport(JSON.stringify({ ok: true, stats: rssOnly }))).toEqual({
+      ok: true,
+      stats: rssOnly,
+    });
+  });
+
   it.each([
     ["half a line", '{"ok":tr'],
     ["a non-object", "1"],
@@ -119,6 +129,8 @@ describe("parseChildReport", () => {
     ["a fractional count", JSON.stringify({ ok: true, stats: { ...STATS, edges: 1.5 } })],
     ["a bad stage time", JSON.stringify({ ok: true, stats: { ...STATS, stageMs: { a: "1" } } })],
     ["stage times as an array", JSON.stringify({ ok: true, stats: { ...STATS, stageMs: [1] } })],
+    ["a negative peak RSS", JSON.stringify({ ok: true, stats: { ...STATS, peakRssBytes: -1 } })],
+    ["a heap as text", JSON.stringify({ ok: true, stats: { ...STATS, heapBytes: "1" } })],
     ["a free-text code", JSON.stringify({ ok: false, code: "no such file", message: "m" })],
     ["a missing message", JSON.stringify({ ok: false, code: "LIMIT_FILES" })],
   ])("rejects %s", (_, text) => {
