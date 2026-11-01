@@ -142,16 +142,153 @@ The deploy never creates a service, a queue, or a binding. The first time, the t
 
 ## Applying it
 
-M5.17e4 posts the one-time Google Cloud steps on planning issue #3. Until then nothing is deployed. By hand, with the placeholders filled in, the pieces map to:
+The one-time setup, by the project's owner, in [Cloud Shell](https://shell.cloud.google.com) (free; `gcloud` and Node are installed). Every command creates exactly one piece of this folder's files; nothing here is billed by the hour, and nothing turns on an API this folder doesn't use. `apps/web/lib/gcpSetup.test.ts` checks the block below against `iam.json`, `queue.json`, `github.json`, `budget.json`, `pubsub.json`, and `registry.json`, so a change to one side fails CI. Run it in order: later steps name what earlier ones create.
 
 ```sh
-gcloud run services replace service.json --region us-east4
-gcloud run services add-iam-policy-binding gitinside-worker --region us-east4 \
-  --member serviceAccount:gitinside-invoker@gitinside-513223.iam.gserviceaccount.com --role roles/run.invoker
-gcloud tasks queues create analyses --location us-east4 \
-  --max-concurrent-dispatches 2 --max-dispatches-per-second 1 --max-attempts 3 \
-  --max-retry-duration 0s --min-backoff 30s --max-backoff 120s --max-doublings 2 --log-sampling-ratio 1
+# 0. The project, and names used below. N is the project's number (not secret).
+gcloud config set project gitinside-513223
+gcloud config set billing/quota_project gitinside-513223
+P=gitinside-513223
+R=us-east4
+N=$(gcloud projects describe $P --format='value(projectNumber)')
+git clone --depth 1 https://github.com/AbhinavGonthina/gitinside
+cd gitinside
+
+# 1. The APIs this folder uses (enabling one is free). Not Compute Engine.
+gcloud services enable run.googleapis.com cloudtasks.googleapis.com iam.googleapis.com \
+  iamcredentials.googleapis.com sts.googleapis.com secretmanager.googleapis.com \
+  artifactregistry.googleapis.com pubsub.googleapis.com cloudbilling.googleapis.com \
+  billingbudgets.googleapis.com cloudresourcemanager.googleapis.com
+
+# 2. The five service accounts (iam.json). Never create a key for any of them.
+gcloud iam service-accounts create gitinside-worker --display-name="GitInside worker (Cloud Run runtime)"
+gcloud iam service-accounts create gitinside-invoker --display-name="GitInside invoker (Cloud Tasks OIDC)"
+gcloud iam service-accounts create gitinside-enqueue --display-name="GitInside enqueue (Vercel, keyless)"
+gcloud iam service-accounts create gitinside-killswitch --display-name="GitInside billing kill switch"
+gcloud iam service-accounts create gitinside-deploy --display-name="GitInside deploy (GitHub Actions, keyless)"
+
+# 3. The four secrets, stored in us-east4 only (one location: the free tier counts versions per location).
+gcloud secrets create worker-database-url --replication-policy=user-managed --locations=$R
+gcloud secrets create worker-snapshots-secret-key --replication-policy=user-managed --locations=$R
+gcloud secrets create enqueue-hmac-secret --replication-policy=user-managed --locations=$R
+gcloud secrets create worker-github-token --replication-policy=user-managed --locations=$R
+# Then one value each, typed at a hidden prompt (never on a command line, in a file, or in an issue):
+#   worker-database-url          Neon's pooled connection string (Vercel's DATABASE_URL)
+#   worker-snapshots-secret-key  the Customer Secret Key's secret (Vercel's SNAPSHOTS_SECRET_ACCESS_KEY)
+#   enqueue-hmac-secret          Vercel's ENQUEUE_HMAC_SECRET (the same value on both sides)
+#   worker-github-token          a fine-grained GitHub token: "Public repositories (read-only)", no permissions
+read -rs V && printf %s "$V" | gcloud secrets versions add worker-database-url --data-file=- && unset V
+read -rs V && printf %s "$V" | gcloud secrets versions add worker-snapshots-secret-key --data-file=- && unset V
+read -rs V && printf %s "$V" | gcloud secrets versions add enqueue-hmac-secret --data-file=- && unset V
+read -rs V && printf %s "$V" | gcloud secrets versions add worker-github-token --data-file=- && unset V
+
+# 4. The image registry and its cleanup (registry.json).
+gcloud artifacts repositories create gitinside --repository-format=docker --location=$R
+node -e "const r=require('./infra/gcp/registry.json');require('fs').writeFileSync('/tmp/cleanup.json',JSON.stringify(r.cleanupPolicies))"
+gcloud artifacts repositories set-cleanup-policies gitinside --location=$R --policy=/tmp/cleanup.json --no-dry-run
+
+# 5. The queue (queue.json).
+gcloud tasks queues create analyses --location=$R \
+  --max-concurrent-dispatches=2 --max-dispatches-per-second=1 --max-attempts=3 \
+  --max-retry-duration=0s --min-backoff=30s --max-backoff=120s --max-doublings=2 --log-sampling-ratio=1
+
+# 6. Both services, from Google's sample image; CI's first deploy replaces them with service.json
+#    and killswitch.json. No unauthenticated access, internal ingress, their own accounts.
+gcloud run deploy gitinside-worker --image=us-docker.pkg.dev/cloudrun/container/hello --region=$R \
+  --no-allow-unauthenticated --ingress=internal --service-account=gitinside-worker@$P.iam.gserviceaccount.com \
+  --min-instances=0 --max-instances=2 --concurrency=1 --cpu=1 --memory=4Gi --timeout=300 \
+  --cpu-throttling --no-cpu-boost --execution-environment=gen2
+gcloud run deploy gitinside-killswitch --image=us-docker.pkg.dev/cloudrun/container/hello --region=$R \
+  --no-allow-unauthenticated --ingress=internal --service-account=gitinside-killswitch@$P.iam.gserviceaccount.com \
+  --min-instances=0 --max-instances=1 --concurrency=1 --cpu=1 --memory=512Mi --timeout=60 \
+  --cpu-throttling --no-cpu-boost
+KS=$(gcloud run services describe gitinside-killswitch --region=$R --format='value(status.url)')
+
+# 7. The kill switch's topic and push subscription (pubsub.json).
+gcloud pubsub topics create billing-alerts
+gcloud pubsub subscriptions create billing-alerts-killswitch --topic=billing-alerts \
+  --push-endpoint=$KS/budget --push-auth-service-account=gitinside-killswitch@$P.iam.gserviceaccount.com \
+  --push-auth-token-audience=$KS --ack-deadline=60 --message-retention-duration=7d \
+  --min-retry-delay=10s --max-retry-delay=600s --expiration-period=never
+
+# 8. The kill switch's budget (budget.json). Keep the $1 budget made at signup too: it only emails.
+B=$(gcloud billing projects describe $P --format='value(billingAccountName)' | cut -d/ -f2)
+gcloud billing budgets create --billing-account=$B --display-name=gitinside-kill-switch \
+  --budget-amount=1.00USD --filter-projects=projects/$N --credit-types-treatment=include-all-credits \
+  --calendar-period=month --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 \
+  --threshold-rule=percent=1.0 --notifications-rule-pubsub-topic=projects/$P/topics/billing-alerts \
+  --notifications-rule-schema-version=1.0
+
+# 9. Workload Identity Federation: GitHub Actions (github.json) and Vercel. Set VT to the Vercel team
+#    slug (the path in your Vercel dashboard's URL), VO to its team ID (team_…), VP to the project's
+#    ID (prj_…, Project Settings → General). Vercel: Project Settings → Security → OIDC Federation
+#    on, issuer mode "Team".
+gcloud iam workload-identity-pools create github --location=global --display-name="GitHub Actions"
+gcloud iam workload-identity-pools providers create-oidc github --location=global \
+  --workload-identity-pool=github --display-name="GitHub Actions (gitinside main)" \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref,attribute.workflow_ref=assertion.workflow_ref" \
+  --attribute-condition="assertion.repository_owner_id == '184985044' && assertion.repository_id == '1431766616' && assertion.ref == 'refs/heads/main' && assertion.workflow_ref == 'AbhinavGonthina/gitinside/.github/workflows/ci.yml@refs/heads/main' && assertion.event_name in ['push', 'workflow_dispatch']"
+gcloud iam workload-identity-pools create vercel --location=global --display-name="Vercel"
+gcloud iam workload-identity-pools providers create-oidc vercel --location=global \
+  --workload-identity-pool=vercel --display-name="Vercel (gitinside)" \
+  --issuer-uri="https://oidc.vercel.com/$VT" --allowed-audiences="https://vercel.com/$VT" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.environment=assertion.environment" \
+  --attribute-condition="assertion.owner_id == '$VO' && assertion.project_id == '$VP'"
+
+# 10. Every role binding (iam.json), each on one resource. The kill switch's billing role is the only
+#     one on the project.
+gcloud secrets add-iam-policy-binding worker-database-url \
+  --member=serviceAccount:gitinside-worker@$P.iam.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+gcloud secrets add-iam-policy-binding worker-snapshots-secret-key \
+  --member=serviceAccount:gitinside-worker@$P.iam.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+gcloud secrets add-iam-policy-binding enqueue-hmac-secret \
+  --member=serviceAccount:gitinside-worker@$P.iam.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+gcloud secrets add-iam-policy-binding worker-github-token \
+  --member=serviceAccount:gitinside-worker@$P.iam.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+gcloud run services add-iam-policy-binding gitinside-worker --region=$R \
+  --member=serviceAccount:gitinside-invoker@$P.iam.gserviceaccount.com --role=roles/run.invoker
+gcloud run services add-iam-policy-binding gitinside-worker --region=$R \
+  --member=serviceAccount:gitinside-deploy@$P.iam.gserviceaccount.com --role=roles/run.developer
+gcloud run services add-iam-policy-binding gitinside-killswitch --region=$R \
+  --member=serviceAccount:gitinside-killswitch@$P.iam.gserviceaccount.com --role=roles/run.invoker
+gcloud run services add-iam-policy-binding gitinside-killswitch --region=$R \
+  --member=serviceAccount:gitinside-deploy@$P.iam.gserviceaccount.com --role=roles/run.developer
+gcloud tasks queues add-iam-policy-binding analyses --location=$R \
+  --member=serviceAccount:gitinside-enqueue@$P.iam.gserviceaccount.com --role=roles/cloudtasks.enqueuer
+gcloud tasks queues add-iam-policy-binding analyses --location=$R \
+  --member=serviceAccount:gitinside-deploy@$P.iam.gserviceaccount.com --role=roles/cloudtasks.queueAdmin
+gcloud iam service-accounts add-iam-policy-binding gitinside-invoker@$P.iam.gserviceaccount.com \
+  --member=serviceAccount:gitinside-enqueue@$P.iam.gserviceaccount.com --role=roles/iam.serviceAccountUser
+gcloud iam service-accounts add-iam-policy-binding gitinside-worker@$P.iam.gserviceaccount.com \
+  --member=serviceAccount:gitinside-deploy@$P.iam.gserviceaccount.com --role=roles/iam.serviceAccountUser
+gcloud iam service-accounts add-iam-policy-binding gitinside-killswitch@$P.iam.gserviceaccount.com \
+  --member=serviceAccount:gitinside-deploy@$P.iam.gserviceaccount.com --role=roles/iam.serviceAccountUser
+gcloud iam service-accounts add-iam-policy-binding gitinside-enqueue@$P.iam.gserviceaccount.com \
+  --member=principalSet://iam.googleapis.com/projects/$N/locations/global/workloadIdentityPools/vercel/attribute.environment/production \
+  --role=roles/iam.workloadIdentityUser
+gcloud iam service-accounts add-iam-policy-binding gitinside-deploy@$P.iam.gserviceaccount.com \
+  --member=principalSet://iam.googleapis.com/projects/$N/locations/global/workloadIdentityPools/github/attribute.repository_id/1431766616 \
+  --role=roles/iam.workloadIdentityUser
+gcloud projects add-iam-policy-binding $P --condition=None \
+  --member=serviceAccount:gitinside-killswitch@$P.iam.gserviceaccount.com --role=roles/billing.projectManager
+gcloud pubsub topics add-iam-policy-binding billing-alerts \
+  --member=serviceAccount:billing-budget-alert@system.gserviceaccount.com --role=roles/pubsub.publisher
+gcloud artifacts repositories add-iam-policy-binding gitinside --location=$R \
+  --member=serviceAccount:gitinside-deploy@$P.iam.gserviceaccount.com --role=roles/artifactregistry.writer
+
+# 11. What the website and CI need (identifiers, none secret).
+echo "GCP_PROJECT_NUMBER=$N"
+echo "WORKER_URL=$(gcloud run services describe gitinside-worker --region=$R --format='value(status.url)')"
 ```
+
+Then, outside Google:
+
+1. **GitHub** (Settings → Secrets and variables → Actions → Variables): `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_BUCKET`, `SNAPSHOTS_ACCESS_KEY_ID` (Vercel's values), then `GCP_PROJECT_NUMBER` last: it switches CI's `deploy` job on. Actions → CI → Run workflow on `main` deploys the worker and the kill switch over the sample image.
+2. **Vercel** (Production): `GCP_PROJECT_ID=gitinside-513223`, `GCP_REGION=us-east4`, `GCP_TASKS_QUEUE=analyses`, `GCP_WORKLOAD_IDENTITY_PROVIDER=//iam.googleapis.com/projects/<N>/locations/global/workloadIdentityPools/vercel/providers/vercel`, `GCP_ENQUEUE_SERVICE_ACCOUNT=gitinside-enqueue@gitinside-513223.iam.gserviceaccount.com`, `GCP_INVOKER_SERVICE_ACCOUNT=gitinside-invoker@gitinside-513223.iam.gserviceaccount.com`, `WORKER_URL` from step 11; then redeploy.
+3. **Check:** in Cloud Shell, `node infra/gcp/verify.mjs` (below) after CI's deploy. Before it, the two services' image and settings are reported as the sample's.
+
+Paid options this setup never turns on: Compute Engine (if its API is ever on, remove the default compute account's Editor binding, which `verify.mjs` reports), Cloud NAT, a load balancer, a reserved IP, Memorystore, a Serverless VPC Access connector, minimum instances above 0, always-allocated CPU, startup CPU boost, multi-region secrets, more than 6 active secret versions, more than 0.5 GB of images.
 
 ## Checking the live project (`verify.mjs`)
 
