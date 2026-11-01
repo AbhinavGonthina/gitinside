@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.17c2b A duplicate push for a `done` row answers 200 without re-running (M5.13 and M5.14b wait on #3)
+M5.17c2c Sized for 1 vCPU / 4 GiB with `/tmp` in memory (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -166,7 +166,7 @@ M5.17c2b A duplicate push for a `done` row answers 200 without re-running (M5.13
 - [x] M5.17b3 Flaky viewer test (`packages/viewer/src/explorer/Explorer.test.tsx`, "Explorer filters > says when the selection is hidden, and shows it again"): CI's `test` on docs-only `ddb0d79` (run 41250396984) found focus on `<body>` instead of the selected treeitem, while the same code passed on `d4f5c00`. Find the race (likely like M5.16b1's: focus asked before an effect pass), reproduce it deterministically, fix the focus move or the assertion's timing {model: opus}
 - [x] M5.17c1 `POST /run` (ADR-0143): the processor's attempt shared as `runAttempt`; HMAC (a day's age for queued tasks) on top of Cloud Run IAM; one job per request under one 280 s deadline (download and child kill time from what's left, publish reserve); attempt from `X-CloudTasks-TaskRetryCount`, 3 attempts (200 for success, permanent, and last-attempt failures; 503 retriable); 429 while busy; cancelled on hang-up or shutdown; fake Cloud Tasks pusher; tests {model: opus}
 - [x] M5.17c2a The worker process on `POST /run` (ADR-0144): entry point serves it on `PORT` (Cloud Run), shutdown cancels the running job; config without Redis; startup sweep safe with 2 instances (by age, not process start); tests {model: opus}
-- [ ] M5.17c2b A duplicate push for a `done` row answers 200 without re-running (no download, no child); a contract test that a task from the website's `createTask` is accepted by `/run`; tests {model: opus}
+- [x] M5.17c2b A duplicate push for a `done` row answers 200 without re-running (no download, no child); a contract test that a task from the website's `createTask` is accepted by `/run`; tests {model: opus}
 - [ ] M5.17c2c Sized for 1 vCPU / 4 GiB with `/tmp` in memory: heap cap and extraction limits from M5.16a and cal.com (decompressed tarball + graph + heap within 4 GiB); ADR, tests {model: opus}
 - [ ] M5.17c2d Maintenance without an always-on process (e.g. after a job when the last run is over an hour old, recorded in Neon so 2 instances don't both run it); `queued` rows past the task window and `running` rows past the request timeout failed by it; tests {model: opus}
 - [ ] M5.17c3 BullMQ, Redis, and the enqueue server removed (code, deps, tests, compose, docs); local dev pushes with the fake Cloud Tasks; DESIGN.md/SECURITY.md queue wording {model: opus}
@@ -251,6 +251,9 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5.17c2b** (`29ba77a`): `POST /run` asks the recorder's new `done(jobId)` (`findJob`) once a job may start and answers `200 done` with no GitHub call, download, or child; a failed lookup runs the job as before (ADR-0145). Contract test in `apps/web/lib/cloudTasks.test.ts`: a task from the website's `createTask` pushed to the worker's real handler is accepted under the website's job ID, and answered done when that row is. Mutation check: disabling the check turns the run test red.
+- **2026-11-01 #13** (`bf15e19`): Abhinav's instruction planned in: M5A (cross-service recall, after M5, before the rest of M6), ROADMAP and SPEC record the order after v1 (JS/TS frameworks, then other languages).
 
 - **M5.17c2a** (ADR-0144): M5.17c2 split in four. The worker process now serves only `POST /run` (plus an unauthenticated `GET /health`) on `HOST`:`PORT`; BullMQ and the enqueue API are no longer started, and the config no longer reads `REDIS_URL`/`REDIS_PASSWORD`. The startup sweep fails rows `running` ≥ 360 s by the database's clock (`failInterruptedAnalyses(db, seconds)`), so a second instance's cold start leaves a live job alone. Shutdown aborts the job (503 `CANCELLED`) and answers with `connection: close`: `server.close()` had waited 3,017 ms for undici's keep-alive socket, now 7 ms; `SHUTDOWN_TIMEOUT_MS` 8 s (Cloud Run kills at 10 s). `main.test.ts` runs without Redis now. Two mutations (sweep at 0 s, no abort) failed tests. No eval delta.
 
