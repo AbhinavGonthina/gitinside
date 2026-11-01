@@ -35,6 +35,7 @@ const NAMES = [
   "env-base-heuristic",
   "env-fallback",
   "object-client",
+  "config-wrapper",
   "ambiguous-routes",
   "wrapper-fetch",
   "external-sdk",
@@ -203,6 +204,17 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       "symbol:web/src/lib/api-client.ts#apiClient.get",
       "symbol:web/src/lib/api-client.ts#apiClient.patch",
       "symbol:web/src/lib/api-client.ts#apiClient.post",
+    ]);
+  });
+
+  it("config-wrapper: each call reads url and method from its axios config (M5A.3c)", async () => {
+    const g = await run("config-wrapper");
+    const api = "symbol:web/src/services/api.ts";
+    expect(links(g, "http")).toEqual([
+      `${api}#forward -> unresolved:web/src/services/api.ts:17:44 unresolved WRAPPER_DEPTH`,
+      `${api}#getPost -> route:api/GET /post/:id heuristic`,
+      `${api}#login -> route:api/POST /authenticate heuristic`,
+      `${api}#logout -> route:api/DELETE /logout heuristic`,
     ]);
   });
 

@@ -28,7 +28,8 @@
  *   instance whose `baseURL` is unknown.
  * - Config objects are object literals, directly or through a variable. A property after
  *   the last spread is read; a property that could come from a spread (or a config the
- *   collector can't see) is unknown (`null`), never guessed.
+ *   collector can't see) is unknown (`null`), never guessed. A whole config it can't see
+ *   (`axios(req)`) is kept on the site, so a wrapper's caller can supply it (M5A.3c).
  * - Method strings: literals, no-substitution templates, consts holding them (imported
  *   too), properties of const object literals (`METHODS.post`), and string enum members.
  *   Lowercase is accepted; methods outside `HttpMethod` are unknown.
@@ -131,6 +132,13 @@ export interface HttpCallSite {
    * is set (always for `fetch`), `null` when one may be set but can't be read.
    */
   baseURL: ProgramExpression | null | undefined;
+  /**
+   * A whole axios config the collector can't locate (`axios(req)`, `api.request(req)` with
+   * `req` a parameter), and the `baseURL` of the instance it is passed to, which applies when
+   * the config sets none. Wrapper inlining (M5A.3c) reads `url`, `baseURL`, and `method` from
+   * the caller's argument. Absent for `fetch`, shorthand calls, and configs that are found.
+   */
+  config?: { value: ProgramExpression; baseURL: ProgramExpression | null | undefined };
   /**
    * `exact`, or the weaker confidence of a workspace-package import the axios instance was
    * reached through (M1.8).
@@ -711,11 +719,15 @@ export function collectHttpCalls(
     };
     const ownBase = read("baseURL");
     const ownUrl = url ?? read("url");
+    const hidden = !shorthand && url === undefined && config && !configObject(sp, config, 0);
     return {
       client: "axios",
       ...(shorthand ? { method } : configMethod(sp, config, "GET")),
       url: ownUrl ?? null,
       baseURL: ownBase === undefined ? instance.baseURL : ownBase,
+      ...(hidden
+        ? { config: { value: { sp, expression: config }, baseURL: instance.baseURL } }
+        : {}),
       confidence: instance.confidence,
     };
   };
