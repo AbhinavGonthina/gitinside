@@ -72,6 +72,11 @@ export interface JobRecorder {
    * failure.
    */
   progress?(jobId: string, progress: StoredProgress): Promise<void>;
+  /**
+   * Whether job `jobId` already finished (its row is `done`, which is final). `POST /run`
+   * asks before a push runs, so a duplicate push does no work (M5.17c2b).
+   */
+  done?(jobId: string): Promise<boolean>;
 }
 
 /** What a finished job returns (the BullMQ return value). */

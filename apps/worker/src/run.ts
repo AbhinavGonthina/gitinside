@@ -28,6 +28,10 @@ import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
  *   a retriable failure with attempts left (the row is `queued` again). A request that is
  *   refused before it runs (`400`, `401`, `413`, `415`) is a bug or a forgery; Cloud Tasks
  *   retries it too, and it fails the same way each time without doing any work.
+ * - **Already done:** Cloud Tasks delivers at least once, and the website can queue a job
+ *   again; a push whose job's row is already `done` (final) is answered `200` at once, with
+ *   no GitHub call, download, or child (ADR-0145). If the lookup fails, the job runs as
+ *   usual: `startAnalysis` still leaves a `done` row alone.
  * - **Cancelled:** if the caller hangs up (Cloud Tasks gave up) or the process shuts down
  *   (`signal`), the job is killed and fails with the retriable `CANCELLED`.
  */
@@ -95,6 +99,19 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
   const maxBodyBytes = options.maxBodyBytes ?? MAX_BODY_BYTES;
   if (secrets.length === 0) throw new Error("POST /run needs at least one secret");
   let running = false;
+
+  /** Whether the job's row is already `done`; a failed lookup is logged and reads as no. */
+  async function alreadyDone(id: string): Promise<boolean> {
+    const done = deps.recorder?.done?.bind(deps.recorder);
+    if (done === undefined) return false;
+    try {
+      return await done(id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log({ event: "done_check_failed", id, message });
+      return false;
+    }
+  }
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const arrived = clock();
@@ -178,6 +195,11 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
     const attempt = attemptFrom(req.headers[RETRY_COUNT_HEADER]);
     const lastAttempt = attempt >= MAX_ATTEMPTS;
     try {
+      if (await alreadyDone(id)) {
+        log({ event: "job_already_done", id, attempt });
+        send(res, 200, { id, state: "done" });
+        return;
+      }
       const result = await runAttempt(
         {
           id,

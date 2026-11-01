@@ -269,6 +269,31 @@ describe("createAnalysisRecorder", () => {
     expect(github.requests.map((r) => r.url)).toEqual(["/repos/acme/shop"]);
   });
 
+  it("says a job is done only once its row is `done` (M5.17c2b)", async () => {
+    const r = recorder();
+    expect(await r.done?.(ID)).toBe(false);
+    const run = async (): Promise<RunResult> => ({
+      ok: false,
+      code: "LIMIT_FILES",
+      message: "LIMIT_FILES",
+      stderrTail: "",
+      durationMs: 1,
+    });
+    await failure(processJob({ id: ID, request: REQUEST }, deps(r, { run })));
+    expect((await onlyAnalysis()).status).toBe("failed");
+    expect(await r.done?.(ID)).toBe(false);
+
+    const seen: (boolean | undefined)[] = [];
+    const running: JobDeps["run"] = async (child) => {
+      seen.push(await r.done?.(ID));
+      return writeGraph(child);
+    };
+    await processJob({ id: ID, request: REQUEST }, deps(r, { run: running }));
+    expect(seen).toEqual([false]);
+    expect(await r.done?.(ID)).toBe(true);
+    expect(await r.done?.(`analyze-${"f".repeat(32)}`)).toBe(false);
+  });
+
   it("refuses to publish a job that was never recorded", async () => {
     const unrecorded = deps(recorder());
     delete unrecorded.recorder;

@@ -342,6 +342,92 @@ describe("POST /run, one job at a time", () => {
   });
 });
 
+describe("POST /run, a job already done (M5.17c2b)", () => {
+  /** A recorder whose `done` answers with `isDone` and counts its lookups. */
+  function doneRecorder(isDone: (id: string) => Promise<boolean>) {
+    const { recorder, calls } = fakeRecorder();
+    const looked: string[] = [];
+    const done: JobRecorder = {
+      ...recorder,
+      done: async (id) => {
+        looked.push(id);
+        return isDone(id);
+      },
+    };
+    return { recorder: done, calls, looked };
+  }
+
+  it("answers 200 done without downloading, recording, or running anything", async () => {
+    const { recorder, calls, looked } = doneRecorder(async (id) => id === ID);
+    let runs = 0;
+    const run: JobDeps["run"] = async (job) => {
+      runs++;
+      return writeGraph(job);
+    };
+    const events: Record<string, unknown>[] = [];
+    const before = github.requests.length;
+    const origin = await start({ deps: deps(run, recorder), log: (e) => void events.push(e) });
+    // A redelivery on a later attempt is answered the same way.
+    expect(await pushTask(fakeTask(origin, REQUEST, SECRET))).toEqual([
+      { status: 200, body: { id: ID, state: "done" } },
+    ]);
+    expect(await post(origin, JSON.stringify(REQUEST), { retry: 2 })).toEqual({
+      status: 200,
+      body: { id: ID, state: "done" },
+    });
+    expect(looked).toEqual([ID, ID]);
+    expect([runs, calls.started, calls.progress, calls.failed]).toEqual([0, [], [], []]);
+    expect(github.requests.length).toBe(before);
+    expect(events).toEqual([
+      { event: "job_already_done", id: ID, attempt: 1 },
+      { event: "job_already_done", id: ID, attempt: 3 },
+    ]);
+    // Another commit isn't done, so it runs.
+    const other = { ...REQUEST, sha: "f".repeat(40) };
+    expect((await post(origin, JSON.stringify(other))).body).toEqual({
+      id: jobIdFor(other, VERSION),
+      state: "done",
+    });
+    expect(runs).toBe(1);
+  });
+
+  it("runs the job as usual when the lookup fails, logging why", async () => {
+    const { recorder, calls } = doneRecorder(() => Promise.reject(new Error("db down")));
+    const events: Record<string, unknown>[] = [];
+    const origin = await start({
+      deps: deps(writeGraph, recorder),
+      log: (e) => void events.push(e),
+    });
+    expect(await post(origin, JSON.stringify(REQUEST))).toEqual({
+      status: 200,
+      body: { id: ID, state: "done" },
+    });
+    expect(calls.started).toEqual([ID]);
+    expect(events[0]).toEqual({ event: "done_check_failed", id: ID, message: "db down" });
+  });
+
+  it("checks only once a job may start: a busy worker still answers 429", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let started: () => void = () => undefined;
+    const running = new Promise<void>((resolve) => (started = resolve));
+    const run: JobDeps["run"] = async (job) => {
+      started();
+      await held;
+      return writeGraph(job);
+    };
+    const { recorder, looked } = doneRecorder(async (id) => id !== ID);
+    const origin = await start({ deps: deps(run, recorder) });
+    const first = post(origin, JSON.stringify(REQUEST));
+    await running;
+    const other = { ...REQUEST, sha: "f".repeat(40) };
+    expect((await post(origin, JSON.stringify(other))).status).toBe(429);
+    release();
+    expect((await first).status).toBe(200);
+    expect(looked).toEqual([ID]);
+  });
+});
+
 describe("POST /run, one deadline", () => {
   /** A clock the test moves: `at` ms since the request arrived. */
   function steppedClock() {

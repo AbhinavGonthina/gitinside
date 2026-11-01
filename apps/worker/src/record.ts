@@ -1,6 +1,7 @@
 import {
   completeAnalysis,
   failAnalysis,
+  findJob,
   recordJobProgress,
   requeueAnalysis,
   startAnalysis,
@@ -38,6 +39,8 @@ import {
  *   progress update the queue stores is written to it too, so the progress page can read
  *   Postgres. The estimate is written as the time left at the write, never as a moment on
  *   this process's clock.
+ * - **done** (M5.17c2b): whether the job's row is already `done`, read by job ID before a
+ *   push runs (`findJob`).
  */
 
 /** Options for {@link createAnalysisRecorder}. */
@@ -142,5 +145,9 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
     await recordJobProgress(db, jobId, recordedProgress(current, (options.now ?? Date.now)()));
   }
 
-  return { start, publish, failed, progress };
+  async function done(jobId: string): Promise<boolean> {
+    return (await findJob(db, jobId))?.status === "done";
+  }
+
+  return { start, publish, failed, progress, done };
 }

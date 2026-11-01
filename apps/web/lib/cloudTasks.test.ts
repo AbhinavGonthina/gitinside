@@ -1,6 +1,17 @@
 // @vitest-environment node
+import { mkdtemp, rm } from "node:fs/promises";
+import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  JobFailure,
+  RETRY_COUNT_HEADER,
+  createRunServer,
+  jobIdFor,
+  type JobRecorder,
+} from "@gitinside/worker";
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyRequest } from "@gitinside/worker/hmac";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import {
   DISPATCH_DEADLINE_SECONDS,
   RUN_PATH,
@@ -8,7 +19,7 @@ import {
   taskIdFor,
   type TaskQueueOptions,
 } from "./cloudTasks";
-import { fakeGoogle } from "./google.testkit";
+import { fakeGoogle, type FakeTask as GoogleTask } from "./google.testkit";
 import { createGoogleTokenSource } from "./googleAuth";
 import { WorkerUnavailableError } from "./worker";
 
@@ -200,6 +211,77 @@ describe("createTaskQueue against the fake Google", () => {
     await expect(queue.createTask(JOB, "a/b")).rejects.toThrow("taskId");
     await expect(queue.createTask(JOB, "")).rejects.toThrow("taskId");
     expect(google.requests).toEqual([]);
+  });
+});
+
+describe("a task from createTask, pushed to the worker's POST /run (contract, M5.17c2b)", () => {
+  const VERSION = "0.1.0";
+  // The ID the website stores on the row (enqueue.ts) and the worker derives from the body.
+  const ID = jobIdFor({ kind: "analyze", ...JOB }, VERSION);
+
+  /** Deliver `task` as Cloud Tasks would (first attempt) to a worker built from `recorder`. */
+  async function deliver(task: GoogleTask, recorder: JobRecorder) {
+    const jobsRoot = await mkdtemp(join(tmpdir(), "gitinside-contract-"));
+    onTestFinished(() => rm(jobsRoot, { recursive: true, force: true }));
+    const server = createRunServer({
+      deps: { jobsRoot, recorder, publish: async () => undefined },
+      secrets: [SECRET],
+      analyzerVersion: VERSION,
+      now: () => NOW,
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    onTestFinished(() => new Promise<void>((resolve) => server.close(() => resolve())));
+    const { port } = server.address() as AddressInfo;
+    const url = new URL(task.httpRequest.url);
+    const response = await fetch(`http://127.0.0.1:${port}${url.pathname}`, {
+      method: task.httpRequest.httpMethod,
+      headers: { ...task.httpRequest.headers, [RETRY_COUNT_HEADER]: "0", connection: "close" },
+      body: Buffer.from(task.httpRequest.body, "base64"),
+    });
+    return { status: response.status, body: (await response.json()) as unknown };
+  }
+
+  async function createdTask(): Promise<GoogleTask> {
+    const { google, queue } = setup();
+    await queue.createTask(JOB, taskIdFor(ID, new Date(NOW)));
+    const [task] = google.tasks;
+    if (task === undefined) throw new Error("no task created");
+    return task;
+  }
+
+  it("is accepted and starts the website's job under the website's job ID", async () => {
+    const started: { request: unknown; jobId: string }[] = [];
+    const recorder: JobRecorder = {
+      done: async () => false,
+      start: async (request, _signal, jobId) => {
+        started.push({ request, jobId });
+        // Stop before any download: a permanent failure, answered 200 so it isn't retried.
+        throw new JobFailure("REPO_NOT_PUBLIC", "contract test");
+      },
+      failed: async () => undefined,
+    };
+    expect(await deliver(await createdTask(), recorder)).toEqual({
+      status: 200,
+      body: { id: ID, state: "failed", errorCode: "REPO_NOT_PUBLIC" },
+    });
+    expect(started).toEqual([{ request: { kind: "analyze", ...JOB }, jobId: ID }]);
+  });
+
+  it("is answered done at once when the website's row for that job ID is done", async () => {
+    const looked: string[] = [];
+    const recorder: JobRecorder = {
+      done: async (jobId) => {
+        looked.push(jobId);
+        return jobId === ID;
+      },
+      start: () => Promise.reject(new Error("must not start")),
+      failed: async () => undefined,
+    };
+    expect(await deliver(await createdTask(), recorder)).toEqual({
+      status: 200,
+      body: { id: ID, state: "done" },
+    });
+    expect(looked).toEqual([ID]);
   });
 });
 
