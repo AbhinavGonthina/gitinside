@@ -34,6 +34,9 @@ import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
  *   usual: `startAnalysis` still leaves a `done` row alone.
  * - **Cancelled:** if the caller hangs up (Cloud Tasks gave up) or the process shuts down
  *   (`signal`), the job is killed and fails with the retriable `CANCELLED`.
+ * - **After the job,** before the answer, `afterJob` gets what's left of the budget: the
+ *   entry point runs the hourly maintenance there (ADR-0147), since Cloud Run gives an
+ *   instance CPU only while a request is open. A push arriving meanwhile is still `429`.
  */
 
 /** The path Cloud Tasks pushes to (apps/web's `RUN_PATH`). */
@@ -68,6 +71,12 @@ export interface RunHandlerOptions {
   estimates?: ProcessorEstimates;
   /** Fires on shutdown: the running job is cancelled. */
   signal?: AbortSignal;
+  /**
+   * Called once a job is over (done, failed, or already done), before its push is answered,
+   * with what's left of the budget: maintenance runs here (ADR-0147), while the instance
+   * still has CPU. Not called for a cancelled job; a rejection is logged.
+   */
+  afterJob?: (end: { timeLeftMs: number; signal: AbortSignal }) => Promise<unknown>;
   /** Default {@link JOB_BUDGET_MS}. */
   budgetMs?: number;
   /** Wall clock for the signature's age (tests fix it). Default `Date.now`. */
@@ -194,36 +203,41 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
         : AbortSignal.any([hangUp.signal, options.signal]);
     const attempt = attemptFrom(req.headers[RETRY_COUNT_HEADER]);
     const lastAttempt = attempt >= MAX_ATTEMPTS;
+    const timeLeft = () => budgetMs - (clock() - arrived);
     try {
+      let status: number;
+      let answer: Record<string, unknown>;
       if (await alreadyDone(id)) {
         log({ event: "job_already_done", id, attempt });
-        send(res, 200, { id, state: "done" });
-        return;
+        [status, answer] = [200, { id, state: "done" }];
+      } else {
+        const result = await runAttempt(
+          { id, data, attempt, lastAttempt, signal, timeLeft },
+          deps,
+          log,
+          options.estimates,
+        );
+        if (result.ok) {
+          [status, answer] = [200, { id, state: "done" }];
+        } else if (result.failure.retriable && !lastAttempt) {
+          [status, answer] = [503, { error: result.failure.code }];
+        } else {
+          [status, answer] = [200, { id, state: "failed", errorCode: result.failure.code }];
+        }
       }
-      const result = await runAttempt(
-        {
-          id,
-          data,
-          attempt,
-          lastAttempt,
-          signal,
-          timeLeft: () => budgetMs - (clock() - arrived),
-        },
-        deps,
-        log,
-        options.estimates,
-      );
+      if (options.afterJob !== undefined && !signal.aborted) {
+        try {
+          await options.afterJob({ timeLeftMs: timeLeft(), signal });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          log({ event: "after_job_failed", id, message });
+        }
+      }
       // While shutting down, the connection closes with the answer: the server's close
       // otherwise waits for the caller to drop its idle keep-alive socket (seconds).
       const headers: Record<string, string> =
         options.signal?.aborted === true ? { connection: "close" } : {};
-      if (result.ok) {
-        send(res, 200, { id, state: "done" }, headers);
-      } else if (result.failure.retriable && !lastAttempt) {
-        send(res, 503, { error: result.failure.code }, headers);
-      } else {
-        send(res, 200, { id, state: "failed", errorCode: result.failure.code }, headers);
-      }
+      send(res, status, answer, headers);
     } finally {
       running = false;
       res.off("close", onClose);

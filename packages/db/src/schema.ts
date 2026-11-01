@@ -272,3 +272,13 @@ export const storeRequests = pgTable(
     check("store_requests_count_check", sql`${t.count} >= 0`),
   ],
 );
+
+/**
+ * When each periodic maintenance task last started, by the database's clock (ADR-0147).
+ * The worker runs no timer of its own on Cloud Run: an instance claims a task's row at the
+ * end of a job, and only one instance can win the claim for a period.
+ */
+export const maintenanceRuns = pgTable("maintenance_runs", {
+  name: text("name").primaryKey(),
+  startedAt: timestampTz("started_at").notNull(),
+});

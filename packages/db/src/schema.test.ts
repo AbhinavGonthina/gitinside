@@ -90,6 +90,7 @@ describe("migrations", () => {
       "access_cache",
       "analyses",
       "installations",
+      "maintenance_runs",
       "pull_requests",
       "rate_limits",
       "repos",

@@ -2,25 +2,31 @@
 import {
   analyses,
   countStoreRequests,
+  maintenanceRuns,
   rateLimits,
   repos,
   storeRequests,
   storeRequestsThisMonth,
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
-  MAINTENANCE_FIRST_DELAY_MS,
-  MAINTENANCE_INTERVAL_MS,
+  INTERRUPTED_AFTER_SECONDS,
+  MAINTENANCE_EVERY_SECONDS,
+  MAINTENANCE_MIN_TIME_LEFT_MS,
+  MAINTENANCE_TASK,
   QUOTA_ALARM_RATIO,
   QUOTA_LIMITS,
+  STALE_QUEUED_AFTER_SECONDS,
   checkQuotas,
   createCountedStore,
+  createMaintenanceTrigger,
   measureQuotas,
   runMaintenance,
-  scheduleMaintenance,
+  type MaintenanceTriggerOptions,
 } from "./maintenance.js";
 import { RETENTION_POLICY } from "./retention.js";
+import { MAX_TASK_AGE_SECONDS } from "./run.js";
 import { s3Error, startFakeS3, type FakeS3 } from "./s3.testkit.js";
 import { createObjectStore } from "./storage.js";
 
@@ -221,11 +227,50 @@ describe("with a database and a bucket", () => {
     expect(report.rateLimitsPruned).toBe(1);
     expect(report.quotas?.[0]).toMatchObject({ resource: "bucket", used: 500 });
     expect(lines.map((line) => line.event)).toEqual([
+      "stale_jobs_failed",
       "retention_run",
       "rate_limits_pruned",
       "quota",
     ]);
-    expect(lines[1]).toEqual({ event: "rate_limits_pruned", rows: 1 });
+    expect(lines[0]).toEqual({ event: "stale_jobs_failed", interrupted: 0, stranded: 0 });
+    expect(lines[2]).toEqual({ event: "rate_limits_pruned", rows: 1 });
+  });
+
+  it("first fails rows running past the request timeout and rows queued past every task's window", async () => {
+    const [{ id: repoId } = { id: "" }] = await t.db.select({ id: repos.id }).from(repos);
+    const row = (n: number, status: "queued" | "running", ageSeconds: number) => ({
+      repoId,
+      sha: sha(n),
+      analyzerVersion: "0.1.0",
+      status,
+      startedAt: status === "running" ? new Date(Date.now() - ageSeconds * 1000) : null,
+      queuedAt: new Date(Date.now() - ageSeconds * 1000),
+    });
+    await t.db
+      .insert(analyses)
+      .values([
+        row(7, "running", INTERRUPTED_AFTER_SECONDS + 5),
+        row(8, "running", INTERRUPTED_AFTER_SECONDS - 30),
+        row(9, "queued", STALE_QUEUED_AFTER_SECONDS + 5),
+        row(10, "queued", STALE_QUEUED_AFTER_SECONDS - 60),
+      ]);
+
+    const report = await runMaintenance({ db: t.db, store: store(), log });
+
+    expect(report.staleJobs).toEqual({ interrupted: 1, stranded: 1 });
+    const status = new Map(
+      (await t.db.select().from(analyses)).map((r) => [r.sha, [r.status, r.errorCode]]),
+    );
+    expect(status.get(sha(7))).toEqual(["failed", "JOB_INTERRUPTED"]);
+    expect(status.get(sha(8))).toEqual(["running", null]);
+    expect(status.get(sha(9))).toEqual(["failed", "QUEUE_UNAVAILABLE"]);
+    expect(status.get(sha(10))).toEqual(["queued", null]);
+  });
+
+  it("waits out a day of task signatures, plus a margin, before calling a queued row stranded", () => {
+    expect(INTERRUPTED_AFTER_SECONDS).toBe(360);
+    expect(STALE_QUEUED_AFTER_SECONDS).toBe(MAX_TASK_AGE_SECONDS + 600);
+    expect(MAX_TASK_AGE_SECONDS).toBe(86_400);
   });
 
   it("logs a quota_alarm line per resource at 80% or more", async () => {
@@ -282,8 +327,13 @@ describe("with a database and a bucket", () => {
   it("runs every step even when the bucket can't be listed, and never rejects", async () => {
     s3.handler = (_req, _body, res) => s3Error(res, 500, "InternalError");
     const report = await runMaintenance({ db: t.db, store: store(), log });
-    expect(report).toEqual({ failed: ["retention", "quota"], rateLimitsPruned: 0 });
+    expect(report).toEqual({
+      failed: ["retention", "quota"],
+      staleJobs: { interrupted: 0, stranded: 0 },
+      rateLimitsPruned: 0,
+    });
     expect(lines).toEqual([
+      { event: "stale_jobs_failed", interrupted: 0, stranded: 0 },
       {
         event: "maintenance_failed",
         step: "retention",
@@ -294,92 +344,106 @@ describe("with a database and a bucket", () => {
     ]);
     expect(await t.db.select().from(analyses)).toHaveLength(6);
   });
-});
 
-describe("scheduleMaintenance", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
+  describe("createMaintenanceTrigger", () => {
+    const PLENTY = { timeLeftMs: 200_000 };
+    let runs: number;
+    const counting = () => async () => void runs++;
+    const trigger = (overrides: Partial<MaintenanceTriggerOptions> = {}) =>
+      createMaintenanceTrigger({ db: t.db, run: counting(), log, ...overrides });
+    /** Pretend the last claim started `seconds` ago. */
+    const lastStarted = (seconds: number) =>
+      t.db.update(maintenanceRuns).set({ startedAt: new Date(Date.now() - seconds * 1000) });
 
-  it("runs a minute after start, then an hour after each run ends", async () => {
-    let runs = 0;
-    const schedule = scheduleMaintenance({ run: async () => void runs++, log: () => undefined });
-    expect(MAINTENANCE_FIRST_DELAY_MS).toBe(60_000);
-    expect(MAINTENANCE_INTERVAL_MS).toBe(HOUR);
-
-    await vi.advanceTimersByTimeAsync(59_999);
-    expect(runs).toBe(0);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(runs).toBe(1);
-    await vi.advanceTimersByTimeAsync(HOUR - 1);
-    expect(runs).toBe(1);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(runs).toBe(2);
-    await schedule.stop();
-    await vi.advanceTimersByTimeAsync(10 * HOUR);
-    expect(runs).toBe(2);
-  });
-
-  it("never overlaps runs: the interval starts when a run ends", async () => {
-    const starts: number[] = [];
-    const schedule = scheduleMaintenance({
-      run: () => {
-        starts.push(Date.now());
-        return new Promise((resolve) => setTimeout(resolve, 30));
-      },
-      log: () => undefined,
-      firstDelayMs: 10,
-      intervalMs: 20,
+    beforeEach(async () => {
+      await t.db.delete(maintenanceRuns);
+      runs = 0;
     });
-    await vi.advanceTimersByTimeAsync(200);
-    await schedule.stop();
-    const gaps = starts.slice(1).map((start, i) => start - (starts[i] as number));
-    expect(gaps.length).toBeGreaterThan(1);
-    expect(new Set(gaps)).toEqual(new Set([50]));
-  });
 
-  it("logs a rejected run and keeps going", async () => {
-    const lines: Record<string, unknown>[] = [];
-    let runs = 0;
-    const schedule = scheduleMaintenance({
-      run: async () => {
-        runs++;
-        throw new Error("boom");
-      },
-      log: (event) => void lines.push(event),
-      firstDelayMs: 1,
-      intervalMs: 1,
+    it("runs after a job when never run, then not again within the hour", async () => {
+      expect(MAINTENANCE_EVERY_SECONDS).toBe(HOUR / 1000);
+      expect(MAINTENANCE_TASK).toBe("hourly");
+      const maintenance = trigger();
+      expect(await maintenance.afterJob(PLENTY)).toBe(true);
+      expect(runs).toBe(1);
+      expect(await maintenance.afterJob(PLENTY)).toBe(false);
+      await lastStarted(3590);
+      expect(await maintenance.afterJob(PLENTY)).toBe(false);
+      await lastStarted(3605);
+      expect(await maintenance.afterJob(PLENTY)).toBe(true);
+      expect(runs).toBe(2);
+      expect(lines.map((line) => line.event)).toEqual([
+        "maintenance_started",
+        "maintenance_started",
+      ]);
     });
-    await vi.advanceTimersByTimeAsync(2);
-    await schedule.stop();
-    expect(runs).toBe(2);
-    expect(lines[0]).toEqual({ event: "maintenance_failed", step: "run", message: "boom" });
-  });
 
-  it("stop waits for a run in progress and schedules nothing after it", async () => {
-    let finish: () => void = () => undefined;
-    let runs = 0;
-    const schedule = scheduleMaintenance({
-      run: () => {
-        runs++;
-        return new Promise<void>((resolve) => (finish = resolve));
-      },
-      log: () => undefined,
-      firstDelayMs: 1,
-      intervalMs: 1,
+    it("lets one of two instances run it when both finish a job at once", async () => {
+      const [a, b] = [trigger(), trigger()];
+      const won = await Promise.all([a.afterJob(PLENTY), b.afterJob(PLENTY)]);
+      expect(won.filter(Boolean)).toHaveLength(1);
+      expect(runs).toBe(1);
     });
-    await vi.advanceTimersByTimeAsync(1);
-    let stopped = false;
-    const stopping = schedule.stop().then(() => (stopped = true));
-    await vi.advanceTimersByTimeAsync(5);
-    expect(stopped).toBe(false);
-    finish();
-    await stopping;
-    await schedule.stop();
-    await vi.advanceTimersByTimeAsync(100);
-    expect(runs).toBe(1);
+
+    it("leaves the claim alone when the job left too little time", async () => {
+      expect(MAINTENANCE_MIN_TIME_LEFT_MS).toBe(60_000);
+      const maintenance = trigger();
+      expect(await maintenance.afterJob({ timeLeftMs: 59_999 })).toBe(false);
+      expect(await t.db.select().from(maintenanceRuns)).toEqual([]);
+      expect(await maintenance.afterJob({ timeLeftMs: 60_000 })).toBe(true);
+      expect(runs).toBe(1);
+    });
+
+    it("waits for the run no longer than the job's time left; the run carries on and stop waits for it", async () => {
+      let finish: () => void = () => undefined;
+      const maintenance = trigger({
+        run: () => new Promise<void>((resolve) => (finish = resolve)),
+        minTimeLeftMs: 0,
+      });
+      expect(await maintenance.afterJob({ timeLeftMs: 20 })).toBe(true);
+      expect(lines.at(-1)).toEqual({ event: "maintenance_unawaited", timeLeftMs: 20 });
+      // No second run beside it on this instance, even once the period allows one.
+      await lastStarted(2 * 3600);
+      expect(await maintenance.afterJob(PLENTY)).toBe(false);
+
+      let stopped = false;
+      const stopping = maintenance.stop().then(() => (stopped = true));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(stopped).toBe(false);
+      finish();
+      await stopping;
+      expect(await maintenance.afterJob(PLENTY)).toBe(false);
+    });
+
+    it("stops waiting when the job's signal aborts, and starts nothing on an aborted one", async () => {
+      const maintenance = trigger({ run: () => new Promise<void>(() => undefined) });
+      const aborted = new AbortController();
+      aborted.abort();
+      expect(await maintenance.afterJob({ ...PLENTY, signal: aborted.signal })).toBe(false);
+      expect(await t.db.select().from(maintenanceRuns)).toEqual([]);
+
+      const shutdown = new AbortController();
+      const waiting = maintenance.afterJob({ ...PLENTY, signal: shutdown.signal });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      shutdown.abort();
+      expect(await waiting).toBe(true);
+    });
+
+    it("logs a failed claim or run and never rejects", async () => {
+      const broken = {
+        insert: () => {
+          throw new Error("db down");
+        },
+      } as unknown as TestDb["db"];
+      expect(await trigger({ db: broken }).afterJob(PLENTY)).toBe(false);
+      expect(await trigger({ run: () => Promise.reject(new Error("boom")) }).afterJob(PLENTY)).toBe(
+        true,
+      );
+      expect(lines).toEqual([
+        { event: "maintenance_failed", step: "claim", message: "db down" },
+        { event: "maintenance_started" },
+        { event: "maintenance_failed", step: "run", message: "boom" },
+      ]);
+    });
   });
 });

@@ -44,6 +44,13 @@ export interface AnalysisKey {
 export const INTERRUPTED_CODE = "JOB_INTERRUPTED";
 
 /**
+ * The error code for a queued job no task will run (ADR-0142, ADR-0147): its task was never
+ * created, or {@link failStaleQueuedAnalyses} found it waiting past every task's window. It
+ * is retryable: the website queues the commit again on the next request or view.
+ */
+export const QUEUE_UNAVAILABLE_CODE = "QUEUE_UNAVAILABLE";
+
+/**
  * Insert the repo, or update it by GitHub's ID (which survives renames). If another row
  * still holds this owner/name, that repo was renamed or deleted on GitHub since we saw it;
  * its name becomes `~<its GitHub ID>` (no GitHub name contains `~`) so it keeps its
@@ -389,6 +396,30 @@ export async function failInterruptedAnalyses(
       progressAt: null,
     })
     .where(and(eq(analyses.status, "running"), lte(analyses.startedAt, cutoff)))
+    .returning({ id: analyses.id });
+  return rows.length;
+}
+
+/**
+ * Fail every analysis that has been `queued` for at least `queuedForSeconds` (since it last
+ * entered the queue, by the database's clock) with {@link QUEUE_UNAVAILABLE_CODE}. The
+ * worker's maintenance passes longer than any task can still be accepted, so such a row is
+ * one a website function left without a task (it died between the row and the task), or
+ * whose task ran out; until failed it would count in everyone's queue position. If a task
+ * for it does arrive, {@link startAnalysis} moves the row to `running` all the same.
+ */
+export async function failStaleQueuedAnalyses(
+  db: AnyDatabase,
+  queuedForSeconds: number,
+): Promise<number> {
+  if (!Number.isFinite(queuedForSeconds) || queuedForSeconds < 0) {
+    throw new RangeError("queuedForSeconds must be a finite number ≥ 0");
+  }
+  const cutoff = sql`now() - ${queuedForSeconds} * interval '1 second'`;
+  const rows = await db
+    .update(analyses)
+    .set({ status: "failed", errorCode: QUEUE_UNAVAILABLE_CODE, finishedAt: sql`now()` })
+    .where(and(eq(analyses.status, "queued"), lte(analyses.queuedAt, cutoff)))
     .returning({ id: analyses.id });
   return rows.length;
 }
