@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.3b R2 methods of an exported const object literal as wrappers (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.3c R3 a wrapper whose parameter is the axios config reads url/method/baseURL from the caller's object literal (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -196,7 +196,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.2b Held-out repo 1: pick 2–3 new public React/Next + Express (+ Prisma) candidates of different styles from their code (selection rules as M3.2, never running the analyzer on them), pin the first with `heldOut: true`, draft and commit its labels; no scoring yet {model: opus}
 - [x] M5A.2c Held-out repo 2 (and 3 if picked): pin, draft and commit labels, then the first `pnpm eval` with the held-out section; they're never tuned against {model: opus}
 - [x] M5A.3a R1 (87 labels blocked; `eval/results/2026-11-recall-diagnosis.md`): env base with an in-code fallback keeps the fallback's path prefix (`?? "http://localhost:4000/api/v1"`), a literal fallback inside the URL (`|| 'v1'`) replaces the hole, a loopback fallback host is `heuristic` whatever the env name; ADR (changes "the env var is the deployed value"); fixture + golden, eval delta {model: opus}
-- [ ] M5A.3b R2 (44): methods and function-valued properties of an exported `const` object literal as wrappers (`apiClient.get(endpoint)`), incl. a GET body's `const url = new URL(…)` + `url.toString()`; fixture + golden, eval delta {model: opus}
+- [x] M5A.3b R2 (44): methods and function-valued properties of an exported `const` object literal as wrappers (`apiClient.get(endpoint)`), incl. a GET body's `const url = new URL(…)` + `url.toString()`; fixture + golden, eval delta {model: opus}
 - [ ] M5A.3c R3 (39): a wrapper whose parameter is the axios config (`axios(req)`, `x.request(req)`) reads `url`/`method`/`baseURL` from the caller's object literal; fixture + golden, eval delta {model: opus}
 - [ ] M5A.3d R4 (39): `x.defaults.baseURL = …` on the axios default export or an instance, assigned once at module top level (else unknown); fixture + golden, eval delta {model: opus}
 - [ ] M5A.3e R5 (39): routers required from a folder listing and mounted in a loop/reduce (`glob.sync(…).map(require).reduce((r, x) => r.use(x))`, `readdirSync(__dirname).forEach`): ADR on whether it can be composed at `heuristic` without executing anything; implement or document as unhandled (foodie then stays unresolved); fixture, eval delta {model: opus}
@@ -264,6 +264,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.3b** (`2002919`, `cab614c`): an exported `const` object literal's methods and function-valued properties are now `method` symbols (`apiClient.get`, parent `apiClient`; ADR-0159), so the resolver and wrapper inlining handle `apiClient.get("/accounts")` with no change of their own. `let`/`var`, unexported objects, accessors, shorthand, spreads, computed names stay out. `new URL(…)` + `url.toString()` already normalized. Fixture `object-client`; no other golden changed; mutation-checked. Eval: original TP 32 ⇒ 76, FP 1, FN 106 ⇒ 62 (98.7% / 55.1%); WealthWise 48/48; held-out unchanged.
 
 - **2026-11-01 M5A.3a** (`d4773e1`): `env ?? fallback` now carries the fallback (ADR-0158, changes ADR-0031): at the URL's start a literal URL/root-relative fallback adds its path after the env base and records its host; later on a text fallback replaces the hole (`|| 'v1'`); a loopback fallback host lets any env name match at `heuristic`. Parameters read only in the fallback don't create wrappers. Fixture `env-fallback`; mutation-checked. Eval: original TP 28 ⇒ 32, FP 1, FN 110 ⇒ 106 (WealthWise's 4 direct `fetch`es); held-out unchanged. The other R1 labels wait on R2–R5, as diagnosed.
 
