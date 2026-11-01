@@ -1,0 +1,139 @@
+{
+  "repo": "harundogdu/twitter-clone",
+  "sha": "bef848a958e8fd26856149abfa7980d071577219",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "components/Avatar.tsx", "line": 29 },
+      "method": "GET",
+      "target": {
+        "file": "pages/api/users/[username].ts",
+        "line": 5,
+        "route": "GET /api/users/:username"
+      },
+      "notes": "handleClick: fetch(`/api/users/${username}`), root-relative on the same Next app. Pages-router API routes: the route line is the default-export handler; the handler answers 405 to anything but GET, so the route is GET only"
+    },
+    {
+      "callSite": { "file": "components/PostForm.tsx", "line": 55 },
+      "method": "POST",
+      "target": { "file": "pages/api/comments.ts", "line": 6, "route": "POST /api/comments" },
+      "notes": "axios.post(url, { body }) with const url = isComment ? `/api/comments?postId=${postId}` : `/api/posts` (two alternatives fixed in the code, ADR-0041); comments.ts answers 405 to anything but POST"
+    },
+    {
+      "callSite": { "file": "components/PostForm.tsx", "line": 55 },
+      "method": "POST",
+      "target": { "file": "pages/api/posts/index.ts", "line": 6, "route": "POST /api/posts" },
+      "notes": "the other alternative of the same url; posts/index.ts accepts GET and POST (405 otherwise, then switch (req.method))"
+    },
+    {
+      "callSite": { "file": "components/modals/EditModal.tsx", "line": 70 },
+      "method": "PATCH",
+      "target": { "file": "pages/api/edit.ts", "line": 6, "route": "PATCH /api/edit" },
+      "notes": "axios.patch(\"/api/edit\", …); edit.ts answers 405 to anything but PATCH"
+    },
+    {
+      "callSite": { "file": "components/modals/RegisterModal.tsx", "line": 62 },
+      "method": "POST",
+      "target": { "file": "pages/api/register.ts", "line": 6, "route": "POST /api/register" },
+      "notes": "axios.post(\"/api/register\", …); register.ts answers 405 to anything but POST"
+    },
+    {
+      "callSite": { "file": "components/modals/RegisterModal.tsx", "line": 100 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(`/api/register/${username}`) reaches no route: pages/api/register.ts serves /api/register only and there is no pages/api/register/ folder or catch-all, so Next answers 404 (a bug in the app, not an unknowable URL)"
+    },
+    {
+      "callSite": { "file": "components/modals/TweetModal.tsx", "line": 34 },
+      "method": "POST",
+      "target": { "file": "pages/api/posts/index.ts", "line": 6, "route": "POST /api/posts" },
+      "notes": "axios.post(\"/api/posts\", { body })"
+    },
+    {
+      "callSite": { "file": "hooks/useCurrentUser.ts", "line": 6 },
+      "method": "GET",
+      "target": { "file": "pages/api/current.ts", "line": 4, "route": "GET /api/current" },
+      "notes": "useSWR(\"/api/current\", fetcher): SWR calls the repo's libs/fetcher.ts (axios.get(url)) with the key, so the path is supplied here, the outermost repo code that gives it (EVALUATION.md §1 call-site rule; fetcher.ts:5 itself is not labeled, its URL is the parameter). current.ts answers 405 to anything but GET"
+    },
+    {
+      "callSite": { "file": "hooks/useFollow.ts", "line": 31 },
+      "method": "DELETE",
+      "target": { "file": "pages/api/follow.ts", "line": 6, "route": "DELETE /api/follow" },
+      "notes": "request = () => axios.delete(`/api/follow`, { data }); follow.ts answers 405 to anything but POST and DELETE"
+    },
+    {
+      "callSite": { "file": "hooks/useFollow.ts", "line": 38 },
+      "method": "POST",
+      "target": { "file": "pages/api/follow.ts", "line": 6, "route": "POST /api/follow" },
+      "notes": "request = () => axios.post(`/api/follow`, { username })"
+    },
+    {
+      "callSite": { "file": "hooks/useFollowingDetails.ts", "line": 6 },
+      "method": "GET",
+      "target": { "file": "pages/api/following.ts", "line": 5, "route": "ALL /api/following" },
+      "notes": "useSWR(`/api/following?username=${username}`, fetcher) (SWR key, see useCurrentUser.ts). following.ts runs its code for every method except POST, DELETE, and PUT (no 405 for others, no GET check), so the handler is open: ALL"
+    },
+    {
+      "callSite": { "file": "hooks/useLikes.ts", "line": 32 },
+      "method": "DELETE",
+      "target": { "file": "pages/api/likes.ts", "line": 7, "route": "ALL /api/likes" },
+      "notes": "request = () => axios.delete(`/api/likes`, { data: { postId } }). likes.ts only rejects GET (throws) and runs the same code for every other method, so the handler is open: ALL"
+    },
+    {
+      "callSite": { "file": "hooks/useLikes.ts", "line": 34 },
+      "method": "POST",
+      "target": { "file": "pages/api/likes.ts", "line": 7, "route": "ALL /api/likes" },
+      "notes": "request = () => axios.post(`/api/likes`, { postId }); same open handler"
+    },
+    {
+      "callSite": { "file": "hooks/useNotifications.ts", "line": 7 },
+      "method": "GET",
+      "target": {
+        "file": "pages/api/notifications/[userId].ts",
+        "line": 5,
+        "route": "GET /api/notifications/:userId"
+      },
+      "notes": "const url = userId ? `/api/notifications/${userId}` : null; useSWR(url, fetcher) (null key = no request); 405 to anything but GET"
+    },
+    {
+      "callSite": { "file": "hooks/usePost.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "pages/api/posts/[postId].ts",
+        "line": 5,
+        "route": "GET /api/posts/:postId"
+      },
+      "notes": "useSWR(postId ? `/api/posts/${postId}` : null, fetcher); 405 to anything but GET"
+    },
+    {
+      "callSite": { "file": "hooks/usePosts.ts", "line": 8 },
+      "method": "GET",
+      "target": { "file": "pages/api/posts/index.ts", "line": 6, "route": "GET /api/posts" },
+      "notes": "const fetchUrl = userId ? `/api/posts?userId=${userId}` : \"/api/posts\"; useSWR(fetchUrl, fetcher): both alternatives reach the same route (they differ only in the query), so one label"
+    },
+    {
+      "callSite": { "file": "hooks/useSearch.ts", "line": 10 },
+      "method": "GET",
+      "target": { "file": "pages/api/search.ts", "line": 5, "route": "GET /api/search" },
+      "notes": "axios.get(`/api/search`, { params: { username } }) inside searchUsers; the parameter only fills the query. 405 to anything but GET"
+    },
+    {
+      "callSite": { "file": "hooks/useUser.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "pages/api/users/[username].ts",
+        "line": 5,
+        "route": "GET /api/users/:username"
+      },
+      "notes": "useSWR(username ? `/api/users/${username}` : null, fetcher)"
+    },
+    {
+      "callSite": { "file": "hooks/useUsers.ts", "line": 6 },
+      "method": "GET",
+      "target": { "file": "pages/api/users/index.ts", "line": 6, "route": "GET /api/users" },
+      "notes": "useSWR(\"/api/users\", fetcher); 405 to anything but GET"
+    }
+  ]
+}
