@@ -135,6 +135,30 @@ export function permanentFailure(errorCode: string): string | undefined {
   return Object.hasOwn(PERMANENT, errorCode) ? PERMANENT[errorCode]?.reason : undefined;
 }
 
+const UTC_TIME = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "UTC",
+});
+
+/** "Nov 8, 2026, 3:04 PM UTC": the same on the server and in any browser. */
+export function formatUtc(at: Date): string {
+  return `${UTC_TIME.format(at)} UTC`;
+}
+
+/**
+ * Why a repo isn't analyzed again yet after an earlier analysis hit `errorCode` (a `LIMIT_*`
+ * code), and when it will be (#11, ADR-0153): what happened, then what changes it.
+ */
+export function sizeHoldMessage(errorCode: string, until: Date): string {
+  const reason = permanentFailure(errorCode);
+  return [
+    "An earlier analysis of this repo hit a limit.",
+    ...(reason === undefined ? [] : [reason]),
+    `It won't be analyzed again until ${formatUtc(until)}, or sooner if it shrinks to half its size.`,
+  ].join(" ");
+}
+
 /** The page's words for a failed job. */
 export function failureView(errorCode: string): Extract<JobView, { state: "failed" }> {
   const entry = Object.hasOwn(PERMANENT, errorCode) ? PERMANENT[errorCode] : undefined;

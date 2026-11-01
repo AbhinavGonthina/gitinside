@@ -24,6 +24,11 @@ export interface ResolvedRepo {
   defaultBranch: string;
   /** The default branch's latest commit, 40 lowercase hex. */
   sha: string;
+  /**
+   * GitHub's `size` in KiB (roughly the repository's packed git data, history included);
+   * left out if GitHub's answer has none we can read, so no size rule acts on a guess.
+   */
+  sizeKb?: number;
 }
 
 /** Why a repo couldn't be resolved. */
@@ -151,10 +156,18 @@ export async function resolveRepo(
     const commit = `${repoPath(facts.owner, facts.name)}/commits/HEAD`;
     const sha = (await get(commit, "application/vnd.github.sha")).trim();
     if (!SHA.test(sha)) return { ok: false, code: "GITHUB_UNAVAILABLE" };
-    const { id, owner, name, defaultBranch } = facts;
+    const { id, owner, name, defaultBranch, sizeKb } = facts;
     return {
       ok: true,
-      repo: { providerRepoId: id, owner, name, visibility: "public", defaultBranch, sha },
+      repo: {
+        providerRepoId: id,
+        owner,
+        name,
+        visibility: "public",
+        defaultBranch,
+        sha,
+        ...(sizeKb === undefined ? {} : { sizeKb }),
+      },
     };
   } catch (error) {
     if (error instanceof Failure) return { ok: false, code: error.code };
@@ -162,11 +175,19 @@ export async function resolveRepo(
   }
 }
 
-/** The fields we keep from a repo description, or `undefined` if any is missing or malformed. */
-function parseFacts(
-  text: string,
-):
-  | { id: number; owner: string; name: string; private: boolean; defaultBranch: string }
+/**
+ * The fields we keep from a repo description, or `undefined` if any required one is missing
+ * or malformed (`size` is optional: without it, only the size rules are skipped).
+ */
+function parseFacts(text: string):
+  | {
+      id: number;
+      owner: string;
+      name: string;
+      private: boolean;
+      defaultBranch: string;
+      sizeKb?: number;
+    }
   | undefined {
   let value: unknown;
   try {
@@ -184,5 +205,18 @@ function parseFacts(
   if (typeof defaultBranch !== "string" || defaultBranch === "" || defaultBranch.length > 255) {
     return undefined;
   }
-  return { id, owner: login, name, private: value.private, defaultBranch };
+  const { size } = value;
+  // The database column is a 32-bit integer; a real repo is far below its 2 TiB.
+  const sizeKb =
+    typeof size === "number" && Number.isInteger(size) && size >= 0 && size <= 2 ** 31 - 1
+      ? size
+      : undefined;
+  return {
+    id,
+    owner: login,
+    name,
+    private: value.private,
+    defaultBranch,
+    ...(sizeKb === undefined ? {} : { sizeKb }),
+  };
 }

@@ -9,6 +9,7 @@ import {
   failInterruptedAnalyses,
   failStaleQueuedAnalyses,
   findAnalysis,
+  findLimitFailure,
   findPublishedAnalysis,
   hideRepo,
   queueAnalysis,
@@ -372,6 +373,88 @@ describe("findPublishedAnalysis", () => {
   });
 });
 
+describe("findLimitFailure", () => {
+  /** A row of `sha` that ended `status` (`errorCode` if failed) `hoursAgo` hours ago. */
+  async function ended(
+    repoId: string,
+    sha: string,
+    end: { errorCode?: string; hoursAgo: number; repoSizeKb?: number },
+  ) {
+    const key = { repoId, sha: sha.repeat(40), analyzerVersion: VERSION };
+    await queueAnalysis(
+      t.db,
+      key,
+      end.repoSizeKb === undefined ? {} : { repoSizeKb: end.repoSizeKb },
+    );
+    const { id } = await startAnalysis(t.db, key);
+    if (end.errorCode === undefined) {
+      await completeAnalysis(t.db, id, { snapshotKey: `k/${sha}`, stats: STATS });
+    } else {
+      await failAnalysis(t.db, id, end.errorCode);
+    }
+    await t.db
+      .update(analyses)
+      .set({ finishedAt: sql`now() - ${end.hoursAgo} * interval '1 hour'` })
+      .where(eq(analyses.id, id));
+    return id;
+  }
+
+  it("finds the newest LIMIT_* failure in the window, with until = failure + days", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    await ended(repoId, "a", { errorCode: "LIMIT_TIME", hoursAgo: 30, repoSizeKb: 1 });
+    await ended(repoId, "b", { errorCode: "LIMIT_FILES", hoursAgo: 20, repoSizeKb: 900_000 });
+    // Not a limit: the next commit may pass.
+    await ended(repoId, "c", { errorCode: "DOWNLOAD_FAILED", hoursAgo: 10 });
+
+    const found = await findLimitFailure(t.db, FACTS.providerRepoId, 7);
+    expect(found).toMatchObject({ errorCode: "LIMIT_FILES", repoSizeKb: 900_000 });
+    expect(found!.until.getTime() - found!.failedAt.getTime()).toBe(7 * 86_400_000);
+    // By the database's clock: about 20 hours ago.
+    expect(Math.abs(Date.now() - found!.failedAt.getTime() - 20 * 3_600_000)).toBeLessThan(60_000);
+    expect(await findLimitFailure(t.db, 7, 7)).toBeUndefined();
+  });
+
+  it("forgets a failure older than the window", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    await ended(repoId, "a", { errorCode: "LIMIT_SIZE", hoursAgo: 7 * 24 + 1 });
+    expect(await findLimitFailure(t.db, FACTS.providerRepoId, 7)).toBeUndefined();
+    expect(await findLimitFailure(t.db, FACTS.providerRepoId, 8)).toMatchObject({
+      errorCode: "LIMIT_SIZE",
+      repoSizeKb: null,
+    });
+  });
+
+  it("ignores a failure followed by a finished analysis: the repo fits again", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    await ended(repoId, "a", { errorCode: "LIMIT_MEMORY", hoursAgo: 5 });
+    await ended(repoId, "b", { hoursAgo: 4 });
+    expect(await findLimitFailure(t.db, FACTS.providerRepoId, 7)).toBeUndefined();
+    // A later failure counts again.
+    await ended(repoId, "c", { errorCode: "LIMIT_MEMORY", hoursAgo: 3 });
+    expect(await findLimitFailure(t.db, FACTS.providerRepoId, 7)).toMatchObject({
+      errorCode: "LIMIT_MEMORY",
+    });
+  });
+
+  it("follows the repo across a rename, and keeps repos apart", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    const { id: otherId } = await upsertRepo(t.db, { ...FACTS, providerRepoId: 7, name: "x" });
+    await ended(otherId, "a", { errorCode: "LIMIT_FILES", hoursAgo: 1 });
+    expect(await findLimitFailure(t.db, FACTS.providerRepoId, 7)).toBeUndefined();
+    await ended(repoId, "a", { errorCode: "LIMIT_ENTRIES", hoursAgo: 1 });
+    await upsertRepo(t.db, { ...FACTS, name: "storefront" });
+    expect((await findLimitFailure(t.db, FACTS.providerRepoId, 7))?.errorCode).toBe(
+      "LIMIT_ENTRIES",
+    );
+  });
+
+  it("refuses a window that isn't a positive finite number", async () => {
+    for (const days of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(findLimitFailure(t.db, 1, days)).rejects.toThrow(RangeError);
+    }
+  });
+});
+
 describe("findAnalysis", () => {
   const key = { providerRepoId: FACTS.providerRepoId, sha: SHA, analyzerVersion: VERSION };
 
@@ -440,6 +523,21 @@ describe("queueAnalysis", () => {
     });
     // The worker can pick it up again.
     expect((await startAnalysis(t.db, await key())).status).toBe("running");
+  });
+
+  it("keeps GitHub's repo size, replaced when a failed row is queued again", async () => {
+    const queued = await queueAnalysis(t.db, await key(), { repoSizeKb: 900_000 });
+    expect((await analysis(queued.id)).repoSizeKb).toBe(900_000);
+    await startAnalysis(t.db, await key());
+    await failAnalysis(t.db, queued.id, "LIMIT_FILES");
+    await queueAnalysis(t.db, await key(), { repoSizeKb: 400_000 });
+    expect((await analysis(queued.id)).repoSizeKb).toBe(400_000);
+    await t.db.update(analyses).set({ status: "failed", errorCode: "X", finishedAt: new Date() });
+    await queueAnalysis(t.db, await key());
+    expect((await analysis(queued.id)).repoSizeKb).toBeNull();
+    await expect(
+      t.db.update(analyses).set({ repoSizeKb: -1 }).where(eq(analyses.id, queued.id)),
+    ).rejects.toThrow();
   });
 
   it("leaves running and done rows alone", async () => {

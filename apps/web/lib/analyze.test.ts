@@ -17,6 +17,7 @@ import { rateLimitKey } from "./clientIp";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
 import { fakeTaskQueue } from "./google.testkit";
+import { sizeHoldMessage } from "./jobs";
 
 const SHA = "e".repeat(40);
 const VERSION = "0.1.0";
@@ -185,6 +186,121 @@ describe("requestAnalysis", () => {
     expect(await analysisRows()).toEqual([{ status: "queued", sha: SHA, errorCode: null }]);
     expect(tasks.google.tasks).toHaveLength(1);
     expect(await slotsUsed()).toBe(1);
+  });
+
+  describe("a repo that was too big (#11)", () => {
+    const NEWER = "f".repeat(40);
+    /** The current commit's analysis, queued at `sizeKb`, failed with `code` `hoursAgo` hours ago. */
+    async function tooBigBefore(code: string, hoursAgo: number, sizeKb = 900_000) {
+      gh = fakeGitHub([{ ...SHOP, sizeKb }]);
+      expect(
+        (await requestAnalysis("acme/shop", IP, { ...deps, github: { fetch: gh.fetch } })).status,
+      ).toBe(202);
+      const [row] = await t.db.select().from(analyses);
+      await startAnalysis(t.db, { repoId: row!.repoId, sha: SHA, analyzerVersion: VERSION });
+      await failAnalysis(t.db, row!.id, code);
+      await t.db.update(analyses).set({ finishedAt: new Date(Date.now() - hoursAgo * 3_600_000) });
+      await t.db.delete(rateLimits);
+      return row!;
+    }
+    const ask = (sizeKb: number | null, sha = NEWER, address = IP) => {
+      gh = fakeGitHub([{ ...SHOP, sha, sizeKb }]);
+      return requestAnalysis("acme/shop", address, { ...deps, github: { fetch: gh.fetch } });
+    };
+
+    it("stores GitHub's size on the queued row", async () => {
+      await ask(123_456);
+      const [row] = await t.db.select({ size: analyses.repoSizeKb }).from(analyses);
+      expect(row?.size).toBe(123_456);
+    });
+
+    it("refuses new commits for 7 days after a LIMIT_* failure: why, until when, no slot, no task", async () => {
+      await tooBigBefore("LIMIT_FILES", 24);
+      const [failed] = await t.db.select().from(analyses);
+      const until = new Date(failed!.finishedAt!.getTime() + 7 * 86_400_000);
+      const now = Date.now();
+      const answer = await requestAnalysis("acme/shop", "198.51.100.9", {
+        ...deps,
+        github: { fetch: fakeGitHub([{ ...SHOP, sha: NEWER, sizeKb: 800_000 }]).fetch },
+        now: () => now,
+      });
+      expect(answer).toEqual({
+        status: 422,
+        body: {
+          error: "REPO_TOO_BIG",
+          message: sizeHoldMessage("LIMIT_FILES", until),
+          retryAt: until.toISOString(),
+        },
+        headers: { "retry-after": String(Math.ceil((until.getTime() - now) / 1000)) },
+      });
+      expect(answer.body).toMatchObject({
+        message: expect.stringMatching(
+          /^An earlier analysis of this repo hit a limit\. This repo has over .+ source files\. .+ It won't be analyzed again until .+ UTC, or sooner if it shrinks to half its size\.$/,
+        ) as string,
+      });
+      expect(await slotsUsed("198.51.100.9")).toBe(0);
+      expect(tasks.google.tasks).toHaveLength(1);
+      expect(await analysisRows()).toEqual([
+        { status: "failed", sha: SHA, errorCode: "LIMIT_FILES" },
+      ]);
+      // The failed commit itself isn't queued again either.
+      expect((await ask(800_000, SHA)).status).toBe(422);
+    });
+
+    it("every LIMIT_* code holds the repo; other failures don't", async () => {
+      for (const code of [
+        "LIMIT_SOURCE_SIZE",
+        "LIMIT_SIZE",
+        "LIMIT_ENTRIES",
+        "LIMIT_TIME",
+        "LIMIT_MEMORY",
+      ]) {
+        await t.db.delete(analyses);
+        await tooBigBefore(code, 1);
+        expect((await ask(900_000)).body).toMatchObject({ error: "REPO_TOO_BIG" });
+      }
+      await t.db.delete(analyses);
+      await tooBigBefore("DOWNLOAD_FAILED", 1);
+      expect((await ask(900_000)).status).toBe(202);
+    });
+
+    it("lets the repo in again after 7 days", async () => {
+      await tooBigBefore("LIMIT_TIME", 7 * 24 + 1);
+      expect((await ask(900_000)).status).toBe(202);
+    });
+
+    it("lets it in early once it shrinks to half its size, not before", async () => {
+      await tooBigBefore("LIMIT_SOURCE_SIZE", 2, 900_000);
+      expect((await ask(450_001)).status).toBe(422);
+      // GitHub didn't say: nothing is guessed, the hold stays.
+      expect((await ask(null)).status).toBe(422);
+      expect((await ask(450_000)).status).toBe(202);
+    });
+
+    it("an unknown size at the failure keeps the hold whatever the size now", async () => {
+      await tooBigBefore("LIMIT_FILES", 2, 900_000);
+      await t.db.update(analyses).set({ repoSizeKb: null });
+      expect((await ask(1)).status).toBe(422);
+    });
+
+    it("still serves a finished commit and an analysis in flight", async () => {
+      const failed = await tooBigBefore("LIMIT_FILES", 2);
+      // A commit queued before the failure keeps its job.
+      const { id } = await startAnalysis(t.db, {
+        repoId: failed.repoId,
+        sha: NEWER,
+        analyzerVersion: VERSION,
+      });
+      const inFlight = await ask(900_000);
+      expect(inFlight.status).toBe(202);
+      // Finished: served from the cache, and the repo fits after all, so the hold ends.
+      await completeAnalysis(t.db, id, {
+        snapshotKey: "k",
+        stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+      });
+      expect((await ask(900_000)).status).toBe(200);
+      expect((await ask(900_000, "9".repeat(40))).status).toBe(202);
+    });
   });
 
   it("enforces 5 new analyses per hour per address, with when to come back", async () => {

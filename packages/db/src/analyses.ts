@@ -242,6 +242,12 @@ export interface QueuedAnalysis {
   queuedAt: Date;
 }
 
+/** What the web app knows when it queues a commit. */
+export interface QueueOptions extends JobOptions {
+  /** GitHub's repo `size` in KiB, kept for {@link findLimitFailure}'s callers. */
+  repoSizeKb?: number;
+}
+
 /**
  * Record that the web app is queuing a job for this commit: insert a `queued` row, or move a
  * `failed` one back to `queued` (a new job will run it again: attempts start over, and it
@@ -252,9 +258,10 @@ export interface QueuedAnalysis {
 export async function queueAnalysis(
   db: AnyDatabase,
   key: AnalysisKey,
-  options: JobOptions = {},
+  options: QueueOptions = {},
 ): Promise<QueuedAnalysis> {
   const queued = {
+    repoSizeKb: options.repoSizeKb ?? null,
     status: "queued" as const,
     errorCode: null,
     snapshotKey: null,
@@ -346,6 +353,67 @@ export async function recentAnalysisStats(
     .orderBy(desc(analyses.finishedAt), desc(analyses.id))
     .limit(limit);
   return rows.flatMap(({ stats }) => (stats === null ? [] : [stats]));
+}
+
+/** A recent analysis that stopped at one of the worker's size, time, or memory limits. */
+export interface LimitFailure {
+  /** `LIMIT_FILES`, `LIMIT_TIME`, …: the newest such failure's code. */
+  errorCode: string;
+  /** When it failed, and when the repo may be analyzed again (both by the database's clock). */
+  failedAt: Date;
+  until: Date;
+  /** GitHub's size of the repo when that analysis was queued, if known. */
+  repoSizeKb: number | null;
+}
+
+/**
+ * The newest analysis of the repo (by GitHub's ID, any commit or analyzer version) that
+ * failed with a `LIMIT_*` code less than `days` ago, unless an analysis of the repo finished
+ * `done` after it (the repo fits again). `until` is that failure plus `days`. The website
+ * refuses new analyses of the repo until then (#11, ADR-0153): a busy repo that's too big
+ * gets a new commit every few minutes, so the per-commit cache never stops it.
+ */
+export async function findLimitFailure(
+  db: AnyDatabase,
+  providerRepoId: number,
+  days: number,
+): Promise<LimitFailure | undefined> {
+  if (!Number.isFinite(days) || days <= 0) throw new RangeError("days must be a finite number > 0");
+  const window = sql`${days} * interval '1 day'`;
+  const [row] = await db
+    .select({
+      errorCode: analyses.errorCode,
+      failedAt: analyses.finishedAt,
+      until: sql<Date>`${analyses.finishedAt} + ${window}`.mapWith(analyses.finishedAt),
+      repoSizeKb: analyses.repoSizeKb,
+    })
+    .from(analyses)
+    .innerJoin(repos, eq(repos.id, analyses.repoId))
+    .where(
+      and(
+        eq(repos.providerRepoId, providerRepoId),
+        eq(analyses.status, "failed"),
+        sql`left(${analyses.errorCode}, 6) = 'LIMIT_'`,
+        sql`${analyses.finishedAt} > now() - ${window}`,
+        sql`not exists (
+          select 1 from ${analyses} as fit
+          where fit.repo_id = ${analyses.repoId}
+            and fit.status = 'done'
+            and fit.finished_at > ${analyses.finishedAt}
+        )`,
+      ),
+    )
+    .orderBy(desc(analyses.finishedAt), desc(analyses.id))
+    .limit(1);
+  if (row === undefined) return undefined;
+  // `failed` rows always have both (the status check in schema.ts).
+  const { repoSizeKb } = row;
+  return {
+    errorCode: row.errorCode as string,
+    failedAt: row.failedAt as Date,
+    until: row.until,
+    repoSizeKb,
+  };
 }
 
 /** Mark a `queued` or `running` analysis `failed` with `errorCode`. */

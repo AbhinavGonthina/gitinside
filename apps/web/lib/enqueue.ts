@@ -64,7 +64,8 @@ export async function enqueueAnalysis(
   const row = await queueAnalysis(
     deps.db,
     { repoId, sha: repo.sha, analyzerVersion: deps.analyzerVersion },
-    { jobId },
+    // The size it's queued at: a `LIMIT_*` failure holds the repo until it halves (sizeHold.ts).
+    repo.sizeKb === undefined ? { jobId } : { jobId, repoSizeKb: repo.sizeKb },
   );
   if (row.status === "done") return { status: "done" };
   if (row.status === "running") return { status: "running", jobId, entered: false };
