@@ -1,0 +1,205 @@
+{
+  "repo": "MananGandhi1810/online-ide",
+  "sha": "7c36e7cf05af91d17971165c235417862e68d3a7",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "backend/utils/github-api.js", "line": 4 },
+      "method": "POST",
+      "target": null,
+      "notes": "getAccessToken(): GitHub's OAuth token endpoint (https://github.com/login/oauth/access_token), an external host"
+    },
+    {
+      "callSite": { "file": "backend/utils/github-api.js", "line": 17 },
+      "method": "GET",
+      "target": null,
+      "notes": "getUserDetails(): https://api.github.com/user, an external host"
+    },
+    {
+      "callSite": { "file": "backend/utils/github-api.js", "line": 28 },
+      "method": "GET",
+      "target": null,
+      "notes": "getUserEmails(): https://api.github.com/user/emails, an external host"
+    },
+    {
+      "callSite": { "file": "frontend/src/App.jsx", "line": 55 },
+      "method": "GET",
+      "target": { "file": "backend/router/user.js", "line": 12, "route": "GET /user" },
+      "notes": "fetchUserData(): axios.get(`${process.env.SERVER_URL}/user`). process.env.SERVER_URL is replaced at build time by vite.config.js `define` with REACT_APP_SERVER_URL, no in-code fallback; frontend/.env.example sets http://localhost:3000 = the backend's default PORT in backend/bin/www. backend/index.js mounts the routers at /auth, /code, /problem-statement, /leaderboard, /user, and /editorial/:problemStatementId"
+    },
+    {
+      "callSite": { "file": "frontend/src/App.jsx", "line": 170 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/problem-statement.js",
+        "line": 13,
+        "route": "GET /problem-statement/all"
+      },
+      "notes": "/problems route loader; registered before GET /:problemStatementId, so it wins"
+    },
+    {
+      "callSite": { "file": "frontend/src/App.jsx", "line": 196 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/leaderboard.js",
+        "line": 10,
+        "route": "GET /leaderboard"
+      },
+      "notes": "/leaderboard route loader; router.get(\"/\") under the /leaderboard mount"
+    },
+    {
+      "callSite": { "file": "frontend/src/App.jsx", "line": 226 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/problem-statement.js",
+        "line": 14,
+        "route": "GET /problem-statement/:problemStatementId"
+      },
+      "notes": "/problem/:id route loader, `${SERVER_URL}/problem-statement/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/App.jsx", "line": 252 },
+      "method": "GET",
+      "target": { "file": "backend/router/user.js", "line": 14, "route": "GET /user/:id" },
+      "notes": "/user/:id route loader, `${SERVER_URL}/user/${id}` with the page's id param"
+    },
+    {
+      "callSite": { "file": "frontend/src/App.jsx", "line": 278 },
+      "method": "GET",
+      "target": { "file": "backend/router/user.js", "line": 13, "route": "GET /user/submissions" },
+      "notes": "/submissions route loader; the template adds `?page=` only when a page is given, the path is always /user/submissions; registered before GET /:id, so it wins"
+    },
+    {
+      "callSite": { "file": "frontend/src/App.jsx", "line": 317 },
+      "method": "GET",
+      "target": { "file": "backend/router/auth.js", "line": 37, "route": "GET /auth/access-token" },
+      "notes": "/gh-callback route loader"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Code.jsx", "line": 193 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/code.js",
+        "line": 18,
+        "route": "POST /code/run/:problemStatementId/:language"
+      },
+      "notes": "run(isTempRun): `${SERVER_URL}/code/${isTempRun ? \"run\" : \"submit\"}/${id}/${language}`, so the site reaches both routes; this is the isTempRun alternative"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Code.jsx", "line": 193 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/code.js",
+        "line": 12,
+        "route": "POST /code/submit/:problemStatementId/:language"
+      },
+      "notes": "the \"submit\" alternative of the same template"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Code.jsx", "line": 248 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/code.js",
+        "line": 27,
+        "route": "GET /code/check-temp/:submissionId"
+      },
+      "notes": "pollForResult(): `${SERVER_URL}/code/${isTempRun ? \"check-temp\" : \"check\"}/${submissionId}`, so the site reaches both routes; this is the isTempRun alternative"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Code.jsx", "line": 248 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/code.js",
+        "line": 24,
+        "route": "GET /code/check/:submissionId"
+      },
+      "notes": "the \"check\" alternative of the same template"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Code.jsx", "line": 364 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/code.js",
+        "line": 30,
+        "route": "POST /code/ai/:problemStatementId/:language"
+      },
+      "notes": "handleSendMessage(): fetch with method \"POST\", reads the streamed answer"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Code.jsx", "line": 415 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/editorial.js",
+        "line": 17,
+        "route": "GET /editorial/:problemStatementId"
+      },
+      "notes": "getEditorials(): `${SERVER_URL}/editorial/${id}`; router.get(\"/\") in a mergeParams router mounted at /editorial/:problemStatementId"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Code.jsx", "line": 431 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/editorial.js",
+        "line": 19,
+        "route": "POST /editorial/:problemStatementId/new"
+      },
+      "notes": "submitEditorial()"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Code.jsx", "line": 465 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/router/editorial.js",
+        "line": 20,
+        "route": "DELETE /editorial/:problemStatementId/:editorialId/delete"
+      },
+      "notes": "deleteEditorial(): `${SERVER_URL}/editorial/${id}/${editorial.id}/delete`"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ForgotPassword.jsx", "line": 34 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/auth.js",
+        "line": 29,
+        "route": "POST /auth/forgot-password"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Login.jsx", "line": 34 },
+      "method": "POST",
+      "target": { "file": "backend/router/auth.js", "line": 23, "route": "POST /auth/login" },
+      "notes": "the GitHub sign-in button is a <Link> to github.com's authorize page, a navigation, not labeled"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Register.jsx", "line": 32 },
+      "method": "POST",
+      "target": { "file": "backend/router/auth.js", "line": 17, "route": "POST /auth/register" }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ResetPassword.jsx", "line": 34 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/auth.js",
+        "line": 35,
+        "route": "POST /auth/reset-password"
+      }
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/VerifyOtp.jsx", "line": 37 },
+      "method": "POST",
+      "target": { "file": "backend/router/auth.js", "line": 34, "route": "POST /auth/verify-otp" }
+    },
+    {
+      "callSite": { "file": "frontend/src/utils/getUserPoints.js", "line": 7 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/leaderboard.js",
+        "line": 11,
+        "route": "GET /leaderboard/points"
+      },
+      "notes": "getUserPoints(token): the URL is fixed here, so the label is at this call, not at its callers in App.jsx and Code.jsx"
+    }
+  ]
+}

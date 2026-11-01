@@ -89,10 +89,11 @@ describe("loadEvalInputs", () => {
     expect(crossCheck(loadEvalInputs(root))).toEqual([]);
   });
 
-  it("pins one committed repo per shape (EVALUATION.md §1)", () => {
+  it("pins one committed original repo per shape (EVALUATION.md §1)", () => {
     const root = fileURLToPath(new URL("..", import.meta.url));
     const shapes = loadEvalInputs(root)
-      .repos.map((r) => r.shape)
+      .repos.filter((r) => r.heldOut !== true)
+      .map((r) => r.shape)
       .sort(compareStrings);
     expect(shapes).toEqual([...REPO_SHAPES]);
   });
