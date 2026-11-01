@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.18a Abuse (#11): "too big" remembered per repo (M5.17e, M5.13, and M5.14b wait on #3)
+M5.18b Abuse (#11): size check before any download from GitHub's repo `size` (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -175,7 +175,7 @@ M5.18a Abuse (#11): "too big" remembered per repo (M5.17e, M5.13, and M5.14b wai
 - [x] M5.17d2 `infra/oracle` replaced by `infra/gcp`: service (resources, timeout, concurrency, max instances, startup probe, no unauthenticated access), queue (2 dispatches, 3 attempts, backoff inside the signature window), IAM (runtime, invoker, enqueue accounts) as reviewed config + docs; `infra/oracle` deleted; README/DESIGN/SECURITY/TESTING paths {model: opus}
 - [ ] M5.17e Keyless deploy + cost guardrails as code (ADR-0111): GitHub Actions deploy via Workload Identity Federation (Artifact Registry within its free storage); Cloud Run max instances 2, concurrency 1, timeout 300 s, min instances 0, 1 vCPU / 4 GiB, no unauthenticated access; no NAT, load balancer, Memorystore, or static IP; budget alert ⇒ billing kill switch; a `verify-guardrails` script; post the remaining Google Cloud steps on #3 {model: opus} {blocked: #3}
 - [x] M5.17f SECURITY.md review for the sandbox change (ADR-0111): §3 and T1–T9 against Cloud Run (no egress gateway; the analysis child still has no network, `netguard.ts`; the parent's egress; IAM-only invocation), tests for the controls that remain, DESIGN.md/SPEC wording {model: opus}
-- [ ] M5.18a Abuse (#11): "too big" remembered per repo, not per commit: after a `LIMIT_*` failure, refuse new analyses of that repo for 7 days unless its GitHub size dropped by half, with a message saying why and when; tests {model: opus}
+- [x] M5.18a Abuse (#11): "too big" remembered per repo, not per commit: after a `LIMIT_*` failure, refuse new analyses of that repo for 7 days unless its GitHub size dropped by half, with a message saying why and when; tests {model: opus}
 - [ ] M5.18b Abuse (#11): size check before any download or compute from GitHub's repo `size` (threshold from M5.16a), refused with a clear message; tests {model: opus}
 - [ ] M5.18c Abuse (#11): per-repo limit on `/api/analyze`: at most one new analysis per repo per 30 min whoever asks (on top of 5/h per IP and check-on-view's 6/h), message with the retry time; tests {model: opus}
 - [ ] M5.18d Abuse (#11): monthly compute budget: Cloud Run vCPU- and GiB-seconds per UTC month estimated from job durations × 1 vCPU / 4 GiB (like `store_requests`), plus Cloud Tasks operations; new analyses stop at 80% of the free allowance ("Analysis is paused until <date>"), diagrams keep working; `quota` command; tests {model: opus}
@@ -253,6 +253,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5.18a** (ADR-0153): `findLimitFailure` (db) finds a repo's newest `LIMIT_*` failure in the past 7 days (by GitHub ID, any commit, unless a later analysis finished); `sizeHold.ts` holds the repo unless GitHub's `size` is at most half the size stored on the failed row (`analyses.repo_size_kb`, migration `0005`; unknown ⇒ held). `/api/analyze` answers `422 REPO_TOO_BIG` with `retryAt`/`Retry-After` before any slot or task; check-on-view shows `behind`/`too-big` with the reason and UTC date. In-flight and finished commits still served. `<=` → `<` in the halving rule failed 2 tests. Web 420, db 118, typecheck, lint. No analyzer change, no eval delta.
 
 - 2026-11-01 M5.17f: SECURITY.md reviewed for Cloud Run (ADR-0152). No free egress allowlist exists there (Direct VPC egress needs Cloud NAT; hostname rules need Cloud NGFW), so the analysis child's own guards are the network boundary; the worker process keeps ordinary egress, with its blast radius (four rotatable secrets; the GitHub token must be fine-grained, public repos read-only) written down. Checked that `process.binding`, inspector, WASI, `/proc/<parent>/environ` are refused and http2, Unix sockets, and the metadata server hit the guard; new probes in `runner.test.ts` (dropping the permission flags turns all five internals probes red). Assets, T1, T3, T4, T8, T9, §3, §4, DESIGN.md, SPEC §4, stale comments. No analyzer change, no eval delta.
 
