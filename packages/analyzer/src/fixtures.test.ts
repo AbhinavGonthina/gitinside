@@ -231,7 +231,7 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${web}/admin.ts#ban -> route:api/POST /api/admin/users/:id/ban heuristic`,
       `${web}/admin.ts#listUsers -> route:api/GET /api/admin/users heuristic`,
       `${web}/fetcher.ts#getUser -> route:api/GET /api/v1/users/:id heuristic`,
-      `${web}/session.ts#refresh -> unresolved:web/src/services/session.ts:9:38 unresolved DYNAMIC_URL`,
+      `${web}/session.ts#refresh -> unresolved:web/src/services/session.ts:9:30 unresolved DYNAMIC_URL`,
     ]);
   });
 

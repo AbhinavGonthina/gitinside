@@ -9,7 +9,7 @@
       "label": "POST /api/admin/users/:id/ban",
       "sites": [
         {
-          "column": 42,
+          "column": 36,
           "file": "apps/web/src/services/admin.ts",
           "line": 8
         }
@@ -24,7 +24,7 @@
       "label": "GET /api/admin/users",
       "sites": [
         {
-          "column": 38,
+          "column": 32,
           "file": "apps/web/src/services/admin.ts",
           "line": 6
         }
@@ -39,7 +39,7 @@
       "label": "GET /api/v1/users/:id",
       "sites": [
         {
-          "column": 46,
+          "column": 40,
           "file": "apps/web/src/services/fetcher.ts",
           "line": 7
         }
@@ -49,17 +49,17 @@
     {
       "confidence": "unresolved",
       "from": "symbol:web/src/services/session.ts#refresh",
-      "id": "http:symbol:web/src/services/session.ts#refresh->unresolved:web/src/services/session.ts:9:38",
+      "id": "http:symbol:web/src/services/session.ts#refresh->unresolved:web/src/services/session.ts:9:30",
       "kind": "http",
       "reason": "DYNAMIC_URL",
       "sites": [
         {
-          "column": 38,
+          "column": 30,
           "file": "apps/web/src/services/session.ts",
           "line": 9
         }
       ],
-      "to": "unresolved:web/src/services/session.ts:9:38"
+      "to": "unresolved:web/src/services/session.ts:9:30"
     }
   ],
   "nodes": [
@@ -265,13 +265,13 @@
     {
       "detail": "the axios baseURL can't be read statically",
       "expression": "session.post(\"/session/refresh\")",
-      "id": "unresolved:web/src/services/session.ts:9:38",
+      "id": "unresolved:web/src/services/session.ts:9:30",
       "kind": "unresolved",
       "label": "POST \"/session/refresh\"",
       "parentId": "service:web/",
       "reason": "DYNAMIC_URL",
       "source": {
-        "column": 38,
+        "column": 30,
         "file": "apps/web/src/services/session.ts",
         "line": 9
       }

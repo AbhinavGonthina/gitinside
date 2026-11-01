@@ -9,7 +9,7 @@
       "label": "POST /api/orders",
       "sites": [
         {
-          "column": 13,
+          "column": 9,
           "file": "src/orders.ts",
           "line": 9
         }
@@ -24,7 +24,7 @@
       "label": "GET /api/orders/:id",
       "sites": [
         {
-          "column": 30,
+          "column": 26,
           "file": "src/orders.ts",
           "line": 4
         }

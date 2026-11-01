@@ -9,7 +9,7 @@
       "label": "POST /api/posts",
       "sites": [
         {
-          "column": 14,
+          "column": 10,
           "file": "frontend/src/posts.ts",
           "line": 8
         }
@@ -24,7 +24,7 @@
       "label": "GET /api/posts/:id",
       "sites": [
         {
-          "column": 14,
+          "column": 10,
           "file": "frontend/src/posts.ts",
           "line": 4
         }

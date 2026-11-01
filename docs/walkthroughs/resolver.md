@@ -249,7 +249,7 @@ axios is harder than fetch because instances carry state (`baseURL`) and travel 
 - **The walk** (712–742): for each root file of each program, a recursive `visit` carries `owners`:
   - `resolver.callers` maps declaration nodes to symbol IDs (built in M1.9). Entering a node that declares a symbol makes that symbol the owner; entering an arrow or function expression records its node key as a possible inline Express handler (`ownersAt` in `owners.ts`). Which ones really are handlers is only known after Express is composed, so `bindWrappers` later swaps the innermost listed one for its routes (`bindOwners`, ADR-0094), and `app.get("/x", async () => fetch(…))` belongs to the route.
   - Because the owner is replaced on the way down, the innermost symbol wins.
-  - Each recognized call becomes a site; `site` is the location of the callee name (`fetch` or the `get` in `api.get`).
+  - Each recognized call becomes a site; `site` is the start of the call expression (`fetch`, or the `api` of `api⏎ .get(…)`), where EVALUATION.md §1 puts a call site (ADR-0167; before M5A.3i it was the callee name, the `get`).
 - The result is sorted by file, line, column with `compareStrings`, never `localeCompare` (determinism).
 
 **Running example after stage 1.** Two sites:
@@ -543,7 +543,7 @@ Computed in `wrappers.ts` with the request (M6.7c), and only copied here:
 - `http:…#createProject->route:wrapper-fetch/POST /api/projects` (exact)
 - node `unresolved:wrapper-fetch/src/http.ts:15:10`: label `GET requestRaw(url)`, reason `WRAPPER_DEPTH`, detail "the URL starts with a parameter of the calling function, a wrapper more than one call deep"; edge `http:…#requestVia->unresolved:…` (unresolved)
 
-Column 10 is the `r` of `requestRaw` in `  return requestRaw(url);`: the site is the callee name of the wrapper call, not the `fetch` inside it.
+Column 10 is the `r` of `requestRaw` in `  return requestRaw(url);`: the site is the start of the wrapper call, not the `fetch` inside it (for a plain-identifier call the start and the callee name are the same; for `client.requestRaw(url)` it would be the `c`, ADR-0167).
 
 ---
 

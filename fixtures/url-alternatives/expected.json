@@ -24,7 +24,7 @@
       "label": "GET /api/archive",
       "sites": [
         {
-          "column": 32,
+          "column": 26,
           "file": "src/journal.ts",
           "line": 23
         }
@@ -39,7 +39,7 @@
       "label": "GET /api/entries/featured",
       "sites": [
         {
-          "column": 32,
+          "column": 26,
           "file": "src/journal.ts",
           "line": 8
         }
@@ -54,7 +54,7 @@
       "label": "GET /api/entries/topics/:topic",
       "sites": [
         {
-          "column": 32,
+          "column": 26,
           "file": "src/journal.ts",
           "line": 8
         }
@@ -99,7 +99,7 @@
       "label": "DELETE /api/entries/:entryId",
       "sites": [
         {
-          "column": 15,
+          "column": 9,
           "file": "src/journal.ts",
           "line": 18
         }
@@ -114,7 +114,7 @@
       "label": "DELETE /api/entries/moderation/:entryId",
       "sites": [
         {
-          "column": 15,
+          "column": 9,
           "file": "src/journal.ts",
           "line": 18
         }
