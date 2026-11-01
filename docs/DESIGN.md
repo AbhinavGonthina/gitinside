@@ -213,6 +213,8 @@ Evaluate the URL expression into a sequence of **literal** and **hole** segments
 | `` `${API}/orders` `` where `const API = process.env.X ?? 'http://localhost:4000/api/v1'` | `{env:X}/api/v1/orders` (ADR-0158) |
 | `` `/api/${process.env.VERSION \|\| 'v1'}/x` `` | `/api/v1/x` |
 | `new URL('/x', base)` | `/x` relative to base |
+| `cond ? '/a' : '/b'` (also held in a `const`), or a local `let` set to `/b` in an `if` | two requests at that call, `/a` and `/b` (ADR-0166) |
+| `` `/x${page ? '?page=' + page : ''}` `` | `/x` (the alternatives read the same) |
 | `buildUrl()` (unknown function) | unresolved, reason `DYNAMIC_URL` |
 
 **Rules:**

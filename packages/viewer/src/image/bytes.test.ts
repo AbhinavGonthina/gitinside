@@ -130,5 +130,6 @@ const EXPECTED: Record<string, string[]> = {
   "shop-demo": ["a293bcabb8929d22", "d5cbf1bed672075b", "24c3b4e9fa0d57ac"],
   "sibling-apps": ["661d856493c7cb37", "fd9db09229cd509d", "3397c2b738f0e5c3"],
   "syntax-error": ["55396ca32388bd0f", "9cb7f0340d7cb270", "7b0e096375125e04"],
+  "url-alternatives": ["6cbdfe701f1334a7", "db8ab97b3b62d5e5", "97cd61834becbd45"],
   "wrapper-fetch": ["12360e06fae71333", "791e0ed4bfa41857", "f3719fe458b7bffc"],
 };

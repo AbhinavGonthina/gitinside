@@ -1,0 +1,3 @@
+# url-alternatives
+
+Tests (M5A.3h, ADR-0166): a URL the code picks from a few fixed values gives one request per value, at the same call. `loadEntries` holds a ternary in a `const` (`GET /api/entries/featured` and `GET /api/entries/topics/:topic`); `removeEntry` reassigns a `let` in an `if` (`DELETE /api/entries/:entryId` and `DELETE /api/entries/moderation/:entryId`); `loadArchive`'s ternary only adds a query, so it is one request (`GET /api/archive`); and `loadMine` passes a ternary to the wrapper `getJson`, inlined there as `GET /api/drafts` and `GET /api/entries/:entryId`. The base is `import.meta.env.VITE_API_PATH`, an API-base name (ADR-0165), so every link is `heuristic`.

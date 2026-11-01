@@ -41,6 +41,7 @@ const NAMES = [
   "express-class-app",
   "sibling-apps",
   "fixed-url-helpers",
+  "url-alternatives",
   "ambiguous-routes",
   "wrapper-fetch",
   "external-sdk",
@@ -301,6 +302,25 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${api}#postsApi.comments -> route:${p}/GET /api/posts/:postId/comments exact`,
       `${api}#postsApi.read -> route:${p}/GET /api/posts/:postId exact`,
     ]);
+  });
+
+  it("url-alternatives: one request per URL a ternary or a let fixes, at the same call (M5A.3h)", async () => {
+    const g = await run("url-alternatives");
+    const p = "url-alternatives";
+    const j = `symbol:${p}/src/journal.ts`;
+    expect(links(g, "http")).toEqual([
+      `${j}#loadArchive -> route:${p}/GET /api/archive heuristic`,
+      `${j}#loadEntries -> route:${p}/GET /api/entries/featured heuristic`,
+      `${j}#loadEntries -> route:${p}/GET /api/entries/topics/:topic heuristic`,
+      `${j}#loadMine -> route:${p}/GET /api/drafts heuristic`,
+      `${j}#loadMine -> route:${p}/GET /api/entries/:entryId heuristic`,
+      `${j}#removeEntry -> route:${p}/DELETE /api/entries/:entryId heuristic`,
+      `${j}#removeEntry -> route:${p}/DELETE /api/entries/moderation/:entryId heuristic`,
+    ]);
+    // Both alternatives of a call share its one site.
+    const removes = g.edges.filter((e) => e.from === `${j}#removeEntry`);
+    expect(new Set(removes.map((e) => JSON.stringify(e.sites)))).toHaveProperty("size", 1);
+    expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
   });
 
   it("ambiguous-routes: a tie links to every candidate, weaker, with AMBIGUOUS", async () => {
