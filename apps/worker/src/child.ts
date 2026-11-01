@@ -77,6 +77,9 @@ export async function runChildJob(
       warnings: graph.warnings.length,
       graphBytes: Buffer.byteLength(text),
       stageMs,
+      // `maxRSS` is in KiB.
+      peakRssBytes: process.resourceUsage().maxRSS * 1024,
+      heapBytes: process.memoryUsage().heapTotal,
     },
   };
 }

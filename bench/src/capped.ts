@@ -2,28 +2,37 @@ import { mkdir } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { DEFAULT_LIMITS, buildInventory } from "@gitinside/analyzer";
-import { runAnalysis } from "@gitinside/worker/runner";
+import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "@gitinside/worker/runner";
 import { BENCH } from "./env.js";
 
 // Capped runs (M5.16b): each folder goes through the worker's own sandboxed runner
-// (`runAnalysis`: 3 GB heap, 5 minutes, no network, the analyzer's default limits), one after
+// (`runAnalysis`: 2,560 MB heap, 5 minutes, no network, the analyzer's default limits), one after
 // another, so each result is what a job's analysis step would get on this machine. Prints one
 // JSON line per folder: its source files and size (the inventory, limits lifted), the
 // outcome or failure code, how long it took, the last analyzer step
-// the child reported and when, and the stage times of a finished run. Parse only.
+// the child reported and when, and for a finished run its stage times, graph size, peak RSS,
+// and final heap (the child's own readings, M5.17c2c). Parse only.
 //
 // To measure folders over the source-size limit (calibrating it, ADR-0137), raise
 // `MAX_SOURCE_MB` in packages/analyzer/src/inventory.ts and rebuild first; otherwise they stop
 // at the inventory, which is what production does.
 //
-// Usage: pnpm bench:capped <folder>... (folders relative to bench/, e.g. .repos/calcom)
+// `--heap-mb=<n>` runs under another heap cap than the worker's (sizing it, ADR-0146).
+//
+// Usage: pnpm bench:capped [--heap-mb=<n>] <folder>... (folders relative to bench/, e.g.
+// .repos/calcom)
 
-const folders = process.argv.slice(2);
+const HEAP_FLAG = /^--heap-mb=(\d+)$/;
+const args = process.argv.slice(2);
+const heapArg = args.map((arg) => HEAP_FLAG.exec(arg)?.[1]).find((n) => n !== undefined);
+const maxHeapMb = heapArg === undefined ? DEFAULT_RUNNER_LIMITS.maxHeapMb : Number(heapArg);
+const folders = args.filter((arg) => !HEAP_FLAG.test(arg));
 if (folders.length === 0) {
-  process.stderr.write("usage: pnpm bench:capped <folder>...\n");
+  process.stderr.write("usage: pnpm bench:capped [--heap-mb=<n>] <folder>...\n");
   process.exit(2);
 }
 const MIB = 1024 * 1024;
+const mib = (bytes: number): number => Math.round((bytes / MIB) * 10) / 10;
 const outDir = join(BENCH, "dist", "capped");
 await mkdir(outDir, { recursive: true });
 
@@ -43,19 +52,30 @@ for (const folder of folders) {
       owner: "bench",
       name: basename(folder),
     },
-    { onProgress: ({ step }) => (last = { step, atMs: Math.round(performance.now() - start) }) },
+    {
+      limits: { maxHeapMb },
+      onProgress: ({ step }) => (last = { step, atMs: Math.round(performance.now() - start) }),
+    },
   );
   const line = {
     folder,
+    maxHeapMb,
     maxSourceMb: DEFAULT_LIMITS.maxSourceBytes / MIB,
     sourceFiles: inventory.sourceFiles.length,
-    sourceMib: Math.round((inventory.sourceBytes / MIB) * 10) / 10,
+    sourceMib: mib(inventory.sourceBytes),
     ok: result.ok,
     ...(result.ok ? {} : { code: result.code }),
     ms: result.durationMs,
     lastStep: last?.step,
     lastStepAtMs: last?.atMs,
-    ...(result.ok ? { stageMs: result.stats.stageMs } : {}),
+    ...(result.ok
+      ? {
+          stageMs: result.stats.stageMs,
+          graphMib: mib(result.stats.graphBytes),
+          peakRssMib: mib(result.stats.peakRssBytes ?? 0),
+          heapMib: mib(result.stats.heapBytes ?? 0),
+        }
+      : {}),
   };
   process.stdout.write(`${JSON.stringify(line)}\n`);
 }

@@ -9,7 +9,7 @@ import { MAX_SOURCE_MB } from "@gitinside/analyzer";
 import { compareStrings } from "@gitinside/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { JobRequest } from "./api.js";
-import { SKIPPED_PATH_MAX_CHARS } from "./extract.js";
+import { DEFAULT_EXTRACT_LIMITS, SKIPPED_PATH_MAX_CHARS } from "./extract.js";
 import { JobFailure } from "./failure.js";
 import { entriesOf, startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import { processJob, type JobOutcome } from "./job.js";
@@ -235,7 +235,7 @@ describe("huge-file: size limits (T3)", () => {
         TOP,
       ),
     );
-    // Written in full (the 500 MiB cap bounds it), then refused by the analyzer.
+    // Written in full (the 400 MiB cap bounds it), then refused by the analyzer.
     expect(src).toContain("src/big.ts");
     expect(graph.warnings).toContainEqual(
       expect.objectContaining({ code: "SKIPPED_LARGE", file: "src/big.ts" }),
@@ -384,9 +384,10 @@ describe("path-traversal-tar: an escaping path fails the job (T2)", () => {
 
 describe("zip-bomb: decompressed bytes are counted while streaming (T3)", () => {
   it(
-    "fails with LIMIT_SIZE at the real 500 MiB limit, having written only the small file",
+    "fails with LIMIT_SIZE at the real 400 MiB limit, having written only the small file",
     async () => {
-      // A valid archive followed by 520 MiB of zeros: about half a megabyte compressed.
+      // A valid archive followed by 20 MiB more zeros than the limit: under a megabyte compressed.
+      expect(DEFAULT_EXTRACT_LIMITS.maxBytes).toBe(400 * MIB);
       const head = tar([
         { name: `${TOP}/`, type: "5" },
         { name: `${TOP}/index.ts`, body: "export const a = 1;\n" },
@@ -394,7 +395,7 @@ describe("zip-bomb: decompressed bytes are counted while streaming (T3)", () => 
       async function* bytes(): AsyncGenerator<Buffer> {
         yield head;
         const zeros = Buffer.alloc(MIB);
-        for (let i = 0; i < 520; i++) yield zeros;
+        for (let i = 0; i < DEFAULT_EXTRACT_LIMITS.maxBytes / MIB + 20; i++) yield zeros;
       }
       const chunks: Buffer[] = [];
       await pipeline(Readable.from(bytes()), createGzip({ level: 9 }), async (source) => {
@@ -477,9 +478,10 @@ describe("too-many-files: file and entry limits (T3)", () => {
   );
 
   it(
-    "fails with LIMIT_ENTRIES past 100,000 entries, even ones it wouldn't write",
+    "fails with LIMIT_ENTRIES past 60,000 entries, even ones it wouldn't write",
     async () => {
-      const links: TestEntry[] = Array.from({ length: 100_001 }, (_, i) => ({
+      expect(DEFAULT_EXTRACT_LIMITS.maxEntries).toBe(60_000);
+      const links: TestEntry[] = Array.from({ length: 60_001 }, (_, i) => ({
         name: `l${i}`,
         type: "2",
         linkname: "/etc/passwd",

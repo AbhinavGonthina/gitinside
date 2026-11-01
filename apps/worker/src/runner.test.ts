@@ -159,7 +159,7 @@ describe("runAnalysis limits", () => {
   });
 
   it("uses the documented defaults", () => {
-    expect(DEFAULT_RUNNER_LIMITS).toEqual({ timeoutMs: 300_000, maxHeapMb: 3072 });
+    expect(DEFAULT_RUNNER_LIMITS).toEqual({ timeoutMs: 300_000, maxHeapMb: 2560 });
   });
 });
 
@@ -271,7 +271,7 @@ describe("the child's sandbox", () => {
         writeOut: "ALLOWED",
         spawn: "ERR_ACCESS_DENIED",
         worker: "ERR_ACCESS_DENIED",
-        heapFlag: "--max-old-space-size=3072",
+        heapFlag: "--max-old-space-size=2560",
       });
     } finally {
       await rm(secretDir, { recursive: true, force: true });
@@ -307,7 +307,7 @@ describe("the child's sandbox", () => {
       } else {
         expect(env).toEqual([]);
       }
-      expect(result.heapFlag).toBe("--max-old-space-size=3072");
+      expect(result.heapFlag).toBe("--max-old-space-size=2560");
     } finally {
       process.env = saved;
     }

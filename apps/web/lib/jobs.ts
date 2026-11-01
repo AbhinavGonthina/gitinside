@@ -9,7 +9,14 @@ import {
   type FoundLine,
   type JobStage,
 } from "@gitinside/worker/progress";
-import { SUPPORTED_SIZE, SUPPORTED_SOURCE_FILES, SUPPORTED_SOURCE_SIZE } from "./limits";
+import {
+  NBSP,
+  SUPPORTED_ENTRIES,
+  SUPPORTED_SIZE,
+  SUPPORTED_SOURCE_FILES,
+  SUPPORTED_SOURCE_SIZE,
+  SUPPORTED_UNPACKED_MB,
+} from "./limits";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 
 /**
@@ -93,11 +100,11 @@ const PERMANENT: Readonly<Record<string, { reason: string; advice?: string }>> =
     advice: SMALLER,
   },
   LIMIT_SIZE: {
-    reason: "This repo is over 500 MB unpacked, the limit for one analysis.",
+    reason: `This repo is over ${SUPPORTED_UNPACKED_MB}${NBSP}MB unpacked, the limit for one analysis.`,
     advice: SMALLER,
   },
   LIMIT_ENTRIES: {
-    reason: "This repo has over 100,000 files and folders, the limit for one analysis.",
+    reason: `This repo has over ${formatCount(SUPPORTED_ENTRIES)} files and folders, the limit for one analysis.`,
     advice: SMALLER,
   },
   LIMIT_TIME: {

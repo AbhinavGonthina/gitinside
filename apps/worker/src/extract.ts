@@ -28,7 +28,7 @@ import { compareStrings } from "@gitinside/schema";
  *   where a folder should be fails with `TAR_INVALID`, as does a bad gzip stream.
  *
  * Files are written 0644 and folders 0755; owners, modes, and times in the archive are
- * ignored. Files over the analyzer's 2 MB limit are still written in full (the 500 MB cap
+ * ignored. Files over the analyzer's 2 MB limit are still written in full (the 400 MiB cap
  * bounds them), so the analyzer records the same `SKIPPED_LARGE` warning as on a checkout.
  *
  * Handles: POSIX ustar (with `prefix`), pax extended headers (`path`, `size`), pax global
@@ -42,18 +42,22 @@ import { compareStrings } from "@gitinside/schema";
 
 /** Limits applied while extracting. Defaults come from docs/SECURITY.md (T3). */
 export interface ExtractLimits {
-  /** Fail with `LIMIT_SIZE` once the decompressed tar stream passes this. Default 500 MiB. */
+  /** Fail with `LIMIT_SIZE` once the decompressed tar stream passes this. Default 400 MiB. */
   maxBytes: number;
-  /** Fail with `LIMIT_ENTRIES` above this many entries. Default 100,000. */
+  /** Fail with `LIMIT_ENTRIES` above this many entries. Default 60,000. */
   maxEntries: number;
   /** Skip (listed as `UNSUPPORTED_NAME`) entries whose path is longer than this. Default 4,096. */
   maxPathBytes: number;
 }
 
-/** Default extraction limits. */
+/**
+ * Default extraction limits, sized so the unpacked tree fits a 4 GiB Cloud Run instance's
+ * in-memory `/tmp` beside the analysis (budget.ts, ADR-0146). VS Code (328 MiB, 25,233
+ * entries) and cal.com (203 MiB, 10,289) are inside them.
+ */
 export const DEFAULT_EXTRACT_LIMITS: ExtractLimits = {
-  maxBytes: 500 * 1024 * 1024,
-  maxEntries: 100_000,
+  maxBytes: 400 * 1024 * 1024,
+  maxEntries: 60_000,
   maxPathBytes: 4096,
 };
 

@@ -100,6 +100,9 @@ export interface AnalysisStats {
   stageMs?: Record<string, number>;
   /** Worker stages: download + extract, the analysis child, the snapshot upload. */
   jobMs?: { download: number; analyze: number; upload: number };
+  /** The analysis child's peak RSS and final V8 heap, in bytes (the memory budget, ADR-0146). */
+  peakRssBytes?: number;
+  heapBytes?: number;
 }
 
 /**

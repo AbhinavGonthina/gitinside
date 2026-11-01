@@ -17,7 +17,7 @@ import {
  *
  * The child is `node child.js` (the analyzer behind a line-based JSON protocol, protocol.ts:
  * progress lines, passed to `onProgress` as they arrive, then one report):
- * - **Memory:** `--max-old-space-size` (3 GB). V8 aborts past it; the runner reports
+ * - **Memory:** `--max-old-space-size` (2,560 MB). V8 aborts past it; the runner reports
  *   `LIMIT_MEMORY`.
  * - **Time:** a 5-minute wall-clock timer, then `SIGKILL` (works even while the analyzer is
  *   stuck in synchronous code); `LIMIT_TIME`. CPU share is capped by the container (M5.10),
@@ -42,14 +42,18 @@ import {
 export interface RunnerLimits {
   /** Wall-clock budget before `SIGKILL`. Default 5 minutes. */
   timeoutMs: number;
-  /** V8 old-space cap in MiB (`--max-old-space-size`). Default 3,072. */
+  /** V8 old-space cap in MiB (`--max-old-space-size`). Default 2,560. */
   maxHeapMb: number;
 }
 
-/** Default analysis limits. */
+/**
+ * Default analysis limits. The heap cap is sized to fit a 4 GiB Cloud Run instance with the
+ * unpacked repo in its in-memory `/tmp` (budget.ts, ADR-0146): 25% over 2,048 MB, under which
+ * cal.com and VS Code's `src/vs/platform` (44.8 MiB of source) finished.
+ */
 export const DEFAULT_RUNNER_LIMITS: RunnerLimits = {
   timeoutMs: 5 * 60 * 1000,
-  maxHeapMb: 3072,
+  maxHeapMb: 2560,
 };
 
 /** Options for {@link runAnalysis}. */
