@@ -202,7 +202,7 @@ export async function analyze(
       const facts = programs.map((sp) => collectExpressFacts(sp, resolver, hasRouters));
       return composeExpressRoutes(facts, workspace.packages, rootFileServices(programs));
     },
-    () => ({ ...none(), inlineHandlers: new Map<string, string[]>() }),
+    () => ({ ...none(), inlineHandlers: new Map<string, string[]>(), listedRoutes: [] }),
   );
   found.add(["routes"], express.nodes);
   const next = await detector(
@@ -243,7 +243,11 @@ export async function analyze(
       const facts = collectHttpFacts(sites, programs, resolver, createUrlNormalizer(resolver));
       const requests = bindWrappers(facts, express.inlineHandlers);
       onProgress?.({ stage: "http", count: requests.length });
-      const matcher = createRouteMatcher([...express.nodes, ...next.nodes], workspace);
+      const matcher = createRouteMatcher(
+        [...express.nodes, ...next.nodes],
+        workspace,
+        new Set(express.listedRoutes),
+      );
       return buildHttpEdges(requests, matcher, workspace);
     },
     () => ({ nodes: [], edges: [], matches: [] }),

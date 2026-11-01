@@ -37,6 +37,7 @@ const NAMES = [
   "object-client",
   "config-wrapper",
   "axios-defaults",
+  "express-folder-routers",
   "ambiguous-routes",
   "wrapper-fetch",
   "external-sdk",
@@ -227,6 +228,25 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${web}/admin.ts#listUsers -> route:api/GET /api/admin/users heuristic`,
       `${web}/fetcher.ts#getUser -> route:api/GET /api/v1/users/:id heuristic`,
       `${web}/session.ts#refresh -> unresolved:web/src/services/session.ts:9:38 unresolved DYNAMIC_URL`,
+    ]);
+  });
+
+  it("express-folder-routers: routers from a folder listing are mounted, matched at heuristic (M5A.3e)", async () => {
+    const g = await run("express-folder-routers");
+    expect(ids(g, "route").sort()).toEqual([
+      "route:express-folder-routers/GET /api/v1/users/:id",
+      "route:express-folder-routers/GET /health",
+      "route:express-folder-routers/GET /legacy/reports/daily",
+      "route:express-folder-routers/POST /api/v1/orders",
+    ]);
+    expect(g.warnings.filter((w) => w.code.startsWith("EXPRESS"))).toEqual([]);
+    const client = "symbol:express-folder-routers/src/client.ts";
+    const routes = "route:express-folder-routers";
+    expect(links(g, "http")).toEqual([
+      `${client}#dailyReport -> ${routes}/GET /legacy/reports/daily heuristic`,
+      `${client}#health -> ${routes}/GET /health exact`,
+      `${client}#loadUser -> ${routes}/GET /api/v1/users/:id heuristic`,
+      `${client}#placeOrder -> ${routes}/POST /api/v1/orders heuristic`,
     ]);
   });
 
