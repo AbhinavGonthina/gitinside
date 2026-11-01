@@ -204,7 +204,7 @@ export function privateSnapshotKey(snapshot: PrivateSnapshot): string {
 
 /**
  * The host of Oracle Object Storage's S3-compatible API for a tenancy's namespace in a
- * region. The egress allowlist (infra/oracle/egress-hosts.sh) derives the same name.
+ * region.
  */
 export function oracleS3Host(namespace: string, region: string): string {
   return `${namespace}.compat.objectstorage.${region}.oraclecloud.com`;
