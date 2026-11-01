@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.3d1 Flaky `requestAnalysis` race: `upsertRepo`'s first insert of one repo from two requests trips `repos_owner_name_lower_key` on real Postgres (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.3e R5: routers required from a folder listing and mounted in a loop/reduce (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -199,7 +199,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.3b R2 (44): methods and function-valued properties of an exported `const` object literal as wrappers (`apiClient.get(endpoint)`), incl. a GET body's `const url = new URL(…)` + `url.toString()`; fixture + golden, eval delta {model: opus}
 - [x] M5A.3c R3 (39): a wrapper whose parameter is the axios config (`axios(req)`, `x.request(req)`) reads `url`/`method`/`baseURL` from the caller's object literal; fixture + golden, eval delta {model: opus}
 - [x] M5A.3d R4 (39): `x.defaults.baseURL = …` on the axios default export or an instance, assigned once at module top level (else unknown); fixture + golden, eval delta {model: opus}
-- [ ] M5A.3d1 Flaky `requestAnalysis` race on real Postgres (`apps/web/lib/analyze.test.ts`, "racing requests for different new commits: one is queued, the rest refused"): CI's `coverage` on `f66bf50` (run 41315829171) threw `duplicate key value violates unique constraint "repos_owner_name_lower_key"` from `upsertRepo` (`packages/db/src/analyses.ts:72`): two first inserts of one repo race, and the second trips the `lower(owner), lower(name)` index before the `on conflict ("provider_repo_id")` arbiter, a 500 in production. Reproduce deterministically (two transactions on PGlite or Postgres), make the upsert race-safe (retry once on 23505, or conflict on both keys), regression test first {model: opus}
+- [x] M5A.3d1 Flaky `requestAnalysis` race on real Postgres (`apps/web/lib/analyze.test.ts`, "racing requests for different new commits: one is queued, the rest refused"): CI's `coverage` on `f66bf50` (run 41315829171) threw `duplicate key value violates unique constraint "repos_owner_name_lower_key"` from `upsertRepo` (`packages/db/src/analyses.ts:72`): two first inserts of one repo race, and the second trips the `lower(owner), lower(name)` index before the `on conflict ("provider_repo_id")` arbiter, a 500 in production. Reproduce deterministically (two transactions on PGlite or Postgres), make the upsert race-safe (retry once on 23505, or conflict on both keys), regression test first {model: opus}
 - [ ] M5A.3e R5 (39): routers required from a folder listing and mounted in a loop/reduce (`glob.sync(…).map(require).reduce((r, x) => r.use(x))`, `readdirSync(__dirname).forEach`): ADR on whether it can be composed at `heuristic` without executing anything; implement or document as unhandled (foodie then stays unresolved); fixture, eval delta {model: opus}
 - [ ] M5A.3f R6 (15): sibling top-level folders with their own `package.json` become services when the root declares no workspaces (each with its tsconfig and `paths`); effect on every fixture and eval graph checked; fixture + golden, eval delta {model: opus}
 - [ ] M5A.3g R7 (7): wider API-base env names (`*_API_PATH`, `*_API_HOST`, `*_API`, `*_SERVER_URL`, …) from a documented list, FPs measured on all five repos; tests, eval delta {model: opus}
@@ -265,6 +265,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.3d1:** `upsertRepo` retries once, in a new transaction, after a unique violation: `on conflict` covers only the `provider_repo_id` index, so a second insert waiting on another request's uncommitted row in the `lower(owner), lower(name)` index failed with 23505 once it committed (Postgres checks non-arbiter indexes plainly). Tests: injected violations (PGlite), and on CI's Postgres a deterministic interleaving (an uncommitted insert held while a recreated repo's upsert waits on it, seen in `pg_stat_activity`). Retry disabled ⇒ all three red on CI (draft PR #16).
 
 - **2026-11-01 M5A.3d:** `x.defaults.baseURL = …` (also `defaults["baseURL"]`) on axios or an instance now gives the base when it's the only write, a plain `=` at a module's top level, on one object (the default export per service, or an instance created outside any function); every other write, and `create()` without a base on an object whose defaults are written, is unknown (ADR-0161). Fixture `axios-defaults` (+ README image hashes); two mutation checks. Eval: original five unchanged (76 / 1 / 62); foodie's last `DYNAMIC_URL` is now `NO_MATCHING_ROUTE` with `/api/v1` applied, waiting on R5; held-out unchanged. CI's `coverage` then failed once in web's `requestAnalysis` race test (an `upsertRepo` race on real Postgres, unrelated code): added M5A.3d1.
 
