@@ -108,6 +108,82 @@ describe("upsertRepo", () => {
       "other/shop",
     ]);
   });
+
+  it("runs once more after a unique violation (another request's insert won the race)", async () => {
+    const violation = Object.assign(new Error("duplicate key value"), { code: "23505" });
+    let calls = 0;
+    const racing = new Proxy(t.db, {
+      get(target, key, receiver) {
+        if (key !== "transaction") return Reflect.get(target, key, receiver);
+        return (...args: Parameters<typeof target.transaction>) => {
+          calls += 1;
+          if (calls === 1) return Promise.reject(new Error("Failed query", { cause: violation }));
+          return target.transaction(...args);
+        };
+      },
+    });
+    const { id } = await upsertRepo(racing, FACTS);
+    expect(calls).toBe(2);
+    expect(await repoRows()).toEqual([{ id, owner: "acme", name: "shop", branch: "main" }]);
+  });
+
+  it("gives up after a second unique violation, and passes other errors through", async () => {
+    const violation = Object.assign(new Error("duplicate key value"), { code: "23505" });
+    let calls = 0;
+    const failing = (error: Error) =>
+      new Proxy(t.db, {
+        get(target, key, receiver) {
+          if (key !== "transaction") return Reflect.get(target, key, receiver);
+          return () => {
+            calls += 1;
+            return Promise.reject(error);
+          };
+        },
+      });
+    await expect(upsertRepo(failing(violation), FACTS)).rejects.toBe(violation);
+    expect(calls).toBe(2);
+    calls = 0;
+    const other = Object.assign(new Error("foreign key"), { code: "23503" });
+    await expect(upsertRepo(failing(other), FACTS)).rejects.toBe(other);
+    expect(calls).toBe(1);
+  });
+
+  // Real Postgres only: PGlite has one connection, so two transactions can't interleave.
+  it.skipIf(process.env.TEST_DATABASE_URL === undefined)(
+    "survives another request's uncommitted insert of the same name (real Postgres)",
+    async () => {
+      // acme/shop was deleted and recreated on GitHub (a new ID); one request still upserts
+      // the old repo while another upserts the new one. The new one's insert waits on the
+      // old one's uncommitted row in the name index, then sees it committed.
+      let second: Promise<{ id: string }> | undefined;
+      const old = await t.db.transaction(async (tx) => {
+        const [row] = await tx.insert(repos).values(FACTS).returning({ id: repos.id });
+        second = upsertRepo(t.db, { ...FACTS, providerRepoId: 3_000_000_002 });
+        for (let waited = 0; ; waited += 20) {
+          // A transaction reads `pg_stat_activity` once and caches it; poll fresh each time.
+          await tx.execute(sql`select pg_stat_clear_snapshot()`);
+          const result: unknown = await tx.execute(
+            sql`select count(*)::int as n from pg_stat_activity
+                where datname = current_database() and wait_event_type = 'Lock'`,
+          );
+          // postgres.js answers a bare array, PGlite `{ rows }` (as `rowsOf` in maintenance.ts).
+          const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as {
+            n: number;
+          }[];
+          if (rows[0]!.n > 0) break;
+          if (waited > 10_000) throw new Error("The second upsert never waited on the first.");
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        return row!;
+      });
+      const fresh = await second!;
+      expect(await repoRows()).toEqual([
+        { id: old.id, owner: "acme", name: "~3000000001", branch: "main" },
+        { id: fresh.id, owner: "acme", name: "shop", branch: "main" },
+      ]);
+    },
+    20_000,
+  );
 });
 
 describe("startAnalysis", () => {

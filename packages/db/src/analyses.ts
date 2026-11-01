@@ -55,8 +55,31 @@ export const QUEUE_UNAVAILABLE_CODE = "QUEUE_UNAVAILABLE";
  * still holds this owner/name, that repo was renamed or deleted on GitHub since we saw it;
  * its name becomes `~<its GitHub ID>` (no GitHub name contains `~`) so it keeps its
  * analyses, and the next upsert of that repo restores its real name.
+ *
+ * Races: `on conflict` only covers the GitHub ID's index. When another request's insert of
+ * this owner/name is still uncommitted, this one's insert waits on it in the
+ * `lower(owner), lower(name)` index and fails with a unique violation once it commits
+ * (Postgres checks non-arbiter indexes plainly). So a unique violation runs the upsert once
+ * more, in a new transaction that sees the committed row (M5A.3d1).
  */
 export async function upsertRepo(db: AnyDatabase, facts: RepoFacts): Promise<{ id: string }> {
+  try {
+    return await upsertRepoOnce(db, facts);
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    return upsertRepoOnce(db, facts);
+  }
+}
+
+/** Whether a query failed with Postgres's `unique_violation` (Drizzle may wrap it in `cause`). */
+function isUniqueViolation(error: unknown): boolean {
+  for (let e: unknown = error; e instanceof Error; e = e.cause) {
+    if ("code" in e && e.code === "23505") return true;
+  }
+  return false;
+}
+
+async function upsertRepoOnce(db: AnyDatabase, facts: RepoFacts): Promise<{ id: string }> {
   return db.transaction(async (tx) => {
     await tx
       .update(repos)
