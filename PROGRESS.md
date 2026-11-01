@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.2a Held-out set in the eval (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.2b Held-out repo 1 (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -192,7 +192,7 @@ M5A.2a Held-out set in the eval (M5.17e, M5.13, and M5.14b wait on #3)
 ### M5A: Cross-service recall (#13, after M5, before the rest of M6)
 Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out repos reported separately. Fix general patterns, never special cases for the eval repos; what can't be known statically stays unresolved. Don't wait for #1, but re-run the eval once it closes.
 - [x] M5A.1 Diagnose the misses in `eval/results/2026-10-31-0.1.0.md` (110 false negatives, 103 missing labels): read each call site in the eval checkouts, find why it was dropped or unmatched (trace through `analyze`), group by root cause with counts per repo, write it to `eval/results/2026-11-recall-diagnosis.md`; then split M5A.3 into one task per cause, largest first {model: opus}
-- [ ] M5A.2a Held-out set in the eval (#13): `heldOut: true` on a pinned repo in `repos.json`; `pnpm eval` scores held-out repos apart (own totals, never in the headline or the original set's numbers), the report gives them their own section (repos, counts, by confidence, misses), byte-identical when there are none; EVALUATION.md; tests {model: opus}
+- [x] M5A.2a Held-out set in the eval (#13): `heldOut: true` on a pinned repo in `repos.json`; `pnpm eval` scores held-out repos apart (own totals, never in the headline or the original set's numbers), the report gives them their own section (repos, counts, by confidence, misses), byte-identical when there are none; EVALUATION.md; tests {model: opus}
 - [ ] M5A.2b Held-out repo 1: pick 2–3 new public React/Next + Express (+ Prisma) candidates of different styles from their code (selection rules as M3.2, never running the analyzer on them), pin the first with `heldOut: true`, draft and commit its labels; no scoring yet {model: opus}
 - [ ] M5A.2c Held-out repo 2 (and 3 if picked): pin, draft and commit labels, then the first `pnpm eval` with the held-out section; they're never tuned against {model: opus}
 - [ ] M5A.3a R1 (87 labels blocked; `eval/results/2026-11-recall-diagnosis.md`): env base with an in-code fallback keeps the fallback's path prefix (`?? "http://localhost:4000/api/v1"`), a literal fallback inside the URL (`|| 'v1'`) replaces the hole, a loopback fallback host is `heuristic` whatever the env name; ADR (changes "the env var is the deployed value"); fixture + golden, eval delta {model: opus}
@@ -264,6 +264,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.2a:** M5A.2 split into a (eval support), b (pick + label held-out repo 1), c (repo 2, first scored run). `heldOut: true` in `eval/repos.json` (`false` rejected); `pnpm eval` scores held-out repos in a second `scoreAll` and the report gives them a "Held-out repos" section after the original misses, never in the headline or targets; byte-identical report with none (mutation-checked). EVALUATION.md has the rules. Report regenerated (same scores, run line only).
 
 - **2026-11-01 M5A.1:** `eval/results/2026-11-recall-diagnosis.md` traces all 110 FNs to 10 root causes (labels blocked: env fallback path dropped 87, object-literal client methods 44, config-object wrapper 39, `axios.defaults.baseURL` 39, folder-loaded routers 39, sibling apps without workspaces 15, env name 7, URL alternatives in a variable 4, site at method name vs call start 3, over-eager wrappers 1 + 1 FP). Most labels need several fixes. 80% recall (111/138) is out of reach without foodie, which needs R1 + R3 + R4 + R5; R5 (glob-mounted routers) may have to stay unresolved. M5A.3 split into a–j. No code change, no eval delta.
 
