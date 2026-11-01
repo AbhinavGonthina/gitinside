@@ -3,6 +3,7 @@ import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { FAKE_GCP, fakeGoogle } from "./google.testkit";
 import {
+  LOCAL_TASKS_OPT_IN,
   SIGNED_OUT_HOURLY_LIMIT,
   analyzeDepsFromEnv,
   graphDepsFromEnv,
@@ -123,6 +124,76 @@ describe("analyzeDepsFromEnv", () => {
       new WorkerUnavailableError("google token: no platform OIDC token"),
     );
     expect(google.requests).toEqual([]);
+  });
+});
+
+describe("the local push queue (ADR-0149)", () => {
+  const LOCAL = {
+    DATABASE_URL: ENV.DATABASE_URL,
+    ENQUEUE_HMAC_SECRET: ENV.ENQUEUE_HMAC_SECRET,
+    WORKER_URL: "http://127.0.0.1:8080",
+    LOCAL_TASKS: LOCAL_TASKS_OPT_IN,
+  };
+
+  it("pushes jobs to a local worker when opted in without any GCP_* variable", async () => {
+    expect(LOCAL_TASKS_OPT_IN).toBe("push");
+    const pushed: string[] = [];
+    vi.stubGlobal("fetch", async (input: string, init: RequestInit) => {
+      pushed.push(`${init.method ?? "GET"} ${input}`);
+      return new Response("{}");
+    });
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    onTestFinished(() => info.mockRestore());
+
+    const deps = analyzeDepsFromEnv(LOCAL);
+    expect(deps).toBeDefined();
+    expect(await deps?.queue.createTask(JOB, "analyze-local-1")).toEqual({ created: true });
+    // The same queue for the process: a name it pushed is remembered by the repo page too.
+    expect(await repoViewDepsFromEnv(LOCAL)?.queue?.createTask(JOB, "analyze-local-1")).toEqual({
+      created: false,
+    });
+    await vi.waitFor(() => expect(pushed).toEqual(["POST http://127.0.0.1:8080/run"]));
+  });
+
+  it("needs the opt-in, a loopback worker, and the secret; never on Vercel", () => {
+    for (const bad of [
+      { LOCAL_TASKS: undefined },
+      { LOCAL_TASKS: "1" },
+      { LOCAL_TASKS: "PUSH" },
+      { VERCEL: "1" },
+      { WORKER_URL: undefined },
+      { WORKER_URL: FAKE_GCP.workerUrl },
+      { WORKER_URL: "http://192.168.1.20:8080" },
+      { WORKER_URL: "http://127.0.0.1:8080/run" },
+      { ENQUEUE_HMAC_SECRET: "short" },
+      { ENQUEUE_HMAC_SECRET: undefined },
+    ]) {
+      expect(analyzeDepsFromEnv({ ...LOCAL, ...bad }), JSON.stringify(bad)).toBeUndefined();
+      expect(repoViewDepsFromEnv({ ...LOCAL, ...bad })?.queue, JSON.stringify(bad)).toBeUndefined();
+    }
+    for (const url of ["http://localhost:8080", "http://[::1]:8080"]) {
+      expect(analyzeDepsFromEnv({ ...LOCAL, WORKER_URL: url }), url).toBeDefined();
+    }
+  });
+
+  it("any GCP_* variable turns it off: a half-configured Google queue is no queue", () => {
+    expect(analyzeDepsFromEnv({ ...LOCAL, GCP_PROJECT_ID: FAKE_GCP.project })).toBeUndefined();
+    expect(analyzeDepsFromEnv({ ...LOCAL, GCP_PROJECT_ID: "" })).toBeDefined();
+  });
+
+  it("a full Google configuration wins over the opt-in", () => {
+    const deps = analyzeDepsFromEnv({ ...ENV, LOCAL_TASKS: LOCAL_TASKS_OPT_IN });
+    expect(deps?.queue).toBeDefined();
+    // The Google client, not the local queue (only the local one has `idle`).
+    expect("idle" in (deps?.queue ?? {})).toBe(false);
+    expect("idle" in (analyzeDepsFromEnv({ ...LOCAL })?.queue ?? {})).toBe(true);
+    // The Google queue needs an https worker, so a loopback one gets neither.
+    expect(
+      analyzeDepsFromEnv({ ...ENV, LOCAL_TASKS: LOCAL_TASKS_OPT_IN, WORKER_URL: LOCAL.WORKER_URL }),
+    ).toBeUndefined();
   });
 });
 

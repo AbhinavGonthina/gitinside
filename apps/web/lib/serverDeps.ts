@@ -14,6 +14,7 @@ import { jobRouteDeps, type JobRouteDeps } from "./jobRoute";
 import { createHeadCache, type RepoViewDeps } from "./repoView";
 import { createTaskQueue, type TaskQueue } from "./cloudTasks";
 import { createGoogleTokenSource, type GoogleTokenSource } from "./googleAuth";
+import { createLocalTaskQueue, isLoopbackOrigin, type LocalTaskQueue } from "./localTasks";
 
 /**
  * The API routes' dependencies from the environment (names in `apps/web/.env.example`,
@@ -23,6 +24,8 @@ import { createGoogleTokenSource, type GoogleTokenSource } from "./googleAuth";
  *   Cloud Tasks queue's `GCP_*` names ({@link taskQueue}): required to analyze. If one is
  *   missing or malformed, the API answers "temporarily unavailable" instead of failing on
  *   every request; nothing is logged with a value. Watching a job needs only `DATABASE_URL`.
+ *   In local development, `LOCAL_TASKS=push` with no `GCP_*` variable pushes jobs straight to
+ *   a worker on this machine instead ({@link localQueue}, ADR-0149).
  * - `GITHUB_TOKEN`: optional, raises GitHub's limit from 60 to 5,000 requests an hour.
  * - `SNAPSHOTS_*` (ADR-0055, ADR-0068, ADR-0095): `/api/graph` reads snapshots with them, alongside
  *   `DATABASE_URL`; the repo page needs only the database (and the worker to re-analyze).
@@ -63,9 +66,13 @@ let google:
  * tasks), `GCP_INVOKER_SERVICE_ACCOUNT` (Cloud Tasks pushes as it), `WORKER_URL` (the Cloud
  * Run service's https origin), and `ENQUEUE_HMAC_SECRET` (signs each job). The platform's
  * OIDC token is `oidcToken` (the request's {@link VERCEL_OIDC_HEADER}), else
- * `VERCEL_OIDC_TOKEN` (`vercel env pull`, local development).
+ * `VERCEL_OIDC_TOKEN` (`vercel env pull`, local development). With no `GCP_*` variable set at
+ * all, it's the local push queue if opted in ({@link localQueue}); with only some set, none.
  */
 function taskQueue(env: Env, oidcToken: string | null | undefined): TaskQueue | undefined {
+  if (!Object.keys(env).some((name) => name.startsWith("GCP_") && env[name])) {
+    return localQueue(env);
+  }
   const {
     GCP_PROJECT_ID: project,
     GCP_REGION: location,
@@ -119,6 +126,46 @@ function taskQueue(env: Env, oidcToken: string | null | undefined): TaskQueue | 
   } catch {
     return undefined; // a malformed name or URL; named nowhere public
   }
+}
+
+/** The opt-in to {@link localQueue}: exactly this value of `LOCAL_TASKS`. */
+export const LOCAL_TASKS_OPT_IN = "push";
+
+/**
+ * One local queue per worker and secret for the whole process (its task names, its order),
+ * kept on `globalThis`: Next.js can load this module once per bundle layer, and two queues
+ * would push two jobs at once to a worker that runs one.
+ */
+const LOCAL_QUEUE = Symbol.for("gitinside.localTaskQueue");
+type LocalHolder = { [LOCAL_QUEUE]?: { key: string; queue: LocalTaskQueue } };
+
+/**
+ * Local development without Google (ADR-0149): with no `GCP_*` variable set, `LOCAL_TASKS`
+ * set to {@link LOCAL_TASKS_OPT_IN}, a loopback `WORKER_URL`, and `ENQUEUE_HMAC_SECRET`, jobs
+ * are pushed straight to the local worker's `POST /run` (localTasks.ts). Never on Vercel
+ * (`VERCEL` is set there), whatever else is set.
+ */
+function localQueue(env: Env): TaskQueue | undefined {
+  const { LOCAL_TASKS: optIn, VERCEL: vercel, WORKER_URL: workerUrl } = env;
+  const { ENQUEUE_HMAC_SECRET: secret } = env;
+  if (
+    optIn !== LOCAL_TASKS_OPT_IN ||
+    vercel ||
+    !workerUrl ||
+    !isLoopbackOrigin(workerUrl) ||
+    !secret ||
+    secret.length < MIN_SECRET_LENGTH
+  ) {
+    return undefined;
+  }
+  const key = JSON.stringify([workerUrl, secret]);
+  const holder = globalThis as LocalHolder;
+  let local = holder[LOCAL_QUEUE];
+  if (local?.key !== key) {
+    local = { key, queue: createLocalTaskQueue({ workerUrl, secret }) };
+    holder[LOCAL_QUEUE] = local;
+  }
+  return local.queue;
 }
 
 /**
