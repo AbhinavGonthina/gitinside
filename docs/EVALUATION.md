@@ -42,6 +42,8 @@ How they were chosen:
 
 **M5A outcome** (2026-11-01, ADR-0168; `pnpm eval --check` reproduces [the report](../eval/results/2026-11-01-0.1.0.md)): original five precision 100.0% (138/138), recall 100.0% (138/138), from 96.6% / 20.3% at M3; held-out (seen) 100.0% (78/78) both, from 75.4% / 55.1% before any fix. 133 of the original 138 matches and 60 of the held-out 78 are `heuristic`.
 
+**Held-out batch 2, first measurement** (M5A.4a3, 2026-11-01, the same report, GitInside `915a661`; labels committed in that commit, before the analyzer first ran on either repo): precision 45.8% (11/24), recall 35.5% (11/31); twitter-clone 100.0% (11/11) / 61.1% (11/18), nextjs-prisma-boilerplate 0.0% (0/13) / 0.0% (0/13); both `null` labels abstained. The two causes (`next-connect` method registrations read as `ALL`, 13 FN + 13 FP; SWR calling the repo's fetcher, 7 FN) are in [the batch 2 diagnosis](../eval/results/2026-11-batch2-diagnosis.md) and are not fixed in M5A. Batch 2 stays unseen until a fix is chosen with its misses in view; from then on it counts as seen, like batch 1.
+
 The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MIT-licensed React + Express apps, read but never analyzed):
 
 | Candidate | How it calls its API | Source files | Status |
@@ -50,7 +52,7 @@ The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MI
 | `shamahoque/mern-social` (`spa-plus-express`) | webpack React + Express in one package; per-feature `api-*.js` modules calling `fetch('/api/users/' + params.userId, …)` with root-relative, concatenated paths; routes declared with full paths in `router.route(path).get(…).put(…)` chains | ~43 | Pinned at its default-branch (`second-edition`) HEAD, labeled (18 labels at 18 call sites) |
 | `RishiBakshii/mern-ecommerce` (`axios-baseurl`) | CRA React + Express side by side; `features/*/…Api.jsx` modules calling `axiosi.get(\`/cart/user/${id}\`)` on one `axios.create({ baseURL: process.env.REACT_APP_BASE_URL })` instance | ~123 | Pinned at its default-branch HEAD, labeled (39 labels at 39 call sites) |
 
-The second held-out batch (M5A.4a2, 2026-11-01; found the same way, Next.js pages-router apps since none of the first eight uses the pages router, and URL styles none of them has; read but never analyzed, unseen until its first scored run):
+The second held-out batch (M5A.4a2, 2026-11-01; found the same way, Next.js pages-router apps since none of the first eight uses the pages router, and URL styles none of them has; read but never analyzed before their labels were committed; scored once in M5A.4a3):
 
 | Candidate | How it calls its API | Source files | Status |
 |---|---|---|---|
