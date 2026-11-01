@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.4 Eval re-run on the original and held-out repos, ADR for any change in approach, README/EVALUATION numbers updated (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.4a Fresh held-out batch, labeled before the analyzer runs on it, scored once (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -207,7 +207,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.3g R7 (7): wider API-base env names (`*_API_PATH`, `*_API_HOST`, `*_API`, `*_SERVER_URL`, …) from a documented list, FPs measured on all five repos; tests, eval delta {model: opus}
 - [x] M5A.3h R8 (4): URL alternatives held in a variable (ternary through a `const`, a `let` with every assignment before the call readable) give one edge per alternative (ADR-0041); also a ternary whose branches differ only after `?` (held-out online-ide's `/user/submissions${page ? "?page=" + page : ""}` is now `AMBIGUOUS` with `/user/:id`); fixture + golden, eval delta {model: opus}
 - [x] M5A.3i R9 (3): `http` sites anchored at the call expression's start (EVALUATION.md §1), not the method name (`axios⏎ .get(`); goldens, eval delta {model: opus}
-- [ ] M5A.4 Eval re-run on the original and held-out repos, ADR for any change in approach, README/EVALUATION numbers updated; if targets aren't met, list what's left and why (runtime-only URLs stay unresolved) {model: opus}
+- [x] M5A.4 Eval re-run on the original and held-out repos, ADR for any change in approach, README/EVALUATION numbers updated; if targets aren't met, list what's left and why (runtime-only URLs stay unresolved) {model: opus}
+- [ ] M5A.4a Fresh held-out batch (ADR-0168): pick 2 new public React/Next + Express (+ Prisma) repos of shapes and URL styles unlike the first eight (selection rules as M3.2, read but never analyzed), draft and commit their labels, then score once; the report marks the first held-out batch as seen and this one as unseen (e.g. a batch field in `repos.json`), each with its own totals; README/EVALUATION quote the first measurement as is; misses go to a diagnosis note, not into M5A fixes {model: opus}
 - [ ] M5A.5 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff (generalization: no repo-specific cases), CLI smoke test on a real repo outside the eval, M5A-review.md, tag m5a {model: opus}
 
 ### M6: Graph diff + incremental analysis
@@ -266,6 +267,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.4** (ADR-0168): `pnpm eval --check` at `ca04e28` reproduces `eval/results/2026-11-01-0.1.0.md` byte for byte: original five 100.0% / 100.0% (138/138; from 96.6% / 20.3%), held-out 100.0% / 100.0% (78/78; from 75.4% / 55.1%); targets met; 133/138 and 60/78 matches `heuristic`. ADR-0168 sums up the approach changes and what's still weak, and declares the held-out three "seen" (their misses were read during M5A.3g–3i, and M5A.3h's scope named online-ide's query ternary), so README/EVALUATION no longer present them as unseen. Added M5A.4a: a fresh held-out batch scored once before M5A.5.
 
 - **2026-11-01 M5A.3i** (`6096989`, `522e48c`, ADR-0167): an `http` request's site (direct and inlined wrapper calls) is now the call expression's start (`locationOf(call)`), as EVALUATION.md §1 defines, not the callee name; so `axios⏎ .get(` is on the `axios` line. Columns moved in 5 goldens (+ `axios-defaults`' unresolved node ID); README image bytes unchanged; new collector test; reverting the wrapper anchor fails `object-client`'s golden. Eval: original five TP 135 ⇒ 138, FP 3 ⇒ 0, FN 3 ⇒ 0 (100.0% / 100.0%); held-out TP 58 ⇒ 78, FP 20 ⇒ 0, FN 20 ⇒ 0 (100.0% / 100.0%). README numbers updated.
 
