@@ -50,6 +50,13 @@ The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MI
 | `shamahoque/mern-social` (`spa-plus-express`) | webpack React + Express in one package; per-feature `api-*.js` modules calling `fetch('/api/users/' + params.userId, …)` with root-relative, concatenated paths; routes declared with full paths in `router.route(path).get(…).put(…)` chains | ~43 | Pinned at its default-branch (`second-edition`) HEAD, labeled (18 labels at 18 call sites) |
 | `RishiBakshii/mern-ecommerce` (`axios-baseurl`) | CRA React + Express side by side; `features/*/…Api.jsx` modules calling `axiosi.get(\`/cart/user/${id}\`)` on one `axios.create({ baseURL: process.env.REACT_APP_BASE_URL })` instance | ~123 | Pinned at its default-branch HEAD, labeled (39 labels at 39 call sites) |
 
+The second held-out batch (M5A.4a2, 2026-11-01; found the same way, Next.js pages-router apps since none of the first eight uses the pages router, and URL styles none of them has; read but never analyzed, unseen until its first scored run):
+
+| Candidate | How it calls its API | Source files | Status |
+|---|---|---|---|
+| `harundogdu/twitter-clone` (`next-api-routes`) | Pages-router API routes (`pages/api/**`) picking methods with `req.method` guards; reads as SWR keys (`useSWR(\`/api/posts/${postId}\`, fetcher)`) handed to one `libs/fetcher.ts` (`axios.get(url)`) that no repo code calls; writes as inline axios calls, one URL chosen by a ternary held in a `const` | ~85 | Pinned at its default-branch HEAD, `"heldOut": 2`, labeled (19 labels at 18 call sites) |
+| `nemanjam/nextjs-prisma-boilerplate` (`next-api-routes`) | Pages-router API routes built with `next-connect` (`nc().get(…).post(…)`) and a custom `server/index.ts`; react-query hooks calling one `axios.create()` instance (no `baseURL`) with paths from a `Routes.API.*` constants object (`` `${Routes.API.POSTS}${id}` ``) | ~200 (incl. tests) | Candidate for M5A.4a3 |
+
 **Ground truth format** (`eval/labels/<owner>__<repo>.json`):
 ```json
 {
@@ -81,12 +88,13 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 - **`callSite`** is where the URL's route becomes known, which is a property of the code, not of the analyzer:
   - a `fetch`/axios call whose URL is fixed there (even inside a helper like `getUsers()`) is labeled at that call;
   - a call through a helper that takes the path as a parameter is labeled at each call *of the helper* (the outermost caller that supplies the path, however many helper levels deep);
+  - when a library calls the repo's helper with a key the repo hands it (SWR's `useSWR(key, fetcher)`, where `fetcher` is the repo's `axios.get(url)`), the outermost repo code supplying the path is that library call, so the label is there, and the helper's own request isn't labeled (M5A.4a2);
   - `column` (the start of the call expression) is added only when one line holds several calls.
   - A call site normally has one label. When its URL is one of several alternatives the code fixes statically (`cond ? "/a" : "/b"`, a `let url` reassigned in a branch), it gets **one label per route reached**, each with the same `callSite` (ADR-0041).
   - Labels are sorted by call site (file, line, column), then target (`null` first, then route, file, line), and unique.
   - Two labels at one call site can't name the same route as scoring compares it (registering file + method + path, parameter names and lines ignored), and a `null` label can't share a call site with a route label: it says the call reaches no route (ADR-0045).
 - **`method`** is the request's method (`GET`, `POST`, …), or `null` when the code computes it at runtime.
-- **`target`** is the route the request really reaches, or `null` when it reaches none in the repo (external host, a service outside the repo, a URL that can't be known statically). `file` + `line` are where the route is registered (the `router.post(…)` call, or the Next.js handler export or page file). `route` is `"<METHOD> <path>"` in the analyzer's route spelling (GRAPH_SCHEMA.md): the full path after mounts, `:name` for dynamic segments and `*name` for catch-alls (Next.js `[id]` ⇒ `:id`, `[...slug]` ⇒ `*slug`), no trailing slash, no query; `ALL` when the handler accepts any method.
+- **`target`** is the route the request really reaches, or `null` when it reaches none in the repo (external host, a service outside the repo, a URL that can't be known statically). `file` + `line` are where the route is registered (the `router.post(…)` call, or the Next.js handler export or page file). `route` is `"<METHOD> <path>"` in the analyzer's route spelling (GRAPH_SCHEMA.md): the full path after mounts, `:name` for dynamic segments and `*name` for catch-alls (Next.js `[id]` ⇒ `:id`, `[...slug]` ⇒ `*slug`), no trailing slash, no query; `ALL` when the handler accepts any method. A pages-router API handler that admits only a listed set of methods (`405` otherwise, or a `switch` on `req.method`) is labeled with the request's method; one that runs its code for every method but a few it rejects (`if (req.method === "GET") throw`) is open, so `ALL` (M5A.4a2).
 - **`labeler`** is `claude-draft` or `abhinav`; **`reviewedBy`** is the reviewer's GitHub login once the review is done.
 - **`notes`** is optional free text: how the call was traced, or how a disagreement was resolved.
 

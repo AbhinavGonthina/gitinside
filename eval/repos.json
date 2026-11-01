@@ -1,6 +1,16 @@
 {
   "repos": [
     {
+      "owner": "harundogdu",
+      "name": "twitter-clone",
+      "url": "https://github.com/harundogdu/twitter-clone",
+      "sha": "bef848a958e8fd26856149abfa7980d071577219",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 2 (M5A.4a2). Single-package Next.js pages router app with Prisma: client components and hooks call its own pages/api handlers by root-relative path. Most reads are SWR keys (useSWR(`/api/posts/${postId}`, fetcher)) handed to one libs/fetcher.ts that calls axios.get(url), so the URL is written at the useSWR call while the request expression is in the fetcher, which no repo code calls; writes are inline axios calls (one URL chosen by a ternary held in a const), plus one fetch. Handlers pick their methods with req.method guards (405, a switch, an open handler that only rejects GET). ~85 TS source files.",
+      "heldOut": 2
+    },
+    {
       "owner": "hoangsonww",
       "name": "WealthWise-Finance-Tracker",
       "url": "https://github.com/hoangsonww/WealthWise-Finance-Tracker",
@@ -80,6 +90,10 @@
     {
       "batch": 1,
       "seen": "Their false positives and negatives were read during M5A.3g–3i, though no fix was chosen from them (ADR-0168)."
+    },
+    {
+      "batch": 2,
+      "seen": null
     }
   ]
 }
