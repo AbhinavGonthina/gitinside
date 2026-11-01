@@ -39,8 +39,6 @@ COPY --from=build /out /app
 # Read-only for the worker except /tmp (in memory on Cloud Run, where job folders go):
 # the base image's `node` home and anything else it owns go to root, and every other
 # world-writable path (/var/tmp, /run/lock, …) loses that bit.
-RUN find / -xdev \( -user 1000 -o -group 1000 \) -exec chown -h root:root {} + \
-  && find / -xdev -perm -0002 ! -type l ! -path /tmp -exec chmod o-w {} +
 WORKDIR /app/apps/worker
 # The base image's unprivileged `node` user, by number so the platform can tell it isn't root.
 USER 1000:1000
