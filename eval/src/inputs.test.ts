@@ -33,15 +33,17 @@ describe("crossCheck", () => {
   it("accepts matching labels and pinned repos without labels yet", () => {
     const inputs = {
       repos: [repo],
+      heldOutBatches: [],
       labels: new Map([["acme__shop.json", labels("acme/shop", SHA_A)]]),
     };
     expect(crossCheck(inputs)).toEqual([]);
-    expect(crossCheck({ repos: [repo], labels: new Map() })).toEqual([]);
+    expect(crossCheck({ repos: [repo], heldOutBatches: [], labels: new Map() })).toEqual([]);
   });
 
   it("flags wrong file names, unpinned repos, and SHA mismatches, sorted", () => {
     const inputs = {
       repos: [repo],
+      heldOutBatches: [],
       labels: new Map([
         ["zeta.json", labels("acme/shop", SHA_A)],
         ["acme__shop.json", labels("acme/shop", SHA_B)],
@@ -72,7 +74,16 @@ describe("loadEvalInputs", () => {
     });
     const inputs = loadEvalInputs(root);
     expect(inputs.repos).toEqual([repo]);
+    expect(inputs.heldOutBatches).toEqual([]);
     expect([...inputs.labels.keys()]).toEqual(["acme__shop.json"]);
+  });
+
+  it("loads the held-out batches (M5A.4a1)", () => {
+    const batch = { batch: 1, seen: null };
+    const root = scratch({
+      "repos.json": JSON.stringify({ repos: [{ ...repo, heldOut: 1 }], heldOutBatches: [batch] }),
+    });
+    expect(loadEvalInputs(root).heldOutBatches).toEqual([batch]);
   });
 
   it("names the failing label file", () => {
@@ -92,9 +103,21 @@ describe("loadEvalInputs", () => {
   it("pins one committed original repo per shape (EVALUATION.md §1)", () => {
     const root = fileURLToPath(new URL("..", import.meta.url));
     const shapes = loadEvalInputs(root)
-      .repos.filter((r) => r.heldOut !== true)
+      .repos.filter((r) => r.heldOut === undefined)
       .map((r) => r.shape)
       .sort(compareStrings);
     expect(shapes).toEqual([...REPO_SHAPES]);
+  });
+
+  it("counts the first held-out batch as seen (ADR-0168)", () => {
+    const root = fileURLToPath(new URL("..", import.meta.url));
+    const inputs = loadEvalInputs(root);
+    expect(inputs.heldOutBatches[0]).toMatchObject({ batch: 1, seen: expect.any(String) });
+    expect(
+      inputs.repos
+        .filter((r) => r.heldOut === 1)
+        .map((r) => r.name)
+        .sort(compareStrings),
+    ).toEqual(["mern-ecommerce", "mern-social", "online-ide"]);
   });
 });

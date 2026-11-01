@@ -11,6 +11,7 @@ import {
   ReportError,
   reportFileName,
   resolveReportArg,
+  type HeldOutSet,
   type ReportInput,
   type ReportRun,
 } from "./report.js";
@@ -334,7 +335,7 @@ describe("renderReport", () => {
     expect(renderReport(input())).toBe(text);
   });
 
-  describe("held-out repos (M5A.2a)", () => {
+  describe("held-out batches (M5A.2a, M5A.4a1)", () => {
     const heldOutScore: RepoScore = {
       ...SCORE_A,
       repo: "held/out",
@@ -352,24 +353,36 @@ describe("renderReport", () => {
       falsePositives: [],
       missing: [],
     };
-    const heldOut = renderReport(
-      input({
-        heldOut: {
-          repos: [{ ...repo("held", "out"), heldOut: true }],
-          labels: [{ ...LABELS_A, repo: "held/out" }],
-          score: { overall: heldOutScore.counts, repos: [heldOutScore] },
-        },
-      }),
+    const batch1: HeldOutSet = {
+      batch: 1,
+      seen: "Its misses were read while fixing the analyzer.",
+      repos: [{ ...repo("held", "out"), heldOut: 1 }],
+      labels: [{ ...LABELS_A, repo: "held/out" }],
+      score: { overall: heldOutScore.counts, repos: [heldOutScore] },
+    };
+    const freshScore: RepoScore = { ...SCORE_B, repo: "new/one", counts: counts({ labels: 2 }) };
+    const batch2: HeldOutSet = {
+      batch: 2,
+      seen: null,
+      repos: [{ ...repo("new", "one"), heldOut: 2 }],
+      labels: [{ ...LABELS_B, repo: "new/one" }],
+      score: { overall: freshScore.counts, repos: [freshScore] },
+    };
+    const heldOut = renderReport(input({ heldOut: [batch1, batch2] }));
+    const section1 = heldOut.slice(
+      heldOut.indexOf("## Held-out batch 1 (seen)"),
+      heldOut.indexOf("## Held-out batch 2"),
     );
-    const section = heldOut.slice(
-      heldOut.indexOf("## Held-out repos"),
+    const section2 = heldOut.slice(
+      heldOut.indexOf("## Held-out batch 2 (unseen)"),
       heldOut.indexOf("## Method"),
     );
 
     it("leaves the report byte-identical when there are none", () => {
-      const empty = { repos: [], labels: [], score: { overall: counts(), repos: [] } };
-      expect(renderReport(input({ heldOut: empty }))).toBe(text);
-      expect(text).not.toContain("Held-out");
+      const empty = { ...batch2, repos: [], labels: [], score: { overall: counts(), repos: [] } };
+      expect(renderReport(input({ heldOut: [] }))).toBe(text);
+      expect(renderReport(input({ heldOut: [empty] }))).toBe(text);
+      expect(text).not.toMatch(/held-out/i);
     });
 
     it("keeps their counts out of the headline and the original totals", () => {
@@ -379,43 +392,63 @@ describe("renderReport", () => {
       expect(heldOut).toContain(
         "| **All repos** | 3 | 2 | 1 | 1 | 1 | 50.0% (1/2) | 50.0% (1/2) |",
       );
-      const before = heldOut.slice(0, heldOut.indexOf("## Held-out repos"));
+      const before = heldOut.slice(0, heldOut.indexOf("## Held-out batch 1"));
       expect(before).not.toContain("held/out");
+      expect(before).not.toContain("new/one");
       expect(heldOut).toContain("- **Small set:** two small and mid-size apps");
     });
 
-    it("gives them their own repos, totals, levels, and misses, after the original misses", () => {
-      expect(heldOut.indexOf("### zed/app")).toBeLessThan(heldOut.indexOf("## Held-out repos"));
-      expect(section).toContain(
+    it("gives each batch its own repos, totals, levels, and misses, in batch order after the original misses", () => {
+      expect(heldOut.indexOf("### zed/app")).toBeLessThan(heldOut.indexOf("## Held-out batch 1"));
+      expect(heldOut.indexOf("## Held-out batch 1")).toBeLessThan(
+        heldOut.indexOf("## Held-out batch 2"),
+      );
+      expect(section1).toContain(
         `| [held/out](https://github.com/held/out) | spa-plus-express | \`${SHA}\` | MIT | 3 | 3 |`,
       );
-      expect(section).toContain(
-        "Precision 100.0% (3/3), recall 75.0% (3/4) over 4 labels in 1 held-out repo.",
+      expect(section1).toContain(
+        "Precision 100.0% (3/3), recall 75.0% (3/4) over 4 labels in 1 repo of batch 1.",
       );
-      expect(section).toContain(
-        "| **All held-out repos** | 4 | 4 | 3 | 0 | 1 | 100.0% (3/3) | 75.0% (3/4) |",
+      expect(section1).toContain(
+        "| **All of batch 1** | 4 | 4 | 3 | 0 | 1 | 100.0% (3/3) | 75.0% (3/4) |",
       );
-      expect(section).toContain("### Held-out, by confidence level");
-      expect(section).toContain("| pattern | 3 | 0 | 100.0% (3/3) | 75.0% (3/4) |");
-      expect(section).toContain("#### held/out\n\n**False positives (0)**\n\nNone.");
-      expect(section).toContain(
+      expect(section1).toContain("### Batch 1, by confidence level");
+      expect(section1).toContain("| pattern | 3 | 0 | 100.0% (3/3) | 75.0% (3/4) |");
+      expect(section1).toContain("### Batch 1 misses, by repo");
+      expect(section1).toContain("#### held/out\n\n**False positives (0)**\n\nNone.");
+      expect(section1).toContain(
         "- `web/api.ts:7` (POST): expected `POST /api/items` in `api/server.ts:12`; nothing predicted at the site.",
       );
+      expect(section1).not.toContain("new/one");
+      // Batch 2's numbers are its own, not added to batch 1's.
+      expect(section2).toContain("over 2 labels in 1 repo of batch 2.");
+      expect(section2).toContain("| **All of batch 2** | 2 | 0 | 0 | 0 | 0 | n/a | n/a |");
+      expect(section2).toContain("#### new/one\n");
+      expect(section2).not.toContain("held/out");
     });
 
-    it("says what the held-out set is in the limitations, and counts its labels in the review status", () => {
-      expect(heldOut).toContain("- **Held-out set:** one more app, picked and labeled after");
+    it("says whether each batch is seen, and why", () => {
+      expect(section1).toContain(
+        "**Seen:** Its misses were read while fixing the analyzer. Still scored apart, but no longer evidence that fixes generalize.",
+      );
+      expect(section1).not.toContain("**Unseen:**");
+      expect(section2).toContain(
+        "**Unseen:** nobody has studied these repos' results while fixing the analyzer",
+      );
+      expect(section2).not.toContain("**Seen:**");
+    });
+
+    it("lists the batches in the limitations, and counts their labels in the review status", () => {
+      expect(heldOut).toContain(
+        "- **Held-out batches:** batch 1 (one app, seen), batch 2 (one app, unseen), picked and labeled after",
+      );
       const reviewed = renderReport(
         input({
           labels: [
             { ...LABELS_A, reviewedBy: "AbhinavGonthina" },
             { ...LABELS_B, reviewedBy: "AbhinavGonthina" },
           ],
-          heldOut: {
-            repos: [{ ...repo("held", "out"), heldOut: true }],
-            labels: [{ ...LABELS_A, repo: "held/out" }],
-            score: { overall: heldOutScore.counts, repos: [heldOutScore] },
-          },
+          heldOut: [batch1],
         }),
       );
       expect(reviewed).toContain("> **Pending owner review.**");
@@ -425,11 +458,7 @@ describe("renderReport", () => {
       expect(() =>
         renderReport(
           input({
-            heldOut: {
-              repos: [repo("held", "out")],
-              labels: [],
-              score: { overall: counts(), repos: [] },
-            },
+            heldOut: [{ ...batch2, labels: [], score: { overall: counts(), repos: [] } }],
           }),
         ),
       ).toThrow(ReportError);
