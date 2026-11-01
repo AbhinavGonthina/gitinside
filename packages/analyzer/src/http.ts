@@ -125,7 +125,10 @@ export interface HttpCallSite {
   file: string;
   /** The call expression. */
   call: ts.CallExpression;
-  /** Position of the callee name (`fetch`, `get`, or the instance for `api(config)`). */
+  /**
+   * Start of the call expression (`axios` in `axios⏎ .get(…)`), where EVALUATION.md §1 puts
+   * a call site (ADR-0167).
+   */
   site: SourceLocation;
   /** The code the call belongs to, before Express composition (see `owners.ts`). */
   owners: Owners;
@@ -956,14 +959,12 @@ export function collectHttpCalls(
         if (ts.isCallExpression(node)) {
           const request = requestOf(sp, node);
           if (request) {
-            const callee = unwrap(node.expression);
-            const name = ts.isPropertyAccessExpression(callee) ? callee.name : callee;
             sites.push({
               ...request,
               sp,
               file,
               call: node,
-              site: locationOf(name, file),
+              site: locationOf(node, file),
               owners: current,
             });
           }

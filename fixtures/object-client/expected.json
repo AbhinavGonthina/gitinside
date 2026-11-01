@@ -129,7 +129,7 @@
       "label": "POST /api/v1/accounts",
       "sites": [
         {
-          "column": 20,
+          "column": 10,
           "file": "apps/web/src/hooks/use-accounts.ts",
           "line": 13
         }
@@ -144,7 +144,7 @@
       "label": "DELETE /api/v1/accounts/:id",
       "sites": [
         {
-          "column": 20,
+          "column": 10,
           "file": "apps/web/src/hooks/use-accounts.ts",
           "line": 21
         }
@@ -159,7 +159,7 @@
       "label": "GET /api/v1/accounts",
       "sites": [
         {
-          "column": 20,
+          "column": 10,
           "file": "apps/web/src/hooks/use-accounts.ts",
           "line": 9
         }
@@ -174,7 +174,7 @@
       "label": "PATCH /api/v1/accounts/:id",
       "sites": [
         {
-          "column": 20,
+          "column": 10,
           "file": "apps/web/src/hooks/use-accounts.ts",
           "line": 17
         }

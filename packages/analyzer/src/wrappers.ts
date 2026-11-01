@@ -105,7 +105,7 @@ export interface HttpRequest {
   via?: string;
   /** Repo-relative file the request is made from: the wrapper call's when inlined. */
   file: string;
-  /** Position of the callee name of the wrapper call when inlined, else of the call. */
+  /** Start of the wrapper call expression when inlined, else of the call (ADR-0167). */
   site: SourceLocation;
   /** Symbol or route node IDs the request belongs to, sorted. Empty for top-level code. */
   owners: string[];
@@ -380,7 +380,7 @@ export function collectHttpFacts(
               sp,
               file,
               call: node,
-              site: locationOf(name, file),
+              site: locationOf(node, file),
               owners: current,
               confidence: target.confidence,
             });

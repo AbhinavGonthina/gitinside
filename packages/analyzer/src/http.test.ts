@@ -58,6 +58,26 @@ function summary(sites: readonly BoundSite[]): string[] {
   );
 }
 
+describe("collectHttpCalls: site", () => {
+  it("anchors a site at the call expression's start, not the method name (EVALUATION.md §1)", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { axios: "1.0.0" } }));
+    await put("src/api.ts", [
+      'import axios from "axios";',
+      "export async function load() {",
+      "  await axios",
+      '    .get("/a");',
+      '  await window.fetch("/b");',
+      '  await (axios).post("/c", {});',
+      "}",
+    ]);
+    expect(summary(await collect()).map((s) => s.split(" base=")[0])).toEqual([
+      'src/api.ts:3:9 axios GET "/a"',
+      'src/api.ts:5:9 fetch GET "/b"',
+      'src/api.ts:6:9 axios POST "/c"',
+    ]);
+  });
+});
+
 describe("collectHttpCalls: fetch", () => {
   it("reads the method from init, consts, objects, and enums, and marks the rest unknown", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
@@ -154,8 +174,8 @@ describe("collectHttpCalls: fetch", () => {
       'export function shadowed() { return window.fetch("/nope"); }',
     ]);
     expect(summary(await collect())).toEqual([
-      'src/a.ts:6:8 fetch GET "/w" base=- []',
-      'src/a.ts:7:12 fetch POST "/g" base=- []',
+      'src/a.ts:6:1 fetch GET "/w" base=- []',
+      'src/a.ts:7:1 fetch POST "/g" base=- []',
       'src/a.ts:8:1 fetch GET "/n" base=- []',
       'src/a.ts:9:1 fetch GET "/u" base=- []',
       'src/a.ts:10:1 fetch GET "/r" base=- []',
@@ -191,19 +211,19 @@ describe("collectHttpCalls: axios", () => {
       "}",
     ]);
     expect(summary(await collect())).toEqual([
-      'src/a.ts:3:15 axios GET "/users" base=- [symbol:web/src/a.ts#all]',
-      "src/a.ts:4:15 axios POST `/users/${id}` base=- [symbol:web/src/a.ts#all]",
-      'src/a.ts:5:15 axios DELETE "/users/1" base="/v2" [symbol:web/src/a.ts#all]',
-      'src/a.ts:6:15 axios PATCH "/form" base=- [symbol:web/src/a.ts#all]',
+      'src/a.ts:3:9 axios GET "/users" base=- [symbol:web/src/a.ts#all]',
+      "src/a.ts:4:9 axios POST `/users/${id}` base=- [symbol:web/src/a.ts#all]",
+      'src/a.ts:5:9 axios DELETE "/users/1" base="/v2" [symbol:web/src/a.ts#all]',
+      'src/a.ts:6:9 axios PATCH "/form" base=- [symbol:web/src/a.ts#all]',
       'src/a.ts:7:9 axios PUT "/cfg" base=- [symbol:web/src/a.ts#all]',
       'src/a.ts:8:9 axios GET "/plain" base=- [symbol:web/src/a.ts#all]',
       'src/a.ts:9:9 axios POST "/plain-post" base=- [symbol:web/src/a.ts#all]',
-      'src/a.ts:10:15 axios DELETE "/req" base="https://api.test" [symbol:web/src/a.ts#all]',
-      "src/a.ts:11:15 axios ? ? base=? [symbol:web/src/a.ts#all]",
+      'src/a.ts:10:9 axios DELETE "/req" base="https://api.test" [symbol:web/src/a.ts#all]',
+      "src/a.ts:11:9 axios ? ? base=? [symbol:web/src/a.ts#all]",
       "src/a.ts:12:9 axios ? ? base=? [symbol:web/src/a.ts#all]",
-      'src/a.ts:13:15 axios GET "/opaque" base=- [symbol:web/src/a.ts#all]',
-      'src/a.ts:14:15 axios POST "/spread" base=- [symbol:web/src/a.ts#all]',
-      "src/a.ts:15:15 axios GET ? base=- [symbol:web/src/a.ts#all]",
+      'src/a.ts:13:9 axios GET "/opaque" base=- [symbol:web/src/a.ts#all]',
+      'src/a.ts:14:9 axios POST "/spread" base=- [symbol:web/src/a.ts#all]',
+      "src/a.ts:15:9 axios GET ? base=- [symbol:web/src/a.ts#all]",
     ]);
   });
 
@@ -235,14 +255,14 @@ describe("collectHttpCalls: axios", () => {
       "}",
     ]);
     expect(summary(await collect())).toEqual([
-      'src/use.ts:4:13 axios GET "/orders" base=API [symbol:web/src/use.ts#run]',
-      'src/use.ts:5:12 axios POST "/orders" base="/v2" [symbol:web/src/use.ts#run]',
-      'src/use.ts:6:15 axios GET "/child" base=API [symbol:web/src/use.ts#run]',
-      'src/use.ts:7:16 axios PUT "/default" base="/shared" [symbol:web/src/use.ts#run]',
-      'src/use.ts:8:22 axios GET "/made" base=? [symbol:web/src/use.ts#run]',
-      "src/use.ts:9:14 axios HEAD \"/lazy\" base='/lazy' [symbol:web/src/use.ts#run]",
-      'src/use.ts:10:15 axios OPTIONS "/given" base=? [symbol:web/src/use.ts#run]',
-      'src/use.ts:11:13 axios GET "/override" base="/other" [symbol:web/src/use.ts#run]',
+      'src/use.ts:4:9 axios GET "/orders" base=API [symbol:web/src/use.ts#run]',
+      'src/use.ts:5:9 axios POST "/orders" base="/v2" [symbol:web/src/use.ts#run]',
+      'src/use.ts:6:9 axios GET "/child" base=API [symbol:web/src/use.ts#run]',
+      'src/use.ts:7:9 axios PUT "/default" base="/shared" [symbol:web/src/use.ts#run]',
+      'src/use.ts:8:9 axios GET "/made" base=? [symbol:web/src/use.ts#run]',
+      "src/use.ts:9:9 axios HEAD \"/lazy\" base='/lazy' [symbol:web/src/use.ts#run]",
+      'src/use.ts:10:9 axios OPTIONS "/given" base=? [symbol:web/src/use.ts#run]',
+      'src/use.ts:11:9 axios GET "/override" base="/other" [symbol:web/src/use.ts#run]',
     ]);
   });
 
@@ -277,15 +297,15 @@ describe("collectHttpCalls: axios", () => {
       "}",
     ]);
     expect(summary(await collect())).toEqual([
-      "src/a.ts:14:15 axios GET \"/1\" base='/svc' [symbol:web/src/a.ts#Service.run]",
-      'src/a.ts:15:16 axios GET "/2" base=? [symbol:web/src/a.ts#Service.run]',
-      'src/a.ts:16:18 axios GET "/3" base="/base" [symbol:web/src/a.ts#Service.run]',
-      "src/a.ts:17:19 axios GET \"/4\" base='/other' [symbol:web/src/a.ts#Service.run]",
-      "src/a.ts:18:20 axios GET \"/5\" base='/made' [symbol:web/src/a.ts#Service.run]",
-      "src/a.ts:19:12 axios GET \"/6\" base='/made' [symbol:web/src/a.ts#Service.run]",
-      'src/a.ts:21:57 axios GET "/7" base="/assigned" [symbol:web/src/a.ts#Service.run]',
-      'src/a.ts:22:12 axios GET "/8" base="/base" [symbol:web/src/a.ts#Service.run]',
-      'src/a.ts:23:10 axios GET "/9" base="/base" [symbol:web/src/a.ts#Service.run]',
+      "src/a.ts:14:5 axios GET \"/1\" base='/svc' [symbol:web/src/a.ts#Service.run]",
+      'src/a.ts:15:5 axios GET "/2" base=? [symbol:web/src/a.ts#Service.run]',
+      'src/a.ts:16:5 axios GET "/3" base="/base" [symbol:web/src/a.ts#Service.run]',
+      "src/a.ts:17:5 axios GET \"/4\" base='/other' [symbol:web/src/a.ts#Service.run]",
+      "src/a.ts:18:5 axios GET \"/5\" base='/made' [symbol:web/src/a.ts#Service.run]",
+      "src/a.ts:19:5 axios GET \"/6\" base='/made' [symbol:web/src/a.ts#Service.run]",
+      'src/a.ts:21:5 axios GET "/7" base="/assigned" [symbol:web/src/a.ts#Service.run]',
+      'src/a.ts:22:5 axios GET "/8" base="/base" [symbol:web/src/a.ts#Service.run]',
+      'src/a.ts:23:5 axios GET "/9" base="/base" [symbol:web/src/a.ts#Service.run]',
     ]);
   });
 
@@ -308,12 +328,12 @@ describe("collectHttpCalls: axios", () => {
       'ax.put("/f");',
     ]);
     expect(summary(await collect())).toEqual([
-      'src/cjs.js:5:7 axios GET "/a" base=- []',
-      'src/cjs.js:6:5 axios POST "/b" base=- []',
-      'src/ns.ts:3:7 axios GET "/d" base=- []',
-      'src/ns.ts:4:15 axios GET "/e" base=- []',
-      'src/ns.ts:5:4 axios PUT "/f" base=- []',
-      "src/use.js:2:6 axios DELETE \"/c\" base='/cjs' []",
+      'src/cjs.js:5:1 axios GET "/a" base=- []',
+      'src/cjs.js:6:1 axios POST "/b" base=- []',
+      'src/ns.ts:3:1 axios GET "/d" base=- []',
+      'src/ns.ts:4:1 axios GET "/e" base=- []',
+      'src/ns.ts:5:1 axios PUT "/f" base=- []',
+      "src/use.js:2:1 axios DELETE \"/c\" base='/cjs' []",
     ]);
   });
 
@@ -342,8 +362,8 @@ describe("collectHttpCalls: axios", () => {
     ]);
     const sites = await collect();
     expect(summary(sites)).toEqual([
-      'apps/web/src/page.ts:3:30 axios GET "/users" base="/api" [symbol:web/src/page.ts#one]',
-      'apps/web/src/page.ts:4:32 axios POST "/users" base="/api" [symbol:web/src/page.ts#two]',
+      'apps/web/src/page.ts:3:26 axios GET "/users" base="/api" [symbol:web/src/page.ts#one]',
+      'apps/web/src/page.ts:4:26 axios POST "/users" base="/api" [symbol:web/src/page.ts#two]',
     ]);
     // The base URL lives in the client package, so it carries that package's program.
     expect(sites.map((s) => s.baseURL && s.baseURL.sp.service.key)).toEqual(["client", "client"]);
@@ -398,22 +418,22 @@ describe("collectHttpCalls: axios", () => {
     ]);
     const owner = "[symbol:web/src/use.ts#run]";
     expect(summary(await collect())).toEqual([
-      `src/use.ts:4:15 axios GET "/root" base=\`\${API}/v1\` ${owner}`,
-      `src/use.ts:5:15 axios GET "/call" base="/call" ${owner}`,
-      `src/use.ts:6:13 axios GET "/api" base="/api" ${owner}`,
-      `src/use.ts:7:15 axios GET "/keyed" base="/keyed" ${owner}`,
+      `src/use.ts:4:9 axios GET "/root" base=\`\${API}/v1\` ${owner}`,
+      `src/use.ts:5:9 axios GET "/call" base="/call" ${owner}`,
+      `src/use.ts:6:9 axios GET "/api" base="/api" ${owner}`,
+      `src/use.ts:7:9 axios GET "/keyed" base="/keyed" ${owner}`,
       // Assigned twice, inside a function, with `+=`, replaced whole: unknown, never guessed.
-      `src/use.ts:8:15 axios GET "/twice" base=? ${owner}`,
-      `src/use.ts:9:15 axios GET "/later" base=? ${owner}`,
-      `src/use.ts:10:14 axios GET "/plus" base=? ${owner}`,
-      `src/use.ts:11:17 axios GET "/swapped" base=? ${owner}`,
+      `src/use.ts:8:9 axios GET "/twice" base=? ${owner}`,
+      `src/use.ts:9:9 axios GET "/later" base=? ${owner}`,
+      `src/use.ts:10:9 axios GET "/plus" base=? ${owner}`,
+      `src/use.ts:11:9 axios GET "/swapped" base=? ${owner}`,
       // Every call of a factory makes a new instance: one's assignment says nothing of the next.
-      `src/use.ts:12:16 axios GET "/made" base=? ${owner}`,
+      `src/use.ts:12:9 axios GET "/made" base=? ${owner}`,
       // `create()` copies the defaults when it runs, before or after the assignment.
-      `src/use.ts:13:15 axios GET "/child" base=? ${owner}`,
-      `src/use.ts:14:13 axios GET "/own" base="/own" ${owner}`,
-      `src/use.ts:15:12 axios GET "/v2" base="/v2" ${owner}`,
-      `src/use.ts:16:18 axios GET "/api-child" base=? ${owner}`,
+      `src/use.ts:13:9 axios GET "/child" base=? ${owner}`,
+      `src/use.ts:14:9 axios GET "/own" base="/own" ${owner}`,
+      `src/use.ts:15:9 axios GET "/v2" base="/v2" ${owner}`,
+      `src/use.ts:16:9 axios GET "/api-child" base=? ${owner}`,
     ]);
   });
 
@@ -434,8 +454,8 @@ describe("collectHttpCalls: axios", () => {
       'export const two = () => axios.get("https://example.test/hook");',
     ]);
     expect(summary(await collect())).toEqual([
-      'apps/web/src/a.ts:3:32 axios GET "/users" base="/api" [symbol:web/src/a.ts#one]',
-      'apps/worker/src/b.ts:2:32 axios GET "https://example.test/hook" base=- [symbol:worker/src/b.ts#two]',
+      'apps/web/src/a.ts:3:26 axios GET "/users" base="/api" [symbol:web/src/a.ts#one]',
+      'apps/worker/src/b.ts:2:26 axios GET "https://example.test/hook" base=- [symbol:worker/src/b.ts#two]',
     ]);
   });
 
@@ -466,7 +486,7 @@ describe("collectHttpCalls: axios", () => {
     await put("src/api.ts", lines);
     const started = performance.now();
     expect(summary(await collect())).toEqual([
-      'src/api.ts:11:30 axios GET "/x" base="/api" [symbol:web/src/api.ts#go]',
+      'src/api.ts:11:25 axios GET "/x" base="/api" [symbol:web/src/api.ts#go]',
     ]);
     expect(performance.now() - started).toBeLessThan(20_000);
   });
