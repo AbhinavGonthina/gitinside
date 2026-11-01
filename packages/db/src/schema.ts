@@ -78,10 +78,22 @@ export const repos = pgTable(
     defaultBranch: text("default_branch").notNull(),
     createdAt: timestampTz("created_at").notNull().defaultNow(),
     updatedAt: timestampTz("updated_at").notNull().defaultNow(),
+    /**
+     * The commit whose new analysis `/api/analyze` last let through for this repo, and when
+     * (the database's clock, whole milliseconds): one new analysis per repo per period,
+     * whoever asks (#11, ADR-0155). Both null when no claim stands.
+     */
+    analysisClaimSha: text("analysis_claim_sha"),
+    analysisClaimedAt: timestampTz("analysis_claimed_at"),
   },
   (t) => [
     uniqueIndex("repos_owner_name_lower_key").on(sql`lower(${t.owner})`, sql`lower(${t.name})`),
     index("repos_installation_id_idx").on(t.installationId),
+    check("repos_analysis_claim_sha_check", isSha(t.analysisClaimSha)),
+    check(
+      "repos_analysis_claim_check",
+      sql`(${t.analysisClaimSha} is null) = (${t.analysisClaimedAt} is null)`,
+    ),
   ],
 );
 

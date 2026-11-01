@@ -4,6 +4,7 @@ import {
   completeAnalysis,
   failAnalysis,
   hideRepo,
+  queueAnalysis,
   rateLimits,
   repos,
   startAnalysis,
@@ -12,7 +13,12 @@ import {
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { jobIdFor } from "@gitinside/worker";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { requestAnalysis, UNAVAILABLE_MESSAGE, type AnalyzeDeps } from "./analyze";
+import {
+  REPO_ANALYSIS_MINUTES,
+  requestAnalysis,
+  UNAVAILABLE_MESSAGE,
+  type AnalyzeDeps,
+} from "./analyze";
 import { rateLimitKey } from "./clientIp";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
@@ -67,6 +73,12 @@ async function jobIds() {
 async function slotsUsed(address = IP): Promise<number> {
   const rows = await t.db.select().from(rateLimits);
   return rows.find((r) => r.key === rateLimitKey(SECRET, address))?.count ?? 0;
+}
+
+/** When the repo with GitHub ID `providerRepoId` was claimed for a new analysis, if it is. */
+async function claimOf(providerRepoId: number): Promise<Date | undefined> {
+  const rows = await t.db.select().from(repos);
+  return rows.find((r) => r.providerRepoId === providerRepoId)?.analysisClaimedAt ?? undefined;
 }
 
 async function doneAnalysis() {
@@ -177,6 +189,12 @@ describe("requestAnalysis", () => {
     expect(tasks.google.tasks).toHaveLength(1);
     const used = await Promise.all(addresses.map((a) => slotsUsed(a)));
     expect(used.reduce((sum, n) => sum + n, 0)).toBe(1);
+    // Whichever of them queued it, the repo stays claimed for this commit (#11).
+    expect(await claimOf(SHOP.id)).toBeDefined();
+    expect((await requestAnalysis("acme/shop", IP, deps)).status).toBe(202);
+    gh = fakeGitHub([{ ...SHOP, sha: "f".repeat(40) }]);
+    const newer = await requestAnalysis("acme/shop", IP, { ...deps, github: { fetch: gh.fetch } });
+    expect(newer.status).toBe(429);
   });
 
   it("re-queues a failed commit, counting it as a new analysis", async () => {
@@ -202,6 +220,8 @@ describe("requestAnalysis", () => {
       await failAnalysis(t.db, row!.id, code);
       await t.db.update(analyses).set({ finishedAt: new Date(Date.now() - hoursAgo * 3_600_000) });
       await t.db.delete(rateLimits);
+      // Asking again for a newer commit isn't held back by the per-repo limit.
+      await t.db.update(repos).set({ analysisClaimSha: null, analysisClaimedAt: null });
       return row!;
     }
     const ask = (sizeKb: number | null, sha = NEWER, address = IP) => {
@@ -351,21 +371,21 @@ describe("requestAnalysis", () => {
   });
 
   it("enforces 5 new analyses per hour per address, with when to come back", async () => {
+    // Six repos: one repo gets a single new analysis per 30 minutes whoever asks.
+    gh = fakeGitHub(
+      Array.from({ length: 6 }, (_, i) => ({
+        id: 100 + i,
+        owner: "acme",
+        name: `r${i}`,
+        sha: SHA,
+      })),
+    );
+    deps.github = { fetch: gh.fetch };
     for (let i = 0; i < 5; i++) {
-      gh = fakeGitHub([{ ...SHOP, sha: String(i).repeat(40) }]);
-      const answer = await requestAnalysis("acme/shop", IP, {
-        ...deps,
-        github: { fetch: gh.fetch },
-      });
-      expect(answer.status).toBe(202);
+      expect((await requestAnalysis(`acme/r${i}`, IP, deps)).status).toBe(202);
     }
-    gh = fakeGitHub([{ ...SHOP, sha: "9".repeat(40) }]);
     const now = Date.now();
-    const limited = await requestAnalysis("acme/shop", IP, {
-      ...deps,
-      github: { fetch: gh.fetch },
-      now: () => now,
-    });
+    const limited = await requestAnalysis("acme/r5", IP, { ...deps, now: () => now });
     expect(limited.status).toBe(429);
     expect(limited.body).toMatchObject({ error: "RATE_LIMITED" });
     const body = limited.body as { message: string; retryAt: string };
@@ -378,11 +398,143 @@ describe("requestAnalysis", () => {
       Math.max(1, Math.ceil((reset - now) / 1000)),
     );
     expect(tasks.google.tasks).toHaveLength(5);
-    // Another address still has its own five.
-    expect(
-      (await requestAnalysis("acme/shop", "198.51.100.1", { ...deps, github: { fetch: gh.fetch } }))
-        .status,
-    ).toBe(202);
+    // The refused request left the repo free for the next asker...
+    expect(await claimOf(106)).toBeUndefined();
+    // ...and another address still has its own five.
+    expect((await requestAnalysis("acme/r5", "198.51.100.1", deps)).status).toBe(202);
+  });
+
+  describe("one new analysis per repo per 30 minutes, whoever asks (#11)", () => {
+    const NEWER = "f".repeat(40);
+    const ask = (sha: string, address: string, extra: Partial<AnalyzeDeps> = {}) => {
+      gh = fakeGitHub([{ ...SHOP, sha }]);
+      return requestAnalysis("acme/shop", address, {
+        ...deps,
+        github: { fetch: gh.fetch },
+        ...extra,
+      });
+    };
+    /** Move the repo's claim `minutes` into the past. */
+    const ageClaim = (minutes: number) =>
+      t.db.update(repos).set({ analysisClaimedAt: new Date(Date.now() - minutes * 60_000) });
+
+    it("refuses a newer commit from another address: why, when, no slot, no row, no task", async () => {
+      expect((await ask(SHA, IP)).status).toBe(202);
+      const claimedAt = (await claimOf(SHOP.id))!.getTime();
+      const now = claimedAt + 12 * 60_000 + 30_000;
+      const answer = await ask(NEWER, "198.51.100.9", { now: () => now });
+      const retryAt = new Date(claimedAt + REPO_ANALYSIS_MINUTES * 60_000);
+      expect(answer).toEqual({
+        status: 429,
+        body: {
+          error: "REPO_RATE_LIMITED",
+          message:
+            "Someone asked for a new analysis of this repo in the past 30 minutes, and each repo " +
+            "gets one every 30 minutes. Try again in 18 minutes.",
+          retryAt: retryAt.toISOString(),
+        },
+        headers: { "retry-after": String(Math.ceil((retryAt.getTime() - now) / 1000)) },
+      });
+      expect(await slotsUsed("198.51.100.9")).toBe(0);
+      expect(await analysisRows()).toEqual([{ status: "queued", sha: SHA, errorCode: null }]);
+      expect(tasks.google.tasks).toHaveLength(1);
+      // The claim stands as it was.
+      expect((await claimOf(SHOP.id))!.getTime()).toBe(claimedAt);
+    });
+
+    it("lets a newer commit in once 30 minutes have passed", async () => {
+      await ask(SHA, IP);
+      await ageClaim(REPO_ANALYSIS_MINUTES - 1);
+      expect((await ask(NEWER, "198.51.100.9")).status).toBe(429);
+      await ageClaim(REPO_ANALYSIS_MINUTES);
+      expect((await ask(NEWER, "198.51.100.9")).status).toBe(202);
+      expect(tasks.google.tasks).toHaveLength(2);
+      // The newer commit holds the repo now.
+      expect((await ask("9".repeat(40), IP)).status).toBe(429);
+    });
+
+    it("the claiming commit still dedupes, and a failed run of it can be retried", async () => {
+      await ask(SHA, IP);
+      expect((await ask(SHA, "198.51.100.9")).body).toMatchObject({ jobId: JOB_ID });
+      const [row] = await t.db.select().from(analyses);
+      await startAnalysis(t.db, { repoId: row!.repoId, sha: SHA, analyzerVersion: VERSION });
+      await failAnalysis(t.db, row!.id, "DOWNLOAD_FAILED");
+      expect((await ask(SHA, "198.51.100.9")).status).toBe(202);
+      expect(tasks.google.tasks).toHaveLength(2);
+      expect(await slotsUsed("198.51.100.9")).toBe(1);
+    });
+
+    it("a cache hit or a commit in flight never claims the repo", async () => {
+      const { repoId, id } = await doneAnalysis();
+      await completeAnalysis(t.db, id, {
+        snapshotKey: "k",
+        stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+      });
+      expect((await ask(SHA, IP)).status).toBe(200);
+      expect(await claimOf(SHOP.id)).toBeUndefined();
+      await startAnalysis(t.db, { repoId, sha: NEWER, analyzerVersion: VERSION });
+      expect((await ask(NEWER, IP)).status).toBe(202);
+      expect(await claimOf(SHOP.id)).toBeUndefined();
+    });
+
+    it("keeps the claim when a racing request queued the claimed commit first", async () => {
+      gh = fakeGitHub([SHOP]);
+      // GitHub's code count is asked after the cache lookup and before the claim: the
+      // racing request queues the commit then, so this one finds it queued, not entered.
+      const fetch: typeof gh.fetch = async (input, init) => {
+        if (String(input).endsWith("/languages")) {
+          const { id: repoId } = await upsertRepo(t.db, {
+            providerRepoId: SHOP.id,
+            owner: "acme",
+            name: "shop",
+            visibility: "public",
+            defaultBranch: "main",
+          });
+          await queueAnalysis(
+            t.db,
+            { repoId, sha: SHA, analyzerVersion: VERSION },
+            { jobId: JOB_ID },
+          );
+        }
+        return gh.fetch(input, init);
+      };
+      const answer = await requestAnalysis("acme/shop", IP, { ...deps, github: { fetch } });
+      expect(answer.body).toMatchObject({ status: "queued", jobId: JOB_ID });
+      expect(await slotsUsed()).toBe(0);
+      expect(await claimOf(SHOP.id)).toBeDefined();
+      expect((await ask(NEWER, "198.51.100.9")).status).toBe(429);
+    });
+
+    it("gives the claim back when the request queued nothing new", async () => {
+      tasks.setDown(true);
+      expect((await ask(SHA, IP)).status).toBe(503);
+      expect(await claimOf(SHOP.id)).toBeUndefined();
+      tasks.setDown(false);
+      expect((await ask(NEWER, IP)).status).toBe(202);
+    });
+
+    it("an address over its hourly limit doesn't hold the repo", async () => {
+      await t.db.insert(rateLimits).values({
+        key: rateLimitKey(SECRET, IP),
+        windowStart: new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000),
+        count: 5,
+      });
+      expect((await ask(SHA, IP)).body).toMatchObject({ error: "RATE_LIMITED" });
+      expect(await claimOf(SHOP.id)).toBeUndefined();
+      expect((await ask(NEWER, "198.51.100.9")).status).toBe(202);
+    });
+
+    it("racing requests for different new commits: one is queued, the rest refused", async () => {
+      const shas = ["1", "2", "3", "4"].map((c) => c.repeat(40));
+      const answers = await Promise.all(
+        shas.map((sha, i) => {
+          const github = { fetch: fakeGitHub([{ ...SHOP, sha }]).fetch };
+          return requestAnalysis("acme/shop", `198.51.100.${i + 1}`, { ...deps, github });
+        }),
+      );
+      expect(answers.map((a) => a.status).sort()).toEqual([202, 429, 429, 429]);
+      expect(tasks.google.tasks).toHaveLength(1);
+    });
   });
 
   it("words the wait in minutes", async () => {
