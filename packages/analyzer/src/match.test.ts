@@ -375,6 +375,17 @@ describe("createRouteMatcher", () => {
     );
   });
 
+  it("matches routes reached only through a folder listing at heuristic at best (ADR-0162)", () => {
+    const listed = createRouteMatcher(
+      [route("api", "GET /listed/:id"), route("api", "GET /coded/:id")],
+      workspace,
+      new Set(["route:api/GET /listed/:id"]),
+    );
+    const from = (spec: string) => show(listed.match(request(spec, "apps/api/a.ts")));
+    expect(from("GET /listed/{}")).toBe("heuristic route:api/GET /listed/:id");
+    expect(from("GET /coded/{}")).toBe("exact route:api/GET /coded/:id");
+  });
+
   it("only aligns against routes from the index bucket", () => {
     // A request whose first segment is a hole can't reach a literal-first route.
     expect(m("GET /{}/users")).toBe("NO_MATCHING_ROUTE: no route matches GET to /{}/users");

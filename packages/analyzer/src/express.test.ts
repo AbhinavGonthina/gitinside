@@ -97,19 +97,22 @@ function factsOf(all: readonly ExpressFacts[], service: string): ExpressFacts {
 }
 
 describe("express facts", () => {
-  it.each(["express-basic", "express-nested-routers", "ambiguous-routes", "shop-demo"])(
-    "composes %s from JSON round-tripped facts exactly as the one-shot detector",
-    async (name) => {
-      const root = join(FIXTURES, name);
-      const { workspace, rootFiles, facts } = await expressFacts(root);
-      const revived = JSON.parse(JSON.stringify(facts)) as ExpressFacts[];
-      const composed = composeExpressRoutes(revived, workspace.packages, rootFiles);
-      const fresh = await expressFacts(root);
-      const oneShot = buildExpressRoutes(fresh.programs, fresh.resolver);
-      expect(composed.nodes.length).toBeGreaterThan(0);
-      expect(composed).toEqual(oneShot);
-    },
-  );
+  it.each([
+    "express-basic",
+    "express-nested-routers",
+    "express-folder-routers",
+    "ambiguous-routes",
+    "shop-demo",
+  ])("composes %s from JSON round-tripped facts exactly as the one-shot detector", async (name) => {
+    const root = join(FIXTURES, name);
+    const { workspace, rootFiles, facts } = await expressFacts(root);
+    const revived = JSON.parse(JSON.stringify(facts)) as ExpressFacts[];
+    const composed = composeExpressRoutes(revived, workspace.packages, rootFiles);
+    const fresh = await expressFacts(root);
+    const oneShot = buildExpressRoutes(fresh.programs, fresh.resolver);
+    expect(composed.nodes.length).toBeGreaterThan(0);
+    expect(composed).toEqual(oneShot);
+  });
 
   it("keeps a router's facts independent of the service that mounts it", async () => {
     await put("package.json", JSON.stringify({ name: "root", workspaces: ["packages/*"] }));
@@ -543,5 +546,154 @@ describe("express routes", () => {
     expect(routes(graph)).toEqual(["api/POST /jobs"]);
     expect(graph.nodes.find((n) => n.kind === "route")?.parentId).toBe("file:worker/routes.ts");
     expect(handles(graph)).toEqual(["api/POST /jobs -> worker/routes.ts#handler (exact)"]);
+  });
+});
+
+describe("routers loaded from a folder listing (M5A.3e, ADR-0162)", () => {
+  /** The composed routes of the repo at `dir`, and those reached only through a listing. */
+  async function composed() {
+    const { programs, resolver } = await expressFacts(dir);
+    const result = buildExpressRoutes(programs, resolver);
+    return {
+      routes: result.nodes.flatMap((n) => (n.kind === "route" ? [n.id] : [])),
+      listed: result.listedRoutes,
+      warnings: result.warnings,
+    };
+  }
+
+  it("mounts every router a glob listing requires and reduces onto one router", async () => {
+    await put("src/routes/createRouter.ts", [
+      'import { Router } from "express";',
+      'import glob from "glob";',
+      'const dev = process.env.NODE_ENV === "dev";',
+      "const routers = glob",
+      '  .sync(`**/*.${dev ? "ts" : "js"}`, { cwd: `${__dirname}/` })',
+      "  .map((filename: string) => require(`./${filename}`))",
+      "  .filter((r: any) => r.default && Object.getPrototypeOf(r.default) === Router)",
+      "  .reduce((root: Router, r: any) => root.use(r.default), Router({ mergeParams: true }));",
+      "export default routers;",
+    ]);
+    await put("src/routes/v1/users.ts", [
+      'import { Router } from "express";',
+      "const router = Router();",
+      'router.get("/v1/users/:id", () => 1);',
+      "export default router;",
+    ]);
+    await put("src/routes/v1/orders.ts", [
+      'import { Router } from "express";',
+      "const router = Router();",
+      'router.post("/v1/orders", () => 1);',
+      "export default router;",
+    ]);
+    await put("src/routes/helpers.ts", ["export const notARouter = 1;"]);
+    await put("src/server.ts", [
+      'import express from "express";',
+      'import routers from "./routes/createRouter";',
+      "const app = express();",
+      'app.use("/api", routers);',
+      'app.get("/health", () => 1);',
+    ]);
+    const { routes, listed, warnings } = await composed();
+    expect(routes).toEqual([
+      "route:app/GET /api/v1/users/:id",
+      "route:app/GET /health",
+      "route:app/POST /api/v1/orders",
+    ]);
+    expect(listed).toEqual(["route:app/GET /api/v1/users/:id", "route:app/POST /api/v1/orders"]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("mounts CommonJS routers from readdirSync in forEach and for-of, prefixes from file names", async () => {
+    await put("legacy/index.js", [
+      'const fs = require("fs");',
+      'const path = require("path");',
+      "module.exports = function mount(app) {",
+      "  fs.readdirSync(__dirname)",
+      '    .filter((file) => file !== "index.js")',
+      "    .forEach((file) => {",
+      '      const name = path.basename(file, ".js");',
+      "      app.use(`/legacy/${name}`, require(path.join(__dirname, file)));",
+      "    });",
+      "};",
+    ]);
+    await put("legacy/reports.js", [
+      'const { Router } = require("express");',
+      "const r = Router();",
+      'r.get("/daily", () => 1);',
+      "module.exports = r;",
+    ]);
+    await put("legacy/admin/index.js", [
+      'const express = require("express");',
+      "const r = express.Router();",
+      'r.get("/stats", () => 1);',
+      "module.exports = r;",
+    ]);
+    await put("api/ping.js", [
+      'const { Router } = require("express");',
+      'module.exports = Router().get("/ping", () => 1);',
+    ]);
+    await put("app.js", [
+      'const express = require("express");',
+      'const { readdirSync } = require("node:fs");',
+      "const app = express();",
+      'require("./legacy")(app);',
+      'for (const file of readdirSync(__dirname + "/api")) {',
+      '  app.use("/api", require("./api/" + file.slice(0, -3)));',
+      "}",
+    ]);
+    const { routes, listed, warnings } = await composed();
+    expect(routes).toEqual([
+      "route:app/GET /api/ping",
+      "route:app/GET /legacy/admin/stats",
+      "route:app/GET /legacy/reports/daily",
+    ]);
+    expect(listed).toEqual(routes);
+    expect(warnings).toEqual([]);
+  });
+
+  it("keeps a route reached both ways out of the listed set", async () => {
+    await put("routes/users.js", [
+      'const { Router } = require("express");',
+      'module.exports = Router().get("/users", () => 1);',
+    ]);
+    await put("app.js", [
+      'const express = require("express");',
+      'const fs = require("fs");',
+      "const app = express();",
+      'fs.readdirSync(__dirname + "/routes").forEach((f) => app.use(require("./routes/" + f)));',
+      'app.use(require("./routes/users.js"));',
+    ]);
+    const { routes, listed } = await composed();
+    expect(routes).toEqual(["route:app/GET /users"]);
+    expect(listed).toEqual([]);
+  });
+
+  it("leaves listings it can't read unmounted, and a prefix it can't read dynamic", async () => {
+    await put("plugins/a.js", [
+      'const { Router } = require("express");',
+      'module.exports = Router().get("/a", () => 1);',
+    ]);
+    await put("app.js", [
+      'const express = require("express");',
+      'const fs = require("fs");',
+      'const glob = require("glob");',
+      "const app = express();",
+      // The folder comes from the environment, and a glob without `cwd` lists from wherever
+      // the process starts: neither can be read from the repo.
+      "fs.readdirSync(process.env.PLUGINS).forEach((f) => app.use(require(f)));",
+      'glob.sync("plugins/*.js").forEach((f) => app.use(require(f)));',
+      // A prefix computed by a call we don't evaluate.
+      'fs.readdirSync(__dirname + "/plugins").forEach((f) => {',
+      '  app.use("/" + f.toUpperCase(), require("./plugins/" + f));',
+      "});",
+    ]);
+    const { routes, listed, warnings } = await composed();
+    expect(routes).toEqual([]);
+    expect(listed).toEqual([]);
+    expect(warnings).toEqual([]);
+    const graph = await analyze(dir);
+    expect(dynamic(graph)).toEqual([
+      'unresolved:app/plugins/a.js:2:31: GET "/" + f.toUpperCase() + /a',
+    ]);
   });
 });

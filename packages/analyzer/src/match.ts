@@ -15,6 +15,8 @@
  *    other literal host is an external API and is never matched to a route.
  * 2. **Method.** Equal methods, an `ALL` route, or a `HEAD` request to a `GET` route are
  *    `exact`. A request whose method can't be read matches every method at `heuristic`.
+ *    A route reached only through routers loaded from a folder listing (`listed`, ADR-0162)
+ *    is `heuristic` at best too: the listing is read from the repo, but filters on it aren't.
  * 3. **Path**, segment by segment:
  *    - A literal matches the identical literal (`exact`).
  *    - A hole (`{}`) matches a param (`:id`, `exact`); a literal or partly literal segment
@@ -171,11 +173,13 @@ const bucketOf = (segments: readonly RouteSegment[]): string => {
 
 /**
  * Build a matcher over the `route` nodes in `nodes` (other kinds are ignored). The first node
- * with a given ID wins, as in graph assembly.
+ * with a given ID wins, as in graph assembly. Routes in `listed` (`ExpressRoutes.listedRoutes`)
+ * match at `heuristic` at best.
  */
 export function createRouteMatcher(
   nodes: readonly GraphNode[],
   workspace: Workspace,
+  listed: ReadonlySet<string> = new Set(),
 ): RouteMatcher {
   const keys = workspace.packages.map((p) => p.key);
   /** method ⇒ first literal segment (or {@link ANY}) ⇒ routes. */
@@ -272,6 +276,7 @@ export function createRouteMatcher(
           baseLevel(base, caller, route),
           methodLevel(request.method, route),
           path,
+          listed.has(route.id) ? HEURISTIC : EXACT,
         );
         if (level === FAIL) continue;
         if (level < best || (level === best && path < bestPath)) {

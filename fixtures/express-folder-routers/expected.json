@@ -1,0 +1,541 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:express-folder-routers/src/routes/v1/orders.ts#createOrder",
+      "id": "calls:symbol:express-folder-routers/src/routes/v1/orders.ts#createOrder->symbol:express-folder-routers/src/routes/v1/helpers.ts#total",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 33,
+          "file": "src/routes/v1/orders.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:express-folder-routers/src/routes/v1/helpers.ts#total"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-folder-routers/GET /api/v1/users/:id",
+      "id": "handles:route:express-folder-routers/GET /api/v1/users/:id->symbol:express-folder-routers/src/routes/v1/users.ts#getUser",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/routes/v1/users.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:express-folder-routers/src/routes/v1/users.ts#getUser"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-folder-routers/GET /legacy/reports/daily",
+      "id": "handles:route:express-folder-routers/GET /legacy/reports/daily->symbol:express-folder-routers/src/legacy/reports.js#daily",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 22,
+          "file": "src/legacy/reports.js",
+          "line": 8
+        }
+      ],
+      "to": "symbol:express-folder-routers/src/legacy/reports.js#daily"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-folder-routers/POST /api/v1/orders",
+      "id": "handles:route:express-folder-routers/POST /api/v1/orders->symbol:express-folder-routers/src/routes/v1/orders.ts#createOrder",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/routes/v1/orders.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:express-folder-routers/src/routes/v1/orders.ts#createOrder"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:express-folder-routers/src/client.ts#dailyReport",
+      "id": "http:symbol:express-folder-routers/src/client.ts#dailyReport->route:express-folder-routers/GET /legacy/reports/daily",
+      "kind": "http",
+      "label": "GET /legacy/reports/daily",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 10
+        }
+      ],
+      "to": "route:express-folder-routers/GET /legacy/reports/daily"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:express-folder-routers/src/client.ts#health",
+      "id": "http:symbol:express-folder-routers/src/client.ts#health->route:express-folder-routers/GET /health",
+      "kind": "http",
+      "label": "GET /health",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 14
+        }
+      ],
+      "to": "route:express-folder-routers/GET /health"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:express-folder-routers/src/client.ts#loadUser",
+      "id": "http:symbol:express-folder-routers/src/client.ts#loadUser->route:express-folder-routers/GET /api/v1/users/:id",
+      "kind": "http",
+      "label": "GET /api/v1/users/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 2
+        }
+      ],
+      "to": "route:express-folder-routers/GET /api/v1/users/:id"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:express-folder-routers/src/client.ts#placeOrder",
+      "id": "http:symbol:express-folder-routers/src/client.ts#placeOrder->route:express-folder-routers/POST /api/v1/orders",
+      "kind": "http",
+      "label": "POST /api/v1/orders",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 6
+        }
+      ],
+      "to": "route:express-folder-routers/POST /api/v1/orders"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-folder-routers/src/routes/v1/orders.ts",
+      "id": "imports:file:express-folder-routers/src/routes/v1/orders.ts->file:express-folder-routers/src/routes/v1/helpers.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 23,
+          "file": "src/routes/v1/orders.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:express-folder-routers/src/routes/v1/helpers.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-folder-routers/src/server.ts",
+      "id": "imports:file:express-folder-routers/src/server.ts->file:express-folder-routers/src/legacy/index.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 25,
+          "file": "src/server.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:express-folder-routers/src/legacy/index.js"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-folder-routers/src/server.ts",
+      "id": "imports:file:express-folder-routers/src/server.ts->file:express-folder-routers/src/routes/createRouter.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/server.ts",
+          "line": 3
+        }
+      ],
+      "to": "file:express-folder-routers/src/routes/createRouter.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "a15a194137b11841c288073faa29de2bf03cc72c90100fc53c9a537089cba5fa",
+      "id": "file:express-folder-routers/src/client.ts",
+      "kind": "file",
+      "label": "client.ts",
+      "parentId": "module:express-folder-routers/src",
+      "path": "src/client.ts"
+    },
+    {
+      "hash": "c0aeb4875db690ed113dc3940cb10b1d10f9490c8d79077ffe43d2eb5c209823",
+      "id": "file:express-folder-routers/src/legacy/index.js",
+      "kind": "file",
+      "label": "index.js",
+      "parentId": "module:express-folder-routers/src/legacy",
+      "path": "src/legacy/index.js"
+    },
+    {
+      "hash": "ca56ed743b33b6ba134ff2ef421173aa88ff02f6179ebf7022551ccb42138d6a",
+      "id": "file:express-folder-routers/src/legacy/reports.js",
+      "kind": "file",
+      "label": "reports.js",
+      "parentId": "module:express-folder-routers/src/legacy",
+      "path": "src/legacy/reports.js"
+    },
+    {
+      "hash": "68e3ed1993b8abba83a7202aa2af32aa41fd30a197d171aec578c8adbf6829cd",
+      "id": "file:express-folder-routers/src/routes/createRouter.ts",
+      "kind": "file",
+      "label": "createRouter.ts",
+      "parentId": "module:express-folder-routers/src/routes",
+      "path": "src/routes/createRouter.ts"
+    },
+    {
+      "hash": "9803e815fc5f67de4c7554754209bad2b3a24da2f55c841cc2e5fb4f29356718",
+      "id": "file:express-folder-routers/src/routes/v1/helpers.ts",
+      "kind": "file",
+      "label": "helpers.ts",
+      "parentId": "module:express-folder-routers/src/routes/v1",
+      "path": "src/routes/v1/helpers.ts"
+    },
+    {
+      "hash": "ba543ecdd9d20b954c3f7af9c5633c7be8c9511299eb952cbd3e2eeb12296405",
+      "id": "file:express-folder-routers/src/routes/v1/orders.ts",
+      "kind": "file",
+      "label": "orders.ts",
+      "parentId": "module:express-folder-routers/src/routes/v1",
+      "path": "src/routes/v1/orders.ts"
+    },
+    {
+      "hash": "dc8de21bf4add4036e31e71361ec9fe45205fc36f663c0c406abf617d8a16571",
+      "id": "file:express-folder-routers/src/routes/v1/users.ts",
+      "kind": "file",
+      "label": "users.ts",
+      "parentId": "module:express-folder-routers/src/routes/v1",
+      "path": "src/routes/v1/users.ts"
+    },
+    {
+      "hash": "aaa056e0da72d736764f1a3f38f030d3021fe6499da32f2ec08d1dbda666417c",
+      "id": "file:express-folder-routers/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:express-folder-routers/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:express-folder-routers/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:express-folder-routers/",
+      "path": "src"
+    },
+    {
+      "id": "module:express-folder-routers/src/legacy",
+      "kind": "module",
+      "label": "legacy",
+      "parentId": "module:express-folder-routers/src",
+      "path": "src/legacy"
+    },
+    {
+      "id": "module:express-folder-routers/src/routes",
+      "kind": "module",
+      "label": "routes",
+      "parentId": "module:express-folder-routers/src",
+      "path": "src/routes"
+    },
+    {
+      "id": "module:express-folder-routers/src/routes/v1",
+      "kind": "module",
+      "label": "v1",
+      "parentId": "module:express-folder-routers/src/routes",
+      "path": "src/routes/v1"
+    },
+    {
+      "id": "route:express-folder-routers/GET /api/v1/users/:id",
+      "kind": "route",
+      "label": "GET /api/v1/users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-folder-routers/src/routes/v1/users.ts",
+      "path": "/api/v1/users/:id",
+      "source": {
+        "column": 8,
+        "file": "src/routes/v1/users.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:express-folder-routers/GET /health",
+      "kind": "route",
+      "label": "GET /health",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-folder-routers/src/server.ts",
+      "path": "/health",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:express-folder-routers/GET /legacy/reports/daily",
+      "kind": "route",
+      "label": "GET /legacy/reports/daily",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-folder-routers/src/legacy/reports.js",
+      "path": "/legacy/reports/daily",
+      "source": {
+        "column": 8,
+        "file": "src/legacy/reports.js",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:express-folder-routers/POST /api/v1/orders",
+      "kind": "route",
+      "label": "POST /api/v1/orders",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:express-folder-routers/src/routes/v1/orders.ts",
+      "path": "/api/v1/orders",
+      "source": {
+        "column": 8,
+        "file": "src/routes/v1/orders.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "service:express-folder-routers/",
+      "kind": "service",
+      "label": "express-folder-routers",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/client.ts#dailyReport",
+      "kind": "symbol",
+      "label": "dailyReport",
+      "parentId": "file:express-folder-routers/src/client.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/client.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/client.ts#health",
+      "kind": "symbol",
+      "label": "health",
+      "parentId": "file:express-folder-routers/src/client.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "src/client.ts",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/client.ts#loadUser",
+      "kind": "symbol",
+      "label": "loadUser",
+      "parentId": "file:express-folder-routers/src/client.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "src/client.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/client.ts#placeOrder",
+      "kind": "symbol",
+      "label": "placeOrder",
+      "parentId": "file:express-folder-routers/src/client.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/client.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/legacy/index.js#mountLegacy",
+      "kind": "symbol",
+      "label": "mountLegacy",
+      "parentId": "file:express-folder-routers/src/legacy/index.js",
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/legacy/index.js",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:express-folder-routers/src/legacy/reports.js#daily",
+      "kind": "symbol",
+      "label": "daily",
+      "parentId": "file:express-folder-routers/src/legacy/reports.js",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/legacy/reports.js",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/legacy/reports.js#router",
+      "kind": "symbol",
+      "label": "router",
+      "parentId": "file:express-folder-routers/src/legacy/reports.js",
+      "source": {
+        "column": 7,
+        "endLine": 7,
+        "file": "src/legacy/reports.js",
+        "line": 7
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/routes/createRouter.ts#routers",
+      "kind": "symbol",
+      "label": "routers",
+      "parentId": "file:express-folder-routers/src/routes/createRouter.ts",
+      "source": {
+        "column": 7,
+        "endLine": 10,
+        "file": "src/routes/createRouter.ts",
+        "line": 6
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/routes/v1/helpers.ts#total",
+      "kind": "symbol",
+      "label": "total",
+      "parentId": "file:express-folder-routers/src/routes/v1/helpers.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 4,
+        "file": "src/routes/v1/helpers.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/routes/v1/orders.ts#createOrder",
+      "kind": "symbol",
+      "label": "createOrder",
+      "parentId": "file:express-folder-routers/src/routes/v1/orders.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/routes/v1/orders.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/routes/v1/orders.ts#router",
+      "kind": "symbol",
+      "label": "router",
+      "parentId": "file:express-folder-routers/src/routes/v1/orders.ts",
+      "source": {
+        "column": 7,
+        "endLine": 8,
+        "file": "src/routes/v1/orders.ts",
+        "line": 8
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/routes/v1/users.ts#getUser",
+      "kind": "symbol",
+      "label": "getUser",
+      "parentId": "file:express-folder-routers/src/routes/v1/users.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/routes/v1/users.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/routes/v1/users.ts#router",
+      "kind": "symbol",
+      "label": "router",
+      "parentId": "file:express-folder-routers/src/routes/v1/users.ts",
+      "source": {
+        "column": 7,
+        "endLine": 7,
+        "file": "src/routes/v1/users.ts",
+        "line": 7
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/server.ts#app",
+      "kind": "symbol",
+      "label": "app",
+      "parentId": "file:express-folder-routers/src/server.ts",
+      "source": {
+        "column": 7,
+        "endLine": 5,
+        "file": "src/server.ts",
+        "line": 5
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "express-folder-routers",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "express-folder-routers",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
