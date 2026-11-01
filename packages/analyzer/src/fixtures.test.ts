@@ -33,6 +33,7 @@ const NAMES = [
   "fetch-template-literal",
   "axios-baseurl-instance",
   "env-base-heuristic",
+  "env-fallback",
   "ambiguous-routes",
   "wrapper-fetch",
   "external-sdk",
@@ -169,6 +170,16 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       "symbol:web/src/users.ts#loadMe -> route:api/GET /users/me heuristic",
       "symbol:web/src/users.ts#loadUser -> route:api/GET /users/:id heuristic",
       "symbol:web/src/users.ts#track -> unresolved:web/src/users.ts:17:9 unresolved NO_MATCHING_ROUTE",
+    ]);
+  });
+
+  it("env-fallback: a literal fallback's path and loopback host reach routes (ADR-0158)", async () => {
+    const g = await run("env-fallback");
+    expect(links(g, "http")).toEqual([
+      "symbol:web/src/client.ts#authenticate -> route:api/POST /api/v2/authenticate heuristic",
+      "symbol:web/src/client.ts#loadUser -> route:api/GET /api/v1/users/:id heuristic",
+      "symbol:web/src/client.ts#login -> route:api/POST /api/v1/auth/login heuristic",
+      "symbol:web/src/client.ts#track -> unresolved:web/src/client.ts:22:9 unresolved NO_MATCHING_ROUTE",
     ]);
   });
 

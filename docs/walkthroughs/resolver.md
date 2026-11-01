@@ -340,7 +340,7 @@ Evaluators:
 - **`constProperty`**: `API.users`, through `reader.constObject`. A const object without that property ⇒ hole.
 - **`partsOf(sp, e, hops)`** (528–604), the dispatcher:
   - Literals ⇒ text. Templates ⇒ head, then each span's expression and literal text. `+` ⇒ both sides.
-  - `a ?? b` and `a || b` (544–548): keep the left side only if it is exactly one env var. `process.env.API_URL ?? "http://localhost:3000"` reads as the env var, because the env value is what runs in production; the literal fallback is for local dev. Anything else ⇒ hole.
+  - `a ?? b` and `a || b`: keep the left side only if it is exactly one env var, and carry the right side's parts on it as `fallback` (ADR-0158). `toUrlPattern` then uses the fallback: at the start, a literal URL or root-relative path adds its path after the env base and its host as `fallbackHost` (`?? "http://localhost:4000/api/v1"` ⇒ `{env:X}/api/v1/…`, and a loopback host lets the matcher try routes whatever the env name); later in the URL, a fallback of text and holes replaces the env var (`|| "v1"`). Parameters read only in the fallback are dropped from `used`, so they don't make the function a wrapper. Anything else ⇒ hole.
   - Ternary: both branches must normalize to identical parts, else hole. Picking one branch would be a guess.
   - `new URL(u, base)` ⇒ `resolveURL`, only for the real `URL` class (`isURLConstructor`: global, or imported from `url`/`node:url`).
   - `x.toString()` and `String(x)` ⇒ `x`. `x.href` ⇒ `x` (for `new URL(...).href`).

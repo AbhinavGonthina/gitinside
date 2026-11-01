@@ -1,0 +1,3 @@
+# env-fallback
+
+Tests: env-var URL bases with a fallback in the code (ADR-0158). `@fallback/web` reads `process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1"`, so `${API_URL}/auth/login` and `${API_URL}/users/${id}` keep the fallback's `/api/v1` and are `heuristic` edges to `POST /api/v1/auth/login` and `GET /api/v1/users/:id` in `@fallback/api`. `REACT_APP_SERVER` isn't named like an API base, but its fallback is `http://localhost:4000`, and `REACT_APP_API_VERSION || "v2"` fills the middle of the URL, so `${SERVER}/api/${VERSION}/authenticate` reaches `POST /api/v2/authenticate`. `STATS_HOST ?? "https://stats.example.com/api/v1"` is neither API-named nor local: an `unresolved` node.

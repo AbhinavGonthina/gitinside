@@ -21,6 +21,8 @@ import { detectWorkspace } from "./workspace.js";
 const t = (text: string): UrlPart => ({ kind: "text", text });
 const H: UrlPart = { kind: "hole" };
 const env = (name: string): UrlPart => ({ kind: "env", name });
+/** An env var read with a fallback (`process.env.X ?? "…"`). */
+const envOr = (name: string, fallback: UrlPart[]): UrlPart => ({ kind: "env", name, fallback });
 const ORIGIN: UrlPart = { kind: "origin" };
 
 /** `toUrlPattern` as text: the formatted pattern, or `DYNAMIC: <detail>`. */
@@ -79,6 +81,46 @@ describe("toUrlPattern", () => {
     ["an env base", [env("NEXT_PUBLIC_API_URL"), t("/orders")], "{env:NEXT_PUBLIC_API_URL}/orders"],
     ["an env base alone", [env("API_URL")], "{env:API_URL}"],
     ["an env var later on", [t("/api/"), env("VERSION"), t("/x")], "/api/{}/x"],
+    [
+      "an env base with a fallback's path",
+      [envOr("API_URL", [t("http://localhost:4000/api/v1/")]), t("/auth/login")],
+      "{env:API_URL}/api/v1/auth/login",
+    ],
+    [
+      "an env base with a root-relative fallback",
+      [envOr("API_URL", [t("/api?x=1")]), t("/users")],
+      "{env:API_URL}/api/users",
+    ],
+    [
+      "an env base with an origin-only fallback",
+      [envOr("API_URL", [t("http://localhost:4000")]), t("/users")],
+      "{env:API_URL}/users",
+    ],
+    [
+      "an env base whose fallback's path has a hole",
+      [envOr("API_URL", [t("http://localhost:4000/"), H]), t("/users")],
+      "{env:API_URL}/users",
+    ],
+    [
+      "an env base whose fallback is another env var",
+      [envOr("A", [env("B")]), t("/x")],
+      "{env:A}/x",
+    ],
+    [
+      "an env base with a page-relative fallback",
+      [envOr("API_URL", [t("api")]), t("/x")],
+      "{env:API_URL}/x",
+    ],
+    [
+      "an env var later on with a literal fallback",
+      [t("/api/"), envOr("VERSION", [t("v1")]), t("/x")],
+      "/api/v1/x",
+    ],
+    [
+      "an env var later on with a fallback holding an env var",
+      [t("/api/"), envOr("VERSION", [env("OTHER")]), t("/x")],
+      "/api/{}/x",
+    ],
     ["the page origin", [ORIGIN, t("/api/x")], "/api/x"],
     ["the page origin later on", [t("/a/"), ORIGIN], "/a/{}"],
     ["a page-relative path", [t("api/users")], "./api/users"],
@@ -105,6 +147,28 @@ describe("toUrlPattern", () => {
     ["only a port", [t("http://:8080/x")], "DYNAMIC: the URL has an empty host"],
   ])("normalizes %s", (_name, parts, expected) => {
     expect(show(parts)).toBe(expected);
+  });
+
+  it("keeps a literal fallback's host on an env base, and only that", () => {
+    const base = (input: UrlPart[]): unknown => {
+      const result = toUrlPattern(input);
+      return "pattern" in result ? result.pattern.base : result.detail;
+    };
+    expect(base([envOr("X", [t("HTTP://user:pw@LocalHost:4000/api/v1")]), t("/a")])).toEqual({
+      kind: "env",
+      name: "X",
+      fallbackHost: "localhost:4000",
+    });
+    expect(base([envOr("X", [t("http://localhost:"), H, t("/api")]), t("/a")])).toEqual({
+      kind: "env",
+      name: "X",
+      fallbackHost: "localhost:{}",
+    });
+    expect(base([envOr("X", [t("/api")]), t("/a")])).toEqual({ kind: "env", name: "X" });
+    expect(base([envOr("X", [t("http://localhost/"), H]), t("/a")])).toEqual({
+      kind: "env",
+      name: "X",
+    });
   });
 
   it("collapses runaway concatenations to a hole", () => {
@@ -152,6 +216,15 @@ describe("resolveURL", () => {
   ])("resolves %s", (_name, url, base, expected) => {
     expect(partsText(resolveURL(url, base))).toBe(expected);
   });
+
+  it("keeps only the origin of an env base's fallback for a root-relative URL", () => {
+    const base = [envOr("API", [t("http://localhost:4000/api/v1")])];
+    expect(resolveURL([t("/x")], base)).toEqual([
+      envOr("API", [t("http://localhost:4000")]),
+      t("/x"),
+    ]);
+    expect(resolveURL([t("/x")], [envOr("API", [t("/api/v1")])])).toEqual([env("API"), t("/x")]);
+  });
 });
 
 describe("toUrlPattern properties", () => {
@@ -180,6 +253,12 @@ describe("toUrlPattern properties", () => {
     { weight: 4, arbitrary: urlText.map(t) },
     { weight: 2, arbitrary: fc.constant(H) },
     { weight: 1, arbitrary: fc.constantFrom("API_URL", "X").map(env) },
+    {
+      weight: 1,
+      arbitrary: fc
+        .array(fc.oneof(urlText.map(t), fc.constant(H)), { maxLength: 3 })
+        .map((fallback) => envOr("API_URL", fallback)),
+    },
     { weight: 1, arbitrary: fc.constant(ORIGIN) },
   );
   const parts = fc.array(part, { maxLength: 8 });
@@ -359,6 +438,37 @@ describe("createUrlNormalizer", () => {
       "src/api.ts:19 DYNAMIC_URL: the URL starts with a value only known at runtime",
       "src/api.ts:20 https://abs.com/a",
       "src/api.ts:21 DYNAMIC_URL: every path segment is only known at runtime",
+    ]);
+  });
+
+  it("keeps an env var's literal fallback: its path on a base, its text later on", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/env.ts", [
+      'export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";',
+      "export const HOST = process.env.REACT_APP_HOST || 'http://localhost:9000';",
+      "export const VERSION = process.env.REACT_APP_VERSION || 'v1';",
+      "const PORT = 4000;",
+      "export const LOCAL = process.env.SERVER_URL ?? `http://localhost:${PORT}/api`;",
+    ]);
+    await put("src/api.ts", [
+      'import { API_URL, HOST, VERSION, LOCAL } from "./env";',
+      "declare const runtime: string;",
+      "export async function load(id: string) {",
+      "  await fetch(`${API_URL}/auth/login`);",
+      "  await fetch(`${HOST}/api/${VERSION}/authenticate`);",
+      "  await fetch(`${LOCAL}/users/${id}`);",
+      "  await fetch(`${process.env.API_URL ?? runtime}/x`);",
+      "  await fetch(`/api/${process.env.V ?? runtime}/x`);",
+      "  await fetch(new URL('/root', API_URL));",
+      "}",
+    ]);
+    expect(await normalized()).toEqual([
+      "src/api.ts:4 {env:NEXT_PUBLIC_API_URL}/api/v1/auth/login",
+      "src/api.ts:5 {env:REACT_APP_HOST}/api/v1/authenticate",
+      "src/api.ts:6 {env:SERVER_URL}/api/users/{}",
+      "src/api.ts:7 {env:API_URL}/x",
+      "src/api.ts:8 /api/{}/x",
+      "src/api.ts:9 {env:NEXT_PUBLIC_API_URL}/root",
     ]);
   });
 

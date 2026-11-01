@@ -1,0 +1,1 @@
+{ "name": "env-fallback", "private": true, "workspaces": ["apps/*"] }

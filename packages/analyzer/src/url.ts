@@ -17,7 +17,11 @@
  *   (`API.users`, `API["users"]`), string enum members, and otherwise any identifier or
  *   property whose type is a single string or number literal (`declare const X: "/api"`).
  * - Env vars: `process.env.X`, `process.env["X"]`, `import.meta.env.X`, and
- *   `const { X } = process.env`. `env ?? fallback` and `env || fallback` read as the env var.
+ *   `const { X } = process.env`. `env ?? fallback` and `env || fallback` read as the env var
+ *   carrying the fallback's parts (ADR-0158): at the start of a URL, a literal fallback URL or
+ *   root-relative path adds its path after the env base (`?? "http://localhost:4000/api/v1"`
+ *   ⇒ `{env:X}/api/v1/…`) and records its host; later on, a fallback of text and holes takes
+ *   the env var's place (`/api/${process.env.V || "v1"}` ⇒ `/api/v1`).
  * - `window.location.origin` (also `location`, `self.location`, `globalThis.location`,
  *   `document.location`): the page's own origin, so the URL is root-relative.
  * - `new URL(url, base?)`, `.href`, `.toString()`, and `String(x)`. A relative `url` is
@@ -32,7 +36,8 @@
  *   lowercased, and credentials (`user:pass@`) are dropped. A hole in the host before any `:`
  *   is `DYNAMIC_URL`; one in the port is kept as `{}` in the host text, and one in a password
  *   is dropped with it.
- * - An env var is a base only at the very start of the URL; elsewhere it is a hole.
+ * - An env var is a base only at the very start of the URL; elsewhere it is a hole, unless
+ *   its fallback is text and holes.
  * - Query strings and fragments are dropped at the first literal `?` or `#`.
  * - Empty segments (trailing and doubled slashes) are dropped.
  * - A URL that starts with a hole, or whose path (on a non-`host` base) is only holes, is
@@ -93,8 +98,11 @@ export type UrlPart =
       /** The value was too large or too complex to read (see {@link MAX_STEPS}). */
       overflow?: true;
     }
-  /** An environment variable, by name. */
-  | { kind: "env"; name: string }
+  /**
+   * An environment variable, by name, with the parts of the fallback the code gives it
+   * (`process.env.X ?? "http://localhost:4000/api"`), if any (ADR-0158).
+   */
+  | { kind: "env"; name: string; fallback?: UrlPart[] }
   /** The page's own origin (`window.location.origin`). */
   | { kind: "origin" };
 
@@ -109,8 +117,11 @@ export type UrlBase =
   | { kind: "page" }
   /** A literal origin. `scheme` is `null` for protocol-relative URLs (`//cdn.x.com`). */
   | { kind: "host"; scheme: string | null; host: string }
-  /** An origin read from an environment variable. */
-  | { kind: "env"; name: string };
+  /**
+   * An origin read from an environment variable. `fallbackHost` is the host (and port) of a
+   * literal fallback URL in the code, which says whether the default points at this machine.
+   */
+  | { kind: "env"; name: string; fallbackHost?: string };
 
 /** A normalized URL: a base and its path segments. */
 export interface UrlPattern {
@@ -242,6 +253,44 @@ function toSegments(parts: readonly UrlPart[]): UrlSegment[] {
 }
 
 /**
+ * An env var or the page origin after the start of a URL: an env var's fallback when it is
+ * text and holes (`/api/${process.env.VERSION || "v1"}` reads `/api/v1`), else a hole.
+ */
+function laterPart(part: UrlPart): UrlPart[] {
+  if (part.kind === "origin") return [HOLE];
+  if (part.kind !== "env") return [part];
+  const { fallback } = part;
+  return fallback?.every((p) => p.kind === "text" || p.kind === "hole") ? fallback : [HOLE];
+}
+
+/**
+ * What an env base's fallback adds (ADR-0158): a literal URL or root-relative path
+ * (`?? "http://localhost:4000/api/v1"`) gives its path as a prefix and its host, if any.
+ * A fallback whose path has a hole, or that isn't such a URL, adds nothing.
+ */
+function envFallback(fallback: readonly UrlPart[] | undefined): {
+  prefix: UrlPart[];
+  host?: string;
+} {
+  if (fallback === undefined) return { prefix: [] };
+  const result = toUrlPattern(fallback);
+  if ("detail" in result) return { prefix: [] };
+  const { base, segments } = result.pattern;
+  if (base.kind !== "host" && base.kind !== "path") return { prefix: [] };
+  if (segments.some((segment) => segment.some((p) => p.kind === "hole"))) return { prefix: [] };
+  const path = segments.map((segment) => "/" + segmentText(segment)).join("");
+  // Keep a trailing slash, so `?? "http://h/api/"` then `"users"` reads `/api/users`.
+  const last = stripQuery(fallback).at(-1);
+  const slash = last?.kind === "text" && last.text.endsWith("/") ? "/" : "";
+  const prefix = path + slash === "" ? [] : [text(path + slash)];
+  return base.kind === "host" ? { prefix, host: base.host } : { prefix };
+}
+
+/** A literal segment's text (holes are `{}`). */
+const segmentText = (segment: UrlSegment): string =>
+  segment.map((p) => (p.kind === "text" ? p.text : "{}")).join("");
+
+/**
  * Read a list of parts as a URL (see the file comment for the rules). Returns the pattern,
  * or the reason it is `DYNAMIC_URL`. Idempotent: `toUrlPattern(patternParts(p))` is `p`.
  */
@@ -250,9 +299,7 @@ export function toUrlPattern(
 ): { pattern: UrlPattern } | { detail: DynamicUrlDetail } {
   // An env var or the page origin only counts as a base at the very start.
   const parts = stripQuery(
-    mergeParts(input).map((p, i) =>
-      i > 0 && (p.kind === "env" || p.kind === "origin") ? HOLE : p,
-    ),
+    mergeParts(mergeParts(input).flatMap((p, i) => (i > 0 ? laterPart(p) : [p]))),
   );
   const first = parts[0];
   if (!first) return { pattern: { base: { kind: "page" }, segments: [] } };
@@ -261,8 +308,12 @@ export function toUrlPattern(
   let base: UrlBase;
   let rest: UrlPart[];
   if (first.kind === "env") {
-    base = { kind: "env", name: first.name };
-    rest = parts.slice(1);
+    const { prefix, host } = envFallback(first.fallback);
+    base =
+      host === undefined
+        ? { kind: "env", name: first.name }
+        : { kind: "env", name: first.name, fallbackHost: host };
+    rest = mergeParts([...prefix, ...parts.slice(1)]);
   } else if (first.kind === "origin") {
     base = { kind: "path" };
     rest = parts.slice(1);
@@ -317,7 +368,14 @@ export function toUrlPattern(
 export function patternParts(pattern: UrlPattern): UrlPart[] {
   const out: UrlPart[] = [];
   const { base } = pattern;
-  if (base.kind === "env") out.push({ kind: "env", name: base.name });
+  if (base.kind === "env") {
+    // The fallback's path is already in the segments; only its host is left to carry.
+    out.push(
+      base.fallbackHost === undefined
+        ? { kind: "env", name: base.name }
+        : { kind: "env", name: base.name, fallback: [text(`//${base.fallbackHost}`)] },
+    );
+  }
   if (base.kind === "host")
     out.push(text(`${base.scheme === null ? "" : base.scheme + ":"}//${base.host}`));
   pattern.segments.forEach((segment, i) => {
@@ -388,7 +446,8 @@ export function resolveURL(url: readonly UrlPart[], base: readonly UrlPart[]): U
   if (head?.kind !== "text" || !head.text.startsWith("/") || head.text.startsWith("//")) {
     return [HOLE];
   }
-  if (origin?.kind === "env" || origin?.kind === "origin") return [origin, ...u];
+  if (origin?.kind === "env") return [fallbackOrigin(origin), ...u];
+  if (origin?.kind === "origin") return [origin, ...u];
   if (origin?.kind === "text") {
     const match = ORIGIN.exec(origin.text);
     // The host must end inside this literal, not run on into a hole.
@@ -397,6 +456,25 @@ export function resolveURL(url: readonly UrlPart[], base: readonly UrlPart[]): U
     }
   }
   return [HOLE];
+}
+
+/**
+ * An env var whose fallback keeps only its literal origin: a root-relative `new URL()` drops
+ * the base's path, the fallback's included.
+ */
+function fallbackOrigin(env: Extract<UrlPart, { kind: "env" }>): UrlPart {
+  const fallback = mergeParts(env.fallback ?? []);
+  const head = fallback[0];
+  const match = head?.kind === "text" ? ORIGIN.exec(head.text) : null;
+  // As in `resolveURL`: the host must end inside this literal, not run on into a hole.
+  if (
+    head?.kind === "text" &&
+    match &&
+    (match[0].length < head.text.length || fallback.length === 1)
+  ) {
+    return { kind: "env", name: env.name, fallback: [text(match[0])] };
+  }
+  return { kind: "env", name: env.name };
 }
 
 /** Normalizes call-site URLs, reading values with one resolver's checkers. */
@@ -569,9 +647,18 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
         return mergeParts([...partsOf(sp, e.left, hops + 1), ...partsOf(sp, e.right, hops + 1)]);
       }
       if (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken) {
-        // `process.env.API_URL ?? "http://localhost:3000"`: the env var is the deployed value.
+        // `process.env.API_URL ?? "http://localhost:3000/api"`: the env var is the base, and
+        // the fallback says what follows it and where it points by default (ADR-0158).
         const left = partsOf(sp, e.left, hops + 1);
-        return left.length === 1 && left[0]?.kind === "env" ? left : [HOLE];
+        const [env] = left;
+        if (left.length !== 1 || env?.kind !== "env") return [HOLE];
+        if (env.fallback !== undefined) return left;
+        // A parameter only in the fallback doesn't make the function a wrapper.
+        const usedBefore = new Set(used);
+        const fallback = partsOf(sp, e.right, hops + 1);
+        used.clear();
+        for (const d of usedBefore) used.add(d);
+        return [{ kind: "env", name: env.name, fallback: mergeParts(fallback) }];
       }
       return [HOLE];
     }
