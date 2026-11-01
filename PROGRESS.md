@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.5 Milestone check for M5A (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M5A.5b M5A review fix: linear glob matching for folder listings (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -214,7 +214,13 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.4a1 Held-out batches (ADR-0168): `heldOut: <batch>` on each held-out repo and a `heldOutBatches` list in `repos.json` (each batch seen, with why, or unseen); the report gives each batch its own section and totals, marks batch 1 seen; EVALUATION.md; tests; regenerated report {model: opus}
 - [x] M5A.4a2 Fresh held-out batch 2, repo 1: pick 2 new public React/Next + Express (+ Prisma) repos of shapes and URL styles unlike the first eight (selection rules as M3.2, read but never analyzed), pin the first as unseen batch 2, draft and commit its labels; no scoring {model: opus}
 - [x] M5A.4a3 Batch 2, repo 2: pin, draft and commit labels, then score once (`pnpm eval`); README/EVALUATION quote the first measurement as is; misses go to a diagnosis note, not into M5A fixes {model: opus}
-- [ ] M5A.5 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff (generalization: no repo-specific cases), CLI smoke test on a real repo outside the eval, M5A-review.md, tag m5a {model: opus}
+- [x] M5A.5a Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff (generalization: no repo-specific cases), CLI smoke test on a real repo outside the eval, M5A-review.md (tag after the fixes) {model: opus}
+- [ ] M5A.5b M5A review fix (security): `globRegExp` (`listings.ts`) compiles a repo's glob into a backtracking regex with one `.*` per `**`, so a hostile pattern (`**a**a…**b`) over a long file name hangs the analysis; a linear glob matcher (or caps on length and wildcards), a hostile-pattern test with a time bound, regression test first {model: opus}
+- [ ] M5A.5c M5A review fix: a factory wrapper returning a closure with its own path parameter (`createClient(base)` ⇒ `{ get: (path) => fetch(base + "/" + path) }`, called `createClient("/api")`) may read `GET /api/{}` and match `/api/:x` instead of `WRAPPER_DEPTH`; confirm red first, then an unbound parameter hole in the leading part of an inlined URL gives `WRAPPER_DEPTH`; fixture or test, eval delta {model: opus}
+- [ ] M5A.5d M5A review fix: `defaults.baseURL` (ADR-0161) applies only to requests in files that can reach the module writing it (import graph), so a test or e2e setup file's write doesn't rebase the whole service; ADR amendment, regression test first, eval delta {model: opus}
+- [ ] M5A.5e M5A review fixes, `lets.ts`: `letValues` memoized per declaration (no re-walk of the function per read); a write through `as`/`!`/`<T>`/`satisfies` makes the `let` unknown; a `lets.test.ts` covering loop/`switch`/`try`/labeled writes, `throw`/`break`/`continue` branch ends, `else if` chains, and reads in case clauses (CI coverage 86.4%); regression tests first {model: opus}
+- [ ] M5A.5f M5A review fixes, small: a listing folder from a `const` in another file resolves `__dirname` and relative specifiers against that file (`express.ts` `evaluate`); a mid-URL env fallback replaces the hole only when it's a path piece, not an absolute or protocol-relative URL (`url.ts` `laterPart`); regression tests first, eval delta {model: opus}
+- [ ] M5A.5g Re-run the milestone checks after M5A.5b–f (suite, analyzer coverage, `pnpm eval`), README's "first run" held-out link pinned to the commit whose report holds it (`1cdf2ec`), ADR-0168's reproduction note updated, finish M5A-review.md (outcomes), tag m5a {model: opus}
 
 ### M6: Graph diff + incremental analysis
 - [x] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
@@ -272,6 +278,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.5a** (split M5A.5 into 5a–5g): `npx turbo run test --force` green (15/15 tasks, 0 cached, 3,460 tests); CI on `5104060` green, analyzer coverage 97.45% lines (`lets.ts` lowest at 86.4%). Fresh-eyes review of M5A's analyzer/eval diff: no high findings and no repo-specific cases; 4 medium (glob → backtracking regex on a hostile pattern, a factory closure's path hole possibly matched instead of `WRAPPER_DEPTH`, `defaults.baseURL` from an unreached file, a cross-file listing folder), 5 low, now M5A.5b–f. CLI smoke on `adrianhajdin/project_mern_memories` (outside the eval): 2 sibling services, 5/5 requests to the right routes by hand, byte-identical rerun. `docs/milestones/M5A-review.md` written, outcomes pending; tag after M5A.5g.
 
 - **2026-11-01 M5.17e4** The one-time Google Cloud setup is now a numbered Cloud Shell block in `infra/gcp/README.md` → "Applying it": APIs, the five accounts, four secrets typed at a hidden prompt (us-east4 only), registry + cleanup, queue, both services from Google's sample image, kill switch topic/subscription/budget, the `github` and `vercel` Workload Identity pools (Vercel team issuer, default audience, team + project IDs), and all 18 IAM bindings. Then GitHub variables (`GCP_PROJECT_NUMBER` last), Vercel Production variables, and `node infra/gcp/verify.mjs`. A new `apps/web/lib/gcpSetup.test.ts` parses that block and compares it with every infra/gcp file. Two README mutations (a role, `--max-attempts`) failed it as they should. Posted on #3 linking the pinned README, with prerequisites, paid options to avoid, and what to report back.
 
