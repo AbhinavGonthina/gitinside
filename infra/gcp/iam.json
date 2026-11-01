@@ -20,6 +20,11 @@
       "id": "gitinside-killswitch",
       "displayName": "GitInside billing kill switch",
       "description": "Runs the kill switch service and signs Pub/Sub's pushes to it. May unlink the project's billing account, nothing else."
+    },
+    {
+      "id": "gitinside-deploy",
+      "displayName": "GitInside deploy (GitHub Actions, keyless)",
+      "description": "CI's deploy job on main impersonates it through Workload Identity Federation. Pushes the image, replaces the two services, updates the queue."
     }
   ],
   "googleAgents": ["serviceAccount:billing-budget-alert@system.gserviceaccount.com"],
@@ -84,6 +89,41 @@
       "resource": "pubsub/topic/billing-alerts",
       "role": "roles/pubsub.publisher",
       "member": "serviceAccount:billing-budget-alert@system.gserviceaccount.com"
+    },
+    {
+      "resource": "serviceAccount/gitinside-deploy",
+      "role": "roles/iam.workloadIdentityUser",
+      "member": "principalSet://iam.googleapis.com/projects/{{PROJECT_NUMBER}}/locations/global/workloadIdentityPools/github/attribute.repository_id/1431766616"
+    },
+    {
+      "resource": "artifactregistry/repository/gitinside",
+      "role": "roles/artifactregistry.writer",
+      "member": "serviceAccount:gitinside-deploy@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "run/service/gitinside-worker",
+      "role": "roles/run.developer",
+      "member": "serviceAccount:gitinside-deploy@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "run/service/gitinside-killswitch",
+      "role": "roles/run.developer",
+      "member": "serviceAccount:gitinside-deploy@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "serviceAccount/gitinside-worker",
+      "role": "roles/iam.serviceAccountUser",
+      "member": "serviceAccount:gitinside-deploy@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "serviceAccount/gitinside-killswitch",
+      "role": "roles/iam.serviceAccountUser",
+      "member": "serviceAccount:gitinside-deploy@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "cloudtasks/queue/analyses",
+      "role": "roles/cloudtasks.queueAdmin",
+      "member": "serviceAccount:gitinside-deploy@gitinside-513223.iam.gserviceaccount.com"
     }
   ]
 }

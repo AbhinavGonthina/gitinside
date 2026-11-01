@@ -74,7 +74,7 @@ Coverage is a floor, not a goal. Don't write tests that only touch lines.
 ## CI (GitHub Actions)
 
 - **On every push:** install (pnpm, cached), lint, typecheck, unit + snapshot + property + determinism + integration + security, coverage thresholds, Storybook build, visual regression.
-- **On push to main:** all of the above plus Playwright E2E.
+- **On push to main:** all of the above plus Playwright E2E. Once every job is green and the worker image's inputs changed, the `deploy` job ships the worker and kill switch to Cloud Run, keyless (`infra/gcp/deploy.mjs`, checked by `apps/web/lib/gcpDeploy.test.ts`, ADR-0170).
 - **Required for M8 PR flow:** CI must pass before autopilot merges a PR.
 
 ## Commands

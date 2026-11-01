@@ -6,13 +6,16 @@ The analysis worker runs as a Cloud Run service that Cloud Tasks pushes each job
 |---|---|
 | `service.json` | The Cloud Run service (Knative `serving.knative.dev/v1`; JSON is valid YAML, so `gcloud run services replace` reads it) |
 | `queue.json` | The Cloud Tasks queue (the REST API's `Queue` resource) |
-| `iam.json` | The four service accounts, the four secrets, and every role binding, each on one resource |
+| `iam.json` | The five service accounts, the four secrets, and every role binding, each on one resource |
 | `killswitch.json` | The billing kill switch's Cloud Run service (the worker's image, another command) |
 | `budget.json` | The $1 monthly budget (Cloud Billing Budget API's `Budget`), publishing to `billing-alerts` |
 | `pubsub.json` | The `billing-alerts` topic and the push subscription that delivers it to the kill switch |
+| `registry.json` | The Artifact Registry repository for the image, its cleanup policies (`gcloud artifacts repositories set-cleanup-policies` format), and the image's size limit |
+| `github.json` | The Workload Identity pool `github` and its provider: which GitHub Actions tokens may become the deploy account |
+| `deploy.mjs` | CI's deploy (job `deploy`): build, push, render, replace both services, update the queue |
 | `check.mjs` | CI's check of the image as Cloud Run runs it, the kill switch included (job `worker-image`); never deployed |
 
-`apps/web/lib/gcpConfig.test.ts` checks these files against the code: the worker's attempts, job budget, signature window, memory budget, and required variables, the website's dispatch deadline, and ADR-0111's guardrails. Change a setting on one side only and that test fails.
+`apps/web/lib/gcpConfig.test.ts` checks these files against the code: the worker's attempts, job budget, signature window, memory budget, and required variables, the website's dispatch deadline, and ADR-0111's guardrails. `apps/web/lib/gcpDeploy.test.ts` checks the deploy: the script against a fake `gcloud`/`docker`, CI's job, the provider's condition, and the deploy account's IAM. Change a setting on one side only and they fail.
 
 ## What runs
 
@@ -71,11 +74,16 @@ Tasks are created by the website with a 330 s dispatch deadline (ADR-0141). Neve
 | `gitinside-enqueue` | create tasks (`cloudtasks.enqueuer`) | the `analyses` queue only |
 | `gitinside-enqueue` | act as `gitinside-invoker` | that account only (needed to name it in a task's OIDC token) |
 | Vercel production (Workload Identity Federation) | become `gitinside-enqueue` | that account only |
+| This repo's CI on `main` (pool `github`, `github.json`) | become `gitinside-deploy` | that account only |
+| `gitinside-deploy` | push images (`artifactregistry.writer`) | the `gitinside` repository only |
+| `gitinside-deploy` | replace a service (`run.developer`: no IAM changes, so it can't add an invoker) | `gitinside-worker` and `gitinside-killswitch`, each |
+| `gitinside-deploy` | run them as their accounts (`iam.serviceAccountUser`) | `gitinside-worker` and `gitinside-killswitch`, each |
+| `gitinside-deploy` | update the queue (`cloudtasks.queueAdmin`) | the `analyses` queue only |
 | `gitinside-killswitch` | invoke | the `gitinside-killswitch` service only (it signs Pub/Sub's pushes) |
 | `gitinside-killswitch` | unlink billing (`billing.projectManager`) | the project: the one project-level binding (ADR-0169) |
 | Cloud Billing's budget agent (`billing-budget-alert@system…`) | publish | the `billing-alerts` topic only |
 
-No other binding is on the project, none is a basic role (owner, editor, viewer), and none names `allUsers`. Cloud Tasks' own service agent mints the invoker's OIDC tokens through its default role; nothing extra is granted to it. The pool `vercel` (Vercel's OIDC issuer, `attribute.environment` from the token's `environment` claim, restricted to this Vercel project), the project number in its principal, and the GitHub Actions deploy account belong to M5.17e.
+No other binding is on the project, none is a basic role (owner, editor, viewer), and none names `allUsers`. Cloud Tasks' own service agent mints the invoker's OIDC tokens through its default role; nothing extra is granted to it. The pool `vercel` (Vercel's OIDC issuer, `attribute.environment` from the token's `environment` claim, restricted to this Vercel project) and the project number in its principal are set up with M5.17e4's steps.
 
 ## The billing kill switch (`budget.json`, `pubsub.json`, `killswitch.json`)
 
@@ -100,9 +108,40 @@ Pub/Sub topic "billing-alerts" ──push (OIDC as gitinside-killswitch)──�
 
 Unlinking billing stops every paid service in the project, the worker included, and Google warns that it may delete resources of a project that stays without billing. Turning it back on is a manual step in the console (Billing → link the account), after finding out why. Budget data lags actual usage by hours, so the bill can pass $1 by what accrues in that time; the worker's 2-instance cap bounds that to cents.
 
+## The deploy (`deploy.mjs`, `github.json`, `registry.json`)
+
+CI's last job, `deploy` in `.github/workflows/ci.yml` (ADR-0170), on a push to `main` or a manual run there:
+
+```
+every other CI job green ─▶ deploy.mjs changed <before> <sha>: did the image's inputs change?
+                              (apps/worker, the workspace packages it builds from, root manifests, infra/gcp)
+   │ yes (or can't tell)
+   ▼
+GitHub OIDC token ──Workload Identity Federation, pool "github"──▶ gitinside-deploy (no key anywhere)
+   │
+   ▼ deploy.mjs apply <sha>
+docker build ─▶ push us-east4-docker.pkg.dev/gitinside-513223/gitinside/worker:<sha>
+   ─▶ render killswitch.json, service.json with the pushed digest and the repo variables
+   ─▶ gcloud run services replace (kill switch first) ─▶ gcloud tasks queues update (queue.json)
+```
+
+| Piece | What | Why |
+|---|---|---|
+| Trigger | `needs` all four CI jobs; `main` only; skipped while `GCP_PROJECT_NUMBER` isn't set | Nothing ships red, and the job is idle until #3's setup exists |
+| Change check | `git diff --name-only` of the pushed range against the image's inputs, read from the worker's `package.json` and its workspace dependencies; a new branch or a manual run always deploys | Most commits are docs or the website, and each build is a new image in the registry |
+| Provider condition | repository and owner **IDs**, `ref == refs/heads/main`, `workflow_ref` = `ci.yml` on main, event `push` or `workflow_dispatch` | A pull request, another branch, another workflow file, or a re-created repo of the same name gets no token |
+| Image | pinned by digest in both services | The services run exactly what was pushed, whatever the tag later points to |
+| Render | on the parsed JSON, string by string; `IMAGE` must be this registry's worker by digest, other values identifiers | A repo variable can't change a service's structure |
+| Actions | `google-github-actions/auth` and `setup-gcloud` pinned by commit | They hold the job's Google credentials |
+| Registry | keep the 3 most recent versions, delete anything else older than an hour; CI fails if the image passes 150 MB gzipped (`check.mjs`) | 3 × 150 MB fits Artifact Registry's free 0.5 GB: the running image, the one before, and one from a deploy that failed half way. Cleanup runs about daily, so a day with many deploys can pass 0.5 GB for hours, cents at most |
+
+**Repo variables** (Settings → Secrets and variables → Actions → Variables; identifiers, none secret): `GCP_PROJECT_NUMBER`, `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_BUCKET`, `SNAPSHOTS_ACCESS_KEY_ID`. The secrets stay in Secret Manager.
+
+The deploy never creates a service, a queue, or a binding. The first time, the two services are created by hand from Google's public sample image (M5.17e4's steps), so the deploy account needs no project-wide role; from then on CI replaces them. A redeploy without a change: Actions → CI → Run workflow on `main`. A rollback: revert the commit on `main`.
+
 ## Applying it
 
-M5.17e adds the GitHub Actions deploy (keyless) and a `verify-guardrails` script, and posts the one-time Google Cloud steps on planning issue #3. Until then nothing is deployed. By hand, with the placeholders filled in, the pieces map to:
+M5.17e3 adds a `verify-guardrails` script, and M5.17e4 posts the one-time Google Cloud steps on planning issue #3. Until then nothing is deployed. By hand, with the placeholders filled in, the pieces map to:
 
 ```sh
 gcloud run services replace service.json --region us-east4

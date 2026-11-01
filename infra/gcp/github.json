@@ -1,0 +1,16 @@
+{
+  "pool": "github",
+  "provider": {
+    "id": "github",
+    "displayName": "GitHub Actions (gitinside main)",
+    "oidc": { "issuerUri": "https://token.actions.githubusercontent.com" },
+    "attributeMapping": {
+      "google.subject": "assertion.sub",
+      "attribute.repository_id": "assertion.repository_id",
+      "attribute.ref": "assertion.ref",
+      "attribute.workflow_ref": "assertion.workflow_ref"
+    },
+    "attributeCondition": "assertion.repository_owner_id == '184985044' && assertion.repository_id == '1431766616' && assertion.ref == 'refs/heads/main' && assertion.workflow_ref == 'AbhinavGonthina/gitinside/.github/workflows/ci.yml@refs/heads/main' && assertion.event_name in ['push', 'workflow_dispatch']"
+  },
+  "serviceAccount": "gitinside-deploy"
+}

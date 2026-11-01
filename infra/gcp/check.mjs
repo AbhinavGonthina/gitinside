@@ -31,11 +31,12 @@
  * The containers, network, and image are removed at the end, pass or fail.
  */
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHmac, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createGzip } from "node:zlib";
 
 const IMAGE = "gitinside-worker:check";
 const NETWORK = "gitinside-check";
@@ -79,6 +80,32 @@ function capture(args, input) {
     stdio: ["pipe", "pipe", "inherit"],
     maxBuffer: 64 * 1024 * 1024,
   });
+}
+
+/**
+ * The image's size gzipped, about what the registry stores (it keeps each layer gzipped):
+ * `docker image save` streamed through gzip, never held in memory.
+ */
+async function compressedBytes(image) {
+  const save = spawn("docker", ["image", "save", image], { stdio: ["ignore", "pipe", "inherit"] });
+  const gzip = createGzip();
+  let bytes = 0;
+  gzip.on("data", (chunk) => {
+    bytes += chunk.length;
+  });
+  const [code] = await Promise.all([
+    new Promise((resolve, reject) => {
+      save.on("error", reject);
+      save.on("close", resolve);
+    }),
+    new Promise((resolve, reject) => {
+      gzip.on("error", reject);
+      gzip.on("end", resolve);
+      save.stdout.pipe(gzip);
+    }),
+  ]);
+  assert.equal(code, 0, "docker image save failed");
+  return bytes;
 }
 
 /** `docker inspect` of a container or image. */
@@ -232,6 +259,16 @@ try {
   assert.deepEqual(image.Config.Cmd, ["node", "dist/bin.js"]);
   assert.equal(image.Config.WorkingDir, "/app/apps/worker");
   assert.equal(image.Architecture, "amd64", "Cloud Run runs linux/amd64 images");
+  // Artifact Registry keeps a few versions inside its free 0.5 GB (registry.json, ADR-0170).
+  const registry = JSON.parse(readFileSync("infra/gcp/registry.json", "utf8"));
+  const compressed = await compressedBytes(IMAGE);
+  console.log(
+    `image: ${(compressed / 1e6).toFixed(1)} MB gzipped, ${(image.Size / 1e6).toFixed(1)} MB unpacked`,
+  );
+  assert.ok(
+    compressed <= registry.maxImageMB * 1e6,
+    `the image is ${(compressed / 1e6).toFixed(1)} MB gzipped, over registry.json's ${registry.maxImageMB} MB`,
+  );
 
   run(["network", "create", NETWORK]);
   run([

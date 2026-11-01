@@ -77,7 +77,7 @@ What these bound, worked out from the rows above:
 ## 4. Secrets handling
 
 - Never committed. `.env*` is gitignored. Example files (`.env.example`) contain names only.
-- **Production:** Vercel environment variables (web) and Secret Manager for the worker, read only by its runtime account (`infra/gcp/iam.json`; deployed in M5.17e). The worker's GitHub token is a fine-grained token with read-only access to public repositories and no other permission, so a leaked one reads only what anyone can. No Google service-account key is ever created (keyless federation).
+- **Production:** Vercel environment variables (web) and Secret Manager for the worker, read only by its runtime account (`infra/gcp/iam.json`; deployed in M5.17e). The worker's GitHub token is a fine-grained token with read-only access to public repositories and no other permission, so a leaked one reads only what anyone can. No Google service-account key is ever created (keyless federation). Deploys come only from CI's `deploy` job on `main`: GitHub's OIDC token becomes `gitinside-deploy`, whose provider admits only this repository (by ID), `ci.yml` on `refs/heads/main`, from a push or a manual run; that account may push the image, replace the two services, and update the queue, but can't change who may invoke them (ADR-0170).
 - Abhinav enters secrets himself. Autopilot never asks for secret values in issues, logs, or commits, and never prints them.
 - Rotation: GitHub App keys and HMAC secrets can be rotated without downtime (two valid secrets during rollover).
 
