@@ -38,6 +38,7 @@ const NAMES = [
   "config-wrapper",
   "axios-defaults",
   "express-folder-routers",
+  "express-class-app",
   "ambiguous-routes",
   "wrapper-fetch",
   "external-sdk",
@@ -247,6 +248,22 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${client}#health -> ${routes}/GET /health exact`,
       `${client}#loadUser -> ${routes}/GET /api/v1/users/:id heuristic`,
       `${client}#placeOrder -> ${routes}/POST /api/v1/orders heuristic`,
+    ]);
+  });
+
+  it("express-class-app: an app and router assigned in the constructor are followed (M5A.3e1)", async () => {
+    const g = await run("express-class-app");
+    const routes = "route:express-class-app";
+    expect(ids(g, "route").sort()).toEqual([
+      `${routes}/GET /api/users/:id`,
+      `${routes}/GET /health`,
+      `${routes}/POST /admin/cache/flush`,
+    ]);
+    expect(g.warnings.filter((w) => w.code.startsWith("EXPRESS"))).toEqual([]);
+    const client = "symbol:express-class-app/src/client.ts";
+    expect(links(g, "http")).toEqual([
+      `${client}#flushCache -> ${routes}/POST /admin/cache/flush exact`,
+      `${client}#loadUser -> ${routes}/GET /api/users/:id exact`,
     ]);
   });
 

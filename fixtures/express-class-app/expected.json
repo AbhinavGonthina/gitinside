@@ -1,0 +1,361 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:express-class-app/src/app.ts#App",
+      "id": "calls:symbol:express-class-app/src/app.ts#App->symbol:express-class-app/src/app.ts#App.middleware",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 10,
+          "file": "src/app.ts",
+          "line": 15
+        }
+      ],
+      "to": "symbol:express-class-app/src/app.ts#App.middleware"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:express-class-app/src/app.ts#App",
+      "id": "calls:symbol:express-class-app/src/app.ts#App->symbol:express-class-app/src/app.ts#App.routes",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 10,
+          "file": "src/app.ts",
+          "line": 16
+        }
+      ],
+      "to": "symbol:express-class-app/src/app.ts#App.routes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:express-class-app/src/app.ts#default",
+      "id": "calls:symbol:express-class-app/src/app.ts#default->symbol:express-class-app/src/app.ts#App",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 20,
+          "file": "src/app.ts",
+          "line": 31
+        }
+      ],
+      "to": "symbol:express-class-app/src/app.ts#App"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-class-app/GET /api/users/:id",
+      "id": "handles:route:express-class-app/GET /api/users/:id->symbol:express-class-app/src/routes/users.ts#getUser",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 26,
+          "file": "src/routes/users.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:express-class-app/src/routes/users.ts#getUser"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-class-app/GET /health",
+      "id": "handles:route:express-class-app/GET /health->symbol:express-class-app/src/app.ts#health",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/app.ts",
+          "line": 27
+        }
+      ],
+      "to": "symbol:express-class-app/src/app.ts#health"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:express-class-app/src/client.ts#flushCache",
+      "id": "http:symbol:express-class-app/src/client.ts#flushCache->route:express-class-app/POST /admin/cache/flush",
+      "kind": "http",
+      "label": "POST /admin/cache/flush",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 6
+        }
+      ],
+      "to": "route:express-class-app/POST /admin/cache/flush"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:express-class-app/src/client.ts#loadUser",
+      "id": "http:symbol:express-class-app/src/client.ts#loadUser->route:express-class-app/GET /api/users/:id",
+      "kind": "http",
+      "label": "GET /api/users/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 2
+        }
+      ],
+      "to": "route:express-class-app/GET /api/users/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-class-app/src/app.ts",
+      "id": "imports:file:express-class-app/src/app.ts->file:express-class-app/src/routes/users.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 19,
+          "file": "src/app.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:express-class-app/src/routes/users.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "eae0e46f232cf491a861ed722688d2ec1513dda7b7a5891e57ca19f13fbd6e9b",
+      "id": "file:express-class-app/src/app.ts",
+      "kind": "file",
+      "label": "app.ts",
+      "parentId": "module:express-class-app/src",
+      "path": "src/app.ts"
+    },
+    {
+      "hash": "7bc606d5b60e998610820fc74b7709169d9757cac130ead624b37483c882cb8d",
+      "id": "file:express-class-app/src/client.ts",
+      "kind": "file",
+      "label": "client.ts",
+      "parentId": "module:express-class-app/src",
+      "path": "src/client.ts"
+    },
+    {
+      "hash": "f8b11388c0239c99479e3bf1809248524102369684f3965301972ecd88bdc551",
+      "id": "file:express-class-app/src/routes/users.ts",
+      "kind": "file",
+      "label": "users.ts",
+      "parentId": "module:express-class-app/src/routes",
+      "path": "src/routes/users.ts"
+    },
+    {
+      "id": "module:express-class-app/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:express-class-app/",
+      "path": "src"
+    },
+    {
+      "id": "module:express-class-app/src/routes",
+      "kind": "module",
+      "label": "routes",
+      "parentId": "module:express-class-app/src",
+      "path": "src/routes"
+    },
+    {
+      "id": "route:express-class-app/GET /api/users/:id",
+      "kind": "route",
+      "label": "GET /api/users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-class-app/src/routes/users.ts",
+      "path": "/api/users/:id",
+      "source": {
+        "column": 8,
+        "file": "src/routes/users.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:express-class-app/GET /health",
+      "kind": "route",
+      "label": "GET /health",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-class-app/src/app.ts",
+      "path": "/health",
+      "source": {
+        "column": 14,
+        "file": "src/app.ts",
+        "line": 27
+      }
+    },
+    {
+      "id": "route:express-class-app/POST /admin/cache/flush",
+      "kind": "route",
+      "label": "POST /admin/cache/flush",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:express-class-app/src/app.ts",
+      "path": "/admin/cache/flush",
+      "source": {
+        "column": 16,
+        "file": "src/app.ts",
+        "line": 24
+      }
+    },
+    {
+      "id": "service:express-class-app/",
+      "kind": "service",
+      "label": "express-class-app",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": false,
+      "id": "symbol:express-class-app/src/app.ts#App",
+      "kind": "symbol",
+      "label": "App",
+      "parentId": "file:express-class-app/src/app.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 29,
+        "file": "src/app.ts",
+        "line": 8
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": false,
+      "id": "symbol:express-class-app/src/app.ts#App.middleware",
+      "kind": "symbol",
+      "label": "middleware",
+      "parentId": "symbol:express-class-app/src/app.ts#App",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 21,
+        "file": "src/app.ts",
+        "line": 19
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": false,
+      "id": "symbol:express-class-app/src/app.ts#App.routes",
+      "kind": "symbol",
+      "label": "routes",
+      "parentId": "symbol:express-class-app/src/app.ts#App",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 28,
+        "file": "src/app.ts",
+        "line": 23
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-class-app/src/app.ts#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:express-class-app/src/app.ts",
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/app.ts",
+        "line": 31
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-class-app/src/app.ts#health",
+      "kind": "symbol",
+      "label": "health",
+      "parentId": "file:express-class-app/src/app.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/app.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-class-app/src/client.ts#flushCache",
+      "kind": "symbol",
+      "label": "flushCache",
+      "parentId": "file:express-class-app/src/client.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/client.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-class-app/src/client.ts#loadUser",
+      "kind": "symbol",
+      "label": "loadUser",
+      "parentId": "file:express-class-app/src/client.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "src/client.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-class-app/src/routes/users.ts#getUser",
+      "kind": "symbol",
+      "label": "getUser",
+      "parentId": "file:express-class-app/src/routes/users.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/routes/users.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-class-app/src/routes/users.ts#router",
+      "kind": "symbol",
+      "label": "router",
+      "parentId": "file:express-class-app/src/routes/users.ts",
+      "source": {
+        "column": 7,
+        "endLine": 7,
+        "file": "src/routes/users.ts",
+        "line": 7
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "express-class-app",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "express-class-app",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

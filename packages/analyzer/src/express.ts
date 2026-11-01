@@ -20,6 +20,9 @@
  * - Routers across files: ES imports and exports (named, default, re-exports), CommonJS
  *   `module.exports = router` / `exports.r = router` / inline `require("./r")`, class
  *   properties (`router = Router()`), and factory functions that return a router.
+ * - Class properties declared without a value and assigned once in the constructor
+ *   (`app: Application;` + `this.app = express()`): the service's files must write the
+ *   property exactly once, with a plain `=` on `this` as a statement of the constructor body.
  * - Routers passed to functions: `registerRoutes(app)` binds the parameter to `app`, so
  *   `function registerRoutes(app) { app.get(…) }` composes like a mount at `""`. A parameter
  *   typed `Express`, `Application`, or `Router` (from `express`) is an app or router even when
@@ -48,8 +51,10 @@
  *   `inlineHandlers` instead, so the Prisma, HTTP, SDK, and queue detectors can draw their
  *   edges from the route (`owners.ts`).
  * - Routers imported from other workspace packages, routers stored in collections
- *   (`routers.forEach((r) => app.use(r))`), routers assigned in constructors without an
- *   initializer, and a shadowed `express` name.
+ *   (`routers.forEach((r) => app.use(r))`), and a shadowed `express` name.
+ * - Class properties without a value written more than once, outside the constructor's own
+ *   statements (a branch, a method, a callback), from another service's files, or by
+ *   destructuring (`({ app: this.app } = x)` isn't seen as a write); static properties.
  * - Listings whose folder isn't a repo path (`process.env.DIR`, `process.cwd()`, a glob with
  *   no `cwd`), `readdirSync` with `withFileTypes`, glob syntax beyond `*`, `**`, `?`, and
  *   `{a,b}`, async listings (`readdir`, `await glob(…)`), files in another service, and
@@ -609,6 +614,74 @@ export function collectExpressFacts(
     return bindings.size > 0 && creationKind(node, bindings) !== undefined;
   };
 
+  /** Left sides of the assignments to a property name (`x.p = …`, `x["p"] ??= …`), by name. */
+  let propertyWrites: Map<string, ts.Expression[]> | undefined;
+  const writesTo = (name: string): readonly ts.Expression[] => {
+    if (!propertyWrites) {
+      const writes = new Map<string, ts.Expression[]>();
+      forEachNode((_, node) => {
+        if (
+          !ts.isBinaryExpression(node) ||
+          node.operatorToken.kind < ts.SyntaxKind.FirstAssignment ||
+          node.operatorToken.kind > ts.SyntaxKind.LastAssignment
+        ) {
+          return;
+        }
+        const left = unwrap(node.left);
+        const written = ts.isPropertyAccessExpression(left)
+          ? left.name.text
+          : ts.isElementAccessExpression(left) && ts.isStringLiteralLike(left.argumentExpression)
+            ? left.argumentExpression.text
+            : undefined;
+        if (written !== undefined) writes.set(written, [...(writes.get(written) ?? []), left]);
+      });
+      propertyWrites = writes;
+    }
+    return propertyWrites.get(name) ?? [];
+  };
+
+  /**
+   * The value assigned to a class's instance property declared without one
+   * (`app: Application;` + `this.app = express()`), when the service's files write it exactly
+   * once: a plain `=` on `this`, as a statement of the class's constructor body. A write in a
+   * branch, a method, a callback, or another file leaves it unknown.
+   */
+  const constructorValue = (
+    sp: ServiceProgram,
+    symbol: ts.Symbol,
+    declaration: ts.PropertyDeclaration,
+  ): ts.Expression | undefined => {
+    const name = declaration.name;
+    const owner = declaration.parent;
+    const isStatic = ts
+      .getModifiers(declaration)
+      ?.some((m) => m.kind === ts.SyntaxKind.StaticKeyword);
+    if (isStatic || (!ts.isIdentifier(name) && !ts.isPrivateIdentifier(name))) return undefined;
+    if (!files.some((f) => f.sourceFile === declaration.getSourceFile())) return undefined;
+    const checker = resolver.checkerOf(sp);
+    // A string-keyed write (`x["app"] = …`) may be to any object, so it always counts.
+    const writes = writesTo(name.text).filter(
+      (left) =>
+        !ts.isPropertyAccessExpression(left) || checker.getSymbolAtLocation(left.name) === symbol,
+    );
+    const [left] = writes;
+    if (writes.length !== 1 || !left || !ts.isPropertyAccessExpression(left)) return undefined;
+    const assignment = left.parent;
+    const statement = assignment.parent as ts.Node | undefined;
+    const body = statement?.parent;
+    const isConstructorStatement =
+      ts.isBinaryExpression(assignment) &&
+      assignment.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      statement !== undefined &&
+      ts.isExpressionStatement(statement) &&
+      body !== undefined &&
+      ts.isBlock(body) &&
+      ts.isConstructorDeclaration(body.parent) &&
+      body.parent.parent === owner &&
+      unwrap(left.expression).kind === ts.SyntaxKind.ThisKeyword;
+    return isConstructorStatement ? assignment.right : undefined;
+  };
+
   /** The value an expression evaluates to: the initializer, function, or parameter it names. */
   const valueOf = (
     sp: ServiceProgram,
@@ -650,6 +723,10 @@ export function collectExpressFacts(
       declaration.initializer
     ) {
       return valueOf(sp, declaration.initializer, hops + 1);
+    }
+    if (ts.isPropertyDeclaration(declaration)) {
+      const assigned = constructorValue(sp, symbol, declaration);
+      return assigned && valueOf(sp, assigned, hops + 1);
     }
     if (ts.isShorthandPropertyAssignment(declaration)) {
       const value = checker.getShorthandAssignmentValueSymbol(declaration);
