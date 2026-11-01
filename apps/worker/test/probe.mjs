@@ -6,6 +6,7 @@ import dgram from "node:dgram";
 import { promises as dnsPromises } from "node:dns";
 import { readFileSync, writeFileSync } from "node:fs";
 import http from "node:http";
+import http2 from "node:http2";
 import net, { connect } from "node:net";
 import { join } from "node:path";
 import { Worker } from "node:worker_threads";
@@ -94,9 +95,30 @@ switch (job.owner) {
       dnsLookup: await attempt(() => dnsPromises.lookup("localhost")),
       listen: await attempt(() => net.createServer().listen(0)),
       udp: await attempt(() => dgram.createSocket("udp4")),
+      http2: await attempt(() => http2.connect(`http://127.0.0.1:${port}`).on("error", () => {})),
+      unixSocket: await attempt(() => new net.Socket().connect({ path: join(job.src, "x.sock") })),
+      // Cloud Run's metadata server hands out the runtime account's token (SECURITY.md T4).
+      metadataServer: await attempt(() =>
+        fetch("http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token", {
+          headers: { "Metadata-Flavor": "Google" },
+        }),
+      ),
     });
     break;
   }
+  case "internals":
+    // Ways around netguard and the permission model through Node itself (M5.17f).
+    probe({
+      binding: await attempt(() => process.binding("tcp_wrap")),
+      inspector: await attempt(async () => (await import("node:inspector")).open(0)),
+      wasi: await attempt(
+        async () => new (await import("node:wasi")).WASI({ version: "preview1" }),
+      ),
+      // On Cloud Run the worker's secrets are its environment (from Secret Manager).
+      parentEnv: await attempt(() => readFileSync(`/proc/${process.ppid}/environ`)),
+      ownEnv: await attempt(() => readFileSync("/proc/self/environ")),
+    });
+    break;
   case "sandbox":
     probe({
       readSecret: await attempt(() => readFileSync(job.name, "utf8")),

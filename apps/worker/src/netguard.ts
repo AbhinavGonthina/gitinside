@@ -20,9 +20,12 @@ import tls from "node:tls";
  * and promise forms, and `dns.Resolver`), and the globals `fetch`, `WebSocket`, and
  * `EventSource`. Replacements are non-writable, and ESM named imports are re-synced.
  *
- * Doesn't block: native bindings (the permission model already refuses addons and child
- * processes), or anything outside this process. It is defense in depth inside the process;
- * the container's egress allowlist (M5.10) is the boundary that holds against an attacker.
+ * Doesn't block: native bindings or anything outside this process. The permission model
+ * (`--permission`, runner.ts) closes the ways around this guard through Node itself: it
+ * refuses `process.binding`, the inspector, WASI, addons, child processes, and worker
+ * threads (runner.test.ts). On Cloud Run nothing outside the process limits egress (no free
+ * allowlist exists there, ADR-0152), so this guard plus the permission model is the child's
+ * network boundary; what's left is a bug in Node or V8 themselves.
  */
 
 const ERROR_CODE = "ERR_NETWORK_DISABLED";

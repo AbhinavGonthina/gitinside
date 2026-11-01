@@ -11,8 +11,8 @@
  * plain `docker run` with only what Cloud Run gives: the env (a fake one; no real secret
  * exists in CI), a `PORT` other than the 8080 default, 1 vCPU / 4 GiB with no swap, `/tmp`
  * in memory, and the `K_*` variables. Postgres is a throwaway container on the check's own
- * network. No Redis and no egress gateway: the queue is Cloud Tasks (ADR-0148), and the
- * platform's sandbox replaces the gateway (ADR-0111). It checks:
+ * network. No Redis and no egress gateway: the queue is Cloud Tasks (ADR-0148), and on Cloud
+ * Run the analysis child's own guards are its network boundary (ADR-0152). It checks:
  * - the image: numeric non-root `USER`, `HOST=0.0.0.0`, `NODE_ENV=production`, the command;
  * - `GET /health` answers 200 on `PORT`, from outside the container;
  * - an unsigned request to any path is refused (401); with the secret from the env, a

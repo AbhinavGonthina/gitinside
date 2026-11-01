@@ -2,7 +2,8 @@ import type { WorkerLog } from "./attempt.js";
 
 /**
  * Structured logs (DESIGN.md §13): one JSON object per line on stdout, `time` first, then
- * `event` and the event's fields. Docker's log driver rotates them on disk (M5.10).
+ * `event` and the event's fields. Cloud Run sends stdout to Cloud Logging, which parses
+ * each line as a JSON payload.
  *
  * Callers log codes, IDs, counts, and timings only: never a secret, a URL with credentials,
  * or a repo's file contents. Errors are reduced to their message. A field that can't be
