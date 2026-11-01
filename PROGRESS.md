@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.18d Abuse (#11): monthly compute budget, new analyses paused at 80% of the free allowance (M5.17e, M5.13, and M5.14b wait on #3)
+M5.18e Abuse (#11): Cloudflare Turnstile on Analyze for signed-out visitors when traffic looks automated (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -178,7 +178,7 @@ M5.18d Abuse (#11): monthly compute budget, new analyses paused at 80% of the fr
 - [x] M5.18a Abuse (#11): "too big" remembered per repo, not per commit: after a `LIMIT_*` failure, refuse new analyses of that repo for 7 days unless its GitHub size dropped by half, with a message saying why and when; tests {model: opus}
 - [x] M5.18b Abuse (#11): size check before any download or compute from GitHub's repo `size` (threshold from M5.16a), refused with a clear message; tests (done with GitHub's languages count instead: `size` is mostly history, ADR-0154) {model: opus}
 - [x] M5.18c Abuse (#11): per-repo limit on `/api/analyze`: at most one new analysis per repo per 30 min whoever asks (on top of 5/h per IP and check-on-view's 6/h), message with the retry time; tests {model: opus}
-- [ ] M5.18d Abuse (#11): monthly compute budget: Cloud Run vCPU- and GiB-seconds per UTC month estimated from job durations × 1 vCPU / 4 GiB (like `store_requests`), plus Cloud Tasks operations; new analyses stop at 80% of the free allowance ("Analysis is paused until <date>"), diagrams keep working; `quota` command; tests {model: opus}
+- [x] M5.18d Abuse (#11): monthly compute budget: Cloud Run vCPU- and GiB-seconds per UTC month estimated from job durations × 1 vCPU / 4 GiB (like `store_requests`), plus Cloud Tasks operations; new analyses stop at 80% of the free allowance ("Analysis is paused until <date>"), diagrams keep working; `quota` command; tests {model: opus}
 - [ ] M5.18e Abuse (#11): Cloudflare Turnstile (free, no card) on Analyze for signed-out visitors, only when traffic looks automated (an IP's or the site's rate over a threshold); server-side token check; fail visibly; tests (keys are in Vercel Production + Preview and `apps/web/.env.local`, #12) {model: opus}
 - [ ] M5.18f SECURITY.md T9 with the final numbers from M5.18a–e and the Cloud Run guardrails {model: opus}
 - [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review; confirm an image's self-request to `/api/graph` is a CDN hit, `x-vercel-cache: HIT`, with `store_requests` unchanged, ADR-0097; worker on Cloud Run with the guardrails verified, ADR-0111; the five `SNAPSHOTS_*` values are in Vercel Production, the worker's go into Cloud Run's secrets, #5) {model: opus} {blocked: #3}
@@ -253,6 +253,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5.18d** (`1e5261b`, ADR-0156): `compute_usage` (one row per UTC month, migration `0007`; `countComputeUsage`, `computeMeters`, `findComputePause` in `packages/db/src/computeUsage.ts`). The worker counts each instance's startup + 10 s shutdown allowance and every answered push (time rounded up to 100 ms, one Cloud Run request, one Cloud Tasks delivery; `apps/worker/src/compute.ts`, `run.ts`'s `meter`); the website counts each `createTask` call. At 80% of Google's free allowance (Cloud Run 180k vCPU-s / 360k GB-s / 2M requests, read from Google's free-tier page; Cloud Tasks 1M ops from ADR-0114, unverified) `/api/analyze` answers `503 ANALYSIS_PAUSED` until the next UTC month and check-on-view shows `behind`, `paused`; diagrams and in-flight jobs unaffected. The quota command and maintenance report the four meters. `>=`→`>` at 80% failed 3 db tests; dropping the pause check failed the analyze test
 
 - **2026-11-01 M5.18c** (`8ca9afa`, ADR-0155): a sliding claim on the repo's row (`repos.analysis_claim_sha` + `analysis_claimed_at`, migration `0006`; `claimRepoAnalysis`/`releaseRepoAnalysis` in `packages/db/src/repoClaims.ts`): one new commit per repo per 30 min, whoever asks; others get `429 REPO_RATE_LIMITED` with `retryAt`/`Retry-After`, no slot, row, or task. The claimed commit still passes (dedupe, retry of a failed run); the claim is released when the caller is over its hourly limit or the queue is down, kept when a racing request queued the commit. Dropping the period failed 4 db tests; releasing on any not-entered failed the new race test (it first survived, so the test was added). Web 443, db 127, typecheck, lint. No eval delta.
 
