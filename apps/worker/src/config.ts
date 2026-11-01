@@ -4,18 +4,17 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
 
 /**
  * The worker process's settings, read once from the environment at startup (ADR-0055,
- * ADR-0065). Secrets live only in the VM's env file (M5.10), never in the repo.
+ * ADR-0065, ADR-0144). Secrets live only in the deployment's secret store, never in the repo.
+ * The worker takes its jobs from Cloud Tasks pushes (`POST /run`), so it needs no Redis.
  *
  * | Variable | Required | Meaning |
  * |---|---|---|
- * | `REDIS_URL` | yes | `redis://` or `rediss://`, the Redis next to the worker |
- * | `REDIS_PASSWORD` | no | Redis's `requirepass` (production generates it, ADR-0083) |
  * | `DATABASE_URL` | yes | `postgres://` or `postgresql://` (Neon's pooled endpoint) |
  * | `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_ACCESS_KEY_ID`, `SNAPSHOTS_SECRET_ACCESS_KEY`, `SNAPSHOTS_BUCKET` | yes | snapshot bucket on Oracle Object Storage (storage.ts) |
- * | `ENQUEUE_HMAC_SECRET` (+ optional `…_PREVIOUS`) | yes | enqueue API signing (hmac.ts) |
+ * | `ENQUEUE_HMAC_SECRET` (+ optional `…_PREVIOUS`) | yes | the website's job signing (hmac.ts) |
  * | `JOBS_ROOT` | no, `/tmp/jobs` | absolute parent of the job folders |
- * | `HOST` | no, `127.0.0.1` | enqueue API address (the container sets `0.0.0.0` behind Caddy) |
- * | `PORT` | no, `8080` | enqueue API port |
+ * | `HOST` | no, `127.0.0.1` | `POST /run`'s address (a container sets `0.0.0.0`) |
+ * | `PORT` | no, `8080` | `POST /run`'s port (Cloud Run sets it) |
  * | `GITHUB_TOKEN` | no | sent to GitHub's API only (raises the 60/hour limit) |
  *
  * Every problem is reported at once, and messages name the variable, never its value.
@@ -23,9 +22,6 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
 
 /** What {@link workerConfigFromEnv} returns. */
 export interface WorkerConfig {
-  redisUrl: string;
-  /** Sent on every Redis connection; never part of `redisUrl`, so the URL stays loggable. */
-  redisPassword?: string;
   databaseUrl: string;
   store: StoreConfig;
   /** Current signing secret first, then the previous one during a rollover. */
@@ -106,7 +102,6 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     }
   };
 
-  const redisUrl = check(() => urlWithScheme(env, "REDIS_URL", ["redis:", "rediss:"]));
   const databaseUrl = check(() => urlWithScheme(env, "DATABASE_URL", ["postgres:", "postgresql:"]));
   const store = check(() => storeConfigFromEnv(env));
   const secrets = check(() => secretsFromEnv(env));
@@ -125,7 +120,6 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
 
   if (
     problems.length > 0 ||
-    redisUrl === undefined ||
     databaseUrl === undefined ||
     store === undefined ||
     secrets === undefined ||
@@ -135,10 +129,7 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     throw new ConfigError(problems);
   }
   const githubToken = env.GITHUB_TOKEN;
-  const redisPassword = env.REDIS_PASSWORD;
   return {
-    redisUrl,
-    ...(redisPassword === undefined || redisPassword === "" ? {} : { redisPassword }),
     databaseUrl,
     store,
     secrets,
@@ -146,19 +137,5 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     host,
     port,
     ...(githubToken === undefined || githubToken === "" ? {} : { githubToken }),
-  };
-}
-
-/**
- * The BullMQ connection for the worker's Redis: the URL, plus the password when one is
- * set (ioredis lets an explicit `password` win over the URL's).
- */
-export function redisConnection(config: Pick<WorkerConfig, "redisUrl" | "redisPassword">): {
-  url: string;
-  password?: string;
-} {
-  return {
-    url: config.redisUrl,
-    ...(config.redisPassword === undefined ? {} : { password: config.redisPassword }),
   };
 }

@@ -390,8 +390,8 @@ try {
     assert.equal(typeof reach[key], "string", `${key}: ${JSON.stringify(reach)}`);
   }
 
-  // Redis wants the password (the worker's health check above passed with it), and the
-  // password is on no command line in the Redis container.
+  // Redis wants the password, and the password is on no command line in the Redis
+  // container. (The worker itself no longer uses Redis, ADR-0144; M5.17c3 removes it.)
   assert.match(reach.redisNoAuth, /^-NOAUTH/, JSON.stringify(reach));
   const redisArgs = capture(["exec", "-T", "redis", "ps", "-o", "args"]);
   assert.ok(redisArgs.includes("redis-server"), "redis-server is not running");

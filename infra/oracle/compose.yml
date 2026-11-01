@@ -101,7 +101,7 @@ services:
     mem_limit: 12g
     memswap_limit: 12g
     pids_limit: 256
-    # The worker stops within 20 s of SIGTERM (ADR-0065); Docker waits longer before SIGKILL.
+    # The worker stops within 8 s of SIGTERM (ADR-0144); Docker waits longer before SIGKILL.
     stop_grace_period: 30s
     healthcheck:
       test:

@@ -11,7 +11,8 @@ import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
  *
  * - **Who may call:** Cloud Run's IAM admits only the queue's invoker service account (its
  *   OIDC token); on top of that, the body must carry the website's HMAC signature
- *   (hmac.ts), checked on the raw bytes before anything is parsed or routed. The signature
+ *   (hmac.ts), checked on the raw bytes before anything is parsed or routed. Only
+ *   {@link HEALTH_PATH} answers without one, and says nothing but "ok". The signature
  *   is dated when the task was created, so it's accepted up to {@link MAX_TASK_AGE_SECONDS}
  *   old (a task can wait in the queue and between retries).
  * - **One job per request, one request at a time** (Cloud Run concurrency 1). A request that
@@ -33,6 +34,8 @@ import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
 
 /** The path Cloud Tasks pushes to (apps/web's `RUN_PATH`). */
 export const RUN_PATH = "/run";
+/** Unauthenticated liveness: `200 {"status":"ok"}` while the process serves requests. */
+export const HEALTH_PATH = "/health";
 /** Attempts the queue makes; the last one's failure is final (M5.17e configures the queue). */
 export const MAX_ATTEMPTS = 3;
 /**
@@ -99,6 +102,14 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
     const method = req.method ?? "GET";
     const path = target.split("?", 1)[0] as string;
 
+    if (path === HEALTH_PATH) {
+      if (method !== "GET" && method !== "HEAD") {
+        send(res, 405, { error: "METHOD_NOT_ALLOWED" }, { allow: "GET, HEAD" });
+        return;
+      }
+      send(res, 200, { status: "ok" });
+      return;
+    }
     const declared = Number(req.headers["content-length"] ?? 0);
     if (declared > maxBodyBytes) {
       req.resume();
@@ -180,12 +191,16 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
         log,
         options.estimates,
       );
+      // While shutting down, the connection closes with the answer: the server's close
+      // otherwise waits for the caller to drop its idle keep-alive socket (seconds).
+      const headers: Record<string, string> =
+        options.signal?.aborted === true ? { connection: "close" } : {};
       if (result.ok) {
-        send(res, 200, { id, state: "done" });
+        send(res, 200, { id, state: "done" }, headers);
       } else if (result.failure.retriable && !lastAttempt) {
-        send(res, 503, { error: result.failure.code });
+        send(res, 503, { error: result.failure.code }, headers);
       } else {
-        send(res, 200, { id, state: "failed", errorCode: result.failure.code });
+        send(res, 200, { id, state: "failed", errorCode: result.failure.code }, headers);
       }
     } finally {
       running = false;

@@ -1,36 +1,35 @@
 import { execFile } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { analyses, repos, startAnalysis, upsertRepo } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
-import { Queue } from "bullmq";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { WorkerConfig } from "./config.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
-import { signRequest } from "./hmac.js";
+import type { JobDeps } from "./job.js";
 import {
+  INTERRUPTED_AFTER_SECONDS,
   SHUTDOWN_SIGNALS,
+  SHUTDOWN_TIMEOUT_MS,
   runMain,
   startWorkerProcess,
   type MainIo,
   type RunningWorker,
   type StartOptions,
 } from "./main.js";
-import { QUEUE_NAME, createBullJobQueue } from "./queue.js";
-import { RETENTION_POLICY, runRetention } from "./retention.js";
 import type { RunResult } from "./runner.js";
 import { startFakeS3, type FakeS3 } from "./s3.testkit.js";
-import { createObjectStore } from "./storage.js";
+import { fakeTask, pushTask } from "./tasks.testkit.js";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const SECRET = "s".repeat(43);
 const VERSION = "0.1.0";
-const REDIS_URL = process.env.TEST_REDIS_URL;
 const GRAPH = '{"nodes":[]}\n';
+const JOB = { kind: "analyze", owner: "acme", repo: "shop", sha: SHA };
 const STATS = {
   files: 1,
   nodes: 3,
@@ -41,7 +40,6 @@ const STATS = {
   stageMs: {},
 };
 const ENV = {
-  REDIS_URL: "redis://127.0.0.1:6379",
   DATABASE_URL: "postgres://127.0.0.1/gitinside",
   SNAPSHOTS_NAMESPACE: "axq1ns2example",
   SNAPSHOTS_REGION: "us-ashburn-1",
@@ -91,14 +89,14 @@ function fakeWorker(stop: () => Promise<void> = async () => undefined) {
 
 describe("runMain", () => {
   it("exits 1 and lists the problems when the config is invalid", async () => {
-    const { io, main } = fakeIo({ env: { ...ENV, REDIS_URL: "", PORT: "x" } });
+    const { io, main } = fakeIo({ env: { ...ENV, DATABASE_URL: "", PORT: "x" } });
     expect(await runMain(main)).toBeUndefined();
     expect(io.exits).toEqual([1]);
     expect(parse(io.lines)).toEqual([
       {
         time: expect.any(String),
         event: "config_invalid",
-        problems: ["REDIS_URL is not set", "PORT must be 1–65535"],
+        problems: ["DATABASE_URL is not set", "PORT must be 1–65535"],
       },
     ]);
     expect(io.handler).toBeUndefined();
@@ -107,17 +105,17 @@ describe("runMain", () => {
   it("exits 1 when the start fails", async () => {
     const { io, main } = fakeIo({
       start: async () => {
-        throw new Error("queue call took over 5000 ms");
+        throw new Error("listen EADDRINUSE");
       },
     });
     expect(await runMain(main)).toBeUndefined();
     expect(io.exits).toEqual([1]);
     expect(parse(io.lines)).toMatchObject([
-      { event: "startup_failed", message: "queue call took over 5000 ms" },
+      { event: "startup_failed", message: "listen EADDRINUSE" },
     ]);
   });
 
-  it("passes the config and a JSON log to the start", async () => {
+  it("passes the config (no Redis needed) and a JSON log to the start", async () => {
     let seen: WorkerConfig | undefined;
     const { worker } = fakeWorker();
     const { io, main } = fakeIo({
@@ -128,7 +126,7 @@ describe("runMain", () => {
       },
     });
     expect(await runMain(main)).toBe(worker);
-    expect(seen?.redisUrl).toBe(ENV.REDIS_URL);
+    expect(seen?.databaseUrl).toBe(ENV.DATABASE_URL);
     expect(parse(io.lines)).toMatchObject([{ event: "worker_ready", port: 8080 }]);
     expect(io.exits).toEqual([]);
     expect(io.signals).toEqual(SHUTDOWN_SIGNALS);
@@ -167,6 +165,10 @@ describe("runMain", () => {
     expect(io.exits).toEqual([1]);
     expect(events(io.lines)).toEqual(["signal", "shutdown_timeout"]);
   });
+
+  it("gives up on a shutdown before Cloud Run's SIGKILL, 10 s after SIGTERM", () => {
+    expect(SHUTDOWN_TIMEOUT_MS).toBeLessThan(10_000);
+  });
 });
 
 describe("bin.js", () => {
@@ -180,8 +182,9 @@ describe("bin.js", () => {
     expect(error?.code).toBe(1);
     const lines = (error?.stdout ?? "").trimEnd().split("\n");
     expect(parse(lines)).toMatchObject([
-      { event: "config_invalid", problems: expect.arrayContaining(["REDIS_URL is not set"]) },
+      { event: "config_invalid", problems: expect.arrayContaining(["DATABASE_URL is not set"]) },
     ]);
+    expect(error?.stdout).not.toContain("REDIS_URL");
   });
 });
 
@@ -190,6 +193,9 @@ describe("startWorkerProcess", () => {
   let root: string;
   let lines: string[];
   let closes: number;
+  let github: FakeGitHub;
+  let s3: FakeS3;
+  const running: RunningWorker[] = [];
 
   beforeAll(async () => {
     t = await createTestDb();
@@ -204,8 +210,29 @@ describe("startWorkerProcess", () => {
     root = await mkdtemp(join(tmpdir(), "gitinside-main-"));
     lines = [];
     closes = 0;
+    github = await startFakeGitHub(tarballFrom([{ name: "index.ts", body: "export {};\n" }]));
+    const tarball = github.api;
+    github.api = (req, res) => {
+      if (req.url === "/repos/acme/shop") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            id: 3_000_000_001,
+            name: "shop",
+            owner: { login: "acme" },
+            private: false,
+            default_branch: "main",
+          }),
+        );
+      } else tarball(req, res);
+    };
+    s3 = await startFakeS3();
   });
+
   afterEach(async () => {
+    for (const worker of running.splice(0)) await worker.stop().catch(() => undefined);
+    await github.close();
+    await s3.close();
     await rm(root, { recursive: true, force: true });
   });
 
@@ -219,22 +246,42 @@ describe("startWorkerProcess", () => {
 
   function config(overrides: Partial<WorkerConfig> = {}): WorkerConfig {
     return {
-      redisUrl: "redis://127.0.0.1:1",
       databaseUrl: "postgres://unused",
-      store: {
-        endpoint: "http://127.0.0.1:1",
-        bucket: "gitinside-snapshots",
-        credentials: { accessKeyId: "a", secretAccessKey: "b" },
-      },
+      store: { endpoint: s3.endpoint, bucket: s3.bucket, credentials: s3.credentials },
       secrets: [SECRET],
       jobsRoot: join(root, "jobs"),
       host: "127.0.0.1",
       port: 0,
+      githubToken: "test-token",
       ...overrides,
     };
   }
 
-  async function runningRow(): Promise<string> {
+  const writeGraph: NonNullable<JobDeps["run"]> = async (job): Promise<RunResult> => {
+    await writeFile(job.out, GRAPH);
+    return { ok: true, stats: STATS, durationMs: 1 };
+  };
+
+  async function start(
+    options: Partial<StartOptions> = {},
+    overrides: Partial<WorkerConfig> = {},
+  ): Promise<RunningWorker> {
+    const worker = await startWorkerProcess(config(overrides), {
+      log,
+      openDb,
+      analyzerVersion: VERSION,
+      github: { apiBase: github.apiBase, downloadOrigins: [github.codeloadOrigin] },
+      jobDeps: { run: writeGraph },
+      maintenance: false,
+      ...options,
+    });
+    running.push(worker);
+    return worker;
+  }
+
+  const origin = (worker: RunningWorker) => `http://127.0.0.1:${worker.address.port}`;
+
+  async function runningRow(sha = SHA): Promise<string> {
     const { id: repoId } = await upsertRepo(t.db, {
       providerRepoId: 42,
       owner: "acme",
@@ -242,248 +289,149 @@ describe("startWorkerProcess", () => {
       visibility: "public",
       defaultBranch: "main",
     });
-    const { id } = await startAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: VERSION });
+    const { id } = await startAnalysis(t.db, { repoId, sha, analyzerVersion: VERSION });
     return id;
   }
 
-  it("sweeps first, then fails and closes everything when Redis doesn't answer", async () => {
-    const id = await runningRow();
+  it("takes a pushed task to the bucket and Postgres, then stops cleanly", async () => {
+    const worker = await start();
+    const health = await fetch(`${origin(worker)}/health`);
+    expect(health.status).toBe(200);
+    expect(await health.json()).toEqual({ status: "ok" });
+
+    const deliveries = await pushTask(fakeTask(origin(worker), JOB, SECRET));
+    expect(deliveries).toMatchObject([{ status: 200, body: { state: "done" } }]);
+
+    expect([...s3.objects.keys()]).toEqual([`public/acme/shop/${SHA}/${VERSION}.json.gz`]);
+    const [row] = await t.db.select().from(analyses);
+    expect(row).toMatchObject({ status: "done", sha: SHA, analyzerVersion: VERSION });
+    expect(github.requests.filter((r) => r.server === "api")[0]?.authorization).toBe(
+      "Bearer test-token",
+    );
+
+    await worker.stop();
+    await worker.stop();
+    expect(closes).toBe(1);
+    await expect(fetch(`${origin(worker)}/health`)).rejects.toThrow();
+    expect(events(lines)).toEqual([
+      "worker_starting",
+      "startup_sweep",
+      "worker_ready",
+      "job_done",
+      "worker_stopping",
+      "worker_stopped",
+    ]);
+  });
+
+  it("cancels the running job on shutdown: its push gets 503 and its row is queued again", async () => {
+    let started: () => void = () => undefined;
+    const jobRunning = new Promise<void>((resolve) => (started = resolve));
+    const run: NonNullable<JobDeps["run"]> = async (_job, options) => {
+      started();
+      await new Promise((resolve) => options.signal?.addEventListener("abort", resolve));
+      return { ok: false, code: "CANCELLED", message: "", stderrTail: "", durationMs: 1 };
+    };
+    const worker = await start({ jobDeps: { run } });
+    const deliveries = pushTask(fakeTask(origin(worker), JOB, SECRET), 1);
+    await jobRunning;
+
+    await worker.stop();
+    expect(await deliveries).toEqual([{ status: 503, body: { error: "CANCELLED" } }]);
+    expect(await t.db.select().from(analyses)).toMatchObject([{ status: "queued" }]);
+    expect(closes).toBe(1);
+    expect(s3.objects.size).toBe(0);
+  });
+
+  it("sweeps leftover folders and long-running rows, but not another instance's live job", async () => {
+    const stale = await runningRow();
+    await t.db
+      .update(analyses)
+      .set({ startedAt: new Date(Date.now() - (INTERRUPTED_AFTER_SECONDS + 5) * 1000) });
+    const live = await runningRow("f".repeat(40));
     await mkdir(join(root, "jobs", "analyze-x-abc", "src"), { recursive: true });
     await writeFile(join(root, "jobs", "analyze-x-abc", "src", "a.ts"), "x");
 
-    await expect(
-      startWorkerProcess(config(), { log, openDb, queueCallTimeoutMs: 300 }),
-    ).rejects.toThrow(/300 ms/);
+    await start();
 
     expect(await readdir(join(root, "jobs"))).toEqual([]);
-    expect(await t.db.select().from(analyses)).toMatchObject([
-      { id, status: "failed", errorCode: "JOB_INTERRUPTED" },
-    ]);
-    expect(closes).toBe(1);
+    const rows = await t.db.select().from(analyses);
+    expect(rows.find((row) => row.id === stale)).toMatchObject({
+      status: "failed",
+      errorCode: "JOB_INTERRUPTED",
+    });
+    expect(rows.find((row) => row.id === live)).toMatchObject({ status: "running" });
     expect(parse(lines)).toMatchObject([
-      { event: "worker_starting", analyzerVersion: VERSION, concurrency: 2, githubToken: false },
+      { event: "worker_starting", analyzerVersion: VERSION, githubToken: true },
       { event: "startup_sweep", folders: 1, interrupted: 1 },
+      { event: "worker_ready", host: "127.0.0.1" },
     ]);
   });
 
   it("never logs a secret or connection string", async () => {
-    await expect(
-      startWorkerProcess(config({ githubToken: "gh-secret-token" }), {
-        log,
-        openDb,
-        queueCallTimeoutMs: 300,
-      }),
-    ).rejects.toThrow();
+    const worker = await start({}, { githubToken: "gh-secret-token" });
+    await pushTask(fakeTask(origin(worker), JOB, SECRET));
+    await worker.stop();
     const text = lines.join("\n");
-    for (const secret of [
-      SECRET,
-      "gh-secret-token",
-      "redis://",
-      "postgres://",
-      "secretAccessKey",
-    ]) {
+    for (const secret of [SECRET, "gh-secret-token", "postgres://", "secretAccessKey"]) {
       expect(text).not.toContain(secret);
     }
     expect(parse(lines)[0]).toMatchObject({ githubToken: true });
   });
 
-  it("fails before touching Redis when the sweep fails", async () => {
+  it("fails and closes the database when the sweep fails", async () => {
     await writeFile(join(root, "jobs"), "a file, not a folder");
     await expect(startWorkerProcess(config(), { log, openDb })).rejects.toThrow();
     expect(closes).toBe(1);
     expect(events(lines)).toEqual(["worker_starting"]);
   });
 
-  describe.runIf(REDIS_URL !== undefined)("with Redis", () => {
-    let github: FakeGitHub;
-    let s3: FakeS3;
-    let prefix: string;
-    const running: RunningWorker[] = [];
-
-    beforeEach(async () => {
-      prefix = `gi-test-${randomBytes(6).toString("hex")}`;
-      github = await startFakeGitHub(tarballFrom([{ name: "index.ts", body: "export {};\n" }]));
-      const tarball = github.api;
-      github.api = (req, res) => {
-        if (req.url === "/repos/acme/shop") {
-          res.writeHead(200, { "content-type": "application/json" });
-          res.end(
-            JSON.stringify({
-              id: 3_000_000_001,
-              name: "shop",
-              owner: { login: "acme" },
-              private: false,
-              default_branch: "main",
-            }),
-          );
-        } else tarball(req, res);
-      };
-      s3 = await startFakeS3();
-    });
-
-    afterEach(async () => {
-      for (const worker of running.splice(0)) await worker.stop().catch(() => undefined);
-      const queue = new Queue(QUEUE_NAME, { connection: { url: REDIS_URL ?? "" }, prefix });
-      await queue.obliterate({ force: true });
-      await queue.close();
-      await github.close();
-      await s3.close();
-    });
-
-    async function start(maintenance?: StartOptions["maintenance"]): Promise<RunningWorker> {
-      const worker = await startWorkerProcess(
-        config({
-          redisUrl: REDIS_URL ?? "",
-          store: { endpoint: s3.endpoint, bucket: s3.bucket, credentials: s3.credentials },
-          githubToken: "test-token",
-        }),
-        {
-          log,
-          openDb,
-          prefix,
-          analyzerVersion: VERSION,
-          github: { apiBase: github.apiBase, downloadOrigins: [github.codeloadOrigin] },
-          jobDeps: {
-            run: async (job): Promise<RunResult> => {
-              await writeFile(job.out, GRAPH);
-              return { ok: true, stats: STATS, durationMs: 1 };
-            },
-          },
-          ...(maintenance === undefined ? {} : { maintenance }),
-        },
-      );
-      running.push(worker);
-      return worker;
-    }
-
-    async function api(worker: RunningWorker, method: "GET" | "POST", path: string, body = "") {
-      const headers = signRequest(SECRET, { method, path, body: Buffer.from(body) });
-      const response = await fetch(`http://127.0.0.1:${worker.address.port}${path}`, {
-        method,
-        headers: { ...headers, ...(body === "" ? {} : { "content-type": "application/json" }) },
-        ...(body === "" ? {} : { body }),
-      });
-      return { status: response.status, body: (await response.json()) as Record<string, unknown> };
-    }
-
-    it("takes a signed job through the queue to the bucket and Postgres, then stops cleanly", async () => {
-      const worker = await start();
-      expect((await fetch(`http://127.0.0.1:${worker.address.port}/health`)).status).toBe(200);
-
-      const body = JSON.stringify({ kind: "analyze", owner: "acme", repo: "shop", sha: SHA });
-      const enqueued = await api(worker, "POST", "/enqueue", body);
-      expect(enqueued).toMatchObject({ status: 202, body: { created: true } });
-      const jobPath = `/jobs/${enqueued.body.id as string}`;
-
-      const end = Date.now() + 15_000;
-      let state: unknown;
-      while ((state = (await api(worker, "GET", jobPath)).body.state) !== "done") {
-        if (state === "failed" || Date.now() > end) throw new Error(`job ended ${String(state)}`);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-
-      expect([...s3.objects.keys()]).toEqual([`public/acme/shop/${SHA}/${VERSION}.json.gz`]);
-      const [row] = await t.db.select().from(analyses);
-      expect(row).toMatchObject({ status: "done", sha: SHA, analyzerVersion: VERSION });
-      expect(github.requests.filter((r) => r.server === "api")[0]?.authorization).toBe(
-        "Bearer test-token",
-      );
-
-      await worker.stop();
-      await worker.stop();
-      expect(closes).toBe(1);
-      await expect(fetch(`http://127.0.0.1:${worker.address.port}/health`)).rejects.toThrow();
-      expect(events(lines)).toEqual([
-        "worker_starting",
-        "startup_sweep",
-        "worker_ready",
-        "job_done",
-        "worker_stopping",
-        "worker_stopped",
-      ]);
-    });
-
-    it("analyzes a commit again once retention evicted it, instead of answering its old job", async () => {
-      const worker = await start();
-      const body = JSON.stringify({ kind: "analyze", owner: "acme", repo: "shop", sha: SHA });
-      const waitForDone = async (path: string) => {
-        const end = Date.now() + 15_000;
-        let state: unknown;
-        while ((state = (await api(worker, "GET", path)).body.state) !== "done") {
-          if (state === "failed" || Date.now() > end) throw new Error(`job ended ${String(state)}`);
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-      };
-      const first = await api(worker, "POST", "/enqueue", body);
-      await waitForDone(`/jobs/${first.body.id as string}`);
-
-      const queue = createBullJobQueue({ connection: { url: REDIS_URL ?? "" }, prefix });
-      try {
-        const report = await runRetention({
-          db: t.db,
-          store: createObjectStore({
-            endpoint: s3.endpoint,
-            bucket: s3.bucket,
-            credentials: s3.credentials,
-          }),
-          jobs: queue,
-          policy: { ...RETENTION_POLICY, keepPerRepo: 0 },
-        });
-        expect(report).toMatchObject({ deletedObjects: 1, removedJobs: 1, failedJobRemovals: 0 });
-      } finally {
-        await queue.close();
-      }
-      expect(await t.db.select().from(analyses)).toEqual([]);
-
-      const again = await api(worker, "POST", "/enqueue", body);
-      expect(again).toMatchObject({ status: 202, body: { id: first.body.id, created: true } });
-      await waitForDone(`/jobs/${first.body.id as string}`);
-      expect(await t.db.select().from(analyses)).toHaveLength(1);
-      expect(s3.objects.size).toBe(1);
-    });
-
-    it("runs maintenance on its schedule against the same database and bucket", async () => {
-      s3.objects.set("public/x", { body: Buffer.alloc(9), headers: {}, lastModified: new Date() });
-      const worker = await start({ firstDelayMs: 1, intervalMs: 60_000 });
-      const end = Date.now() + 10_000;
-      while (!events(lines).includes("quota")) {
-        if (Date.now() > end) throw new Error("no maintenance run");
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      await worker.stop();
-      expect(events(lines)).toEqual([
-        "worker_starting",
-        "startup_sweep",
-        "worker_ready",
-        "retention_run",
-        "rate_limits_pruned",
-        "quota",
-        "worker_stopping",
-        "worker_stopped",
-      ]);
-      const quota = parse(lines).find((line) => line.event === "quota");
-      expect(quota).toMatchObject({
-        quotas: [
-          { resource: "bucket", used: 9 },
-          { resource: "database" },
-          { resource: "requests", bySource: { web: 0 } },
-        ],
-      });
-      // The worker's store is counted: at least retention's and the quota check's listings.
-      const [, , requests] = (quota as { quotas: { used: number }[] }).quotas;
-      expect(requests?.used).toBeGreaterThanOrEqual(2);
-    });
-
-    it("closes the worker and queue when the port is taken", async () => {
-      const first = await start();
+  it("closes the maintenance schedule and the database when the port is taken", async () => {
+    const taken = createServer();
+    await new Promise<void>((resolve) => taken.listen(0, "127.0.0.1", resolve));
+    try {
+      const { port } = taken.address() as { port: number };
       await expect(
-        startWorkerProcess(config({ redisUrl: REDIS_URL ?? "", port: first.address.port }), {
+        startWorkerProcess(config({ port }), {
           log,
           openDb,
-          prefix,
+          maintenance: { firstDelayMs: 60_000 },
         }),
       ).rejects.toThrow(/EADDRINUSE/);
       expect(closes).toBe(1);
+    } finally {
+      await new Promise((resolve) => taken.close(resolve));
+    }
+  });
+
+  it("runs maintenance on its schedule against the same database and bucket", async () => {
+    s3.objects.set("public/x", { body: Buffer.alloc(9), headers: {}, lastModified: new Date() });
+    const worker = await start({ maintenance: { firstDelayMs: 1, intervalMs: 60_000 } });
+    const end = Date.now() + 10_000;
+    while (!events(lines).includes("quota")) {
+      if (Date.now() > end) throw new Error("no maintenance run");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    await worker.stop();
+    expect(events(lines)).toEqual([
+      "worker_starting",
+      "startup_sweep",
+      "worker_ready",
+      "retention_run",
+      "rate_limits_pruned",
+      "quota",
+      "worker_stopping",
+      "worker_stopped",
+    ]);
+    const quota = parse(lines).find((line) => line.event === "quota");
+    expect(quota).toMatchObject({
+      quotas: [
+        { resource: "bucket", used: 9 },
+        { resource: "database" },
+        { resource: "requests", bySource: { web: 0 } },
+      ],
     });
+    // The worker's store is counted: at least retention's and the quota check's listings.
+    const [, , requests] = (quota as { quotas: { used: number }[] }).quotas;
+    expect(requests?.used).toBeGreaterThanOrEqual(2);
   });
 });
