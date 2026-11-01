@@ -210,12 +210,14 @@ Evaluate the URL expression into a sequence of **literal** and **hole** segments
 | `'/api/users/' + id` | `/api/users/{}` |
 | `` `${API}/orders` `` where `const API = '/api'` (same or imported module) | `/api/orders` |
 | `` `${process.env.NEXT_PUBLIC_API_URL}/orders` `` | `{env:NEXT_PUBLIC_API_URL}/orders` |
+| `` `${API}/orders` `` where `const API = process.env.X ?? 'http://localhost:4000/api/v1'` | `{env:X}/api/v1/orders` (ADR-0158) |
+| `` `/api/${process.env.VERSION \|\| 'v1'}/x` `` | `/api/v1/x` |
 | `new URL('/x', base)` | `/x` relative to base |
 | `buildUrl()` (unknown function) | unresolved, reason `DYNAMIC_URL` |
 
 **Rules:**
 - **Origin:** strip it if it's a literal (`https://api.example.com/...` ⇒ host recorded, path kept).
-- **Env-prefixed bases:** treated as "same deployment" when the env var name matches a known pattern (`*_API_URL`, `*_BASE_URL`) and the frontend and backend are in the same repo. This yields **heuristic** confidence.
+- **Env-prefixed bases:** treated as "same deployment" when the env var name matches a known pattern (`*_API_URL`, `*_BASE_URL`) and the frontend and backend are in the same repo, or when the code's fallback for it is a loopback URL (`?? "http://localhost:9000"`, whatever the name). This yields **heuristic** confidence. A literal fallback's path follows the env base (ADR-0158).
 - **Query strings and fragments:** dropped.
 - **Trailing slashes:** normalized away.
 

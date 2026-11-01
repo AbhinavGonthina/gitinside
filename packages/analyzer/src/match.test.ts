@@ -309,6 +309,42 @@ describe("createRouteMatcher", () => {
     );
   });
 
+  it("reads any env base with a loopback fallback as this repo, at heuristic", () => {
+    /** `GET <env ?? fallback><path>` from `apps/web`. */
+    const withFallback = (name: string, fallback: string, path: string): string => {
+      const result = toUrlPattern([
+        { kind: "env", name, fallback: [{ kind: "text", text: fallback }] },
+        { kind: "text", text: path },
+      ]);
+      if (!("pattern" in result)) throw new Error(`test URL doesn't normalize: ${path}`);
+      return show(
+        matcher.match({
+          file: "apps/web/src/client.ts",
+          method: "GET",
+          url: {
+            resolved: true,
+            pattern: result.pattern,
+            text: formatUrlPattern(result.pattern),
+            confidence: "exact",
+          },
+          confidence: "exact",
+        }),
+      );
+    };
+    expect(withFallback("REACT_APP_FOODIE_URL", "http://localhost:9000/api", "/users/me")).toBe(
+      "heuristic route:api/GET /api/users/me",
+    );
+    expect(withFallback("NEXT_PUBLIC_API_URL", "http://127.0.0.1/api", "/users/me")).toBe(
+      "heuristic route:api/GET /api/users/me",
+    );
+    expect(withFallback("ANALYTICS_HOST", "https://stats.example.com", "/api/session")).toBe(
+      "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+    );
+    expect(withFallback("ANALYTICS_HOST", "/api", "/session")).toBe(
+      "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+    );
+  });
+
   it("treats loopback hosts as this repo and other hosts as external", () => {
     expect(m("GET http://localhost:4000/api/users/me")).toBe(
       "heuristic route:api/GET /api/users/me",

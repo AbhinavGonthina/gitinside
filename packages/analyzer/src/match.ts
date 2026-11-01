@@ -8,8 +8,9 @@
  *    the caller's own service and `heuristic` for routes in other services (it assumes a proxy
  *    or rewrite sends them there). Page-relative URLs (`api/x`) are `heuristic`: the page's
  *    folder is unknown, so the path is read from the root. An env-var base is `heuristic` when
- *    its name looks like an API base (`API_URL`, `BASE_URL`, `*_API_URL`, `*_BASE_URL`); any
- *    other env var matches nothing. A literal loopback host (`localhost`, `127.0.0.1`,
+ *    its name looks like an API base (`API_URL`, `BASE_URL`, `*_API_URL`, `*_BASE_URL`) or
+ *    the code's fallback for it is a loopback URL (`?? "http://localhost:9000"`, ADR-0158);
+ *    any other env var matches nothing. A literal loopback host (`localhost`, `127.0.0.1`,
  *    `[::1]`, `0.0.0.0`, `*.localhost`, any port) is `heuristic` against every service; any
  *    other literal host is an external API and is never matched to a route.
  * 2. **Method.** Equal methods, an `ALL` route, or a `HEAD` request to a `GET` route are
@@ -141,6 +142,15 @@ export function isLoopbackHost(host: string): boolean {
   );
 }
 
+/**
+ * True when an env-var base may point at this repo: its name looks like an API base, or the
+ * code's fallback for it is a loopback host (ADR-0158).
+ */
+function reachesRepo(base: Extract<UrlBase, { kind: "env" }>): boolean {
+  if (API_BASE_ENV.test(base.name)) return true;
+  return base.fallbackHost !== undefined && isLoopbackHost(base.fallbackHost);
+}
+
 /** The key of the service a route node ID belongs to: the longest workspace key it starts with. */
 function routeService(id: string, keys: readonly string[]): string | undefined {
   let best: string | undefined;
@@ -221,7 +231,7 @@ export function createRouteMatcher(
       case "page":
         return HEURISTIC;
       case "env":
-        return API_BASE_ENV.test(base.name) ? HEURISTIC : FAIL;
+        return reachesRepo(base) ? HEURISTIC : FAIL;
       case "host":
         return isLoopbackHost(base.host) ? HEURISTIC : FAIL;
     }
@@ -242,7 +252,7 @@ export function createRouteMatcher(
       if (base.kind === "host" && !isLoopbackHost(base.host)) {
         return { kind: "external", scheme: base.scheme, host: base.host };
       }
-      if (base.kind === "env" && !API_BASE_ENV.test(base.name)) {
+      if (base.kind === "env" && !reachesRepo(base)) {
         return {
           kind: "unresolved",
           reason: "NO_MATCHING_ROUTE",

@@ -1,0 +1,330 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/client.ts#authenticate",
+      "id": "http:symbol:web/src/client.ts#authenticate->route:api/POST /api/v2/authenticate",
+      "kind": "http",
+      "label": "POST /api/v2/authenticate",
+      "sites": [
+        {
+          "column": 9,
+          "file": "apps/web/src/client.ts",
+          "line": 17
+        }
+      ],
+      "to": "route:api/POST /api/v2/authenticate"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/client.ts#loadUser",
+      "id": "http:symbol:web/src/client.ts#loadUser->route:api/GET /api/v1/users/:id",
+      "kind": "http",
+      "label": "GET /api/v1/users/:id",
+      "sites": [
+        {
+          "column": 21,
+          "file": "apps/web/src/client.ts",
+          "line": 11
+        }
+      ],
+      "to": "route:api/GET /api/v1/users/:id"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/src/client.ts#login",
+      "id": "http:symbol:web/src/client.ts#login->route:api/POST /api/v1/auth/login",
+      "kind": "http",
+      "label": "POST /api/v1/auth/login",
+      "sites": [
+        {
+          "column": 21,
+          "file": "apps/web/src/client.ts",
+          "line": 5
+        }
+      ],
+      "to": "route:api/POST /api/v1/auth/login"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:web/src/client.ts#track",
+      "id": "http:symbol:web/src/client.ts#track->unresolved:web/src/client.ts:22:9",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 9,
+          "file": "apps/web/src/client.ts",
+          "line": 22
+        }
+      ],
+      "to": "unresolved:web/src/client.ts:22:9"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:web/src/client.ts",
+      "id": "imports:file:web/src/client.ts->file:web/src/config.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 49,
+          "file": "apps/web/src/client.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:web/src/config.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "2504afc346a8f1bde8be66f0e001715553209eb59d95eade4f64cd94349153df",
+      "id": "file:api/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/server.ts"
+    },
+    {
+      "hash": "dc5fb4d60beedb9d1cf2840dd58c02e62b740936bca86e1c5b8bd608e95a841c",
+      "id": "file:web/src/client.ts",
+      "kind": "file",
+      "label": "client.ts",
+      "parentId": "module:web/src",
+      "path": "apps/web/src/client.ts"
+    },
+    {
+      "hash": "10e63eeaad888b8dbe6dde0f35e04dc0ac84a1cea88fb98f31f7aefee0df923f",
+      "id": "file:web/src/config.ts",
+      "kind": "file",
+      "label": "config.ts",
+      "parentId": "module:web/src",
+      "path": "apps/web/src/config.ts"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "apps/api/src"
+    },
+    {
+      "id": "module:web/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:web/",
+      "path": "apps/web/src"
+    },
+    {
+      "id": "route:api/GET /api/v1/users/:id",
+      "kind": "route",
+      "label": "GET /api/v1/users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/v1/users/:id",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:api/POST /api/v1/auth/login",
+      "kind": "route",
+      "label": "POST /api/v1/auth/login",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/v1/auth/login",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:api/POST /api/v2/authenticate",
+      "kind": "route",
+      "label": "POST /api/v2/authenticate",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/v2/authenticate",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 13
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "@fallback/api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "apps/api"
+    },
+    {
+      "id": "service:web/",
+      "kind": "service",
+      "label": "@fallback/web",
+      "parentId": "system:root",
+      "root": "apps/web"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/client.ts#authenticate",
+      "kind": "symbol",
+      "label": "authenticate",
+      "parentId": "file:web/src/client.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "apps/web/src/client.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/client.ts#loadUser",
+      "kind": "symbol",
+      "label": "loadUser",
+      "parentId": "file:web/src/client.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "apps/web/src/client.ts",
+        "line": 10
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/client.ts#login",
+      "kind": "symbol",
+      "label": "login",
+      "parentId": "file:web/src/client.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "apps/web/src/client.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/client.ts#track",
+      "kind": "symbol",
+      "label": "track",
+      "parentId": "file:web/src/client.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "apps/web/src/client.ts",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/config.ts#API_URL",
+      "kind": "symbol",
+      "label": "API_URL",
+      "parentId": "file:web/src/config.ts",
+      "source": {
+        "column": 14,
+        "endLine": 2,
+        "file": "apps/web/src/config.ts",
+        "line": 2
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/config.ts#SERVER",
+      "kind": "symbol",
+      "label": "SERVER",
+      "parentId": "file:web/src/config.ts",
+      "source": {
+        "column": 14,
+        "endLine": 5,
+        "file": "apps/web/src/config.ts",
+        "line": 5
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/config.ts#STATS",
+      "kind": "symbol",
+      "label": "STATS",
+      "parentId": "file:web/src/config.ts",
+      "source": {
+        "column": 14,
+        "endLine": 11,
+        "file": "apps/web/src/config.ts",
+        "line": 11
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/src/config.ts#VERSION",
+      "kind": "symbol",
+      "label": "VERSION",
+      "parentId": "file:web/src/config.ts",
+      "source": {
+        "column": 14,
+        "endLine": 8,
+        "file": "apps/web/src/config.ts",
+        "line": 8
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "env-fallback",
+      "parentId": null
+    },
+    {
+      "detail": "the env var STATS_HOST isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "expression": "fetch(`${STATS}/users/${event}`)",
+      "id": "unresolved:web/src/client.ts:22:9",
+      "kind": "unresolved",
+      "label": "GET {env:STATS_HOST}/api/v1/users/{}",
+      "parentId": "service:web/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 9,
+        "file": "apps/web/src/client.ts",
+        "line": 22
+      }
+    }
+  ],
+  "repo": {
+    "name": "env-fallback",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/api",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/web",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
