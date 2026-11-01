@@ -5,7 +5,7 @@ import { gunzipSync } from "node:zlib";
 import { analyses, repos, type AnyDatabase } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import type { JobRequest } from "./api.js";
+import type { JobRequest } from "./request.js";
 import { JobFailure } from "./failure.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import { processJob, type JobDeps } from "./job.js";

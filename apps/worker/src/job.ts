@@ -1,11 +1,11 @@
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import type { JobRequest } from "./api.js";
 import { ExtractError, extractTarball, type ExtractLimits, type SkippedEntry } from "./extract.js";
 import { JobFailure } from "./failure.js";
 import { openTarball, type DownloadOptions } from "./github.js";
 import type { FoundFacts, JobStage, StepProgress, StoredProgress } from "./progress.js";
 import type { AnalysisStats } from "./protocol.js";
+import type { JobRequest } from "./request.js";
 import { DEFAULT_RUNNER_LIMITS, runAnalysis, type RunOptions, type RunResult } from "./runner.js";
 
 /**
@@ -19,9 +19,9 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis, type RunOptions, type RunResult } f
  * 4. **clean up:** the job folder is deleted whatever happened. A failed attempt is
  *    recorded as queued again, or failed if it was final.
  *
- * Every failure is a {@link JobFailure} with a code; the queue decides from
- * `retriable` whether to try again. The folder name has a random part, so a stalled
- * attempt that is still running elsewhere never shares a folder with its retry.
+ * Every failure is a {@link JobFailure} with a code; `POST /run` decides from `retriable`
+ * whether Cloud Tasks tries again (run.ts). The folder name has a random part, so an attempt
+ * still running when its retry starts never shares a folder with it.
  */
 
 export { STAGE_PROGRESS, type JobStage } from "./progress.js";
@@ -67,9 +67,9 @@ export interface JobRecorder {
   /** After a failed attempt: `final` marks the analysis failed, otherwise queued again. */
   failed(job: RecordedJob, code: string, final: boolean): Promise<void>;
   /**
-   * Where job `jobId`'s running attempt is, for the progress page (ADR-0139, ADR-0140). The
-   * queue's processor calls it with each progress update, one at a time, and only logs a
-   * failure.
+   * Where job `jobId`'s running attempt is, for the progress page (ADR-0139, ADR-0140).
+   * `runAttempt` (attempt.ts) calls it with each progress update, one at a time, and only
+   * logs a failure.
    */
   progress?(jobId: string, progress: StoredProgress): Promise<void>;
   /**
@@ -79,7 +79,7 @@ export interface JobRecorder {
   done?(jobId: string): Promise<boolean>;
 }
 
-/** What a finished job returns (the BullMQ return value). */
+/** What a finished job returns. */
 export interface JobOutcome {
   stats: AnalysisStats;
   extract: {
@@ -188,7 +188,7 @@ async function fetchSource(
  * the job folder is gone either way.
  */
 export async function processJob(context: JobContext, deps: JobDeps): Promise<JobOutcome> {
-  // The ID names a folder; the enqueue API derives it, but check before touching the disk.
+  // The ID names a folder; `POST /run` derives it, but check before touching the disk.
   if (!JOB_FOLDER_ID.test(context.id)) throw new JobFailure("INVALID_REQUEST", "bad job ID");
   if (context.request.kind !== "analyze") {
     throw new JobFailure("UNSUPPORTED_JOB", `${context.request.kind} jobs arrive with M6`);

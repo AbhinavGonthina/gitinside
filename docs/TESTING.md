@@ -18,7 +18,7 @@ These are mandatory standards. Nobody reviews each autopilot step, so the tests 
 | Golden snapshots | Vitest + fixture repos | `fixtures/<name>/` + `fixtures/<name>/expected.json` | every push |
 | Property | fast-check | `packages/diff`, URL normalizer | every push |
 | Determinism | Vitest | analyzer: each fixture analyzed twice, `stringifyGraph` bytes compared | every push |
-| Integration | Vitest + Supertest, real Redis/Postgres via Docker in CI | `apps/web`, `apps/worker`, `packages/db` (PGlite locally, CI's Postgres service when `TEST_DATABASE_URL` is set; ADR-0057) | every push |
+| Integration | Vitest over real HTTP (the worker's `POST /run` pushed by a fake Cloud Tasks, a fake GitHub, a fake S3, a fake Google), real Postgres in CI | `apps/web`, `apps/worker`, `packages/db` (PGlite locally, CI's Postgres service when `TEST_DATABASE_URL` is set; ADR-0057) | every push |
 | Component | Storybook stories (every state, light/dark) | `packages/viewer` | every push (build) |
 | Visual regression | Playwright screenshots | stories + key screens | every push, Linux CI only |
 | E2E | Playwright | `apps/web/e2e`: the unconfigured site, and the explorer on a seeded PGlite database (ADR-0132) | push to main |

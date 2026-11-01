@@ -7,15 +7,14 @@
  *   node infra/oracle/check.mjs
  *
  * It builds the images through infra/oracle/compose.yml (plus compose.check.yml's throwaway
- * Postgres), writes a fake env file (no real secret exists in CI) and a Redis password,
- * derives the gateway's hosts file with egress-hosts.sh, applies the migrations from inside
- * the image, starts the stack with Caddy serving `localhost`, and checks:
+ * Postgres), writes a fake env file (no real secret exists in CI), derives the gateway's
+ * hosts file with egress-hosts.sh, applies the migrations from inside the image, starts the
+ * stack with Caddy serving `localhost`, and checks:
  * - egress-hosts.sh lists the bucket and database hosts and refuses bad values without echoing
  *   them; the gateway refuses a hosts file line that could widen its allowlist;
  * - the worker answers `GET /health` on 127.0.0.1:8080, and the port is bound to loopback only;
- * - Caddy serves the API's routes over TLS on 443 and answers 404 for anything else;
- * - Redis publishes no port, sits only on the `internal: true` network, answers NOAUTH
- *   without the password, and shows the password on no command line;
+ * - Caddy serves the worker's routes over TLS on 443 (an unsigned `POST /run` is refused)
+ *   and answers 404 for anything else, the old enqueue API's paths included;
  * - the gateway mounts the hosts file and resolv.conf only, with no secret in its env;
  * - the worker runs in the egress gateway's network namespace, where only allowlisted names
  *   resolve, TCP reaches them on 443 only, and other hosts, raw IPs, the cloud metadata
@@ -55,14 +54,10 @@ writeFileSync(
   ].join("\n"),
   { mode: 0o600 },
 );
-const redisPassword = randomBytes(32).toString("hex");
-const redisEnvFile = join(dir, "redis.env");
-writeFileSync(redisEnvFile, `REDIS_PASSWORD=${redisPassword}\n`, { mode: 0o600 });
 const hostsFile = join(dir, "egress.hosts");
 const env = {
   ...process.env,
   WORKER_ENV_FILE: envFile,
-  REDIS_ENV_FILE: redisEnvFile,
   EGRESS_HOSTS_FILE: hostsFile,
   WORKER_DOMAIN: "localhost",
 };
@@ -206,17 +201,6 @@ const tcp = (host, port) => new Promise((resolve) => {
   socket.on("timeout", () => { socket.destroy(); resolve("timeout"); });
   socket.on("error", (error) => resolve(error.code));
 });
-const firstReply = (host, port, request) => new Promise((resolve) => {
-  const socket = connect({ host, port, timeout: 5000 });
-  let reply = "";
-  socket.on("connect", () => socket.write(request));
-  socket.on("data", (chunk) => {
-    reply += chunk;
-    if (reply.includes("\\r\\n")) { socket.destroy(); resolve(reply.split("\\r\\n")[0]); }
-  });
-  socket.on("timeout", () => { socket.destroy(); resolve("timeout"); });
-  socket.on("error", (error) => resolve(error.code));
-});
 const dns = async (server, name) => {
   const resolver = new Resolver({ timeout: 2000, tries: 1 });
   resolver.setServers([server]);
@@ -235,8 +219,7 @@ console.log(JSON.stringify({
   metadata: await tcp("169.254.169.254", 80),
   outsideDns: await dns("1.1.1.1", "example.com"),
   dockerDns: await dns("127.0.0.11", "example.com"),
-  redis: await tcp("redis", 6379),
-  redisNoAuth: await firstReply("redis", 6379, "PING\\r\\n"),
+  postgres: await tcp("postgres", 5432),
 }));
 `;
 
@@ -317,7 +300,7 @@ try {
     assert.equal(status, 1, line);
   }
 
-  run(["up", "-d", "--wait", "egress", "redis", "postgres"]);
+  run(["up", "-d", "--wait", "egress", "postgres"]);
   run(["run", "--rm", "--no-deps", "-T", "worker", "node", "--input-type=module", "-e", MIGRATE]);
   run(["up", "-d", "--wait", "worker", "caddy"]);
 
@@ -358,15 +341,15 @@ try {
   assert.deepEqual(Object.keys(caddy.HostConfig.PortBindings), ["443/tcp"]);
   assert.deepEqual(Object.keys(caddy.NetworkSettings.Networks), ["gitinside_outside"]);
 
-  // Caddy: TLS on 443, the API's routes passed through unchanged, nothing else.
+  // Caddy: TLS on 443, the worker's routes passed through unchanged, nothing else.
   const ca = await caddyRoot();
   const tlsHealth = await viaCaddy("GET", "/health", ca);
   assert.equal(tlsHealth.status, 200, tlsHealth.body);
   assert.deepEqual(JSON.parse(tlsHealth.body), { status: "ok" });
-  const unsigned = await viaCaddy("POST", "/enqueue", ca);
+  const unsigned = await viaCaddy("POST", "/run", ca);
   assert.equal(unsigned.status, 401, unsigned.body);
   assert.ok("error" in JSON.parse(unsigned.body), unsigned.body);
-  for (const path of ["/", "/metrics", "/enqueuex", "/health/x"]) {
+  for (const path of ["/", "/metrics", "/runx", "/health/x", "/enqueue", "/jobs/x"]) {
     assert.equal((await viaCaddy("GET", path, ca)).status, 404, path);
   }
 
@@ -378,8 +361,8 @@ try {
     JSON.stringify(reach),
   );
   assert.deepEqual(
-    { github443: reach.github443, codeload443: reach.codeload443, redis: reach.redis },
-    { github443: "connected", codeload443: "connected", redis: "connected" },
+    { github443: reach.github443, codeload443: reach.codeload443, postgres: reach.postgres },
+    { github443: "connected", codeload443: "connected", postgres: "connected" },
     JSON.stringify(reach),
   );
   assert.equal(reach.otherName, "ENOTFOUND", JSON.stringify(reach));
@@ -389,13 +372,6 @@ try {
   for (const key of ["outsideDns", "dockerDns"]) {
     assert.equal(typeof reach[key], "string", `${key}: ${JSON.stringify(reach)}`);
   }
-
-  // Redis wants the password, and the password is on no command line in the Redis
-  // container. (The worker itself no longer uses Redis, ADR-0144; M5.17c3 removes it.)
-  assert.match(reach.redisNoAuth, /^-NOAUTH/, JSON.stringify(reach));
-  const redisArgs = capture(["exec", "-T", "redis", "ps", "-o", "args"]);
-  assert.ok(redisArgs.includes("redis-server"), "redis-server is not running");
-  assert.ok(!redisArgs.includes(redisPassword), "the Redis password is on a command line");
 
   // The gateway holds host names only: no env file mounted, no secret in its environment.
   assert.deepEqual(
@@ -408,18 +384,17 @@ try {
     ],
   );
   const gatewayEnv = egress.Config.Env.join("\n");
-  for (const name of [
-    "REDIS_PASSWORD",
-    "SNAPSHOTS_SECRET_ACCESS_KEY",
-    "ENQUEUE_HMAC_SECRET",
-    "DATABASE_URL",
-  ]) {
+  for (const name of ["SNAPSHOTS_SECRET_ACCESS_KEY", "ENQUEUE_HMAC_SECRET", "DATABASE_URL"]) {
     assert.ok(!gatewayEnv.includes(name), `${name} is in the gateway's environment`);
   }
 
-  const redis = inspect("redis");
-  assert.deepEqual(Object.keys(redis.HostConfig.PortBindings ?? {}), []);
-  assert.deepEqual(Object.keys(redis.NetworkSettings.Networks), ["gitinside_internal"]);
+  // No Redis or other queue service is left in the stack (M5.17c3).
+  assert.deepEqual(capture(["config", "--services"]).trim().split("\n").sort(), [
+    "caddy",
+    "egress",
+    "postgres",
+    "worker",
+  ]);
   const [internal] = JSON.parse(
     execFileSync("docker", ["network", "inspect", "gitinside_internal"], { encoding: "utf8" }),
   );

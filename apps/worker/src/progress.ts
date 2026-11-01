@@ -3,13 +3,13 @@
  *
  * A job moves through four {@link JobStage}s. Inside `analyze`, the child streams the
  * analyzer's own stages (its {@link AnalyzerStep}s) with counts where the analyzer knows
- * them, and the worker stores the latest as BullMQ progress, together with what the analyzer
+ * them, and the worker stores the latest in the job's Postgres row, together with what the analyzer
  * has found so far ({@link FoundFacts}: services, routes, data stores, outside services; #8).
  * The progress page (M5.7) turns the stored facts into text with {@link describeProgress} and
  * {@link describeFound}.
  *
  * This module has no dependencies, so the child protocol and the website can import it
- * (`@gitinside/worker/progress`) without loading the analyzer or BullMQ.
+ * (`@gitinside/worker/progress`) without loading the analyzer.
  */
 
 /** Where a running job is; the progress page shows it. */
@@ -228,7 +228,7 @@ export function formatCount(count: number): string {
 }
 
 /**
- * What a job stores as its BullMQ progress: the stage, while analyzing the analyzer's latest
+ * What a job stores as its progress (ADR-0139): the stage, while analyzing the analyzer's latest
  * step and its count, and from the first finding on, what the attempt has found (#8).
  */
 export interface StoredProgress {

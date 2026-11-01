@@ -8,11 +8,11 @@ import { createGzip, gzipSync } from "node:zlib";
 import { MAX_SOURCE_MB } from "@gitinside/analyzer";
 import { compareStrings } from "@gitinside/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { JobRequest } from "./api.js";
 import { DEFAULT_EXTRACT_LIMITS, SKIPPED_PATH_MAX_CHARS } from "./extract.js";
 import { JobFailure } from "./failure.js";
 import { entriesOf, startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import { processJob, type JobOutcome } from "./job.js";
+import type { JobRequest } from "./request.js";
 import { runAnalysis } from "./runner.js";
 import { paxBody, tar, type TestEntry } from "./tar.testkit.js";
 

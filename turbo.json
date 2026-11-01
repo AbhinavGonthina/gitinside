@@ -5,12 +5,12 @@
     "typecheck": { "dependsOn": ["^build"] },
     "test": {
       "dependsOn": ["^build"],
-      "passThroughEnv": ["CI", "TEST_DATABASE_URL", "TEST_REDIS_URL"]
+      "passThroughEnv": ["CI", "TEST_DATABASE_URL"]
     },
     "coverage": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
-      "passThroughEnv": ["CI", "TEST_DATABASE_URL", "TEST_REDIS_URL"]
+      "passThroughEnv": ["CI", "TEST_DATABASE_URL"]
     }
   }
 }

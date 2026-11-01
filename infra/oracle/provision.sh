@@ -6,20 +6,19 @@
 #   sudo /opt/gitinside/infra/oracle/provision.sh [--ref <git ref>]
 #
 # Steps: Docker Engine + Compose from Docker's apt repository, the kernel modules the
-# egress gateway needs, time sync (the enqueue signatures allow ±5 min), a host firewall
-# check, the checkout at /opt/gitinside (default origin/main), the root-only env file
+# egress gateway needs, time sync (job signatures are dated), a host firewall check, the
+# checkout at /opt/gitinside (default origin/main), the root-only env file
 # /etc/gitinside/worker.env (created from apps/worker/.env.example on the first run,
-# which then stops so the values can be filled in), the Redis password in
-# /etc/gitinside/redis.env (generated once), the egress gateway's host names in
+# which then stops so the values can be filled in), the egress gateway's host names in
 # /etc/gitinside/egress.hosts (derived from worker.env), the images, the database
 # migrations, and a systemd unit that starts the stack at boot. It never prints a secret.
+# (Production moves to Cloud Run, ADR-0111; M5.17d replaces this folder.)
 set -euo pipefail
 
 REPO_URL=${REPO_URL:-https://github.com/AbhinavGonthina/gitinside.git}
 DIR=/opt/gitinside
 ENV_DIR=/etc/gitinside
 ENV_FILE=$ENV_DIR/worker.env
-REDIS_ENV_FILE=$ENV_DIR/redis.env
 HOSTS_FILE=$ENV_DIR/egress.hosts
 UNIT=/etc/systemd/system/gitinside.service
 MODULES=(ip_set ip_set_hash_ip xt_set xt_owner)
@@ -50,7 +49,7 @@ main() {
         shift 2
         ;;
       -h | --help)
-        sed -n '2,15p' "$0"
+        sed -n '2,16p' "$0"
         exit 0
         ;;
       *) fail "unknown argument: $1" ;;
@@ -65,7 +64,7 @@ main() {
   step "Packages: git, Docker Engine, Compose"
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -q
-  apt-get install -y -q ca-certificates curl git openssl
+  apt-get install -y -q ca-certificates curl git
   install -m 0755 -d /etc/apt/keyrings
   if [[ ! -s /etc/apt/keyrings/docker.asc ]]; then
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -121,18 +120,6 @@ main() {
   if [[ ${#missing[@]} -gt 0 ]]; then
     fail "$ENV_FILE has no value for: ${missing[*]}"
   fi
-
-  step "Redis password $REDIS_ENV_FILE"
-  # Generated once and kept; delete the file and run this again to rotate it (ADR-0083).
-  if ! grep -Eq '^REDIS_PASSWORD=[0-9a-f]{64}$' "$REDIS_ENV_FILE" 2>/dev/null; then
-    (
-      umask 077
-      printf 'REDIS_PASSWORD=%s\n' "$(openssl rand -hex 32)" >"$REDIS_ENV_FILE"
-    )
-    echo "Generated a new Redis password."
-  fi
-  chown root:root "$REDIS_ENV_FILE"
-  chmod 0600 "$REDIS_ENV_FILE"
 
   step "Egress host names $HOSTS_FILE"
   sh "$DIR/infra/oracle/egress-hosts.sh" "$ENV_FILE" "$HOSTS_FILE"

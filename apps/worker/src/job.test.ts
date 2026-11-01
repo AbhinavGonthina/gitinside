@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { JobRequest } from "./api.js";
+import type { JobRequest } from "./request.js";
 import { JobFailure } from "./failure.js";
 import { startFakeGitHub, tarballFrom, tarballOf, type FakeGitHub } from "./github.testkit.js";
 import {

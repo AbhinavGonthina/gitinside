@@ -483,7 +483,7 @@ export async function uploadSnapshot(
   visibility: "public" | "private",
 ): Promise<StoredSnapshot> {
   const json = await readFile(graphPath);
-  // Async, on libuv's pool: the enqueue API shares this process's event loop.
+  // Async, on libuv's pool: the run server shares this process's event loop.
   const gzipped = await new Promise<Buffer>((resolve, reject) => {
     gzip(json, { level: constants.Z_BEST_COMPRESSION }, (error, result) =>
       error === null ? resolve(result) : reject(error),

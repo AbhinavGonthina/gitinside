@@ -130,7 +130,7 @@ Milestones from `../gitinside-planning/SPEC.md` §6 (order: ADR-0016). Each is 1
 **Tasks**
 1. `apps/web` Next.js scaffold (App Router), landing page with the slogan, URL input, viewer integration.
 2. Drizzle schema + migrations (DESIGN.md §10) against local Postgres; Neon in production.
-3. `apps/worker`: BullMQ worker (concurrency 2), enqueue API with HMAC, tarball fetch with safe extraction, child-process analysis with limits, R2 upload, Postgres writes, progress events.
+3. `apps/worker`: BullMQ worker (concurrency 2), enqueue API with HMAC, tarball fetch with safe extraction, child-process analysis with limits, R2 upload, Postgres writes, progress events. (Reworked in M5.17 for Cloud Run: Cloud Tasks pushes each job to `POST /run`, job state lives in Neon, and BullMQ, Redis, and the enqueue API were removed in M5.17c3; ADR-0114.)
 4. `/api/analyze`: URL parsing, latest SHA, cache lookup, rate limits (5/h per IP), enqueue, dedupe by job ID.
 5. Progress page: real pipeline stages and queue position (SSE).
 6. Diagram page `/<owner>/<repo>[/<sha>]` with check-on-view re-analysis of the default branch.

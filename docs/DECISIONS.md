@@ -136,6 +136,7 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
 - **Consequences:** our own repo doesn't use Prisma, so the Prisma detector is exercised through fixtures and eval repos.
 
 ## ADR-0014: BullMQ + Redis job queue
+- **Status:** superseded by ADR-0114 (Cloud Tasks); the code was removed in M5.17c3 (ADR-0148).
 - **Context:** analysis takes up to 5 minutes and must run on the isolated worker, not in a web request. We need queuing, retries, stalled-job recovery, concurrency caps, dedupe, and progress (D5.6).
 - **Options:**
   - pg-boss on Postgres.
@@ -630,6 +631,7 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
 - **Consequences:** the app root's read access means no secrets may live under it (production keeps them in `/etc/gitinside/worker.env`). If the worker process itself dies, its child isn't killed by us; in production the container's restart takes it down. `netguard.ts` runs only in child processes, so it shows 0% in the in-process coverage report; the probe test is its coverage.
 
 ## ADR-0060: The enqueue API: plain `node:http`, an HMAC over timestamp + method + path + body, two secrets, derived job IDs
+- **Status:** the enqueue API was removed in M5.17c3 (ADR-0148); its signing scheme, secrets, and derived job IDs live on in `POST /run` (ADR-0143).
 - **Context:** M5.4c. The web app (Vercel) must queue jobs on the VM without Redis ever being public (ADR-0007, SECURITY.md T8: HMAC over body + timestamp, ±5 min; §4: secrets rotate without downtime). Three routes: `POST /enqueue`, `GET /jobs/:id`, and a health check (DESIGN.md §11, §13).
 - **Decision:**
   - **`node:http`, no framework** (`apps/worker/src/api.ts`). Three routes don't need Express, and every dependency on the one public port is attack surface (T12). Server timeouts: headers 10 s, whole request 15 s, keep-alive 5 s. Tests drive the handler with Supertest.
@@ -886,6 +888,7 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
 - **Consequences:** each publish costs a repo page one extra GitHub lookup per web process. Codes the table doesn't know read as retriable, so a new permanent code needs a table entry to lose its button.
 
 ## ADR-0082: Retention removes the completed BullMQ job of each analysis it deletes
+- **Status:** superseded by ADR-0148 (no BullMQ jobs left to remove).
 - **Context:** M5.14e, the last worker finding deferred by ADR-0079. A job ID is derived from the commit and analyzer version (ADR-0060), and BullMQ keeps a completed job a day (`removeOnComplete`). When retention deletes a `done` row inside that day, the next visit finds no analysis and enqueues the commit, but `add` sees the completed job and answers `created: false`; the progress page reports "done" and sends the visitor to a repo page that still has nothing. That loop lasts until the job expires.
 - **Decision:**
   - **After deleting rows, `runRetention` asks the queue to remove the jobs of the rows actually deleted** (`CompletedJobs.removeCompleted`, on `BullJobQueue`), then deletes objects as before. Each ID is `jobIdFor({ kind: "analyze", owner, repo, sha }, analyzerVersion)` from the row and its repo's **current** owner and name (`StoredSnapshotRow` gains both): that's the name the web app enqueues under, so it's the ID a new request would collide with. A job enqueued under an older name has another ID and can't block anything.
@@ -1665,3 +1668,14 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - **No run at startup or on a timer;** the schedule (`scheduleMaintenance`) is removed. With no jobs nothing runs: snapshots only grow with jobs, and what accumulates meanwhile (rate-limit windows, a stranded row) waits for the next job.
 - **Alternatives rejected:** Cloud Scheduler calling an endpoint hourly (free for 3 jobs, but another service, IAM binding, and 720 cold starts a month for mostly nothing); always-allocated CPU or a minimum instance (billed around the clock, against the free allowance); running after the answer (CPU is throttled once the response is sent); before the job (delays the user's analysis); a shorter window for `queued` rows (a row with a live task would show "failed" while it waits; `startAnalysis` would revive it, but the page would mislead meanwhile); a lease with a heartbeat (one statement's claim needs no second write, and the run is idempotent).
 - **Consequences:** maintenance can lag: after an idle spell the first job's end runs it, and an hour's quota alarm may come a job late. A stranded `queued` row inflates queue positions by one for up to a day. A run that outlasts its job's budget carries on with throttled CPU and may be killed with the instance; the next hour's run picks up. The quota command (`pnpm --filter @gitinside/worker quota`) is unchanged.
+
+## ADR-0148: BullMQ, Redis, and the enqueue API removed; supersedes ADR-0014, ADR-0061's queue, and ADR-0082
+- **Status:** accepted (2026-11-01, M5.17c3a); completes ADR-0114
+- **Context:** since M5.17b–c2 nothing used the BullMQ side: the website creates Cloud Tasks tasks (ADR-0141) and reads job state from Neon (ADR-0139), and the worker process serves only `POST /run` (ADR-0144). What was left was dead weight with a cost: `queue.ts` and `api.ts` with their tests (16 of them skipped everywhere but CI), a Redis service in CI and in the Oracle compose stack, `bullmq` and `ioredis` in the image, and retention removing completed BullMQ jobs (ADR-0082) through an interface nothing supplied.
+- **Decision:**
+  - **Deleted:** `apps/worker/src/queue.ts` (the BullMQ queue, processor, and worker), `api.ts` (`POST /enqueue`, `GET /jobs/:id`, its `/health`), their tests, `bullmq`, `ioredis`, `supertest` (only those tests used it), CI's Redis service and `TEST_REDIS_URL`, and the Redis service, password file, and volume in `infra/oracle` (compose, `provision.sh`, `check.mjs`). Caddy now forwards `/health` and `/run`, with a write timeout past a job's 300 s.
+  - **Kept, moved:** the processor's tests of what an attempt does (progress order, estimates, what was found, Postgres progress writes, failure codes) now test `runAttempt` directly (`attempt.test.ts`); `JobRequest` and `jobIdFor` come from `request.ts`; `WorkerLog` from `attempt.ts`.
+  - **Retention** no longer removes jobs (`jobs` dependency and `removedJobs`/`failedJobRemovals` gone): a job is its `analyses` row, so deleting the row is the whole cleanup, and a later request for the commit queues a new row under a new task name (ADR-0141).
+  - **The container check** asserts the stack's services are exactly `caddy`, `egress`, `worker` (plus CI's `postgres`), that an unsigned `POST /run` through Caddy is refused, and that the old `/enqueue` and `/jobs/*` paths are 404.
+- **Alternatives rejected:** keeping BullMQ as a self-hosted fallback (it needs an always-on worker and a Redis, exactly what ADR-0111 gave up); removing `infra/oracle` now (M5.17d replaces it with `infra/gcp` and a Redis-free container check in one step; until then CI keeps checking the image through it).
+- **Consequences:** a worker can only be fed by pushes, so local development needs something that pushes like Cloud Tasks (M5.17c3b). The analyzer's BullMQ *detector* (`packages/analyzer/src/queues.ts`) is unrelated and stays.
