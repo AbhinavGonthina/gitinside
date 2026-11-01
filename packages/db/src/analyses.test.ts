@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   INTERRUPTED_CODE,
@@ -168,7 +168,7 @@ describe("completeAnalysis", () => {
 
   it("completes a row the interrupted sweep failed, but never rewrites a done one", async () => {
     const id = await started();
-    await failInterruptedAnalyses(t.db, new Date(Date.now() + 60_000));
+    await failInterruptedAnalyses(t.db, 0);
     expect(await completeAnalysis(t.db, id, { snapshotKey: "public/k", stats: STATS })).toBe(true);
     expect(await analysis(id)).toMatchObject({ status: "done", errorCode: null });
     expect(await completeAnalysis(t.db, id, { snapshotKey: "public/x", stats: STATS })).toBe(false);
@@ -236,21 +236,34 @@ describe("requeueAnalysis and failAnalysis", () => {
 });
 
 describe("failInterruptedAnalyses", () => {
-  it("fails only running rows that started before the cutoff", async () => {
-    const running = await started();
-    const repoId = (await analysis(running)).repoId;
-    const queued = (
-      await startAnalysis(t.db, { repoId, sha: "b".repeat(40), analyzerVersion: VERSION })
-    ).id;
+  it("fails only running rows that started at least the given seconds ago", async () => {
+    const stale = await started();
+    const repoId = (await analysis(stale)).repoId;
+    const start = (sha: string) =>
+      startAnalysis(t.db, { repoId, sha: sha.repeat(40), analyzerVersion: VERSION });
+    const queued = (await start("b")).id;
     await requeueAnalysis(t.db, queued);
+    // Another instance's live job, started just now.
+    const live = (await start("c")).id;
+    await t.db
+      .update(analyses)
+      .set({ startedAt: sql`now() - interval '361 seconds'` })
+      .where(inArray(analyses.id, [stale, queued]));
 
-    expect(await failInterruptedAnalyses(t.db, new Date(0))).toBe(0);
-    expect(await failInterruptedAnalyses(t.db, new Date(Date.now() + 60_000))).toBe(1);
-    expect(await analysis(running)).toMatchObject({
+    expect(await failInterruptedAnalyses(t.db, 362)).toBe(0);
+    expect(await failInterruptedAnalyses(t.db, 360)).toBe(1);
+    expect(await analysis(stale)).toMatchObject({
       status: "failed",
       errorCode: INTERRUPTED_CODE,
     });
     expect((await analysis(queued)).status).toBe("queued");
+    expect((await analysis(live)).status).toBe("running");
+  });
+
+  it("refuses a negative or non-finite age", async () => {
+    for (const seconds of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(failInterruptedAnalyses(t.db, seconds)).rejects.toThrow(RangeError);
+    }
   });
 });
 

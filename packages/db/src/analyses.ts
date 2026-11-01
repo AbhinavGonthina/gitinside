@@ -15,7 +15,7 @@
  *   exists and is immutable), so a redundant job can't hide a cached result.
  * - **Times** come from the database's clock (`now()`), one clock for every writer.
  */
-import { and, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lte, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { analyses, repos, type AnalysisStats } from "./schema.js";
 import type * as schema from "./schema.js";
@@ -363,16 +363,22 @@ export async function failAnalysis(
 }
 
 /**
- * Fail every analysis still `running` that started before `startedBefore` with
- * {@link INTERRUPTED_CODE}. The worker calls it at startup with its own start time: a row
- * left `running` then belongs to a process that died. If the queue then runs the job again
- * (stalled-job recovery), {@link startAnalysis} moves the row back to `running`; if the job
- * had used up its attempts, the row stays failed instead of `running` forever.
+ * Fail every analysis that has been `running` for at least `runningForSeconds` (by the
+ * database's clock) with {@link INTERRUPTED_CODE}. The worker calls it at startup with
+ * longer than any attempt can run (Cloud Run ends a request at 5 minutes), so a row that
+ * old belongs to an instance that died, while another instance's live job is left alone.
+ * If the queue then runs the job again, {@link startAnalysis} moves the row back to
+ * `running`; if the job had used up its attempts, the row stays failed instead of
+ * `running` forever.
  */
 export async function failInterruptedAnalyses(
   db: AnyDatabase,
-  startedBefore: Date,
+  runningForSeconds: number,
 ): Promise<number> {
+  if (!Number.isFinite(runningForSeconds) || runningForSeconds < 0) {
+    throw new RangeError("runningForSeconds must be a finite number ≥ 0");
+  }
+  const cutoff = sql`now() - ${runningForSeconds} * interval '1 second'`;
   const rows = await db
     .update(analyses)
     .set({
@@ -382,7 +388,7 @@ export async function failInterruptedAnalyses(
       progress: null,
       progressAt: null,
     })
-    .where(and(eq(analyses.status, "running"), lt(analyses.startedAt, startedBefore)))
+    .where(and(eq(analyses.status, "running"), lte(analyses.startedAt, cutoff)))
     .returning({ id: analyses.id });
   return rows.length;
 }

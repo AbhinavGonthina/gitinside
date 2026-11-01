@@ -273,7 +273,7 @@ describe("recordJobProgress", () => {
     ],
     ["failed", (id: string) => failAnalysis(t.db, id, "LIMIT_TIME")],
     ["queued for a retry", (id: string) => requeueAnalysis(t.db, id)],
-    ["interrupted", () => failInterruptedAnalyses(t.db, new Date("2999-01-01T00:00:00Z"))],
+    ["interrupted", () => failInterruptedAnalyses(t.db, 0)],
   ])("is cleared when the attempt ends: %s", async (_, end) => {
     const id = await running();
     await recordJobProgress(t.db, jobOf("1"), PARSING);

@@ -10,6 +10,7 @@ import { PUBLISH_RESERVE_MS, type JobDeps, type JobRecorder } from "./job.js";
 import type { StoredProgress } from "./progress.js";
 import { jobIdFor, type JobRequest } from "./request.js";
 import {
+  HEALTH_PATH,
   JOB_BUDGET_MS,
   MAX_ATTEMPTS,
   MAX_TASK_AGE_SECONDS,
@@ -256,6 +257,20 @@ describe("POST /run refuses before running anything", () => {
     expect(ahead).toEqual({ status: 401, body: { error: "STALE_TIMESTAMP" } });
   });
 
+  it("but answers GET and HEAD /health without a signature, saying only ok", async () => {
+    const origin = await start({ deps: deps(counting) });
+    const health = await fetch(new URL(HEALTH_PATH, origin));
+    expect(health.status).toBe(200);
+    expect(await health.json()).toEqual({ status: "ok" });
+    expect((await fetch(new URL(HEALTH_PATH, origin), { method: "HEAD" })).status).toBe(200);
+    const post = await fetch(new URL(HEALTH_PATH, origin), { method: "POST" });
+    expect(post.status).toBe(405);
+    expect(post.headers.get("allow")).toBe("GET, HEAD");
+    const unsigned = await fetch(new URL("/health/x", origin));
+    expect(unsigned.status).toBe(401);
+    expect(runs).toBe(0);
+  });
+
   it("other paths and methods, once signed", async () => {
     const origin = await start({ deps: deps(counting) });
     expect(await post(origin, body, { path: "/enqueue" })).toEqual({
@@ -450,5 +465,48 @@ describe("POST /run, cancelled", () => {
     await running;
     shutdown.abort();
     expect(await answer).toEqual({ status: 503, body: { error: "CANCELLED" } });
+  });
+
+  it("closes the connection with its answer once shutting down, so the server can close at once", async () => {
+    const shutdown = new AbortController();
+    let started: () => void = () => undefined;
+    const running = new Promise<void>((resolve) => (started = resolve));
+    const run: JobDeps["run"] = async (_job, options) => {
+      started();
+      await new Promise((resolve) => options.signal?.addEventListener("abort", resolve));
+      return failWith("CANCELLED")();
+    };
+    const origin = await start({ deps: deps(run), signal: shutdown.signal });
+    const bytes = new TextEncoder().encode(JSON.stringify(REQUEST));
+    const answer = fetch(new URL(RUN_PATH, origin), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...signRequest(SECRET, { method: "POST", path: RUN_PATH, body: bytes }),
+      },
+      body: bytes,
+    });
+    await running;
+    shutdown.abort();
+    const response = await answer;
+    expect(response.status).toBe(503);
+    expect(response.headers.get("connection")).toBe("close");
+    await response.arrayBuffer();
+  });
+
+  it("keeps the connection open with an ordinary answer", async () => {
+    const origin = await start({ deps: deps() });
+    const bytes = new TextEncoder().encode(JSON.stringify(REQUEST));
+    const response = await fetch(new URL(RUN_PATH, origin), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...signRequest(SECRET, { method: "POST", path: RUN_PATH, body: bytes }),
+      },
+      body: bytes,
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("connection")).not.toBe("close");
+    await response.arrayBuffer();
   });
 });

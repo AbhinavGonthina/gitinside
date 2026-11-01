@@ -6,19 +6,12 @@ import {
   recentAnalysisStats,
   type AnyDatabase,
 } from "@gitinside/db";
-import { createEnqueueServer } from "./api.js";
-import { ConfigError, redisConnection, workerConfigFromEnv, type WorkerConfig } from "./config.js";
+import type { WorkerLog } from "./attempt.js";
+import { ConfigError, workerConfigFromEnv, type WorkerConfig } from "./config.js";
 import { SAMPLE_LIMIT } from "./estimate.js";
 import type { DownloadOptions } from "./github.js";
 import { sweepJobsRoot, type JobDeps } from "./job.js";
 import { createJsonLog } from "./log.js";
-import {
-  WORKER_CONCURRENCY,
-  createAnalysisWorker,
-  createBullJobQueue,
-  stopWorker,
-  type WorkerLog,
-} from "./queue.js";
 import {
   createCountedStore,
   runMaintenance,
@@ -26,31 +19,36 @@ import {
   type MaintenanceSchedule,
 } from "./maintenance.js";
 import { createAnalysisRecorder } from "./record.js";
+import { createRunServer } from "./run.js";
 
 /**
- * The worker process (ADR-0065): one container on the VM runs the BullMQ worker and the
- * enqueue API side by side, sharing the Redis queue.
+ * The worker process (ADR-0114, ADR-0144): a Cloud Run container serving `POST /run` on
+ * `PORT`. Cloud Tasks pushes each job there, and the request runs it (run.ts); Cloud Run
+ * sends one request at a time and runs up to two instances.
  *
- * **Startup, in order** (any failure closes what was opened and exits 1, so Docker restarts it):
+ * **Startup, in order** (any failure closes what was opened and exits 1, so Cloud Run
+ * starts it again):
  * 1. Open Postgres.
- * 2. **Sweep:** delete leftover job folders (a SIGKILL skips a job's own cleanup), then mark
- *    analyses still `running` from before this start `failed` (`JOB_INTERRUPTED`). A job that
- *    BullMQ re-runs moves its row back to `running`.
- * 3. Connect to Redis and check it answers, so a bad `REDIS_URL` fails here, loudly.
- * 4. Start the worker (recorder + `publish` = bucket then Postgres; every bucket request
- *    counted in `store_requests`, ADR-0096; time estimates from the latest finished
- *    analyses' stats, ADR-0136), the hourly maintenance
- *    (retention, rate-limit pruning, quota check; maintenance.ts), then the enqueue API.
+ * 2. **Sweep:** delete leftover job folders (`/tmp` is the instance's own, so another
+ *    instance's job is never in it), then mark analyses `running` for over
+ *    {@link INTERRUPTED_AFTER_SECONDS} `failed` (`JOB_INTERRUPTED`). No attempt runs that
+ *    long, so such a row belongs to an instance that died, while the other instance's live
+ *    job is left alone. A retried push moves its row back to `running`.
+ * 3. Build the recorder (`publish` = bucket then Postgres; every bucket request counted in
+ *    `store_requests`, ADR-0096; time estimates from the latest finished analyses' stats,
+ *    ADR-0136), the hourly maintenance (retention, rate-limit pruning, quota check;
+ *    maintenance.ts), then listen.
  *
- * **Shutdown** ({@link RunningWorker.stop}, on SIGTERM or SIGINT): stop accepting API
- * requests, stop the maintenance schedule (waiting for a run in progress), cancel running jobs (`CANCELLED` is retriable, so they run again after the
- * restart) and wait for the worker, then close the queue and the database. Each step runs
- * even if an earlier one failed.
+ * **Shutdown** ({@link RunningWorker.stop}, on SIGTERM or SIGINT): cancel the running job
+ * (`CANCELLED` is retriable, so its push is answered `503` and Cloud Tasks delivers it
+ * again) and wait for its answer while the server closes, stop the maintenance schedule
+ * (waiting for a run in progress), then close the database. Each step runs even if an
+ * earlier one failed.
  */
 
 /** The worker as started by {@link startWorkerProcess}. */
 export interface RunningWorker {
-  /** Where the enqueue API listens. */
+  /** Where `POST /run` listens. */
   address: AddressInfo;
   /** Shut down in order; repeated calls return the same promise. */
   stop(): Promise<void>;
@@ -71,15 +69,17 @@ export interface StartOptions {
   openDb?: (url: string) => DbConnection;
   /** GitHub endpoints (tests point them at a fake); the token comes from the config. */
   github?: Omit<DownloadOptions, "signal" | "token">;
-  /** Redis key prefix (tests isolate themselves with it). */
-  prefix?: string;
-  /** Queue call timeout, incl. the startup check (default 5 s). */
-  queueCallTimeoutMs?: number;
   /** The analysis runner and its limits (tests stub the child). */
   jobDeps?: Pick<JobDeps, "run" | "runOptions">;
   /** Maintenance timing (maintenance.ts defaults), or `false` for none. */
   maintenance?: Pick<MaintenanceSchedule, "firstDelayMs" | "intervalMs"> | false;
 }
+
+/**
+ * How long a row must have been `running` for the startup sweep to call it interrupted:
+ * Cloud Run's 300 s request timeout ends every attempt sooner, plus a minute's margin.
+ */
+export const INTERRUPTED_AFTER_SECONDS = 360;
 
 /** Run `steps` in order, logging (not throwing) each failure; rejects at the end if any did. */
 async function runAll(
@@ -101,18 +101,16 @@ async function runAll(
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-/** Start the worker and the enqueue API from a checked config. */
+/** Start the worker's `POST /run` server from a checked config. */
 export async function startWorkerProcess(
   config: WorkerConfig,
   options: StartOptions = {},
 ): Promise<RunningWorker> {
   const log = options.log ?? (() => undefined);
   const analyzerVersion = options.analyzerVersion ?? ANALYZER_VERSION;
-  const startedAt = new Date();
   log({
     event: "worker_starting",
     analyzerVersion,
-    concurrency: WORKER_CONCURRENCY,
     jobsRoot: config.jobsRoot,
     githubToken: config.githubToken !== undefined,
   });
@@ -125,48 +123,28 @@ export async function startWorkerProcess(
     cleanup.push(["database", closeDb]);
 
     const folders = await sweepJobsRoot(config.jobsRoot);
-    const interrupted = await failInterruptedAnalyses(db, startedAt);
+    const interrupted = await failInterruptedAnalyses(db, INTERRUPTED_AFTER_SECONDS);
     log({ event: "startup_sweep", folders, interrupted });
-
-    const connection = redisConnection(config);
-    const prefix = options.prefix === undefined ? {} : { prefix: options.prefix };
-    const queue = createBullJobQueue({
-      connection,
-      ...prefix,
-      ...(options.queueCallTimeoutMs === undefined
-        ? {}
-        : { callTimeoutMs: options.queueCallTimeoutMs }),
-    });
-    cleanup.push(["queue", () => queue.close()]);
-    await queue.ping();
 
     const github = {
       ...options.github,
       ...(config.githubToken === undefined ? {} : { token: config.githubToken }),
     };
     const store = createCountedStore(config.store, db, log);
-    const recorder = createAnalysisRecorder({
-      db,
-      store,
-      analyzerVersion,
-      github,
-    });
-    // Registered before the worker, so shutdown cancels jobs first and only then waits
-    // for a maintenance run (a long bucket listing must not keep jobs past the deadline).
+    const recorder = createAnalysisRecorder({ db, store, analyzerVersion, github });
     if (options.maintenance !== false) {
       const maintenance = scheduleMaintenance({
-        run: () => runMaintenance({ db, store, jobs: queue, log }),
+        run: () => runMaintenance({ db, store, log }),
         log,
         ...options.maintenance,
       });
       cleanup.push(["maintenance", () => maintenance.stop()]);
     }
 
-    const worker = createAnalysisWorker({
-      connection,
-      ...prefix,
-      log,
-      estimates: { samples: () => recentAnalysisStats(db, SAMPLE_LIMIT) },
+    // Registered last, so shutdown cancels the job first and only then waits for a
+    // maintenance run (a long bucket listing must not keep the job past the deadline).
+    const shutdown = new AbortController();
+    const server = createRunServer({
       deps: {
         ...options.jobDeps,
         jobsRoot: config.jobsRoot,
@@ -174,10 +152,12 @@ export async function startWorkerProcess(
         publish: recorder.publish,
         download: github,
       },
+      secrets: config.secrets,
+      analyzerVersion,
+      log,
+      estimates: { samples: () => recentAnalysisStats(db, SAMPLE_LIMIT) },
+      signal: shutdown.signal,
     });
-    cleanup.push(["worker", () => stopWorker(worker)]);
-
-    const server = createEnqueueServer({ queue, secrets: config.secrets, analyzerVersion });
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
       server.listen(config.port, config.host, () => {
@@ -187,6 +167,8 @@ export async function startWorkerProcess(
     });
     const closeServer = () =>
       new Promise<void>((resolve, reject) => {
+        shutdown.abort();
+        // Waits for the running job's answer; idle keep-alive connections go at once.
         server.close((error) => (error === undefined ? resolve() : reject(error)));
         server.closeIdleConnections();
       });
@@ -227,13 +209,13 @@ export interface MainIo {
 }
 
 /**
- * How long a shutdown may take before the process exits 1 anyway. Cancelled jobs end at
- * once (their child is killed), so this covers closing connections; the container's stop
- * grace period (M5.10) must be longer.
+ * How long a shutdown may take before the process exits 1 anyway. A cancelled job ends at
+ * once (its child is killed), so this covers recording it and closing connections. Cloud
+ * Run sends SIGKILL 10 s after SIGTERM, so this must stay under that.
  */
-export const SHUTDOWN_TIMEOUT_MS = 20_000;
+export const SHUTDOWN_TIMEOUT_MS = 8_000;
 
-/** Shutdown signals: Docker's stop sends SIGTERM, a terminal Ctrl+C SIGINT. */
+/** Shutdown signals: Cloud Run and Docker send SIGTERM, a terminal Ctrl+C SIGINT. */
 export const SHUTDOWN_SIGNALS: readonly NodeJS.Signals[] = ["SIGTERM", "SIGINT"];
 
 /**

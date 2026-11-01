@@ -108,6 +108,7 @@ export {
   type ProcessorEstimates,
 } from "./attempt.js";
 export {
+  HEALTH_PATH,
   JOB_BUDGET_MS,
   MAX_ATTEMPTS,
   MAX_TASK_AGE_SECONDS,
