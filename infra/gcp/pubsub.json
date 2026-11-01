@@ -1,0 +1,20 @@
+{
+  "topic": {
+    "name": "projects/gitinside-513223/topics/billing-alerts"
+  },
+  "subscription": {
+    "name": "projects/gitinside-513223/subscriptions/billing-alerts-killswitch",
+    "topic": "projects/gitinside-513223/topics/billing-alerts",
+    "pushConfig": {
+      "pushEndpoint": "{{KILLSWITCH_URL}}/budget",
+      "oidcToken": {
+        "serviceAccountEmail": "gitinside-killswitch@gitinside-513223.iam.gserviceaccount.com",
+        "audience": "{{KILLSWITCH_URL}}"
+      }
+    },
+    "ackDeadlineSeconds": 60,
+    "messageRetentionDuration": "604800s",
+    "retryPolicy": { "minimumBackoff": "10s", "maximumBackoff": "600s" },
+    "expirationPolicy": { "ttl": "" }
+  }
+}

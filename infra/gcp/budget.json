@@ -1,0 +1,21 @@
+{
+  "displayName": "gitinside-kill-switch",
+  "budgetFilter": {
+    "projects": ["projects/{{PROJECT_NUMBER}}"],
+    "creditTypesTreatment": "INCLUDE_ALL_CREDITS",
+    "calendarPeriod": "MONTH"
+  },
+  "amount": {
+    "specifiedAmount": { "currencyCode": "USD", "units": "1" }
+  },
+  "thresholdRules": [
+    { "thresholdPercent": 0.5, "spendBasis": "CURRENT_SPEND" },
+    { "thresholdPercent": 0.9, "spendBasis": "CURRENT_SPEND" },
+    { "thresholdPercent": 1, "spendBasis": "CURRENT_SPEND" }
+  ],
+  "notificationsRule": {
+    "pubsubTopic": "projects/gitinside-513223/topics/billing-alerts",
+    "schemaVersion": "1.0",
+    "disableDefaultIamRecipients": false
+  }
+}

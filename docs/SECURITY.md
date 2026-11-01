@@ -56,7 +56,7 @@ The abuse limits as of M5.18f (#11). `apps/web/lib/abuseLimits.test.ts` checks e
 | Bucket requests | 50,000 a month | `store_requests` (ADR-0096); alarm only, the plan can't bill |
 | Postgres storage | 1 GB | Neon's free plan as SPEC §5 states it; alarm only |
 | New analyses per user, signed in | 30 per hour | SPEC §3; arrives with sign-in (M8) |
-| Billing | spend cap around $1, a budget alert that turns billing off, no Cloud NAT, load balancer, Memorystore, or static IP, images kept inside Artifact Registry's free storage | ADR-0111; applied by M5.17e and verified in M5.13's smoke test (both wait on #3). Until then the trial account can't bill |
+| Billing | spend cap around $1 if offered, a $1 monthly budget whose alert turns billing off, no Cloud NAT, load balancer, Memorystore, or static IP, images kept inside Artifact Registry's free storage | ADR-0111; the kill switch is `infra/gcp/budget.json` ⇒ `pubsub.json` ⇒ `killswitch.json` (ADR-0169: once the month's cost after credits reaches $1, the project's billing account is unlinked); applied by M5.17e2–e4 and verified in M5.13's smoke test (#3). Until then the trial account can't bill |
 
 What these bound, worked out from the rows above:
 

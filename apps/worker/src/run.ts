@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { runAttempt, type ProcessorEstimates, type WorkerLog } from "./attempt.js";
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyRequest } from "./hmac.js";
-import { MAX_BODY_BYTES, isJson, readBody, send } from "./http.js";
+import { HEALTH_PATH, MAX_BODY_BYTES, isJson, readBody, send } from "./http.js";
 import type { JobDeps } from "./job.js";
 import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
 
@@ -44,9 +44,8 @@ import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
 
 /** The path Cloud Tasks pushes to (apps/web's `RUN_PATH`). */
 export const RUN_PATH = "/run";
-/** Unauthenticated liveness: `200 {"status":"ok"}` while the process serves requests. */
-export const HEALTH_PATH = "/health";
-/** Attempts the queue makes; the last one's failure is final (M5.17e configures the queue). */
+export { HEALTH_PATH };
+/** Attempts the queue makes; the last one's failure is final (`infra/gcp/queue.json`). */
 export const MAX_ATTEMPTS = 3;
 /**
  * The job's whole budget from the request's arrival: Cloud Run's 300 s request timeout less
