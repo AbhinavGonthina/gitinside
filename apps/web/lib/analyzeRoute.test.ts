@@ -1,11 +1,17 @@
 // @vitest-environment node
+import { rateLimits } from "@gitinside/db";
 import { createTestDb } from "@gitinside/db/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnalyzeDeps } from "./analyze";
 import { MAX_BODY_BYTES, handleAnalyzeRequest } from "./analyzeRoute";
+import { CHALLENGE_AFTER_SITE, CHALLENGE_FAILED_MESSAGE, SITE_ANALYZE_KEY } from "./botCheck";
 import { fakeGitHub } from "./github.testkit";
 
 const SHA = "f".repeat(40);
+
+/** The bot check's fixed moment, and its hour's window. */
+const AT = new Date("2026-10-31T14:30:00.000Z");
+const HOUR_START = new Date("2026-10-31T14:00:00.000Z");
 
 /** Deps whose database must never be reached: the requests below stop before it. */
 function depsWithoutDb(): AnalyzeDeps {
@@ -115,6 +121,55 @@ describe("handleAnalyzeRequest", () => {
     for (const [body, error] of cases) {
       const result = await answer(post(body));
       expect([result.status, result.body.error], String(body)).toEqual([400, error]);
+    }
+  });
+
+  it("refuses a bot-check token that can't be Cloudflare's, as a failed check", async () => {
+    for (const token of ["", 1, null, "t".repeat(2_049)]) {
+      const result = await answer(
+        post(JSON.stringify({ url: "acme/shop", turnstileToken: token })),
+      );
+      expect(result, String(token)).toMatchObject({
+        status: 403,
+        body: { error: "CHALLENGE_FAILED", message: CHALLENGE_FAILED_MESSAGE },
+      });
+    }
+  });
+
+  it("passes the bot check's token on to the check (ADR-0157)", async () => {
+    const t = await createTestDb();
+    try {
+      const tokens: string[] = [];
+      const deps: AnalyzeDeps = {
+        ...depsWithoutDb(),
+        db: t.db,
+        botCheckClock: () => AT,
+        botCheck: {
+          siteKey: "0x4AAA",
+          verify: async (token) => {
+            tokens.push(token);
+            return "passed";
+          },
+        },
+      };
+      // Over the site's hourly threshold, so the check is asked for.
+      await t.db
+        .insert(rateLimits)
+        .values({ key: SITE_ANALYZE_KEY, windowStart: HOUR_START, count: CHALLENGE_AFTER_SITE });
+      const asked = await answer(post('{"url":"acme/shop"}'), deps);
+      expect(asked).toMatchObject({
+        status: 403,
+        body: { error: "CHALLENGE_REQUIRED", siteKey: "0x4AAA" },
+      });
+      const token = "t".repeat(2_048);
+      const passed = await answer(
+        post(JSON.stringify({ url: "acme/shop", turnstileToken: token })),
+        deps,
+      );
+      expect(passed.status).toBe(202);
+      expect(tokens).toEqual([token]);
+    } finally {
+      await t.close();
     }
   });
 

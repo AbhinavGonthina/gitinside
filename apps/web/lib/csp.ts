@@ -8,6 +8,9 @@
 /** Where `createGitHubSourceLoader` reads public files from (the viewer's code previews). */
 export const GITHUB_RAW_ORIGIN = "https://raw.githubusercontent.com";
 
+/** Cloudflare Turnstile's script and widget frame (the bot check on Analyze, ADR-0157). */
+export const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+
 /** Options for {@link buildCsp}. */
 export interface CspOptions {
   /** A fresh, unguessable nonce for this response (see {@link createNonce}). */
@@ -30,6 +33,8 @@ export interface CspOptions {
  * - **Fetches:** our origin, plus GitHub's raw file host, where the
  *   inspector reads public code at the analyzed commit (ADR-0115). It only
  *   reads text, which React renders escaped.
+ * - **Frames:** only Cloudflare Turnstile's widget, shown on Analyze when traffic looks
+ *   automated (ADR-0157). Its script is loaded by ours, so `'strict-dynamic'` covers it.
  * - **Everything else is our origin only:** fonts are self-hosted (ADR-0047),
  *   no plugins, no `<base>` rewriting, forms post only to us, and no other
  *   site may frame us.
@@ -43,6 +48,7 @@ export function buildCsp({ nonce, dev, https }: CspOptions): string {
     "img-src 'self' blob: data:",
     "font-src 'self'",
     `connect-src 'self' ${GITHUB_RAW_ORIGIN}`,
+    `frame-src ${TURNSTILE_ORIGIN}`,
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",

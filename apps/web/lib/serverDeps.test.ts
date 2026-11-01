@@ -61,6 +61,32 @@ describe("analyzeDepsFromEnv", () => {
     expect(analyzeDepsFromEnv({ ...ENV, GITHUB_TOKEN: "t" })?.github).toEqual({ token: "t" });
   });
 
+  it("has the Turnstile bot check with both keys, none with neither, and no analysis with one (ADR-0157)", async () => {
+    expect(analyzeDepsFromEnv(ENV)?.botCheck).toBeUndefined();
+    const keys = { NEXT_PUBLIC_TURNSTILE_SITE_KEY: "0x4AAA", TURNSTILE_SECRET_KEY: "0x4BBB" };
+    const deps = analyzeDepsFromEnv({ ...ENV, ...keys });
+    expect(deps?.botCheck?.siteKey).toBe("0x4AAA");
+    // The secret goes to Cloudflare's siteverify, and only there.
+    const seen: { url: string; body: string }[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push({ url: String(input), body: String(init?.body) });
+      return Response.json({ success: true, action: "analyze" });
+    });
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    expect(await deps?.botCheck?.verify("tok")).toBe("passed");
+    expect(seen).toEqual([
+      {
+        url: "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        body: "secret=0x4BBB&response=tok",
+      },
+    ]);
+    for (const name of Object.keys(keys)) {
+      expect(analyzeDepsFromEnv({ ...ENV, ...keys, [name]: "" }), name).toBeUndefined();
+    }
+  });
+
   it("keeps one database handle per URL", () => {
     const a = analyzeDepsFromEnv(ENV);
     const b = analyzeDepsFromEnv(ENV);

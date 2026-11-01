@@ -4,6 +4,7 @@ import {
   type AnalyzeDeps,
   type AnalyzeResponse,
 } from "./analyze";
+import { CHALLENGE_FAILED_MESSAGE, MAX_TOKEN_LENGTH } from "./botCheck";
 import { clientAddress } from "./clientIp";
 
 /**
@@ -14,7 +15,9 @@ import { clientAddress } from "./clientIp";
  *   without a CORS preflight, which we never answer, so other sites can't spend a visitor's
  *   rate limit (no CSRF token needed).
  * - **Bodies over {@link MAX_BODY_BYTES} are refused** unread or as soon as they pass it.
- * - The body is `{ "url": "<what was pasted>" }` and nothing else.
+ * - The body is `{ "url": "<what was pasted>" }`, plus `"turnstileToken"` once the visitor
+ *   was asked for the bot check (botCheck.ts), and nothing else. A token that's empty, not a
+ *   string, or longer than Cloudflare's tokens is refused as a failed check.
  * - **Never cached** (`cache-control: no-store`). Unexpected errors are `500 INTERNAL` with a
  *   generic message; the error itself is logged by name only.
  */
@@ -88,11 +91,23 @@ export async function handleAnalyzeRequest(
     typeof value !== "object" ||
     value === null ||
     Array.isArray(value) ||
-    Object.keys(value).some((k) => k !== "url") ||
+    Object.keys(value).some((k) => k !== "url" && k !== "turnstileToken") ||
     !("url" in value) ||
     typeof value.url !== "string"
   ) {
     return json(400, { error: "INVALID_REQUEST", message: 'Send JSON: { "url": "…" }.' });
+  }
+  let token: string | undefined;
+  if ("turnstileToken" in value) {
+    const { turnstileToken } = value;
+    if (
+      typeof turnstileToken !== "string" ||
+      turnstileToken === "" ||
+      turnstileToken.length > MAX_TOKEN_LENGTH
+    ) {
+      return json(403, { error: "CHALLENGE_FAILED", message: CHALLENGE_FAILED_MESSAGE });
+    }
+    token = turnstileToken;
   }
   if (value.url.length > MAX_URL_LENGTH) {
     return json(400, {
@@ -103,7 +118,7 @@ export async function handleAnalyzeRequest(
   if (deps === undefined) return json(503, { error: "UNAVAILABLE", message: UNAVAILABLE_MESSAGE });
 
   try {
-    const answer = await requestAnalysis(value.url, clientAddress(request.headers), deps);
+    const answer = await requestAnalysis(value.url, clientAddress(request.headers), deps, token);
     return json(answer.status, answer.body, answer.headers);
   } catch (error) {
     // Name only: a driver error's message can carry connection details.

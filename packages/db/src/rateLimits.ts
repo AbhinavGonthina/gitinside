@@ -78,6 +78,26 @@ export async function consumeRateLimit(
 }
 
 /**
+ * How many requests are counted against `key` in the current hour, without counting this one
+ * (0 when the window has no row yet). The bot check reads it to tell when an address, or the
+ * whole site, is asking more than people usually do (ADR-0157). `at` as in
+ * {@link consumeRateLimit}.
+ */
+export async function peekRateLimit(db: AnyDatabase, key: string, at?: Date): Promise<number> {
+  const moment = at === undefined ? sql`now()` : sql`${at.toISOString()}::timestamptz`;
+  const [row] = await db
+    .select({ count: rateLimits.count })
+    .from(rateLimits)
+    .where(
+      and(
+        eq(rateLimits.key, key),
+        sql`${rateLimits.windowStart} = date_trunc('hour', ${moment}, 'UTC')`,
+      ),
+    );
+  return row?.count ?? 0;
+}
+
+/**
  * Give back a slot {@link consumeRateLimit} counted, when the request turned out not to start
  * a new analysis (someone else's job already covered the commit, or the queue was down).
  * Never goes below zero.

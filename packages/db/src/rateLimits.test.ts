@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { consumeRateLimit, rateLimits, refundRateLimit } from "./index.js";
+import { consumeRateLimit, peekRateLimit, rateLimits, refundRateLimit } from "./index.js";
 import { createTestDb, type TestDb } from "./testing.js";
 
 let t: TestDb;
@@ -118,6 +118,23 @@ describe("consumeRateLimit", () => {
   it("refuses a limit that isn't a positive integer", async () => {
     await expect(consumeRateLimit(t.db, "ip:a", 0)).rejects.toThrow("positive integer");
     await expect(consumeRateLimit(t.db, "ip:a", 1.5)).rejects.toThrow("positive integer");
+  });
+});
+
+describe("peekRateLimit", () => {
+  it("reads the current window's count without counting", async () => {
+    expect(await peekRateLimit(t.db, "ip:a")).toBe(0);
+    await consumeRateLimit(t.db, "ip:a", 5);
+    await consumeRateLimit(t.db, "ip:a", 5);
+    expect(await peekRateLimit(t.db, "ip:a")).toBe(2);
+    expect(await peekRateLimit(t.db, "ip:a")).toBe(2);
+    expect(await peekRateLimit(t.db, "ip:b")).toBe(0);
+  });
+
+  it("reads only the window `at` falls in", async () => {
+    await consumeRateLimit(t.db, "ip:a", 5, new Date("2026-10-31T14:59:59.999Z"));
+    expect(await peekRateLimit(t.db, "ip:a", new Date("2026-10-31T14:00:00.000Z"))).toBe(1);
+    expect(await peekRateLimit(t.db, "ip:a", new Date("2026-10-31T15:00:00.000Z"))).toBe(0);
   });
 });
 
