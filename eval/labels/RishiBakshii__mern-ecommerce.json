@@ -1,0 +1,275 @@
+{
+  "repo": "RishiBakshii/mern-ecommerce",
+  "sha": "82303dc20b9d9ccfd0b45ecb3a6217eafe481491",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/features/address/AddressApi.jsx", "line": 5 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Address.js", "line": 6, "route": "POST /address" },
+      "notes": "addAddress():axiosi.post(\"/address\"). axiosi = axios.create({ baseURL: process.env.REACT_APP_BASE_URL }) in frontend/src/config/axios.js, no in-code fallback; readme.md sets REACT_APP_BASE_URL=\"http://localhost:8000\" = backend/index.js's server.listen(8000). backend/index.js mounts the routers at /auth, /users, /products, /orders, /cart, /brands, /categories, /address, /reviews, /wishlist; each router chains router.<method>(...) calls (route line = that method call)"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/address/AddressApi.jsx", "line": 13 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/Address.js",
+        "line": 7,
+        "route": "GET /address/user/:id"
+      },
+      "notes": "fetchAddressByUserId(): `/address/user/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/address/AddressApi.jsx", "line": 21 },
+      "method": "PATCH",
+      "target": { "file": "backend/routes/Address.js", "line": 8, "route": "PATCH /address/:id" },
+      "notes": "updateAddressById(): `/address/${update._id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/address/AddressApi.jsx", "line": 29 },
+      "method": "DELETE",
+      "target": { "file": "backend/routes/Address.js", "line": 9, "route": "DELETE /address/:id" },
+      "notes": "deleteAddressById(): `/address/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/auth/AuthApi.jsx", "line": 5 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Auth.js", "line": 7, "route": "POST /auth/signup" },
+      "notes": "signup(): axiosi.post(\"auth/signup\") without a leading slash; axios joins it to the baseURL with one slash (http://localhost:8000/auth/signup)"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/auth/AuthApi.jsx", "line": 13 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Auth.js", "line": 8, "route": "POST /auth/login" },
+      "notes": "login(): \"auth/login\", no leading slash"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/auth/AuthApi.jsx", "line": 21 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Auth.js", "line": 9, "route": "POST /auth/verify-otp" },
+      "notes": "verifyOtp(): \"auth/verify-otp\", no leading slash"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/auth/AuthApi.jsx", "line": 29 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Auth.js", "line": 10, "route": "POST /auth/resend-otp" },
+      "notes": "resendOtp(): \"auth/resend-otp\", no leading slash"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/auth/AuthApi.jsx", "line": 37 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/Auth.js",
+        "line": 11,
+        "route": "POST /auth/forgot-password"
+      },
+      "notes": "forgotPassword(): \"auth/forgot-password\", no leading slash"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/auth/AuthApi.jsx", "line": 45 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/Auth.js",
+        "line": 12,
+        "route": "POST /auth/reset-password"
+      },
+      "notes": "resetPassword(): \"auth/reset-password\", no leading slash"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/auth/AuthApi.jsx", "line": 53 },
+      "method": "GET",
+      "target": { "file": "backend/routes/Auth.js", "line": 13, "route": "GET /auth/check-auth" },
+      "notes": "checkAuth(): \"auth/check-auth\", no leading slash"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/auth/AuthApi.jsx", "line": 61 },
+      "method": "GET",
+      "target": { "file": "backend/routes/Auth.js", "line": 14, "route": "GET /auth/logout" },
+      "notes": "logout(): \"auth/logout\", no leading slash"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/brands/BrandApi.jsx", "line": 5 },
+      "method": "GET",
+      "target": { "file": "backend/routes/Brand.js", "line": 6, "route": "GET /brands" },
+      "notes": "fetchAllBrands(): \"/brands\"; router.get(\"/\") under the /brands mount"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/cart/CartApi.jsx", "line": 5 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Cart.js", "line": 6, "route": "POST /cart" },
+      "notes": "addToCart(): '/cart'"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/cart/CartApi.jsx", "line": 13 },
+      "method": "GET",
+      "target": { "file": "backend/routes/Cart.js", "line": 7, "route": "GET /cart/user/:id" },
+      "notes": "fetchCartByUserId(): `/cart/user/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/cart/CartApi.jsx", "line": 21 },
+      "method": "PATCH",
+      "target": { "file": "backend/routes/Cart.js", "line": 8, "route": "PATCH /cart/:id" },
+      "notes": "updateCartItemById(): `/cart/${update._id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/cart/CartApi.jsx", "line": 29 },
+      "method": "DELETE",
+      "target": { "file": "backend/routes/Cart.js", "line": 9, "route": "DELETE /cart/:id" },
+      "notes": "deleteCartItemById(): `/cart/${id}`, one segment, so DELETE /:id"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/cart/CartApi.jsx", "line": 38 },
+      "method": "DELETE",
+      "target": { "file": "backend/routes/Cart.js", "line": 10, "route": "DELETE /cart/user/:id" },
+      "notes": "resetCartByUserId(): `/cart/user/${userId}`; DELETE /:id is registered first but matches one segment only, so this two-segment path reaches /user/:id"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/categories/CategoriesApi.jsx", "line": 5 },
+      "method": "GET",
+      "target": { "file": "backend/routes/Category.js", "line": 6, "route": "GET /categories" },
+      "notes": "fetchAllCategories(): \"/categories\""
+    },
+    {
+      "callSite": { "file": "frontend/src/features/order/OrderApi.jsx", "line": 6 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Order.js", "line": 7, "route": "POST /orders" },
+      "notes": "createOrder(): \"/orders\""
+    },
+    {
+      "callSite": { "file": "frontend/src/features/order/OrderApi.jsx", "line": 15 },
+      "method": "GET",
+      "target": { "file": "backend/routes/Order.js", "line": 9, "route": "GET /orders/user/:id" },
+      "notes": "getOrderByUserId(): `/orders/user/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/order/OrderApi.jsx", "line": 24 },
+      "method": "GET",
+      "target": { "file": "backend/routes/Order.js", "line": 8, "route": "GET /orders" },
+      "notes": "getAllOrders(): `/orders`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/order/OrderApi.jsx", "line": 33 },
+      "method": "PATCH",
+      "target": { "file": "backend/routes/Order.js", "line": 10, "route": "PATCH /orders/:id" },
+      "notes": "updateOrderById(): `/orders/${update._id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/products/ProductApi.jsx", "line": 5 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Product.js", "line": 6, "route": "POST /products" },
+      "notes": "addProduct(): '/products'"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/products/ProductApi.jsx", "line": 39 },
+      "method": "GET",
+      "target": { "file": "backend/routes/Product.js", "line": 7, "route": "GET /products" },
+      "notes": "fetchProducts(): `/products?${queryString}`; the query string is built from the filters and isn't part of the route"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/products/ProductApi.jsx", "line": 48 },
+      "method": "GET",
+      "target": { "file": "backend/routes/Product.js", "line": 8, "route": "GET /products/:id" },
+      "notes": "fetchProductById(): `/products/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/products/ProductApi.jsx", "line": 56 },
+      "method": "PATCH",
+      "target": { "file": "backend/routes/Product.js", "line": 9, "route": "PATCH /products/:id" },
+      "notes": "updateProductById(): `/products/${update._id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/products/ProductApi.jsx", "line": 64 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/routes/Product.js",
+        "line": 10,
+        "route": "PATCH /products/undelete/:id"
+      },
+      "notes": "undeleteProductById(): `/products/undelete/${id}`; PATCH /:id is registered first but matches one segment only"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/products/ProductApi.jsx", "line": 72 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/routes/Product.js",
+        "line": 11,
+        "route": "DELETE /products/:id"
+      },
+      "notes": "deleteProductById(): `/products/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/review/ReviewApi.jsx", "line": 5 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Review.js", "line": 7, "route": "POST /reviews" },
+      "notes": "createReview(): '/reviews'"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/review/ReviewApi.jsx", "line": 13 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/Review.js",
+        "line": 8,
+        "route": "GET /reviews/product/:id"
+      },
+      "notes": "fetchReviewsByProductId(): `/reviews/product/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/review/ReviewApi.jsx", "line": 22 },
+      "method": "PATCH",
+      "target": { "file": "backend/routes/Review.js", "line": 9, "route": "PATCH /reviews/:id" },
+      "notes": "updateReviewById(): `/reviews/${update._id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/review/ReviewApi.jsx", "line": 30 },
+      "method": "DELETE",
+      "target": { "file": "backend/routes/Review.js", "line": 10, "route": "DELETE /reviews/:id" },
+      "notes": "deleteReviewById(): `/reviews/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/user/UserApi.jsx", "line": 5 },
+      "method": "GET",
+      "target": { "file": "backend/routes/User.js", "line": 6, "route": "GET /users/:id" },
+      "notes": "fetchLoggedInUserById(): `/users/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/user/UserApi.jsx", "line": 13 },
+      "method": "PATCH",
+      "target": { "file": "backend/routes/User.js", "line": 7, "route": "PATCH /users/:id" },
+      "notes": "updateUserById(): `/users/${update._id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/wishlist/WishlistApi.jsx", "line": 5 },
+      "method": "POST",
+      "target": { "file": "backend/routes/Wishlist.js", "line": 7, "route": "POST /wishlist" },
+      "notes": "createWishlistItem(): \"/wishlist\""
+    },
+    {
+      "callSite": { "file": "frontend/src/features/wishlist/WishlistApi.jsx", "line": 14 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/Wishlist.js",
+        "line": 8,
+        "route": "GET /wishlist/user/:id"
+      },
+      "notes": "fetchWishlistByUserId(): `/wishlist/user/${id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/wishlist/WishlistApi.jsx", "line": 24 },
+      "method": "PATCH",
+      "target": { "file": "backend/routes/Wishlist.js", "line": 9, "route": "PATCH /wishlist/:id" },
+      "notes": "updateWishlistItemById(): `/wishlist/${update._id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/features/wishlist/WishlistApi.jsx", "line": 33 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/routes/Wishlist.js",
+        "line": 10,
+        "route": "DELETE /wishlist/:id"
+      },
+      "notes": "deleteWishlistItemById(): `/wishlist/${id}`"
+    }
+  ]
+}
