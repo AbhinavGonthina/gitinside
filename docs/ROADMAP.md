@@ -154,7 +154,8 @@ Milestones from `../gitinside-planning/SPEC.md` §6 (order: ADR-0016). Each is 1
 1. Diagnose every false negative and missing label in the latest report: read each call site in the eval checkouts, group them by root cause (e.g. axios instances with a `baseURL`, env-var bases, wrapper functions, how frontend and backend are paired as services), and write the grouping with counts.
 2. Held-out repos: 2–3 new repos of the same stacks, labeled from the code before looking at analyzer output (EVALUATION.md rules), reported separately and never tuned against.
 3. Fix each root cause as a general pattern (never a special case for one repo), one fixture per pattern, golden files updated, eval delta in each commit.
-4. Re-run the eval on the original and held-out repos; ADR for any meaningful change in approach; re-run after the label review (#1).
+4. Re-run the eval on the original and held-out repos; ADR for any meaningful change in approach; re-run after the label review (#1). Done 2026-11-01 (ADR-0168): both sets at 100% / 100%, but the held-out three were read during the fixes, so they count as seen.
+5. A fresh held-out batch (2 repos), labeled and committed before the analyzer first runs on it, scored once and quoted as first measured: the generalization number M5A's goal asks for.
 
 **Acceptance criteria:** precision ≥ 95%; recall ≥ 80% on the original 5; held-out recall reported separately; anything that can't be known statically (URLs built at runtime) shown as unresolved, never guessed.
 
