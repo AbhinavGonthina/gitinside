@@ -428,6 +428,98 @@ describe("POST /run, a job already done (M5.17c2b)", () => {
   });
 });
 
+describe("POST /run, after the job (M5.17c2d)", () => {
+  /** An `afterJob` that records the time left at each call, and waits for `hold`. */
+  function afterJobSpy(hold?: Promise<void>) {
+    const calls: number[] = [];
+    const afterJob: NonNullable<RunHandlerOptions["afterJob"]> = async ({ timeLeftMs }) => {
+      calls.push(timeLeftMs);
+      await hold;
+    };
+    return { afterJob, calls };
+  }
+
+  it("calls it with what's left of the budget, whatever the outcome", async () => {
+    let at = 0;
+    const read = () => at;
+    const { afterJob, calls } = afterJobSpy();
+    const runs = [writeGraph, failWith("LIMIT_FILES"), failWith("WORKER_ERROR")];
+    const run: JobDeps["run"] = async (job) => {
+      at += 30_000;
+      return (runs.shift() ?? writeGraph)(job);
+    };
+    const origin = await start({ deps: deps(run), afterJob, clock: read });
+    const statuses: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      at = 0;
+      statuses.push((await post(origin, JSON.stringify(REQUEST))).status);
+    }
+    expect(statuses).toEqual([200, 200, 503]);
+    expect(calls).toEqual(Array.from({ length: 3 }, () => JOB_BUDGET_MS - 30_000));
+  });
+
+  it("holds the answer until it ends, and a push meanwhile is still busy", async () => {
+    let release: () => void = () => undefined;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    const { afterJob, calls } = afterJobSpy(hold);
+    const origin = await start({ deps: deps(), afterJob });
+    let settled = false;
+    const first = post(origin, JSON.stringify(REQUEST)).then((answer) => {
+      settled = true;
+      return answer;
+    });
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    const other = { ...REQUEST, sha: "f".repeat(40) };
+    expect((await post(origin, JSON.stringify(other))).status).toBe(429);
+    expect(settled).toBe(false);
+    release();
+    expect(await first).toEqual({ status: 200, body: { id: ID, state: "done" } });
+  });
+
+  it("calls it after a push answered from an already-done row too", async () => {
+    const { recorder } = fakeRecorder();
+    const { afterJob, calls } = afterJobSpy();
+    const done: JobRecorder = { ...recorder, done: async () => true };
+    const origin = await start({ deps: deps(writeGraph, done), afterJob });
+    expect((await post(origin, JSON.stringify(REQUEST))).status).toBe(200);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("answers as usual when it rejects, logging why", async () => {
+    const events: Record<string, unknown>[] = [];
+    const origin = await start({
+      deps: deps(),
+      afterJob: () => Promise.reject(new Error("boom")),
+      log: (e) => void events.push(e),
+    });
+    expect(await post(origin, JSON.stringify(REQUEST))).toEqual({
+      status: 200,
+      body: { id: ID, state: "done" },
+    });
+    expect(events.filter((e) => e.event === "after_job_failed")).toEqual([
+      { event: "after_job_failed", id: ID, message: "boom" },
+    ]);
+  });
+
+  it("skips it for a job cancelled by shutdown", async () => {
+    const shutdown = new AbortController();
+    const { afterJob, calls } = afterJobSpy();
+    let started: () => void = () => undefined;
+    const running = new Promise<void>((resolve) => (started = resolve));
+    const run: JobDeps["run"] = async (_job, options) => {
+      started();
+      await new Promise((resolve) => options.signal?.addEventListener("abort", resolve));
+      return failWith("CANCELLED")();
+    };
+    const origin = await start({ deps: deps(run), signal: shutdown.signal, afterJob });
+    const answer = post(origin, JSON.stringify(REQUEST));
+    await running;
+    shutdown.abort();
+    expect((await answer).status).toBe(503);
+    expect(calls).toEqual([]);
+  });
+});
+
 describe("POST /run, one deadline", () => {
   /** A clock the test moves: `at` ms since the request arrived. */
   function steppedClock() {

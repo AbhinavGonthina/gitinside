@@ -1,4 +1,10 @@
-import { failAnalysis, queueAnalysis, upsertRepo, type AnyDatabase } from "@gitinside/db";
+import {
+  QUEUE_UNAVAILABLE_CODE,
+  failAnalysis,
+  queueAnalysis,
+  upsertRepo,
+  type AnyDatabase,
+} from "@gitinside/db";
 import { jobIdFor } from "@gitinside/worker/request";
 import { taskIdFor, type TaskQueue } from "./cloudTasks";
 import type { ResolvedRepo } from "./github";
@@ -21,8 +27,11 @@ import { WorkerUnavailableError } from "./worker";
  *    failed row to `running` anyway.
  */
 
-/** The error code of a row whose task couldn't be created. Not permanent: retrying can pass. */
-export const QUEUE_UNAVAILABLE = "QUEUE_UNAVAILABLE";
+/**
+ * The error code of a row whose task couldn't be created, or that the worker's maintenance
+ * found queued past every task's window (ADR-0147). Not permanent: retrying can pass.
+ */
+export const QUEUE_UNAVAILABLE = QUEUE_UNAVAILABLE_CODE;
 
 /** Everything {@link enqueueAnalysis} talks to. */
 export interface EnqueueDeps {

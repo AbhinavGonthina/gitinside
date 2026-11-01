@@ -5,14 +5,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { analyses, repos, startAnalysis, upsertRepo } from "@gitinside/db";
+import {
+  analyses,
+  maintenanceRuns,
+  queueAnalysis,
+  repos,
+  startAnalysis,
+  upsertRepo,
+} from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { WorkerConfig } from "./config.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import type { JobDeps } from "./job.js";
+import { INTERRUPTED_AFTER_SECONDS, STALE_QUEUED_AFTER_SECONDS } from "./maintenance.js";
 import {
-  INTERRUPTED_AFTER_SECONDS,
   SHUTDOWN_SIGNALS,
   SHUTDOWN_TIMEOUT_MS,
   runMain,
@@ -207,6 +214,7 @@ describe("startWorkerProcess", () => {
   beforeEach(async () => {
     await t.db.delete(analyses);
     await t.db.delete(repos);
+    await t.db.delete(maintenanceRuns);
     root = await mkdtemp(join(tmpdir(), "gitinside-main-"));
     lines = [];
     closes = 0;
@@ -385,17 +393,13 @@ describe("startWorkerProcess", () => {
     expect(events(lines)).toEqual(["worker_starting"]);
   });
 
-  it("closes the maintenance schedule and the database when the port is taken", async () => {
+  it("closes maintenance and the database when the port is taken", async () => {
     const taken = createServer();
     await new Promise<void>((resolve) => taken.listen(0, "127.0.0.1", resolve));
     try {
       const { port } = taken.address() as { port: number };
       await expect(
-        startWorkerProcess(config({ port }), {
-          log,
-          openDb,
-          maintenance: { firstDelayMs: 60_000 },
-        }),
+        startWorkerProcess(config({ port }), { log, openDb, maintenance: {} }),
       ).rejects.toThrow(/EADDRINUSE/);
       expect(closes).toBe(1);
     } finally {
@@ -403,35 +407,73 @@ describe("startWorkerProcess", () => {
     }
   });
 
-  it("runs maintenance on its schedule against the same database and bucket", async () => {
+  it("runs no maintenance at startup, only after a job, and then once an hour", async () => {
     s3.objects.set("public/x", { body: Buffer.alloc(9), headers: {}, lastModified: new Date() });
-    const worker = await start({ maintenance: { firstDelayMs: 1, intervalMs: 60_000 } });
-    const end = Date.now() + 10_000;
-    while (!events(lines).includes("quota")) {
-      if (Date.now() > end) throw new Error("no maintenance run");
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-    await worker.stop();
-    expect(events(lines)).toEqual([
-      "worker_starting",
-      "startup_sweep",
-      "worker_ready",
+    const worker = await start({ maintenance: {} });
+    expect(events(lines)).toEqual(["worker_starting", "startup_sweep", "worker_ready"]);
+    // Since the start: a row whose instance died, and one no task will ever run.
+    const dead = await runningRow("e".repeat(40));
+    await t.db
+      .update(analyses)
+      .set({ startedAt: new Date(Date.now() - (INTERRUPTED_AFTER_SECONDS + 5) * 1000) });
+    const { id: repoId } = await upsertRepo(t.db, {
+      providerRepoId: 43,
+      owner: "acme",
+      name: "other",
+      visibility: "public",
+      defaultBranch: "main",
+    });
+    const { id: stranded } = await queueAnalysis(t.db, {
+      repoId,
+      sha: "c".repeat(40),
+      analyzerVersion: VERSION,
+    });
+    await t.db
+      .update(analyses)
+      .set({ queuedAt: new Date(Date.now() - (STALE_QUEUED_AFTER_SECONDS + 5) * 1000) });
+
+    const deliveries = await pushTask(fakeTask(origin(worker), JOB, SECRET));
+    expect(deliveries).toMatchObject([{ status: 200, body: { state: "done" } }]);
+    // Answered only after the run: its lines are all in by now.
+    expect(events(lines).slice(3)).toEqual([
+      "job_done",
+      "maintenance_started",
+      "stale_jobs_failed",
       "retention_run",
       "rate_limits_pruned",
       "quota",
-      "worker_stopping",
-      "worker_stopped",
     ]);
+    expect(parse(lines).find((line) => line.event === "stale_jobs_failed")).toMatchObject({
+      interrupted: 1,
+      stranded: 1,
+    });
+    const rows = await t.db.select().from(analyses);
+    expect(rows.find((row) => row.id === dead)).toMatchObject({
+      status: "failed",
+      errorCode: "JOB_INTERRUPTED",
+    });
+    expect(rows.find((row) => row.id === stranded)).toMatchObject({
+      status: "failed",
+      errorCode: "QUEUE_UNAVAILABLE",
+    });
+    expect(rows.find((row) => row.sha === SHA)).toMatchObject({ status: "done" });
     const quota = parse(lines).find((line) => line.event === "quota");
     expect(quota).toMatchObject({
       quotas: [
-        { resource: "bucket", used: 9 },
+        { resource: "bucket" },
         { resource: "database" },
         { resource: "requests", bySource: { web: 0 } },
       ],
     });
-    // The worker's store is counted: at least retention's and the quota check's listings.
+    // The worker's store is counted: the job's upload, retention's and the quota's listings.
     const [, , requests] = (quota as { quotas: { used: number }[] }).quotas;
-    expect(requests?.used).toBeGreaterThanOrEqual(2);
+    expect(requests?.used).toBeGreaterThanOrEqual(3);
+
+    // Within the hour, the next job's end (here or on another instance) runs nothing.
+    const other = { ...JOB, sha: "d".repeat(40) };
+    await pushTask(fakeTask(origin(worker), other, SECRET));
+    await worker.stop();
+    expect(events(lines).slice(9)).toEqual(["job_done", "worker_stopping", "worker_stopped"]);
+    expect(await t.db.select().from(maintenanceRuns)).toMatchObject([{ name: "hourly" }]);
   });
 });

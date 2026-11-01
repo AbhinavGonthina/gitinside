@@ -2,10 +2,12 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   INTERRUPTED_CODE,
+  QUEUE_UNAVAILABLE_CODE,
   analyses,
   completeAnalysis,
   failAnalysis,
   failInterruptedAnalyses,
+  failStaleQueuedAnalyses,
   findAnalysis,
   findPublishedAnalysis,
   hideRepo,
@@ -263,6 +265,51 @@ describe("failInterruptedAnalyses", () => {
   it("refuses a negative or non-finite age", async () => {
     for (const seconds of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
       await expect(failInterruptedAnalyses(t.db, seconds)).rejects.toThrow(RangeError);
+    }
+  });
+});
+
+describe("failStaleQueuedAnalyses", () => {
+  it("fails only queued rows that entered the queue at least the given seconds ago", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    const queue = async (sha: string) =>
+      (await queueAnalysis(t.db, { repoId, sha: sha.repeat(40), analyzerVersion: VERSION })).id;
+    const stranded = await queue("a");
+    const fresh = await queue("b");
+    // Running for as long, but not queued: the interrupted sweep's business.
+    const running = (
+      await startAnalysis(t.db, { repoId, sha: "c".repeat(40), analyzerVersion: VERSION })
+    ).id;
+    await t.db
+      .update(analyses)
+      .set({ queuedAt: sql`now() - interval '1000 seconds'` })
+      .where(inArray(analyses.id, [stranded, running]));
+
+    expect(await failStaleQueuedAnalyses(t.db, 1002)).toBe(0);
+    expect(await failStaleQueuedAnalyses(t.db, 999)).toBe(1);
+    expect(await analysis(stranded)).toMatchObject({
+      status: "failed",
+      errorCode: QUEUE_UNAVAILABLE_CODE,
+      progress: null,
+    });
+    expect((await analysis(stranded)).finishedAt).toBeInstanceOf(Date);
+    expect((await analysis(fresh)).status).toBe("queued");
+    expect((await analysis(running)).status).toBe("running");
+  });
+
+  it("leaves a failed row the next request can queue again, and a late task can still start", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    const key = { repoId, sha: SHA, analyzerVersion: VERSION };
+    const { id } = await queueAnalysis(t.db, key);
+    await failStaleQueuedAnalyses(t.db, 0);
+    expect(await startAnalysis(t.db, key)).toEqual({ id, status: "running" });
+    await failAnalysis(t.db, id, "DOWNLOAD_FAILED");
+    expect(await queueAnalysis(t.db, key)).toMatchObject({ id, status: "queued", entered: true });
+  });
+
+  it("refuses a negative or non-finite age", async () => {
+    for (const seconds of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(failStaleQueuedAnalyses(t.db, seconds)).rejects.toThrow(RangeError);
     }
   });
 });

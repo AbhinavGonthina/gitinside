@@ -13,10 +13,11 @@ import type { DownloadOptions } from "./github.js";
 import { sweepJobsRoot, type JobDeps } from "./job.js";
 import { createJsonLog } from "./log.js";
 import {
+  INTERRUPTED_AFTER_SECONDS,
   createCountedStore,
+  createMaintenanceTrigger,
   runMaintenance,
-  scheduleMaintenance,
-  type MaintenanceSchedule,
+  type MaintenanceTriggerOptions,
 } from "./maintenance.js";
 import { createAnalysisRecorder } from "./record.js";
 import { createRunServer } from "./run.js";
@@ -36,14 +37,14 @@ import { createRunServer } from "./run.js";
  *    job is left alone. A retried push moves its row back to `running`.
  * 3. Build the recorder (`publish` = bucket then Postgres; every bucket request counted in
  *    `store_requests`, ADR-0096; time estimates from the latest finished analyses' stats,
- *    ADR-0136), the hourly maintenance (retention, rate-limit pruning, quota check;
- *    maintenance.ts), then listen.
+ *    ADR-0136), the hourly maintenance (stale jobs, retention, rate-limit pruning, quota
+ *    check; maintenance.ts) run after a job once its hourly claim in Postgres is won
+ *    (ADR-0147), then listen.
  *
  * **Shutdown** ({@link RunningWorker.stop}, on SIGTERM or SIGINT): cancel the running job
  * (`CANCELLED` is retriable, so its push is answered `503` and Cloud Tasks delivers it
- * again) and wait for its answer while the server closes, stop the maintenance schedule
- * (waiting for a run in progress), then close the database. Each step runs even if an
- * earlier one failed.
+ * again) and wait for its answer while the server closes, stop maintenance (waiting for a
+ * run in progress), then close the database. Each step runs even if an earlier one failed.
  */
 
 /** The worker as started by {@link startWorkerProcess}. */
@@ -72,14 +73,8 @@ export interface StartOptions {
   /** The analysis runner and its limits (tests stub the child). */
   jobDeps?: Pick<JobDeps, "run" | "runOptions">;
   /** Maintenance timing (maintenance.ts defaults), or `false` for none. */
-  maintenance?: Pick<MaintenanceSchedule, "firstDelayMs" | "intervalMs"> | false;
+  maintenance?: Pick<MaintenanceTriggerOptions, "everySeconds" | "minTimeLeftMs"> | false;
 }
-
-/**
- * How long a row must have been `running` for the startup sweep to call it interrupted:
- * Cloud Run's 300 s request timeout ends every attempt sooner, plus a minute's margin.
- */
-export const INTERRUPTED_AFTER_SECONDS = 360;
 
 /** Run `steps` in order, logging (not throwing) each failure; rejects at the end if any did. */
 async function runAll(
@@ -132,12 +127,17 @@ export async function startWorkerProcess(
     };
     const store = createCountedStore(config.store, db, log);
     const recorder = createAnalysisRecorder({ db, store, analyzerVersion, github });
+    let afterJob:
+      | ((end: { timeLeftMs: number; signal: AbortSignal }) => Promise<unknown>)
+      | undefined;
     if (options.maintenance !== false) {
-      const maintenance = scheduleMaintenance({
+      const maintenance = createMaintenanceTrigger({
+        db,
         run: () => runMaintenance({ db, store, log }),
         log,
         ...options.maintenance,
       });
+      afterJob = (end) => maintenance.afterJob(end);
       cleanup.push(["maintenance", () => maintenance.stop()]);
     }
 
@@ -157,6 +157,7 @@ export async function startWorkerProcess(
       log,
       estimates: { samples: () => recentAnalysisStats(db, SAMPLE_LIMIT) },
       signal: shutdown.signal,
+      ...(afterJob === undefined ? {} : { afterJob }),
     });
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
