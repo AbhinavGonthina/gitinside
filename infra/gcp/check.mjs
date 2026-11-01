@@ -355,7 +355,7 @@ try {
 
   // SIGTERM: a clean stop inside Cloud Run's grace, and JSON logs throughout.
   const stopStart = performance.now();
-  run(["stop", "--time", String(GRACE_SECONDS), WORKER]);
+  run(["stop", "--timeout", String(GRACE_SECONDS), WORKER]);
   const stopMs = performance.now() - stopStart;
   assert.equal(inspect(WORKER).State.ExitCode, 0);
   assert.ok(stopMs < GRACE_SECONDS * 1000, `stopping took ${Math.round(stopMs)} ms`);
