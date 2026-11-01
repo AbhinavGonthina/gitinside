@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import shopDemo from "../../../fixtures/shop-demo/expected.json";
+import { sizeHoldMessage } from "./jobs";
 import { NBSP } from "./limits";
 import {
   headStatus,
@@ -71,6 +72,19 @@ describe("headStatus", () => {
       tone: "behind",
       text: "The latest commit, b1c2d3e, can't be analyzed, so this is an earlier one. GitHub's download of this repo has paths outside the repo, so it wasn't analyzed.",
     });
+  });
+
+  it("says why a newer commit waits after a limit, and until when, without a retry (#11)", () => {
+    const until = "2026-11-08T15:04:00.000Z";
+    expect(
+      status({ state: "behind", sha: NEWER, reason: "too-big", errorCode: "LIMIT_TIME", until }),
+    ).toEqual({
+      tone: "behind",
+      text: `The latest commit, b1c2d3e, wasn't analyzed, so this is an earlier one. ${sizeHoldMessage("LIMIT_TIME", new Date(until))}`,
+    });
+    expect(sizeHoldMessage("LIMIT_TIME", new Date(until))).toMatch(
+      /^An earlier analysis of this repo hit a limit\. .+ It won't be analyzed again until Nov 8, 2026, 3:04\sPM UTC, or sooner if it shrinks to half its size\.$/,
+    );
   });
 
   it("doesn't claim the diagram is current when GitHub couldn't be asked", () => {

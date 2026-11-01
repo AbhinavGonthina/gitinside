@@ -36,6 +36,13 @@
       "when": 1793506659537,
       "tag": "0004_maintenance_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793514933287,
+      "tag": "0005_repo_size_kb",
+      "breakpoints": true
     }
   ]
 }

@@ -157,6 +157,12 @@ export const analyses = pgTable(
     progress: jsonb("progress").$type<JobProgress>(),
     /** When `progress` was written, by the database's clock; null exactly when it is. */
     progressAt: timestampTz("progress_at"),
+    /**
+     * GitHub's repo `size` (KiB) when the website queued the row; null when GitHub didn't say
+     * or the worker inserted it. After a `LIMIT_*` failure it is the size the repo must halve
+     * from before it's analyzed again within the week (#11, ADR-0153).
+     */
+    repoSizeKb: integer("repo_size_kb"),
   },
   (t) => [
     unique("analyses_repo_sha_version_key").on(t.repoId, t.sha, t.analyzerVersion),
@@ -168,6 +174,7 @@ export const analyses = pgTable(
     check("analyses_sha_check", isSha(t.sha)),
     check("analyses_job_id_check", sql`${t.jobId} ~ '^analyze-[0-9a-f]{32}$'`),
     check("analyses_attempts_check", sql`${t.attempts} >= 0`),
+    check("analyses_repo_size_kb_check", sql`${t.repoSizeKb} >= 0`),
     check("analyses_progress_check", sql`${t.progress} is null or ${t.status} = 'running'`),
     check("analyses_progress_at_check", sql`(${t.progress} is null) = (${t.progressAt} is null)`),
     check(

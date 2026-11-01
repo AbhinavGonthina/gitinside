@@ -10,6 +10,7 @@ import {
 import { QUEUE_UNAVAILABLE, enqueueAnalysis, type EnqueueDeps } from "./enqueue";
 import { resolveRepo, type GitHubOptions, type ResolveResult } from "./github";
 import type { RepoRef } from "./repoUrl";
+import { findSizeHold } from "./sizeHold";
 
 /**
  * What a repo page shows, with check-on-view re-analysis (SPEC §3 "Viewing re-analyzes
@@ -27,7 +28,8 @@ import type { RepoRef } from "./repoUrl";
  * 4. **Up to date** when the shown analysis is that commit by this analyzer version.
  *    Otherwise the newer commit's own state decides: finished ⇒ shown instead; in flight
  *    ⇒ `updating`; failed ⇒ `behind` with its code (a failure isn't re-run on every view;
- *    "Analyze again" retries one that could pass); none, or a row whose task was never
+ *    "Analyze again" retries one that could pass); the repo held after a `LIMIT_*` failure
+ *    (`findSizeHold`, #11) ⇒ `behind`, `too-big`; none, or a row whose task was never
  *    created (`QUEUE_UNAVAILABLE`) ⇒ enqueued on Cloud Tasks (`enqueueAnalysis`).
  * 5. **Who pays:** re-analysis on view is charged to the repo, not the visitor
  *    (`repo:<GitHub ID>`, {@link RECHECKS_PER_HOUR} per hour), since a README image or a
@@ -97,6 +99,11 @@ export type HeadState =
   | { state: "behind"; sha: string; reason: "failed"; errorCode: string }
   /** Newer than what's shown, but not being analyzed now. */
   | { state: "behind"; sha: string; reason: "limited" | "unavailable" }
+  /**
+   * Newer than what's shown, but an analysis of the repo hit `errorCode` (`LIMIT_*`) in the
+   * past week, so new ones wait until `until` (ISO 8601) unless it shrinks (#11).
+   */
+  | { state: "behind"; sha: string; reason: "too-big"; errorCode: string; until: string }
   /** GitHub couldn't be asked. */
   | { state: "unknown" };
 
@@ -213,6 +220,19 @@ export async function viewRepo(
   const updating: HeadState = { state: "updating", sha: head.sha };
   const unavailable: HeadState = { state: "behind", sha: head.sha, reason: "unavailable" };
   if (deps.queue === undefined) return ready(published, inFlight ? updating : unavailable);
+  if (!inFlight) {
+    const hold = await findSizeHold(db, head);
+    if (hold !== undefined) {
+      const { errorCode, until } = hold;
+      return ready(published, {
+        state: "behind",
+        sha: head.sha,
+        reason: "too-big",
+        errorCode,
+        until: until.toISOString(),
+      });
+    }
+  }
 
   const key = `repo:${head.providerRepoId}`;
   let charged: Date | undefined;

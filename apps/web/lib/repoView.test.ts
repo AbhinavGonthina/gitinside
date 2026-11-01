@@ -21,6 +21,7 @@ import {
 } from "./repoView";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeTaskQueue } from "./google.testkit";
+import { SIZE_HOLD_DAYS } from "./sizeHold";
 
 const OLD = "a".repeat(40);
 const NEW = "b".repeat(40);
@@ -211,6 +212,39 @@ describe("viewRepo", () => {
       ready(OLD, { state: "behind", sha: NEW, reason: "failed", errorCode: "LIMIT_FILES" }),
     );
     expect(tasks.google.tasks).toEqual([]);
+  });
+
+  it("doesn't analyze newer commits for a week after one hit a limit, unless it halves (#11)", async () => {
+    await done(OLD);
+    const { id } = await startAnalysis(t.db, {
+      repoId: await repoId(),
+      sha: NEW,
+      analyzerVersion: VERSION,
+    });
+    await failAnalysis(t.db, id, "LIMIT_TIME");
+    // As queued by the website (the done row's size doesn't matter).
+    await t.db.update(analyses).set({ repoSizeKb: 900_000 });
+    const failed = (await t.db.select().from(analyses)).find((row) => row.id === id);
+    const until = new Date(failed!.finishedAt!.getTime() + SIZE_HOLD_DAYS * 86_400_000);
+    const third = "c".repeat(40);
+    Object.assign(shop, { sha: third, sizeKb: 450_001 });
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, {
+        state: "behind",
+        sha: third,
+        reason: "too-big",
+        errorCode: "LIMIT_TIME",
+        until: until.toISOString(),
+      }),
+    );
+    expect(tasks.google.tasks).toEqual([]);
+    expect(await repoSlots()).toBe(0);
+
+    shop.sizeKb = 450_000;
+    clock += 61_000;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "updating", sha: third, jobId: jobFor(third) }),
+    );
   });
 
   it("asks GitHub again once a newer analysis is published within the minute (M5 review)", async () => {

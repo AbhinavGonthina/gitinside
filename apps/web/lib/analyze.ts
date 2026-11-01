@@ -1,9 +1,11 @@
 import { consumeRateLimit, findAnalysis, refundRateLimit, upsertRepo } from "@gitinside/db";
 import { rateLimitKey } from "./clientIp";
 import { enqueueAnalysis, type EnqueueDeps } from "./enqueue";
+import { sizeHoldMessage } from "./jobs";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import { resolveRepo, type GitHubOptions, type ResolveFailure } from "./github";
 import { parseRepoUrl } from "./repoUrl";
+import { findSizeHold, type SizeHold } from "./sizeHold";
 
 /**
  * What `POST /api/analyze` does once the body is read (docs/DESIGN.md §11, ADR-0066):
@@ -15,10 +17,13 @@ import { parseRepoUrl } from "./repoUrl";
  *    rate-limited.
  * 4. **Dedupe:** a commit already `queued` or `running` gets the same job back (the job ID
  *    is derived from the commit), again without counting against the limit.
- * 5. **Rate limit** anything else: a new analysis counts against the caller's hourly
+ * 5. **Too big:** a repo whose analysis hit a `LIMIT_*` limit in the past week is refused
+ *    (`422 REPO_TOO_BIG`, saying why and until when) unless it has shrunk to half its size
+ *    (`findSizeHold`, #11); no slot is used.
+ * 6. **Rate limit** anything else: a new analysis counts against the caller's hourly
  *    window (5 signed out). The slot is given back unless this request queued the commit
  *    (the queue was down, or someone else's request queued it first).
- * 6. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
+ * 7. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
  *    named from it; a row whose task can't be created is failed, and the answer is `503`.
  */
 
@@ -38,13 +43,18 @@ export type AnalyzeSuccess =
   | { status: "done"; owner: string; repo: string; sha: string }
   | { status: "queued"; jobId: string; owner: string; repo: string; sha: string };
 
-/** Error codes `/api/analyze` returns, each with a fixed message for the visitor. */
-export type AnalyzeErrorCode = "INVALID_URL" | ResolveFailure | "RATE_LIMITED" | "UNAVAILABLE";
+/** Error codes `/api/analyze` returns, each with a message for the visitor. */
+export type AnalyzeErrorCode =
+  | "INVALID_URL"
+  | ResolveFailure
+  | "REPO_TOO_BIG"
+  | "RATE_LIMITED"
+  | "UNAVAILABLE";
 
 export interface AnalyzeError {
   error: AnalyzeErrorCode;
   message: string;
-  /** With `RATE_LIMITED`: when the window resets (ISO 8601). */
+  /** With `RATE_LIMITED`: when the window resets; with `REPO_TOO_BIG`: when the hold ends (ISO 8601). */
   retryAt?: string;
 }
 
@@ -104,6 +114,10 @@ export async function requestAnalysis(
   }
 
   const inFlight = existing?.status === "queued" || existing?.status === "running";
+  if (!inFlight) {
+    const hold = await findSizeHold(deps.db, repo);
+    if (hold !== undefined) return tooBig(hold, deps);
+  }
   const key = rateLimitKey(deps.rateLimitSecret, address);
   let charged: Date | undefined;
   if (!inFlight) {
@@ -124,6 +138,19 @@ export async function requestAnalysis(
     default:
       return { status: 202, body: { status: "queued", jobId: queued.jobId, ...commit } };
   }
+}
+
+function tooBig(hold: SizeHold, deps: AnalyzeDeps): AnalyzeResponse {
+  const seconds = Math.max(1, Math.ceil((hold.until.getTime() - (deps.now ?? Date.now)()) / 1000));
+  return {
+    status: 422,
+    body: {
+      error: "REPO_TOO_BIG",
+      message: sizeHoldMessage(hold.errorCode, hold.until),
+      retryAt: hold.until.toISOString(),
+    },
+    headers: { "retry-after": String(seconds) },
+  };
 }
 
 function rateLimited(resetAt: Date, deps: AnalyzeDeps): AnalyzeResponse {

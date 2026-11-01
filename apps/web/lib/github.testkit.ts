@@ -12,6 +12,8 @@ export interface FakeRepo {
   defaultBranch?: string;
   /** The default branch's head; `null` for an empty repo (GitHub answers 409). */
   sha: string | null;
+  /** GitHub's `size` in KiB; default 1,024. `null` leaves the field out. */
+  sizeKb?: number | null;
 }
 
 export interface FakeGitHub {
@@ -54,6 +56,7 @@ export function fakeGitHub(repos: FakeRepo[]): FakeGitHub {
         owner: { login: repo.owner },
         private: repo.private ?? false,
         default_branch: repo.defaultBranch ?? "main",
+        ...(repo.sizeKb === null ? {} : { size: repo.sizeKb ?? 1_024 }),
       });
     }
     if (rest.join("/") === "commits/HEAD") {

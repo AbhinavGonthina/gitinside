@@ -4,7 +4,14 @@ import { resolveRepo } from "./github";
 import { fakeGitHub } from "./github.testkit";
 
 const SHA = "d".repeat(40);
-const SHOP = { id: 42, owner: "Acme", name: "Shop", sha: SHA, defaultBranch: "trunk" };
+const SHOP = {
+  id: 42,
+  owner: "Acme",
+  name: "Shop",
+  sha: SHA,
+  defaultBranch: "trunk",
+  sizeKb: 2_048,
+};
 
 describe("resolveRepo", () => {
   it("returns GitHub's facts and the default branch's head", async () => {
@@ -19,6 +26,7 @@ describe("resolveRepo", () => {
         visibility: "public",
         defaultBranch: "trunk",
         sha: SHA,
+        sizeKb: 2_048,
       },
     });
     expect(gh.requests.map((r) => [r.url, r.accept])).toEqual([
@@ -52,6 +60,28 @@ describe("resolveRepo", () => {
     });
     // The private repo's commits were never asked for.
     expect(gh.requests).toHaveLength(2);
+  });
+
+  it("leaves the size out when GitHub's isn't a whole number of KiB in range", async () => {
+    for (const size of [null, "5", -1, 1.5, 2 ** 31, Number.MAX_SAFE_INTEGER]) {
+      const gh = fakeGitHub([SHOP]);
+      gh.failNext(
+        Response.json({
+          id: 42,
+          name: "Shop",
+          private: false,
+          default_branch: "trunk",
+          owner: { login: "Acme" },
+          size,
+        }),
+      );
+      const result = await resolveRepo({ owner: "acme", repo: "shop" }, { fetch: gh.fetch });
+      expect(result.ok && result.repo).toMatchObject({ providerRepoId: 42, sha: SHA });
+      expect(result.ok && "sizeKb" in result.repo).toBe(false);
+    }
+    const gh = fakeGitHub([{ ...SHOP, sizeKb: 0 }]);
+    const empty = await resolveRepo({ owner: "acme", repo: "shop" }, { fetch: gh.fetch });
+    expect(empty.ok && empty.repo.sizeKb).toBe(0);
   });
 
   it("an empty repo is REPO_EMPTY", async () => {
