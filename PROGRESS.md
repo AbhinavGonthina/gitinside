@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.3e R5: routers required from a folder listing and mounted in a loop/reduce (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.3e1 R5b: an app assigned once in a constructor (`this.app = express()`) (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -200,7 +200,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.3c R3 (39): a wrapper whose parameter is the axios config (`axios(req)`, `x.request(req)`) reads `url`/`method`/`baseURL` from the caller's object literal; fixture + golden, eval delta {model: opus}
 - [x] M5A.3d R4 (39): `x.defaults.baseURL = …` on the axios default export or an instance, assigned once at module top level (else unknown); fixture + golden, eval delta {model: opus}
 - [x] M5A.3d1 Flaky `requestAnalysis` race on real Postgres (`apps/web/lib/analyze.test.ts`, "racing requests for different new commits: one is queued, the rest refused"): CI's `coverage` on `f66bf50` (run 41315829171) threw `duplicate key value violates unique constraint "repos_owner_name_lower_key"` from `upsertRepo` (`packages/db/src/analyses.ts:72`): two first inserts of one repo race, and the second trips the `lower(owner), lower(name)` index before the `on conflict ("provider_repo_id")` arbiter, a 500 in production. Reproduce deterministically (two transactions on PGlite or Postgres), make the upsert race-safe (retry once on 23505, or conflict on both keys), regression test first {model: opus}
-- [ ] M5A.3e R5 (39): routers required from a folder listing and mounted in a loop/reduce (`glob.sync(…).map(require).reduce((r, x) => r.use(x))`, `readdirSync(__dirname).forEach`): ADR on whether it can be composed at `heuristic` without executing anything; implement or document as unhandled (foodie then stays unresolved); fixture, eval delta {model: opus}
+- [x] M5A.3e R5 (39): routers required from a folder listing and mounted in a loop/reduce (`glob.sync(…).map(require).reduce((r, x) => r.use(x))`, `readdirSync(__dirname).forEach`): ADR on whether it can be composed at `heuristic` without executing anything; implement or document as unhandled (foodie then stays unresolved); fixture, eval delta {model: opus}
+- [ ] M5A.3e1 R5b (39, found in M5A.3e): an Express app or router held in a class property declared without an initializer and assigned once in the constructor (`public app: express.Application;` + `this.app = express()`, foodie's `app.ts`) is that app; a second assignment, or one outside the constructor, stays unknown; fixture + golden, eval delta {model: opus}
 - [ ] M5A.3f R6 (15): sibling top-level folders with their own `package.json` become services when the root declares no workspaces (each with its tsconfig and `paths`); effect on every fixture and eval graph checked; fixture + golden, eval delta {model: opus}
 - [ ] M5A.3g R7 (7): wider API-base env names (`*_API_PATH`, `*_API_HOST`, `*_API`, `*_SERVER_URL`, …) from a documented list, FPs measured on all five repos; tests, eval delta {model: opus}
 - [ ] M5A.3h R8 (4): URL alternatives held in a variable (ternary through a `const`, a `let` with every assignment before the call readable) give one edge per alternative (ADR-0041); fixture + golden, eval delta {model: opus}
@@ -265,6 +266,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.3e** (`92fa0f3`, `41b84c1`, ADR-0162): Express routers from a folder listing are mounted: `readdirSync(dir)` and `glob.sync(pattern, { cwd })` computed from the service's own root files (new `listings.ts`), `.filter`/`.sort` passed through, `.map(require)`, then `forEach` / `reduce(acc.use(x), Router())` / `for…of`; prefixes may use the file name. Filters aren't run, so routes reached only that way (`listedRoutes`) match at `heuristic` at best. Fixture `express-folder-routers`; two mutation checks. Eval unchanged (76 / 1 / 62, held-out too): foodie's 10 routers now hang off its root router, but that is mounted on `this.app`, set in the constructor, which the detector never followed (diagnosis missed it) ⇒ M5A.3e1.
 
 - **2026-11-01 M5A.3d1:** `upsertRepo` retries once, in a new transaction, after a unique violation: `on conflict` covers only the `provider_repo_id` index, so a second insert waiting on another request's uncommitted row in the `lower(owner), lower(name)` index failed with 23505 once it committed (Postgres checks non-arbiter indexes plainly). Tests: injected violations (PGlite), and on CI's Postgres a deterministic interleaving (an uncommitted insert held while a recreated repo's upsert waits on it, seen in `pg_stat_activity`). Retry disabled ⇒ all three red on CI (draft PR #16).
 
