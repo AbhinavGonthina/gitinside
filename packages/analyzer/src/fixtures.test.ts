@@ -36,6 +36,7 @@ const NAMES = [
   "env-fallback",
   "object-client",
   "config-wrapper",
+  "axios-defaults",
   "ambiguous-routes",
   "wrapper-fetch",
   "external-sdk",
@@ -215,6 +216,17 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${api}#getPost -> route:api/GET /post/:id heuristic`,
       `${api}#login -> route:api/POST /authenticate heuristic`,
       `${api}#logout -> route:api/DELETE /logout heuristic`,
+    ]);
+  });
+
+  it("axios-defaults: a top-level `defaults.baseURL` prefixes requests; one set later doesn't (M5A.3d)", async () => {
+    const g = await run("axios-defaults");
+    const web = "symbol:web/src/services";
+    expect(links(g, "http")).toEqual([
+      `${web}/admin.ts#ban -> route:api/POST /api/admin/users/:id/ban heuristic`,
+      `${web}/admin.ts#listUsers -> route:api/GET /api/admin/users heuristic`,
+      `${web}/fetcher.ts#getUser -> route:api/GET /api/v1/users/:id heuristic`,
+      `${web}/session.ts#refresh -> unresolved:web/src/services/session.ts:9:38 unresolved DYNAMIC_URL`,
     ]);
   });
 

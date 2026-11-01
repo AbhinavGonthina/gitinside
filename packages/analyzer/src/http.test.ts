@@ -349,6 +349,96 @@ describe("collectHttpCalls: axios", () => {
     expect(sites.map((s) => s.baseURL && s.baseURL.sp.service.key)).toEqual(["client", "client"]);
   });
 
+  it("reads `defaults.baseURL` assigned once at module top level, else unknown (M5A.3d)", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { axios: "1" } }));
+    await put("src/setup.ts", [
+      'import axios from "axios";',
+      "const API = process.env.NEXT_PUBLIC_API_URL;",
+      "axios.defaults.baseURL = `${API}/v1`;",
+      "axios.defaults.withCredentials = true;",
+      'export const api = axios.create({ baseURL: "/old" });',
+      'api.defaults.baseURL = "/api";',
+      "export const keyed = axios.create();",
+      'keyed.defaults["baseURL"] = "/keyed";',
+      "export const twice = axios.create();",
+      'twice.defaults.baseURL = "/a";',
+      'twice.defaults.baseURL = "/b";',
+      "export const later = axios.create();",
+      "export function setBase(url: string) { later.defaults.baseURL = url; }",
+      'export const plus = axios.create({ baseURL: "/p" });',
+      'plus.defaults.baseURL += "/x";',
+      'export const swapped = axios.create({ baseURL: "/s" });',
+      "swapped.defaults = { ...swapped.defaults };",
+      "export const make = () => axios.create();",
+      "const made = make();",
+      'made.defaults.baseURL = "/made";',
+      "export const child = axios.create();",
+      'export const own = axios.create({ baseURL: "/own" });',
+      'export const v2 = api.create({ baseURL: "/v2" });',
+      "export const apiChild = api.create();",
+    ]);
+    await put("src/use.ts", [
+      'import axios from "axios";',
+      'import { api, keyed, twice, later, plus, swapped, make, child, own, v2, apiChild } from "./setup";',
+      "export async function run() {",
+      '  await axios.get("/root");',
+      '  await axios.get("/call", { baseURL: "/call" });',
+      '  await api.get("/api");',
+      '  await keyed.get("/keyed");',
+      '  await twice.get("/twice");',
+      '  await later.get("/later");',
+      '  await plus.get("/plus");',
+      '  await swapped.get("/swapped");',
+      '  await make().get("/made");',
+      '  await child.get("/child");',
+      '  await own.get("/own");',
+      '  await v2.get("/v2");',
+      '  await apiChild.get("/api-child");',
+      "}",
+    ]);
+    const owner = "[symbol:web/src/use.ts#run]";
+    expect(summary(await collect())).toEqual([
+      `src/use.ts:4:15 axios GET "/root" base=\`\${API}/v1\` ${owner}`,
+      `src/use.ts:5:15 axios GET "/call" base="/call" ${owner}`,
+      `src/use.ts:6:13 axios GET "/api" base="/api" ${owner}`,
+      `src/use.ts:7:15 axios GET "/keyed" base="/keyed" ${owner}`,
+      // Assigned twice, inside a function, with `+=`, replaced whole: unknown, never guessed.
+      `src/use.ts:8:15 axios GET "/twice" base=? ${owner}`,
+      `src/use.ts:9:15 axios GET "/later" base=? ${owner}`,
+      `src/use.ts:10:14 axios GET "/plus" base=? ${owner}`,
+      `src/use.ts:11:17 axios GET "/swapped" base=? ${owner}`,
+      // Every call of a factory makes a new instance: one's assignment says nothing of the next.
+      `src/use.ts:12:16 axios GET "/made" base=? ${owner}`,
+      // `create()` copies the defaults when it runs, before or after the assignment.
+      `src/use.ts:13:15 axios GET "/child" base=? ${owner}`,
+      `src/use.ts:14:13 axios GET "/own" base="/own" ${owner}`,
+      `src/use.ts:15:12 axios GET "/v2" base="/v2" ${owner}`,
+      `src/use.ts:16:18 axios GET "/api-child" base=? ${owner}`,
+    ]);
+  });
+
+  it("applies the default export's `defaults.baseURL` only within its own service (M5A.3d)", async () => {
+    await put(
+      "package.json",
+      JSON.stringify({ name: "root", private: true, workspaces: ["apps/*"] }),
+    );
+    await put("apps/web/package.json", JSON.stringify({ name: "web" }));
+    await put("apps/web/src/a.ts", [
+      'import axios from "axios";',
+      'axios.defaults.baseURL = "/api";',
+      'export const one = () => axios.get("/users");',
+    ]);
+    await put("apps/worker/package.json", JSON.stringify({ name: "worker" }));
+    await put("apps/worker/src/b.ts", [
+      'import axios from "axios";',
+      'export const two = () => axios.get("https://example.test/hook");',
+    ]);
+    expect(summary(await collect())).toEqual([
+      'apps/web/src/a.ts:3:32 axios GET "/users" base="/api" [symbol:web/src/a.ts#one]',
+      'apps/worker/src/b.ts:2:32 axios GET "https://example.test/hook" base=- [symbol:worker/src/b.ts#two]',
+    ]);
+  });
+
   it("ignores look-alike methods on non-axios values", async () => {
     await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));
     await put("src/server.ts", [

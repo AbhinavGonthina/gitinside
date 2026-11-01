@@ -21,6 +21,17 @@
  *   `x.post|put|patch|postForm|putForm|patchForm(url, data?, config?)`. A per-call
  *   `baseURL`, `url`, or `method` in the config wins over the instance and the default
  *   (`GET`).
+ * - `x.defaults.baseURL = …` (or `x.defaults["baseURL"]`) on the default export or an
+ *   instance (M5A.3d), when it is the only write to that object's `defaults.baseURL`, a plain
+ *   `=` statement at a module's top level, and the instance is created outside any function.
+ *   It replaces the `create` config's `baseURL`. The default export's assignment applies to
+ *   requests in the same service only (each service is its own runtime), from any of its
+ *   files: module load order isn't modeled, so a top-level request in a module that runs
+ *   before the assignment still gets it. Any other write leaves the base unknown (`null`):
+ *   a second assignment, one inside a function, `+=`, replacing `x.defaults` whole, or an
+ *   instance a factory makes per call. So does `create()` without a `baseURL` on axios or an
+ *   instance whose defaults are assigned: `create` copies them when it runs, and that may be
+ *   before or after the assignment.
  * - Values are traced with the checker the same way the Prisma client is: through
  *   variables, imports (workspace packages too, via the shared resolver), `export default`,
  *   CommonJS exports, `??`/`||`/`&&`, ternaries, `await`, and factory functions that return
@@ -42,7 +53,8 @@
  *   to them one level deep.
  * - Instances stored in collections, destructured (`const { get } = api`), assigned later
  *   (`this.api = axios.create()` in a TS constructor, unless the property is typed), or
- *   changed after creation (`api.defaults.baseURL = …`, interceptors rewriting URLs).
+ *   changed after creation other than by a `defaults.baseURL` assignment (above): interceptors
+ *   rewriting URLs, `Object.assign(api.defaults, …)`, a `defaults` object held in a variable.
  * - Other HTTP clients (`ky`, `got`, `superagent`, `ofetch`, SWR/React Query fetchers that
  *   aren't one of the above), `XMLHttpRequest`, and `EventSource`/`WebSocket`.
  * - `axios.all`/`axios.spread` add nothing: the requests inside are collected on their own.
@@ -157,10 +169,22 @@ export type MethodSource =
   | { kind: "config"; config: ProgramExpression }
   | { kind: "spreads"; spreads: ProgramExpression[]; fallback: ProgramExpression | undefined };
 
+/**
+ * What `x.defaults.baseURL = …` assignments write to: the default export as one service's
+ * program sees it, a `create` call, or a declaration typed `AxiosInstance`.
+ */
+type AxiosOrigin = ServiceProgram | ts.Node;
+
 /** What an expression evaluates to when it is axios or an axios instance. */
 interface AxiosValue {
-  /** The instance's `baseURL`: `undefined` for none, `null` for unknown. */
+  /**
+   * The `baseURL` it was given (its `create` config's), before `defaults` assignments:
+   * `undefined` for none, `null` for unknown. See {@link AxiosValue.parent}.
+   */
   baseURL: ProgramExpression | null | undefined;
+  origin: AxiosOrigin;
+  /** The value `create` was called on, when its config sets no `baseURL` of its own. */
+  parent?: AxiosValue;
   confidence: Confidence;
 }
 
@@ -494,14 +518,30 @@ export function collectHttpCalls(
 
   // ---- axios ----
 
-  const AXIOS_ROOT: AxiosValue = { baseURL: undefined, confidence: "exact" };
+  const roots = new Map<AxiosOrigin, AxiosValue>();
 
-  /** What a type annotation says about axios: `AxiosStatic`, `AxiosInstance`, or neither. */
-  const axiosOfType = (type: ts.TypeNode | undefined): AxiosValue | undefined => {
+  /** The axios default export as a program sees it: one per service, each its own runtime. */
+  const axiosRoot = (sp: ServiceProgram): AxiosValue => {
+    let root = roots.get(sp);
+    if (!root) {
+      root = { baseURL: undefined, origin: sp, confidence: "exact" };
+      roots.set(sp, root);
+    }
+    return root;
+  };
+
+  /** What a declaration's type annotation says about axios: `AxiosStatic`, `AxiosInstance`, or neither. */
+  const axiosOfType = (
+    sp: ServiceProgram,
+    declaration: ts.Declaration,
+    type: ts.TypeNode | undefined,
+  ): AxiosValue | undefined => {
     if (!type || !ts.isTypeReferenceNode(type)) return undefined;
     const name = ts.isIdentifier(type.typeName) ? type.typeName : type.typeName.right;
-    if (name.text === "AxiosStatic") return AXIOS_ROOT;
-    if (name.text === "AxiosInstance") return { baseURL: null, confidence: "exact" };
+    if (name.text === "AxiosStatic") return axiosRoot(sp);
+    if (name.text === "AxiosInstance") {
+      return { baseURL: null, origin: declaration, confidence: "exact" };
+    }
     return undefined;
   };
 
@@ -513,7 +553,7 @@ export function collectHttpCalls(
     const binding = importBinding(declaration);
     if (binding) {
       return binding.module === "axios" && (binding.name === "default" || binding.name === "*")
-        ? AXIOS_ROOT
+        ? axiosRoot(sp)
         : undefined;
     }
     if (
@@ -522,11 +562,11 @@ export function collectHttpCalls(
       ts.isPropertySignature(declaration) ||
       ts.isParameter(declaration)
     ) {
-      const typed = axiosOfType(declaration.type);
+      const typed = axiosOfType(sp, declaration, declaration.type);
       if (typed) return typed;
       const init = ts.isPropertySignature(declaration) ? undefined : declaration.initializer;
       if (!init) return undefined;
-      if (requiredModule(init) === "axios") return AXIOS_ROOT;
+      if (requiredModule(init) === "axios") return axiosRoot(sp);
       return axiosOf(sp, init, hops + 1);
     }
     if (ts.isPropertyAssignment(declaration)) return axiosOf(sp, declaration.initializer, hops + 1);
@@ -631,7 +671,7 @@ export function collectHttpCalls(
     if (hops > MAX_HOPS) return undefined;
     const e = unwrap(expression);
     if (ts.isAwaitExpression(e)) return axiosOf(sp, e.expression, hops + 1);
-    if (requiredModule(e) === "axios") return AXIOS_ROOT;
+    if (requiredModule(e) === "axios") return axiosRoot(sp);
     if (ts.isBinaryExpression(e)) {
       const op = e.operatorToken.kind;
       if (
@@ -656,7 +696,12 @@ export function collectHttpCalls(
         const parent = axiosOf(sp, callee.expression, hops + 1);
         if (!parent) return undefined;
         const own = configProperty(sp, e.arguments[0], "baseURL");
-        return { baseURL: own === undefined ? parent.baseURL : own, confidence: parent.confidence };
+        return {
+          baseURL: own,
+          origin: e,
+          ...(own === undefined ? { parent } : {}),
+          confidence: parent.confidence,
+        };
       }
       // A factory function that returns axios or an instance.
       const name = ts.isIdentifier(callee)
@@ -694,6 +739,108 @@ export function collectHttpCalls(
     return undefined;
   };
 
+  // ---- defaults assignments ----
+
+  /**
+   * The `defaults.baseURL` writes per origin: the value when there is exactly one and it can
+   * be trusted (see {@link defaultsAssignments}), `null` when there are others.
+   */
+  let assignments: Map<AxiosOrigin, ProgramExpression | null> | undefined;
+
+  /**
+   * True when an origin is one object: the default export, or a `create` call that runs once
+   * per module load (outside every function and class).
+   */
+  const isSingle = (origin: AxiosOrigin): boolean => {
+    if (roots.has(origin)) return true;
+    if (!("kind" in origin) || !ts.isCallExpression(origin)) return false;
+    for (let n = origin.parent as ts.Node | undefined; n; n = n.parent as ts.Node | undefined) {
+      if (ts.isFunctionLike(n) || ts.isClassLike(n)) return false;
+    }
+    return true;
+  };
+
+  /**
+   * Every `x.defaults.baseURL = …` (also `x.defaults["baseURL"]`) and `x.defaults = …` on
+   * axios or an instance, in every program, by origin. One plain `=` assignment that is a
+   * statement of its module's top level, on the default export or on an instance created
+   * outside any function (so the instance is one object), gives the base. Any other write
+   * (a second one, one inside a function, `+=`, the whole `defaults` replaced, an instance a
+   * factory makes per call) leaves the origin's base unknown. Scanned once, on first use.
+   */
+  const defaultsAssignments = (): Map<AxiosOrigin, ProgramExpression | null> => {
+    if (assignments) return assignments;
+    const found = new Map<AxiosOrigin, ProgramExpression | null>();
+    /** The axios value whose `defaults` a write target is, and whether it is the `baseURL`. */
+    const targetOf = (
+      sp: ServiceProgram,
+      left: ts.Expression,
+    ): { value: AxiosValue; whole: boolean } | undefined => {
+      const target = unwrap(left);
+      let defaults: ts.Expression = target;
+      let whole = true;
+      if (ts.isPropertyAccessExpression(target) && target.name.text === "baseURL") {
+        defaults = unwrap(target.expression);
+        whole = false;
+      } else if (
+        ts.isElementAccessExpression(target) &&
+        ts.isStringLiteralLike(target.argumentExpression) &&
+        target.argumentExpression.text === "baseURL"
+      ) {
+        defaults = unwrap(target.expression);
+        whole = false;
+      }
+      if (!ts.isPropertyAccessExpression(defaults) || defaults.name.text !== "defaults") {
+        return undefined;
+      }
+      const value = axiosOf(sp, defaults.expression, 0);
+      return value && { value, whole };
+    };
+    for (const sp of programs) {
+      for (const file of sp.rootFiles) {
+        const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+        if (!sourceFile) continue;
+        const visit = (n: ts.Node): void => {
+          if (
+            ts.isBinaryExpression(n) &&
+            n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+            n.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+          ) {
+            const target = targetOf(sp, n.left);
+            if (target) {
+              const { origin } = target.value;
+              const trusted =
+                !target.whole &&
+                n.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+                ts.isExpressionStatement(n.parent) &&
+                ts.isSourceFile(n.parent.parent) &&
+                isSingle(origin);
+              found.set(origin, trusted && !found.has(origin) ? { sp, expression: n.right } : null);
+            }
+          }
+          ts.forEachChild(n, visit);
+        };
+        visit(sourceFile);
+      }
+    }
+    assignments = found;
+    return found;
+  };
+
+  /**
+   * The `baseURL` requests on an axios value start from: a trusted `defaults.baseURL`
+   * assignment, else what it was created with, else (for `create()` without one) its
+   * parent's, unless the parent's defaults are assigned too: `create` copies them when it
+   * runs, and whether that is before or after the assignment isn't known, so it's unknown.
+   */
+  const baseOf = (value: AxiosValue): ProgramExpression | null | undefined => {
+    const written = defaultsAssignments();
+    const assigned = written.get(value.origin);
+    if (assigned !== undefined) return assigned;
+    if (!value.parent) return value.baseURL;
+    return written.has(value.parent.origin) ? null : baseOf(value.parent);
+  };
+
   // ---- call sites ----
 
   const sites: HttpCallSite[] = [];
@@ -720,14 +867,13 @@ export function collectHttpCalls(
     const ownBase = read("baseURL");
     const ownUrl = url ?? read("url");
     const hidden = !shorthand && url === undefined && config && !configObject(sp, config, 0);
+    const instanceBase = baseOf(instance);
     return {
       client: "axios",
       ...(shorthand ? { method } : configMethod(sp, config, "GET")),
       url: ownUrl ?? null,
-      baseURL: ownBase === undefined ? instance.baseURL : ownBase,
-      ...(hidden
-        ? { config: { value: { sp, expression: config }, baseURL: instance.baseURL } }
-        : {}),
+      baseURL: ownBase === undefined ? instanceBase : ownBase,
+      ...(hidden ? { config: { value: { sp, expression: config }, baseURL: instanceBase } } : {}),
       confidence: instance.confidence,
     };
   };
