@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.17c3b Local dev pushes with the fake Cloud Tasks (M5.13 and M5.14b wait on #3)
+M5.17d Cloud Run container (M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -170,7 +170,7 @@ M5.17c3b Local dev pushes with the fake Cloud Tasks (M5.13 and M5.14b wait on #3
 - [x] M5.17c2c Sized for 1 vCPU / 4 GiB with `/tmp` in memory: heap cap and extraction limits from M5.16a and cal.com (decompressed tarball + graph + heap within 4 GiB); ADR, tests {model: opus}
 - [x] M5.17c2d Maintenance without an always-on process (e.g. after a job when the last run is over an hour old, recorded in Neon so 2 instances don't both run it); `queued` rows past the task window and `running` rows past the request timeout failed by it; tests {model: opus}
 - [x] M5.17c3a BullMQ, Redis, and the enqueue server removed (code, deps, tests, CI's Redis, the Oracle compose stack's Redis + container check, docs); the processor's attempt tests kept on `runAttempt`; retention without BullMQ jobs; DESIGN.md/SECURITY.md queue wording; ADR {model: opus}
-- [ ] M5.17c3b Local dev pushes with the fake Cloud Tasks: without `GCP_*`, a loopback `WORKER_URL` and an explicit opt-in make the website push the signed job straight to the local worker's `POST /run` (task-name dedupe in memory, retries like Cloud Tasks, never on Vercel); `.env.example`, README quickstart; tests {model: opus}
+- [x] M5.17c3b Local dev pushes with the fake Cloud Tasks: without `GCP_*`, a loopback `WORKER_URL` and an explicit opt-in make the website push the signed job straight to the local worker's `POST /run` (task-name dedupe in memory, retries like Cloud Tasks, never on Vercel); `.env.example`, README quickstart; tests {model: opus}
 - [ ] M5.17d Cloud Run container: image (non-root, `PORT`, read-only except `/tmp`), CI container check without Redis or the egress gateway, `infra/oracle` replaced by `infra/gcp` (service, queue, IAM, docs) {model: opus}
 - [ ] M5.17e Keyless deploy + cost guardrails as code (ADR-0111): GitHub Actions deploy via Workload Identity Federation (Artifact Registry within its free storage); Cloud Run max instances 2, concurrency 1, timeout 300 s, min instances 0, 1 vCPU / 4 GiB, no unauthenticated access; no NAT, load balancer, Memorystore, or static IP; budget alert ⇒ billing kill switch; a `verify-guardrails` script; post the remaining Google Cloud steps on #3 {model: opus} {blocked: #3}
 - [ ] M5.17f SECURITY.md review for the sandbox change (ADR-0111): §3 and T1–T9 against Cloud Run (no egress gateway; the analysis child still has no network, `netguard.ts`; the parent's egress; IAM-only invocation), tests for the controls that remain, DESIGN.md/SPEC wording {model: opus}
@@ -252,6 +252,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5.17c3b** (`cc41d3c`, ADR-0149): `apps/web/lib/localTasks.ts` pushes the signed job straight to a loopback worker's `POST /run` as Cloud Tasks would (retry-count header, 3 deliveries with backoff, one at a time, task names remembered 24 h). Used only with no `GCP_*` set, `LOCAL_TASKS=push`, a loopback `WORKER_URL`, and no `VERCEL`; kept on `globalThis`. README local-website quickstart, `.env.example`, DESIGN.md. Web 393/393, typecheck, lint; mutating the dedupe and the one-at-a-time chain failed 4 tests.
 
 - **2026-11-01 M5.17c3a:** split M5.17c3 (removal now, local dev pushes as c3b). Deleted the BullMQ queue/processor (`queue.ts`), the enqueue API (`api.ts`), their tests, `bullmq`/`ioredis`/`supertest`, CI's Redis service and `TEST_REDIS_URL`, and Redis from `infra/oracle` (compose, provision, check: services must be exactly caddy/egress/worker(+postgres), unsigned `/run` 401 via Caddy, old paths 404; Caddy forwards `/health` + `/run`). The processor's attempt tests moved onto `runAttempt` (`attempt.test.ts`); retention no longer removes jobs (ADR-0082 superseded). ADR-0148; DESIGN/SECURITY/TESTING wording. Worker 546 + 1 win32 skip (no Redis-only skips left).
 
