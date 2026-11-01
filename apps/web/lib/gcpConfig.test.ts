@@ -1,9 +1,13 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  BUDGET_PATH,
+  GOOGLE_TIMEOUT_MS,
   HEALTH_PATH,
+  killSwitchConfigFromEnv,
+  overBudget,
   INSTANCE_MEMORY_MIB,
   JOB_BUDGET_MS,
   MAX_ATTEMPTS,
@@ -16,7 +20,8 @@ import { DISPATCH_DEADLINE_SECONDS } from "./cloudTasks";
 /**
  * `infra/gcp`'s reviewed config (ADR-0151) against the code it has to agree with: the worker's
  * budget, attempts, and signature window, the website's dispatch deadline, and the cost
- * guardrails of ADR-0111. A setting changed on one side only fails here, before a deploy.
+ * guardrails of ADR-0111, and the billing kill switch's service, budget, and topic (ADR-0169).
+ * A setting changed on one side only fails here, before a deploy.
  */
 
 const GCP = join(dirname(fileURLToPath(import.meta.url)), "../../../infra/gcp");
@@ -43,6 +48,8 @@ interface Service {
         serviceAccountName: string;
         containers: {
           image: string;
+          command?: string[];
+          args?: string[];
           ports: { containerPort: number }[];
           resources: { limits: { cpu: string; memory: string } };
           env: EnvVar[];
@@ -72,13 +79,37 @@ interface Queue {
 interface Iam {
   project: string;
   serviceAccounts: { id: string }[];
+  googleAgents: string[];
   secrets: string[];
   bindings: { resource: string; role: string; member: string }[];
 }
+interface Budget {
+  budgetFilter: unknown;
+  amount: { specifiedAmount: { currencyCode: string; units: string } };
+  thresholdRules: { thresholdPercent: number; spendBasis: string }[];
+  notificationsRule: { pubsubTopic: string; schemaVersion: string };
+}
+interface PubSub {
+  topic: { name: string };
+  subscription: {
+    topic: string;
+    pushConfig: {
+      pushEndpoint: string;
+      oidcToken: { serviceAccountEmail: string; audience: string };
+    };
+    ackDeadlineSeconds: number;
+    messageRetentionDuration: string;
+    expirationPolicy: { ttl: string };
+  };
+}
 
 const service = read("service.json") as Service;
+const killSwitch = read("killswitch.json") as Service;
 const queue = read("queue.json") as Queue;
 const iam = read("iam.json") as Iam;
+const budget = read("budget.json") as Budget;
+const pubsub = read("pubsub.json") as PubSub;
+const topicId = "billing-alerts";
 const template = service.spec.template;
 const [container] = template.spec.containers;
 const email = (id: string) => `${id}@${iam.project}.iam.gserviceaccount.com`;
@@ -136,12 +167,21 @@ describe("infra/gcp service.json (Cloud Run)", () => {
     expect(service.metadata.annotations).not.toHaveProperty(
       "run.googleapis.com/invoker-iam-disabled",
     );
-    const invokers = iam.bindings.filter((binding) => binding.role === "roles/run.invoker");
+    const invokers = iam.bindings.filter(
+      (binding) =>
+        binding.role === "roles/run.invoker" ||
+        binding.resource === `run/service/${service.metadata.name}`,
+    );
     expect(invokers).toEqual([
       {
         resource: `run/service/${service.metadata.name}`,
         role: "roles/run.invoker",
         member: `serviceAccount:${email("gitinside-invoker")}`,
+      },
+      {
+        resource: `run/service/${killSwitch.metadata.name}`,
+        role: "roles/run.invoker",
+        member: `serviceAccount:${email("gitinside-killswitch")}`,
       },
     ]);
   });
@@ -234,9 +274,16 @@ describe("infra/gcp queue.json (Cloud Tasks)", () => {
 describe("infra/gcp iam.json", () => {
   const members = iam.bindings.map((binding) => binding.member);
 
-  it("grants nothing to the public, nothing project-wide, and no basic roles", () => {
+  it("grants nothing to the public, nothing project-wide but the kill switch's, no basic roles", () => {
     expect(members.filter((member) => /allUsers|allAuthenticatedUsers/.test(member))).toEqual([]);
-    expect(iam.bindings.filter((binding) => binding.resource.startsWith("project"))).toEqual([]);
+    // Unlinking billing needs a project permission (ADR-0169); nothing else is project-wide.
+    expect(iam.bindings.filter((binding) => binding.resource.startsWith("project"))).toEqual([
+      {
+        resource: "project",
+        role: "roles/billing.projectManager",
+        member: `serviceAccount:${email("gitinside-killswitch")}`,
+      },
+    ]);
     expect(
       iam.bindings.filter((binding) => /^roles\/(owner|editor|viewer)$/.test(binding.role)),
     ).toEqual([]);
@@ -276,12 +323,115 @@ describe("infra/gcp iam.json", () => {
     );
   });
 
-  it("binds only the accounts it declares", () => {
+  it("binds only the accounts it declares, and Google's own agents only where listed", () => {
     const declared = new Set(
       iam.serviceAccounts.map((account) => `serviceAccount:${email(account.id)}`),
     );
     const accounts = members.filter((member) => member.startsWith("serviceAccount:"));
-    expect(accounts.filter((member) => !declared.has(member))).toEqual([]);
-    expect(declared.size).toBe(3);
+    expect(
+      accounts.filter((member) => !declared.has(member) && !iam.googleAgents.includes(member)),
+    ).toEqual([]);
+    expect(declared.size).toBe(4);
+    // The budget's publisher, on the topic only.
+    expect(
+      iam.bindings.filter((b) => iam.googleAgents.includes(b.member)).map((b) => b.resource),
+    ).toEqual([`pubsub/topic/${topicId}`]);
+  });
+});
+
+describe("infra/gcp billing kill switch (killswitch.json, budget.json, pubsub.json)", () => {
+  const switchTemplate = killSwitch.spec.template;
+  const [switchContainer] = switchTemplate.spec.containers;
+  const switchAccount = `serviceAccount:${email("gitinside-killswitch")}`;
+
+  it("runs the worker's image with the kill switch's entry, which the build produces", () => {
+    expect(switchTemplate.spec.containers).toHaveLength(1);
+    expect(switchContainer?.image).toBe(container?.image);
+    expect(switchContainer?.command).toEqual(["node"]);
+    const [entry] = switchContainer?.args ?? [];
+    expect(entry).toMatch(/^dist\/[a-z-]+\.js$/);
+    const source = join(GCP, "../../apps/worker/src", `${basename(entry ?? "", ".js")}.ts`);
+    expect(readFileSync(source, "utf8")).toContain("runKillSwitch(");
+  });
+
+  it("is small, scales to zero, and never runs twice at once", () => {
+    const annotations = switchTemplate.metadata.annotations;
+    expect(annotations["autoscaling.knative.dev/maxScale"]).toBe("1");
+    expect(annotations["autoscaling.knative.dev/minScale"]).toBe("0");
+    expect(annotations["run.googleapis.com/cpu-throttling"]).toBe("true");
+    expect(annotations["run.googleapis.com/startup-cpu-boost"]).toBe("false");
+    expect(switchTemplate.spec.containerConcurrency).toBe(1);
+    expect(switchContainer?.resources.limits).toEqual({ cpu: "1", memory: "512Mi" });
+  });
+
+  it("finishes its three Google calls inside the request timeout and Pub/Sub's ack deadline", () => {
+    expect(3 * GOOGLE_TIMEOUT_MS).toBeLessThanOrEqual(switchTemplate.spec.timeoutSeconds * 1000);
+    expect(pubsub.subscription.ackDeadlineSeconds).toBeGreaterThanOrEqual(
+      switchTemplate.spec.timeoutSeconds,
+    );
+  });
+
+  it("is reached only from inside the project, with IAM, by its own account", () => {
+    expect(killSwitch.metadata.annotations["run.googleapis.com/ingress"]).toBe("internal");
+    expect(killSwitch.metadata.annotations).not.toHaveProperty(
+      "run.googleapis.com/invoker-iam-disabled",
+    );
+    expect(switchTemplate.spec.serviceAccountName).toBe(email("gitinside-killswitch"));
+    expect(pubsub.subscription.pushConfig.oidcToken.serviceAccountEmail).toBe(
+      email("gitinside-killswitch"),
+    );
+    expect(
+      iam.bindings.filter((b) => b.member === switchAccount).map((b) => `${b.role} ${b.resource}`),
+    ).toEqual([
+      `roles/run.invoker run/service/${killSwitch.metadata.name}`,
+      "roles/billing.projectManager project",
+    ]);
+  });
+
+  it("unlinks billing on this project, and its config is what the entry accepts", () => {
+    expect(killSwitch.metadata.namespace).toBe(iam.project);
+    expect(killSwitch.metadata.labels).toEqual(service.metadata.labels);
+    const env = Object.fromEntries(
+      (switchContainer?.env ?? []).map((variable) => [variable.name, variable.value]),
+    );
+    expect(killSwitchConfigFromEnv(env).projectId).toBe(iam.project);
+    expect(switchContainer?.env.every((variable) => variable.valueFrom === undefined)).toBe(true);
+    const port = switchContainer?.ports[0]?.containerPort;
+    expect(switchContainer?.startupProbe.httpGet).toEqual({ path: HEALTH_PATH, port });
+  });
+
+  it("budgets $1 a month for this project, after credits, alerting at the amount", () => {
+    expect(budget.amount.specifiedAmount).toEqual({ currencyCode: "USD", units: "1" });
+    expect(budget.budgetFilter).toEqual({
+      projects: ["projects/{{PROJECT_NUMBER}}"],
+      // What the card would actually pay: free-trial and promotional credits count.
+      creditTypesTreatment: "INCLUDE_ALL_CREDITS",
+      calendarPeriod: "MONTH",
+    });
+    const thresholds = budget.thresholdRules.map((rule) => rule.thresholdPercent);
+    expect(thresholds).toContain(1);
+    // Forecasts can't turn billing off: every threshold is on actual spend.
+    expect(budget.thresholdRules.every((rule) => rule.spendBasis === "CURRENT_SPEND")).toBe(true);
+    const units = Number(budget.amount.specifiedAmount.units);
+    expect(
+      overBudget({
+        budgetDisplayName: "",
+        costAmount: units,
+        budgetAmount: units,
+        currencyCode: "",
+      }),
+    ).toBe(true);
+  });
+
+  it("delivers the budget's notifications to the switch, and keeps them until it answers", () => {
+    expect(budget.notificationsRule.pubsubTopic).toBe(pubsub.topic.name);
+    expect(budget.notificationsRule.schemaVersion).toBe("1.0");
+    expect(pubsub.subscription.topic).toBe(pubsub.topic.name);
+    expect(pubsub.topic.name).toBe(`projects/${iam.project}/topics/${topicId}`);
+    expect(pubsub.subscription.pushConfig.pushEndpoint).toBe(`{{KILLSWITCH_URL}}${BUDGET_PATH}`);
+    expect(pubsub.subscription.pushConfig.oidcToken.audience).toBe("{{KILLSWITCH_URL}}");
+    // Pub/Sub's longest retention: a failed unlink keeps being retried for a week.
+    expect(pubsub.subscription.messageRetentionDuration).toBe("604800s");
+    expect(pubsub.subscription.expirationPolicy.ttl).toBe("");
   });
 });

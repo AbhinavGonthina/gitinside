@@ -2,6 +2,12 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 /** HTTP helpers shared by the worker's endpoints (api.ts, run.ts). */
 
+/**
+ * Unauthenticated liveness: `200` while the process serves requests (the worker's `POST /run`
+ * server and the kill switch's).
+ */
+export const HEALTH_PATH = "/health";
+
 /** A job body is a few hundred bytes; anything far past that is refused unread. */
 export const MAX_BODY_BYTES = 16 * 1024;
 

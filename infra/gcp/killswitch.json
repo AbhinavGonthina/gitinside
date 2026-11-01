@@ -1,0 +1,50 @@
+{
+  "apiVersion": "serving.knative.dev/v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "gitinside-killswitch",
+    "namespace": "gitinside-513223",
+    "labels": {
+      "cloud.googleapis.com/location": "us-east4"
+    },
+    "annotations": {
+      "run.googleapis.com/ingress": "internal",
+      "run.googleapis.com/launch-stage": "GA"
+    }
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "annotations": {
+          "autoscaling.knative.dev/minScale": "0",
+          "autoscaling.knative.dev/maxScale": "1",
+          "run.googleapis.com/cpu-throttling": "true",
+          "run.googleapis.com/startup-cpu-boost": "false"
+        }
+      },
+      "spec": {
+        "containerConcurrency": 1,
+        "timeoutSeconds": 60,
+        "serviceAccountName": "gitinside-killswitch@gitinside-513223.iam.gserviceaccount.com",
+        "containers": [
+          {
+            "image": "{{IMAGE}}",
+            "command": ["node"],
+            "args": ["dist/killswitch-bin.js"],
+            "ports": [{ "name": "http1", "containerPort": 8080 }],
+            "resources": {
+              "limits": { "cpu": "1", "memory": "512Mi" }
+            },
+            "env": [{ "name": "KILLSWITCH_PROJECT_ID", "value": "gitinside-513223" }],
+            "startupProbe": {
+              "httpGet": { "path": "/health", "port": 8080 },
+              "periodSeconds": 2,
+              "timeoutSeconds": 1,
+              "failureThreshold": 15
+            }
+          }
+        ]
+      }
+    }
+  }
+}

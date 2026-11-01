@@ -15,8 +15,14 @@
       "id": "gitinside-enqueue",
       "displayName": "GitInside enqueue (Vercel, keyless)",
       "description": "Vercel's production functions impersonate it through Workload Identity Federation to create tasks."
+    },
+    {
+      "id": "gitinside-killswitch",
+      "displayName": "GitInside billing kill switch",
+      "description": "Runs the kill switch service and signs Pub/Sub's pushes to it. May unlink the project's billing account, nothing else."
     }
   ],
+  "googleAgents": ["serviceAccount:billing-budget-alert@system.gserviceaccount.com"],
   "secrets": [
     "worker-database-url",
     "worker-snapshots-secret-key",
@@ -63,6 +69,21 @@
       "resource": "serviceAccount/gitinside-enqueue",
       "role": "roles/iam.workloadIdentityUser",
       "member": "principalSet://iam.googleapis.com/projects/{{PROJECT_NUMBER}}/locations/global/workloadIdentityPools/vercel/attribute.environment/production"
+    },
+    {
+      "resource": "run/service/gitinside-killswitch",
+      "role": "roles/run.invoker",
+      "member": "serviceAccount:gitinside-killswitch@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "project",
+      "role": "roles/billing.projectManager",
+      "member": "serviceAccount:gitinside-killswitch@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "pubsub/topic/billing-alerts",
+      "role": "roles/pubsub.publisher",
+      "member": "serviceAccount:billing-budget-alert@system.gserviceaccount.com"
     }
   ]
 }

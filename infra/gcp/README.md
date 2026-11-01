@@ -6,8 +6,11 @@ The analysis worker runs as a Cloud Run service that Cloud Tasks pushes each job
 |---|---|
 | `service.json` | The Cloud Run service (Knative `serving.knative.dev/v1`; JSON is valid YAML, so `gcloud run services replace` reads it) |
 | `queue.json` | The Cloud Tasks queue (the REST API's `Queue` resource) |
-| `iam.json` | The three service accounts, the four secrets, and every role binding, each on one resource |
-| `check.mjs` | CI's check of the image as Cloud Run runs it (job `worker-image`); never deployed |
+| `iam.json` | The four service accounts, the four secrets, and every role binding, each on one resource |
+| `killswitch.json` | The billing kill switch's Cloud Run service (the worker's image, another command) |
+| `budget.json` | The $1 monthly budget (Cloud Billing Budget API's `Budget`), publishing to `billing-alerts` |
+| `pubsub.json` | The `billing-alerts` topic and the push subscription that delivers it to the kill switch |
+| `check.mjs` | CI's check of the image as Cloud Run runs it, the kill switch included (job `worker-image`); never deployed |
 
 `apps/web/lib/gcpConfig.test.ts` checks these files against the code: the worker's attempts, job budget, signature window, memory budget, and required variables, the website's dispatch deadline, and ADR-0111's guardrails. Change a setting on one side only and that test fails.
 
@@ -68,8 +71,34 @@ Tasks are created by the website with a 330 s dispatch deadline (ADR-0141). Neve
 | `gitinside-enqueue` | create tasks (`cloudtasks.enqueuer`) | the `analyses` queue only |
 | `gitinside-enqueue` | act as `gitinside-invoker` | that account only (needed to name it in a task's OIDC token) |
 | Vercel production (Workload Identity Federation) | become `gitinside-enqueue` | that account only |
+| `gitinside-killswitch` | invoke | the `gitinside-killswitch` service only (it signs Pub/Sub's pushes) |
+| `gitinside-killswitch` | unlink billing (`billing.projectManager`) | the project: the one project-level binding (ADR-0169) |
+| Cloud Billing's budget agent (`billing-budget-alert@system…`) | publish | the `billing-alerts` topic only |
 
-No binding is on the project, none is a basic role (owner, editor, viewer), and none names `allUsers`. Cloud Tasks' own service agent mints the invoker's OIDC tokens through its default role; nothing extra is granted to it. The pool `vercel` (Vercel's OIDC issuer, `attribute.environment` from the token's `environment` claim, restricted to this Vercel project), the project number in its principal, and the GitHub Actions deploy account belong to M5.17e.
+No other binding is on the project, none is a basic role (owner, editor, viewer), and none names `allUsers`. Cloud Tasks' own service agent mints the invoker's OIDC tokens through its default role; nothing extra is granted to it. The pool `vercel` (Vercel's OIDC issuer, `attribute.environment` from the token's `environment` claim, restricted to this Vercel project), the project number in its principal, and the GitHub Actions deploy account belong to M5.17e.
+
+## The billing kill switch (`budget.json`, `pubsub.json`, `killswitch.json`)
+
+Google's documented way to cap spending (ADR-0111, ADR-0169). After the trial, usage past the free allowance is billable, and the app's own compute pause (ADR-0156) is the first stop; this is the last.
+
+```
+budget "gitinside-kill-switch" ($1 a month, this project, after all credits)
+   │ several times a day: {costAmount, budgetAmount, …}
+   ▼
+Pub/Sub topic "billing-alerts" ──push (OIDC as gitinside-killswitch)──▶ Cloud Run "gitinside-killswitch" POST /budget
+                                                                           │ costAmount ≥ budgetAmount?
+                                                                           ▼ token from the metadata server
+                                         Cloud Billing: PUT projects/gitinside-513223/billingInfo {"billingAccountName": ""}
+```
+
+| Setting | Value | Why |
+|---|---|---|
+| Budget | 1 USD a month, `INCLUDE_ALL_CREDITS`, thresholds 50/90/100% of actual spend | What the card would pay: during the trial, credits cover everything, so it never fires. Thresholds only add emails to billing admins; the switch reads the cost from every message. The currency must be the billing account's own |
+| Trigger | cost ≥ budget (never with a budget of 0) | `overBudget` in `apps/worker/src/killswitch.ts` |
+| Service | max 1 instance, concurrency 1, 1 vCPU / 512 MiB, 60 s, ingress internal, own account | A few requests a day; Pub/Sub counts as internal traffic from the project |
+| Subscription | push to `{{KILLSWITCH_URL}}/budget`, ack deadline 60 s, retries 10 s–10 min, kept 7 days, never expires | A failed unlink (`503`) is retried for a week; anything else is answered `204` |
+
+Unlinking billing stops every paid service in the project, the worker included, and Google warns that it may delete resources of a project that stays without billing. Turning it back on is a manual step in the console (Billing → link the account), after finding out why. Budget data lags actual usage by hours, so the bill can pass $1 by what accrues in that time; the worker's 2-instance cap bounds that to cents.
 
 ## Applying it
 

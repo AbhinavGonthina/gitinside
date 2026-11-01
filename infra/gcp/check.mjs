@@ -24,7 +24,10 @@
  *   gives the golden graph byte for byte (the image layout keeps the child's read root at
  *   /app);
  * - SIGTERM as PID 1 (no init) stops it with exit 0 within Cloud Run's 10 s grace, and
- *   every log line is JSON.
+ *   every log line is JSON;
+ * - the billing kill switch, started from the same image with `killswitch.json`'s command,
+ *   args, and variables: health on `PORT`, an under-budget push acknowledged (204), and a
+ *   clean SIGTERM stop.
  * The containers, network, and image are removed at the end, pass or fail.
  */
 import assert from "node:assert/strict";
@@ -38,6 +41,7 @@ const IMAGE = "gitinside-worker:check";
 const NETWORK = "gitinside-check";
 const POSTGRES = "gitinside-check-postgres";
 const WORKER = "gitinside-check-worker";
+const KILLSWITCH = "gitinside-check-killswitch";
 // Not 8080, so the check fails if the worker ignores Cloud Run's PORT.
 const PORT = "9090";
 const FIXTURE = "fixtures/express-basic";
@@ -205,7 +209,7 @@ try {
 /** Remove the check's containers and network, ignoring what doesn't exist. */
 function removeAll() {
   for (const args of [
-    ["rm", "--force", "--volumes", WORKER, POSTGRES],
+    ["rm", "--force", "--volumes", WORKER, POSTGRES, KILLSWITCH],
     ["network", "rm", NETWORK],
   ]) {
     try {
@@ -366,10 +370,57 @@ try {
   for (const event of ["worker_starting", "worker_ready", "signal", "worker_stopped"]) {
     assert.ok(events.includes(event), `no ${event} in ${events.join(", ")}`);
   }
+
+  // The billing kill switch: the same image with killswitch.json's command (ADR-0169).
+  const killSwitch = JSON.parse(readFileSync("infra/gcp/killswitch.json", "utf8")).spec.template
+    .spec.containers[0];
+  run([
+    "run",
+    "--detach",
+    "--name",
+    KILLSWITCH,
+    "--publish",
+    `127.0.0.1:${PORT}:${PORT}`,
+    "--env",
+    `PORT=${PORT}`,
+    ...killSwitch.env.flatMap((variable) => ["--env", `${variable.name}=${variable.value}`]),
+    "--cpus",
+    "1",
+    "--memory",
+    "512m",
+    "--entrypoint",
+    killSwitch.command[0],
+    IMAGE,
+    ...killSwitch.args,
+  ]);
+  await waitFor("the kill switch", 30, async () => {
+    const state = inspect(KILLSWITCH).State;
+    if (!state.Running) throw new Error(`the kill switch exited (${state.ExitCode})`);
+    try {
+      return (await fetch(`http://127.0.0.1:${PORT}/health`)).ok;
+    } catch {
+      return false;
+    }
+  });
+  // Under budget: acknowledged without asking Google (there is no metadata server here).
+  const data = Buffer.from(JSON.stringify({ costAmount: 0, budgetAmount: 1 })).toString("base64");
+  const push = await fetch(`http://127.0.0.1:${PORT}/budget`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message: { data } }),
+  });
+  assert.equal(push.status, 204);
+  run(["stop", "--timeout", String(GRACE_SECONDS), KILLSWITCH]);
+  assert.equal(inspect(KILLSWITCH).State.ExitCode, 0);
+  const switchEvents = capture(["logs", KILLSWITCH])
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => JSON.parse(line).event);
+  assert.deepEqual(switchEvents, ["killswitch_ready", "budget_under"]);
   console.log("worker container check passed");
 } catch (error) {
   // The containers' own logs say why one never became ready.
-  for (const name of [WORKER, POSTGRES]) {
+  for (const name of [WORKER, POSTGRES, KILLSWITCH]) {
     try {
       run(["logs", "--timestamps", name]);
     } catch {
