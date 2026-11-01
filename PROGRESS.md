@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.18f SECURITY.md T9 with the final numbers from M5.18a–e and the Cloud Run guardrails (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.1 Diagnose the misses in `eval/results/2026-10-31-0.1.0.md` (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -180,7 +180,7 @@ M5.18f SECURITY.md T9 with the final numbers from M5.18a–e and the Cloud Run g
 - [x] M5.18c Abuse (#11): per-repo limit on `/api/analyze`: at most one new analysis per repo per 30 min whoever asks (on top of 5/h per IP and check-on-view's 6/h), message with the retry time; tests {model: opus}
 - [x] M5.18d Abuse (#11): monthly compute budget: Cloud Run vCPU- and GiB-seconds per UTC month estimated from job durations × 1 vCPU / 4 GiB (like `store_requests`), plus Cloud Tasks operations; new analyses stop at 80% of the free allowance ("Analysis is paused until <date>"), diagrams keep working; `quota` command; tests {model: opus}
 - [x] M5.18e Abuse (#11): Cloudflare Turnstile (free, no card) on Analyze for signed-out visitors, only when traffic looks automated (an IP's or the site's rate over a threshold); server-side token check; fail visibly; tests (keys are in Vercel Production + Preview and `apps/web/.env.local`, #12) {model: opus}
-- [ ] M5.18f SECURITY.md T9 with the final numbers from M5.18a–e and the Cloud Run guardrails {model: opus}
+- [x] M5.18f SECURITY.md T9 with the final numbers from M5.18a–e and the Cloud Run guardrails {model: opus}
 - [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review; confirm an image's self-request to `/api/graph` is a CDN hit, `x-vercel-cache: HIT`, with `store_requests` unchanged, ADR-0097; worker on Cloud Run with the guardrails verified, ADR-0111; the five `SNAPSHOTS_*` values are in Vercel Production, the worker's go into Cloud Run's secrets, #5) {model: opus} {blocked: #3}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
@@ -253,6 +253,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5.18f** (2026-11-01): SECURITY.md T9 rewritten with the order of checks on a new analysis and a residual-risk line (a many-address bot passing Turnstile can pause new analyses for the month in ≈ 9.3 h; a denial of service, not a bill). New "T9 in numbers" table: every abuse, compute, and quota limit with its value and source, plus what they bound (≈ 18.6 h of instance time before the pause, ≈ 216 full-length jobs). `apps/web/lib/abuseLimits.test.ts` checks 16 rows against the code and `infra/gcp` (sign-in's 30/h and the billing guardrails aren't in code yet); a changed constant and a changed doc row each failed it.
 
 - **2026-11-01 M5.18e** (`bc67228`, ADR-0157): Turnstile on Analyze only when an address has started 2 new analyses this hour or the site has let 20 through (`peekRateLimit`, a `site:analyze` counter; `passBotCheck` in `apps/web/lib/botCheck.ts`, before the repo claim and the slot). No token ⇒ `403 CHALLENGE_REQUIRED` + site key; the form loads Turnstile then (`interaction-only`, site theme) and resends with `turnstileToken`, checked by `siteverify` (success + action `analyze`); `403 CHALLENGE_FAILED` / `503 CHALLENGE_UNAVAILABLE`; widget errors and a blocked script said in the form. CSP `frame-src challenges.cloudflare.com`; both env keys or neither. Browser check on the production build with Cloudflare's test keys (no CSP violations, pass key resubmits, block key fails visibly); screenshots in `docs/milestones/M5/bot-check/`. `>=`→`>` failed 6 tests. Web 477, db 138, typecheck, lint. No eval delta.
 
