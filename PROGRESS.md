@@ -187,6 +187,14 @@ M5.17c2b A duplicate push for a `done` row answers 200 without re-running (M5.13
 - [x] M5.14e M5 review follow-up, worker: retention removes evicted analyses' completed BullMQ jobs (Redis tests, CI only) {model: opus}
 - [x] M5.14f M5 review follow-ups, infra: egress gateway mounts a hosts-only file instead of `worker.env`; Redis `requirepass` (worker env only); verified on CI's container check {model: opus}
 
+### M5A: Cross-service recall (#13, after M5, before the rest of M6)
+Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out repos reported separately. Fix general patterns, never special cases for the eval repos; what can't be known statically stays unresolved. Don't wait for #1, but re-run the eval once it closes.
+- [ ] M5A.1 Diagnose the misses in `eval/results/2026-10-31-0.1.0.md` (110 false negatives, 103 missing labels): read each call site in the eval checkouts, find why it was dropped or unmatched (trace through `analyze`), group by root cause with counts per repo, write it to `eval/results/2026-11-recall-diagnosis.md`; then split M5A.3 into one task per cause, largest first {model: opus}
+- [ ] M5A.2 Held-out repos (#13): pick 2–3 new public React/Next + Express (+ Prisma) repos of different styles (selection rules as M3.2, pinned SHAs, a separate held-out set in `eval/`), draft their labels from the code before running the analyzer on them, commit the labels before scoring; the report shows them in their own section and they're never tuned against {model: opus}
+- [ ] M5A.3 Fix the root causes from M5A.1, each as a general pattern with its own fixture + golden test, eval delta in each commit body (split by M5A.1) {model: opus}
+- [ ] M5A.4 Eval re-run on the original and held-out repos, ADR for any change in approach, README/EVALUATION numbers updated; if targets aren't met, list what's left and why (runtime-only URLs stay unresolved) {model: opus}
+- [ ] M5A.5 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff (generalization: no repo-specific cases), CLI smoke test on a real repo outside the eval, M5A-review.md, tag m5a {model: opus}
+
 ### M6: Graph diff + incremental analysis
 - [x] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
 - [x] M6.2 Node/edge classification with per-kind fingerprints {model: opus}
