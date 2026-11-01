@@ -237,6 +237,11 @@ export const evalRepoSchema = z
     shape: z.enum(REPO_SHAPES),
     /** Why this repo is in the set: what it exercises. */
     why: z.string().min(1),
+    /**
+     * `true` for a held-out repo (#13): picked and labeled after the analyzer's recall work
+     * began, scored apart from the original set, and never tuned against. Absent otherwise.
+     */
+    heldOut: z.literal(true).optional(),
   })
   .strict()
   .refine((r) => r.url === `https://github.com/${r.owner}/${r.name}`, {

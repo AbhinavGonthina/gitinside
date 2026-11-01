@@ -32,6 +32,13 @@ How they were chosen:
 - **Variety in how URLs are built**, not just in shape: a path-taking `fetch` wrapper (WealthWise), a wrapper over `axios(config)` with `axios.defaults.baseURL` (foodie), a base URL assigned after `axios.create()` (wanderlust), template literals over an env base with a fallback (conversa), and plain root-relative `fetch` (taxonomy).
 - **Known limitation:** small and mid-size apps, mostly hobby or reference projects. Numbers from this set say nothing about large production monorepos (cal.com is used only for the performance benchmark).
 
+**The held-out set** (M5A.2, #13): the recall work of M5A fixes the analyzer by studying the original five repos' misses, so their numbers can rise through fixes that only suit them. To check that fixes generalize, 2–3 more repos of the same stacks are added:
+- **Same selection and labeling rules** as above. They are picked and labeled from their code alone, the labels are committed before the analyzer first runs on them, and their shapes come from the same list.
+- **Marked `"heldOut": true`** in `eval/repos.json` (the field is absent for the original set; `false` is rejected so there's one spelling).
+- **Scored apart:** `pnpm eval` totals them separately, and the report gives them their own "Held-out repos" section (repos, counts, by confidence, misses). Their counts never enter the headline precision and recall, the original set's totals, or the M5A targets.
+- **Never tuned against:** their misses are reported, never used to choose or shape an analyzer fix. A pattern they show only counts once the original set (or a new fixture written from the pattern's general form) shows it too.
+- Their labels are not in the first owner review's sample (seed `2026-10-28`, drawn before they existed).
+
 **Ground truth format** (`eval/labels/<owner>__<repo>.json`):
 ```json
 {

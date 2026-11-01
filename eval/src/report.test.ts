@@ -334,6 +334,108 @@ describe("renderReport", () => {
     expect(renderReport(input())).toBe(text);
   });
 
+  describe("held-out repos (M5A.2a)", () => {
+    const heldOutScore: RepoScore = {
+      ...SCORE_A,
+      repo: "held/out",
+      counts: counts({
+        truePositives: 3,
+        falseNegatives: 1,
+        labels: 4,
+        positiveLabels: 4,
+        byConfidence: {
+          exact: { truePositives: 0, falsePositives: 0 },
+          pattern: { truePositives: 3, falsePositives: 0 },
+          heuristic: { truePositives: 0, falsePositives: 0 },
+        },
+      }),
+      falsePositives: [],
+      missing: [],
+    };
+    const heldOut = renderReport(
+      input({
+        heldOut: {
+          repos: [{ ...repo("held", "out"), heldOut: true }],
+          labels: [{ ...LABELS_A, repo: "held/out" }],
+          score: { overall: heldOutScore.counts, repos: [heldOutScore] },
+        },
+      }),
+    );
+    const section = heldOut.slice(
+      heldOut.indexOf("## Held-out repos"),
+      heldOut.indexOf("## Method"),
+    );
+
+    it("leaves the report byte-identical when there are none", () => {
+      const empty = { repos: [], labels: [], score: { overall: counts(), repos: [] } };
+      expect(renderReport(input({ heldOut: empty }))).toBe(text);
+      expect(text).not.toContain("Held-out");
+    });
+
+    it("keeps their counts out of the headline and the original totals", () => {
+      expect(heldOut).toContain(
+        "Precision 50.0% (1/2), recall 50.0% (1/2) over 3 labels in 2 repos.",
+      );
+      expect(heldOut).toContain(
+        "| **All repos** | 3 | 2 | 1 | 1 | 1 | 50.0% (1/2) | 50.0% (1/2) |",
+      );
+      const before = heldOut.slice(0, heldOut.indexOf("## Held-out repos"));
+      expect(before).not.toContain("held/out");
+      expect(heldOut).toContain("- **Small set:** two small and mid-size apps");
+    });
+
+    it("gives them their own repos, totals, levels, and misses, after the original misses", () => {
+      expect(heldOut.indexOf("### zed/app")).toBeLessThan(heldOut.indexOf("## Held-out repos"));
+      expect(section).toContain(
+        `| [held/out](https://github.com/held/out) | spa-plus-express | \`${SHA}\` | MIT | 3 | 3 |`,
+      );
+      expect(section).toContain(
+        "Precision 100.0% (3/3), recall 75.0% (3/4) over 4 labels in 1 held-out repo.",
+      );
+      expect(section).toContain(
+        "| **All held-out repos** | 4 | 4 | 3 | 0 | 1 | 100.0% (3/3) | 75.0% (3/4) |",
+      );
+      expect(section).toContain("### Held-out, by confidence level");
+      expect(section).toContain("| pattern | 3 | 0 | 100.0% (3/3) | 75.0% (3/4) |");
+      expect(section).toContain("#### held/out\n\n**False positives (0)**\n\nNone.");
+      expect(section).toContain(
+        "- `web/api.ts:7` (POST): expected `POST /api/items` in `api/server.ts:12`; nothing predicted at the site.",
+      );
+    });
+
+    it("says what the held-out set is in the limitations, and counts its labels in the review status", () => {
+      expect(heldOut).toContain("- **Held-out set:** one more app, picked and labeled after");
+      const reviewed = renderReport(
+        input({
+          labels: [
+            { ...LABELS_A, reviewedBy: "AbhinavGonthina" },
+            { ...LABELS_B, reviewedBy: "AbhinavGonthina" },
+          ],
+          heldOut: {
+            repos: [{ ...repo("held", "out"), heldOut: true }],
+            labels: [{ ...LABELS_A, repo: "held/out" }],
+            score: { overall: heldOutScore.counts, repos: [heldOutScore] },
+          },
+        }),
+      );
+      expect(reviewed).toContain("> **Pending owner review.**");
+    });
+
+    it("throws when a held-out repo has no score", () => {
+      expect(() =>
+        renderReport(
+          input({
+            heldOut: {
+              repos: [repo("held", "out")],
+              labels: [],
+              score: { overall: counts(), repos: [] },
+            },
+          }),
+        ),
+      ).toThrow(ReportError);
+    });
+  });
+
   it("throws when a pinned repo has no score", () => {
     expect(() =>
       renderReport(input({ score: { overall: SCORE_A.counts, repos: [SCORE_A] } })),

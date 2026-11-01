@@ -30,6 +30,7 @@ import {
   reportFileName,
   resolveReportArg,
   type ReportRun,
+  type ReportSet,
 } from "./report.js";
 import { scoreAll } from "./score.js";
 
@@ -174,7 +175,7 @@ async function main(): Promise<void> {
     reportPath = join(RESULTS, reportFileName(run));
   }
 
-  const runs: { labels: LabelFile; graph: ArchitectureGraph }[] = [];
+  const runs: { heldOut: boolean; labels: LabelFile; graph: ArchitectureGraph }[] = [];
   for (const { repo, labels } of labelled) {
     process.stderr.write(`${repo.owner}/${repo.name}: checking out ${repo.sha}\n`);
     const dir = checkout(repo);
@@ -182,15 +183,20 @@ async function main(): Promise<void> {
     process.stderr.write(
       `${repo.owner}/${repo.name}: ${graph.nodes.length} nodes, ${graph.edges.length} edges\n`,
     );
-    runs.push({ labels, graph });
+    runs.push({ heldOut: repo.heldOut === true, labels, graph });
   }
-  const score = scoreAll(runs);
-  const text = renderReport({
-    run,
-    repos: labelled.map((l) => l.repo),
-    labels: labelled.map((l) => l.labels),
-    score,
-  });
+  // Held-out repos (#13) are scored on their own, so they never move the original set's totals.
+  const set = (heldOut: boolean): ReportSet => {
+    const picked = labelled.filter((l) => (l.repo.heldOut === true) === heldOut);
+    return {
+      repos: picked.map((l) => l.repo),
+      labels: picked.map((l) => l.labels),
+      score: scoreAll(runs.filter((r) => r.heldOut === heldOut)),
+    };
+  };
+  const original = set(false);
+  const score = original.score;
+  const text = renderReport({ run, ...original, heldOut: set(true) });
   const shown = relative(ROOT, reportPath).replaceAll("\\", "/");
 
   if (committed !== undefined) {

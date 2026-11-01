@@ -308,6 +308,18 @@ describe("parseReposFile", () => {
     ).toContain("repos.0.url: url must be https://github.com/<owner>/<name>");
   });
 
+  it("marks held-out repos with `heldOut: true` and nothing else (M5A.2a)", () => {
+    const parsed = parseReposFile("r", JSON.stringify({ repos: [{ ...repo, heldOut: true }] }));
+    expect(parsed.repos[0]!.heldOut).toBe(true);
+    expect(parseReposFile("r", JSON.stringify({ repos: [repo] })).repos[0]!.heldOut).toBe(
+      undefined,
+    );
+    // The original set is the default, so `false` would be a second spelling of it.
+    expect(
+      issues(() => parseReposFile("r", JSON.stringify({ repos: [{ ...repo, heldOut: false }] }))),
+    ).toContain("repos.0.heldOut:");
+  });
+
   it("requires repos sorted case-insensitively by owner/name and unique", () => {
     const other = { ...repo, owner: "Beta", url: "https://github.com/Beta/shop" };
     expect(() => parseReposFile("r", JSON.stringify({ repos: [repo, other] }))).not.toThrow();
