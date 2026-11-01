@@ -17,7 +17,8 @@
     "bench:render": "turbo run build && pnpm --filter @gitinside/bench run bench:render",
     "bench:stress": "turbo run build && pnpm --filter @gitinside/bench run bench:stress",
     "bench:capped": "turbo run build && pnpm --filter @gitinside/bench run bench:capped",
-    "eval": "turbo run build && pnpm --filter @gitinside/eval run eval"
+    "eval": "turbo run build && pnpm --filter @gitinside/eval run eval",
+    "verify-guardrails": "node infra/gcp/verify.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.17.0",
