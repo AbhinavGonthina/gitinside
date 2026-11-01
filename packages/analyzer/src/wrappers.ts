@@ -1,7 +1,11 @@
 /**
  * One-level wrapper inlining (M2.3, DESIGN.md §7.1): turns collected HTTP call sites into
- * {@link HttpRequest}s. A call site whose URL, axios `baseURL`, or method reads a parameter of
- * the function it sits in is a wrapper body (`function get(path) { return fetch(BASE + path) }`);
+ * {@link HttpRequest}s. A call site whose URL or axios `baseURL` reads a parameter of the
+ * function it sits in in its leading part (the start, the host, glued to the path, or the
+ * first segment: `leadingHoles` in `url.ts`, M5A.3j), whose axios config is a parameter, or
+ * whose method reads one is a wrapper body (`function get(path) { return fetch(BASE + path) }`);
+ * a parameter that only fills a later hole or the query (`fetch(\`/api/posts/${id}\`)`)
+ * leaves the request at its own call, as EVALUATION.md §1 labels it;
  * each call to that function (`get("/users")`) becomes its own request, with the parameters
  * bound to the caller's arguments and the URL normalized again. A request whose URL still
  * starts with a parameter (the caller is a wrapper too) is `WRAPPER_DEPTH`.
@@ -55,6 +59,8 @@
  *   in a shorthand call's config parameter (`api.get(path, config)`: the instance's applies),
  *   and axios instances passed as parameters: those sites are not collected or have no URL.
  * - Inlining more than one level: the outer callers of a wrapper's caller are not followed.
+ * - A function whose route is fixed but whose method is a parameter is still a wrapper (the
+ *   method is only known at its callers); see `leadingHoles` for the URL shapes misread.
  */
 import ts from "typescript";
 import {
@@ -319,7 +325,8 @@ export function collectHttpFacts(
     for (const site of bySp.get(sp) ?? []) {
       const found = wrapperOf(site);
       const fn = found?.fn;
-      const read = fn ? normalizer.parameters(site) : new Set<ts.ParameterDeclaration>();
+      // A parameter that only fills a later hole or the query leaves the route fixed here.
+      const read = fn ? normalizer.leadingParameters(site) : new Set<ts.ParameterDeclaration>();
       const reads =
         fn !== undefined &&
         ([...read].some((d) => d.parent === fn) ||

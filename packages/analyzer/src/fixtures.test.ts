@@ -40,6 +40,7 @@ const NAMES = [
   "express-folder-routers",
   "express-class-app",
   "sibling-apps",
+  "fixed-url-helpers",
   "ambiguous-routes",
   "wrapper-fetch",
   "external-sdk",
@@ -287,6 +288,18 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       // Root-relative into another service: `heuristic` (a proxy is assumed, match.ts).
       `${client}#createPost -> route:backend/POST /api/posts heuristic`,
       `${client}#loadPost -> route:backend/GET /api/posts/:id heuristic`,
+    ]);
+  });
+
+  it("fixed-url-helpers: a helper that fixes its route keeps the request; one taking the path is inlined (M5A.3j)", async () => {
+    const g = await run("fixed-url-helpers");
+    const p = "fixed-url-helpers";
+    const api = `symbol:${p}/src/posts-api.ts`;
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/src/editor.ts#loadAuthors -> route:${p}/GET /api/authors exact`,
+      `${api}#deletePost -> route:${p}/DELETE /api/posts/:postId exact`,
+      `${api}#postsApi.comments -> route:${p}/GET /api/posts/:postId/comments exact`,
+      `${api}#postsApi.read -> route:${p}/GET /api/posts/:postId exact`,
     ]);
   });
 

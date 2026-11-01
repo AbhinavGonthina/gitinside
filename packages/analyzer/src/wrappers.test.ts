@@ -403,6 +403,53 @@ describe("inlineWrappers", () => {
     ]);
   });
 
+  it("keeps a request at its site when a parameter only fills a later hole or the query (M5A.3j)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'const API_BASE = process.env.VITE_API_URL ?? "http://localhost:5500";',
+      'const ENDPOINT = "https://models.example.com/v1/models";',
+      "export const conversationApi = {",
+      "  get: (id: string) => fetch(`${API_BASE}/conversation/${id}`),",
+      "  list: (id: string, page = 1) => fetch(`${API_BASE}/message/${id}?page=${page}`),",
+      "  pin: (id: string, slug: string) => fetch(`${API_BASE}/c/${id}-${slug}`),",
+      "};",
+      "export function deletePost(postId: string) {",
+      '  return fetch(`/api/posts/${postId}`, { method: "DELETE" });',
+      "}",
+      "export const models = (key: string) => fetch(`${ENDPOINT}?key=${key}`);",
+      // Each of these takes part of the leading path, so it stays a wrapper.
+      "export const first = (resource: string) => fetch(`${API_BASE}/${resource}`);",
+      "export const glued = (path: string) => fetch(`https://api.example.com/v1${path}`);",
+      "export const host = (h: string) => fetch(`https://${h}/status`);",
+      "export const both = (path: string, id: string) => fetch(`${API_BASE}${path}/${id}`);",
+    ]);
+    await put("src/use.ts", [
+      'import { both, conversationApi, deletePost, first, glued, host, models } from "./api";',
+      "export async function run() {",
+      '  await conversationApi.get("c1");',
+      '  await conversationApi.list("c1", 2);',
+      '  await conversationApi.pin("c1", "s");',
+      '  await deletePost("p1");',
+      '  await models("secret");',
+      '  await first("users");',
+      '  await glued("/teams");',
+      '  await host("status.example.com");',
+      '  await both("/orders", "7");',
+      "}",
+    ]);
+    expect(await summary()).toEqual([
+      "src/api.ts:4 GET {env:VITE_API_URL}/conversation/{} [conversationApi.get]",
+      "src/api.ts:5 GET {env:VITE_API_URL}/message/{} [conversationApi.list]",
+      "src/api.ts:6 GET {env:VITE_API_URL}/c/{}-{} [conversationApi.pin]",
+      "src/api.ts:9 DELETE /api/posts/{} [deletePost]",
+      "src/api.ts:11 GET https://models.example.com/v1/models [models]",
+      "src/use.ts:8 GET {env:VITE_API_URL}/users [run] <- src/api.ts:12",
+      "src/use.ts:9 GET https://api.example.com/v1/teams [run] <- src/api.ts:13",
+      "src/use.ts:10 GET https://status.example.com/status [run] <- src/api.ts:14",
+      "src/use.ts:11 GET {env:VITE_API_URL}/orders/7 [run] <- src/api.ts:15",
+    ]);
+  });
+
   it("leaves nested functions, unrelated parameters, and uncalled wrappers alone", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/http.ts", [
