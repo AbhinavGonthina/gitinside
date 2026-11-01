@@ -89,6 +89,7 @@ describe("migrations", () => {
     expect(names).toEqual([
       "access_cache",
       "analyses",
+      "compute_usage",
       "installations",
       "maintenance_runs",
       "pull_requests",

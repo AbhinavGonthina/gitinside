@@ -2,6 +2,7 @@ import {
   claimRepoAnalysis,
   consumeRateLimit,
   findAnalysis,
+  findComputePause,
   refundRateLimit,
   releaseRepoAnalysis,
   upsertRepo,
@@ -9,7 +10,7 @@ import {
 import { rateLimitKey } from "./clientIp";
 import { enqueueAnalysis, type EnqueueDeps } from "./enqueue";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
-import { sizeHoldMessage, tooMuchCodeMessage } from "./jobs";
+import { pausedMessage, sizeHoldMessage, tooMuchCodeMessage } from "./jobs";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import { resolveRepo, type GitHubOptions, type ResolveFailure } from "./github";
 import { parseRepoUrl } from "./repoUrl";
@@ -30,15 +31,18 @@ import { findSizeHold, type SizeHold } from "./sizeHold";
  *    (`findSizeHold`, #11); so is one with over twice the supported source size of TypeScript
  *    and JavaScript by GitHub's count (`422 REPO_TOO_BIG`, no `retryAt`: `findTooMuchCode`,
  *    ADR-0154). No slot is used.
- * 6. **Per repo:** one new analysis per repo every {@link REPO_ANALYSIS_MINUTES} minutes,
+ * 6. **Paused:** while the month's Google compute is at 80% of the free allowance, no new
+ *    analysis starts (`503 ANALYSIS_PAUSED`, until the next UTC month: `findComputePause`,
+ *    ADR-0156). Finished diagrams and jobs already in flight are unaffected.
+ * 7. **Per repo:** one new analysis per repo every {@link REPO_ANALYSIS_MINUTES} minutes,
  *    whoever asks (`claimRepoAnalysis`, #11, ADR-0155): another commit is refused with
  *    `429 REPO_RATE_LIMITED` and when to try again. The claiming commit itself still goes
  *    through (a duplicate, or a retry of its failed run).
- * 7. **Rate limit** anything else: a new analysis counts against the caller's hourly
+ * 8. **Rate limit** anything else: a new analysis counts against the caller's hourly
  *    window (5 signed out). The slot is given back unless this request queued the commit
  *    (the queue was down, or someone else's request queued it first). The repo's claim is
  *    given back when the caller is over its limit or the queue was down.
- * 8. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
+ * 9. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
  *    named from it; a row whose task can't be created is failed, and the answer is `503`.
  */
 
@@ -66,6 +70,7 @@ export type AnalyzeErrorCode =
   | ResolveFailure
   | "REPO_TOO_BIG"
   | "REPO_RATE_LIMITED"
+  | "ANALYSIS_PAUSED"
   | "RATE_LIMITED"
   | "UNAVAILABLE";
 
@@ -80,7 +85,8 @@ export interface AnalyzeError {
   message: string;
   /**
    * With `RATE_LIMITED`: when the window resets; with `REPO_RATE_LIMITED`: when the repo's
-   * claim ends; with `REPO_TOO_BIG` after a `LIMIT_*` failure: when the hold ends (ISO 8601).
+   * claim ends; with `REPO_TOO_BIG` after a `LIMIT_*` failure: when the hold ends; with
+   * `ANALYSIS_PAUSED`: when the next UTC month begins (ISO 8601).
    * None when the repo is refused on GitHub's count.
    */
   retryAt?: string;
@@ -152,6 +158,8 @@ export async function requestAnalysis(
         body: { error: "REPO_TOO_BIG", message: tooMuchCodeMessage(codeBytes) },
       };
     }
+    const pause = await findComputePause(deps.db);
+    if (pause !== undefined) return paused(pause.until, deps);
   }
   const key = rateLimitKey(deps.rateLimitSecret, address);
   let charged: Date | undefined;
@@ -196,6 +204,15 @@ function tooBig(hold: SizeHold, deps: AnalyzeDeps): AnalyzeResponse {
       message: sizeHoldMessage(hold.errorCode, hold.until),
       retryAt: hold.until.toISOString(),
     },
+    headers: { "retry-after": String(seconds) },
+  };
+}
+
+function paused(until: Date, deps: AnalyzeDeps): AnalyzeResponse {
+  const { seconds } = waitUntil(until, deps);
+  return {
+    status: 503,
+    body: { error: "ANALYSIS_PAUSED", message: pausedMessage(until), retryAt: until.toISOString() },
     headers: { "retry-after": String(seconds) },
   };
 }

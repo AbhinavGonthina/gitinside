@@ -8,9 +8,11 @@ import type { ObjectStore, StoreConfig } from "./storage.js";
 /**
  * `node dist/quota-bin.js` (`pnpm --filter @gitinside/worker quota`, run from a checkout with
  * production's values, infra/gcp/README.md): the quota check M5.13's smoke test
- * runs (ADR-0078). It measures the bucket, the database, and the month's bucket requests
- * (ADR-0096) against the free limits and prints the worker's own `quota` / `quota_alarm`
- * JSON lines. It deletes nothing; it only adds its own listing to the request count.
+ * runs (ADR-0078). It measures the bucket, the database, the month's bucket requests
+ * (ADR-0096), and the month's Google compute (Cloud Run vCPU- and GB-seconds and requests,
+ * Cloud Tasks operations; ADR-0156) against the free limits and prints the worker's own
+ * `quota` / `quota_alarm` JSON lines. A compute alarm means new analyses are paused until the
+ * next UTC month. It deletes nothing; it only adds its own listing to the request count.
  *
  * Reads `DATABASE_URL` and the `SNAPSHOTS_*` variables only. Exit codes: 0 when every resource is
  * under 80%, 2 when any is in alarm, 1 when the config is invalid or a measurement failed.

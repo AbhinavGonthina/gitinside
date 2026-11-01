@@ -2,6 +2,9 @@
 import {
   analyses,
   completeAnalysis,
+  computeUsage,
+  computeUsageThisMonth,
+  countComputeUsage,
   failAnalysis,
   hideRepo,
   queueAnalysis,
@@ -24,7 +27,7 @@ import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
 import { fakeTaskQueue } from "./google.testkit";
 import { MAX_GITHUB_CODE_BYTES } from "./codeSize";
-import { sizeHoldMessage, tooMuchCodeMessage } from "./jobs";
+import { pausedMessage, sizeHoldMessage, tooMuchCodeMessage } from "./jobs";
 
 const SHA = "e".repeat(40);
 const VERSION = "0.1.0";
@@ -48,6 +51,7 @@ beforeEach(async () => {
   await t.db.delete(analyses);
   await t.db.delete(repos);
   await t.db.delete(rateLimits);
+  await t.db.delete(computeUsage);
   gh = fakeGitHub([SHOP, { id: 7, owner: "acme", name: "empty", sha: null }]);
   tasks = fakeTaskQueue(SECRET);
   deps = {
@@ -92,6 +96,77 @@ async function doneAnalysis() {
   const { id } = await startAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: VERSION });
   return { repoId, id };
 }
+
+/** The first instant of the next UTC month, by this machine's clock. */
+function nextUtcMonth(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+}
+
+describe("requestAnalysis, the monthly compute budget (M5.18d)", () => {
+  it("counts the task it creates as one Cloud Tasks operation", async () => {
+    expect((await requestAnalysis("acme/shop", IP, deps)).status).toBe(202);
+    expect(await computeUsageThisMonth(t.db)).toMatchObject({ taskOperations: 1, instanceMs: 0 });
+  });
+
+  it("counts a create call the queue refused too", async () => {
+    tasks.setDown(true);
+    expect((await requestAnalysis("acme/shop", IP, deps)).status).toBe(503);
+    expect((await computeUsageThisMonth(t.db)).taskOperations).toBe(1);
+  });
+
+  it("refuses a new analysis at 80% of the free allowance until the next UTC month, using nothing", async () => {
+    await countComputeUsage(t.db, { taskOperations: 800_000 });
+    const until = nextUtcMonth();
+    const answer = await requestAnalysis("acme/shop", IP, deps);
+    expect(answer).toMatchObject({
+      status: 503,
+      body: {
+        error: "ANALYSIS_PAUSED",
+        message: pausedMessage(until),
+        retryAt: until.toISOString(),
+      },
+    });
+    expect(Number(answer.headers?.["retry-after"])).toBeGreaterThan(0);
+    expect(answer.body).toMatchObject({
+      message: expect.stringMatching(
+        /^Analysis is paused until .+ UTC: .+ Diagrams already made still work\.$/,
+      ),
+    });
+    expect(await analysisRows()).toEqual([]);
+    expect(tasks.google.requests).toEqual([]);
+    expect(await slotsUsed()).toBe(0);
+    expect(await claimOf(SHOP.id)).toBeUndefined();
+    expect((await computeUsageThisMonth(t.db)).taskOperations).toBe(800_000);
+  });
+
+  it("lets new analyses through just under 80%", async () => {
+    await countComputeUsage(t.db, { taskOperations: 799_999 });
+    expect((await requestAnalysis("acme/shop", IP, deps)).status).toBe(202);
+  });
+
+  it("still serves finished diagrams and a commit already in flight while paused", async () => {
+    await countComputeUsage(t.db, { runRequests: 1_600_000 });
+    await doneAnalysis(); // running
+    expect(await requestAnalysis("acme/shop", IP, deps)).toMatchObject({
+      status: 202,
+      body: { status: "queued", jobId: JOB_ID },
+    });
+
+    const { id } = await t.db
+      .select({ id: analyses.id })
+      .from(analyses)
+      .then(([row]) => row!);
+    await completeAnalysis(t.db, id, {
+      snapshotKey: "public/acme/shop/x.json.gz",
+      stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+    });
+    expect(await requestAnalysis("acme/shop", IP, deps)).toMatchObject({
+      status: 200,
+      body: { status: "done" },
+    });
+  });
+});
 
 describe("requestAnalysis", () => {
   it("queues a new commit: the repo and a queued row, one task, one slot used", async () => {

@@ -2,6 +2,8 @@
 import {
   analyses,
   completeAnalysis,
+  computeUsage,
+  countComputeUsage,
   failAnalysis,
   rateLimits,
   repos,
@@ -49,6 +51,7 @@ beforeEach(async () => {
   await t.db.delete(analyses);
   await t.db.delete(repos);
   await t.db.delete(rateLimits);
+  await t.db.delete(computeUsage);
   shop = { id: ID, owner: "Acme", name: "Shop", sha: OLD };
   gh = fakeGitHub([shop]);
   tasks = fakeTaskQueue("v".repeat(43));
@@ -245,6 +248,31 @@ describe("viewRepo", () => {
     clock += 61_000;
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "updating", sha: third, jobId: jobFor(third) }),
+    );
+  });
+
+  it("doesn't analyze a newer commit while analyses are paused for the month's compute, but shows the diagram (M5.18d)", async () => {
+    await done(OLD);
+    shop.sha = NEW;
+    await countComputeUsage(t.db, { taskOperations: 800_000 });
+    const now = new Date();
+    const until = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "behind", sha: NEW, reason: "paused", until: until.toISOString() }),
+    );
+    expect(tasks.google.tasks).toEqual([]);
+    expect(await repoSlots()).toBe(0);
+    expect(await rows()).toEqual([{ sha: OLD, status: "done", version: VERSION }]);
+    // Permalinks never reach the check.
+    expect(await viewRepo({ owner: "acme", repo: "shop", sha: OLD }, deps)).toEqual(
+      ready(OLD, { state: "pinned" }),
+    );
+
+    // A new month (here: the count cleared) lets it through.
+    await t.db.delete(computeUsage);
+    clock += 61_000;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "updating", sha: NEW, jobId: jobFor(NEW) }),
     );
   });
 

@@ -293,6 +293,27 @@ export const storeRequests = pgTable(
 );
 
 /**
+ * Google compute GitInside used per UTC calendar month, as the worker and the website count
+ * it (#11, ADR-0156): the worker's billed Cloud Run instance time in ms (startup, shutdown,
+ * and each push's request), its Cloud Run requests, and Cloud Tasks operations (each task
+ * created, each push delivered). New analyses pause at 80% of the free allowance.
+ */
+export const computeUsage = pgTable(
+  "compute_usage",
+  {
+    monthStart: timestampTz("month_start").primaryKey(),
+    instanceMs: bigint("instance_ms", { mode: "number" }).notNull().default(0),
+    runRequests: integer("run_requests").notNull().default(0),
+    taskOperations: integer("task_operations").notNull().default(0),
+  },
+  (t) => [
+    check("compute_usage_instance_ms_check", sql`${t.instanceMs} >= 0`),
+    check("compute_usage_run_requests_check", sql`${t.runRequests} >= 0`),
+    check("compute_usage_task_operations_check", sql`${t.taskOperations} >= 0`),
+  ],
+);
+
+/**
  * When each periodic maintenance task last started, by the database's clock (ADR-0147).
  * The worker runs no timer of its own on Cloud Run: an instance claims a task's row at the
  * end of a job, and only one instance can win the claim for a period.

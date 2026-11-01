@@ -520,6 +520,78 @@ describe("POST /run, after the job (M5.17c2d)", () => {
   });
 });
 
+describe("POST /run, the compute count (M5.18d)", () => {
+  it("meters each answer with the request's time, after the job and its afterJob, before the answer", async () => {
+    let at = 0;
+    const order: string[] = [];
+    const metered: number[] = [];
+    const run: JobDeps["run"] = async (job) => {
+      at += 42_000;
+      return writeGraph(job);
+    };
+    const origin = await start({
+      deps: deps(run),
+      clock: () => at,
+      afterJob: async () => {
+        at += 3_000;
+        order.push("afterJob");
+      },
+      meter: async (ms) => {
+        metered.push(ms);
+        order.push("meter");
+      },
+    });
+    expect((await post(origin, JSON.stringify(REQUEST))).status).toBe(200);
+    expect(metered).toEqual([45_000]);
+    expect(order).toEqual(["afterJob", "meter"]);
+  });
+
+  it("meters refused pushes and busy answers too, but not /health", async () => {
+    let release: () => void = () => undefined;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    let started: () => void = () => undefined;
+    const running = new Promise<void>((resolve) => (started = resolve));
+    const metered: number[] = [];
+    const origin = await start({
+      deps: deps(async (job) => {
+        started();
+        await hold;
+        return writeGraph(job);
+      }),
+      meter: async (ms) => void metered.push(ms),
+    });
+    expect((await fetch(new URL("/health", origin))).status).toBe(200);
+    expect(metered).toEqual([]);
+    expect((await post(origin, "{")).status).toBe(400);
+    expect((await post(origin, JSON.stringify(REQUEST), { path: "/other" })).status).toBe(404);
+    expect(metered).toHaveLength(2);
+    const first = post(origin, JSON.stringify(REQUEST));
+    await running;
+    expect((await post(origin, JSON.stringify(REQUEST))).status).toBe(429);
+    expect(metered).toHaveLength(3);
+    release();
+    expect((await first).status).toBe(200);
+    expect(metered).toHaveLength(4);
+    for (const ms of metered) expect(ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it("answers as usual when metering rejects, logging why", async () => {
+    const events: Record<string, unknown>[] = [];
+    const origin = await start({
+      deps: deps(),
+      meter: () => Promise.reject(new Error("db down")),
+      log: (e) => void events.push(e),
+    });
+    expect(await post(origin, JSON.stringify(REQUEST))).toEqual({
+      status: 200,
+      body: { id: ID, state: "done" },
+    });
+    expect(events.filter((e) => e.event === "meter_failed")).toEqual([
+      { event: "meter_failed", message: "db down" },
+    ]);
+  });
+});
+
 describe("POST /run, one deadline", () => {
   /** A clock the test moves: `at` ms since the request arrived. */
   function steppedClock() {

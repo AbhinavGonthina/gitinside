@@ -1,5 +1,7 @@
 import {
   claimMaintenance,
+  computeMeters,
+  computeUsageThisMonth,
   countStoreRequests,
   databaseSizeBytes,
   failInterruptedAnalyses,
@@ -7,6 +9,8 @@ import {
   pruneRateLimits,
   storeRequestsThisMonth,
   type AnyDatabase,
+  type ComputeAllowance,
+  type ComputeMeter,
 } from "@gitinside/db";
 import type { WorkerLog } from "./attempt.js";
 import { runRetention, type RetentionPolicy, type RetentionReport } from "./retention.js";
@@ -31,7 +35,8 @@ import {
  * 3. **Rate-limit pruning** (`pruneRateLimits`): drop windows that ended over an hour ago.
  * 4. **Quota check** ({@link measureQuotas}): measure the bucket (a fresh listing, after
  *    retention deleted what it could), the database, and the month's bucket requests
- *    (`store_requests`, ADR-0096), against {@link QUOTA_LIMITS}. Each
+ *    (`store_requests`, ADR-0096), against {@link QUOTA_LIMITS}, and the month's Google
+ *    compute (`compute_usage`, ADR-0156) against its free allowance. Each
  *    resource at or past {@link QUOTA_ALARM_RATIO} logs a `quota_alarm` line, which is
  *    the signal to open a `needs-abhinav` issue (DESIGN.md §12). The worker can't open one
  *    itself: it holds no token that may write issues.
@@ -165,28 +170,42 @@ export function createCountedStore(
   });
 }
 
+/**
+ * One measured resource: a free-tier store's ({@link QuotaUsage}) or Google compute's
+ * (`ComputeMeter`, from `compute_usage`, ADR-0156: new analyses are paused while one is in
+ * alarm).
+ */
+export type QuotaReading = QuotaUsage | ComputeMeter;
+
 /** What {@link measureQuotas} reads. */
 export interface QuotaDeps {
   db: AnyDatabase;
   store: Pick<ObjectStore, "list">;
   limits?: QuotaLimits;
+  /** Default `COMPUTE_ALLOWANCE`. */
+  compute?: ComputeAllowance;
 }
 
 /**
  * Measure the whole bucket (its listing, what the free tier counts), the database, and the
- * month's bucket requests (read last, so the listing's own requests are in it), and check
- * them. Deletes nothing. Rejects if any can't be measured.
+ * month's bucket requests (read after the listing, so its own requests are in it), and check
+ * them; then the month's Google compute against its free allowance. Deletes nothing. Rejects
+ * if any can't be measured.
  */
-export async function measureQuotas(deps: QuotaDeps): Promise<QuotaUsage[]> {
+export async function measureQuotas(deps: QuotaDeps): Promise<QuotaReading[]> {
   let bucketBytes = 0;
   for await (const object of deps.store.list()) bucketBytes += object.size;
   const databaseBytes = await databaseSizeBytes(deps.db);
   const { worker, web } = await storeRequestsThisMonth(deps.db);
-  return checkQuotas({ bucketBytes, databaseBytes, requests: { worker, web } }, deps.limits);
+  const compute = await computeUsageThisMonth(deps.db);
+  return [
+    ...checkQuotas({ bucketBytes, databaseBytes, requests: { worker, web } }, deps.limits),
+    ...computeMeters(compute, deps.compute),
+  ];
 }
 
 /** Log one `quota` line with every resource, then a `quota_alarm` line per resource in alarm. */
-export function logQuotas(log: WorkerLog, quotas: readonly QuotaUsage[]): void {
+export function logQuotas(log: WorkerLog, quotas: readonly QuotaReading[]): void {
   log({ event: "quota", quotas });
   for (const quota of quotas) {
     if (quota.alarm) log({ event: "quota_alarm", ...quota });
@@ -208,7 +227,7 @@ export interface MaintenanceReport {
   staleJobs?: { interrupted: number; stranded: number };
   retention?: RetentionReport;
   rateLimitsPruned?: number;
-  quotas?: QuotaUsage[];
+  quotas?: QuotaReading[];
   failed: ("stale_jobs" | "retention" | "rate_limits" | "quota")[];
 }
 
