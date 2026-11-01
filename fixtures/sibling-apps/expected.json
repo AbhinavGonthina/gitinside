@@ -33,6 +33,20 @@
     },
     {
       "confidence": "exact",
+      "from": "file:backend/src/server.ts",
+      "id": "imports:file:backend/src/server.ts->file:backend/src/routes/posts.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 19,
+          "file": "backend/src/server.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:backend/src/routes/posts.ts"
+    },
+    {
+      "confidence": "exact",
       "from": "file:frontend/src/posts.ts",
       "id": "imports:file:frontend/src/posts.ts->file:frontend/src/lib/api.ts",
       "kind": "imports",
@@ -56,7 +70,15 @@
       "path": "scripts/check.mjs"
     },
     {
-      "hash": "de6e8c17cb36855024c106a62968457141af5bfea5962262fcc3a2a7abcb03fe",
+      "hash": "208951231ad3ff4593e92909165cf9e694e8a55618d00dc9d924a0c4fbe1c03d",
+      "id": "file:backend/src/routes/posts.ts",
+      "kind": "file",
+      "label": "posts.ts",
+      "parentId": "module:backend/src/routes",
+      "path": "backend/src/routes/posts.ts"
+    },
+    {
+      "hash": "b52ca992d4b4200da05325178147c611ffea04c81e694665cba76fa26d7ba500",
       "id": "file:backend/src/server.ts",
       "kind": "file",
       "label": "server.ts",
@@ -94,6 +116,13 @@
       "path": "backend/src"
     },
     {
+      "id": "module:backend/src/routes",
+      "kind": "module",
+      "label": "routes",
+      "parentId": "module:backend/src",
+      "path": "backend/src/routes"
+    },
+    {
       "id": "module:frontend/src",
       "kind": "module",
       "label": "src",
@@ -113,12 +142,12 @@
       "label": "GET /api/posts/:id",
       "layer": "backend",
       "method": "GET",
-      "parentId": "file:backend/src/server.ts",
+      "parentId": "file:backend/src/routes/posts.ts",
       "path": "/api/posts/:id",
       "source": {
         "column": 7,
-        "file": "backend/src/server.ts",
-        "line": 6
+        "file": "backend/src/routes/posts.ts",
+        "line": 5
       }
     },
     {
@@ -127,11 +156,11 @@
       "label": "POST /api/posts",
       "layer": "backend",
       "method": "POST",
-      "parentId": "file:backend/src/server.ts",
+      "parentId": "file:backend/src/routes/posts.ts",
       "path": "/api/posts",
       "source": {
         "column": 7,
-        "file": "backend/src/server.ts",
+        "file": "backend/src/routes/posts.ts",
         "line": 10
       }
     },
@@ -173,6 +202,20 @@
         "line": 1
       },
       "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:backend/src/routes/posts.ts#posts",
+      "kind": "symbol",
+      "label": "posts",
+      "parentId": "file:backend/src/routes/posts.ts",
+      "source": {
+        "column": 7,
+        "endLine": 3,
+        "file": "backend/src/routes/posts.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
     },
     {
       "exported": true,

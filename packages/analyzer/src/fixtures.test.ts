@@ -277,6 +277,7 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
     expect(ids(g, "file").sort()).toEqual([
       "file:app/scripts/check.mjs",
+      "file:backend/src/routes/posts.ts",
       "file:backend/src/server.ts",
       "file:frontend/src/lib/api.ts",
       "file:frontend/src/posts.ts",

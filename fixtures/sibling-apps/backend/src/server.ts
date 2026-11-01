@@ -1,15 +1,7 @@
 import express from "express";
+import posts from "./routes/posts";
 
-const app = express();
-const posts = express.Router();
-
-posts.get("/:id", (req, res) => {
-  res.json({ id: req.params.id });
-});
-
-posts.post("/", (_req, res) => {
-  res.status(201).end();
-});
-
-app.use("/api/posts", posts);
-app.listen(5000);
+const server = express();
+server.use(express.json());
+server.use("/api/posts", posts);
+server.listen(5000);
