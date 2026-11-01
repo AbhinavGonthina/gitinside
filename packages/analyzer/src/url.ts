@@ -27,7 +27,10 @@
  * - `new URL(url, base?)`, `.href`, `.toString()`, and `String(x)`. A relative `url` is
  *   resolved with WHATWG rules when both sides are literal; a root-relative `url` (`/x`)
  *   keeps only the base's origin, which may be an env var or `location.origin`.
- * - A ternary whose two branches normalize to the same parts.
+ * - A ternary, and a local `let` read where several values may reach it (`lets.ts`): one
+ *   value when every option normalizes to the same parts, else a hole; `alternatives()`
+ *   instead gives one URL per option (M5A.3h, ADR-0166), so `cond ? "/a" : "/b"` is two
+ *   requests, and `/x${page ? "?page=" + page : ""}` is one.
  * - axios `baseURL` + URL combined the way axios does: an absolute URL ignores the base;
  *   otherwise one `/` joins them.
  *
@@ -50,7 +53,7 @@
  * makes a function a wrapper ({@link leadingHoles}, M5A.3j). See `wrappers.ts`.
  *
  * Not handled (each becomes a hole, so usually `DYNAMIC_URL`):
- * - `let`/`var` variables, destructured parameters, function results, array
+ * - `var` variables, `let`s `lets.ts` can't follow, destructured parameters, function results, array
  *   `.join()`, `.concat()`, `path.join`, `URLSearchParams` built into the path.
  * - Mutating a `URL` after creation (`u.pathname = …`) and relative `new URL()` URLs whose
  *   base isn't literal (the base's path is unknown).
@@ -63,6 +66,7 @@ import type { Confidence, UrlSegment } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
 import type { HttpCallSite } from "./http.js";
 import type { ServiceProgram } from "./program.js";
+import { letValues } from "./lets.js";
 import { unwrap } from "./symbols.js";
 import {
   createValueReader,
@@ -85,6 +89,12 @@ const MAX_TEXT = 2048;
  * `DYNAMIC_URL` with {@link DYNAMIC_URL_DETAIL}`.tooComplex`.
  */
 const MAX_STEPS = 10_000;
+
+/**
+ * Paths {@link UrlNormalizer.alternatives} follows for one site (one per combination of
+ * ternary branches and `let` values). Past this, alternatives that differ become a hole.
+ */
+export const MAX_PATHS = 8;
 
 /** One piece of a URL value. */
 export type UrlPart =
@@ -546,6 +556,16 @@ export interface UrlNormalizer {
     site: Pick<HttpCallSite, "url" | "baseURL">,
     bindings?: ParameterBindings,
   ): NormalizedUrl;
+  /**
+   * Like `normalize`, but one result per URL the code fixes statically (M5A.3h, ADR-0166):
+   * each ternary branch and each value a `let` may hold where it is read is followed on its
+   * own path, and paths that read the same are kept once, in path order (`true` branches and
+   * earlier values first). Past {@link MAX_PATHS} paths, `normalize`'s single result.
+   */
+  alternatives(
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+    bindings?: ParameterBindings,
+  ): NormalizedUrl[];
   /** The parameters a call site's URL and `baseURL` read, which a wrapper caller could bind. */
   parameters(site: Pick<HttpCallSite, "url" | "baseURL">): ReadonlySet<ts.ParameterDeclaration>;
   /**
@@ -572,6 +592,30 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   const used = new Set<ts.ParameterDeclaration>();
   /** The parameter each unbound parameter's hole stands for (`leadingParameters`). */
   const holes = new Map<UrlPart, ts.ParameterDeclaration>();
+  /**
+   * While `alternatives` runs one path: the option to take at each choice point (`0` past
+   * the end), and the option taken and the number of options at each point reached so far.
+   */
+  let choices: { forced: number[]; taken: number[]; counts: number[] } | undefined;
+
+  /**
+   * One of several values an expression may have (ternary branches, a `let`'s reaching
+   * values). Following one path in `alternatives`, the path's option; otherwise the value
+   * when every option reads the same, else a hole.
+   */
+  const choose = (options: readonly (() => UrlPart[])[]): UrlPart[] => {
+    const [only] = options;
+    if (options.length === 1 && only) return only();
+    if (choices) {
+      const pick = choices.forced[choices.taken.length] ?? 0;
+      choices.taken.push(pick);
+      choices.counts.push(options.length);
+      return options[pick]?.() ?? [HOLE];
+    }
+    const all = options.map((option) => option());
+    const first = JSON.stringify(all[0]);
+    return all.every((p) => JSON.stringify(p) === first) && all[0] ? all[0] : [HOLE];
+  };
 
   /** True when an identifier names a global, not something the repo declares. */
   const isGlobal = (sp: ServiceProgram, identifier: ts.Identifier, name: string): boolean => {
@@ -673,6 +717,11 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
         note(found.confidence);
         return partsOf(found.sp, d.initializer, hops + 1);
       }
+      if (ts.isVariableDeclaration(d) && found.sp === sp) {
+        // A local `let`: each value that can reach this read is an alternative (M5A.3h).
+        const values = letValues(d, e, (id) => reader.symbolAt(sp, id) === symbol);
+        if (values) return choose(values.map((v) => () => partsOf(sp, v, hops + 1)));
+      }
       const env = destructuredEnv(found.sp, d);
       if (env !== undefined) {
         note(found.confidence);
@@ -734,9 +783,10 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       return [HOLE];
     }
     if (ts.isConditionalExpression(e)) {
-      const a = partsOf(sp, e.whenTrue, hops + 1);
-      const b = partsOf(sp, e.whenFalse, hops + 1);
-      return JSON.stringify(a) === JSON.stringify(b) ? a : [HOLE];
+      return choose([
+        () => partsOf(sp, e.whenTrue, hops + 1),
+        () => partsOf(sp, e.whenFalse, hops + 1),
+      ]);
     }
     if (ts.isNewExpression(e)) {
       const callee = unwrap(e.expression);
@@ -862,6 +912,37 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     };
   };
 
+  const alternatives = (
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+    scope?: ParameterBindings,
+  ): NormalizedUrl[] => {
+    const out: NormalizedUrl[] = [];
+    const seen = new Set<string>();
+    let forced: number[] = [];
+    for (let path = 0; path < MAX_PATHS; path++) {
+      const state = { forced, taken: [] as number[], counts: [] as number[] };
+      choices = state;
+      let url: NormalizedUrl;
+      try {
+        url = normalize(site, scope);
+      } finally {
+        choices = undefined;
+      }
+      const key = JSON.stringify(url);
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(url);
+      }
+      // The next path: the last choice point with an option left takes its next option.
+      let i = state.taken.length - 1;
+      while (i >= 0 && (state.taken[i] ?? 0) + 1 >= (state.counts[i] ?? 0)) i--;
+      if (i < 0) return out;
+      forced = [...state.taken.slice(0, i), (state.taken[i] ?? 0) + 1];
+    }
+    // Too many paths: the alternatives that differ collapse to a hole, as without them.
+    return [normalize(site, scope)];
+  };
+
   const deeper = (detail: WrapperDepthDetail): NormalizedUrl => ({
     resolved: false,
     reason: "WRAPPER_DEPTH",
@@ -907,5 +988,5 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     return found;
   };
 
-  return { parts, normalize, parameters, leadingParameters };
+  return { parts, normalize, alternatives, parameters, leadingParameters };
 }

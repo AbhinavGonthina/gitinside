@@ -1,0 +1,349 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:url-alternatives/src/journal.ts#loadMine",
+      "id": "calls:symbol:url-alternatives/src/journal.ts#loadMine->symbol:url-alternatives/src/journal.ts#getJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/journal.ts",
+          "line": 33
+        }
+      ],
+      "to": "symbol:url-alternatives/src/journal.ts#getJson"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:url-alternatives/src/journal.ts#loadArchive",
+      "id": "http:symbol:url-alternatives/src/journal.ts#loadArchive->route:url-alternatives/GET /api/archive",
+      "kind": "http",
+      "label": "GET /api/archive",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/journal.ts",
+          "line": 23
+        }
+      ],
+      "to": "route:url-alternatives/GET /api/archive"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:url-alternatives/src/journal.ts#loadEntries",
+      "id": "http:symbol:url-alternatives/src/journal.ts#loadEntries->route:url-alternatives/GET /api/entries/featured",
+      "kind": "http",
+      "label": "GET /api/entries/featured",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/journal.ts",
+          "line": 8
+        }
+      ],
+      "to": "route:url-alternatives/GET /api/entries/featured"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:url-alternatives/src/journal.ts#loadEntries",
+      "id": "http:symbol:url-alternatives/src/journal.ts#loadEntries->route:url-alternatives/GET /api/entries/topics/:topic",
+      "kind": "http",
+      "label": "GET /api/entries/topics/:topic",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/journal.ts",
+          "line": 8
+        }
+      ],
+      "to": "route:url-alternatives/GET /api/entries/topics/:topic"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:url-alternatives/src/journal.ts#loadMine",
+      "id": "http:symbol:url-alternatives/src/journal.ts#loadMine->route:url-alternatives/GET /api/drafts",
+      "kind": "http",
+      "label": "GET /api/drafts",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/journal.ts",
+          "line": 33
+        }
+      ],
+      "to": "route:url-alternatives/GET /api/drafts"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:url-alternatives/src/journal.ts#loadMine",
+      "id": "http:symbol:url-alternatives/src/journal.ts#loadMine->route:url-alternatives/GET /api/entries/:entryId",
+      "kind": "http",
+      "label": "GET /api/entries/:entryId",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/journal.ts",
+          "line": 33
+        }
+      ],
+      "to": "route:url-alternatives/GET /api/entries/:entryId"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:url-alternatives/src/journal.ts#removeEntry",
+      "id": "http:symbol:url-alternatives/src/journal.ts#removeEntry->route:url-alternatives/DELETE /api/entries/:entryId",
+      "kind": "http",
+      "label": "DELETE /api/entries/:entryId",
+      "sites": [
+        {
+          "column": 15,
+          "file": "src/journal.ts",
+          "line": 18
+        }
+      ],
+      "to": "route:url-alternatives/DELETE /api/entries/:entryId"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:url-alternatives/src/journal.ts#removeEntry",
+      "id": "http:symbol:url-alternatives/src/journal.ts#removeEntry->route:url-alternatives/DELETE /api/entries/moderation/:entryId",
+      "kind": "http",
+      "label": "DELETE /api/entries/moderation/:entryId",
+      "sites": [
+        {
+          "column": 15,
+          "file": "src/journal.ts",
+          "line": 18
+        }
+      ],
+      "to": "route:url-alternatives/DELETE /api/entries/moderation/:entryId"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "c828bfe9bdd65af3207ea984781fc32fc0194a705777ebf88fccb456b3e0df9b",
+      "id": "file:url-alternatives/src/journal.ts",
+      "kind": "file",
+      "label": "journal.ts",
+      "parentId": "module:url-alternatives/src",
+      "path": "src/journal.ts"
+    },
+    {
+      "hash": "bcccfffe1314524e673b51b9a7cd5687f310575f5c63623e292e3827c59961df",
+      "id": "file:url-alternatives/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:url-alternatives/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:url-alternatives/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:url-alternatives/",
+      "path": "src"
+    },
+    {
+      "id": "route:url-alternatives/DELETE /api/entries/:entryId",
+      "kind": "route",
+      "label": "DELETE /api/entries/:entryId",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:url-alternatives/src/server.ts",
+      "path": "/api/entries/:entryId",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 18
+      }
+    },
+    {
+      "id": "route:url-alternatives/DELETE /api/entries/moderation/:entryId",
+      "kind": "route",
+      "label": "DELETE /api/entries/moderation/:entryId",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:url-alternatives/src/server.ts",
+      "path": "/api/entries/moderation/:entryId",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 22
+      }
+    },
+    {
+      "id": "route:url-alternatives/GET /api/archive",
+      "kind": "route",
+      "label": "GET /api/archive",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:url-alternatives/src/server.ts",
+      "path": "/api/archive",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 26
+      }
+    },
+    {
+      "id": "route:url-alternatives/GET /api/drafts",
+      "kind": "route",
+      "label": "GET /api/drafts",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:url-alternatives/src/server.ts",
+      "path": "/api/drafts",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 30
+      }
+    },
+    {
+      "id": "route:url-alternatives/GET /api/entries/:entryId",
+      "kind": "route",
+      "label": "GET /api/entries/:entryId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:url-alternatives/src/server.ts",
+      "path": "/api/entries/:entryId",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 14
+      }
+    },
+    {
+      "id": "route:url-alternatives/GET /api/entries/featured",
+      "kind": "route",
+      "label": "GET /api/entries/featured",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:url-alternatives/src/server.ts",
+      "path": "/api/entries/featured",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:url-alternatives/GET /api/entries/topics/:topic",
+      "kind": "route",
+      "label": "GET /api/entries/topics/:topic",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:url-alternatives/src/server.ts",
+      "path": "/api/entries/topics/:topic",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:url-alternatives/",
+      "kind": "service",
+      "label": "url-alternatives",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-alternatives/src/journal.ts#getJson",
+      "kind": "symbol",
+      "label": "getJson",
+      "parentId": "file:url-alternatives/src/journal.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 30,
+        "file": "src/journal.ts",
+        "line": 28
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-alternatives/src/journal.ts#loadArchive",
+      "kind": "symbol",
+      "label": "loadArchive",
+      "parentId": "file:url-alternatives/src/journal.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 25,
+        "file": "src/journal.ts",
+        "line": 22
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-alternatives/src/journal.ts#loadEntries",
+      "kind": "symbol",
+      "label": "loadEntries",
+      "parentId": "file:url-alternatives/src/journal.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/journal.ts",
+        "line": 6
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-alternatives/src/journal.ts#loadMine",
+      "kind": "symbol",
+      "label": "loadMine",
+      "parentId": "file:url-alternatives/src/journal.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 34,
+        "file": "src/journal.ts",
+        "line": 32
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-alternatives/src/journal.ts#removeEntry",
+      "kind": "symbol",
+      "label": "removeEntry",
+      "parentId": "file:url-alternatives/src/journal.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "src/journal.ts",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "url-alternatives",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "url-alternatives",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

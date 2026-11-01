@@ -43,6 +43,8 @@
  *   axios(req) })`): the wrapper is the innermost symbol around the site whose value is a
  *   function containing it, and only that function's parameters are bound (M5A.3c). A
  *   function the wrapper returns counts too: its requests are placed at the factory's call.
+ * - A URL with alternatives (ternary branches, a `let` set in a branch) gives one request per
+ *   alternative, at the same site (`UrlNormalizer.alternatives`, M5A.3h).
  *
  * Patterns not handled:
  * - Functions nested inside other functions as wrappers themselves (their parameters aren't
@@ -295,10 +297,9 @@ export function collectHttpFacts(
     return undefined;
   };
 
-  /** A site's own request, as when nothing inlines it. */
-  const own = (site: HttpCallSite): HttpRequestFact => {
-    const url = normalizer.normalize(site);
-    return {
+  /** A site's own requests, as when nothing inlines it: one per URL alternative (M5A.3h). */
+  const own = (site: HttpCallSite): HttpRequestFact[] =>
+    normalizer.alternatives(site).map((url) => ({
       call: { client: site.client, file: site.file, site: site.site },
       file: site.file,
       site: site.site,
@@ -307,8 +308,7 @@ export function collectHttpFacts(
       url,
       confidence: url.resolved ? weaker(site.confidence, url.confidence) : site.confidence,
       ...ownText(site, url),
-    };
-  };
+    }));
 
   // ---- per service: find wrappers ----
 
@@ -485,11 +485,11 @@ export function collectHttpFacts(
      */
     const configUrl = (
       config: NonNullable<HttpCallSite["config"]>,
-    ): { url: NormalizedUrl; shown: ts.Node[] } => {
+    ): { urls: NormalizedUrl[]; shown: ts.Node[] } => {
       const v = bound(config.value);
       if (v !== null && v !== "missing" && isParameterName(v)) {
         return {
-          url: { resolved: false, reason: "WRAPPER_DEPTH", detail: WRAPPER_DEPTH_DETAIL.config },
+          urls: [{ resolved: false, reason: "WRAPPER_DEPTH", detail: WRAPPER_DEPTH_DETAIL.config }],
           shown: [],
         };
       }
@@ -500,14 +500,14 @@ export function collectHttpFacts(
         baseURL: base === undefined ? config.baseURL : base,
       };
       return {
-        url: normalizer.normalize(target, bindings),
+        urls: normalizer.alternatives(target, bindings),
         shown: [url?.expression, base?.expression].filter((e) => e !== undefined),
       };
     };
 
-    return wrapper.sites.map((site): HttpRequestFact => {
+    return wrapper.sites.flatMap((site): HttpRequestFact[] => {
       const fromConfig = site.config && configUrl(site.config);
-      const url = fromConfig ? fromConfig.url : normalizer.normalize(site, bindings);
+      const urls = fromConfig ? fromConfig.urls : normalizer.alternatives(site, bindings);
       const confidence = weaker(site.confidence, caller.confidence);
       const read = normalizer.parameters(site);
       const urlArgs = fromConfig
@@ -518,7 +518,7 @@ export function collectHttpFacts(
           });
       const method = boundMethod(site);
       const expression = redactedText(caller.call, urlArgs);
-      return {
+      return urls.map((url) => ({
         call: { client: site.client, file: site.file, site: site.site },
         via: id,
         file: caller.file,
@@ -531,7 +531,7 @@ export function collectHttpFacts(
           ? clip(`${method ?? "?"} ${url.text}`)
           : `${method ?? "?"} ${expression}`,
         expression,
-      };
+      }));
     });
   };
 
@@ -547,10 +547,14 @@ export function collectHttpFacts(
     }
     return {
       service: sp.service.key,
-      requests: (direct.get(sp) ?? []).map(own),
+      requests: (direct.get(sp) ?? []).flatMap(own),
       wrappers: [...(owned.get(sp) ?? [])]
         .sort(([a], [b]) => compareStrings(a, b))
-        .map(([id, wrapper]) => ({ id, name: symbolName(id), requests: wrapper.sites.map(own) })),
+        .map(([id, wrapper]) => ({
+          id,
+          name: symbolName(id),
+          requests: wrapper.sites.flatMap(own),
+        })),
       calls,
     };
   });

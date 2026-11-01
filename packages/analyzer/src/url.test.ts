@@ -12,6 +12,7 @@ import {
   formatUrlPattern,
   joinBaseURL,
   leadingHoles,
+  MAX_PATHS,
   patternParts,
   resolveURL,
   toUrlPattern,
@@ -357,6 +358,21 @@ async function normalized(): Promise<string[]> {
   });
 }
 
+/** Like {@link normalized}, with every alternative: `file:line a | b`. */
+async function alternativesOf(): Promise<string[]> {
+  const inventory = await buildInventory(dir);
+  const workspace = await detectWorkspace(dir, inventory.files);
+  const programs = buildServicePrograms(dir, workspace, inventory);
+  const resolver = createSymbolResolver(programs, workspace);
+  const normalizer = createUrlNormalizer(resolver);
+  return collectHttpCalls(programs, resolver).map((site) => {
+    const shown = normalizer
+      .alternatives(site)
+      .map((result) => (result.resolved ? result.text : `DYNAMIC_URL: ${result.detail}`));
+    return `${site.file}:${site.site.line} ${shown.join(" | ")}`;
+  });
+}
+
 describe("createUrlNormalizer", () => {
   it("normalizes literals, templates, concatenation, consts, enums, and literal types", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
@@ -419,7 +435,7 @@ describe("createUrlNormalizer", () => {
       "src/api.ts:21 /api/{}",
       "src/api.ts:22 DYNAMIC_URL: every path segment is only known at runtime",
       "src/api.ts:23 /s/{}",
-      "src/api.ts:25 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:25 /later",
       "src/api.ts:26 DYNAMIC_URL: the URL starts with a value only known at runtime",
       "src/api.ts:27 /deep",
     ]);
@@ -623,6 +639,125 @@ describe("createUrlNormalizer", () => {
       "packages/web/src/api.ts:4 /api/me (heuristic)",
       "packages/web/src/api.ts:5 /api/plain",
     ]);
+  });
+
+  it("gives one URL per ternary branch and per value a let may hold (M5A.3h)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'const BASE = "/api";',
+      "declare const runtime: () => string;",
+      "export async function load(id: string, flag: boolean, admin: boolean, page?: number) {",
+      '  const endpoint = flag ? "/api/featured" : `/api/categories/${id}`;',
+      "  await fetch(endpoint);",
+      "  await fetch(`/api/sub${page ? '?page=' + page : ''}`);",
+      "  let url = `${BASE}/posts/${id}`;",
+      "  if (admin) {",
+      "    url = `${BASE}/posts/admin/${id}`;",
+      "  }",
+      "  await fetch(url);",
+      "  let only = '/first';",
+      "  only = '/second';",
+      "  await fetch(only);",
+      "  let both;",
+      "  if (flag) both = '/yes';",
+      "  else both = '/no';",
+      "  await fetch(both);",
+      "  let early = '/stay';",
+      "  if (flag) {",
+      "    early = '/left';",
+      "    return;",
+      "  }",
+      "  await fetch(early);",
+      "  let q = '/q';",
+      "  q = q + '/more';",
+      "  await fetch(q);",
+      "  await fetch(flag ? '/a' : runtime());",
+      "  await fetch(flag ? (admin ? '/x' : '/y') : '/z');",
+      "}",
+    ]);
+    expect(await alternativesOf()).toEqual([
+      "src/api.ts:5 /api/featured | /api/categories/{}",
+      "src/api.ts:6 /api/sub",
+      "src/api.ts:11 /api/posts/{} | /api/posts/admin/{}",
+      "src/api.ts:14 /second",
+      "src/api.ts:18 /yes | /no",
+      "src/api.ts:24 /stay",
+      "src/api.ts:27 /q/more",
+      "src/api.ts:28 /a | DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:29 /x | /y | /z",
+    ]);
+    // `normalize` still reads one URL: options that differ are a hole.
+    expect(await normalized()).toEqual([
+      "src/api.ts:5 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:6 /api/sub{}",
+      "src/api.ts:11 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:14 /second",
+      "src/api.ts:18 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:24 /stay",
+      "src/api.ts:27 /q/more",
+      "src/api.ts:28 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:29 DYNAMIC_URL: the URL starts with a value only known at runtime",
+    ]);
+  });
+
+  it("leaves a let unknown when a write can't be placed (M5A.3h)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      "export let exported = '/e';",
+      "declare const items: string[];",
+      "export async function load(flag: boolean) {",
+      "  let plus = '/p';",
+      "  plus += '/x';",
+      "  await fetch(plus);",
+      "  let later = '/l';",
+      "  setTimeout(() => { later = '/t'; });",
+      "  await fetch(later);",
+      "  let looped = '/one';",
+      "  for (const item of items) {",
+      "    await fetch(looped);",
+      "    looped = '/two';",
+      "  }",
+      "  let inner = '/i';",
+      "  const read = () => fetch(inner);",
+      "  await read();",
+      "  let unset;",
+      "  await fetch(unset);",
+      "  let guarded = '/g';",
+      "  flag && (guarded = '/h');",
+      "  await fetch(guarded);",
+      "  await fetch(exported);",
+      "  var old = '/v';",
+      "  await fetch(old);",
+      "  let after = '/before';",
+      "  await fetch(after);",
+      "  after = '/after';",
+      "}",
+    ]);
+    const dynamic = "DYNAMIC_URL: the URL starts with a value only known at runtime";
+    expect(await alternativesOf()).toEqual([
+      `src/api.ts:6 ${dynamic}`,
+      `src/api.ts:9 ${dynamic}`,
+      `src/api.ts:12 ${dynamic}`,
+      `src/api.ts:16 ${dynamic}`,
+      `src/api.ts:19 ${dynamic}`,
+      `src/api.ts:22 ${dynamic}`,
+      `src/api.ts:23 ${dynamic}`,
+      `src/api.ts:25 ${dynamic}`,
+      "src/api.ts:27 /before",
+    ]);
+  });
+
+  it(`falls back to one URL past ${MAX_PATHS} paths (M5A.3h)`, async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      "export async function load(a: boolean, b: boolean, c: boolean, d: boolean) {",
+      "  await fetch(`/${a ? 'a' : 'A'}/${b ? 'b' : 'B'}/${c ? 'c' : 'C'}`);",
+      "  await fetch(`/${a ? 'a' : 'A'}/${b ? 'b' : 'B'}/${c ? 'c' : 'C'}/${d ? 'd' : 'D'}`);",
+      "}",
+    ]);
+    const [eight, sixteen] = await alternativesOf();
+    expect(eight?.split(" | ")).toHaveLength(8);
+    expect(sixteen).toBe("src/api.ts:3 DYNAMIC_URL: every path segment is only known at runtime");
   });
 
   it("evaluates expressions to parts for wrapper inlining", async () => {
