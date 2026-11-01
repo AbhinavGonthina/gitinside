@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.17e3 `verify-guardrails` (then M5.17e4, before M5A.5, per #14; M5.13 and M5.14b wait on #3)
+M5.17e4 post the Google Cloud steps on #3 (before M5A.5, per #14; M5.13 and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -175,7 +175,7 @@ M5.17e3 `verify-guardrails` (then M5.17e4, before M5A.5, per #14; M5.13 and M5.1
 - [x] M5.17d2 `infra/oracle` replaced by `infra/gcp`: service (resources, timeout, concurrency, max instances, startup probe, no unauthenticated access), queue (2 dispatches, 3 attempts, backoff inside the signature window), IAM (runtime, invoker, enqueue accounts) as reviewed config + docs; `infra/oracle` deleted; README/DESIGN/SECURITY/TESTING paths {model: opus}
 - [x] M5.17e1 Billing kill switch (ADR-0111, unblocked by #14): a $1 budget's Pub/Sub alert ⇒ a `killswitch` entry in the worker image (cost ≥ budget ⇒ Cloud Billing `updateBillingInfo` with no account, token from the metadata server; anything else logged and acknowledged), its Cloud Run service, the budget and topic, and its IAM (only project-level binding: Project Billing Manager) in `infra/gcp`; tests against a fake Google + `gcpConfig.test.ts`; ADR {model: opus}
 - [x] M5.17e2 Keyless deploy (ADR-0111): GitHub Actions workflow via Workload Identity Federation (pool `github`, this repo's `main` only) ⇒ build the image ⇒ Artifact Registry (cleanup policy inside the free 0.5 GB) ⇒ render `service.json` / `killswitch.json` placeholders from repo variables ⇒ `gcloud run services replace` both ⇒ queue update; the deploy account's IAM; a tested render script; idle until #3's variables exist {model: opus}
-- [ ] M5.17e3 `verify-guardrails` script: reads the live project through Google's REST APIs with a `gcloud` token and compares it with `infra/gcp` (both services' scale, concurrency, timeout, resources, ingress, invokers; queue; IAM bindings, no basic roles or `allUsers`; budget + topic + kill switch subscription; billing enabled; no Cloud NAT, load balancer, Memorystore, or static IP; Artifact Registry size); exit 1 with each mismatch; tests against a fake Google {model: opus}
+- [x] M5.17e3 `verify-guardrails` script: reads the live project through Google's REST APIs with a `gcloud` token and compares it with `infra/gcp` (both services' scale, concurrency, timeout, resources, ingress, invokers; queue; IAM bindings, no basic roles or `allUsers`; budget + topic + kill switch subscription; billing enabled; no Cloud NAT, load balancer, Memorystore, or static IP; Artifact Registry size); exit 1 with each mismatch; tests against a fake Google {model: opus}
 - [ ] M5.17e4 Post the remaining Google Cloud steps on #3 (copy-paste `gcloud` for project `gitinside-513223`: APIs, queue, accounts and IAM, WIF for GitHub Actions and Vercel, Secret Manager names, Artifact Registry, budget + kill switch, GitHub repo variables, running `verify-guardrails`; each paid option called out), `infra/gcp/README.md` "Applying it" to match {model: opus}
 - [x] M5.17f SECURITY.md review for the sandbox change (ADR-0111): §3 and T1–T9 against Cloud Run (no egress gateway; the analysis child still has no network, `netguard.ts`; the parent's egress; IAM-only invocation), tests for the controls that remain, DESIGN.md/SPEC wording {model: opus}
 - [x] M5.18a Abuse (#11): "too big" remembered per repo, not per commit: after a `LIMIT_*` failure, refuse new analyses of that repo for 7 days unless its GitHub size dropped by half, with a message saying why and when; tests {model: opus}
@@ -272,6 +272,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-01 M5.17e3: `pnpm verify-guardrails` (`infra/gcp/verify.mjs`, ADR-0171) reads the live project through Google's REST APIs with the owner's `gcloud` token (GETs and `getIamPolicy` only) and prints one `MISMATCH` line per difference from `infra/gcp`: both services, the queue, every IAM policy exactly (project: only the owner and Google's agents besides the kill switch's role; no `allUsers`, basic roles, or SA keys), the GitHub provider, billing + budget + subscription, no NAT/LB/static IP/Memorystore/VPC connector, registry policies and size. A read that fails is a mismatch. `apps/web/lib/gcpVerify.test.ts`: a fake Google built from the files, 48 single-setting deviations each one line; mutation-checked.
 
 - **2026-11-01, M5.17e2:** keyless deploy (ADR-0170). CI's last job `deploy` (needs the other four; main only; idle until `GCP_PROJECT_NUMBER` is set) runs `infra/gcp/deploy.mjs`: deploys only when the image's inputs changed, builds + pushes `worker:<sha>`, renders both services with the digest, replaces kill switch then worker, updates the queue. `github.json` admits only this repo/owner by ID, `ci.yml` on main; `gitinside-deploy` holds no project role (services created by hand first, M5.17e4). Registry keeps 3 versions; `check.mjs` caps the image at 150 MB gzipped. `gcpDeploy.test.ts` (fake gcloud/docker), mutation-checked.
 
