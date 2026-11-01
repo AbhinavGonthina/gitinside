@@ -20,12 +20,13 @@ import {
  * - **Memory:** `--max-old-space-size` (2,560 MB). V8 aborts past it; the runner reports
  *   `LIMIT_MEMORY`.
  * - **Time:** a 5-minute wall-clock timer, then `SIGKILL` (works even while the analyzer is
- *   stuck in synchronous code); `LIMIT_TIME`. CPU share is capped by the container (M5.10),
- *   and the queue runs at most 2 jobs at once.
+ *   stuck in synchronous code); `LIMIT_TIME`. CPU is capped by the instance (1 vCPU on Cloud
+ *   Run, one job per instance).
  * - **Filesystem and processes:** the Node permission model (`--permission`). The child may
  *   read only the installed app (`readRoots`: its own code, the analyzer, TypeScript's libs)
  *   and the job's `src`, write only `out`, and can't start processes, worker threads, or
- *   native addons. So it can't read `/etc/gitinside/worker.env` or run anything from the repo.
+ *   native addons, nor use `process.binding`, the inspector, or WASI. So it can't read the
+ *   worker's environment through `/proc` or run anything from the repo.
  * - **Environment:** empty (on Windows, libuv adds its fixed list of system variables), so
  *   no secret reaches the child and no `NODE_OPTIONS` can change its flags.
  * - **Network:** none; `netguard.ts` is preloaded and fails every socket, DNS, and fetch call.

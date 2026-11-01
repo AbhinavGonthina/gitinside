@@ -255,8 +255,27 @@ describe("the child's sandbox", () => {
       dnsLookup: "ERR_NETWORK_DISABLED",
       listen: "ERR_NETWORK_DISABLED",
       udp: "ERR_NETWORK_DISABLED",
+      http2: "ERR_NETWORK_DISABLED",
+      unixSocket: "ERR_NETWORK_DISABLED",
+      metadataServer: "ERR_NETWORK_DISABLED",
     });
     expect(connections).toBe(0);
+  });
+
+  it("refuses Node's own ways around the guard and the worker's environment under /proc", async () => {
+    const saved = { ...process.env };
+    process.env.DATABASE_URL = "postgres://planted";
+    try {
+      expect(findings(await runProbe("internals"))).toEqual({
+        binding: "ERR_ACCESS_DENIED",
+        inspector: "ERR_ACCESS_DENIED",
+        wasi: "ERR_ACCESS_DENIED",
+        parentEnv: "ERR_ACCESS_DENIED",
+        ownEnv: "ERR_ACCESS_DENIED",
+      });
+    } finally {
+      process.env = saved;
+    }
   });
 
   it("can't read outside its roots, write anything but out, or start processes", async () => {
