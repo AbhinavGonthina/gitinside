@@ -30,14 +30,24 @@ export interface ReportRun {
   machine: string;
 }
 
-/** Everything a report is rendered from. */
-export interface ReportInput {
-  run: ReportRun;
+/** One scored set of repos: the original set, or the held-out one. */
+export interface ReportSet {
   /** The pinned repos, in `repos.json` order. */
   repos: readonly EvalRepo[];
   /** One label file per pinned repo. */
   labels: readonly LabelFile[];
   score: EvalScore;
+}
+
+/** Everything a report is rendered from: the original set, plus the held-out set if any. */
+export interface ReportInput extends ReportSet {
+  run: ReportRun;
+  /**
+   * Repos pinned with `heldOut: true` (#13), scored apart: their counts never enter the
+   * headline or the original set's totals. Omitted (or empty) when there are none, and the
+   * report is then the same bytes as before the held-out set existed.
+   */
+  heldOut?: ReportSet;
 }
 
 /** Marks a run whose tree had changes to the eval's inputs; such a report can't be checked. */
@@ -174,16 +184,11 @@ function labelAuthor(labels: readonly LabelFile[]): string {
 
 /** Render the Markdown report. Every number is printed as counted, with its raw fraction. */
 export function renderReport(input: ReportInput): string {
-  const { run, repos, labels, score } = input;
-  const byRepo = new Map(score.repos.map((r) => [r.repo.toLowerCase(), r]));
-  const labelsByRepo = new Map(labels.map((l) => [l.repo.toLowerCase(), l]));
-  const scored = repos.map((r) => {
-    const key = `${r.owner}/${r.name}`.toLowerCase();
-    const s = byRepo.get(key);
-    const l = labelsByRepo.get(key);
-    if (!s || !l) throw new ReportError(`no score or labels for ${r.owner}/${r.name}`);
-    return { repo: r, score: s, labels: l };
-  });
+  const { run, repos, score } = input;
+  const scored = pairUp(input);
+  const heldOut = input.heldOut && input.heldOut.repos.length > 0 ? input.heldOut : undefined;
+  // Who labeled and whether review is pending cover every label file the report scores.
+  const labels = [...input.labels, ...(heldOut?.labels ?? [])];
 
   const reviewers = [...new Set(labels.map((l) => l.reviewedBy))];
   const pending = reviewers.includes(null);
@@ -214,22 +219,12 @@ export function renderReport(input: ReportInput): string {
     "",
     "## Repos",
     "",
-    "| Repo | Shape | Commit | License | Call sites | Labels |",
-    "|---|---|---|---|---:|---:|",
-    ...scored.map(({ repo, labels: l }) => {
-      const sites = new Set(l.edges.map((e) => at(e.callSite))).size;
-      return `| [${repo.owner}/${repo.name}](${repo.url}) | ${repo.shape} | ${code(repo.sha)} | ${repo.license} | ${sites} | ${l.edges.length} |`;
-    }),
-    "",
+    ...reposTable(scored),
     "## Results",
     "",
     `Precision ${rates(o)[0]}, recall ${rates(o)[1]} over ${o.labels} labels in ${repos.length} repos.`,
     "",
-    "| Repo | Labels | Real targets | TP | FP | FN | Precision | Recall | `null` labels | Abstentions | Missing |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
-    ...scored.map(({ score: s }) => countsRow(s.repo, s.counts)),
-    countsRow("**All repos**", o),
-    "",
+    ...countsTable(scored, o, "**All repos**"),
     "- **TP / FP / FN:** route predictions that match a label / that match none / labeled real targets never predicted.",
     "- **Abstentions:** `null`-labeled call sites (no route in the repo) where the analyzer predicted only an unresolved node or an external host. Correct, but not part of precision.",
     "- **Missing:** labels with no prediction of any kind at their call site: the request was dropped, or the analyzer placed it at another site (for example inside a helper whose callers the label names).",
@@ -238,16 +233,11 @@ export function renderReport(input: ReportInput): string {
     "",
     "Recall per level is that level's true positives over all real targets, so the levels add up to the overall recall.",
     "",
-    "| Level | TP | FP | Precision | Recall |",
-    "|---|---:|---:|---:|---:|",
-    ...SCORED_LEVELS.map((level) => {
-      const c = o.byConfidence[level];
-      return `| ${level} | ${c.truePositives} | ${c.falsePositives} | ${percent(c.truePositives, c.truePositives + c.falsePositives)} | ${percent(c.truePositives, o.positiveLabels)} |`;
-    }),
-    "",
+    ...levelsTable(o),
     "## Misses, by repo",
     "",
-    ...scored.flatMap(({ score: s }) => repoDetails(s)),
+    ...scored.flatMap(({ score: s }) => repoDetails(s, "###")),
+    ...(heldOut ? heldOutSection(heldOut) : []),
     "## Method",
     "",
     "Full rules: [docs/EVALUATION.md §1](../../docs/EVALUATION.md) and ADR-0040 to ADR-0042 in [docs/DECISIONS.md](../../docs/DECISIONS.md).",
@@ -260,6 +250,11 @@ export function renderReport(input: ReportInput): string {
     "## Limitations",
     "",
     `- **Small set:** ${count(repos.length)} small and mid-size ${repos.length === 1 ? "app" : "apps"} (about 100–300 source files), mostly hobby or reference projects. The numbers say nothing about large production monorepos.`,
+    ...(heldOut
+      ? [
+          `- **Held-out set:** ${count(heldOut.repos.length)} more ${heldOut.repos.length === 1 ? "app" : "apps"}, picked and labeled after the recall work began, so they test whether fixes made for the original set generalize. They are just as small, and their labels are not in the owner's review sample.`,
+        ]
+      : []),
     whoLabeled,
     "- **What isn't counted:** requests made inside third-party libraries (SDK clients, NextAuth, MCP transports), sockets, `<a href>`/`window.location` navigations, and inline HTML scripts are not labeled, so they can't count against recall.",
     "- **Precision covers routes only:** abstentions are reported apart, so a tool that abstained everywhere would show `n/a` precision, not 100%.",
@@ -278,7 +273,82 @@ export function renderReport(input: ReportInput): string {
   return lines.join("\n");
 }
 
-function repoDetails(s: RepoScore): string[] {
+interface ScoredRepo {
+  repo: EvalRepo;
+  score: RepoScore;
+  labels: LabelFile;
+}
+
+/** Each pinned repo of `set` with its score and labels, in `repos.json` order. */
+function pairUp(set: ReportSet): ScoredRepo[] {
+  const byRepo = new Map(set.score.repos.map((r) => [r.repo.toLowerCase(), r]));
+  const labelsByRepo = new Map(set.labels.map((l) => [l.repo.toLowerCase(), l]));
+  return set.repos.map((r) => {
+    const key = `${r.owner}/${r.name}`.toLowerCase();
+    const s = byRepo.get(key);
+    const l = labelsByRepo.get(key);
+    if (!s || !l) throw new ReportError(`no score or labels for ${r.owner}/${r.name}`);
+    return { repo: r, score: s, labels: l };
+  });
+}
+
+function reposTable(scored: readonly ScoredRepo[]): string[] {
+  return [
+    "| Repo | Shape | Commit | License | Call sites | Labels |",
+    "|---|---|---|---|---:|---:|",
+    ...scored.map(({ repo, labels: l }) => {
+      const sites = new Set(l.edges.map((e) => at(e.callSite))).size;
+      return `| [${repo.owner}/${repo.name}](${repo.url}) | ${repo.shape} | ${code(repo.sha)} | ${repo.license} | ${sites} | ${l.edges.length} |`;
+    }),
+    "",
+  ];
+}
+
+function countsTable(scored: readonly ScoredRepo[], total: Counts, totalName: string): string[] {
+  return [
+    "| Repo | Labels | Real targets | TP | FP | FN | Precision | Recall | `null` labels | Abstentions | Missing |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...scored.map(({ score: s }) => countsRow(s.repo, s.counts)),
+    countsRow(totalName, total),
+    "",
+  ];
+}
+
+function levelsTable(total: Counts): string[] {
+  return [
+    "| Level | TP | FP | Precision | Recall |",
+    "|---|---:|---:|---:|---:|",
+    ...SCORED_LEVELS.map((level) => {
+      const c = total.byConfidence[level];
+      return `| ${level} | ${c.truePositives} | ${c.falsePositives} | ${percent(c.truePositives, c.truePositives + c.falsePositives)} | ${percent(c.truePositives, total.positiveLabels)} |`;
+    }),
+    "",
+  ];
+}
+
+/** The held-out repos (#13) in a section of their own, with their own totals. */
+function heldOutSection(set: ReportSet): string[] {
+  const scored = pairUp(set);
+  const o = set.score.overall;
+  return [
+    "## Held-out repos",
+    "",
+    "Picked and labeled from their code after the recall work began, never by looking at analyzer output, and never used to choose analyzer fixes. They are scored apart: none of these counts is in the results above.",
+    "",
+    ...reposTable(scored),
+    `Precision ${rates(o)[0]}, recall ${rates(o)[1]} over ${o.labels} labels in ${set.repos.length} held-out ${set.repos.length === 1 ? "repo" : "repos"}.`,
+    "",
+    ...countsTable(scored, o, "**All held-out repos**"),
+    "### Held-out, by confidence level",
+    "",
+    ...levelsTable(o),
+    "### Held-out misses, by repo",
+    "",
+    ...scored.flatMap(({ score: s }) => repoDetails(s, "####")),
+  ];
+}
+
+function repoDetails(s: RepoScore, heading: string): string[] {
   // A missing label with a real target is also a false negative ("nothing predicted at the
   // site"), so only the `null` ones are listed again here.
   const dropped = s.missing.filter((l) => l.target === null);
@@ -291,7 +361,7 @@ function repoDetails(s: RepoScore): string[] {
           "",
         ];
   return [
-    `### ${s.repo}`,
+    `${heading} ${s.repo}`,
     "",
     ...list("False positives", s.falsePositives, falsePositive),
     ...list("False negatives", s.falseNegatives, falseNegative),
