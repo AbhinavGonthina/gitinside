@@ -6,8 +6,8 @@ import { createCountedStore, logQuotas, measureQuotas, type QuotaLimits } from "
 import type { ObjectStore, StoreConfig } from "./storage.js";
 
 /**
- * `node dist/quota-bin.js` (`pnpm --filter @gitinside/worker quota`; on the VM,
- * `docker compose exec worker node dist/quota-bin.js`): the quota check M5.13's smoke test
+ * `node dist/quota-bin.js` (`pnpm --filter @gitinside/worker quota`, run from a checkout with
+ * production's values, infra/gcp/README.md): the quota check M5.13's smoke test
  * runs (ADR-0078). It measures the bucket, the database, and the month's bucket requests
  * (ADR-0096) against the free limits and prints the worker's own `quota` / `quota_alarm`
  * JSON lines. It deletes nothing; it only adds its own listing to the request count.

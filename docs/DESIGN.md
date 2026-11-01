@@ -80,6 +80,7 @@ flowchart LR
   - Retries only failures that can pass (network, rate limit, shutdown); deterministic ones (`LIMIT_*`, `TAR_*`, `REPO_NOT_FOUND`) fail on the first attempt.
   - Uploads the gzipped snapshot to Oracle Object Storage through its S3-compatible API (`storage.ts`, signed with our own SigV4, keyed per repo, SHA, and analyzer version; ADR-0062, ADR-0095), writes metadata to Postgres, and writes each progress update to the job's row.
   - One process (`bin.ts` ⇒ `main.ts`, ADR-0065, ADR-0144): config from env checked up front, the startup sweep (job folders, then rows left `running` past any request's life) before listening, and on SIGTERM an ordered shutdown (cancel the job, answer, stop maintenance, close the database).
+  - Deployed from reviewed config in `infra/gcp/` (ADR-0151): the Cloud Run service (1 vCPU / 4 GiB, concurrency 1, ≤ 2 instances, 300 s, internal ingress, a startup probe on `/health`), the Cloud Tasks queue (2 at once, 3 attempts, 30 s and 60 s backoff), and IAM (runtime, invoker, and enqueue accounts, each bound to one resource). `apps/web/lib/gcpConfig.test.ts` keeps it in step with the code.
 - **`packages/schema`:** TS types + Zod for `architecture.json`. Imported everywhere.
 - **`packages/analyzer`:** library + the `gitinside` CLI: `gitinside analyze <path>`, and `gitinside diff <base> <head>` (each side a graph file, a folder, or a git commit checked out into a temporary worktree; ADR-0089).
 - **`packages/diff`:** library: `diffGraphs`, `applyDiff`, and `renderMermaidSummary` (the Mermaid summary of a diff). No Node or TypeScript dependency, so browsers can use it.
@@ -293,7 +294,7 @@ Built in steps M6.7a–f (ADR-0090).
 - **Always recomputed:** route matching, wrapper binding, the Prisma schema, infra, file nodes, and assembly; they're cheap compared with parsing. A clean service's program is built only if a dirty service's checker needs it.
 - **Storage:** a local disk cache on the worker (`openDiskCache`, `packages/analyzer/src/cache.ts`): gzipped JSON entries named by key hash, atomic renames, LRU by file time, 2 GB cap, failures counted and treated as misses. For PR diffs, base and head share entries for unchanged services.
 - **Budgets** (measured in `bench/`):
-  - Full analysis of a 5k-file repo ≤ 60 s on the Oracle VM.
+  - Full analysis of a 5k-file repo ≤ 60 s on the worker (one Cloud Run instance, 1 vCPU / 4 GiB; measured in M5.13).
   - Incremental re-analysis after a 10-file change ≤ 10 s.
 
 ## 10. Data model (Postgres, Drizzle)

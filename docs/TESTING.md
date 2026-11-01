@@ -23,6 +23,8 @@ These are mandatory standards. Nobody reviews each autopilot step, so the tests 
 | Visual regression | Playwright screenshots | stories + key screens | every push, Linux CI only |
 | E2E | Playwright | `apps/web/e2e`: the unconfigured site, and the explorer on a seeded PGlite database (ADR-0132) | push to main |
 | Security | Vitest + malicious fixtures | `fixtures/malicious/*`, worker extraction | every push |
+| Container | `node infra/gcp/check.mjs` (Docker, Linux CI job `worker-image`) | the worker image run as Cloud Run runs it: non-root, nothing writable outside `/tmp`, signed `/run`, a golden analysis, SIGTERM (ADR-0150) | every push |
+| Deploy config | Vitest | `infra/gcp/{service,queue,iam}.json` against the code's limits and ADR-0111's guardrails (`apps/web/lib/gcpConfig.test.ts`, ADR-0151) | every push |
 | Eval / bench | scripts | `eval/`, `bench/` | on demand + milestone gates |
 
 ## Fixture repos

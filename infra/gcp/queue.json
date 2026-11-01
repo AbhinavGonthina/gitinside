@@ -1,0 +1,17 @@
+{
+  "name": "projects/gitinside-513223/locations/us-east4/queues/analyses",
+  "rateLimits": {
+    "maxDispatchesPerSecond": 1,
+    "maxConcurrentDispatches": 2
+  },
+  "retryConfig": {
+    "maxAttempts": 3,
+    "maxRetryDuration": "0s",
+    "minBackoff": "30s",
+    "maxBackoff": "120s",
+    "maxDoublings": 2
+  },
+  "stackdriverLoggingConfig": {
+    "samplingRatio": 1
+  }
+}

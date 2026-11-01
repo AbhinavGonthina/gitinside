@@ -50,6 +50,7 @@ A pnpm + Turborepo monorepo:
 - `packages/viewer` holds the explorer's React components and their Storybook (`pnpm --filter @gitinside/viewer storybook`).
 - `packages/db` holds the Postgres schema (Drizzle), committed SQL migrations, and the client shared by the web app and worker. Local Postgres: `docker compose -f infra/docker-compose.dev.yml up -d`, then `pnpm --filter @gitinside/db migrate` with `DATABASE_URL` from that file. Its tests run on in-memory PGlite, so they need no Docker.
 - `apps/web` is the website (Next.js App Router, built on the viewer's tokens and components): `pnpm build`, then `pnpm --filter @gitinside/web start` (or `dev`) and open http://localhost:3000. To analyze from the site locally, run the worker too ([Quickstart (website, local)](#quickstart-website-local)). Each analyzed repo's page has "Add to README", which gives the Markdown for a live badge or diagram image that stays current with the default branch.
+- `infra/gcp` holds the production worker's reviewed Google Cloud config: the Cloud Run service (1 vCPU / 4 GiB, one job per instance, at most 2 instances, no public access), the Cloud Tasks queue (2 at once, 3 attempts), IAM, and CI's check of the worker image as Cloud Run runs it ([infra/gcp/README.md](infra/gcp/README.md)).
 - `eval/` holds the accuracy eval (pinned repos, hand-written labels, scorer, committed reports).
 - `bench/` holds benchmarks, and `fixtures/` holds golden test repos.
 

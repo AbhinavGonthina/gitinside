@@ -1,0 +1,68 @@
+{
+  "project": "gitinside-513223",
+  "serviceAccounts": [
+    {
+      "id": "gitinside-worker",
+      "displayName": "GitInside worker (Cloud Run runtime)",
+      "description": "The worker service's identity. Reads its own secrets; no project roles, no Google APIs."
+    },
+    {
+      "id": "gitinside-invoker",
+      "displayName": "GitInside invoker (Cloud Tasks OIDC)",
+      "description": "Cloud Tasks signs each push as this account; the only principal that may call the worker."
+    },
+    {
+      "id": "gitinside-enqueue",
+      "displayName": "GitInside enqueue (Vercel, keyless)",
+      "description": "Vercel's production functions impersonate it through Workload Identity Federation to create tasks."
+    }
+  ],
+  "secrets": [
+    "worker-database-url",
+    "worker-snapshots-secret-key",
+    "enqueue-hmac-secret",
+    "worker-github-token"
+  ],
+  "bindings": [
+    {
+      "resource": "secret/worker-database-url",
+      "role": "roles/secretmanager.secretAccessor",
+      "member": "serviceAccount:gitinside-worker@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "secret/worker-snapshots-secret-key",
+      "role": "roles/secretmanager.secretAccessor",
+      "member": "serviceAccount:gitinside-worker@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "secret/enqueue-hmac-secret",
+      "role": "roles/secretmanager.secretAccessor",
+      "member": "serviceAccount:gitinside-worker@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "secret/worker-github-token",
+      "role": "roles/secretmanager.secretAccessor",
+      "member": "serviceAccount:gitinside-worker@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "run/service/gitinside-worker",
+      "role": "roles/run.invoker",
+      "member": "serviceAccount:gitinside-invoker@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "cloudtasks/queue/analyses",
+      "role": "roles/cloudtasks.enqueuer",
+      "member": "serviceAccount:gitinside-enqueue@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "serviceAccount/gitinside-invoker",
+      "role": "roles/iam.serviceAccountUser",
+      "member": "serviceAccount:gitinside-enqueue@gitinside-513223.iam.gserviceaccount.com"
+    },
+    {
+      "resource": "serviceAccount/gitinside-enqueue",
+      "role": "roles/iam.workloadIdentityUser",
+      "member": "principalSet://iam.googleapis.com/projects/{{PROJECT_NUMBER}}/locations/global/workloadIdentityPools/vercel/attribute.environment/production"
+    }
+  ]
+}
