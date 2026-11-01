@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.3i R9: `http` sites anchored at the call expression's start, not the method name (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.4 Eval re-run on the original and held-out repos, ADR for any change in approach, README/EVALUATION numbers updated (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -206,7 +206,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.3j R10 (moved up after M5A.3f: now 9 FN + 14 FP in conversa, plus the diagnosis's 1 FN + 1 FP + 1 abstention): only a parameter reaching the URL's leading part makes a function a wrapper; one filling a later hole or the query stays a hole at the inner site (conversa's `get: (id) => fetch(\`${API_BASE}/conversation/${id}\`)` stays at `api.ts`); fixture + golden, eval delta {model: opus}
 - [x] M5A.3g R7 (7): wider API-base env names (`*_API_PATH`, `*_API_HOST`, `*_API`, `*_SERVER_URL`, …) from a documented list, FPs measured on all five repos; tests, eval delta {model: opus}
 - [x] M5A.3h R8 (4): URL alternatives held in a variable (ternary through a `const`, a `let` with every assignment before the call readable) give one edge per alternative (ADR-0041); also a ternary whose branches differ only after `?` (held-out online-ide's `/user/submissions${page ? "?page=" + page : ""}` is now `AMBIGUOUS` with `/user/:id`); fixture + golden, eval delta {model: opus}
-- [ ] M5A.3i R9 (3): `http` sites anchored at the call expression's start (EVALUATION.md §1), not the method name (`axios⏎ .get(`); goldens, eval delta {model: opus}
+- [x] M5A.3i R9 (3): `http` sites anchored at the call expression's start (EVALUATION.md §1), not the method name (`axios⏎ .get(`); goldens, eval delta {model: opus}
 - [ ] M5A.4 Eval re-run on the original and held-out repos, ADR for any change in approach, README/EVALUATION numbers updated; if targets aren't met, list what's left and why (runtime-only URLs stay unresolved) {model: opus}
 - [ ] M5A.5 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff (generalization: no repo-specific cases), CLI smoke test on a real repo outside the eval, M5A-review.md, tag m5a {model: opus}
 
@@ -266,6 +266,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.3i** (`6096989`, `522e48c`, ADR-0167): an `http` request's site (direct and inlined wrapper calls) is now the call expression's start (`locationOf(call)`), as EVALUATION.md §1 defines, not the callee name; so `axios⏎ .get(` is on the `axios` line. Columns moved in 5 goldens (+ `axios-defaults`' unresolved node ID); README image bytes unchanged; new collector test; reverting the wrapper anchor fails `object-client`'s golden. Eval: original five TP 135 ⇒ 138, FP 3 ⇒ 0, FN 3 ⇒ 0 (100.0% / 100.0%); held-out TP 58 ⇒ 78, FP 20 ⇒ 0, FN 20 ⇒ 0 (100.0% / 100.0%). README numbers updated.
 
 - **2026-11-01 M5A.3h** (`3015e4b`, `f16e91c`, ADR-0166): `UrlNormalizer.alternatives` re-runs normalization once per combination of choices (ternary branches, and a local `let`'s reaching values from the new `lets.ts`: plain `x = v;` writes, `if`/`else`, exiting branches), at most 8 paths, distinct results kept; each is its own request at the same site (own and inlined). `normalize` still gives one reading (unequal options are a hole), but a `let` with one reaching value now reads like a `const`. Fixture `url-alternatives`; no other golden changed; two mutation checks. Eval: original five TP 133 ⇒ 135, FP 1 ⇒ 3, FN 5 ⇒ 3 (97.8% / 97.8%); held-out TP 58, FP 17 ⇒ 20: every new FP is a labeled route one line off (R9, next), and online-ide's wrong `AMBIGUOUS` `/user/:id` is gone.
 
