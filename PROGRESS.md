@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.1 Diagnose the misses in `eval/results/2026-10-31-0.1.0.md` (M5.17e, M5.13, and M5.14b wait on #3)
+M5A.2 Held-out repos (M5.17e, M5.13, and M5.14b wait on #3)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -191,9 +191,18 @@ M5A.1 Diagnose the misses in `eval/results/2026-10-31-0.1.0.md` (M5.17e, M5.13, 
 
 ### M5A: Cross-service recall (#13, after M5, before the rest of M6)
 Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out repos reported separately. Fix general patterns, never special cases for the eval repos; what can't be known statically stays unresolved. Don't wait for #1, but re-run the eval once it closes.
-- [ ] M5A.1 Diagnose the misses in `eval/results/2026-10-31-0.1.0.md` (110 false negatives, 103 missing labels): read each call site in the eval checkouts, find why it was dropped or unmatched (trace through `analyze`), group by root cause with counts per repo, write it to `eval/results/2026-11-recall-diagnosis.md`; then split M5A.3 into one task per cause, largest first {model: opus}
+- [x] M5A.1 Diagnose the misses in `eval/results/2026-10-31-0.1.0.md` (110 false negatives, 103 missing labels): read each call site in the eval checkouts, find why it was dropped or unmatched (trace through `analyze`), group by root cause with counts per repo, write it to `eval/results/2026-11-recall-diagnosis.md`; then split M5A.3 into one task per cause, largest first {model: opus}
 - [ ] M5A.2 Held-out repos (#13): pick 2–3 new public React/Next + Express (+ Prisma) repos of different styles (selection rules as M3.2, pinned SHAs, a separate held-out set in `eval/`), draft their labels from the code before running the analyzer on them, commit the labels before scoring; the report shows them in their own section and they're never tuned against {model: opus}
-- [ ] M5A.3 Fix the root causes from M5A.1, each as a general pattern with its own fixture + golden test, eval delta in each commit body (split by M5A.1) {model: opus}
+- [ ] M5A.3a R1 (87 labels blocked; `eval/results/2026-11-recall-diagnosis.md`): env base with an in-code fallback keeps the fallback's path prefix (`?? "http://localhost:4000/api/v1"`), a literal fallback inside the URL (`|| 'v1'`) replaces the hole, a loopback fallback host is `heuristic` whatever the env name; ADR (changes "the env var is the deployed value"); fixture + golden, eval delta {model: opus}
+- [ ] M5A.3b R2 (44): methods and function-valued properties of an exported `const` object literal as wrappers (`apiClient.get(endpoint)`), incl. a GET body's `const url = new URL(…)` + `url.toString()`; fixture + golden, eval delta {model: opus}
+- [ ] M5A.3c R3 (39): a wrapper whose parameter is the axios config (`axios(req)`, `x.request(req)`) reads `url`/`method`/`baseURL` from the caller's object literal; fixture + golden, eval delta {model: opus}
+- [ ] M5A.3d R4 (39): `x.defaults.baseURL = …` on the axios default export or an instance, assigned once at module top level (else unknown); fixture + golden, eval delta {model: opus}
+- [ ] M5A.3e R5 (39): routers required from a folder listing and mounted in a loop/reduce (`glob.sync(…).map(require).reduce((r, x) => r.use(x))`, `readdirSync(__dirname).forEach`): ADR on whether it can be composed at `heuristic` without executing anything; implement or document as unhandled (foodie then stays unresolved); fixture, eval delta {model: opus}
+- [ ] M5A.3f R6 (15): sibling top-level folders with their own `package.json` become services when the root declares no workspaces (each with its tsconfig and `paths`); effect on every fixture and eval graph checked; fixture + golden, eval delta {model: opus}
+- [ ] M5A.3g R7 (7): wider API-base env names (`*_API_PATH`, `*_API_HOST`, `*_API`, `*_SERVER_URL`, …) from a documented list, FPs measured on all five repos; tests, eval delta {model: opus}
+- [ ] M5A.3h R8 (4): URL alternatives held in a variable (ternary through a `const`, a `let` with every assignment before the call readable) give one edge per alternative (ADR-0041); fixture + golden, eval delta {model: opus}
+- [ ] M5A.3i R9 (3): `http` sites anchored at the call expression's start (EVALUATION.md §1), not the method name (`axios⏎ .get(`); goldens, eval delta {model: opus}
+- [ ] M5A.3j R10 (1 FN + 1 FP + 1 abstention): only a parameter reaching the URL's leading part makes a function a wrapper; one filling a later hole or the query stays a hole at the inner site; fixture + golden, eval delta {model: opus}
 - [ ] M5A.4 Eval re-run on the original and held-out repos, ADR for any change in approach, README/EVALUATION numbers updated; if targets aren't met, list what's left and why (runtime-only URLs stay unresolved) {model: opus}
 - [ ] M5A.5 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff (generalization: no repo-specific cases), CLI smoke test on a real repo outside the eval, M5A-review.md, tag m5a {model: opus}
 
@@ -253,6 +262,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-01 M5A.1:** `eval/results/2026-11-recall-diagnosis.md` traces all 110 FNs to 10 root causes (labels blocked: env fallback path dropped 87, object-literal client methods 44, config-object wrapper 39, `axios.defaults.baseURL` 39, folder-loaded routers 39, sibling apps without workspaces 15, env name 7, URL alternatives in a variable 4, site at method name vs call start 3, over-eager wrappers 1 + 1 FP). Most labels need several fixes. 80% recall (111/138) is out of reach without foodie, which needs R1 + R3 + R4 + R5; R5 (glob-mounted routers) may have to stay unresolved. M5A.3 split into a–j. No code change, no eval delta.
 
 - **M5.18f** (2026-11-01): SECURITY.md T9 rewritten with the order of checks on a new analysis and a residual-risk line (a many-address bot passing Turnstile can pause new analyses for the month in ≈ 9.3 h; a denial of service, not a bill). New "T9 in numbers" table: every abuse, compute, and quota limit with its value and source, plus what they bound (≈ 18.6 h of instance time before the pause, ≈ 216 full-length jobs). `apps/web/lib/abuseLimits.test.ts` checks 16 rows against the code and `infra/gcp` (sign-in's 30/h and the billing guardrails aren't in code yet); a changed constant and a changed doc row each failed it.
 
