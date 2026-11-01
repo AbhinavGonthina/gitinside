@@ -1,0 +1,3 @@
+# express-class-app
+
+Tests: an Express app and router held in class properties declared without a value and assigned once in the constructor (M5A.3e1). `src/app.ts` declares `public app: express.Application;` and `private admin!: Router;`, sets both in `App`'s constructor (`this.app = express()`, `this.admin = Router()`), and registers everything in methods the constructor calls: `routes/users.ts`'s router at `/api`, `this.admin` at `/admin`, and `GET /health`. So the app serves `GET /api/users/:id`, `POST /admin/cache/flush`, and `GET /health`. `src/client.ts` calls the first two root-relative from the same service, both `exact`.

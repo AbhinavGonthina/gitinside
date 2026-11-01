@@ -113,6 +113,7 @@ const EXPECTED: Record<string, string[]> = {
   "env-base-heuristic": ["a216e46368f855ac", "73491fd94efdfefc", "7f66af5403b0ff2f"],
   "env-fallback": ["dea6e2b7dd86b09d", "1788d3bf662ac404", "ad970af5ea6cc0ed"],
   "express-basic": ["150630b64739a03b", "a2501be7e8df0957", "1690776ab8c727e7"],
+  "express-class-app": ["cea90d7538203382", "877fd0d58e60eca2", "f6d61bbeb918eeb3"],
   "express-folder-routers": ["3f764023bc835261", "244a58f3ded7699e", "6f99dc59a79109a7"],
   "express-nested-routers": ["4e1615e0d7a29102", "8d20ee57d890d141", "11cd55aa40b3f637"],
   "external-sdk": ["2482ec3f82eeabad", "3acd20df34c01c3d", "d7e32a1c0ac3281c"],

@@ -384,6 +384,83 @@ describe("express routes", () => {
     expect(expressWarnings(graph)).toEqual([]);
   });
 
+  it("follows an app or router assigned once in the constructor to a property without a value", async () => {
+    await put("src/server.ts", [
+      'import express, { Router } from "express";',
+      "function health() {}",
+      "export class Server {",
+      "  public app: express.Application;",
+      "  private api!: Router;",
+      "  #admin: Router;",
+      "  constructor() {",
+      "    this.app = express();",
+      "    this.api = Router();",
+      "    this.#admin = Router();",
+      "    this.routes();",
+      "  }",
+      "  private routes() {",
+      '    this.api.get("/users", () => 1);',
+      '    this.#admin.post("/flush", () => 1);',
+      '    this.app.use("/api", this.api);',
+      '    this.app.use("/admin", this.#admin);',
+      '    this.app.get("/health", health);',
+      "  }",
+      "}",
+    ]);
+    const graph = await analyze(dir);
+    expect(routes(graph)).toEqual([
+      "app/GET /api/users",
+      "app/GET /health",
+      "app/POST /admin/flush",
+    ]);
+    expect(handles(graph)).toEqual(["app/GET /health -> app/src/server.ts#health (exact)"]);
+    expect(expressWarnings(graph)).toEqual([]);
+  });
+
+  it("leaves a property unknown when it is assigned twice, outside the constructor, or elsewhere", async () => {
+    await put("src/servers.ts", [
+      'import express from "express";',
+      "export class Twice {",
+      "  app: express.Express;",
+      "  constructor() {",
+      "    this.app = express();",
+      '    this.app.get("/twice", () => 1);',
+      "  }",
+      "  reset() { this.app = express(); }",
+      "}",
+      "export class Later {",
+      "  app: express.Express;",
+      "  init() {",
+      "    this.app = express();",
+      '    this.app.get("/later", () => 1);',
+      "  }",
+      "}",
+      "export class Nested {",
+      "  app: express.Express;",
+      "  constructor(on: boolean) {",
+      "    if (on) this.app = express();",
+      '    this.app.get("/nested", () => 1);',
+      "  }",
+      "}",
+      "export class Outside {",
+      "  app: express.Express;",
+      "  constructor() {",
+      "    this.app = express();",
+      '    this.app.get("/outside", () => 1);',
+      "  }",
+      "}",
+    ]);
+    await put("src/main.ts", [
+      'import express from "express";',
+      'import { Outside } from "./servers";',
+      "const server = new Outside();",
+      "server.app = express();",
+      'express().get("/kept", () => 1);',
+    ]);
+    const graph = await analyze(dir);
+    expect(routes(graph)).toEqual(["app/GET /kept"]);
+  });
+
   it("records dynamic paths and prefixes as DYNAMIC_ROUTE unresolved nodes", async () => {
     await put("src/a.ts", [
       'import express, { Router } from "express";',
