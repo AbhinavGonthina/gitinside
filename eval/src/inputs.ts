@@ -11,12 +11,15 @@ import {
   parseLabelFile,
   parseReposFile,
   type EvalRepo,
+  type HeldOutBatch,
   type LabelFile,
 } from "./format.js";
 
 /** The validated eval inputs, label files keyed by file name. */
 export interface EvalInputs {
   repos: EvalRepo[];
+  /** The held-out batches `repos` names (ADR-0168), sorted by number. */
+  heldOutBatches: HeldOutBatch[];
   labels: Map<string, LabelFile>;
 }
 
@@ -50,7 +53,10 @@ export function crossCheck(inputs: EvalInputs): string[] {
  * {@link crossCheck}.
  */
 export function loadEvalInputs(root: string): EvalInputs {
-  const { repos } = parseReposFile("repos.json", readFileSync(join(root, "repos.json"), "utf8"));
+  const { repos, heldOutBatches } = parseReposFile(
+    "repos.json",
+    readFileSync(join(root, "repos.json"), "utf8"),
+  );
   const labels = new Map<string, LabelFile>();
   const dir = join(root, "labels");
   const files = readdirSync(dir)
@@ -59,5 +65,5 @@ export function loadEvalInputs(root: string): EvalInputs {
   for (const file of files) {
     labels.set(file, parseLabelFile(`labels/${file}`, readFileSync(join(dir, file), "utf8")));
   }
-  return { repos, labels };
+  return { repos, heldOutBatches, labels };
 }

@@ -175,7 +175,7 @@ async function main(): Promise<void> {
     reportPath = join(RESULTS, reportFileName(run));
   }
 
-  const runs: { heldOut: boolean; labels: LabelFile; graph: ArchitectureGraph }[] = [];
+  const runs: { heldOut: number | undefined; labels: LabelFile; graph: ArchitectureGraph }[] = [];
   for (const { repo, labels } of labelled) {
     process.stderr.write(`${repo.owner}/${repo.name}: checking out ${repo.sha}\n`);
     const dir = checkout(repo);
@@ -183,20 +183,22 @@ async function main(): Promise<void> {
     process.stderr.write(
       `${repo.owner}/${repo.name}: ${graph.nodes.length} nodes, ${graph.edges.length} edges\n`,
     );
-    runs.push({ heldOut: repo.heldOut === true, labels, graph });
+    runs.push({ heldOut: repo.heldOut, labels, graph });
   }
-  // Held-out repos (#13) are scored on their own, so they never move the original set's totals.
-  const set = (heldOut: boolean): ReportSet => {
-    const picked = labelled.filter((l) => (l.repo.heldOut === true) === heldOut);
+  // Each held-out batch (#13, ADR-0168) is scored on its own, so it never moves the original
+  // set's totals or another batch's.
+  const set = (heldOut: number | undefined): ReportSet => {
+    const picked = labelled.filter((l) => l.repo.heldOut === heldOut);
     return {
       repos: picked.map((l) => l.repo),
       labels: picked.map((l) => l.labels),
       score: scoreAll(runs.filter((r) => r.heldOut === heldOut)),
     };
   };
-  const original = set(false);
+  const original = set(undefined);
   const score = original.score;
-  const text = renderReport({ run, ...original, heldOut: set(true) });
+  const heldOut = inputs.heldOutBatches.map((b) => ({ ...set(b.batch), ...b }));
+  const text = renderReport({ run, ...original, heldOut });
   const shown = relative(ROOT, reportPath).replaceAll("\\", "/");
 
   if (committed !== undefined) {

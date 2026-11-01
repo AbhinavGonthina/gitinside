@@ -35,7 +35,7 @@
       "license": "MIT",
       "shape": "env-api-urls",
       "why": "Held out (M5A.2b). Vite React frontend (frontend/) and an ESM Express + Prisma backend (backend/) side by side, no root package.json. Every request is an inline axios call (or one streaming fetch) on `${process.env.SERVER_URL}/...`, where process.env.SERVER_URL is substituted by vite.config.js `define` from REACT_APP_SERVER_URL, with no in-code fallback; template ternaries pick between two routes, and a router is mounted at a parameterized path (/editorial/:problemStatementId, mergeParams). The backend calls GitHub's OAuth and user APIs. ~80 JS source files.",
-      "heldOut": true
+      "heldOut": 1
     },
     {
       "owner": "pankil-soni",
@@ -54,7 +54,7 @@
       "license": "MIT",
       "shape": "axios-baseurl",
       "why": "Held out (M5A.2c). Create React App frontend (frontend/) and a CommonJS Express + Mongoose backend (backend/) side by side, no root package.json. Every request goes through one axios.create({ withCredentials, baseURL: process.env.REACT_APP_BASE_URL }) instance imported by per-feature features/*/…Api.jsx modules (axiosi.get(`/cart/user/${id}`)), with no in-code fallback; the auth module's paths have no leading slash (\"auth/login\"). Routers are mounted at /auth, /users, /products, … and chain router.post(...).get(...) calls. ~123 JS source files.",
-      "heldOut": true
+      "heldOut": 1
     },
     {
       "owner": "shadcn-ui",
@@ -73,7 +73,13 @@
       "license": "MIT",
       "shape": "spa-plus-express",
       "why": "Held out (M5A.2c). One package: a webpack React client (client/) server-rendered by an Express + Mongoose server (server/), Babel ES modules. Per-feature client/*/api-*.js modules call fetch with root-relative, concatenated paths ('/api/users/' + params.userId) on the same origin; the server mounts three routers at '/', each declaring full paths in router.route(path).get(…).put(…) chains, plus a catch-all app.get('*') for server-side rendering. Default branch second-edition. ~43 JS source files.",
-      "heldOut": true
+      "heldOut": 1
+    }
+  ],
+  "heldOutBatches": [
+    {
+      "batch": 1,
+      "seen": "Picked and labeled in M5A.2b–c before the analyzer first ran on them, and never used to choose a fix, but their false positives and negatives were read during M5A.3g–3i, so they no longer show whether fixes generalize (ADR-0168)."
     }
   ]
 }

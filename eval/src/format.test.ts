@@ -308,16 +308,60 @@ describe("parseReposFile", () => {
     ).toContain("repos.0.url: url must be https://github.com/<owner>/<name>");
   });
 
-  it("marks held-out repos with `heldOut: true` and nothing else (M5A.2a)", () => {
-    const parsed = parseReposFile("r", JSON.stringify({ repos: [{ ...repo, heldOut: true }] }));
-    expect(parsed.repos[0]!.heldOut).toBe(true);
-    expect(parseReposFile("r", JSON.stringify({ repos: [repo] })).repos[0]!.heldOut).toBe(
-      undefined,
-    );
-    // The original set is the default, so `false` would be a second spelling of it.
-    expect(
-      issues(() => parseReposFile("r", JSON.stringify({ repos: [{ ...repo, heldOut: false }] }))),
-    ).toContain("repos.0.heldOut:");
+  describe("held-out batches (M5A.4a1)", () => {
+    const seen = { batch: 1, seen: "Its misses were read while fixing the analyzer." };
+    const unseen = { batch: 2, seen: null };
+    const parse = (file: unknown): ReturnType<typeof parseReposFile> =>
+      parseReposFile("r", JSON.stringify(file));
+
+    it("marks a held-out repo with its batch number, declared seen (with why) or unseen", () => {
+      const other = { ...repo, owner: "beta", url: "https://github.com/beta/shop" };
+      const parsed = parse({
+        repos: [
+          { ...repo, heldOut: 1 },
+          { ...other, heldOut: 2 },
+        ],
+        heldOutBatches: [seen, unseen],
+      });
+      expect(parsed.repos.map((r) => r.heldOut)).toEqual([1, 2]);
+      expect(parsed.heldOutBatches).toEqual([seen, unseen]);
+      // The original set is the default: no field, and no batches needed.
+      expect(parse({ repos: [repo] }).repos[0]!.heldOut).toBe(undefined);
+      expect(parse({ repos: [repo] }).heldOutBatches).toEqual([]);
+    });
+
+    it("rejects `true`, `false`, and batch numbers below 1", () => {
+      for (const heldOut of [true, false, 0, 1.5]) {
+        expect(
+          issues(() => parse({ repos: [{ ...repo, heldOut }], heldOutBatches: [seen] })),
+        ).toContain("repos.0.heldOut:");
+      }
+    });
+
+    it("requires every held-out repo's batch declared, and no batch without repos", () => {
+      expect(
+        issues(() => parse({ repos: [{ ...repo, heldOut: 2 }], heldOutBatches: [seen] })),
+      ).toContain("repos.0.heldOut: batch 2 is not in heldOutBatches");
+      expect(issues(() => parse({ repos: [repo], heldOutBatches: [seen] }))).toContain(
+        "heldOutBatches.0: batch 1 has no repo",
+      );
+    });
+
+    it("requires batches sorted and unique, and a non-empty reason when seen", () => {
+      const both = { repos: [{ ...repo, heldOut: 1 }] };
+      expect(issues(() => parse({ ...both, heldOutBatches: [seen, seen] }))).toContain(
+        "heldOutBatches.1: duplicate batch",
+      );
+      expect(
+        issues(() => parse({ ...both, heldOutBatches: [{ ...unseen }, { ...seen }] })),
+      ).toContain("heldOutBatches.1: batch out of order");
+      expect(issues(() => parse({ ...both, heldOutBatches: [{ batch: 1, seen: "" }] }))).toContain(
+        "heldOutBatches.0.seen:",
+      );
+      expect(issues(() => parse({ ...both, heldOutBatches: [{ batch: 1 }] }))).toContain(
+        "heldOutBatches.0.seen:",
+      );
+    });
   });
 
   it("requires repos sorted case-insensitively by owner/name and unique", () => {

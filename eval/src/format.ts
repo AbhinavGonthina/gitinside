@@ -238,10 +238,11 @@ export const evalRepoSchema = z
     /** Why this repo is in the set: what it exercises. */
     why: z.string().min(1),
     /**
-     * `true` for a held-out repo (#13): picked and labeled after the analyzer's recall work
-     * began, scored apart from the original set, and never tuned against. Absent otherwise.
+     * The held-out batch (#13, ADR-0168) for a repo picked and labeled after the analyzer's
+     * recall work began, scored apart from the original set and from other batches. Absent for
+     * the original set.
      */
-    heldOut: z.literal(true).optional(),
+    heldOut: positiveInt.optional(),
   })
   .strict()
   .refine((r) => r.url === `https://github.com/${r.owner}/${r.name}`, {
@@ -251,13 +252,56 @@ export const evalRepoSchema = z
 
 export type EvalRepo = z.infer<typeof evalRepoSchema>;
 
-/** `eval/repos.json`: the pinned repos, sorted by `owner/name`. */
+/**
+ * A batch of held-out repos (ADR-0168). It is "seen" once its misses have been read while the
+ * analyzer was being fixed: still scored apart, but no longer evidence that fixes generalize.
+ */
+export const heldOutBatchSchema = z
+  .object({
+    batch: positiveInt,
+    /** Why the batch counts as seen, or `null` while nobody has studied its results. */
+    seen: z.string().min(1).nullable(),
+  })
+  .strict();
+
+export type HeldOutBatch = z.infer<typeof heldOutBatchSchema>;
+
+/**
+ * `eval/repos.json`: the pinned repos, sorted by `owner/name`, and the held-out batches they
+ * name, sorted by number. Every held-out repo's batch is declared, and every batch has a repo.
+ */
 export const reposFileSchema = z
-  .object({ repos: z.array(evalRepoSchema) })
+  .object({
+    repos: z.array(evalRepoSchema),
+    heldOutBatches: z.array(heldOutBatchSchema).default([]),
+  })
   .strict()
   .superRefine((file, ctx) => {
     const key = (r: EvalRepo): string => `${r.owner}/${r.name}`.toLowerCase();
     checkSorted(file.repos, (a, b) => compareStrings(key(a), key(b)), ["repos"], "repo", ctx);
+    const batches = file.heldOutBatches.map((b) => b.batch);
+    checkSorted(batches, (a, b) => a - b, ["heldOutBatches"], "batch", ctx);
+    const used = new Set<number>();
+    file.repos.forEach((repo, i) => {
+      if (repo.heldOut === undefined) return;
+      used.add(repo.heldOut);
+      if (!batches.includes(repo.heldOut)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["repos", i, "heldOut"],
+          message: `batch ${repo.heldOut} is not in heldOutBatches`,
+        });
+      }
+    });
+    batches.forEach((batch, i) => {
+      if (!used.has(batch)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["heldOutBatches", i],
+          message: `batch ${batch} has no repo`,
+        });
+      }
+    });
   });
 
 export type ReposFile = z.infer<typeof reposFileSchema>;

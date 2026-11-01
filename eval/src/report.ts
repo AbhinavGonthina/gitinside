@@ -39,15 +39,22 @@ export interface ReportSet {
   score: EvalScore;
 }
 
-/** Everything a report is rendered from: the original set, plus the held-out set if any. */
+/** One held-out batch (#13, ADR-0168), scored as a set of its own. */
+export interface HeldOutSet extends ReportSet {
+  batch: number;
+  /** Why the batch counts as seen (`repos.json`), or `null` while it is unseen. */
+  seen: string | null;
+}
+
+/** Everything a report is rendered from: the original set, plus the held-out batches. */
 export interface ReportInput extends ReportSet {
   run: ReportRun;
   /**
-   * Repos pinned with `heldOut: true` (#13), scored apart: their counts never enter the
-   * headline or the original set's totals. Omitted (or empty) when there are none, and the
-   * report is then the same bytes as before the held-out set existed.
+   * Held-out batches in number order, each scored apart: their counts never enter the headline,
+   * the original set's totals, or another batch's. Omitted (or all empty) when there are none,
+   * and the report is then the same bytes as before held-out repos existed.
    */
-  heldOut?: ReportSet;
+  heldOut?: readonly HeldOutSet[];
 }
 
 /** Marks a run whose tree had changes to the eval's inputs; such a report can't be checked. */
@@ -186,9 +193,9 @@ function labelAuthor(labels: readonly LabelFile[]): string {
 export function renderReport(input: ReportInput): string {
   const { run, repos, score } = input;
   const scored = pairUp(input);
-  const heldOut = input.heldOut && input.heldOut.repos.length > 0 ? input.heldOut : undefined;
+  const heldOut = (input.heldOut ?? []).filter((b) => b.repos.length > 0);
   // Who labeled and whether review is pending cover every label file the report scores.
-  const labels = [...input.labels, ...(heldOut?.labels ?? [])];
+  const labels = [...input.labels, ...heldOut.flatMap((b) => b.labels)];
 
   const reviewers = [...new Set(labels.map((l) => l.reviewedBy))];
   const pending = reviewers.includes(null);
@@ -237,7 +244,7 @@ export function renderReport(input: ReportInput): string {
     "## Misses, by repo",
     "",
     ...scored.flatMap(({ score: s }) => repoDetails(s, "###")),
-    ...(heldOut ? heldOutSection(heldOut) : []),
+    ...heldOut.flatMap(heldOutSection),
     "## Method",
     "",
     "Full rules: [docs/EVALUATION.md §1](../../docs/EVALUATION.md) and ADR-0040 to ADR-0042 in [docs/DECISIONS.md](../../docs/DECISIONS.md).",
@@ -250,11 +257,7 @@ export function renderReport(input: ReportInput): string {
     "## Limitations",
     "",
     `- **Small set:** ${count(repos.length)} small and mid-size ${repos.length === 1 ? "app" : "apps"} (about 100–300 source files), mostly hobby or reference projects. The numbers say nothing about large production monorepos.`,
-    ...(heldOut
-      ? [
-          `- **Held-out set:** ${count(heldOut.repos.length)} more ${heldOut.repos.length === 1 ? "app" : "apps"}, picked and labeled after the recall work began, so they test whether fixes made for the original set generalize. They are just as small, and their labels are not in the owner's review sample.`,
-        ]
-      : []),
+    ...(heldOut.length > 0 ? [heldOutLimitation(heldOut)] : []),
     whoLabeled,
     "- **What isn't counted:** requests made inside third-party libraries (SDK clients, NextAuth, MCP transports), sockets, `<a href>`/`window.location` navigations, and inline HTML scripts are not labeled, so they can't count against recall.",
     "- **Precision covers routes only:** abstentions are reported apart, so a tool that abstained everywhere would show `n/a` precision, not 100%.",
@@ -326,23 +329,45 @@ function levelsTable(total: Counts): string[] {
   ];
 }
 
-/** The held-out repos (#13) in a section of their own, with their own totals. */
-function heldOutSection(set: ReportSet): string[] {
+/** `n app(s)` in words. */
+function apps(n: number): string {
+  return `${count(n)} ${n === 1 ? "app" : "apps"}`;
+}
+
+/** The limitations bullet for the held-out batches: how many, how big, which are seen. */
+function heldOutLimitation(batches: readonly HeldOutSet[]): string {
+  const each = batches
+    .map(
+      (b) => `batch ${b.batch} (${apps(b.repos.length)}, ${b.seen === null ? "unseen" : "seen"})`,
+    )
+    .join(", ");
+  return `- **Held-out batches:** ${each}, picked and labeled after the recall work began to test whether fixes made for the original set generalize. Only an unseen batch still tests that. They are just as small, and their labels are not in the owner's review sample.`;
+}
+
+/** One held-out batch (#13, ADR-0168) in a section of its own, with its own totals. */
+function heldOutSection(set: HeldOutSet): string[] {
   const scored = pairUp(set);
   const o = set.score.overall;
+  const n = set.batch;
+  const status =
+    set.seen === null
+      ? "**Unseen:** nobody has studied these repos' results while fixing the analyzer, so this batch is the one that tests whether fixes generalize."
+      : `**Seen:** ${set.seen} Still scored apart, but no longer evidence that fixes generalize.`;
   return [
-    "## Held-out repos",
+    `## Held-out batch ${n} (${set.seen === null ? "unseen" : "seen"})`,
     "",
-    "Picked and labeled from their code after the recall work began, never by looking at analyzer output, and never used to choose analyzer fixes. They are scored apart: none of these counts is in the results above.",
+    "Picked and labeled from their code after the recall work began, never by looking at analyzer output, with the labels committed before the analyzer first ran on them. Scored apart: none of these counts is in the results above or in another batch.",
+    "",
+    status,
     "",
     ...reposTable(scored),
-    `Precision ${rates(o)[0]}, recall ${rates(o)[1]} over ${o.labels} labels in ${set.repos.length} held-out ${set.repos.length === 1 ? "repo" : "repos"}.`,
+    `Precision ${rates(o)[0]}, recall ${rates(o)[1]} over ${o.labels} labels in ${set.repos.length} ${set.repos.length === 1 ? "repo" : "repos"} of batch ${n}.`,
     "",
-    ...countsTable(scored, o, "**All held-out repos**"),
-    "### Held-out, by confidence level",
+    ...countsTable(scored, o, `**All of batch ${n}**`),
+    `### Batch ${n}, by confidence level`,
     "",
     ...levelsTable(o),
-    "### Held-out misses, by repo",
+    `### Batch ${n} misses, by repo`,
     "",
     ...scored.flatMap(({ score: s }) => repoDetails(s, "####")),
   ];
