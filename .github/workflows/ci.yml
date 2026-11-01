@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # On main, a manual run redeploys (e.g. after a deploy that failed half way).
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -118,3 +120,59 @@ jobs:
           path: |
             apps/web/dist/e2e-report/
             apps/web/dist/e2e-results/
+
+  # The worker and the billing kill switch onto Cloud Run, keyless (ADR-0111, ADR-0170):
+  # GitHub's OIDC token for this job becomes gitinside-deploy through Workload Identity
+  # Federation (infra/gcp/github.json admits only this file on main, from a push or a manual
+  # run). Only once every other job is green, only when the image's inputs changed, and idle
+  # until the repo variables from planning #3 exist. Everything deployed comes from
+  # infra/gcp; infra/gcp/deploy.mjs does the work.
+  deploy:
+    needs: [check, worker-image, visual, web-e2e]
+    if: >-
+      github.repository == 'AbhinavGonthina/gitinside' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      vars.GCP_PROJECT_NUMBER != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # One deploy at a time; a newer push waits rather than cancelling one half way.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+      SNAPSHOTS_NAMESPACE: ${{ vars.SNAPSHOTS_NAMESPACE }}
+      SNAPSHOTS_REGION: ${{ vars.SNAPSHOTS_REGION }}
+      SNAPSHOTS_BUCKET: ${{ vars.SNAPSHOTS_BUCKET }}
+      SNAPSHOTS_ACCESS_KEY_ID: ${{ vars.SNAPSHOTS_ACCESS_KEY_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pushed range, to tell whether the image's inputs changed.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: changed
+        run: node infra/gcp/deploy.mjs changed "$BEFORE" "$GITHUB_SHA"
+        env:
+          # Empty on a manual run, which always deploys.
+          BEFORE: ${{ github.event_name == 'push' && github.event.before || '' }}
+      - id: plan
+        if: steps.changed.outputs.deploy == 'true'
+        run: node infra/gcp/deploy.mjs plan
+      # Pinned by commit: this step holds the job's Google credentials.
+      - if: steps.changed.outputs.deploy == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ steps.plan.outputs.provider }}
+          service_account: ${{ steps.plan.outputs.account }}
+      - if: steps.changed.outputs.deploy == 'true'
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      - if: steps.changed.outputs.deploy == 'true'
+        run: node infra/gcp/deploy.mjs apply "$GITHUB_SHA"

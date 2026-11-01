@@ -167,10 +167,13 @@ describe("infra/gcp service.json (Cloud Run)", () => {
     expect(service.metadata.annotations).not.toHaveProperty(
       "run.googleapis.com/invoker-iam-disabled",
     );
+    // Besides the invokers, only the deploy account holds a role on the services, and it
+    // can't change who may invoke them (gcpDeploy.test.ts).
     const invokers = iam.bindings.filter(
       (binding) =>
         binding.role === "roles/run.invoker" ||
-        binding.resource === `run/service/${service.metadata.name}`,
+        (binding.resource === `run/service/${service.metadata.name}` &&
+          binding.member !== `serviceAccount:${email("gitinside-deploy")}`),
     );
     expect(invokers).toEqual([
       {
@@ -315,9 +318,14 @@ describe("infra/gcp iam.json", () => {
   });
 
   it("lets only Vercel's production deployments become the enqueue account", () => {
-    const users = iam.bindings.filter((b) => b.role === "roles/iam.workloadIdentityUser");
+    const users = iam.bindings.filter(
+      (b) => b.role === "roles/iam.workloadIdentityUser" && /\/vercel\//.test(b.member),
+    );
     expect(users).toHaveLength(1);
     expect(users[0]?.resource).toBe("serviceAccount/gitinside-enqueue");
+    expect(
+      iam.bindings.filter((b) => b.resource === "serviceAccount/gitinside-enqueue"),
+    ).toHaveLength(1);
     expect(users[0]?.member).toMatch(
       /^principalSet:\/\/iam\.googleapis\.com\/projects\/\{\{PROJECT_NUMBER\}\}\/locations\/global\/workloadIdentityPools\/vercel\/attribute\.environment\/production$/,
     );
@@ -331,7 +339,7 @@ describe("infra/gcp iam.json", () => {
     expect(
       accounts.filter((member) => !declared.has(member) && !iam.googleAgents.includes(member)),
     ).toEqual([]);
-    expect(declared.size).toBe(4);
+    expect(declared.size).toBe(5);
     // The budget's publisher, on the topic only.
     expect(
       iam.bindings.filter((b) => iam.googleAgents.includes(b.member)).map((b) => b.resource),

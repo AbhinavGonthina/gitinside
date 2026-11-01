@@ -1,0 +1,18 @@
+{
+  "repository": "gitinside",
+  "format": "DOCKER",
+  "image": "worker",
+  "maxImageMB": 150,
+  "cleanupPolicies": [
+    {
+      "name": "keep-recent",
+      "action": { "type": "Keep" },
+      "mostRecentVersions": { "packageNamePrefixes": ["worker"], "keepCount": 3 }
+    },
+    {
+      "name": "delete-older",
+      "action": { "type": "Delete" },
+      "condition": { "tagState": "any", "olderThan": "1h" }
+    }
+  ]
+}
