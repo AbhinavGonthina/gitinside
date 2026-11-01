@@ -160,11 +160,14 @@ describe("upsertRepo", () => {
         const [row] = await tx.insert(repos).values(FACTS).returning({ id: repos.id });
         second = upsertRepo(t.db, { ...FACTS, providerRepoId: 3_000_000_002 });
         for (let waited = 0; ; waited += 20) {
-          const result = await tx.execute(
+          const result: unknown = await tx.execute(
             sql`select count(*)::int as n from pg_stat_activity
                 where datname = current_database() and wait_event_type = 'Lock'`,
           );
-          const rows = (Array.isArray(result) ? result : result.rows) as { n: number }[];
+          // postgres.js answers a bare array, PGlite `{ rows }` (as `rowsOf` in maintenance.ts).
+          const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as {
+            n: number;
+          }[];
           if (rows[0]!.n > 0) break;
           if (waited > 10_000) throw new Error("The second upsert never waited on the first.");
           await new Promise((resolve) => setTimeout(resolve, 20));
