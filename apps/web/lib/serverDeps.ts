@@ -8,6 +8,7 @@ import {
   type StoreConfig,
 } from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
+import { createTurnstile, type BotCheck } from "./botCheck";
 import { createCodeSizeCache } from "./codeSize";
 import type { GraphRouteDeps } from "./graphRoute";
 import { cdnGraphReader, type ImageRouteDeps } from "./imageRoute";
@@ -27,6 +28,8 @@ import { createLocalTaskQueue, isLoopbackOrigin, type LocalTaskQueue } from "./l
  *   every request; nothing is logged with a value. Watching a job needs only `DATABASE_URL`.
  *   In local development, `LOCAL_TASKS=push` with no `GCP_*` variable pushes jobs straight to
  *   a worker on this machine instead ({@link localQueue}, ADR-0149).
+ * - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`: the bot check on Analyze
+ *   ({@link botCheck}, ADR-0157); both or neither.
  * - `GITHUB_TOKEN`: optional, raises GitHub's limit from 60 to 5,000 requests an hour.
  * - `SNAPSHOTS_*` (ADR-0055, ADR-0068, ADR-0095): `/api/graph` reads snapshots with them, alongside
  *   `DATABASE_URL`; the repo page needs only the database (and the worker to re-analyze).
@@ -199,7 +202,8 @@ export function analyzeDepsFromEnv(
   const queue = taskQueue(env, oidcToken);
   const db = queue && database(env);
   const { ENQUEUE_HMAC_SECRET: secret } = env;
-  if (!queue || !db || !secret) return undefined;
+  const check = botCheck(env);
+  if (!queue || !db || !secret || check === null) return undefined;
   return {
     db,
     queue,
@@ -208,7 +212,21 @@ export function analyzeDepsFromEnv(
     rateLimitSecret: secret,
     hourlyLimit: SIGNED_OUT_HOURLY_LIMIT,
     codeSizes,
+    ...(check && { botCheck: check }),
   };
+}
+
+/**
+ * The Turnstile bot check (ADR-0157) from `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and
+ * `TURNSTILE_SECRET_KEY`: with both, the check; with neither, `undefined` (nobody is asked,
+ * e.g. local development); with only one, `null`, and analysis is unavailable rather than
+ * running without the check it was meant to have.
+ */
+function botCheck(env: Env): BotCheck | undefined | null {
+  const { NEXT_PUBLIC_TURNSTILE_SITE_KEY: siteKey, TURNSTILE_SECRET_KEY: secret } = env;
+  if (!siteKey && !secret) return undefined;
+  if (!siteKey || !secret) return null;
+  return createTurnstile({ siteKey, secret });
 }
 
 /** `/api/graph`'s deps (ADR-0068): the database and the `SNAPSHOTS_*` bucket, else `undefined`. */

@@ -7,6 +7,7 @@ import {
   releaseRepoAnalysis,
   upsertRepo,
 } from "@gitinside/db";
+import { passBotCheck, type BotCheck, type BotRefusal } from "./botCheck";
 import { rateLimitKey } from "./clientIp";
 import { enqueueAnalysis, type EnqueueDeps } from "./enqueue";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
@@ -34,15 +35,20 @@ import { findSizeHold, type SizeHold } from "./sizeHold";
  * 6. **Paused:** while the month's Google compute is at 80% of the free allowance, no new
  *    analysis starts (`503 ANALYSIS_PAUSED`, until the next UTC month: `findComputePause`,
  *    ADR-0156). Finished diagrams and jobs already in flight are unaffected.
- * 7. **Per repo:** one new analysis per repo every {@link REPO_ANALYSIS_MINUTES} minutes,
+ * 7. **Bot check:** when the caller's address or the whole site is asking for more new
+ *    analyses this hour than people usually do, the request needs a Turnstile token that
+ *    Cloudflare accepts (`passBotCheck`, ADR-0157): `403 CHALLENGE_REQUIRED` with the
+ *    widget's site key, `403 CHALLENGE_FAILED`, or `503 CHALLENGE_UNAVAILABLE`. No slot or
+ *    claim is used.
+ * 8. **Per repo:** one new analysis per repo every {@link REPO_ANALYSIS_MINUTES} minutes,
  *    whoever asks (`claimRepoAnalysis`, #11, ADR-0155): another commit is refused with
  *    `429 REPO_RATE_LIMITED` and when to try again. The claiming commit itself still goes
  *    through (a duplicate, or a retry of its failed run).
- * 8. **Rate limit** anything else: a new analysis counts against the caller's hourly
+ * 9. **Rate limit** anything else: a new analysis counts against the caller's hourly
  *    window (5 signed out). The slot is given back unless this request queued the commit
  *    (the queue was down, or someone else's request queued it first). The repo's claim is
  *    given back when the caller is over its limit or the queue was down.
- * 9. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
+ * 10. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
  *    named from it; a row whose task can't be created is failed, and the answer is `503`.
  */
 
@@ -53,6 +59,10 @@ export interface AnalyzeDeps extends EnqueueDeps {
   rateLimitSecret: string;
   /** New analyses per hour for a signed-out address. */
   hourlyLimit: number;
+  /** The Turnstile check (`passBotCheck`, ADR-0157); without it, nobody is asked. */
+  botCheck?: BotCheck;
+  /** The bot check's hour at a fixed moment (tests); default the database clock. */
+  botCheckClock?: () => Date;
   /** GitHub's code counts by commit (`findTooMuchCode`); without it, asked every time. */
   codeSizes?: CodeSizeCache;
   /** Clock for "try again in N minutes" (tests fix it). Default `Date.now`. */
@@ -71,6 +81,7 @@ export type AnalyzeErrorCode =
   | "REPO_TOO_BIG"
   | "REPO_RATE_LIMITED"
   | "ANALYSIS_PAUSED"
+  | BotRefusal["body"]["error"]
   | "RATE_LIMITED"
   | "UNAVAILABLE";
 
@@ -90,6 +101,8 @@ export interface AnalyzeError {
    * None when the repo is refused on GitHub's count.
    */
   retryAt?: string;
+  /** With `CHALLENGE_REQUIRED` and `CHALLENGE_FAILED`: the Turnstile widget's public site key. */
+  siteKey?: string;
 }
 
 /** An HTTP answer, independent of Next.js so it can be tested directly. */
@@ -119,11 +132,15 @@ const RESOLVE_ERRORS: Record<ResolveFailure, { status: number; message: string }
   GITHUB_UNAVAILABLE: { status: 503, message: "We couldn't reach GitHub. Try again in a minute." },
 };
 
-/** Start (or find) the analysis of the repo at `url` for a caller at `address`. */
+/**
+ * Start (or find) the analysis of the repo at `url` for a caller at `address`.
+ * `challengeToken` is the Turnstile widget's token, once the visitor was asked for it.
+ */
 export async function requestAnalysis(
   url: string,
   address: string,
   deps: AnalyzeDeps,
+  challengeToken?: string,
 ): Promise<AnalyzeResponse> {
   const parsed = parseRepoUrl(url);
   if (!parsed.ok) return { status: 400, body: { error: "INVALID_URL", message: parsed.error } };
@@ -165,6 +182,11 @@ export async function requestAnalysis(
   let charged: Date | undefined;
   let claimed: { repoId: string; claimedAt: Date } | undefined;
   if (!inFlight) {
+    if (deps.botCheck) {
+      const at = deps.botCheckClock?.();
+      const refusal = await passBotCheck(deps.botCheck, deps.db, key, challengeToken, at);
+      if (refusal) return refusal;
+    }
     const { id: repoId } = await upsertRepo(deps.db, repo);
     const claim = await claimRepoAnalysis(deps.db, repoId, repo.sha, REPO_ANALYSIS_MINUTES * 60);
     if (claim.status === "refused") return repoLimited(claim.retryAt, deps);

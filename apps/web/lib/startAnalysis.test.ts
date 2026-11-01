@@ -51,6 +51,36 @@ describe("startAnalysis", () => {
     expect(await startAnalysis("acme/shop", doFetch)).toEqual({ ok: false, message });
   });
 
+  it("a request for the bot check comes back with the widget's site key (ADR-0157)", async () => {
+    const message = "GitInside is busier than usual, so we're checking that you're a person.";
+    const { doFetch } = answering(
+      Response.json({ error: "CHALLENGE_REQUIRED", message, siteKey: "0x4AAA" }, { status: 403 }),
+    );
+    expect(await startAnalysis("acme/shop", doFetch)).toEqual({
+      ok: false,
+      message,
+      challenge: { siteKey: "0x4AAA" },
+    });
+    // A failed check only says so: pressing Analyze again asks for a fresh one.
+    const failed = answering(
+      Response.json({ error: "CHALLENGE_FAILED", message, siteKey: "0x4AAA" }, { status: 403 }),
+    );
+    expect(await startAnalysis("acme/shop", failed.doFetch)).toEqual({ ok: false, message });
+    // Without a site key there's no widget to show.
+    const keyless = answering(
+      Response.json({ error: "CHALLENGE_REQUIRED", message }, { status: 403 }),
+    );
+    expect(await startAnalysis("acme/shop", keyless.doFetch)).toEqual({ ok: false, message });
+  });
+
+  it("sends the widget's token with the URL once the visitor was asked", async () => {
+    const { doFetch, seen } = answering(
+      Response.json({ status: "done", owner: "acme", repo: "shop", sha: SHA }),
+    );
+    await startAnalysis("acme/shop", doFetch, "tok.en");
+    expect(await seen[0]?.json()).toEqual({ url: "acme/shop", turnstileToken: "tok.en" });
+  });
+
   it("no connection, non-JSON, and odd answers have fixed words", async () => {
     expect(await startAnalysis("a/b", answering(new TypeError("offline")).doFetch)).toEqual({
       ok: false,

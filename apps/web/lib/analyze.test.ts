@@ -22,6 +22,15 @@ import {
   UNAVAILABLE_MESSAGE,
   type AnalyzeDeps,
 } from "./analyze";
+import {
+  CHALLENGE_AFTER_PER_ADDRESS,
+  CHALLENGE_AFTER_SITE,
+  CHALLENGE_FAILED_MESSAGE,
+  CHALLENGE_UNAVAILABLE_MESSAGE,
+  challengeMessage,
+  SITE_ANALYZE_KEY,
+  type Verdict,
+} from "./botCheck";
 import { rateLimitKey } from "./clientIp";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
@@ -684,5 +693,109 @@ describe("requestAnalysis", () => {
     });
     expect(tasks.google.requests).toEqual([]);
     expect(await slotsUsed()).toBe(0);
+  });
+});
+
+describe("requestAnalysis, the bot check (M5.18e, ADR-0157)", () => {
+  // The bot check reads and counts this hour; the address's own slots are on the database
+  // clock, so the address's count is set up in the fixed hour directly.
+  const AT = new Date("2026-10-31T14:30:00.000Z");
+  const HOUR_START = new Date("2026-10-31T14:00:00.000Z");
+  let tokens: string[];
+  let verdict: Verdict;
+
+  beforeEach(() => {
+    tokens = [];
+    verdict = "passed";
+    deps.botCheckClock = () => AT;
+    deps.botCheck = {
+      siteKey: "0x4AAA",
+      verify: async (token) => {
+        tokens.push(token);
+        return verdict;
+      },
+    };
+  });
+
+  async function busyAddress() {
+    await t.db.insert(rateLimits).values({
+      key: rateLimitKey(SECRET, IP),
+      windowStart: HOUR_START,
+      count: CHALLENGE_AFTER_PER_ADDRESS,
+    });
+  }
+
+  it("asks a busy address for the check before using a slot, a claim, a row, or a task", async () => {
+    await busyAddress();
+    expect(await requestAnalysis("acme/shop", IP, deps)).toEqual({
+      status: 403,
+      body: {
+        error: "CHALLENGE_REQUIRED",
+        message: challengeMessage("address"),
+        siteKey: "0x4AAA",
+      },
+    });
+    expect(await analysisRows()).toEqual([]);
+    expect(tasks.google.requests).toEqual([]);
+    // Only the address's count set up above: no new slot, and no site-wide count.
+    const counts = await t.db.select().from(rateLimits);
+    expect(counts.map((r) => [r.key, r.count])).toEqual([
+      [rateLimitKey(SECRET, IP), CHALLENGE_AFTER_PER_ADDRESS],
+    ]);
+    expect(await claimOf(SHOP.id)).toBeUndefined();
+  });
+
+  it("queues the analysis once the token passes", async () => {
+    await busyAddress();
+    expect(await requestAnalysis("acme/shop", IP, deps, "tok.en")).toMatchObject({
+      status: 202,
+      body: { status: "queued", jobId: JOB_ID },
+    });
+    expect(tokens).toEqual(["tok.en"]);
+    expect(await claimOf(SHOP.id)).toBeDefined();
+  });
+
+  it("refuses a token that doesn't pass, using nothing", async () => {
+    await busyAddress();
+    verdict = "failed";
+    expect(await requestAnalysis("acme/shop", IP, deps, "t")).toMatchObject({
+      status: 403,
+      body: { error: "CHALLENGE_FAILED", message: CHALLENGE_FAILED_MESSAGE },
+    });
+    verdict = "unavailable";
+    expect(await requestAnalysis("acme/shop", IP, deps, "t")).toMatchObject({
+      status: 503,
+      body: { error: "CHALLENGE_UNAVAILABLE", message: CHALLENGE_UNAVAILABLE_MESSAGE },
+    });
+    expect(await analysisRows()).toEqual([]);
+    expect(await claimOf(SHOP.id)).toBeUndefined();
+  });
+
+  it("turns on for everyone after a burst across many addresses", async () => {
+    await t.db.insert(rateLimits).values({
+      key: SITE_ANALYZE_KEY,
+      windowStart: HOUR_START,
+      count: CHALLENGE_AFTER_SITE - 1,
+    });
+    gh = fakeGitHub([SHOP, { id: 8, owner: "acme", name: "other", sha: "1".repeat(40) }]);
+    deps.github = { fetch: gh.fetch };
+    expect((await requestAnalysis("acme/shop", "198.51.100.1", deps)).status).toBe(202);
+    expect(await requestAnalysis("acme/other", "198.51.100.2", deps)).toMatchObject({
+      status: 403,
+      body: { error: "CHALLENGE_REQUIRED", message: challengeMessage("site") },
+    });
+  });
+
+  it("never asks for a finished diagram or a commit already in flight", async () => {
+    await busyAddress();
+    await doneAnalysis(); // running
+    expect((await requestAnalysis("acme/shop", IP, deps)).status).toBe(202);
+    expect(tokens).toEqual([]);
+  });
+
+  it("asks nobody without a configured widget", async () => {
+    await busyAddress();
+    delete deps.botCheck;
+    expect((await requestAnalysis("acme/shop", IP, deps)).status).toBe(202);
   });
 });

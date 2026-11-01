@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { buildCsp, createNonce, GITHUB_RAW_ORIGIN, SECURITY_HEADERS } from "./csp";
+import {
+  buildCsp,
+  createNonce,
+  GITHUB_RAW_ORIGIN,
+  SECURITY_HEADERS,
+  TURNSTILE_ORIGIN,
+} from "./csp";
 
 /** The policy as directive name → sources. */
 function directives(csp: string): Map<string, string[]> {
@@ -29,10 +35,11 @@ describe("buildCsp", () => {
     expect(prod.get("style-src-attr")).toEqual(["'unsafe-inline'"]);
   });
 
-  it("loads nothing from another origin, except code previews' fetches from GitHub", () => {
+  it("loads nothing from another origin, except code previews' fetches from GitHub and the bot check's frame", () => {
     for (const [name, sources] of prod) {
       for (const source of sources) {
         if (name === "connect-src" && source === GITHUB_RAW_ORIGIN) continue;
+        if (name === "frame-src" && source === TURNSTILE_ORIGIN) continue;
         expect(source, `${name} ${source}`).not.toMatch(/^(https?:|\*|\/\/)|\.\w/);
       }
     }
@@ -40,6 +47,8 @@ describe("buildCsp", () => {
     expect(prod.get("font-src")).toEqual(["'self'"]);
     // Only fetches (no scripts, styles, frames, or images), and only GitHub's raw file host (ADR-0115).
     expect(prod.get("connect-src")).toEqual(["'self'", "https://raw.githubusercontent.com"]);
+    // Frames: only Cloudflare Turnstile's widget, not even our own pages (ADR-0157).
+    expect(prod.get("frame-src")).toEqual(["https://challenges.cloudflare.com"]);
   });
 
   it("forbids plugins, base rewriting, foreign form posts, and framing", () => {

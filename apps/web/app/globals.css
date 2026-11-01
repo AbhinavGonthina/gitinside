@@ -178,6 +178,12 @@ code {
   background: var(--diff-removed);
 }
 
+/* Turnstile's widget (ADR-0157): empty unless Cloudflare wants a click, so it
+   takes no room until then. */
+.repo-form__check:not(:empty) {
+  margin: var(--space-12) 0 0;
+}
+
 .landing__promises {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
