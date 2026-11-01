@@ -305,8 +305,53 @@ describe("createRouteMatcher", () => {
     );
     expect(m("GET {env:BASE_URL}/api/session")).toBe("heuristic route:web/GET /api/session");
     expect(m("GET {env:ANALYTICS_HOST}/api/session")).toBe(
-      "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base (*_API_URL, *_API_PATH, …)",
     );
+  });
+
+  it("knows the documented list of API-base env names (ADR-0165)", () => {
+    const accepted = [
+      "API",
+      "REACT_APP_API",
+      "API_URL",
+      "NEXT_PUBLIC_API_URL",
+      "VITE_API_URI",
+      "VITE_API_PATH",
+      "NEXT_PUBLIC_API_HOST",
+      "API_ORIGIN",
+      "REACT_APP_API_ROOT",
+      "VITE_API_BASE",
+      "API_ENDPOINT",
+      "BASE_URL",
+      "VITE_API_BASE_URL",
+      "SERVER_URL",
+      "VITE_SERVER_URL",
+      "BACKEND_URL",
+      "NEXT_PUBLIC_BACKEND_URL",
+    ];
+    for (const name of accepted) {
+      expect(`${name}: ${m(`GET {env:${name}}/api/session`)}`).toBe(
+        `${name}: heuristic route:web/GET /api/session`,
+      );
+    }
+    const refused = [
+      "ANALYTICS_HOST",
+      "CMS_URL",
+      "STRIPE_API_KEY",
+      "REACT_APP_FOODIE_API_VERSION",
+      "NEXT_PUBLIC_APP_URL",
+      "RAPIDAPI",
+      "MAPI_URL",
+      "SERVER_PORT",
+      "VITE_SERVER",
+      "BASE_PATH",
+      "api_url",
+    ];
+    for (const name of refused) {
+      expect(`${name}: ${m(`GET {env:${name}}/api/session`)}`).toMatch(
+        new RegExp(`^${name}: NO_MATCHING_ROUTE: the env var ${name} isn't named like an API base`),
+      );
+    }
   });
 
   it("reads any env base with a loopback fallback as this repo, at heuristic", () => {
@@ -338,10 +383,10 @@ describe("createRouteMatcher", () => {
       "heuristic route:api/GET /api/users/me",
     );
     expect(withFallback("ANALYTICS_HOST", "https://stats.example.com", "/api/session")).toBe(
-      "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base (*_API_URL, *_API_PATH, …)",
     );
     expect(withFallback("ANALYTICS_HOST", "/api", "/session")).toBe(
-      "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base (*_API_URL, *_API_PATH, …)",
     );
   });
 
@@ -626,7 +671,7 @@ describe("analyze: http edges", () => {
       .map((n) => n.kind === "unresolved" && `${n.id} | ${n.label} | ${n.reason}: ${n.detail}`);
     expect(unresolved).toEqual([
       "unresolved:web/lib/client.ts:16:10 | GET get(p) | WRAPPER_DEPTH: the URL starts with a parameter of the calling function, a wrapper more than one call deep",
-      "unresolved:web/lib/client.ts:19:10 | GET {env:ANALYTICS}/e | NO_MATCHING_ROUTE: the env var ANALYTICS isn't named like an API base URL (*_API_URL, *_BASE_URL)",
+      "unresolved:web/lib/client.ts:19:10 | GET {env:ANALYTICS}/e | NO_MATCHING_ROUTE: the env var ANALYTICS isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "unresolved:web/lib/client.ts:21:6 | GET /api/top-level | NO_MATCHING_ROUTE: no route matches GET to /api/top-level",
       "unresolved:web/lib/client.ts:3:10 | GET /api/nothing | NO_MATCHING_ROUTE: no route matches GET to /api/nothing",
       "unresolved:web/lib/client.ts:6:10 | GET buildUrl() | DYNAMIC_URL: the URL starts with a value only known at runtime",

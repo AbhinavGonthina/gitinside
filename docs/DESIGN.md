@@ -217,7 +217,7 @@ Evaluate the URL expression into a sequence of **literal** and **hole** segments
 
 **Rules:**
 - **Origin:** strip it if it's a literal (`https://api.example.com/...` ⇒ host recorded, path kept).
-- **Env-prefixed bases:** treated as "same deployment" when the env var name matches a known pattern (`*_API_URL`, `*_BASE_URL`) and the frontend and backend are in the same repo, or when the code's fallback for it is a loopback URL (`?? "http://localhost:9000"`, whatever the name). This yields **heuristic** confidence. A literal fallback's path follows the env base (ADR-0158).
+- **Env-prefixed bases:** treated as "same deployment" when the env var name is on a documented list of API-base names (`API`, `API_URL`, `API_PATH`, `API_HOST`, `BASE_URL`, `SERVER_URL`, `BACKEND_URL`, …, each alone or after a `PREFIX_`; the full list is `API_BASE_ENV_ENDINGS` in `match.ts`, ADR-0165) and the frontend and backend are in the same repo, or when the code's fallback for it is a loopback URL (`?? "http://localhost:9000"`, whatever the name). This yields **heuristic** confidence. A literal fallback's path follows the env base (ADR-0158).
 - **Query strings and fragments:** dropped.
 - **Trailing slashes:** normalized away.
 

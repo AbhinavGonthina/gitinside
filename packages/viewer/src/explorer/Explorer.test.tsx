@@ -388,7 +388,7 @@ describe("Explorer", { timeout: 30_000 }, () => {
 
   it("explains unresolved calls and other kinds in words from the graph", async () => {
     await setup({ initialSelected: "unresolved:web/lib/cms.ts:3:21" });
-    expect(screen.getByText(/The env var CMS_URL isn't named like an API base URL/)).toBeTruthy();
+    expect(screen.getByText(/The env var CMS_URL isn't named like an API base \(/)).toBeTruthy();
     expect(screen.getByText("fetch(`${process.env.CMS_URL}/posts`)")).toBeTruthy();
     cleanup();
     await setup({ initialSelected: "model:api/Order" });
@@ -1449,7 +1449,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     // The step says why the analyzer couldn't follow the request, in its own words.
     expect(
       screen.getByText(
-        /^Unresolved \(No route in the repo matches\)\. The env var CMS_URL isn't named like an API base URL/,
+        /^Unresolved \(No route in the repo matches\)\. The env var CMS_URL isn't named like an API base \(/,
       ),
     ).toBeTruthy();
   });
