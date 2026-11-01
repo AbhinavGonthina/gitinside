@@ -1,0 +1,239 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "symbol:frontend/src/posts.ts#createPost",
+      "id": "http:symbol:frontend/src/posts.ts#createPost->route:backend/POST /api/posts",
+      "kind": "http",
+      "label": "POST /api/posts",
+      "sites": [
+        {
+          "column": 14,
+          "file": "frontend/src/posts.ts",
+          "line": 8
+        }
+      ],
+      "to": "route:backend/POST /api/posts"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:frontend/src/posts.ts#loadPost",
+      "id": "http:symbol:frontend/src/posts.ts#loadPost->route:backend/GET /api/posts/:id",
+      "kind": "http",
+      "label": "GET /api/posts/:id",
+      "sites": [
+        {
+          "column": 14,
+          "file": "frontend/src/posts.ts",
+          "line": 4
+        }
+      ],
+      "to": "route:backend/GET /api/posts/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:frontend/src/posts.ts",
+      "id": "imports:file:frontend/src/posts.ts->file:frontend/src/lib/api.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 17,
+          "file": "frontend/src/posts.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:frontend/src/lib/api.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "415584d8941ff700fd0066db88446a2ac8b6598451466d644a00939abe5ef4ae",
+      "id": "file:app/scripts/check.mjs",
+      "kind": "file",
+      "label": "check.mjs",
+      "parentId": "module:app/scripts",
+      "path": "scripts/check.mjs"
+    },
+    {
+      "hash": "de6e8c17cb36855024c106a62968457141af5bfea5962262fcc3a2a7abcb03fe",
+      "id": "file:backend/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:backend/src",
+      "path": "backend/src/server.ts"
+    },
+    {
+      "hash": "8cb585178b9ff538e790a66ce54f781cc09143262583a598291186029ff46d10",
+      "id": "file:frontend/src/lib/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "parentId": "module:frontend/src/lib",
+      "path": "frontend/src/lib/api.ts"
+    },
+    {
+      "hash": "9cf2396a16361e84d2ad2a6c9b6acf102097da9ed8e5f618c6e829f3237f7d6a",
+      "id": "file:frontend/src/posts.ts",
+      "kind": "file",
+      "label": "posts.ts",
+      "parentId": "module:frontend/src",
+      "path": "frontend/src/posts.ts"
+    },
+    {
+      "id": "module:app/scripts",
+      "kind": "module",
+      "label": "scripts",
+      "parentId": "service:app/",
+      "path": "scripts"
+    },
+    {
+      "id": "module:backend/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:backend/",
+      "path": "backend/src"
+    },
+    {
+      "id": "module:frontend/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:frontend/",
+      "path": "frontend/src"
+    },
+    {
+      "id": "module:frontend/src/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "module:frontend/src",
+      "path": "frontend/src/lib"
+    },
+    {
+      "id": "route:backend/GET /api/posts/:id",
+      "kind": "route",
+      "label": "GET /api/posts/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:backend/src/server.ts",
+      "path": "/api/posts/:id",
+      "source": {
+        "column": 7,
+        "file": "backend/src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:backend/POST /api/posts",
+      "kind": "route",
+      "label": "POST /api/posts",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:backend/src/server.ts",
+      "path": "/api/posts",
+      "source": {
+        "column": 7,
+        "file": "backend/src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "service:app/",
+      "kind": "service",
+      "label": "app",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "framework": "express",
+      "id": "service:backend/",
+      "kind": "service",
+      "label": "backend",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "backend"
+    },
+    {
+      "framework": "react",
+      "id": "service:frontend/",
+      "kind": "service",
+      "label": "frontend",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": "frontend"
+    },
+    {
+      "exported": true,
+      "id": "symbol:app/scripts/check.mjs#check",
+      "kind": "symbol",
+      "label": "check",
+      "parentId": "file:app/scripts/check.mjs",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "scripts/check.mjs",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:frontend/src/lib/api.ts#api",
+      "kind": "symbol",
+      "label": "api",
+      "parentId": "file:frontend/src/lib/api.ts",
+      "source": {
+        "column": 7,
+        "endLine": 4,
+        "file": "frontend/src/lib/api.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:frontend/src/posts.ts#createPost",
+      "kind": "symbol",
+      "label": "createPost",
+      "parentId": "file:frontend/src/posts.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "frontend/src/posts.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:frontend/src/posts.ts#loadPost",
+      "kind": "symbol",
+      "label": "loadPost",
+      "parentId": "file:frontend/src/posts.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "frontend/src/posts.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "sibling-apps",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "sibling-apps",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

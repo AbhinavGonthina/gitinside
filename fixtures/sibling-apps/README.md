@@ -1,0 +1,3 @@
+# sibling-apps
+
+Tests: a repo with no workspace config whose `frontend/` and `backend/` each have their own `package.json` and tsconfig (ADR-0163). Each folder is a service; the root stays one too because `scripts/check.mjs` lies outside both (its only warning is the root's `TSCONFIG_MISSING`). The frontend imports its axios instance through `@/*`, a `paths` alias only `frontend/tsconfig.json` defines, so `api.get(`` `/posts/${id}` ``)` ⇒ `GET /api/posts/:id` and `api.post("/posts")` ⇒ `POST /api/posts` link to the backend's routes, at `heuristic`: a root-relative URL reaching another service assumes a proxy.

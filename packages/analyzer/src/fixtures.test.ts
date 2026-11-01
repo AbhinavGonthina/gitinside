@@ -39,6 +39,7 @@ const NAMES = [
   "axios-defaults",
   "express-folder-routers",
   "express-class-app",
+  "sibling-apps",
   "ambiguous-routes",
   "wrapper-fetch",
   "external-sdk",
@@ -264,6 +265,27 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     expect(links(g, "http")).toEqual([
       `${client}#flushCache -> ${routes}/POST /admin/cache/flush exact`,
       `${client}#loadUser -> ${routes}/GET /api/users/:id exact`,
+    ]);
+  });
+
+  it("sibling-apps: folders with their own package.json are services, each with its paths (M5A.3f)", async () => {
+    const g = await run("sibling-apps");
+    expect(ids(g, "service").sort()).toEqual([
+      "service:app/",
+      "service:backend/",
+      "service:frontend/",
+    ]);
+    expect(ids(g, "file").sort()).toEqual([
+      "file:app/scripts/check.mjs",
+      "file:backend/src/server.ts",
+      "file:frontend/src/lib/api.ts",
+      "file:frontend/src/posts.ts",
+    ]);
+    const client = "symbol:frontend/src/posts.ts";
+    expect(links(g, "http")).toEqual([
+      // Root-relative into another service: `heuristic` (a proxy is assumed, match.ts).
+      `${client}#createPost -> route:backend/POST /api/posts heuristic`,
+      `${client}#loadPost -> route:backend/GET /api/posts/:id heuristic`,
     ]);
   });
 

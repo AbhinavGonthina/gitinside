@@ -9,6 +9,7 @@ import {
   type GraphNode,
   type Layer,
 } from "@gitinside/schema";
+import { SOURCE_EXTENSIONS } from "./inventory.js";
 
 /** A workspace package (or the single root package) that becomes a `service` node. */
 export interface WorkspacePackage {
@@ -306,12 +307,16 @@ export function findCycles(graph: ReadonlyMap<string, readonly string[]>): strin
  * - Hostile globs: patterns over 1,024 characters or 256 brace alternatives are skipped
  *   with `WORKSPACE_PATTERN_TOO_COMPLEX`; matching itself is linear (see {@link compileGlob}).
  * - Turborepo: `turbo.json` is recorded as a tool; packages come from the package manager.
- * - No workspaces, or patterns that match nothing: one root service (single-package fallback).
+ * - No workspace config at all (no patterns, no Nx): every top-level folder with its own
+ *   `package.json` is a service (`frontend/` + `backend/`), and the root is one too when it
+ *   holds source files outside them (ADR-0163). Without such folders, one root service.
+ * - Patterns that match nothing: one root service (single-package fallback).
  * - Warnings for invalid JSON/YAML, invalid `workspaces`, patterns matching nothing,
  *   duplicate package names, and circular runtime dependencies between packages.
  *
  * Not handled: the root package is never a service in a workspace repo, even if it has
- * source files; Nx `workspace.json`; Rush and Bazel; globs beyond {@link globToRegExp}.
+ * source files; without workspace config, deeper folders with a `package.json`
+ * (`apps/web/`) stay part of the service that contains them; Nx `workspace.json`; Rush and Bazel; globs beyond {@link globToRegExp}.
  */
 export async function detectWorkspace(root: string, files: readonly string[]): Promise<Workspace> {
   const present = new Set(files);
@@ -456,10 +461,31 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
     });
   }
 
-  if (raw.length === 0) {
+  // No workspace config at all: top-level folders with their own package.json are the
+  // services (`frontend/` + `backend/` side by side), each with its own tsconfig.
+  if (patterns.length === 0 && !nx) {
+    for (const dir of manifestDirs.filter((d) => !d.includes("/")).sort(compareStrings)) {
+      const manifest = await readJson(`${dir}/package.json`);
+      const packageName = manifestName(manifest);
+      raw.push({
+        dir,
+        name: packageName ?? dir,
+        packageName,
+        preferred: dir,
+        manifest: manifest ?? {},
+      });
+    }
+  }
+
+  // The root is a service when nothing else is, or beside sibling folders when it has
+  // source files of its own (a server at the root with a `client/` package).
+  const ownsSource = (path: string): boolean =>
+    SOURCE_EXTENSIONS.some((ext) => path.endsWith(ext)) &&
+    !raw.some((r) => path.startsWith(`${r.dir}/`));
+  if (raw.length === 0 || (patterns.length === 0 && !nx && files.some(ownsSource))) {
     const packageName = manifestName(rootManifest);
     const name = packageName ?? FALLBACK_KEY;
-    raw.push({
+    raw.unshift({
       dir: "",
       name,
       packageName,
