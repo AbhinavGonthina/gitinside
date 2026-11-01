@@ -38,6 +38,9 @@ How they were chosen:
 - **Scored apart:** `pnpm eval` totals them separately, and the report gives them their own "Held-out repos" section (repos, counts, by confidence, misses). Their counts never enter the headline precision and recall, the original set's totals, or the M5A targets.
 - **Never tuned against:** their misses are reported, never used to choose or shape an analyzer fix. A pattern they show only counts once the original set (or a new fixture written from the pattern's general form) shows it too.
 - Their labels are not in the first owner review's sample (seed `2026-10-28`, drawn before they existed).
+- **Seen sets** (ADR-0168): once a held-out repo's misses have been read while the analyzer was being fixed, it is "seen": still scored apart, but no longer evidence that fixes generalize. The first batch (the three below) is seen since M5A.3g–3i. A generalization claim needs a fresh batch, labeled and committed before the analyzer first runs on it, quoted as first measured.
+
+**M5A outcome** (2026-11-01, ADR-0168; `pnpm eval --check` reproduces [the report](../eval/results/2026-11-01-0.1.0.md)): original five precision 100.0% (138/138), recall 100.0% (138/138), from 96.6% / 20.3% at M3; held-out (seen) 100.0% (78/78) both, from 75.4% / 55.1% before any fix. 133 of the original 138 matches and 60 of the held-out 78 are `heuristic`.
 
 The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MIT-licensed React + Express apps, read but never analyzed):
 
