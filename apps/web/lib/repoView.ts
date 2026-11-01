@@ -1,6 +1,7 @@
 import {
   consumeRateLimit,
   findAnalysis,
+  findComputePause,
   findPublishedAnalysis,
   hideRepo,
   refundRateLimit,
@@ -32,7 +33,8 @@ import { findSizeHold } from "./sizeHold";
  *    "Analyze again" retries one that could pass); the repo held after a `LIMIT_*` failure
  *    (`findSizeHold`, #11) ⇒ `behind`, `too-big`; over twice the supported size of TypeScript
  *    and JavaScript by GitHub's count (`findTooMuchCode`, ADR-0154) ⇒ `behind`,
- *    `too-much-code`; none, or a row whose task was never
+ *    `too-much-code`; new analyses paused for the month's compute (`findComputePause`,
+ *    ADR-0156) ⇒ `behind`, `paused`; none, or a row whose task was never
  *    created (`QUEUE_UNAVAILABLE`) ⇒ enqueued on Cloud Tasks (`enqueueAnalysis`).
  * 5. **Who pays:** re-analysis on view is charged to the repo, not the visitor
  *    (`repo:<GitHub ID>`, {@link RECHECKS_PER_HOUR} per hour), since a README image or a
@@ -114,6 +116,11 @@ export type HeadState =
    * the repo, over twice the supported size, so it isn't analyzed (ADR-0154).
    */
   | { state: "behind"; sha: string; reason: "too-much-code"; codeBytes: number }
+  /**
+   * Newer than what's shown, but new analyses are paused until `until` (ISO 8601, the next
+   * UTC month): the month's compute reached 80% of Google's free allowance (ADR-0156).
+   */
+  | { state: "behind"; sha: string; reason: "paused"; until: string }
   /** GitHub couldn't be asked. */
   | { state: "unknown" };
 
@@ -249,6 +256,15 @@ export async function viewRepo(
         sha: head.sha,
         reason: "too-much-code",
         codeBytes,
+      });
+    }
+    const pause = await findComputePause(db);
+    if (pause !== undefined) {
+      return ready(published, {
+        state: "behind",
+        sha: head.sha,
+        reason: "paused",
+        until: pause.until.toISOString(),
       });
     }
   }

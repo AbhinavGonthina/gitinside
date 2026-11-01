@@ -2,6 +2,7 @@
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { computeUsage, countComputeUsage } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { QUOTA_ALARM_EXIT, runQuota, type QuotaIo } from "./quota.js";
@@ -33,6 +34,7 @@ describe("runQuota", () => {
     await t?.close();
   });
   beforeEach(async () => {
+    await t.db.delete(computeUsage);
     s3 = await startFakeS3();
     s3.objects.set("public/a", { body: Buffer.alloc(40), headers: {}, lastModified: new Date(0) });
     lines = [];
@@ -72,9 +74,22 @@ describe("runQuota", () => {
         { resource: "bucket", used: 40, limit: 20_000_000_000, alarm: false },
         { resource: "database", limit: 1_000_000_000, alarm: false },
         { resource: "requests", unit: "requests", limit: 50_000, alarm: false },
+        { resource: "cloud_run_vcpu", unit: "vcpu_seconds", used: 0, limit: 180_000, alarm: false },
+        { resource: "cloud_run_memory", unit: "gb_seconds", used: 0, limit: 360_000, alarm: false },
+        { resource: "cloud_run_requests", unit: "requests", limit: 2_000_000, alarm: false },
+        { resource: "cloud_tasks", unit: "operations", limit: 1_000_000, alarm: false },
       ],
     });
     expect(closes).toBe(1);
+  });
+
+  it("exits 2 when the month's compute reaches 80% of Google's free allowance (analyses paused)", async () => {
+    // 80% of the 360,000 GB-seconds at 4 GiB: about 18.6 hours of instance time.
+    await countComputeUsage(t.db, { instanceMs: 67_056_000 });
+    expect(await runQuota(io())).toBe(QUOTA_ALARM_EXIT);
+    expect(parse(lines).slice(1)).toMatchObject([
+      { event: "quota_alarm", resource: "cloud_run_memory", percent: 80, alarm: true },
+    ]);
   });
 
   it("exits 2 with a quota_alarm line when a resource is at 80% or more", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import shopDemo from "../../../fixtures/shop-demo/expected.json";
-import { sizeHoldMessage } from "./jobs";
+import { pausedMessage, sizeHoldMessage } from "./jobs";
 import { NBSP } from "./limits";
 import {
   headStatus,
@@ -94,6 +94,17 @@ describe("headStatus", () => {
       tone: "behind",
       text: `The latest commit, b1c2d3e, wasn't analyzed, so this is an earlier one. GitHub counts over 211${NBSP}MB of TypeScript and JavaScript in this repo. GitInside analyzes repos up to 20,000 source files and 50${NBSP}MB of source code.`,
     });
+  });
+
+  it("says new analyses are paused for the month, and until when, without a retry (M5.18d)", () => {
+    const until = "2026-12-01T00:00:00.000Z";
+    expect(status({ state: "behind", sha: NEWER, reason: "paused", until })).toEqual({
+      tone: "behind",
+      text: `The latest commit, b1c2d3e, wasn't analyzed, so this is an earlier one. ${pausedMessage(new Date(until))}`,
+    });
+    expect(pausedMessage(new Date(until))).toMatch(
+      /^Analysis is paused until Dec 1, 2026, 12:00\sAM UTC: GitInside has used most of this month's free compute\. Diagrams already made still work\.$/,
+    );
   });
 
   it("doesn't claim the diagram is current when GitHub couldn't be asked", () => {

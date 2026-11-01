@@ -89,7 +89,7 @@ gcloud tasks queues create analyses --location us-east4 \
 | Task | How |
 |---|---|
 | Logs (JSON lines) | Cloud Run → `gitinside-worker` → Logs, or `gcloud run services logs read gitinside-worker --region us-east4` |
-| Quota check (Object Storage bytes and requests, Neon, vs. the free limits; exit 2 at 80%) | From a checkout with the production values in `apps/worker/.env`: `pnpm --filter @gitinside/worker quota` |
+| Quota check (Object Storage bytes and requests, Neon, and the month's Cloud Run vCPU- and GB-seconds, requests, and Cloud Tasks operations as GitInside counts them, vs. the free limits; exit 2 at 80%, when new analyses are paused, ADR-0156) | From a checkout with the production values in `apps/worker/.env`: `pnpm --filter @gitinside/worker quota` |
 | Quota alarms from maintenance | Logs, filter `jsonPayload.event="quota_alarm"` |
 | Rotate the HMAC secret | Add the old value as a temporary secret `enqueue-hmac-secret-previous` mounted as `ENQUEUE_HMAC_SECRET_PREVIOUS`, add a new version of `enqueue-hmac-secret`, deploy, update Vercel; once a day has passed (the longest a signed task can wait), remove the variable, deploy, and delete the temporary secret |
 

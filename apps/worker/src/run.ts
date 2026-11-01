@@ -37,6 +37,9 @@ import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
  * - **After the job,** before the answer, `afterJob` gets what's left of the budget: the
  *   entry point runs the hourly maintenance there (ADR-0147), since Cloud Run gives an
  *   instance CPU only while a request is open. A push arriving meanwhile is still `429`.
+ * - **Counted:** every answer but {@link HEALTH_PATH}'s first adds the request's time to the
+ *   month's compute count (`meter`, compute.ts, ADR-0156), so new analyses can pause before
+ *   the free allowance runs out.
  */
 
 /** The path Cloud Tasks pushes to (apps/web's `RUN_PATH`). */
@@ -77,6 +80,12 @@ export interface RunHandlerOptions {
    * still has CPU. Not called for a cancelled job; a rejection is logged.
    */
   afterJob?: (end: { timeLeftMs: number; signal: AbortSignal }) => Promise<unknown>;
+  /**
+   * Called with the request's time so far (ms) just before every answer except
+   * {@link HEALTH_PATH}'s, while the instance still has CPU: the compute count (compute.ts,
+   * ADR-0156). A rejection is logged; the answer is sent anyway.
+   */
+  meter?: (ms: number) => Promise<unknown>;
   /** Default {@link JOB_BUDGET_MS}. */
   budgetMs?: number;
   /** Wall clock for the signature's age (tests fix it). Default `Date.now`. */
@@ -136,15 +145,31 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
       send(res, 200, { status: "ok" });
       return;
     }
+    /** Count the request's compute, then answer. */
+    const reply = async (
+      status: number,
+      answer: Record<string, unknown>,
+      headers: Record<string, string> = {},
+    ): Promise<void> => {
+      if (options.meter !== undefined) {
+        try {
+          await options.meter(clock() - arrived);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          log({ event: "meter_failed", message });
+        }
+      }
+      send(res, status, answer, headers);
+    };
     const declared = Number(req.headers["content-length"] ?? 0);
     if (declared > maxBodyBytes) {
       req.resume();
-      send(res, 413, { error: "BODY_TOO_LARGE" }, { connection: "close" });
+      await reply(413, { error: "BODY_TOO_LARGE" }, { connection: "close" });
       return;
     }
     const body = await readBody(req, maxBodyBytes);
     if (body === undefined) {
-      send(res, 413, { error: "BODY_TOO_LARGE" }, { connection: "close" });
+      await reply(413, { error: "BODY_TOO_LARGE" }, { connection: "close" });
       return;
     }
     const verdict = verifyRequest(
@@ -155,26 +180,26 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
       { maxAgeSeconds: MAX_TASK_AGE_SECONDS },
     );
     if (!verdict.ok) {
-      send(res, 401, { error: verdict.reason });
+      await reply(401, { error: verdict.reason });
       return;
     }
     if (path !== RUN_PATH) {
-      send(res, 404, { error: "NOT_FOUND" });
+      await reply(404, { error: "NOT_FOUND" });
       return;
     }
     if (method !== "POST") {
-      send(res, 405, { error: "METHOD_NOT_ALLOWED" }, { allow: "POST" });
+      await reply(405, { error: "METHOD_NOT_ALLOWED" }, { allow: "POST" });
       return;
     }
     if (!isJson(req)) {
-      send(res, 415, { error: "UNSUPPORTED_MEDIA_TYPE" });
+      await reply(415, { error: "UNSUPPORTED_MEDIA_TYPE" });
       return;
     }
     let data: unknown;
     try {
       data = JSON.parse(body.toString("utf8"));
     } catch {
-      send(res, 400, { error: "INVALID_JSON" });
+      await reply(400, { error: "INVALID_JSON" });
       return;
     }
     let id: string;
@@ -182,11 +207,11 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
       id = jobIdFor(parseJobRequest(data), analyzerVersion);
     } catch (error) {
       if (!(error instanceof JobRequestError)) throw error;
-      send(res, 400, { error: "INVALID_REQUEST", message: error.message });
+      await reply(400, { error: "INVALID_REQUEST", message: error.message });
       return;
     }
     if (running) {
-      send(res, 429, { error: "BUSY" });
+      await reply(429, { error: "BUSY" });
       return;
     }
 
@@ -237,7 +262,7 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
       // otherwise waits for the caller to drop its idle keep-alive socket (seconds).
       const headers: Record<string, string> =
         options.signal?.aborted === true ? { connection: "close" } : {};
-      send(res, status, answer, headers);
+      await reply(status, answer, headers);
     } finally {
       running = false;
       res.off("close", onClose);

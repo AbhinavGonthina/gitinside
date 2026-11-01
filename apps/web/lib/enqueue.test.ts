@@ -2,6 +2,8 @@
 import {
   analyses,
   completeAnalysis,
+  computeUsage,
+  computeUsageThisMonth,
   failAnalysis,
   queueAnalysis,
   repos,
@@ -10,7 +12,7 @@ import {
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { jobIdFor } from "@gitinside/worker";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { taskIdFor } from "./cloudTasks";
 import { QUEUE_UNAVAILABLE, enqueueAnalysis, type EnqueueDeps } from "./enqueue";
 import { fakeTaskQueue } from "./google.testkit";
@@ -43,6 +45,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.delete(analyses);
   await t.db.delete(repos);
+  await t.db.delete(computeUsage);
   tasks = fakeTaskQueue(SECRET);
   deps = { db: t.db, queue: tasks.queue, analyzerVersion: VERSION };
 });
@@ -145,6 +148,38 @@ describe("enqueueAnalysis", () => {
     tasks.setDown(true);
     expect(await enqueueAnalysis(REPO, deps)).toEqual({ status: "unavailable" });
     expect(await rows()).toMatchObject([{ status: "queued", errorCode: null }]);
+  });
+
+  it("counts each create call as a Cloud Tasks operation, a duplicate or refused one too (M5.18d)", async () => {
+    await enqueueAnalysis(REPO, deps);
+    await enqueueAnalysis(REPO, deps); // ALREADY_EXISTS: still a call
+    expect((await computeUsageThisMonth(t.db)).taskOperations).toBe(2);
+    tasks.setDown(true);
+    await t.db.delete(analyses);
+    expect(await enqueueAnalysis(REPO, deps)).toEqual({ status: "unavailable" });
+    expect((await computeUsageThisMonth(t.db)).taskOperations).toBe(3);
+  });
+
+  it("queues as usual when the count fails, logging the error's name only", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    onTestFinished(() => errors.mockRestore());
+    // Every other write goes through; only the count's insert fails.
+    const db = new Proxy(t.db, {
+      get(target, property, receiver) {
+        if (property !== "insert") return Reflect.get(target, property, receiver) as unknown;
+        return (table: unknown) => {
+          if (table === computeUsage) throw new Error("postgres://user:secret@host/db is down");
+          return target.insert(table as typeof analyses);
+        };
+      },
+    });
+    expect(await enqueueAnalysis(REPO, { ...deps, db })).toMatchObject({
+      status: "queued",
+      entered: true,
+    });
+    expect(errors.mock.calls).toEqual([
+      [JSON.stringify({ event: "compute_count_failed", error: "Error" })],
+    ]);
   });
 
   it("fails the row it queued on an unexpected error too, then rethrows", async () => {

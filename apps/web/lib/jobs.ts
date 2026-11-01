@@ -168,6 +168,14 @@ export function tooMuchCodeReason(codeBytes: number): string {
   return `GitHub counts over ${mb}${NBSP}MB of TypeScript and JavaScript in this repo. ${SUPPORTED}`;
 }
 
+/**
+ * Why no new analysis starts while the month's compute is at 80% of Google's free allowance
+ * (`findComputePause`, ADR-0156), and that what's already there still works.
+ */
+export function pausedMessage(until: Date): string {
+  return `Analysis is paused until ${formatUtc(until)}: GitInside has used most of this month's free compute. Diagrams already made still work.`;
+}
+
 /** {@link tooMuchCodeReason} and what to do, for `/api/analyze`'s refusal. */
 export function tooMuchCodeMessage(codeBytes: number): string {
   return `${tooMuchCodeReason(codeBytes)} ${SMALLER}`;

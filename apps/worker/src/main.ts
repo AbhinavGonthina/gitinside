@@ -7,6 +7,7 @@ import {
   type AnyDatabase,
 } from "@gitinside/db";
 import type { WorkerLog } from "./attempt.js";
+import { createUsageMeter, type UsageMeter } from "./compute.js";
 import { ConfigError, workerConfigFromEnv, type WorkerConfig } from "./config.js";
 import { SAMPLE_LIMIT } from "./estimate.js";
 import type { DownloadOptions } from "./github.js";
@@ -40,6 +41,8 @@ import { createRunServer } from "./run.js";
  *    ADR-0136), the hourly maintenance (stale jobs, retention, rate-limit pruning, quota
  *    check; maintenance.ts) run after a job once its hourly claim in Postgres is won
  *    (ADR-0147), then listen.
+ * 4. Count the instance's startup (and its shutdown, up front) in the month's compute
+ *    (compute.ts, ADR-0156); every push answered is counted too.
  *
  * **Shutdown** ({@link RunningWorker.stop}, on SIGTERM or SIGINT): cancel the running job
  * (`CANCELLED` is retriable, so its push is answered `503` and Cloud Tasks delivers it
@@ -74,6 +77,10 @@ export interface StartOptions {
   jobDeps?: Pick<JobDeps, "run" | "runOptions">;
   /** Maintenance timing (maintenance.ts defaults), or `false` for none. */
   maintenance?: Pick<MaintenanceTriggerOptions, "everySeconds" | "minTimeLeftMs"> | false;
+  /** Default {@link createUsageMeter} on the database (the compute count, ADR-0156). */
+  meter?: (options: { db: AnyDatabase; log: WorkerLog }) => UsageMeter;
+  /** The process's age in ms once listening. Default `performance.now()`. */
+  uptimeMs?: () => number;
 }
 
 /** Run `steps` in order, logging (not throwing) each failure; rejects at the end if any did. */
@@ -126,6 +133,7 @@ export async function startWorkerProcess(
       ...(config.githubToken === undefined ? {} : { token: config.githubToken }),
     };
     const store = createCountedStore(config.store, db, log);
+    const meter = (options.meter ?? createUsageMeter)({ db, log });
     const recorder = createAnalysisRecorder({ db, store, analyzerVersion, github });
     let afterJob:
       | ((end: { timeLeftMs: number; signal: AbortSignal }) => Promise<unknown>)
@@ -157,6 +165,7 @@ export async function startWorkerProcess(
       log,
       estimates: { samples: () => recentAnalysisStats(db, SAMPLE_LIMIT) },
       signal: shutdown.signal,
+      meter: (ms) => meter.push(ms),
       ...(afterJob === undefined ? {} : { afterJob }),
     });
     await new Promise<void>((resolve, reject) => {
@@ -176,6 +185,8 @@ export async function startWorkerProcess(
     cleanup.push(["server", closeServer]);
     server.on("error", (error) => log({ event: "server_error", message: error.message }));
 
+    // Startup is billed too: the process's age now, ms since it started (`timeOrigin`).
+    await meter.startup((options.uptimeMs ?? (() => performance.now()))());
     const address = server.address() as AddressInfo;
     log({ event: "worker_ready", host: address.address, port: address.port });
 

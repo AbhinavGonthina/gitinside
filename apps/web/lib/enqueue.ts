@@ -1,5 +1,6 @@
 import {
   QUEUE_UNAVAILABLE_CODE,
+  countComputeUsage,
   failAnalysis,
   queueAnalysis,
   upsertRepo,
@@ -25,6 +26,8 @@ import { WorkerUnavailableError } from "./worker";
  *    everyone's queue position with nothing to run it. A row another request queued is left
  *    to that request. If a racing request did create the task, the worker's start moves the
  *    failed row to `running` anyway.
+ * 4. **Counted:** each create call is a Cloud Tasks operation in the month's compute
+ *    (ADR-0156); the worker counts the deliveries.
  */
 
 /**
@@ -73,9 +76,30 @@ export async function enqueueAnalysis(
   try {
     await deps.queue.createTask(job, taskIdFor(jobId, row.queuedAt));
   } catch (error) {
+    await countTaskOperation(deps.db);
     if (row.entered) await failAnalysis(deps.db, row.id, QUEUE_UNAVAILABLE);
     if (error instanceof WorkerUnavailableError) return { status: "unavailable" };
     throw error;
   }
+  await countTaskOperation(deps.db);
   return { status: "queued", jobId, entered: row.entered };
+}
+
+/**
+ * Count one Cloud Tasks operation (a create call, answered or not) in the month's compute
+ * (`compute_usage`, ADR-0156). A count that fails is logged by name, never thrown: the task
+ * exists either way.
+ */
+async function countTaskOperation(db: AnyDatabase): Promise<void> {
+  try {
+    await countComputeUsage(db, { taskOperations: 1 });
+  } catch (error) {
+    // By name only: a driver error's message can carry connection details.
+    console.error(
+      JSON.stringify({
+        event: "compute_count_failed",
+        error: error instanceof Error ? error.name : "unknown",
+      }),
+    );
+  }
 }

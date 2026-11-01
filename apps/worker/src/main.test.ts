@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   analyses,
+  computeUsage,
+  computeUsageThisMonth,
   maintenanceRuns,
   queueAnalysis,
   repos,
@@ -215,6 +217,7 @@ describe("startWorkerProcess", () => {
     await t.db.delete(analyses);
     await t.db.delete(repos);
     await t.db.delete(maintenanceRuns);
+    await t.db.delete(computeUsage);
     root = await mkdtemp(join(tmpdir(), "gitinside-main-"));
     lines = [];
     closes = 0;
@@ -329,6 +332,20 @@ describe("startWorkerProcess", () => {
       "worker_stopping",
       "worker_stopped",
     ]);
+  });
+
+  it("counts its startup (with the shutdown's allowance) and each push in the month's compute", async () => {
+    const worker = await start({ uptimeMs: () => 2_345 });
+    expect(await computeUsageThisMonth(t.db)).toMatchObject({
+      instanceMs: 2_400 + 10_000,
+      runRequests: 0,
+      taskOperations: 0,
+    });
+    await pushTask(fakeTask(origin(worker), JOB, SECRET));
+    await fetch(`${origin(worker)}/health`);
+    const usage = await computeUsageThisMonth(t.db);
+    expect(usage).toMatchObject({ runRequests: 1, taskOperations: 1 });
+    expect(usage.instanceMs).toBeGreaterThanOrEqual(12_500);
   });
 
   it("cancels the running job on shutdown: its push gets 503 and its row is queued again", async () => {
@@ -463,6 +480,10 @@ describe("startWorkerProcess", () => {
         { resource: "bucket" },
         { resource: "database" },
         { resource: "requests", bySource: { web: 0 } },
+        { resource: "cloud_run_vcpu" },
+        { resource: "cloud_run_memory" },
+        { resource: "cloud_run_requests" },
+        { resource: "cloud_tasks" },
       ],
     });
     // The worker's store is counted: the job's upload, retention's and the quota's listings.
