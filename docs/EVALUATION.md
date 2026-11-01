@@ -44,8 +44,8 @@ The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MI
 | Candidate | How it calls its API | Source files | Status |
 |---|---|---|---|
 | `MananGandhi1810/online-ide` (`env-api-urls`) | Vite React + Express + Prisma; inline axios calls on `process.env.SERVER_URL`, substituted by Vite's `define` (no in-code fallback), template ternaries choosing between two routes, a router mounted at a parameterized path | ~80 | Pinned at its default-branch HEAD, labeled (24 labels at 22 call sites) |
-| `shamahoque/mern-social` (`spa-plus-express`) | webpack React + Express in one package; per-feature `api-*.js` modules calling `fetch('/api/users/' + params.userId, …)` with root-relative, concatenated paths; routes declared with full paths in `router.route(path).get(…).put(…)` chains | ~43 | Candidate for M5A.2c |
-| `RishiBakshii/mern-ecommerce` (`axios-baseurl`) | CRA React + Express side by side; `features/*/…Api.jsx` modules calling `axiosi.get(\`/cart/user/${id}\`)` on one `axios.create({ baseURL: process.env.REACT_APP_BASE_URL })` instance | ~123 | Candidate for M5A.2c |
+| `shamahoque/mern-social` (`spa-plus-express`) | webpack React + Express in one package; per-feature `api-*.js` modules calling `fetch('/api/users/' + params.userId, …)` with root-relative, concatenated paths; routes declared with full paths in `router.route(path).get(…).put(…)` chains | ~43 | Pinned at its default-branch (`second-edition`) HEAD, labeled (18 labels at 18 call sites) |
+| `RishiBakshii/mern-ecommerce` (`axios-baseurl`) | CRA React + Express side by side; `features/*/…Api.jsx` modules calling `axiosi.get(\`/cart/user/${id}\`)` on one `axios.create({ baseURL: process.env.REACT_APP_BASE_URL })` instance | ~123 | Pinned at its default-branch HEAD, labeled (39 labels at 39 call sites) |
 
 **Ground truth format** (`eval/labels/<owner>__<repo>.json`):
 ```json

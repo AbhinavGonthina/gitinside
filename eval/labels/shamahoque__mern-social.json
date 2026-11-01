@@ -1,0 +1,173 @@
+{
+  "repo": "shamahoque/mern-social",
+  "sha": "4a81f6c87b98fe54a8c92d33a6302f58876ecde1",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "client/auth/api-auth.js", "line": 3 },
+      "method": "POST",
+      "target": { "file": "server/routes/auth.routes.js", "line": 7, "route": "POST /auth/signin" },
+      "notes": "signin(): fetch('/auth/signin/'), root-relative: the client is served by the same Express app (server/express.js renders it server-side). server/express.js mounts userRoutes, authRoutes, and postRoutes at '/', and each router declares full paths in router.route(path).<method>(...) chains (route line = the method call). Express's default non-strict routing matches the trailing slash"
+    },
+    {
+      "callSite": { "file": "client/auth/api-auth.js", "line": 20 },
+      "method": "GET",
+      "target": { "file": "server/routes/auth.routes.js", "line": 9, "route": "GET /auth/signout" },
+      "notes": "signout(): fetch('/auth/signout/', { method: 'GET' })"
+    },
+    {
+      "callSite": { "file": "client/post/api-post.js", "line": 3 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/post.routes.js",
+        "line": 9,
+        "route": "POST /api/posts/new/:userId"
+      },
+      "notes": "create(): '/api/posts/new/' + params.userId"
+    },
+    {
+      "callSite": { "file": "client/post/api-post.js", "line": 19 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/post.routes.js",
+        "line": 15,
+        "route": "GET /api/posts/by/:userId"
+      },
+      "notes": "listByUser(): '/api/posts/by/' + params.userId"
+    },
+    {
+      "callSite": { "file": "client/post/api-post.js", "line": 35 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/post.routes.js",
+        "line": 18,
+        "route": "GET /api/posts/feed/:userId"
+      },
+      "notes": "listNewsFeed(): '/api/posts/feed/' + params.userId"
+    },
+    {
+      "callSite": { "file": "client/post/api-post.js", "line": 52 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/post.routes.js",
+        "line": 31,
+        "route": "DELETE /api/posts/:postId"
+      },
+      "notes": "remove(): '/api/posts/' + params.postId; the only DELETE under /api/posts"
+    },
+    {
+      "callSite": { "file": "client/post/api-post.js", "line": 69 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/post.routes.js",
+        "line": 21,
+        "route": "PUT /api/posts/like"
+      },
+      "notes": "like(): fetch('/api/posts/like/'), trailing slash matched by non-strict routing"
+    },
+    {
+      "callSite": { "file": "client/post/api-post.js", "line": 87 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/post.routes.js",
+        "line": 23,
+        "route": "PUT /api/posts/unlike"
+      },
+      "notes": "unlike(): fetch('/api/posts/unlike/')"
+    },
+    {
+      "callSite": { "file": "client/post/api-post.js", "line": 105 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/post.routes.js",
+        "line": 26,
+        "route": "PUT /api/posts/comment"
+      },
+      "notes": "comment(): fetch('/api/posts/comment/')"
+    },
+    {
+      "callSite": { "file": "client/post/api-post.js", "line": 123 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/post.routes.js",
+        "line": 28,
+        "route": "PUT /api/posts/uncomment"
+      },
+      "notes": "uncomment(): fetch('/api/posts/uncomment/')"
+    },
+    {
+      "callSite": { "file": "client/user/api-user.js", "line": 3 },
+      "method": "POST",
+      "target": { "file": "server/routes/user.routes.js", "line": 9, "route": "POST /api/users" },
+      "notes": "create(): fetch('/api/users/', { method: 'POST' }); router.route('/api/users').get(...).post(...)"
+    },
+    {
+      "callSite": { "file": "client/user/api-user.js", "line": 19 },
+      "method": "GET",
+      "target": { "file": "server/routes/user.routes.js", "line": 8, "route": "GET /api/users" },
+      "notes": "list(): fetch('/api/users/', { method: 'GET' })"
+    },
+    {
+      "callSite": { "file": "client/user/api-user.js", "line": 31 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/user.routes.js",
+        "line": 25,
+        "route": "GET /api/users/:userId"
+      },
+      "notes": "read(): '/api/users/' + params.userId. GET /api/users/defaultphoto is registered earlier and would win only for the literal ID 'defaultphoto'; the value is a user ID"
+    },
+    {
+      "callSite": { "file": "client/user/api-user.js", "line": 47 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/user.routes.js",
+        "line": 26,
+        "route": "PUT /api/users/:userId"
+      },
+      "notes": "update(): '/api/users/' + params.userId with method PUT"
+    },
+    {
+      "callSite": { "file": "client/user/api-user.js", "line": 63 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/user.routes.js",
+        "line": 27,
+        "route": "DELETE /api/users/:userId"
+      },
+      "notes": "remove(): '/api/users/' + params.userId with method DELETE"
+    },
+    {
+      "callSite": { "file": "client/user/api-user.js", "line": 79 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/user.routes.js",
+        "line": 17,
+        "route": "PUT /api/users/follow"
+      },
+      "notes": "follow(): fetch('/api/users/follow/'); registered before PUT /api/users/:userId, so it wins"
+    },
+    {
+      "callSite": { "file": "client/user/api-user.js", "line": 96 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/user.routes.js",
+        "line": 19,
+        "route": "PUT /api/users/unfollow"
+      },
+      "notes": "unfollow(): fetch('/api/users/unfollow/'); registered before PUT /api/users/:userId, so it wins"
+    },
+    {
+      "callSite": { "file": "client/user/api-user.js", "line": 113 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/user.routes.js",
+        "line": 22,
+        "route": "GET /api/users/findpeople/:userId"
+      },
+      "notes": "findPeople(): '/api/users/findpeople/' + params.userId"
+    }
+  ]
+}
