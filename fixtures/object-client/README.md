@@ -1,0 +1,3 @@
+# object-client
+
+Tests: methods of an exported `const` object literal as wrappers (M5A.3b). `@object/web`'s `lib/api-client.ts` exports `apiClient = { async get(endpoint, params) {…}, post: async (…) => …, patch: async function (…) {…}, async delete(endpoint) {…} }`, each calling `fetch` with `${BASE_URL}${endpoint}`; the GET builds `const url = new URL(…)`, sets query parameters, and fetches `url.toString()`. The hooks call `apiClient.get("/accounts")`, `.post`, `.patch`, and `.delete` with their paths, so each call is its own request: `heuristic` edges (the env base's fallback, ADR-0158) from the four hooks to `GET`/`POST /api/v1/accounts` and `PATCH`/`DELETE /api/v1/accounts/:id` in `@object/api`.

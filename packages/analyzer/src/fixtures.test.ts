@@ -34,6 +34,7 @@ const NAMES = [
   "axios-baseurl-instance",
   "env-base-heuristic",
   "env-fallback",
+  "object-client",
   "ambiguous-routes",
   "wrapper-fetch",
   "external-sdk",
@@ -180,6 +181,28 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       "symbol:web/src/client.ts#loadUser -> route:api/GET /api/v1/users/:id heuristic",
       "symbol:web/src/client.ts#login -> route:api/POST /api/v1/auth/login heuristic",
       "symbol:web/src/client.ts#track -> unresolved:web/src/client.ts:22:9 unresolved NO_MATCHING_ROUTE",
+    ]);
+  });
+
+  it("object-client: each call to an exported object's method is its own request (M5A.3b)", async () => {
+    const g = await run("object-client");
+    const hooks = "symbol:web/src/hooks/use-accounts.ts";
+    expect(links(g, "http")).toEqual([
+      `${hooks}#createAccount -> route:api/POST /api/v1/accounts heuristic`,
+      `${hooks}#deleteAccount -> route:api/DELETE /api/v1/accounts/:id heuristic`,
+      `${hooks}#listAccounts -> route:api/GET /api/v1/accounts heuristic`,
+      `${hooks}#renameAccount -> route:api/PATCH /api/v1/accounts/:id heuristic`,
+    ]);
+    expect(
+      ids(g, "symbol")
+        .filter((id) => id.includes("#apiClient"))
+        .sort(),
+    ).toEqual([
+      "symbol:web/src/lib/api-client.ts#apiClient",
+      "symbol:web/src/lib/api-client.ts#apiClient.delete",
+      "symbol:web/src/lib/api-client.ts#apiClient.get",
+      "symbol:web/src/lib/api-client.ts#apiClient.patch",
+      "symbol:web/src/lib/api-client.ts#apiClient.post",
     ]);
   });
 

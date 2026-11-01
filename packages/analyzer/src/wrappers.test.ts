@@ -168,6 +168,46 @@ describe("inlineWrappers", () => {
     ]);
   });
 
+  it("inlines methods of an exported const object literal (M5A.3b)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api-client.ts", [
+      'const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";',
+      "export const apiClient = {",
+      "  async get(endpoint: string, params?: Record<string, string>) {",
+      "    const url = new URL(`${BASE_URL}${endpoint}`);",
+      "    if (params) {",
+      "      Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));",
+      "    }",
+      '    return fetch(url.toString(), { method: "GET" });',
+      "  },",
+      "  post: (endpoint: string, body?: unknown) =>",
+      '    fetch(`${BASE_URL}${endpoint}`, { method: "POST", body: JSON.stringify(body) }),',
+      "  delete: async function (endpoint: string) {",
+      '    return fetch(`${BASE_URL}${endpoint}`, { method: "DELETE" });',
+      "  },",
+      "};",
+      "const local = {",
+      '  get: (endpoint: string) => fetch("/local" + endpoint),',
+      "};",
+      'export const useLocal = () => local.get("/x");',
+    ]);
+    await put("src/hooks.ts", [
+      'import { apiClient } from "./api-client";',
+      "export async function load(id: string) {",
+      '  await apiClient.get(`/accounts/${id}`, { page: "1" });',
+      '  await apiClient.post("/accounts", { name: "a" });',
+      "  await apiClient.delete(`/accounts/${id}`);",
+      "}",
+    ]);
+    expect(await summary()).toEqual([
+      // An unexported object's methods aren't symbols: the site stays as it is.
+      "src/api-client.ts:17 GET /local{} []",
+      "src/hooks.ts:3 GET {env:NEXT_PUBLIC_API_URL}/api/v1/accounts/{} [load] <- src/api-client.ts:8",
+      "src/hooks.ts:4 POST {env:NEXT_PUBLIC_API_URL}/api/v1/accounts [load] <- src/api-client.ts:11",
+      "src/hooks.ts:5 DELETE {env:NEXT_PUBLIC_API_URL}/api/v1/accounts/{} [load] <- src/api-client.ts:13",
+    ]);
+  });
+
   it("marks a URL that starts with the caller's own parameter WRAPPER_DEPTH", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/http.ts", [

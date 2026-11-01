@@ -67,6 +67,36 @@ describe("extractSymbols", () => {
     ]);
   });
 
+  it("collects the methods of an exported const object literal", () => {
+    expect(
+      summary(`
+        export const api = {
+          async get(path: string) {},
+          post: (path: string) => {},
+          put: function (path: string) {},
+          base: "/api",
+          nested: { deep() {} },
+          get size() { return 0; },
+          [key]: () => {},
+          ...rest,
+          short,
+        } satisfies Client;
+        const hidden = { m() {} };
+        const listed = { m() {} };
+        export let mutable = { m() {} };
+        export { listed };
+      `),
+    ).toEqual([
+      "api variable exported",
+      "api.get method exported",
+      "api.post method exported",
+      "api.put method exported",
+      "listed variable exported",
+      "listed.m method exported",
+      "mutable variable exported",
+    ]);
+  });
+
   it("marks names exported through export lists and default exports", () => {
     expect(
       summary(`

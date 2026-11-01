@@ -16,7 +16,9 @@
  * Patterns handled:
  * - Wrappers that are symbols (M1.7): function declarations, `const` arrow and function
  *   expressions, class methods and function-valued class properties, `export default`
- *   functions, and CommonJS `exports.x = function` / `module.exports = { x() {} }`.
+ *   functions, CommonJS `exports.x = function` / `module.exports = { x() {} }`, and methods
+ *   and function-valued properties of an exported `const` object literal
+ *   (`export const api = { get(path) {…} }`, called as `api.get("/x")`, M5A.3b).
  * - Callers anywhere in the repo whose callee resolves to the wrapper's symbol node with the
  *   shared resolver (M1.9): direct calls, imports (renamed, default, namespace, and workspace
  *   packages at their import's confidence), and methods called on instances the checker types.
@@ -30,8 +32,9 @@
  *   `method` wins; a missing argument spreads nothing).
  *
  * Patterns not handled:
- * - Functions nested inside other functions, object literals that aren't exported symbols,
- *   and wrappers only ever passed around as values (no visible call): their sites stay
+ * - Functions nested inside other functions, object literals that aren't exported `const`s
+ *   (or `module.exports`), and wrappers only ever passed around as values (no visible
+ *   call): their sites stay
  *   as they are, so a parameter at the start of the URL is `DYNAMIC_URL`.
  * - A wrapper with visible callers that is also called invisibly (as a callback): only the
  *   visible calls become requests.
