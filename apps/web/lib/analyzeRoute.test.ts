@@ -150,16 +150,24 @@ describe("handleAnalyzeRequest", () => {
     const t = await createTestDb();
     try {
       const deps = { ...depsWithoutDb(), db: t.db, hourlyLimit: 1 };
-      const from = (ip: string) => post('{"url":"acme/shop"}', { "x-real-ip": ip });
+      const from = (ip: string, repo = "shop") =>
+        post(`{"url":"acme/${repo}"}`, { "x-real-ip": ip });
       expect((await answer(from("203.0.113.7"), deps)).status).toBe(202);
-      // The first job was recorded as in flight; a new commit needs a new slot.
+      // Another repo needs a new slot (another commit of this one waits for the repo's limit).
       deps.github = {
-        fetch: fakeGitHub([{ id: 1, owner: "acme", name: "shop", sha: "1".repeat(40) }]).fetch,
+        fetch: fakeGitHub([{ id: 2, owner: "acme", name: "other", sha: "1".repeat(40) }]).fetch,
       };
-      const limited = await answer(from("203.0.113.7"), deps);
+      const limited = await answer(from("203.0.113.7", "other"), deps);
       expect(limited).toMatchObject({ status: 429, body: { error: "RATE_LIMITED" } });
       expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
-      expect((await answer(from("203.0.113.8"), deps)).status).toBe(202);
+      expect((await answer(from("203.0.113.8", "other"), deps)).status).toBe(202);
+      // A newer commit of a repo claimed minutes ago: refused whoever asks (#11).
+      deps.github = {
+        fetch: fakeGitHub([{ id: 2, owner: "acme", name: "other", sha: "2".repeat(40) }]).fetch,
+      };
+      const repoLimited = await answer(from("203.0.113.9", "other"), deps);
+      expect(repoLimited).toMatchObject({ status: 429, body: { error: "REPO_RATE_LIMITED" } });
+      expect(Number(repoLimited.headers.get("retry-after"))).toBeGreaterThan(0);
     } finally {
       await t.close();
     }

@@ -1,4 +1,11 @@
-import { consumeRateLimit, findAnalysis, refundRateLimit, upsertRepo } from "@gitinside/db";
+import {
+  claimRepoAnalysis,
+  consumeRateLimit,
+  findAnalysis,
+  refundRateLimit,
+  releaseRepoAnalysis,
+  upsertRepo,
+} from "@gitinside/db";
 import { rateLimitKey } from "./clientIp";
 import { enqueueAnalysis, type EnqueueDeps } from "./enqueue";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
@@ -23,10 +30,15 @@ import { findSizeHold, type SizeHold } from "./sizeHold";
  *    (`findSizeHold`, #11); so is one with over twice the supported source size of TypeScript
  *    and JavaScript by GitHub's count (`422 REPO_TOO_BIG`, no `retryAt`: `findTooMuchCode`,
  *    ADR-0154). No slot is used.
- * 6. **Rate limit** anything else: a new analysis counts against the caller's hourly
+ * 6. **Per repo:** one new analysis per repo every {@link REPO_ANALYSIS_MINUTES} minutes,
+ *    whoever asks (`claimRepoAnalysis`, #11, ADR-0155): another commit is refused with
+ *    `429 REPO_RATE_LIMITED` and when to try again. The claiming commit itself still goes
+ *    through (a duplicate, or a retry of its failed run).
+ * 7. **Rate limit** anything else: a new analysis counts against the caller's hourly
  *    window (5 signed out). The slot is given back unless this request queued the commit
- *    (the queue was down, or someone else's request queued it first).
- * 7. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
+ *    (the queue was down, or someone else's request queued it first). The repo's claim is
+ *    given back when the caller is over its limit or the queue was down.
+ * 8. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
  *    named from it; a row whose task can't be created is failed, and the answer is `503`.
  */
 
@@ -53,15 +65,23 @@ export type AnalyzeErrorCode =
   | "INVALID_URL"
   | ResolveFailure
   | "REPO_TOO_BIG"
+  | "REPO_RATE_LIMITED"
   | "RATE_LIMITED"
   | "UNAVAILABLE";
+
+/**
+ * A repo gets at most one new analysis this often, whoever asks (#11, ADR-0155), on top of
+ * each address's hourly limit.
+ */
+export const REPO_ANALYSIS_MINUTES = 30;
 
 export interface AnalyzeError {
   error: AnalyzeErrorCode;
   message: string;
   /**
-   * With `RATE_LIMITED`: when the window resets; with `REPO_TOO_BIG` after a `LIMIT_*`
-   * failure: when the hold ends (ISO 8601). None when the repo is refused on GitHub's count.
+   * With `RATE_LIMITED`: when the window resets; with `REPO_RATE_LIMITED`: when the repo's
+   * claim ends; with `REPO_TOO_BIG` after a `LIMIT_*` failure: when the hold ends (ISO 8601).
+   * None when the repo is refused on GitHub's count.
    */
   retryAt?: string;
 }
@@ -135,16 +155,28 @@ export async function requestAnalysis(
   }
   const key = rateLimitKey(deps.rateLimitSecret, address);
   let charged: Date | undefined;
+  let claimed: { repoId: string; claimedAt: Date } | undefined;
   if (!inFlight) {
+    const { id: repoId } = await upsertRepo(deps.db, repo);
+    const claim = await claimRepoAnalysis(deps.db, repoId, repo.sha, REPO_ANALYSIS_MINUTES * 60);
+    if (claim.status === "refused") return repoLimited(claim.retryAt, deps);
+    if (claim.status === "claimed") claimed = { repoId, claimedAt: claim.claimedAt };
     const limit = await consumeRateLimit(deps.db, key, deps.hourlyLimit);
-    if (!limit.allowed) return rateLimited(limit.resetAt, deps);
+    if (!limit.allowed) {
+      if (claimed) await releaseRepoAnalysis(deps.db, claimed.repoId, claimed.claimedAt);
+      return rateLimited(limit.resetAt, deps);
+    }
     charged = limit.windowStart;
   }
 
   const queued = await enqueueAnalysis(repo, deps);
-  // Only a new analysis this request queued keeps the slot.
+  // Only a new analysis this request queued keeps the slot. The repo's claim stays whenever
+  // the commit is analyzed, even if a racing request for it queued the job.
   const isNew = queued.status === "queued" && queued.entered;
   if (charged && !isNew) await refundRateLimit(deps.db, key, charged);
+  if (claimed && queued.status === "unavailable") {
+    await releaseRepoAnalysis(deps.db, claimed.repoId, claimed.claimedAt);
+  }
   switch (queued.status) {
     case "done":
       return { status: 200, body: { status: "done", ...commit } };
@@ -169,9 +201,7 @@ function tooBig(hold: SizeHold, deps: AnalyzeDeps): AnalyzeResponse {
 }
 
 function rateLimited(resetAt: Date, deps: AnalyzeDeps): AnalyzeResponse {
-  const seconds = Math.max(1, Math.ceil((resetAt.getTime() - (deps.now ?? Date.now)()) / 1000));
-  const minutes = Math.ceil(seconds / 60);
-  const wait = minutes === 1 ? "a minute" : `${minutes} minutes`;
+  const { seconds, wait } = waitUntil(resetAt, deps);
   return {
     status: 429,
     body: {
@@ -181,4 +211,25 @@ function rateLimited(resetAt: Date, deps: AnalyzeDeps): AnalyzeResponse {
     },
     headers: { "retry-after": String(seconds) },
   };
+}
+
+function repoLimited(retryAt: Date, deps: AnalyzeDeps): AnalyzeResponse {
+  const { seconds, wait } = waitUntil(retryAt, deps);
+  const every = `${REPO_ANALYSIS_MINUTES} minutes`;
+  return {
+    status: 429,
+    body: {
+      error: "REPO_RATE_LIMITED",
+      message: `Someone asked for a new analysis of this repo in the past ${every}, and each repo gets one every ${every}. Try again in ${wait}.`,
+      retryAt: retryAt.toISOString(),
+    },
+    headers: { "retry-after": String(seconds) },
+  };
+}
+
+/** Seconds until `at` (at least 1, for `Retry-After`) and the wait in words. */
+function waitUntil(at: Date, deps: AnalyzeDeps): { seconds: number; wait: string } {
+  const seconds = Math.max(1, Math.ceil((at.getTime() - (deps.now ?? Date.now)()) / 1000));
+  const minutes = Math.ceil(seconds / 60);
+  return { seconds, wait: minutes === 1 ? "a minute" : `${minutes} minutes` };
 }

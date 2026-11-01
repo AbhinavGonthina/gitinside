@@ -43,6 +43,13 @@
       "when": 1793514933287,
       "tag": "0005_repo_size_kb",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793524280421,
+      "tag": "0006_repo_analysis_claim",
+      "breakpoints": true
     }
   ]
 }
