@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7d3c SDK and queue edges as per-service facts + global composition; no output change (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M6.7d3d Resolver warnings per asking service + a `ServiceFacts` bundle per service; `analyze` rebuilt as facts → compose (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -237,7 +237,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.7d2 Inline-handler owners as per-service facts in Prisma/HTTP/SDK/queues (handler keys, bound to route IDs after Express composition); no output change {model: opus}
 - [x] M6.7d3a Imports, symbols, and calls as per-service facts (`collectImportFacts` + `composeImports`, `collectSymbolNodes`, `collectCallFacts` + `composeCallEdges`), wired into `analyze`; JSON round-trip test; no output change (goldens, eval) {model: opus}
 - [x] M6.7d3b Next.js routes and Prisma client uses as per-service facts + global composition (Prisma schema stays global); no output change {model: opus}
-- [ ] M6.7d3c SDK and queue edges as per-service facts + global composition; no output change {model: opus}
+- [x] M6.7d3c SDK and queue edges as per-service facts + global composition; no output change {model: opus}
 - [ ] M6.7d3d Resolver warnings per asking service + a `ServiceFacts` bundle per service; `analyze` rebuilt as facts → compose; whole-bundle JSON round-trip test; no output change (goldens, eval) {model: opus}
 - [ ] M6.7e `analyze({ cache })`: reuse clean services' facts, build clean programs only when needed; warm == cold bytes over fixture edits (edit, add, delete, cross-service import, tsconfig); CLI `--cache <dir>`, diff's two ref sides share it {model: opus}
 - [ ] M6.7f Worker cache volume (2 GB): public folder + per-installation private folders (deleted on uninstall, M8.5); compose + container check {model: opus}
@@ -278,6 +278,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M6.7d3c** (`173dc23`, ADR-0172): `collectSdkFacts` + `composeSdkEdges`; `collectQueueFacts` records declared sites, events (unresolved nodes precomputed), and every call of a function returning a worker; `composeQueueEdges` replays the factory rounds over them. Factory keys are scoped to the walking program, as node identity was (pre-change output compared on a cross-program repo). Analyzer 883/883, goldens unchanged; a factory package's facts survive another service calling it.
 
 - **2026-11-02 M5A.5g** (`82c7130`, tag `m5a`): re-check after the review fixes: `npx turbo run test --force` 15/15 tasks, 0 cached, 3,484 passed (analyzer 875); CI on `7c1c3e1` green, analyzer coverage 97.62% lines / 90.96% branches (`lets.ts` 86.41% ⇒ 93.78%); `pnpm eval --check` reproduces `2026-11-02-0.1.0.md` byte for byte, counts unchanged by M5A.5b–f. README/EVALUATION.md link the overwritten first runs at `1cdf2ec` (held-out, pre-fix) and `eee9e37` (batch 2 blind run), the after-M5A numbers to the final report; ADR-0168's note updated; M5A-review.md outcomes filled in (8 fixed, finding 8 kept).
 
