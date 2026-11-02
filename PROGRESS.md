@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.5e M5A review fixes, `lets.ts`: memoized `letValues`, writes through `as`/`!`/`<T>`/`satisfies`, a `lets.test.ts` (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M5A.5f M5A review fixes, small: a cross-file listing folder resolved against its own file (`express.ts`), a mid-URL env fallback only for a path piece (`url.ts`) (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -218,7 +218,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.5b M5A review fix (security): `globRegExp` (`listings.ts`) compiles a repo's glob into a backtracking regex with one `.*` per `**`, so a hostile pattern (`**a**a…**b`) over a long file name hangs the analysis; a linear glob matcher (or caps on length and wildcards), a hostile-pattern test with a time bound, regression test first {model: opus}
 - [x] M5A.5c M5A review fix: a factory wrapper returning a closure with its own path parameter (`createClient(base)` ⇒ `{ get: (path) => fetch(base + "/" + path) }`, called `createClient("/api")`) may read `GET /api/{}` and match `/api/:x` instead of `WRAPPER_DEPTH`; confirm red first, then an unbound parameter hole in the leading part of an inlined URL gives `WRAPPER_DEPTH`; fixture or test, eval delta {model: opus}
 - [x] M5A.5d M5A review fix: `defaults.baseURL` (ADR-0161) applies only to requests in files that can reach the module writing it (import graph), so a test or e2e setup file's write doesn't rebase the whole service; ADR amendment, regression test first, eval delta {model: opus}
-- [ ] M5A.5e M5A review fixes, `lets.ts`: `letValues` memoized per declaration (no re-walk of the function per read); a write through `as`/`!`/`<T>`/`satisfies` makes the `let` unknown; a `lets.test.ts` covering loop/`switch`/`try`/labeled writes, `throw`/`break`/`continue` branch ends, `else if` chains, and reads in case clauses (CI coverage 86.4%); regression tests first {model: opus}
+- [x] M5A.5e M5A review fixes, `lets.ts`: `letValues` memoized per declaration (no re-walk of the function per read); a write through `as`/`!`/`<T>`/`satisfies` makes the `let` unknown; a `lets.test.ts` covering loop/`switch`/`try`/labeled writes, `throw`/`break`/`continue` branch ends, `else if` chains, and reads in case clauses (CI coverage 86.4%); regression tests first {model: opus}
 - [ ] M5A.5f M5A review fixes, small: a listing folder from a `const` in another file resolves `__dirname` and relative specifiers against that file (`express.ts` `evaluate`); a mid-URL env fallback replaces the hole only when it's a path piece, not an absolute or protocol-relative URL (`url.ts` `laterPart`); regression tests first, eval delta {model: opus}
 - [ ] M5A.5g Re-run the milestone checks after M5A.5b–f (suite, analyzer coverage, `pnpm eval`), README's "first run" held-out link pinned to the commit whose report holds it (`1cdf2ec`), EVALUATION.md's M5A-outcome link (`2026-11-01-0.1.0.md`, superseded by `2026-11-02-0.1.0.md` since M5A.5d) pointed at the final report, ADR-0168's reproduction note updated, finish M5A-review.md (outcomes), tag m5a {model: opus}
 
@@ -278,6 +278,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M5A.5e**: red first in a new `lets.test.ts`: a second and third read of one `let` called `refersTo` again (12 calls, not 4), and `(url as string) = '/b'` (also `!`, `<T>`, `satisfies`) left the `let` reading `'/a'`. A declaration's writes are now found once (`writesOf`, a `WeakMap` per declaration), and `isWritten` looks through casts, so such a write makes the `let` unknown. The file also covers loop/`switch`/`try`/label writes, branch ends, `else if`, a case-clause `let`. Analyzer 870/870; eval unchanged (TP 138, FP 0, FN 0).
 
 - **2026-11-02 M5A.5d**: red first: a `test/setup.ts` writing `api.defaults.baseURL = "http://localhost:9999/api"` rebased the app's `src/users.ts`, and beside the app's own write made its bases unknown. A request now sees only `defaults` writes in files its file reaches through imports (`reachableFrom`/`writtenBase` in `http.ts`, new `SymbolResolver.importedFiles`); an entry point importing both setup and app stays unmodeled (ADR-0161 amended). Analyzer 861/861, no golden changed; eval unchanged (TP 138, FP 0, FN 0), new report `2026-11-02-0.1.0.md`.
 
