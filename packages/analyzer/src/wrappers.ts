@@ -325,7 +325,8 @@ export function collectHttpFacts(
   const owned = new Map<ServiceProgram, Map<string, Wrapper>>();
   /** Every wrapper in the repo by symbol node ID: the index callers are matched against. */
   const wrappers = new Map<string, Wrapper>();
-  for (const sp of programs) {
+  /** Split `sp`'s sites into wrapper bodies' and the rest. */
+  const findWrappers = (sp: ServiceProgram): void => {
     const plain: HttpCallSite[] = [];
     const mine = new Map<string, Wrapper>();
     for (const site of bySp.get(sp) ?? []) {
@@ -359,6 +360,11 @@ export function collectHttpFacts(
     }
     direct.set(sp, plain);
     owned.set(sp, mine);
+  };
+  for (const sp of programs) {
+    resolver.asking(sp, () => {
+      findWrappers(sp);
+    });
   }
   const names = new Set([...wrappers.keys()].map(symbolName));
 
@@ -555,7 +561,8 @@ export function collectHttpFacts(
     });
   };
 
-  return programs.map((sp): HttpFacts => {
+  /** `sp`'s facts, once every service's wrappers are known. */
+  const factsOf = (sp: ServiceProgram): HttpFacts => {
     const calls: WrapperCallFact[] = [];
     for (const [id, list] of [...callersIn(sp)].sort(([a], [b]) => compareStrings(a, b))) {
       const wrapper = wrappers.get(id);
@@ -577,7 +584,8 @@ export function collectHttpFacts(
         })),
       calls,
     };
-  });
+  };
+  return programs.map((sp) => resolver.asking(sp, () => factsOf(sp)));
 }
 
 /**

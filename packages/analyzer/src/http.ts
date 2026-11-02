@@ -811,6 +811,8 @@ export function collectHttpCalls(
       const value = axiosOf(sp, defaults.expression, 0);
       return value && { value, whole };
     };
+    // The walk asks as the service whose request started it (no `asking` here): its facts are
+    // what the scan feeds, so a failure meanwhile is one of theirs (ADR-0173).
     for (const sp of programs) {
       for (const file of sp.rootFiles) {
         const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
@@ -1015,7 +1017,8 @@ export function collectHttpCalls(
     return fromConfig(from, instance, config, url, method);
   };
 
-  for (const sp of programs) {
+  /** Collect the sites in `sp`'s root files. */
+  const collectIn = (sp: ServiceProgram): void => {
     for (const file of sp.rootFiles) {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
       const byNode = sourceFile && resolver.callers.get(sourceFile);
@@ -1042,6 +1045,11 @@ export function collectHttpCalls(
       };
       visit(sourceFile, NO_OWNERS);
     }
+  };
+  for (const sp of programs) {
+    resolver.asking(sp, () => {
+      collectIn(sp);
+    });
   }
 
   return sites.sort(
