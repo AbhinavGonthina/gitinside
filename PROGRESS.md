@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.5c M5A review fix: a factory closure's own path parameter gives `WRAPPER_DEPTH`, not a guessed match (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M5A.5d M5A review fix: `defaults.baseURL` applies only to requests in files that can reach the module writing it (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -216,7 +216,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.4a3 Batch 2, repo 2: pin, draft and commit labels, then score once (`pnpm eval`); README/EVALUATION quote the first measurement as is; misses go to a diagnosis note, not into M5A fixes {model: opus}
 - [x] M5A.5a Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5A diff (generalization: no repo-specific cases), CLI smoke test on a real repo outside the eval, M5A-review.md (tag after the fixes) {model: opus}
 - [x] M5A.5b M5A review fix (security): `globRegExp` (`listings.ts`) compiles a repo's glob into a backtracking regex with one `.*` per `**`, so a hostile pattern (`**a**a…**b`) over a long file name hangs the analysis; a linear glob matcher (or caps on length and wildcards), a hostile-pattern test with a time bound, regression test first {model: opus}
-- [ ] M5A.5c M5A review fix: a factory wrapper returning a closure with its own path parameter (`createClient(base)` ⇒ `{ get: (path) => fetch(base + "/" + path) }`, called `createClient("/api")`) may read `GET /api/{}` and match `/api/:x` instead of `WRAPPER_DEPTH`; confirm red first, then an unbound parameter hole in the leading part of an inlined URL gives `WRAPPER_DEPTH`; fixture or test, eval delta {model: opus}
+- [x] M5A.5c M5A review fix: a factory wrapper returning a closure with its own path parameter (`createClient(base)` ⇒ `{ get: (path) => fetch(base + "/" + path) }`, called `createClient("/api")`) may read `GET /api/{}` and match `/api/:x` instead of `WRAPPER_DEPTH`; confirm red first, then an unbound parameter hole in the leading part of an inlined URL gives `WRAPPER_DEPTH`; fixture or test, eval delta {model: opus}
 - [ ] M5A.5d M5A review fix: `defaults.baseURL` (ADR-0161) applies only to requests in files that can reach the module writing it (import graph), so a test or e2e setup file's write doesn't rebase the whole service; ADR amendment, regression test first, eval delta {model: opus}
 - [ ] M5A.5e M5A review fixes, `lets.ts`: `letValues` memoized per declaration (no re-walk of the function per read); a write through `as`/`!`/`<T>`/`satisfies` makes the `let` unknown; a `lets.test.ts` covering loop/`switch`/`try`/labeled writes, `throw`/`break`/`continue` branch ends, `else if` chains, and reads in case clauses (CI coverage 86.4%); regression tests first {model: opus}
 - [ ] M5A.5f M5A review fixes, small: a listing folder from a `const` in another file resolves `__dirname` and relative specifiers against that file (`express.ts` `evaluate`); a mid-URL env fallback replaces the hole only when it's a path piece, not an absolute or protocol-relative URL (`url.ts` `laterPart`); regression tests first, eval delta {model: opus}
@@ -278,6 +278,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M5A.5c**: red first, as the review predicted: `createClient("/api")` with `get: (path) => fetch(base + "/" + path)` gave `GET /api/{}` (and `base + path` gave `GET /api{}`). Each wrapper site now keeps its leading parameters (`leadingParameters`, read in the wrapper itself); when a call binds none of them (a returned function's own parameter), the request is `WRAPPER_DEPTH` (`WRAPPER_DEPTH_DETAIL.inner`). A closure parameter that only fills a later hole stays resolved. Analyzer 860/860; eval unchanged (TP 138, FP 0, FN 0).
 
 - **2026-11-01 M5A.5b**: red first: `globEntries("**a"×10 + "b")` over a 32-character file name took 274 s with `globRegExp`'s backtracking regex. Listings now use the workspace detector's dynamic-programming matcher, moved to `glob.ts` (`globMatcher`, caps 1,024 characters / 256 brace alternatives); `listingGlob` still refuses classes, extglobs, escapes, nested or unclosed braces. Hostile cases now run in ms; analyzer 859/859; eval unchanged (TP 138, FP 0, FN 0).
 - **2026-11-01 M5A.5a** (split M5A.5 into 5a–5g): `npx turbo run test --force` green (15/15 tasks, 0 cached, 3,460 tests); CI on `5104060` green, analyzer coverage 97.45% lines (`lets.ts` lowest at 86.4%). Fresh-eyes review of M5A's analyzer/eval diff: no high findings and no repo-specific cases; 4 medium (glob → backtracking regex on a hostile pattern, a factory closure's path hole possibly matched instead of `WRAPPER_DEPTH`, `defaults.baseURL` from an unreached file, a cross-file listing folder), 5 low, now M5A.5b–f. CLI smoke on `adrianhajdin/project_mern_memories` (outside the eval): 2 sibling services, 5/5 requests to the right routes by hand, byte-identical rerun. `docs/milestones/M5A-review.md` written, outcomes pending; tag after M5A.5g.
