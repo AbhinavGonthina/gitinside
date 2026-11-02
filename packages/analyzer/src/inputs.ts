@@ -23,6 +23,7 @@
  * `.env` files, file nodes), which always rerun.
  */
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { compareStrings } from "@gitinside/schema";
@@ -202,19 +203,88 @@ export function inputsDigest(inputs: ObservedInputs): string {
   return createHash("sha256").update(JSON.stringify(inputs)).digest("hex");
 }
 
+/** At most this many files are being read at once by {@link RepoFiles.hashAll}. */
+export const READS_IN_FLIGHT = 64;
+
 /**
- * The SHA-256 (hex) of a repo file's bytes under `root`, read once per path per hasher; `""`
- * (which matches no hash) when it can't be read.
+ * One run's view of the repo's file contents (M6.8c2), so each file is read from disk about
+ * once however many steps need it: the cache keys and input checks ({@link hash}), every
+ * service's compiler host ({@link read}), and the file nodes. On cal.com a file of a package
+ * most services import was read once per program that loaded it, and once more for its node.
  */
-export function createFileHasher(root: string): (path: string) => Promise<string> {
-  const hashes = new Map<string, Promise<string>>();
-  return (path) => {
-    let hash = hashes.get(path);
-    if (!hash) {
-      hash = readFile(join(root, path)).then(contentHash, () => "");
-      hashes.set(path, hash);
+export interface RepoFiles {
+  /** The SHA-256 (hex) of a repo file's bytes, `""` (which matches no hash) when it can't be read. */
+  hash(path: string): Promise<string>;
+  /** {@link hash} of each of `paths`, in order, with at most {@link READS_IN_FLIGHT} reads at once. */
+  hashAll(paths: readonly string[]): Promise<string[]>;
+  /**
+   * Read `paths` side by side ({@link hashAll}) and keep their bytes until {@link read} asks,
+   * so the compiler hosts, which read synchronously one file at a time, don't wait on the disk.
+   */
+  preload(paths: readonly string[]): Promise<void>;
+  /**
+   * A repo file's text (UTF-8) and hash. The first read of a path keeps its text, which every
+   * later read shares (one string for every program that loads the file). Throws when the file
+   * can't be read.
+   */
+  read(path: string): { text: string; hash: string };
+}
+
+/** A {@link RepoFiles} for the checkout at `root`. */
+export function createRepoFiles(root: string): RepoFiles {
+  /** Files whose hash is known, with their bytes (preloaded, not yet read) or text (read). */
+  const known = new Map<string, { hash: string; bytes?: Buffer; text?: string }>();
+  const pending = new Map<string, Promise<string>>();
+  /** Paths whose bytes {@link RepoFiles.preload} keeps. */
+  const kept = new Set<string>();
+  const hash = (path: string): Promise<string> => {
+    const entry = known.get(path);
+    if (entry) return Promise.resolve(entry.hash);
+    let answer = pending.get(path);
+    if (!answer) {
+      answer = readFile(join(root, path)).then(
+        (bytes) => {
+          const digest = contentHash(bytes);
+          if (!known.has(path)) {
+            known.set(path, kept.has(path) ? { hash: digest, bytes } : { hash: digest });
+          }
+          pending.delete(path);
+          return digest;
+        },
+        () => "",
+      );
+      pending.set(path, answer);
     }
-    return hash;
+    return answer;
+  };
+  const hashAll = async (paths: readonly string[]): Promise<string[]> => {
+    const hashes: string[] = new Array<string>(paths.length);
+    let next = 0;
+    const reading = async (): Promise<void> => {
+      for (let i = next++; i < paths.length; i = next++) {
+        const path = paths[i];
+        if (path !== undefined) hashes[i] = await hash(path);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(READS_IN_FLIGHT, paths.length) }, reading));
+    return hashes;
+  };
+  return {
+    hash,
+    hashAll,
+    async preload(paths) {
+      for (const path of paths) kept.add(path);
+      await hashAll(paths);
+    },
+    read(path) {
+      const entry = known.get(path);
+      if (entry?.text !== undefined) return { text: entry.text, hash: entry.hash };
+      const bytes = entry?.bytes ?? readFileSync(join(root, path));
+      const text = bytes.toString("utf8");
+      const digest = entry?.hash ?? contentHash(bytes);
+      known.set(path, { hash: digest, text });
+      return { text, hash: digest };
+    },
   };
 }
 
@@ -225,14 +295,13 @@ export function createFileHasher(root: string): (path: string) => Promise<string
  *
  * `workspace` and `inventory` must come from `root`; the workspace layout itself is not
  * compared (it belongs in the cache key). File hashes are computed once per verifier (or per
- * `hashOf`, a {@link createFileHasher} that may be shared), so one verifier serves every
- * service of a run.
+ * `files`, which the run may share), so one verifier serves every service of a run.
  */
 export function createInputVerifier(
   root: string,
   workspace: Workspace,
   inventory: Inventory,
-  hashOf: (path: string) => Promise<string> = createFileHasher(root),
+  files: RepoFiles = createRepoFiles(root),
 ): (inputs: ObservedInputs) => Promise<string | undefined> {
   const present = new Set(inventory.files);
   const dirs = new Set<string>([""]);
@@ -260,7 +329,7 @@ export function createInputVerifier(
     for (const [path, answer] of inputs.files) {
       if (!present.has(path)) {
         if (answer !== ABSENT) return path;
-      } else if (answer === ABSENT || (answer !== PRESENT && (await hashOf(path)) !== answer)) {
+      } else if (answer === ABSENT || (answer !== PRESENT && (await files.hash(path)) !== answer)) {
         return path;
       }
     }

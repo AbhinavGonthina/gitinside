@@ -34,7 +34,7 @@ import {
   type StoredService,
 } from "./incremental.js";
 import { buildInfra, relinkStores } from "./infra.js";
-import { serviceInputs } from "./inputs.js";
+import { createRepoFiles, programRootFiles, serviceInputs } from "./inputs.js";
 import { AnalysisError, buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildHttpEdges, createRouteMatcher } from "./match.js";
 import { collectNextFacts, composeNextRoutes } from "./next.js";
@@ -277,16 +277,23 @@ async function analyzeRoot(
   found.add(["services"], services);
   let given = options.facts && givenFacts(options.facts, workspace);
   const cache = given ? undefined : options.cache;
+  /** Each repo file is read about once a run, whichever steps need it (ADR-0181). */
+  const files = createRepoFiles(root);
   let keys: FactKeys | undefined;
   /** Clean cache entries whose facts this run reuses, by service key (ADR-0176). */
   let reused = new Map<string, CachedService>();
   const programs = await stage(
     "programs",
     async () => {
+      // Read side by side up front: the keys hash these, and the hosts read them one at a time.
+      if (!given)
+        await files.preload(
+          [...programRootFiles(workspace, inventory.sourceFiles).values()].flat(),
+        );
       // When every service is clean, the graph is composed from the cache with no program
       // built (ADR-0175); otherwise the clean services' facts are reused beside the rest.
       if (cache) {
-        keys = await factKeys(root, workspace, inventory, options.limits);
+        keys = await factKeys(root, workspace, inventory, options.limits, files);
         if (reuse !== "cold") {
           reused = await reusableFacts(cache, root, workspace, inventory, keys, reuse.forced);
           if (reused.size === workspace.packages.length) {
@@ -297,7 +304,7 @@ async function analyzeRoot(
       if (given) return [];
       // Programs parse on first use (ADR-0177): the collected services' here, a reused
       // service's only if a collected one's analysis needs it.
-      const built = buildServicePrograms(root, workspace, inventory);
+      const built = buildServicePrograms(root, workspace, inventory, files);
       for (const sp of built) if (!reused.has(sp.service.key)) void sp.program;
       return built;
     },
@@ -416,7 +423,9 @@ async function analyzeRoot(
   );
   const stored = relinkStores(prisma, infra.links);
   found.add(["stores"], [...stored.nodes, ...infra.nodes]);
-  const files = await stage("files", () => buildFileNodes(root, workspace, inventory.sourceFiles));
+  const fileNodes = await stage("files", () =>
+    buildFileNodes(root, workspace, inventory.sourceFiles, files),
+  );
   const symbols = await stage("symbols", () => {
     for (const { sp, facts } of collected) facts.symbols = collectSymbolNodes(sp);
     return bundles.flatMap((f) => f.symbols);
@@ -574,7 +583,7 @@ async function analyzeRoot(
         { source: "typescript", warnings: bundles.flatMap((f) => f.programWarnings) },
         {
           source: "files",
-          nodes: files,
+          nodes: fileNodes,
           warnings: outsideServiceWarnings(workspace, inventory.sourceFiles),
         },
         { source: "symbols", nodes: symbols },

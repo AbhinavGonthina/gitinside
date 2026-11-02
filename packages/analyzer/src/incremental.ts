@@ -33,11 +33,12 @@ import { compareStrings } from "@gitinside/schema";
 import type { EntryUse, FactCache } from "./cache.js";
 import type { ServiceFacts } from "./facts.js";
 import {
-  createFileHasher,
   createInputVerifier,
+  createRepoFiles,
   inputsDigest,
   programRootFiles,
   type ObservedInputs,
+  type RepoFiles,
 } from "./inputs.js";
 import { DEFAULT_LIMITS, type Inventory, type InventoryLimits } from "./inventory.js";
 import { repoUsesPrisma } from "./prisma.js";
@@ -69,12 +70,12 @@ export interface CachedService {
   queueLibrary: boolean;
 }
 
-/** A run's cache keys and the hasher they were computed with, for {@link storeFacts}. */
+/** A run's cache keys and the files they were computed from, for {@link storeFacts}. */
 export interface FactKeys {
   /** Each service's entry key, by service key. */
   keys: Map<string, string>;
-  /** The run's file hasher, shared with input verification. */
-  hashOf: (path: string) => Promise<string>;
+  /** The run's files, shared with input verification. */
+  files: RepoFiles;
   /**
    * Digests whose inputs entry this run read or stored, so {@link storeFacts} doesn't write
    * one again. Filled by {@link reusableFacts} and {@link storeFacts}.
@@ -111,26 +112,30 @@ export function globalFactsKey(
   ]);
 }
 
-/** Each workspace service's cache key, from the global key and its own files' hashes. */
+/**
+ * Each workspace service's cache key, from the global key and its own files' hashes, read
+ * through `files` (the run's, so the programs and file nodes don't read them again).
+ */
 export async function factKeys(
   root: string,
   workspace: Workspace,
   inventory: Inventory,
   limits?: Partial<InventoryLimits>,
+  files: RepoFiles = createRepoFiles(root),
 ): Promise<FactKeys> {
-  const hashOf = createFileHasher(root);
   const global = globalFactsKey(workspace, inventory.sourceFiles, limits);
   const owned = programRootFiles(workspace, inventory.sourceFiles);
   const keys = new Map<string, string>();
   for (const { key } of workspace.packages) {
-    const files = owned.get(key) ?? [];
-    const own = await Promise.all(files.map(async (file) => [file, await hashOf(file)]));
+    const paths = owned.get(key) ?? [];
+    const hashes = await files.hashAll(paths);
+    const own = paths.map((path, i) => [path, hashes[i]]);
     const digest = createHash("sha256")
       .update(JSON.stringify([global, key, own]))
       .digest("hex");
     keys.set(key, `service-facts:${digest}`);
   }
-  return { keys, hashOf, present: new Set() };
+  return { keys, files, present: new Set() };
 }
 
 /** Whether a value has the {@link RepoFacts} shape. */
@@ -223,10 +228,10 @@ export async function reusableFacts(
   root: string,
   workspace: Workspace,
   inventory: Inventory,
-  { keys, hashOf, present }: FactKeys,
+  { keys, files, present }: FactKeys,
   forced: ReadonlySet<string> = new Set(),
 ): Promise<Map<string, CachedService>> {
-  const verify = createInputVerifier(root, workspace, inventory, hashOf);
+  const verify = createInputVerifier(root, workspace, inventory, files);
   /** Whether inputs still hold, by digest: each distinct set is read and verified once. */
   const holds = new Map<string, Promise<boolean>>();
   const held = (digest: string): Promise<boolean> => {
