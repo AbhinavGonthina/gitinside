@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7e `analyze({ cache })`: reuse clean services' facts (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M6.7e2 Partial reuse: clean services' facts beside dirty ones (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -240,7 +240,9 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.7d3c SDK and queue edges as per-service facts + global composition; no output change {model: opus}
 - [x] M6.7d3d1 Resolver warnings per asking service (`resolver.asking(sp, …)`, `warnings(sp)`), every per-service collector in `analyze` and the HTTP stage's whole-repo passes asking as their service; no output change (goldens, eval) {model: opus}
 - [x] M6.7d3d2 A `ServiceFacts` bundle per service (every stage's facts, the program's and the resolver's warnings for it; a failed stage's collection recorded); `analyze` rebuilt as facts → compose; whole-bundle JSON round-trip test, incl. a cross-program TypeScript failure landing in the asking service's bundle; no output change (goldens, eval) {model: opus}
-- [ ] M6.7e `analyze({ cache })`: reuse clean services' facts, build clean programs only when needed; warm == cold bytes over fixture edits (edit, add, delete, cross-service import, tsconfig); CLI `--cache <dir>`, diff's two ref sides share it {model: opus}
+- [x] M6.7e1 `analyze({ cache })`, whole-run reuse: one entry per service (its facts + observed inputs) under a key of the global inputs (TypeScript version, workspace layout, limits, Prisma use) and the service's own files; the graph composed from the entries when every service verifies clean, else a cold run that stores them (bundles with a failed collection never stored); warm == cold bytes over fixture edits (edit, add, delete, cross-service import, tsconfig) and from a moved checkout; CLI `--cache <dir>` for analyze and diff (both sides share it) {model: opus}
+- [ ] M6.7e2 Partial reuse: clean services' facts reused while dirty ones collect (all programs still built); the repo-wide facts a clean bundle depends on (wrapper names, router and queue-library checks) recomputed and compared, else the service recollects; warm == cold over the same edits {model: opus}
+- [ ] M6.7e3 Clean programs built only when a dirty service's analysis needs them (programs built lazily through the resolver); warm == cold; time saved measured on a fixture monorepo {model: opus}
 - [ ] M6.7f Worker cache volume (2 GB): public folder + per-installation private folders (deleted on uninstall, M8.5); compose + container check {model: opus}
 - [ ] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
 - [ ] M6.9 Viewer diff mode (overlay, stable layout, changes list) {model: opus}
@@ -279,6 +281,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M6.7e1** (`7596423`, ADR-0175; split M6.7e into e1–e3): `incremental.ts` stores `{ facts, inputs }` per service under a key of the global inputs (TypeScript version, workspace layout, limits, `repoUsesPrisma`) and the service's own file hashes; `analyze({ cache })` composes from the entries with no program built when every one verifies, else runs cold and stores them (never a failed bundle). `--cache <dir>` on `analyze` and `diff` (both sides share it). Every fixture warm from a moved copy = cold bytes; ten monorepo edits = cold bytes, next run warm; mutation-checked. Analyzer 974/974, eval unchanged (TP 138, FP 0, FN 0, `5455cdb`).
 
 - **2026-11-02 M6.7d3d2** (`20564e2`, ADR-0174): `ServiceFacts` (`facts.ts`) holds a service's root files, program warnings, symbols, every detector stage's facts, failed collections, and its TypeScript warnings. Each stage collects into the bundles (asked as the service), then composes from them (`stageFacts`); a service's collection throw is recorded in its bundle while the others still collect, a failed global input in every bundle. `analyzeServices(dir, { facts, onFacts })` exposes the bundles and composes from given ones without programs. Every fixture's JSON round-tripped bundles compose to the same bytes; a cross-program TypeScript failure lands in web's bundle (mutation-checked). Analyzer 925/925, root typecheck and lint green, eval unchanged (TP 138, FP 0, FN 0, `7ebe466`).
 
