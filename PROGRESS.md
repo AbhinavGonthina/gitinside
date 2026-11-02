@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.9c2 Counts per version (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M6.9d Changes list in the inspector (then M6.9e, then M5B from #15; M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -252,9 +252,9 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.9a Diff overlay model (ADR-0182): `buildDiffOverlay(base, head, diff)`, one valid graph holding both versions (renamed items once under head IDs, removed ones re-parented to head IDs), `nodesIn`/`edgesIn` per version (each a tree), node/edge states, broken connections on the edge the canvas draws, change counts below each ancestor, the changes list (Added/Changed/Removed/Broken, folded, ordered), `DiffMismatchError` for a diff of other graphs; tests on the diff fixture pairs {model: opus}
 - [x] M6.9b Explorer diff mode on the overlay: a `diff` prop (base, head, diff), the overlay laid out and drawn with node and edge states (tags, borders, removed ghosted, broken edges pulsing dashed red with the diff's words, still under reduced motion), closed frames saying they hold changes, Base/Head/Overlay in the top bar (Overlay default) and a "Comparing base → head" chip; tests, stories, screenshots, baselines {model: opus}
 - [x] M6.9c1 Base and Head on the overlay's layout: the other version's boxes and lines faded out in place (M6.9b hides them at once), nothing moves when switching (a real-browser check that shared boxes keep their positions), selection and trace kept when they exist in the version (traces, the picker, and the palette on the version's graph); tests, screenshots {model: opus}
-- [ ] M6.9c2 Counts per version: frame badges, the inspector's summary, an aggregate pill's count still include the other version's items (ADR-0183); a renamed node's base label in Base; tests, screenshots, baselines {model: opus}
+- [x] M6.9c2 Counts per version: frame badges, the inspector's summary, an aggregate pill's count still include the other version's items (ADR-0183); a renamed node's base label in Base; tests, screenshots, baselines {model: opus}
 - [ ] M6.9d Changes list in the inspector: Added / Changed / Removed / Broken with counts, renamed and moved rows in words, selecting a row flies to it (opening its ancestors), keyboard and screen-reader names; tests, screenshots, baselines {model: opus}
-- [ ] M6.9e Diff mode on the website: `?base=<sha>` in the deep-link codec, both analyses read and the diff computed in the browser (or a stored PR diff later), mismatch and missing-base states; tests, screenshots {model: opus}
+- [ ] M6.9e Diff mode on the website: `?base=<sha>` in the deep-link codec, both analyses read and the diff computed in the browser (or a stored PR diff later), mismatch and missing-base states; Base's code preview and Open on GitHub at the base commit (ADR-0185: the explorer still loads and links every node at head's); tests, screenshots {model: opus}
 
 ### M5B: Batch 2's misses + a fresh blind batch 3 (#15, after M6.9, before M6.10)
 Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns written from each library's real contract, never from the batch 2 repos; what can't be known statically stays unresolved. Causes in `eval/results/2026-11-batch2-diagnosis.md` (B1, B2).
@@ -302,6 +302,8 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M6.9c2** (`66543c8`, ADR-0185; #15 planned first as M5B, after M6.9): Base and Head now draw their own records and counts on the overlay's layout. `versionGraph` gives Base a renamed node's base record at its head ID and place (`baseRecord`); `DrillCanvas`'s `versionIndex`, the inspector, and the breadcrumbs read the version's hierarchy, and a line keeps only that version's connections (`edgeWithin`). Sizes are the widest of the three drawings (`viewEdgeLabelSize`, `DiffMarks.baseNode`/`edgesIn`), so nothing moves. Stories `Diff, head` and `Diff, renamed, base` with Linux baselines; a mutation (canvas and inspector on the overlay) turned both new explorer tests red. Found for M6.9e: Base still loads and links code at the head commit.
 
 - **2026-11-02 M6.9c1** (`d9bd82c`, ADR-0184): M6.9c split into c1 (fade, selection and trace per version) and c2 (counts, base labels). Base and Head fade what they lack in place (`opacity` + `visibility` over `--duration-standard`, instant under reduced motion). `versionGraph(overlay, version)` gives one version's graph on the overlay's IDs; traces, the picker, and the palette read its hierarchy, so a trace in Head never steps along a removed connection. Switching keeps the selection and a trace when the version has their node, else ends them and says so. New real-browser check `visual/diff.visual.ts` (every OS): no shared box moves in any frame of a switch, left-out boxes are caught partway, gone at once under reduced motion; a mutation (instant `visibility`) turned it red after tightening it. Mid-fade screenshots in `docs/milestones/M6/diff/`.
 
