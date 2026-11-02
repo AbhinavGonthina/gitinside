@@ -222,7 +222,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.5f M5A review fixes, small: a listing folder from a `const` in another file resolves `__dirname` and relative specifiers against that file (`express.ts` `evaluate`); a mid-URL env fallback replaces the hole only when it's a path piece, not an absolute or protocol-relative URL (`url.ts` `laterPart`); regression tests first, eval delta {model: opus}
 - [x] M5A.5g Re-run the milestone checks after M5A.5b–f (suite, analyzer coverage, `pnpm eval`), README's "first run" held-out link pinned to the commit whose report holds it (`1cdf2ec`), EVALUATION.md's M5A-outcome link (`2026-11-01-0.1.0.md`, superseded by `2026-11-02-0.1.0.md` since M5A.5d) pointed at the final report, ADR-0168's reproduction note updated, finish M5A-review.md (outcomes), tag m5a {model: opus}
 
-### M6: Graph diff + incremental analysis
+### M6: Graph diff + incremental analysis (M5B runs between M6.9 and M6.10, #15)
 - [x] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
 - [x] M6.2 Node/edge classification with per-kind fingerprints {model: opus}
 - [x] M6.3 Rename/move detection with tuned thresholds {model: opus}
@@ -255,6 +255,18 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [ ] M6.9c2 Counts per version: frame badges, the inspector's summary, an aggregate pill's count still include the other version's items (ADR-0183); a renamed node's base label in Base; tests, screenshots, baselines {model: opus}
 - [ ] M6.9d Changes list in the inspector: Added / Changed / Removed / Broken with counts, renamed and moved rows in words, selecting a row flies to it (opening its ancestors), keyboard and screen-reader names; tests, screenshots, baselines {model: opus}
 - [ ] M6.9e Diff mode on the website: `?base=<sha>` in the deep-link codec, both analyses read and the diff computed in the browser (or a stored PR diff later), mismatch and missing-base states; tests, screenshots {model: opus}
+
+### M5B: Batch 2's misses + a fresh blind batch 3 (#15, after M6.9, before M6.10)
+Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns written from each library's real contract, never from the batch 2 repos; what can't be known statically stays unresolved. Causes in `eval/results/2026-11-batch2-diagnosis.md` (B1, B2).
+- [ ] M5B.1 next-connect routers in `pages/api` (B1): a default export that is a next-connect router (`nc()`/`nc(opts)`, also through a repo factory like `apiHandler = () => nc(opts)`, v1 `createRouter()` + `export default router.handler()`) gives one route per registered method (`.get/.post/.put/.patch/.delete/.head/.options`, chained or not); `.all(…)` is `ALL`; `.use(…)` registers no method; a path argument on a method call (sub-route matching) handled as next-connect dispatches it or left unresolved; ADR, `next.ts` "Patterns not handled", fixture + golden, eval delta {model: opus}
+- [ ] M5B.2 Library-invoked fetchers (B2): ADR on hook contracts (SWR passes the key to the fetcher: `useSWR(key, fetcher)`, `useSWRImmutable`, `useSWRInfinite` with a key function, `SWRConfig`'s default `fetcher` for hooks under it; array keys, `null`/conditional keys); a fetcher that resolves to a repo wrapper is inlined at the hook call with the key as its URL; a key the analyzer can't read stays unresolved at the hook; fixture + golden, eval delta {model: opus}
+- [ ] M5B.3 TanStack Query (`useQuery({ queryKey, queryFn })`, `queryFn` reading `queryKey` from its context) and RTK Query (`createApi({ baseQuery: fetchBaseQuery({ baseUrl }), endpoints })` with `query: () => url`): implement whichever is cheap on M5B.2's machinery, document the rest as unhandled; ADR, fixture + golden, eval delta {model: opus}
+- [ ] M5B.4 Eval re-run after M5B.1–3: batch 2 marked seen in `heldOutBatches` (why: fixed in M5B, ADR-0168), its new score reported as seen; README/EVALUATION numbers {model: opus}
+- [ ] M5B.5 Fresh held-out batch 3, repo 1: pick 2–3 new public React/Next + Express/Prisma repos with URL and routing styles unlike the first ten (rules as M3.2, read but never analyzed), pin the first as unseen batch 3, draft and commit its labels; no scoring {model: opus}
+- [ ] M5B.6 Batch 3, repo 2 (and 3): pin, draft and commit labels, then score once, blind (`pnpm eval`); README quotes this as the generalization result, as measured; misses go to a diagnosis note, and if they're big, a summary on #15 before deciding whether to loop again {model: opus}
+- [ ] M5B.7 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5B diff (no repo-specific cases), CLI smoke test on a real repo outside the eval, M5B-review.md, tag m5b {model: opus}
+
+### M6 (continued)
 - [ ] M6.10 docs/walkthroughs/diff.md {model: opus}
 - [ ] M6.11 Milestone verification + M6-review.md + tag m6 {model: opus}
 
