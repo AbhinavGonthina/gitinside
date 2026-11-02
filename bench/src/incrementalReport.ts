@@ -26,6 +26,8 @@ export interface IncrementalMeta {
   machine: Machine;
   /** The cold run that filled the cache from the unedited tree. */
   fill: RunResult;
+  /** The commit the cache was filled at, when not the pinned one. */
+  fillSha?: string;
 }
 
 /** One case's numbers. */
@@ -130,7 +132,7 @@ export function renderIncrementalReport(meta: IncrementalMeta, cases: CaseSummar
     `- **Repo:** ${meta.repo.url} at \`${meta.repo.sha}\``,
     `- **Analyzer:** ${meta.analyzerVersion} (gitinside \`${meta.gitinsideSha}\`)`,
     cases.some((c) => c.commits)
-      ? `- **Method:** ${meta.warmupRuns} cold warm-up run at the pinned SHA, then one cold run there filling a disk fact cache (\`openDiskCache\`). Then each of the ${runs} first-parent commits that follow it on the default branch is checked out in turn (EVALUATION.md §2: the diff of consecutive real commits, applied one at a time) and analyzed twice, each run a fresh Node process: with no cache (cold) and with the cache (warm), in alternating order. The cache is never reset, so each warm run reuses what the previous commit's warm run stored. Opening the cache is part of the warm time.`
+      ? `- **Method:** the ${runs} first-parent commits ending at the pinned SHA are replayed (EVALUATION.md §2: the diff of consecutive real commits, applied one at a time). ${meta.warmupRuns} cold warm-up run at the commit before them${meta.fillSha ? ` (\`${meta.fillSha}\`)` : ""}, then one cold run there filling a disk fact cache (\`openDiskCache\`). Each commit is then checked out in turn and analyzed twice, each run a fresh Node process: with no cache (cold) and with the cache (warm), in alternating order. The cache is never reset, so each warm run reuses what the previous commit's warm run stored. Opening the cache is part of the warm time.`
       : `- **Method:** ${meta.warmupRuns} cold warm-up run, then one cold run filling a disk fact cache (\`openDiskCache\`) from the unedited tree. Each case then makes ${runs} pairs of runs on the same tree, each run a fresh Node process: one with no cache (cold) and one with the cache (warm), in alternating order. An edit case appends a line declaring a new exported constant, different in each pair, to one file before the pair and restores the file after it, so no warm run finds its own edit in the cache. Opening the cache is part of the warm time.`,
     `- **Machine:** ${m.label}: ${m.cpu} (${m.cores} logical cores), ${m.ramGiB} GiB RAM, ${m.os}, Node ${m.node}`,
     `- **Filling the cache:** ${ms(meta.fill.totalMs)}, ${fillCache ? `${fillCache.writes} entries written, ${mib(fillCache.bytes)} on disk` : "no cache counters"}.`,
