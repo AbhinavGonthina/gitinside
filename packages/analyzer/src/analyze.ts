@@ -10,6 +10,13 @@ import {
   rootFileServices,
   routerCreations,
 } from "./express.js";
+import {
+  CollectionFailed,
+  stageFacts,
+  type FactStage,
+  type ServiceFacts,
+  type StageFacts,
+} from "./facts.js";
 import { errorText } from "./failures.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { createFindings, type AnalysisFindings } from "./findings.js";
@@ -26,11 +33,12 @@ import { collectSdkFacts, composeSdkEdges } from "./sdk.js";
 import { collectSymbolNodes } from "./symbols.js";
 import { createUrlNormalizer } from "./url.js";
 import { ANALYZER_VERSION } from "./version.js";
-import { detectWorkspace, serviceNodes } from "./workspace.js";
+import { detectWorkspace, serviceNodes, type Workspace } from "./workspace.js";
 import { bindWrappers, collectHttpFacts } from "./wrappers.js";
 
 export { ANALYZER_VERSION };
 export { findingsOf, type AnalysisFindings } from "./findings.js";
+export * from "./facts.js";
 
 /** Pipeline stages reported to {@link AnalyzeOptions.onStage}, in the order they run. */
 export const ANALYSIS_STAGES = [
@@ -130,9 +138,32 @@ export function detectorFailure(
  * that throws becomes a `DETECTOR_FAILED` warning and contributes nothing, so one detector's
  * bug costs its own nodes and edges rather than the whole analysis.
  */
-export async function analyze(
+export function analyze(dir: string, options: AnalyzeOptions = {}): Promise<ArchitectureGraph> {
+  return analyzeServices(dir, options);
+}
+
+/** Options for {@link analyzeServices}: {@link analyze}'s, plus the service facts. */
+export interface ServiceFactsOptions extends AnalyzeOptions {
+  /**
+   * Compose the graph from these instead of collecting them: one bundle per service, in
+   * workspace order (else it throws). No program is built; the global steps (inventory,
+   * workspace, Prisma schemas, infra, file nodes, matching, assembly) still run.
+   */
+  facts?: readonly ServiceFacts[];
+  /** Called with every service's facts once all stages have collected them, before assembly. */
+  onFacts?: (facts: readonly ServiceFacts[]) => void;
+}
+
+/**
+ * {@link analyze}, rebuilt as facts → compose (ADR-0174): each stage collects one
+ * {@link ServiceFacts} entry per service, asked as that service (ADR-0173), then composes
+ * the stage from every service's facts. A throw while collecting one service is recorded in
+ * its bundle, and the stage contributes nothing, as when composition throws. Composing given
+ * `facts` (a JSON copy, or M6.7e's cache) gives the same bytes as collecting them.
+ */
+export async function analyzeServices(
   dir: string,
-  options: AnalyzeOptions = {},
+  options: ServiceFactsOptions = {},
 ): Promise<ArchitectureGraph> {
   const root = resolve(dir);
   const info = await stat(root).catch(() => null);
@@ -155,8 +186,9 @@ export async function analyze(
   const failures: AnalysisWarning[] = [];
   /**
    * Run a detector stage; if it throws (anything but a limit), record a `DETECTOR_FAILED`
-   * warning and use `empty` instead. Files and symbols aren't detectors: edges point at
-   * their nodes, so they always run unguarded.
+   * warning (the one a service's failed collection recorded, if that's why) and use `empty`
+   * instead. Files and symbols aren't detectors: edges point at their nodes, so they always
+   * run unguarded.
    */
   function detector<T>(name: AnalysisStage, run: () => T | Promise<T>, empty: () => T): Promise<T> {
     return stage(name, async () => {
@@ -164,7 +196,9 @@ export async function analyze(
         return await run();
       } catch (error) {
         if (error instanceof AnalysisError) throw error;
-        failures.push(detectorFailure(name, error, root));
+        failures.push(
+          error instanceof CollectionFailed ? error.warning : detectorFailure(name, error, root),
+        );
         return empty();
       }
     });
@@ -177,50 +211,98 @@ export async function analyze(
   const workspace = await stage("workspace", () => detectWorkspace(root, inventory.files));
   const services = serviceNodes(workspace);
   found.add(["services"], services);
+  const given = options.facts && givenFacts(options.facts, workspace);
   const programs = await stage(
     "programs",
-    () => buildServicePrograms(root, workspace, inventory),
+    () => (given ? [] : buildServicePrograms(root, workspace, inventory)),
     inventory.sourceFiles.length,
   );
+  const resolver = createSymbolResolver(programs, workspace);
+  const collected = programs.map((sp) => ({ sp, facts: newFacts(sp) }));
+  const bundles: readonly ServiceFacts[] = given ?? collected.map((c) => c.facts);
+
+  /**
+   * Collect `stage`'s facts for each service, asked as that service (ADR-0173). A throw is
+   * recorded as that service's failed collection, and the other services still collect, so a
+   * bundle doesn't depend on how another service's went.
+   */
+  function collect<S extends FactStage>(stage: S, run: (sp: ServiceProgram) => StageFacts[S]) {
+    for (const { sp, facts } of collected) {
+      try {
+        const stages: Partial<StageFacts> = facts;
+        stages[stage] = resolver.asking(sp, () => run(sp));
+      } catch (error) {
+        if (error instanceof AnalysisError) throw error;
+        facts.failed.push({ stage, warning: detectorFailure(stage, error, root) });
+      }
+    }
+  }
+  /**
+   * Run a global step `stage`'s collection needs; if it throws, every service's collection of
+   * the stage failed, so each bundle records it before the stage fails.
+   */
+  async function collectionInput<T>(stage: FactStage, run: () => T | Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (!(error instanceof AnalysisError)) {
+        const warning = detectorFailure(stage, error, root);
+        for (const { facts } of collected) facts.failed.push({ stage, warning });
+      }
+      throw error;
+    }
+  }
+
   const imports = await detector(
     "imports",
     () => {
       // Per-service facts, then the global merge (ADR-0098).
       const manifests: ManifestCache = new Map();
-      return composeImports(
-        programs.map((sp) => collectImportFacts(sp, workspace, inventory.sourceFiles, manifests)),
+      collect("imports", (sp) =>
+        collectImportFacts(sp, workspace, inventory.sourceFiles, manifests),
       );
+      return composeImports(stageFacts(bundles, "imports"));
     },
     none,
   );
-  const resolver = createSymbolResolver(programs, workspace);
-  /** Each service's result of `collect`, asked as that service (ADR-0173). */
-  const perService = <T>(collect: (sp: ServiceProgram) => T): T[] =>
-    programs.map((sp) => resolver.asking(sp, () => collect(sp)));
   const express = await detector(
     "express",
-    () => {
+    async () => {
       // Per-service facts, then the global composition (ADR-0093).
-      const hasRouters = programs.some((sp) => routerCreations(sp).length > 0);
-      const facts = perService((sp) => collectExpressFacts(sp, resolver, hasRouters));
-      return composeExpressRoutes(facts, workspace.packages, rootFileServices(programs));
+      if (!given) {
+        const hasRouters = await collectionInput("express", () =>
+          programs.some((sp) => routerCreations(sp).length > 0),
+        );
+        collect("express", (sp) => collectExpressFacts(sp, resolver, hasRouters));
+      }
+      return composeExpressRoutes(
+        stageFacts(bundles, "express"),
+        workspace.packages,
+        rootFileServices(
+          bundles.map((f) => ({ service: { key: f.service }, rootFiles: f.rootFiles })),
+        ),
+      );
     },
     () => ({ ...none(), inlineHandlers: new Map<string, string[]>(), listedRoutes: [] }),
   );
   found.add(["routes"], express.nodes);
   const next = await detector(
     "next",
-    () => composeNextRoutes(perService((sp) => collectNextFacts(sp, resolver))),
+    () => {
+      collect("next", (sp) => collectNextFacts(sp, resolver));
+      return composeNextRoutes(stageFacts(bundles, "next"));
+    },
     none,
   );
   found.add(["routes", "pages"], next.nodes);
   const prisma = await detector(
     "prisma",
     async () => {
-      // The schema is a global input; client calls are per-service facts (ADR-0099).
-      const schemas = await buildPrismaSchemas(root, workspace, inventory.sourceFiles);
-      const facts = perService((sp) => collectPrismaFacts(sp, resolver, schemas.usesPrisma));
-      return composePrisma(schemas, facts, express.inlineHandlers);
+      // The schema is a global step; client calls are per-service facts (ADR-0099).
+      const build = () => buildPrismaSchemas(root, workspace, inventory.sourceFiles);
+      const schemas = await (given ? build() : collectionInput("prisma", build));
+      collect("prisma", (sp) => collectPrismaFacts(sp, resolver, schemas.usesPrisma));
+      return composePrisma(schemas, stageFacts(bundles, "prisma"), express.inlineHandlers);
     },
     () => ({ ...none(), datastores: [] }),
   );
@@ -232,20 +314,39 @@ export async function analyze(
   const stored = relinkStores(prisma, infra.links);
   found.add(["stores"], [...stored.nodes, ...infra.nodes]);
   const files = await stage("files", () => buildFileNodes(root, workspace, inventory.sourceFiles));
-  const symbols = await stage("symbols", () => programs.flatMap((sp) => collectSymbolNodes(sp)));
+  const symbols = await stage("symbols", () => {
+    for (const { sp, facts } of collected) facts.symbols = collectSymbolNodes(sp);
+    return bundles.flatMap((f) => f.symbols);
+  });
   const calls = await detector(
     "calls",
-    () => composeCallEdges(perService((sp) => collectCallFacts(sp, resolver))),
+    () => {
+      collect("calls", (sp) => collectCallFacts(sp, resolver));
+      return composeCallEdges(stageFacts(bundles, "calls"));
+    },
     () => [],
   );
   const http = await detector(
     "http",
-    () => {
-      // Both ask as each service they walk (ADR-0173).
-      const sites = collectHttpCalls(programs, resolver);
-      // Per-service facts, then the global binding step (ADR-0092, ADR-0094).
-      const facts = collectHttpFacts(sites, programs, resolver, createUrlNormalizer(resolver));
-      const requests = bindWrappers(facts, express.inlineHandlers);
+    async () => {
+      if (!given) {
+        // Whole-repo passes that ask as each service they walk (ADR-0173), giving
+        // per-service facts; then the global binding step (ADR-0092, ADR-0094).
+        const facts = await collectionInput("http", () =>
+          collectHttpFacts(
+            collectHttpCalls(programs, resolver),
+            programs,
+            resolver,
+            createUrlNormalizer(resolver),
+          ),
+        );
+        // One per program, in program order (missing ones fail in `stageFacts`).
+        for (const f of facts) {
+          const bundle = collected.find((c) => c.sp.service.key === f.service)?.facts;
+          if (bundle) bundle.http = f;
+        }
+      }
+      const requests = bindWrappers(stageFacts(bundles, "http"), express.inlineHandlers);
       onProgress?.({ stage: "http", count: requests.length });
       const matcher = createRouteMatcher(
         [...express.nodes, ...next.nodes],
@@ -259,26 +360,29 @@ export async function analyze(
   found.add(["externals"], http.nodes);
   const sdk = await detector(
     "sdk",
-    () =>
+    () => {
       // Per-service facts, then the global merge (ADR-0172).
-      composeSdkEdges(
-        perService((sp) => collectSdkFacts(sp, resolver, workspace)),
-        express.inlineHandlers,
-      ),
+      collect("sdk", (sp) => collectSdkFacts(sp, resolver, workspace));
+      return composeSdkEdges(stageFacts(bundles, "sdk"), express.inlineHandlers);
+    },
     () => ({ nodes: [], edges: [] }),
   );
   found.add(["externals"], sdk.nodes);
   const queues = await detector(
     "queues",
-    () => {
+    async () => {
       // Per-service facts; worker factories and the merge are global (ADR-0172).
-      const scanned = usesQueueLibrary(programs);
-      const facts = perService((sp) => collectQueueFacts(sp, resolver, workspace, scanned));
-      return composeQueueEdges(facts, express.inlineHandlers);
+      if (!given) {
+        const scanned = await collectionInput("queues", () => usesQueueLibrary(programs));
+        collect("queues", (sp) => collectQueueFacts(sp, resolver, workspace, scanned));
+      }
+      return composeQueueEdges(stageFacts(bundles, "queues"), express.inlineHandlers);
     },
     () => ({ nodes: [], edges: [] }),
   );
   found.add(["stores"], queues.nodes);
+  for (const { sp, facts } of collected) facts.analyzerWarnings = resolver.warnings(sp);
+  options.onFacts?.(bundles);
   const name = options.name ?? (await defaultName(root, inventory.files));
   // Part order is precedence: a custom Express server can register the same route as a
   // Next.js file, and Express's node wins (ADR-0027).
@@ -297,7 +401,7 @@ export async function analyze(
           nodes: [{ id: SYSTEM_ID, kind: "system", label: name, parentId: null }, ...services],
           warnings: workspace.warnings,
         },
-        { source: "typescript", warnings: programs.flatMap((p) => p.warnings) },
+        { source: "typescript", warnings: bundles.flatMap((f) => f.programWarnings) },
         {
           source: "files",
           nodes: files,
@@ -315,9 +419,33 @@ export async function analyze(
         { source: "queues", ...queues },
         {
           source: "analyzer",
-          warnings: [...programs.flatMap((sp) => resolver.warnings(sp)), ...failures],
+          warnings: [...bundles.flatMap((f) => f.analyzerWarnings), ...failures],
         },
       ],
     }),
   );
+}
+
+/** A bundle for `sp` with its program's facts and no stage collected yet. */
+function newFacts(sp: ServiceProgram): ServiceFacts {
+  return {
+    service: sp.service.key,
+    rootFiles: sp.rootFiles,
+    programWarnings: sp.warnings,
+    symbols: [],
+    failed: [],
+    analyzerWarnings: [],
+  };
+}
+
+/** `facts`, checked to hold one bundle per workspace service, in workspace order. */
+function givenFacts(facts: readonly ServiceFacts[], workspace: Workspace): readonly ServiceFacts[] {
+  const expected = workspace.packages.map((p) => p.key);
+  const keys = facts.map((f) => f.service);
+  if (keys.length !== expected.length || keys.some((key, i) => key !== expected[i])) {
+    throw new Error(
+      `service facts for ${keys.join(", ")} don't match the workspace's services (${expected.join(", ")})`,
+    );
+  }
+  return facts;
 }

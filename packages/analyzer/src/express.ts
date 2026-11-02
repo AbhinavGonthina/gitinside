@@ -1376,9 +1376,12 @@ export function collectExpressFacts(
 
 /**
  * The service key of the program each root file belongs to, from `ServiceProgram.rootFiles`
- * (or `programRootFiles` without programs). Input to {@link composeExpressRoutes}.
+ * (or `programRootFiles` without programs, or `ServiceFacts.rootFiles`). Input to
+ * {@link composeExpressRoutes}.
  */
-export function rootFileServices(programs: readonly ServiceProgram[]): Map<string, string> {
+export function rootFileServices(
+  programs: readonly { service: { key: string }; rootFiles: readonly string[] }[],
+): Map<string, string> {
   const services = new Map<string, string>();
   for (const sp of programs) for (const file of sp.rootFiles) services.set(file, sp.service.key);
   return services;
