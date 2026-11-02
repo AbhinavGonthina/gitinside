@@ -2,8 +2,14 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { edgeId, type ArchitectureGraph, type GraphNode } from "@gitinside/schema";
+import {
+  edgeId,
+  type AnalysisWarning,
+  type ArchitectureGraph,
+  type GraphNode,
+} from "@gitinside/schema";
 import { analyze } from "./analyze.js";
 import {
   collectCallFacts,
@@ -11,10 +17,13 @@ import {
   createSymbolResolver,
   type CallFacts,
 } from "./calls.js";
+import { collectHttpCalls } from "./http.js";
 import { buildInventory } from "./inventory.js";
 import { buildServicePrograms } from "./program.js";
 import { collectSymbolNodes } from "./symbols.js";
+import { createUrlNormalizer } from "./url.js";
 import { detectWorkspace } from "./workspace.js";
+import { collectHttpFacts } from "./wrappers.js";
 
 const FIXTURES = fileURLToPath(new URL("../../../fixtures/", import.meta.url));
 
@@ -325,6 +334,112 @@ describe("call edges", () => {
       const graph = await analyze(dir);
       expect(callEdges(graph)).toEqual([]);
     });
+  });
+});
+
+describe("TypeScript failures per asking service (M6.7d3d1)", () => {
+  const SHARED_ENTRY = "packages/shared/src/index.ts";
+
+  /**
+   * The programs of a web app importing `@acme/shared`, whose entry file TypeScript throws on
+   * when asked for its module symbol (as `importTarget` does), and a resolver over them.
+   */
+  async function setup(web: string) {
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*", "packages/*"] }));
+    await put("apps/web/package.json", JSON.stringify({ name: "web" }));
+    await put(
+      "packages/shared/package.json",
+      JSON.stringify({ name: "@acme/shared", exports: "./src/index.ts" }),
+    );
+    await put(
+      SHARED_ENTRY,
+      [
+        'export const BASE = "https://api.example.com";',
+        "export function format(x: number) { return String(x); }",
+        'export function get(path: string) { return fetch("/api" + path); }',
+        "",
+      ].join("\n"),
+    );
+    await put("apps/web/app.ts", web);
+    const inventory = await buildInventory(dir);
+    const workspace = await detectWorkspace(dir, inventory.files);
+    const programs = buildServicePrograms(dir, workspace, inventory).map((sp) => {
+      const checker = sp.program.getTypeChecker();
+      const throwing: ts.TypeChecker = {
+        ...checker,
+        getSymbolAtLocation: (node) => {
+          if (ts.isSourceFile(node) && node.fileName.endsWith(SHARED_ENTRY)) {
+            throw new TypeError("Cannot read properties of undefined (reading 'id')");
+          }
+          return checker.getSymbolAtLocation(node);
+        },
+      };
+      return { ...sp, program: { ...sp.program, getTypeChecker: () => throwing } };
+    });
+    const resolver = createSymbolResolver(programs, workspace);
+    const byKey = (key: string) => {
+      const sp = programs.find((p) => p.service.key === key);
+      if (!sp) throw new Error(`no program for ${key}`);
+      return sp;
+    };
+    return { programs, resolver, web: byKey("web"), shared: byKey("shared") };
+  }
+
+  const files = (warnings: readonly AnalysisWarning[]) =>
+    warnings.map((w) => `${w.code} ${w.file ?? ""}`);
+
+  it("records a failure in another program's checker as the asking service's", async () => {
+    const { resolver, web, shared } = await setup(
+      'import { format } from "@acme/shared";\nexport function render() { format(1); }\n',
+    );
+    const facts = resolver.asking(web, () => collectCallFacts(web, resolver));
+
+    // The import can't be followed, so the call has no edge, and web's facts own the warning.
+    expect(facts.calls).toEqual([]);
+    expect(files(resolver.warnings(web))).toEqual([`TYPESCRIPT_INTERNAL_ERROR ${SHARED_ENTRY}`]);
+    expect(resolver.warnings(shared)).toEqual([]);
+  });
+
+  it("records a failure outside any asking service as the checker's program's", async () => {
+    const { resolver, web, shared } = await setup(
+      'import { format } from "@acme/shared";\nexport function render() { format(1); }\n',
+    );
+    collectCallFacts(web, resolver);
+    expect(resolver.warnings(web)).toEqual([]);
+    expect(files(resolver.warnings(shared))).toEqual([`TYPESCRIPT_INTERNAL_ERROR ${SHARED_ENTRY}`]);
+  });
+
+  it("restores the outer asking service after a nested one, even when it throws", async () => {
+    const { resolver, web, shared } = await setup(
+      'import { format } from "@acme/shared";\nexport function render() { format(1); }\n',
+    );
+    resolver.asking(web, () => {
+      expect(() =>
+        resolver.asking(shared, () => {
+          throw new Error("boom");
+        }),
+      ).toThrow("boom");
+      collectCallFacts(web, resolver);
+    });
+    expect(files(resolver.warnings(web))).toEqual([`TYPESCRIPT_INTERNAL_ERROR ${SHARED_ENTRY}`]);
+    expect(resolver.warnings(shared)).toEqual([]);
+  });
+
+  it("asks as each walked service inside the HTTP stage's whole-repo passes", async () => {
+    const { programs, resolver, web, shared } = await setup(
+      [
+        'import { BASE, get } from "@acme/shared";',
+        "export async function load() {",
+        '  await fetch(BASE + "/items");',
+        '  await get("/users");',
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const sites = collectHttpCalls(programs, resolver);
+    collectHttpFacts(sites, programs, resolver, createUrlNormalizer(resolver));
+    expect(files(resolver.warnings(web))).toEqual([`TYPESCRIPT_INTERNAL_ERROR ${SHARED_ENTRY}`]);
+    expect(resolver.warnings(shared)).toEqual([]);
   });
 });
 

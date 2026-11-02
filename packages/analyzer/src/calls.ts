@@ -145,10 +145,18 @@ export interface SymbolResolver {
    */
   checkerOf(sp: ServiceProgram): ts.TypeChecker;
   /**
-   * One `TYPESCRIPT_INTERNAL_ERROR` warning per expression TypeScript threw on so far, so
-   * call this after the last stage that uses a checker.
+   * Run `ask` as part of the analysis of `sp`'s service, and return its result: TypeScript
+   * failures meanwhile, in any program's checker, are `sp`'s {@link warnings}. Nests (the
+   * outer service is restored afterwards, even if `ask` throws).
    */
-  warnings(): AnalysisWarning[];
+  asking<T>(sp: ServiceProgram, ask: () => T): T;
+  /**
+   * One `TYPESCRIPT_INTERNAL_ERROR` warning per expression TypeScript threw on so far while
+   * analyzing `sp`'s service (see {@link asking}), in the order they happened. A failure
+   * outside any `asking` belongs to the program whose checker threw. Call this after the
+   * last stage that uses a checker.
+   */
+  warnings(sp: ServiceProgram): AnalysisWarning[];
   /** Symbol node IDs by declaration node, per root source file. */
   callers: ReadonlyMap<ts.SourceFile, ReadonlyMap<ts.Node, string>>;
   /**
@@ -221,7 +229,10 @@ export function createSymbolResolver(
   };
 
   const manifests: ManifestCache = new Map();
-  const failures = new Map<string, AnalysisWarning>();
+  /** The service whose analysis is asking (see `asking`), if any. */
+  let asker: ServiceProgram | undefined;
+  /** Failures by the service they belong to, each keyed by file and position. */
+  const failures = new Map<ServiceProgram, Map<string, AnalysisWarning>>();
   const contexts = new Map<ServiceProgram, Context>();
   const contextOf = (sp: ServiceProgram): Context => {
     let context = contexts.get(sp);
@@ -232,8 +243,11 @@ export function createSymbolResolver(
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
         const at = `${line + 1}:${character + 1}`;
         const key = `${file ?? ""}:${at}`;
-        if (failures.has(key)) return;
-        failures.set(key, {
+        const owner = asker ?? sp;
+        let owned = failures.get(owner);
+        if (!owned) failures.set(owner, (owned = new Map()));
+        if (owned.has(key)) return;
+        owned.set(key, {
           code: "TYPESCRIPT_INTERNAL_ERROR",
           message: `TypeScript failed on the expression at ${at} (${errorText(error, sp.toAbsolute(""))}); what it names is treated as unknown`,
           ...(file === undefined ? {} : { file }),
@@ -379,7 +393,16 @@ export function createSymbolResolver(
     programOf: (path, from) => reach(from, programByFile.get(path)),
     reached: (sp) => reached.get(sp) ?? new Set(),
     checkerOf: (sp) => contextOf(sp).checker,
-    warnings: () => [...failures.values()],
+    asking: (sp, ask) => {
+      const outer = asker;
+      asker = sp;
+      try {
+        return ask();
+      } finally {
+        asker = outer;
+      }
+    },
+    warnings: (sp) => [...(failures.get(sp)?.values() ?? [])],
     callers,
     resolve,
     importTarget: (sp, declaration, member) => importTarget(contextOf(sp), declaration, member),

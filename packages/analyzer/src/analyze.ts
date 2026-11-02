@@ -20,7 +20,7 @@ import { AnalysisError, buildInventory, type InventoryLimits } from "./inventory
 import { buildHttpEdges, createRouteMatcher } from "./match.js";
 import { collectNextFacts, composeNextRoutes } from "./next.js";
 import { buildPrismaSchemas, collectPrismaFacts, composePrisma } from "./prisma.js";
-import { buildServicePrograms } from "./program.js";
+import { buildServicePrograms, type ServiceProgram } from "./program.js";
 import { collectQueueFacts, composeQueueEdges, usesQueueLibrary } from "./queues.js";
 import { collectSdkFacts, composeSdkEdges } from "./sdk.js";
 import { collectSymbolNodes } from "./symbols.js";
@@ -194,12 +194,15 @@ export async function analyze(
     none,
   );
   const resolver = createSymbolResolver(programs, workspace);
+  /** Each service's result of `collect`, asked as that service (ADR-0173). */
+  const perService = <T>(collect: (sp: ServiceProgram) => T): T[] =>
+    programs.map((sp) => resolver.asking(sp, () => collect(sp)));
   const express = await detector(
     "express",
     () => {
       // Per-service facts, then the global composition (ADR-0093).
       const hasRouters = programs.some((sp) => routerCreations(sp).length > 0);
-      const facts = programs.map((sp) => collectExpressFacts(sp, resolver, hasRouters));
+      const facts = perService((sp) => collectExpressFacts(sp, resolver, hasRouters));
       return composeExpressRoutes(facts, workspace.packages, rootFileServices(programs));
     },
     () => ({ ...none(), inlineHandlers: new Map<string, string[]>(), listedRoutes: [] }),
@@ -207,7 +210,7 @@ export async function analyze(
   found.add(["routes"], express.nodes);
   const next = await detector(
     "next",
-    () => composeNextRoutes(programs.map((sp) => collectNextFacts(sp, resolver))),
+    () => composeNextRoutes(perService((sp) => collectNextFacts(sp, resolver))),
     none,
   );
   found.add(["routes", "pages"], next.nodes);
@@ -216,7 +219,7 @@ export async function analyze(
     async () => {
       // The schema is a global input; client calls are per-service facts (ADR-0099).
       const schemas = await buildPrismaSchemas(root, workspace, inventory.sourceFiles);
-      const facts = programs.map((sp) => collectPrismaFacts(sp, resolver, schemas.usesPrisma));
+      const facts = perService((sp) => collectPrismaFacts(sp, resolver, schemas.usesPrisma));
       return composePrisma(schemas, facts, express.inlineHandlers);
     },
     () => ({ ...none(), datastores: [] }),
@@ -232,12 +235,13 @@ export async function analyze(
   const symbols = await stage("symbols", () => programs.flatMap((sp) => collectSymbolNodes(sp)));
   const calls = await detector(
     "calls",
-    () => composeCallEdges(programs.map((sp) => collectCallFacts(sp, resolver))),
+    () => composeCallEdges(perService((sp) => collectCallFacts(sp, resolver))),
     () => [],
   );
   const http = await detector(
     "http",
     () => {
+      // Both ask as each service they walk (ADR-0173).
       const sites = collectHttpCalls(programs, resolver);
       // Per-service facts, then the global binding step (ADR-0092, ADR-0094).
       const facts = collectHttpFacts(sites, programs, resolver, createUrlNormalizer(resolver));
@@ -258,7 +262,7 @@ export async function analyze(
     () =>
       // Per-service facts, then the global merge (ADR-0172).
       composeSdkEdges(
-        programs.map((sp) => collectSdkFacts(sp, resolver, workspace)),
+        perService((sp) => collectSdkFacts(sp, resolver, workspace)),
         express.inlineHandlers,
       ),
     () => ({ nodes: [], edges: [] }),
@@ -269,7 +273,7 @@ export async function analyze(
     () => {
       // Per-service facts; worker factories and the merge are global (ADR-0172).
       const scanned = usesQueueLibrary(programs);
-      const facts = programs.map((sp) => collectQueueFacts(sp, resolver, workspace, scanned));
+      const facts = perService((sp) => collectQueueFacts(sp, resolver, workspace, scanned));
       return composeQueueEdges(facts, express.inlineHandlers);
     },
     () => ({ nodes: [], edges: [] }),
@@ -309,7 +313,10 @@ export async function analyze(
         { source: "http", nodes: http.nodes, edges: http.edges },
         { source: "sdk", ...sdk },
         { source: "queues", ...queues },
-        { source: "analyzer", warnings: [...resolver.warnings(), ...failures] },
+        {
+          source: "analyzer",
+          warnings: [...programs.flatMap((sp) => resolver.warnings(sp)), ...failures],
+        },
       ],
     }),
   );
