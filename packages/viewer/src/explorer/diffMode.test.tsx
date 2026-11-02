@@ -1,7 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { diffGraphs } from "@gitinside/diff";
+import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
 import { afterEach, describe, expect, it } from "vitest";
 import { diffPair } from "../diffPair.testkit.js";
+import { buildHierarchy } from "../model/hierarchy.js";
 import { Explorer } from "./Explorer.js";
+import { traceFrom } from "./trace.js";
 
 // Diff mode on the explorer (M6.9b): the fixtures/diff-broken pair, whose
 // head removes routes, a file, and a model, changes a route's method, and
@@ -15,6 +19,7 @@ const SERVICE = `service:${P}/`;
 const SRC = `module:${P}/src`;
 const DELETE_ROUTE = `route:${P}/DELETE /api/orders/:id`;
 const PUT_ROUTE = `route:${P}/PUT /api/orders`;
+const GET_ROUTE = `route:${P}/GET /api/orders`;
 const CLIENT = `file:${P}/src/client.ts`;
 const LEGACY = `file:${P}/src/legacy.ts`;
 
@@ -170,6 +175,101 @@ describe("Explorer diff mode", { timeout: 30_000 }, () => {
     expect(container.querySelector("[data-absent]")).toBeNull();
     // Nothing moved.
     expect([DELETE_ROUTE, PUT_ROUTE, CLIENT, LEGACY].map(place)).toEqual(before);
+  });
+
+  it("keeps the selection in a version that has it, and lets it go in one that doesn't", async () => {
+    await setup({ initialOpen: [SERVICE, SRC], initialSelected: GET_ROUTE });
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    const selectedItems = () =>
+      screen
+        .getAllByRole("treeitem")
+        .filter((t) => t.getAttribute("aria-selected") === "true")
+        .map((t) => t.closest<HTMLElement>(".gi-drill__node")?.dataset.nodeId);
+
+    // GET /api/orders is in both versions.
+    fireEvent.click(within(views).getByRole("radio", { name: "Base" }));
+    await settle();
+    expect(selectedItems()).toEqual([GET_ROUTE]);
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await settle();
+    expect(selectedItems()).toEqual([GET_ROUTE]);
+    expect(screen.getByText("Showing the head version")).toBeTruthy();
+
+    // The removed DELETE route isn't in Head.
+    fireEvent.click(within(views).getByRole("radio", { name: "Overlay" }));
+    await settle();
+    fireEvent.click(document.querySelector(`[data-node-id="${DELETE_ROUTE}"] > .gi-node`)!);
+    expect(selectedItems()).toEqual([DELETE_ROUTE]);
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await settle();
+    expect(selectedItems()).toEqual([]);
+    expect(
+      screen.getByText(
+        "Showing the head version. DELETE /api/orders/:id isn't in it, so it's no longer selected",
+      ),
+    ).toBeTruthy();
+    // Back on the overlay, it stays let go.
+    fireEvent.click(within(views).getByRole("radio", { name: "Overlay" }));
+    await settle();
+    expect(selectedItems()).toEqual([]);
+  });
+
+  it("follows a trace through the version shown", async () => {
+    // Neither pair changes a request path, so this head's listOrders also calls quote.
+    const quote = head.edges.find(
+      (e) => e.kind === "calls" && e.from === `symbol:${P}/src/pricing.ts#quote`,
+    )!;
+    const listOrders = `symbol:${P}/src/handlers.ts#listOrders`;
+    const added = {
+      ...quote,
+      from: listOrders,
+      id: `calls:${listOrders}->${quote.from}`,
+      to: quote.from,
+    };
+    const longer: ArchitectureGraph = {
+      ...head,
+      edges: [...head.edges, added].sort((a, b) => compareStrings(a.id, b.id)),
+    };
+    const { container } = await setup({
+      graph: longer,
+      diff: { base, diff: diffGraphs(base, longer) },
+      initialTrace: GET_ROUTE,
+      initialStep: 0,
+    });
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    const stepCount = () => container.querySelectorAll(".gi-explorer__step").length;
+    const steps = (graph: ArchitectureGraph) =>
+      traceFrom(buildHierarchy(graph), GET_ROUTE).steps.length;
+    expect(steps(longer)).toBeGreaterThan(steps(base));
+    expect(stepCount()).toBe(steps(longer));
+
+    fireEvent.click(within(views).getByRole("radio", { name: "Base" }));
+    await settle();
+    expect(container.querySelector('.gi-status[data-tone="trace"]')).not.toBeNull();
+    expect(stepCount()).toBe(steps(base));
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await settle();
+    expect(stepCount()).toBe(steps(longer));
+  });
+
+  it("ends a trace from a route the version shown doesn't have", async () => {
+    const { container } = await setup({ initialTrace: DELETE_ROUTE, initialStep: 0 });
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    expect(container.querySelector('.gi-status[data-tone="trace"]')).not.toBeNull();
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await settle();
+    expect(container.querySelector('.gi-status[data-tone="trace"]')).toBeNull();
+    expect(
+      screen.getByText(
+        "Showing the head version. The trace from DELETE /api/orders/:id ended: it isn't in this version",
+      ),
+    ).toBeTruthy();
+    // The picker offers only what Head can trace.
+    fireEvent.click(screen.getByRole("button", { name: /^Trace/ }));
+    const choices = await screen.findAllByRole("option");
+    const names = choices.map((c) => c.textContent ?? "");
+    expect(names.some((n) => n.includes("DELETE"))).toBe(false);
+    expect(names.some((n) => n.includes("GET"))).toBe(true);
   });
 
   it("names a diff of other graphs on an error card instead of drawing it", () => {

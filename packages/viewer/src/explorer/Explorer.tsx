@@ -9,7 +9,7 @@ import { ShareMenu } from "../chrome/ShareMenu.js";
 import { viewExport, type ViewExport } from "../export/files.js";
 import { Breadcrumbs, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
 import { TopBar, type DiffView } from "../chrome/TopBar.js";
-import { buildDiffOverlay, DiffMismatchError, diffMarks } from "../model/diff.js";
+import { buildDiffOverlay, DiffMismatchError, diffMarks, versionGraph } from "../model/diff.js";
 import {
   createLayoutCache,
   createLayoutEngine,
@@ -261,6 +261,15 @@ export function Explorer({
   const [version, setVersion] = useState<DiffView>("overlay");
   const graph = overlay?.graph ?? given;
   const index = useMemo(() => buildHierarchy(graph), [graph]);
+  /**
+   * What Base or Head holds, on the overlay's IDs (M6.9c): traces, the trace
+   * picker, and the palette follow only that version. The overlay's otherwise.
+   */
+  const shownIndex = useMemo(
+    () =>
+      overlay && version !== "overlay" ? buildHierarchy(versionGraph(overlay, version)) : index,
+    [overlay, version, index],
+  );
   const hasApp = useMemo(() => hasSourceFiles(graph), [graph]);
   const sourceAccess = useSourceAccess(sources, loadSource);
   // Made in an effect, not during render, so it's disposed by the same
@@ -307,9 +316,9 @@ export function Explorer({
 
   const [selected, setSelected] = useState<string | null>(initialSelected);
   /** `traceStart`, if it's in this graph and has somewhere to go. */
-  const traceStartNode = traceStart === undefined ? undefined : index.byId.get(traceStart);
+  const traceStartNode = traceStart === undefined ? undefined : shownIndex.byId.get(traceStart);
   const fallbackStart =
-    traceStartNode && canTraceFrom(index, traceStartNode) ? traceStartNode.id : undefined;
+    traceStartNode && canTraceFrom(shownIndex, traceStartNode) ? traceStartNode.id : undefined;
   // The trace's start outlives the trace, so focus can go back to it on exit.
   const [traced, setTraced] = useState<string | null>(() => {
     const linked = initialTrace === null ? undefined : index.byId.get(initialTrace);
@@ -319,8 +328,8 @@ export function Explorer({
   const [stepAsked, setStep] = useState<number | null>(traced === null ? null : (initialStep ?? 0));
   // A new graph without the traced node ends the trace rather than throwing.
   const path = useMemo(
-    () => (traced && index.byId.has(traced) ? traceFrom(index, traced) : undefined),
-    [index, traced],
+    () => (traced && shownIndex.byId.has(traced) ? traceFrom(shownIndex, traced) : undefined),
+    [shownIndex, traced],
   );
   const steps = path?.steps ?? [];
   // A new graph with a shorter path keeps the trace on its last step, and that
@@ -329,11 +338,11 @@ export function Explorer({
   if (step !== stepAsked) setStep(step);
   const [playing, setPlaying] = useState(false);
   // The picker T and the Trace button open when there's nothing to trace yet.
-  const choices = useMemo(() => traceChoices(index), [index]);
+  const choices = useMemo(() => traceChoices(shownIndex), [shownIndex]);
   const [picking, setPicking] = useState(false);
   const pickerState = usePresence(picking);
   // The Ctrl+K palette (M4b.7), over every node.
-  const entries = useMemo(() => searchEntries(index), [index]);
+  const entries = useMemo(() => searchEntries(shownIndex), [shownIndex]);
   const [searching, setSearching] = useState(false);
   const searchState = usePresence(searching);
   /** Where focus was when the picker or the palette opened, to go back to. */
@@ -556,7 +565,7 @@ export function Explorer({
 
   const selectedNode = selected ? index.byId.get(selected) : undefined;
   /** Whether the selection is a page or route with a request path. */
-  const selectionTraces = selectedNode !== undefined && canTraceFrom(index, selectedNode);
+  const selectionTraces = selectedNode !== undefined && canTraceFrom(shownIndex, selectedNode);
   /** What T and the Trace button trace: the selection if it can be, else `traceStart`. */
   const startable = selectionTraces ? selectedNode.id : fallbackStart;
   const selectedBox = selected ? drawnAs(index, view, filtered, selected) : undefined;
@@ -621,10 +630,25 @@ export function Explorer({
     if (hintsOn && hints?.steps[hints.at] === step) nextHint();
   }
 
-  /** Diff mode's Base, Head, or Overlay from the top bar, said aloud. */
+  /**
+   * Diff mode's Base, Head, or Overlay from the top bar, said aloud. The
+   * selection and a trace stay when the version has their node (a trace then
+   * follows that version's connections); otherwise they go, and it says so.
+   */
   function showVersion(next: DiffView) {
     setVersion(next);
-    setAnnouncement(`Showing ${VERSION_TEXT[next]}`);
+    const has = (id: string) => next === "overlay" || (overlay?.nodesIn[next].has(id) ?? true);
+    const said = [`Showing ${VERSION_TEXT[next]}`];
+    if (tracing && traced !== null && !has(traced)) {
+      setStep(null);
+      setPlaying(false);
+      said.push(`The trace from ${nodeOf(index, traced).label} ended: it isn't in this version`);
+    }
+    if (selected !== null && !has(selected)) {
+      setSelected(null);
+      said.push(`${nodeOf(index, selected).label} isn't in it, so it's no longer selected`);
+    }
+    setAnnouncement(said.join(". "));
   }
 
   /** Selects a node (or none), saying what it connects to (UX.md). */

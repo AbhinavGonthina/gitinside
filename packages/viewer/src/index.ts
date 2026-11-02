@@ -175,7 +175,7 @@ export {
   normalizeFolder,
 } from "./model/filters.js";
 export type { FilterOption, FilterOptions, Filters } from "./model/filters.js";
-export { buildDiffOverlay, DiffMismatchError, diffMarks } from "./model/diff.js";
+export { buildDiffOverlay, DiffMismatchError, diffMarks, versionGraph } from "./model/diff.js";
 export type {
   BrokenConnection,
   ChangeItem,
