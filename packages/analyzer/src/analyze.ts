@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { SYSTEM_ID, type AnalysisWarning, type ArchitectureGraph } from "@gitinside/schema";
 import { assembleGraph } from "./assemble.js";
+import type { FactCache } from "./cache.js";
 import { collectCallFacts, composeCallEdges, createSymbolResolver } from "./calls.js";
 import {
   collectExpressFacts,
@@ -22,7 +23,9 @@ import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { createFindings, type AnalysisFindings } from "./findings.js";
 import { collectHttpCalls } from "./http.js";
 import { collectImportFacts, composeImports, type ManifestCache } from "./imports.js";
+import { cachedFacts, factKeys, storeFacts, type FactKeys } from "./incremental.js";
 import { buildInfra, relinkStores } from "./infra.js";
+import { serviceInputs } from "./inputs.js";
 import { AnalysisError, buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildHttpEdges, createRouteMatcher } from "./match.js";
 import { collectNextFacts, composeNextRoutes } from "./next.js";
@@ -96,6 +99,12 @@ export interface AnalyzeOptions {
    * nodes. Like progress, findings never enter the graph.
    */
   onFound?: (found: AnalysisFindings) => void;
+  /**
+   * Reuse service facts from this cache (`openDiskCache`) when every service's recorded
+   * inputs still hold, and store them after a cold run (ADR-0175). The graph is the same
+   * bytes either way; only the time differs.
+   */
+  cache?: FactCache;
 }
 
 /**
@@ -211,10 +220,19 @@ export async function analyzeServices(
   const workspace = await stage("workspace", () => detectWorkspace(root, inventory.files));
   const services = serviceNodes(workspace);
   found.add(["services"], services);
-  const given = options.facts && givenFacts(options.facts, workspace);
+  let given = options.facts && givenFacts(options.facts, workspace);
+  const cache = given ? undefined : options.cache;
+  let keys: FactKeys | undefined;
   const programs = await stage(
     "programs",
-    () => (given ? [] : buildServicePrograms(root, workspace, inventory)),
+    async () => {
+      // A warm run composes from the cache instead of building programs (ADR-0175).
+      if (cache) {
+        keys = await factKeys(root, workspace, inventory, options.limits);
+        given = await cachedFacts(cache, root, workspace, inventory, keys);
+      }
+      return given ? [] : buildServicePrograms(root, workspace, inventory);
+    },
     inventory.sourceFiles.length,
   );
   const resolver = createSymbolResolver(programs, workspace);
@@ -383,6 +401,9 @@ export async function analyzeServices(
   found.add(["stores"], queues.nodes);
   for (const { sp, facts } of collected) facts.analyzerWarnings = resolver.warnings(sp);
   options.onFacts?.(bundles);
+  if (cache && keys && collected.length > 0) {
+    await storeFacts(cache, keys, bundles, serviceInputs(programs, resolver));
+  }
   const name = options.name ?? (await defaultName(root, inventory.files));
   // Part order is precedence: a custom Express server can register the same route as a
   // Next.js file, and Express's node wins (ADR-0027).

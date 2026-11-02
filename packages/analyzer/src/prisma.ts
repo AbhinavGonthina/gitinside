@@ -688,10 +688,19 @@ export async function buildPrismaSchemas(
   return {
     ...sortedPart(nodes, edges, warnings, datastores),
     models,
-    usesPrisma:
-      schemaFiles.length > 0 ||
-      workspace.packages.some((p) => p.dependencies.includes("@prisma/client")),
+    usesPrisma: repoUsesPrisma(workspace, sourceFiles),
   };
+}
+
+/**
+ * {@link PrismaSchemas.usesPrisma} without reading a schema: whether `sourceFiles` holds a
+ * `.prisma` file or a service depends on `@prisma/client`.
+ */
+export function repoUsesPrisma(workspace: Workspace, sourceFiles: readonly string[]): boolean {
+  return (
+    sourceFiles.some((f) => f.endsWith(".prisma")) ||
+    workspace.packages.some((p) => p.dependencies.includes("@prisma/client"))
+  );
 }
 
 /** Nodes, edges (with their sites and fields), warnings, and datastores, sorted. */

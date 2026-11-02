@@ -174,18 +174,36 @@ export function serviceInputs(
 }
 
 /**
+ * The SHA-256 (hex) of a repo file's bytes under `root`, read once per path per hasher; `""`
+ * (which matches no hash) when it can't be read.
+ */
+export function createFileHasher(root: string): (path: string) => Promise<string> {
+  const hashes = new Map<string, Promise<string>>();
+  return (path) => {
+    let hash = hashes.get(path);
+    if (!hash) {
+      hash = readFile(join(root, path)).then(contentHash, () => "");
+      hashes.set(path, hash);
+    }
+    return hash;
+  };
+}
+
+/**
  * Checks observed inputs against another checkout of the repo: `verify(inputs)` answers the
  * first input (a path, or `listing:<service>`) that would now get a different answer, or
  * undefined when every one is the same, i.e. the facts recorded with `inputs` still hold.
  *
  * `workspace` and `inventory` must come from `root`; the workspace layout itself is not
- * compared (it belongs in the cache key). File hashes are computed once per verifier, so one
- * verifier serves every service of a run.
+ * compared (it belongs in the cache key). File hashes are computed once per verifier (or per
+ * `hashOf`, a {@link createFileHasher} that may be shared), so one verifier serves every
+ * service of a run.
  */
 export function createInputVerifier(
   root: string,
   workspace: Workspace,
   inventory: Inventory,
+  hashOf: (path: string) => Promise<string> = createFileHasher(root),
 ): (inputs: ObservedInputs) => Promise<string | undefined> {
   const present = new Set(inventory.files);
   const dirs = new Set<string>([""]);
@@ -199,16 +217,6 @@ export function createInputVerifier(
     }
   }
   const listings = programRootFiles(workspace, inventory.sourceFiles);
-  const hashes = new Map<string, Promise<string>>();
-  const hashOf = (path: string): Promise<string> => {
-    let hash = hashes.get(path);
-    if (!hash) {
-      // An unreadable file can't be shown unchanged; "" matches no hash.
-      hash = readFile(join(root, path)).then(contentHash, () => "");
-      hashes.set(path, hash);
-    }
-    return hash;
-  };
 
   return async (inputs) => {
     for (const [service, files] of inputs.listings) {

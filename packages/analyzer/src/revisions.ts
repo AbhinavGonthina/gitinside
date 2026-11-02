@@ -6,8 +6,15 @@ import { join, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
+import type { FactCache } from "./cache.js";
 
 const execFileAsync = promisify(execFile);
+
+/** Options for {@link openSide}. */
+export interface SideOptions {
+  /** A fact cache for the side's analysis (ADR-0175). */
+  cache?: FactCache;
+}
 
 /** One side of `gitinside diff`: its graph and, for trees on disk, its file text. */
 export interface DiffSide {
@@ -61,7 +68,7 @@ async function commitOf(repo: string, ref: string): Promise<string | undefined> 
  * runs with an empty hooks folder, so no repo or user hook runs (SECURITY.md: the code is
  * parsed, never executed); the worktree is removed again by `close`.
  */
-async function openCommit(repo: string, sha: string): Promise<DiffSide> {
+async function openCommit(repo: string, sha: string, options: SideOptions): Promise<DiffSide> {
   const scratch = await mkdtemp(join(tmpdir(), "gitinside-diff-"));
   const hooks = join(scratch, "hooks");
   const tree = join(scratch, "tree");
@@ -86,7 +93,7 @@ async function openCommit(repo: string, sha: string): Promise<DiffSide> {
       sha,
     ]);
     added = true;
-    return { graph: await analyze(tree, { sha }), read: treeReader(tree), close };
+    return { graph: await analyze(tree, { ...options, sha }), read: treeReader(tree), close };
   } catch (error) {
     await close();
     throw error;
@@ -101,9 +108,14 @@ async function openCommit(repo: string, sha: string): Promise<DiffSide> {
  * 3. A commit, branch, or tag in the git repo at `repo`: checked out into a temporary
  *    worktree and analyzed, with the full SHA recorded in the graph.
  *
- * Throws when `spec` is none of these, or when the graph or analysis fails.
+ * Throws when `spec` is none of these, or when the graph or analysis fails. Analyses use
+ * `options.cache` when given, so both sides of a diff can share one.
  */
-export async function openSide(spec: string, repo: string): Promise<DiffSide> {
+export async function openSide(
+  spec: string,
+  repo: string,
+  options: SideOptions = {},
+): Promise<DiffSide> {
   const info = await stat(spec).catch(() => undefined);
   const none = async (): Promise<void> => undefined;
   if (info?.isFile()) {
@@ -120,12 +132,12 @@ export async function openSide(spec: string, repo: string): Promise<DiffSide> {
     return { graph: parsed, read: () => undefined, close: none };
   }
   if (info?.isDirectory())
-    return { graph: await analyze(spec), read: treeReader(spec), close: none };
+    return { graph: await analyze(spec, options), read: treeReader(spec), close: none };
   const sha = await commitOf(repo, spec);
   if (sha === undefined) {
     throw new Error(`${spec} is not a file, a folder, or a commit in the git repo at ${repo}`);
   }
-  return openCommit(repo, sha);
+  return openCommit(repo, sha, options);
 }
 
 function parseGraphOrUndefined(value: unknown): ArchitectureGraph | undefined {

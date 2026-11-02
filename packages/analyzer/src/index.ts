@@ -4,6 +4,7 @@ export * from "./cache.js";
 export * from "./express.js";
 export * from "./http.js";
 export * from "./imports.js";
+export * from "./incremental.js";
 export * from "./infra.js";
 export * from "./inputs.js";
 export * from "./inventory.js";
