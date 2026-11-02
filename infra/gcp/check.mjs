@@ -23,6 +23,10 @@
  * - a fixture tarball extracted under `/tmp/jobs` and analyzed by the real sandboxed child
  *   gives the golden graph byte for byte (the image layout keeps the child's read root at
  *   /app);
+ * - the fact cache (ADR-0178): two jobs on a workspace fixture, each in its own job folder,
+ *   share `/tmp/cache/public` through the sandboxed child. The first misses and stores every
+ *   service, the second hits every one with the same bytes (the golden graph), the folder's
+ *   entries belong to uid 1000, and it holds no more than the job's cap;
  * - SIGTERM as PID 1 (no init) stops it with exit 0 within Cloud Run's 10 s grace, and
  *   every log line is JSON;
  * - the billing kill switch, started from the same image with `killswitch.json`'s command,
@@ -46,6 +50,8 @@ const KILLSWITCH = "gitinside-check-killswitch";
 // Not 8080, so the check fails if the worker ignores Cloud Run's PORT.
 const PORT = "9090";
 const FIXTURE = "fixtures/express-basic";
+// Several services, so a warm job reuses more than one cache entry.
+const CACHE_FIXTURE = "fixtures/pnpm-monorepo";
 // Cloud Run's gap between SIGTERM and SIGKILL.
 const GRACE_SECONDS = 10;
 
@@ -233,6 +239,53 @@ try {
 }
 `;
 
+// Two jobs as job.ts runs them: the cache folder prepared (factcache.ts), a fresh job folder,
+// the tarball extracted, the sandboxed child analyzing with the cache; then every file under
+// the cache root with its owner, and its size in the in-memory filesystem's pages.
+const CACHE = `
+import { mkdir, mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import { Readable } from "node:stream";
+import { buffer } from "node:stream/consumers";
+import { CONFIG_DEFAULTS } from "./dist/config.js";
+import { CACHE_BLOCK_BYTES, cacheFolder, prepareCacheFolder } from "./dist/factcache.js";
+import { extractTarball } from "./dist/extract.js";
+import { runAnalysis } from "./dist/runner.js";
+const tarball = await buffer(process.stdin);
+const root = CONFIG_DEFAULTS.cacheRoot;
+const runs = [];
+for (let job = 0; job < 2; job++) {
+  const cache = await prepareCacheFolder(root, cacheFolder(root, { visibility: "public" }));
+  await mkdir("/tmp/jobs", { recursive: true });
+  const dir = await mkdtemp("/tmp/jobs/cache-");
+  try {
+    const src = dir + "/src";
+    const out = dir + "/architecture.json";
+    await mkdir(src);
+    await extractTarball(Readable.from([tarball]), src, { stripRoot: false });
+    const result = await runAnalysis({ src, out, owner: "fixtures", name: "pnpm-monorepo", cache });
+    const graph = result.ok ? await readFile(out, "utf8") : null;
+    runs.push({ cache, result, graph });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+const files = [];
+let bytes = 0;
+for (const name of (await readdir(root, { recursive: true })).sort()) {
+  const info = await stat(root + "/" + name);
+  files.push({ name, uid: info.uid, gid: info.gid, file: info.isFile() });
+  if (info.isFile()) bytes += Math.ceil(info.size / CACHE_BLOCK_BYTES) * CACHE_BLOCK_BYTES;
+}
+const rootInfo = await stat(root);
+console.log(JSON.stringify({
+  runs,
+  folders: await readdir(root),
+  root: { uid: rootInfo.uid, gid: rootInfo.gid },
+  files,
+  bytes,
+}));
+`;
+
 /** Remove the check's containers and network, ignoring what doesn't exist. */
 function removeAll() {
   for (const args of [
@@ -393,6 +446,38 @@ try {
   const analysis = inWorker(ANALYZE, tarball);
   assert.equal(analysis.result.ok, true, JSON.stringify(analysis.result));
   assert.equal(analysis.graph, readFileSync(join(FIXTURE, "expected.json"), "utf8"));
+
+  // The fact cache: a second job reuses the first one's facts through the sandboxed child.
+  const cached = inWorker(
+    CACHE,
+    execFileSync("git", ["archive", "--format=tar.gz", `HEAD:${CACHE_FIXTURE}`]),
+  );
+  const [cold, warm] = cached.runs;
+  const expected = readFileSync(join(CACHE_FIXTURE, "expected.json"), "utf8");
+  for (const run of [cold, warm]) {
+    assert.equal(run.result.ok, true, JSON.stringify(run.result));
+    assert.equal(run.graph, expected);
+    assert.deepEqual(run.cache, { dir: "/tmp/cache/public", maxBytes: 64 * 1024 * 1024 });
+  }
+  const services = JSON.parse(expected).nodes.filter((node) => node.kind === "service").length;
+  assert.ok(services > 1, `${CACHE_FIXTURE} has ${services} service`);
+  const counts = (hits, misses, writes) => ({ hits, misses, writes, evictions: 0, errors: 0 });
+  assert.deepEqual(cold.result.stats.cache, counts(0, services, services));
+  assert.deepEqual(warm.result.stats.cache, counts(services, 0, 0));
+  assert.deepEqual(cached.folders, ["public"]);
+  assert.deepEqual(cached.root, { uid: 1000, gid: 1000 });
+  assert.ok(
+    cached.files.filter((file) => file.file).length >= services,
+    JSON.stringify(cached.files),
+  );
+  for (const file of cached.files) {
+    assert.equal(file.uid, 1000, `${file.name} is owned by uid ${file.uid}`);
+    assert.equal(file.gid, 1000, `${file.name} is owned by gid ${file.gid}`);
+  }
+  assert.ok(cached.bytes > 0 && cached.bytes <= warm.cache.maxBytes, `${cached.bytes} bytes`);
+  console.log(
+    `fact cache: ${services} services, ${cached.files.length} paths, ${cached.bytes} bytes`,
+  );
 
   // SIGTERM: a clean stop inside Cloud Run's grace, and JSON logs throughout.
   const stopStart = performance.now();
