@@ -133,7 +133,7 @@ export function childArgs(
     `--max-old-space-size=${limits.maxHeapMb}`,
     "--permission",
     ...[...readRoots, job.src, ...cacheDirs].map((path) => `--allow-fs-read=${path}`),
-    ...[job.out, ...cacheDirs].map((path) => `--allow-fs-write=${path}`),
+    ...[job.out].map((path) => `--allow-fs-write=${path}`),
     `--import=${pathToFileURL(files.guard).href}`,
     files.script,
     JSON.stringify(job),
