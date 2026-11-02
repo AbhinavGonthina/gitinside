@@ -151,29 +151,61 @@ export function mergeInputs(all: readonly ObservedInputs[]): ObservedInputs {
 
 /**
  * Each service's observed inputs, by service key: its own program's, plus those of every
- * program its analysis reached ({@link SymbolResolver.reached}), transitively. Call after the
- * last stage that uses the resolver.
+ * program its analysis reached ({@link SymbolResolver.reached}), transitively, in parts by the
+ * service that owns what was observed (a listing by its service, a file or folder by
+ * {@link serviceForFile} of what's inside it, `""` outside every service), sorted by owner.
+ * The parts' union is
+ * what the service observed. Call after the last stage that uses the resolver.
  *
- * Each program's log is snapshotted once, and services that reached the same programs share
- * one merged object (M6.8b: in cal.com most of 113 services reach the same 75 programs, and
- * merging each one's own copy cost about 2 s).
+ * Each program's log is snapshotted and split once. Services that reached the same programs
+ * share one list (M6.8b), and an owner's part is one object for every service whose reached
+ * programs observed that owner's paths in the same programs, so a cache stores each distinct
+ * part once (M6.8c2: on cal.com about 80 services reach most programs in 23 slightly different
+ * sets, each a 1.3 MB union, and an edit to a shared package changes only that package's part).
  */
 export function serviceInputs(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
-): Map<string, ObservedInputs> {
-  const snapshots = new Map<ServiceProgram, ObservedInputs>();
-  const snapshot = (sp: ServiceProgram): ObservedInputs => {
-    let observed = snapshots.get(sp);
-    if (!observed) {
-      observed = sp.inputs.snapshot();
-      snapshots.set(sp, observed);
+  workspace: Workspace,
+): Map<string, ObservedInputs[]> {
+  const owners = new Map<string, string>();
+  /** A file's service, or a folder's: the one owning the files inside it (`apps/web` is web's). */
+  const ownerOf = (path: string): string => {
+    let owner = owners.get(path);
+    if (owner === undefined) {
+      owner = serviceForFile(workspace, `${path}/`)?.key ?? "";
+      owners.set(path, owner);
     }
-    return observed;
+    return owner;
   };
-  /** Merged inputs by the sorted service keys of the programs reached. */
+  /** Each program's snapshot split by owner (each list stays sorted). */
+  const splits = new Map<ServiceProgram, Map<string, ObservedInputs>>();
+  const split = (sp: ServiceProgram): Map<string, ObservedInputs> => {
+    let parts = splits.get(sp);
+    if (!parts) {
+      const byOwner = new Map<string, ObservedInputs>();
+      const part = (owner: string): ObservedInputs => {
+        let found = byOwner.get(owner);
+        if (!found) {
+          found = { listings: [], files: [], dirs: [] };
+          byOwner.set(owner, found);
+        }
+        return found;
+      };
+      const observed = sp.inputs.snapshot();
+      for (const listing of observed.listings) part(listing[0]).listings.push(listing);
+      for (const file of observed.files) part(ownerOf(file[0])).files.push(file);
+      for (const dir of observed.dirs) part(ownerOf(dir[0])).dirs.push(dir);
+      parts = byOwner;
+      splits.set(sp, parts);
+    }
+    return parts;
+  };
+  /** An owner's merged part, by the owner and the sorted keys of the programs it merges. */
   const merged = new Map<string, ObservedInputs>();
-  const result = new Map<string, ObservedInputs>();
+  /** Each service's parts, by the sorted service keys of the programs reached. */
+  const byReach = new Map<string, ObservedInputs[]>();
+  const result = new Map<string, ObservedInputs[]>();
   for (const sp of programs) {
     const seen = new Set<ServiceProgram>([sp]);
     const queue = [sp];
@@ -184,13 +216,35 @@ export function serviceInputs(
         queue.push(other);
       }
     }
-    const reach = JSON.stringify([...seen].map((p) => p.service.key).sort(compareStrings));
-    let inputs = merged.get(reach);
-    if (!inputs) {
-      inputs = mergeInputs([...seen].map(snapshot));
-      merged.set(reach, inputs);
+    const reached = [...seen].sort((a, b) => compareStrings(a.service.key, b.service.key));
+    const reach = JSON.stringify(reached.map((p) => p.service.key));
+    let parts = byReach.get(reach);
+    if (!parts) {
+      /** Each owner's parts in the programs reached, with those programs' keys. */
+      const byOwner = new Map<string, { keys: string[]; parts: ObservedInputs[] }>();
+      for (const program of reached) {
+        for (const [owner, part] of split(program)) {
+          const found = byOwner.get(owner) ?? { keys: [], parts: [] };
+          found.keys.push(program.service.key);
+          found.parts.push(part);
+          byOwner.set(owner, found);
+        }
+      }
+      parts = [...byOwner.keys()].sort(compareStrings).map((owner) => {
+        const { keys, parts: owned } = byOwner.get(owner) ?? { keys: [], parts: [] };
+        const [only] = owned;
+        if (owned.length === 1 && only) return only;
+        const key = JSON.stringify([owner, keys]);
+        let part = merged.get(key);
+        if (!part) {
+          part = mergeInputs(owned);
+          merged.set(key, part);
+        }
+        return part;
+      });
+      byReach.set(reach, parts);
     }
-    result.set(sp.service.key, inputs);
+    result.set(sp.service.key, parts);
   }
   return result;
 }

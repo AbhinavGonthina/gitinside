@@ -28,7 +28,7 @@ import { buildQueueEdges } from "./queues.js";
 import { buildSdkEdges } from "./sdk.js";
 import { buildSymbolNodes } from "./symbols.js";
 import { createUrlNormalizer } from "./url.js";
-import { detectWorkspace } from "./workspace.js";
+import { detectWorkspace, type Workspace } from "./workspace.js";
 import { inlineWrappers } from "./wrappers.js";
 
 /** Every path `readFileSync` was called with: the program host's only way to read the repo. */
@@ -67,7 +67,10 @@ async function observe(root: string) {
   inlineWrappers(sites, programs, resolver, createUrlNormalizer(resolver), express.inlineHandlers);
   buildSdkEdges(programs, resolver, workspace, express.inlineHandlers);
   buildQueueEdges(programs, resolver, workspace, express.inlineHandlers);
-  return { programs, resolver, inputs: serviceInputs(programs, resolver) };
+  const parts = serviceInputs(programs, resolver, workspace);
+  /** Each service's whole inputs: the union of its parts. */
+  const inputs = new Map([...parts].map(([key, list]) => [key, mergeInputs(list)]));
+  return { programs, resolver, parts, inputs };
 }
 
 /** Services whose inputs no longer hold for the checkout at `root`, sorted. */
@@ -81,6 +84,8 @@ async function invalidated(root: string, inputs: Map<string, ObservedInputs>): P
   }
   return stale.sort();
 }
+
+const EMPTY: ObservedInputs = { listings: [], files: [], dirs: [] };
 
 function answer(inputs: ObservedInputs, path: string): string | undefined {
   return inputs.files.find(([p]) => p === path)?.[1];
@@ -132,49 +137,98 @@ describe("createInputLog", () => {
 });
 
 describe("serviceInputs", () => {
-  /** A program stand-in for service `key` that reads `file`, counting its snapshots. */
-  function fake(key: string, file: string) {
-    const log = createInputLog(key, [file]);
-    log.read(file, `hash-${key}`);
+  const workspace = {
+    packages: [
+      { key: "web", dir: "apps/web" },
+      { key: "admin", dir: "apps/admin" },
+      { key: "cli", dir: "apps/cli" },
+      { key: "lib", dir: "packages/lib" },
+    ],
+  } as unknown as Workspace;
+
+  /**
+   * A program stand-in for service `key` in `apps/<key>` (or `packages/<key>`) that reads its
+   * `index.ts` and `others`, counting its snapshots, with what it logged.
+   */
+  function fake(key: string, others: string[] = []) {
+    const dir = workspace.packages.find((p) => p.key === key)?.dir ?? "";
+    const log = createInputLog(key, [`${dir}/index.ts`]);
+    log.read(`${dir}/index.ts`, `hash-${key}`);
+    for (const path of others) log.read(path, `hash-${path}`);
+    log.probeDir(dir, true);
+    const logged = log.snapshot();
     const snapshot = vi.fn(() => log.snapshot());
-    return { service: { key }, inputs: { ...log, snapshot } };
+    return { service: { key }, inputs: { ...log, snapshot }, logged };
   }
 
-  it("snapshots each program once and shares one object between equal reaches", () => {
-    // web and admin each reach the other and lib; lib and cli reach nothing.
-    const web = fake("web", "web.ts");
-    const admin = fake("admin", "admin.ts");
-    const lib = fake("lib", "lib.ts");
-    const cli = fake("cli", "cli.ts");
-    const reaches = new Map<unknown, unknown[]>([
-      [web, [lib, admin]],
-      [admin, [web]],
-    ]);
-    const programs = [web, admin, lib, cli] as unknown as ServiceProgram[];
+  /** `serviceInputs` over the fakes, each reaching the programs listed for it. */
+  function run(
+    programs: ReturnType<typeof fake>[],
+    reaches: [ReturnType<typeof fake>, ReturnType<typeof fake>[]][],
+  ) {
+    const reached = new Map<unknown, unknown[]>(reaches);
     const resolver = {
-      reached: (sp: unknown) => reaches.get(sp) ?? [],
+      reached: (sp: unknown) => reached.get(sp) ?? [],
     } as unknown as SymbolResolver;
+    return serviceInputs(programs as unknown as ServiceProgram[], resolver, workspace);
+  }
 
-    const inputs = serviceInputs(programs, resolver);
-    for (const sp of [web, admin, lib, cli]) expect(sp.inputs.snapshot).toHaveBeenCalledTimes(1);
-    const shared = mergeInputs([web, admin, lib].map((sp) => createSnapshot(sp)));
-    expect(inputs.get("web")).toEqual(shared);
-    expect(inputs.get("admin")).toBe(inputs.get("web"));
-    expect(inputs.get("lib")).toEqual(createSnapshot(lib));
-    expect(inputs.get("cli")).toEqual(createSnapshot(cli));
-    expect(inputsDigest(inputs.get("web")!)).toBe(inputsDigest(structuredClone(shared)));
-    expect(inputsDigest(inputs.get("lib")!)).not.toBe(inputsDigest(inputs.get("cli")!));
+  it("splits what each service reached by owner, its union being the whole (M6.8c2)", () => {
+    // web and admin each reach the other and lib, and read one of lib's files; web also reads
+    // a file outside every service. lib reaches nothing.
+    const web = fake("web", ["packages/lib/util.ts", "scripts/seed.ts"]);
+    const admin = fake("admin", ["packages/lib/util.ts"]);
+    const lib = fake("lib");
+    const inputs = run(
+      [web, admin, lib],
+      [
+        [web, [lib, admin]],
+        [admin, [web]],
+      ],
+    );
+    for (const sp of [web, admin, lib]) expect(sp.inputs.snapshot).toHaveBeenCalledTimes(1);
+
+    const parts = inputs.get("web") ?? [];
+    expect(mergeInputs(parts)).toEqual(mergeInputs([web, admin, lib].map((sp) => sp.logged)));
+    // By owner, sorted: outside every service first.
+    expect(parts.map((p) => p.listings.map(([s]) => s))).toEqual([[], ["admin"], ["lib"], ["web"]]);
+    expect(parts.map((p) => p.files.map(([path]) => path))).toEqual([
+      ["scripts/seed.ts"],
+      ["apps/admin/index.ts"],
+      ["packages/lib/index.ts", "packages/lib/util.ts"],
+      ["apps/web/index.ts"],
+    ]);
+    expect(parts[3]?.dirs).toEqual([["apps/web", true]]);
+    // Equal reaches share the list; lib's own inputs are one part.
+    expect(inputs.get("admin")).toBe(parts);
+    expect(inputs.get("lib")).toEqual([lib.logged]);
   });
 
-  /** What `fake`'s log holds, without counting a snapshot. */
-  function createSnapshot(sp: ReturnType<typeof fake>): ObservedInputs {
-    const key = sp.service.key;
-    return {
-      listings: [[key, [`${key}.ts`]]],
-      files: [[`${key}.ts`, `hash-${key}`]],
-      dirs: [],
-    };
-  }
+  it("shares one part object between services whose reached programs observed it alike", () => {
+    // web and cli both reach lib, and neither reads lib's files itself: their lib part is
+    // lib's own. admin reads one, so its lib part is another object, with another digest.
+    const web = fake("web");
+    const cli = fake("cli");
+    const admin = fake("admin", ["packages/lib/util.ts"]);
+    const lib = fake("lib");
+    const inputs = run(
+      [web, cli, admin, lib],
+      [
+        [web, [lib]],
+        [cli, [lib]],
+        [admin, [lib]],
+      ],
+    );
+    const libPart = (service: string) =>
+      inputs.get(service)?.find((p) => p.listings[0]?.[0] === "lib");
+    expect(libPart("web")).toBe(inputs.get("lib")?.[0]);
+    expect(libPart("cli")).toBe(libPart("web"));
+    expect(libPart("admin")).not.toBe(libPart("web"));
+    expect(inputsDigest(libPart("admin") ?? lib.logged)).not.toBe(inputsDigest(lib.logged));
+    expect(inputsDigest(libPart("web") ?? web.logged)).toBe(
+      inputsDigest(structuredClone(lib.logged)),
+    );
+  });
 });
 
 const NAMES = [
@@ -414,6 +468,20 @@ describe("verifying observed inputs after an edit", () => {
     expect(api.listings.map(([service]) => service)).toEqual(["api", "shared"]);
     expect(answer(api, "apps/api/src/lib.ts")).toBe(ABSENT);
     expect(answer(inputs.get("web") as ObservedInputs, "apps/web/tsconfig.json")).toBe(ABSENT);
+  });
+
+  it("changes only the part of the edited file's owner (M6.8c2)", async () => {
+    const before = (await observe(dir)).parts.get("api") ?? [];
+    await writeFile(join(dir, "packages/shared/src/index.ts"), "export const greet = 1;\n");
+    const after = (await observe(dir)).parts.get("api") ?? [];
+    // A part without a listing holds what's outside every service (root `node_modules` probes).
+    const owners = (parts: ObservedInputs[]) => parts.map((p) => p.listings[0]?.[0] ?? "");
+    expect(owners(before)).toEqual(expect.arrayContaining(["api", "shared"]));
+    expect(owners(after)).toEqual(owners(before));
+    const changed = owners(before).filter(
+      (_, i) => inputsDigest(before[i] ?? EMPTY) !== inputsDigest(after[i] ?? EMPTY),
+    );
+    expect(changed).toEqual(["shared"]);
   });
 
   it("reports a file it can no longer read as changed", async () => {
