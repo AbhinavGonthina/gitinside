@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Visual regression for every Storybook story in dark and light (TESTING.md).
+// Visual regression for every Storybook story in dark and light (TESTING.md),
+// plus real-browser checks that need no baseline (diff.visual.ts).
 // Baselines are captured only in Linux CI, in the Playwright Docker image
 // pinned to the same version as @playwright/test, so fonts rasterize the same
 // way on every run. Elsewhere the spec skips itself. Run after
@@ -10,7 +11,7 @@ const PORT = 6107;
 
 export default defineConfig({
   testDir: ".",
-  testMatch: "stories.visual.ts",
+  testMatch: "*.visual.ts",
   snapshotPathTemplate: "{testDir}/baselines/{arg}{ext}",
   outputDir: "../dist/visual-results",
   fullyParallel: true,

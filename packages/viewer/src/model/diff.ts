@@ -253,6 +253,21 @@ export function buildDiffOverlay(
   };
 }
 
+/**
+ * One version's graph on the overlay's IDs (M6.9c): what Base or Head draws,
+ * so a trace, the trace picker, and the palette there follow only that
+ * version's nodes and connections. A tree, like `nodesIn`.
+ */
+export function versionGraph(overlay: DiffOverlay, version: DiffVersion): ArchitectureGraph {
+  const nodes = overlay.nodesIn[version];
+  const edges = overlay.edgesIn[version];
+  return {
+    ...overlay.graph,
+    nodes: overlay.graph.nodes.filter((n) => nodes.has(n.id)),
+    edges: overlay.graph.edges.filter((e) => edges.has(e.id)),
+  };
+}
+
 /** A drawn line's diff state and, when it stands for broken connections, what broke. */
 export interface LineMark {
   diff?: NodeDiff | undefined;

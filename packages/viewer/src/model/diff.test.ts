@@ -4,7 +4,13 @@ import { join } from "node:path";
 import { diffGraphs } from "@gitinside/diff";
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
-import { buildDiffOverlay, DiffMismatchError, diffMarks, type DiffOverlay } from "./diff.js";
+import {
+  buildDiffOverlay,
+  DiffMismatchError,
+  diffMarks,
+  versionGraph,
+  type DiffOverlay,
+} from "./diff.js";
 
 const FIXTURES = join(process.cwd(), "../../fixtures");
 const fixture = (name: string): ArchitectureGraph =>
@@ -62,6 +68,18 @@ describe("buildDiffOverlay on the diff-broken pair", () => {
     expect([...overlay.edgesIn.base].sort()).toEqual(base.edges.map((e) => e.id).sort());
     expectClosed(overlay, "base");
     expectClosed(overlay, "head");
+  });
+
+  it("gives each version's graph on the overlay's IDs, valid and in order", () => {
+    for (const version of ["base", "head"] as const) {
+      const graph = versionGraph(overlay, version);
+      expect(() => parseGraph(graph)).not.toThrow();
+      expect(graph.nodes.map((n) => n.id)).toEqual(
+        overlay.graph.nodes.filter((n) => overlay.nodesIn[version].has(n.id)).map((n) => n.id),
+      );
+      expect(new Set(graph.edges.map((e) => e.id))).toEqual(overlay.edgesIn[version]);
+    }
+    expect(versionGraph(overlay, "head")).toEqual(head);
   });
 
   it("gives each listed item its state and leaves the rest out", () => {

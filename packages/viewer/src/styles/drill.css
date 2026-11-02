@@ -46,12 +46,37 @@
 }
 
 /*
- * Diff mode's Base or Head (M6.9b): what isn't in that version keeps its
- * place on the overlay's layout but isn't drawn, so switching moves nothing.
+ * Diff mode's Base or Head (M6.9b, M6.9c): what isn't in that version keeps
+ * its place on the overlay's layout and fades out there, so switching moves
+ * nothing. Visibility changes at the fade's far end (it stays visible while
+ * either end is), so a box fades in from where it was too. Under reduced
+ * motion the durations are 0: it's gone at once.
  */
+.gi-drill__node {
+  transition:
+    opacity var(--duration-standard) var(--ease-standard),
+    visibility var(--duration-standard);
+}
+
+.gi-drill .gi-edge {
+  transition:
+    opacity var(--duration-standard) var(--ease-standard),
+    visibility var(--duration-standard);
+}
+
+.gi-drill .gi-edge-label {
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-standard) var(--ease-standard),
+    visibility var(--duration-standard);
+}
+
 .gi-drill__node[data-absent],
 .gi-drill .gi-edge[data-absent],
 .gi-drill .gi-edge-label[data-absent] {
+  opacity: 0;
   visibility: hidden;
 }
 
