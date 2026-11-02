@@ -256,16 +256,30 @@ export function buildDiffOverlay(
 /**
  * One version's graph on the overlay's IDs (M6.9c): what Base or Head draws,
  * so a trace, the trace picker, and the palette there follow only that
- * version's nodes and connections. A tree, like `nodesIn`.
+ * version's nodes and connections. A tree, like `nodesIn`. In base, a
+ * renamed node is its base record (its old name, path, and source, M6.9c2)
+ * kept at its head ID and place (`baseRecord`).
  */
 export function versionGraph(overlay: DiffOverlay, version: DiffVersion): ArchitectureGraph {
   const nodes = overlay.nodesIn[version];
   const edges = overlay.edgesIn[version];
   return {
     ...overlay.graph,
-    nodes: overlay.graph.nodes.filter((n) => nodes.has(n.id)),
+    nodes: overlay.graph.nodes.flatMap((n) =>
+      !nodes.has(n.id) ? [] : version === "base" ? [baseRecord(overlay, n) ?? n] : [n],
+    ),
     edges: overlay.graph.edges.filter((e) => edges.has(e.id)),
   };
+}
+
+/**
+ * A renamed node as base draws it: its base record under its overlay ID and
+ * parent, so the tree and the layout stay the overlay's. Undefined for a node
+ * that wasn't renamed.
+ */
+export function baseRecord(overlay: DiffOverlay, node: GraphNode): GraphNode | undefined {
+  const was = overlay.renamedFrom.get(node.id);
+  return was && { ...was, id: node.id, parentId: node.parentId };
 }
 
 /** A drawn line's diff state and, when it stands for broken connections, what broke. */
@@ -287,6 +301,13 @@ export interface DiffMarks {
   inside(id: string): Readonly<DiffCounts> | undefined;
   /** A drawn line's marks, from the graph edges it stands for. */
   line(edges: readonly Pick<GraphEdge, "id">[]): LineMark;
+  /**
+   * What Base and Head draw besides the overlay (M6.9c2), so a box and a pill
+   * are sized for all three: a renamed node's base record (`baseRecord`), and
+   * each version's edges (a line keeping fewer of them says something else).
+   */
+  baseNode(node: GraphNode): GraphNode | undefined;
+  edgesIn: DiffOverlay["edgesIn"];
 }
 
 /**
@@ -298,6 +319,8 @@ export function diffMarks(overlay: DiffOverlay): DiffMarks {
   return {
     node: (id) => overlay.nodes.get(id),
     inside: (id) => overlay.inside.get(id),
+    baseNode: (node) => baseRecord(overlay, node),
+    edgesIn: overlay.edgesIn,
     line(edges) {
       const states = edges.map((e) => overlay.edges.get(e.id));
       const [first] = states;

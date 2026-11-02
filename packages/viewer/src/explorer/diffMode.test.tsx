@@ -3,8 +3,13 @@ import { diffGraphs } from "@gitinside/diff";
 import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
 import { afterEach, describe, expect, it } from "vitest";
 import { diffPair } from "../diffPair.testkit.js";
-import { buildHierarchy } from "../model/hierarchy.js";
+import { EDGE_WORDS } from "../edges/describe.js";
+import { frameCounts } from "../layout/size.js";
+import { buildDiffOverlay, versionGraph } from "../model/diff.js";
+import { buildHierarchy, nodeOf } from "../model/hierarchy.js";
+import { countText } from "../nodes/describe.js";
 import { Explorer } from "./Explorer.js";
+import { summaryOf } from "./summary.js";
 import { traceFrom } from "./trace.js";
 
 // Diff mode on the explorer (M6.9b): the fixtures/diff-broken pair, whose
@@ -270,6 +275,84 @@ describe("Explorer diff mode", { timeout: 30_000 }, () => {
     const names = choices.map((c) => c.textContent ?? "");
     expect(names.some((n) => n.includes("DELETE"))).toBe(false);
     expect(names.some((n) => n.includes("GET"))).toBe(true);
+  });
+
+  it("counts only the version shown: a frame's badges, a line's connections, the inspector", async () => {
+    const { box, container } = await setup({ initialSelected: SERVICE });
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    const overlay = buildDiffOverlay(base, head, diff);
+    const badges = () =>
+      [...(box(SERVICE)?.querySelectorAll(".gi-badge:not([data-diff])") ?? [])].map(
+        (b) => b.textContent,
+      );
+    const summary = () =>
+      container.querySelector(".gi-inspector__summary p")?.textContent ?? "missing";
+    // The service's line to the database stands for two connections; head keeps one.
+    const DB = `datastore:infra/${P}/prisma/schema.prisma#db`;
+    const ends = `${nodeOf(buildHierarchy(head), SERVICE).label} ${EDGE_WORDS.stores.verb} ${
+      nodeOf(buildHierarchy(head), DB).label
+    }. `;
+    const dbLine = () =>
+      [...container.querySelectorAll<SVGElement>(".gi-edge:not([data-absent])")].find((l) =>
+        l.getAttribute("aria-label")?.startsWith(ends),
+      );
+    const expected = (version: "base" | "head") => {
+      const index = buildHierarchy(versionGraph(overlay, version));
+      const text = render(<p>{summaryOf(index, nodeOf(index, SERVICE))}</p>);
+      const words = text.container.textContent;
+      text.unmount();
+      return { badges: frameCounts(index, SERVICE).map(countText), summary: words };
+    };
+    expect(badges()).toEqual(["5 routes", "2 models", "4 unresolved calls"]);
+    const overlayLine = dbLine()?.getAttribute("aria-label");
+    expect(overlayLine).toMatch(/2 /);
+
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await settle();
+    expect(badges()).toEqual(["2 routes", "1 model", "4 unresolved calls"]);
+    expect(badges()).toEqual(expected("head").badges);
+    expect(summary()).toBe(expected("head").summary);
+    const headLine = head.edges.find((e) => e.kind === "stores" && e.to === DB);
+    expect(dbLine()?.getAttribute("aria-label")).not.toBe(overlayLine);
+    expect(dbLine()?.getAttribute("aria-label")).not.toMatch(/2 /);
+    expect(headLine).toBeDefined();
+
+    fireEvent.click(within(views).getByRole("radio", { name: "Base" }));
+    await settle();
+    expect(badges()).toEqual(["4 routes", "2 models"]);
+    expect(summary()).toBe(expected("base").summary);
+    expect(summary()).not.toBe(expected("head").summary);
+  });
+
+  it("names a renamed node as base had it in Base, sized for both names", async () => {
+    const pair = diffPair("diff-rename");
+    const R = "diff-rename";
+    const file = `file:${R}/src/orders/routes.ts`;
+    const { box, wrapper } = await setup({
+      graph: pair.head,
+      diff: { base: pair.base, diff: pair.diff },
+      initialOpen: [`service:${R}/`, `module:${R}/src`, `module:${R}/src/orders`],
+      initialSelected: file,
+    });
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    const name = () => box(file)?.querySelector(".gi-node__label")?.textContent;
+    const header = () => document.querySelector(".gi-inspector__header")?.textContent ?? "";
+    expect(name()).toBe("routes.ts");
+    expect(header()).toContain("src/orders");
+    const width = wrapper(file)?.style.width;
+
+    fireEvent.click(within(views).getByRole("radio", { name: "Base" }));
+    await settle();
+    expect(wrapper(file)?.hasAttribute("data-absent")).toBe(false);
+    expect(name()).toBe("orders.ts");
+    expect(box(file)?.getAttribute("aria-label")).toMatch(/^orders\.ts/);
+    expect(header()).toContain("orders.ts");
+    expect(header()).toContain("src/routes");
+    expect(wrapper(file)?.style.width).toBe(width);
+
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await settle();
+    expect(name()).toBe("routes.ts");
   });
 
   it("names a diff of other graphs on an error card instead of drawing it", () => {

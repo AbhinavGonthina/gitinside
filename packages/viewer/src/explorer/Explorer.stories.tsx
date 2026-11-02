@@ -258,39 +258,62 @@ export const NoApp: Story = {
   ),
 };
 
-// Diff mode (M6.9b) on the analyzer's output for the fixtures/diff-broken
-// pair, diffed here by `packages/diff` with both sides' files (so renames pair).
-const DIFF_PAIR = import.meta.glob<ArchitectureGraph>(
-  "../../../../fixtures/diff-broken-*/expected.json",
-  { eager: true, import: "default" },
-);
+// Diff mode (M6.9b) on the analyzer's output for the fixtures/diff-* pairs,
+// diffed here by `packages/diff` with both sides' files (so renames pair).
+const DIFF_PAIR = import.meta.glob<ArchitectureGraph>("../../../../fixtures/diff-*/expected.json", {
+  eager: true,
+  import: "default",
+});
 const DIFF_FILES = import.meta.glob<string>(
-  "../../../../fixtures/diff-broken-*/{src/*.ts,prisma/*.prisma}",
+  "../../../../fixtures/diff-*/{src/**/*.ts,prisma/*.prisma}",
   { eager: true, query: "?raw", import: "default" },
 );
-const diffSide = (side: "base" | "head") => {
-  const folder = `../../../../fixtures/diff-broken-${side}/`;
-  return {
-    graph: DIFF_PAIR[`${folder}expected.json`] as ArchitectureGraph,
-    file: (path: string) => DIFF_FILES[`${folder}${path}`],
+/** `fixtures/<name>-base` and `-head`, and their diff. */
+function diffPair(name: string) {
+  const side = (version: "base" | "head") => {
+    const folder = `../../../../fixtures/${name}-${version}/`;
+    return {
+      graph: DIFF_PAIR[`${folder}expected.json`] as ArchitectureGraph,
+      file: (path: string) => DIFF_FILES[`${folder}${path}`],
+    };
   };
-};
-const diffBase = diffSide("base");
-const diffHead = diffSide("head");
-const diffBroken = diffGraphs(diffBase.graph, diffHead.graph, {
-  contents: { base: diffBase.file, head: diffHead.file },
-});
+  const [base, head] = [side("base"), side("head")];
+  const diff = diffGraphs(base.graph, head.graph, {
+    contents: { base: base.file, head: head.file },
+  });
+  return { base: base.graph, head: head.graph, diff };
+}
+const diffBroken = diffPair("diff-broken");
+const diffRename = diffPair("diff-rename");
 
-function ExploreDiff(props: Partial<ExplorerProps>) {
+function ExploreDiff({
+  pair = diffBroken,
+  ...props
+}: Partial<ExplorerProps> & { pair?: ReturnType<typeof diffPair> }) {
   return (
     <Explore
-      graph={diffHead.graph}
+      graph={pair.head}
       sources={undefined}
       traceStart={undefined}
-      diff={{ base: diffBase.graph, diff: diffBroken, baseName: "main", headName: "PR #12" }}
+      diff={{ base: pair.base, diff: pair.diff, baseName: "main", headName: "PR #12" }}
       {...props}
     />
   );
+}
+
+/** Switches diff mode to `name` (Base or Head) from the top bar, once the canvas is drawn. */
+async function showVersion(canvasElement: HTMLElement, name: "Base" | "Head") {
+  for (let tries = 0; tries < 250; tries++) {
+    const radio = [...canvasElement.querySelectorAll<HTMLElement>('[role="radio"]')].find(
+      (r) => r.textContent === name,
+    );
+    if (radio && canvasElement.querySelector('.gi-drill[data-layout="done"]')) {
+      radio.click();
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error(`${name} couldn't be shown`);
 }
 
 /**
@@ -307,6 +330,36 @@ export const Diff: Story = { render: () => <ExploreDiff /> };
 export const DiffBrokenDown: Story = {
   name: "Diff, broken down",
   render: () => <ExploreDiff initialOpen={["service:diff-broken/", "module:diff-broken/src"]} />,
+};
+
+/**
+ * Head alone (M6.9c2): the service counts only head's routes and models, and
+ * a line standing for connections head partly dropped says what's left.
+ */
+export const DiffHead: Story = {
+  name: "Diff, head",
+  render: () => <ExploreDiff />,
+  play: ({ canvasElement }) => showVersion(canvasElement, "Head"),
+};
+
+/**
+ * Base on a PR that moves a file (M6.9c2): the renamed file keeps its place
+ * and takes the name base had, `orders.ts` (head's `routes.ts`).
+ */
+export const DiffRenamedBase: Story = {
+  name: "Diff, renamed, base",
+  render: () => (
+    <ExploreDiff
+      pair={diffRename}
+      initialOpen={[
+        "service:diff-rename/",
+        "module:diff-rename/src",
+        "module:diff-rename/src/orders",
+      ]}
+      initialSelected="file:diff-rename/src/orders/routes.ts"
+    />
+  ),
+  play: ({ canvasElement }) => showVersion(canvasElement, "Base"),
 };
 
 /** Opens a palette with a key on the explorer and types `text` into its field. */

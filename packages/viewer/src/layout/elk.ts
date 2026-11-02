@@ -4,7 +4,7 @@ import type { Point } from "../edges/geometry.js";
 import type { DiffMarks } from "../model/diff.js";
 import { layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import type { GraphView } from "../model/view.js";
-import { edgeLabelSize, FRAME_PAD, openHeader, viewNodeSize, type Size } from "./size.js";
+import { FRAME_PAD, openHeader, viewEdgeLabelSize, viewNodeSize, type Size } from "./size.js";
 
 /**
  * The explorer's layout (M4b.2): ELK's layered algorithm over the visible
@@ -136,7 +136,7 @@ function rootOptions(input: LayoutInput): LayoutOptions {
  * content (an open one's closed width and header as its minimum, ELK sizing
  * it around its children), and each edge's label size. In diff mode
  * (`marks`) a closed box makes room for its change badges and a pill for its
- * state's word or what broke.
+ * state's word or what broke, and both for what Base and Head draw instead.
  */
 export function layoutInput(
   index: HierarchyIndex,
@@ -159,7 +159,7 @@ export function layoutInput(
     id: e.id,
     from: e.from,
     to: e.to,
-    label: edgeLabelSize(e, marks?.line(e.edges)),
+    label: viewEdgeLabelSize(e, marks),
   }));
   return { nodes, edges };
 }

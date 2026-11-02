@@ -154,6 +154,7 @@ export {
   buildView,
   DEFAULT_HIDDEN_KINDS,
   drawnEdge,
+  edgeWithin,
   effectiveOpen,
   viewTrail,
   visibleAncestor,
@@ -175,7 +176,13 @@ export {
   normalizeFolder,
 } from "./model/filters.js";
 export type { FilterOption, FilterOptions, Filters } from "./model/filters.js";
-export { buildDiffOverlay, DiffMismatchError, diffMarks, versionGraph } from "./model/diff.js";
+export {
+  baseRecord,
+  buildDiffOverlay,
+  DiffMismatchError,
+  diffMarks,
+  versionGraph,
+} from "./model/diff.js";
 export type {
   BrokenConnection,
   ChangeItem,
@@ -193,6 +200,7 @@ export {
   edgeLabelSize,
   frameCounts,
   openHeader,
+  viewEdgeLabelSize,
   viewNodeCounts,
   viewNodeSize,
 } from "./layout/size.js";

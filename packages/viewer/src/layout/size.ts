@@ -3,7 +3,7 @@ import { edgeLabel, type EdgeText } from "../edges/describe.js";
 import { textWidth } from "../image/markup.js";
 import type { DiffCounts, DiffMarks, LineMark } from "../model/diff.js";
 import { countsInside, layerOf, type HierarchyIndex } from "../model/hierarchy.js";
-import { drawnEdge, type ViewEdge, type ViewNode } from "../model/view.js";
+import { drawnEdge, edgeWithin, type ViewEdge, type ViewNode } from "../model/view.js";
 import {
   countText,
   DIFF_TEXT,
@@ -238,14 +238,42 @@ export function openHeader(node: GraphNode, layer?: Layer): number {
   return FRAME_HEADER + (nodeShape(node, node.layer ?? layer) === "window" ? WINDOW_BAND.frame : 0);
 }
 
-/** A visible node's closed size in a view: its service's layer, and its badges (`viewNodeCounts`). */
+/**
+ * A visible node's closed size in a view: its service's layer, and its badges
+ * (`viewNodeCounts`). In diff mode a renamed node fits its base name too,
+ * which Base draws (M6.9c2); a version's counts never outgrow the overlay's,
+ * which hold both versions' items.
+ */
 export function viewNodeSize(
   index: HierarchyIndex,
   view: ViewNode,
   marks?: DiffMarks | undefined,
 ): Size {
-  const counts = viewNodeCounts(index, view, marks);
-  return closedSize(view.node, { layer: layerOf(index, view.id), counts });
+  const context = { layer: layerOf(index, view.id), counts: viewNodeCounts(index, view, marks) };
+  const size = closedSize(view.node, context);
+  const was = marks?.baseNode(view.node);
+  if (!was) return size;
+  const before = closedSize(was, context);
+  return {
+    width: Math.max(size.width, before.width),
+    height: Math.max(size.height, before.height),
+  };
+}
+
+/**
+ * A drawn line's pill in a view. In diff mode it fits what each of Overlay,
+ * Base, and Head draws on it (M6.9c2): the state's word or what broke, and in
+ * a version keeping fewer of its connections, theirs (one keeps its own
+ * label, wider than "3 calls"), so switching never re-lays out.
+ */
+export function viewEdgeLabelSize(edge: ViewEdge, marks?: DiffMarks | undefined): Size {
+  const size = edgeLabelSize(edge, marks?.line(edge.edges));
+  if (!marks) return size;
+  const widths = [marks.edgesIn.base, marks.edgesIn.head].map((keep) => {
+    const kept = edgeWithin(edge, keep);
+    return kept ? edgeLabelSize(kept).width : 0;
+  });
+  return { ...size, width: Math.max(size.width, ...widths) };
 }
 
 /** Width of an edge label's text parts: method chip, text, code, then notes after a separator. */
