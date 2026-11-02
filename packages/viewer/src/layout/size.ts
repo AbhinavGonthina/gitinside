@@ -1,10 +1,12 @@
 import type { GraphNode, Layer } from "@gitinside/schema";
 import { edgeLabel, type EdgeText } from "../edges/describe.js";
 import { textWidth } from "../image/markup.js";
+import type { DiffCounts, DiffMarks, LineMark } from "../model/diff.js";
 import { countsInside, layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { drawnEdge, type ViewEdge, type ViewNode } from "../model/view.js";
 import {
   countText,
+  DIFF_TEXT,
   modelFieldsText,
   nodeLabel,
   nodeShape,
@@ -98,10 +100,16 @@ function textBlockWidth(node: GraphNode, labelSize: number): number {
   );
 }
 
+/** A change badge's dot and the gap after it (`.gi-badge__dot`, `.gi-badge`'s gap). */
+const BADGE_DOT = 6 + 5;
+
 /** Width of a row of count badges, without the space around it. */
 function badgesWidth(counts: readonly NodeCount[]): number {
   if (counts.length === 0) return 0;
-  const badges = counts.reduce((w, c) => w + textWidth(countText(c), 12) + BADGE_CHROME, 0);
+  const badges = counts.reduce(
+    (w, c) => w + textWidth(countText(c), 12) + BADGE_CHROME + (c.diff ? BADGE_DOT : 0),
+    0,
+  );
   return badges + BADGE_GAP * (counts.length - 1);
 }
 
@@ -137,6 +145,36 @@ export function frameCounts(index: HierarchyIndex, id: string): NodeCount[] {
     const value = inside[kind] ?? 0;
     return value === 0 ? [] : [{ value, noun, ...(unresolved ? { unresolved } : {}) }];
   });
+}
+
+const CHANGES: readonly (keyof DiffCounts)[] = ["added", "changed", "removed", "broken"];
+
+/**
+ * Diff mode's badges for a closed box holding changes (M6.9b): how many
+ * nodes inside were added, changed, or removed, and how many connections
+ * from inside broke. Zero counts are left out.
+ */
+export function changeCounts(inside: Readonly<DiffCounts> | undefined): NodeCount[] {
+  if (!inside) return [];
+  return CHANGES.flatMap((status) =>
+    inside[status] === 0
+      ? []
+      : [{ value: inside[status], noun: status, plural: status, diff: status }],
+  );
+}
+
+/**
+ * The badges a visible node draws: a frame's counts (an open frame's too, as
+ * the floor of its width), then, closed and in diff mode, its change badges.
+ */
+export function viewNodeCounts(
+  index: HierarchyIndex,
+  view: ViewNode,
+  marks?: DiffMarks | undefined,
+): NodeCount[] {
+  const counts = nodeTier(view.node) === "frame" ? frameCounts(index, view.id) : [];
+  if (!marks || view.open) return counts;
+  return [...counts, ...changeCounts(marks.inside(view.id))];
 }
 
 /** What sizing a node needs besides the node: the layer it's tinted with and its badges. */
@@ -200,9 +238,13 @@ export function openHeader(node: GraphNode, layer?: Layer): number {
   return FRAME_HEADER + (nodeShape(node, node.layer ?? layer) === "window" ? WINDOW_BAND.frame : 0);
 }
 
-/** A visible node's closed size in a view: its service's layer, and badges when it's a frame. */
-export function viewNodeSize(index: HierarchyIndex, view: ViewNode): Size {
-  const counts = nodeTier(view.node) === "frame" ? frameCounts(index, view.id) : [];
+/** A visible node's closed size in a view: its service's layer, and its badges (`viewNodeCounts`). */
+export function viewNodeSize(
+  index: HierarchyIndex,
+  view: ViewNode,
+  marks?: DiffMarks | undefined,
+): Size {
+  const counts = viewNodeCounts(index, view, marks);
   return closedSize(view.node, { layer: layerOf(index, view.id), counts });
 }
 
@@ -212,14 +254,27 @@ function labelTextWidth(label: EdgeText): number {
   return lineWidth(label, 12, 12) + notes.reduce((a, b) => a + b, 0);
 }
 
+/** A pill's 6px dot, then the 5px gap inside the diff word (`.gi-edge-label__diff`). */
+const LABEL_DOT = 6;
+const DIFF_WORD_GAP = 5;
+/** Gap between a pill's parts (`.gi-edge-label`). */
+const LABEL_GAP = 6;
+
 /**
  * The pill an edge's label takes, measured from its words: `POST /api/orders
- * · HTTP`, `reads id, total`, "22 calls". Padded 8px and bordered
- * (`.gi-edge-label`), and never wider than the pill's maximum.
+ * · HTTP`, `reads id, total`, "22 calls". In diff mode (`mark`) it leads
+ * with the state in words, and a broken line's pill says what broke instead.
+ * Padded 8px and bordered (`.gi-edge-label`), and never wider than the
+ * pill's maximum.
  */
-export function edgeLabelSize(edge: ViewEdge): Size {
+export function edgeLabelSize(edge: ViewEdge, mark?: LineMark | undefined): Size {
   const { edge: drawn, count } = drawnEdge(edge);
-  const text = labelTextWidth(edgeLabel(drawn, count));
+  const text = mark?.broken
+    ? LABEL_DOT + LABEL_GAP + textWidth(mark.broken, 12)
+    : labelTextWidth(edgeLabel(drawn, count)) +
+      (mark?.diff
+        ? LABEL_DOT + DIFF_WORD_GAP + textWidth(DIFF_TEXT[mark.diff], 12) + LABEL_GAP
+        : 0);
   return {
     width: Math.ceil(Math.min(2 + 2 * 8 + text + COUNTS_SLACK / 2, MAX_EDGE_LABEL_WIDTH)),
     height: EDGE_LABEL_HEIGHT,

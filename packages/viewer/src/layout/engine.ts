@@ -1,4 +1,5 @@
 import ElkApi, { type ELK } from "elkjs/lib/elk-api.js";
+import type { DiffMarks } from "../model/diff.js";
 import type { HierarchyIndex } from "../model/hierarchy.js";
 import type { GraphView } from "../model/view.js";
 import { layoutInput, runLayout, type LayoutInput, type LayoutResult } from "./elk.js";
@@ -165,13 +166,15 @@ interface CacheEntry {
 }
 
 /**
- * A layout cache for one graph's index. Keys hold no graph identity, so make
- * a new cache when the graph changes.
+ * A layout cache for one graph's index (and, in diff mode, its `marks`,
+ * which size boxes and pills). Keys hold no graph identity, so make a new
+ * cache when the graph changes.
  */
 export function createLayoutCache(
   index: HierarchyIndex,
   engine: Pick<LayoutEngine, "layout">,
   limit = LAYOUT_CACHE_SIZE,
+  marks?: DiffMarks | undefined,
 ): LayoutCache {
   // A Map iterates in insertion order: re-inserting on use keeps the least recent first.
   const entries = new Map<string, CacheEntry>();
@@ -191,7 +194,7 @@ export function createLayoutCache(
         return hit.promise;
       }
       const entry: CacheEntry = {
-        promise: engine.layout(layoutInput(index, view)).then(
+        promise: engine.layout(layoutInput(index, view, marks)).then(
           (result) => {
             entry.result = result;
             return result;

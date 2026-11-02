@@ -67,6 +67,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 - **Layout stability:** nodes present in both versions keep their positions.
 - **Changes list** (inspector): Added / Changed / Removed / Broken. Clicking an item flies to it.
 - Model done in M6.9a (ADR-0182): one overlay graph holds both versions, so Base, Head, and Overlay draw the same laid-out boxes. A renamed item shows once, as changed; an added or removed folder lists once in the changes list, with what's inside it counted.
+- Explorer done in M6.9b (ADR-0183): a "Comparing main → PR #12" chip and Base / Head / Overlay in the top bar. A closed box holding changes carries badges ("5 added", "2 broken") and says so in its name; a line standing for several connections takes their common state, or Changed, and a broken one says what broke ("DELETE /api/orders/:id was removed", or "2 connections broken"). Base and Head leave the other version's boxes and lines out in place; a diff of other commits shows an error card.
 
 ## Deep links
 

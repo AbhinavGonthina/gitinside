@@ -17,32 +17,46 @@ import type { Rect } from "../chrome/describe.js";
 import { DiagramEdge, EdgeLabel } from "../edges/DiagramEdge.js";
 import type { PlacedEdge } from "../layout/elk.js";
 import type { LayoutCache } from "../layout/engine.js";
-import { edgeLabelSize, frameCounts } from "../layout/size.js";
+import { changeCounts, edgeLabelSize, frameCounts } from "../layout/size.js";
+import type { DiffCounts, DiffMarks } from "../model/diff.js";
 import { layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { drawnEdge, type GraphView, type ViewEdge, type ViewNode } from "../model/view.js";
 import { prefersReducedMotion } from "../motion.js";
 import { DiagramNode } from "../nodes/DiagramNode.js";
-import { nodeTier, type NodeEmphasis } from "../nodes/describe.js";
+import { nodeTier, type NodeDiff, type NodeEmphasis } from "../nodes/describe.js";
 import { durations, scaleTokens } from "../tokens.js";
 import { ARROW_KEYS, nearestBox, type Direction } from "./a11y.js";
 import { cull, CULL_FROM, cullWindow } from "./cull.js";
 import { detailAt, insideOneService, serviceNameScale } from "./detail.js";
 import { planTransition, type BoxExit, type Shown, type TransitionPlan } from "./transition.js";
 
-/** How a box looks besides its node: selected, and its part in a trace. */
+/**
+ * How a box looks besides its node: selected, its part in a trace, and in
+ * diff mode its own state, the changes inside it (badges while closed), or
+ * that it isn't in the version shown (kept in place, not drawn).
+ */
 export interface BoxLook {
   selected?: boolean | undefined;
   emphasis?: NodeEmphasis | undefined;
+  diff?: NodeDiff | undefined;
+  changes?: Readonly<DiffCounts> | undefined;
+  absent?: boolean | undefined;
 }
 
 /**
  * How a line and its pill look: selected, its part in a trace, particles
- * flowing along it, and the current hop's pulse (which way the request goes
- * along the drawn line).
+ * flowing along it, the current hop's pulse (which way the request goes
+ * along the drawn line), and in diff mode its state, what broke, or that it
+ * isn't in the version shown.
  */
-export interface LineLook extends BoxLook {
+export interface LineLook {
+  selected?: boolean | undefined;
+  emphasis?: NodeEmphasis | undefined;
   flow?: boolean | undefined;
   pulse?: "forward" | "backward" | undefined;
+  diff?: NodeDiff | undefined;
+  broken?: string | undefined;
+  absent?: boolean | undefined;
 }
 
 /** Props for {@link DrillCanvas}. */
@@ -78,6 +92,8 @@ export interface DrillCanvasProps
   keep?: readonly string[] | undefined;
   /** How many boxes and lines a level needs before it's culled (default {@link CULL_FROM}). */
   cullFrom?: number | undefined;
+  /** Diff mode's marks, which `cache` sized the boxes and pills with (`createLayoutCache`). */
+  marks?: DiffMarks | undefined;
 }
 
 /**
@@ -110,6 +126,9 @@ interface CanvasBoxProps {
   siblings: readonly string[];
   selected: boolean;
   emphasis: NodeEmphasis | undefined;
+  diff: NodeDiff | undefined;
+  changes: Readonly<DiffCounts> | undefined;
+  absent: boolean;
   selectable: boolean;
   actions: RefObject<BoxActions>;
   register: (id: string, leaving: boolean, el: HTMLElement | null) => void;
@@ -133,6 +152,9 @@ const CanvasBox = memo(function CanvasBox({
   siblings,
   selected,
   emphasis,
+  diff,
+  changes,
+  absent,
   selectable,
   actions,
   register,
@@ -142,7 +164,12 @@ const CanvasBox = memo(function CanvasBox({
     (el: HTMLElement | null) => register(n.id, leaving, el),
     [register, n.id, leaving],
   );
-  const tree = leaving
+  // Out of the tree and the Tab order, like a box folding away.
+  const hidden = leaving || absent;
+  const counts = n.open
+    ? []
+    : [...(frame ? frameCounts(index, n.id) : []), ...changeCounts(changes)];
+  const tree = hidden
     ? {}
     : {
         role: "treeitem",
@@ -159,22 +186,24 @@ const CanvasBox = memo(function CanvasBox({
       data-node-id={n.id}
       data-open={n.open ? "" : undefined}
       data-leaving={leaving ? "" : undefined}
-      aria-hidden={leaving || undefined}
-      inert={leaving || undefined}
+      data-absent={absent ? "" : undefined}
+      aria-hidden={hidden || undefined}
+      inert={hidden || undefined}
       style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
     >
       <DiagramNode
         {...tree}
         node={n.node}
         layer={layerOf(index, n.id)}
-        counts={frame && !n.open ? frameCounts(index, n.id) : []}
+        counts={counts}
         expanded={n.open}
         selected={selected}
         emphasis={emphasis}
-        tabIndex={leaving ? -1 : 0}
+        diff={diff}
+        tabIndex={hidden ? -1 : 0}
         data-can-open={n.canOpen && !n.open ? "" : undefined}
         onClick={
-          leaving || !selectable
+          hidden || !selectable
             ? undefined
             : (e) => {
                 e.stopPropagation();
@@ -182,14 +211,14 @@ const CanvasBox = memo(function CanvasBox({
               }
         }
         onDoubleClick={
-          leaving
+          hidden
             ? undefined
             : (e) => {
                 e.stopPropagation();
                 actions.current.open(n);
               }
         }
-        onKeyDown={leaving ? undefined : (e) => actions.current.keyDown(e, n)}
+        onKeyDown={hidden ? undefined : (e) => actions.current.keyDown(e, n)}
       />
     </div>
   );
@@ -201,7 +230,7 @@ interface CanvasLineProps extends LineLook {
   placed: PlacedEdge;
 }
 
-/** One line, memoized like {@link CanvasBox}. */
+/** One line, memoized like {@link CanvasBox}. A line not in the version shown is kept out of reach. */
 const CanvasLine = memo(function CanvasLine({
   index,
   e,
@@ -210,6 +239,9 @@ const CanvasLine = memo(function CanvasLine({
   emphasis,
   flow,
   pulse,
+  diff,
+  broken,
+  absent,
 }: CanvasLineProps) {
   const { edge, count } = drawnEdge(e);
   return (
@@ -221,21 +253,29 @@ const CanvasLine = memo(function CanvasLine({
       ends={{ from: nodeOf(index, e.from).label, to: nodeOf(index, e.to).label }}
       selected={selected}
       emphasis={emphasis}
-      flow={flow ?? false}
-      pulse={pulse}
+      diff={diff}
+      broken={broken}
+      flow={!absent && (flow ?? false)}
+      pulse={absent ? undefined : pulse}
       data-inner={insideOneService(index, e) ? "" : undefined}
+      data-absent={absent ? "" : undefined}
+      aria-hidden={absent || undefined}
     />
   );
 });
 
-/** One line's pill, memoized like {@link CanvasBox}. */
+/** One line's pill, memoized like {@link CanvasBox}; `width` is what the layout made room for. */
 const CanvasPill = memo(function CanvasPill({
   index,
   e,
   placed,
   selected,
   emphasis,
-}: Omit<CanvasLineProps, "flow" | "pulse">) {
+  diff,
+  broken,
+  absent,
+  width,
+}: Omit<CanvasLineProps, "flow" | "pulse"> & { width: number }) {
   const { edge, count } = drawnEdge(e);
   return (
     <EdgeLabel
@@ -244,7 +284,10 @@ const CanvasPill = memo(function CanvasPill({
       layer={layerOf(index, e.from)}
       selected={selected}
       emphasis={emphasis}
-      data-measured-width={edgeLabelSize(e).width}
+      diff={diff}
+      broken={broken}
+      data-measured-width={width}
+      data-absent={absent ? "" : undefined}
       style={{ left: placed.label.x, top: placed.label.y }}
     />
   );
@@ -357,6 +400,7 @@ export function DrillCanvas({
   viewport,
   keep,
   cullFrom = CULL_FROM,
+  marks,
   className,
   style,
   ...rest
@@ -576,8 +620,27 @@ export function DrillCanvas({
     [layout, winKey, keptKey, leaving.from, cullFrom],
   );
   const edges = useMemo(() => new Map((drawn?.edges ?? []).map((e) => [e.id, e])), [drawn]);
-  const siblingsOf = (n: ViewNode) =>
-    drawn?.childrenOf.get(n.parent ?? index.root.id) ?? NO_SIBLINGS;
+  // Each box's look, asked once per render (only for the boxes drawn, outside diff mode).
+  const looks = new Map<string, BoxLook>();
+  const lookOf = (n: ViewNode): BoxLook => {
+    const known = looks.get(n.id);
+    if (known) return known;
+    const look = boxLook?.(n) ?? {};
+    looks.set(n.id, look);
+    return look;
+  };
+  // Boxes not in the version shown aren't in the tree, so their siblings' places skip them.
+  const absentKey = marks
+    ? (drawn?.nodes ?? []).flatMap((n) => (lookOf(n).absent ? [n.id] : [])).join("\n")
+    : "";
+  const siblings = useMemo(() => {
+    if (absentKey === "" || !drawn) return drawn?.childrenOf;
+    const absent = new Set(absentKey.split("\n"));
+    return new Map(
+      [...drawn.childrenOf].map(([id, kids]) => [id, kids.filter((k) => !absent.has(k))]),
+    );
+  }, [drawn, absentKey]);
+  const siblingsOf = (n: ViewNode) => siblings?.get(n.parent ?? index.root.id) ?? NO_SIBLINGS;
   return (
     <div
       {...rest}
@@ -611,6 +674,9 @@ export function DrillCanvas({
                 siblings={NO_SIBLINGS}
                 selected={false}
                 emphasis={undefined}
+                diff={undefined}
+                changes={undefined}
+                absent={false}
                 selectable={false}
                 actions={actions}
                 register={register}
@@ -620,7 +686,7 @@ export function DrillCanvas({
             {shown.layout.boxes.map((b) => {
               const n = drawn.byId.get(b.id);
               if (!n || !culled?.boxes.has(b.id)) return null;
-              const look = boxLook?.(n) ?? {};
+              const look = lookOf(n);
               return (
                 <CanvasBox
                   key={n.id}
@@ -631,6 +697,9 @@ export function DrillCanvas({
                   siblings={siblingsOf(n)}
                   selected={look.selected ?? false}
                   emphasis={look.emphasis}
+                  diff={look.diff}
+                  changes={look.changes}
+                  absent={look.absent ?? false}
                   selectable={onSelect !== undefined}
                   actions={actions}
                   register={register}
@@ -649,7 +718,7 @@ export function DrillCanvas({
             {shown.layout.edges.map((placed) => {
               const e = edges.get(placed.id);
               if (!e || !culled?.edges.has(placed.id)) return null;
-              const { selected, emphasis, flow, pulse } = lineLook?.(e) ?? {};
+              const { selected, emphasis, flow, pulse, diff, broken, absent } = lineLook?.(e) ?? {};
               return (
                 <CanvasLine
                   key={placed.id}
@@ -660,6 +729,9 @@ export function DrillCanvas({
                   emphasis={emphasis}
                   flow={flow}
                   pulse={pulse}
+                  diff={diff}
+                  broken={broken}
+                  absent={absent}
                 />
               );
             })}
@@ -668,7 +740,7 @@ export function DrillCanvas({
             {shown.layout.edges.map((placed) => {
               const e = edges.get(placed.id);
               if (!e || !culled?.edges.has(placed.id)) return null;
-              const { selected, emphasis } = lineLook?.(e) ?? {};
+              const { selected, emphasis, diff, broken, absent } = lineLook?.(e) ?? {};
               return (
                 <CanvasPill
                   key={placed.id}
@@ -677,6 +749,10 @@ export function DrillCanvas({
                   placed={placed}
                   selected={selected}
                   emphasis={emphasis}
+                  diff={diff}
+                  broken={broken}
+                  absent={absent}
+                  width={edgeLabelSize(e, marks?.line(e.edges)).width}
                 />
               );
             })}
