@@ -14,6 +14,7 @@ import {
   contentHash,
   createInputLog,
   createInputVerifier,
+  createRepoFiles,
   inputsDigest,
   mergeInputs,
   serviceInputs,
@@ -226,6 +227,54 @@ describe.each(NAMES)("observed inputs of fixture %s", (name) => {
   });
 });
 
+describe("createRepoFiles (M6.8c2)", () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "gitinside-files-"));
+    await writeFile(join(dir, "a.ts"), "export const a = 1;\n");
+    await writeFile(join(dir, "b.ts"), "export const b = 2;\n");
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+  const diskReads = (path: string) =>
+    reads.filter((p) => p.replaceAll("\\", "/").endsWith(`/${path}`)).length;
+
+  it("reads a file from disk once, then answers its text and hash from memory", () => {
+    reads.length = 0;
+    const files = createRepoFiles(dir);
+    const first = files.read("a.ts");
+    expect(first).toEqual({
+      text: "export const a = 1;\n",
+      hash: contentHash(Buffer.from("export const a = 1;\n")),
+    });
+    expect(files.read("a.ts")).toEqual(first);
+    expect(diskReads("a.ts")).toBe(1);
+  });
+
+  it("answers preloaded files without the disk, in order, and unreadable ones as such", async () => {
+    const files = createRepoFiles(dir);
+    await files.preload(["b.ts", "a.ts"]);
+    await rm(join(dir, "b.ts"));
+    reads.length = 0;
+    expect(files.read("b.ts").text).toBe("export const b = 2;\n");
+    expect(diskReads("b.ts")).toBe(0);
+    expect(await files.hashAll(["b.ts", "missing.ts", "a.ts"])).toEqual([
+      contentHash(Buffer.from("export const b = 2;\n")),
+      "",
+      contentHash(Buffer.from("export const a = 1;\n")),
+    ]);
+    expect(() => files.read("missing.ts")).toThrow();
+  });
+
+  it("keeps no bytes of a file it only hashed", async () => {
+    const files = createRepoFiles(dir);
+    expect(await files.hash("a.ts")).toBe(contentHash(Buffer.from("export const a = 1;\n")));
+    await rm(join(dir, "a.ts"));
+    expect(() => files.read("a.ts")).toThrow();
+  });
+});
+
 describe("verifying observed inputs after an edit", () => {
   let dir: string;
   beforeEach(async () => {
@@ -282,6 +331,27 @@ describe("verifying observed inputs after an edit", () => {
     await edit();
     return invalidated(dir, inputs);
   }
+
+  it("reads each file once per run however many programs load it (M6.8c2)", async () => {
+    // A relative import across services, so api's program loads shared's file too.
+    await tree({
+      "apps/api/src/rel.ts": 'export { greet } from "../../../packages/shared/src/index";\n',
+    });
+    const prefix = `${resolve(dir).replaceAll("\\", "/")}/`;
+    reads.length = 0;
+    const { programs } = await observe(dir);
+    const paths = reads.map((p) => p.replaceAll("\\", "/")).filter((p) => p.startsWith(prefix));
+    expect(paths.length).toBeGreaterThan(0);
+    expect(paths.length).toBe(new Set(paths).size);
+    // Some file is in two programs' logs, so it was loaded twice and read once.
+    const logged = programs.flatMap((sp) =>
+      sp.inputs
+        .snapshot()
+        .files.filter(([, answer]) => answer !== PRESENT && answer !== ABSENT)
+        .map(([path]) => path),
+    );
+    expect(logged.length).toBeGreaterThan(new Set(logged).size);
+  });
 
   it("invalidates nothing when nothing changed, or an unread file did", async () => {
     expect(await after(async () => undefined)).toEqual([]);

@@ -1,8 +1,13 @@
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 import { compareStrings, type AnalysisWarning } from "@gitinside/schema";
-import { contentHash, createInputLog, programRootFiles, type InputLog } from "./inputs.js";
+import {
+  createInputLog,
+  createRepoFiles,
+  programRootFiles,
+  type InputLog,
+  type RepoFiles,
+} from "./inputs.js";
 import type { Inventory } from "./inventory.js";
 import type { Workspace, WorkspacePackage } from "./workspace.js";
 
@@ -127,8 +132,10 @@ function withResolution(options: ts.CompilerOptions): ts.CompilerOptions {
 }
 
 /**
- * Build one TypeScript program per service, reading only files in the inventory. Each is
- * parsed on first use (see {@link ServiceProgram}); reading every `program` builds them all.
+ * Build one TypeScript program per service, reading only files in the inventory, through
+ * `files` (shared with the rest of the run, so programs that load one file share its text).
+ * Each is parsed on first use (see {@link ServiceProgram}); reading every `program` builds
+ * them all.
  *
  * Handles:
  * - `tsconfig.json` (else `jsconfig.json`) in the service folder, including `extends`
@@ -153,6 +160,7 @@ export function buildServicePrograms(
   root: string,
   workspace: Workspace,
   inventory: Inventory,
+  files: RepoFiles = createRepoFiles(root),
 ): ServiceProgram[] {
   const rootPath = resolve(root).replaceAll("\\", "/");
   const present = new Set(inventory.files);
@@ -176,9 +184,6 @@ export function buildServicePrograms(
   /** Strip the machine-specific root from diagnostic text so warnings are identical everywhere. */
   const relativize = (text: string): string => text.replaceAll(`${rootPath}/`, "");
 
-  /** Content hashes by repo path, computed once per run however many services read a file. */
-  const hashes = new Map<string, string>();
-
   /**
    * A host for one service. It answers from the inventory (plus TypeScript's own libs) and
    * records every repo path it reads or probes in `inputs`, the service's observed inputs.
@@ -200,14 +205,9 @@ export function buildServicePrograms(
         inputs.probeFile(rel, false);
         return undefined;
       }
-      const bytes = readFileSync(toAbsolute(rel));
-      let hash = hashes.get(rel);
-      if (hash === undefined) {
-        hash = contentHash(bytes);
-        hashes.set(rel, hash);
-      }
+      const { text, hash } = files.read(rel);
       inputs.read(rel, hash);
-      return bytes.toString("utf8");
+      return text;
     };
     const directoryExists = (dirName: string): boolean => {
       const rel = toRepoPath(dirName);

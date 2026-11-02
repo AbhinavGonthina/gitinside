@@ -24,7 +24,7 @@ import {
   type CachedService,
   type FactKeys,
 } from "./incremental.js";
-import { inputsDigest, type ObservedInputs } from "./inputs.js";
+import { createRepoFiles, inputsDigest, type ObservedInputs } from "./inputs.js";
 import type { ServiceProgram } from "./program.js";
 import { detectWorkspace } from "./workspace.js";
 
@@ -387,7 +387,7 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
         ["b", "key-b"],
         ["c", "key-c"],
       ]),
-      hashOf: async () => "",
+      files: createRepoFiles("."),
       present: new Set(),
     };
     const warning = { code: "DETECTOR_FAILED", message: "x" } as const;
@@ -435,7 +435,7 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
     const service = (inputs: ObservedInputs) => ({ inputs, queueLibrary: () => false });
     const keys: FactKeys = {
       keys: new Map(["a", "b", "c"].map((s) => [s, `key-${s}`])),
-      hashOf: async () => "",
+      files: createRepoFiles("."),
       present: new Set(),
     };
     const store = () =>

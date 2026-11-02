@@ -1,7 +1,7 @@
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { compareStrings, nodeId, type AnalysisWarning, type GraphNode } from "@gitinside/schema";
+import { contentHash, createRepoFiles, type RepoFiles } from "./inputs.js";
 import { serviceForFile, type Workspace, type WorkspacePackage } from "./workspace.js";
 
 function dirname(path: string): string {
@@ -30,7 +30,8 @@ export function fileNodeId(service: WorkspacePackage, path: string): string {
  *   (those files hang off the service). Its parent is the nearest ancestor module inside
  *   the same service, else the service.
  * - A file's parent is its folder's module, or the service for root-level files. Its `hash`
- *   is the SHA-256 of the raw bytes, so it only changes when the content does.
+ *   is the SHA-256 of the raw bytes, so it only changes when the content does (from `files`,
+ *   which the run shares, so a file the programs already read isn't read again).
  * - IDs use the service-relative path; the `path` field is repo-relative.
  *
  * Not handled: folders with no source files of their own get no module (a folder that only
@@ -42,6 +43,7 @@ export async function buildFileNodes(
   root: string,
   workspace: Workspace,
   sourceFiles: readonly string[],
+  files: RepoFiles = createRepoFiles(root),
 ): Promise<GraphNode[]> {
   const owned = sourceFiles.flatMap((path) => {
     const service = serviceForFile(workspace, path);
@@ -79,15 +81,17 @@ export async function buildFileNodes(
     }
   }
 
-  for (const { path, service } of owned) {
-    const bytes = await readFile(join(root, path));
+  const hashes = await files.hashAll(owned.map(({ path }) => path));
+  for (const [i, { path, service }] of owned.entries()) {
+    // `""` means it couldn't be read: read it again, so the analysis fails with the reason.
+    const hash = hashes[i] || contentHash(await readFile(join(root, path)));
     nodes.push({
       id: fileNodeId(service, path),
       kind: "file",
       label: basename(path),
       parentId: parentOf(service, dirname(path)),
       path,
-      hash: createHash("sha256").update(bytes).digest("hex"),
+      hash,
     });
   }
   return nodes;

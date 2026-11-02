@@ -4,6 +4,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { analyze } from "./analyze.js";
+import { buildFileNodes } from "./files.js";
+import { createRepoFiles } from "./inputs.js";
+import { buildInventory } from "./inventory.js";
+import { detectWorkspace } from "./workspace.js";
 
 let dir: string;
 beforeEach(async () => {
@@ -73,6 +77,25 @@ describe("module and file nodes", () => {
     const hash = (g: typeof first) => g.nodes.find((n) => n.id === "file:app/a.ts");
     expect(hash(again)).toEqual(hash(first));
     expect(hash(changed)).not.toEqual(hash(first));
+  });
+
+  it("takes hashes from the run's files, and fails on a file no one can read (M6.8c2)", async () => {
+    await put("a.ts", "export const a = 1;");
+    await put("b.ts", "export const b = 2;");
+    const inventory = await buildInventory(dir);
+    const workspace = await detectWorkspace(dir, inventory.files);
+    const files = createRepoFiles(dir);
+    // Read once already (by the programs, say), then gone from the disk.
+    files.read("a.ts");
+    await rm(join(dir, "a.ts"));
+    const nodes = await buildFileNodes(dir, workspace, ["a.ts", "b.ts"], files);
+    expect(nodes.filter((n) => n.kind === "file").map((n) => [n.path, n.hash])).toEqual([
+      ["a.ts", sha("export const a = 1;")],
+      ["b.ts", sha("export const b = 2;")],
+    ]);
+    await expect(buildFileNodes(dir, workspace, ["a.ts"], createRepoFiles(dir))).rejects.toThrow(
+      /ENOENT/,
+    );
   });
 
   it("skips files outside every package, with one warning per top-level folder", async () => {
