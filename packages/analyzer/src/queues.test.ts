@@ -1,13 +1,23 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { GraphEdge, GraphNode } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
 import { createSymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
 import { buildInventory } from "./inventory.js";
 import { buildServicePrograms } from "./program.js";
-import { buildQueueEdges, DYNAMIC_NAME_DETAIL, type QueueEdges } from "./queues.js";
+import {
+  buildQueueEdges,
+  collectQueueFacts,
+  composeQueueEdges,
+  DYNAMIC_NAME_DETAIL,
+  usesQueueLibrary,
+  type QueueEdges,
+  type QueueFacts,
+} from "./queues.js";
 import { detectWorkspace } from "./workspace.js";
 
 let dir: string;
@@ -315,6 +325,138 @@ describe("buildQueueEdges: Bull and Bee-Queue", () => {
       "publishes symbol:api/src/bull.js#enqueue -> #audio @ src/bull.js:6:52",
       "publishes symbol:api/src/bull.js#enqueue -> #video @ src/bull.js:6:35",
     ]);
+  });
+});
+
+describe("queue facts", () => {
+  const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
+
+  /** Every service's queue facts and Express's inline handlers. */
+  async function queueInputs(root: string) {
+    const inventory = await buildInventory(root);
+    const workspace = await detectWorkspace(root, inventory.files);
+    const programs = buildServicePrograms(root, workspace, inventory);
+    const resolver = createSymbolResolver(programs, workspace);
+    const { inlineHandlers } = buildExpressRoutes(programs, resolver);
+    const scanned = usesQueueLibrary(programs);
+    const facts = programs.map((sp) => collectQueueFacts(sp, resolver, workspace, scanned));
+    return { facts, inlineHandlers };
+  }
+
+  /** The queue detector's part of a graph: its edges and the nodes they reach. */
+  function queuePart(graph: { nodes: GraphNode[]; edges: GraphEdge[] }, ids: Set<string>) {
+    const edges = graph.edges.filter((e) => e.kind === "publishes" || e.kind === "consumes");
+    return { nodes: graph.nodes.filter((n) => ids.has(n.id)), edges };
+  }
+
+  const of = (all: QueueFacts[], service: string) => all.find((f) => f.service === service);
+
+  it("composes queues-bullmq from JSON round-tripped facts exactly as analyze does", async () => {
+    const root = join(FIXTURES, "queues-bullmq");
+    const { facts, inlineHandlers } = await queueInputs(root);
+    const revived = JSON.parse(JSON.stringify(facts)) as QueueFacts[];
+    expect(revived).toEqual(facts);
+    const composed = composeQueueEdges(revived, inlineHandlers);
+    expect(composed.edges.map((e) => e.kind).sort()).toEqual([
+      "consumes",
+      "publishes",
+      "publishes",
+    ]);
+    const ids = new Set(composed.nodes.map((n) => n.id));
+    expect(queuePart(composed, ids)).toEqual(queuePart(await analyze(root), ids));
+  });
+
+  /** A jobs package with a worker factory, and a worker app that may call it. */
+  async function factoryRepo(call: boolean): Promise<void> {
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*", "packages/*"] }));
+    await put(
+      "packages/jobs/package.json",
+      JSON.stringify({ name: "@acme/jobs", main: "src/index.ts" }),
+    );
+    await put("packages/jobs/src/index.ts", [
+      'import { Queue, Worker, type Processor } from "bullmq";',
+      "export const startWorker = (name: string, fn: Processor) => new Worker(name, fn);",
+      "export function relay(queue: string) { return startWorker(queue, async () => 1); }",
+      'export const mail = new Queue("mail");',
+    ]);
+    await put("apps/worker/package.json", JSON.stringify({ name: "worker" }));
+    await put("apps/worker/src/main.ts", [
+      'import { relay, mail } from "@acme/jobs";',
+      "export const send = () => mail.add('x', {});",
+      ...(call ? ['export const boot = () => relay("reports");'] : []),
+    ]);
+  }
+
+  it("keeps a factory's package facts unchanged when another service starts calling it", async () => {
+    await factoryRepo(false);
+    const before = await queueInputs(dir);
+    await factoryRepo(true);
+    const after = await queueInputs(dir);
+    expect(of(after.facts, "jobs")).toEqual(of(before.facts, "jobs"));
+    expect(of(after.facts, "worker")).not.toEqual(of(before.facts, "worker"));
+    // `relay` passes its parameter on, so its worker is found in the second round.
+    expect(of(after.facts, "worker")?.factoryCalls.map((c) => c.name)).toEqual(["relay"]);
+    const summarize = (input: typeof before) =>
+      summary(composeQueueEdges(input.facts, input.inlineHandlers));
+    // Uncalled, `relay` keeps its own worker, unresolved at its parameter.
+    expect(summarize(before)).toEqual([
+      "consumes symbol:jobs/src/index.ts#relay -> unresolved:jobs/src/index.ts:3:59 (unresolved) @ packages/jobs/src/index.ts:3:47",
+      "publishes symbol:worker/src/main.ts#send -> #mail @ apps/worker/src/main.ts:2:32",
+    ]);
+    expect(summarize(after)).toEqual([
+      "consumes symbol:jobs/src/index.ts#relay -> #reports @ apps/worker/src/main.ts:3:27",
+      "publishes symbol:worker/src/main.ts#send -> #mail @ apps/worker/src/main.ts:2:32",
+    ]);
+    const composed = composeQueueEdges(after.facts, after.inlineHandlers);
+    const ids = new Set(composed.nodes.map((n) => n.id));
+    expect(queuePart(composed, ids)).toEqual(queuePart(await analyze(dir), ids));
+  });
+
+  it("matches a factory only in the program that walked it, as node identity did", async () => {
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*"] }));
+    await put("apps/jobs/package.json", JSON.stringify({ name: "jobs" }));
+    await put("apps/jobs/src/index.ts", [
+      'import { Worker } from "bullmq";',
+      "export const startWorker = (name: string) => new Worker(name, async () => 1);",
+    ]);
+    await put("apps/web/package.json", JSON.stringify({ name: "web" }));
+    // TypeScript resolves this import itself, so `web`'s program has its own copy of the file.
+    await put("apps/web/src/main.ts", [
+      'import { startWorker } from "../../jobs/src/index";',
+      'export const boot = () => startWorker("email");',
+    ]);
+    const { facts, inlineHandlers } = await queueInputs(dir);
+    const [call] = of(facts, "web")?.factoryCalls ?? [];
+    const [own] = of(facts, "jobs")?.events ?? [];
+    expect(call?.factory.replace(/^web\|/, "jobs|")).toBe(own?.within?.key);
+    expect(call?.factory).not.toBe(own?.within?.key);
+    expect(summary(composeQueueEdges(facts, inlineHandlers))).toEqual([
+      "consumes symbol:jobs/src/index.ts#startWorker -> unresolved:jobs/src/index.ts:2:57 (unresolved) @ apps/jobs/src/index.ts:2:46",
+    ]);
+  });
+
+  it("looks for nothing without a queue library, and composes unscanned facts to nothing", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/jobs.ts", "declare const q: any;\nexport const go = () => q.add('x', {});\n");
+    const { facts, inlineHandlers } = await queueInputs(dir);
+    expect(facts).toEqual([
+      { service: "api", scanned: false, declared: [], events: [], factoryCalls: [] },
+    ]);
+    const site = { file: "src/jobs.ts", line: 2, column: 28 };
+    const unscanned: QueueFacts = {
+      ...(facts[0] as QueueFacts),
+      declared: [{ name: "x", site }],
+      events: [
+        {
+          kind: "publishes",
+          queue: { kind: "known", name: "x" },
+          sources: { handlers: [], ids: ["symbol:api/src/jobs.ts#go"] },
+          confidence: "exact",
+          site,
+        },
+      ],
+    };
+    expect(composeQueueEdges([unscanned], inlineHandlers)).toEqual({ nodes: [], edges: [] });
   });
 });
 

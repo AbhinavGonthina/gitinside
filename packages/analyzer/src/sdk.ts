@@ -232,15 +232,30 @@ export interface SdkEdges {
   edges: GraphEdge[];
 }
 
+/** One call through an SDK client, before its owners are bound (ADR-0094). Plain data. */
+export interface SdkRequest {
+  owners: Owners;
+  /** The API host, keyed like `externalHost()`. */
+  host: string;
+  confidence: Confidence;
+  site: SourceLocation;
+}
+
+/** What one service's program says about SDK calls, as plain data (ADR-0090, ADR-0172). */
+export interface SdkFacts {
+  /** Key of the service whose program found these. */
+  service: string;
+  /** Its requests, in walk order. */
+  requests: SdkRequest[];
+}
+
 const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
   compareStrings(a.file, b.file) || a.line - b.line || a.column - b.column;
 
 /**
  * Find every call through an allowlisted SDK client (see the file comment) and draw an
  * `external_call` edge from its owners (or its file, for top-level code) to the API's
- * `external` node. Calls with the same source and host merge into one edge listing every
- * site, at the strongest confidence. `inlineHandlers` comes from the Express detector; it is
- * only read to bind each request's owners after the walk (ADR-0094).
+ * `external` node: {@link collectSdkFacts} per program, then {@link composeSdkEdges}.
  */
 export function buildSdkEdges(
   programs: readonly ServiceProgram[],
@@ -248,6 +263,67 @@ export function buildSdkEdges(
   workspace: Workspace,
   inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): SdkEdges {
+  return composeSdkEdges(
+    programs.map((sp) => collectSdkFacts(sp, resolver, workspace)),
+    inlineHandlers,
+  );
+}
+
+/**
+ * The global SDK step: bind each request's owners to Express's inline handlers
+ * (`inlineHandlers`), then merge requests with the same source and host into one edge listing
+ * every site, at the strongest confidence, in program then walk order.
+ */
+export function composeSdkEdges(
+  facts: readonly SdkFacts[],
+  inlineHandlers: ReadonlyMap<string, readonly string[]>,
+): SdkEdges {
+  const nodes = new Map<string, GraphNode>();
+  const edges = new Map<string, GraphEdge>();
+
+  const addEdge = (
+    from: string,
+    to: string,
+    confidence: Confidence,
+    site: SourceLocation,
+  ): void => {
+    const id = edgeId("external_call", from, to);
+    const existing = edges.get(id);
+    if (!existing) {
+      edges.set(id, { id, kind: "external_call", from, to, confidence, sites: [site] });
+      return;
+    }
+    if (CONFIDENCE_RANK[confidence] < CONFIDENCE_RANK[existing.confidence]) {
+      existing.confidence = confidence;
+    }
+    if (!existing.sites.some((s) => compareLocations(s, site) === 0)) existing.sites.push(site);
+  };
+
+  for (const { requests } of facts) {
+    for (const { owners, host, confidence, site } of requests) {
+      const sources = bindOwners(owners, inlineHandlers);
+      const external = externalNode(host);
+      if (sources.length > 0 && !nodes.has(external.id)) nodes.set(external.id, external);
+      for (const from of sources) addEdge(from, external.id, confidence, { ...site });
+    }
+  }
+
+  const out = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
+  for (const edge of out) edge.sites.sort(compareLocations);
+  return { nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)), edges: out };
+}
+
+/**
+ * Collect one service's {@link SdkFacts} with its program: every call through an SDK client
+ * in its root files, with owners naming inline handlers by node key (ADR-0094) and the file
+ * node as the fallback for top-level code. Other programs are reached only through the
+ * resolver (ADR-0091).
+ */
+export function collectSdkFacts(
+  sp: ServiceProgram,
+  resolver: SymbolResolver,
+  workspace: Workspace,
+): SdkFacts {
   const { symbolAt } = createValueReader(resolver);
 
   const moduleValue = (module: string, name: string): SdkValue | undefined => {
@@ -507,77 +583,35 @@ export function buildSdkEdges(
     return undefined;
   };
 
-  const nodes = new Map<string, GraphNode>();
-  const edges = new Map<string, GraphEdge>();
+  const requests: SdkRequest[] = [];
+  for (const file of sp.rootFiles) {
+    const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+    const byNode = sourceFile && resolver.callers.get(sourceFile);
+    if (!sourceFile || !byNode) continue;
+    const service = serviceForFile(workspace, file);
+    const fallback = service ? [fileNodeId(service, file)] : [];
 
-  const addEdge = (
-    from: string,
-    to: string,
-    confidence: Confidence,
-    site: SourceLocation,
-  ): void => {
-    const id = edgeId("external_call", from, to);
-    const existing = edges.get(id);
-    if (!existing) {
-      edges.set(id, { id, kind: "external_call", from, to, confidence, sites: [site] });
-      return;
-    }
-    if (CONFIDENCE_RANK[confidence] < CONFIDENCE_RANK[existing.confidence]) {
-      existing.confidence = confidence;
-    }
-    if (!existing.sites.some((s) => compareLocations(s, site) === 0)) existing.sites.push(site);
-  };
-
-  /** The requests found, in walk order, before their owners are bound (ADR-0094). */
-  const requests: {
-    owners: Owners;
-    external: GraphNode;
-    confidence: Confidence;
-    site: SourceLocation;
-  }[] = [];
-  for (const sp of programs) {
-    for (const file of sp.rootFiles) {
-      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-      const byNode = sourceFile && resolver.callers.get(sourceFile);
-      if (!sourceFile || !byNode) continue;
-      const service = serviceForFile(workspace, file);
-      const fallback = service ? [fileNodeId(service, file)] : [];
-
-      const visit = (node: ts.Node, owners: Owners): void => {
-        const current = ownersAt(file, node, byNode.get(node), owners);
-        if (ts.isCallExpression(node)) {
-          const request = requestOf(sp, node);
-          // `google.calendar({ auth })` builds a client locally; calls on it are requests.
-          const builds = request !== undefined && sdkOf(sp, node, 0) !== undefined;
-          if (
-            request &&
-            !builds &&
-            !request.names.some((n) => request.value.pkg.local.includes(n))
-          ) {
-            const { pkg } = request.value;
-            requests.push({
-              owners: withFallback(current, fallback),
-              external: externalNode(pkg.host),
-              confidence: weaker(request.value.confidence, pkg.confidence),
-              site: locationOf(request.name, file),
-            });
-          }
+    const visit = (node: ts.Node, owners: Owners): void => {
+      const current = ownersAt(file, node, byNode.get(node), owners);
+      if (ts.isCallExpression(node)) {
+        const request = requestOf(sp, node);
+        // `google.calendar({ auth })` builds a client locally; calls on it are requests.
+        const builds = request !== undefined && sdkOf(sp, node, 0) !== undefined;
+        if (request && !builds && !request.names.some((n) => request.value.pkg.local.includes(n))) {
+          const { pkg } = request.value;
+          requests.push({
+            owners: withFallback(current, fallback),
+            host: pkg.host,
+            confidence: weaker(request.value.confidence, pkg.confidence),
+            site: locationOf(request.name, file),
+          });
         }
-        ts.forEachChild(node, (child) => {
-          visit(child, current);
-        });
-      };
-      visit(sourceFile, NO_OWNERS);
-    }
+      }
+      ts.forEachChild(node, (child) => {
+        visit(child, current);
+      });
+    };
+    visit(sourceFile, NO_OWNERS);
   }
-
-  for (const { owners, external, confidence, site } of requests) {
-    const sources = bindOwners(owners, inlineHandlers);
-    if (sources.length > 0 && !nodes.has(external.id)) nodes.set(external.id, external);
-    for (const from of sources) addEdge(from, external.id, confidence, site);
-  }
-
-  const out = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
-  for (const edge of out) edge.sites.sort(compareLocations);
-  return { nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)), edges: out };
+  return { service: sp.service.key, requests };
 }

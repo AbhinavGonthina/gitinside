@@ -63,7 +63,7 @@ import {
   type GraphNode,
   type SourceLocation,
 } from "@gitinside/schema";
-import { calleeName, type SymbolResolver } from "./calls.js";
+import { calleeName, nodeKey, type SymbolResolver } from "./calls.js";
 import { isFunctionWithBody, returnedExpressions, type FunctionWithBody } from "./express.js";
 import { fileNodeId, withinService } from "./files.js";
 import { functionOf, importBinding, locationOf, requiredModule } from "./http.js";
@@ -217,18 +217,72 @@ export interface QueueEdges {
   edges: GraphEdge[];
 }
 
-/** One producer or consumer found in the code. */
+/**
+ * A worker factory: a function whose own worker reads its queue name from one of its
+ * parameters. `key` identifies the function node within one program (the program's service
+ * key, then `nodeKey`), as node identity did before facts (ADR-0172).
+ */
+export interface FactoryRef {
+  key: string;
+  /** The names it is called by (see {@link functionNames}). */
+  names: string[];
+}
+
+/** One producer or consumer found in the code, as plain data (ADR-0172). */
+export interface QueueEventFact {
+  kind: "publishes" | "consumes";
+  /**
+   * The queue's name, or, when it can't be read, the `unresolved` node standing for it (none
+   * when that node's file is in no service, so the event draws nothing).
+   */
+  queue: { kind: "known"; name: string } | { kind: "dynamic"; node?: GraphNode };
+  /** Where the edge starts, bound to IDs once Express is composed (ADR-0094). */
+  sources: Owners;
+  confidence: Confidence;
+  site: SourceLocation;
+  /** For a consumer: the worker factory whose parameter its name still reads, if inside one. */
+  within?: FactoryRef;
+}
+
+/**
+ * A call that would consume through a worker factory, if that factory turns out to be one
+ * (some consumer is `within` it): the global step decides, in rounds (ADR-0172).
+ */
+export interface FactoryCallFact {
+  /** The called function's {@link FactoryRef.key}. */
+  factory: string;
+  /** The callee's name as written; it must be a name of a factory searched in that round. */
+  name: string;
+  /** The consumer it makes, with the factory's parameters bound to the call's arguments. */
+  event: QueueEventFact;
+}
+
+/** What one service's program says about queues, as plain data (ADR-0090, ADR-0172). */
+export interface QueueFacts {
+  /** Key of the service whose program found these. */
+  service: string;
+  /**
+   * False when no file in the repo names a queue library, so nothing was looked for. Facts
+   * collected that way are stale once one does.
+   */
+  scanned: boolean;
+  /** The first site naming each known queue, in the order first named. */
+  declared: { name: string; site: SourceLocation }[];
+  /** Producers and consumers found directly, in walk order. */
+  events: QueueEventFact[];
+  /** Calls of functions that return a worker, in walk order. */
+  factoryCalls: FactoryCallFact[];
+}
+
+/** One producer or consumer while walking, with the TypeScript nodes it still needs. */
 interface QueueEvent {
   kind: "publishes" | "consumes";
   queue: QueueName;
-  /** Where the edge starts, bound to IDs once the walk is done (ADR-0094). */
   sources: Owners;
   confidence: Confidence;
   site: SourceLocation;
   /** Source text for an unresolved node with no name expression. */
   text: ts.Node;
-  /** The function whose parameter the name still reads, when the event sits inside it. */
-  within?: FunctionWithBody;
 }
 
 const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
@@ -262,11 +316,21 @@ const contains = (outer: ts.Node, inner: ts.Node): boolean =>
   inner.end <= outer.end;
 
 /**
+ * True when some root file of some program names a queue library in quotes. Every queue
+ * starts at a library import, so a repo that names none has no queues and isn't walked.
+ */
+export function usesQueueLibrary(programs: readonly ServiceProgram[]): boolean {
+  return programs.some((sp) =>
+    sp.rootFiles.some((file) =>
+      LIBRARY_MENTION.test(sp.program.getSourceFile(sp.toAbsolute(file))?.text ?? ""),
+    ),
+  );
+}
+
+/**
  * Find every queue producer and consumer (see the file comment) and draw `publishes` and
- * `consumes` edges to the queue's node. Events with the same kind, source, and queue merge
- * into one edge listing every site, at the strongest confidence. `inlineHandlers` comes from
- * the Express detector; it is only read to bind each event's owners after the walk
- * (ADR-0094).
+ * `consumes` edges to the queue's node: {@link collectQueueFacts} per program, then
+ * {@link composeQueueEdges}.
  */
 export function buildQueueEdges(
   programs: readonly ServiceProgram[],
@@ -274,6 +338,148 @@ export function buildQueueEdges(
   workspace: Workspace,
   inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): QueueEdges {
+  const scanned = usesQueueLibrary(programs);
+  return composeQueueEdges(
+    programs.map((sp) => collectQueueFacts(sp, resolver, workspace, scanned)),
+    inlineHandlers,
+  );
+}
+
+/**
+ * The global queue step. Worker factories are found in rounds, as the one-pass detector did:
+ * the factories some consumer is `within` and that weren't searched yet, then the calls (in
+ * program then walk order) naming one of them and resolving to one, each adding a consumer
+ * that may be `within` a further factory. A called factory's own consumer is dropped. Then
+ * every event, in that order, becomes an edge from its owners (inline handlers bound to
+ * Express's routes in `inlineHandlers`) to its queue's node, whose `source` is the first site
+ * naming it anywhere. Events with the same kind, source, and queue merge into one edge
+ * listing every site, at the strongest confidence. Facts that weren't `scanned` contribute
+ * nothing.
+ */
+export function composeQueueEdges(
+  facts: readonly QueueFacts[],
+  inlineHandlers: ReadonlyMap<string, readonly string[]>,
+): QueueEdges {
+  const scanned = facts.filter((f) => f.scanned);
+  const declared = new Map<string, SourceLocation>();
+  const events: QueueEventFact[] = [];
+  for (const f of scanned) {
+    for (const { name, site } of f.declared) {
+      const seen = declared.get(name);
+      if (!seen || compareLocations(site, seen) < 0) declared.set(name, site);
+    }
+    events.push(...f.events);
+  }
+
+  // Calls of worker factories. A caller that passes its own parameter on is a factory too,
+  // found in the next round.
+  const calledFactories = new Set<string>();
+  const searched = new Set<string>();
+  for (let round = 0; round < MAX_HOPS; round++) {
+    const fresh = new Map<string, readonly string[]>();
+    for (const { kind, within } of events) {
+      if (kind === "consumes" && within && !searched.has(within.key)) {
+        fresh.set(within.key, within.names);
+      }
+    }
+    if (fresh.size === 0) break;
+    for (const key of fresh.keys()) searched.add(key);
+    const names = new Set([...fresh.values()].flat());
+    for (const f of scanned) {
+      for (const call of f.factoryCalls) {
+        if (!names.has(call.name) || !fresh.has(call.factory)) continue;
+        calledFactories.add(call.factory);
+        events.push(call.event);
+      }
+    }
+  }
+
+  const nodes = new Map<string, GraphNode>();
+  const edges = new Map<string, GraphEdge>();
+
+  const addEdge = (
+    event: QueueEventFact,
+    from: string,
+    to: string,
+    confidence: Confidence,
+  ): void => {
+    const id = edgeId(event.kind, from, to);
+    const existing = edges.get(id);
+    if (!existing) {
+      edges.set(id, {
+        id,
+        kind: event.kind,
+        from,
+        to,
+        confidence,
+        ...(confidence === "unresolved" ? { reason: "DYNAMIC_NAME" as const } : {}),
+        sites: [{ ...event.site }],
+      });
+      return;
+    }
+    if (CONFIDENCE_RANK[confidence] < CONFIDENCE_RANK[existing.confidence]) {
+      existing.confidence = confidence;
+    }
+    if (!existing.sites.some((s) => compareLocations(s, event.site) === 0)) {
+      existing.sites.push({ ...event.site });
+    }
+  };
+
+  for (const event of events) {
+    // A called factory's own worker is replaced by one per call; its publishes stay.
+    if (event.kind === "consumes" && event.within && calledFactories.has(event.within.key)) {
+      continue;
+    }
+    let to: string;
+    let confidence = event.confidence;
+    if (event.queue.kind === "known") {
+      const { name } = event.queue;
+      const node = queueNode(name, { ...(declared.get(name) ?? event.site) });
+      if (!nodes.has(node.id)) nodes.set(node.id, node);
+      to = node.id;
+    } else {
+      const { node } = event.queue;
+      if (!node) continue;
+      if (!nodes.has(node.id)) nodes.set(node.id, { ...node });
+      to = node.id;
+      confidence = "unresolved";
+    }
+    for (const from of bindOwners(event.sources, inlineHandlers)) {
+      addEdge(event, from, to, confidence);
+    }
+  }
+  // Queues that are created but never used still exist.
+  for (const [name, source] of declared) {
+    const node = queueNode(name, { ...source });
+    if (!nodes.has(node.id)) nodes.set(node.id, node);
+  }
+
+  const out = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
+  for (const edge of out) edge.sites.sort(compareLocations);
+  return { nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)), edges: out };
+}
+
+/**
+ * Collect one service's {@link QueueFacts} with its program: the queues its root files name,
+ * their producers and consumers, and every call of a function returning a worker (whether it
+ * is a factory is decided globally). Owners name inline handlers by node key (ADR-0094); other
+ * programs are reached only through the resolver (ADR-0091). `repoUsesQueues` is
+ * {@link usesQueueLibrary}; without it nothing is looked for.
+ */
+export function collectQueueFacts(
+  sp: ServiceProgram,
+  resolver: SymbolResolver,
+  workspace: Workspace,
+  repoUsesQueues: boolean,
+): QueueFacts {
+  const facts: QueueFacts = {
+    service: sp.service.key,
+    scanned: repoUsesQueues,
+    declared: [],
+    events: [],
+    factoryCalls: [],
+  };
+  if (!repoUsesQueues) return facts;
   const { symbolAt, constString } = createValueReader(resolver);
 
   const moduleValue = (module: string, path: string): QueueValue | undefined => {
@@ -383,31 +589,42 @@ export function buildQueueEdges(
     };
   };
 
-  /** The instance a call to a factory function returns, with the factory. */
+  /** The function a call calls, with its program and how surely it was found. */
+  const calledFunction = (
+    sp: ServiceProgram,
+    call: ts.CallExpression,
+  ): { fn: FunctionWithBody; fnSp: ServiceProgram; confidence: Confidence } | undefined => {
+    const name = calleeName(call.expression);
+    const symbol = name && symbolAt(sp, name);
+    if (!symbol) return undefined;
+    const fn = functionOf(resolver.checkerOf(sp), symbol);
+    if (fn) return { fn, fnSp: sp, confidence: "exact" };
+    // A factory exported from a workspace package TypeScript couldn't resolve.
+    const own = symbol.flags & ts.SymbolFlags.Alias ? symbol.declarations?.[0] : undefined;
+    const target = own && resolver.importTarget(sp, own);
+    const imported = target && functionOf(resolver.checkerOf(target.sp), target.symbol);
+    return imported && target
+      ? { fn: imported, fnSp: target.sp, confidence: target.confidence }
+      : undefined;
+  };
+
+  /** The instance a call to a factory function returns, with the factory and its program. */
   const factoryCall = (
     sp: ServiceProgram,
     call: ts.CallExpression,
     hops: number,
-  ): { fn: FunctionWithBody; instance: QueueInstance } | undefined => {
-    const name = calleeName(call.expression);
-    const symbol = name && symbolAt(sp, name);
-    if (!symbol) return undefined;
-    let fn = functionOf(resolver.checkerOf(sp), symbol);
-    let fnSp = sp;
-    let confidence: Confidence = "exact";
-    if (!fn) {
-      // A factory exported from a workspace package TypeScript couldn't resolve.
-      const own = symbol.flags & ts.SymbolFlags.Alias ? symbol.declarations?.[0] : undefined;
-      const target = own && resolver.importTarget(sp, own);
-      fn = target && functionOf(resolver.checkerOf(target.sp), target.symbol);
-      if (!fn || !target) return undefined;
-      fnSp = target.sp;
-      confidence = target.confidence;
-    }
+    called = calledFunction(sp, call),
+  ): { fn: FunctionWithBody; fnSp: ServiceProgram; instance: QueueInstance } | undefined => {
+    if (!called) return undefined;
+    const { fn, fnSp, confidence } = called;
     const found = returnedInstance(fnSp, fn, hops);
     if (!found) return undefined;
     const instance = bind(found, fn, call, sp);
-    return { fn, instance: { ...instance, confidence: weaker(confidence, found.confidence) } };
+    return {
+      fn,
+      fnSp,
+      instance: { ...instance, confidence: weaker(confidence, found.confidence) },
+    };
   };
 
   /** Unbound results by factory; `null` while one is being traced or when it returns none. */
@@ -648,9 +865,14 @@ export function buildQueueEdges(
     return fn && isFunctionWithBody(fn) && contains(fn, node) ? fn : undefined;
   };
 
-  const events: QueueEvent[] = [];
-  /** Factories with at least one call that yields a worker. */
-  const calledFactories = new Set<FunctionWithBody>();
+  /** A factory's {@link FactoryRef}; none outside the repo, where no consumer can be. */
+  const factoryRef = (fnSp: ServiceProgram, fn: FunctionWithBody): FactoryRef | undefined => {
+    const path = fnSp.toRepoPath(fn.getSourceFile().fileName);
+    return path === undefined
+      ? undefined
+      : { key: `${fnSp.service.key}|${nodeKey(path, fn)}`, names: functionNames(fn) };
+  };
+
   /** The first site naming each known queue, for its node's `source`. */
   const declared = new Map<string, SourceLocation>();
 
@@ -661,164 +883,6 @@ export function buildQueueEdges(
     const site = locationOf(queue.at.expression, file);
     const seen = declared.get(queue.name);
     if (!seen || compareLocations(site, seen) < 0) declared.set(queue.name, site);
-  };
-
-  const consume = (
-    instance: QueueInstance,
-    processor: ProgramExpression | undefined,
-    owners: Owners,
-    site: SourceLocation,
-    node: ts.Node,
-  ): void => {
-    const { sources, confidence } = processorSources(processor, owners);
-    const within = parameterOwner(instance.queue, node);
-    events.push({
-      kind: "consumes",
-      queue: instance.queue,
-      sources,
-      confidence: weaker(instance.confidence, confidence),
-      site,
-      text: node,
-      ...(within ? { within } : {}),
-    });
-  };
-
-  // Every queue starts at a library import, so a repo that names none has no queues.
-  const usesLibrary = programs.some((sp) =>
-    sp.rootFiles.some((file) =>
-      LIBRARY_MENTION.test(sp.program.getSourceFile(sp.toAbsolute(file))?.text ?? ""),
-    ),
-  );
-
-  /** Visit every call and `new` in the repo with its sources (owners, else the file). */
-  const walk = (
-    onCall: (
-      sp: ServiceProgram,
-      file: string,
-      node: ts.CallExpression | ts.NewExpression,
-      sources: Owners,
-    ) => void,
-  ): void => {
-    for (const sp of usesLibrary ? programs : []) {
-      for (const file of sp.rootFiles) {
-        const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-        const byNode = sourceFile && resolver.callers.get(sourceFile);
-        if (!sourceFile || !byNode) continue;
-        const service = serviceForFile(workspace, file);
-        const fallback = service ? [fileNodeId(service, file)] : [];
-        const visit = (node: ts.Node, owners: Owners): void => {
-          const current = ownersAt(file, node, byNode.get(node), owners);
-          if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
-            onCall(sp, file, node, withFallback(current, fallback));
-          }
-          ts.forEachChild(node, (child) => {
-            visit(child, current);
-          });
-        };
-        visit(sourceFile, NO_OWNERS);
-      }
-    }
-  };
-
-  // Constructions and calls on instances.
-  walk((sp, file, node, sources) => {
-    // Bull's default export also works without `new`; other constructors need it.
-    const built =
-      ts.isNewExpression(node) || ts.isIdentifier(unwrap(node.expression))
-        ? constructed(sp, node, 0)
-        : undefined;
-    if (built) declare(built.queue);
-    if (built?.role === "worker") {
-      consume(built, built.processor, sources, locationOf(node, file), node);
-    }
-
-    if (ts.isCallExpression(node)) {
-      const callee = unwrap(node.expression);
-      const receiver =
-        ts.isPropertyAccessExpression(callee) && QUEUE_METHODS.has(callee.name.text)
-          ? valueOf(sp, callee.expression, 0)
-          : undefined;
-      if (receiver?.kind === "instance" && ts.isPropertyAccessExpression(callee)) {
-        const method = callee.name.text;
-        const site = locationOf(callee.name, file);
-        if (receiver.lib.publish[receiver.role]?.includes(method)) {
-          const names: QueueName[] = [];
-          if (receiver.role === "flow") {
-            for (const arg of node.arguments.slice(0, 1)) flowNames(sp, arg, names);
-          } else {
-            names.push(receiver.queue);
-          }
-          for (const queue of names) {
-            declare(queue);
-            const within = parameterOwner(queue, node);
-            events.push({
-              kind: "publishes",
-              queue,
-              sources,
-              confidence: receiver.confidence,
-              site,
-              text: node,
-              ...(within ? { within } : {}),
-            });
-          }
-        } else if (receiver.role === "queue" && receiver.lib.process.includes(method)) {
-          const last = node.arguments[node.arguments.length - 1];
-          consume(receiver, last && { sp, expression: last }, sources, site, node);
-        }
-      }
-    }
-  });
-
-  // Calls of worker factories: functions whose own worker takes its name from a parameter.
-  // Only calls naming such a function are traced, which keeps this cheap. A caller that
-  // passes its own parameter on is a factory too, found in the next round.
-  const searched = new Set<FunctionWithBody>();
-  for (let round = 0; round < MAX_HOPS; round++) {
-    const fresh = new Set(
-      events.flatMap((e) =>
-        e.kind === "consumes" && e.within && !searched.has(e.within) ? [e.within] : [],
-      ),
-    );
-    if (fresh.size === 0) break;
-    for (const fn of fresh) searched.add(fn);
-    const names = new Set([...fresh].flatMap((fn) => functionNames(fn)));
-    walk((sp, file, node, sources) => {
-      if (!ts.isCallExpression(node)) return;
-      const name = calleeName(node.expression);
-      const text = name && (ts.isIdentifier(name) || ts.isStringLiteralLike(name)) ? name.text : "";
-      if (!names.has(text)) return;
-      const factory = factoryCall(sp, node, 0);
-      if (!factory || !fresh.has(factory.fn) || factory.instance.role !== "worker") return;
-      calledFactories.add(factory.fn);
-      const { instance } = factory;
-      consume(instance, instance.processor, sources, locationOf(name ?? node, file), node);
-    });
-  }
-
-  const nodes = new Map<string, GraphNode>();
-  const edges = new Map<string, GraphEdge>();
-
-  const addEdge = (event: QueueEvent, from: string, to: string, confidence: Confidence): void => {
-    const id = edgeId(event.kind, from, to);
-    const existing = edges.get(id);
-    if (!existing) {
-      edges.set(id, {
-        id,
-        kind: event.kind,
-        from,
-        to,
-        confidence,
-        ...(confidence === "unresolved" ? { reason: "DYNAMIC_NAME" as const } : {}),
-        sites: [event.site],
-      });
-      return;
-    }
-    if (CONFIDENCE_RANK[confidence] < CONFIDENCE_RANK[existing.confidence]) {
-      existing.confidence = confidence;
-    }
-    if (!existing.sites.some((s) => compareLocations(s, event.site) === 0)) {
-      existing.sites.push(event.site);
-    }
   };
 
   /** The unresolved node of a dynamic name: at its expression, else at the event. */
@@ -856,34 +920,140 @@ export function buildQueueEdges(
     };
   };
 
-  for (const event of events) {
-    // A called factory's own worker is replaced by one per call; its publishes stay.
-    if (event.kind === "consumes" && event.within && calledFactories.has(event.within)) continue;
-    let to: string;
-    let confidence = event.confidence;
-    if (event.queue.kind === "known") {
-      const source = declared.get(event.queue.name) ?? event.site;
-      const node = queueNode(event.queue.name, source);
-      if (!nodes.has(node.id)) nodes.set(node.id, node);
-      to = node.id;
-    } else {
-      const node = unresolvedNode(event.queue, event);
-      if (!node) continue;
-      if (!nodes.has(node.id)) nodes.set(node.id, node);
-      to = node.id;
-      confidence = "unresolved";
-    }
-    for (const from of bindOwners(event.sources, inlineHandlers)) {
-      addEdge(event, from, to, confidence);
-    }
-  }
-  // Queues that are created but never used still exist.
-  for (const [name, source] of declared) {
-    const node = queueNode(name, source);
-    if (!nodes.has(node.id)) nodes.set(node.id, node);
-  }
+  /** An event as a fact: its queue's name, or the unresolved node standing for it. */
+  const factOf = (event: QueueEvent, within?: FactoryRef): QueueEventFact => {
+    const { kind, queue, sources, confidence, site } = event;
+    const node = queue.kind === "dynamic" ? unresolvedNode(queue, event) : undefined;
+    return {
+      kind,
+      queue:
+        queue.kind === "known"
+          ? { kind: "known", name: queue.name }
+          : { kind: "dynamic", ...(node ? { node } : {}) },
+      sources,
+      confidence,
+      site,
+      ...(within ? { within } : {}),
+    };
+  };
 
-  const out = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
-  for (const edge of out) edge.sites.sort(compareLocations);
-  return { nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)), edges: out };
+  /** A consumer, `within` the walked program's function whose parameter its name reads. */
+  const consume = (
+    instance: QueueInstance,
+    processor: ProgramExpression | undefined,
+    owners: Owners,
+    site: SourceLocation,
+    node: ts.Node,
+  ): QueueEventFact => {
+    const { sources, confidence } = processorSources(processor, owners);
+    const fn = parameterOwner(instance.queue, node);
+    const event: QueueEvent = {
+      kind: "consumes",
+      queue: instance.queue,
+      sources,
+      confidence: weaker(instance.confidence, confidence),
+      site,
+      text: node,
+    };
+    return factOf(event, fn && factoryRef(sp, fn));
+  };
+
+  /** Visit every call and `new` in the program's root files with their sources. */
+  const walk = (
+    onCall: (file: string, node: ts.CallExpression | ts.NewExpression, sources: Owners) => void,
+  ): void => {
+    for (const file of sp.rootFiles) {
+      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+      const byNode = sourceFile && resolver.callers.get(sourceFile);
+      if (!sourceFile || !byNode) continue;
+      const service = serviceForFile(workspace, file);
+      const fallback = service ? [fileNodeId(service, file)] : [];
+      const visit = (node: ts.Node, owners: Owners): void => {
+        const current = ownersAt(file, node, byNode.get(node), owners);
+        if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+          onCall(file, node, withFallback(current, fallback));
+        }
+        ts.forEachChild(node, (child) => {
+          visit(child, current);
+        });
+      };
+      visit(sourceFile, NO_OWNERS);
+    }
+  };
+
+  // Constructions and calls on instances.
+  walk((file, node, sources) => {
+    // Bull's default export also works without `new`; other constructors need it.
+    const built =
+      ts.isNewExpression(node) || ts.isIdentifier(unwrap(node.expression))
+        ? constructed(sp, node, 0)
+        : undefined;
+    if (built) declare(built.queue);
+    if (built?.role === "worker") {
+      facts.events.push(consume(built, built.processor, sources, locationOf(node, file), node));
+    }
+
+    if (ts.isCallExpression(node)) {
+      const callee = unwrap(node.expression);
+      const receiver =
+        ts.isPropertyAccessExpression(callee) && QUEUE_METHODS.has(callee.name.text)
+          ? valueOf(sp, callee.expression, 0)
+          : undefined;
+      if (receiver?.kind === "instance" && ts.isPropertyAccessExpression(callee)) {
+        const method = callee.name.text;
+        const site = locationOf(callee.name, file);
+        if (receiver.lib.publish[receiver.role]?.includes(method)) {
+          const names: QueueName[] = [];
+          if (receiver.role === "flow") {
+            for (const arg of node.arguments.slice(0, 1)) flowNames(sp, arg, names);
+          } else {
+            names.push(receiver.queue);
+          }
+          for (const queue of names) {
+            declare(queue);
+            facts.events.push(
+              factOf({
+                kind: "publishes",
+                queue,
+                sources,
+                confidence: receiver.confidence,
+                site,
+                text: node,
+              }),
+            );
+          }
+        } else if (receiver.role === "queue" && receiver.lib.process.includes(method)) {
+          const last = node.arguments[node.arguments.length - 1];
+          facts.events.push(
+            consume(receiver, last && { sp, expression: last }, sources, site, node),
+          );
+        }
+      }
+    }
+  });
+
+  // Calls of functions returning a worker, in a second pass so the first one's caches fill
+  // in the order they did before facts. Whether each callee is a worker factory, and so
+  // whether the call consumes, is only known globally (`composeQueueEdges`). A fresh factory
+  // has a parameter its worker's name reads, so functions without one are skipped.
+  walk((file, node, sources) => {
+    if (!ts.isCallExpression(node)) return;
+    const name = calleeName(node.expression);
+    const text = name && (ts.isIdentifier(name) || ts.isStringLiteralLike(name)) ? name.text : "";
+    if (!name || text === "") return;
+    const called = calledFunction(sp, node);
+    if (!called || called.fn.parameters.length === 0) return;
+    const factory = factoryCall(sp, node, 0, called);
+    const ref = factory && factoryRef(factory.fnSp, factory.fn);
+    if (!factory || !ref || factory.instance.role !== "worker") return;
+    const { instance } = factory;
+    facts.factoryCalls.push({
+      factory: ref.key,
+      name: text,
+      event: consume(instance, instance.processor, sources, locationOf(name, file), node),
+    });
+  });
+
+  for (const [name, site] of declared) facts.declared.push({ name, site });
+  return facts;
 }

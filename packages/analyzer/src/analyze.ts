@@ -21,8 +21,8 @@ import { buildHttpEdges, createRouteMatcher } from "./match.js";
 import { collectNextFacts, composeNextRoutes } from "./next.js";
 import { buildPrismaSchemas, collectPrismaFacts, composePrisma } from "./prisma.js";
 import { buildServicePrograms } from "./program.js";
-import { buildQueueEdges } from "./queues.js";
-import { buildSdkEdges } from "./sdk.js";
+import { collectQueueFacts, composeQueueEdges, usesQueueLibrary } from "./queues.js";
+import { collectSdkFacts, composeSdkEdges } from "./sdk.js";
 import { collectSymbolNodes } from "./symbols.js";
 import { createUrlNormalizer } from "./url.js";
 import { ANALYZER_VERSION } from "./version.js";
@@ -255,13 +255,23 @@ export async function analyze(
   found.add(["externals"], http.nodes);
   const sdk = await detector(
     "sdk",
-    () => buildSdkEdges(programs, resolver, workspace, express.inlineHandlers),
+    () =>
+      // Per-service facts, then the global merge (ADR-0172).
+      composeSdkEdges(
+        programs.map((sp) => collectSdkFacts(sp, resolver, workspace)),
+        express.inlineHandlers,
+      ),
     () => ({ nodes: [], edges: [] }),
   );
   found.add(["externals"], sdk.nodes);
   const queues = await detector(
     "queues",
-    () => buildQueueEdges(programs, resolver, workspace, express.inlineHandlers),
+    () => {
+      // Per-service facts; worker factories and the merge are global (ADR-0172).
+      const scanned = usesQueueLibrary(programs);
+      const facts = programs.map((sp) => collectQueueFacts(sp, resolver, workspace, scanned));
+      return composeQueueEdges(facts, express.inlineHandlers);
+    },
     () => ({ nodes: [], edges: [] }),
   );
   found.add(["stores"], queues.nodes);

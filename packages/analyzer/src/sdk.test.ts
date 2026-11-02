@@ -1,13 +1,21 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { analyze } from "./analyze.js";
 import { createSymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
 import { buildInventory } from "./inventory.js";
 import { buildServicePrograms } from "./program.js";
-import { buildSdkEdges, sdkPackage, type SdkEdges } from "./sdk.js";
+import {
+  buildSdkEdges,
+  collectSdkFacts,
+  composeSdkEdges,
+  sdkPackage,
+  type SdkEdges,
+  type SdkFacts,
+} from "./sdk.js";
 import { detectWorkspace } from "./workspace.js";
 
 let dir: string;
@@ -250,6 +258,86 @@ describe("buildSdkEdges", () => {
       "symbol:api/src/pay.ts#go -> api.stripe.com @ src/pay.ts:11:40",
     ]);
     expect(performance.now() - started).toBeLessThan(20_000);
+  });
+});
+
+describe("sdk facts", () => {
+  const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
+
+  /** Every service's SDK facts and Express's inline handlers. */
+  async function sdkInputs(root: string) {
+    const inventory = await buildInventory(root);
+    const workspace = await detectWorkspace(root, inventory.files);
+    const programs = buildServicePrograms(root, workspace, inventory);
+    const resolver = createSymbolResolver(programs, workspace);
+    const { inlineHandlers } = buildExpressRoutes(programs, resolver);
+    const facts = programs.map((sp) => collectSdkFacts(sp, resolver, workspace));
+    return { facts, inlineHandlers };
+  }
+
+  it.each(["external-sdk", "shop-demo", "fake-secrets"])(
+    "composes %s from JSON round-tripped facts into analyze's edges",
+    async (name) => {
+      const root = join(FIXTURES, name);
+      const { facts, inlineHandlers } = await sdkInputs(root);
+      const revived = JSON.parse(JSON.stringify(facts)) as SdkFacts[];
+      expect(revived).toEqual(facts);
+      const composed = composeSdkEdges(revived, inlineHandlers);
+      expect(composed.edges.length).toBeGreaterThan(0);
+      expect(composed).toEqual(composeSdkEdges(facts, inlineHandlers));
+      // Assembly merges an SDK edge with a `fetch` edge to the same host, so the graph's
+      // edge holds every composed site, possibly with more.
+      const graph = await analyze(root);
+      for (const edge of composed.edges) {
+        const { sites, ...rest } = edge;
+        const inGraph = graph.edges.find((e) => e.id === edge.id);
+        expect(inGraph).toMatchObject(rest);
+        expect(inGraph?.sites).toEqual(expect.arrayContaining(sites));
+      }
+      expect(graph.nodes).toEqual(expect.arrayContaining(composed.nodes));
+    },
+  );
+
+  it("keeps a package's facts unchanged when another service mounts its handler", async () => {
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*", "packages/*"] }));
+    await put(
+      "packages/pay/package.json",
+      JSON.stringify({ name: "@acme/pay", main: "src/index.ts", dependencies: { express: "4" } }),
+    );
+    await put("packages/pay/src/index.ts", [
+      'import { Router } from "express";',
+      'import Stripe from "stripe";',
+      "const stripe = new Stripe('');",
+      "export const pay = Router();",
+      'pay.post("/charge", async (_req, res) => { await stripe.charges.create({}); res.end(); });',
+    ]);
+    await put(
+      "apps/api/package.json",
+      JSON.stringify({
+        name: "api",
+        dependencies: { express: "4", "@acme/pay": "workspace:*" },
+      }),
+    );
+    await put("apps/api/src/server.ts", [
+      'import express from "express";',
+      "export const app = express();",
+    ]);
+    const before = await sdkInputs(dir);
+    await put("apps/api/src/server.ts", [
+      'import express from "express";',
+      'import { pay } from "../../../packages/pay/src/index";',
+      "export const app = express();",
+      'app.use("/v1", pay);',
+    ]);
+    const after = await sdkInputs(dir);
+    const of = (all: SdkFacts[], service: string) => all.find((f) => f.service === service);
+    expect(of(before.facts, "pay")?.requests).toHaveLength(1);
+    expect(of(after.facts, "pay")).toEqual(of(before.facts, "pay"));
+    // Only the global step sees the mount (the route now belongs to the app's service).
+    const from = (input: typeof before) =>
+      composeSdkEdges(input.facts, input.inlineHandlers).edges.map((e) => e.from);
+    expect(from(before)).toEqual(["route:pay/POST /charge"]);
+    expect(from(after)).toEqual(["route:api/POST /v1/charge"]);
   });
 });
 
