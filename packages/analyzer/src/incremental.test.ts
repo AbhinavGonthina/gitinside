@@ -17,7 +17,13 @@ import { serializeGraph } from "./assemble.js";
 import { openDiskCache, type DiskCache, type FactCache } from "./cache.js";
 import { runCli } from "./cli.js";
 import type { ServiceFacts } from "./facts.js";
-import { globalFactsKey, storeFacts, type CachedService, type FactKeys } from "./incremental.js";
+import {
+  globalFactsKey,
+  inputsKey,
+  storeFacts,
+  type CachedService,
+  type FactKeys,
+} from "./incremental.js";
 import { inputsDigest, type ObservedInputs } from "./inputs.js";
 import type { ServiceProgram } from "./program.js";
 import { detectWorkspace } from "./workspace.js";
@@ -91,10 +97,10 @@ async function warm(
   let services = 0;
   const stored: string[] = [];
   const recording: FactCache = {
-    get: (key) => cache.get(key),
-    put: (key, value) => {
-      stored.push((value as { facts: ServiceFacts }).facts.service);
-      return cache.put(key, value);
+    get: (key, use) => cache.get(key, use),
+    put: (key, value, use) => {
+      if (!use?.shared) stored.push((value as { facts: ServiceFacts }).facts.service);
+      return cache.put(key, value, use);
     },
   };
   const bytes = serializeGraph(
@@ -325,9 +331,9 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
     const expected = await cold(root);
     const puts: string[] = [];
     const junk: FactCache = {
-      get: async () => ({ facts: { service: "someone-else" }, inputs: {} }),
-      put: async (key) => {
-        puts.push(key);
+      get: async () => ({ facts: { service: "someone-else" }, inputsDigest: "x", inputs: {} }),
+      put: async (key, _, use) => {
+        if (!use?.shared) puts.push(key);
       },
     };
     expect(serializeGraph(await analyze(root, { cache: junk }))).toBe(expected);
@@ -345,9 +351,10 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
       },
     };
     await analyze(root, { cache: memory });
-    expect(stored.size).toBe(3);
+    const services = [...stored.values()].filter((value) => "facts" in (value as object));
+    expect(services).toHaveLength(3);
     // Mark the facts: a warm run that reuses them shows it.
-    for (const value of stored.values()) {
+    for (const value of services) {
       const entry = value as { facts: ServiceFacts };
       entry.facts.programWarnings.push({ code: "TSCONFIG_MISSING", message: "from the cache" });
     }
@@ -381,6 +388,7 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
         ["c", "key-c"],
       ]),
       hashOf: async () => "",
+      present: new Set(),
     };
     const warning = { code: "DETECTOR_FAILED", message: "x" } as const;
     await storeFacts(
@@ -400,15 +408,18 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
       ]),
       { routers: false, queues: false, wrappers: [] },
     );
-    expect(puts).toEqual(["key-a"]);
+    // a's inputs (first, so an entry is seldom stored before what it names), then a.
+    expect(puts).toEqual([inputsKey(inputsDigest(service.inputs)), "key-a"]);
   });
 
-  it("stores one inputs digest per distinct inputs, and misses an entry without one (M6.8b)", async () => {
-    const entries = new Map<string, CachedService>();
+  it("stores each distinct inputs set once, named by digest from the entries (M6.8b, M6.8c)", async () => {
+    const entries = new Map<string, unknown>();
+    const puts: [key: string, shared: boolean][] = [];
     const memory: FactCache = {
       get: async (key) => structuredClone(entries.get(key)),
-      put: async (key, value) => {
-        entries.set(key, JSON.parse(JSON.stringify(value)) as CachedService);
+      put: async (key, value, use) => {
+        puts.push([key, use?.shared === true]);
+        entries.set(key, JSON.parse(JSON.stringify(value)));
       },
     };
     const bundle = (service: string): ServiceFacts => ({
@@ -422,42 +433,82 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
     const shared = { listings: [], files: [["x.ts", "h"]], dirs: [] } satisfies ObservedInputs;
     const other = { listings: [], files: [["y.ts", "h"]], dirs: [] } satisfies ObservedInputs;
     const service = (inputs: ObservedInputs) => ({ inputs, queueLibrary: () => false });
-    await storeFacts(
-      memory,
-      {
-        keys: new Map(["a", "b", "c"].map((s) => [s, `key-${s}`])),
-        hashOf: async () => "",
-      },
-      ["a", "b", "c"].map(bundle),
-      new Map([
-        ["a", service(shared)],
-        ["b", service(structuredClone(shared))],
-        ["c", service(other)],
-      ]),
-      { routers: false, queues: false, wrappers: [] },
-    );
-    const digest = (key: string) => entries.get(key)?.inputsDigest;
+    const keys: FactKeys = {
+      keys: new Map(["a", "b", "c"].map((s) => [s, `key-${s}`])),
+      hashOf: async () => "",
+      present: new Set(),
+    };
+    const store = () =>
+      storeFacts(
+        memory,
+        keys,
+        ["a", "b", "c"].map(bundle),
+        new Map([
+          ["a", service(shared)],
+          ["b", service(structuredClone(shared))],
+          ["c", service(other)],
+        ]),
+        { routers: false, queues: false, wrappers: [] },
+      );
+    await store();
+    const digest = (key: string) => (entries.get(key) as CachedService).inputsDigest;
     expect(digest("key-a")).toBe(inputsDigest(shared));
     expect(digest("key-b")).toBe(digest("key-a"));
     expect(digest("key-c")).toBe(inputsDigest(other));
-    expect(digest("key-c")).not.toBe(digest("key-a"));
+    // Each distinct set once, as a shared entry, before the entries naming it; they hold no copy.
+    expect(puts).toEqual([
+      [inputsKey(inputsDigest(shared)), true],
+      [inputsKey(inputsDigest(other)), true],
+      ["key-a", false],
+      ["key-b", false],
+      ["key-c", false],
+    ]);
+    expect(entries.get(inputsKey(inputsDigest(shared)))).toEqual(shared);
+    expect(entries.get("key-a")).not.toHaveProperty("inputs");
+    // Inputs the run already read or stored aren't written again.
+    puts.length = 0;
+    await store();
+    expect(puts.filter(([, isShared]) => isShared)).toEqual([]);
+  });
 
-    // A run's entries without their digests (an older entry format) are all collected again.
+  it("collects again a service whose inputs entry is gone, and rewrites only those (M6.8c)", async () => {
     const root = await monorepo();
-    entries.clear();
-    await analyze(root, { cache: memory });
-    expect(entries.size).toBe(3);
-    for (const entry of entries.values()) delete (entry as Partial<CachedService>).inputsDigest;
+    const entries = new Map<string, unknown>();
     const puts: string[] = [];
-    const recording: FactCache = {
-      get: (key) => memory.get(key),
-      put: (key, value) => {
-        puts.push(key);
-        return memory.put(key, value);
+    const memory: FactCache = {
+      get: async (key) => structuredClone(entries.get(key)),
+      put: async (key, value) => {
+        puts.push((value as Partial<CachedService>).facts?.service ?? key);
+        entries.set(key, JSON.parse(JSON.stringify(value)));
       },
     };
-    expect(serializeGraph(await analyze(root, { cache: recording }))).toBe(await cold(root));
-    expect(puts).toHaveLength(3);
+    await analyze(root, { cache: memory });
+    const services = new Map(
+      [...entries.values()]
+        .filter((value): value is CachedService => "facts" in (value as object))
+        .map((entry) => [entry.facts.service, entry]),
+    );
+    const digests = new Set([...services.values()].map((e) => e.inputsDigest));
+    // web reaches shared's program, so all three record different inputs: 3 + 3 entries.
+    expect(digests.size).toBe(3);
+    expect(entries.size).toBe(6);
+
+    const api = inputsKey(services.get("api")?.inputsDigest ?? "");
+    entries.delete(api);
+    puts.length = 0;
+    expect(serializeGraph(await analyze(root, { cache: memory }))).toBe(await cold(root));
+    // The inputs that were read aren't written again; api's are, with api's entry.
+    expect(puts).toEqual([api, "api"]);
+
+    // Entries without a digest (an older entry format) are all collected again.
+    for (const value of entries.values()) delete (value as Partial<CachedService>).inputsDigest;
+    puts.length = 0;
+    expect(serializeGraph(await analyze(root, { cache: memory }))).toBe(await cold(root));
+    expect(puts.filter((put) => !put.startsWith("service-inputs:")).sort()).toEqual([
+      "api",
+      "shared",
+      "web",
+    ]);
   });
 
   it("keys the global inputs no service records", async () => {
@@ -501,10 +552,10 @@ describe("partial reuse: repo-wide facts (M6.7e2)", () => {
     const progress: AnalysisProgress[] = [];
     await analyze(root, {
       cache: {
-        get: (key) => cache.get(key),
-        put: (key, value) => {
-          stored.push((value as { facts: ServiceFacts }).facts.service);
-          return cache.put(key, value);
+        get: (key, use) => cache.get(key, use),
+        put: (key, value, use) => {
+          if (!use?.shared) stored.push((value as { facts: ServiceFacts }).facts.service);
+          return cache.put(key, value, use);
         },
       },
       onStage: (stage) => stages.push(stage),
@@ -714,7 +765,8 @@ describe("--cache (M6.7e1)", () => {
     const first = capture();
     expect(await runCli(["analyze", root, "--cache", cacheDir], first)).toBe(0);
     expect(first.out).toBe(await cold(root));
-    expect((await openDiskCache(cacheDir)).stats().entries).toBe(3);
+    // An entry per service, and each one's inputs (all three differ).
+    expect((await openDiskCache(cacheDir)).stats().entries).toBe(6);
     const second = capture();
     expect(await runCli(["analyze", root, "--cache", cacheDir], second)).toBe(0);
     expect(second.out).toBe(first.out);
@@ -755,7 +807,9 @@ describe("--cache (M6.7e1)", () => {
       expect(io.err).toBe("");
       expect(io.out).toBe(plain.out);
     }
-    // web and api have the same own files on both sides, so they share keys; shared differs.
-    expect((await openDiskCache(cacheDir)).stats().entries).toBe(4);
+    // web and api have the same own files on both sides, so they share keys; shared differs:
+    // 4 service entries. Their inputs: api's are the same on both sides, while shared's (its
+    // listing) and web's (which reaches shared's program) differ: 3 + 2 = 5.
+    expect((await openDiskCache(cacheDir)).stats().entries).toBe(9);
   }, 60_000);
 });

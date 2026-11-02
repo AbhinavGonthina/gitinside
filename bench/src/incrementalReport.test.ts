@@ -20,10 +20,22 @@ function run(
     graphSha256: sha,
     counts: {},
     ...(cache
-      ? { cache: { writes: cache.misses, ...cache, evictions: 0, errors: 0, bytes: 0, entries: 0 } }
+      ? {
+          cache: {
+            writes: cache.misses,
+            ...cache,
+            shared: NO_SHARED,
+            evictions: 0,
+            errors: 0,
+            bytes: 0,
+            entries: 0,
+          },
+        }
       : {}),
   };
 }
+
+const NO_SHARED = { hits: 0, misses: 0, writes: 0 };
 
 const META: IncrementalMeta = {
   date: "2026-11-02",
@@ -38,6 +50,7 @@ const META: IncrementalMeta = {
       hits: 0,
       misses: 3,
       writes: 3,
+      shared: NO_SHARED,
       evictions: 0,
       errors: 0,
       bytes: 5 * 1024 * 1024,

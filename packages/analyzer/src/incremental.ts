@@ -1,7 +1,9 @@
 /**
  * Cached service facts (M6.7e, ADR-0090, ADR-0175, ADR-0176): one {@link FactCache} entry per
- * service, holding its {@link ServiceFacts}, the {@link ObservedInputs} its analysis recorded,
- * and the {@link RepoFacts} its collection ran under.
+ * service, holding its {@link ServiceFacts}, the {@link RepoFacts} its collection ran under,
+ * and the digest of the {@link ObservedInputs} its analysis recorded. Those inputs are their
+ * own entry, stored once for every service that recorded the same ones (M6.8c, ADR-0180) and
+ * counted as shared ({@link EntryUse}), so the cache's hits, misses, and writes stay per service.
  *
  * - **Key:** the global inputs no service's log records (TypeScript's version, which fixes its
  *   bundled `lib.*.d.ts`; the workspace layout with every service's dependencies; the inventory
@@ -12,7 +14,8 @@
  *   and whose repo-wide facts (the router and queue-library checks, every wrapper's ID) are
  *   the run's. Those are computed over every program, so a service's log can't show them.
  *   Services that reached the same programs have equal inputs, stored with one digest
- *   ({@link inputsDigest}), so a run verifies each distinct set once (M6.8b).
+ *   ({@link inputsDigest}), so a run reads and verifies each distinct set once (M6.8b). An
+ *   entry whose inputs entry is gone (evicted, or never written) is a miss.
  * - **Reuse:** when every service is clean, the graph is composed from the entries with no
  *   program built; the repo-wide facts are then predicted from the entries' own parts
  *   ({@link repoFactsOf}), each of which its inputs vouch for. Otherwise `analyze` builds every
@@ -27,7 +30,7 @@
 import { createHash } from "node:crypto";
 import ts from "typescript";
 import { compareStrings } from "@gitinside/schema";
-import type { FactCache } from "./cache.js";
+import type { EntryUse, FactCache } from "./cache.js";
 import type { ServiceFacts } from "./facts.js";
 import {
   createFileHasher,
@@ -55,8 +58,10 @@ export interface RepoFacts {
 /** What a service's cache entry holds. */
 export interface CachedService {
   facts: ServiceFacts;
-  inputs: ObservedInputs;
-  /** {@link inputsDigest} of `inputs`: entries with equal inputs are verified once per run. */
+  /**
+   * {@link inputsDigest} of the service's observed inputs, stored once per distinct set under
+   * {@link inputsKey} (M6.8c): entries with equal inputs share it and are verified once a run.
+   */
   inputsDigest: string;
   /** The repo-wide facts the service's facts were collected under. */
   repo: RepoFacts;
@@ -70,10 +75,23 @@ export interface FactKeys {
   keys: Map<string, string>;
   /** The run's file hasher, shared with input verification. */
   hashOf: (path: string) => Promise<string>;
+  /**
+   * Digests whose inputs entry this run read or stored, so {@link storeFacts} doesn't write
+   * one again. Filled by {@link reusableFacts} and {@link storeFacts}.
+   */
+  present: Set<string>;
 }
 
 /** Bump when what an entry means changes without the analyzer's version changing. */
-const KEY_FORMAT = 3;
+const KEY_FORMAT = 4;
+
+/** The {@link EntryUse} of an inputs entry: shared by the service entries naming its digest. */
+const SHARED: EntryUse = { shared: true };
+
+/** The cache key of the inputs whose {@link inputsDigest} is `digest`. */
+export function inputsKey(digest: string): string {
+  return `service-inputs:${KEY_FORMAT}:${digest}`;
+}
 
 /**
  * The global part of every service's key: what its facts depend on that no input log records.
@@ -112,7 +130,7 @@ export async function factKeys(
       .digest("hex");
     keys.set(key, `service-facts:${digest}`);
   }
-  return { keys, hashOf };
+  return { keys, hashOf, present: new Set() };
 }
 
 /** Whether a value has the {@link RepoFacts} shape. */
@@ -133,24 +151,27 @@ function isRepoFacts(value: unknown): value is RepoFacts {
 /** Whether a cached value has the shape {@link storeFacts} writes, for service `service`. */
 function isCachedService(value: unknown, service: string): value is CachedService {
   if (typeof value !== "object" || value === null) return false;
-  if (!("facts" in value) || !("inputs" in value)) return false;
+  if (!("facts" in value)) return false;
   if (!("repo" in value) || !isRepoFacts(value.repo)) return false;
   if (!("queueLibrary" in value) || typeof value.queueLibrary !== "boolean") return false;
   if (!("inputsDigest" in value) || typeof value.inputsDigest !== "string") return false;
-  const { facts, inputs } = value;
+  const { facts } = value;
   return (
-    typeof facts === "object" &&
-    facts !== null &&
-    "service" in facts &&
-    facts.service === service &&
-    typeof inputs === "object" &&
-    inputs !== null &&
-    "listings" in inputs &&
-    Array.isArray(inputs.listings) &&
-    "files" in inputs &&
-    Array.isArray(inputs.files) &&
-    "dirs" in inputs &&
-    Array.isArray(inputs.dirs)
+    typeof facts === "object" && facts !== null && "service" in facts && facts.service === service
+  );
+}
+
+/** Whether a cached value has the {@link ObservedInputs} shape. */
+function isInputs(value: unknown): value is ObservedInputs {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "listings" in value &&
+    Array.isArray(value.listings) &&
+    "files" in value &&
+    Array.isArray(value.files) &&
+    "dirs" in value &&
+    Array.isArray(value.dirs)
   );
 }
 
@@ -191,38 +212,52 @@ export function repoFactsOf(entries: readonly CachedService[]): RepoFacts | unde
 
 /**
  * The entries `analyze` may reuse, by service key: each service's (except `forced`'s) whose
- * observed inputs all still hold in `root`. When every service has one, those collected under
- * other repo-wide facts than all of them together give ({@link repoFactsOf}) are left out, so
- * the result holds every service exactly when the graph can be composed with no program built.
- * `keys` comes from {@link factKeys} for the same checkout.
+ * observed inputs all still hold in `root` (an entry whose inputs entry is gone is a miss).
+ * When every service has one, those collected under other repo-wide facts than all of them
+ * together give ({@link repoFactsOf}) are left out, so the result holds every service exactly
+ * when the graph can be composed with no program built. `keys` comes from {@link factKeys}
+ * for the same checkout; the digests whose inputs entry was read are added to its `present`.
  */
 export async function reusableFacts(
   cache: FactCache,
   root: string,
   workspace: Workspace,
   inventory: Inventory,
-  { keys, hashOf }: FactKeys,
+  { keys, hashOf, present }: FactKeys,
   forced: ReadonlySet<string> = new Set(),
 ): Promise<Map<string, CachedService>> {
   const verify = createInputVerifier(root, workspace, inventory, hashOf);
-  /** Whether inputs still hold, by digest: services that reached the same programs share them. */
+  /** Whether inputs still hold, by digest: each distinct set is read and verified once. */
   const holds = new Map<string, Promise<boolean>>();
+  const held = (digest: string): Promise<boolean> => {
+    let answer = holds.get(digest);
+    if (!answer) {
+      answer = cache
+        .get(inputsKey(digest), SHARED)
+        .catch(() => undefined)
+        .then(async (inputs) => {
+          if (!isInputs(inputs)) return false;
+          present.add(digest);
+          return (await verify(inputs)) === undefined;
+        });
+      holds.set(digest, answer);
+    }
+    return answer;
+  };
   const clean = new Map<string, CachedService>();
-  // Entries are read at once (the cache unzips them off the main thread), checked in order.
-  const read = workspace.packages.map(({ key }) => {
+  // Entries are read at once (the cache unzips them off the main thread), and each distinct
+  // inputs set as soon as an entry names it; they're checked in order.
+  const read = workspace.packages.map(async ({ key }) => {
     const entryKey = keys.get(key);
     if (entryKey === undefined || forced.has(key)) return undefined;
-    return cache.get(entryKey).catch(() => undefined);
+    const value = await cache.get(entryKey).catch(() => undefined);
+    if (!isCachedService(value, key)) return undefined;
+    void held(value.inputsDigest);
+    return value;
   });
   for (const [i, { key }] of workspace.packages.entries()) {
     const value = await read[i];
-    if (!isCachedService(value, key)) continue;
-    let held = holds.get(value.inputsDigest);
-    if (!held) {
-      held = verify(value.inputs).then((changed) => changed === undefined);
-      holds.set(value.inputsDigest, held);
-    }
-    if (!(await held)) continue;
+    if (!value || !(await held(value.inputsDigest))) continue;
     clean.set(key, value);
   }
   if (clean.size === workspace.packages.length) {
@@ -245,21 +280,25 @@ export interface StoredService {
 }
 
 /**
- * Store each service's facts with its observed inputs and the run's repo-wide facts `repo`
- * under its key, except bundles with a failed collection or a TypeScript internal error.
- * Up to {@link PUTS_IN_FLIGHT} entries are handed to the cache at once, in `bundles` order,
- * so a cache that compresses off the main thread does them side by side while only a few
- * serialized entries are held at a time. Never throws (the cache counts its own failures).
+ * Store each service's facts and the run's repo-wide facts `repo` under its key, except
+ * bundles with a failed collection or a TypeScript internal error, and each distinct set of
+ * their observed inputs once, under {@link inputsKey} (M6.8c: on cal.com ~80 services share
+ * one 1.3 MB set), unless the run already read or stored it (`present`). Inputs go first, so
+ * an entry is seldom stored before what it names. Up to {@link PUTS_IN_FLIGHT} entries are
+ * handed to the cache at once, in that order, so a cache that compresses off the main thread
+ * does them side by side while only a few serialized entries are held at a time. Never throws
+ * (the cache counts its own failures).
  */
 export async function storeFacts(
   cache: FactCache,
-  { keys }: FactKeys,
+  { keys, present }: FactKeys,
   bundles: readonly ServiceFacts[],
   stored: ReadonlyMap<string, StoredService>,
   repo: RepoFacts,
 ): Promise<void> {
   /** Digests by inputs object: services that reached the same programs share one. */
   const digests = new Map<ObservedInputs, string>();
+  const shared: [key: string, inputs: ObservedInputs][] = [];
   const entries: [key: string, entry: CachedService][] = [];
   for (const facts of bundles) {
     const key = keys.get(facts.service);
@@ -270,21 +309,28 @@ export async function storeFacts(
     if (digest === undefined) {
       digest = inputsDigest(service.inputs);
       digests.set(service.inputs, digest);
+      if (!present.has(digest)) {
+        present.add(digest);
+        shared.push([inputsKey(digest), service.inputs]);
+      }
     }
     const entry: CachedService = {
       facts,
-      inputs: service.inputs,
       inputsDigest: digest,
       repo,
       queueLibrary: service.queueLibrary(),
     };
     entries.push([key, entry]);
   }
+  const puts: [key: string, value: unknown, use?: EntryUse][] = [
+    ...shared.map(([key, inputs]): [string, unknown, EntryUse] => [key, inputs, SHARED]),
+    ...entries,
+  ];
   let next = 0;
   const putting = async (): Promise<void> => {
-    for (let i = next++; i < entries.length; i = next++) {
-      const [key, entry] = entries[i] ?? [];
-      if (key !== undefined && entry) await cache.put(key, entry).catch(() => undefined);
+    for (let i = next++; i < puts.length; i = next++) {
+      const [key, value, use] = puts[i] ?? [];
+      if (key !== undefined) await cache.put(key, value, use).catch(() => undefined);
     }
   };
   await Promise.all(Array.from({ length: PUTS_IN_FLIGHT }, putting));
