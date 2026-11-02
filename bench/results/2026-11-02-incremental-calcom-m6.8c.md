@@ -48,3 +48,12 @@ Median milliseconds. A warm run that reuses every service builds no program, so 
 | assemble | 322 ms | 274 ms | 344 ms | 313 ms | 316 ms | 333 ms |
 
 Raw per-run numbers are in the JSON file next to this report.
+
+## Observations (hand-written, not generated)
+
+- **What changed since M6.8b's report** (`2026-11-02-incremental-calcom-m6.8b.md`, gitinside `c13f3a5`): each distinct set of observed inputs is now one cache entry that service entries name by digest (gitinside `e367fea`, ADR-0180; `d180941` after it only re-records the eval report). Same cases, same machine. Every warm graph is its cold pair's bytes. Saved with the `-m6.8c` suffix so the earlier reports stay.
+- **The cache on disk: 7 MiB, was 25 MiB**, for the same 113 service entries (plus their distinct inputs entries, which the "entries written" count leaves out: it counts per service).
+- **A shared package edited: still 0.92× (108%, was 109%).** 88 services collected: 37.6 s against 34.7 s cold. Time outside every stage (storing) is 1.0–1.1 s per run (M6.8b: 1.8–2.4 s), but `programs` is still 1.1 s over cold (13.0 vs 11.9 s median: keys hash every service's own files, and the 112 entries found are read and checked), and the rest of the gap is in the re-collected stages, within noise of cold. M6.8c2 looks at those two.
+- **Unchanged and leaf-app cases:** unchanged 8.3 s against 32.7 s (4.0×); `apps/api/v2/src/main.ts` edited 15.4 s against 37.9 s (2.5×, M6.8b: 2.3×), within this machine's noise.
+- **Memory:** unchanged warm runs peak at 285 MiB (M6.8b: 576 MiB) and leaf edits at 618 MiB (1,037 MiB): reading every entry at once now reads one copy of the shared inputs, not ~80.
+- **Not measured:** as in M6.8's report (Linux, Cloud Run's 1 vCPU, the worker's 64 MiB in-memory cache).
