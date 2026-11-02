@@ -174,6 +174,18 @@ export interface HttpFacts {
   calls: WrapperCallFact[];
 }
 
+/** Which programs {@link collectHttpFacts} gives facts for, and what it knows of the rest. */
+export interface HttpFactsScope {
+  /** Give facts only for these programs (in program order). Default: every program. */
+  only?: ReadonlySet<ServiceProgram>;
+  /**
+   * For programs outside `only`, the IDs of the wrappers whose bodies they hold, known from
+   * their cached facts (ADR-0177). Such a program's sites are collected, and its wrappers
+   * found, only when a call resolves to one of these; every other program is looked into.
+   */
+  known?: ReadonlyMap<ServiceProgram, readonly string[]>;
+}
+
 /** A wrapper function and the call sites in its body that read its parameters. */
 interface Wrapper {
   sp: ServiceProgram;
@@ -257,16 +269,18 @@ function ownText(
  * key, ADR-0094), except for the candidate filter: a call is resolved only when it is spelled
  * like some wrapper in the repo or through an import alias (ADR-0092).
  *
- * `only` limits the facts returned to those programs (in program order), for a run that reuses
- * the others' (ADR-0176); every program's sites still find the wrappers callers are matched to.
+ * `sites` may also be a function giving one program's sites (`createHttpSiteCollector`), so a
+ * program whose wrappers are `known` is only looked into when needed. `scope` limits the facts
+ * returned for a run that reuses the others' (ADR-0176, ADR-0177).
  */
 export function collectHttpFacts(
-  sites: readonly HttpCallSite[],
+  sites: readonly HttpCallSite[] | ((sp: ServiceProgram) => readonly HttpCallSite[]),
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
   normalizer: UrlNormalizer,
-  only?: ReadonlySet<ServiceProgram>,
+  scope: HttpFactsScope = {},
 ): HttpFacts[] {
+  const { only, known = new Map() } = scope;
   const reader = createValueReader(resolver);
 
   /** The parameter an identifier names, if it is one of `fn`'s. */
@@ -322,8 +336,14 @@ export function collectHttpFacts(
 
   // ---- per service: find wrappers ----
 
-  const bySp = new Map<ServiceProgram, HttpCallSite[]>(programs.map((sp) => [sp, []]));
-  for (const site of sites) bySp.get(site.sp)?.push(site);
+  let sitesOf: (sp: ServiceProgram) => readonly HttpCallSite[];
+  if (typeof sites === "function") {
+    sitesOf = sites;
+  } else {
+    const bySp = new Map<ServiceProgram, HttpCallSite[]>(programs.map((sp) => [sp, []]));
+    for (const site of sites) bySp.get(site.sp)?.push(site);
+    sitesOf = (sp) => bySp.get(sp) ?? [];
+  }
 
   const direct = new Map<ServiceProgram, HttpCallSite[]>();
   const owned = new Map<ServiceProgram, Map<string, Wrapper>>();
@@ -333,7 +353,7 @@ export function collectHttpFacts(
   const findWrappers = (sp: ServiceProgram): void => {
     const plain: HttpCallSite[] = [];
     const mine = new Map<string, Wrapper>();
-    for (const site of bySp.get(sp) ?? []) {
+    for (const site of sitesOf(sp)) {
       const found = wrapperOf(site);
       const fn = found?.fn;
       // A parameter that only fills a later hole or the query leaves the route fixed here.
@@ -365,19 +385,37 @@ export function collectHttpFacts(
     direct.set(sp, plain);
     owned.set(sp, mine);
   };
+  /** Wrappers known only by ID so far (`scope.known`), with the program holding each. */
+  const pending = new Map<string, ServiceProgram>();
   for (const sp of programs) {
+    const ids = only && !only.has(sp) ? known.get(sp) : undefined;
+    if (ids) {
+      for (const id of ids) pending.set(id, sp);
+      continue;
+    }
     resolver.asking(sp, () => {
       findWrappers(sp);
     });
   }
-  const names = new Set([...wrappers.keys()].map(symbolName));
+  const names = new Set([...wrappers.keys(), ...pending.keys()].map(symbolName));
+  /** The wrapper with this ID, finding its program's wrappers first when only known by ID. */
+  const wrapperById = (id: string): Wrapper | undefined => {
+    const sp = pending.get(id);
+    if (sp) {
+      for (const [other, owner] of pending) if (owner === sp) pending.delete(other);
+      resolver.asking(sp, () => {
+        findWrappers(sp);
+      });
+    }
+    return wrappers.get(id);
+  };
 
   // ---- per service: find and inline calls to wrappers ----
 
   /** The service's calls to wrappers, by wrapper ID, in file and visit order. */
   const callersIn = (sp: ServiceProgram): Map<string, Caller[]> => {
     const callers = new Map<string, Caller[]>();
-    if (wrappers.size === 0) return callers;
+    if (names.size === 0) return callers;
     const checker = resolver.checkerOf(sp);
     for (const file of sp.rootFiles) {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
@@ -396,7 +434,7 @@ export function collectHttpFacts(
               (ts.isIdentifier(name) &&
                 ((checker.getSymbolAtLocation(name)?.flags ?? 0) & ts.SymbolFlags.Alias) !== 0));
           const target = candidate ? resolver.resolve(sp, node.expression) : undefined;
-          if (name && target && wrappers.has(target.id)) {
+          if (name && target && (wrappers.has(target.id) || pending.has(target.id))) {
             const list = callers.get(target.id) ?? [];
             list.push({
               sp,
@@ -569,7 +607,7 @@ export function collectHttpFacts(
   const factsOf = (sp: ServiceProgram): HttpFacts => {
     const calls: WrapperCallFact[] = [];
     for (const [id, list] of [...callersIn(sp)].sort(([a], [b]) => compareStrings(a, b))) {
-      const wrapper = wrappers.get(id);
+      const wrapper = wrapperById(id);
       if (!wrapper) continue;
       const first = wrapper.sites[0];
       // The facts now depend on the wrapper's program (inputs.ts follows `reached`).

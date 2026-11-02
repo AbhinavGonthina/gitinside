@@ -64,26 +64,30 @@ const NODE_MODULE_KINDS: ReadonlySet<ts.ModuleKind> = new Set([
  */
 const libCache = new Map<string, ts.SourceFile>();
 
-/** A parsed TypeScript program for one service. */
+/**
+ * A TypeScript program for one service. It is parsed on first use of {@link program},
+ * {@link host}, {@link configFile}, or {@link warnings} (ADR-0177), so a run that reuses a
+ * service's cached facts parses it only if another service's analysis needs it.
+ */
 export interface ServiceProgram {
   /** The service this program belongs to. */
-  service: WorkspacePackage;
+  readonly service: WorkspacePackage;
   /** The program. Root files are the service's source files; imports may pull in others. */
-  program: ts.Program;
+  readonly program: ts.Program;
   /**
    * The inventory-backed host, for module resolution in later passes. Every repo path it
    * reads or probes is recorded in {@link inputs}, so later passes must reach repo files
    * through it.
    */
-  host: ts.CompilerHost;
+  readonly host: ts.CompilerHost;
   /** What this service's program and host observed of the repo so far (ADR-0090). */
-  inputs: InputLog;
+  readonly inputs: InputLog;
   /** Repo-relative path of the config used, or undefined when defaults were synthesized. */
-  configFile?: string;
+  readonly configFile: string | undefined;
   /** Repo-relative source files owned by this service, sorted. */
-  rootFiles: string[];
+  readonly rootFiles: string[];
   /** Config problems and syntax errors, sorted by file, code, message. */
-  warnings: AnalysisWarning[];
+  readonly warnings: AnalysisWarning[];
   /** Repo-relative path for a TS (absolute, `/`-separated) file name, or undefined outside the repo. */
   toRepoPath(fileName: string): string | undefined;
   /** Absolute, `/`-separated file name for a repo-relative path. */
@@ -123,7 +127,8 @@ function withResolution(options: ts.CompilerOptions): ts.CompilerOptions {
 }
 
 /**
- * Build one TypeScript program per service, reading only files in the inventory.
+ * Build one TypeScript program per service, reading only files in the inventory. Each is
+ * parsed on first use (see {@link ServiceProgram}); reading every `program` builds them all.
  *
  * Handles:
  * - `tsconfig.json` (else `jsconfig.json`) in the service folder, including `extends`
@@ -255,9 +260,12 @@ export function buildServicePrograms(
 
   const owned = programRootFiles(workspace, inventory.sourceFiles);
 
-  return workspace.packages.map((service) => {
-    const rootFiles = owned.get(service.key) ?? [];
-    const inputs = createInputLog(service.key, rootFiles);
+  /** Parse `service`'s program, recording what it reads in `inputs`. */
+  const build = (
+    service: WorkspacePackage,
+    rootFiles: string[],
+    inputs: InputLog,
+  ): Pick<ServiceProgram, "program" | "host" | "configFile" | "warnings"> => {
     const { host, configHost } = createHost(inputs);
     const warnings: AnalysisWarning[] = [];
     const flatten = (message: string | ts.DiagnosticMessageChain): string =>
@@ -344,16 +352,32 @@ export function buildServicePrograms(
         compareStrings(a.code, b.code) ||
         compareStrings(a.message, b.message),
     );
+    return { program, host, configFile, warnings };
+  };
+
+  return workspace.packages.map((service): ServiceProgram => {
+    const rootFiles = owned.get(service.key) ?? [];
+    const inputs = createInputLog(service.key, rootFiles);
+    let built: ReturnType<typeof build> | undefined;
+    const parsed = () => (built ??= build(service, rootFiles, inputs));
     return {
       service,
-      program,
-      host,
       inputs,
-      ...(configFile === undefined ? {} : { configFile }),
       rootFiles,
-      warnings,
       toRepoPath,
       toAbsolute,
+      get program() {
+        return parsed().program;
+      },
+      get host() {
+        return parsed().host;
+      },
+      get configFile() {
+        return parsed().configFile;
+      },
+      get warnings() {
+        return parsed().warnings;
+      },
     };
   });
 }

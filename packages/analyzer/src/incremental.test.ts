@@ -4,7 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { compareStrings } from "@gitinside/schema";
 import {
   ANALYSIS_STAGES,
@@ -18,7 +18,39 @@ import { openDiskCache, type DiskCache, type FactCache } from "./cache.js";
 import { runCli } from "./cli.js";
 import type { ServiceFacts } from "./facts.js";
 import { globalFactsKey, storeFacts, type FactKeys } from "./incremental.js";
+import type { ServiceProgram } from "./program.js";
 import { detectWorkspace } from "./workspace.js";
+
+/** Per `buildServicePrograms` call, the services whose program was parsed (M6.7e3). */
+const { builds } = vi.hoisted(() => ({ builds: [] as Set<string>[] }));
+vi.mock("./program.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./program.js")>();
+  /** What parses a program on first read. */
+  const parsing = new Set<string | symbol>(["program", "host", "configFile", "warnings"]);
+  return {
+    ...actual,
+    buildServicePrograms: (...args: Parameters<typeof actual.buildServicePrograms>) => {
+      const parsed = new Set<string>();
+      builds.push(parsed);
+      return actual.buildServicePrograms(...args).map(
+        (sp) =>
+          new Proxy(sp, {
+            get(target, property, receiver): unknown {
+              if (parsing.has(property)) parsed.add(target.service.key);
+              return Reflect.get(target, property, receiver);
+            },
+          }) satisfies ServiceProgram,
+      );
+    },
+  };
+});
+
+/** The services each run since the last call parsed, sorted per run, then forget them. */
+function parsedRuns(): string[][] {
+  const runs = builds.map((parsed) => [...parsed].sort(compareStrings));
+  builds.length = 0;
+  return runs;
+}
 
 const FIXTURES = fileURLToPath(new URL("../../../fixtures/", import.meta.url));
 /** Every fixture with a golden graph. */
@@ -29,6 +61,7 @@ const NAMES = readdirSync(FIXTURES).filter((name) =>
 let dir: string;
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "gitinside-incremental-"));
+  builds.length = 0;
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -533,6 +566,76 @@ describe("partial reuse: repo-wide facts (M6.7e2)", () => {
     // Every stage starts once, and `http` reports its requests once.
     const started = (events: AnalysisProgress[]) => events.map((e) => e.stage);
     expect(started(second.progress)).toEqual(started(first.progress));
+  });
+});
+
+describe("lazy programs (M6.7e3)", () => {
+  it("parses only the programs a collected service's analysis needs", async () => {
+    const root = await monorepo();
+    const cache = await openDiskCache(join(dir, "cache"));
+    await warm(root, cache);
+    // A cold run parses every program.
+    expect(parsedRuns()).toEqual([["api", "shared", "web"]]);
+
+    // api reaches no other program.
+    await put(
+      "apps/api/src/server.ts",
+      'import express from "express";\nconst app = express();\napp.get("/api/posts", (req, res) => res.json([]));\n',
+    );
+    const api = await cold(root);
+    parsedRuns();
+    expect(await warm(root, cache)).toMatchObject({ bytes: api, stored: ["api"] });
+    expect(parsedRuns()).toEqual([["api"]]);
+
+    // web reaches shared's program through its import; api's isn't needed.
+    await put("packages/shared/src/index.ts", "export function format(x: unknown) { return x; }\n");
+    const shared = await cold(root);
+    parsedRuns();
+    expect(await warm(root, cache)).toMatchObject({ bytes: shared, stored: ["shared", "web"] });
+    expect(parsedRuns()).toEqual([["shared", "web"]]);
+
+    // Every service clean: no program at all.
+    expect(await warm(root, cache)).toMatchObject({ bytes: shared, writes: 0 });
+    expect(parsedRuns()).toEqual([]);
+  });
+
+  it("finds a clean service's wrappers only when a collected service calls one", async () => {
+    await put(
+      "package.json",
+      JSON.stringify({ name: "acme", workspaces: ["apps/*", "packages/*"] }),
+    );
+    await put(
+      "apps/web/package.json",
+      JSON.stringify({ name: "web", dependencies: { "@acme/client": "*" } }),
+    );
+    await put("apps/api/package.json", JSON.stringify({ name: "api" }));
+    await put(
+      "packages/client/package.json",
+      JSON.stringify({ name: "@acme/client", exports: "./src/index.ts" }),
+    );
+    await put(
+      "packages/client/src/index.ts",
+      "export function request(path: string) { return fetch(`/api${path}`); }\n",
+    );
+    await put("apps/api/src/index.ts", "export const port = 3000;\n");
+    const page = (paths: string[]) =>
+      [
+        'import { request } from "@acme/client";',
+        ...paths.map((p, i) => `export function load${i}() { return request("${p}"); }`),
+        "",
+      ].join("\n");
+    await put("apps/web/src/page.ts", page(["/users"]));
+    const root = join(dir, "repo");
+    const cache = await openDiskCache(join(dir, "cache"));
+    await warm(root, cache);
+
+    await put("apps/web/src/page.ts", page(["/users", "/posts"]));
+    const expected = await cold(root);
+    // Both calls are inlined through client's wrapper.
+    expect(expected).toContain("GET /api/posts");
+    parsedRuns();
+    expect(await warm(root, cache)).toMatchObject({ bytes: expected, stored: ["web"] });
+    expect(parsedRuns()).toEqual([["client", "web"]]);
   });
 });
 

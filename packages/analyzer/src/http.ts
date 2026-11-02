@@ -303,6 +303,22 @@ export function collectHttpCalls(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
 ): HttpCallSite[] {
+  const sitesOf = createHttpSiteCollector(resolver);
+  return programs.flatMap((sp) => sitesOf(sp)).sort(compareSites);
+}
+
+/** Sites by file, line, and column. */
+const compareSites = (a: HttpCallSite, b: HttpCallSite): number =>
+  compareStrings(a.file, b.file) || a.site.line - b.site.line || a.site.column - b.site.column;
+
+/**
+ * {@link collectHttpCalls} one program at a time (ADR-0177): the sites in a program's root
+ * files, sorted, collected on its first call (asked as its service) and remembered. Programs
+ * share one collector, so the axios values and `defaults` writes they see are the same objects.
+ */
+export function createHttpSiteCollector(
+  resolver: SymbolResolver,
+): (sp: ServiceProgram) => readonly HttpCallSite[] {
   const { symbolAt, resolveDeclaration, constString } = createValueReader(resolver);
 
   // ---- config objects ----
@@ -751,15 +767,16 @@ export function collectHttpCalls(
 
   /**
    * One write to an origin's `defaults`: the repo file it is in, and its value when it can be
-   * trusted (see {@link defaultsAssignments}), else `null`.
+   * trusted (see {@link defaultsWritesIn}), else `null`.
    */
   interface DefaultsWrite {
+    origin: AxiosOrigin;
     file: string;
     value: ProgramExpression | null;
   }
 
-  /** The `defaults` writes per origin, in program, file, and source order. */
-  let assignments: Map<AxiosOrigin, DefaultsWrite[]> | undefined;
+  /** The `defaults` writes in each root file scanned so far, in source order. */
+  const writesByFile = new Map<string, DefaultsWrite[]>();
 
   /**
    * True when an origin is one object: the default export, or a `create` call that runs once
@@ -774,92 +791,90 @@ export function collectHttpCalls(
     return true;
   };
 
+  /** The axios value whose `defaults` a write target is, and whether it is the `baseURL`. */
+  const targetOf = (
+    sp: ServiceProgram,
+    left: ts.Expression,
+  ): { value: AxiosValue; whole: boolean } | undefined => {
+    const target = unwrap(left);
+    let defaults: ts.Expression = target;
+    let whole = true;
+    if (ts.isPropertyAccessExpression(target) && target.name.text === "baseURL") {
+      defaults = unwrap(target.expression);
+      whole = false;
+    } else if (
+      ts.isElementAccessExpression(target) &&
+      ts.isStringLiteralLike(target.argumentExpression) &&
+      target.argumentExpression.text === "baseURL"
+    ) {
+      defaults = unwrap(target.expression);
+      whole = false;
+    }
+    if (!ts.isPropertyAccessExpression(defaults) || defaults.name.text !== "defaults") {
+      return undefined;
+    }
+    const value = axiosOf(sp, defaults.expression, 0);
+    return value && { value, whole };
+  };
+
   /**
    * Every `x.defaults.baseURL = …` (also `x.defaults["baseURL"]`) and `x.defaults = …` on
-   * axios or an instance, in every program, by origin. A plain `=` assignment that is a
+   * axios or an instance in `file`, a root file of `sp`. A plain `=` assignment that is a
    * statement of its module's top level, on the default export or on an instance created
    * outside any function (so the instance is one object), is trusted. Any other write (one
    * inside a function, `+=`, the whole `defaults` replaced, an instance a factory makes per
-   * call) is not. Scanned once, on first use; {@link writtenBase} decides which writes a
-   * request sees.
+   * call) is not. Each file is scanned once, when a request first reaches it (ADR-0177);
+   * {@link writtenBase} decides which writes a request sees.
    */
-  const defaultsAssignments = (): Map<AxiosOrigin, DefaultsWrite[]> => {
-    if (assignments) return assignments;
-    const found = new Map<AxiosOrigin, DefaultsWrite[]>();
-    /** The axios value whose `defaults` a write target is, and whether it is the `baseURL`. */
-    const targetOf = (
-      sp: ServiceProgram,
-      left: ts.Expression,
-    ): { value: AxiosValue; whole: boolean } | undefined => {
-      const target = unwrap(left);
-      let defaults: ts.Expression = target;
-      let whole = true;
-      if (ts.isPropertyAccessExpression(target) && target.name.text === "baseURL") {
-        defaults = unwrap(target.expression);
-        whole = false;
-      } else if (
-        ts.isElementAccessExpression(target) &&
-        ts.isStringLiteralLike(target.argumentExpression) &&
-        target.argumentExpression.text === "baseURL"
-      ) {
-        defaults = unwrap(target.expression);
-        whole = false;
-      }
-      if (!ts.isPropertyAccessExpression(defaults) || defaults.name.text !== "defaults") {
-        return undefined;
-      }
-      const value = axiosOf(sp, defaults.expression, 0);
-      return value && { value, whole };
-    };
+  const defaultsWritesIn = (sp: ServiceProgram, file: string): readonly DefaultsWrite[] => {
+    const known = writesByFile.get(file);
+    if (known) return known;
+    const found: DefaultsWrite[] = [];
+    writesByFile.set(file, found);
+    const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+    if (!sourceFile) return found;
     // The walk asks as the service whose request started it (no `asking` here): its facts are
     // what the scan feeds, so a failure meanwhile is one of theirs (ADR-0173).
-    for (const sp of programs) {
-      for (const file of sp.rootFiles) {
-        const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
-        if (!sourceFile) continue;
-        const visit = (n: ts.Node): void => {
-          if (
-            ts.isBinaryExpression(n) &&
-            n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
-            n.operatorToken.kind <= ts.SyntaxKind.LastAssignment
-          ) {
-            const target = targetOf(sp, n.left);
-            if (target) {
-              const { origin } = target.value;
-              const trusted =
-                !target.whole &&
-                n.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-                ts.isExpressionStatement(n.parent) &&
-                ts.isSourceFile(n.parent.parent) &&
-                isSingle(origin);
-              const write = { file, value: trusted ? { sp, expression: n.right } : null };
-              const writes = found.get(origin);
-              if (writes) writes.push(write);
-              else found.set(origin, [write]);
-            }
-          }
-          ts.forEachChild(n, visit);
-        };
-        visit(sourceFile);
+    const visit = (n: ts.Node): void => {
+      if (
+        ts.isBinaryExpression(n) &&
+        n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+        n.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+      ) {
+        const target = targetOf(sp, n.left);
+        if (target) {
+          const { origin } = target.value;
+          const trusted =
+            !target.whole &&
+            n.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+            ts.isExpressionStatement(n.parent) &&
+            ts.isSourceFile(n.parent.parent) &&
+            isSingle(origin);
+          found.push({ origin, file, value: trusted ? { sp, expression: n.right } : null });
+        }
       }
-    }
-    assignments = found;
+      ts.forEachChild(n, visit);
+    };
+    visit(sourceFile);
     return found;
   };
 
-  /** Files each request file reaches through imports (itself included), built on demand. */
-  const reachable = new Map<string, Set<string>>();
+  /** The `defaults` writes in the root files each request file reaches, built on demand. */
+  const reachable = new Map<string, readonly DefaultsWrite[]>();
 
   /**
-   * The repo files a file of `sp` reaches through imports, transitively, across programs
-   * (each file's imports are resolved in the program whose root files hold it).
+   * The `defaults` writes in the root files a file of `sp` reaches through imports,
+   * transitively, across programs (each file's imports are resolved, and its writes scanned,
+   * in the program whose root files hold it), itself included.
    */
-  const reachableFrom = (sp: ServiceProgram, file: string): ReadonlySet<string> => {
+  const writesReachedFrom = (sp: ServiceProgram, file: string): readonly DefaultsWrite[] => {
     const known = reachable.get(file);
     if (known) return known;
     const seen = new Set([file]);
+    const writes: DefaultsWrite[] = [];
     const queue: { sp: ServiceProgram; file: string }[] = [{ sp, file }];
     for (let next = queue.shift(); next; next = queue.shift()) {
+      writes.push(...defaultsWritesIn(next.sp, next.file));
       for (const path of resolver.importedFiles(next.sp, next.file)) {
         if (seen.has(path)) continue;
         seen.add(path);
@@ -867,8 +882,8 @@ export function collectHttpCalls(
         if (owner) queue.push({ sp: owner, file: path });
       }
     }
-    reachable.set(file, seen);
-    return seen;
+    reachable.set(file, writes);
+    return writes;
   };
 
   /**
@@ -881,10 +896,7 @@ export function collectHttpCalls(
     origin: AxiosOrigin,
     from: { sp: ServiceProgram; file: string },
   ): ProgramExpression | null | undefined => {
-    const writes = defaultsAssignments().get(origin);
-    if (!writes) return undefined;
-    const reached = reachableFrom(from.sp, from.file);
-    const seen = writes.filter((w) => reached.has(w.file));
+    const seen = writesReachedFrom(from.sp, from.file).filter((w) => w.origin === origin);
     if (seen.length === 0) return undefined;
     return seen.length === 1 && seen[0] ? seen[0].value : null;
   };
@@ -907,8 +919,6 @@ export function collectHttpCalls(
   };
 
   // ---- call sites ----
-
-  const sites: HttpCallSite[] = [];
 
   /**
    * The request an axios config describes. `url` is the URL argument, when the call has one
@@ -1018,7 +1028,8 @@ export function collectHttpCalls(
   };
 
   /** Collect the sites in `sp`'s root files. */
-  const collectIn = (sp: ServiceProgram): void => {
+  const collectIn = (sp: ServiceProgram): HttpCallSite[] => {
+    const sites: HttpCallSite[] = [];
     for (const file of sp.rootFiles) {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
       const byNode = sourceFile && resolver.callers.get(sourceFile);
@@ -1045,15 +1056,15 @@ export function collectHttpCalls(
       };
       visit(sourceFile, NO_OWNERS);
     }
+    return sites.sort(compareSites);
   };
-  for (const sp of programs) {
-    resolver.asking(sp, () => {
-      collectIn(sp);
-    });
-  }
-
-  return sites.sort(
-    (a, b) =>
-      compareStrings(a.file, b.file) || a.site.line - b.site.line || a.site.column - b.site.column,
-  );
+  const collected = new Map<ServiceProgram, readonly HttpCallSite[]>();
+  return (sp) => {
+    let sites = collected.get(sp);
+    if (!sites) {
+      sites = resolver.asking(sp, () => collectIn(sp));
+      collected.set(sp, sites);
+    }
+    return sites;
+  };
 }
