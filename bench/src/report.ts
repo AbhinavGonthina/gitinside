@@ -1,3 +1,4 @@
+import type { CacheStats } from "@gitinside/analyzer";
 import { compareStrings } from "@gitinside/schema";
 
 /** What one `analyze` run in a fresh process measured (printed by run-once.ts). */
@@ -10,6 +11,8 @@ export interface RunResult {
   maxRssBytes: number;
   /** V8's heap size when `analyze` returned, in bytes (a floor for the peak heap). */
   heapTotalBytes?: number;
+  /** The fact cache's counters after the run, when it ran with one (`--cache`). */
+  cache?: CacheStats;
   /** SHA-256 of the canonical graph bytes, to check runs agree. */
   graphSha256: string;
   /** Node counts by kind, plus edge and warning totals. */
