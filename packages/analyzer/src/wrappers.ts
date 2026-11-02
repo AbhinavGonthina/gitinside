@@ -256,12 +256,16 @@ function ownText(
  * recorded with `programOf`), not on Express's routes (owners name inline handlers by node
  * key, ADR-0094), except for the candidate filter: a call is resolved only when it is spelled
  * like some wrapper in the repo or through an import alias (ADR-0092).
+ *
+ * `only` limits the facts returned to those programs (in program order), for a run that reuses
+ * the others' (ADR-0176); every program's sites still find the wrappers callers are matched to.
  */
 export function collectHttpFacts(
   sites: readonly HttpCallSite[],
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
   normalizer: UrlNormalizer,
+  only?: ReadonlySet<ServiceProgram>,
 ): HttpFacts[] {
   const reader = createValueReader(resolver);
 
@@ -585,7 +589,9 @@ export function collectHttpFacts(
       calls,
     };
   };
-  return programs.map((sp) => resolver.asking(sp, () => factsOf(sp)));
+  return programs
+    .filter((sp) => !only || only.has(sp))
+    .map((sp) => resolver.asking(sp, () => factsOf(sp)));
 }
 
 /**

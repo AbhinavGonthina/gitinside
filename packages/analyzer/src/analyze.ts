@@ -23,7 +23,16 @@ import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { createFindings, type AnalysisFindings } from "./findings.js";
 import { collectHttpCalls } from "./http.js";
 import { collectImportFacts, composeImports, type ManifestCache } from "./imports.js";
-import { cachedFacts, factKeys, storeFacts, type FactKeys } from "./incremental.js";
+import {
+  factKeys,
+  reusableFacts,
+  sameRepoFacts,
+  storeFacts,
+  wrapperIds,
+  type CachedService,
+  type FactKeys,
+  type StoredService,
+} from "./incremental.js";
 import { buildInfra, relinkStores } from "./infra.js";
 import { serviceInputs } from "./inputs.js";
 import { AnalysisError, buildInventory, type InventoryLimits } from "./inventory.js";
@@ -100,9 +109,9 @@ export interface AnalyzeOptions {
    */
   onFound?: (found: AnalysisFindings) => void;
   /**
-   * Reuse service facts from this cache (`openDiskCache`) when every service's recorded
-   * inputs still hold, and store them after a cold run (ADR-0175). The graph is the same
-   * bytes either way; only the time differs.
+   * Reuse the facts of every service whose recorded inputs and repo-wide facts still hold
+   * from this cache (`openDiskCache`), collect the others, and store what was collected
+   * (ADR-0175, ADR-0176). The graph is the same bytes either way; only the time differs.
    */
   cache?: FactCache;
 }
@@ -177,7 +186,53 @@ export async function analyzeServices(
   const root = resolve(dir);
   const info = await stat(root).catch(() => null);
   if (!info?.isDirectory()) throw new Error(`not a directory: ${dir}`);
+  return analyzeRoot(root, options, { forced: new Set(), last: false });
+}
 
+/**
+ * What a run may take from `AnalyzeOptions.cache` (ADR-0176): the clean entries of every
+ * service but `forced`'s (`last`: if that isn't enough either, the next run is cold), or none.
+ */
+type Reuse = { forced: ReadonlySet<string>; last: boolean } | "cold";
+
+/**
+ * Run {@link analyzeRoot} again after an attempt that reused facts it couldn't keep. The
+ * attempt already reported every stage before assembly, so this run reports only assembly,
+ * then its last findings.
+ */
+async function rerun(
+  root: string,
+  options: ServiceFactsOptions,
+  reuse: Reuse,
+): Promise<ArchitectureGraph> {
+  const { onStage, onProgress, onFound } = options;
+  const last: { found?: AnalysisFindings } = {};
+  const graph = await analyzeRoot(
+    root,
+    {
+      ...options,
+      onStage: (stage, ms) => {
+        if (stage === "assemble") onStage?.(stage, ms);
+      },
+      onProgress: (event) => {
+        if (event.stage === "assemble") onProgress?.(event);
+      },
+      onFound: (found) => {
+        last.found = found;
+      },
+    },
+    reuse,
+  );
+  if (last.found) onFound?.(last.found);
+  return graph;
+}
+
+/** {@link analyzeServices} on the directory `root`, taking from the cache what `reuse` allows. */
+async function analyzeRoot(
+  root: string,
+  options: ServiceFactsOptions,
+  reuse: Reuse,
+): Promise<ArchitectureGraph> {
   const { onStage, onProgress } = options;
   /** Run one stage, reporting its start (with `count`, if known) and duration to listeners. */
   async function stage<T>(
@@ -223,21 +278,41 @@ export async function analyzeServices(
   let given = options.facts && givenFacts(options.facts, workspace);
   const cache = given ? undefined : options.cache;
   let keys: FactKeys | undefined;
+  /** Clean cache entries whose facts this run reuses, by service key (ADR-0176). */
+  let reused = new Map<string, CachedService>();
   const programs = await stage(
     "programs",
     async () => {
-      // A warm run composes from the cache instead of building programs (ADR-0175).
+      // When every service is clean, the graph is composed from the cache with no program
+      // built (ADR-0175); otherwise the clean services' facts are reused beside the rest.
       if (cache) {
         keys = await factKeys(root, workspace, inventory, options.limits);
-        given = await cachedFacts(cache, root, workspace, inventory, keys);
+        if (reuse !== "cold") {
+          reused = await reusableFacts(cache, root, workspace, inventory, keys, reuse.forced);
+          if (reused.size === workspace.packages.length) {
+            given = workspace.packages.flatMap((p) => reused.get(p.key)?.facts ?? []);
+          }
+        }
       }
       return given ? [] : buildServicePrograms(root, workspace, inventory);
     },
     inventory.sourceFiles.length,
   );
   const resolver = createSymbolResolver(programs, workspace);
-  const collected = programs.map((sp) => ({ sp, facts: newFacts(sp) }));
-  const bundles: readonly ServiceFacts[] = given ?? collected.map((c) => c.facts);
+  /** The services this run collects: those without a reused entry. */
+  const collected: { sp: ServiceProgram; facts: ServiceFacts }[] = [];
+  const bundles: readonly ServiceFacts[] =
+    given ??
+    programs.map((sp) => {
+      const entry = reused.get(sp.service.key);
+      if (entry) return entry.facts;
+      const facts = newFacts(sp);
+      collected.push({ sp, facts });
+      return facts;
+    });
+  // The repo-wide facts this run's collection ran under, once known (ADR-0176).
+  let repoRouters: boolean | undefined;
+  let repoQueues: boolean | undefined;
 
   /**
    * Collect `stage`'s facts for each service, asked as that service (ADR-0173). A throw is
@@ -291,6 +366,7 @@ export async function analyzeServices(
         const hasRouters = await collectionInput("express", () =>
           programs.some((sp) => routerCreations(sp).length > 0),
         );
+        repoRouters = hasRouters;
         collect("express", (sp) => collectExpressFacts(sp, resolver, hasRouters));
       }
       return composeExpressRoutes(
@@ -349,16 +425,18 @@ export async function analyzeServices(
     async () => {
       if (!given) {
         // Whole-repo passes that ask as each service they walk (ADR-0173), giving
-        // per-service facts; then the global binding step (ADR-0092, ADR-0094).
+        // per-service facts for the services collected (every program's wrappers are still
+        // found, ADR-0176); then the global binding step (ADR-0092, ADR-0094).
         const facts = await collectionInput("http", () =>
           collectHttpFacts(
             collectHttpCalls(programs, resolver),
             programs,
             resolver,
             createUrlNormalizer(resolver),
+            new Set(collected.map((c) => c.sp)),
           ),
         );
-        // One per program, in program order (missing ones fail in `stageFacts`).
+        // One per collected program (missing ones fail in `stageFacts`).
         for (const f of facts) {
           const bundle = collected.find((c) => c.sp.service.key === f.service)?.facts;
           if (bundle) bundle.http = f;
@@ -392,6 +470,7 @@ export async function analyzeServices(
       // Per-service facts; worker factories and the merge are global (ADR-0172).
       if (!given) {
         const scanned = await collectionInput("queues", () => usesQueueLibrary(programs));
+        repoQueues = scanned;
         collect("queues", (sp) => collectQueueFacts(sp, resolver, workspace, scanned));
       }
       return composeQueueEdges(stageFacts(bundles, "queues"), express.inlineHandlers);
@@ -400,10 +479,56 @@ export async function analyzeServices(
   );
   found.add(["stores"], queues.nodes);
   for (const { sp, facts } of collected) facts.analyzerWarnings = resolver.warnings(sp);
-  options.onFacts?.(bundles);
   if (cache && keys && collected.length > 0) {
-    await storeFacts(cache, keys, bundles, serviceInputs(programs, resolver));
+    const wrappers = wrapperIds(bundles);
+    const repo =
+      repoRouters === undefined || repoQueues === undefined || !wrappers
+        ? undefined
+        : { routers: repoRouters, queues: repoQueues, wrappers };
+    if (reused.size > 0) {
+      // Reused facts stand only beside collections that went as a cold run's would: none
+      // failed and no program's checker met a TypeScript internal error (either may depend on
+      // what was asked before), and the repo-wide facts are those every reused entry was
+      // collected under.
+      // Else run again with the stale services collected too, or cold (ADR-0176).
+      const troubled =
+        collected.some(({ facts }) => facts.failed.length > 0) ||
+        programs.some((sp) => resolver.warnings(sp).length > 0);
+      const stale = [...reused]
+        .filter(([, entry]) => !repo || !sameRepoFacts(entry.repo, repo))
+        .map(([key]) => key);
+      if (troubled || stale.length > 0) {
+        return rerun(
+          root,
+          options,
+          troubled || reuse === "cold" || reuse.last
+            ? "cold"
+            : { forced: new Set([...reuse.forced, ...stale]), last: true },
+        );
+      }
+    }
+    if (repo) {
+      const inputs = serviceInputs(programs, resolver);
+      const stored = new Map<string, StoredService>();
+      for (const { sp } of collected) {
+        const observed = inputs.get(sp.service.key);
+        if (observed) {
+          stored.set(sp.service.key, {
+            inputs: observed,
+            queueLibrary: () => usesQueueLibrary([sp]),
+          });
+        }
+      }
+      await storeFacts(
+        cache,
+        keys,
+        collected.map((c) => c.facts),
+        stored,
+        repo,
+      );
+    }
   }
+  options.onFacts?.(bundles);
   const name = options.name ?? (await defaultName(root, inventory.files));
   // Part order is precedence: a custom Express server can register the same route as a
   // Next.js file, and Express's node wins (ADR-0027).
