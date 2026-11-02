@@ -9,12 +9,14 @@
  *
  * Handled: `readdirSync` (the names directly in the folder, files and folders alike) and glob
  * patterns made of literal characters, `*`, `**`, `?`, and `{a,b}` alternatives (dot files
- * are skipped, as glob does by default). Not handled: character classes, extglobs (`!(…)`,
- * `+(…)`), negation, escapes, and glob options besides `cwd` (an `ignore` list is not
- * applied, so the listing may hold more files than the code's).
+ * are skipped, as glob does by default), matched in linear time. Not handled: character
+ * classes, extglobs (`!(…)`, `+(…)`), negation, escapes, nested braces, patterns over 1,024
+ * characters or 256 brace alternatives, and glob options besides `cwd` (an `ignore` list is
+ * not applied, so the listing may hold more files than the code's).
  */
 import { posix } from "node:path";
 import { compareStrings } from "@gitinside/schema";
+import { globMatcher } from "./glob.js";
 import { PROGRAM_EXTENSIONS } from "./inputs.js";
 
 /** The marker standing for the repo root in absolute paths (see the file comment). */
@@ -48,38 +50,20 @@ export function readdirEntries(folder: string, files: readonly string[]): string
   return [...names].sort(compareStrings);
 }
 
-/** A glob pattern as an anchored regular expression, or undefined when it uses unsupported syntax. */
-export function globRegExp(pattern: string): RegExp | undefined {
-  let source = "";
+/**
+ * A glob pattern as a whole-path matcher, or undefined when it uses unsupported syntax
+ * (character classes, extglobs, escapes, nested or unclosed braces) or is too complex for
+ * {@link globMatcher}. The pattern comes from the analyzed repo, so it's matched in linear
+ * time rather than compiled into a backtracking RegExp (`**a**a…**b` would hang it).
+ */
+export function listingGlob(pattern: string): ((path: string) => boolean) | undefined {
   let inBraces = false;
-  for (let i = 0; i < pattern.length; i++) {
-    const c = pattern.charAt(i);
-    if (c === "*") {
-      if (pattern.charAt(i + 1) === "*") {
-        const slash = pattern.charAt(i + 2) === "/";
-        // `**/` is any number of folders (none included); a bare `**` any text.
-        source += slash ? "(?:[^/.][^/]*/)*" : ".*";
-        i += slash ? 2 : 1;
-      } else {
-        source += "[^/]*";
-      }
-    } else if (c === "?") {
-      source += "[^/]";
-    } else if (c === "{" && !inBraces) {
-      inBraces = true;
-      source += "(?:";
-    } else if (c === "}" && inBraces) {
-      inBraces = false;
-      source += ")";
-    } else if (c === "," && inBraces) {
-      source += "|";
-    } else if ("[]()!+@\\{}".includes(c)) {
-      return undefined;
-    } else {
-      source += c.replace(/[.^$|]/g, "\\$&");
-    }
+  for (const c of pattern) {
+    if (c === "{" && !inBraces) inBraces = true;
+    else if (c === "}" && inBraces) inBraces = false;
+    else if ("[]()!+@\\{}".includes(c)) return undefined;
   }
-  return inBraces ? undefined : new RegExp(`^${source}$`);
+  return inBraces ? undefined : globMatcher(pattern);
 }
 
 /**
@@ -91,15 +75,15 @@ export function globEntries(
   folder: string,
   files: readonly string[],
 ): string[] | undefined {
-  const re = globRegExp(pattern.replace(/^\.\//, ""));
-  if (!re) return undefined;
+  const matches = listingGlob(pattern.replace(/^\.\//, ""));
+  if (!matches) return undefined;
   const prefix = folder === "" ? "" : `${folder}/`;
   const found: string[] = [];
   for (const file of files) {
     if (!file.startsWith(prefix)) continue;
     const rest = file.slice(prefix.length);
     if (rest.split("/").some((segment) => segment.startsWith("."))) continue;
-    if (re.test(rest)) found.push(rest);
+    if (matches(rest)) found.push(rest);
   }
   return found.sort(compareStrings);
 }
