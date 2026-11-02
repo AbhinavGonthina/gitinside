@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.7f2 Container check: two analyses share the image's `/tmp/cache/public` (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M6.8 Benchmarks: full vs incremental on a large TS monorepo (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -244,7 +244,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.7e2 Partial reuse: clean services' facts reused while dirty ones collect (all programs still built); the repo-wide facts a clean bundle depends on (wrapper names, router and queue-library checks) recomputed and compared, else the service recollects; warm == cold over the same edits {model: opus}
 - [x] M6.7e3 Clean programs built only when a dirty service's analysis needs them (programs built lazily through the resolver); warm == cold; time saved measured on a fixture monorepo {model: opus}
 - [x] M6.7f1 Worker fact cache on Cloud Run (ADR-0178: 64 MiB of the in-memory `/tmp` from the budget's spare, not a 2 GB volume): `openDiskCache` makes room before each write and counts 4 KiB blocks; `/tmp/cache/public` + `installations/<id>` (none for a private repo without an installation; `deleteInstallationCache` for M8.5), one cap across folders; the child gets only its folder (`--allow-fs-*`), reports cache counters; tests incl. a sandbox probe and a warm job through the real child {model: opus}
-- [ ] M6.7f2 Container check: two analyses through the image's sandboxed child share `/tmp/cache/public` (second one all hits, same bytes, entries owned by uid 1000, the cache within its cap) {model: opus}
+- [x] M6.7f2 Container check: two analyses through the image's sandboxed child share `/tmp/cache/public` (second one all hits, same bytes, entries owned by uid 1000, the cache within its cap) {model: opus}
 - [ ] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
 - [ ] M6.9 Viewer diff mode (overlay, stable layout, changes list) {model: opus}
 - [ ] M6.10 docs/walkthroughs/diff.md {model: opus}
@@ -282,6 +282,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M6.7f2** (`f55143b`): `infra/gcp/check.mjs` runs two jobs on `pnpm-monorepo` inside the image as Cloud Run starts it, each preparing `/tmp/cache/public` like job.ts and analyzing in a fresh job folder through the sandboxed child. Cold: 2 misses, 2 writes; warm: 2 hits, 0 misses; both give the golden bytes. The cache root holds only `public`, every path is uid/gid 1000, and the folder (8,192 bytes, 7 paths) fits the 64 MiB cap. CI green (`41429570635`); mutation (no write grant on the cache folder) red on the missing cache counts (`41429537484`).
 
 - **2026-11-02 M6.7f1** (`165520d`, ADR-0178; split M6.7f into f1/f2): on Cloud Run the fact cache is 64 MiB of the in-memory `/tmp` from the budget's spare (256 → 192 MiB), not a 2 GB volume; cal.com's facts measured 25.2 MiB (`bench/results/2026-11-02-cache-sizes.md`). `openDiskCache` makes room before each write (serialized), counts 4 KiB blocks, evicts on open. `factcache.ts`: `/tmp/cache/public` + `installations/<id>`, one cap across folders, `deleteInstallationCache` for M8.5; the child gets only its folder (`--allow-fs-*`) and reports cache counters. A warm job through the real child is all hits with the same bytes; a probe can't touch another installation's folder; dropping the write grant fails three tests. Analyzer 986/986, worker 614 (+1 skipped), root test/typecheck/lint green, eval unchanged (TP 138, FP 0, FN 0, `08d9f3b`).
 
