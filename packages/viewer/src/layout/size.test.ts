@@ -1,5 +1,5 @@
 // @vitest-environment node
-import type { GraphNode } from "@gitinside/schema";
+import type { GraphEdge, GraphNode } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
 import { textWidth } from "../image/markup.js";
 import type { DiffMarks } from "../model/diff.js";
@@ -24,6 +24,7 @@ import {
   MIN_FRAME_WIDTH,
   MIN_ICON_WIDTH,
   openHeader,
+  viewEdgeLabelSize,
   viewNodeCounts,
   viewNodeSize,
   WINDOW_BAND,
@@ -49,6 +50,18 @@ const route = (path: string): GraphNode => ({
   path,
 });
 const file = (label: string): GraphNode => ({ ...node("file:api/src/db.ts"), label });
+
+/** Diff marks with nothing changed and both versions holding every edge, to override per test. */
+const NO_MARKS: DiffMarks = {
+  node: () => undefined,
+  inside: () => undefined,
+  line: () => ({}),
+  baseNode: () => undefined,
+  edgesIn: {
+    base: new Set(index.graph.edges.map((e) => e.id)),
+    head: new Set(index.graph.edges.map((e) => e.id)),
+  },
+};
 
 describe("frameCounts", () => {
   it("counts pages, routes, models, and unresolved calls anywhere inside", () => {
@@ -211,7 +224,7 @@ describe("changeCounts and viewNodeCounts", () => {
 
   it("adds a closed box's change badges after its counts, and none once it's open", () => {
     const inside = { added: 1, changed: 2, removed: 0, broken: 0 };
-    const marks: DiffMarks = { node: () => undefined, inside: () => inside, line: () => ({}) };
+    const marks: DiffMarks = { ...NO_MARKS, inside: () => inside };
     const closed = buildView(index, []).byId.get("service:api/");
     const open = buildView(index, ["service:api/"]).byId.get("service:api/");
     if (!closed || !open) throw new Error("api isn't visible");
@@ -223,5 +236,42 @@ describe("changeCounts and viewNodeCounts", () => {
     const width = viewNodeSize(index, closed, marks).width;
     const words = changeCounts(inside).map((c) => ({ value: c.value, noun: c.noun }));
     expect(width).toBeGreaterThan(closedSize(closed.node, { counts: [...counts, ...words] }).width);
+  });
+});
+
+describe("sizes for Base and Head too (M6.9c2)", () => {
+  const view = buildView(index, ["service:api/", "module:api/src"]);
+
+  it("fits a renamed node's base name as well as its head name", () => {
+    const db = view.byId.get("file:api/src/db.ts");
+    if (!db) throw new Error("db.ts isn't visible");
+    const longer = file("a-much-longer-name-than-before.ts");
+    const marks: DiffMarks = {
+      ...NO_MARKS,
+      baseNode: (n) => (n.id === db.id ? longer : undefined),
+    };
+    const asBase = viewNodeSize(index, { ...db, node: longer });
+    expect(viewNodeSize(index, db, marks)).toEqual(asBase);
+    expect(asBase.width).toBeGreaterThan(viewNodeSize(index, db).width);
+    // A shorter base name keeps the head's size.
+    const shorter: DiffMarks = { ...NO_MARKS, baseNode: () => file("a.ts") };
+    expect(viewNodeSize(index, db, shorter)).toEqual(viewNodeSize(index, db));
+  });
+
+  it("fits the label a version draws when it keeps fewer of a line's connections", () => {
+    const many = [[], ["service:api/"], ["service:web/"]]
+      .flatMap((open) => buildView(index, open).edges)
+      .find((e) => e.edges.length > 1);
+    if (!many) throw new Error("no aggregate line in shop-demo");
+    const [first] = many.edges;
+    const one = new Set([first?.id ?? ""]);
+    const all = new Set(many.edges.map((e) => e.id));
+    const own = edgeLabelSize({ ...many, edges: [first as GraphEdge] }).width;
+    const marks: DiffMarks = { ...NO_MARKS, edgesIn: { base: all, head: one } };
+    expect(viewEdgeLabelSize(many, marks).width).toBe(Math.max(edgeLabelSize(many).width, own));
+    expect(viewEdgeLabelSize(many)).toEqual(edgeLabelSize(many));
+    // Neither version keeping it adds nothing.
+    const none: DiffMarks = { ...NO_MARKS, edgesIn: { base: new Set(), head: new Set() } };
+    expect(viewEdgeLabelSize(many, none)).toEqual(edgeLabelSize(many));
   });
 });

@@ -17,10 +17,16 @@ import type { Rect } from "../chrome/describe.js";
 import { DiagramEdge, EdgeLabel } from "../edges/DiagramEdge.js";
 import type { PlacedEdge } from "../layout/elk.js";
 import type { LayoutCache } from "../layout/engine.js";
-import { changeCounts, edgeLabelSize, frameCounts } from "../layout/size.js";
+import { changeCounts, frameCounts, viewEdgeLabelSize } from "../layout/size.js";
 import type { DiffCounts, DiffMarks } from "../model/diff.js";
 import { layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
-import { drawnEdge, type GraphView, type ViewEdge, type ViewNode } from "../model/view.js";
+import {
+  drawnEdge,
+  edgeWithin,
+  type GraphView,
+  type ViewEdge,
+  type ViewNode,
+} from "../model/view.js";
 import { prefersReducedMotion } from "../motion.js";
 import { DiagramNode } from "../nodes/DiagramNode.js";
 import { nodeTier, type NodeDiff, type NodeEmphasis } from "../nodes/describe.js";
@@ -94,6 +100,13 @@ export interface DrillCanvasProps
   cullFrom?: number | undefined;
   /** Diff mode's marks, which `cache` sized the boxes and pills with (`createLayoutCache`). */
   marks?: DiffMarks | undefined;
+  /**
+   * Diff mode's Base or Head: that version's hierarchy on `index`'s IDs
+   * (`versionGraph`). Boxes draw its records (a renamed node's base name in
+   * Base) and counts, lines and pills only its connections (M6.9c2); places
+   * stay the layout's. What it lacks fades out as the overlay drew it.
+   */
+  versionIndex?: HierarchyIndex | undefined;
 }
 
 /**
@@ -119,6 +132,8 @@ interface BoxActions {
 
 interface CanvasBoxProps {
   index: HierarchyIndex;
+  /** The version shown, when it isn't the overlay (`DrillCanvasProps.versionIndex`). */
+  shown: HierarchyIndex | undefined;
   n: ViewNode;
   rect: Rect;
   leaving: boolean;
@@ -146,6 +161,7 @@ interface CanvasBoxProps {
  */
 const CanvasBox = memo(function CanvasBox({
   index,
+  shown,
   n,
   rect,
   leaving,
@@ -166,9 +182,12 @@ const CanvasBox = memo(function CanvasBox({
   );
   // Out of the tree and the Tab order, like a box folding away.
   const hidden = leaving || absent;
+  // A box the version lacks fades out as the overlay drew it.
+  const from = shown && !absent ? shown : index;
+  const node = from.byId.get(n.id) ?? n.node;
   const counts = n.open
     ? []
-    : [...(frame ? frameCounts(index, n.id) : []), ...changeCounts(changes)];
+    : [...(frame ? frameCounts(from, n.id) : []), ...changeCounts(changes)];
   const tree = hidden
     ? {}
     : {
@@ -193,7 +212,7 @@ const CanvasBox = memo(function CanvasBox({
     >
       <DiagramNode
         {...tree}
-        node={n.node}
+        node={node}
         layer={layerOf(index, n.id)}
         counts={counts}
         expanded={n.open}
@@ -226,13 +245,38 @@ const CanvasBox = memo(function CanvasBox({
 
 interface CanvasLineProps extends LineLook {
   index: HierarchyIndex;
+  /** The version shown, when it isn't the overlay (`DrillCanvasProps.versionIndex`). */
+  shown: HierarchyIndex | undefined;
+  /** Its edge IDs, which the line keeps of the connections it stands for. */
+  keep: ReadonlySet<string> | undefined;
   e: ViewEdge;
   placed: PlacedEdge;
+}
+
+/**
+ * The line as the version shown draws it, and its ends' names there. One it
+ * lacks fades out as the overlay drew it.
+ */
+function lineIn({
+  index,
+  shown,
+  keep,
+  e,
+  absent,
+}: Pick<CanvasLineProps, "index" | "shown" | "keep" | "e" | "absent">) {
+  const from = shown && !absent ? shown : index;
+  const name = (id: string) => (from.byId.get(id) ?? nodeOf(index, id)).label;
+  return {
+    ...drawnEdge((keep && !absent && edgeWithin(e, keep)) || e),
+    ends: { from: name(e.from), to: name(e.to) },
+  };
 }
 
 /** One line, memoized like {@link CanvasBox}. A line not in the version shown is kept out of reach. */
 const CanvasLine = memo(function CanvasLine({
   index,
+  shown,
+  keep,
   e,
   placed,
   selected,
@@ -243,14 +287,14 @@ const CanvasLine = memo(function CanvasLine({
   broken,
   absent,
 }: CanvasLineProps) {
-  const { edge, count } = drawnEdge(e);
+  const { edge, count, ends } = lineIn({ index, shown, keep, e, absent });
   return (
     <DiagramEdge
       edge={edge}
       count={count}
       points={placed.points}
       layer={layerOf(index, e.from)}
-      ends={{ from: nodeOf(index, e.from).label, to: nodeOf(index, e.to).label }}
+      ends={ends}
       selected={selected}
       emphasis={emphasis}
       diff={diff}
@@ -267,6 +311,8 @@ const CanvasLine = memo(function CanvasLine({
 /** One line's pill, memoized like {@link CanvasBox}; `width` is what the layout made room for. */
 const CanvasPill = memo(function CanvasPill({
   index,
+  shown,
+  keep,
   e,
   placed,
   selected,
@@ -276,7 +322,7 @@ const CanvasPill = memo(function CanvasPill({
   absent,
   width,
 }: Omit<CanvasLineProps, "flow" | "pulse"> & { width: number }) {
-  const { edge, count } = drawnEdge(e);
+  const { edge, count } = lineIn({ index, shown, keep, e, absent });
   return (
     <EdgeLabel
       edge={edge}
@@ -401,10 +447,15 @@ export function DrillCanvas({
   keep,
   cullFrom = CULL_FROM,
   marks,
+  versionIndex,
   className,
   style,
   ...rest
 }: DrillCanvasProps) {
+  const versionEdges = useMemo(
+    () => versionIndex && new Set(versionIndex.graph.edges.map((e) => e.id)),
+    [versionIndex],
+  );
   const [shown, setShown] = useState<Shown | undefined>(() => {
     const layout = cache?.peek(view);
     return layout ? { view, layout } : undefined;
@@ -668,6 +719,7 @@ export function DrillCanvas({
               <CanvasBox
                 key={`leaving:${e.node.id}`}
                 index={index}
+                shown={versionIndex}
                 n={e.node}
                 rect={e.from}
                 leaving
@@ -691,6 +743,7 @@ export function DrillCanvas({
                 <CanvasBox
                   key={n.id}
                   index={index}
+                  shown={versionIndex}
                   n={n}
                   rect={b}
                   leaving={false}
@@ -723,6 +776,8 @@ export function DrillCanvas({
                 <CanvasLine
                   key={placed.id}
                   index={index}
+                  shown={versionIndex}
+                  keep={versionEdges}
                   e={e}
                   placed={placed}
                   selected={selected}
@@ -745,6 +800,8 @@ export function DrillCanvas({
                 <CanvasPill
                   key={placed.id}
                   index={index}
+                  shown={versionIndex}
+                  keep={versionEdges}
                   e={e}
                   placed={placed}
                   selected={selected}
@@ -752,7 +809,7 @@ export function DrillCanvas({
                   diff={diff}
                   broken={broken}
                   absent={absent}
-                  width={edgeLabelSize(e, marks?.line(e.edges)).width}
+                  width={viewEdgeLabelSize(e, marks).width}
                 />
               );
             })}

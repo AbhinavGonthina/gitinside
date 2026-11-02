@@ -1046,9 +1046,10 @@ export function Explorer({
   const trailEnd = deepestOpen(view, drill.expansion);
   const crumbs = [
     { id: index.root.id, label: index.root.label, kind: index.root.kind },
+    // Named as the version shown has them (a renamed folder's base name in Base).
     ...(trailEnd ? viewTrail(view, trailEnd) : []).map((n) => ({
       id: n.id,
-      label: n.node.label,
+      label: (shownIndex.byId.get(n.id) ?? n.node).label,
       kind: n.node.kind,
     })),
   ];
@@ -1197,6 +1198,7 @@ export function Explorer({
             keep={keptBoxes}
             cullFrom={cullFrom}
             marks={marks}
+            versionIndex={shownIndex === index ? undefined : shownIndex}
           />
           <div
             className="gi-explorer__pin"
@@ -1313,7 +1315,7 @@ export function Explorer({
         </div>
         {tracing ? (
           <TracePanel
-            index={index}
+            index={shownIndex}
             steps={steps}
             cutOff={path.cutOff}
             step={step}
@@ -1329,11 +1331,11 @@ export function Explorer({
           />
         ) : (
           <NodePanel
-            index={index}
-            node={selectedNode ?? index.root}
+            index={shownIndex}
+            node={(selected ? shownIndex.byId.get(selected) : undefined) ?? shownIndex.root}
             canBreakDown={selectedView !== undefined && selectedView.canOpen && !selectedView.open}
             canTrace={selectionTraces}
-            traceHint={fallbackStart ? nodeOf(index, fallbackStart) : undefined}
+            traceHint={fallbackStart ? nodeOf(shownIndex, fallbackStart) : undefined}
             canPick={choices.length > 0}
             sources={sourceAccess}
             repo={repo}

@@ -1417,6 +1417,8 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "BrokenDown",
       "Diff",
       "DiffBrokenDown",
+      "DiffHead",
+      "DiffRenamedBase",
       "DrilledDeep",
       "Filters",
       "NoApp",
@@ -1468,6 +1470,35 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     await settle();
     expect(broken.container.querySelector('.gi-node[data-diff="removed"]')).not.toBeNull();
     expect(broken.container.querySelector(".gi-edge[data-broken]")).not.toBeNull();
+    cleanup();
+
+    // Head and Base (M6.9c2), switched by each story's play.
+    const shown = async (Story: (typeof all)["DiffHead"], version: string) => {
+      const view = render(<Story />);
+      await settle();
+      await Story.play?.({ canvasElement: view.container } as Parameters<
+        NonNullable<typeof Story.play>
+      >[0]);
+      await waitFor(() =>
+        expect(screen.getByRole("radio", { name: version }).getAttribute("aria-checked")).toBe(
+          "true",
+        ),
+      );
+      return view.container;
+    };
+    const head = await shown(all.DiffHead, "Head");
+    const service = head.querySelector('[data-node-id="service:diff-broken/"] > .gi-node');
+    expect([...(service?.querySelectorAll(".gi-badge") ?? [])].map((b) => b.textContent)).toEqual([
+      "2 routes",
+      "1 model",
+      "4 unresolved calls",
+    ]);
+    cleanup();
+    const base = await shown(all.DiffRenamedBase, "Base");
+    expect(
+      base.querySelector('[data-node-id="file:diff-rename/src/orders/routes.ts"] .gi-node__label')
+        ?.textContent,
+    ).toBe("orders.ts");
   });
 
   it("show the warnings in the warnings story and the no-app card in its story", async () => {

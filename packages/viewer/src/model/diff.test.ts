@@ -5,6 +5,7 @@ import { diffGraphs } from "@gitinside/diff";
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
 import {
+  baseRecord,
   buildDiffOverlay,
   DiffMismatchError,
   diffMarks,
@@ -173,6 +174,26 @@ describe("buildDiffOverlay on the diff-rename pair", () => {
     expect(overlay.nodesIn.base).toContain(file);
     const row = overlay.changes.changed.find((r) => r.id === file);
     expect(row?.from?.id).toBe(`file:${p}/src/routes/orders.ts`);
+  });
+
+  it("gives Base a renamed node's base record, at its head ID and place", () => {
+    const file = `file:${p}/src/orders/routes.ts`;
+    const drawn = overlay.graph.nodes.find((n) => n.id === file);
+    const inBase = versionGraph(overlay, "base").nodes.find((n) => n.id === file);
+    expect(inBase).toEqual({
+      ...overlay.renamedFrom.get(file),
+      id: file,
+      parentId: drawn?.parentId,
+    });
+    expect(inBase?.label).toBe("orders.ts");
+    expect(() => parseGraph(versionGraph(overlay, "base"))).not.toThrow();
+    expect(drawn && baseRecord(overlay, drawn)).toEqual(inBase);
+    expect(versionGraph(overlay, "head").nodes.find((n) => n.id === file)).toBe(drawn);
+    // Nodes that weren't renamed are the overlay's own records.
+    const service = overlay.graph.nodes.find((n) => n.kind === "service");
+    expect(service && baseRecord(overlay, service)).toBeUndefined();
+    expect(diffMarks(overlay).baseNode(drawn!)).toEqual(inBase);
+    expect(diffMarks(overlay).edgesIn).toBe(overlay.edgesIn);
   });
 
   it("keeps each version a tree and the graph valid", () => {

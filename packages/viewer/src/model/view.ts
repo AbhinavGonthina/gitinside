@@ -261,6 +261,20 @@ export function visibleAncestor(
 }
 
 /**
+ * The line as one version draws it (diff mode's Base or Head, M6.9c2): only
+ * the graph edges `keep` holds, its confidence the weakest of those. The
+ * line itself when it keeps all of them; undefined when it keeps none.
+ */
+export function edgeWithin(view: ViewEdge, keep: ReadonlySet<string>): ViewEdge | undefined {
+  const edges = view.edges.filter((e) => keep.has(e.id));
+  const [first] = edges;
+  if (!first) return undefined;
+  if (edges.length === view.edges.length) return view;
+  const confidence = edges.reduce((c, e) => weaker(c, e.confidence), first.confidence);
+  return { ...view, confidence, edges };
+}
+
+/**
  * The edge as the label and line should draw it: a single edge keeps its own
  * label and reason; an aggregate becomes a count (`count` is set).
  */

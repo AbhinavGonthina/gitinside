@@ -6,6 +6,7 @@ import {
   buildView,
   DEFAULT_HIDDEN_KINDS,
   drawnEdge,
+  edgeWithin,
   effectiveOpen,
   viewTrail,
   visibleAncestor,
@@ -202,6 +203,29 @@ describe("edge aggregation", () => {
     expect(weaker("exact", "heuristic")).toBe("heuristic");
     expect(weaker("unresolved", "pattern")).toBe("unresolved");
     expect(weaker("pattern", "pattern")).toBe("pattern");
+  });
+
+  it("keeps a version's connections of a line, with their weakest confidence (M6.9c2)", () => {
+    const line = {
+      id: "calls:a->b",
+      from: "a",
+      to: "b",
+      kind: "calls" as const,
+      confidence: "heuristic" as const,
+      edges: index.graph.edges.slice(0, 3).map((e, i) => ({
+        ...e,
+        id: `e${i}`,
+        confidence: i === 0 ? ("heuristic" as const) : ("exact" as const),
+      })),
+    };
+    expect(edgeWithin(line, new Set(["e0", "e1", "e2"]))).toBe(line);
+    expect(edgeWithin(line, new Set(["e9"]))).toBeUndefined();
+    const kept = edgeWithin(line, new Set(["e1", "e2"]));
+    expect(kept?.edges.map((e) => e.id)).toEqual(["e1", "e2"]);
+    expect(kept?.confidence).toBe("exact");
+    expect(kept && drawnEdge(kept).count).toBe(2);
+    const one = edgeWithin(line, new Set(["e2"]));
+    expect(one && drawnEdge(one)).toEqual({ edge: line.edges[2] });
   });
 
   it("draws one edge with its own label, an aggregate as a count", () => {
