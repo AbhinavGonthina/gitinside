@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5A.5g Re-run the milestone checks after M5A.5b–f, fix the README/EVALUATION.md report links and ADR-0168's note, finish M5A-review.md, tag m5a (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M6.7d3c SDK and queue edges as per-service facts + global composition; no output change (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -220,7 +220,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M5A.5d M5A review fix: `defaults.baseURL` (ADR-0161) applies only to requests in files that can reach the module writing it (import graph), so a test or e2e setup file's write doesn't rebase the whole service; ADR amendment, regression test first, eval delta {model: opus}
 - [x] M5A.5e M5A review fixes, `lets.ts`: `letValues` memoized per declaration (no re-walk of the function per read); a write through `as`/`!`/`<T>`/`satisfies` makes the `let` unknown; a `lets.test.ts` covering loop/`switch`/`try`/labeled writes, `throw`/`break`/`continue` branch ends, `else if` chains, and reads in case clauses (CI coverage 86.4%); regression tests first {model: opus}
 - [x] M5A.5f M5A review fixes, small: a listing folder from a `const` in another file resolves `__dirname` and relative specifiers against that file (`express.ts` `evaluate`); a mid-URL env fallback replaces the hole only when it's a path piece, not an absolute or protocol-relative URL (`url.ts` `laterPart`); regression tests first, eval delta {model: opus}
-- [ ] M5A.5g Re-run the milestone checks after M5A.5b–f (suite, analyzer coverage, `pnpm eval`), README's "first run" held-out link pinned to the commit whose report holds it (`1cdf2ec`), EVALUATION.md's M5A-outcome link (`2026-11-01-0.1.0.md`, superseded by `2026-11-02-0.1.0.md` since M5A.5d) pointed at the final report, ADR-0168's reproduction note updated, finish M5A-review.md (outcomes), tag m5a {model: opus}
+- [x] M5A.5g Re-run the milestone checks after M5A.5b–f (suite, analyzer coverage, `pnpm eval`), README's "first run" held-out link pinned to the commit whose report holds it (`1cdf2ec`), EVALUATION.md's M5A-outcome link (`2026-11-01-0.1.0.md`, superseded by `2026-11-02-0.1.0.md` since M5A.5d) pointed at the final report, ADR-0168's reproduction note updated, finish M5A-review.md (outcomes), tag m5a {model: opus}
 
 ### M6: Graph diff + incremental analysis
 - [x] M6.1 packages/diff scaffold + GraphDiff types in schema {model: opus}
@@ -278,6 +278,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M5A.5g** (`82c7130`, tag `m5a`): re-check after the review fixes: `npx turbo run test --force` 15/15 tasks, 0 cached, 3,484 passed (analyzer 875); CI on `7c1c3e1` green, analyzer coverage 97.62% lines / 90.96% branches (`lets.ts` 86.41% ⇒ 93.78%); `pnpm eval --check` reproduces `2026-11-02-0.1.0.md` byte for byte, counts unchanged by M5A.5b–f. README/EVALUATION.md link the overwritten first runs at `1cdf2ec` (held-out, pre-fix) and `eee9e37` (batch 2 blind run), the after-M5A numbers to the final report; ADR-0168's note updated; M5A-review.md outcomes filled in (8 fixed, finding 8 kept).
 
 - **2026-11-02 M5A.5f**: red first: a listing folder in a `const` from another file (`path.join(__dirname, "..", "routes")`, or `readdirSync(__dirname).map((f) => require("./" + f))`) was read against the using file and mounted same-named decoy folders there; three `toUrlPattern` cases read a mid-URL env fallback `http://localhost:5000` (or `//cdn…`) as path segments. `evaluate`/`elementsOf` now switch to the const's own file; `laterPart` keeps a fallback only when it's a path piece (no `://` or leading `//` before its query). Analyzer 875/875; eval unchanged (TP 138, FP 0, FN 0).
 
