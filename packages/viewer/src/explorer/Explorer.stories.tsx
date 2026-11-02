@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { diffGraphs } from "@gitinside/diff";
 import type { ArchitectureGraph } from "@gitinside/schema";
 import type { Meta, StoryObj } from "@storybook/react";
 import { withTestFiles } from "../model/filterSamples.js";
@@ -255,6 +256,57 @@ export const NoApp: Story = {
       }}
     />
   ),
+};
+
+// Diff mode (M6.9b) on the analyzer's output for the fixtures/diff-broken
+// pair, diffed here by `packages/diff` with both sides' files (so renames pair).
+const DIFF_PAIR = import.meta.glob<ArchitectureGraph>(
+  "../../../../fixtures/diff-broken-*/expected.json",
+  { eager: true, import: "default" },
+);
+const DIFF_FILES = import.meta.glob<string>(
+  "../../../../fixtures/diff-broken-*/{src/*.ts,prisma/*.prisma}",
+  { eager: true, query: "?raw", import: "default" },
+);
+const diffSide = (side: "base" | "head") => {
+  const folder = `../../../../fixtures/diff-broken-${side}/`;
+  return {
+    graph: DIFF_PAIR[`${folder}expected.json`] as ArchitectureGraph,
+    file: (path: string) => DIFF_FILES[`${folder}${path}`],
+  };
+};
+const diffBase = diffSide("base");
+const diffHead = diffSide("head");
+const diffBroken = diffGraphs(diffBase.graph, diffHead.graph, {
+  contents: { base: diffBase.file, head: diffHead.file },
+});
+
+function ExploreDiff(props: Partial<ExplorerProps>) {
+  return (
+    <Explore
+      graph={diffHead.graph}
+      sources={undefined}
+      traceStart={undefined}
+      diff={{ base: diffBase.graph, diff: diffBroken, baseName: "main", headName: "PR #12" }}
+      {...props}
+    />
+  );
+}
+
+/**
+ * Diff mode (M6.9b): a PR that removes routes, a file, and a model, at the
+ * system level. The service's badges say what changed inside it, the chip
+ * what's compared, and the top bar offers Base, Head, and Overlay.
+ */
+export const Diff: Story = { render: () => <ExploreDiff /> };
+
+/**
+ * The same PR broken down: added, changed, and removed (ghosted) boxes, and
+ * the connections it breaks drawn dashed red with the diff's own words.
+ */
+export const DiffBrokenDown: Story = {
+  name: "Diff, broken down",
+  render: () => <ExploreDiff initialOpen={["service:diff-broken/", "module:diff-broken/src"]} />,
 };
 
 /** Opens a palette with a key on the explorer and types `text` into its field. */

@@ -1,6 +1,7 @@
 import type { ELK, ElkExtendedEdge, ElkNode, LayoutOptions } from "elkjs/lib/elk-api.js";
 import type { Rect } from "../chrome/describe.js";
 import type { Point } from "../edges/geometry.js";
+import type { DiffMarks } from "../model/diff.js";
 import { layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import type { GraphView } from "../model/view.js";
 import { edgeLabelSize, FRAME_PAD, openHeader, viewNodeSize, type Size } from "./size.js";
@@ -133,11 +134,17 @@ function rootOptions(input: LayoutInput): LayoutOptions {
 /**
  * The layout's input for a view: each visible node's size measured from its
  * content (an open one's closed width and header as its minimum, ELK sizing
- * it around its children), and each edge's label size.
+ * it around its children), and each edge's label size. In diff mode
+ * (`marks`) a closed box makes room for its change badges and a pill for its
+ * state's word or what broke.
  */
-export function layoutInput(index: HierarchyIndex, view: GraphView): LayoutInput {
+export function layoutInput(
+  index: HierarchyIndex,
+  view: GraphView,
+  marks?: DiffMarks | undefined,
+): LayoutInput {
   const nodes = view.nodes.map((n): LayoutNode => {
-    const size = viewNodeSize(index, n);
+    const size = viewNodeSize(index, n, marks);
     const header = n.open ? openHeader(n.node, layerOf(index, n.id)) : undefined;
     return {
       id: n.id,
@@ -152,7 +159,7 @@ export function layoutInput(index: HierarchyIndex, view: GraphView): LayoutInput
     id: e.id,
     from: e.from,
     to: e.to,
-    label: edgeLabelSize(e),
+    label: edgeLabelSize(e, marks?.line(e.edges)),
   }));
   return { nodes, edges };
 }

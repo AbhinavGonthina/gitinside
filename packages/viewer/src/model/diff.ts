@@ -253,6 +253,54 @@ export function buildDiffOverlay(
   };
 }
 
+/** A drawn line's diff state and, when it stands for broken connections, what broke. */
+export interface LineMark {
+  diff?: NodeDiff | undefined;
+  broken?: string | undefined;
+}
+
+/**
+ * What diff mode draws on the canvas (M6.9b): each node's own state, the
+ * changes inside a box, and each drawn line's state. The layout sizes boxes
+ * and pills from these (a closed box's change badges, a pill's leading word),
+ * so the canvas draws exactly what was measured.
+ */
+export interface DiffMarks {
+  /** The node's own state; unchanged nodes have none. */
+  node(id: string): NodeDiff | undefined;
+  /** The changes below a node, or none. */
+  inside(id: string): Readonly<DiffCounts> | undefined;
+  /** A drawn line's marks, from the graph edges it stands for. */
+  line(edges: readonly Pick<GraphEdge, "id">[]): LineMark;
+}
+
+/**
+ * The overlay's marks. A line standing for several edges takes their common
+ * state, or `changed` when they differ (some added, some not); it's broken
+ * when any of them is, with that connection's words, or how many broke.
+ */
+export function diffMarks(overlay: DiffOverlay): DiffMarks {
+  return {
+    node: (id) => overlay.nodes.get(id),
+    inside: (id) => overlay.inside.get(id),
+    line(edges) {
+      const states = edges.map((e) => overlay.edges.get(e.id));
+      const [first] = states;
+      const diff = states.every((s) => s === first) ? first : "changed";
+      const broken = edges.flatMap((e) => overlay.broken.get(e.id)?.detail ?? []);
+      const [only] = broken;
+      return {
+        ...(diff ? { diff } : {}),
+        ...(broken.length > 1
+          ? { broken: `${broken.length} connections broken` }
+          : only !== undefined
+            ? { broken: only }
+            : {}),
+      };
+    },
+  };
+}
+
 /** The node's ancestors in the overlay, nearest first. */
 function* ancestorsOf(all: ReadonlyMap<string, GraphNode>, id: string): Generator<GraphNode> {
   let parentId = all.get(id)?.parentId ?? null;

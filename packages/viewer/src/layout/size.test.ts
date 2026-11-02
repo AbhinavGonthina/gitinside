@@ -2,11 +2,13 @@
 import type { GraphNode } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
 import { textWidth } from "../image/markup.js";
+import type { DiffMarks } from "../model/diff.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView, type ViewEdge } from "../model/view.js";
 import { countText } from "../nodes/describe.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import {
+  changeCounts,
   closedSize,
   countsRowWidth,
   EDGE_LABEL_HEIGHT,
@@ -22,6 +24,7 @@ import {
   MIN_FRAME_WIDTH,
   MIN_ICON_WIDTH,
   openHeader,
+  viewNodeCounts,
   viewNodeSize,
   WINDOW_BAND,
 } from "./size.js";
@@ -181,5 +184,44 @@ describe("edgeLabelSize", () => {
     if (!first) throw new Error("empty view edge");
     const long = { ...first, label: `GET /${"segment/".repeat(40)}` };
     expect(edgeLabelSize({ ...http, edges: [long] }).width).toBe(MAX_EDGE_LABEL_WIDTH);
+  });
+
+  it("makes room for a diff state's word and dot, or sizes a broken pill by what broke", () => {
+    const http = edge("http");
+    const plain = edgeLabelSize(http).width;
+    // The dot, its gap, the word, and the gap before the label.
+    const added = edgeLabelSize(http, { diff: "added" }).width;
+    expect(Math.abs(added - plain - (6 + 5 + textWidth("Added", 12) + 6))).toBeLessThanOrEqual(1);
+    const detail = "DELETE /api/orders/:id was removed";
+    const broken = edgeLabelSize(http, { diff: "removed", broken: detail }).width;
+    expect(broken).toBeGreaterThan(textWidth(detail, 12) + 6 + 6);
+    expect(edgeLabelSize(http, {}).width).toBe(plain);
+  });
+});
+
+describe("changeCounts and viewNodeCounts", () => {
+  it("lists the changes inside, leaving out zeros", () => {
+    expect(changeCounts(undefined)).toEqual([]);
+    expect(changeCounts({ added: 2, changed: 0, removed: 1, broken: 3 })).toEqual([
+      { value: 2, noun: "added", plural: "added", diff: "added" },
+      { value: 1, noun: "removed", plural: "removed", diff: "removed" },
+      { value: 3, noun: "broken", plural: "broken", diff: "broken" },
+    ]);
+  });
+
+  it("adds a closed box's change badges after its counts, and none once it's open", () => {
+    const inside = { added: 1, changed: 2, removed: 0, broken: 0 };
+    const marks: DiffMarks = { node: () => undefined, inside: () => inside, line: () => ({}) };
+    const closed = buildView(index, []).byId.get("service:api/");
+    const open = buildView(index, ["service:api/"]).byId.get("service:api/");
+    if (!closed || !open) throw new Error("api isn't visible");
+    const counts = frameCounts(index, "service:api/");
+    expect(viewNodeCounts(index, closed)).toEqual(counts);
+    expect(viewNodeCounts(index, closed, marks)).toEqual([...counts, ...changeCounts(inside)]);
+    expect(viewNodeCounts(index, open, marks)).toEqual(counts);
+    // Each change badge has its dot: wider than the same words without.
+    const width = viewNodeSize(index, closed, marks).width;
+    const words = changeCounts(inside).map((c) => ({ value: c.value, noun: c.noun }));
+    expect(width).toBeGreaterThan(closedSize(closed.node, { counts: [...counts, ...words] }).width);
   });
 });

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { diffGraphs } from "@gitinside/diff";
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
-import { buildDiffOverlay, DiffMismatchError, type DiffOverlay } from "./diff.js";
+import { buildDiffOverlay, DiffMismatchError, diffMarks, type DiffOverlay } from "./diff.js";
 
 const FIXTURES = join(process.cwd(), "../../fixtures");
 const fixture = (name: string): ArchitectureGraph =>
@@ -231,6 +231,43 @@ describe("buildDiffOverlay with nothing changed", () => {
     expect(overlay.nodes.size + overlay.edges.size + overlay.broken.size).toBe(0);
     expect(overlay.inside.size).toBe(0);
     expect(overlay.changes).toEqual({ added: [], changed: [], removed: [], broken: [] });
+  });
+});
+
+describe("diffMarks", () => {
+  const { base, head, diff } = pair("diff-broken");
+  const overlay = buildDiffOverlay(base, head, diff);
+  const marks = diffMarks(overlay);
+  const p = "diff-broken";
+  const added = diff.edges.added[0]?.id ?? "";
+  const removed = diff.edges.removed[0] ?? "";
+  const plain = head.edges.find((e) => !overlay.edges.has(e.id) && !overlay.broken.has(e.id));
+  const broken = [...overlay.broken.values()];
+
+  it("gives nodes their state and closed boxes their counts", () => {
+    expect(marks.node(`file:${p}/src/legacy.ts`)).toBe("removed");
+    expect(marks.node(`service:${p}/`)).toBeUndefined();
+    expect(marks.inside(`file:${p}/src/legacy.ts`)).toEqual(
+      overlay.inside.get(`file:${p}/src/legacy.ts`),
+    );
+  });
+
+  it("gives a line its edges' common state, or changed when they differ", () => {
+    expect(marks.line([{ id: added }])).toEqual({ diff: "added" });
+    expect(marks.line([{ id: added }, { id: diff.edges.added[1]?.id ?? "" }])).toEqual({
+      diff: "added",
+    });
+    expect(marks.line([{ id: added }, { id: plain?.id ?? "" }])).toEqual({ diff: "changed" });
+    expect(marks.line([{ id: added }, { id: removed }])).toEqual({ diff: "changed" });
+    expect(marks.line([{ id: plain?.id ?? "" }])).toEqual({});
+  });
+
+  it("says what broke on a line, or how many connections broke", () => {
+    const [one, two] = broken;
+    expect(marks.line([{ id: one?.edge ?? "" }]).broken).toBe(one?.detail);
+    expect(marks.line([{ id: one?.edge ?? "" }, { id: two?.edge ?? "" }]).broken).toBe(
+      "2 connections broken",
+    );
   });
 });
 

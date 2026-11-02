@@ -1415,6 +1415,8 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
   it("cover the overview, drilling, zooming out, and the trace at two depths and to an unresolved end", async () => {
     expect(Object.keys(all).sort()).toEqual([
       "BrokenDown",
+      "Diff",
+      "DiffBrokenDown",
       "DrilledDeep",
       "Filters",
       "NoApp",
@@ -1452,6 +1454,20 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
         /^Unresolved \(No route in the repo matches\)\. The env var CMS_URL isn't named like an API base \(/,
       ),
     ).toBeTruthy();
+  });
+
+  it("draw the diff-broken pair, diffed in the browser, in the diff stories (M6.9b)", async () => {
+    const { container } = render(<all.Diff />);
+    await settle();
+    expect(container.querySelector('.gi-status[data-tone="diff"]')?.textContent).toBe(
+      "Comparing main → PR #12",
+    );
+    expect(container.querySelectorAll(".gi-badge[data-diff]")).toHaveLength(4);
+    cleanup();
+    const broken = render(<all.DiffBrokenDown />);
+    await settle();
+    expect(broken.container.querySelector('.gi-node[data-diff="removed"]')).not.toBeNull();
+    expect(broken.container.querySelector(".gi-edge[data-broken]")).not.toBeNull();
   });
 
   it("show the warnings in the warnings story and the no-app card in its story", async () => {

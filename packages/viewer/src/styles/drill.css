@@ -45,6 +45,16 @@
   pointer-events: none;
 }
 
+/*
+ * Diff mode's Base or Head (M6.9b): what isn't in that version keeps its
+ * place on the overlay's layout but isn't drawn, so switching moves nothing.
+ */
+.gi-drill__node[data-absent],
+.gi-drill .gi-edge[data-absent],
+.gi-drill .gi-edge-label[data-absent] {
+  visibility: hidden;
+}
+
 .gi-drill__node > .gi-node {
   width: 100%;
   height: 100%;

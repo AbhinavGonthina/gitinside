@@ -1,14 +1,15 @@
 import { compareStrings } from "@gitinside/schema";
-import type { ArchitectureGraph, EdgeKind, GraphNode } from "@gitinside/schema";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import type { ArchitectureGraph, EdgeKind, GraphDiff, GraphNode } from "@gitinside/schema";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Button, StatusChip } from "../chrome/controls.js";
-import type { RepoRef } from "../chrome/describe.js";
+import { shortSha, type RepoRef } from "../chrome/describe.js";
 import { EmptyState, WarningList } from "../chrome/EmptyState.js";
 import { FiltersPopover } from "../chrome/FiltersPopover.js";
 import { ShareMenu } from "../chrome/ShareMenu.js";
 import { viewExport, type ViewExport } from "../export/files.js";
 import { Breadcrumbs, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
-import { TopBar } from "../chrome/TopBar.js";
+import { TopBar, type DiffView } from "../chrome/TopBar.js";
+import { buildDiffOverlay, DiffMismatchError, diffMarks } from "../model/diff.js";
 import {
   createLayoutCache,
   createLayoutEngine,
@@ -153,7 +154,31 @@ export interface ExplorerProps {
   layoutWorker?: LayoutWorkerFactory | undefined;
   /** How many boxes and lines a level needs before the canvas culls it (default `CULL_FROM`). */
   cullFrom?: number | undefined;
+  /**
+   * Diff mode (UX.md "Diff mode"): compare `graph`, the head, with a base
+   * commit's graph through `packages/diff`'s diff of the two. The canvas then
+   * draws both versions on one layout (`buildDiffOverlay`) as the Overlay
+   * (added, changed, removed ghosted, broken connections), or Base or Head
+   * alone from the top bar. A diff of other graphs shows an error card.
+   */
+  diff?: ExplorerDiff | undefined;
 }
+
+/** What diff mode compares `graph` (the head) with. */
+export interface ExplorerDiff {
+  base: ArchitectureGraph;
+  diff: GraphDiff;
+  /** The base and head as the chip names them ("main", "PR #12"); default their short SHAs. */
+  baseName?: string | undefined;
+  headName?: string | undefined;
+}
+
+/** Each diff view in words, for announcements. */
+const VERSION_TEXT: Readonly<Record<DiffView, string>> = {
+  base: "the base version",
+  head: "the head version",
+  overlay: "the changes between base and head",
+};
 
 /** This page's URL with a state's query (the default `linkTo`). */
 function pageLink(query: string): string {
@@ -199,7 +224,7 @@ function deepestOpen(view: GraphView, expansion: Expansion): string | undefined 
  * between services.
  */
 export function Explorer({
-  graph,
+  graph: given,
   sources,
   loadSource,
   traceStart,
@@ -217,7 +242,24 @@ export function Explorer({
   onboarding,
   layoutWorker,
   cullFrom,
+  diff: compare,
 }: ExplorerProps) {
+  // Diff mode (M6.9b): both versions in one graph, drawn with their states.
+  const compareBase = compare?.base;
+  const compareDiff = compare?.diff;
+  const compared = useMemo(() => {
+    if (!compareBase || !compareDiff) return undefined;
+    try {
+      return { overlay: buildDiffOverlay(compareBase, given, compareDiff) };
+    } catch (e) {
+      if (e instanceof DiffMismatchError) return { mismatch: e.message };
+      throw e;
+    }
+  }, [compareBase, compareDiff, given]);
+  const overlay = compared?.overlay;
+  const marks = useMemo(() => overlay && diffMarks(overlay), [overlay]);
+  const [version, setVersion] = useState<DiffView>("overlay");
+  const graph = overlay?.graph ?? given;
   const index = useMemo(() => buildHierarchy(graph), [graph]);
   const hasApp = useMemo(() => hasSourceFiles(graph), [graph]);
   const sourceAccess = useSourceAccess(sources, loadSource);
@@ -231,7 +273,10 @@ export function Explorer({
     setEngine(made);
     return () => made.dispose();
   }, [layoutWorker]);
-  const cache = useMemo(() => engine && createLayoutCache(index, engine), [index, engine]);
+  const cache = useMemo(
+    () => engine && createLayoutCache(index, engine, undefined, marks),
+    [index, engine, marks],
+  );
   // The filters (M4b.8b): nodes and confidence levels, and connection kinds (imports off).
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [hiddenKinds, setHiddenKinds] = useState<ReadonlySet<EdgeKind>>(() =>
@@ -574,6 +619,12 @@ export function Explorer({
   /** The reader did what a hint says: if it's the one showing, it moves on. */
   function hintDone(step: HintStep) {
     if (hintsOn && hints?.steps[hints.at] === step) nextHint();
+  }
+
+  /** Diff mode's Base, Head, or Overlay from the top bar, said aloud. */
+  function showVersion(next: DiffView) {
+    setVersion(next);
+    setAnnouncement(`Showing ${VERSION_TEXT[next]}`);
   }
 
   /** Selects a node (or none), saying what it connects to (UX.md). */
@@ -924,9 +975,15 @@ export function Explorer({
   /**
    * While tracing: the current hop's boxes are `current`, the rest of the
    * path `traced`, an open frame holding part of it plain, everything else
-   * dimmed. The selection is drawn either way.
+   * dimmed. The selection is drawn either way. In diff mode's Overlay each
+   * box shows its state and, closed, the changes inside it; Base and Head
+   * leave out what the version doesn't have, in place.
    */
   const boxLook = (n: ViewNode): BoxLook => ({
+    ...(overlay && version === "overlay"
+      ? { diff: overlay.nodes.get(n.id), changes: overlay.inside.get(n.id) }
+      : {}),
+    ...(overlay && version !== "overlay" ? { absent: !overlay.nodesIn[version].has(n.id) } : {}),
     selected: selectedBox === n.id,
     emphasis: !tracing
       ? undefined
@@ -944,11 +1001,16 @@ export function Explorer({
 
   /**
    * While tracing: the current step's line is `current`, the rest of the path
-   * `traced`, everything else dimmed. Otherwise the selection's lines are selected.
+   * `traced`, everything else dimmed. Otherwise the selection's lines are
+   * selected. In diff mode, like the boxes: the Overlay's states and broken
+   * connections, or only the lines of the version shown.
    */
   const lineLook = (e: ViewEdge): LineLook => {
     const isHop = current !== undefined && e.edges.some((g) => g.id === current.edge.id);
+    const inVersion = overlay && version !== "overlay" ? overlay.edgesIn[version] : undefined;
     return {
+      ...(marks && version === "overlay" ? marks.line(e.edges) : {}),
+      ...(inVersion ? { absent: !e.edges.some((g) => inVersion.has(g.id)) } : {}),
       selected: !tracing && (selectedBox === e.from || selectedBox === e.to),
       emphasis: !tracing ? undefined : isHop ? "current" : onPath(e) ? "traced" : "dimmed",
       flow: onPath(e),
@@ -993,6 +1055,25 @@ export function Explorer({
         onClose={() => closeFilters()}
       />
     );
+
+  // A diff that doesn't belong to these graphs (ADR-0182): say so where the
+  // diagram would be, rather than draw a wrong comparison.
+  if (compared?.mismatch !== undefined) {
+    return (
+      <div ref={rootRef} className="gi-explorer" data-bare={topBar ? undefined : ""} data-empty="">
+        {topBar && <TopBar repo={repo} actions={false} />}
+        <div className="gi-explorer__main">
+          <div className="gi-explorer__canvas" role="region" aria-label="Diagram">
+            <EmptyState tone="error" title="This comparison doesn't match these commits">
+              <p>
+                The changes couldn&apos;t be drawn because {compared.mismatch}. Nothing was guessed.
+              </p>
+            </EmptyState>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // No TypeScript or JavaScript app (UX.md "States"): one card where the
   // diagram would be, with what was skipped and why, instead of an empty
@@ -1041,6 +1122,7 @@ export function Explorer({
           filtersOpen={filtering}
           onFilters={() => toggleFilters("top")}
           share={<ShareMenu link={() => linkTo(linkKey)} exports={() => exported} />}
+          diff={overlay ? { value: version, onChange: showVersion } : undefined}
           tracing={tracing}
           onTrace={toggleTrace}
         />
@@ -1090,12 +1172,19 @@ export function Explorer({
             viewport={onScreen}
             keep={keptBoxes}
             cullFrom={cullFrom}
+            marks={marks}
           />
           <div
             className="gi-explorer__pin"
             data-place="top-left"
             onClick={(e) => e.stopPropagation()}
           >
+            {overlay && compare && (
+              <StatusChip tone="diff">
+                Comparing {compareName(compare.baseName, compare.base)} →{" "}
+                {compareName(compare.headName, given)}
+              </StatusChip>
+            )}
             {tracing && (
               <StatusChip tone="trace" exitLabel="Exit trace" onExit={toggleTrace}>
                 Tracing <code>{traceName(path.start)}</code>
@@ -1265,6 +1354,11 @@ export function filtersText(count: number, nodes: number, lines: number): string
   const off =
     nodes > 0 ? n(nodes, "hidden", "hidden") : n(lines, "connection hidden", "connections hidden");
   return `${n(count, "filter", "filters")} · ${off}`;
+}
+
+/** A compared commit in the diff chip: the name given, else its short SHA. */
+function compareName(name: string | undefined, graph: ArchitectureGraph): ReactNode {
+  return name ?? <code>{graph.repo.sha ? shortSha(graph.repo.sha) : graph.repo.name}</code>;
 }
 
 /** A trace's start in the status chip: a page's path, a route's method and path (GET and POST share one). */

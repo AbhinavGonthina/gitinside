@@ -2,6 +2,7 @@ import type { GraphNode, Layer } from "@gitinside/schema";
 import type { HTMLAttributes, ReactNode } from "react";
 import { IconTile, isTileShape, NodeIcon, TILE_ICON_SIZE } from "../icons/Icon.js";
 import {
+  changesText,
   countText,
   DIFF_TEXT,
   modelFieldsText,
@@ -59,10 +60,12 @@ function Badges({ counts }: Pick<DiagramNodeProps, "counts">) {
     <span className="gi-node__badges">
       {counts.map((c) => (
         <span
-          key={c.noun}
+          key={c.diff ? `diff:${c.diff}` : c.noun}
           className="gi-badge"
           {...(c.unresolved ? { "data-unresolved": "" } : {})}
+          {...(c.diff ? { "data-diff": c.diff } : {})}
         >
+          {c.diff && <span className="gi-badge__dot" aria-hidden />}
           {countText(c)}
         </span>
       ))}
@@ -110,6 +113,8 @@ export function DiagramNode({
   const fields = modelFieldsText(node);
   // A role that carries selection (the canvas's tree items) says it; the name doesn't repeat it.
   const named = rest["aria-selected"] === undefined && selected;
+  // A box holding changes says so in words too, as its badges do.
+  const changes = changesText(counts ?? []);
 
   const attrs = {
     ...rest,
@@ -117,7 +122,9 @@ export function DiagramNode({
     "data-tier": tier,
     "data-kind": node.kind,
     "data-shape": shape,
-    "aria-label": nodeAccessibleName(node, { selected: named, emphasis, diff }),
+    "aria-label": [nodeAccessibleName(node, { selected: named, emphasis, diff }), changes]
+      .filter(Boolean)
+      .join(". "),
     ...(tier === "frame" ? { "data-expanded": String(open) } : {}),
     ...(tint ? { "data-layer": tint } : {}),
     ...(hovered ? { "data-hover": "" } : {}),

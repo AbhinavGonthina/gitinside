@@ -175,17 +175,27 @@ export {
   normalizeFolder,
 } from "./model/filters.js";
 export type { FilterOption, FilterOptions, Filters } from "./model/filters.js";
-export { buildDiffOverlay, DiffMismatchError } from "./model/diff.js";
+export { buildDiffOverlay, DiffMismatchError, diffMarks } from "./model/diff.js";
 export type {
   BrokenConnection,
   ChangeItem,
   ChangesList,
   ChangeStatus,
   DiffCounts,
+  DiffMarks,
   DiffOverlay,
   DiffVersion,
+  LineMark,
 } from "./model/diff.js";
-export { closedSize, edgeLabelSize, frameCounts, openHeader, viewNodeSize } from "./layout/size.js";
+export {
+  changeCounts,
+  closedSize,
+  edgeLabelSize,
+  frameCounts,
+  openHeader,
+  viewNodeCounts,
+  viewNodeSize,
+} from "./layout/size.js";
 export type { Size, SizeContext } from "./layout/size.js";
 export {
   ELK_OPTIONS,
@@ -295,7 +305,7 @@ export type { EmptyStateProps, WarningListProps } from "./chrome/EmptyState.js";
 export { groupWarnings, hasSourceFiles, WARNING_TITLES, warningCount } from "./model/warnings.js";
 export type { WarningGroup } from "./model/warnings.js";
 export { Explorer } from "./explorer/Explorer.js";
-export type { ExplorerProps } from "./explorer/Explorer.js";
+export type { ExplorerDiff, ExplorerProps } from "./explorer/Explorer.js";
 export type { UiIconName } from "./chrome/uiIcons.js";
 export type {
   NodeCount,

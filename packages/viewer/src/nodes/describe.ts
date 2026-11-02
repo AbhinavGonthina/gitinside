@@ -273,6 +273,14 @@ export interface NodeCount {
   plural?: string;
   /** Draw the badge in the unresolved style (dotted), for counts of unresolved items. */
   unresolved?: boolean;
+  /** Diff mode: a count of changes inside, drawn with that state's dot and color. */
+  diff?: NodeDiff | "broken";
+}
+
+/** "Changes inside: 2 added, 1 broken", from a box's change badges; empty without any. */
+export function changesText(counts: readonly NodeCount[]): string {
+  const changes = counts.filter((c) => c.diff !== undefined);
+  return changes.length === 0 ? "" : `Changes inside: ${changes.map(countText).join(", ")}`;
 }
 
 /** "1 route", "12 routes", "1,204 files". */
