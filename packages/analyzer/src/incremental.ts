@@ -11,6 +11,8 @@
  * - **Clean:** an entry whose inputs all still answer the same ({@link createInputVerifier})
  *   and whose repo-wide facts (the router and queue-library checks, every wrapper's ID) are
  *   the run's. Those are computed over every program, so a service's log can't show them.
+ *   Services that reached the same programs have equal inputs, stored with one digest
+ *   ({@link inputsDigest}), so a run verifies each distinct set once (M6.8b).
  * - **Reuse:** when every service is clean, the graph is composed from the entries with no
  *   program built; the repo-wide facts are then predicted from the entries' own parts
  *   ({@link repoFactsOf}), each of which its inputs vouch for. Otherwise `analyze` builds every
@@ -30,6 +32,7 @@ import type { ServiceFacts } from "./facts.js";
 import {
   createFileHasher,
   createInputVerifier,
+  inputsDigest,
   programRootFiles,
   type ObservedInputs,
 } from "./inputs.js";
@@ -53,6 +56,8 @@ export interface RepoFacts {
 export interface CachedService {
   facts: ServiceFacts;
   inputs: ObservedInputs;
+  /** {@link inputsDigest} of `inputs`: entries with equal inputs are verified once per run. */
+  inputsDigest: string;
   /** The repo-wide facts the service's facts were collected under. */
   repo: RepoFacts;
   /** Whether the service's own root files name a queue library: its part of `repo.queues`. */
@@ -68,7 +73,7 @@ export interface FactKeys {
 }
 
 /** Bump when what an entry means changes without the analyzer's version changing. */
-const KEY_FORMAT = 2;
+const KEY_FORMAT = 3;
 
 /**
  * The global part of every service's key: what its facts depend on that no input log records.
@@ -131,6 +136,7 @@ function isCachedService(value: unknown, service: string): value is CachedServic
   if (!("facts" in value) || !("inputs" in value)) return false;
   if (!("repo" in value) || !isRepoFacts(value.repo)) return false;
   if (!("queueLibrary" in value) || typeof value.queueLibrary !== "boolean") return false;
+  if (!("inputsDigest" in value) || typeof value.inputsDigest !== "string") return false;
   const { facts, inputs } = value;
   return (
     typeof facts === "object" &&
@@ -199,13 +205,24 @@ export async function reusableFacts(
   forced: ReadonlySet<string> = new Set(),
 ): Promise<Map<string, CachedService>> {
   const verify = createInputVerifier(root, workspace, inventory, hashOf);
+  /** Whether inputs still hold, by digest: services that reached the same programs share them. */
+  const holds = new Map<string, Promise<boolean>>();
   const clean = new Map<string, CachedService>();
-  for (const { key } of workspace.packages) {
+  // Entries are read at once (the cache unzips them off the main thread), checked in order.
+  const read = workspace.packages.map(({ key }) => {
     const entryKey = keys.get(key);
-    if (entryKey === undefined || forced.has(key)) continue;
-    const value = await cache.get(entryKey);
+    if (entryKey === undefined || forced.has(key)) return undefined;
+    return cache.get(entryKey).catch(() => undefined);
+  });
+  for (const [i, { key }] of workspace.packages.entries()) {
+    const value = await read[i];
     if (!isCachedService(value, key)) continue;
-    if ((await verify(value.inputs)) !== undefined) continue;
+    let held = holds.get(value.inputsDigest);
+    if (!held) {
+      held = verify(value.inputs).then((changed) => changed === undefined);
+      holds.set(value.inputsDigest, held);
+    }
+    if (!(await held)) continue;
     clean.set(key, value);
   }
   if (clean.size === workspace.packages.length) {
@@ -217,6 +234,9 @@ export async function reusableFacts(
   return clean;
 }
 
+/** At most this many entries are being stored at once: libuv's default thread pool size. */
+export const PUTS_IN_FLIGHT = 4;
+
 /** What {@link storeFacts} stores for one service, besides its facts. */
 export interface StoredService {
   inputs: ObservedInputs;
@@ -227,7 +247,9 @@ export interface StoredService {
 /**
  * Store each service's facts with its observed inputs and the run's repo-wide facts `repo`
  * under its key, except bundles with a failed collection or a TypeScript internal error.
- * Never throws (the cache counts its own failures).
+ * Up to {@link PUTS_IN_FLIGHT} entries are handed to the cache at once, in `bundles` order,
+ * so a cache that compresses off the main thread does them side by side while only a few
+ * serialized entries are held at a time. Never throws (the cache counts its own failures).
  */
 export async function storeFacts(
   cache: FactCache,
@@ -236,17 +258,34 @@ export async function storeFacts(
   stored: ReadonlyMap<string, StoredService>,
   repo: RepoFacts,
 ): Promise<void> {
+  /** Digests by inputs object: services that reached the same programs share one. */
+  const digests = new Map<ObservedInputs, string>();
+  const entries: [key: string, entry: CachedService][] = [];
   for (const facts of bundles) {
     const key = keys.get(facts.service);
     const service = stored.get(facts.service);
     if (key === undefined || service === undefined) continue;
     if (facts.failed.length > 0 || facts.analyzerWarnings.length > 0) continue;
+    let digest = digests.get(service.inputs);
+    if (digest === undefined) {
+      digest = inputsDigest(service.inputs);
+      digests.set(service.inputs, digest);
+    }
     const entry: CachedService = {
       facts,
       inputs: service.inputs,
+      inputsDigest: digest,
       repo,
       queueLibrary: service.queueLibrary(),
     };
-    await cache.put(key, entry);
+    entries.push([key, entry]);
   }
+  let next = 0;
+  const putting = async (): Promise<void> => {
+    for (let i = next++; i < entries.length; i = next++) {
+      const [key, entry] = entries[i] ?? [];
+      if (key !== undefined && entry) await cache.put(key, entry).catch(() => undefined);
+    }
+  };
+  await Promise.all(Array.from({ length: PUTS_IN_FLIGHT }, putting));
 }

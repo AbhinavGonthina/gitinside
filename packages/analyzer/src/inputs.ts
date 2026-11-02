@@ -152,11 +152,26 @@ export function mergeInputs(all: readonly ObservedInputs[]): ObservedInputs {
  * Each service's observed inputs, by service key: its own program's, plus those of every
  * program its analysis reached ({@link SymbolResolver.reached}), transitively. Call after the
  * last stage that uses the resolver.
+ *
+ * Each program's log is snapshotted once, and services that reached the same programs share
+ * one merged object (M6.8b: in cal.com most of 113 services reach the same 75 programs, and
+ * merging each one's own copy cost about 2 s).
  */
 export function serviceInputs(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
 ): Map<string, ObservedInputs> {
+  const snapshots = new Map<ServiceProgram, ObservedInputs>();
+  const snapshot = (sp: ServiceProgram): ObservedInputs => {
+    let observed = snapshots.get(sp);
+    if (!observed) {
+      observed = sp.inputs.snapshot();
+      snapshots.set(sp, observed);
+    }
+    return observed;
+  };
+  /** Merged inputs by the sorted service keys of the programs reached. */
+  const merged = new Map<string, ObservedInputs>();
   const result = new Map<string, ObservedInputs>();
   for (const sp of programs) {
     const seen = new Set<ServiceProgram>([sp]);
@@ -168,9 +183,23 @@ export function serviceInputs(
         queue.push(other);
       }
     }
-    result.set(sp.service.key, mergeInputs([...seen].map((p) => p.inputs.snapshot())));
+    const reach = JSON.stringify([...seen].map((p) => p.service.key).sort(compareStrings));
+    let inputs = merged.get(reach);
+    if (!inputs) {
+      inputs = mergeInputs([...seen].map(snapshot));
+      merged.set(reach, inputs);
+    }
+    result.set(sp.service.key, inputs);
   }
   return result;
+}
+
+/**
+ * The SHA-256 (hex) of `inputs`' JSON, which names equal observations alike (every list is
+ * sorted), so a run can verify each distinct set once.
+ */
+export function inputsDigest(inputs: ObservedInputs): string {
+  return createHash("sha256").update(JSON.stringify(inputs)).digest("hex");
 }
 
 /**

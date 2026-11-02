@@ -72,6 +72,24 @@ describe("openDiskCache", () => {
     });
   });
 
+  it("stores a value as it was when put, with puts side by side (M6.8b)", async () => {
+    const cache = await openDiskCache(dir);
+    const value = { list: [1] };
+    const puts = [cache.put("a", value), cache.put("b", { other: true })];
+    value.list.push(2);
+    await Promise.all(puts);
+    expect(await cache.get("a")).toEqual({ list: [1] });
+    expect(await cache.get("b")).toEqual({ other: true });
+    expect(cache.stats()).toMatchObject({ writes: 2, entries: 2, errors: 0 });
+  });
+
+  it("counts a value JSON can't serialize as an error, without throwing", async () => {
+    const cache = await openDiskCache(dir);
+    await cache.put("k", { big: 1n });
+    expect(cache.stats()).toMatchObject({ writes: 0, entries: 0, errors: 1 });
+    expect(await cache.get("k")).toBeUndefined();
+  });
+
   it("keeps key order and drops undefined properties, like JSON", async () => {
     const cache = await openDiskCache(dir);
     await cache.put("k", { b: 1, a: 2, gone: undefined });
