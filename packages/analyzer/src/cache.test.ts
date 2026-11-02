@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -18,6 +18,17 @@ afterEach(async () => {
 
 /** Set an entry's modification time to `seconds` after the epoch. */
 const age = (key: string, seconds: number) => utimes(entryFile(dir, key), seconds, seconds);
+
+/** The total size of every file under `root` (entries and temporary files alike). */
+async function folderBytes(root: string): Promise<number> {
+  const names = await readdir(root, { recursive: true }).catch(() => [] as string[]);
+  let total = 0;
+  for (const name of names) {
+    const info = await stat(join(root, name)).catch(() => null);
+    if (info?.isFile()) total += info.size;
+  }
+  return total;
+}
 
 /** A value whose gzipped entry is roughly `bytes` long (random-looking text barely compresses). */
 function bulky(seed: number, bytes: number): string {
@@ -129,6 +140,89 @@ describe("openDiskCache", () => {
     expect(await cache.get("d")).toEqual(bulky(4, 4000));
     expect(cache.stats()).toMatchObject({ evictions: 2, entries: 2, errors: 0 });
     expect(cache.stats().bytes).toBeLessThanOrEqual(Math.floor(maxBytes * 0.9));
+  });
+
+  it("makes room before writing, so the folder never holds more than the cap", async () => {
+    const probe = await openDiskCache(join(dir, "probe"));
+    await probe.put("p", bulky(1, 4000));
+    const size = probe.stats().bytes;
+
+    // Room for two entries: before a third is written, the folder already holds 2 × size.
+    const maxBytes = Math.floor(size * 2.5);
+    const folder = join(dir, "cache");
+    const cache = await openDiskCache(folder, { maxBytes });
+    await cache.put("a", bulky(1, 4000));
+    await cache.put("b", bulky(2, 4000));
+    await utimes(entryFile(folder, "a"), 1_000, 1_000);
+    await utimes(entryFile(folder, "b"), 2_000, 2_000);
+
+    // A write that fails once it starts shows the order: room was made before it.
+    const shard = dirname(entryFile(folder, "c"));
+    await writeFile(shard, "in the way");
+    await cache.put("c", bulky(3, 4000));
+    expect(await cache.get("a")).toBeUndefined();
+    expect(cache.stats()).toMatchObject({ evictions: 1, entries: 1, errors: 1 });
+    expect(await readdir(join(folder, "tmp"))).toEqual([]);
+
+    await rm(shard);
+    await cache.put("c", bulky(3, 4000));
+    expect(await cache.get("b")).toEqual(bulky(2, 4000));
+    expect(await cache.get("c")).toEqual(bulky(3, 4000));
+    expect(cache.stats()).toMatchObject({ evictions: 1, entries: 2 });
+    expect(await folderBytes(folder)).toBeLessThanOrEqual(maxBytes);
+  });
+
+  it("makes room for writes started together one at a time", async () => {
+    const probe = await openDiskCache(join(dir, "probe"));
+    await probe.put("p", bulky(1, 4000));
+    const maxBytes = Math.floor(probe.stats().bytes * 2.5);
+    const folder = join(dir, "cache");
+    const cache = await openDiskCache(folder, { maxBytes });
+    await Promise.all([1, 2, 3, 4].map((seed) => cache.put(`k${seed}`, bulky(seed, 4000))));
+    expect(cache.stats()).toMatchObject({ writes: 4, errors: 0 });
+    expect(cache.stats().entries).toBeLessThanOrEqual(2);
+    expect(await folderBytes(folder)).toBeLessThanOrEqual(maxBytes);
+    expect(await cache.get("k4")).toEqual(bulky(4, 4000));
+  });
+
+  it("evicts on open when the folder holds more than a smaller cap", async () => {
+    const big = await openDiskCache(dir);
+    await big.put("a", bulky(1, 4000));
+    await big.put("b", bulky(2, 4000));
+    await big.put("c", bulky(3, 4000));
+    const size = big.stats().bytes / 3;
+    await age("a", 3_000);
+    await age("b", 1_000);
+    await age("c", 2_000);
+
+    // Room for two; 90% of it holds one, the most recently used.
+    const maxBytes = Math.floor(size * 2.1);
+    const small = await openDiskCache(dir, { maxBytes });
+    expect(small.stats()).toMatchObject({ evictions: 2, entries: 1 });
+    expect(await folderBytes(dir)).toBeLessThanOrEqual(maxBytes);
+    expect(await small.get("a")).toEqual(bulky(1, 4000));
+    expect(await small.get("b")).toBeUndefined();
+    expect(await small.get("c")).toBeUndefined();
+  });
+
+  it("counts each entry as whole blocks of `blockBytes`", async () => {
+    const cache = await openDiskCache(dir, { blockBytes: 4096 });
+    await cache.put("a", "small");
+    await cache.put("b", "also small");
+    expect(cache.stats()).toMatchObject({ entries: 2, bytes: 2 * 4096 });
+    expect((await openDiskCache(dir, { blockBytes: 4096 })).stats().bytes).toBe(2 * 4096);
+    // The plain count is the files' own sizes.
+    expect((await openDiskCache(dir)).stats().bytes).toBe(await folderBytes(dir));
+
+    // Under a cap of one block and a half, a second tiny entry doesn't fit beside the first.
+    const tight = await openDiskCache(join(dir, "tight"), { maxBytes: 6144, blockBytes: 4096 });
+    await tight.put("a", "small");
+    await tight.put("b", "also small");
+    expect(tight.stats()).toMatchObject({ entries: 1, bytes: 4096, evictions: 1 });
+    // An entry bigger than the cap once rounded up is never stored.
+    const tiny = await openDiskCache(join(dir, "tiny"), { maxBytes: 4095, blockBytes: 4096 });
+    await tiny.put("a", "small");
+    expect(tiny.stats()).toMatchObject({ entries: 0, writes: 0 });
   });
 
   it("never stores an entry larger than the cap", async () => {

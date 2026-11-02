@@ -20,6 +20,20 @@ export interface ChildJob {
   owner: string;
   name: string;
   sha?: string;
+  /**
+   * The fact cache folder the child may read and write, and its cap there (factcache.ts).
+   * Without it the analysis runs cold and stores nothing.
+   */
+  cache?: { dir: string; maxBytes: number };
+}
+
+/** What the child's fact cache did during one analysis (`openDiskCache`'s counters). */
+export interface CacheCounts {
+  hits: number;
+  misses: number;
+  writes: number;
+  evictions: number;
+  errors: number;
 }
 
 /** Counts and timings from a finished analysis; they feed `analyses.stats`. */
@@ -42,6 +56,16 @@ export interface AnalysisStats {
    */
   peakRssBytes?: number;
   heapBytes?: number;
+  /** The fact cache's counters, when the job had a cache. */
+  cache?: CacheCounts;
+}
+
+const CACHE_COUNTS = ["hits", "misses", "writes", "evictions", "errors"] as const;
+
+/** Only the {@link CacheCounts} fields of `counts` (a cache's stats hold more). */
+export function cacheCounts(counts: CacheCounts): CacheCounts {
+  const { hits, misses, writes, evictions, errors } = counts;
+  return { hits, misses, writes, evictions, errors };
 }
 
 /** The child's one-line answer. A failure here is a known analyzer failure (`LIMIT_FILES`). */
@@ -64,17 +88,30 @@ function isCount(value: unknown): value is number {
 export function parseChildJob(text: string): ChildJob {
   const value: unknown = JSON.parse(text);
   if (!isRecord(value)) throw new Error("job must be an object");
-  const { src, out, owner, name, sha } = value;
+  const { src, out, owner, name, sha, cache } = value;
   for (const [key, field] of Object.entries({ src, out, owner, name })) {
     if (typeof field !== "string" || field === "") throw new Error(`job.${key} must be a string`);
   }
   if (sha !== undefined && typeof sha !== "string") throw new Error("job.sha must be a string");
+  if (
+    cache !== undefined &&
+    (!isRecord(cache) ||
+      typeof cache.dir !== "string" ||
+      cache.dir === "" ||
+      !isCount(cache.maxBytes) ||
+      cache.maxBytes === 0)
+  ) {
+    throw new Error("job.cache must have a folder and a positive cap");
+  }
   return {
     src: src as string,
     out: out as string,
     owner: owner as string,
     name: name as string,
     ...(sha === undefined ? {} : { sha }),
+    ...(cache === undefined
+      ? {}
+      : { cache: { dir: cache.dir as string, maxBytes: cache.maxBytes as number } }),
   };
 }
 
@@ -143,10 +180,16 @@ export function parseChildReport(text: string): ChildReport | undefined {
   }
   if (value.ok !== true || !isRecord(value.stats)) return undefined;
   const { files, nodes, edges, unresolved, warnings, graphBytes, stageMs } = value.stats;
-  const { peakRssBytes, heapBytes } = value.stats;
+  const { peakRssBytes, heapBytes, cache } = value.stats;
   if (![files, nodes, edges, unresolved, warnings, graphBytes].every(isCount)) return undefined;
   if (!isRecord(stageMs) || !Object.values(stageMs).every(isCount)) return undefined;
   if (![peakRssBytes, heapBytes].every((bytes) => bytes === undefined || isCount(bytes))) {
+    return undefined;
+  }
+  if (
+    cache !== undefined &&
+    (!isRecord(cache) || !CACHE_COUNTS.every((key) => isCount(cache[key])))
+  ) {
     return undefined;
   }
   return {
@@ -161,6 +204,9 @@ export function parseChildReport(text: string): ChildReport | undefined {
       stageMs: stageMs as Record<string, number>,
       ...(peakRssBytes === undefined ? {} : { peakRssBytes: peakRssBytes as number }),
       ...(heapBytes === undefined ? {} : { heapBytes: heapBytes as number }),
+      ...(cache === undefined
+        ? {}
+        : { cache: cacheCounts(cache as Record<(typeof CACHE_COUNTS)[number], number>) }),
     },
   };
 }

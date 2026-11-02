@@ -16,16 +16,24 @@
  * - **Writes** go to a temporary file first and are renamed into place, so a reader (in this or
  *   another process) sees a whole entry or none. Two processes writing one key both write the
  *   same value (facts are deterministic), so the last rename wins harmlessly.
- * - **Size:** entries are gzipped. When the total passes `maxBytes`, the folder is listed again
- *   (other processes may have written to it) and the least recently used entries, by file
- *   modification time, are deleted until the total is at most 90% of `maxBytes`. A read that
- *   hits touches the entry's time. An entry larger than `maxBytes` is never stored.
+ * - **Size:** entries are gzipped, and each counts as its size rounded up to whole blocks of
+ *   `blockBytes` (what an in-memory `/tmp` allocates per file). Before a write that would take
+ *   the total past `maxBytes`, the folder is listed again (other processes may have written to
+ *   it) and the least recently used entries, by file modification time, are deleted until the
+ *   total with the new entry is at most 90% of `maxBytes` (or nothing else is left), so the
+ *   folder's entries and the file being written never hold more than `maxBytes` at once. If
+ *   room can't be made, the write is skipped. Opening with a smaller cap than the folder holds
+ *   evicts the same way. A read that hits touches the entry's time. An entry larger than
+ *   `maxBytes` is never stored.
  * - **Failures never fail an analysis:** an unreadable, corrupt, or mismatched entry is a miss
  *   (and is deleted); a write or eviction that fails is counted in {@link CacheStats.errors}
  *   and otherwise ignored. A miss only costs time, since the caller recomputes the value.
  *
  * Not handled: sharing one folder between machines (times and renames are local-disk
- * semantics), and limits on the entry count (only bytes are bounded).
+ * semantics), limits on the entry count (only bytes are bounded, though `blockBytes` makes
+ * small entries count what they really take), the shard folders' own blocks, and the bound
+ * while another process writes the same folder (each counts the other's entries only when it
+ * lists the folder).
  */
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
@@ -81,6 +89,11 @@ export interface DiskCache extends FactCache {
 export interface DiskCacheOptions {
   /** Size cap in bytes of gzipped entries. Defaults to {@link DEFAULT_CACHE_BYTES}. */
   maxBytes?: number;
+  /**
+   * Each entry counts as its size rounded up to a multiple of this, e.g. 4,096 for a
+   * file system that allocates whole pages. Defaults to 1 (the files' own sizes).
+   */
+  blockBytes?: number;
 }
 
 /**
@@ -103,8 +116,14 @@ interface Listed {
   time: number;
 }
 
-/** Every entry file in the cache folder with its size and modification time. */
-async function listEntries(entriesDir: string): Promise<Listed[]> {
+/**
+ * Every entry file in the cache folder with its modification time and its size, counted by
+ * `counted` (rounded up to whole blocks).
+ */
+async function listEntries(
+  entriesDir: string,
+  counted: (size: number) => number,
+): Promise<Listed[]> {
   const listed: Listed[] = [];
   const shards = await readdir(entriesDir).catch(() => [] as string[]);
   for (const shard of shards.sort(compareStrings)) {
@@ -113,7 +132,7 @@ async function listEntries(entriesDir: string): Promise<Listed[]> {
       if (!ENTRY_NAME.test(name)) continue;
       const file = join(entriesDir, shard, name);
       const info = await stat(file).catch(() => null);
-      if (info?.isFile()) listed.push({ file, size: info.size, time: info.mtimeMs });
+      if (info?.isFile()) listed.push({ file, size: counted(info.size), time: info.mtimeMs });
     }
   }
   return listed;
@@ -140,6 +159,8 @@ export async function openDiskCache(
   options: DiskCacheOptions = {},
 ): Promise<DiskCache> {
   const maxBytes = options.maxBytes ?? DEFAULT_CACHE_BYTES;
+  const blockBytes = options.blockBytes ?? 1;
+  const counted = (size: number): number => Math.ceil(size / blockBytes) * blockBytes;
   const entriesDir = join(dir, "entries");
   const tmpDir = join(dir, "tmp");
   await mkdir(entriesDir, { recursive: true });
@@ -165,7 +186,6 @@ export async function openDiskCache(
     counters.bytes = listed.reduce((sum, entry) => sum + entry.size, 0);
     counters.entries = listed.length;
   };
-  recount(await listEntries(entriesDir));
 
   /** Delete an entry file, keeping the counters in step. False when it failed. */
   const remove = async (file: string, size: number): Promise<boolean> => {
@@ -180,25 +200,54 @@ export async function openDiskCache(
     return true;
   };
 
-  /** Delete least recently used entries until the total is at most the low-water mark. */
-  const evictNow = async (): Promise<void> => {
-    const listed = await listEntries(entriesDir);
+  /**
+   * List the folder again, then delete least recently used entries until the total plus
+   * `reserve` (an entry about to be written) is at most the low-water mark, or none is left.
+   */
+  const evict = async (reserve: number): Promise<void> => {
+    const listed = await listEntries(entriesDir, counted);
     recount(listed);
     listed.sort((a, b) => a.time - b.time || compareStrings(a.file, b.file));
     const target = Math.floor(maxBytes * LOW_WATER);
     for (const entry of listed) {
-      if (counters.bytes <= target) break;
+      if (counters.bytes + reserve <= target) break;
       if (await remove(entry.file, entry.size)) counters.evictions++;
     }
   };
-  let eviction: Promise<void> | undefined;
-  /** Run one eviction at a time; puts that pass the cap meanwhile share it. */
-  const evict = (): Promise<void> => {
-    eviction ??= evictNow().finally(() => {
-      eviction = undefined;
-    });
-    return eviction;
+
+  const listed = await listEntries(entriesDir, counted);
+  recount(listed);
+  if (counters.bytes > maxBytes) await evict(0);
+
+  /** Store one entry, making room first so the bound holds while it's written. */
+  const write = async (key: string, value: unknown): Promise<void> => {
+    const text = JSON.stringify({ key: entryKey(key), value });
+    const body = gzipSync(text);
+    const size = counted(body.length);
+    if (size > maxBytes) return;
+    // Until the rename, the old entry for this key (if any) and the new file both exist.
+    if (counters.bytes + size > maxBytes) await evict(size);
+    if (counters.bytes + size > maxBytes) return;
+    const file = entryFile(dir, key);
+    const tmp = join(tmpDir, `${randomUUID()}.tmp`);
+    try {
+      await writeFile(tmp, body);
+      await mkdir(dirname(file), { recursive: true });
+      const previous = await stat(file).then(
+        (info) => counted(info.size),
+        () => undefined,
+      );
+      await rename(tmp, file);
+      counters.bytes += size - (previous ?? 0);
+      if (previous === undefined) counters.entries++;
+      counters.writes++;
+    } catch {
+      counters.errors++;
+      await rm(tmp, { force: true }).catch(() => undefined);
+    }
   };
+  // One write at a time, so each one's room is made against the others' finished writes.
+  let writing = Promise.resolve();
 
   return {
     async get(key) {
@@ -217,7 +266,7 @@ export async function openDiskCache(
         value = parsed.value;
       } catch {
         counters.misses++;
-        await remove(file, data.length);
+        await remove(file, counted(data.length));
         return undefined;
       }
       counters.hits++;
@@ -228,30 +277,15 @@ export async function openDiskCache(
       return value;
     },
 
-    async put(key, value) {
-      if (value === undefined) return;
-      const text = JSON.stringify({ key: entryKey(key), value });
-      const body = gzipSync(text);
-      if (body.length > maxBytes) return;
-      const file = entryFile(dir, key);
-      const tmp = join(tmpDir, `${randomUUID()}.tmp`);
-      try {
-        await writeFile(tmp, body);
-        await mkdir(dirname(file), { recursive: true });
-        const previous = await stat(file).then(
-          (info) => info.size,
-          () => undefined,
-        );
-        await rename(tmp, file);
-        counters.bytes += body.length - (previous ?? 0);
-        if (previous === undefined) counters.entries++;
-        counters.writes++;
-      } catch {
-        counters.errors++;
-        await rm(tmp, { force: true }).catch(() => undefined);
-        return;
-      }
-      if (counters.bytes > maxBytes) await evict();
+    put(key, value) {
+      if (value === undefined) return Promise.resolve();
+      const done = writing
+        .then(() => write(key, value))
+        .catch(() => {
+          counters.errors++;
+        });
+      writing = done;
+      return done;
     },
 
     stats: () => ({ ...counters }),

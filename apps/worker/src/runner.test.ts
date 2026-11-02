@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -297,6 +297,24 @@ describe("the child's sandbox", () => {
     }
   });
 
+  it("can use its own cache folder but not another installation's beside it", async () => {
+    const own = join(jobDir, "cache", "installations", "1");
+    const other = join(jobDir, "cache", "installations", "2");
+    await mkdir(own, { recursive: true });
+    await mkdir(other, { recursive: true });
+    await writeFile(join(other, "secret.json.gz"), "private facts");
+    const result = await runAnalysis(
+      { src, out, owner: "cache", name: other, cache: { dir: own, maxBytes: 1024 } },
+      { scriptsDir: DIST, childScript: PROBE },
+    );
+    expect(findings(result)).toEqual({
+      writeOwn: "ALLOWED",
+      readOwn: "ALLOWED",
+      readOther: "ERR_ACCESS_DENIED",
+      writeOther: "ERR_ACCESS_DENIED",
+    });
+  });
+
   it("gives the child an empty environment, ignoring the worker's secrets and NODE_OPTIONS", async () => {
     const saved = { ...process.env };
     process.env.SNAPSHOTS_SECRET_ACCESS_KEY = "planted";
@@ -365,5 +383,29 @@ describe("childArgs", () => {
       "/app/child.js",
       JSON.stringify(job),
     ]);
+  });
+
+  it("lets the child read and write its cache folder, and only that one", () => {
+    const job = {
+      src: "/jobs/1/src",
+      out: "/jobs/1/architecture.json",
+      owner: "a",
+      name: "b",
+      cache: { dir: "/cache/installations/7", maxBytes: 1024 },
+    };
+    const args = childArgs(
+      job,
+      { timeoutMs: 1000, maxHeapMb: 512 },
+      { script: "/app/child.js", guard: "/app/netguard.js" },
+      ["/app"],
+    );
+    expect(args.slice(2, 7)).toEqual([
+      "--allow-fs-read=/app",
+      "--allow-fs-read=/jobs/1/src",
+      "--allow-fs-read=/cache/installations/7",
+      "--allow-fs-write=/jobs/1/architecture.json",
+      "--allow-fs-write=/cache/installations/7",
+    ]);
+    expect(args.filter((arg) => arg.startsWith("--allow-fs"))).toHaveLength(5);
   });
 });

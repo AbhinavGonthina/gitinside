@@ -34,9 +34,26 @@ describe("workerConfigFromEnv", () => {
       },
       secrets: [SECRET],
       jobsRoot: CONFIG_DEFAULTS.jobsRoot,
+      cacheRoot: "/tmp/cache",
       host: "127.0.0.1",
       port: 8080,
     });
+  });
+
+  it.each([
+    [{ CACHE_ROOT: "/tmp/jobs" }],
+    [{ CACHE_ROOT: "/tmp/jobs/cache" }],
+    [{ CACHE_ROOT: "/tmp", JOBS_ROOT: "/tmp/jobs" }],
+  ])("refuses a cache root that holds the job folders or sits among them: %j", (override) => {
+    expect(problems({ ...ENV, ...override })).toEqual([
+      "CACHE_ROOT and JOBS_ROOT must not contain each other",
+    ]);
+  });
+
+  it("takes a cache root beside the job folders, including a name that starts like theirs", () => {
+    expect(workerConfigFromEnv({ ...ENV, CACHE_ROOT: "/tmp/jobs-cache" }).cacheRoot).toBe(
+      "/tmp/jobs-cache",
+    );
   });
 
   it("takes the optional settings when set", () => {
@@ -46,6 +63,7 @@ describe("workerConfigFromEnv", () => {
       DATABASE_URL: "postgres://db/x",
       ENQUEUE_HMAC_SECRET_PREVIOUS: previous,
       JOBS_ROOT: "/var/jobs",
+      CACHE_ROOT: "/var/cache",
       HOST: "0.0.0.0",
       PORT: "65535",
       GITHUB_TOKEN: "gh-token",
@@ -54,6 +72,7 @@ describe("workerConfigFromEnv", () => {
       databaseUrl: "postgres://db/x",
       secrets: [SECRET, previous],
       jobsRoot: "/var/jobs",
+      cacheRoot: "/var/cache",
       host: "0.0.0.0",
       port: 65535,
       githubToken: "gh-token",
@@ -74,11 +93,17 @@ describe("workerConfigFromEnv", () => {
     const config = workerConfigFromEnv({
       ...ENV,
       JOBS_ROOT: "",
+      CACHE_ROOT: "",
       HOST: "",
       PORT: "",
       GITHUB_TOKEN: "",
     });
-    expect(config).toMatchObject({ jobsRoot: "/tmp/jobs", host: "127.0.0.1", port: 8080 });
+    expect(config).toMatchObject({
+      jobsRoot: "/tmp/jobs",
+      cacheRoot: "/tmp/cache",
+      host: "127.0.0.1",
+      port: 8080,
+    });
     expect(config).not.toHaveProperty("githubToken");
   });
 
@@ -94,6 +119,7 @@ describe("workerConfigFromEnv", () => {
     [{ DATABASE_URL: "mysql://db/x" }, "DATABASE_URL must start with postgres:// or postgresql://"],
     [{ DATABASE_URL: "not a url" }, "DATABASE_URL is not a URL"],
     [{ JOBS_ROOT: "jobs" }, "JOBS_ROOT must be an absolute path"],
+    [{ CACHE_ROOT: "cache" }, "CACHE_ROOT must be an absolute path"],
     [{ PORT: "0" }, "PORT must be 1–65535"],
     [{ PORT: "65536" }, "PORT must be 1–65535"],
     [{ PORT: "80a" }, "PORT must be 1–65535"],

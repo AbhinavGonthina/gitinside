@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ANALYSIS_STAGES, AnalysisError, analyze } from "@gitinside/analyzer";
+import { ANALYSIS_STAGES, AnalysisError, analyze, openDiskCache } from "@gitinside/analyzer";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runChildJob } from "./child.js";
 import type { FoundFacts, StepProgress } from "./progress.js";
@@ -98,6 +98,56 @@ describe("runChildJob", () => {
       { analyze: spy },
     );
     expect(seen).toEqual([undefined, "abcdef0"]);
+  });
+
+  it("opens the job's cache with its cap in whole pages, and reports the cache's counters", async () => {
+    const opened: unknown[] = [];
+    const out = join(dir, "g.json");
+    const job = {
+      src: FIXTURE,
+      out,
+      owner: "fixtures",
+      name: "no-tsconfig",
+      cache: { dir: join(dir, "cache"), maxBytes: 1 << 20 },
+    };
+    const openCache: typeof openDiskCache = (folder, options) => {
+      opened.push([folder, options]);
+      return openDiskCache(folder, options);
+    };
+    const cold = await runChildJob(job, { analyze, openCache });
+    const warm = await runChildJob(job, { analyze, openCache });
+    expect(opened).toEqual([
+      [job.cache.dir, { maxBytes: 1 << 20, blockBytes: 4096 }],
+      [job.cache.dir, { maxBytes: 1 << 20, blockBytes: 4096 }],
+    ]);
+    expect(cold).toMatchObject({ ok: true, stats: { cache: { misses: 1, writes: 1, hits: 0 } } });
+    expect(warm).toMatchObject({ ok: true, stats: { cache: { hits: 1, writes: 0, misses: 0 } } });
+    expect(await readFile(out, "utf8")).toBe(
+      await readFile(join(FIXTURE, "expected.json"), "utf8"),
+    );
+  });
+
+  it("runs cold, reporting no cache, when the cache can't be opened", async () => {
+    let options: unknown;
+    const report = await runChildJob(
+      {
+        src: FIXTURE,
+        out: join(dir, "g.json"),
+        owner: "a",
+        name: "b",
+        cache: { dir: "/x", maxBytes: 1 },
+      },
+      {
+        analyze: (src, given) => {
+          options = given;
+          return analyze(src, given);
+        },
+        openCache: () => Promise.reject(new Error("EACCES")),
+      },
+    );
+    expect(report.ok).toBe(true);
+    expect(options).not.toHaveProperty("cache");
+    expect(report.ok && report.stats).not.toHaveProperty("cache");
   });
 
   it("turns an AnalysisError into a report with its code, writing nothing", async () => {

@@ -17,6 +17,8 @@ const STATS = {
   graphBytes: 120,
   stageMs: { a: 4 },
 };
+const JOB = { src: "/s", out: "/o", owner: "a", name: "b" };
+const CACHE = { hits: 2, misses: 1, writes: 1, evictions: 0, errors: 0 };
 
 describe("parseChildJob", () => {
   it("accepts a job with or without a SHA", () => {
@@ -40,8 +42,21 @@ describe("parseChildJob", () => {
     ["a missing field", JSON.stringify({ src: "/s", out: "/o", owner: "a" })],
     ["an empty field", JSON.stringify({ src: "", out: "/o", owner: "a", name: "b" })],
     ["a non-string SHA", JSON.stringify({ src: "/s", out: "/o", owner: "a", name: "b", sha: 1 })],
+    ["a cache without a folder", JSON.stringify({ ...JOB, cache: { maxBytes: 1 } })],
+    ["a cache with an empty folder", JSON.stringify({ ...JOB, cache: { dir: "", maxBytes: 1 } })],
+    ["a cache with no room", JSON.stringify({ ...JOB, cache: { dir: "/c", maxBytes: 0 } })],
+    ["a cache cap as text", JSON.stringify({ ...JOB, cache: { dir: "/c", maxBytes: "1" } })],
+    ["a cache as a string", JSON.stringify({ ...JOB, cache: "/c" })],
   ])("rejects %s", (_, text) => {
     expect(() => parseChildJob(text)).toThrow();
+  });
+
+  it("accepts a cache folder and its cap, dropping anything else in it", () => {
+    const cache = { dir: "/cache/public", maxBytes: 1024 };
+    expect(parseChildJob(JSON.stringify({ ...JOB, cache: { ...cache, extra: 1 } }))).toEqual({
+      ...JOB,
+      cache,
+    });
   });
 });
 
@@ -119,6 +134,16 @@ describe("parseChildReport", () => {
     });
   });
 
+  it("keeps the fact cache's counters, and only those (M6.7f1)", () => {
+    const stats = { ...STATS, cache: CACHE };
+    expect(parseChildReport(JSON.stringify({ ok: true, stats }))).toEqual({ ok: true, stats });
+    const more = { ...STATS, cache: { ...CACHE, bytes: 4096, entries: 1 } };
+    expect(parseChildReport(JSON.stringify({ ok: true, stats: more }))).toEqual({
+      ok: true,
+      stats,
+    });
+  });
+
   it.each([
     ["half a line", '{"ok":tr'],
     ["a non-object", "1"],
@@ -131,6 +156,15 @@ describe("parseChildReport", () => {
     ["stage times as an array", JSON.stringify({ ok: true, stats: { ...STATS, stageMs: [1] } })],
     ["a negative peak RSS", JSON.stringify({ ok: true, stats: { ...STATS, peakRssBytes: -1 } })],
     ["a heap as text", JSON.stringify({ ok: true, stats: { ...STATS, heapBytes: "1" } })],
+    ["cache counts as a number", JSON.stringify({ ok: true, stats: { ...STATS, cache: 3 } })],
+    [
+      "a missing cache count",
+      JSON.stringify({ ok: true, stats: { ...STATS, cache: { ...CACHE, errors: undefined } } }),
+    ],
+    [
+      "a negative cache count",
+      JSON.stringify({ ok: true, stats: { ...STATS, cache: { ...CACHE, hits: -1 } } }),
+    ],
     ["a free-text code", JSON.stringify({ ok: false, code: "no such file", message: "m" })],
     ["a missing message", JSON.stringify({ ok: false, code: "LIMIT_FILES" })],
   ])("rejects %s", (_, text) => {
