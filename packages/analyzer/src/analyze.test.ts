@@ -66,9 +66,9 @@ vi.mock("./sdk.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./sdk.js")>();
   return {
     ...actual,
-    buildSdkEdges: (...args: Parameters<typeof actual.buildSdkEdges>) => {
+    composeSdkEdges: (...args: Parameters<typeof actual.composeSdkEdges>) => {
       if (failing.sdk !== undefined) throw failing.sdk;
-      return actual.buildSdkEdges(...args);
+      return actual.composeSdkEdges(...args);
     },
   };
 });
