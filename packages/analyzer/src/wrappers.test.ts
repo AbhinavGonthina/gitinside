@@ -336,6 +336,32 @@ describe("inlineWrappers", () => {
     ]);
   });
 
+  it("reports WRAPPER_DEPTH when a returned function's own parameter leads the inlined URL (M5A.5c)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/client.ts", [
+      "export function createClient(base: string) {",
+      "  return {",
+      '    get: (path: string) => fetch(base + "/" + path),',
+      "    glued: (path: string) => fetch(base + path),",
+      "    one: (id: string) => fetch(`${base}/users/${id}`),",
+      "  };",
+      "}",
+      "export function load() {",
+      '  const api = createClient("/api");',
+      '  return api.get("users");',
+      "}",
+    ]);
+    // `get` and `glued` take their route from `path`, which only `api.get(…)` supplies (a
+    // second call); `one` fixes `/users`, so its `id` is just a later hole.
+    const deeper =
+      "WRAPPER_DEPTH: the URL's leading part is a parameter of a function inside the wrapper, a wrapper more than one call deep";
+    expect(await summary()).toEqual([
+      `src/client.ts:9 GET ${deeper} [load] <- src/client.ts:3`,
+      `src/client.ts:9 GET ${deeper} [load] <- src/client.ts:4`,
+      "src/client.ts:9 GET /api/users/{} [load] <- src/client.ts:5",
+    ]);
+  });
+
   it("binds methods, defaults, missing arguments, and spreads", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/http.ts", [

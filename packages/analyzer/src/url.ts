@@ -161,6 +161,8 @@ export const WRAPPER_DEPTH_DETAIL = {
     "the axios baseURL starts with a parameter of the calling function, a wrapper more than one call deep",
   config:
     "the axios config is a parameter of the calling function, a wrapper more than one call deep",
+  inner:
+    "the URL's leading part is a parameter of a function inside the wrapper, a wrapper more than one call deep",
 } as const;
 
 export type WrapperDepthDetail = (typeof WRAPPER_DEPTH_DETAIL)[keyof typeof WRAPPER_DEPTH_DETAIL];

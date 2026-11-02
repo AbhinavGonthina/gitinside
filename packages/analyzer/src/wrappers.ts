@@ -43,6 +43,10 @@
  *   axios(req) })`): the wrapper is the innermost symbol around the site whose value is a
  *   function containing it, and only that function's parameters are bound (M5A.3c). A
  *   function the wrapper returns counts too: its requests are placed at the factory's call.
+ *   When an inner function's own parameter reaches the URL's leading part
+ *   (`createClient(base)` ⇒ `{ get: (path) => fetch(base + "/" + path) }`), the request is
+ *   `WRAPPER_DEPTH`, since only a later call supplies it (M5A.5c); one that only fills a later
+ *   hole (`(id) => fetch(base + "/users/" + id)`) leaves the route fixed.
  * - A URL with alternatives (ternary branches, a `let` set in a branch) gives one request per
  *   alternative, at the same site (`UrlNormalizer.alternatives`, M5A.3h).
  *
@@ -175,6 +179,8 @@ interface Wrapper {
   sp: ServiceProgram;
   fn: FunctionWithBody;
   sites: HttpCallSite[];
+  /** The parameters that reach each site's leading part (`leadingParameters`), any function's. */
+  leading: Map<HttpCallSite, ReadonlySet<ts.ParameterDeclaration>>;
 }
 
 /** A resolved call to a wrapper. */
@@ -340,8 +346,14 @@ export function collectHttpFacts(
         plain.push(site);
         continue;
       }
-      const wrapper = mine.get(found.id) ?? { sp: site.sp, fn: found.fn, sites: [] };
+      const wrapper: Wrapper = mine.get(found.id) ?? {
+        sp: site.sp,
+        fn: found.fn,
+        sites: [],
+        leading: new Map(),
+      };
       wrapper.sites.push(site);
+      wrapper.leading.set(site, read);
       mine.set(found.id, wrapper);
       wrappers.set(found.id, wrapper);
     }
@@ -507,7 +519,15 @@ export function collectHttpFacts(
 
     return wrapper.sites.flatMap((site): HttpRequestFact[] => {
       const fromConfig = site.config && configUrl(site.config);
-      const urls = fromConfig ? fromConfig.urls : normalizer.alternatives(site, bindings);
+      // A function inside the wrapper (one it returns: `createClient(base)` ⇒
+      // `{ get: (path) => fetch(base + "/" + path) }`) whose own parameter leads the URL: this
+      // call binds `base`, but `path` comes from a later call, so the route isn't known (M5A.5c).
+      const inner = [...(wrapper.leading.get(site) ?? [])].some((d) => !bindings.has(d));
+      const urls: NormalizedUrl[] = inner
+        ? [{ resolved: false, reason: "WRAPPER_DEPTH", detail: WRAPPER_DEPTH_DETAIL.inner }]
+        : fromConfig
+          ? fromConfig.urls
+          : normalizer.alternatives(site, bindings);
       const confidence = weaker(site.confidence, caller.confidence);
       const read = normalizer.parameters(site);
       const urlArgs = fromConfig
