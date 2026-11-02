@@ -1,4 +1,4 @@
-import { isAbsolute } from "node:path";
+import { isAbsolute, relative } from "node:path";
 import { secretsFromEnv } from "./hmac.js";
 import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
 
@@ -13,6 +13,7 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
  * | `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_ACCESS_KEY_ID`, `SNAPSHOTS_SECRET_ACCESS_KEY`, `SNAPSHOTS_BUCKET` | yes | snapshot bucket on Oracle Object Storage (storage.ts) |
  * | `ENQUEUE_HMAC_SECRET` (+ optional `…_PREVIOUS`) | yes | the website's job signing (hmac.ts) |
  * | `JOBS_ROOT` | no, `/tmp/jobs` | absolute parent of the job folders |
+ * | `CACHE_ROOT` | no, `/tmp/cache` | absolute parent of the fact cache folders (factcache.ts), apart from `JOBS_ROOT` |
  * | `HOST` | no, `127.0.0.1` | `POST /run`'s address (a container sets `0.0.0.0`) |
  * | `PORT` | no, `8080` | `POST /run`'s port (Cloud Run sets it) |
  * | `GITHUB_TOKEN` | no | sent to GitHub's API only (raises the 60/hour limit) |
@@ -27,13 +28,26 @@ export interface WorkerConfig {
   /** Current signing secret first, then the previous one during a rollover. */
   secrets: string[];
   jobsRoot: string;
+  /** Where the analysis child caches facts between jobs (factcache.ts). */
+  cacheRoot: string;
   host: string;
   port: number;
   githubToken?: string;
 }
 
 /** Defaults for the optional variables. */
-export const CONFIG_DEFAULTS = { jobsRoot: "/tmp/jobs", host: "127.0.0.1", port: 8080 } as const;
+export const CONFIG_DEFAULTS = {
+  jobsRoot: "/tmp/jobs",
+  cacheRoot: "/tmp/cache",
+  host: "127.0.0.1",
+  port: 8080,
+} as const;
+
+/** Whether `inner` is `outer` or a path inside it. */
+function within(outer: string, inner: string): boolean {
+  const path = relative(outer, inner);
+  return path === "" || (!path.startsWith("..") && !isAbsolute(path));
+}
 
 /** Thrown by {@link workerConfigFromEnv}; `problems` has one line per variable. */
 export class ConfigError extends Error {
@@ -110,6 +124,15 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     if (!isAbsolute(value)) throw new Error("JOBS_ROOT must be an absolute path");
     return value;
   });
+  const cacheRoot = check(() => {
+    const value = env.CACHE_ROOT || CONFIG_DEFAULTS.cacheRoot;
+    if (!isAbsolute(value)) throw new Error("CACHE_ROOT must be an absolute path");
+    // Job folders are deleted after each job and swept at startup; the cache must outlive them.
+    if (jobsRoot !== undefined && (within(jobsRoot, value) || within(value, jobsRoot))) {
+      throw new Error("CACHE_ROOT and JOBS_ROOT must not contain each other");
+    }
+    return value;
+  });
   const host = env.HOST || CONFIG_DEFAULTS.host;
   const port = check(() => {
     const value = env.PORT || String(CONFIG_DEFAULTS.port);
@@ -124,6 +147,7 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     store === undefined ||
     secrets === undefined ||
     jobsRoot === undefined ||
+    cacheRoot === undefined ||
     port === undefined
   ) {
     throw new ConfigError(problems);
@@ -134,6 +158,7 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     store,
     secrets,
     jobsRoot,
+    cacheRoot,
     host,
     port,
     ...(githubToken === undefined || githubToken === "" ? {} : { githubToken }),

@@ -128,6 +128,96 @@ describe("processJob with the real analyzer", () => {
     expect(outcome.extract.skipped).toBe(0);
     expect(Object.keys(outcome.timings)).toEqual(["downloadMs", "analyzeMs", "publishMs"]);
     expect(await jobFolders()).toEqual([]);
+    expect(outcome.stats).not.toHaveProperty("cache");
+  });
+
+  it("reuses the sandboxed child's cached facts in the next job, with the same graph", async () => {
+    github.tarball = await tarballOf(join(FIXTURES, "pnpm-monorepo"));
+    const cacheRoot = join(root, "cache");
+    const graphs: string[] = [];
+    const real = deps({
+      cacheRoot,
+      runOptions: { scriptsDir: DIST },
+      publish: async (artifact) => void graphs.push(await readFile(artifact.graphPath, "utf8")),
+    });
+    delete real.run;
+    const cold = await processJob({ id: ID, request: REQUEST }, real);
+    const warm = await processJob({ id: ID, request: REQUEST }, real);
+
+    const services = (JSON.parse(graphs[0] ?? "") as { nodes: { kind: string }[] }).nodes.filter(
+      (node) => node.kind === "service",
+    ).length;
+    expect(services).toBeGreaterThan(1);
+    expect(cold.stats.cache).toEqual({
+      hits: 0,
+      misses: services,
+      writes: services,
+      evictions: 0,
+      errors: 0,
+    });
+    expect(warm.stats.cache).toEqual({
+      hits: services,
+      misses: 0,
+      writes: 0,
+      evictions: 0,
+      errors: 0,
+    });
+    expect(graphs[1]).toBe(graphs[0]);
+    expect(await readdir(cacheRoot)).toEqual(["public"]);
+    expect(await jobFolders()).toEqual([]);
+  }, 60_000);
+});
+
+describe("processJob fact cache folders", () => {
+  const record = (visibility: "public" | "private"): JobRecorder => ({
+    start: async () => ({
+      analysisId: "a1",
+      repoId: "r1",
+      visibility,
+      owner: "acme",
+      name: "shop",
+    }),
+    failed: async () => undefined,
+  });
+  const cacheOf = () => (fakeRun.mock.calls[0]?.[0] as { cache?: unknown }).cache;
+
+  it("gives no cache without a cache root", async () => {
+    await processJob({ id: ID, request: REQUEST }, deps());
+    expect(cacheOf()).toBeUndefined();
+  });
+
+  it("gives a public repo the public folder, with the whole cap", async () => {
+    const cacheRoot = join(root, "cache");
+    await processJob(
+      { id: ID, request: REQUEST },
+      deps({ cacheRoot, cacheBytes: 1 << 20, recorder: record("public") }),
+    );
+    expect(cacheOf()).toEqual({ dir: join(cacheRoot, "public"), maxBytes: 1 << 20 });
+  });
+
+  it("gives an installation's repo its installation's folder", async () => {
+    const cacheRoot = join(root, "cache");
+    await processJob(
+      { id: ID, request: { ...REQUEST, installationId: 77 } },
+      deps({ cacheRoot, recorder: record("private") }),
+    );
+    expect(cacheOf()).toMatchObject({ dir: join(cacheRoot, "installations", "77") });
+  });
+
+  it("gives a private repo without an installation no cache", async () => {
+    await processJob(
+      { id: ID, request: REQUEST },
+      deps({ cacheRoot: join(root, "cache"), recorder: record("private") }),
+    );
+    expect(cacheOf()).toBeUndefined();
+  });
+
+  it("runs the analysis without a cache when the cache root can't be used", async () => {
+    const cacheRoot = join(root, "in-the-way");
+    await writeFile(cacheRoot, "a file");
+    await processJob({ id: ID, request: REQUEST }, deps({ cacheRoot }));
+    expect(fakeRun).toHaveBeenCalledOnce();
+    expect(cacheOf()).toBeUndefined();
   });
 });
 

@@ -114,6 +114,7 @@ export async function startWorkerProcess(
     event: "worker_starting",
     analyzerVersion,
     jobsRoot: config.jobsRoot,
+    cacheRoot: config.cacheRoot,
     githubToken: config.githubToken !== undefined,
   });
 
@@ -156,6 +157,7 @@ export async function startWorkerProcess(
       deps: {
         ...options.jobDeps,
         jobsRoot: config.jobsRoot,
+        cacheRoot: config.cacheRoot,
         recorder,
         publish: recorder.publish,
         download: github,

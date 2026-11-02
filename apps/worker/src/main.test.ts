@@ -261,6 +261,7 @@ describe("startWorkerProcess", () => {
       store: { endpoint: s3.endpoint, bucket: s3.bucket, credentials: s3.credentials },
       secrets: [SECRET],
       jobsRoot: join(root, "jobs"),
+      cacheRoot: join(root, "cache"),
       host: "127.0.0.1",
       port: 0,
       githubToken: "test-token",

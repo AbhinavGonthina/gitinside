@@ -24,7 +24,9 @@ import {
  *   Run, one job per instance).
  * - **Filesystem and processes:** the Node permission model (`--permission`). The child may
  *   read only the installed app (`readRoots`: its own code, the analyzer, TypeScript's libs)
- *   and the job's `src`, write only `out`, and can't start processes, worker threads, or
+ *   and the job's `src`, write only `out`, read and write only the job's fact cache folder
+ *   (`job.cache`, factcache.ts: one folder per installation, so no other tenant's facts), and
+ *   can't start processes, worker threads, or
  *   native addons, nor use `process.binding`, the inspector, or WASI. So it can't read the
  *   worker's environment through `/proc` or run anything from the repo.
  * - **Environment:** empty (on Windows, libuv adds its fixed list of system variables), so
@@ -35,8 +37,8 @@ import {
  * `LIMIT_TIME`, `LIMIT_MEMORY`, `CANCELLED` (the signal fired), or `ANALYZER_CRASHED`
  * (any other exit, a missing or malformed report, output after the report, or a graph file
  * that doesn't match it).
- * The runner never throws for the child's behavior; it throws only if `src` or the folder of
- * `out` doesn't exist. Deleting the job folder is the caller's job (SECURITY.md §3).
+ * The runner never throws for the child's behavior; it throws only if `src`, the folder of
+ * `out`, or the cache folder doesn't exist. Deleting the job folder is the caller's job (SECURITY.md §3).
  */
 
 /** Resource limits for one analysis. Defaults come from docs/SECURITY.md (T3). */
@@ -126,11 +128,12 @@ export function childArgs(
   files: { script: string; guard: string },
   readRoots: readonly string[],
 ): string[] {
+  const cacheDirs = job.cache === undefined ? [] : [job.cache.dir];
   return [
     `--max-old-space-size=${limits.maxHeapMb}`,
     "--permission",
-    ...[...readRoots, job.src].map((path) => `--allow-fs-read=${path}`),
-    `--allow-fs-write=${job.out}`,
+    ...[...readRoots, job.src, ...cacheDirs].map((path) => `--allow-fs-read=${path}`),
+    ...[job.out, ...cacheDirs].map((path) => `--allow-fs-write=${path}`),
     `--import=${pathToFileURL(files.guard).href}`,
     files.script,
     JSON.stringify(job),
@@ -149,7 +152,16 @@ interface Exit {
 export async function runAnalysis(job: ChildJob, options: RunOptions = {}): Promise<RunResult> {
   const limits = { ...DEFAULT_RUNNER_LIMITS, ...options.limits };
   const out = join(await canonical(dirname(job.out)), basename(job.out));
-  const sandboxed = parseChildJob(JSON.stringify({ ...job, src: await canonical(job.src), out }));
+  const cache =
+    job.cache === undefined ? undefined : { ...job.cache, dir: await canonical(job.cache.dir) };
+  const sandboxed = parseChildJob(
+    JSON.stringify({
+      ...job,
+      src: await canonical(job.src),
+      out,
+      ...(cache === undefined ? {} : { cache }),
+    }),
+  );
   const readRoots = await Promise.all((options.readRoots ?? [DEFAULT_APP_ROOT]).map(canonical));
   const scriptsDir = options.scriptsDir ?? HERE;
   const args = childArgs(

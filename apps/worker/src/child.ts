@@ -1,10 +1,12 @@
 import { realpathSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { AnalysisError, analyze, serializeGraph } from "@gitinside/analyzer";
+import { AnalysisError, analyze, openDiskCache, serializeGraph } from "@gitinside/analyzer";
 import type { ArchitectureGraph } from "@gitinside/schema";
+import { CACHE_BLOCK_BYTES } from "./factcache.js";
 import { foundFacts, type FoundFacts, type StepProgress } from "./progress.js";
 import {
+  cacheCounts,
   foundLine,
   parseChildJob,
   progressLine,
@@ -15,7 +17,8 @@ import {
 /**
  * The analysis child process: started by `runAnalysis` (runner.ts) with a heap cap, the
  * Node permission model, an empty environment, and the network guard. It analyzes
- * `job.src`, writes the serialized graph to `job.out`, prints a progress line as each
+ * `job.src` (reusing and storing facts in `job.cache`'s folder when it has one), writes the
+ * serialized graph to `job.out`, prints a progress line as each
  * analyzer stage starts and a found line after each stage that finds something, and ends
  * with one {@link ChildReport}.
  *
@@ -27,6 +30,8 @@ import {
 /** The analyzer entry points the child uses, injectable for in-process tests. */
 export interface ChildDeps {
   analyze: typeof analyze;
+  /** Opens `job.cache`'s folder. Default `openDiskCache`. */
+  openCache?: typeof openDiskCache;
 }
 
 /**
@@ -41,6 +46,14 @@ export async function runChildJob(
   onFound?: (found: FoundFacts) => void,
 ): Promise<ChildReport> {
   const stageMs: Record<string, number> = {};
+  // A cache that can't be opened only costs time: the analysis runs cold.
+  const cache =
+    job.cache === undefined
+      ? undefined
+      : await (deps.openCache ?? openDiskCache)(job.cache.dir, {
+          maxBytes: job.cache.maxBytes,
+          blockBytes: CACHE_BLOCK_BYTES,
+        }).catch(() => undefined);
   let graph: ArchitectureGraph;
   let text: string;
   try {
@@ -48,6 +61,7 @@ export async function runChildJob(
       owner: job.owner,
       name: job.name,
       ...(job.sha === undefined ? {} : { sha: job.sha }),
+      ...(cache === undefined ? {} : { cache }),
       onStage: (stage, ms) => {
         stageMs[stage] = Math.round(ms);
       },
@@ -80,6 +94,7 @@ export async function runChildJob(
       // `maxRSS` is in KiB.
       peakRssBytes: process.resourceUsage().maxRSS * 1024,
       heapBytes: process.memoryUsage().heapTotal,
+      ...(cache === undefined ? {} : { cache: cacheCounts(cache.stats()) }),
     },
   };
 }

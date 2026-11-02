@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import dgram from "node:dgram";
 import { promises as dnsPromises } from "node:dns";
 import { readFileSync, writeFileSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import http from "node:http";
 import http2 from "node:http2";
 import net, { connect } from "node:net";
@@ -133,6 +134,20 @@ switch (job.owner) {
       heapFlag: process.execArgv.find((flag) => flag.startsWith("--max-old-space-size")),
     });
     break;
+  case "cache": {
+    // `job.name` is another installation's cache folder, beside this job's.
+    const nested = join(job.cache.dir, "entries", "ab");
+    probe({
+      writeOwn: await attempt(async () => {
+        await mkdir(nested, { recursive: true });
+        writeFileSync(join(nested, "x.json.gz"), "x");
+      }),
+      readOwn: await attempt(() => readFileSync(join(nested, "x.json.gz"))),
+      readOther: await attempt(() => readFileSync(join(job.name, "secret.json.gz"))),
+      writeOther: await attempt(() => writeFileSync(join(job.name, "planted.json.gz"), "x")),
+    });
+    break;
+  }
   default:
     throw new Error(`unknown probe ${job.owner}`);
 }

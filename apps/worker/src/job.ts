@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { ExtractError, extractTarball, type ExtractLimits, type SkippedEntry } from "./extract.js";
+import { cacheFolder, prepareCacheFolder, type CacheOwner, type JobCache } from "./factcache.js";
 import { JobFailure } from "./failure.js";
 import { openTarball, type DownloadOptions } from "./github.js";
 import type { FoundFacts, JobStage, StepProgress, StoredProgress } from "./progress.js";
@@ -14,7 +15,8 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis, type RunOptions, type RunResult } f
  *    then the tarball streams from GitHub (github.ts) straight into
  *    `<jobsRoot>/<id>-<random>/src` (extract.ts); nothing is buffered on disk first. All of
  *    it shares one budget, {@link DEFAULT_DOWNLOAD_TIMEOUT_MS}.
- * 2. **analyze:** the sandboxed child (runner.ts) writes `architecture.json` next to `src`.
+ * 2. **analyze:** the sandboxed child (runner.ts) writes `architecture.json` next to `src`,
+ *    reusing facts from the job's fact cache folder (factcache.ts) if it has one.
  * 3. **publish:** the caller's `publish` stores the graph (record.ts: the bucket, then Postgres).
  * 4. **clean up:** the job folder is deleted whatever happened. A failed attempt is
  *    recorded as queued again, or failed if it was final.
@@ -99,6 +101,13 @@ export interface JobOutcome {
 export interface JobDeps {
   /** Parent of the job folders (`/tmp/jobs` in production). Must exist or be creatable. */
   jobsRoot: string;
+  /**
+   * Parent of the fact cache folders (`/tmp/cache` in production, factcache.ts). Without it
+   * every analysis runs cold.
+   */
+  cacheRoot?: string;
+  /** The cache's cap over all its folders. Default `DEFAULT_FACT_CACHE_BYTES` (64 MiB). */
+  cacheBytes?: number;
   publish: (artifact: JobArtifact) => Promise<void>;
   download?: Omit<DownloadOptions, "signal">;
   downloadTimeoutMs?: number;
@@ -208,7 +217,11 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
     start = performance.now();
     await context.onStage?.("analyze");
     const run = deps.run ?? runAnalysis;
-    const { owner, repo, sha } = context.request;
+    const { owner, repo, sha, installationId } = context.request;
+    const cache = await jobCache(deps, {
+      ...(installationId === undefined ? {} : { installationId }),
+      ...(attempt.record === undefined ? {} : { visibility: attempt.record.visibility }),
+    });
     const limits = deps.runOptions?.limits;
     let timeoutMs: number | undefined;
     if (context.timeLeft !== undefined) {
@@ -219,7 +232,7 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
       if (timeoutMs <= 0) throw new JobFailure("LIMIT_TIME", "no time left for the analysis");
     }
     const result = await run(
-      { src, out, owner, name: repo, sha },
+      { src, out, owner, name: repo, sha, ...(cache === undefined ? {} : { cache }) },
       {
         ...deps.runOptions,
         ...(timeoutMs === undefined ? {} : { limits: { ...limits, timeoutMs } }),
@@ -272,6 +285,14 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
   } finally {
     await rm(dir, { recursive: true, force: true, maxRetries: 3 });
   }
+}
+
+/** The job's fact cache (factcache.ts), or `undefined` when it gets none. */
+async function jobCache(deps: JobDeps, owner: CacheOwner): Promise<JobCache | undefined> {
+  if (deps.cacheRoot === undefined) return undefined;
+  const folder = cacheFolder(deps.cacheRoot, owner);
+  if (folder === undefined) return undefined;
+  return prepareCacheFolder(deps.cacheRoot, folder, deps.cacheBytes);
 }
 
 /**

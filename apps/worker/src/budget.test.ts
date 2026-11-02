@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { INSTANCE_MEMORY_MIB, MEMORY_ALLOWANCES_MIB, memoryBudget } from "./budget.js";
 import { DEFAULT_EXTRACT_LIMITS } from "./extract.js";
+import { DEFAULT_FACT_CACHE_BYTES } from "./factcache.js";
 import { DEFAULT_RUNNER_LIMITS } from "./runner.js";
 
 const MIB = 1024 * 1024;
@@ -14,18 +15,30 @@ describe("memoryBudget", () => {
       ...MEMORY_ALLOWANCES_MIB,
       // 400 MiB of tar stream, plus up to a 4 KiB page per entry: 60,000 × 4 KiB.
       tree: 400 + 234.375,
-      total: 2560 + 256 + 256 + 128 + 634.375 + 256,
+      factCache: 64,
+      total: 2560 + 256 + 256 + 128 + 634.375 + 64 + 192,
     });
     expect(budget.total).toBeLessThanOrEqual(INSTANCE_MEMORY_MIB);
+  });
+
+  it("holds the cache's cap, and goes over the instance if the cache grows past its share", () => {
+    expect(memoryBudget().factCache * MIB).toBe(DEFAULT_FACT_CACHE_BYTES);
+    // Two cal.com-sized analyses' facts (25.2 MiB each, bench/results/2026-11-02-cache-sizes.md).
+    expect(DEFAULT_FACT_CACHE_BYTES).toBeGreaterThan(2 * 26_472_448);
+    expect(
+      memoryBudget(DEFAULT_RUNNER_LIMITS, DEFAULT_EXTRACT_LIMITS, 128 * MIB).total,
+    ).toBeGreaterThan(INSTANCE_MEMORY_MIB);
   });
 
   it("adds every part up", () => {
     const budget = memoryBudget(
       { ...DEFAULT_RUNNER_LIMITS, maxHeapMb: 1000 },
       { ...DEFAULT_EXTRACT_LIMITS, maxBytes: 100 * MIB, maxEntries: 256 },
+      8 * MIB,
     );
     expect(budget.heap).toBe(1000);
     expect(budget.tree).toBe(101);
+    expect(budget.factCache).toBe(8);
     const { total, ...parts } = budget;
     expect(total).toBe(Object.values(parts).reduce((sum, mib) => sum + mib, 0));
   });

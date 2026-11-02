@@ -1,4 +1,5 @@
 import { DEFAULT_EXTRACT_LIMITS, type ExtractLimits } from "./extract.js";
+import { DEFAULT_FACT_CACHE_BYTES } from "./factcache.js";
 import { DEFAULT_RUNNER_LIMITS, type RunnerLimits } from "./runner.js";
 
 /**
@@ -13,6 +14,7 @@ import { DEFAULT_RUNNER_LIMITS, type RunnerLimits } from "./runner.js";
  * - the unpacked tree: at most `maxBytes` of tar stream, each file and folder rounded up to a
  *   whole 4 KiB page (so at most a page more per entry);
  * - `architecture.json`, which the child writes before it exits;
+ * - the fact cache folders (factcache.ts), which outlive the job, at their cap;
  * - spare room for the runtime and the kernel.
  *
  * After the child exits the worker reads and gzips the graph, which needs far less. The
@@ -35,8 +37,11 @@ export const MEMORY_ALLOWANCES_MIB = {
   parent: 256,
   /** `architecture.json` in `/tmp` (measured ≤ 53.5 MiB). */
   graphFile: 128,
-  /** The runtime, the kernel's bookkeeping for `/tmp`, and error. */
-  spare: 256,
+  /**
+   * The runtime, the kernel's bookkeeping for `/tmp`, and error. 192 MiB since the fact cache
+   * took 64 MiB of the 256 here (ADR-0178).
+   */
+  spare: 192,
 } as const;
 
 /** What an in-memory filesystem rounds each file and folder up to. */
@@ -51,6 +56,8 @@ export interface MemoryBudget {
   graphFile: number;
   /** The unpacked repo in `/tmp`, at the extraction limits. */
   tree: number;
+  /** The fact cache folders in `/tmp` at their cap (factcache.ts). */
+  factCache: number;
   spare: number;
   /** All of the above. Must be at most {@link INSTANCE_MEMORY_MIB}. */
   total: number;
@@ -60,9 +67,11 @@ export interface MemoryBudget {
 export function memoryBudget(
   runner: RunnerLimits = DEFAULT_RUNNER_LIMITS,
   extract: ExtractLimits = DEFAULT_EXTRACT_LIMITS,
+  factCacheBytes: number = DEFAULT_FACT_CACHE_BYTES,
 ): MemoryBudget {
   const heap = runner.maxHeapMb;
   const tree = (extract.maxBytes + extract.maxEntries * PAGE_BYTES) / MIB;
+  const factCache = factCacheBytes / MIB;
   const { childOutsideHeap, parent, graphFile, spare } = MEMORY_ALLOWANCES_MIB;
   return {
     heap,
@@ -70,7 +79,8 @@ export function memoryBudget(
     parent,
     graphFile,
     tree,
+    factCache,
     spare,
-    total: heap + childOutsideHeap + parent + graphFile + tree + spare,
+    total: heap + childOutsideHeap + parent + graphFile + tree + factCache + spare,
   };
 }
