@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.8c A mostly re-collected warm run no slower than cold (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M6.8c2 A mostly re-collected warm run no slower than cold, the rest (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -247,7 +247,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.7f2 Container check: two analyses through the image's sandboxed child share `/tmp/cache/public` (second one all hits, same bytes, entries owned by uid 1000, the cache within its cap) {model: opus}
 - [x] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
 - [x] M6.8b Cut a mostly re-collected warm run's store and check cost (ADR-0179): profiled (2.1 s `serviceInputs` re-snapshotting, 2.3 s serial gzip of 88 entries, 0.9 s serial reads), each program snapshotted once and equal reaches share one merged inputs object, `inputsDigest` per entry (verified once per run, `KEY_FORMAT` 3), the disk cache compresses on the thread pool (4 puts in flight, reads side by side); warm == cold bytes; re-ran both benchmarks (`…-m6.8b` reports): real commits 0.84× → 0.91×, `packages/lib` edit 0.85× → 0.92×, so not yet at parity (M6.8c) {model: opus}
-- [ ] M6.8c A mostly re-collected warm run no slower than cold: ~80 of cal.com's 113 entries each carry the same 1.3 MB of inputs (119 of 138 MB raw), so store each distinct inputs set once (its own content-addressed entry, referenced by digest from the service entries; a missing one is a miss), and count cache use per service where tests, the worker's stats, the container check (`infra/gcp/check.mjs`), and the benchmark's columns assume one entry per service; also look at `programs`' remaining ~1.5 s (keys hash every own file, ~0.6 s; entry reads); keep warm == cold bytes; re-run `pnpm bench:incremental` and `--commits`, commit the reports {model: opus}
+- [x] M6.8c1 Each distinct inputs set stored once (ADR-0180): its own content-addressed entry (`service-inputs:<digest>`), named by digest from the service entries, read and verified once per run, written only when the run hasn't read or stored it; a missing one is a miss; the cache counts `{ shared: true }` entries apart (`CacheStats.shared`), so hits/misses/writes stay per service for the worker's stats, the container check, and the benchmark's columns; warm == cold bytes; re-ran `pnpm bench:incremental` and `--commits` (`…-m6.8c` reports): cache 25 → 7 MiB, real commits 0.91× → 0.94×, `packages/lib` edit 0.92×, so not yet parity (M6.8c2) {model: opus}
+- [ ] M6.8c2 A mostly re-collected warm run no slower than cold, the rest: per re-collected cal.com run, `programs` is still ~0.9–1.1 s over cold (keys hash every service's own files, ~0.6 s at M6.8b; the 112 entries found are read and checked) and storing 88 service entries takes 0.9–1.6 s outside every stage. Profile both (timers in the built `dist/`, ADR-0179's method), cut what's there (e.g. keys from the inventory pass's hashes, store only entries whose bytes changed, skip re-reading what the run computes anyway), keep warm == cold bytes; re-run both benchmarks, commit the reports {model: opus}
 - [ ] M6.9 Viewer diff mode (overlay, stable layout, changes list) {model: opus}
 - [ ] M6.10 docs/walkthroughs/diff.md {model: opus}
 - [ ] M6.11 Milestone verification + M6-review.md + tag m6 {model: opus}
@@ -284,6 +285,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M6.8c1** (`e367fea` perf, `d180941` eval re-record, reports `8ce3231` + docs, ADR-0180; split M6.8c into c1/c2): a service entry now names its observed inputs by digest, and each distinct set is one `service-inputs:<digest>` entry, read and verified once per run and written only when the run hasn't already read or stored it (a missing one is a miss). The cache counts `{ shared: true }` entries apart, so per-service hits/misses/writes (worker stats, container check, bench columns) are unchanged. cal.com (`-m6.8c` reports): cache 25 → 7 MiB, unchanged warm peak 576 → 285 MiB, storing 0.9–1.6 s (was 1.8–2.4 s), real commits median **0.94×** (0.91×), `packages/lib` edit 0.92×. Still not parity: `programs` ~0.9–1.1 s over cold plus ~1 s storing (M6.8c2). Analyzer 992/992, eval unchanged (TP 138, FP 0, FN 0).
 
 - **2026-11-02 M6.8b** (`10dd9db` perf, `c13f3a5` eval re-record, reports `7808c38`, `650e11a`): a CPU profile plus timers around `factKeys`/`reusableFacts`/`serviceInputs`/`storeFacts` found 5.9 s of overhead per re-collected warm run. Each program is now snapshotted once, equal reaches share one merged inputs object and one `inputsDigest` (verified once per run), and the disk cache serializes at `put` and gzips/gunzips on the thread pool. cal.com (new `-m6.8b` reports, M6.8's kept): real commits median **0.91×** (was 0.84×), `packages/lib` edit 0.92× (0.85×), unchanged 4.0×, leaf 2.3×; outside-stage time 1.8–2.4 s (was 4.6–6.2 s). Still below parity: ~80 entries each carry the same 1.3 MB of inputs, so M6.8c stores them once. Warm peak RSS rose 417 → 576 MiB (entries read at once), far under cold's 2.3 GiB.
 
