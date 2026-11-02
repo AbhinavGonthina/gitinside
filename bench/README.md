@@ -28,7 +28,9 @@ pnpm bench:incremental -- --runs 3 --label "laptop"
 
 1. Checks out the pinned SHA as above, deletes `bench/.repos/<name>-cache`, runs one cold warm-up, then one cold run that fills a disk cache there (`openDiskCache`, as `--cache` does).
 2. For each case (nothing changed, then a one-line edit to each file in `EDITS`: a leaf app and a package most services import), makes `--runs` pairs (default 5) of fresh-process runs on the same tree: one with no cache, one with the cache, in alternating order. An edit appends `export const gitinsideBench<i> = <i>;` (new in each pair, so the warm run never finds its own edit cached) and restores the file's bytes after the pair.
-3. Writes `results/<date>-incremental-<name>.md` (cold vs warm medians and ranges, warm ÷ cold, cache hits and misses, whether each warm graph is its cold pair's bytes, peak RSS, per-stage medians, the fill's time and cache size) and the raw runs as `.json`. Observations are added by hand.
+3. Writes `results/<date>-incremental-<name>.md` (cold vs warm medians and ranges, warm ÷ cold, entries found and services collected per warm run, whether each warm graph is its cold pair's bytes, peak RSS, per-stage medians, the fill's time and cache size) and the raw runs as `.json`. Observations are added by hand.
+
+`pnpm bench:incremental -- --commits` replays real history instead (EVALUATION.md §2): it fetches the default branch back to a day before the pinned commit into `bench/.repos/<name>-history`, takes the 10 first-parent commits that follow the pinned one, fills a cache at the pinned SHA, then checks out each commit in turn for one cold/warm pair, never resetting the cache. The report (`results/<date>-incremental-<name>-commits.md`) adds a row per commit and the median per-commit speedup.
 
 ## Stress (very large repos)
 
