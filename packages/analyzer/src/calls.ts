@@ -8,7 +8,7 @@ import {
   type GraphEdge,
 } from "@gitinside/schema";
 import { errorText } from "./failures.js";
-import { createModuleResolver, type ManifestCache } from "./imports.js";
+import { createModuleResolver, extractImports, type ManifestCache } from "./imports.js";
 import type { ServiceProgram } from "./program.js";
 import { extractSymbols, symbolNodeId, unwrap } from "./symbols.js";
 import type { Workspace } from "./workspace.js";
@@ -166,6 +166,12 @@ export interface SymbolResolver {
     declaration: ts.Declaration,
     member?: string,
   ): ImportTarget | undefined;
+  /**
+   * The repo files a root file of `sp` imports (every specifier `extractImports` finds,
+   * resolved like import edges, M1.8), sorted and without repeats. Reach their programs
+   * through {@link programOf}.
+   */
+  importedFiles(sp: ServiceProgram, file: string): readonly string[];
 }
 
 /** An exported symbol reached through an import TypeScript couldn't resolve. */
@@ -349,6 +355,26 @@ export function createSymbolResolver(
     return resolveImport(ctx, declaration, e.name.text, 0);
   };
 
+  const imported = new Map<ServiceProgram, Map<string, readonly string[]>>();
+  const importedFiles = (sp: ServiceProgram, file: string): readonly string[] => {
+    let byFile = imported.get(sp);
+    if (!byFile) imported.set(sp, (byFile = new Map()));
+    const known = byFile.get(file);
+    if (known) return known;
+    const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+    const paths = new Set<string>();
+    if (sourceFile) {
+      const { resolveModule } = contextOf(sp);
+      for (const { specifier, literal } of extractImports(sourceFile)) {
+        const resolved = resolveModule(specifier, sourceFile, literal);
+        if (resolved) paths.add(resolved.path);
+      }
+    }
+    const result = [...paths].sort(compareStrings);
+    byFile.set(file, result);
+    return result;
+  };
+
   return {
     programOf: (path, from) => reach(from, programByFile.get(path)),
     reached: (sp) => reached.get(sp) ?? new Set(),
@@ -357,6 +383,7 @@ export function createSymbolResolver(
     callers,
     resolve,
     importTarget: (sp, declaration, member) => importTarget(contextOf(sp), declaration, member),
+    importedFiles,
   };
 }
 

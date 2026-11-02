@@ -22,16 +22,18 @@
  *   `baseURL`, `url`, or `method` in the config wins over the instance and the default
  *   (`GET`).
  * - `x.defaults.baseURL = …` (or `x.defaults["baseURL"]`) on the default export or an
- *   instance (M5A.3d), when it is the only write to that object's `defaults.baseURL`, a plain
- *   `=` statement at a module's top level, and the instance is created outside any function.
- *   It replaces the `create` config's `baseURL`. The default export's assignment applies to
- *   requests in the same service only (each service is its own runtime), from any of its
- *   files: module load order isn't modeled, so a top-level request in a module that runs
- *   before the assignment still gets it. Any other write leaves the base unknown (`null`):
- *   a second assignment, one inside a function, `+=`, replacing `x.defaults` whole, or an
- *   instance a factory makes per call. So does `create()` without a `baseURL` on axios or an
- *   instance whose defaults are assigned: `create` copies them when it runs, and that may be
- *   before or after the assignment.
+ *   instance (M5A.3d), for requests in files that reach the assigning module through imports
+ *   (M5A.5d; so a test setup file's write rebases only the tests that import it), when it is
+ *   the only write to that object's `defaults` they reach, a plain `=` statement at a module's
+ *   top level, and the instance is created outside any function. It replaces the `create`
+ *   config's `baseURL`. The default export's assignment applies to requests in the same
+ *   service only (each service is its own runtime). Module load order isn't modeled, so a
+ *   top-level request in a module that runs before the assignment still gets it. Any other
+ *   reached write leaves the base unknown (`null`): a second assignment, one inside a
+ *   function, `+=`, replacing `x.defaults` whole, or an instance a factory makes per call. So
+ *   does `create()` without a `baseURL` on axios or an instance whose reached defaults are
+ *   assigned: `create` copies them when it runs, and that may be before or after the
+ *   assignment.
  * - Values are traced with the checker the same way the Prisma client is: through
  *   variables, imports (workspace packages too, via the shared resolver), `export default`,
  *   CommonJS exports, `??`/`||`/`&&`, ternaries, `await`, and factory functions that return
@@ -55,6 +57,9 @@
  *   (`this.api = axios.create()` in a TS constructor, unless the property is typed), or
  *   changed after creation other than by a `defaults.baseURL` assignment (above): interceptors
  *   rewriting URLs, `Object.assign(api.defaults, …)`, a `defaults` object held in a variable.
+ * - A `defaults.baseURL` write in a module the request's file doesn't import, even when an
+ *   entry point loads both (`main.ts` importing `./setup` and `./App`): the request keeps the
+ *   `create` config's base, since what an entry point loads isn't modeled.
  * - Other HTTP clients (`ky`, `got`, `superagent`, `ofetch`, SWR/React Query fetchers that
  *   aren't one of the above), `XMLHttpRequest`, and `EventSource`/`WebSocket`.
  * - `axios.all`/`axios.spread` add nothing: the requests inside are collected on their own.
@@ -745,10 +750,16 @@ export function collectHttpCalls(
   // ---- defaults assignments ----
 
   /**
-   * The `defaults.baseURL` writes per origin: the value when there is exactly one and it can
-   * be trusted (see {@link defaultsAssignments}), `null` when there are others.
+   * One write to an origin's `defaults`: the repo file it is in, and its value when it can be
+   * trusted (see {@link defaultsAssignments}), else `null`.
    */
-  let assignments: Map<AxiosOrigin, ProgramExpression | null> | undefined;
+  interface DefaultsWrite {
+    file: string;
+    value: ProgramExpression | null;
+  }
+
+  /** The `defaults` writes per origin, in program, file, and source order. */
+  let assignments: Map<AxiosOrigin, DefaultsWrite[]> | undefined;
 
   /**
    * True when an origin is one object: the default export, or a `create` call that runs once
@@ -765,15 +776,16 @@ export function collectHttpCalls(
 
   /**
    * Every `x.defaults.baseURL = …` (also `x.defaults["baseURL"]`) and `x.defaults = …` on
-   * axios or an instance, in every program, by origin. One plain `=` assignment that is a
+   * axios or an instance, in every program, by origin. A plain `=` assignment that is a
    * statement of its module's top level, on the default export or on an instance created
-   * outside any function (so the instance is one object), gives the base. Any other write
-   * (a second one, one inside a function, `+=`, the whole `defaults` replaced, an instance a
-   * factory makes per call) leaves the origin's base unknown. Scanned once, on first use.
+   * outside any function (so the instance is one object), is trusted. Any other write (one
+   * inside a function, `+=`, the whole `defaults` replaced, an instance a factory makes per
+   * call) is not. Scanned once, on first use; {@link writtenBase} decides which writes a
+   * request sees.
    */
-  const defaultsAssignments = (): Map<AxiosOrigin, ProgramExpression | null> => {
+  const defaultsAssignments = (): Map<AxiosOrigin, DefaultsWrite[]> => {
     if (assignments) return assignments;
-    const found = new Map<AxiosOrigin, ProgramExpression | null>();
+    const found = new Map<AxiosOrigin, DefaultsWrite[]>();
     /** The axios value whose `defaults` a write target is, and whether it is the `baseURL`. */
     const targetOf = (
       sp: ServiceProgram,
@@ -818,7 +830,10 @@ export function collectHttpCalls(
                 ts.isExpressionStatement(n.parent) &&
                 ts.isSourceFile(n.parent.parent) &&
                 isSingle(origin);
-              found.set(origin, trusted && !found.has(origin) ? { sp, expression: n.right } : null);
+              const write = { file, value: trusted ? { sp, expression: n.right } : null };
+              const writes = found.get(origin);
+              if (writes) writes.push(write);
+              else found.set(origin, [write]);
             }
           }
           ts.forEachChild(n, visit);
@@ -830,18 +845,63 @@ export function collectHttpCalls(
     return found;
   };
 
+  /** Files each request file reaches through imports (itself included), built on demand. */
+  const reachable = new Map<string, Set<string>>();
+
   /**
-   * The `baseURL` requests on an axios value start from: a trusted `defaults.baseURL`
-   * assignment, else what it was created with, else (for `create()` without one) its
-   * parent's, unless the parent's defaults are assigned too: `create` copies them when it
-   * runs, and whether that is before or after the assignment isn't known, so it's unknown.
+   * The repo files a file of `sp` reaches through imports, transitively, across programs
+   * (each file's imports are resolved in the program whose root files hold it).
    */
-  const baseOf = (value: AxiosValue): ProgramExpression | null | undefined => {
-    const written = defaultsAssignments();
-    const assigned = written.get(value.origin);
+  const reachableFrom = (sp: ServiceProgram, file: string): ReadonlySet<string> => {
+    const known = reachable.get(file);
+    if (known) return known;
+    const seen = new Set([file]);
+    const queue: { sp: ServiceProgram; file: string }[] = [{ sp, file }];
+    for (let next = queue.shift(); next; next = queue.shift()) {
+      for (const path of resolver.importedFiles(next.sp, next.file)) {
+        if (seen.has(path)) continue;
+        seen.add(path);
+        const owner = resolver.programOf(path, sp);
+        if (owner) queue.push({ sp: owner, file: path });
+      }
+    }
+    reachable.set(file, seen);
+    return seen;
+  };
+
+  /**
+   * The `defaults.baseURL` a request in `from` sees on an origin: only writes in files `from`
+   * reaches through imports count (so a test or e2e setup file's write rebases only what
+   * imports it, M5A.5d). `undefined` when it reaches none, the value when it reaches exactly
+   * one and that one is trusted, `null` (unknown) otherwise.
+   */
+  const writtenBase = (
+    origin: AxiosOrigin,
+    from: { sp: ServiceProgram; file: string },
+  ): ProgramExpression | null | undefined => {
+    const writes = defaultsAssignments().get(origin);
+    if (!writes) return undefined;
+    const reached = reachableFrom(from.sp, from.file);
+    const seen = writes.filter((w) => reached.has(w.file));
+    if (seen.length === 0) return undefined;
+    return seen.length === 1 && seen[0] ? seen[0].value : null;
+  };
+
+  /**
+   * The `baseURL` requests in `from` on an axios value start from: a trusted
+   * `defaults.baseURL` assignment it sees, else what the value was created with, else (for
+   * `create()` without one) its parent's, unless it sees writes to the parent's defaults
+   * too: `create` copies them when it runs, and whether that is before or after the
+   * assignment isn't known, so it's unknown.
+   */
+  const baseOf = (
+    value: AxiosValue,
+    from: { sp: ServiceProgram; file: string },
+  ): ProgramExpression | null | undefined => {
+    const assigned = writtenBase(value.origin, from);
     if (assigned !== undefined) return assigned;
     if (!value.parent) return value.baseURL;
-    return written.has(value.parent.origin) ? null : baseOf(value.parent);
+    return writtenBase(value.parent.origin, from) !== undefined ? null : baseOf(value.parent, from);
   };
 
   // ---- call sites ----
@@ -853,15 +913,17 @@ export function collectHttpCalls(
    * (otherwise the config's `url` is used). `method` is fixed by shorthand calls (`get`,
    * `post`, …), whose config, when unreadable, is assumed not to override the `baseURL`
    * (documented under "not handled"); otherwise it comes from the config, defaulting to `GET`.
-   * `config` is `null` when it is passed but can't be located (after a spread).
+   * `config` is `null` when it is passed but can't be located (after a spread). `from` is the
+   * call's program and file.
    */
   const fromConfig = (
-    sp: ServiceProgram,
+    from: { sp: ServiceProgram; file: string },
     instance: AxiosValue,
     config: ts.Expression | null | undefined,
     url: ProgramExpression | undefined,
     method?: HttpMethod,
   ): RequestShape => {
+    const { sp } = from;
     const shorthand = method !== undefined;
     const read = (name: string): ConfigValue => {
       const value = config === null ? null : configProperty(sp, config, name);
@@ -870,7 +932,7 @@ export function collectHttpCalls(
     const ownBase = read("baseURL");
     const ownUrl = url ?? read("url");
     const hidden = !shorthand && url === undefined && config && !configObject(sp, config, 0);
-    const instanceBase = baseOf(instance);
+    const instanceBase = baseOf(instance, from);
     return {
       client: "axios",
       ...(shorthand ? { method } : configMethod(sp, config, "GET")),
@@ -881,8 +943,13 @@ export function collectHttpCalls(
     };
   };
 
-  /** The request a call makes, if it is a `fetch` or axios request. */
-  const requestOf = (sp: ServiceProgram, call: ts.CallExpression): RequestShape | undefined => {
+  /** The request a call in `file` makes, if it is a `fetch` or axios request. */
+  const requestOf = (
+    sp: ServiceProgram,
+    file: string,
+    call: ts.CallExpression,
+  ): RequestShape | undefined => {
+    const from = { sp, file };
     const args = call.arguments;
     /** Argument `i`, `null` when a spread comes at or before it, `undefined` when absent. */
     const arg = (i: number): ts.Expression | null | undefined => {
@@ -924,11 +991,11 @@ export function collectHttpCalls(
     const direct = axiosOf(sp, callee, 0);
     if (direct) {
       const first = arg(0);
-      if (!first) return fromConfig(sp, direct, null, undefined);
+      if (!first) return fromConfig(from, direct, null, undefined);
       // `axios(url, config?)` when the first argument is a string, else `axios(config)`.
       if (isStringValued(sp, first))
-        return fromConfig(sp, direct, arg(1), { sp, expression: first });
-      return fromConfig(sp, direct, first, undefined);
+        return fromConfig(from, direct, arg(1), { sp, expression: first });
+      return fromConfig(from, direct, first, undefined);
     }
 
     if (!ts.isPropertyAccessExpression(callee)) return undefined;
@@ -939,13 +1006,13 @@ export function collectHttpCalls(
     if (!instance) return undefined;
     if (!shorthand) {
       const config = arg(0);
-      return fromConfig(sp, instance, config ?? null, undefined);
+      return fromConfig(from, instance, config ?? null, undefined);
     }
     const method = toMethod(name.replace(/Form$/, "")) ?? "GET";
     const url = urlArg(0);
     const config = arg(AXIOS_NO_DATA.has(name) ? 1 : 2);
-    if (!url) return { ...fromConfig(sp, instance, config, undefined, method), url: null };
-    return fromConfig(sp, instance, config, url, method);
+    if (!url) return { ...fromConfig(from, instance, config, undefined, method), url: null };
+    return fromConfig(from, instance, config, url, method);
   };
 
   for (const sp of programs) {
@@ -957,7 +1024,7 @@ export function collectHttpCalls(
       const visit = (node: ts.Node, owners: Owners): void => {
         const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
-          const request = requestOf(sp, node);
+          const request = requestOf(sp, file, node);
           if (request) {
             sites.push({
               ...request,
