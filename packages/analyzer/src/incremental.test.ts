@@ -380,7 +380,8 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
       analyzerWarnings: [],
       ...broken,
     });
-    const service = { inputs: { listings: [], files: [], dirs: [] }, queueLibrary: () => false };
+    const part: ObservedInputs = { listings: [], files: [], dirs: [] };
+    const service = { inputs: [part], queueLibrary: () => false };
     const keys: FactKeys = {
       keys: new Map([
         ["a", "key-a"],
@@ -408,11 +409,11 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
       ]),
       { routers: false, queues: false, wrappers: [] },
     );
-    // a's inputs (first, so an entry is seldom stored before what it names), then a.
-    expect(puts).toEqual([inputsKey(inputsDigest(service.inputs)), "key-a"]);
+    // a's inputs part (first, so an entry is seldom stored before what it names), then a.
+    expect(puts).toEqual([inputsKey(inputsDigest(part)), "key-a"]);
   });
 
-  it("stores each distinct inputs set once, named by digest from the entries (M6.8b, M6.8c)", async () => {
+  it("stores each distinct inputs part once, named by digest from the entries (M6.8c, M6.8c2)", async () => {
     const entries = new Map<string, unknown>();
     const puts: [key: string, shared: boolean][] = [];
     const memory: FactCache = {
@@ -432,7 +433,7 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
     });
     const shared = { listings: [], files: [["x.ts", "h"]], dirs: [] } satisfies ObservedInputs;
     const other = { listings: [], files: [["y.ts", "h"]], dirs: [] } satisfies ObservedInputs;
-    const service = (inputs: ObservedInputs) => ({ inputs, queueLibrary: () => false });
+    const service = (...inputs: ObservedInputs[]) => ({ inputs, queueLibrary: () => false });
     const keys: FactKeys = {
       keys: new Map(["a", "b", "c"].map((s) => [s, `key-${s}`])),
       files: createRepoFiles("."),
@@ -445,17 +446,17 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
         ["a", "b", "c"].map(bundle),
         new Map([
           ["a", service(shared)],
-          ["b", service(structuredClone(shared))],
+          ["b", service(structuredClone(shared), other)],
           ["c", service(other)],
         ]),
         { routers: false, queues: false, wrappers: [] },
       );
     await store();
-    const digest = (key: string) => (entries.get(key) as CachedService).inputsDigest;
-    expect(digest("key-a")).toBe(inputsDigest(shared));
-    expect(digest("key-b")).toBe(digest("key-a"));
-    expect(digest("key-c")).toBe(inputsDigest(other));
-    // Each distinct set once, as a shared entry, before the entries naming it; they hold no copy.
+    const parts = (key: string) => (entries.get(key) as CachedService).inputParts;
+    expect(parts("key-a")).toEqual([inputsDigest(shared)]);
+    expect(parts("key-b")).toEqual([inputsDigest(shared), inputsDigest(other)]);
+    expect(parts("key-c")).toEqual([inputsDigest(other)]);
+    // Each distinct part once, as a shared entry, before the entries naming it; they hold no copy.
     expect(puts).toEqual([
       [inputsKey(inputsDigest(shared)), true],
       [inputsKey(inputsDigest(other)), true],
@@ -471,7 +472,7 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
     expect(puts.filter(([, isShared]) => isShared)).toEqual([]);
   });
 
-  it("collects again a service whose inputs entry is gone, and rewrites only those (M6.8c)", async () => {
+  it("collects again a service with an inputs part gone, and rewrites only those (M6.8c2)", async () => {
     const root = await monorepo();
     const entries = new Map<string, unknown>();
     const puts: string[] = [];
@@ -488,20 +489,21 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
         .filter((value): value is CachedService => "facts" in (value as object))
         .map((entry) => [entry.facts.service, entry]),
     );
-    const digests = new Set([...services.values()].map((e) => e.inputsDigest));
-    // web reaches shared's program, so all three record different inputs: 3 + 3 entries.
-    expect(digests.size).toBe(3);
-    expect(entries.size).toBe(6);
+    const parts = (service: string) => services.get(service)?.inputParts ?? [];
+    const digests = new Set(["api", "web", "shared"].flatMap(parts));
+    expect(entries.size).toBe(3 + digests.size);
 
-    const api = inputsKey(services.get("api")?.inputsDigest ?? "");
+    const [own] = parts("api").filter((d) => !parts("web").includes(d));
+    expect(own).toBeDefined();
+    const api = inputsKey(own ?? "");
     entries.delete(api);
     puts.length = 0;
     expect(serializeGraph(await analyze(root, { cache: memory }))).toBe(await cold(root));
-    // The inputs that were read aren't written again; api's are, with api's entry.
+    // The parts that were read aren't written again; the missing one is, with api's entry.
     expect(puts).toEqual([api, "api"]);
 
-    // Entries without a digest (an older entry format) are all collected again.
-    for (const value of entries.values()) delete (value as Partial<CachedService>).inputsDigest;
+    // Entries without parts (an older entry format) are all collected again.
+    for (const value of entries.values()) delete (value as Partial<CachedService>).inputParts;
     puts.length = 0;
     expect(serializeGraph(await analyze(root, { cache: memory }))).toBe(await cold(root));
     expect(puts.filter((put) => !put.startsWith("service-inputs:")).sort()).toEqual([
@@ -765,8 +767,10 @@ describe("--cache (M6.7e1)", () => {
     const first = capture();
     expect(await runCli(["analyze", root, "--cache", cacheDir], first)).toBe(0);
     expect(first.out).toBe(await cold(root));
-    // An entry per service, and each one's inputs (all three differ).
-    expect((await openDiskCache(cacheDir)).stats().entries).toBe(6);
+    // An entry per service, and each distinct part of their inputs (M6.8c2): each service's own
+    // part, the part of shared's that web saw (it also read shared's manifest), and what's
+    // outside every service (root probes; web's merges shared's): 3 + 7.
+    expect((await openDiskCache(cacheDir)).stats().entries).toBe(10);
     const second = capture();
     expect(await runCli(["analyze", root, "--cache", cacheDir], second)).toBe(0);
     expect(second.out).toBe(first.out);
@@ -808,8 +812,8 @@ describe("--cache (M6.7e1)", () => {
       expect(io.out).toBe(plain.out);
     }
     // web and api have the same own files on both sides, so they share keys; shared differs:
-    // 4 service entries. Their inputs: api's are the same on both sides, while shared's (its
-    // listing) and web's (which reaches shared's program) differ: 3 + 2 = 5.
-    expect((await openDiskCache(cacheDir)).stats().entries).toBe(9);
+    // 4 service entries. Their inputs' parts: the base's 7 (see above), then only the two
+    // holding shared's listing are new: shared's own and the one web saw: 7 + 2 = 9.
+    expect((await openDiskCache(cacheDir)).stats().entries).toBe(13);
   }, 60_000);
 });

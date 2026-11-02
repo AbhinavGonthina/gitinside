@@ -541,6 +541,7 @@ async function analyzeRoot(
       const inputs = serviceInputs(
         collected.map((c) => c.sp),
         resolver,
+        workspace,
       );
       const stored = new Map<string, StoredService>();
       for (const { sp } of collected) {
