@@ -728,6 +728,68 @@ describe("routers loaded from a folder listing (M5A.3e, ADR-0162)", () => {
     expect(warnings).toEqual([]);
   });
 
+  it("reads __dirname and relative requires in a const from another file against that file", async () => {
+    await put("src/config/paths.ts", [
+      'import path from "path";',
+      'export const ROUTES_DIR = path.join(__dirname, "..", "routes");',
+    ]);
+    await put("src/plugins/index.ts", [
+      'import { readdirSync } from "fs";',
+      "export const plugins = readdirSync(__dirname)",
+      '  .filter((f) => f !== "index.ts")',
+      '  .map((f) => require("./" + f));',
+    ]);
+    for (const name of ["users", "orders"]) {
+      await put(`src/routes/${name}.ts`, [
+        'import { Router } from "express";',
+        `export default Router().get("/${name}", () => 1);`,
+      ]);
+    }
+    await put("src/plugins/audit.ts", [
+      'import { Router } from "express";',
+      'export default Router().get("/audit", () => 1);',
+    ]);
+    // Same-named folders next to the using file: read against it, they would mount these.
+    await put("routes/decoy.ts", [
+      'import { Router } from "express";',
+      'export default Router().get("/decoy", () => 1);',
+    ]);
+    await put("plugins/decoy.ts", [
+      'import { Router } from "express";',
+      'export default Router().get("/decoy-plugin", () => 1);',
+    ]);
+    await put("server.ts", [
+      'import express from "express";',
+      'import fs from "fs";',
+      'import path from "path";',
+      'import { ROUTES_DIR } from "./src/config/paths";',
+      'import { plugins } from "./src/plugins";',
+      "const app = express();",
+      "for (const file of fs.readdirSync(ROUTES_DIR)) {",
+      '  app.use("/api", require(path.join(ROUTES_DIR, file)).default);',
+      "}",
+      'plugins.forEach((p) => app.use("/plugins", p.default));',
+    ]);
+    const { routes, listed, warnings } = await composed();
+    expect(listed).toEqual([
+      "route:app/GET /api/orders",
+      "route:app/GET /api/users",
+      "route:app/GET /plugins/audit",
+    ]);
+    // The decoys stay unmounted, at their own paths.
+    expect(routes).toEqual([
+      "route:app/GET /api/orders",
+      "route:app/GET /api/users",
+      "route:app/GET /decoy",
+      "route:app/GET /decoy-plugin",
+      "route:app/GET /plugins/audit",
+    ]);
+    expect(warnings.map((w) => `${w.code} ${w.file}`)).toEqual([
+      "EXPRESS_UNMOUNTED_ROUTER plugins/decoy.ts",
+      "EXPRESS_UNMOUNTED_ROUTER routes/decoy.ts",
+    ]);
+  });
+
   it("keeps a route reached both ways out of the listed set", async () => {
     await put("routes/users.js", [
       'const { Router } = require("express");',
