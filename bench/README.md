@@ -17,6 +17,19 @@ For each repo in `repos.json` (pinned SHA), `src/analysis.ts`:
 
 Every run also hashes the canonical graph bytes; the report says whether all runs produced the same graph.
 
+## Full vs incremental analysis
+
+```sh
+pnpm bench:incremental                          # from the repo root; builds first
+pnpm bench:incremental -- --runs 3 --label "laptop"
+```
+
+`src/incremental.ts` measures what the fact cache (`analyze({ cache })`, ADR-0175 to ADR-0177) saves on the first repo in `repos.json`:
+
+1. Checks out the pinned SHA as above, deletes `bench/.repos/<name>-cache`, runs one cold warm-up, then one cold run that fills a disk cache there (`openDiskCache`, as `--cache` does).
+2. For each case (nothing changed, then a one-line edit to each file in `EDITS`: a leaf app and a package most services import), makes `--runs` pairs (default 5) of fresh-process runs on the same tree: one with no cache, one with the cache, in alternating order. An edit appends `export const gitinsideBench<i> = <i>;` (new in each pair, so the warm run never finds its own edit cached) and restores the file's bytes after the pair.
+3. Writes `results/<date>-incremental-<name>.md` (cold vs warm medians and ranges, warm ÷ cold, cache hits and misses, whether each warm graph is its cold pair's bytes, peak RSS, per-stage medians, the fill's time and cache size) and the raw runs as `.json`. Observations are added by hand.
+
 ## Stress (very large repos)
 
 ```sh
