@@ -1,0 +1,2196 @@
+{
+  "meta": {
+    "date": "2026-11-02",
+    "repo": {
+      "name": "calcom",
+      "url": "https://github.com/calcom/cal.com",
+      "sha": "0f19cc46ef6b6426ee398c670575b3c96be7af9e"
+    },
+    "gitinsideSha": "95334da94cc8058796a1b3ae9c60f81bad2e27be",
+    "analyzerVersion": "0.1.0",
+    "warmupRuns": 1,
+    "machine": {
+      "label": "dev machine",
+      "cpu": "13th Gen Intel(R) Core(TM) i7-13700H",
+      "cores": 20,
+      "ramGiB": 15.6,
+      "os": "win32 10.0.26300",
+      "node": "v22.13.0"
+    },
+    "fill": {
+      "totalMs": 22793.0134,
+      "stages": {
+        "inventory": 2800.6659,
+        "workspace": 34.64980000000014,
+        "programs": 6028.819100000001,
+        "imports": 1589.0905000000002,
+        "express": 36.698599999999715,
+        "next": 516.9236999999994,
+        "prisma": 931.4027000000006,
+        "infra": 27.52219999999943,
+        "files": 46.548399999999674,
+        "symbols": 48.7487000000001,
+        "calls": 3467.6237999999994,
+        "http": 3255.1971999999987,
+        "sdk": 1158.3053,
+        "queues": 1839.873599999999,
+        "assemble": 281.26870000000054
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 113,
+        "writes": 113,
+        "shared": {
+          "hits": 0,
+          "misses": 0,
+          "writes": 199
+        },
+        "evictions": 0,
+        "errors": 0,
+        "bytes": 1972701,
+        "entries": 312
+      },
+      "maxRssBytes": 2442772480,
+      "heapTotalBytes": 2367795200,
+      "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+      "counts": {
+        "nodes.system": 1,
+        "nodes.service": 113,
+        "nodes.module": 1392,
+        "nodes.file": 5041,
+        "nodes.symbol": 11709,
+        "nodes.unresolved": 720,
+        "nodes.page": 97,
+        "nodes.route": 91,
+        "nodes.datastore": 7,
+        "nodes.model": 103,
+        "nodes.external": 30,
+        "edges.imports": 19045,
+        "edges.calls": 10301,
+        "edges.handles": 87,
+        "edges.renders": 97,
+        "edges.reads": 977,
+        "edges.stores": 103,
+        "edges.writes": 608,
+        "edges.external_call": 139,
+        "edges.http": 177,
+        "warnings": 144
+      }
+    },
+    "fillSha": "0f19cc46ef6b6426ee398c670575b3c96be7af9e"
+  },
+  "summaries": [
+    {
+      "title": "Nothing changed",
+      "runs": 5,
+      "cold": {
+        "median": 24918.31,
+        "min": 21823.9686,
+        "max": 26110.3221
+      },
+      "warm": {
+        "median": 4356.2464,
+        "min": 3649.4433,
+        "max": 4917.8069000000005
+      },
+      "ratio": 0.17482110143103605,
+      "speedup": {
+        "median": 5.818690505027762,
+        "min": 5.309342686879389,
+        "max": 6.574942655810327
+      },
+      "coldRss": {
+        "median": 2403332096,
+        "min": 2145628160,
+        "max": 2416553984
+      },
+      "warmRss": {
+        "median": 199573504,
+        "min": 197603328,
+        "max": 200241152
+      },
+      "hits": {
+        "median": 113,
+        "min": 113,
+        "max": 113
+      },
+      "collected": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "sameBytes": true,
+      "coldStages": [
+        [
+          "inventory",
+          2780.2361
+        ],
+        [
+          "workspace",
+          25.74140000000034
+        ],
+        [
+          "programs",
+          7194.9313
+        ],
+        [
+          "imports",
+          1813.4629999999997
+        ],
+        [
+          "express",
+          38.69220000000132
+        ],
+        [
+          "next",
+          619.7150999999994
+        ],
+        [
+          "prisma",
+          1049.8670999999995
+        ],
+        [
+          "infra",
+          27.576499999999214
+        ],
+        [
+          "files",
+          53.03280000000086
+        ],
+        [
+          "symbols",
+          53.844600000000355
+        ],
+        [
+          "calls",
+          4172.011200000001
+        ],
+        [
+          "http",
+          3598.230599999999
+        ],
+        [
+          "sdk",
+          1236.6888
+        ],
+        [
+          "queues",
+          1888.3469000000005
+        ],
+        [
+          "assemble",
+          291.75840000000244
+        ]
+      ],
+      "warmStages": [
+        [
+          "inventory",
+          2769.2653
+        ],
+        [
+          "workspace",
+          25.82639999999992
+        ],
+        [
+          "programs",
+          1104.7416000000003
+        ],
+        [
+          "imports",
+          23.860900000000584
+        ],
+        [
+          "express",
+          2.209100000000035
+        ],
+        [
+          "next",
+          0.27739999999994325
+        ],
+        [
+          "prisma",
+          17.968800000000556
+        ],
+        [
+          "infra",
+          32.94800000000032
+        ],
+        [
+          "files",
+          52.98019999999997
+        ],
+        [
+          "symbols",
+          0.26159999999981665
+        ],
+        [
+          "calls",
+          13.849200000000565
+        ],
+        [
+          "http",
+          15.547600000000784
+        ],
+        [
+          "sdk",
+          0.5408999999999651
+        ],
+        [
+          "queues",
+          0.4812000000001717
+        ],
+        [
+          "assemble",
+          257.60369999999966
+        ]
+      ]
+    },
+    {
+      "title": "One leaf app edited",
+      "edit": "apps/api/v2/src/main.ts",
+      "runs": 5,
+      "cold": {
+        "median": 35626.540499999996,
+        "min": 26908.3496,
+        "max": 43648.6757
+      },
+      "warm": {
+        "median": 12549.6654,
+        "min": 9642.9057,
+        "max": 12902.0073
+      },
+      "ratio": 0.3522560771793153,
+      "speedup": {
+        "median": 2.7904814624496437,
+        "min": 2.7347675420892097,
+        "max": 4.35600927665518
+      },
+      "coldRss": {
+        "median": 2268336128,
+        "min": 2167480320,
+        "max": 2438299648
+      },
+      "warmRss": {
+        "median": 669986816,
+        "min": 662061056,
+        "max": 683077632
+      },
+      "hits": {
+        "median": 112,
+        "min": 112,
+        "max": 112
+      },
+      "collected": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+      },
+      "sameBytes": true,
+      "coldStages": [
+        [
+          "inventory",
+          4656.3372
+        ],
+        [
+          "workspace",
+          38.64639999999963
+        ],
+        [
+          "programs",
+          9228.3128
+        ],
+        [
+          "imports",
+          2359.0607999999993
+        ],
+        [
+          "express",
+          52.231800000001385
+        ],
+        [
+          "next",
+          835.6756999999998
+        ],
+        [
+          "prisma",
+          1420.3891000000003
+        ],
+        [
+          "infra",
+          36.550100000000384
+        ],
+        [
+          "files",
+          73.64809999999852
+        ],
+        [
+          "symbols",
+          104.94490000000224
+        ],
+        [
+          "calls",
+          5531.427300000003
+        ],
+        [
+          "http",
+          5224.486000000001
+        ],
+        [
+          "sdk",
+          1822.178899999999
+        ],
+        [
+          "queues",
+          2903.3047000000006
+        ],
+        [
+          "assemble",
+          427.5796000000046
+        ]
+      ],
+      "warmStages": [
+        [
+          "inventory",
+          4438.4327
+        ],
+        [
+          "workspace",
+          36.47139999999945
+        ],
+        [
+          "programs",
+          2407.6168
+        ],
+        [
+          "imports",
+          266.6337000000003
+        ],
+        [
+          "express",
+          9.096800000000258
+        ],
+        [
+          "next",
+          0.6383000000005268
+        ],
+        [
+          "prisma",
+          403.33529999999973
+        ],
+        [
+          "infra",
+          35.267799999999625
+        ],
+        [
+          "files",
+          62.39520000000084
+        ],
+        [
+          "symbols",
+          11.958000000000538
+        ],
+        [
+          "calls",
+          2474.9586
+        ],
+        [
+          "http",
+          730.112799999999
+        ],
+        [
+          "sdk",
+          219.84359999999833
+        ],
+        [
+          "queues",
+          416.48619999999937
+        ],
+        [
+          "assemble",
+          328.1281999999992
+        ]
+      ]
+    },
+    {
+      "title": "A shared package edited",
+      "edit": "packages/lib/constants.ts",
+      "runs": 5,
+      "cold": {
+        "median": 35728.267100000005,
+        "min": 34795.6152,
+        "max": 36682.8281
+      },
+      "warm": {
+        "median": 36313.231400000004,
+        "min": 34976.1071,
+        "max": 37197.062300000005
+      },
+      "ratio": 1.0163725908777703,
+      "speedup": {
+        "median": 0.9887957887134661,
+        "min": 0.9354398720890384,
+        "max": 1.0315087152738047
+      },
+      "coldRss": {
+        "median": 2311290880,
+        "min": 2135097344,
+        "max": 2430914560
+      },
+      "warmRss": {
+        "median": 2234753024,
+        "min": 2031198208,
+        "max": 2319237120
+      },
+      "hits": {
+        "median": 112,
+        "min": 112,
+        "max": 112
+      },
+      "collected": {
+        "median": 88,
+        "min": 88,
+        "max": 88
+      },
+      "sameBytes": true,
+      "coldStages": [
+        [
+          "inventory",
+          4757.2453
+        ],
+        [
+          "workspace",
+          46.20190000000002
+        ],
+        [
+          "programs",
+          9280.2847
+        ],
+        [
+          "imports",
+          2373.673700000001
+        ],
+        [
+          "express",
+          64.15869999999995
+        ],
+        [
+          "next",
+          822.4998999999989
+        ],
+        [
+          "prisma",
+          1399.7747000000018
+        ],
+        [
+          "infra",
+          40.45769999999902
+        ],
+        [
+          "files",
+          74.33829999999944
+        ],
+        [
+          "symbols",
+          89.49729999999909
+        ],
+        [
+          "calls",
+          6179.5913
+        ],
+        [
+          "http",
+          5131.632799999999
+        ],
+        [
+          "sdk",
+          1837.986499999999
+        ],
+        [
+          "queues",
+          2826.3691000000035
+        ],
+        [
+          "assemble",
+          431.4459000000061
+        ]
+      ],
+      "warmStages": [
+        [
+          "inventory",
+          4668.832399999999
+        ],
+        [
+          "workspace",
+          47.95890000000054
+        ],
+        [
+          "programs",
+          9223.9866
+        ],
+        [
+          "imports",
+          2492.553100000001
+        ],
+        [
+          "express",
+          56.92989999999918
+        ],
+        [
+          "next",
+          770.3356999999996
+        ],
+        [
+          "prisma",
+          1422.3137000000024
+        ],
+        [
+          "infra",
+          36.99689999999828
+        ],
+        [
+          "files",
+          68.66909999999916
+        ],
+        [
+          "symbols",
+          70.09549999999945
+        ],
+        [
+          "calls",
+          5716.769800000002
+        ],
+        [
+          "http",
+          5260.7886
+        ],
+        [
+          "sdk",
+          1754.4949000000015
+        ],
+        [
+          "queues",
+          2747.4838999999993
+        ],
+        [
+          "assemble",
+          392.50129999999626
+        ]
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "title": "Nothing changed",
+      "cold": [
+        {
+          "totalMs": 21823.9686,
+          "stages": {
+            "inventory": 2567.8157,
+            "workspace": 25.74140000000034,
+            "programs": 5811.2330999999995,
+            "imports": 1595.4969,
+            "express": 38.58009999999922,
+            "next": 533.5239000000001,
+            "prisma": 922.6489000000001,
+            "infra": 25.449500000000626,
+            "files": 47.9937000000009,
+            "symbols": 53.844600000000355,
+            "calls": 3711.991899999999,
+            "http": 3267.038699999999,
+            "sdk": 1142.3808000000026,
+            "queues": 1807.2610999999997,
+            "assemble": 270.5135999999984
+          },
+          "maxRssBytes": 2145628160,
+          "heapTotalBytes": 2081333248,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 24623.8493,
+          "stages": {
+            "inventory": 2780.2361,
+            "workspace": 24.64790000000039,
+            "programs": 7259.6071,
+            "imports": 1735.9349999999995,
+            "express": 40.041800000000876,
+            "next": 607.8676000000014,
+            "prisma": 1021.1546000000017,
+            "infra": 27.39049999999952,
+            "files": 51.6945999999989,
+            "symbols": 52.160799999999654,
+            "calls": 4140.3171999999995,
+            "http": 3535.218100000002,
+            "sdk": 1210.725699999999,
+            "queues": 1848.8759999999966,
+            "assemble": 285.2304000000004
+          },
+          "maxRssBytes": 2414944256,
+          "heapTotalBytes": 2352087040,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 24918.31,
+          "stages": {
+            "inventory": 2789.7869,
+            "workspace": 25.121700000000146,
+            "programs": 7014.450400000001,
+            "imports": 2050.1303000000007,
+            "express": 38.655800000000454,
+            "next": 619.7150999999994,
+            "prisma": 1049.8670999999995,
+            "infra": 28.40350000000035,
+            "files": 55.80110000000059,
+            "symbols": 53.65780000000086,
+            "calls": 4172.011200000001,
+            "http": 3598.230599999999,
+            "sdk": 1236.6888,
+            "queues": 1888.3469000000005,
+            "assemble": 293.33599999999933
+          },
+          "maxRssBytes": 2416553984,
+          "heapTotalBytes": 2352832512,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 25760.1505,
+          "stages": {
+            "inventory": 2760.5793,
+            "workspace": 26.823299999999563,
+            "programs": 7194.9313,
+            "imports": 1813.4629999999997,
+            "express": 39.95010000000002,
+            "next": 642.7662,
+            "prisma": 1056.7435999999998,
+            "infra": 27.576499999999214,
+            "files": 53.03280000000086,
+            "symbols": 54.41059999999925,
+            "calls": 4994.490899999999,
+            "http": 3634.781899999998,
+            "sdk": 1249.2043000000012,
+            "queues": 1907.5234999999993,
+            "assemble": 299.6863000000012
+          },
+          "maxRssBytes": 2166939648,
+          "heapTotalBytes": 2079178752,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 26110.3221,
+          "stages": {
+            "inventory": 2908.4621,
+            "workspace": 29.351400000000012,
+            "programs": 7304.3633,
+            "imports": 2153.476200000001,
+            "express": 38.69220000000132,
+            "next": 646.5226000000002,
+            "prisma": 1067.5483000000004,
+            "infra": 28.74449999999888,
+            "files": 55.16530000000057,
+            "symbols": 56.90720000000147,
+            "calls": 4470.5216,
+            "http": 3799.9264000000003,
+            "sdk": 1271.6856000000007,
+            "queues": 1983.1182999999983,
+            "assemble": 291.75840000000244
+          },
+          "maxRssBytes": 2403332096,
+          "heapTotalBytes": 2343878656,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        }
+      ],
+      "warm": [
+        {
+          "totalMs": 3649.4433,
+          "stages": {
+            "inventory": 2516.8404,
+            "workspace": 24.302200000000084,
+            "programs": 756.8220000000001,
+            "imports": 16.820300000000316,
+            "express": 1.628099999999904,
+            "next": 0.19569999999976062,
+            "prisma": 12.858999999999924,
+            "infra": 24.9063000000001,
+            "files": 39.911899999999605,
+            "symbols": 0.21649999999999636,
+            "calls": 10.72460000000001,
+            "http": 12.601500000000215,
+            "sdk": 0.5408999999999651,
+            "queues": 0.43029999999998836,
+            "assemble": 203.2154999999998
+          },
+          "cache": {
+            "hits": 113,
+            "misses": 0,
+            "writes": 0,
+            "shared": {
+              "hits": 199,
+              "misses": 0,
+              "writes": 0
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 1972701,
+            "entries": 312
+          },
+          "maxRssBytes": 199573504,
+          "heapTotalBytes": 135348224,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 3745.1047999999996,
+          "stages": {
+            "inventory": 2522.4409,
+            "workspace": 25.114800000000287,
+            "programs": 791.3516,
+            "imports": 20.12440000000015,
+            "express": 1.8523000000000138,
+            "next": 0.22929999999996653,
+            "prisma": 14.66720000000032,
+            "infra": 28.978399999999965,
+            "files": 47.96630000000005,
+            "symbols": 0.24179999999978463,
+            "calls": 12.7503999999999,
+            "http": 14.95640000000003,
+            "sdk": 0.5330000000003565,
+            "queues": 0.4812000000001717,
+            "assemble": 241.1223
+          },
+          "cache": {
+            "hits": 113,
+            "misses": 0,
+            "writes": 0,
+            "shared": {
+              "hits": 199,
+              "misses": 0,
+              "writes": 0
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 1972701,
+            "entries": 312
+          },
+          "maxRssBytes": 199593984,
+          "heapTotalBytes": 135348224,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 4356.2464,
+          "stages": {
+            "inventory": 2779.0648,
+            "workspace": 25.82639999999992,
+            "programs": 1107.0982,
+            "imports": 23.860900000000584,
+            "express": 2.209100000000035,
+            "next": 0.27739999999994325,
+            "prisma": 17.968800000000556,
+            "infra": 32.94800000000032,
+            "files": 52.98019999999997,
+            "symbols": 0.26159999999981665,
+            "calls": 13.849200000000565,
+            "http": 15.547600000000784,
+            "sdk": 0.5258000000003449,
+            "queues": 0.4606000000003405,
+            "assemble": 257.60369999999966
+          },
+          "cache": {
+            "hits": 113,
+            "misses": 0,
+            "writes": 0,
+            "shared": {
+              "hits": 199,
+              "misses": 0,
+              "writes": 0
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 1972701,
+            "entries": 312
+          },
+          "maxRssBytes": 200241152,
+          "heapTotalBytes": 135872512,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 4427.1388,
+          "stages": {
+            "inventory": 2769.2653,
+            "workspace": 27.000499999999647,
+            "programs": 1104.7416000000003,
+            "imports": 25.47729999999956,
+            "express": 2.306100000000697,
+            "next": 0.29429999999956635,
+            "prisma": 18.78350000000046,
+            "infra": 61.35069999999996,
+            "files": 65.02559999999994,
+            "symbols": 0.28729999999995925,
+            "calls": 16.484300000000076,
+            "http": 18.76009999999951,
+            "sdk": 0.6477999999997337,
+            "queues": 0.6152000000001863,
+            "assemble": 286.9411
+          },
+          "cache": {
+            "hits": 113,
+            "misses": 0,
+            "writes": 0,
+            "shared": {
+              "hits": 199,
+              "misses": 0,
+              "writes": 0
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 1972701,
+            "entries": 312
+          },
+          "maxRssBytes": 197603328,
+          "heapTotalBytes": 134631424,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 4917.8069000000005,
+          "stages": {
+            "inventory": 3196.2117,
+            "workspace": 29.597099999999955,
+            "programs": 1224.5025,
+            "imports": 25.092800000000352,
+            "express": 2.2798000000002503,
+            "next": 0.30490000000008877,
+            "prisma": 18.862299999999777,
+            "infra": 40.193999999999505,
+            "files": 57.55819999999949,
+            "symbols": 0.30869999999958964,
+            "calls": 14.995599999999286,
+            "http": 17.400699999999233,
+            "sdk": 0.6071000000001732,
+            "queues": 0.5433999999995649,
+            "assemble": 265.0108
+          },
+          "cache": {
+            "hits": 113,
+            "misses": 0,
+            "writes": 0,
+            "shared": {
+              "hits": 199,
+              "misses": 0,
+              "writes": 0
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 1972701,
+            "entries": 312
+          },
+          "maxRssBytes": 199462912,
+          "heapTotalBytes": 135241728,
+          "graphSha256": "b1f4265667a93f75943f38bdfb1c6d8c0f30f5429d2e7dc381125a8e3d4941fc",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11709,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        }
+      ]
+    },
+    {
+      "title": "One leaf app edited",
+      "edit": "apps/api/v2/src/main.ts",
+      "cold": [
+        {
+          "totalMs": 26908.3496,
+          "stages": {
+            "inventory": 2923.2814000000003,
+            "workspace": 26.245499999999993,
+            "programs": 7589.5136,
+            "imports": 1835.5563000000002,
+            "express": 39.1299999999992,
+            "next": 1094.1468999999997,
+            "prisma": 1097.5758999999998,
+            "infra": 31.049699999999575,
+            "files": 62.38559999999961,
+            "symbols": 58.2617999999984,
+            "calls": 4588.774800000001,
+            "http": 3883.4032000000007,
+            "sdk": 1335.0073000000011,
+            "queues": 2037.5571000000018,
+            "assemble": 303.5405000000028
+          },
+          "maxRssBytes": 2167480320,
+          "heapTotalBytes": 2112352256,
+          "graphSha256": "6137e62cbeb712d357f16d3723d663622e41c7af358d45e7b5245268f54d2145",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 43648.6757,
+          "stages": {
+            "inventory": 3208.0836999999997,
+            "workspace": 28.081700000000183,
+            "programs": 7626.5327,
+            "imports": 1873.3348999999998,
+            "express": 39.772899999999936,
+            "next": 662.0337,
+            "prisma": 1520.6000999999997,
+            "infra": 51.527500000000146,
+            "files": 94.30829999999878,
+            "symbols": 115.71830000000045,
+            "calls": 6897.1852,
+            "http": 16280.628600000004,
+            "sdk": 1906.7146999999968,
+            "queues": 2913.5088000000032,
+            "assemble": 427.5796000000046
+          },
+          "maxRssBytes": 2268336128,
+          "heapTotalBytes": 2186784768,
+          "graphSha256": "a91592648c92536b7dabbbcb8795360d2cddafd021a9683cda0de6d65d3faa37",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 35820.4475,
+          "stages": {
+            "inventory": 4808.2058,
+            "workspace": 47.05370000000039,
+            "programs": 9228.3128,
+            "imports": 2427.4623999999985,
+            "express": 86.68499999999767,
+            "next": 835.6756999999998,
+            "prisma": 1422.1366000000016,
+            "infra": 38.294200000000274,
+            "files": 73.64809999999852,
+            "symbols": 104.94490000000224,
+            "calls": 6325.197499999998,
+            "http": 5283.215199999999,
+            "sdk": 1810.9887000000017,
+            "queues": 2920.4997000000003,
+            "assemble": 401.98079999999754
+          },
+          "maxRssBytes": 2197622784,
+          "heapTotalBytes": 2110595072,
+          "graphSha256": "dbf5645a6035e486db8d31724392cad17d84880616917b47a723591a5a889d1a",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 34320.4176,
+          "stages": {
+            "inventory": 4656.3372,
+            "workspace": 39.15260000000035,
+            "programs": 9310.421699999999,
+            "imports": 2359.0607999999993,
+            "express": 52.231800000001385,
+            "next": 837.1828000000023,
+            "prisma": 1297.4661000000015,
+            "infra": 36.550100000000384,
+            "files": 67.28909999999814,
+            "symbols": 69.8015000000014,
+            "calls": 5479.2222,
+            "http": 5078.925000000003,
+            "sdk": 1822.178899999999,
+            "queues": 2749.4729000000007,
+            "assemble": 460.4559999999983
+          },
+          "maxRssBytes": 2438299648,
+          "heapTotalBytes": 2365337600,
+          "graphSha256": "ca09a03d19bc2ea03082577c083924291700a7bc8a8afe09745228838f601d8a",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 35626.540499999996,
+          "stages": {
+            "inventory": 4856.4281,
+            "workspace": 38.64639999999963,
+            "programs": 9261.165399999998,
+            "imports": 2437.3739000000005,
+            "express": 52.58399999999892,
+            "next": 833.0790000000015,
+            "prisma": 1420.3891000000003,
+            "infra": 34.47819999999774,
+            "files": 88.46809999999823,
+            "symbols": 107.86949999999706,
+            "calls": 5531.427300000003,
+            "http": 5224.486000000001,
+            "sdk": 2380.2536,
+            "queues": 2903.3047000000006,
+            "assemble": 450.61099999999715
+          },
+          "maxRssBytes": 2385276928,
+          "heapTotalBytes": 2260553728,
+          "graphSha256": "705f3974d83c00dd3a2480d4c4fa3a7eba06bb6e3c2b7392a66cf3e3ba1452b0",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        }
+      ],
+      "warm": [
+        {
+          "totalMs": 9642.9057,
+          "stages": {
+            "inventory": 2889.8229,
+            "workspace": 27.385399999999663,
+            "programs": 2232.6258,
+            "imports": 224.1948000000002,
+            "express": 9.395599999999831,
+            "next": 0.6971000000003187,
+            "prisma": 403.33529999999973,
+            "infra": 35.00160000000051,
+            "files": 56.33050000000003,
+            "symbols": 10.828700000000026,
+            "calls": 2107.0571,
+            "http": 596.5938999999998,
+            "sdk": 192.34519999999975,
+            "queues": 332.58320000000094,
+            "assemble": 260.39769999999953
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 1,
+            "shared": {
+              "hits": 191,
+              "misses": 0,
+              "writes": 11
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 2233195,
+            "entries": 321
+          },
+          "maxRssBytes": 683077632,
+          "heapTotalBytes": 615227392,
+          "graphSha256": "6137e62cbeb712d357f16d3723d663622e41c7af358d45e7b5245268f54d2145",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 10020.335799999999,
+          "stages": {
+            "inventory": 3126.3381999999997,
+            "workspace": 30.85079999999971,
+            "programs": 2217.6602000000003,
+            "imports": 204.8173000000006,
+            "express": 8.415199999999459,
+            "next": 0.5970999999999549,
+            "prisma": 412.9405999999999,
+            "infra": 35.267799999999625,
+            "files": 59.86579999999958,
+            "symbols": 11.958000000000538,
+            "calls": 2095.6872000000003,
+            "http": 730.112799999999,
+            "sdk": 219.84359999999833,
+            "queues": 416.48619999999937,
+            "assemble": 291.432499999999
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 1,
+            "shared": {
+              "hits": 191,
+              "misses": 0,
+              "writes": 11
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 2422952,
+            "entries": 323
+          },
+          "maxRssBytes": 664678400,
+          "heapTotalBytes": 601149440,
+          "graphSha256": "a91592648c92536b7dabbbcb8795360d2cddafd021a9683cda0de6d65d3faa37",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 12701.0442,
+          "stages": {
+            "inventory": 4459.988,
+            "workspace": 36.47139999999945,
+            "programs": 2514.2537999999995,
+            "imports": 278.1174000000001,
+            "express": 11.798200000000179,
+            "next": 0.6383000000005268,
+            "prisma": 405.8290999999999,
+            "infra": 34.51010000000133,
+            "files": 74.09439999999995,
+            "symbols": 24.237699999999677,
+            "calls": 2982.2934000000005,
+            "http": 719.2837,
+            "sdk": 225.8173000000006,
+            "queues": 424.189699999999,
+            "assemble": 328.1281999999992
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 1,
+            "shared": {
+              "hits": 191,
+              "misses": 0,
+              "writes": 11
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 2612705,
+            "entries": 325
+          },
+          "maxRssBytes": 679510016,
+          "heapTotalBytes": 615444480,
+          "graphSha256": "dbf5645a6035e486db8d31724392cad17d84880616917b47a723591a5a889d1a",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 12549.6654,
+          "stages": {
+            "inventory": 4864.4192,
+            "workspace": 38.30580000000009,
+            "programs": 2407.6168,
+            "imports": 268.96699999999964,
+            "express": 8.606100000000879,
+            "next": 0.5987999999997555,
+            "prisma": 390.27599999999984,
+            "infra": 36.607099999999264,
+            "files": 62.62209999999868,
+            "symbols": 11.096999999999753,
+            "calls": 2474.9586,
+            "http": 795.7502000000004,
+            "sdk": 203.6789000000008,
+            "queues": 401.9451000000008,
+            "assemble": 342.0730000000003
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 1,
+            "shared": {
+              "hits": 191,
+              "misses": 0,
+              "writes": 11
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 2802466,
+            "entries": 327
+          },
+          "maxRssBytes": 669986816,
+          "heapTotalBytes": 602189824,
+          "graphSha256": "ca09a03d19bc2ea03082577c083924291700a7bc8a8afe09745228838f601d8a",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 12902.0073,
+          "stages": {
+            "inventory": 4438.4327,
+            "workspace": 42.886099999999715,
+            "programs": 2617.7007000000003,
+            "imports": 266.6337000000003,
+            "express": 9.096800000000258,
+            "next": 0.644600000000537,
+            "prisma": 399.72679999999946,
+            "infra": 37.280000000000655,
+            "files": 62.39520000000084,
+            "symbols": 18.135700000000725,
+            "calls": 3032.4421,
+            "http": 785.7553000000007,
+            "sdk": 233.4395999999997,
+            "queues": 435.270199999999,
+            "assemble": 347.41359999999986
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 1,
+            "shared": {
+              "hits": 191,
+              "misses": 0,
+              "writes": 11
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 2992223,
+            "entries": 329
+          },
+          "maxRssBytes": 662061056,
+          "heapTotalBytes": 599654400,
+          "graphSha256": "705f3974d83c00dd3a2480d4c4fa3a7eba06bb6e3c2b7392a66cf3e3ba1452b0",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        }
+      ]
+    },
+    {
+      "title": "A shared package edited",
+      "edit": "packages/lib/constants.ts",
+      "cold": [
+        {
+          "totalMs": 36078.1593,
+          "stages": {
+            "inventory": 4627.968800000001,
+            "workspace": 46.20190000000002,
+            "programs": 9308.780299999999,
+            "imports": 2466.043700000002,
+            "express": 54.32900000000154,
+            "next": 777.5934000000016,
+            "prisma": 1368.0543999999973,
+            "infra": 33.99949999999808,
+            "files": 68.64879999999903,
+            "symbols": 65.12589999999909,
+            "calls": 5841.7958,
+            "http": 6196.486499999999,
+            "sdk": 1873.0784000000021,
+            "queues": 2882.2505999999994,
+            "assemble": 458.7897000000012
+          },
+          "maxRssBytes": 2311290880,
+          "heapTotalBytes": 2220036096,
+          "graphSha256": "746c1a3bce0b2018d2fb4307b4019f7fff335ae25cb650d9a2e5b3a75ae11c40",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 34795.6152,
+          "stages": {
+            "inventory": 4757.2453,
+            "workspace": 41.70010000000002,
+            "programs": 9135.6492,
+            "imports": 2373.1898999999994,
+            "express": 57.352100000000064,
+            "next": 822.4998999999989,
+            "prisma": 1402.062600000001,
+            "infra": 56.111800000002404,
+            "files": 85.69729999999981,
+            "symbols": 89.49729999999909,
+            "calls": 5799.798299999999,
+            "http": 5131.632799999999,
+            "sdk": 1816.2629000000015,
+            "queues": 2789.5206000000035,
+            "assemble": 431.4459000000061
+          },
+          "maxRssBytes": 2430914560,
+          "heapTotalBytes": 2360582144,
+          "graphSha256": "812e00340f6abc9158908d9022080872953f03e53c7e01bda244a57c41e649ff",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 36682.8281,
+          "stages": {
+            "inventory": 4872.9998,
+            "workspace": 46.412600000000566,
+            "programs": 9281.8248,
+            "imports": 2483.9446000000007,
+            "express": 71.59130000000005,
+            "next": 847.0498000000007,
+            "prisma": 1550.0146999999997,
+            "infra": 41.59049999999843,
+            "files": 69.82529999999679,
+            "symbols": 101.17169999999896,
+            "calls": 6453.6538999999975,
+            "http": 5073.906800000001,
+            "sdk": 1837.986499999999,
+            "queues": 3493.2260000000024,
+            "assemble": 451.37079999999696
+          },
+          "maxRssBytes": 2395746304,
+          "heapTotalBytes": 2275196928,
+          "graphSha256": "fe75d2433918cca9785ec1e3b6599849fee3d54b4ca06ac0cb4abfd958e827d3",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 35030.9965,
+          "stages": {
+            "inventory": 4592.7011,
+            "workspace": 43.11369999999988,
+            "programs": 9280.2847,
+            "imports": 2373.673700000001,
+            "express": 84.58729999999923,
+            "next": 784.2850999999973,
+            "prisma": 1399.7747000000018,
+            "infra": 40.45769999999902,
+            "files": 74.33829999999944,
+            "symbols": 72.52880000000005,
+            "calls": 6179.5913,
+            "http": 5128.093199999999,
+            "sdk": 1754.082699999999,
+            "queues": 2805.388699999996,
+            "assemble": 414.9401999999973
+          },
+          "maxRssBytes": 2135097344,
+          "heapTotalBytes": 2070966272,
+          "graphSha256": "34e1bc2acad86ca1e943175c5111988dba78e16b9deee6c811974d381f01849d",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 35728.267100000005,
+          "stages": {
+            "inventory": 4826.702499999999,
+            "workspace": 68.64660000000003,
+            "programs": 9153.2968,
+            "imports": 2366.8914000000004,
+            "express": 64.15869999999995,
+            "next": 847.8328000000001,
+            "prisma": 1332.0662999999986,
+            "infra": 34.12380000000121,
+            "files": 83.78050000000076,
+            "symbols": 110.54919999999765,
+            "calls": 6287.114000000001,
+            "http": 5425.036899999999,
+            "sdk": 1889.970900000004,
+            "queues": 2826.3691000000035,
+            "assemble": 406.4788000000044
+          },
+          "maxRssBytes": 2202292224,
+          "heapTotalBytes": 2123059200,
+          "graphSha256": "c005b70611077defd34d5a0eb55a8c46fc7b85302295d6501b45d51ee448c7bd",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        }
+      ],
+      "warm": [
+        {
+          "totalMs": 34976.1071,
+          "stages": {
+            "inventory": 4760.917799999999,
+            "workspace": 47.95890000000054,
+            "programs": 9130.881399999998,
+            "imports": 2492.553100000001,
+            "express": 58.42289999999775,
+            "next": 738.4933999999994,
+            "prisma": 1425.745899999998,
+            "infra": 36.99689999999828,
+            "files": 83.22230000000127,
+            "symbols": 94.12579999999798,
+            "calls": 5494.958600000002,
+            "http": 4964.833200000001,
+            "sdk": 1777.711900000002,
+            "queues": 2637.672200000001,
+            "assemble": 385.68909999999596
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 88,
+            "shared": {
+              "hits": 199,
+              "misses": 0,
+              "writes": 2
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 3058817,
+            "entries": 332
+          },
+          "maxRssBytes": 2319237120,
+          "heapTotalBytes": 2246205440,
+          "graphSha256": "746c1a3bce0b2018d2fb4307b4019f7fff335ae25cb650d9a2e5b3a75ae11c40",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 37197.062300000005,
+          "stages": {
+            "inventory": 4688.7398,
+            "workspace": 41.96240000000034,
+            "programs": 9769.556400000001,
+            "imports": 2404.3576999999987,
+            "express": 47.65440000000308,
+            "next": 776.6620999999977,
+            "prisma": 1400.1051999999981,
+            "infra": 41.392399999997,
+            "files": 64.80329999999958,
+            "symbols": 66.58060000000114,
+            "calls": 6593.044900000001,
+            "http": 5508.1525,
+            "sdk": 1754.4949000000015,
+            "queues": 2791.9300999999978,
+            "assemble": 416.6739000000016
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 88,
+            "shared": {
+              "hits": 198,
+              "misses": 0,
+              "writes": 1
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 3124809,
+            "entries": 334
+          },
+          "maxRssBytes": 2101399552,
+          "heapTotalBytes": 2010648576,
+          "graphSha256": "812e00340f6abc9158908d9022080872953f03e53c7e01bda244a57c41e649ff",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 36313.231400000004,
+          "stages": {
+            "inventory": 4631.8567,
+            "workspace": 41.490599999999176,
+            "programs": 9223.9866,
+            "imports": 2565.3598,
+            "express": 54.72780000000057,
+            "next": 763.1417000000001,
+            "prisma": 1399.6885000000002,
+            "infra": 35.11909999999989,
+            "files": 82.57649999999921,
+            "symbols": 118.24120000000039,
+            "calls": 5697.890800000001,
+            "http": 5774.726300000002,
+            "sdk": 1726.130500000003,
+            "queues": 2941.4437000000034,
+            "assemble": 440.70290000000386
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 88,
+            "shared": {
+              "hits": 198,
+              "misses": 0,
+              "writes": 1
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 3191007,
+            "entries": 336
+          },
+          "maxRssBytes": 2234753024,
+          "heapTotalBytes": 2123907072,
+          "graphSha256": "fe75d2433918cca9785ec1e3b6599849fee3d54b4ca06ac0cb4abfd958e827d3",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 36414.4419,
+          "stages": {
+            "inventory": 4668.832399999999,
+            "workspace": 48.6279999999997,
+            "programs": 9189.4123,
+            "imports": 2648.5326000000023,
+            "express": 56.92989999999918,
+            "next": 770.3356999999996,
+            "prisma": 1629.9968000000008,
+            "infra": 33.65459999999803,
+            "files": 68.66909999999916,
+            "symbols": 68.54850000000079,
+            "calls": 6590.945799999998,
+            "http": 5014.010200000001,
+            "sdk": 1770.2667000000001,
+            "queues": 2747.4838999999993,
+            "assemble": 392.50129999999626
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 88,
+            "shared": {
+              "hits": 198,
+              "misses": 0,
+              "writes": 1
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 3257272,
+            "entries": 338
+          },
+          "maxRssBytes": 2031198208,
+          "heapTotalBytes": 1971429376,
+          "graphSha256": "34e1bc2acad86ca1e943175c5111988dba78e16b9deee6c811974d381f01849d",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        },
+        {
+          "totalMs": 36133.1101,
+          "stages": {
+            "inventory": 4552.411599999999,
+            "workspace": 47.96010000000024,
+            "programs": 10016.617699999999,
+            "imports": 2489.2226999999984,
+            "express": 60.818599999998696,
+            "next": 862.4137999999984,
+            "prisma": 1422.3137000000024,
+            "infra": 43.65520000000106,
+            "files": 62.30529999999999,
+            "symbols": 70.09549999999945,
+            "calls": 5716.769800000002,
+            "http": 5260.7886,
+            "sdk": 1743.9136999999973,
+            "queues": 2646.065300000002,
+            "assemble": 365.4472999999998
+          },
+          "cache": {
+            "hits": 112,
+            "misses": 1,
+            "writes": 88,
+            "shared": {
+              "hits": 198,
+              "misses": 0,
+              "writes": 1
+            },
+            "evictions": 0,
+            "errors": 0,
+            "bytes": 3323232,
+            "entries": 340
+          },
+          "maxRssBytes": 2307297280,
+          "heapTotalBytes": 2235244544,
+          "graphSha256": "c005b70611077defd34d5a0eb55a8c46fc7b85302295d6501b45d51ee448c7bd",
+          "counts": {
+            "nodes.system": 1,
+            "nodes.service": 113,
+            "nodes.module": 1392,
+            "nodes.file": 5041,
+            "nodes.symbol": 11710,
+            "nodes.unresolved": 720,
+            "nodes.page": 97,
+            "nodes.route": 91,
+            "nodes.datastore": 7,
+            "nodes.model": 103,
+            "nodes.external": 30,
+            "edges.imports": 19045,
+            "edges.calls": 10301,
+            "edges.handles": 87,
+            "edges.renders": 97,
+            "edges.reads": 977,
+            "edges.stores": 103,
+            "edges.writes": 608,
+            "edges.external_call": 139,
+            "edges.http": 177,
+            "warnings": 144
+          }
+        }
+      ]
+    }
+  ]
+}
