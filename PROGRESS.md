@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.8b A mostly re-collected warm run no slower than cold (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M6.8c A mostly re-collected warm run no slower than cold (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -246,7 +246,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.7f1 Worker fact cache on Cloud Run (ADR-0178: 64 MiB of the in-memory `/tmp` from the budget's spare, not a 2 GB volume): `openDiskCache` makes room before each write and counts 4 KiB blocks; `/tmp/cache/public` + `installations/<id>` (none for a private repo without an installation; `deleteInstallationCache` for M8.5), one cap across folders; the child gets only its folder (`--allow-fs-*`), reports cache counters; tests incl. a sandbox probe and a warm job through the real child {model: opus}
 - [x] M6.7f2 Container check: two analyses through the image's sandboxed child share `/tmp/cache/public` (second one all hits, same bytes, entries owned by uid 1000, the cache within its cap) {model: opus}
 - [x] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
-- [ ] M6.8b A mostly re-collected warm run no slower than cold: on 10 real cal.com commits the median speedup is 0.84× (`bench/results/2026-11-02-incremental-calcom-commits.md`): 88–90 of 113 services collected each time, plus 4.6–6.2 s after `queues` (`serviceInputs` + `storeFacts`) and ~1.6 s more `programs` (checking 112 entries). Profile both, cut them (e.g. hash each input file once per run, store off the critical path or skip storing what the next commit would invalidate anyway), keep warm == cold bytes; re-run `pnpm bench:incremental` and `-- --commits`, commit the reports {model: opus}
+- [x] M6.8b Cut a mostly re-collected warm run's store and check cost (ADR-0179): profiled (2.1 s `serviceInputs` re-snapshotting, 2.3 s serial gzip of 88 entries, 0.9 s serial reads), each program snapshotted once and equal reaches share one merged inputs object, `inputsDigest` per entry (verified once per run, `KEY_FORMAT` 3), the disk cache compresses on the thread pool (4 puts in flight, reads side by side); warm == cold bytes; re-ran both benchmarks (`…-m6.8b` reports): real commits 0.84× → 0.91×, `packages/lib` edit 0.85× → 0.92×, so not yet at parity (M6.8c) {model: opus}
+- [ ] M6.8c A mostly re-collected warm run no slower than cold: ~80 of cal.com's 113 entries each carry the same 1.3 MB of inputs (119 of 138 MB raw), so store each distinct inputs set once (its own content-addressed entry, referenced by digest from the service entries; a missing one is a miss), and count cache use per service where tests, the worker's stats, the container check (`infra/gcp/check.mjs`), and the benchmark's columns assume one entry per service; also look at `programs`' remaining ~1.5 s (keys hash every own file, ~0.6 s; entry reads); keep warm == cold bytes; re-run `pnpm bench:incremental` and `--commits`, commit the reports {model: opus}
 - [ ] M6.9 Viewer diff mode (overlay, stable layout, changes list) {model: opus}
 - [ ] M6.10 docs/walkthroughs/diff.md {model: opus}
 - [ ] M6.11 Milestone verification + M6-review.md + tag m6 {model: opus}
@@ -283,6 +284,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M6.8b** (`10dd9db` perf, `c13f3a5` eval re-record, reports `7808c38`, `650e11a`): a CPU profile plus timers around `factKeys`/`reusableFacts`/`serviceInputs`/`storeFacts` found 5.9 s of overhead per re-collected warm run. Each program is now snapshotted once, equal reaches share one merged inputs object and one `inputsDigest` (verified once per run), and the disk cache serializes at `put` and gzips/gunzips on the thread pool. cal.com (new `-m6.8b` reports, M6.8's kept): real commits median **0.91×** (was 0.84×), `packages/lib` edit 0.92× (0.85×), unchanged 4.0×, leaf 2.3×; outside-stage time 1.8–2.4 s (was 4.6–6.2 s). Still below parity: ~80 entries each carry the same 1.3 MB of inputs, so M6.8c stores them once. Warm peak RSS rose 417 → 576 MiB (entries read at once), far under cold's 2.3 GiB.
 
 - **2026-11-02 M6.8** (`314e5d5`, `02567aa`, `482b65d`, `596b1e1`): `pnpm bench:incremental` on cal.com, fresh-process cold/warm pairs, every warm graph = its cold pair's bytes. Edits (`bench/results/2026-11-02-incremental-calcom.md`): unchanged 8.4 vs 34.3 s (4.1×), leaf app edit 16.2 vs 38.6 s (2.4×, 1 service collected), `packages/lib` edit 47.0 vs 39.3 s (0.85×, 88 collected). `--commits` replays the 10 first-parent commits ending at the pinned SHA (EVALUATION.md §2; main has only 9 after it): median **0.84×**, 88–90 services collected per source-changing commit (`packages/lib` imports from `apps/web`, so most programs share one file set), plus 4.6–6.2 s storing; follow-up M6.8b. README and EVALUATION.md link both reports.
 
