@@ -25,6 +25,8 @@
  *   room can't be made, the write is skipped. Opening with a smaller cap than the folder holds
  *   evicts the same way. A read that hits touches the entry's time. An entry larger than
  *   `maxBytes` is never stored.
+ * - **Counts:** reads and writes are counted per kind of entry: the caller's own (one per
+ *   service), and the {@link EntryUse.shared} ones they refer to. Sizes count both.
  * - **Failures never fail an analysis:** an unreadable, corrupt, or mismatched entry is a miss
  *   (and is deleted); a write or eviction that fails is counted in {@link CacheStats.errors}
  *   and otherwise ignored. A miss only costs time, since the caller recomputes the value.
@@ -60,19 +62,39 @@ const ENTRY_NAME = /^[0-9a-f]{64}\.json\.gz$/;
 const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
 
+/** How a caller uses an entry, for counting (it's stored the same either way). */
+export interface EntryUse {
+  /**
+   * An entry other entries refer to (e.g. inputs several services' entries share, M6.8c),
+   * counted in {@link CacheStats.shared}, so `hits`, `misses`, and `writes` count the
+   * caller's own entries (one per service).
+   */
+  shared?: boolean;
+}
+
 /** A store of JSON values by key. A miss answers `undefined`. */
 export interface FactCache {
   /** The value stored under `key`, or `undefined` when there is none (or it can't be read). */
-  get(key: string): Promise<unknown>;
+  get(key: string, use?: EntryUse): Promise<unknown>;
   /** Store a JSON value under `key` (`undefined` stores nothing). Never throws. */
-  put(key: string, value: unknown): Promise<void>;
+  put(key: string, value: unknown, use?: EntryUse): Promise<void>;
+}
+
+/** Reads and writes of one kind of entry. */
+export interface EntryCounts {
+  hits: number;
+  misses: number;
+  writes: number;
 }
 
 /** What a {@link DiskCache} has done since it was opened, and what it holds now. */
 export interface CacheStats {
+  /** Reads and writes of entries not marked {@link EntryUse.shared}. */
   hits: number;
   misses: number;
   writes: number;
+  /** Reads and writes of {@link EntryUse.shared} entries. */
+  shared: EntryCounts;
   /** Entries deleted to stay under the size cap. */
   evictions: number;
   /** Writes, touches, and deletions that failed (ignored otherwise). */
@@ -181,6 +203,7 @@ export async function openDiskCache(
     hits: 0,
     misses: 0,
     writes: 0,
+    shared: { hits: 0, misses: 0, writes: 0 },
     evictions: 0,
     errors: 0,
     bytes: 0,
@@ -223,8 +246,12 @@ export async function openDiskCache(
   recount(listed);
   if (counters.bytes > maxBytes) await evict(0);
 
+  /** The counts a read or write of an entry used as `use` goes to. */
+  const countsOf = (use: EntryUse | undefined): EntryCounts =>
+    use?.shared ? counters.shared : counters;
+
   /** Store one entry's gzipped body, making room first so the bound holds while it's written. */
-  const write = async (key: string, body: Buffer): Promise<void> => {
+  const write = async (key: string, body: Buffer, counts: EntryCounts): Promise<void> => {
     const size = counted(body.length);
     if (size > maxBytes) return;
     // Until the rename, the old entry for this key (if any) and the new file both exist.
@@ -242,7 +269,7 @@ export async function openDiskCache(
       await rename(tmp, file);
       counters.bytes += size - (previous ?? 0);
       if (previous === undefined) counters.entries++;
-      counters.writes++;
+      counts.writes++;
     } catch {
       counters.errors++;
       await rm(tmp, { force: true }).catch(() => undefined);
@@ -252,13 +279,14 @@ export async function openDiskCache(
   let writing = Promise.resolve();
 
   return {
-    async get(key) {
+    async get(key, use) {
+      const counts = countsOf(use);
       const file = entryFile(dir, key);
       let data: Buffer;
       try {
         data = await readFile(file);
       } catch {
-        counters.misses++;
+        counts.misses++;
         return undefined;
       }
       let value: unknown;
@@ -267,11 +295,11 @@ export async function openDiskCache(
         if (!isEntry(parsed) || parsed.key !== entryKey(key)) throw new Error("not this entry");
         value = parsed.value;
       } catch {
-        counters.misses++;
+        counts.misses++;
         await remove(file, counted(data.length));
         return undefined;
       }
-      counters.hits++;
+      counts.hits++;
       const touched = new Date();
       await utimes(file, touched, touched).catch(() => {
         counters.errors++;
@@ -279,8 +307,9 @@ export async function openDiskCache(
       return value;
     },
 
-    put(key, value) {
+    put(key, value, use) {
       if (value === undefined) return Promise.resolve();
+      const counts = countsOf(use);
       // Serialized now (the caller may change `value` afterwards) and compressed off the main
       // thread, side by side with other puts; only making room and renaming wait their turn.
       let body: Promise<Buffer>;
@@ -293,7 +322,7 @@ export async function openDiskCache(
       // Handled where it's awaited below; this keeps an early failure from counting as unhandled.
       body.catch(() => undefined);
       const done = writing
-        .then(async () => write(key, await body))
+        .then(async () => write(key, await body, counts))
         .catch(() => {
           counters.errors++;
         });
@@ -301,6 +330,6 @@ export async function openDiskCache(
       return done;
     },
 
-    stats: () => ({ ...counters }),
+    stats: () => ({ ...counters, shared: { ...counters.shared } }),
   };
 }

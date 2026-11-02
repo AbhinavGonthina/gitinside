@@ -72,6 +72,27 @@ describe("openDiskCache", () => {
     });
   });
 
+  it("counts shared entries apart from the caller's own (M6.8c)", async () => {
+    const cache = await openDiskCache(dir);
+    const shared = { shared: true };
+    expect(await cache.get("inputs", shared)).toBeUndefined();
+    await cache.put("inputs", { files: [] }, shared);
+    await cache.put("own", { facts: 1 });
+    expect(await cache.get("inputs", shared)).toEqual({ files: [] });
+    expect(await cache.get("inputs", shared)).toEqual({ files: [] });
+    expect(await cache.get("own")).toEqual({ facts: 1 });
+    expect(cache.stats()).toMatchObject({
+      hits: 1,
+      misses: 0,
+      writes: 1,
+      shared: { hits: 2, misses: 1, writes: 1 },
+      entries: 2,
+    });
+    // A copy: changing it doesn't change the cache's counts.
+    cache.stats().shared.hits = 99;
+    expect(cache.stats().shared.hits).toBe(2);
+  });
+
   it("stores a value as it was when put, with puts side by side (M6.8b)", async () => {
     const cache = await openDiskCache(dir);
     const value = { list: [1] };

@@ -278,8 +278,8 @@ describe("partial reuse beside a troubled collection (M6.7e2)", () => {
     const stored: string[] = [];
     const cache: FactCache = {
       get: async (key) => structuredClone(entries.get(key)),
-      put: async (key, value) => {
-        stored.push((value as { facts: ServiceFacts }).facts.service);
+      put: async (key, value, use) => {
+        if (!use?.shared) stored.push((value as { facts: ServiceFacts }).facts.service);
         entries.set(key, JSON.parse(JSON.stringify(value)));
       },
     };
