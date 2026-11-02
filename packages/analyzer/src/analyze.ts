@@ -21,7 +21,7 @@ import {
 import { errorText } from "./failures.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { createFindings, type AnalysisFindings } from "./findings.js";
-import { collectHttpCalls } from "./http.js";
+import { createHttpSiteCollector } from "./http.js";
 import { collectImportFacts, composeImports, type ManifestCache } from "./imports.js";
 import {
   factKeys,
@@ -294,7 +294,12 @@ async function analyzeRoot(
           }
         }
       }
-      return given ? [] : buildServicePrograms(root, workspace, inventory);
+      if (given) return [];
+      // Programs parse on first use (ADR-0177): the collected services' here, a reused
+      // service's only if a collected one's analysis needs it.
+      const built = buildServicePrograms(root, workspace, inventory);
+      for (const sp of built) if (!reused.has(sp.service.key)) void sp.program;
+      return built;
     },
     inventory.sourceFiles.length,
   );
@@ -363,8 +368,12 @@ async function analyzeRoot(
     async () => {
       // Per-service facts, then the global composition (ADR-0093).
       if (!given) {
+        // A reused service's part comes from its entry, which its inputs vouch for (ADR-0177).
         const hasRouters = await collectionInput("express", () =>
-          programs.some((sp) => routerCreations(sp).length > 0),
+          programs.some((sp) => {
+            const creations = reused.get(sp.service.key)?.facts.express?.creations;
+            return (creations ?? routerCreations(sp)).length > 0;
+          }),
         );
         repoRouters = hasRouters;
         collect("express", (sp) => collectExpressFacts(sp, resolver, hasRouters));
@@ -425,15 +434,25 @@ async function analyzeRoot(
     async () => {
       if (!given) {
         // Whole-repo passes that ask as each service they walk (ADR-0173), giving
-        // per-service facts for the services collected (every program's wrappers are still
-        // found, ADR-0176); then the global binding step (ADR-0092, ADR-0094).
+        // per-service facts for the services collected; a reused service's wrappers are
+        // known from its entry and found only when a collected service calls one (ADR-0176,
+        // ADR-0177); then the global binding step (ADR-0092, ADR-0094).
+        const known = new Map<ServiceProgram, string[]>();
+        for (const sp of programs) {
+          const http = reused.get(sp.service.key)?.facts.http;
+          if (http)
+            known.set(
+              sp,
+              http.wrappers.map((w) => w.id),
+            );
+        }
         const facts = await collectionInput("http", () =>
           collectHttpFacts(
-            collectHttpCalls(programs, resolver),
+            createHttpSiteCollector(resolver),
             programs,
             resolver,
             createUrlNormalizer(resolver),
-            new Set(collected.map((c) => c.sp)),
+            { only: new Set(collected.map((c) => c.sp)), known },
           ),
         );
         // One per collected program (missing ones fail in `stageFacts`).
@@ -469,7 +488,9 @@ async function analyzeRoot(
     async () => {
       // Per-service facts; worker factories and the merge are global (ADR-0172).
       if (!given) {
-        const scanned = await collectionInput("queues", () => usesQueueLibrary(programs));
+        const scanned = await collectionInput("queues", () =>
+          programs.some((sp) => reused.get(sp.service.key)?.queueLibrary ?? usesQueueLibrary([sp])),
+        );
         repoQueues = scanned;
         collect("queues", (sp) => collectQueueFacts(sp, resolver, workspace, scanned));
       }
@@ -508,7 +529,10 @@ async function analyzeRoot(
       }
     }
     if (repo) {
-      const inputs = serviceInputs(programs, resolver);
+      const inputs = serviceInputs(
+        collected.map((c) => c.sp),
+        resolver,
+      );
       const stored = new Map<string, StoredService>();
       for (const { sp } of collected) {
         const observed = inputs.get(sp.service.key);

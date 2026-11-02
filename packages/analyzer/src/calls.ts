@@ -157,8 +157,11 @@ export interface SymbolResolver {
    * last stage that uses a checker.
    */
   warnings(sp: ServiceProgram): AnalysisWarning[];
-  /** Symbol node IDs by declaration node, per root source file. */
-  callers: ReadonlyMap<ts.SourceFile, ReadonlyMap<ts.Node, string>>;
+  /**
+   * Symbol node IDs by declaration node, per root source file (as its own program loaded it;
+   * asking parses that program).
+   */
+  callers: { get(sourceFile: ts.SourceFile): ReadonlyMap<ts.Node, string> | undefined };
   /**
    * The symbol node a callee or value expression (`f`, `a.b.m`, `a["m"]`) names, as seen
    * from `sp`. See {@link buildCallEdges} for what is followed.
@@ -190,23 +193,33 @@ export interface ImportTarget {
 }
 
 /**
- * Create a {@link SymbolResolver} over every service program. Each program's checker and
- * module resolver are created on first use.
+ * Create a {@link SymbolResolver} over every service program (all from one
+ * `buildServicePrograms` call). Each program is parsed, and its symbols indexed, only when a
+ * question needs it (ADR-0177): one of its files is looked up, or its checker is asked. Each
+ * program's checker and module resolver are created on first use.
  */
 export function createSymbolResolver(
   programs: readonly ServiceProgram[],
   workspace: Workspace,
 ): SymbolResolver {
   // Symbol nodes by declaration key (shared across programs that load the same file),
-  // and by declaration node within each root file (to find callers).
+  // and by declaration node within each root file (to find callers), per indexed program.
   const symbolByKey = new Map<string, string>();
   const callers = new Map<ts.SourceFile, Map<ts.Node, string>>();
-  const programByFile = new Map<string, ServiceProgram>();
-  for (const sp of programs) {
+  /** The program whose root files hold each path; known without parsing any. */
+  const ownerOf = new Map<string, ServiceProgram>();
+  for (const sp of programs) for (const file of sp.rootFiles) ownerOf.set(file, sp);
+  /** Root files whose program loaded them, once that program is indexed. */
+  const loaded = new Set<string>();
+  const indexed = new Set<ServiceProgram>();
+  /** Parse `sp` (if it isn't yet) and index its root files' symbols, once. */
+  const index = (sp: ServiceProgram): void => {
+    if (indexed.has(sp)) return;
+    indexed.add(sp);
     for (const file of sp.rootFiles) {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
       if (!sourceFile) continue;
-      programByFile.set(file, sp);
+      loaded.add(file);
       const byNode = new Map<ts.Node, string>();
       for (const symbol of extractSymbols(sourceFile)) {
         const id = symbolNodeId(sp.service, file, symbol.qualified);
@@ -215,7 +228,18 @@ export function createSymbolResolver(
       }
       callers.set(sourceFile, byNode);
     }
-  }
+  };
+  /** The program whose root files hold `path` and loaded it, indexed, if any. */
+  const programByFile = (path: string): ServiceProgram | undefined => {
+    const sp = ownerOf.get(path);
+    if (sp) index(sp);
+    return sp && loaded.has(path) ? sp : undefined;
+  };
+  /** The symbol node a declaration key names, indexing the program owning its file first. */
+  const symbolAt = (path: string, node: ts.Node): string | undefined => {
+    programByFile(path);
+    return symbolByKey.get(nodeKey(path, node));
+  };
 
   const reached = new Map<ServiceProgram, Set<ServiceProgram>>();
   /** Record that `from`'s analysis used `to`'s program; returns `to`. */
@@ -268,7 +292,7 @@ export function createSymbolResolver(
     const path = ctx.sp.toRepoPath(declaration.getSourceFile().fileName);
     if (path === undefined) return undefined;
     for (let n: ts.Node | undefined = declaration; n; n = n.parent) {
-      const id = symbolByKey.get(nodeKey(path, n));
+      const id = symbolAt(path, n);
       if (id !== undefined) return id;
       if (!(n.parent as ts.Node | undefined) || !WRAPPER_KINDS.has(n.parent.kind)) {
         return undefined;
@@ -292,7 +316,7 @@ export function createSymbolResolver(
       declaration.getSourceFile(),
       site.literal,
     );
-    const targetSp = resolved && reach(ctx.sp, programByFile.get(resolved.path));
+    const targetSp = resolved && reach(ctx.sp, programByFile(resolved.path));
     if (!resolved || !targetSp) return undefined;
     const checker = contextOf(targetSp).checker;
     const sourceFile = targetSp.program.getSourceFile(targetSp.toAbsolute(resolved.path));
@@ -390,7 +414,7 @@ export function createSymbolResolver(
   };
 
   return {
-    programOf: (path, from) => reach(from, programByFile.get(path)),
+    programOf: (path, from) => reach(from, programByFile(path)),
     reached: (sp) => reached.get(sp) ?? new Set(),
     checkerOf: (sp) => contextOf(sp).checker,
     asking: (sp, ask) => {
@@ -403,7 +427,14 @@ export function createSymbolResolver(
       }
     },
     warnings: (sp) => [...(failures.get(sp)?.values() ?? [])],
-    callers,
+    callers: {
+      get: (sourceFile) => {
+        // Every program shares one root, so any of them maps the file name to its path.
+        const path = programs[0]?.toRepoPath(sourceFile.fileName);
+        if (path !== undefined) programByFile(path);
+        return callers.get(sourceFile);
+      },
+    },
     resolve,
     importTarget: (sp, declaration, member) => importTarget(contextOf(sp), declaration, member),
     importedFiles,
