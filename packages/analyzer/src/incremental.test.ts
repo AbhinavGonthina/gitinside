@@ -5,7 +5,14 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { analyze, analyzeServices, type AnalyzeOptions } from "./analyze.js";
+import { compareStrings } from "@gitinside/schema";
+import {
+  ANALYSIS_STAGES,
+  analyze,
+  analyzeServices,
+  type AnalysisProgress,
+  type AnalyzeOptions,
+} from "./analyze.js";
 import { serializeGraph } from "./assemble.js";
 import { openDiskCache, type DiskCache, type FactCache } from "./cache.js";
 import { runCli } from "./cli.js";
@@ -37,16 +44,31 @@ async function cold(root: string, options: AnalyzeOptions = {}): Promise<string>
   return serializeGraph(await analyze(root, options));
 }
 
-/** The graph of `root` with `cache`, and what the cache did during the run. */
+/**
+ * The graph of `root` with `cache`, what the cache did during the run, and which services'
+ * facts it stored (sorted).
+ */
 async function warm(
   root: string,
   cache: DiskCache,
   options: AnalyzeOptions = {},
-): Promise<{ bytes: string; hits: number; writes: number; services: number }> {
+): Promise<{ bytes: string; hits: number; writes: number; services: number; stored: string[] }> {
   const before = cache.stats();
   let services = 0;
+  const stored: string[] = [];
+  const recording: FactCache = {
+    get: (key) => cache.get(key),
+    put: (key, value) => {
+      stored.push((value as { facts: ServiceFacts }).facts.service);
+      return cache.put(key, value);
+    },
+  };
   const bytes = serializeGraph(
-    await analyzeServices(root, { ...options, cache, onFacts: (f) => (services = f.length) }),
+    await analyzeServices(root, {
+      ...options,
+      cache: recording,
+      onFacts: (f) => (services = f.length),
+    }),
   );
   const after = cache.stats();
   return {
@@ -54,6 +76,7 @@ async function warm(
     hits: after.hits - before.hits,
     writes: after.writes - before.writes,
     services,
+    stored: stored.sort(compareStrings),
   };
 }
 
@@ -108,7 +131,7 @@ async function monorepo(): Promise<string> {
   return join(dir, "repo");
 }
 
-describe("analyze({ cache }) (M6.7e1)", () => {
+describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
   it.each(NAMES)("%s: a warm run from a moved checkout gives the cold bytes", async (name) => {
     const options = { owner: "fixtures", name };
     const first = join(dir, "first");
@@ -202,7 +225,26 @@ describe("analyze({ cache }) (M6.7e1)", () => {
     ],
   ];
 
-  it.each(edits)("%s: the warm run gives the cold bytes", async (_, edit) => {
+  /**
+   * The services each edit leaves dirty (M6.7e2): those whose recorded inputs it changes,
+   * including through a program they reached (`web` reaches `shared`'s through its import of
+   * `@acme/shared`), or every service when it changes the key's global inputs.
+   */
+  const recollected: Record<string, string[]> = {
+    "edit a file": ["api"],
+    "add a file": ["shared", "web"],
+    "delete a file": ["shared", "web"],
+    "change a file another service imports": ["shared", "web"],
+    // api's program now loads shared's file itself; shared's facts don't change.
+    "add a cross-service import": ["api"],
+    "add a tsconfig": ["web"],
+    "break a tsconfig": ["shared", "web"],
+    "break an extended tsconfig outside every service": ["shared", "web"],
+    "add a dependency": ["api", "shared", "web"],
+    "add a Prisma schema": ["api", "shared", "web"],
+  };
+
+  it.each(edits)("%s: the warm run gives the cold bytes", async (name, edit) => {
     const root = await monorepo();
     const cache = await openDiskCache(join(dir, "cache"));
     const before = await warm(root, cache);
@@ -214,11 +256,11 @@ describe("analyze({ cache }) (M6.7e1)", () => {
     expect(expected).not.toBe(before.bytes);
     const after = await warm(root, cache);
     expect(after.bytes).toBe(expected);
-    // Something changed, so the run was cold and stored its facts again.
-    expect(after.writes).toBe(3);
+    // Only the dirty services were collected and stored again; the rest were reused.
+    expect(after.stored).toEqual(recollected[name]);
     // And the next run reuses them.
     const again = await warm(root, cache);
-    expect(again).toEqual({ bytes: expected, hits: 3, writes: 0, services: 3 });
+    expect(again).toEqual({ bytes: expected, hits: 3, writes: 0, services: 3, stored: [] });
   });
 
   it("reuses one entry per side when switching between two versions", async () => {
@@ -280,7 +322,7 @@ describe("analyze({ cache }) (M6.7e1)", () => {
     expect(reused.warnings.filter((w) => w.message === "from the cache")).toHaveLength(1);
   });
 
-  it("never stores a bundle whose collection failed", async () => {
+  it("never stores a bundle whose collection failed or met a TypeScript internal error", async () => {
     const puts: string[] = [];
     const cache: FactCache = {
       get: async () => undefined,
@@ -288,33 +330,41 @@ describe("analyze({ cache }) (M6.7e1)", () => {
         puts.push(key);
       },
     };
-    const bundle = (service: string, failed: ServiceFacts["failed"]): ServiceFacts => ({
+    const bundle = (service: string, broken: Partial<ServiceFacts> = {}): ServiceFacts => ({
       service,
       rootFiles: [],
       programWarnings: [],
       symbols: [],
-      failed,
+      failed: [],
       analyzerWarnings: [],
+      ...broken,
     });
-    const inputs = { listings: [], files: [], dirs: [] };
+    const service = { inputs: { listings: [], files: [], dirs: [] }, queueLibrary: () => false };
     const keys: FactKeys = {
       keys: new Map([
         ["a", "key-a"],
         ["b", "key-b"],
+        ["c", "key-c"],
       ]),
       hashOf: async () => "",
     };
+    const warning = { code: "DETECTOR_FAILED", message: "x" } as const;
     await storeFacts(
       cache,
       keys,
       [
-        bundle("a", []),
-        bundle("b", [{ stage: "next", warning: { code: "DETECTOR_FAILED", message: "x" } }]),
+        bundle("a"),
+        bundle("b", { failed: [{ stage: "next", warning }] }),
+        bundle("c", {
+          analyzerWarnings: [{ code: "TYPESCRIPT_INTERNAL_ERROR", message: "y" }],
+        }),
       ],
       new Map([
-        ["a", inputs],
-        ["b", inputs],
+        ["a", service],
+        ["b", service],
+        ["c", service],
       ]),
+      { routers: false, queues: false, wrappers: [] },
     );
     expect(puts).toEqual(["key-a"]);
   });
@@ -337,6 +387,152 @@ describe("analyze({ cache }) (M6.7e1)", () => {
       packages: workspace.packages.map((p) => ({ ...p, dependencies: [...p.dependencies, "x"] })),
     };
     expect(globalFactsKey(renamed, sources)).not.toBe(key);
+  });
+});
+
+describe("partial reuse: repo-wide facts (M6.7e2)", () => {
+  /** A workspace of `apps/*` and `packages/*` with the given package names, and no files. */
+  async function workspaceOf(packages: Record<string, object>): Promise<string> {
+    await put(
+      "package.json",
+      JSON.stringify({ name: "acme", workspaces: ["apps/*", "packages/*"] }),
+    );
+    for (const [folder, manifest] of Object.entries(packages)) {
+      await put(`${folder}/package.json`, JSON.stringify(manifest));
+    }
+    return join(dir, "repo");
+  }
+
+  /** A run of `root` with `cache`: what `onStage` and `onProgress` reported, and what it stored. */
+  async function observed(root: string, cache: DiskCache) {
+    const stored: string[] = [];
+    const stages: string[] = [];
+    const progress: AnalysisProgress[] = [];
+    await analyze(root, {
+      cache: {
+        get: (key) => cache.get(key),
+        put: (key, value) => {
+          stored.push((value as { facts: ServiceFacts }).facts.service);
+          return cache.put(key, value);
+        },
+      },
+      onStage: (stage) => stages.push(stage),
+      onProgress: (event) => progress.push(event),
+    });
+    return { stored: stored.sort(compareStrings), stages, progress };
+  }
+
+  it("recollects a clean service when another adds a wrapper named like one of its calls", async () => {
+    const root = await workspaceOf({
+      "apps/web": { name: "web" },
+      "apps/api": { name: "api" },
+    });
+    // `g` is `get`, but the call is only resolved when some wrapper is named `g` (ADR-0092).
+    await put(
+      "apps/web/src/client.ts",
+      [
+        "export function get(path: string) { return fetch(path); }",
+        "const g = get;",
+        'export function users() { return g("/users"); }',
+        "",
+      ].join("\n"),
+    );
+    await put("apps/api/src/index.ts", "export const port = 3000;\n");
+    const cache = await openDiskCache(join(dir, "cache"));
+    expect((await warm(root, cache)).stored).toEqual(["api", "web"]);
+
+    await put("apps/api/src/g.ts", "export function g(url: string) { return fetch(url); }\n");
+    const expected = await cold(root);
+    const after = await warm(root, cache);
+    expect(after.bytes).toBe(expected);
+    // web's files and inputs are unchanged, but its call to `g` now inlines `get`.
+    expect(after.stored).toEqual(["api", "web"]);
+    expect(await warm(root, cache)).toMatchObject({ bytes: expected, writes: 0 });
+  });
+
+  it("recollects a clean service when the repo's first router appears", async () => {
+    const root = await workspaceOf({
+      "apps/api": { name: "api", dependencies: { express: "4.0.0" } },
+      "packages/lib": { name: "@acme/lib" },
+    });
+    // lib registers a route on whatever router it's given; without any router in the repo,
+    // its registrations aren't collected. (A relative import: routers aren't followed through
+    // workspace package imports.)
+    await put(
+      "packages/lib/src/index.ts",
+      'export function routes(r: any) { r.get("/health", (req: any, res: any) => res.end()); }\n',
+    );
+    await put("apps/api/src/server.ts", "export const port = 3000;\n");
+    const cache = await openDiskCache(join(dir, "cache"));
+    const without = await warm(root, cache);
+    expect(without.stored).toEqual(["api", "lib"]);
+
+    const server = [
+      'import express from "express";',
+      'import { routes } from "../../../packages/lib/src/index";',
+      "const app = express();",
+      "routes(app);",
+      "app.listen(3000);",
+      "",
+    ].join("\n");
+    await put("apps/api/src/server.ts", server);
+    const expected = await cold(root);
+    expect(expected).toContain("/health");
+    const after = await warm(root, cache);
+    expect(after.bytes).toBe(expected);
+    expect(after.stored).toEqual(["api", "lib"]);
+
+    // Back to the first version: every entry's inputs hold, but lib's (now collected with a
+    // router in the repo) doesn't match the repo-wide facts the entries give together.
+    await put("apps/api/src/server.ts", "export const port = 3000;\n");
+    const back = await warm(root, cache);
+    expect(back.bytes).toBe(without.bytes);
+    expect(back.stored).toEqual(["lib"]);
+    // And forth again: both versions' entries are now there.
+    await put("apps/api/src/server.ts", server);
+    expect(await warm(root, cache)).toMatchObject({ bytes: expected, stored: ["lib"] });
+  });
+
+  it("recollects a clean service when the repo's first queue library appears", async () => {
+    const root = await workspaceOf({
+      "apps/web": { name: "web" },
+      "apps/jobs": { name: "jobs", dependencies: { bullmq: "5.0.0" } },
+    });
+    await put("apps/web/src/app.ts", "export const title = 1;\n");
+    await put("apps/jobs/src/index.ts", "export const port = 3000;\n");
+    const cache = await openDiskCache(join(dir, "cache"));
+    await warm(root, cache);
+
+    await put(
+      "apps/jobs/src/index.ts",
+      'import { Queue } from "bullmq";\nexport const emails = new Queue("emails");\n',
+    );
+    const expected = await cold(root);
+    const after = await warm(root, cache);
+    expect(after.bytes).toBe(expected);
+    // web's queue facts were collected with nothing to look for; now there is.
+    expect(after.stored).toEqual(["jobs", "web"]);
+  });
+
+  it("reports every stage once, in order, when a run collects a stale service again", async () => {
+    const root = await workspaceOf({
+      "apps/web": { name: "web" },
+      "apps/api": { name: "api" },
+    });
+    await put("apps/web/src/client.ts", 'const g = (u: string) => u;\nexport const x = g("/x");\n');
+    await put("apps/api/src/index.ts", "export const port = 3000;\n");
+    const cache = await openDiskCache(join(dir, "cache"));
+    const first = await observed(root, cache);
+    expect(first.stages).toEqual([...ANALYSIS_STAGES]);
+
+    await put("apps/api/src/g.ts", "export function g(url: string) { return fetch(url); }\n");
+    const second = await observed(root, cache);
+    // web was reused, then collected again (the wrappers changed), yet listeners saw one run.
+    expect(second.stored).toEqual(["api", "web"]);
+    expect(second.stages).toEqual([...ANALYSIS_STAGES]);
+    // Every stage starts once, and `http` reports its requests once.
+    const started = (events: AnalysisProgress[]) => events.map((e) => e.stage);
+    expect(started(second.progress)).toEqual(started(first.progress));
   });
 });
 

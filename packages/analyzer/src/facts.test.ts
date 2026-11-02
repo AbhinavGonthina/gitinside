@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ArchitectureGraph } from "@gitinside/schema";
 import { analyze, analyzeServices, type ServiceFactsOptions } from "./analyze.js";
 import { serializeGraph } from "./assemble.js";
+import type { FactCache } from "./cache.js";
 import type { ServiceFacts } from "./facts.js";
 
 // A checker that throws when asked for one file's module symbol (as `importTarget` does), a
@@ -252,5 +253,50 @@ describe("service facts (M6.7d3d2)", () => {
     failing.queueCheck = false;
     const composed = await analyzeServices(root, { ...options, facts: revived(facts) });
     expect(serializeGraph(composed)).toBe(serializeGraph(graph));
+  });
+});
+
+describe("partial reuse beside a troubled collection (M6.7e2)", () => {
+  const breaks: [string, () => void][] = [
+    [
+      "a TypeScript internal error",
+      () => {
+        failing.moduleOf = SHARED_ENTRY;
+      },
+    ],
+    [
+      "a failed collection",
+      () => {
+        failing.nextIn = "web";
+      },
+    ],
+  ];
+
+  it.each(breaks)("runs cold when a collected service meets %s", async (_, breakIt) => {
+    await sharedRepo();
+    const entries = new Map<string, unknown>();
+    const stored: string[] = [];
+    const cache: FactCache = {
+      get: async (key) => structuredClone(entries.get(key)),
+      put: async (key, value) => {
+        stored.push((value as { facts: ServiceFacts }).facts.service);
+        entries.set(key, JSON.parse(JSON.stringify(value)));
+      },
+    };
+    await analyze(dir, { cache });
+    expect(stored).toEqual(["web", "shared"]);
+
+    // web is dirty, shared clean; web's collection then goes wrong in a way that may depend
+    // on what was asked before it, which a run reusing shared's facts doesn't repeat.
+    await put(
+      "apps/web/app.ts",
+      'import { format } from "@acme/shared";\nexport function render() { format(1); }\nexport function added() {}\n',
+    );
+    breakIt();
+    stored.length = 0;
+    const graph = await analyze(dir, { cache });
+    expect(serializeGraph(graph)).toBe(serializeGraph(await analyze(dir)));
+    // So shared was collected again (the run went cold), and web, troubled, wasn't stored.
+    expect(stored).toEqual(["shared"]);
   });
 });
