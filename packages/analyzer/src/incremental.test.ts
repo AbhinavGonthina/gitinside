@@ -17,7 +17,8 @@ import { serializeGraph } from "./assemble.js";
 import { openDiskCache, type DiskCache, type FactCache } from "./cache.js";
 import { runCli } from "./cli.js";
 import type { ServiceFacts } from "./facts.js";
-import { globalFactsKey, storeFacts, type FactKeys } from "./incremental.js";
+import { globalFactsKey, storeFacts, type CachedService, type FactKeys } from "./incremental.js";
+import { inputsDigest, type ObservedInputs } from "./inputs.js";
 import type { ServiceProgram } from "./program.js";
 import { detectWorkspace } from "./workspace.js";
 
@@ -400,6 +401,63 @@ describe("analyze({ cache }) (M6.7e1, M6.7e2)", () => {
       { routers: false, queues: false, wrappers: [] },
     );
     expect(puts).toEqual(["key-a"]);
+  });
+
+  it("stores one inputs digest per distinct inputs, and misses an entry without one (M6.8b)", async () => {
+    const entries = new Map<string, CachedService>();
+    const memory: FactCache = {
+      get: async (key) => structuredClone(entries.get(key)),
+      put: async (key, value) => {
+        entries.set(key, JSON.parse(JSON.stringify(value)) as CachedService);
+      },
+    };
+    const bundle = (service: string): ServiceFacts => ({
+      service,
+      rootFiles: [],
+      programWarnings: [],
+      symbols: [],
+      failed: [],
+      analyzerWarnings: [],
+    });
+    const shared = { listings: [], files: [["x.ts", "h"]], dirs: [] } satisfies ObservedInputs;
+    const other = { listings: [], files: [["y.ts", "h"]], dirs: [] } satisfies ObservedInputs;
+    const service = (inputs: ObservedInputs) => ({ inputs, queueLibrary: () => false });
+    await storeFacts(
+      memory,
+      {
+        keys: new Map(["a", "b", "c"].map((s) => [s, `key-${s}`])),
+        hashOf: async () => "",
+      },
+      ["a", "b", "c"].map(bundle),
+      new Map([
+        ["a", service(shared)],
+        ["b", service(structuredClone(shared))],
+        ["c", service(other)],
+      ]),
+      { routers: false, queues: false, wrappers: [] },
+    );
+    const digest = (key: string) => entries.get(key)?.inputsDigest;
+    expect(digest("key-a")).toBe(inputsDigest(shared));
+    expect(digest("key-b")).toBe(digest("key-a"));
+    expect(digest("key-c")).toBe(inputsDigest(other));
+    expect(digest("key-c")).not.toBe(digest("key-a"));
+
+    // A run's entries without their digests (an older entry format) are all collected again.
+    const root = await monorepo();
+    entries.clear();
+    await analyze(root, { cache: memory });
+    expect(entries.size).toBe(3);
+    for (const entry of entries.values()) delete (entry as Partial<CachedService>).inputsDigest;
+    const puts: string[] = [];
+    const recording: FactCache = {
+      get: (key) => memory.get(key),
+      put: (key, value) => {
+        puts.push(key);
+        return memory.put(key, value);
+      },
+    };
+    expect(serializeGraph(await analyze(root, { cache: recording }))).toBe(await cold(root));
+    expect(puts).toHaveLength(3);
   });
 
   it("keys the global inputs no service records", async () => {

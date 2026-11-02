@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildCallEdges, createSymbolResolver } from "./calls.js";
+import { buildCallEdges, createSymbolResolver, type SymbolResolver } from "./calls.js";
 import { buildExpressRoutes } from "./express.js";
 import { collectHttpCalls } from "./http.js";
 import { buildImportGraph } from "./imports.js";
@@ -14,6 +14,7 @@ import {
   contentHash,
   createInputLog,
   createInputVerifier,
+  inputsDigest,
   mergeInputs,
   serviceInputs,
   type ObservedInputs,
@@ -21,7 +22,7 @@ import {
 import { buildInventory } from "./inventory.js";
 import { buildNextRoutes } from "./next.js";
 import { buildPrisma } from "./prisma.js";
-import { buildServicePrograms } from "./program.js";
+import { buildServicePrograms, type ServiceProgram } from "./program.js";
 import { buildQueueEdges } from "./queues.js";
 import { buildSdkEdges } from "./sdk.js";
 import { buildSymbolNodes } from "./symbols.js";
@@ -127,6 +128,52 @@ describe("createInputLog", () => {
       dirs: [["d", true]],
     });
   });
+});
+
+describe("serviceInputs", () => {
+  /** A program stand-in for service `key` that reads `file`, counting its snapshots. */
+  function fake(key: string, file: string) {
+    const log = createInputLog(key, [file]);
+    log.read(file, `hash-${key}`);
+    const snapshot = vi.fn(() => log.snapshot());
+    return { service: { key }, inputs: { ...log, snapshot } };
+  }
+
+  it("snapshots each program once and shares one object between equal reaches", () => {
+    // web and admin each reach the other and lib; lib and cli reach nothing.
+    const web = fake("web", "web.ts");
+    const admin = fake("admin", "admin.ts");
+    const lib = fake("lib", "lib.ts");
+    const cli = fake("cli", "cli.ts");
+    const reaches = new Map<unknown, unknown[]>([
+      [web, [lib, admin]],
+      [admin, [web]],
+    ]);
+    const programs = [web, admin, lib, cli] as unknown as ServiceProgram[];
+    const resolver = {
+      reached: (sp: unknown) => reaches.get(sp) ?? [],
+    } as unknown as SymbolResolver;
+
+    const inputs = serviceInputs(programs, resolver);
+    for (const sp of [web, admin, lib, cli]) expect(sp.inputs.snapshot).toHaveBeenCalledTimes(1);
+    const shared = mergeInputs([web, admin, lib].map((sp) => createSnapshot(sp)));
+    expect(inputs.get("web")).toEqual(shared);
+    expect(inputs.get("admin")).toBe(inputs.get("web"));
+    expect(inputs.get("lib")).toEqual(createSnapshot(lib));
+    expect(inputs.get("cli")).toEqual(createSnapshot(cli));
+    expect(inputsDigest(inputs.get("web")!)).toBe(inputsDigest(structuredClone(shared)));
+    expect(inputsDigest(inputs.get("lib")!)).not.toBe(inputsDigest(inputs.get("cli")!));
+  });
+
+  /** What `fake`'s log holds, without counting a snapshot. */
+  function createSnapshot(sp: ReturnType<typeof fake>): ObservedInputs {
+    const key = sp.service.key;
+    return {
+      listings: [[key, [`${key}.ts`]]],
+      files: [[`${key}.ts`, `hash-${key}`]],
+      dirs: [],
+    };
+  }
 });
 
 const NAMES = [

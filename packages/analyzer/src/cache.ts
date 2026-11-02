@@ -38,7 +38,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { gunzipSync, gzipSync } from "node:zlib";
+import { promisify } from "node:util";
+import { gunzip, gzip } from "node:zlib";
 import { compareStrings, SCHEMA_VERSION } from "@gitinside/schema";
 import { ANALYZER_VERSION } from "./version.js";
 
@@ -55,6 +56,9 @@ const LOW_WATER = 0.9;
 const STALE_TMP_MS = 60 * 60 * 1000;
 
 const ENTRY_NAME = /^[0-9a-f]{64}\.json\.gz$/;
+
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 /** A store of JSON values by key. A miss answers `undefined`. */
 export interface FactCache {
@@ -219,10 +223,8 @@ export async function openDiskCache(
   recount(listed);
   if (counters.bytes > maxBytes) await evict(0);
 
-  /** Store one entry, making room first so the bound holds while it's written. */
-  const write = async (key: string, value: unknown): Promise<void> => {
-    const text = JSON.stringify({ key: entryKey(key), value });
-    const body = gzipSync(text);
+  /** Store one entry's gzipped body, making room first so the bound holds while it's written. */
+  const write = async (key: string, body: Buffer): Promise<void> => {
     const size = counted(body.length);
     if (size > maxBytes) return;
     // Until the rename, the old entry for this key (if any) and the new file both exist.
@@ -261,7 +263,7 @@ export async function openDiskCache(
       }
       let value: unknown;
       try {
-        const parsed: unknown = JSON.parse(gunzipSync(data).toString("utf8"));
+        const parsed: unknown = JSON.parse((await gunzipAsync(data)).toString("utf8"));
         if (!isEntry(parsed) || parsed.key !== entryKey(key)) throw new Error("not this entry");
         value = parsed.value;
       } catch {
@@ -279,8 +281,19 @@ export async function openDiskCache(
 
     put(key, value) {
       if (value === undefined) return Promise.resolve();
+      // Serialized now (the caller may change `value` afterwards) and compressed off the main
+      // thread, side by side with other puts; only making room and renaming wait their turn.
+      let body: Promise<Buffer>;
+      try {
+        body = gzipAsync(JSON.stringify({ key: entryKey(key), value }));
+      } catch {
+        counters.errors++;
+        return Promise.resolve();
+      }
+      // Handled where it's awaited below; this keeps an early failure from counting as unhandled.
+      body.catch(() => undefined);
       const done = writing
-        .then(() => write(key, value))
+        .then(async () => write(key, await body))
         .catch(() => {
           counters.errors++;
         });
