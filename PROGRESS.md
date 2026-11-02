@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.8 Benchmarks: full vs incremental on a large TS monorepo (M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M6.8b A mostly re-collected warm run no slower than cold (M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -245,7 +245,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.7e3 Clean programs built only when a dirty service's analysis needs them (programs built lazily through the resolver); warm == cold; time saved measured on a fixture monorepo {model: opus}
 - [x] M6.7f1 Worker fact cache on Cloud Run (ADR-0178: 64 MiB of the in-memory `/tmp` from the budget's spare, not a 2 GB volume): `openDiskCache` makes room before each write and counts 4 KiB blocks; `/tmp/cache/public` + `installations/<id>` (none for a private repo without an installation; `deleteInstallationCache` for M8.5), one cap across folders; the child gets only its folder (`--allow-fs-*`), reports cache counters; tests incl. a sandbox probe and a warm job through the real child {model: opus}
 - [x] M6.7f2 Container check: two analyses through the image's sandboxed child share `/tmp/cache/public` (second one all hits, same bytes, entries owned by uid 1000, the cache within its cap) {model: opus}
-- [ ] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
+- [x] M6.8 Benchmarks: full vs incremental on a large TS monorepo {model: opus}
+- [ ] M6.8b A mostly re-collected warm run no slower than cold: on 10 real cal.com commits the median speedup is 0.84× (`bench/results/2026-11-02-incremental-calcom-commits.md`): 88–90 of 113 services collected each time, plus 4.6–6.2 s after `queues` (`serviceInputs` + `storeFacts`) and ~1.6 s more `programs` (checking 112 entries). Profile both, cut them (e.g. hash each input file once per run, store off the critical path or skip storing what the next commit would invalidate anyway), keep warm == cold bytes; re-run `pnpm bench:incremental` and `-- --commits`, commit the reports {model: opus}
 - [ ] M6.9 Viewer diff mode (overlay, stable layout, changes list) {model: opus}
 - [ ] M6.10 docs/walkthroughs/diff.md {model: opus}
 - [ ] M6.11 Milestone verification + M6-review.md + tag m6 {model: opus}
@@ -282,6 +283,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M6.8** (`314e5d5`, `02567aa`, `482b65d`, `596b1e1`): `pnpm bench:incremental` on cal.com, fresh-process cold/warm pairs, every warm graph = its cold pair's bytes. Edits (`bench/results/2026-11-02-incremental-calcom.md`): unchanged 8.4 vs 34.3 s (4.1×), leaf app edit 16.2 vs 38.6 s (2.4×, 1 service collected), `packages/lib` edit 47.0 vs 39.3 s (0.85×, 88 collected). `--commits` replays the 10 first-parent commits ending at the pinned SHA (EVALUATION.md §2; main has only 9 after it): median **0.84×**, 88–90 services collected per source-changing commit (`packages/lib` imports from `apps/web`, so most programs share one file set), plus 4.6–6.2 s storing; follow-up M6.8b. README and EVALUATION.md link both reports.
 
 - **2026-11-02 M6.7f2** (`f55143b`): `infra/gcp/check.mjs` runs two jobs on `pnpm-monorepo` inside the image as Cloud Run starts it, each preparing `/tmp/cache/public` like job.ts and analyzing in a fresh job folder through the sandboxed child. Cold: 2 misses, 2 writes; warm: 2 hits, 0 misses; both give the golden bytes. The cache root holds only `public`, every path is uid/gid 1000, and the folder (8,192 bytes, 7 paths) fits the 64 MiB cap. CI green (`41429570635`); mutation (no write grant on the cache folder) red on the missing cache counts (`41429537484`).
 
