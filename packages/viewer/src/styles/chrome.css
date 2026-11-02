@@ -1278,6 +1278,53 @@ a.gi-button {
   stroke: none;
 }
 
+/* Diff mode's changes list (M6.9d): a quiet heading per state, and each row's mark in its color. */
+.gi-changes__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: var(--space-16) 0 6px;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+}
+
+.gi-changes h3 + .gi-changes__group {
+  margin-top: 0;
+}
+
+.gi-change[data-diff="added"] {
+  --gi-diff: var(--diff-added);
+}
+
+.gi-change[data-diff="changed"] {
+  --gi-diff: var(--diff-changed);
+}
+
+.gi-change[data-diff="removed"],
+.gi-change[data-diff="broken"] {
+  --gi-diff: var(--diff-removed);
+}
+
+.gi-change__mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--gi-diff);
+}
+
+/* A broken connection: a short dashed line, like the canvas's. */
+.gi-change[data-diff="broken"] .gi-change__mark {
+  width: 20px;
+  height: 0;
+  margin: 0;
+  border-top: 2px dashed var(--gi-diff);
+  border-radius: 0;
+  background: none;
+}
+
 /* Code preview: plain text, then Shiki's colors in the same frame (M4b.5b). */
 
 .gi-code {

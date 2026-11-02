@@ -1,5 +1,5 @@
 import type { AnalysisWarning, GraphNode } from "@gitinside/schema";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { Button, Kbd, LinkButton } from "../chrome/controls.js";
 import { githubLineUrl, type RepoRef } from "../chrome/describe.js";
 import { WarningList } from "../chrome/EmptyState.js";
@@ -167,6 +167,8 @@ export interface NodePanelProps {
   onShow?: ((id: string) => void) | undefined;
   /** The analysis's warnings, listed in the repo overview (M4b.12b). */
   warnings?: readonly AnalysisWarning[] | undefined;
+  /** Diff mode's changes list (M6.9d), shown under the summary. */
+  changes?: ReactNode;
 }
 
 /** The overview's warnings section, which the canvas's warnings chip moves focus to. */
@@ -188,6 +190,7 @@ export function NodePanel({
   filteredOut = false,
   onShow,
   warnings = [],
+  changes,
 }: NodePanelProps) {
   const { incoming, outgoing } = connectionsOf(index, node.id);
   const source = "source" in node ? node.source : undefined;
@@ -212,6 +215,7 @@ export function NodePanel({
           </p>
         </InspectorSection>
       )}
+      {changes}
       {isRoot ? (
         <InspectorSection title="Start here">
           <p className="gi-inspector__empty">

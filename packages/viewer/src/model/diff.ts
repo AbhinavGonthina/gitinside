@@ -58,8 +58,9 @@ export interface ChangeItem {
   label: string;
   kind: GraphNode["kind"];
   /**
-   * For `changed`: the record's changed field names (`["hash"]`), or for a rename,
-   * the base node (`from`). For `broken`: the connection.
+   * For `changed`: the record's changed field names (`["hash"]`; for a rename,
+   * what differs from the base record), and for a rename the base node (`from`).
+   * For `broken`: the connection.
    */
   fields?: readonly string[] | undefined;
   from?: GraphNode | undefined;
@@ -404,7 +405,9 @@ function changesList(
     return [...rows.values()].sort(order);
   };
 
-  const fields = new Map(diff.nodes.modified.map((c) => [c.node.id, c.changes]));
+  const fields = new Map(
+    [...diff.nodes.modified, ...diff.nodes.renamed].map((c) => [c.node.id, c.changes]),
+  );
   const changed = [...nodes]
     .filter(([, s]) => s === "changed")
     .map(([id]): ChangeItem => {
