@@ -6,7 +6,7 @@ import { diffPair } from "../diffPair.testkit.js";
 import { EDGE_WORDS } from "../edges/describe.js";
 import { frameCounts } from "../layout/size.js";
 import { buildDiffOverlay, versionGraph } from "../model/diff.js";
-import { buildHierarchy, nodeOf } from "../model/hierarchy.js";
+import { buildHierarchy, isWithin, nodeOf } from "../model/hierarchy.js";
 import { countText } from "../nodes/describe.js";
 import { Explorer } from "./Explorer.js";
 import { summaryOf } from "./summary.js";
@@ -382,5 +382,119 @@ describe("Explorer diff mode", { timeout: 30_000 }, () => {
     expect(screen.queryByRole("radiogroup", { name: "Diff view" })).toBeNull();
     expect(document.querySelector('.gi-status[data-tone="diff"]')).toBeNull();
     expect(document.querySelector(".gi-badge[data-diff]")).toBeNull();
+    expect(document.querySelector(".gi-changes")).toBeNull();
+  });
+});
+
+describe("Explorer diff mode's changes list", { timeout: 30_000 }, () => {
+  const overlay = buildDiffOverlay(base, head, diff);
+  const changes = () => document.querySelector<HTMLElement>(".gi-inspector .gi-changes");
+  /** Each group's heading and count, as shown. */
+  const groups = () =>
+    [...(changes()?.querySelectorAll(".gi-changes__group") ?? [])].map((h) => h.textContent);
+  /** A row by the start of its accessible name ("Removed: DELETE /api/orders/:id"). */
+  const row = (name: string) =>
+    within(changes()!)
+      .getAllByRole("button")
+      .find((b) => b.getAttribute("aria-label")?.startsWith(name));
+
+  it("lists Added, Changed, Removed, and Broken in the overview, counted as the frames count them", async () => {
+    await setup();
+    const all = overlay.inside.get(buildHierarchy(overlay.graph).root.id)!;
+    expect(groups()).toEqual([
+      `Added${all.added}`,
+      `Changed${all.changed}`,
+      `Removed${all.removed}`,
+      `Broken${all.broken}`,
+    ]);
+    // One button per row, each named by its state, node, and change in words.
+    const rows = within(changes()!).getAllByRole("button");
+    const listed = Object.values(overlay.changes).reduce((n, g) => n + g.length, 0);
+    expect(rows).toHaveLength(listed);
+    expect(row("Removed: DELETE /api/orders/:id, route.")).toBeDefined();
+    expect(row("Removed: legacy.ts, file. File · src/legacy.ts · 1 more inside")).toBeDefined();
+    expect(
+      row("Broken: placeOrder, function. POST /api/orders is now PUT /api/orders"),
+    ).toBeDefined();
+    expect(row("Changed: client.ts, file. Code changed")).toBeDefined();
+  });
+
+  it("flies to a row's node, opening its ancestors, selecting and focusing it", async () => {
+    const { box, wrapper } = await setup();
+    expect(wrapper(DELETE_ROUTE)).toBeNull();
+    fireEvent.click(row("Removed: DELETE /api/orders/:id")!);
+    await settle();
+    await waitFor(() => expect(document.activeElement).toBe(box(DELETE_ROUTE)));
+    expect(box(DELETE_ROUTE)?.getAttribute("aria-selected")).toBe("true");
+    expect(document.querySelector(".gi-inspector__header h2")?.textContent).toBe(
+      "DELETE/api/orders/:id",
+    );
+    // The selection's inspector lists only its own changes.
+    expect(changes()?.querySelector("h3")?.textContent).toBe("Changes here");
+    expect(within(changes()!).getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("lists a selected frame's changes inside it, and none for an unchanged node", async () => {
+    await setup({ initialOpen: [SERVICE, SRC], initialSelected: SRC });
+    const index = buildHierarchy(overlay.graph);
+    const inSrc = Object.values(overlay.changes)
+      .flat()
+      .filter((r) => isWithin(index, r.id, SRC));
+    const names = within(changes()!)
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label") ?? "");
+    expect(names).toHaveLength(inSrc.length);
+    expect(names.some((n) => n.startsWith("Removed: legacy.ts"))).toBe(true);
+    // The models removed from prisma/ aren't in src/.
+    const all = Object.values(overlay.changes).flat();
+    expect(inSrc.length).toBeLessThan(all.length);
+    expect(names.some((n) => n.includes(", model."))).toBe(false);
+    expect(all.some((r) => r.kind === "model")).toBe(true);
+
+    cleanup();
+    const db = `file:${P}/src/db.ts`;
+    expect(overlay.nodes.has(db)).toBe(false);
+    await setup({ initialOpen: [SERVICE, SRC], initialSelected: db });
+    expect(changes()).toBeNull();
+  });
+
+  it("shows a row Head doesn't have on the overlay, and says so", async () => {
+    const { box } = await setup();
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await settle();
+    // The list is the diff's, so Head lists what it removed too.
+    fireEvent.click(row("Removed: DELETE /api/orders/:id")!);
+    await settle();
+    const checked = within(views)
+      .getAllByRole("radio")
+      .filter((r) => r.getAttribute("aria-checked") === "true");
+    expect(checked.map((r) => r.textContent)).toEqual(["Overlay"]);
+    await waitFor(() => expect(document.activeElement).toBe(box(DELETE_ROUTE)));
+    expect(
+      screen.getByText(
+        /^Showing the changes between base and head: DELETE \/api\/orders\/:id isn't in the head version\./,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("stays on Head for a row Head has", async () => {
+    const { box } = await setup();
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await settle();
+    fireEvent.click(row(`Added: PUT /api/orders`)!);
+    await settle();
+    await waitFor(() => expect(document.activeElement).toBe(box(PUT_ROUTE)));
+    const checked = within(views)
+      .getAllByRole("radio")
+      .filter((r) => r.getAttribute("aria-checked") === "true");
+    expect(checked.map((r) => r.textContent)).toEqual(["Head"]);
+  });
+
+  it("says where a renamed or moved node came from", async () => {
+    const pair = diffPair("diff-rename");
+    await setup({ graph: pair.head, diff: { base: pair.base, diff: pair.diff } });
+    expect(row("Changed: routes.ts, file. Moved from src/routes/orders.ts")).toBeDefined();
   });
 });

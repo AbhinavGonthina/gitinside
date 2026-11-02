@@ -362,6 +362,29 @@ export const DiffRenamedBase: Story = {
   play: ({ canvasElement }) => showVersion(canvasElement, "Base"),
 };
 
+/**
+ * A row picked in the changes list (M6.9d): the explorer breaks the service
+ * down to the removed route, selects it, and zooms in to read it; the
+ * inspector lists the route's own change.
+ */
+export const DiffChangePicked: Story = {
+  name: "Diff, change picked",
+  render: () => <ExploreDiff />,
+  play: async ({ canvasElement }) => {
+    for (let tries = 0; tries < 250; tries++) {
+      const row = canvasElement.querySelector<HTMLElement>(
+        '.gi-changes button[aria-label^="Removed: DELETE /api/orders/:id"]',
+      );
+      if (row && canvasElement.querySelector('.gi-drill[data-layout="done"]')) {
+        row.click();
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error("The changes list's row wasn't drawn");
+  },
+};
+
 /** Opens a palette with a key on the explorer and types `text` into its field. */
 async function typeInPalette(canvasElement: HTMLElement, key: KeyboardEventInit, text: string) {
   canvasElement

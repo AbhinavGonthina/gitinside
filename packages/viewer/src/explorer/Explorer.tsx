@@ -60,6 +60,7 @@ import {
   type Camera,
   type Size,
 } from "./camera.js";
+import { ChangesSection } from "./changes.js";
 import { encodeState, withState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
@@ -457,21 +458,21 @@ export function Explorer({
 
   // A connection picked in the inspector: once its level is drawn, fly to it
   // if it's off the canvas (UX.md "selecting flies there, drilling if needed").
-  // A palette pick also zooms in until it's readable and moves focus to its
-  // box, so the keys go on from there.
+  // A palette pick or a changes-list row also zooms in until it's readable
+  // and moves focus to its box, so the keys go on from there.
   const flyTo = useRef<string | null>(null);
-  const fromPalette = useRef(false);
+  const picked = useRef(false);
   useEffect(() => {
     const id = flyTo.current;
     if (!id || !shown || shown.view !== view) return;
     flyTo.current = null;
-    const picked = fromPalette.current;
-    fromPalette.current = false;
-    if (picked) boxElement(rootRef.current, id)?.focus({ preventScroll: true });
+    const zoomIn = picked.current;
+    picked.current = false;
+    if (zoomIn) boxElement(rootRef.current, id)?.focus({ preventScroll: true });
     const box = shown.layout.boxes.find((b) => b.id === id);
     if (!box) return;
     const { camera: now, canvas: room } = live.current;
-    const next = picked ? zoomToBox(now, box, room) : ensureVisible(now, box, room);
+    const next = zoomIn ? zoomToBox(now, box, room) : ensureVisible(now, box, room);
     if (next !== now) moveCamera(next, "layout");
   });
 
@@ -897,8 +898,25 @@ export function Explorer({
   function pickSearch(id: string) {
     leaveDialog(true);
     setSearching(false);
-    fromPalette.current = true;
+    picked.current = true;
     reveal(id);
+  }
+
+  /**
+   * A changes-list row (M6.9d): fly to its node like a palette pick. In Base
+   * or Head, a node that version doesn't have (a removed route in Head) is
+   * shown on the overlay, and that's said.
+   */
+  function pickChange(id: string) {
+    const missing = overlay && version !== "overlay" && !overlay.nodesIn[version].has(id);
+    if (missing) setVersion("overlay");
+    picked.current = true;
+    reveal(id);
+    if (missing) {
+      setAnnouncement(
+        `Showing ${VERSION_TEXT.overlay}: ${nodeOf(index, id).label} isn't in ${VERSION_TEXT[version]}. ${selectionAnnouncement(index, id, hiddenKinds)}`,
+      );
+    }
   }
 
   // Ctrl+K with focus on the page itself (nothing focused yet) opens it too.
@@ -1063,6 +1081,8 @@ export function Explorer({
   );
 
   const selectedView = selectedNode ? view.byId.get(selectedNode.id) : undefined;
+  /** What the inspector explains: the selection as the version shown has it, else the repo. */
+  const panelNode = (selected ? shownIndex.byId.get(selected) : undefined) ?? shownIndex.root;
   const hint = hints?.steps[hints.at];
 
   /** The popover, under what opened it (the top bar's button, or the canvas's chip or button). */
@@ -1332,7 +1352,7 @@ export function Explorer({
         ) : (
           <NodePanel
             index={shownIndex}
-            node={(selected ? shownIndex.byId.get(selected) : undefined) ?? shownIndex.root}
+            node={panelNode}
             canBreakDown={selectedView !== undefined && selectedView.canOpen && !selectedView.open}
             canTrace={selectionTraces}
             traceHint={fallbackStart ? nodeOf(shownIndex, fallbackStart) : undefined}
@@ -1345,6 +1365,16 @@ export function Explorer({
             filteredOut={selectedNode !== undefined && filtered.has(selectedNode.id)}
             onShow={showNode}
             warnings={graph.warnings}
+            changes={
+              overlay && (
+                <ChangesSection
+                  index={index}
+                  changes={overlay.changes}
+                  within={panelNode.id}
+                  onSelect={pickChange}
+                />
+              )
+            }
           />
         )}
       </div>

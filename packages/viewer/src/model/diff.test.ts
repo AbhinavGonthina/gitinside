@@ -174,6 +174,10 @@ describe("buildDiffOverlay on the diff-rename pair", () => {
     expect(overlay.nodesIn.base).toContain(file);
     const row = overlay.changes.changed.find((r) => r.id === file);
     expect(row?.from?.id).toBe(`file:${p}/src/routes/orders.ts`);
+    // What differs from the base record, as the diff lists it.
+    const rename = diff.nodes.renamed.find((r) => r.node.id === file);
+    expect(rename?.changes.length).toBeGreaterThan(0);
+    expect(row?.fields).toEqual(rename?.changes);
   });
 
   it("gives Base a renamed node's base record, at its head ID and place", () => {

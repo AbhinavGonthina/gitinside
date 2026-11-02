@@ -1417,6 +1417,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "BrokenDown",
       "Diff",
       "DiffBrokenDown",
+      "DiffChangePicked",
       "DiffHead",
       "DiffRenamedBase",
       "DrilledDeep",
@@ -1499,6 +1500,21 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       base.querySelector('[data-node-id="file:diff-rename/src/orders/routes.ts"] .gi-node__label')
         ?.textContent,
     ).toBe("orders.ts");
+    cleanup();
+
+    // A changes-list row picked by the story's play (M6.9d).
+    const picked = render(<all.DiffChangePicked />);
+    await settle();
+    await all.DiffChangePicked.play?.({ canvasElement: picked.container } as Parameters<
+      NonNullable<typeof all.DiffChangePicked.play>
+    >[0]);
+    await waitFor(() =>
+      expect(
+        picked.container.querySelector(
+          '[data-node-id="route:diff-broken/DELETE /api/orders/:id"] > .gi-node',
+        ),
+      ).toBe(document.activeElement),
+    );
   });
 
   it("show the warnings in the warnings story and the no-app card in its story", async () => {
