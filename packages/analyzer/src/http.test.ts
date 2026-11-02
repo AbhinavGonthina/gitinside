@@ -459,6 +459,49 @@ describe("collectHttpCalls: axios", () => {
     ]);
   });
 
+  it("applies a `defaults.baseURL` write only to files that import its module (M5A.5d)", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { axios: "1" } }));
+    await put("src/config.ts", ['import axios from "axios";', 'axios.defaults.baseURL = "/api";']);
+    await put("src/http.ts", ['import "./config";', "export const ready = true;"]);
+    await put("src/client.ts", [
+      'import axios from "axios";',
+      "export const api = axios.create();",
+    ]);
+    await put("src/users.ts", [
+      'import axios from "axios";',
+      'import { api } from "./client";',
+      'export const list = () => axios.get("/users");',
+      'export const one = () => api.get("/users/1");',
+    ]);
+    await put("src/pages.ts", [
+      'import axios from "axios";',
+      'import "./http";',
+      'export const pages = () => axios.get("/pages");',
+    ]);
+    // Test and e2e setup files rebase the client for the tests only.
+    await put("test/setup.ts", [
+      'import axios from "axios";',
+      'import { api } from "../src/client";',
+      'axios.defaults.baseURL = "http://localhost:9999";',
+      'api.defaults.baseURL = "http://localhost:9999/api";',
+    ]);
+    await put("test/pages.test.ts", [
+      'import axios from "axios";',
+      'import "./setup";',
+      'import "../src/pages";',
+      'export const probe = () => axios.get("/probe");',
+    ]);
+    expect(summary(await collect())).toEqual([
+      // Reaches `config.ts` through `http.ts`, and not the test setup.
+      'src/pages.ts:3:28 axios GET "/pages" base="/api" [symbol:web/src/pages.ts#pages]',
+      // Reaches neither write: the instance's `create()` copies no assigned defaults either.
+      'src/users.ts:3:27 axios GET "/users" base=- [symbol:web/src/users.ts#list]',
+      'src/users.ts:4:26 axios GET "/users/1" base=- [symbol:web/src/users.ts#one]',
+      // Reaches both writes to the default export: unknown, never guessed.
+      'test/pages.test.ts:4:28 axios GET "/probe" base=? [symbol:web/test/pages.test.ts#probe]',
+    ]);
+  });
+
   it("ignores look-alike methods on non-axios values", async () => {
     await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));
     await put("src/server.ts", [
