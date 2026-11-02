@@ -6,21 +6,31 @@ import { diffGraphs, renderMermaidSummary } from "@gitinside/diff";
 import { stringifyDiff } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
 import { serializeGraph } from "./assemble.js";
+import { openDiskCache, type DiskCache } from "./cache.js";
 import { openSide, type DiffSide } from "./revisions.js";
 
 const USAGE = [
   "Usage: gitinside analyze <path> [--out <file>] [--owner <owner>] [--name <name>] [--sha <sha>]",
+  "                         [--cache <dir>]",
   "       gitinside diff <base> <head> [--repo <dir>] [--format json|mermaid] [--out <file>]",
+  "                      [--cache <dir>]",
   "",
   "diff: <base> and <head> are each a graph file from `gitinside analyze`, a folder to analyze,",
   "or a commit, branch, or tag in the git repo at --repo (default: the current folder).",
+  "--cache: reuse unchanged services' analysis from this folder (created if missing); the",
+  "output is the same either way.",
 ].join("\n");
 
 /** Flags each command takes, all with a value. */
 const COMMAND_FLAGS = {
-  analyze: ["--out", "--owner", "--name", "--sha"],
-  diff: ["--out", "--repo", "--format"],
+  analyze: ["--out", "--owner", "--name", "--sha", "--cache"],
+  diff: ["--out", "--repo", "--format", "--cache"],
 } as const;
+
+/** The fact cache in `dir`, when one is asked for. */
+async function cacheOption(dir: string | undefined): Promise<{ cache?: DiskCache }> {
+  return dir === undefined ? {} : { cache: await openDiskCache(dir) };
+}
 
 /** How many positional arguments each command needs. */
 const POSITIONALS = { analyze: 1, diff: 2 } as const;
@@ -91,13 +101,20 @@ async function emit(text: string, out: string | undefined, io: CliIo): Promise<v
 }
 
 async function runAnalyze(target: string, parsed: Parsed<"analyze">, io: CliIo): Promise<number> {
-  const { "--out": out, "--owner": owner, "--name": name, "--sha": sha } = parsed.values;
-  const identity = {
+  const {
+    "--out": out,
+    "--owner": owner,
+    "--name": name,
+    "--sha": sha,
+    "--cache": cacheDir,
+  } = parsed.values;
+  const options = {
     ...(owner === undefined ? {} : { owner }),
     ...(name === undefined ? {} : { name }),
     ...(sha === undefined ? {} : { sha }),
+    ...(await cacheOption(cacheDir)),
   };
-  await emit(serializeGraph(await analyze(target, identity)), out, io);
+  await emit(serializeGraph(await analyze(target, options)), out, io);
   return 0;
 }
 
@@ -107,14 +124,21 @@ async function runDiff(
   parsed: Parsed<"diff">,
   io: CliIo,
 ): Promise<number> {
-  const { "--out": out, "--repo": repo = ".", "--format": format = "json" } = parsed.values;
+  const {
+    "--out": out,
+    "--repo": repo = ".",
+    "--format": format = "json",
+    "--cache": cacheDir,
+  } = parsed.values;
   if (format !== "json" && format !== "mermaid") {
     io.stderr(`--format must be json or mermaid\n${USAGE}\n`);
     return 2;
   }
+  // One cache for both sides: services the change didn't touch are analyzed once.
+  const options = await cacheOption(cacheDir);
   const sides: DiffSide[] = [];
   try {
-    for (const spec of [base, head]) sides.push(await openSide(spec, repo));
+    for (const spec of [base, head]) sides.push(await openSide(spec, repo, options));
     const [before, after] = sides as [DiffSide, DiffSide];
     const diff = diffGraphs(before.graph, after.graph, {
       contents: { base: before.read, head: after.read },
@@ -142,6 +166,8 @@ async function runDiff(
  * - `diff <base> <head>` writes the `GraphDiff` between two sides (see `openSide`) as
  *   canonical JSON, or with `--format mermaid` a Mermaid flowchart of the change
  *   (`renderMermaidSummary`). Temporary worktrees are removed even when it fails.
+ * - `--cache <dir>` on either command reuses service facts from a disk cache there
+ *   (`openDiskCache`, ADR-0175); `diff`'s two sides share it. The output is unchanged.
  */
 export async function runCli(argv: string[], io: CliIo): Promise<number> {
   const [command, ...rest] = argv;
