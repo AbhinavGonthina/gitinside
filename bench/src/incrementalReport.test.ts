@@ -122,8 +122,9 @@ describe("renderIncrementalReport", () => {
     };
     const s = summarizeCase(history);
     expect(s.speedup).toEqual({ median: 2.75, min: 1.5, max: 4 });
-    const md = renderIncrementalReport(META, [s]);
-    expect(md).toContain("each of the 2 first-parent commits that follow it");
+    const md = renderIncrementalReport({ ...META, fillSha: "f".repeat(40) }, [s]);
+    expect(md).toContain("the 2 first-parent commits ending at the pinned SHA are replayed");
+    expect(md).toContain(`at the commit before them (\`${"f".repeat(40)}\`)`);
     expect(md).toContain("| 2 consecutive commits | each commit's diff (below) |");
     expect(md).toContain("Median speedup per commit (cold ÷ warm): **2.75×** (1.50× to 4.00×).");
     expect(md).toContain(

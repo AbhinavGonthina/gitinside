@@ -29,9 +29,9 @@ import type { RunResult } from "./report.js";
 // - Default: the cache is filled from the pinned tree; then nothing changed, and a one-line
 //   edit to each file in EDITS (restored after each pair). Writes
 //   bench/results/<date>-incremental-<name>.{md,json}.
-// - `--commits`: the COMMITS first-parent commits after the pinned SHA on the default branch,
-//   checked out one at a time in a separate full-history checkout, the cache carried from one
-//   commit to the next (filled at the pinned SHA). Writes <date>-incremental-<name>-commits.*.
+// - `--commits`: the COMMITS first-parent commits ending at the pinned SHA, checked out one at
+//   a time in a separate checkout, the cache filled at the commit before them and carried from
+//   one commit to the next. Writes <date>-incremental-<name>-commits.*.
 //
 // The checkouts are only read (and briefly appended to); nothing in them is installed or run.
 //
@@ -130,28 +130,36 @@ async function editCases(
 }
 
 /**
- * A checkout of `repo`'s default branch back to a day before its pinned commit, in
- * bench/.repos/<name>-history, and the `count` commits that follow the pinned one on the
- * branch's first-parent line, oldest first. Throws if the pinned commit isn't on that line.
+ * The pinned commit's last `count` + 1 first-parent commits, fetched into
+ * bench/.repos/<name>-history: `base`, where the cache is filled, then the `count` commits
+ * replayed, oldest first, ending at the pinned SHA. History before a pinned commit never
+ * changes, so neither does the replay (the branch after it may be too short or move on).
  */
-function historyCheckout(repo: BenchRepo, pinnedDate: string, count: number): string[] {
+function historyCheckout(
+  repo: BenchRepo,
+  count: number,
+): { dir: string; base: string; commits: string[] } {
   const dir = join(BENCH, ".repos", `${repo.name}-history`);
   if (!existsSync(join(dir, ".git"))) {
     execFileSync("git", ["init", "--quiet", dir]);
     git(dir, ["remote", "add", "origin", repo.url]);
   }
-  const since = new Date(Date.parse(pinnedDate) - 24 * 60 * 60 * 1000).toISOString();
-  git(dir, ["fetch", "--quiet", `--shallow-since=${since}`, "origin", "HEAD"]);
-  const line = git(dir, ["rev-list", "--first-parent", "--reverse", `${repo.sha}..FETCH_HEAD`]);
-  const commits = line.split("\n").filter(Boolean).slice(0, count);
-  const first = commits[0];
-  if (commits.length < count || !first || git(dir, ["rev-parse", `${first}^`]) !== repo.sha) {
-    throw new Error(`${repo.sha} isn't followed by ${count} first-parent commits on the branch`);
+  git(dir, ["fetch", "--quiet", `--depth=${count + 1}`, "origin", repo.sha]);
+  const line = git(dir, [
+    "rev-list",
+    "--first-parent",
+    "--reverse",
+    `--max-count=${count + 1}`,
+    repo.sha,
+  ]);
+  const [base, ...commits] = line.split("\n").filter(Boolean);
+  if (!base || commits.length !== count) {
+    throw new Error(`${repo.sha} doesn't have ${count + 1} first-parent commits`);
   }
-  return commits;
+  return { dir, base, commits };
 }
 
-/** The `--commits` mode's case: each commit after the pinned SHA, the cache carried along. */
+/** The `--commits` mode's case: each replayed commit, the cache carried along. */
 function commitCase(
   dir: string,
   repo: BenchRepo,
@@ -186,19 +194,24 @@ async function main(): Promise<void> {
   const date = today();
 
   process.stderr.write(`${repo.name}: checking out ${repo.sha}\n`);
-  let dir = await checkout(repo);
+  let dir: string;
   let commits: string[] = [];
+  /** Where the cache is filled: the pinned SHA, or the commit before the replayed ones. */
+  let fillAt = repo;
   if (commitsMode) {
-    commits = historyCheckout(repo, git(dir, ["log", "-1", "--format=%cI"]), COMMITS);
-    dir = join(BENCH, ".repos", `${repo.name}-history`);
-    git(dir, ["checkout", "--quiet", "--detach", "--force", repo.sha]);
+    const history = historyCheckout(repo, COMMITS);
+    ({ dir, commits } = history);
+    fillAt = { ...repo, sha: history.base };
+    git(dir, ["checkout", "--quiet", "--detach", "--force", history.base]);
+  } else {
+    dir = await checkout(repo);
   }
   const cacheDir = join(BENCH, ".repos", `${repo.name}${commitsMode ? "-history" : ""}-cache`);
   await rm(cacheDir, { recursive: true, force: true });
 
-  for (let i = 0; i < WARMUP_RUNS; i++) log(repo, "warm-up (cold)", runOnce(dir, repo));
-  const fill = runOnce(dir, repo, cacheDir);
-  log(repo, "filling the cache", fill);
+  for (let i = 0; i < WARMUP_RUNS; i++) log(repo, "warm-up (cold)", runOnce(dir, fillAt));
+  const fill = runOnce(dir, fillAt, cacheDir);
+  log(repo, `filling the cache at ${fillAt.sha.slice(0, 7)}`, fill);
 
   const cases = commitsMode
     ? [commitCase(dir, repo, cacheDir, commits)]
@@ -212,6 +225,7 @@ async function main(): Promise<void> {
     warmupRuns: WARMUP_RUNS,
     machine: machine(label),
     fill,
+    fillSha: fillAt.sha,
   };
   const summaries = cases.map(summarizeCase);
   await mkdir(join(BENCH, "results"), { recursive: true });
