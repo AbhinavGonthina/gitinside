@@ -18,7 +18,8 @@
  * Not handled (unknown, so the URL gets a hole):
  * - `var`, exported `let`s, and `let`s in a `for` head.
  * - Any other write: `+=`, `++`, destructuring (`[url] = …`, `({ url } = …)`), `for (url of …)`,
- *   an assignment used as a value (`x && (url = B)`), or a write inside a nested function.
+ *   an assignment used as a value (`x && (url = B)`), a write through parentheses, `as`, `!`,
+ *   `<T>`, or `satisfies` (`(url as string) = B`), or a write inside a nested function.
  * - A read in a nested function (a callback may run after any write), in the same declaration
  *   list, or in a statement that also writes it inside a loop, `switch`, `try`, or label.
  */
@@ -48,13 +49,20 @@ function scopeOf(node: ts.Node): ts.Node {
 const within = (inner: ts.Node, outer: ts.Node): boolean =>
   inner.pos >= outer.pos && inner.end <= outer.end;
 
-/** True when an identifier is written to (an assignment target, `++`/`--`, or a `for` head). */
+/**
+ * True when an identifier is written to (an assignment target, `++`/`--`, or a `for` head),
+ * also through parentheses, `as`, `!`, `<T>`, `satisfies`, and destructuring patterns.
+ */
 function isWritten(id: ts.Identifier): boolean {
   let node: ts.Node = id;
   for (;;) {
     const parent = node.parent;
     if (
       ts.isParenthesizedExpression(parent) ||
+      ts.isAsExpression(parent) ||
+      ts.isNonNullExpression(parent) ||
+      ts.isTypeAssertionExpression(parent) ||
+      ts.isSatisfiesExpression(parent) ||
       ts.isArrayLiteralExpression(parent) ||
       ts.isObjectLiteralExpression(parent) ||
       ts.isSpreadElement(parent) ||
@@ -89,26 +97,36 @@ function isWritten(id: ts.Identifier): boolean {
 /** A definition: the declaration's initializer or a plain write's right side. */
 type Definition = ts.Expression;
 
-/**
- * The expressions a `let` may hold at `read` (see the file comment), in source order, or
- * `undefined` when that can't be told. `refersTo` says whether an identifier names the same
- * variable (the checker's symbol).
- */
-export function letValues(
+/** A `let` whose writes are all plain statements in its own function. */
+interface Writes {
+  /** The function (or file) declaring it. */
+  scope: ts.Node;
+  /** The `let` statement. */
+  statement: ts.VariableStatement;
+  /** The statements around the `let`, from the block or case clause holding it. */
+  statements: readonly ts.Statement[];
+  /** Each `x = value;` statement and its value. */
+  writes: Map<ts.Statement, Definition>;
+}
+
+/** Each declaration's writes, found once however many reads ask (`null`: can't be told). */
+const writesCache = new WeakMap<ts.VariableDeclaration, Writes | null>();
+
+/** The writes of a `let` (see the file comment), or `null` when one can't be placed. */
+function writesOf(
   declaration: ts.VariableDeclaration,
-  read: ts.Identifier,
   refersTo: (id: ts.Identifier) => boolean,
-): ts.Expression[] | undefined {
+): Writes | null {
   const list = declaration.parent;
-  if (!ts.isIdentifier(declaration.name)) return undefined;
-  if (!ts.isVariableDeclarationList(list) || (list.flags & ts.NodeFlags.Let) === 0) {
-    return undefined;
-  }
+  if (!ts.isIdentifier(declaration.name)) return null;
+  if (!ts.isVariableDeclarationList(list) || (list.flags & ts.NodeFlags.Let) === 0) return null;
   const statement = list.parent;
-  if (!ts.isVariableStatement(statement)) return undefined;
-  if (statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) return undefined;
+  if (!ts.isVariableStatement(statement)) return null;
+  if (statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) return null;
+  const container = statement.parent;
+  if (!("statements" in container)) return null;
+  const statements = (container as { statements: ts.NodeArray<ts.Statement> }).statements;
   const scope = scopeOf(declaration);
-  if (scopeOf(read) !== scope || within(read, statement)) return undefined;
 
   // Every write must be a plain `x = value;` statement in the declaring function.
   const writes = new Map<ts.Statement, Definition>();
@@ -135,7 +153,28 @@ export function letValues(
     ts.forEachChild(node, visit);
   };
   visit(scope);
-  if (unknown) return undefined;
+  return unknown ? null : { scope, statement, statements, writes };
+}
+
+/**
+ * The expressions a `let` may hold at `read` (see the file comment), in source order, or
+ * `undefined` when that can't be told. `refersTo` says whether an identifier names the same
+ * variable (the checker's symbol); the declaration's writes are found with the first call's
+ * `refersTo` and reused for every later read of it.
+ */
+export function letValues(
+  declaration: ts.VariableDeclaration,
+  read: ts.Identifier,
+  refersTo: (id: ts.Identifier) => boolean,
+): ts.Expression[] | undefined {
+  let found = writesCache.get(declaration);
+  if (found === undefined) {
+    found = writesOf(declaration, refersTo);
+    writesCache.set(declaration, found);
+  }
+  if (!found) return undefined;
+  const { scope, statement, statements, writes } = found;
+  if (scopeOf(read) !== scope || within(read, statement)) return undefined;
 
   const hasWrite = (node: ts.Node): boolean => {
     for (const w of writes.keys()) if (within(w, node)) return true;
@@ -205,14 +244,11 @@ export function letValues(
     return undefined;
   };
 
-  const container = statement.parent;
-  if (!("statements" in container)) return undefined;
-  const statements = (container as { statements: ts.NodeArray<ts.Statement> }).statements;
   const start = statements.indexOf(statement);
   const initial = declaration.initializer ? [declaration.initializer] : [];
-  const found = atList(statements.slice(start + 1), initial);
-  if (!found || found.length === 0) return undefined;
-  return [...found].sort((a, b) => a.pos - b.pos);
+  const values = atList(statements.slice(start + 1), initial);
+  if (!values || values.length === 0) return undefined;
+  return [...values].sort((a, b) => a.pos - b.pos);
 }
 
 /** Two definition lists together, each once. */
