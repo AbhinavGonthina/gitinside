@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.9d Changes list in the inspector (then M6.9e, then M5B from #15; M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M6.9e Diff mode on the website (then M5B from #15; M5.13 and M5.14b wait on #3, whose setup steps are posted)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -253,7 +253,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.9b Explorer diff mode on the overlay: a `diff` prop (base, head, diff), the overlay laid out and drawn with node and edge states (tags, borders, removed ghosted, broken edges pulsing dashed red with the diff's words, still under reduced motion), closed frames saying they hold changes, Base/Head/Overlay in the top bar (Overlay default) and a "Comparing base → head" chip; tests, stories, screenshots, baselines {model: opus}
 - [x] M6.9c1 Base and Head on the overlay's layout: the other version's boxes and lines faded out in place (M6.9b hides them at once), nothing moves when switching (a real-browser check that shared boxes keep their positions), selection and trace kept when they exist in the version (traces, the picker, and the palette on the version's graph); tests, screenshots {model: opus}
 - [x] M6.9c2 Counts per version: frame badges, the inspector's summary, an aggregate pill's count still include the other version's items (ADR-0183); a renamed node's base label in Base; tests, screenshots, baselines {model: opus}
-- [ ] M6.9d Changes list in the inspector: Added / Changed / Removed / Broken with counts, renamed and moved rows in words, selecting a row flies to it (opening its ancestors), keyboard and screen-reader names; tests, screenshots, baselines {model: opus}
+- [x] M6.9d Changes list in the inspector: Added / Changed / Removed / Broken with counts, renamed and moved rows in words, selecting a row flies to it (opening its ancestors), keyboard and screen-reader names; tests, screenshots, baselines {model: opus}
 - [ ] M6.9e Diff mode on the website: `?base=<sha>` in the deep-link codec, both analyses read and the diff computed in the browser (or a stored PR diff later), mismatch and missing-base states; Base's code preview and Open on GitHub at the base commit (ADR-0185: the explorer still loads and links every node at head's); tests, screenshots {model: opus}
 
 ### M5B: Batch 2's misses + a fresh blind batch 3 (#15, after M6.9, before M6.10)
@@ -302,6 +302,8 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **2026-11-02 M6.9d** (`05c802a`, ADR-0186; baselines `26442f5`): the inspector's overview lists Added / Changed / Removed / Broken (`explorer/changes.tsx`), counted as the frames' badges count them; a selection lists its own changes and those inside it ("Changes here"). Rows say the change from the diff alone ("Moved from src/routes/orders.ts", "Method and path changed", the broken connection's words); renamed rows now carry the rename's `changes`. A pick reveals the node like a palette pick (ancestors opened, zoomed, focus on its box); in Base/Head a node the version lacks switches to Overlay and says so. Viewer 55/55 files green, root typecheck and lint green; two mutations (no version switch, unfiltered selection list) turned the new tests red. New story `Diff, change picked`; screenshots `docs/milestones/M6/diff/changes-*.png`.
 
 - **2026-11-02 M6.9c2** (`66543c8`, ADR-0185; #15 planned first as M5B, after M6.9): Base and Head now draw their own records and counts on the overlay's layout. `versionGraph` gives Base a renamed node's base record at its head ID and place (`baseRecord`); `DrillCanvas`'s `versionIndex`, the inspector, and the breadcrumbs read the version's hierarchy, and a line keeps only that version's connections (`edgeWithin`). Sizes are the widest of the three drawings (`viewEdgeLabelSize`, `DiffMarks.baseNode`/`edgesIn`), so nothing moves. Stories `Diff, head` and `Diff, renamed, base` with Linux baselines; a mutation (canvas and inspector on the overlay) turned both new explorer tests red. Found for M6.9e: Base still loads and links code at the head commit.
 
