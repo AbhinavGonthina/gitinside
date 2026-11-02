@@ -66,6 +66,7 @@ Mockup v1 (interaction reference only, not visual): https://claude.ai/artifact/P
 - **Overlay colors:** added = green, changed = amber, removed = red (ghosted). Broken edge = pulsing dashed red with the label "route removed in this PR".
 - **Layout stability:** nodes present in both versions keep their positions.
 - **Changes list** (inspector): Added / Changed / Removed / Broken. Clicking an item flies to it.
+- Model done in M6.9a (ADR-0182): one overlay graph holds both versions, so Base, Head, and Overlay draw the same laid-out boxes. A renamed item shows once, as changed; an added or removed folder lists once in the changes list, with what's inside it counted.
 
 ## Deep links
 

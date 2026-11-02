@@ -175,6 +175,16 @@ export {
   normalizeFolder,
 } from "./model/filters.js";
 export type { FilterOption, FilterOptions, Filters } from "./model/filters.js";
+export { buildDiffOverlay, DiffMismatchError } from "./model/diff.js";
+export type {
+  BrokenConnection,
+  ChangeItem,
+  ChangesList,
+  ChangeStatus,
+  DiffCounts,
+  DiffOverlay,
+  DiffVersion,
+} from "./model/diff.js";
 export { closedSize, edgeLabelSize, frameCounts, openHeader, viewNodeSize } from "./layout/size.js";
 export type { Size, SizeContext } from "./layout/size.js";
 export {
