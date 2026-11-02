@@ -267,14 +267,21 @@ function toSegments(parts: readonly UrlPart[]): UrlSegment[] {
 }
 
 /**
- * An env var or the page origin after the start of a URL: an env var's fallback when it is
- * text and holes (`/api/${process.env.VERSION || "v1"}` reads `/api/v1`), else a hole.
+ * An env var or the page origin after the start of a URL: an env var's fallback when it is a
+ * path piece of text and holes (`/api/${process.env.VERSION || "v1"}` reads `/api/v1`), else a
+ * hole. An absolute (`http://h`) or protocol-relative (`//h`) fallback is a whole URL, not a
+ * path piece, so it's a hole too.
  */
 function laterPart(part: UrlPart): UrlPart[] {
   if (part.kind === "origin") return [HOLE];
   if (part.kind !== "env") return [part];
   const { fallback } = part;
-  return fallback?.every((p) => p.kind === "text" || p.kind === "hole") ? fallback : [HOLE];
+  if (!fallback?.every((p) => p.kind === "text" || p.kind === "hole")) return [HOLE];
+  const [path = ""] = fallback
+    .map((p) => (p.kind === "text" ? p.text : "{}"))
+    .join("")
+    .split(/[?#]/);
+  return path.includes("://") || path.startsWith("//") ? [HOLE] : fallback;
 }
 
 /**

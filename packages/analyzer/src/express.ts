@@ -907,6 +907,13 @@ export function collectExpressFacts(
     return isConst ? declaration.initializer : undefined;
   };
 
+  /**
+   * The repo file a followed `const`'s initializer is in, so its `__dirname` and relative
+   * `require`s read against where it's written, not where it's used; `file` if outside.
+   */
+  const fileOf = (node: ts.Node, file: string): string =>
+    sp.toRepoPath(node.getSourceFile().fileName) ?? file;
+
   /** The router a repo file exports under `name` (or as its module value), if any. */
   const exportRef = (file: string, name: string): RouterRef | undefined => {
     const checker = resolver.checkerOf(sp);
@@ -996,7 +1003,7 @@ export function collectExpressFacts(
     }
     if (ts.isIdentifier(e) || ts.isPropertyAccessExpression(e)) {
       const initializer = constInitializer(e);
-      return initializer && evaluate(initializer, env, file, hops + 1);
+      return initializer && evaluate(initializer, env, fileOf(initializer, file), hops + 1);
     }
     if (!ts.isCallExpression(e)) return undefined;
     const callee = unwrap(e.expression);
@@ -1133,7 +1140,7 @@ export function collectExpressFacts(
     const e = unwrap(expression);
     if (ts.isIdentifier(e)) {
       const initializer = constInitializer(e);
-      return initializer && elementsOf(initializer, file, hops + 1);
+      return initializer && elementsOf(initializer, fileOf(initializer, file), hops + 1);
     }
     if (!ts.isCallExpression(e)) return undefined;
     const listed = listing(e, file);

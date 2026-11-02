@@ -123,6 +123,26 @@ describe("toUrlPattern", () => {
       [t("/api/"), envOr("VERSION", [env("OTHER")]), t("/x")],
       "/api/{}/x",
     ],
+    [
+      "an env var later on with an absolute URL fallback",
+      [env("API_URL"), t("/"), envOr("UPLOAD", [t("http://localhost:5000")]), t("/upload")],
+      "{env:API_URL}/{}/upload",
+    ],
+    [
+      "an env var later on with a protocol-relative fallback",
+      [t("/api/"), envOr("CDN", [t("//cdn.example.com/x")]), t("/y")],
+      "/api/{}/y",
+    ],
+    [
+      "an env var later on with a scheme in a later fallback part",
+      [t("/api/"), envOr("CDN", [H, t("://h/x")]), t("/y")],
+      "/api/{}/y",
+    ],
+    [
+      "an env var later on with a URL only in its fallback's query",
+      [t("/api/"), envOr("VERSION", [t("v1?next=http://h")])],
+      "/api/v1",
+    ],
     ["the page origin", [ORIGIN, t("/api/x")], "/api/x"],
     ["the page origin later on", [t("/a/"), ORIGIN], "/a/{}"],
     ["a page-relative path", [t("api/users")], "./api/users"],
