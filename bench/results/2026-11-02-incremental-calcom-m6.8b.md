@@ -51,7 +51,7 @@ Raw per-run numbers are in the JSON file next to this report.
 
 ## Observations (hand-written, not generated)
 
-- **What changed since M6.8's report** (`2026-11-02-incremental-calcom.md`, gitinside `314e5d5`): only how cache entries are stored and checked (gitinside `c13f3a5`, ADR-0179); same cases, same machine. Every warm graph is its cold pair's bytes. Saved with the `-m6.8b` suffix so M6.8's report stays.
+- **What changed since M6.8's report** (`2026-11-02-incremental-calcom.md`, gitinside `314e5d5`): only how cache entries are stored and checked (gitinside `10dd9db`, ADR-0179; `c13f3a5` after it only re-records the eval report); same cases, same machine. Every warm graph is its cold pair's bytes. Saved with the `-m6.8b` suffix so M6.8's report stays.
 - **A shared package edited: 0.92× (was 0.85×).** 88 services collected, 25 reused: 38.5 s against 35.3 s cold (109%, was 120%). Time outside every stage (writing the 88 entries) is 1.8 to 2.4 s per run (was 5.2 to 6.3 s); `programs` is 1.5 s over cold (13.5 vs 12.0 s: keys and reading 112 entries). The rest of the stages are within noise. See the commits report for what's left (the same inputs stored in ~80 entries, M6.8c).
 - **Unchanged and leaf-app cases: as before.** Unchanged 8.7 s against 35.1 s (4.0×; M6.8: 4.1×); `apps/api/v2/src/main.ts` edited 17.1 s against 38.7 s (2.3×; M6.8: 2.4×). Both are within this machine's noise of M6.8's numbers; their warm runs do almost no storing, so the change wasn't expected to move them.
 - **Memory:** unchanged warm runs peak at 576 MiB (was 417 MiB) and leaf edits at 1,037 MiB (was 845 MiB): all 113 entries are now read at once rather than one at a time. Both stay far below a cold run's 2.3 GiB, which the worker's budget is sized for (ADR-0146).
