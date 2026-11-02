@@ -48,3 +48,13 @@ Median milliseconds. A warm run that reuses every service builds no program, so 
 | assemble | 292 ms | 258 ms | 428 ms | 328 ms | 431 ms | 393 ms |
 
 Raw per-run numbers are in the JSON file next to this report.
+
+## Observations (hand-written, not generated)
+
+- **What changed since M6.8c1's report** (`2026-11-02-incremental-calcom-m6.8c.md`): every run reads each repo file once, side by side, and shares it between the cache keys, the compiler hosts, and the file nodes (gitinside `0625454`); observed inputs are stored in parts by owning service, each distinct part once (`a13ac18`, ADR-0181). The run was at `95334da` (the eval re-record after them). Every warm graph is its cold pair's bytes. Saved with the `-m6.8c2` suffix.
+- **The laptop slowed during the run:** the unchanged case's cold runs took 21.8–26.1 s, the edit cases' 26.9–43.6 s, settling near 35 s. Pairs alternate their order, so compare within a pair; the medians across cases aren't comparable.
+- **Shared package edited (88 services collected):** per pair 1.03×, 0.94×, 1.01×, 0.96×, 0.99× (median of pairs 0.99×; the medians in the table give 0.98×). M6.8c1: 0.92×. Warm spends 0.72–0.85 s outside every stage (storing 88 service entries and 1–2 new inputs parts, instead of the 23 whole sets M6.8c1 wrote).
+- **Nothing changed:** 4.4 s warm (M6.8c1: 8.3 s), with `programs` (keys over files read side by side, entries and parts read) at 0.8–1.2 s; peak 190 MiB (M6.8c1: 285 MiB).
+- **One leaf app edited:** 12.6 s warm, 2.8× (M6.8c1: 2.5×); each warm run writes 1 service entry and 11 parts.
+- **Cache size:** 1.9 MiB after filling (M6.8c1: 7 MiB, M6.8b: 25 MiB).
+- **Not measured:** as in M6.8's report.
