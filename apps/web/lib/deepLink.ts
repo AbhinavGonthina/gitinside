@@ -18,6 +18,7 @@ export function shareUrl(
 
 /** How the note names each part of a link (`decodeState`'s parameters). */
 const PARAM_WORDS: Readonly<Record<string, string>> = {
+  view: "diff view",
   open: "broken down",
   sel: "selected",
   trace: "traced from",

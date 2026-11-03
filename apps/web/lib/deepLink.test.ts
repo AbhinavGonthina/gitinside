@@ -40,6 +40,12 @@ describe("ignoredNote", () => {
     );
   });
 
+  it("names an unknown diff view in words (M6.9e2b)", () => {
+    expect(ignoredNote([{ param: "view", value: "split" }], SHA)).toMatch(
+      /left out: diff view split\.$/,
+    );
+  });
+
   it("falls back to the parameter's own name", () => {
     expect(ignoredNote([{ param: "odd", value: "x" }], SHA)).toMatch(/left out: odd x\.$/);
   });
