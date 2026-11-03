@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.9e Diff mode on the website (then M5B from #15; M5.13 and M5.14b wait on #3, whose setup steps are posted)
+M5.17e5 First deploy's IAM fix (#16), then M6.9e2, then M5B from #15; M5.13 and M5.14b wait on #3 (setup applied; the deploy needs M5.17e5's grant)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -184,6 +184,7 @@ M6.9e Diff mode on the website (then M5B from #15; M5.13 and M5.14b wait on #3, 
 - [x] M5.18d Abuse (#11): monthly compute budget: Cloud Run vCPU- and GiB-seconds per UTC month estimated from job durations × 1 vCPU / 4 GiB (like `store_requests`), plus Cloud Tasks operations; new analyses stop at 80% of the free allowance ("Analysis is paused until <date>"), diagrams keep working; `quota` command; tests {model: opus}
 - [x] M5.18e Abuse (#11): Cloudflare Turnstile (free, no card) on Analyze for signed-out visitors, only when traffic looks automated (an IP's or the site's rate over a threshold); server-side token check; fail visibly; tests (keys are in Vercel Production + Preview and `apps/web/.env.local`, #12) {model: opus}
 - [x] M5.18f SECURITY.md T9 with the final numbers from M5.18a–e and the Cloud Run guardrails {model: opus}
+- [ ] M5.17e5 First deploy's IAM fix (#16): find what `gcloud run services replace` needs beyond the per-service `run.developer` (the first deploy was refused "access projects instance"; check Google's docs and the API it calls, don't guess) and grant the narrowest thing (another command or API, or a custom role with only the needed permissions; no project-level `run.developer`/`editor`), ADR or ADR-0151 amendment; `iam.json`, README step 10, `gcpSetup.test.ts`, `verify.mjs` together; README step 8 without `--notifications-rule-schema-version` and `verify.mjs` accepting the budget as created; README note that a new Cloud Shell session repeats step 0's `gcloud config set`; post the exact extra commands on #3 {model: opus}
 - [ ] M5.13 Deploy + production smoke test on a real public repo (first bump `ANALYZER_VERSION`: M5 changed the output, M5 review; confirm an image's self-request to `/api/graph` is a CDN hit, `x-vercel-cache: HIT`, with `store_requests` unchanged, ADR-0097; worker on Cloud Run with the guardrails verified, ADR-0111; the five `SNAPSHOTS_*` values are in Vercel Production, the worker's go into Cloud Run's secrets, #5) {model: opus} {blocked: #3}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13: website smoke test per the acceptance criteria (paste → progress → diagram, cache hit, rate limit, badge in a GitHub README), finish M5-review.md, tag m5 {model: opus} {blocked: M5.13}
@@ -254,7 +255,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.9c1 Base and Head on the overlay's layout: the other version's boxes and lines faded out in place (M6.9b hides them at once), nothing moves when switching (a real-browser check that shared boxes keep their positions), selection and trace kept when they exist in the version (traces, the picker, and the palette on the version's graph); tests, screenshots {model: opus}
 - [x] M6.9c2 Counts per version: frame badges, the inspector's summary, an aggregate pill's count still include the other version's items (ADR-0183); a renamed node's base label in Base; tests, screenshots, baselines {model: opus}
 - [x] M6.9d Changes list in the inspector: Added / Changed / Removed / Broken with counts, renamed and moved rows in words, selecting a row flies to it (opening its ancestors), keyboard and screen-reader names; tests, screenshots, baselines {model: opus}
-- [ ] M6.9e Diff mode on the website: `?base=<sha>` in the deep-link codec, both analyses read and the diff computed in the browser (or a stored PR diff later), mismatch and missing-base states; Base's code preview and Open on GitHub at the base commit (ADR-0185: the explorer still loads and links every node at head's); tests, screenshots {model: opus}
+- [x] M6.9e1 Base's code at the base commit (ADR-0185's consequence): `versionGraph(overlay, "base")` gives every node and edge base has its base record (not only renamed nodes; source lines and call sites are base's), boxes sized for them; `ExplorerDiff` takes Base's `sources`/`loadSource`; the inspector's code preview and Open on GitHub read Base's nodes, and the Overlay's removed nodes and removed trace hops, at the base commit; tests {model: opus}
+- [ ] M6.9e2 Diff mode on the website: `?base=<sha>` in the deep-link codec, both analyses read and the diff computed in the browser (or a stored PR diff later), mismatch and missing-base states, Base's loader at the base commit; tests, screenshots {model: opus}
 
 ### M5B: Batch 2's misses + a fresh blind batch 3 (#15, after M6.9, before M6.10)
 Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns written from each library's real contract, never from the batch 2 repos; what can't be known statically stays unresolved. Causes in `eval/results/2026-11-batch2-diagnosis.md` (B1, B2).
@@ -302,6 +304,8 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-02 M6.9e1 done (f07752c, ADR-0187; split from M6.9e, which an earlier run had started and left uncommitted): Base is now base's own graph on the overlay's IDs (every differing node and edge record, so moved routes' lines and edges' call sites are base's), and `ExplorerDiff` takes Base's `sources`/`loadSource`; the inspector links and loads Base, and the Overlay's base-only nodes and hops, at the base commit. Mutation-checked both halves. #16 (first deploy's IAM refusal) planned as M5.17e5, next.
 
 - **2026-11-02 M6.9d** (`05c802a`, ADR-0186; baselines `26442f5`): the inspector's overview lists Added / Changed / Removed / Broken (`explorer/changes.tsx`), counted as the frames' badges count them; a selection lists its own changes and those inside it ("Changes here"). Rows say the change from the diff alone ("Moved from src/routes/orders.ts", "Method and path changed", the broken connection's words); renamed rows now carry the rename's `changes`. A pick reveals the node like a palette pick (ancestors opened, zoomed, focus on its box); in Base/Head a node the version lacks switches to Overlay and says so. Viewer 55/55 files green, root typecheck and lint green; two mutations (no version switch, unfiltered selection list) turned the new tests red. New story `Diff, change picked`; screenshots `docs/milestones/M6/diff/changes-*.png`.
 
