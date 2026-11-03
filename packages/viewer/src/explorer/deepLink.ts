@@ -124,6 +124,24 @@ export function withState(page: string, query: string): string {
   return query === "" ? page : `${page}?${query}`;
 }
 
+/**
+ * Diff mode's parameter (M6.9e2): the base commit's full SHA, compared with
+ * the page's commit. The page reads it, not {@link decodeState} (which skips
+ * it like any parameter it doesn't know), since it picks which graphs load.
+ */
+export const BASE_PARAM = "base";
+
+/**
+ * A state's query with diff mode's base commit in front (`base=<sha>&…`), so
+ * a link keeps comparing; the query as it is without a base. The SHA is
+ * written escaped, though a valid one needs no escaping.
+ */
+export function withBase(query: string, base: string | undefined): string {
+  if (base === undefined) return query;
+  const param = `${BASE_PARAM}=${encodeValue(base)}`;
+  return query === "" ? param : `${param}&${query}`;
+}
+
 /** A query's parameters as raw value lists (the last of a repeated one wins); `+` reads as a space, like a form. */
 function parseQuery(query: string): Map<string, string[] | undefined> {
   const params = new Map<string, string[] | undefined>();

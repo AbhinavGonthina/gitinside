@@ -18,6 +18,7 @@ import {
   createHeadCache,
   graphPath,
   RECHECKS_PER_HOUR,
+  viewBase,
   viewRepo,
   type RepoViewDeps,
 } from "./repoView";
@@ -460,6 +461,49 @@ describe("viewRepo", () => {
       repo: "Shop",
     });
     expect(tasks.google.tasks).toEqual([]);
+  });
+});
+
+describe("viewBase", () => {
+  const shown = { owner: "Acme", repo: "Shop" };
+
+  it("finds the base commit's published analysis, never asking GitHub or enqueueing", async () => {
+    await done(OLD);
+    await done(NEW);
+    expect(await viewBase(shown, OLD, t.db)).toEqual({
+      status: "ready",
+      sha: OLD,
+      graphUrl: `/api/graph/Acme/Shop/${OLD}`,
+    });
+    expect(gh.requests).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
+  });
+
+  it("says a full SHA nobody analyzed is missing, and anything else is invalid", async () => {
+    await done(NEW);
+    expect(await viewBase(shown, OLD, t.db)).toEqual({ status: "missing", sha: OLD });
+    // A failed analysis has no graph to compare with.
+    const { id } = await startAnalysis(t.db, {
+      repoId: await repoId(),
+      sha: OLD,
+      analyzerVersion: VERSION,
+    });
+    await failAnalysis(t.db, id, "LIMIT_FILES");
+    expect(await viewBase(shown, OLD, t.db)).toEqual({ status: "missing", sha: OLD });
+    for (const bad of ["main", "aaaaaaa", "A".repeat(40), `${OLD}0`, ""]) {
+      expect(await viewBase(shown, bad, t.db)).toEqual({ status: "invalid" });
+    }
+  });
+
+  it("finds nothing of another repo, or of a hidden one", async () => {
+    await done(OLD);
+    expect(await viewBase({ owner: "acme", repo: "other" }, OLD, t.db)).toEqual({
+      status: "missing",
+      sha: OLD,
+    });
+    shop.private = true;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({ status: "missing" });
+    expect(await viewBase(shown, OLD, t.db)).toEqual({ status: "missing", sha: OLD });
   });
 });
 

@@ -15,6 +15,7 @@
   "dependencies": {
     "@gitinside/analyzer": "workspace:*",
     "@gitinside/db": "workspace:*",
+    "@gitinside/diff": "workspace:*",
     "@gitinside/schema": "workspace:*",
     "@gitinside/viewer": "workspace:*",
     "@gitinside/worker": "workspace:*",

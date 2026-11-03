@@ -1,7 +1,8 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import type { BaseView } from "../../../lib/compare";
 import type { RepoRef } from "../../../lib/repoUrl";
-import { viewRepo } from "../../../lib/repoView";
+import { viewBase, viewRepo } from "../../../lib/repoView";
 import { repoViewDepsFromEnv, VERCEL_OIDC_HEADER } from "../../../lib/serverDeps";
 import { NotAnalyzed } from "./NotAnalyzed";
 import { RepoDiagram } from "./RepoDiagram";
@@ -10,16 +11,23 @@ import { RepoUnavailable } from "./RepoNotice";
 /**
  * What `/<owner>/<repo>` and `/<owner>/<repo>/<sha>` render, from `viewRepo` (ADR-0068,
  * ADR-0069). Unconfigured or failing lookups say "temporarily unavailable"; a repo GitHub
- * doesn't show publicly, or a commit never analyzed, is a 404. A plain async function, not
- * a component, so tests can await and render it.
+ * doesn't show publicly, or a commit never analyzed, is a 404. With `base` (a link's
+ * `?base=`), the diagram compares with that commit (`viewBase`); a base that can't be
+ * compared is a note on the page, not a 404. A plain async function, not a component, so
+ * tests can await and render it.
  */
-export async function repoScreen(ref: RepoRef, sha?: string) {
+export async function repoScreen(ref: RepoRef, sha?: string, base?: string) {
   const oidcToken = (await headers()).get(VERCEL_OIDC_HEADER);
   const deps = repoViewDepsFromEnv(process.env, oidcToken);
   if (deps === undefined) return <RepoUnavailable owner={ref.owner} repo={ref.repo} />;
   let view: Awaited<ReturnType<typeof viewRepo>>;
+  // Diff mode (M6.9e2): the commit the link compares with, once the shown one is known.
+  let compared: BaseView | undefined;
   try {
     view = await viewRepo(sha === undefined ? ref : { ...ref, sha }, deps);
+    if (view.status === "ready" && base !== undefined) {
+      compared = await viewBase(view, base, deps.db);
+    }
   } catch (error) {
     // By name only: a database error's message can carry connection details.
     console.error(
@@ -39,6 +47,7 @@ export async function repoScreen(ref: RepoRef, sha?: string) {
       sha={view.sha}
       graphUrl={view.graphUrl}
       head={view.head}
+      base={compared}
     />
   );
 }
