@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5B.1 next-connect routers in `pages/api` (B1, #15), then the rest of M5B; M5.17e6 (worker startup probe), M5.13, and M5.14b wait on #3 (the revision's logs)
+M5B.2 library-invoked fetchers (B2, #15), then the rest of M5B; M5.17e6 (worker startup probe), M5.13, and M5.14b wait on #3 (the revision's logs)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -262,7 +262,7 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 
 ### M5B: Batch 2's misses + a fresh blind batch 3 (#15, after M6.9, before M6.10)
 Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns written from each library's real contract, never from the batch 2 repos; what can't be known statically stays unresolved. Causes in `eval/results/2026-11-batch2-diagnosis.md` (B1, B2).
-- [ ] M5B.1 next-connect routers in `pages/api` (B1): a default export that is a next-connect router (`nc()`/`nc(opts)`, also through a repo factory like `apiHandler = () => nc(opts)`, v1 `createRouter()` + `export default router.handler()`) gives one route per registered method (`.get/.post/.put/.patch/.delete/.head/.options`, chained or not); `.all(…)` is `ALL`; `.use(…)` registers no method; a path argument on a method call (sub-route matching) handled as next-connect dispatches it or left unresolved; ADR, `next.ts` "Patterns not handled", fixture + golden, eval delta {model: opus}
+- [x] M5B.1 next-connect routers in `pages/api` (B1): a default export that is a next-connect router (`nc()`/`nc(opts)`, also through a repo factory like `apiHandler = () => nc(opts)`, v1 `createRouter()` + `export default router.handler()`) gives one route per registered method (`.get/.post/.put/.patch/.delete/.head/.options`, chained or not); `.all(…)` is `ALL`; `.use(…)` registers no method; a path argument on a method call (sub-route matching) handled as next-connect dispatches it or left unresolved; ADR, `next.ts` "Patterns not handled", fixture + golden, eval delta {model: opus}
 - [ ] M5B.2 Library-invoked fetchers (B2): ADR on hook contracts (SWR passes the key to the fetcher: `useSWR(key, fetcher)`, `useSWRImmutable`, `useSWRInfinite` with a key function, `SWRConfig`'s default `fetcher` for hooks under it; array keys, `null`/conditional keys); a fetcher that resolves to a repo wrapper is inlined at the hook call with the key as its URL; a key the analyzer can't read stays unresolved at the hook; fixture + golden, eval delta {model: opus}
 - [ ] M5B.3 TanStack Query (`useQuery({ queryKey, queryFn })`, `queryFn` reading `queryKey` from its context) and RTK Query (`createApi({ baseQuery: fetchBaseQuery({ baseUrl }), endpoints })` with `query: () => url`): implement whichever is cheap on M5B.2's machinery, document the rest as unhandled; ADR, fixture + golden, eval delta {model: opus}
 - [ ] M5B.4 Eval re-run after M5B.1–3: batch 2 marked seen in `heldOutBatches` (why: fixed in M5B, ADR-0168), its new score reported as seen; README/EVALUATION numbers {model: opus}
@@ -306,6 +306,9 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-03 M5B.1 done (5ca9ecf, ADR-0191; report a0157c8): a `pages/api` default export that is a next-connect router (factory found through the checker: v0 `nc()`, v1 `createRouter()`, repo factories, `router.handler()`) gives one route per registered method; inline handlers own their calls (`NextFacts.inlineHandlers`, merged with Express's). A pattern argument, `.trace`/`.connect`, or the router passed on keeps `ALL` with `NEXT_CONNECT_UNSEEN_METHODS`. `KEY_FORMAT` 5 → 6. New fixture `next-connect`.
+- Checks: 5 new next tests + fixture guard; a mutation (HTTP owners on Express's handlers only) turned the ownership test red. Analyzer 1,011/1,011 (3 first-test timeouts in a stalled full run passed alone), root typecheck, lint. Eval: batch 2 45.8% → 100.0% precision, 35.5% → 77.4% recall (nextjs-prisma-boilerplate 13/13); others unchanged.
 
 - 2026-11-02 M6.9e2b done (7280450, ADR-0190; baselines e02873b): with the top bar off, Base / Head / Overlay sit on the canvas beside the "Comparing" chip. `ExplorerState.version` is written as `view=base|head` (Overlay writes nothing) and read back as `initialVersion` in diff mode (the Overlay when that version lacks the linked node); the website keeps `view` only beside a base. The repo bar names the base commit (GitHub link) and offers Stop comparing, a link to this commit's permalink with the same state.
 - Checks: 5 codec + 2 explorer + 5 page + 1 note tests, new story `Diff, without the top bar` in the stories test; a mutation (website not passing `initialVersion`) turned its test red, and the restored code passed. Full `pnpm test` 15/15, root typecheck, lint, `next build`. Screenshots through `next start` (scratch page, removed) in `docs/milestones/M6/website-diff/controls-*.png` and the story's in `docs/milestones/M6/diff/bare-*.png`. Seen, not new: at 400px the inspector squeezes the canvas to a sliver.
