@@ -26,6 +26,7 @@ export const WARNING_TITLES: Readonly<Record<string, string>> = {
   INVALID_JSON: "JSON files that couldn't be read",
   INVALID_WORKSPACES: "Workspace lists that couldn't be read",
   INVALID_YAML: "YAML files that couldn't be read",
+  NEXT_CONNECT_UNSEEN_METHODS: "next-connect routers with methods that couldn't be read",
   NEXT_DUPLICATE_ROUTE: "Next.js routes defined twice",
   NEXT_ROUTE_NO_METHODS: "Next.js route files without handlers",
   PRISMA_DUPLICATE_MODEL: "Prisma models defined twice",
