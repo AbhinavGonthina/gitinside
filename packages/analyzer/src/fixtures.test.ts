@@ -136,6 +136,8 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
       "symbol:reading-list/hooks/books.ts#useAddBook -> route:reading-list/POST /api/books exact",
       "symbol:reading-list/hooks/books.ts#useBook -> route:reading-list/GET /api/books/:id exact",
       "symbol:reading-list/hooks/books.ts#useBookPages -> route:reading-list/GET /api/books exact",
+      "symbol:reading-list/hooks/reviews.ts#useAuthor -> route:reading-list/ALL /api/authors/:name exact",
+      "symbol:reading-list/hooks/reviews.ts#useReviews -> route:reading-list/ALL /api/books/:id/reviews exact",
       "symbol:reading-list/pages/index.tsx#Home -> route:reading-list/ALL /api/shelves heuristic",
       "symbol:reading-list/pages/index.tsx#Home -> unresolved:reading-list/pages/index.tsx:13:27 unresolved DYNAMIC_URL",
     ]);

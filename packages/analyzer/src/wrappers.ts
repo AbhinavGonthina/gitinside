@@ -61,6 +61,14 @@
  *   read as the URL, so one that isn't readable is unresolved at the hook. A hook with no
  *   fetcher uses `<SWRConfig value={{ fetcher }}>`'s when every `SWRConfig` in the service
  *   sets the same wrapper, at `heuristic` (which hooks render under which config isn't known).
+ * - SWR fetchers written in place (M5B.2b, ADR-0194): a function that is a call's second argument or an
+ *   object literal's `fetcher` property (`useSWR(key, (url) => fetch(url))`, `{ fetcher: … }`
+ *   in a hook's config or in `SWRConfig`'s `value`) and reads its own parameters is inlined at
+ *   each hook that calls it, like a wrapper; with no such hook its sites keep their own requests.
+ * - `fetch(...args)` spreading the wrapper's rest parameter (SWR's documented
+ *   `(...args) => fetch(...args)`, M5B.2b): the caller's argument at the rest parameter's
+ *   position is the URL and the next one the init (absent: `GET`; after a spread, or SWR
+ *   mutation's `{ arg }`: unknown).
  *
  * Patterns not handled:
  * - Functions nested inside other functions as wrappers themselves (their parameters aren't
@@ -79,9 +87,10 @@
  * - Inlining more than one level: the outer callers of a wrapper's caller are not followed.
  * - A function whose route is fixed but whose method is a parameter is still a wrapper (the
  *   method is only known at its callers); see `leadingHoles` for the URL shapes misread.
- * - SWR fetchers that aren't wrappers: inline ones (`useSWR(key, (url) => fetch(url))`) and
- *   the docs' `(...args) => fetch(...args)` (the URL is a rest element), so their requests
- *   stay `DYNAMIC_URL` in place (M5B.2b); `SWRConfig` values that are functions or spread
+ * - SWR fetchers written as a method (`{ fetcher(url) {…} }`) or as a named function nested
+ *   in a component (`function load(url) {…}` inside it: see the first item), a spread rest parameter
+ *   reaching axios (`axios.get(...args)`) or `fetch` with other arguments around it;
+ *   `SWRConfig` values that are functions or spread
  *   props, a `fetcher` passed in the third (options) argument, `useSWRSubscription`, `mutate`,
  *   other data-fetching libraries (TanStack Query, RTK Query: M5B.3), and SWR required with
  *   `require()` or reached through a namespace import or a re-export.
@@ -242,6 +251,41 @@ interface Caller {
    * analyzer can't read (`unknown`). Absent for a direct call.
    */
   hook?: { keys: HookKey[]; rest: "missing" | "unknown" };
+}
+
+/** What a hook's fetcher is: a wrapper by ID, or a fetcher written in place (M5B.2b). */
+type FetcherTarget = { confidence: Confidence } & ({ id: string } | { fn: FunctionWithBody });
+
+/** The outermost node around `node` that only wraps it (parentheses, `as`, `satisfies`, …). */
+function wrapped(node: ts.Node): ts.Node {
+  let e = node;
+  while (
+    ts.isParenthesizedExpression(e.parent) ||
+    ts.isAsExpression(e.parent) ||
+    ts.isSatisfiesExpression(e.parent) ||
+    ts.isNonNullExpression(e.parent) ||
+    ts.isTypeAssertionExpression(e.parent)
+  ) {
+    e = e.parent;
+  }
+  return e;
+}
+
+/**
+ * True when a function sits where SWR takes a fetcher (M5B.2b): a call's second argument, or
+ * the `fetcher` property of an object literal (a hook's config or `SWRConfig`'s `value`). Only
+ * the syntax is checked; `callersIn` finds the hook that calls it.
+ */
+function inFetcherPosition(fn: FunctionWithBody): boolean {
+  const e = wrapped(fn);
+  const p = e.parent;
+  if (ts.isCallExpression(p)) return p.arguments[1] === e;
+  return (
+    ts.isPropertyAssignment(p) &&
+    p.initializer === e &&
+    (ts.isIdentifier(p.name) || ts.isStringLiteralLike(p.name)) &&
+    p.name.text === "fetcher"
+  );
 }
 
 /** What an SWR export does with the fetcher it is given (ADR-0193). */
@@ -430,30 +474,66 @@ export function collectHttpFacts(
     sitesOf = (sp) => bySp.get(sp) ?? [];
   }
 
+  /** The index of `fn`'s rest parameter a `fetch(...args)` site spreads, if it does (M5B.2b). */
+  const restIndex = (site: HttpCallSite, fn: FunctionWithBody): number | undefined => {
+    const d = site.spread && parameterOf(site.spread.sp, site.spread.expression, fn);
+    return d?.dotDotDotToken ? fn.parameters.indexOf(d) : undefined;
+  };
+
+  /**
+   * True when a site reads `fn`'s parameters where a caller's arguments matter: `read` (its
+   * leading parameters, any function's), its config or method, or a spread rest parameter.
+   */
+  const readsParameters = (
+    site: HttpCallSite,
+    fn: FunctionWithBody,
+    read: ReadonlySet<ts.ParameterDeclaration>,
+  ): boolean =>
+    [...read].some((d) => d.parent === fn) ||
+    (site.config !== undefined &&
+      parameterOf(site.config.value.sp, site.config.value.expression, fn) !== undefined) ||
+    (site.methodSource !== undefined &&
+      sourceExpressions(site.methodSource).some(
+        (value) => parameterOf(value.sp, value.expression, fn) !== undefined,
+      )) ||
+    restIndex(site, fn) !== undefined;
+
   const direct = new Map<ServiceProgram, HttpCallSite[]>();
   const owned = new Map<ServiceProgram, Map<string, Wrapper>>();
   /** Every wrapper in the repo by symbol node ID: the index callers are matched against. */
   const wrappers = new Map<string, Wrapper>();
-  /** Split `sp`'s sites into wrapper bodies' and the rest. */
+  /** Fetchers written in place (M5B.2b) by function node, and each program's in site order. */
+  const inlineFetchers = new Map<ts.Node, Wrapper>();
+  const inlineIn = new Map<ServiceProgram, Wrapper[]>();
+  /** Split `sp`'s sites into wrapper bodies', fetchers written in place, and the rest. */
   const findWrappers = (sp: ServiceProgram): void => {
     const plain: HttpCallSite[] = [];
     const mine = new Map<string, Wrapper>();
+    const fetchers: Wrapper[] = [];
     for (const site of sitesOf(sp)) {
       const found = wrapperOf(site);
-      const fn = found?.fn;
       // A parameter that only fills a later hole or the query leaves the route fixed here.
-      const read = fn ? normalizer.leadingParameters(site) : new Set<ts.ParameterDeclaration>();
-      const reads =
-        fn !== undefined &&
-        ([...read].some((d) => d.parent === fn) ||
-          (site.config !== undefined &&
-            parameterOf(site.config.value.sp, site.config.value.expression, fn) !== undefined) ||
-          (site.methodSource !== undefined &&
-            sourceExpressions(site.methodSource).some(
-              (value) => parameterOf(value.sp, value.expression, fn) !== undefined,
-            )));
-      if (!found || !reads) {
-        plain.push(site);
+      let read: ReadonlySet<ts.ParameterDeclaration> | undefined;
+      const leading = (): ReadonlySet<ts.ParameterDeclaration> =>
+        (read ??= normalizer.leadingParameters(site));
+      if (!found || !readsParameters(site, found.fn, leading())) {
+        // A fetcher written where SWR takes one, reading its own parameters (M5B.2b).
+        let fetcher: FunctionWithBody | undefined;
+        for (let f = enclosingFunction(site.call); f && !fetcher; f = enclosingFunction(f)) {
+          if (inFetcherPosition(f) && readsParameters(site, f, leading())) fetcher = f;
+        }
+        if (!fetcher) {
+          plain.push(site);
+          continue;
+        }
+        let inline = inlineFetchers.get(fetcher);
+        if (!inline) {
+          inline = { sp: site.sp, fn: fetcher, sites: [], leading: new Map() };
+          inlineFetchers.set(fetcher, inline);
+          fetchers.push(inline);
+        }
+        inline.sites.push(site);
+        inline.leading.set(site, leading());
         continue;
       }
       const wrapper: Wrapper = mine.get(found.id) ?? {
@@ -463,12 +543,13 @@ export function collectHttpFacts(
         leading: new Map(),
       };
       wrapper.sites.push(site);
-      wrapper.leading.set(site, read);
+      wrapper.leading.set(site, leading());
       mine.set(found.id, wrapper);
       wrappers.set(found.id, wrapper);
     }
     direct.set(sp, plain);
     owned.set(sp, mine);
+    inlineIn.set(sp, fetchers);
   };
   /** Wrappers known only by ID so far (`scope.known`), with the program holding each. */
   const pending = new Map<string, ServiceProgram>();
@@ -515,6 +596,16 @@ export function collectHttpFacts(
             0));
     const target = candidate ? resolver.resolve(sp, expression) : undefined;
     return target && (wrappers.has(target.id) || pending.has(target.id)) ? target : undefined;
+  };
+
+  /** The fetcher an expression handed to SWR is: one written in place, or a wrapper. */
+  const fetcherTarget = (
+    sp: ServiceProgram,
+    expression: ts.Expression,
+  ): FetcherTarget | undefined => {
+    const e = unwrap(expression);
+    if (isFunctionWithBody(e) && inlineFetchers.has(e)) return { fn: e, confidence: "exact" };
+    return wrapperAt(sp, expression);
   };
 
   /**
@@ -573,17 +664,17 @@ export function collectHttpFacts(
   };
 
   /**
-   * The wrapper `SWRConfig`'s `value` sets as the default fetcher in `sp`, when every
-   * `<SWRConfig value={{ fetcher }}>` rendered in it names the same one (ADR-0193): which hooks
-   * render under which config isn't modeled, so the default is `heuristic`. Any config whose
-   * fetcher isn't a wrapper, or two different ones, give no default.
+   * The fetcher `SWRConfig`'s `value` sets as the default in `sp` (a wrapper, or one written
+   * there, M5B.2b), when every `<SWRConfig value={{ fetcher }}>` rendered in it sets the same
+   * one (ADR-0193): which hooks render under which config isn't modeled, so the default is
+   * `heuristic`. Any config whose fetcher is neither, or two different ones, give no default.
    */
   const defaultFetcherIn = (
     sp: ServiceProgram,
     files: readonly ts.SourceFile[],
-  ): { id: string; confidence: Confidence } | undefined => {
+  ): FetcherTarget | undefined => {
     const checker = resolver.checkerOf(sp);
-    const found = new Map<string, Confidence>();
+    const found = new Map<string | FunctionWithBody, Confidence>();
     let unknown = false;
     const visit = (node: ts.Node): void => {
       if (
@@ -606,9 +697,9 @@ export function collectHttpFacts(
               : reader.constObject(sp, e, 0);
           const fetcher = object && objectProperty(object.sp, object.expression, "fetcher");
           if (fetcher === undefined && object) continue; // a config that sets no fetcher
-          const target = fetcher ? wrapperAt(fetcher.sp, fetcher.expression) : undefined;
-          if (target)
-            found.set(target.id, weaker(found.get(target.id) ?? "exact", target.confidence));
+          const target = fetcher ? fetcherTarget(fetcher.sp, fetcher.expression) : undefined;
+          const key = target && ("id" in target ? target.id : target.fn);
+          if (target && key) found.set(key, weaker(found.get(key) ?? "exact", target.confidence));
           else unknown = true;
         }
       }
@@ -617,13 +708,23 @@ export function collectHttpFacts(
     for (const sourceFile of files) visit(sourceFile);
     const [only, ...others] = [...found];
     if (unknown || !only || others.length > 0) return undefined;
-    return { id: only[0], confidence: weaker(only[1], "heuristic") };
+    const [key, confidence] = only;
+    const heuristic = weaker(confidence, "heuristic");
+    return typeof key === "string"
+      ? { id: key, confidence: heuristic }
+      : { fn: key, confidence: heuristic };
   };
 
-  /** The service's calls to wrappers, by wrapper ID, in file and visit order. */
-  const callersIn = (sp: ServiceProgram): Map<string, Caller[]> => {
+  /**
+   * The service's calls to wrappers, by wrapper ID, and the hooks that call its fetchers
+   * written in place (M5B.2b), by function node, in file and visit order.
+   */
+  const callersIn = (
+    sp: ServiceProgram,
+  ): { callers: Map<string, Caller[]>; hooks: Map<ts.Node, Caller[]> } => {
     const callers = new Map<string, Caller[]>();
-    if (names.size === 0) return callers;
+    const hooks = new Map<ts.Node, Caller[]>();
+    if (names.size === 0 && (inlineIn.get(sp) ?? []).length === 0) return { callers, hooks };
     const checker = resolver.checkerOf(sp);
     const files = sp.rootFiles.flatMap((file) => {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
@@ -665,13 +766,16 @@ export function collectHttpFacts(
           const [key, second] = node.arguments;
           if (contract && key && ![key, second].some((a) => a && ts.isSpreadElement(a))) {
             const fetcher = fetcherOf(sp, node, contract);
-            const used = fetcher === "default" ? configured() : fetcher && wrapperAt(sp, fetcher);
+            const used =
+              fetcher === "default" ? configured() : fetcher && fetcherTarget(sp, fetcher);
             if (used) {
-              add(used.id, {
+              const hooked = {
                 ...caller,
                 confidence: used.confidence,
                 hook: { keys: keysOf(sp, key, 0), rest: contract.rest },
-              });
+              };
+              if ("id" in used) add(used.id, hooked);
+              else hooks.set(used.fn, [...(hooks.get(used.fn) ?? []), hooked]);
             }
           }
         }
@@ -681,7 +785,7 @@ export function collectHttpFacts(
       };
       visit(sourceFile, NO_OWNERS);
     }
-    return callers;
+    return { callers, hooks };
   };
 
   /** A property of an object literal or const object (`null`: not readable). */
@@ -706,9 +810,10 @@ export function collectHttpFacts(
 
   /**
    * The requests one call to a wrapper makes: one per site in the wrapper's body. For a hook
-   * call (ADR-0193), one per key the hook may pass, the same request kept once.
+   * call (ADR-0193), one per key the hook may pass, the same request kept once. `id` is
+   * `undefined` for a fetcher written in place (M5B.2b), which is no symbol.
    */
-  const inline = (id: string, wrapper: Wrapper, caller: Caller): HttpRequestFact[] => {
+  const inline = (id: string | undefined, wrapper: Wrapper, caller: Caller): HttpRequestFact[] => {
     const { hook } = caller;
     if (!hook) return inlineWith(id, wrapper, caller, caller.call.arguments, "missing");
     const seen = new Set<string>();
@@ -730,7 +835,7 @@ export function collectHttpFacts(
    * (`missing`, so defaults apply) or `unknown`.
    */
   const inlineWith = (
-    id: string,
+    id: string | undefined,
     wrapper: Wrapper,
     caller: Caller,
     given: readonly ts.Expression[] | undefined,
@@ -757,6 +862,12 @@ export function collectHttpFacts(
         missing.add(d);
       }
     });
+
+    /** Argument `i`: `null` when unknown (a spread at or before it), `undefined` when absent. */
+    const argAt = (i: number): ts.Expression | null | undefined => {
+      if (spread !== -1 && spread <= i) return null;
+      return args[i] ?? (rest === "unknown" ? null : undefined);
+    };
 
     /** A value with this call's bindings: `missing` for an absent argument, `null` if unknown. */
     const bound = (value: ProgramExpression): ProgramExpression | "missing" | null => {
@@ -825,7 +936,34 @@ export function collectHttpFacts(
       };
     };
 
+    /**
+     * A `fetch(...args)` site spreading the rest parameter at `index` (M5B.2b): the URL and
+     * init are the caller's arguments from there on.
+     */
+    const spreadRequest = (
+      site: HttpCallSite,
+      index: number,
+    ): { urls: NormalizedUrl[]; shown: ts.Node[]; method: HttpMethod | null } => {
+      const url = argAt(index);
+      const init = argAt(index + 1);
+      return {
+        urls: normalizer.alternatives(
+          { url: url ? { sp: caller.sp, expression: url } : null, baseURL: site.baseURL },
+          bindings,
+        ),
+        shown: url ? [url] : [],
+        method:
+          init === null
+            ? null
+            : init === undefined
+              ? "GET"
+              : configMethod({ sp: caller.sp, expression: init }),
+      };
+    };
+
     return wrapper.sites.flatMap((site): HttpRequestFact[] => {
+      const index = restIndex(site, wrapper.fn);
+      const fromSpread = index === undefined ? undefined : spreadRequest(site, index);
       const fromConfig = site.config && configUrl(site.config);
       // A function inside the wrapper (one it returns: `createClient(base)` ⇒
       // `{ get: (path) => fetch(base + "/" + path) }`) whose own parameter leads the URL: this
@@ -835,22 +973,20 @@ export function collectHttpFacts(
         ? [{ resolved: false, reason: "WRAPPER_DEPTH", detail: WRAPPER_DEPTH_DETAIL.inner }]
         : given === undefined
           ? [{ resolved: false, reason: "DYNAMIC_URL", detail: DYNAMIC_URL_DETAIL.hookKey }]
-          : fromConfig
-            ? fromConfig.urls
-            : normalizer.alternatives(site, bindings);
+          : ((fromSpread ?? fromConfig)?.urls ?? normalizer.alternatives(site, bindings));
       const confidence = weaker(site.confidence, caller.confidence);
       const read = normalizer.parameters(site);
-      const urlArgs = fromConfig
-        ? fromConfig.shown
-        : wrapper.fn.parameters.flatMap((d, i) => {
-            const arg = args[i];
-            return read.has(d) && arg ? [arg] : [];
-          });
-      const method = boundMethod(site);
+      const urlArgs =
+        (fromSpread ?? fromConfig)?.shown ??
+        wrapper.fn.parameters.flatMap((d, i) => {
+          const arg = args[i];
+          return read.has(d) && arg ? [arg] : [];
+        });
+      const method = fromSpread ? fromSpread.method : boundMethod(site);
       const expression = redactedText(caller.call, urlArgs);
       return urls.map((url) => ({
         call: { client: site.client, file: site.file, site: site.site },
-        via: id,
+        ...(id === undefined ? {} : { via: id }),
         file: caller.file,
         site: caller.site,
         owners: caller.owners,
@@ -868,7 +1004,8 @@ export function collectHttpFacts(
   /** `sp`'s facts, once every service's wrappers are known. */
   const factsOf = (sp: ServiceProgram): HttpFacts => {
     const calls: WrapperCallFact[] = [];
-    for (const [id, list] of [...callersIn(sp)].sort(([a], [b]) => compareStrings(a, b))) {
+    const { callers, hooks } = callersIn(sp);
+    for (const [id, list] of [...callers].sort(([a], [b]) => compareStrings(a, b))) {
       const wrapper = wrapperById(id);
       if (!wrapper) continue;
       const first = wrapper.sites[0];
@@ -878,7 +1015,16 @@ export function collectHttpFacts(
     }
     return {
       service: sp.service.key,
-      requests: (direct.get(sp) ?? []).flatMap(own),
+      requests: [
+        ...(direct.get(sp) ?? []).flatMap(own),
+        // A fetcher written in place makes its requests at the hooks that call it, else its own.
+        ...(inlineIn.get(sp) ?? []).flatMap((fetcher) => {
+          const inlined = (hooks.get(fetcher.fn) ?? []).flatMap((hook) =>
+            inline(undefined, fetcher, hook),
+          );
+          return inlined.length > 0 ? inlined : fetcher.sites.flatMap(own);
+        }),
+      ],
       wrappers: [...(owned.get(sp) ?? [])]
         .sort(([a], [b]) => compareStrings(a, b))
         .map(([id, wrapper]) => ({
