@@ -121,6 +121,27 @@
   left: var(--space-16);
 }
 
+/*
+ * Diff mode's chip, and without the top bar its Base / Head / Overlay beside it
+ * (M6.9e2b): one row, both 32px tall, the switch's own frame dropped inside the overlay's.
+ */
+.gi-explorer__diff {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.gi-explorer__versions {
+  padding: 3px;
+}
+
+.gi-explorer__versions .gi-segmented {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 /* The warnings chip (M4b.12b), a footnote above the breadcrumbs, as wide as its words. */
 .gi-explorer__warnings {
   justify-self: start;

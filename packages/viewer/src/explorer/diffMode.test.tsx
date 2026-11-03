@@ -63,6 +63,64 @@ describe("Explorer diff mode", { timeout: 30_000 }, () => {
     expect(chip?.textContent).toBe("Comparing diff-broken-base → diff-broken-head");
   });
 
+  it("puts Base, Head, Overlay beside the chip on the canvas without the top bar (M6.9e2b)", async () => {
+    const { container } = await setup({ topBar: false });
+    expect(container.querySelector(".gi-topbar")).toBeNull();
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    expect(views.closest(".gi-explorer__diff")).not.toBeNull();
+    expect(views.closest('[data-place="top-left"]')).not.toBeNull();
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await settle();
+    expect(screen.getByText("Showing the head version")).toBeTruthy();
+    // With the top bar, it's there only.
+    cleanup();
+    await setup();
+    expect(screen.getAllByRole("radiogroup", { name: "Diff view" })).toHaveLength(1);
+    expect(document.querySelector(".gi-explorer__diff [role='radiogroup']")).toBeNull();
+  });
+
+  it("reports the version shown with the state a link keeps, and opens on a linked one", async () => {
+    const onStateChange = vi.fn();
+    await setup({ topBar: false, onStateChange });
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    fireEvent.click(within(views).getByRole("radio", { name: "Base" }));
+    await settle();
+    expect(onStateChange.mock.lastCall?.[0].version).toBe("base");
+    fireEvent.click(within(views).getByRole("radio", { name: "Overlay" }));
+    await settle();
+    expect(onStateChange.mock.lastCall?.[0].version).toBe("overlay");
+    cleanup();
+
+    const { wrapper } = await setup({
+      topBar: false,
+      initialVersion: "head",
+      initialOpen: [SERVICE, SRC],
+    });
+    const checked = () =>
+      within(screen.getByRole("radiogroup", { name: "Diff view" }))
+        .getAllByRole("radio")
+        .filter((r) => r.getAttribute("aria-checked") === "true")
+        .map((r) => r.textContent);
+    expect(checked()).toEqual(["Head"]);
+    expect(wrapper(DELETE_ROUTE)?.hasAttribute("data-absent")).toBe(true);
+    cleanup();
+
+    // A linked selection Head doesn't have wins: the Overlay, which has it.
+    await setup({
+      initialVersion: "head",
+      initialOpen: [SERVICE, SRC],
+      initialSelected: DELETE_ROUTE,
+    });
+    expect(checked()).toEqual(["Overlay"]);
+    cleanup();
+    // Outside diff mode it means nothing, and the state says the Overlay.
+    const plain = vi.fn();
+    render(<Explorer graph={head} initialVersion="base" onStateChange={plain} />);
+    await settle();
+    fireEvent.click(document.querySelector(`[data-node-id="${SERVICE}"] > .gi-node`)!);
+    expect(plain.mock.lastCall?.[0].version).toBe("overlay");
+  });
+
   it("says a closed frame holds changes, in badges and in its name", async () => {
     const { box } = await setup();
     const service = box(SERVICE);

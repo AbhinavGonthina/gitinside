@@ -585,6 +585,21 @@ code {
   border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
 }
 
+/* Diff mode (M6.9e2b): the base commit, then the way back to this commit alone. */
+.repo-bar__compare {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-8);
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+}
+
+.repo-bar__compare > a:last-child {
+  margin-left: var(--space-4);
+}
+
 /* How the diagram relates to the latest commit: muted text after a small
    dot, the accent dot breathing while a newer diagram is on its way. */
 .repo-bar__status {

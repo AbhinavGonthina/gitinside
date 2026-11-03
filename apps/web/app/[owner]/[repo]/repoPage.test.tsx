@@ -567,6 +567,85 @@ describe("RepoDiagram in diff mode (M6.9e2)", () => {
     expect(shared()).toBe(`${origin}/acme/shop/${SHA}?base=${BASE}`);
   });
 
+  it("switches Base, Head, Overlay on the canvas, keeping the version in the link (M6.9e2b)", async () => {
+    fetchMock.mockImplementation(pair());
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);
+    renderDiagram(READY);
+    await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    fireEvent.click(within(views).getByRole("radio", { name: "Head" }));
+    await waitFor(() => expect(window.location.search).toBe(`?base=${BASE}&view=head`));
+    expect(shared()).toBe(`${window.location.origin}/acme/shop/${SHA}?base=${BASE}&view=head`);
+    fireEvent.click(within(views).getByRole("radio", { name: "Overlay" }));
+    await waitFor(() => expect(window.location.search).toBe(`?base=${BASE}`));
+  });
+
+  it("opens on the version a link names", async () => {
+    fetchMock.mockImplementation(pair());
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}&view=base`);
+    renderDiagram(READY);
+    await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    const checked = within(views)
+      .getAllByRole("radio")
+      .filter((r) => r.getAttribute("aria-checked") === "true");
+    expect(checked.map((r) => r.textContent)).toEqual(["Base"]);
+    expect(note()).toBeUndefined();
+  });
+
+  it("names the base commit on the repo bar, linked to GitHub, with a way to stop comparing", async () => {
+    fetchMock.mockImplementation(pair());
+    window.history.replaceState(
+      {},
+      "",
+      `/acme/shop?base=${BASE}&view=head&sel=service:diff-broken/`,
+    );
+    renderDiagram(READY);
+    await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
+    const compare = document.querySelector(".repo-bar__compare") as HTMLElement;
+    expect(compare.textContent).toBe("compared withdddddddStop comparing");
+    expect(within(compare).getByRole("link", { name: "ddddddd" }).getAttribute("href")).toBe(
+      `https://github.com/acme/shop/tree/${BASE}`,
+    );
+    // This commit's permalink with the same state, without the base or its view.
+    const stop = within(compare).getByRole("link", { name: "Stop comparing" });
+    expect(stop.getAttribute("href")).toBe(`/acme/shop/${SHA}?sel=service:diff-broken/`);
+    fireEvent.keyDown(document.querySelector(".gi-explorer") as Element, { key: "Escape" });
+    await waitFor(() => expect(stop.getAttribute("href")).toBe(`/acme/shop/${SHA}`));
+  });
+
+  it("keeps a view with a base not analyzed yet, and drops one without a base", async () => {
+    fetchMock.mockImplementation(pair());
+    const link = `?base=${BASE}&view=head`;
+    window.history.replaceState({}, "", `/acme/shop/${SHA}${link}&sel=service:diff-broken/`);
+    renderDiagram({ status: "missing", sha: BASE });
+    await screen.findByRole("region", { name: "Diagram" });
+    // The explorer, comparing nothing, reports the Overlay; the link keeps the view.
+    fireEvent.keyDown(document.querySelector(".gi-explorer") as Element, { key: "Escape" });
+    await waitFor(() => expect(window.location.search).toBe(link));
+    expect(shared()).toBe(`${window.location.origin}/acme/shop/${SHA}${link}`);
+    cleanup();
+
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?view=head`);
+    renderDiagram(undefined);
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(shared()).toBe(`${window.location.origin}/acme/shop/${SHA}`);
+  });
+
+  it("offers Stop comparing, without a base chip, for a base it couldn't compare", async () => {
+    fetchMock.mockImplementation(pair());
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);
+    renderDiagram({ status: "missing", sha: BASE });
+    await screen.findByRole("region", { name: "Diagram" });
+    const compare = document.querySelector(".repo-bar__compare") as HTMLElement;
+    expect(compare.textContent).toBe("Stop comparing");
+    cleanup();
+    // Without a base, nothing.
+    renderDiagram(undefined);
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(document.querySelector(".repo-bar__compare")).toBeNull();
+  });
+
   it("says a base nobody analyzed isn't compared, draws this commit alone, and keeps it in the link", async () => {
     fetchMock.mockImplementation(pair());
     window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);

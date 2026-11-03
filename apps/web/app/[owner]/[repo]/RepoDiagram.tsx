@@ -74,9 +74,11 @@ const onboarding = browserOnboarding();
  * Diff mode (M6.9e2, ADR-0189): with a `base` that has an analysis, both graphs load side by
  * side and are diffed in the browser (`compareGraphs`); the explorer then draws the overlay,
  * reading Base's code at the base commit. The link keeps `base` first (`withBase`), on the
- * address bar and in Copy link. A base that can't be compared (not a full SHA, never
- * analyzed, another analyzer version) is said in the note, and the diagram is this commit
- * alone.
+ * address bar and in Copy link, and the explorer's Base / Head / Overlay (on its canvas, as
+ * `view`). A base that can't be compared (not a full SHA, never analyzed, another analyzer
+ * version) is said in the note, and the diagram is this commit alone. The repo bar names the
+ * base commit (linked to GitHub) once it's compared, and with any `base` offers Stop
+ * comparing: this commit's permalink with the same state.
  *
  * A graph that fails to load or parse (M4b.12b2), this commit's or the base's, gets the explorer's empty-state card in the
  * error tone where the diagram goes: what happened, why or what to do, and Try again only when
@@ -134,9 +136,29 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
       : load.graph;
     return decodeState(window.location.search, buildHierarchy(graph));
   }, [load, compared]);
-  // The state's query since the explorer last reported, for Copy link.
-  const [query, setQuery] = useState<string>();
-  const linkQuery = withBase(query ?? (linked ? encodeState(linked.state) : ""), keptBase);
+  // The state since the explorer last reported, for Copy link and Stop comparing.
+  const [reported, setReported] = useState<ExplorerState>();
+  /**
+   * A state as the link keeps it: Base or Head only with the base they're of. A base that
+   * isn't analyzed yet keeps the link's view with it (the explorer, comparing nothing,
+   * reports the Overlay), so the link opens on it once it compares.
+   */
+  const kept = (state: ExplorerState): ExplorerState => ({
+    ...state,
+    version: compared
+      ? state.version
+      : keptBase !== undefined
+        ? (linked?.state.version ?? "overlay")
+        : "overlay",
+  });
+  const shown = reported ?? linked?.state;
+  const linkQuery = withBase(shown ? encodeState(kept(shown)) : "", keptBase);
+  // Stop comparing (M6.9e2b): this commit's permalink with the same state, on its own graph
+  // (no Base or Head there); what only the base had is then left out and said in the note.
+  const alone = withState(
+    `/${owner}/${repo}/${sha}`,
+    shown ? encodeState({ ...shown, version: "overlay" }) : "",
+  );
   const [dismissed, setDismissed] = useState<DecodedState>();
   const notes =
     linked && linked !== dismissed
@@ -164,8 +186,8 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
   };
 
   const onStateChange = (state: ExplorerState) => {
-    const next = encodeState(state);
-    setQuery(next);
+    const next = encodeState(kept(state));
+    setReported(state);
     const { pathname, hash } = window.location;
     const page = withState(pathname, withBase(next, keptBase));
     window.history.replaceState(window.history.state, "", page + hash);
@@ -175,7 +197,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
     const controller = new AbortController();
     const { signal } = controller;
     setLoads(undefined);
-    setQuery(undefined);
+    setReported(undefined);
     // Side by side: the page waits for the slower one, not for both in turn.
     Promise.all([
       loadGraph(graphUrl, { signal }),
@@ -211,6 +233,25 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
             <code>{short(sha)}</code>
           </a>
         </div>
+        {base && (
+          <p className="repo-bar__compare">
+            {compared && baseSha !== undefined && (
+              <>
+                <span>compared with</span>
+                <a
+                  className="gi-chip repo-bar__commit"
+                  href={githubHref(owner, repo, baseSha)}
+                  rel="noopener noreferrer"
+                  title={`Base commit ${baseSha} on GitHub`}
+                >
+                  <UiIcon name="commit" size={14} />
+                  <code>{short(baseSha)}</code>
+                </a>
+              </>
+            )}
+            <Link href={alone}>Stop comparing</Link>
+          </p>
+        )}
         <p className="repo-bar__status" data-tone={status.tone}>
           <span>{status.text}</span>
           {status.link && <Link href={status.link.href}>{status.link.label}</Link>}
@@ -273,6 +314,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
               initialStep={linked.state.step}
               initialFilters={linked.state.filters}
               initialHiddenKinds={linked.state.hiddenKinds}
+              initialVersion={linked.state.version}
               onStateChange={onStateChange}
               exportRef={exportRef}
               onboarding={onboarding}

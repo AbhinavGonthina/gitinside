@@ -1,14 +1,14 @@
 import { compareStrings } from "@gitinside/schema";
 import type { ArchitectureGraph, EdgeKind, GraphDiff, GraphNode } from "@gitinside/schema";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { Button, StatusChip } from "../chrome/controls.js";
+import { Button, SegmentedControl, StatusChip } from "../chrome/controls.js";
 import { shortSha, type RepoRef } from "../chrome/describe.js";
 import { EmptyState, WarningList } from "../chrome/EmptyState.js";
 import { FiltersPopover } from "../chrome/FiltersPopover.js";
 import { ShareMenu } from "../chrome/ShareMenu.js";
 import { viewExport, type ViewExport } from "../export/files.js";
 import { Breadcrumbs, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
-import { TopBar, type DiffView } from "../chrome/TopBar.js";
+import { DIFF_VIEWS, TopBar, type DiffView } from "../chrome/TopBar.js";
 import { buildDiffOverlay, DiffMismatchError, diffMarks, versionGraph } from "../model/diff.js";
 import {
   createLayoutCache,
@@ -160,9 +160,16 @@ export interface ExplorerProps {
    * commit's graph through `packages/diff`'s diff of the two. The canvas then
    * draws both versions on one layout (`buildDiffOverlay`) as the Overlay
    * (added, changed, removed ghosted, broken connections), or Base or Head
-   * alone from the top bar. A diff of other graphs shows an error card.
+   * alone from the top bar (on the canvas, next to the "Comparing" chip,
+   * when `topBar` is off). A diff of other graphs shows an error card.
    */
   diff?: ExplorerDiff | undefined;
+  /**
+   * Start diff mode on Base or Head (a deep link's `view`) instead of the
+   * Overlay. Ignored outside diff mode, and the Overlay is shown instead when
+   * that version doesn't have `initialSelected` or `initialTrace`.
+   */
+  initialVersion?: DiffView | undefined;
 }
 
 /** What diff mode compares `graph` (the head) with. */
@@ -253,6 +260,7 @@ export function Explorer({
   layoutWorker,
   cullFrom,
   diff: compare,
+  initialVersion = "overlay",
 }: ExplorerProps) {
   // Diff mode (M6.9b): both versions in one graph, drawn with their states.
   const compareBase = compare?.base;
@@ -268,7 +276,14 @@ export function Explorer({
   }, [compareBase, compareDiff, given]);
   const overlay = compared?.overlay;
   const marks = useMemo(() => overlay && diffMarks(overlay), [overlay]);
-  const [version, setVersion] = useState<DiffView>("overlay");
+  const [version, setVersion] = useState<DiffView>(() => {
+    if (!overlay || initialVersion === "overlay") return "overlay";
+    const has = overlay.nodesIn[initialVersion];
+    const lacks = [initialSelected, initialTrace].some(
+      (id) => typeof id === "string" && !has.has(id),
+    );
+    return lacks ? "overlay" : initialVersion;
+  });
   const graph = overlay?.graph ?? given;
   const index = useMemo(() => buildHierarchy(graph), [graph]);
   /**
@@ -496,6 +511,7 @@ export function Explorer({
   // What a deep link keeps (M4b.9): reported when it changes, not on the first render.
   const openNow = new Set(view.open);
   const linkState: ExplorerState = {
+    version: overlay ? version : "overlay",
     open: drill.expansion.filter((id) => openNow.has(id)),
     selected,
     trace: tracing ? traced : null,
@@ -642,7 +658,7 @@ export function Explorer({
   }
 
   /**
-   * Diff mode's Base, Head, or Overlay from the top bar, said aloud. The
+   * Diff mode's Base, Head, or Overlay from the top bar (or the canvas), said aloud. The
    * selection and a trace stay when the version has their node (a trace then
    * follows that version's connections); otherwise they go, and it says so.
    */
@@ -1252,10 +1268,23 @@ export function Explorer({
             onClick={(e) => e.stopPropagation()}
           >
             {overlay && compare && (
-              <StatusChip tone="diff">
-                Comparing {compareName(compare.baseName, compare.base)} →{" "}
-                {compareName(compare.headName, given)}
-              </StatusChip>
+              <div className="gi-explorer__diff">
+                <StatusChip tone="diff">
+                  Comparing {compareName(compare.baseName, compare.base)} →{" "}
+                  {compareName(compare.headName, given)}
+                </StatusChip>
+                {/* Without the top bar (the website), its Base / Head / Overlay go here. */}
+                {!topBar && (
+                  <div className="gi-overlay gi-explorer__versions">
+                    <SegmentedControl
+                      label="Diff view"
+                      options={DIFF_VIEWS}
+                      value={version}
+                      onChange={showVersion}
+                    />
+                  </div>
+                )}
+              </div>
             )}
             {tracing && (
               <StatusChip tone="trace" exitLabel="Exit trace" onExit={toggleTrace}>

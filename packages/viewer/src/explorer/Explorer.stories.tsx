@@ -301,7 +301,7 @@ function ExploreDiff({
   );
 }
 
-/** Switches diff mode to `name` (Base or Head) from the top bar, once the canvas is drawn. */
+/** Switches diff mode to `name` (Base or Head) from the top bar or the canvas, once the canvas is drawn. */
 async function showVersion(canvasElement: HTMLElement, name: "Base" | "Head") {
   for (let tries = 0; tries < 250; tries++) {
     const radio = [...canvasElement.querySelectorAll<HTMLElement>('[role="radio"]')].find(
@@ -360,6 +360,16 @@ export const DiffRenamedBase: Story = {
     />
   ),
   play: ({ canvasElement }) => showVersion(canvasElement, "Base"),
+};
+
+/**
+ * Without the top bar, as on the website (M6.9e2b): Base, Head, and Overlay
+ * sit beside the "Comparing" chip on the canvas, here on Head.
+ */
+export const DiffBare: Story = {
+  name: "Diff, without the top bar",
+  render: () => <ExploreDiff topBar={false} />,
+  play: ({ canvasElement }) => showVersion(canvasElement, "Head"),
 };
 
 /**

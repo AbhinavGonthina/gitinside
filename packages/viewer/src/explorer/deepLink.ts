@@ -1,5 +1,6 @@
 import { compareStrings } from "@gitinside/schema";
 import type { EdgeKind } from "@gitinside/schema";
+import { DIFF_VIEWS, type DiffView } from "../chrome/TopBar.js";
 import {
   CONFIDENCE_ORDER,
   DEFAULT_FILTERS,
@@ -18,11 +19,14 @@ import { canTraceFrom, traceFrom } from "./trace.js";
 
 /**
  * What a deep link restores (M4b.9, UX.md "Deep links"): the explorer's
- * drill-down, selection, trace, and filters. The repo and commit are the
- * page's path, not part of it; the camera and the player's play/pause aren't
- * kept.
+ * drill-down, selection, trace, and filters, and in diff mode which version
+ * is shown. The repo and commit are the page's path, not part of it (nor is
+ * diff mode's base, {@link BASE_PARAM}); the camera and the player's
+ * play/pause aren't kept.
  */
 export interface ExplorerState {
+  /** Diff mode's Base, Head, or Overlay (M6.9e2b); `overlay` outside diff mode. */
+  version: DiffView;
   /** Nodes broken down, in opening order (Esc closes the last one first). */
   open: Expansion;
   selected: string | null;
@@ -37,6 +41,7 @@ export interface ExplorerState {
 
 /** The explorer as it opens: the system level, nothing selected or traced, the default filters. */
 export const DEFAULT_STATE: ExplorerState = {
+  version: "overlay",
   open: [],
   selected: null,
   trace: null,
@@ -61,8 +66,11 @@ export interface DecodedState {
  * The query parameters, in the order {@link encodeState} writes them. Lists
  * are comma-separated; filters name what's left off (`hide…`), or the one
  * folder shown (`only`), and `tests=shown` turns off "Hide tests and config".
+ * `view` is diff mode's Base or Head (`base`, `head`), first since it says
+ * what the rest is read on.
  */
 export const STATE_PARAMS = [
+  "view",
   "open",
   "sel",
   "trace",
@@ -101,6 +109,7 @@ export function encodeState(state: ExplorerState): string {
   const parts: string[] = [];
   const put = (param: string, values: readonly string[]) =>
     parts.push(`${param}=${values.map(encodeValue).join(",")}`);
+  if (state.version !== "overlay") put("view", [state.version]);
   if (state.open.length > 0) put("open", state.open);
   if (state.selected !== null) put("sel", [state.selected]);
   if (state.trace !== null) {
@@ -168,7 +177,7 @@ function parseQuery(query: string): Map<string, string[] | undefined> {
  * Reads a URL query (with or without `?`) into an explorer state for one
  * graph. Nothing in a link is trusted: a node that isn't in the graph (or
  * can't be broken down, selected, or traced), a step past the trace's end,
- * an unknown layer, kind, confidence, or connection kind, a folder the repo
+ * an unknown view, layer, kind, confidence, or connection kind, a folder the repo
  * doesn't have, or a malformed value is left out and listed in `ignored`,
  * so the page can say the link doesn't fully apply to this commit. Missing
  * parameters keep {@link DEFAULT_STATE}'s values; parameters it doesn't
@@ -204,6 +213,13 @@ export function decodeState(query: string, index: HierarchyIndex): DecodedState 
     ignored.push({ param, value: vs.join(",") });
     return undefined;
   };
+
+  // Read whether or not the page compares: the explorer uses it only in diff mode.
+  const view = one("view");
+  let version: DiffView = DEFAULT_STATE.version;
+  const known = DIFF_VIEWS.find((v) => v.value === view);
+  if (known) version = known.value;
+  else if (view !== undefined) ignored.push({ param: "view", value: view });
 
   const open: string[] = [];
   for (const id of values("open") ?? []) {
@@ -256,6 +272,7 @@ export function decodeState(query: string, index: HierarchyIndex): DecodedState 
   });
   return {
     state: {
+      version,
       open,
       selected,
       trace,

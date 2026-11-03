@@ -1416,6 +1416,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     expect(Object.keys(all).sort()).toEqual([
       "BrokenDown",
       "Diff",
+      "DiffBare",
       "DiffBrokenDown",
       "DiffChangePicked",
       "DiffHead",
@@ -1501,6 +1502,11 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
         ?.textContent,
     ).toBe("orders.ts");
     cleanup();
+    // Without the top bar (M6.9e2b), switched on the canvas.
+    const bare = await shown(all.DiffBare, "Head");
+    expect(bare.querySelector(".gi-topbar")).toBeNull();
+    expect(bare.querySelector(".gi-explorer__diff [role='radiogroup']")).not.toBeNull();
+    cleanup();
 
     // A changes-list row picked by the story's play (M6.9d).
     const picked = render(<all.DiffChangePicked />);
@@ -1508,12 +1514,15 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     await all.DiffChangePicked.play?.({ canvasElement: picked.container } as Parameters<
       NonNullable<typeof all.DiffChangePicked.play>
     >[0]);
-    await waitFor(() =>
-      expect(
-        picked.container.querySelector(
-          '[data-node-id="route:diff-broken/DELETE /api/orders/:id"] > .gi-node',
-        ),
-      ).toBe(document.activeElement),
+    // The pick flies there first; under CI's coverage that took over waitFor's default 1 s once.
+    await waitFor(
+      () =>
+        expect(
+          picked.container.querySelector(
+            '[data-node-id="route:diff-broken/DELETE /api/orders/:id"] > .gi-node',
+          ),
+        ).toBe(document.activeElement),
+      { timeout: 10_000 },
     );
   });
 

@@ -87,6 +87,14 @@ describe("encodeState", () => {
     expect(b).toBe(a);
   });
 
+  it("writes diff mode's Base or Head first, and nothing for the Overlay (M6.9e2b)", () => {
+    expect(encodeState(state({ version: "head", selected: ROUTE }))).toBe(
+      "view=head&sel=route:api/POST%20/api/orders",
+    );
+    expect(encodeState(state({ version: "base" }))).toBe("view=base");
+    expect(encodeState(state({ version: "overlay" }))).toBe("");
+  });
+
   it("writes an empty `hideLines` when every connection kind is shown", () => {
     expect(encodeState(state({ hiddenKinds: [] }))).toBe("hideLines=");
     expect(decodeState("hideLines=", index).state.hiddenKinds).toEqual([]);
@@ -114,8 +122,18 @@ describe("decodeState", () => {
         hideTestsAndConfig: false,
       },
       hiddenKinds: ["calls"],
+      version: "base",
     });
     expect(decodeState(`?${encodeState(full)}`, index)).toEqual({ state: full, ignored: [] });
+  });
+
+  it("reads diff mode's view, and lists one it doesn't know", () => {
+    expect(decodeState("view=head", index).state.version).toBe("head");
+    expect(decodeState("view=overlay", index)).toEqual({ state: DEFAULT_STATE, ignored: [] });
+    expect(decodeState("view=split", index)).toEqual({
+      state: DEFAULT_STATE,
+      ignored: [{ param: "view", value: "split" }],
+    });
   });
 
   it("keeps the opening order and drops repeats", () => {
@@ -220,6 +238,8 @@ describe("withBase", () => {
     expect(withBase("", SHA)).toBe(`base=${SHA}`);
     expect(withBase(`sel=${API}`, undefined)).toBe(`sel=${API}`);
     expect(withBase("", undefined)).toBe("");
+    // Before the view it compares in, so the comparison's parameters read together.
+    expect(withBase(encodeState(state({ version: "head" })), SHA)).toBe(`base=${SHA}&view=head`);
   });
 
   it("escapes what would break the query", () => {
