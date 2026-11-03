@@ -9,6 +9,7 @@ import {
   type PublishedAnalysis,
 } from "@gitinside/db";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
+import { COMMIT_SHA, type BaseView } from "./compare";
 import { QUEUE_UNAVAILABLE, enqueueAnalysis, type EnqueueDeps } from "./enqueue";
 import { resolveRepo, type GitHubOptions, type ResolveResult } from "./github";
 import type { RepoRef } from "./repoUrl";
@@ -177,6 +178,27 @@ async function latestCommit(
   const resolved = await resolveRepo(ref, deps.github);
   deps.heads.set(key, resolved);
   return resolved;
+}
+
+/**
+ * What a link's `?base=<sha>` compares the shown diagram with (diff mode, M6.9e2): that
+ * commit's published analysis of the same repo (looked up by the stored spelling, like a
+ * permalink: never checked against GitHub, nothing enqueued). `base` is the raw value.
+ */
+export async function viewBase(
+  shown: { owner: string; repo: string },
+  base: string,
+  db: AnyDatabase,
+): Promise<BaseView> {
+  if (!COMMIT_SHA.test(base)) return { status: "invalid" };
+  const published = await findPublishedAnalysis(db, {
+    owner: shown.owner,
+    name: shown.repo,
+    sha: base,
+  });
+  if (published === undefined) return { status: "missing", sha: base };
+  const { owner, name } = published.repo;
+  return { status: "ready", sha: base, graphUrl: graphPath(owner, name, base) };
 }
 
 /** Decide what `/<owner>/<repo>` (or `/<owner>/<repo>/<sha>` with `sha`) shows. */

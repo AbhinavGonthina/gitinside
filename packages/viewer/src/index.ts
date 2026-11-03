@@ -275,10 +275,12 @@ export type { Trace, TraceStep } from "./explorer/trace.js";
 export { createGitHubSourceLoader, MAX_SOURCE_BYTES } from "./explorer/sources.js";
 export type { GitHubSourceLoaderOptions, SourceLoader } from "./explorer/sources.js";
 export {
+  BASE_PARAM,
   decodeState,
   DEFAULT_STATE,
   encodeState,
   STATE_PARAMS,
+  withBase,
   withState,
 } from "./explorer/deepLink.js";
 export type { DecodedState, ExplorerState, IgnoredParam } from "./explorer/deepLink.js";

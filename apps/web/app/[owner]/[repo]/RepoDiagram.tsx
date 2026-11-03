@@ -2,6 +2,7 @@
 
 import {
   browserOnboarding,
+  buildDiffOverlay,
   buildHierarchy,
   Button,
   createGitHubSourceLoader,
@@ -12,6 +13,7 @@ import {
   IconButton,
   ShareMenu,
   UiIcon,
+  withBase,
   withState,
   type DecodedState,
   type ExplorerState,
@@ -19,6 +21,7 @@ import {
 } from "@gitinside/viewer";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { baseNote, compareGraphs, type BaseView } from "../../../lib/compare";
 import { ignoredNote, shareUrl } from "../../../lib/deepLink";
 import { headStatus, loadGraph, short, type GraphLoad } from "../../../lib/repoStatus";
 import type { HeadState } from "../../../lib/repoView";
@@ -35,6 +38,8 @@ export interface RepoDiagramProps {
   /** `/api/graph/…` of this commit. */
   graphUrl: string;
   head: HeadState;
+  /** The commit a link's `?base=` compares this one with (`viewBase`), if it names one. */
+  base?: BaseView | undefined;
 }
 
 /**
@@ -66,13 +71,20 @@ const onboarding = browserOnboarding();
  * the state. Export (M4b.10b) saves the view the explorer has drawn (its `exportRef`) as
  * SVG, PNG, or Mermaid, made in the browser.
  *
- * A graph that fails to load or parse (M4b.12b2) gets the explorer's empty-state card in the
+ * Diff mode (M6.9e2, ADR-0189): with a `base` that has an analysis, both graphs load side by
+ * side and are diffed in the browser (`compareGraphs`); the explorer then draws the overlay,
+ * reading Base's code at the base commit. The link keeps `base` first (`withBase`), on the
+ * address bar and in Copy link. A base that can't be compared (not a full SHA, never
+ * analyzed, another analyzer version) is said in the note, and the diagram is this commit
+ * alone.
+ *
+ * A graph that fails to load or parse (M4b.12b2), this commit's or the base's, gets the explorer's empty-state card in the
  * error tone where the diagram goes: what happened, why or what to do, and Try again only when
  * another attempt could help. Focus moves to the card, so a keyboard or screen-reader user
  * lands on it.
  */
-export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramProps) {
-  const [load, setLoad] = useState<GraphLoad | undefined>(undefined);
+export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiagramProps) {
+  const [loads, setLoads] = useState<{ head: GraphLoad; base?: GraphLoad } | undefined>();
   // Bumped by "Try again".
   const [attempt, setAttempt] = useState(0);
   const failure = useRef<HTMLDivElement>(null);
@@ -85,17 +97,56 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
     () => createGitHubSourceLoader({ owner, name: repo, sha }),
     [owner, repo, sha],
   );
-
-  // The page's link, read once per loaded graph: the explorer's initial props take it.
-  const linked = useMemo<DecodedState | undefined>(
-    () => (load?.ok ? decodeState(window.location.search, buildHierarchy(load.graph)) : undefined),
-    [load],
+  // Diff mode (M6.9e2): the base commit's graph and code, when the link names one that loads.
+  const baseUrl = base?.status === "ready" ? base.graphUrl : undefined;
+  const baseSha = base?.status === "ready" ? base.sha : undefined;
+  const loadBaseSource = useMemo(
+    () =>
+      baseSha === undefined
+        ? undefined
+        : createGitHubSourceLoader({ owner, name: repo, sha: baseSha }),
+    [owner, repo, baseSha],
   );
+  // A base that's a full SHA stays in the link, even one not analyzed yet: it compares once it is.
+  const keptBase = base?.status === "ready" || base?.status === "missing" ? base.sha : undefined;
+  // A failed load of either graph goes on the card; head's first.
+  const load =
+    loads === undefined
+      ? undefined
+      : loads.head.ok && loads.base?.ok === false
+        ? loads.base
+        : loads.head;
+  const comparison = useMemo(
+    () =>
+      loads?.head.ok && loads.base?.ok
+        ? compareGraphs(loads.base.graph, loads.head.graph)
+        : undefined,
+    [loads],
+  );
+  const compared = comparison?.ok ? comparison : undefined;
+
+  // The page's link, read once per loaded graph: the explorer's initial props take it. In
+  // diff mode it names the overlay's nodes (both versions, on head's IDs).
+  const linked = useMemo<DecodedState | undefined>(() => {
+    if (!load?.ok) return undefined;
+    const graph = compared
+      ? buildDiffOverlay(compared.base, load.graph, compared.diff).graph
+      : load.graph;
+    return decodeState(window.location.search, buildHierarchy(graph));
+  }, [load, compared]);
   // The state's query since the explorer last reported, for Copy link.
   const [query, setQuery] = useState<string>();
-  const linkQuery = query ?? (linked ? encodeState(linked.state) : "");
+  const linkQuery = withBase(query ?? (linked ? encodeState(linked.state) : ""), keptBase);
   const [dismissed, setDismissed] = useState<DecodedState>();
-  const note = linked && linked !== dismissed ? ignoredNote(linked.ignored, sha) : undefined;
+  const notes =
+    linked && linked !== dismissed
+      ? [
+          base && baseNote(base, sha),
+          comparison?.ok === false ? comparison.note : undefined,
+          ignoredNote(linked.ignored, sha),
+        ].filter((text) => text !== undefined)
+      : [];
+  const note = notes.length > 0 ? notes.join(" ") : undefined;
   const canvas = useRef<HTMLDivElement>(null);
   // Add to README and Share share a spot under the bar, so only one is open at a time.
   const [menu, setMenu] = useState<"readme" | "share">();
@@ -116,18 +167,28 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
     const next = encodeState(state);
     setQuery(next);
     const { pathname, hash } = window.location;
-    window.history.replaceState(window.history.state, "", withState(pathname, next) + hash);
+    const page = withState(pathname, withBase(next, keptBase));
+    window.history.replaceState(window.history.state, "", page + hash);
   };
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoad(undefined);
+    const { signal } = controller;
+    setLoads(undefined);
     setQuery(undefined);
-    loadGraph(graphUrl, { signal: controller.signal }).then(setLoad, () => {
-      // aborted: the page moved on
-    });
+    // Side by side: the page waits for the slower one, not for both in turn.
+    Promise.all([
+      loadGraph(graphUrl, { signal }),
+      baseUrl === undefined ? undefined : loadGraph(baseUrl, { signal }),
+    ]).then(
+      ([headLoad, baseLoad]) =>
+        setLoads(baseLoad ? { head: headLoad, base: baseLoad } : { head: headLoad }),
+      () => {
+        // aborted: the page moved on
+      },
+    );
     return () => controller.abort();
-  }, [graphUrl, attempt]);
+  }, [graphUrl, baseUrl, attempt]);
 
   useEffect(() => {
     if (load && !load.ok) failure.current?.focus();
@@ -215,6 +276,9 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head }: RepoDiagramPro
               onStateChange={onStateChange}
               exportRef={exportRef}
               onboarding={onboarding}
+              diff={
+                compared && { base: compared.base, diff: compared.diff, loadSource: loadBaseSource }
+              }
             />
           )
         ) : (

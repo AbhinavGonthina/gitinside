@@ -6,6 +6,7 @@ import {
   decodeState,
   DEFAULT_STATE,
   encodeState,
+  withBase,
   withState,
   type ExplorerState,
 } from "./deepLink.js";
@@ -208,5 +209,28 @@ describe("withState", () => {
   it("adds a state's query to a page, and nothing for the default state", () => {
     expect(withState("/acme/shop", "sel=service:api/")).toBe("/acme/shop?sel=service:api/");
     expect(withState("/acme/shop", encodeState(DEFAULT_STATE))).toBe("/acme/shop");
+  });
+});
+
+describe("withBase", () => {
+  const SHA = "0123456789abcdef0123456789abcdef01234567";
+
+  it("puts the base commit first, and leaves a query without one as it is", () => {
+    expect(withBase(`sel=${API}`, SHA)).toBe(`base=${SHA}&sel=${API}`);
+    expect(withBase("", SHA)).toBe(`base=${SHA}`);
+    expect(withBase(`sel=${API}`, undefined)).toBe(`sel=${API}`);
+    expect(withBase("", undefined)).toBe("");
+  });
+
+  it("escapes what would break the query", () => {
+    expect(withBase("", "a&b=c,d")).toBe("base=a%26b%3Dc%2Cd");
+  });
+
+  it("is skipped by decodeState without a note, so the state reads the same", () => {
+    const query = withBase(encodeState(state({ open: [API], selected: ROUTE })), SHA);
+    expect(decodeState(query, index)).toEqual({
+      state: state({ open: [API], selected: ROUTE }),
+      ignored: [],
+    });
   });
 });

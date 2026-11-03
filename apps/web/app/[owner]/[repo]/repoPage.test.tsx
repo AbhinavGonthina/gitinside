@@ -1,5 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import brokenBase from "../../../../../fixtures/diff-broken-base/expected.json";
+import brokenHead from "../../../../../fixtures/diff-broken-head/expected.json";
 import shopDemo from "../../../../../fixtures/shop-demo/expected.json";
 import { UNAVAILABLE_MESSAGE } from "../../../lib/messages";
 import { readmeMarkdown } from "../../../lib/readme";
@@ -9,7 +11,7 @@ import {
   UNREADABLE_MESSAGE,
   UNREADABLE_TITLE,
 } from "../../../lib/repoStatus";
-import { viewRepo, type RepoView, type RepoViewDeps } from "../../../lib/repoView";
+import { viewBase, viewRepo, type RepoView, type RepoViewDeps } from "../../../lib/repoView";
 import { repoViewDepsFromEnv } from "../../../lib/serverDeps";
 import CommitPage, { generateMetadata as commitMetadata } from "./[sha]/page";
 import { AddToReadme, COPIED_MESSAGE, COPIED_MS, COPY_FAILED_MESSAGE } from "./AddToReadme";
@@ -35,13 +37,17 @@ vi.mock("next/headers", () => ({
 vi.mock("../../../lib/repoView", async (original) => ({
   ...(await original<typeof import("../../../lib/repoView")>()),
   viewRepo: vi.fn(),
+  viewBase: vi.fn(),
 }));
 
 const SHA = "a".repeat(40);
 const NEWER = "b".repeat(40);
+const BASE = "d".repeat(40);
 const GRAPH_URL = `/api/graph/acme/shop/${SHA}`;
+const BASE_URL = `/api/graph/acme/shop/${BASE}`;
 const JOB = `analyze-${"c".repeat(32)}`;
-const deps = {} as RepoViewDeps;
+const db = {} as RepoViewDeps["db"];
+const deps = { db } as RepoViewDeps;
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -56,6 +62,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.mocked(viewRepo).mockReset();
+  vi.mocked(viewBase).mockReset();
   vi.restoreAllMocks();
   router.push.mockReset();
   router.refresh.mockReset();
@@ -124,6 +131,37 @@ describe("repo page", () => {
     render(await RepoPage({ params: params("acme", "shop") }));
     expect(await screen.findByRole("region", { name: "Diagram" })).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(GRAPH_URL, expect.anything());
+    expect(viewBase).not.toHaveBeenCalled();
+  });
+
+  it("looks up the link's base for a ready repo, the last of a repeated one (M6.9e2)", async () => {
+    fetchMock.mockImplementation(graphResponse);
+    const view = ready({ state: "current" });
+    vi.mocked(viewRepo).mockResolvedValue(view);
+    vi.mocked(viewBase).mockResolvedValue({ status: "missing", sha: BASE });
+    const searchParams = Promise.resolve({ base: ["x", BASE], sel: "service:api/" });
+    render(await RepoPage({ params: params("acme", "shop"), searchParams }));
+    expect(viewBase).toHaveBeenCalledWith(view, BASE, db);
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(document.querySelector(".diagram-page__note")?.textContent).toContain(
+      "Commit ddddddd hasn't been analyzed",
+    );
+  });
+
+  it("doesn't look up a base for a repo with no diagram, and says a failed lookup like any", async () => {
+    vi.mocked(viewRepo).mockResolvedValue({ status: "not-analyzed", owner: "acme", repo: "shop" });
+    const searchParams = Promise.resolve({ base: BASE });
+    render(await RepoPage({ params: params("acme", "shop"), searchParams }));
+    expect(viewBase).not.toHaveBeenCalled();
+    cleanup();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(viewRepo).mockResolvedValue(ready({ state: "current" }));
+    vi.mocked(viewBase).mockRejectedValue(new TypeError("postgres://user:secret@host"));
+    render(await RepoPage({ params: params("acme", "shop"), searchParams }));
+    expect(screen.getByText(UNAVAILABLE_MESSAGE)).toBeTruthy();
+    expect(log).toHaveBeenCalledWith(
+      JSON.stringify({ event: "repo_view_failed", error: "TypeError" }),
+    );
   });
 });
 
@@ -135,6 +173,20 @@ describe("commit permalink page", () => {
     expect(viewRepo).toHaveBeenCalledWith({ owner: "acme", repo: "shop", sha: SHA }, deps);
     expect(screen.getByText("A permalink: this commit's diagram never changes.")).toBeTruthy();
     expect(await screen.findByRole("region", { name: "Diagram" })).toBeTruthy();
+  });
+
+  it("looks up the link's base too (M6.9e2)", async () => {
+    const view = ready({ state: "pinned" });
+    vi.mocked(viewRepo).mockResolvedValue(view);
+    vi.mocked(viewBase).mockResolvedValue({ status: "invalid" });
+    fetchMock.mockImplementation(graphResponse);
+    const searchParams = Promise.resolve({ base: "main" });
+    render(await CommitPage({ params: commitParams("acme", "shop", SHA), searchParams }));
+    expect(viewBase).toHaveBeenCalledWith(view, "main", db);
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(document.querySelector(".diagram-page__note")?.textContent).toContain(
+      "The link's base isn't a full commit SHA",
+    );
   });
 
   it.each([
@@ -436,6 +488,144 @@ describe("RepoDiagram", () => {
     const { unmount } = renderDiagram({ state: "current" });
     unmount();
     expect(signal?.aborted).toBe(true);
+  });
+});
+
+describe("RepoDiagram in diff mode (M6.9e2)", () => {
+  /** A diff fixture's graph as the worker stores it: this repo, at `sha`. */
+  const stored = (json: object, sha: string, over: object = {}) =>
+    new Response(JSON.stringify({ ...json, repo: { owner: "acme", name: "shop", sha }, ...over }));
+  /** Answers head's and base's graph URLs with the diff-broken pair (base's changed by `over`). */
+  const pair =
+    (over: object = {}) =>
+    (url: string | URL | Request) =>
+      url === GRAPH_URL
+        ? Promise.resolve(stored(brokenHead, SHA))
+        : url === BASE_URL
+          ? Promise.resolve(stored(brokenBase, BASE, over))
+          : Promise.reject(new Error(`unexpected fetch ${String(url)}`));
+  const READY = { status: "ready", sha: BASE, graphUrl: BASE_URL } as const;
+  const renderDiagram = (base: Parameters<typeof RepoDiagram>[0]["base"]) =>
+    render(
+      <RepoDiagram
+        owner="acme"
+        repo="shop"
+        sha={SHA}
+        graphUrl={GRAPH_URL}
+        head={{ state: "pinned" }}
+        base={base}
+      />,
+    );
+  const chip = () => document.querySelector(".gi-status[data-tone='diff']")?.textContent;
+  const shared = () => {
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+    const field = screen.getByRole("textbox", { name: "Link to this view" }) as HTMLInputElement;
+    const link = field.value;
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+    return link;
+  };
+  const note = () => document.querySelector(".diagram-page__note")?.textContent;
+
+  it("loads both commits' graphs and draws the changes between them", async () => {
+    fetchMock.mockImplementation(pair());
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);
+    renderDiagram(READY);
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(fetchMock).toHaveBeenCalledWith(GRAPH_URL, expect.anything());
+    expect(fetchMock).toHaveBeenCalledWith(BASE_URL, expect.anything());
+    await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
+    expect(note()).toBeUndefined();
+  });
+
+  it("opens a link to a route only base has, linked at the base commit", async () => {
+    fetchMock.mockImplementation(pair());
+    const link = `?base=${BASE}&sel=route:diff-broken/GET%20/api/health`;
+    window.history.replaceState({}, "", `/acme/shop/${SHA}${link}`);
+    renderDiagram(READY);
+    await screen.findByRole("region", { name: "Diagram" });
+    const inspector = within(screen.getByRole("complementary"));
+    await waitFor(() =>
+      expect(inspector.getByRole("heading", { level: 2 }).textContent).toBe("GET/api/health"),
+    );
+    // Decoded against both versions: the removed route isn't "left out".
+    expect(note()).toBeUndefined();
+    expect(inspector.getByRole("link", { name: /Open on GitHub/ }).getAttribute("href")).toBe(
+      `https://github.com/acme/shop/blob/${BASE}/src/server.ts#L9`,
+    );
+    expect(window.location.search).toBe(link);
+  });
+
+  it("keeps the base first in the address bar and in Copy link as the view changes", async () => {
+    fetchMock.mockImplementation(pair());
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}&sel=service:diff-broken/`);
+    renderDiagram(READY);
+    await screen.findByRole("region", { name: "Diagram" });
+    const origin = window.location.origin;
+    expect(shared()).toBe(`${origin}/acme/shop/${SHA}?base=${BASE}&sel=service:diff-broken/`);
+    fireEvent.keyDown(document.querySelector(".gi-explorer") as Element, { key: "Escape" });
+    await waitFor(() => expect(window.location.search).toBe(`?base=${BASE}`));
+    expect(shared()).toBe(`${origin}/acme/shop/${SHA}?base=${BASE}`);
+  });
+
+  it("says a base nobody analyzed isn't compared, draws this commit alone, and keeps it in the link", async () => {
+    fetchMock.mockImplementation(pair());
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);
+    renderDiagram({ status: "missing", sha: BASE });
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(note()).toBe(
+      "Commit ddddddd hasn't been analyzed, so there's nothing to compare with. This is commit aaaaaaa alone.",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(chip()).toBeUndefined();
+    // Once it's analyzed, the same link compares.
+    expect(shared()).toBe(`${window.location.origin}/acme/shop/${SHA}?base=${BASE}`);
+  });
+
+  it("says a malformed base isn't compared, and leaves it out of the link", async () => {
+    fetchMock.mockImplementation(pair());
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?base=main&sel=service:diff-broken/`);
+    renderDiagram({ status: "invalid" });
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(note()).toBe(
+      "The link's base isn't a full commit SHA, so nothing was compared. This is commit aaaaaaa alone.",
+    );
+    expect(shared()).toBe(`${window.location.origin}/acme/shop/${SHA}?sel=service:diff-broken/`);
+    fireEvent.keyDown(document.querySelector(".gi-explorer") as Element, { key: "Escape" });
+    await waitFor(() => expect(window.location.search).toBe(""));
+  });
+
+  it("doesn't compare graphs from two analyzer versions, and says why next to what the link lost", async () => {
+    fetchMock.mockImplementation(pair({ analyzerVersion: "0.0.9" }));
+    // Without the comparison, base's route is a node this commit doesn't have.
+    const link = `?base=${BASE}&sel=route:diff-broken/GET%20/api/health`;
+    window.history.replaceState({}, "", `/acme/shop/${SHA}${link}`);
+    renderDiagram(READY);
+    await screen.findByRole("region", { name: "Diagram" });
+    expect(note()).toBe(
+      `Commit ddddddd was analyzed by GitInside 0.0.9 and this one by ${brokenHead.analyzerVersion}, so they aren't compared: the differences would be the analyzer's, not the code's. This is commit aaaaaaa alone. ` +
+        "Part of this link doesn't apply to commit aaaaaaa, so it was left out: selected route:diff-broken/GET /api/health.",
+    );
+    expect(chip()).toBeUndefined();
+  });
+
+  it("puts a failed base load on the card, and Try again loads both again", async () => {
+    fetchMock.mockImplementation((url) =>
+      url === BASE_URL
+        ? Promise.resolve(
+            new Response(JSON.stringify({ message: "Base unavailable." }), { status: 503 }),
+          )
+        : pair()(url),
+    );
+    renderDiagram(READY);
+    const card = await screen.findByRole("alert");
+    expect(within(card).getByRole("heading", { level: 2 }).textContent).toBe(LOAD_FAILED_TITLE);
+    expect(within(card).getByText("Base unavailable.")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Diagram" })).toBeNull();
+    fetchMock.mockImplementation(pair());
+    fireEvent.click(within(card).getByRole("button", { name: "Try again" }));
+    await screen.findByRole("region", { name: "Diagram" });
+    await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });
 
