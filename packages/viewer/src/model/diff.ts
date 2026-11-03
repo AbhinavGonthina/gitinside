@@ -100,6 +100,15 @@ export interface DiffOverlay {
   broken: ReadonlyMap<string, BrokenConnection>;
   /** Base records of renamed nodes, by head ID. */
   renamedFrom: ReadonlyMap<string, GraphNode>;
+  /**
+   * Base's own record of every node base has that it recorded differently
+   * from the overlay (M6.9e1): a renamed node's, and one kept under its ID
+   * whose name, source line, or contents changed. By overlay ID, as base
+   * stored it (base IDs inside); `baseRecord` puts it at its overlay place.
+   */
+  baseNodes: ReadonlyMap<string, GraphNode>;
+  /** Base's own record of each edge base recorded differently (call sites, labels), likewise. */
+  baseEdges: ReadonlyMap<string, GraphEdge>;
   /** Changes below each node (not counting itself), for every ancestor of a change. */
   inside: ReadonlyMap<string, Readonly<DiffCounts>>;
   changes: ChangesList;
@@ -220,6 +229,20 @@ export function buildDiffOverlay(
     });
   }
 
+  // What base recorded otherwise, for Base to read (names, sources, call sites).
+  const baseNodeRecords = new Map<string, GraphNode>();
+  for (const n of base.nodes) {
+    const id = headId(n.id);
+    const drawn = headNodes.get(id);
+    if (drawn && !sameValue(n, drawn)) baseNodeRecords.set(id, n);
+  }
+  const baseEdgeRecords = new Map<string, GraphEdge>();
+  for (const e of base.edges) {
+    const id = edgeTo.get(e.id) ?? e.id;
+    const drawn = headEdges.get(id);
+    if (drawn && !sameValue(e, drawn)) baseEdgeRecords.set(id, e);
+  }
+
   const graph: ArchitectureGraph = {
     ...head,
     nodes: [...head.nodes, ...removedNodes].sort(byId),
@@ -249,6 +272,8 @@ export function buildDiffOverlay(
     edges,
     broken,
     renamedFrom,
+    baseNodes: baseNodeRecords,
+    baseEdges: baseEdgeRecords,
     inside: countInside(all, nodes, broken),
     changes: changesList(all, nodes, broken, diff, renamedFrom),
   };
@@ -257,30 +282,54 @@ export function buildDiffOverlay(
 /**
  * One version's graph on the overlay's IDs (M6.9c): what Base or Head draws,
  * so a trace, the trace picker, and the palette there follow only that
- * version's nodes and connections. A tree, like `nodesIn`. In base, a
- * renamed node is its base record (its old name, path, and source, M6.9c2)
- * kept at its head ID and place (`baseRecord`).
+ * version's nodes and connections. A tree, like `nodesIn`. In base, every
+ * node and edge is base's own record (a renamed node's old name and path,
+ * M6.9c2; any node's source line and any edge's call sites as base had them,
+ * M6.9e1, so its code is read at the base commit) kept at its overlay ID and
+ * place (`baseRecord`, `baseEdgeRecord`).
  */
 export function versionGraph(overlay: DiffOverlay, version: DiffVersion): ArchitectureGraph {
   const nodes = overlay.nodesIn[version];
   const edges = overlay.edgesIn[version];
+  const inBase = version === "base";
   return {
     ...overlay.graph,
     nodes: overlay.graph.nodes.flatMap((n) =>
-      !nodes.has(n.id) ? [] : version === "base" ? [baseRecord(overlay, n) ?? n] : [n],
+      !nodes.has(n.id) ? [] : [(inBase && baseRecord(overlay, n)) || n],
     ),
-    edges: overlay.graph.edges.filter((e) => edges.has(e.id)),
+    edges: overlay.graph.edges.flatMap((e) =>
+      !edges.has(e.id) ? [] : [(inBase && baseEdgeRecord(overlay, e)) || e],
+    ),
   };
 }
 
 /**
- * A renamed node as base draws it: its base record under its overlay ID and
- * parent, so the tree and the layout stay the overlay's. Undefined for a node
- * that wasn't renamed.
+ * A node as base recorded it, where it differs from the overlay's record: its
+ * base record under its overlay ID and parent, so the tree and the layout stay
+ * the overlay's. Undefined for a node base recorded the same (or lacks).
  */
 export function baseRecord(overlay: DiffOverlay, node: GraphNode): GraphNode | undefined {
-  const was = overlay.renamedFrom.get(node.id);
+  const was = overlay.baseNodes.get(node.id);
   return was && { ...was, id: node.id, parentId: node.parentId };
+}
+
+/** An edge as base recorded it, likewise: under its overlay ID and ends. */
+export function baseEdgeRecord(overlay: DiffOverlay, edge: GraphEdge): GraphEdge | undefined {
+  const was = overlay.baseEdges.get(edge.id);
+  return was && { ...was, id: edge.id, from: edge.from, to: edge.to };
+}
+
+/** Deep equality of two JSON values (graph records), whatever their key order. */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  const objA = a as Record<string, unknown>;
+  const objB = b as Record<string, unknown>;
+  return keysA.every((k) => Object.hasOwn(objB, k) && sameValue(objA[k], objB[k]));
 }
 
 /** A drawn line's diff state and, when it stands for broken connections, what broke. */
@@ -304,7 +353,8 @@ export interface DiffMarks {
   line(edges: readonly Pick<GraphEdge, "id">[]): LineMark;
   /**
    * What Base and Head draw besides the overlay (M6.9c2), so a box and a pill
-   * are sized for all three: a renamed node's base record (`baseRecord`), and
+   * are sized for all three: a node's base record where it differs
+   * (`baseRecord`: a renamed node's old name, a changed label), and
    * each version's edges (a line keeping fewer of them says something else).
    */
   baseNode(node: GraphNode): GraphNode | undefined;

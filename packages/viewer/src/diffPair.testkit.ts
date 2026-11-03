@@ -24,14 +24,22 @@ const fromDisk =
     }
   };
 
-/** `fixtures/<name>-base` and `-head`, and their diff (with file contents, so renames pair). */
-export function diffPair(name: string): {
+/**
+ * `fixtures/<name>-base` and `-head`, and their diff (with file contents, so renames pair).
+ * With `shas`, each side is recorded at that commit (fixtures have none), so code links work.
+ */
+export function diffPair(
+  name: string,
+  shas?: { base: string; head: string },
+): {
   base: ArchitectureGraph;
   head: ArchitectureGraph;
   diff: GraphDiff;
 } {
-  const base = fixtureGraph(`${name}-base`);
-  const head = fixtureGraph(`${name}-head`);
+  const at = (graph: ArchitectureGraph, sha: string | undefined) =>
+    sha === undefined ? graph : { ...graph, repo: { ...graph.repo, sha } };
+  const base = at(fixtureGraph(`${name}-base`), shas?.base);
+  const head = at(fixtureGraph(`${name}-head`), shas?.head);
   const contents = { base: fromDisk(`${name}-base`), head: fromDisk(`${name}-head`) };
   return { base, head, diff: diffGraphs(base, head, { contents }) };
 }
