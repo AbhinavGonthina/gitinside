@@ -157,10 +157,11 @@ describe("next.js facts", () => {
       const facts = await nextFacts(root);
       const revived = JSON.parse(JSON.stringify(facts)) as NextFacts[];
       expect(revived).toEqual(facts);
-      const composed = composeNextRoutes(revived);
+      const { inlineHandlers, ...composed } = composeNextRoutes(revived);
       expect(composed.nodes.length).toBeGreaterThan(0);
       expect(composed.edges.length).toBeGreaterThan(0);
       expect(composed).toEqual(nextPart(await analyze(root)));
+      expect(inlineHandlers).toEqual(composeNextRoutes(facts).inlineHandlers);
     },
   );
 
@@ -183,8 +184,15 @@ describe("next.js facts", () => {
     expect(of(before, "web")?.warnings.map((w) => w.code)).toEqual(["NEXT_DUPLICATE_ROUTE"]);
     expect(of(after, "web")).toEqual(of(before, "web"));
     expect(of(after, "admin")).not.toEqual(of(before, "admin"));
-    expect(of(after, "api")).toEqual({ service: "api", nodes: [], edges: [], warnings: [] });
-    const composed = composeNextRoutes(after);
+    expect(of(after, "api")).toEqual({
+      service: "api",
+      nodes: [],
+      edges: [],
+      warnings: [],
+      inlineHandlers: [],
+    });
+    const { nodes, edges, warnings } = composeNextRoutes(after);
+    const composed = { nodes, edges, warnings };
     expect(composed.nodes.map((n) => n.id)).toEqual([
       "page:admin//",
       "route:admin/POST /api/users",
@@ -460,6 +468,183 @@ describe("next.js routes", () => {
           "route:web/GET /api/health is produced by both express and next; keeping express's",
       },
     ]);
+  });
+
+  describe("next-connect routers in pages/api", () => {
+    const deps = { next: "13", "next-connect": "0.13" };
+
+    it("gives one route per method registered on a default-exported router", async () => {
+      await nextApp(deps);
+      await put("pages/api/posts/[id].ts", [
+        'import nc from "next-connect";',
+        "function auth(req, res, next) { next(); }",
+        "function readPost(req, res) { res.json({}); }",
+        "const handler = nc({ onNoMatch: (req, res) => res.status(405).end() });",
+        "handler.use(auth);",
+        "handler.get(readPost);",
+        "handler.patch(auth, async (req, res) => res.json({}));",
+        "handler.delete(async (req, res) => res.end());",
+        "handler.get(auth, readPost);",
+        "export default handler;",
+      ]);
+      await put("pages/api/chained.ts", [
+        'import nextConnect from "next-connect";',
+        "function list(req, res) {}",
+        "export default nextConnect().put(list).head(list).options(list).post(list);",
+      ]);
+      await put("pages/api/all.ts", [
+        'const nc = require("next-connect");',
+        "const h = nc().use((req, res, next) => next()).all((req, res) => res.end());",
+        "export default h;",
+      ]);
+      const graph = await analyze(dir);
+      expect(entries(graph)).toEqual([
+        "route:web/ALL /api/all",
+        "route:web/DELETE /api/posts/:id",
+        "route:web/GET /api/posts/:id",
+        "route:web/HEAD /api/chained",
+        "route:web/OPTIONS /api/chained",
+        "route:web/PATCH /api/posts/:id",
+        "route:web/POST /api/chained",
+        "route:web/PUT /api/chained",
+      ]);
+      expect(links(graph)).toEqual([
+        "handles route:web/GET /api/posts/:id -> symbol:web/pages/api/posts/[id].ts#auth (exact)",
+        "handles route:web/GET /api/posts/:id -> symbol:web/pages/api/posts/[id].ts#readPost (exact)",
+        "handles route:web/HEAD /api/chained -> symbol:web/pages/api/chained.ts#list (exact)",
+        "handles route:web/OPTIONS /api/chained -> symbol:web/pages/api/chained.ts#list (exact)",
+        "handles route:web/PATCH /api/posts/:id -> symbol:web/pages/api/posts/[id].ts#auth (exact)",
+        "handles route:web/POST /api/chained -> symbol:web/pages/api/chained.ts#list (exact)",
+        "handles route:web/PUT /api/chained -> symbol:web/pages/api/chained.ts#list (exact)",
+      ]);
+      // Each route sits at its method's first registration.
+      expect(graph.nodes.find((n) => n.id === "route:web/GET /api/posts/:id")?.source).toEqual({
+        file: "pages/api/posts/[id].ts",
+        line: 6,
+        column: 9,
+      });
+      expect(nextWarnings(graph)).toEqual([]);
+    });
+
+    it("follows a repo factory and v1's createRouter + router.handler()", async () => {
+      await nextApp({ next: "14", "next-connect": "1" });
+      await put("lib/nc.ts", [
+        'import nc from "next-connect";',
+        "const options = { onError: (err, req, res) => res.status(500).end() };",
+        "export const apiHandler = () => nc(options);",
+        "export function withSession() { return apiHandler().use((req, res, next) => next()); }",
+      ]);
+      await put("pages/api/users.ts", [
+        'import { apiHandler } from "../../lib/nc";',
+        "const handler = apiHandler();",
+        "handler.get((req, res) => res.json([])).post((req, res) => res.end());",
+        "export default handler;",
+      ]);
+      await put("pages/api/me.ts", [
+        'import { withSession } from "../../lib/nc";',
+        "export default withSession().get((req, res) => res.json({}));",
+      ]);
+      await put("pages/api/v1.ts", [
+        'import { createRouter } from "next-connect";',
+        "const router = createRouter();",
+        "router.get((req, res) => res.json([])).put((req, res) => res.end());",
+        "export default router.handler({ onError: (err, req, res) => res.end() });",
+      ]);
+      const graph = await analyze(dir);
+      expect(entries(graph)).toEqual([
+        "route:web/GET /api/me",
+        "route:web/GET /api/users",
+        "route:web/GET /api/v1",
+        "route:web/POST /api/users",
+        "route:web/PUT /api/v1",
+      ]);
+      expect(nextWarnings(graph)).toEqual([]);
+    });
+
+    it("keeps an ALL route, with a warning, when it can't see every method", async () => {
+      await nextApp(deps);
+      await put("pages/api/[...slug].ts", [
+        'import nc from "next-connect";',
+        "const handler = nc();",
+        "handler.get((req, res) => res.end());",
+        'handler.post("/api/items/:id", (req, res) => res.end());',
+        "export default handler;",
+      ]);
+      await put("pages/api/registered.ts", [
+        'import nc from "next-connect";',
+        'import { register } from "../../lib/register";',
+        "const handler = nc();",
+        "handler.get((req, res) => res.end());",
+        "register(handler);",
+        "export default handler;",
+      ]);
+      await put(
+        "lib/register.ts",
+        "export function register(h) { h.put((req, res) => res.end()); }\n",
+      );
+      const graph = await analyze(dir);
+      expect(entries(graph)).toEqual([
+        "route:web/ALL /api/*slug",
+        "route:web/ALL /api/registered",
+        "route:web/GET /api/*slug",
+        "route:web/GET /api/registered",
+      ]);
+      expect(nextWarnings(graph)).toEqual([
+        {
+          code: "NEXT_CONNECT_UNSEEN_METHODS",
+          file: "pages/api/[...slug].ts",
+          message:
+            'the next-connect route pattern "/api/items/:id" in .post(…) isn\'t read; kept an ALL route for the methods it may add',
+        },
+        {
+          code: "NEXT_CONNECT_UNSEEN_METHODS",
+          file: "pages/api/registered.ts",
+          message:
+            "the next-connect router is passed to register(…), which may register more methods; kept an ALL route for them",
+        },
+      ]);
+    });
+
+    it("reads only next-connect's own routers", async () => {
+      await nextApp(deps);
+      await put("pages/api/other.ts", [
+        'import nc from "other-router";',
+        "const handler = nc();",
+        "handler.get((req, res) => res.end());",
+        "export default handler;",
+      ]);
+      await put("pages/api/local.ts", [
+        "const nc = () => ({ get: (f) => f });",
+        "const handler = nc();",
+        "handler.get((req, res) => res.end());",
+        "export default handler;",
+      ]);
+      expect(entries(await analyze(dir))).toEqual([
+        "route:web/ALL /api/local",
+        "route:web/ALL /api/other",
+      ]);
+    });
+
+    it("draws an inline handler's calls from its own route", async () => {
+      await nextApp(deps);
+      await put("pages/api/proxy.ts", [
+        'import nc from "next-connect";',
+        "const handler = nc();",
+        'handler.get(async (req, res) => res.json(await fetch("https://api.example.com/v1/rates")));',
+        'handler.post(async (req, res) => fetch("https://api.example.com/v1/orders", { method: "POST" }));',
+        "export default handler;",
+      ]);
+      const graph = await analyze(dir);
+      expect(
+        graph.edges
+          .filter((e) => e.kind === "external_call")
+          .map((e) => `${e.from} -> ${e.to}`)
+          .sort(compareStrings),
+      ).toEqual([
+        "route:web/GET /api/proxy -> external:ext/api.example.com",
+        "route:web/POST /api/proxy -> external:ext/api.example.com",
+      ]);
+    });
   });
 
   it("keys routes by the owning workspace service", async () => {

@@ -23,6 +23,17 @@
  *   When other methods may still fall through to real code (no negative guard, `default`,
  *   or 405, and the checks don't end the handler), an `ALL` route is added as well, so a
  *   fall-through endpoint is never dropped (see `handledMethods`).
+ * - next-connect routers in `pages/api` (ADR-0191): a default export that is a router from
+ *   `next-connect`'s factory (v0's default export `nc(opts)`, v1's `createRouter()`), imported
+ *   or required, directly, through a variable, or through repo functions returning one
+ *   (`apiHandler = () => nc(opts)`), optionally as v1's `router.handler(opts)`. Each method
+ *   registered on it (`.get/.post/.put/.patch/.delete/.head/.options`, chained or not, in the
+ *   router's chain or on its variables in their own file) is one route, at its first
+ *   registration; `.all(…)` is `ALL`, and `.use(…)` registers none. Each handler argument
+ *   naming a symbol node gets a `handles` edge, and inline handlers own the calls inside them
+ *   (`inlineHandlers`, as Express's). When more methods may be registered unseen (a route
+ *   pattern argument `.get("/x", h)`, `.trace`/`.connect`, or the router passed to other
+ *   code), the file's `ALL` route is kept as well, with a `NEXT_CONNECT_UNSEEN_METHODS` warning.
  * - Type-only exports (`export type GET = …`) in a `route.ts` are not routes.
  * - Path segments: `[id]` ⇒ `:id`, `[...slug]` and `[[...slug]]` ⇒ `*slug`, route groups
  *   `(group)` and parallel-route slots `@slot` are dropped. App router folders starting with
@@ -44,6 +55,13 @@
  *   which stays `ALL`.
  * - An optional catch-all `[[...slug]]` also matches its parent path; the `*slug` pattern
  *   doesn't record that.
+ * - next-connect beyond the forms above: route patterns are not matched against the file's
+ *   path (next-connect matches them against the request URL), routers mounted with `.use(sub)`
+ *   don't add their methods, nor do registrations in another file on an exported router
+ *   variable (passing the router to other code keeps the `ALL` route, as above). A wrapped
+ *   default export (`export default withAuth(router)`), a function default export calling
+ *   v1's `router.run(req, res)`, and a router with no method registered stay one `ALL` route;
+ *   v1's `createEdgeRouter` in app router files is not read.
  */
 import ts from "typescript";
 import {
@@ -56,7 +74,8 @@ import {
   type HttpMethod,
   type SourceLocation,
 } from "@gitinside/schema";
-import type { CallTarget, SymbolResolver } from "./calls.js";
+import { nodeKey, type CallTarget, type SymbolResolver } from "./calls.js";
+import { inlineFunctions, isFunctionWithBody, returnedExpressions } from "./express.js";
 import { fileNodeId, withinService } from "./files.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
@@ -282,6 +301,246 @@ export function handledMethods(handler: ts.SignatureDeclaration): {
   return { methods, open };
 }
 
+/** next-connect's router methods and the HTTP method each registers (`use` registers none). */
+const CONNECT_METHODS: ReadonlyMap<string, HttpMethod | undefined> = new Map([
+  ["all", "ALL"],
+  ["delete", "DELETE"],
+  ["get", "GET"],
+  ["head", "HEAD"],
+  ["options", "OPTIONS"],
+  ["patch", "PATCH"],
+  ["post", "POST"],
+  ["put", "PUT"],
+  ["use", undefined],
+]);
+
+/** Router methods that register a method the graph has no name for, so an `ALL` stays. */
+const UNNAMED_METHODS: ReadonlySet<string> = new Set(["connect", "trace"]);
+
+/** Calls on a router that neither register nor let it escape (v1's `handler()`, `run()`). */
+const SERVING_METHODS: ReadonlySet<string> = new Set(["handler", "run"]);
+
+/** How many variable, alias, or factory hops are followed to a router's creation. */
+const MAX_ROUTER_HOPS = 8;
+
+/** One method registration on a next-connect router: `router.get(…handlers)`. */
+interface Registration {
+  method: HttpMethod;
+  call: ts.CallExpression;
+  /** The method's name, where the route is placed. */
+  name: ts.MemberName;
+}
+
+/** What the analyzer reads of a next-connect router (ADR-0191). */
+export interface ConnectRouter {
+  registrations: Registration[];
+  /** Why other methods may be registered unseen, one warning message each. */
+  unseen: string[];
+}
+
+function isNextConnectSpecifier(node: ts.Node | undefined): boolean {
+  return node !== undefined && ts.isStringLiteralLike(node) && node.text === "next-connect";
+}
+
+function isRequireNextConnect(expression: ts.Expression): boolean {
+  const e = unwrap(expression);
+  return (
+    ts.isCallExpression(e) &&
+    ts.isIdentifier(e.expression) &&
+    e.expression.text === "require" &&
+    e.arguments.length === 1 &&
+    isNextConnectSpecifier(e.arguments[0])
+  );
+}
+
+/**
+ * True when `callee` names next-connect's router factory, imported or required from
+ * `next-connect`: its default export (v0's `nc()`) or `createRouter` (v1). Found through the
+ * checker's declaration of the name, so a local `nc` that shadows it doesn't count.
+ */
+function isConnectFactory(checker: ts.TypeChecker, callee: ts.Expression): boolean {
+  const e = unwrap(callee);
+  if (!ts.isIdentifier(e)) return false;
+  const declaration = checker.getSymbolAtLocation(e)?.declarations?.[0];
+  if (!declaration) return false;
+  if (ts.isImportClause(declaration))
+    return isNextConnectSpecifier(declaration.parent.moduleSpecifier);
+  if (ts.isImportSpecifier(declaration)) {
+    const imported = (declaration.propertyName ?? declaration.name).text;
+    const specifier = declaration.parent.parent.parent.moduleSpecifier;
+    return (
+      isNextConnectSpecifier(specifier) && (imported === "createRouter" || imported === "default")
+    );
+  }
+  if (ts.isVariableDeclaration(declaration) && ts.isIdentifier(declaration.name)) {
+    return declaration.initializer !== undefined && isRequireNextConnect(declaration.initializer);
+  }
+  if (ts.isBindingElement(declaration)) {
+    const imported = declaration.propertyName ?? declaration.name;
+    const init = declaration.parent.parent;
+    return (
+      ts.isIdentifier(imported) &&
+      imported.text === "createRouter" &&
+      ts.isVariableDeclaration(init) &&
+      init.initializer !== undefined &&
+      isRequireNextConnect(init.initializer)
+    );
+  }
+  return false;
+}
+
+/**
+ * True when a registration's first argument is a route pattern rather than a handler: a
+ * string, template, or regex literal, or anything the checker types as a string.
+ */
+function isPattern(checker: ts.TypeChecker, argument: ts.Expression | undefined): boolean {
+  if (!argument) return false;
+  const e = unwrap(argument);
+  if (ts.isStringLiteralLike(e) || ts.isTemplateExpression(e) || ts.isRegularExpressionLiteral(e)) {
+    return true;
+  }
+  return (checker.getTypeAtLocation(e).flags & ts.TypeFlags.StringLike) !== 0;
+}
+
+/**
+ * The next-connect router a pages API file's default export is (ADR-0191), or undefined when
+ * it isn't one. `expression` is the export's value: the router itself, a chain of method
+ * calls on it (`nc().get(a).post(b)`), v1's `router.handler(options)`, or a variable holding
+ * one of those. The router is created by next-connect's factory directly or by a repo function
+ * returning one (`apiHandler = () => nc(options)`), within {@link MAX_ROUTER_HOPS}. Methods
+ * are read from the chains and from calls on the router's variables in their own file; a
+ * pattern argument (`.get("/x", h)`), a `trace`/`connect` registration, or the router passed
+ * on (`register(handler)`) adds an `unseen` reason.
+ */
+export function connectRouter(
+  checker: ts.TypeChecker,
+  expression: ts.Expression,
+): ConnectRouter | undefined {
+  const registrations: Registration[] = [];
+  const unseen: string[] = [];
+  const variables = new Set<ts.Symbol>();
+
+  const register = (call: ts.CallExpression, name: ts.MemberName): void => {
+    const method = CONNECT_METHODS.get(name.text);
+    if (UNNAMED_METHODS.has(name.text)) {
+      unseen.push(
+        `the next-connect router registers .${name.text}(…), which the graph has no method for; kept an ALL route for it`,
+      );
+    } else if (method === undefined) {
+      return;
+    } else if (isPattern(checker, call.arguments[0])) {
+      unseen.push(
+        `the next-connect route pattern ${call.arguments[0]?.getText() ?? ""} in .${name.text}(…) isn't read; kept an ALL route for the methods it may add`,
+      );
+    } else {
+      registrations.push({ method, call, name });
+    }
+  };
+
+  /** Whether `node` is a router, recording the registrations chained on it. */
+  const visit = (node: ts.Expression, hops: number): boolean => {
+    if (hops > MAX_ROUTER_HOPS) return false;
+    let e = unwrap(node);
+    const chain: { call: ts.CallExpression; name: ts.MemberName }[] = [];
+    while (ts.isCallExpression(e)) {
+      const callee = unwrap(e.expression);
+      if (!ts.isPropertyAccessExpression(callee)) break;
+      const name = callee.name.text;
+      if (!CONNECT_METHODS.has(name) && !UNNAMED_METHODS.has(name)) break;
+      chain.push({ call: e, name: callee.name });
+      e = unwrap(callee.expression);
+    }
+    let found = false;
+    if (ts.isCallExpression(e)) {
+      if (isConnectFactory(checker, e.expression)) found = true;
+      else {
+        // A repo factory: every value it returns must be a router.
+        const fn = functionOf(checker, unwrap(e.expression));
+        const returned = fn && isFunctionWithBody(fn) ? returnedExpressions(fn) : [];
+        found = returned.length > 0 && returned.every((r) => visit(r, hops + 1));
+      }
+    } else if (ts.isIdentifier(e)) {
+      let symbol = checker.getSymbolAtLocation(e);
+      if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+      const declaration = symbol?.valueDeclaration;
+      if (
+        symbol &&
+        declaration &&
+        ts.isVariableDeclaration(declaration) &&
+        declaration.initializer &&
+        visit(declaration.initializer, hops + 1)
+      ) {
+        variables.add(symbol);
+        found = true;
+      }
+    }
+    if (found) for (const link of chain.reverse()) register(link.call, link.name);
+    return found;
+  };
+
+  let top = unwrap(expression);
+  if (ts.isCallExpression(top)) {
+    const callee = unwrap(top.expression);
+    if (ts.isPropertyAccessExpression(callee) && callee.name.text === "handler") {
+      top = unwrap(callee.expression);
+    }
+  }
+  if (!visit(top, 0)) return undefined;
+
+  // Calls on the router's variables in their own files: chains of registrations, serving
+  // calls, the default export, or else the router escapes and may get more methods.
+  for (const symbol of variables) {
+    const declaration = symbol.valueDeclaration as ts.VariableDeclaration;
+    const use = (id: ts.Identifier): void => {
+      let node: ts.Node = id;
+      while (ts.isParenthesizedExpression(node.parent) || ts.isNonNullExpression(node.parent)) {
+        node = node.parent;
+      }
+      let parent = node.parent;
+      if (ts.isExportAssignment(parent) || parent === declaration) return;
+      // Walk up `router.a(…).b(…)`, registering each link, until the chain ends.
+      let chained = false;
+      while (
+        ts.isPropertyAccessExpression(parent) &&
+        parent.expression === node &&
+        ts.isCallExpression(parent.parent) &&
+        parent.parent.expression === parent
+      ) {
+        const name = parent.name.text;
+        if (SERVING_METHODS.has(name)) return;
+        if (!CONNECT_METHODS.has(name) && !UNNAMED_METHODS.has(name)) break;
+        register(parent.parent, parent.name);
+        chained = true;
+        node = parent.parent;
+        parent = node.parent;
+      }
+      if (chained) return;
+      const call = ts.isCallExpression(parent) ? parent.expression.getText() : parent.getText();
+      unseen.push(
+        `the next-connect router is passed to ${call.length > 40 ? "code" : call}(…), which may register more methods; kept an ALL route for them`,
+      );
+    };
+    const walk = (node: ts.Node): void => {
+      if (
+        ts.isIdentifier(node) &&
+        node !== declaration.name &&
+        node.text === symbol.name &&
+        checker.getSymbolAtLocation(node) === symbol
+      ) {
+        use(node);
+      }
+      ts.forEachChild(node, walk);
+    };
+    walk(declaration.getSourceFile());
+  }
+  registrations.sort(
+    (a, b) =>
+      compareStrings(a.call.getSourceFile().fileName, b.call.getSourceFile().fileName) ||
+      a.call.getStart() - b.call.getStart(),
+  );
+  return { registrations, unseen: [...new Set(unseen)] };
+}
+
 /**
  * What one service's program says about Next.js, as plain data (ADR-0090): its routes and
  * pages, their `handles`/`renders` edges, and warnings, in the order its files were walked.
@@ -294,6 +553,11 @@ export interface NextFacts {
   nodes: GraphNode[];
   edges: GraphEdge[];
   warnings: AnalysisWarning[];
+  /**
+   * The inline handler functions of next-connect registrations (ADR-0191) by node key, with
+   * the sorted IDs of the routes each serves, as Express's `inlineHandlers` (`owners.ts`).
+   */
+  inlineHandlers: { key: string; routes: string[] }[];
 }
 
 /**
@@ -307,11 +571,16 @@ export function collectNextFacts(sp: ServiceProgram, resolver: SymbolResolver): 
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
   const warnings: AnalysisWarning[] = [];
+  /** Routes served by each inline handler function, by node key. */
+  const inline = new Map<string, Set<string>>();
   const facts = (): NextFacts => ({
     service: service.key,
     nodes: [...nodes.values()],
     edges: [...edges.values()],
     warnings,
+    inlineHandlers: [...inline]
+      .map(([key, routes]) => ({ key, routes: [...routes].sort(compareStrings) }))
+      .sort((a, b) => compareStrings(a.key, b.key)),
   });
   /** The file that produced each node, for duplicate warnings. */
   const owners = new Map<string, string>();
@@ -339,6 +608,7 @@ export function collectNextFacts(sp: ServiceProgram, resolver: SymbolResolver): 
   ): void => {
     if (!target) return;
     const id = edgeId(kind, from, target.id);
+    if (edges.has(id)) return; // a handler registered twice keeps its first site
     edges.set(id, { id, kind, from, to: target.id, confidence: target.confidence, sites: [site] });
   };
 
@@ -406,6 +676,54 @@ export function collectNextFacts(sp: ServiceProgram, resolver: SymbolResolver): 
       file,
     );
     return added ? id : undefined;
+  };
+
+  /**
+   * One route per method a next-connect router registers, at the method's first registration,
+   * with a `handles` edge for each handler argument naming a symbol node and its inline
+   * handlers recorded; plus the file's `ALL` route, with a warning, when methods may be unseen.
+   */
+  const connectRoutes = (
+    router: ConnectRouter,
+    path: string,
+    file: string,
+    exportSite: SourceLocation,
+    exportTarget: CallTarget | undefined,
+  ): void => {
+    const byMethod = new Map<HttpMethod, Registration[]>();
+    for (const registration of router.registrations) {
+      const list = byMethod.get(registration.method) ?? [];
+      list.push(registration);
+      byMethod.set(registration.method, list);
+    }
+    for (const method of [...byMethod.keys()].sort(compareStrings)) {
+      const registrations = byMethod.get(method) ?? [];
+      const first = registrations[0];
+      if (!first) continue;
+      const at = (node: ts.Node): SourceLocation =>
+        locationOf(node, sp.toRepoPath(node.getSourceFile().fileName) ?? file);
+      const id = route(method, path, file, at(first.name));
+      if (id === undefined) continue;
+      for (const { call } of registrations) {
+        for (const handler of call.arguments) {
+          addEdge("handles", id, resolver.resolve(sp, handler), at(handler));
+          const handlerFile = sp.toRepoPath(handler.getSourceFile().fileName);
+          if (handlerFile === undefined) continue;
+          for (const fn of inlineFunctions(handler)) {
+            const key = nodeKey(handlerFile, fn);
+            const routes = inline.get(key) ?? new Set<string>();
+            routes.add(id);
+            inline.set(key, routes);
+          }
+        }
+      }
+    }
+    if (router.unseen.length === 0) return;
+    for (const message of router.unseen) {
+      warnings.push({ code: "NEXT_CONNECT_UNSEEN_METHODS", file, message });
+    }
+    const id = route("ALL", path, file, exportSite);
+    if (id !== undefined) addEdge("handles", id, exportTarget, exportSite);
   };
 
   for (const { file, rel } of local) {
@@ -481,6 +799,17 @@ export function collectNextFacts(sp: ServiceProgram, resolver: SymbolResolver): 
     const site = found?.site ?? start;
     if (fileSegments[0] === "api" && segments.length > 2) {
       const declaration = exported?.declarations?.[0];
+      const value =
+        declaration && ts.isExportAssignment(declaration)
+          ? declaration.expression
+          : declaration && ts.isExportSpecifier(declaration)
+            ? (declaration.propertyName ?? declaration.name)
+            : undefined;
+      const router = value && ts.isExpression(value) ? connectRouter(checker, value) : undefined;
+      if (router && router.registrations.length > 0) {
+        connectRoutes(router, path, file, site, found?.target);
+        continue;
+      }
       const handler = functionOf(checker, declaration);
       const { methods: checked, open } = handler
         ? handledMethods(handler)
@@ -507,13 +836,21 @@ export function collectNextFacts(sp: ServiceProgram, resolver: SymbolResolver): 
   return facts();
 }
 
-/** Every service's Next.js routes, pages, edges, and warnings from their facts, sorted. */
-export function composeNextRoutes(facts: readonly NextFacts[]): {
+/** Next.js routes of the whole repo, from {@link composeNextRoutes}. */
+export interface NextRoutes {
   nodes: GraphNode[];
   edges: GraphEdge[];
   warnings: AnalysisWarning[];
-} {
+  /** next-connect's inline handlers: route IDs by function node key (see `NextFacts`). */
+  inlineHandlers: Map<string, string[]>;
+}
+
+/** Every service's Next.js routes, pages, edges, and warnings from their facts, sorted. */
+export function composeNextRoutes(facts: readonly NextFacts[]): NextRoutes {
   return {
+    inlineHandlers: new Map(
+      facts.flatMap((f) => f.inlineHandlers.map(({ key, routes }) => [key, routes] as const)),
+    ),
     nodes: facts.flatMap((f) => f.nodes).sort((a, b) => compareStrings(a.id, b.id)),
     edges: facts.flatMap((f) => f.edges).sort((a, b) => compareStrings(a.id, b.id)),
     warnings: facts
@@ -532,6 +869,6 @@ export function composeNextRoutes(facts: readonly NextFacts[]): {
 export function buildNextRoutes(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
-): { nodes: GraphNode[]; edges: GraphEdge[]; warnings: AnalysisWarning[] } {
+): NextRoutes {
   return composeNextRoutes(programs.map((sp) => collectNextFacts(sp, resolver)));
 }

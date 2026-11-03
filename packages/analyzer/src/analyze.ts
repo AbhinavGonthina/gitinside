@@ -402,9 +402,12 @@ async function analyzeRoot(
       collect("next", (sp) => collectNextFacts(sp, resolver));
       return composeNextRoutes(stageFacts(bundles, "next"));
     },
-    none,
+    () => ({ ...none(), inlineHandlers: new Map<string, string[]>() }),
   );
   found.add(["routes", "pages"], next.nodes);
+  // Inline route handlers of both routers, for the detectors' owners (`owners.ts`). A
+  // function is one router's handler, so the keys never collide.
+  const inlineHandlers = new Map([...express.inlineHandlers, ...next.inlineHandlers]);
   const prisma = await detector(
     "prisma",
     async () => {
@@ -412,7 +415,7 @@ async function analyzeRoot(
       const build = () => buildPrismaSchemas(root, workspace, inventory.sourceFiles);
       const schemas = await (given ? build() : collectionInput("prisma", build));
       collect("prisma", (sp) => collectPrismaFacts(sp, resolver, schemas.usesPrisma));
-      return composePrisma(schemas, stageFacts(bundles, "prisma"), express.inlineHandlers);
+      return composePrisma(schemas, stageFacts(bundles, "prisma"), inlineHandlers);
     },
     () => ({ ...none(), datastores: [] }),
   );
@@ -470,7 +473,7 @@ async function analyzeRoot(
           if (bundle) bundle.http = f;
         }
       }
-      const requests = bindWrappers(stageFacts(bundles, "http"), express.inlineHandlers);
+      const requests = bindWrappers(stageFacts(bundles, "http"), inlineHandlers);
       onProgress?.({ stage: "http", count: requests.length });
       const matcher = createRouteMatcher(
         [...express.nodes, ...next.nodes],
@@ -487,7 +490,7 @@ async function analyzeRoot(
     () => {
       // Per-service facts, then the global merge (ADR-0172).
       collect("sdk", (sp) => collectSdkFacts(sp, resolver, workspace));
-      return composeSdkEdges(stageFacts(bundles, "sdk"), express.inlineHandlers);
+      return composeSdkEdges(stageFacts(bundles, "sdk"), inlineHandlers);
     },
     () => ({ nodes: [], edges: [] }),
   );
@@ -503,7 +506,7 @@ async function analyzeRoot(
         repoQueues = scanned;
         collect("queues", (sp) => collectQueueFacts(sp, resolver, workspace, scanned));
       }
-      return composeQueueEdges(stageFacts(bundles, "queues"), express.inlineHandlers);
+      return composeQueueEdges(stageFacts(bundles, "queues"), inlineHandlers);
     },
     () => ({ nodes: [], edges: [] }),
   );

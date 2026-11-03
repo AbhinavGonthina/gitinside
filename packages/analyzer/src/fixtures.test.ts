@@ -26,6 +26,7 @@ const NAMES = [
   "express-nested-routers",
   "next-app-router",
   "next-pages-api",
+  "next-connect",
   "prisma-relations",
   "pnpm-monorepo",
   "syntax-error",
@@ -106,6 +107,26 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
     expect(ids(g, "route").join("\n")).toContain("/api/hello");
     expect(ids(g, "route").join("\n")).toContain("/api/echo/:id");
     expect(ids(g, "page").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("next-connect gives one route per registered method (ADR-0191)", async () => {
+    const g = await run("next-connect");
+    expect(ids(g, "route")).toEqual([
+      "route:notes/DELETE /api/notes/:id",
+      "route:notes/GET /api/notes",
+      "route:notes/GET /api/notes/:id",
+      "route:notes/PATCH /api/notes/:id",
+      "route:notes/POST /api/notes",
+    ]);
+    expect(links(g, "http")).toEqual([
+      "symbol:notes/pages/index.tsx#addNote -> route:notes/POST /api/notes exact",
+      "symbol:notes/pages/index.tsx#loadNotes -> route:notes/GET /api/notes exact",
+      "symbol:notes/pages/index.tsx#removeNote -> route:notes/DELETE /api/notes/:id exact",
+      "symbol:notes/pages/index.tsx#replaceNote -> unresolved:notes/pages/index.tsx:14:10 unresolved NO_MATCHING_ROUTE",
+    ]);
+    expect(links(g, "external_call")).toEqual([
+      "route:notes/GET /api/notes/:id -> external:ext/notes-archive.example.com exact",
+    ]);
   });
 
   it("prisma-relations finds models, a datastore, and an unresolved raw query", async () => {

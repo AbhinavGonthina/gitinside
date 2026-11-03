@@ -1,0 +1,4 @@
+{
+  "name": "notes",
+  "dependencies": { "next": "13", "next-connect": "0.13", "react": "18" }
+}

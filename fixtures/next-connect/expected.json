@@ -1,0 +1,521 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:notes/pages/api/notes/index.ts#handler",
+      "id": "calls:symbol:notes/pages/api/notes/index.ts#handler->symbol:notes/lib/api.ts#apiHandler",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 17,
+          "file": "pages/api/notes/index.ts",
+          "line": 4
+        }
+      ],
+      "to": "symbol:notes/lib/api.ts#apiHandler"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:notes/GET /api/notes/:id",
+      "id": "external_call:route:notes/GET /api/notes/:id->external:ext/notes-archive.example.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 20,
+          "file": "pages/api/notes/[id].ts",
+          "line": 10
+        }
+      ],
+      "to": "external:ext/notes-archive.example.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:notes/GET /api/notes",
+      "id": "handles:route:notes/GET /api/notes->symbol:notes/lib/notes.ts#listNotes",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 13,
+          "file": "pages/api/notes/index.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:notes/lib/notes.ts#listNotes"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:notes/POST /api/notes",
+      "id": "handles:route:notes/POST /api/notes->symbol:notes/lib/notes.ts#createNote",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 29,
+          "file": "pages/api/notes/index.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:notes/lib/notes.ts#createNote"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:notes/pages/index.tsx#addNote",
+      "id": "http:symbol:notes/pages/index.tsx#addNote->route:notes/POST /api/notes",
+      "kind": "http",
+      "label": "POST /api/notes",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 6
+        }
+      ],
+      "to": "route:notes/POST /api/notes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:notes/pages/index.tsx#loadNotes",
+      "id": "http:symbol:notes/pages/index.tsx#loadNotes->route:notes/GET /api/notes",
+      "kind": "http",
+      "label": "GET /api/notes",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 2
+        }
+      ],
+      "to": "route:notes/GET /api/notes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:notes/pages/index.tsx#removeNote",
+      "id": "http:symbol:notes/pages/index.tsx#removeNote->route:notes/DELETE /api/notes/:id",
+      "kind": "http",
+      "label": "DELETE /api/notes/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 10
+        }
+      ],
+      "to": "route:notes/DELETE /api/notes/:id"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:notes/pages/index.tsx#replaceNote",
+      "id": "http:symbol:notes/pages/index.tsx#replaceNote->unresolved:notes/pages/index.tsx:14:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 14
+        }
+      ],
+      "to": "unresolved:notes/pages/index.tsx:14:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:notes/pages/api/notes/index.ts",
+      "id": "imports:file:notes/pages/api/notes/index.ts->file:notes/lib/api.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 28,
+          "file": "pages/api/notes/index.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:notes/lib/api.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:notes/pages/api/notes/index.ts",
+      "id": "imports:file:notes/pages/api/notes/index.ts->file:notes/lib/notes.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 39,
+          "file": "pages/api/notes/index.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:notes/lib/notes.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:notes//",
+      "id": "renders:page:notes//->symbol:notes/pages/index.tsx#Home",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/index.tsx",
+          "line": 17
+        }
+      ],
+      "to": "symbol:notes/pages/index.tsx#Home"
+    }
+  ],
+  "nodes": [
+    {
+      "host": "notes-archive.example.com",
+      "id": "external:ext/notes-archive.example.com",
+      "kind": "external",
+      "label": "notes-archive.example.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "f4c5aadac5b48f2aacb49dc9d087060b57df8c55a9f33602227e12e24df7c94f",
+      "id": "file:notes/lib/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "parentId": "module:notes/lib",
+      "path": "lib/api.ts"
+    },
+    {
+      "hash": "d0fbbd4c3025734d5942fe30e57e16ec821022f69d08b27e9650a081e3d883af",
+      "id": "file:notes/lib/notes.ts",
+      "kind": "file",
+      "label": "notes.ts",
+      "parentId": "module:notes/lib",
+      "path": "lib/notes.ts"
+    },
+    {
+      "hash": "a34b26621b6398b8c6ffc871d2039676a1b274c67e337cc04c2d8e6333f5f0f9",
+      "id": "file:notes/pages/api/notes/[id].ts",
+      "kind": "file",
+      "label": "[id].ts",
+      "parentId": "module:notes/pages/api/notes",
+      "path": "pages/api/notes/[id].ts"
+    },
+    {
+      "hash": "f248340265dff5d8464615d02c782867e068035283952e3fb269da7a106abbc8",
+      "id": "file:notes/pages/api/notes/index.ts",
+      "kind": "file",
+      "label": "index.ts",
+      "parentId": "module:notes/pages/api/notes",
+      "path": "pages/api/notes/index.ts"
+    },
+    {
+      "hash": "da710c68fe2f81ee69ba7c69fbba8a72931e23fc5e1ff69e5a391f4c616f37b6",
+      "id": "file:notes/pages/index.tsx",
+      "kind": "file",
+      "label": "index.tsx",
+      "parentId": "module:notes/pages",
+      "path": "pages/index.tsx"
+    },
+    {
+      "id": "module:notes/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "service:notes/",
+      "path": "lib"
+    },
+    {
+      "id": "module:notes/pages",
+      "kind": "module",
+      "label": "pages",
+      "parentId": "service:notes/",
+      "path": "pages"
+    },
+    {
+      "id": "module:notes/pages/api/notes",
+      "kind": "module",
+      "label": "notes",
+      "parentId": "module:notes/pages",
+      "path": "pages/api/notes"
+    },
+    {
+      "id": "page:notes//",
+      "kind": "page",
+      "label": "/",
+      "layer": "frontend",
+      "parentId": "file:notes/pages/index.tsx",
+      "path": "/",
+      "source": {
+        "column": 25,
+        "file": "pages/index.tsx",
+        "line": 17
+      }
+    },
+    {
+      "id": "route:notes/DELETE /api/notes/:id",
+      "kind": "route",
+      "label": "DELETE /api/notes/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:notes/pages/api/notes/[id].ts",
+      "path": "/api/notes/:id",
+      "source": {
+        "column": 8,
+        "file": "pages/api/notes/[id].ts",
+        "line": 14
+      }
+    },
+    {
+      "id": "route:notes/GET /api/notes",
+      "kind": "route",
+      "label": "GET /api/notes",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:notes/pages/api/notes/index.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 9,
+        "file": "pages/api/notes/index.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:notes/GET /api/notes/:id",
+      "kind": "route",
+      "label": "GET /api/notes/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:notes/pages/api/notes/[id].ts",
+      "path": "/api/notes/:id",
+      "source": {
+        "column": 4,
+        "file": "pages/api/notes/[id].ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:notes/PATCH /api/notes/:id",
+      "kind": "route",
+      "label": "PATCH /api/notes/:id",
+      "layer": "backend",
+      "method": "PATCH",
+      "parentId": "file:notes/pages/api/notes/[id].ts",
+      "path": "/api/notes/:id",
+      "source": {
+        "column": 4,
+        "file": "pages/api/notes/[id].ts",
+        "line": 12
+      }
+    },
+    {
+      "id": "route:notes/POST /api/notes",
+      "kind": "route",
+      "label": "POST /api/notes",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:notes/pages/api/notes/index.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 24,
+        "file": "pages/api/notes/index.ts",
+        "line": 6
+      }
+    },
+    {
+      "framework": "next",
+      "id": "service:notes/",
+      "kind": "service",
+      "label": "notes",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/lib/api.ts#apiHandler",
+      "kind": "symbol",
+      "label": "apiHandler",
+      "parentId": "file:notes/lib/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 13,
+        "file": "lib/api.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:notes/lib/api.ts#logRequest",
+      "kind": "symbol",
+      "label": "logRequest",
+      "parentId": "file:notes/lib/api.ts",
+      "requiredParams": 3,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "lib/api.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/lib/notes.ts#createNote",
+      "kind": "symbol",
+      "label": "createNote",
+      "parentId": "file:notes/lib/notes.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "lib/notes.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/lib/notes.ts#listNotes",
+      "kind": "symbol",
+      "label": "listNotes",
+      "parentId": "file:notes/lib/notes.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "lib/notes.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/pages/api/notes/[id].ts#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:notes/pages/api/notes/[id].ts",
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "pages/api/notes/[id].ts",
+        "line": 16
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/pages/api/notes/index.ts#handler",
+      "kind": "symbol",
+      "label": "handler",
+      "parentId": "file:notes/pages/api/notes/index.ts",
+      "source": {
+        "column": 7,
+        "endLine": 4,
+        "file": "pages/api/notes/index.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/pages/index.tsx#Home",
+      "kind": "symbol",
+      "label": "Home",
+      "parentId": "file:notes/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "pages/index.tsx",
+        "line": 17
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/pages/index.tsx#addNote",
+      "kind": "symbol",
+      "label": "addNote",
+      "parentId": "file:notes/pages/index.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "pages/index.tsx",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/pages/index.tsx#loadNotes",
+      "kind": "symbol",
+      "label": "loadNotes",
+      "parentId": "file:notes/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "pages/index.tsx",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/pages/index.tsx#removeNote",
+      "kind": "symbol",
+      "label": "removeNote",
+      "parentId": "file:notes/pages/index.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "pages/index.tsx",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:notes/pages/index.tsx#replaceNote",
+      "kind": "symbol",
+      "label": "replaceNote",
+      "parentId": "file:notes/pages/index.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "pages/index.tsx",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "next-connect",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches PUT to /api/notes/{}",
+      "expression": "fetch(`/api/notes/${id}`, { method: \"PUT\" })",
+      "id": "unresolved:notes/pages/index.tsx:14:10",
+      "kind": "unresolved",
+      "label": "PUT /api/notes/{}",
+      "parentId": "service:notes/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "pages/index.tsx",
+        "line": 14
+      }
+    }
+  ],
+  "repo": {
+    "name": "next-connect",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
