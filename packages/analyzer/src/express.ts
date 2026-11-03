@@ -508,7 +508,7 @@ export function joinPath(prefix: string, path: string): string {
  * The inline functions a handler argument is: `(req, res) => …` itself, or the function
  * arguments of a one-level wrapper call (`asyncHandler(async (req, res) => …)`).
  */
-function inlineFunctions(handler: ts.Expression): ts.Node[] {
+export function inlineFunctions(handler: ts.Expression): ts.Node[] {
   const e = unwrap(handler);
   const isInline = (x: ts.Expression): boolean => {
     const u = unwrap(x);

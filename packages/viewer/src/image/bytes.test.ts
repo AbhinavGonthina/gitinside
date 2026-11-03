@@ -121,6 +121,7 @@ const EXPECTED: Record<string, string[]> = {
   "fetch-template-literal": ["8b80d7390797ba19", "248e377451753beb", "261682dcd8866049"],
   "fixed-url-helpers": ["ab7626f2e1d493e9", "03409237b6bb3e26", "2c08a0fb3fc72402"],
   "next-app-router": ["066275a4f8746a39", "6e60eb042b05a1ec", "7c9f3558ff0124c2"],
+  "next-connect": ["e3491958e79cd2ff", "55cdbe3076562dd7", "92e18284d06069a5"],
   "next-pages-api": ["cfc5e40c69391f0d", "7a84135e11ca8c0f", "5adb677acbeb0974"],
   "no-tsconfig": ["ca64d1e9051263e9", "69804ff099267024", "df35ae81cb864468"],
   "object-client": ["e43a79465232523c", "b88b0861a65ae784", "88fe59317e24fda9"],
