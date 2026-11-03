@@ -3,7 +3,6 @@
   "kind": "Service",
   "metadata": {
     "name": "gitinside-worker",
-    "namespace": "gitinside-513223",
     "labels": {
       "cloud.googleapis.com/location": "us-east4"
     },

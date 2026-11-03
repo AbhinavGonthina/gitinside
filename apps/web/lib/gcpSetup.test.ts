@@ -342,9 +342,10 @@ describe("the README's Google Cloud setup", () => {
     expect(flag(command, "notifications-rule-pubsub-topic")).toBe(
       budget.notificationsRule.pubsubTopic,
     );
-    expect(flag(command, "notifications-rule-schema-version")).toBe(
-      budget.notificationsRule.schemaVersion,
-    );
+    // GA gcloud has no schema-version flag (Cloud Shell refuses it, #16): with a topic, it sets
+    // schemaVersion 1.0 itself (`CreateNotificationsRule` in its billingbudgets hooks, ADR-0188).
+    expect(command?.flags.has("notifications-rule-schema-version")).toBe(false);
+    expect(budget.notificationsRule.schemaVersion).toBe("1.0");
   });
 
   it("creates the registry and applies registry.json's cleanup for real", () => {

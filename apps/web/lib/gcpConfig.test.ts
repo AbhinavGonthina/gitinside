@@ -35,7 +35,7 @@ interface EnvVar {
 interface Service {
   metadata: {
     name: string;
-    namespace: string;
+    namespace?: string;
     labels: Record<string, string>;
     annotations: Record<string, string>;
   };
@@ -201,7 +201,10 @@ describe("infra/gcp service.json (Cloud Run)", () => {
 
   it("runs as its own runtime account, in the queue's project and region", () => {
     expect(template.spec.serviceAccountName).toBe(email("gitinside-worker"));
-    expect(service.metadata.namespace).toBe(iam.project);
+    // No namespace in the file: with one, `gcloud run services replace` first reads the
+    // project's number from Resource Manager, which the deploy account may not (ADR-0188).
+    // The deploy's `--project` names the project instead (gcpDeploy.test.ts).
+    expect(service.metadata.namespace).toBeUndefined();
     expect(queueName?.[1]).toBe(iam.project);
     expect(queueName?.[2]).toBe(service.metadata.labels["cloud.googleapis.com/location"]);
   });
@@ -397,7 +400,7 @@ describe("infra/gcp billing kill switch (killswitch.json, budget.json, pubsub.js
   });
 
   it("unlinks billing on this project, and its config is what the entry accepts", () => {
-    expect(killSwitch.metadata.namespace).toBe(iam.project);
+    expect(killSwitch.metadata.namespace).toBeUndefined();
     expect(killSwitch.metadata.labels).toEqual(service.metadata.labels);
     const env = Object.fromEntries(
       (switchContainer?.env ?? []).map((variable) => [variable.name, variable.value]),

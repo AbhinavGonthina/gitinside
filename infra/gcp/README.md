@@ -138,14 +138,17 @@ docker build ─▶ push us-east4-docker.pkg.dev/gitinside-513223/gitinside/work
 
 **Repo variables** (Settings → Secrets and variables → Actions → Variables; identifiers, none secret): `GCP_PROJECT_NUMBER`, `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_BUCKET`, `SNAPSHOTS_ACCESS_KEY_ID`. The secrets stay in Secret Manager.
 
-The deploy never creates a service, a queue, or a binding. The first time, the two services are created by hand from Google's public sample image (M5.17e4's steps), so the deploy account needs no project-wide role; from then on CI replaces them. A redeploy without a change: Actions → CI → Run workflow on `main`. A rollback: revert the commit on `main`.
+The deploy never creates a service, a queue, or a binding. The first time, the two services are created by hand from Google's public sample image (M5.17e4's steps), so the deploy account needs no project-wide role; from then on CI replaces them. For the same reason `service.json` and `killswitch.json` set no `metadata.namespace`: with one, `gcloud run services replace` first reads the project's number from Resource Manager (`projects.get`, a project-level permission) to check it, and the first deploy was refused there (#16, ADR-0188). Without it, the namespace is the `--project` the deploy passes. A redeploy without a change: Actions → CI → Run workflow on `main`. A rollback: revert the commit on `main`.
 
 ## Applying it
 
 The one-time setup, by the project's owner, in [Cloud Shell](https://shell.cloud.google.com) (free; `gcloud` and Node are installed). Every command creates exactly one piece of this folder's files; nothing here is billed by the hour, and nothing turns on an API this folder doesn't use. `apps/web/lib/gcpSetup.test.ts` checks the block below against `iam.json`, `queue.json`, `github.json`, `budget.json`, `pubsub.json`, and `registry.json`, so a change to one side fails CI. Run it in order: later steps name what earlier ones create.
 
+A new Cloud Shell session forgets step 0: run it again (from `gcloud config set project` through `N=…`, then `cd gitinside`) before any later step. Without `billing/quota_project`, the budget and billing calls fail with a quota-project error.
+
 ```sh
 # 0. The project, and names used below. N is the project's number (not secret).
+#    Repeat this step in every new Cloud Shell session.
 gcloud config set project gitinside-513223
 gcloud config set billing/quota_project gitinside-513223
 P=gitinside-513223
@@ -216,8 +219,8 @@ B=$(gcloud billing projects describe $P --format='value(billingAccountName)' | c
 gcloud billing budgets create --billing-account=$B --display-name=gitinside-kill-switch \
   --budget-amount=1.00USD --filter-projects=projects/$N --credit-types-treatment=include-all-credits \
   --calendar-period=month --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 \
-  --threshold-rule=percent=1.0 --notifications-rule-pubsub-topic=projects/$P/topics/billing-alerts \
-  --notifications-rule-schema-version=1.0
+  --threshold-rule=percent=1.0 --notifications-rule-pubsub-topic=projects/$P/topics/billing-alerts
+#    (gcloud sets the notification schema version 1.0 itself when a topic is given.)
 
 # 9. Workload Identity Federation: GitHub Actions (github.json) and Vercel. Set VT to the Vercel team
 #    slug (the path in your Vercel dashboard's URL), VO to its team ID (team_…), VP to the project's
