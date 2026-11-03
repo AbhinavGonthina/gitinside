@@ -49,6 +49,18 @@
  *   hole (`(id) => fetch(base + "/users/" + id)`) leaves the route fixed.
  * - A URL with alternatives (ternary branches, a `let` set in a branch) gives one request per
  *   alternative, at the same site (`UrlNormalizer.alternatives`, M5A.3h).
+ * - SWR calling a wrapper as a fetcher (ADR-0193), from SWR's own contract: `useSWR`,
+ *   `useSWRImmutable`, `useSWRInfinite`, `useSWRMutation`, and `preload`, found through their
+ *   imports from `swr`, `swr/immutable`, `swr/infinite`, and `swr/mutation`, call
+ *   `fetcher(key)` (the mutation adds `{ arg }`, unknown here). A hook whose fetcher argument
+ *   names a wrapper (or a `{ fetcher }` config in its place) is a call to it at the hook, the
+ *   key bound to the first parameter. Keys: `null`, `undefined`, `false`, and the falsy side
+ *   of a ternary or `&&` make no request; a function key (`() => url`, `useSWRInfinite`'s
+ *   `getKey`, inline or named) gives each value it returns; an array key is `DYNAMIC_URL`
+ *   (SWR 1 spreads it into the fetcher's arguments, SWR 2 passes it whole); any other key is
+ *   read as the URL, so one that isn't readable is unresolved at the hook. A hook with no
+ *   fetcher uses `<SWRConfig value={{ fetcher }}>`'s when every `SWRConfig` in the service
+ *   sets the same wrapper, at `heuristic` (which hooks render under which config isn't known).
  *
  * Patterns not handled:
  * - Functions nested inside other functions as wrappers themselves (their parameters aren't
@@ -67,6 +79,12 @@
  * - Inlining more than one level: the outer callers of a wrapper's caller are not followed.
  * - A function whose route is fixed but whose method is a parameter is still a wrapper (the
  *   method is only known at its callers); see `leadingHoles` for the URL shapes misread.
+ * - SWR fetchers that aren't wrappers: inline ones (`useSWR(key, (url) => fetch(url))`) and
+ *   the docs' `(...args) => fetch(...args)` (the URL is a rest element), so their requests
+ *   stay `DYNAMIC_URL` in place (M5B.2b); `SWRConfig` values that are functions or spread
+ *   props, a `fetcher` passed in the third (options) argument, `useSWRSubscription`, `mutate`,
+ *   other data-fetching libraries (TanStack Query, RTK Query: M5B.3), and SWR required with
+ *   `require()` or reached through a namespace import or a re-export.
  */
 import ts from "typescript";
 import {
@@ -76,8 +94,10 @@ import {
   type SourceLocation,
 } from "@gitinside/schema";
 import { calleeName, type SymbolResolver } from "./calls.js";
-import { isFunctionWithBody, type FunctionWithBody } from "./express.js";
+import { isFunctionWithBody, returnedExpressions, type FunctionWithBody } from "./express.js";
 import {
+  functionOf,
+  importBinding,
   locationOf,
   toMethod,
   type HttpCallSite,
@@ -87,10 +107,16 @@ import {
 import { bindOwners, NO_OWNERS, ownersAt, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
-import { WRAPPER_DEPTH_DETAIL, type NormalizedUrl, type UrlNormalizer } from "./url.js";
+import {
+  DYNAMIC_URL_DETAIL,
+  WRAPPER_DEPTH_DETAIL,
+  type NormalizedUrl,
+  type UrlNormalizer,
+} from "./url.js";
 import {
   clip,
   createValueReader,
+  MAX_HOPS,
   objectProperty,
   redactedText,
   weaker,
@@ -195,14 +221,73 @@ interface Wrapper {
   leading: Map<HttpCallSite, ReadonlySet<ts.ParameterDeclaration>>;
 }
 
+/**
+ * A key a data-fetching hook may pass its fetcher (ADR-0193): an expression the URL is read
+ * from, or `array` for an array key, which the fetcher may take whole or spread.
+ */
+type HookKey = ts.Expression | "array";
+
 /** A resolved call to a wrapper. */
 interface Caller {
   sp: ServiceProgram;
   file: string;
+  /** The call to the wrapper, or the hook call that hands it to SWR. */
   call: ts.CallExpression;
   site: SourceLocation;
   owners: Owners;
   confidence: Confidence;
+  /**
+   * When SWR calls the wrapper as a hook's fetcher (ADR-0193): the keys the hook may pass it
+   * as its first argument, and whether it gets nothing more (`missing`) or values the
+   * analyzer can't read (`unknown`). Absent for a direct call.
+   */
+  hook?: { keys: HookKey[]; rest: "missing" | "unknown" };
+}
+
+/** What an SWR export does with the fetcher it is given (ADR-0193). */
+interface HookContract {
+  /**
+   * The fetcher may come from a config object in its place (`useSWR(key, { fetcher })`) or,
+   * when none is given, from `SWRConfig`'s `value`.
+   */
+  configured: boolean;
+  /** What the fetcher gets after the key: nothing, or values the analyzer can't read. */
+  rest: "missing" | "unknown";
+}
+
+/**
+ * SWR's exports that call a fetcher with a key, by `module#export` (ADR-0193): `useSWR`,
+ * `useSWRImmutable`, and `useSWRInfinite` call `fetcher(key)`; `useSWRMutation` calls
+ * `fetcher(key, { arg })` and takes no default fetcher; `preload(key, fetcher)` calls it once.
+ */
+const SWR_HOOKS: ReadonlyMap<string, HookContract> = new Map([
+  ["swr#default", { configured: true, rest: "missing" }],
+  ["swr#preload", { configured: false, rest: "missing" }],
+  ["swr/immutable#default", { configured: true, rest: "missing" }],
+  ["swr/infinite#default", { configured: true, rest: "missing" }],
+  ["swr/mutation#default", { configured: false, rest: "unknown" }],
+]);
+
+/** Modules a file must import from for its calls to be checked against {@link SWR_HOOKS}. */
+const SWR_MODULES: ReadonlySet<string> = new Set(
+  [...SWR_HOOKS.keys()].map((key) => key.slice(0, key.indexOf("#"))),
+);
+
+/** True when a file imports from SWR (so it may call a hook or render `SWRConfig`). */
+function importsSwr(sourceFile: ts.SourceFile): boolean {
+  return sourceFile.statements.some(
+    (s) =>
+      ts.isImportDeclaration(s) &&
+      ts.isStringLiteralLike(s.moduleSpecifier) &&
+      SWR_MODULES.has(s.moduleSpecifier.text),
+  );
+}
+
+/** The `module#export` an identifier is imported as, if it is a plain import. */
+function importedAs(checker: ts.TypeChecker, node: ts.Node): string | undefined {
+  const declaration = checker.getSymbolAtLocation(node)?.declarations?.[0];
+  const binding = declaration && importBinding(declaration);
+  return binding && `${binding.module}#${binding.name}`;
 }
 
 /** The innermost function with a body that contains a node. */
@@ -412,39 +497,182 @@ export function collectHttpFacts(
 
   // ---- per service: find and inline calls to wrappers ----
 
+  /**
+   * The wrapper a callee or value expression names, if any. Only expressions spelled like a
+   * wrapper, or through a (possibly renamed) import, are resolved.
+   */
+  const wrapperAt = (
+    sp: ServiceProgram,
+    expression: ts.Expression,
+  ): { id: string; confidence: Confidence } | undefined => {
+    const name = calleeName(expression);
+    const candidate =
+      name !== undefined &&
+      ((ts.isIdentifier(name) || ts.isStringLiteralLike(name) ? names.has(name.text) : false) ||
+        (ts.isIdentifier(name) &&
+          ((resolver.checkerOf(sp).getSymbolAtLocation(name)?.flags ?? 0) &
+            ts.SymbolFlags.Alias) !==
+            0));
+    const target = candidate ? resolver.resolve(sp, expression) : undefined;
+    return target && (wrappers.has(target.id) || pending.has(target.id)) ? target : undefined;
+  };
+
+  /**
+   * The keys an SWR key argument may be (ADR-0193): `null`, `undefined`, and `false` (also a
+   * ternary's or `&&`'s falsy side) make no request; a function key (`() => url`, and
+   * `useSWRInfinite`'s `getKey(index, previous)`) gives what it returns; an array literal is
+   * `array`; anything else is read as the URL.
+   */
+  const keysOf = (sp: ServiceProgram, expression: ts.Expression, hops: number): HookKey[] => {
+    const e = unwrap(expression);
+    if (hops > MAX_HOPS) return [e];
+    if (
+      e.kind === ts.SyntaxKind.NullKeyword ||
+      e.kind === ts.SyntaxKind.FalseKeyword ||
+      (ts.isIdentifier(e) && e.text === "undefined")
+    ) {
+      return [];
+    }
+    if (ts.isConditionalExpression(e)) {
+      return [...keysOf(sp, e.whenTrue, hops + 1), ...keysOf(sp, e.whenFalse, hops + 1)];
+    }
+    if (
+      ts.isBinaryExpression(e) &&
+      e.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+    ) {
+      return keysOf(sp, e.right, hops + 1);
+    }
+    if (ts.isArrayLiteralExpression(e)) return ["array"];
+    let fn: FunctionWithBody | undefined;
+    if (isFunctionWithBody(e)) fn = e;
+    else if (ts.isIdentifier(e)) {
+      const symbol = reader.symbolAt(sp, e);
+      fn = symbol && functionOf(resolver.checkerOf(sp), symbol);
+    }
+    if (fn) return returnedExpressions(fn).flatMap((r) => keysOf(sp, r, hops + 1));
+    return [e];
+  };
+
+  /**
+   * The fetcher an SWR call is given: its second argument, or a config object's `fetcher`
+   * there (when the contract allows one); `default` when none is given and `SWRConfig`'s
+   * applies; `undefined` when there is none or it can't be read.
+   */
+  const fetcherOf = (
+    sp: ServiceProgram,
+    call: ts.CallExpression,
+    contract: HookContract,
+  ): ts.Expression | "default" | undefined => {
+    const arg = call.arguments[1];
+    if (!arg) return contract.configured ? "default" : undefined;
+    const e = unwrap(arg);
+    if (e.kind === ts.SyntaxKind.NullKeyword) return undefined;
+    if (!contract.configured || !ts.isObjectLiteralExpression(e)) return arg;
+    const fetcher = objectProperty(sp, e, "fetcher");
+    return fetcher === undefined ? "default" : (fetcher?.expression ?? undefined);
+  };
+
+  /**
+   * The wrapper `SWRConfig`'s `value` sets as the default fetcher in `sp`, when every
+   * `<SWRConfig value={{ fetcher }}>` rendered in it names the same one (ADR-0193): which hooks
+   * render under which config isn't modeled, so the default is `heuristic`. Any config whose
+   * fetcher isn't a wrapper, or two different ones, give no default.
+   */
+  const defaultFetcherIn = (
+    sp: ServiceProgram,
+    files: readonly ts.SourceFile[],
+  ): { id: string; confidence: Confidence } | undefined => {
+    const checker = resolver.checkerOf(sp);
+    const found = new Map<string, Confidence>();
+    let unknown = false;
+    const visit = (node: ts.Node): void => {
+      if (
+        (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+        importedAs(checker, node.tagName) === "swr#SWRConfig"
+      ) {
+        for (const attribute of node.attributes.properties) {
+          if (!ts.isJsxAttribute(attribute)) {
+            unknown = true; // a spread may set `value`
+            continue;
+          }
+          if (!ts.isIdentifier(attribute.name) || attribute.name.text !== "value") continue;
+          const init = attribute.initializer;
+          const value = init && ts.isJsxExpression(init) ? init.expression : undefined;
+          const e = value && unwrap(value);
+          const object = !e
+            ? undefined
+            : ts.isObjectLiteralExpression(e)
+              ? { sp, expression: e }
+              : reader.constObject(sp, e, 0);
+          const fetcher = object && objectProperty(object.sp, object.expression, "fetcher");
+          if (fetcher === undefined && object) continue; // a config that sets no fetcher
+          const target = fetcher ? wrapperAt(fetcher.sp, fetcher.expression) : undefined;
+          if (target)
+            found.set(target.id, weaker(found.get(target.id) ?? "exact", target.confidence));
+          else unknown = true;
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    for (const sourceFile of files) visit(sourceFile);
+    const [only, ...others] = [...found];
+    if (unknown || !only || others.length > 0) return undefined;
+    return { id: only[0], confidence: weaker(only[1], "heuristic") };
+  };
+
   /** The service's calls to wrappers, by wrapper ID, in file and visit order. */
   const callersIn = (sp: ServiceProgram): Map<string, Caller[]> => {
     const callers = new Map<string, Caller[]>();
     if (names.size === 0) return callers;
     const checker = resolver.checkerOf(sp);
-    for (const file of sp.rootFiles) {
+    const files = sp.rootFiles.flatMap((file) => {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
       const byNode = sourceFile && resolver.callers.get(sourceFile);
-      if (!sourceFile || !byNode) continue;
+      return sourceFile && byNode
+        ? [{ file, sourceFile, byNode, swr: importsSwr(sourceFile) }]
+        : [];
+    });
+    let defaultFetcher: ReturnType<typeof defaultFetcherIn> | null = null;
+    /** `SWRConfig`'s default fetcher, found on the first hook call that needs it. */
+    const configured = (): ReturnType<typeof defaultFetcherIn> =>
+      (defaultFetcher ??= defaultFetcherIn(
+        sp,
+        files.filter((f) => f.swr).map((f) => f.sourceFile),
+      ));
+    const add = (id: string, caller: Caller): void => {
+      const list = callers.get(id) ?? [];
+      list.push(caller);
+      callers.set(id, list);
+    };
+    for (const { file, sourceFile, byNode, swr } of files) {
       const visit = (node: ts.Node, owners: Owners): void => {
         const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
-          const name = calleeName(node.expression);
-          // Only resolve calls spelled like a wrapper, or through a (possibly renamed) import.
-          const candidate =
-            name !== undefined &&
-            ((ts.isIdentifier(name) || ts.isStringLiteralLike(name)
-              ? names.has(name.text)
-              : false) ||
-              (ts.isIdentifier(name) &&
-                ((checker.getSymbolAtLocation(name)?.flags ?? 0) & ts.SymbolFlags.Alias) !== 0));
-          const target = candidate ? resolver.resolve(sp, node.expression) : undefined;
-          if (name && target && (wrappers.has(target.id) || pending.has(target.id))) {
-            const list = callers.get(target.id) ?? [];
-            list.push({
-              sp,
-              file,
-              call: node,
-              site: locationOf(node, file),
-              owners: current,
-              confidence: target.confidence,
-            });
-            callers.set(target.id, list);
+          const caller = {
+            sp,
+            file,
+            call: node,
+            site: locationOf(node, file),
+            owners: current,
+          };
+          const target = wrapperAt(sp, node.expression);
+          if (target) add(target.id, { ...caller, confidence: target.confidence });
+          const callee = unwrap(node.expression);
+          const contract =
+            swr && ts.isIdentifier(callee)
+              ? SWR_HOOKS.get(importedAs(checker, callee) ?? "")
+              : undefined;
+          const [key, second] = node.arguments;
+          if (contract && key && ![key, second].some((a) => a && ts.isSpreadElement(a))) {
+            const fetcher = fetcherOf(sp, node, contract);
+            const used = fetcher === "default" ? configured() : fetcher && wrapperAt(sp, fetcher);
+            if (used) {
+              add(used.id, {
+                ...caller,
+                confidence: used.confidence,
+                hook: { keys: keysOf(sp, key, 0), rest: contract.rest },
+              });
+            }
           }
         }
         ts.forEachChild(node, (child) => {
@@ -476,9 +704,39 @@ export function collectHttpFacts(
     return d !== undefined && ts.isParameter(d);
   };
 
-  /** The requests one call to a wrapper makes: one per site in the wrapper's body. */
+  /**
+   * The requests one call to a wrapper makes: one per site in the wrapper's body. For a hook
+   * call (ADR-0193), one per key the hook may pass, the same request kept once.
+   */
   const inline = (id: string, wrapper: Wrapper, caller: Caller): HttpRequestFact[] => {
-    const args = caller.call.arguments;
+    const { hook } = caller;
+    if (!hook) return inlineWith(id, wrapper, caller, caller.call.arguments, "missing");
+    const seen = new Set<string>();
+    return hook.keys
+      .flatMap((key) =>
+        inlineWith(id, wrapper, caller, key === "array" ? undefined : [key], hook.rest),
+      )
+      .filter((request) => {
+        const key = JSON.stringify([request.call.site, request.method, request.url]);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  };
+
+  /**
+   * The requests a call to a wrapper makes with these arguments: `undefined` when the first
+   * one can't be read as a URL (an SWR array key), and arguments past the end either absent
+   * (`missing`, so defaults apply) or `unknown`.
+   */
+  const inlineWith = (
+    id: string,
+    wrapper: Wrapper,
+    caller: Caller,
+    given: readonly ts.Expression[] | undefined,
+    rest: "missing" | "unknown",
+  ): HttpRequestFact[] => {
+    const args = given ?? [];
     const spread = args.findIndex((a) => ts.isSpreadElement(a));
     const bindings = new Map<ts.ParameterDeclaration, ProgramExpression | undefined>();
     /** Parameters with no argument and no default: `undefined` at runtime. */
@@ -490,6 +748,8 @@ export function collectHttpFacts(
         bindings.set(d, undefined);
       } else if (arg) {
         bindings.set(d, { sp: caller.sp, expression: arg });
+      } else if ((given === undefined && i === 0) || rest === "unknown") {
+        bindings.set(d, undefined);
       } else if (d.initializer) {
         bindings.set(d, { sp: wrapper.sp, expression: d.initializer });
       } else {
@@ -573,9 +833,11 @@ export function collectHttpFacts(
       const inner = [...(wrapper.leading.get(site) ?? [])].some((d) => !bindings.has(d));
       const urls: NormalizedUrl[] = inner
         ? [{ resolved: false, reason: "WRAPPER_DEPTH", detail: WRAPPER_DEPTH_DETAIL.inner }]
-        : fromConfig
-          ? fromConfig.urls
-          : normalizer.alternatives(site, bindings);
+        : given === undefined
+          ? [{ resolved: false, reason: "DYNAMIC_URL", detail: DYNAMIC_URL_DETAIL.hookKey }]
+          : fromConfig
+            ? fromConfig.urls
+            : normalizer.alternatives(site, bindings);
       const confidence = weaker(site.confidence, caller.confidence);
       const read = normalizer.parameters(site);
       const urlArgs = fromConfig

@@ -150,6 +150,7 @@ export const DYNAMIC_URL_DETAIL = {
   onlyHoles: "every path segment is only known at runtime",
   emptyHost: "the URL has an empty host",
   tooComplex: "the URL is too large or too complex to read statically",
+  hookKey: "the SWR key is an array, which the fetcher may take whole or spread",
 } as const;
 
 export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];

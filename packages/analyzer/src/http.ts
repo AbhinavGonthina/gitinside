@@ -60,8 +60,9 @@
  * - A `defaults.baseURL` write in a module the request's file doesn't import, even when an
  *   entry point loads both (`main.ts` importing `./setup` and `./App`): the request keeps the
  *   `create` config's base, since what an entry point loads isn't modeled.
- * - Other HTTP clients (`ky`, `got`, `superagent`, `ofetch`, SWR/React Query fetchers that
- *   aren't one of the above), `XMLHttpRequest`, and `EventSource`/`WebSocket`.
+ * - Other HTTP clients (`ky`, `got`, `superagent`, `ofetch`, React Query fetchers that aren't
+ *   one of the above), `XMLHttpRequest`, and `EventSource`/`WebSocket`. An SWR fetcher that
+ *   wraps one of the above is inlined at the hook (`wrappers.ts`, ADR-0193).
  * - `axios.all`/`axios.spread` add nothing: the requests inside are collected on their own.
  */
 import ts from "typescript";

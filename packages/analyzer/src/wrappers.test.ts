@@ -535,6 +535,119 @@ describe("inlineWrappers", () => {
   });
 });
 
+describe("SWR fetchers (ADR-0193)", () => {
+  /** The fetchers' own requests, kept when no hook or call passes them a URL. */
+  const FETCHER =
+    "src/lib/fetcher.ts:2 GET DYNAMIC_URL: the URL starts with a value only known at runtime [fetcher]";
+  const SEND =
+    "src/lib/fetcher.ts:4 POST DYNAMIC_URL: the URL starts with a value only known at runtime [send]";
+
+  /** A repo fetcher (`fetcher(url)`) and a mutation fetcher (`send(url, { arg })`). */
+  async function fetchers(): Promise<void> {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { swr: "2" } }));
+    await put("src/lib/fetcher.ts", [
+      'import axios from "axios";',
+      "export const fetcher = (url: string) => axios.get(url).then((r) => r.data);",
+      "export async function send(url: string, { arg }: { arg: unknown }) {",
+      "  return axios.post(url, arg);",
+      "}",
+    ]);
+  }
+
+  it("inlines a hook's fetcher at the hook with each key it may pass", async () => {
+    await fetchers();
+    await put("src/hooks.ts", [
+      'import useSWR, { preload } from "swr";',
+      'import useSWRImmutable from "swr/immutable";',
+      'import useSWRInfinite from "swr/infinite";',
+      'import useSWRMutation from "swr/mutation";',
+      'import { fetcher, send } from "./lib/fetcher";',
+      "",
+      "export function usePosts(id?: string, ready?: boolean) {",
+      '  useSWR("/api/me", fetcher);',
+      "  useSWR(id ? `/api/posts/${id}` : null, fetcher);",
+      '  useSWR(ready && "/api/feed", fetcher);',
+      "  useSWR(() => `/api/users/${id}`, fetcher);",
+      '  useSWR(["/api/token", id], fetcher);',
+      "  useSWR(id, fetcher);",
+      '  useSWRImmutable("/api/config", { fetcher });',
+      "  useSWRInfinite((index: number, previous: unknown[] | null) =>",
+      "    previous && !previous.length ? null : `/api/items?page=${index}`, fetcher);",
+      '  useSWRMutation("/api/posts", send);',
+      '  useSWR("/api/cache-only", null);',
+      "  useSWR(null, fetcher);",
+      "}",
+      'preload("/api/me", fetcher);',
+    ]);
+    const via = " <- src/lib/fetcher.ts:2";
+    expect(await summary()).toEqual([
+      `src/hooks.ts:8 GET /api/me [usePosts]${via}`,
+      `src/hooks.ts:9 GET /api/posts/{} [usePosts]${via}`,
+      `src/hooks.ts:10 GET /api/feed [usePosts]${via}`,
+      `src/hooks.ts:11 GET /api/users/{} [usePosts]${via}`,
+      `src/hooks.ts:12 GET DYNAMIC_URL: the SWR key is an array, which the fetcher may take whole or spread [usePosts]${via}`,
+      `src/hooks.ts:13 GET WRAPPER_DEPTH: the URL starts with a parameter of the calling function, a wrapper more than one call deep [usePosts]${via}`,
+      `src/hooks.ts:14 GET /api/config [usePosts]${via}`,
+      `src/hooks.ts:15 GET /api/items [usePosts]${via}`,
+      "src/hooks.ts:17 POST /api/posts [usePosts] <- src/lib/fetcher.ts:4",
+      `src/hooks.ts:21 GET /api/me []${via}`,
+    ]);
+  });
+
+  it("uses SWRConfig's fetcher for hooks given none, heuristically, when it is the only one", async () => {
+    await fetchers();
+    await put("src/app.tsx", [
+      'import { SWRConfig } from "swr";',
+      'import { fetcher } from "./lib/fetcher";',
+      "export function App({ children }: { children: unknown }) {",
+      "  return <SWRConfig value={{ fetcher, revalidateOnFocus: false }}>{children}</SWRConfig>;",
+      "}",
+    ]);
+    await put("src/feed.ts", [
+      'import useSWR from "swr";',
+      'export const useFeed = () => useSWR("/api/feed");',
+      'export const useOther = () => useSWR("/api/other", { refreshInterval: 1000 });',
+    ]);
+    const via = " <- src/lib/fetcher.ts:2 (heuristic)";
+    expect(await summary()).toEqual([
+      `src/feed.ts:2 GET /api/feed [useFeed]${via}`,
+      `src/feed.ts:3 GET /api/other [useOther]${via}`,
+      SEND,
+    ]);
+
+    // A second config with another fetcher: which one a hook renders under isn't known.
+    await put("src/lib/other.ts", [
+      "export const other = (url: string) => fetch(url).then((r) => r.json());",
+    ]);
+    await put("src/admin.tsx", [
+      'import { SWRConfig } from "swr";',
+      'import { other } from "./lib/other";',
+      "export const Admin = () => <SWRConfig value={{ fetcher: other }} />;",
+    ]);
+    expect(await summary()).toEqual([
+      FETCHER,
+      SEND,
+      "src/lib/other.ts:1 GET DYNAMIC_URL: the URL starts with a value only known at runtime [other]",
+    ]);
+  });
+
+  it("leaves other libraries' hooks, and hooks with no key, to the fetcher's own request", async () => {
+    await fetchers();
+    await put("src/hooks.ts", [
+      'import useSWR from "swr";',
+      'import { fetcher } from "./lib/fetcher";',
+      "function useLocal(key: string, f: (key: string) => unknown) {",
+      "  return f(key);",
+      "}",
+      "export function useNothing() {",
+      '  useLocal("/api/local", fetcher);',
+      "  useSWR(null, fetcher);",
+      "}",
+    ]);
+    expect(await summary()).toEqual([FETCHER, SEND]);
+  });
+});
+
 describe("collectHttpFacts + bindWrappers (M6.7c)", () => {
   /** The facts of the service whose files are under `folder`. */
   const of = (all: Awaited<ReturnType<typeof facts>>, folder: string): HttpFacts => {

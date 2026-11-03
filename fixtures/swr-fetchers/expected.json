@@ -1,0 +1,589 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:reading-list/pages/index.tsx#Home",
+      "id": "calls:symbol:reading-list/pages/index.tsx#Home->symbol:reading-list/hooks/books.ts#useAddBook",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 23,
+          "file": "pages/index.tsx",
+          "line": 12
+        }
+      ],
+      "to": "symbol:reading-list/hooks/books.ts#useAddBook"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:reading-list/pages/index.tsx#Home",
+      "id": "calls:symbol:reading-list/pages/index.tsx#Home->symbol:reading-list/hooks/books.ts#useBookPages",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 27,
+          "file": "pages/index.tsx",
+          "line": 11
+        }
+      ],
+      "to": "symbol:reading-list/hooks/books.ts#useBookPages"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:reading-list/ALL /api/shelves",
+      "id": "handles:route:reading-list/ALL /api/shelves->symbol:reading-list/pages/api/shelves.ts#shelves",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/shelves.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:reading-list/pages/api/shelves.ts#shelves"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:reading-list/GET /api/books",
+      "id": "handles:route:reading-list/GET /api/books->symbol:reading-list/pages/api/books/index.ts#books",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/books/index.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:reading-list/pages/api/books/index.ts#books"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:reading-list/GET /api/books/:id",
+      "id": "handles:route:reading-list/GET /api/books/:id->symbol:reading-list/pages/api/books/[id].ts#book",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/books/[id].ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:reading-list/pages/api/books/[id].ts#book"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:reading-list/POST /api/books",
+      "id": "handles:route:reading-list/POST /api/books->symbol:reading-list/pages/api/books/index.ts#books",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/books/index.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:reading-list/pages/api/books/index.ts#books"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:reading-list/hooks/books.ts#useAddBook",
+      "id": "http:symbol:reading-list/hooks/books.ts#useAddBook->route:reading-list/POST /api/books",
+      "kind": "http",
+      "label": "POST /api/books",
+      "sites": [
+        {
+          "column": 10,
+          "file": "hooks/books.ts",
+          "line": 27
+        }
+      ],
+      "to": "route:reading-list/POST /api/books"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:reading-list/hooks/books.ts#useBook",
+      "id": "http:symbol:reading-list/hooks/books.ts#useBook->route:reading-list/GET /api/books/:id",
+      "kind": "http",
+      "label": "GET /api/books/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "hooks/books.ts",
+          "line": 12
+        }
+      ],
+      "to": "route:reading-list/GET /api/books/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:reading-list/hooks/books.ts#useBookPages",
+      "id": "http:symbol:reading-list/hooks/books.ts#useBookPages->route:reading-list/GET /api/books",
+      "kind": "http",
+      "label": "GET /api/books",
+      "sites": [
+        {
+          "column": 10,
+          "file": "hooks/books.ts",
+          "line": 23
+        }
+      ],
+      "to": "route:reading-list/GET /api/books"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:reading-list/pages/index.tsx#Home",
+      "id": "http:symbol:reading-list/pages/index.tsx#Home->route:reading-list/ALL /api/shelves",
+      "kind": "http",
+      "label": "ALL /api/shelves",
+      "sites": [
+        {
+          "column": 29,
+          "file": "pages/index.tsx",
+          "line": 10
+        }
+      ],
+      "to": "route:reading-list/ALL /api/shelves"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:reading-list/pages/index.tsx#Home",
+      "id": "http:symbol:reading-list/pages/index.tsx#Home->unresolved:reading-list/pages/index.tsx:13:27",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 27,
+          "file": "pages/index.tsx",
+          "line": 13
+        }
+      ],
+      "to": "unresolved:reading-list/pages/index.tsx:13:27"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:reading-list/hooks/books.ts",
+      "id": "imports:file:reading-list/hooks/books.ts->file:reading-list/lib/fetcher.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 37,
+          "file": "hooks/books.ts",
+          "line": 4
+        }
+      ],
+      "to": "file:reading-list/lib/fetcher.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:reading-list/pages/_app.tsx",
+      "id": "imports:file:reading-list/pages/_app.tsx->file:reading-list/lib/fetcher.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/_app.tsx",
+          "line": 3
+        }
+      ],
+      "to": "file:reading-list/lib/fetcher.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:reading-list/pages/index.tsx",
+      "id": "imports:file:reading-list/pages/index.tsx->file:reading-list/hooks/books.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 42,
+          "file": "pages/index.tsx",
+          "line": 2
+        }
+      ],
+      "to": "file:reading-list/hooks/books.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:reading-list//",
+      "id": "renders:page:reading-list//->symbol:reading-list/pages/index.tsx#Home",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/index.tsx",
+          "line": 9
+        }
+      ],
+      "to": "symbol:reading-list/pages/index.tsx#Home"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "d2eb75094a040f716ec6573c15282c3bcb263049198fbb5dfce35a686f18d5d7",
+      "id": "file:reading-list/hooks/books.ts",
+      "kind": "file",
+      "label": "books.ts",
+      "parentId": "module:reading-list/hooks",
+      "path": "hooks/books.ts"
+    },
+    {
+      "hash": "995d85e32b43edd1df3d450b3dfd3d86e4d8645bf673f7fc1acd09cfa46517d1",
+      "id": "file:reading-list/lib/fetcher.ts",
+      "kind": "file",
+      "label": "fetcher.ts",
+      "parentId": "module:reading-list/lib",
+      "path": "lib/fetcher.ts"
+    },
+    {
+      "hash": "098947bd3c396a9622a45d3384b2ff55ef255c60b5031284100f6cf65c178706",
+      "id": "file:reading-list/pages/_app.tsx",
+      "kind": "file",
+      "label": "_app.tsx",
+      "parentId": "module:reading-list/pages",
+      "path": "pages/_app.tsx"
+    },
+    {
+      "hash": "725cde381b2185d3d0c73be4cc576c6db24bb0998e658d32e2d224903587e59f",
+      "id": "file:reading-list/pages/api/books/[id].ts",
+      "kind": "file",
+      "label": "[id].ts",
+      "parentId": "module:reading-list/pages/api/books",
+      "path": "pages/api/books/[id].ts"
+    },
+    {
+      "hash": "e2f5b2aeea398a5ec2f9099d6fae5aa400af5d3af1e638873c24abb7b745dc45",
+      "id": "file:reading-list/pages/api/books/index.ts",
+      "kind": "file",
+      "label": "index.ts",
+      "parentId": "module:reading-list/pages/api/books",
+      "path": "pages/api/books/index.ts"
+    },
+    {
+      "hash": "2c1cae9310c5ac73ace3e0cfb4e9f6ddeba4a25a6e7a1f04f86680ae3143ecb6",
+      "id": "file:reading-list/pages/api/shelves.ts",
+      "kind": "file",
+      "label": "shelves.ts",
+      "parentId": "module:reading-list/pages/api",
+      "path": "pages/api/shelves.ts"
+    },
+    {
+      "hash": "c29f319dc0c793420796485937a3cdcf2f4b015d79ecf8667e957f16b508824e",
+      "id": "file:reading-list/pages/index.tsx",
+      "kind": "file",
+      "label": "index.tsx",
+      "parentId": "module:reading-list/pages",
+      "path": "pages/index.tsx"
+    },
+    {
+      "id": "module:reading-list/hooks",
+      "kind": "module",
+      "label": "hooks",
+      "parentId": "service:reading-list/",
+      "path": "hooks"
+    },
+    {
+      "id": "module:reading-list/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "service:reading-list/",
+      "path": "lib"
+    },
+    {
+      "id": "module:reading-list/pages",
+      "kind": "module",
+      "label": "pages",
+      "parentId": "service:reading-list/",
+      "path": "pages"
+    },
+    {
+      "id": "module:reading-list/pages/api",
+      "kind": "module",
+      "label": "api",
+      "parentId": "module:reading-list/pages",
+      "path": "pages/api"
+    },
+    {
+      "id": "module:reading-list/pages/api/books",
+      "kind": "module",
+      "label": "books",
+      "parentId": "module:reading-list/pages/api",
+      "path": "pages/api/books"
+    },
+    {
+      "id": "page:reading-list//",
+      "kind": "page",
+      "label": "/",
+      "layer": "frontend",
+      "parentId": "file:reading-list/pages/index.tsx",
+      "path": "/",
+      "source": {
+        "column": 25,
+        "file": "pages/index.tsx",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:reading-list/ALL /api/shelves",
+      "kind": "route",
+      "label": "ALL /api/shelves",
+      "layer": "backend",
+      "method": "ALL",
+      "parentId": "file:reading-list/pages/api/shelves.ts",
+      "path": "/api/shelves",
+      "source": {
+        "column": 25,
+        "file": "pages/api/shelves.ts",
+        "line": 3
+      }
+    },
+    {
+      "id": "route:reading-list/GET /api/books",
+      "kind": "route",
+      "label": "GET /api/books",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:reading-list/pages/api/books/index.ts",
+      "path": "/api/books",
+      "source": {
+        "column": 25,
+        "file": "pages/api/books/index.ts",
+        "line": 3
+      }
+    },
+    {
+      "id": "route:reading-list/GET /api/books/:id",
+      "kind": "route",
+      "label": "GET /api/books/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:reading-list/pages/api/books/[id].ts",
+      "path": "/api/books/:id",
+      "source": {
+        "column": 25,
+        "file": "pages/api/books/[id].ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:reading-list/POST /api/books",
+      "kind": "route",
+      "label": "POST /api/books",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:reading-list/pages/api/books/index.ts",
+      "path": "/api/books",
+      "source": {
+        "column": 25,
+        "file": "pages/api/books/index.ts",
+        "line": 3
+      }
+    },
+    {
+      "framework": "next",
+      "id": "service:reading-list/",
+      "kind": "service",
+      "label": "reading-list",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": false,
+      "id": "symbol:reading-list/hooks/books.ts#pageKey",
+      "kind": "symbol",
+      "label": "pageKey",
+      "parentId": "file:reading-list/hooks/books.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 20,
+        "file": "hooks/books.ts",
+        "line": 17
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/hooks/books.ts#useAddBook",
+      "kind": "symbol",
+      "label": "useAddBook",
+      "parentId": "file:reading-list/hooks/books.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 28,
+        "file": "hooks/books.ts",
+        "line": 26
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/hooks/books.ts#useBook",
+      "kind": "symbol",
+      "label": "useBook",
+      "parentId": "file:reading-list/hooks/books.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "hooks/books.ts",
+        "line": 11
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/hooks/books.ts#useBookPages",
+      "kind": "symbol",
+      "label": "useBookPages",
+      "parentId": "file:reading-list/hooks/books.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 24,
+        "file": "hooks/books.ts",
+        "line": 22
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/lib/fetcher.ts#addToShelf",
+      "kind": "symbol",
+      "label": "addToShelf",
+      "parentId": "file:reading-list/lib/fetcher.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "lib/fetcher.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/lib/fetcher.ts#fetcher",
+      "kind": "symbol",
+      "label": "fetcher",
+      "parentId": "file:reading-list/lib/fetcher.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 4,
+        "file": "lib/fetcher.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/pages/_app.tsx#App",
+      "kind": "symbol",
+      "label": "App",
+      "parentId": "file:reading-list/pages/_app.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "pages/_app.tsx",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/pages/api/books/[id].ts#book",
+      "kind": "symbol",
+      "label": "book",
+      "parentId": "file:reading-list/pages/api/books/[id].ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "pages/api/books/[id].ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/pages/api/books/index.ts#books",
+      "kind": "symbol",
+      "label": "books",
+      "parentId": "file:reading-list/pages/api/books/index.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "pages/api/books/index.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/pages/api/shelves.ts#shelves",
+      "kind": "symbol",
+      "label": "shelves",
+      "parentId": "file:reading-list/pages/api/shelves.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "pages/api/shelves.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/pages/index.tsx#Home",
+      "kind": "symbol",
+      "label": "Home",
+      "parentId": "file:reading-list/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 22,
+        "file": "pages/index.tsx",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "swr-fetchers",
+      "parentId": null
+    },
+    {
+      "detail": "the SWR key is an array, which the fetcher may take whole or spread",
+      "expression": "useSWR([\"…\", \"…\"])",
+      "id": "unresolved:reading-list/pages/index.tsx:13:27",
+      "kind": "unresolved",
+      "label": "GET useSWR([\"…\", \"…\"])",
+      "parentId": "service:reading-list/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 27,
+        "file": "pages/index.tsx",
+        "line": 13
+      }
+    }
+  ],
+  "repo": {
+    "name": "swr-fetchers",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
