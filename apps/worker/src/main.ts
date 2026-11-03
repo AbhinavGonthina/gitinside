@@ -4,6 +4,7 @@ import {
   createDb,
   failInterruptedAnalyses,
   recentAnalysisStats,
+  runMigrations,
   type AnyDatabase,
 } from "@gitinside/db";
 import type { WorkerLog } from "./attempt.js";
@@ -30,6 +31,10 @@ import { createRunServer } from "./run.js";
  *
  * **Startup, in order** (any failure closes what was opened and exits 1, so Cloud Run
  * starts it again):
+ * 0. **Migrate** (ADR-0192): apply pending migrations through `migrationUrl` (Neon's direct
+ *    endpoint) under a Postgres advisory lock, so two instances take turns and a new
+ *    revision never takes traffic (its startup probe waits for `listen`) on a schema older
+ *    than its code. Nothing else touches the database first.
  * 1. Open Postgres.
  * 2. **Sweep:** delete leftover job folders (`/tmp` is the instance's own, so another
  *    instance's job is never in it), then mark analyses `running` for over
@@ -71,6 +76,8 @@ export interface StartOptions {
   analyzerVersion?: string;
   /** Default {@link createDb} on `config.databaseUrl` (tests pass PGlite). */
   openDb?: (url: string) => DbConnection;
+  /** Default {@link runMigrations} on `config.migrationUrl` (tests migrate their own database). */
+  migrate?: (url: string) => Promise<void>;
   /** GitHub endpoints (tests point them at a fake); the token comes from the config. */
   github?: Omit<DownloadOptions, "signal" | "token">;
   /** The analysis runner and its limits (tests stub the child). */
@@ -103,6 +110,29 @@ async function runAll(
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+/** How many wrapped errors {@link errorCauses} reports. */
+const MAX_CAUSES = 5;
+
+/**
+ * The errors `error` wraps (`cause`, innermost last): each message, with Postgres's
+ * SQLSTATE `code` when it has one. Drizzle reports only "Failed query: …" and puts the
+ * database's own reason (`relation "analyses" does not exist`, 42P01) on `cause`. Messages
+ * and codes only, never a stack; neither postgres.js nor Postgres puts a password in one.
+ */
+export function errorCauses(error: unknown): { message: string; code?: string }[] {
+  const causes: { message: string; code?: string }[] = [];
+  let next = error instanceof Error ? error.cause : undefined;
+  while (next !== undefined && next !== null && causes.length < MAX_CAUSES) {
+    const code =
+      typeof next === "object" && "code" in next && typeof next.code === "string"
+        ? next.code
+        : undefined;
+    causes.push({ message: errorMessage(next), ...(code === undefined ? {} : { code }) });
+    next = next instanceof Error ? next.cause : undefined;
+  }
+  return causes;
+}
+
 /** Start the worker's `POST /run` server from a checked config. */
 export async function startWorkerProcess(
   config: WorkerConfig,
@@ -122,6 +152,14 @@ export async function startWorkerProcess(
   const cleanup: [string, () => Promise<void>][] = [];
   const undo = () => runAll([...cleanup].reverse(), log).catch(() => undefined);
   try {
+    const migrateStart = performance.now();
+    try {
+      await (options.migrate ?? runMigrations)(config.migrationUrl);
+    } catch (error) {
+      throw new Error("migrations failed", { cause: error });
+    }
+    log({ event: "migrations_applied", ms: Math.round(performance.now() - migrateStart) });
+
     const { db, close: closeDb } = (options.openDb ?? createDb)(config.databaseUrl);
     cleanup.push(["database", closeDb]);
 
@@ -253,7 +291,12 @@ export async function runMain(io: MainIo): Promise<RunningWorker | undefined> {
   try {
     running = await (io.start ?? startWorkerProcess)(config, { log });
   } catch (error) {
-    log({ event: "startup_failed", message: errorMessage(error) });
+    const causes = errorCauses(error);
+    log({
+      event: "startup_failed",
+      message: errorMessage(error),
+      ...(causes.length === 0 ? {} : { causes }),
+    });
     io.exit(1);
     return undefined;
   }

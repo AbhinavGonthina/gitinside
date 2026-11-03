@@ -124,6 +124,34 @@ describe("runMain", () => {
     ]);
   });
 
+  it("logs the database's own reason under a wrapped failure, never the connection string", async () => {
+    // Drizzle's error says only "Failed query: …"; the reason is on its `cause` (planning #17).
+    const reason = Object.assign(new Error('relation "analyses" does not exist'), {
+      code: "42P01",
+    });
+    const query = new Error('Failed query: update "analyses" set …', { cause: reason });
+    const { io, main } = fakeIo({
+      env: { ...ENV, DATABASE_URL_UNPOOLED: "postgres://user:pw-secret@direct.example/db" },
+      start: async () => {
+        throw new Error("migrations failed", { cause: query });
+      },
+    });
+    await runMain(main);
+    expect(io.exits).toEqual([1]);
+    expect(parse(io.lines)).toEqual([
+      {
+        time: expect.any(String),
+        event: "startup_failed",
+        message: "migrations failed",
+        causes: [
+          { message: 'Failed query: update "analyses" set …' },
+          { message: 'relation "analyses" does not exist', code: "42P01" },
+        ],
+      },
+    ]);
+    expect(io.lines.join("")).not.toContain("pw-secret");
+  });
+
   it("passes the config (no Redis needed) and a JSON log to the start", async () => {
     let seen: WorkerConfig | undefined;
     const { worker } = fakeWorker();
@@ -136,6 +164,7 @@ describe("runMain", () => {
     });
     expect(await runMain(main)).toBe(worker);
     expect(seen?.databaseUrl).toBe(ENV.DATABASE_URL);
+    expect(seen?.migrationUrl).toBe(ENV.DATABASE_URL);
     expect(parse(io.lines)).toMatchObject([{ event: "worker_ready", port: 8080 }]);
     expect(io.exits).toEqual([]);
     expect(io.signals).toEqual(SHUTDOWN_SIGNALS);
@@ -220,6 +249,7 @@ describe("startWorkerProcess", () => {
     await t.db.delete(computeUsage);
     root = await mkdtemp(join(tmpdir(), "gitinside-main-"));
     lines = [];
+    migrated = [];
     closes = 0;
     github = await startFakeGitHub(tarballFrom([{ name: "index.ts", body: "export {};\n" }]));
     const tarball = github.api;
@@ -248,6 +278,9 @@ describe("startWorkerProcess", () => {
   });
 
   const log = (event: Record<string, unknown>) => void lines.push(JSON.stringify(event));
+  // The test database is migrated already; this records where startup would migrate.
+  let migrated: string[] = [];
+  const migrate = async (url: string) => void migrated.push(url);
   const openDb = () => ({
     db: t.db,
     close: async () => {
@@ -258,6 +291,7 @@ describe("startWorkerProcess", () => {
   function config(overrides: Partial<WorkerConfig> = {}): WorkerConfig {
     return {
       databaseUrl: "postgres://unused",
+      migrationUrl: "postgres://direct-unused",
       store: { endpoint: s3.endpoint, bucket: s3.bucket, credentials: s3.credentials },
       secrets: [SECRET],
       jobsRoot: join(root, "jobs"),
@@ -281,6 +315,7 @@ describe("startWorkerProcess", () => {
     const worker = await startWorkerProcess(config(overrides), {
       log,
       openDb,
+      migrate,
       analyzerVersion: VERSION,
       github: { apiBase: github.apiBase, downloadOrigins: [github.codeloadOrigin] },
       jobDeps: { run: writeGraph },
@@ -327,6 +362,7 @@ describe("startWorkerProcess", () => {
     await expect(fetch(`${origin(worker)}/health`)).rejects.toThrow();
     expect(events(lines)).toEqual([
       "worker_starting",
+      "migrations_applied",
       "startup_sweep",
       "worker_ready",
       "job_done",
@@ -388,6 +424,7 @@ describe("startWorkerProcess", () => {
     expect(rows.find((row) => row.id === live)).toMatchObject({ status: "running" });
     expect(parse(lines)).toMatchObject([
       { event: "worker_starting", analyzerVersion: VERSION, githubToken: true },
+      { event: "migrations_applied", ms: expect.any(Number) },
       { event: "startup_sweep", folders: 1, interrupted: 1 },
       { event: "worker_ready", host: "127.0.0.1" },
     ]);
@@ -406,18 +443,49 @@ describe("startWorkerProcess", () => {
 
   it("fails and closes the database when the sweep fails", async () => {
     await writeFile(join(root, "jobs"), "a file, not a folder");
-    await expect(startWorkerProcess(config(), { log, openDb })).rejects.toThrow();
+    await expect(startWorkerProcess(config(), { log, openDb, migrate })).rejects.toThrow();
     expect(closes).toBe(1);
-    expect(events(lines)).toEqual(["worker_starting"]);
+    expect(events(lines)).toEqual(["worker_starting", "migrations_applied"]);
   });
 
+  it("migrates through the direct URL before anything else touches the database", async () => {
+    const order: string[] = [];
+    await start({
+      migrate: async (url) => void order.push(`migrate ${url}`),
+      openDb: (url) => {
+        order.push(`open ${url}`);
+        return openDb();
+      },
+    });
+    expect(order).toEqual(["migrate postgres://direct-unused", "open postgres://unused"]);
+  });
+
+  it("fails before opening the pool when the migrations fail, keeping the database's reason", async () => {
+    // What production's empty Neon database gave (planning #17), now one step earlier.
+    const reason = Object.assign(new Error('relation "analyses" does not exist'), {
+      code: "42P01",
+    });
+    const failure = await startWorkerProcess(config(), {
+      log,
+      openDb,
+      migrate: async () => {
+        throw new Error("Failed query: create table …", { cause: reason });
+      },
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(failure).toMatchObject({ message: "migrations failed" });
+    expect(closes).toBe(0);
+    expect(events(lines)).toEqual(["worker_starting"]);
+  });
   it("closes maintenance and the database when the port is taken", async () => {
     const taken = createServer();
     await new Promise<void>((resolve) => taken.listen(0, "127.0.0.1", resolve));
     try {
       const { port } = taken.address() as { port: number };
       await expect(
-        startWorkerProcess(config({ port }), { log, openDb, maintenance: {} }),
+        startWorkerProcess(config({ port }), { log, openDb, migrate, maintenance: {} }),
       ).rejects.toThrow(/EADDRINUSE/);
       expect(closes).toBe(1);
     } finally {
@@ -428,7 +496,12 @@ describe("startWorkerProcess", () => {
   it("runs no maintenance at startup, only after a job, and then once an hour", async () => {
     s3.objects.set("public/x", { body: Buffer.alloc(9), headers: {}, lastModified: new Date() });
     const worker = await start({ maintenance: {} });
-    expect(events(lines)).toEqual(["worker_starting", "startup_sweep", "worker_ready"]);
+    expect(events(lines)).toEqual([
+      "worker_starting",
+      "migrations_applied",
+      "startup_sweep",
+      "worker_ready",
+    ]);
     // Since the start: a row whose instance died, and one no task will ever run.
     const dead = await runningRow("e".repeat(40));
     await t.db
@@ -453,7 +526,7 @@ describe("startWorkerProcess", () => {
     const deliveries = await pushTask(fakeTask(origin(worker), JOB, SECRET));
     expect(deliveries).toMatchObject([{ status: 200, body: { state: "done" } }]);
     // Answered only after the run: its lines are all in by now.
-    expect(events(lines).slice(3)).toEqual([
+    expect(events(lines).slice(4)).toEqual([
       "job_done",
       "maintenance_started",
       "stale_jobs_failed",
@@ -495,7 +568,7 @@ describe("startWorkerProcess", () => {
     const other = { ...JOB, sha: "d".repeat(40) };
     await pushTask(fakeTask(origin(worker), other, SECRET));
     await worker.stop();
-    expect(events(lines).slice(9)).toEqual(["job_done", "worker_stopping", "worker_stopped"]);
+    expect(events(lines).slice(10)).toEqual(["job_done", "worker_stopping", "worker_stopped"]);
     expect(await t.db.select().from(maintenanceRuns)).toMatchObject([{ name: "hourly" }]);
   });
 });

@@ -11,7 +11,7 @@
  * plain `docker run` with only what Cloud Run gives: the env (a fake one; no real secret
  * exists in CI), a `PORT` other than the 8080 default, 1 vCPU / 4 GiB with no swap, `/tmp`
  * in memory, and the `K_*` variables. Postgres is a throwaway container on the check's own
- * network. No Redis and no egress gateway: the queue is Cloud Tasks (ADR-0148), and on Cloud
+ * network, left empty: the worker applies the migrations at startup (ADR-0192). No Redis and no egress gateway: the queue is Cloud Tasks (ADR-0148), and on Cloud
  * Run the analysis child's own guards are its network boundary (ADR-0152). It checks:
  * - the image: numeric non-root `USER`, `HOST=0.0.0.0`, `NODE_ENV=production`, the command;
  * - `GET /health` answers 200 on `PORT`, from outside the container;
@@ -155,11 +155,6 @@ async function request(method, path, { body, signed = false } = {}) {
   const response = await fetch(`http://127.0.0.1:${PORT}${path}`, { method, headers, body });
   return { status: response.status, body: await response.json() };
 }
-
-const MIGRATE = `
-import { runMigrations } from "@gitinside/db";
-await runMigrations(process.env.DATABASE_URL);
-`;
 
 // Every path outside /tmp and the platform's own mounts that the caller could write to.
 const PROBE = `
@@ -344,21 +339,9 @@ try {
     "postgres:17-alpine",
   ]);
   await waitFor("postgres", 60, () => inspect(POSTGRES).State.Health?.Status === "healthy");
-  run([
-    "run",
-    "--rm",
-    "--network",
-    NETWORK,
-    "--env-file",
-    envFile,
-    IMAGE,
-    "node",
-    "--input-type=module",
-    "-e",
-    MIGRATE,
-  ]);
 
   // The worker, as Cloud Run starts it: the image's user, command, and filesystem as built.
+  // The database is empty, as production's was (planning #17): the worker migrates it.
   run([
     "run",
     "--detach",
@@ -489,7 +472,13 @@ try {
     .split("\n")
     .filter((line) => line !== "")
     .map((line) => JSON.parse(line).event);
-  for (const event of ["worker_starting", "worker_ready", "signal", "worker_stopped"]) {
+  for (const event of [
+    "worker_starting",
+    "migrations_applied",
+    "worker_ready",
+    "signal",
+    "worker_stopped",
+  ]) {
     assert.ok(events.includes(event), `no ${event} in ${events.join(", ")}`);
   }
 

@@ -10,6 +10,7 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
  * | Variable | Required | Meaning |
  * |---|---|---|
  * | `DATABASE_URL` | yes | `postgres://` or `postgresql://` (Neon's pooled endpoint) |
+ * | `DATABASE_URL_UNPOOLED` | no, {@link directUrlOf} `DATABASE_URL` | a direct (unpooled) endpoint for the migrations run at startup (ADR-0192) |
  * | `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_ACCESS_KEY_ID`, `SNAPSHOTS_SECRET_ACCESS_KEY`, `SNAPSHOTS_BUCKET` | yes | snapshot bucket on Oracle Object Storage (storage.ts) |
  * | `ENQUEUE_HMAC_SECRET` (+ optional `…_PREVIOUS`) | yes | the website's job signing (hmac.ts) |
  * | `JOBS_ROOT` | no, `/tmp/jobs` | absolute parent of the job folders |
@@ -24,6 +25,8 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
 /** What {@link workerConfigFromEnv} returns. */
 export interface WorkerConfig {
   databaseUrl: string;
+  /** Where startup migrates: `DATABASE_URL_UNPOOLED`, else {@link directUrlOf} `databaseUrl`. */
+  migrationUrl: string;
   store: StoreConfig;
   /** Current signing secret first, then the previous one during a rollover. */
   secrets: string[];
@@ -76,6 +79,23 @@ function urlWithScheme(env: Env, name: string, schemes: readonly string[]): stri
   return value;
 }
 
+// A pooled Neon host: the endpoint ID with `-pooler`, then the region and `neon.tech`.
+const NEON_POOLED_HOST = /^(ep-[a-z0-9-]+)-pooler(\.[a-z0-9.-]+\.neon\.tech)$/;
+
+/**
+ * The direct (unpooled) form of a Postgres URL, for migrations (ADR-0192). Neon names its
+ * pooled endpoint by adding `-pooler` to the endpoint ID (`ep-x-123-pooler.us-east-1.aws.
+ * neon.tech`; the same role and password reach both), so that's removed; any other URL is
+ * returned as is (a local Postgres has no pooler).
+ */
+export function directUrlOf(url: string): string {
+  const parsed = new URL(url);
+  const match = NEON_POOLED_HOST.exec(parsed.hostname);
+  if (match === null) return url;
+  parsed.hostname = `${match[1]}${match[2]}`;
+  return parsed.href;
+}
+
 /** What {@link quotaConfigFromEnv} returns: only what the quota command reads. */
 export interface QuotaConfig {
   databaseUrl: string;
@@ -117,6 +137,12 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
   };
 
   const databaseUrl = check(() => urlWithScheme(env, "DATABASE_URL", ["postgres:", "postgresql:"]));
+  const migrationUrl = check(() => {
+    if (env.DATABASE_URL_UNPOOLED) {
+      return urlWithScheme(env, "DATABASE_URL_UNPOOLED", ["postgres:", "postgresql:"]);
+    }
+    return databaseUrl === undefined ? undefined : directUrlOf(databaseUrl);
+  });
   const store = check(() => storeConfigFromEnv(env));
   const secrets = check(() => secretsFromEnv(env));
   const jobsRoot = check(() => {
@@ -144,6 +170,7 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
   if (
     problems.length > 0 ||
     databaseUrl === undefined ||
+    migrationUrl === undefined ||
     store === undefined ||
     secrets === undefined ||
     jobsRoot === undefined ||
@@ -155,6 +182,7 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
   const githubToken = env.GITHUB_TOKEN;
   return {
     databaseUrl,
+    migrationUrl,
     store,
     secrets,
     jobsRoot,
