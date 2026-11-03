@@ -33,6 +33,34 @@
     },
     {
       "confidence": "exact",
+      "from": "route:reading-list/ALL /api/authors/:name",
+      "id": "handles:route:reading-list/ALL /api/authors/:name->symbol:reading-list/pages/api/authors/[name].ts#author",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/authors/[name].ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:reading-list/pages/api/authors/[name].ts#author"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:reading-list/ALL /api/books/:id/reviews",
+      "id": "handles:route:reading-list/ALL /api/books/:id/reviews->symbol:reading-list/pages/api/books/[id]/reviews.ts#reviews",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/books/[id]/reviews.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:reading-list/pages/api/books/[id]/reviews.ts#reviews"
+    },
+    {
+      "confidence": "exact",
       "from": "route:reading-list/ALL /api/shelves",
       "id": "handles:route:reading-list/ALL /api/shelves->symbol:reading-list/pages/api/shelves.ts#shelves",
       "kind": "handles",
@@ -133,6 +161,36 @@
       "to": "route:reading-list/GET /api/books"
     },
     {
+      "confidence": "exact",
+      "from": "symbol:reading-list/hooks/reviews.ts#useAuthor",
+      "id": "http:symbol:reading-list/hooks/reviews.ts#useAuthor->route:reading-list/ALL /api/authors/:name",
+      "kind": "http",
+      "label": "ALL /api/authors/:name",
+      "sites": [
+        {
+          "column": 10,
+          "file": "hooks/reviews.ts",
+          "line": 17
+        }
+      ],
+      "to": "route:reading-list/ALL /api/authors/:name"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:reading-list/hooks/reviews.ts#useReviews",
+      "id": "http:symbol:reading-list/hooks/reviews.ts#useReviews->route:reading-list/ALL /api/books/:id/reviews",
+      "kind": "http",
+      "label": "ALL /api/books/:id/reviews",
+      "sites": [
+        {
+          "column": 10,
+          "file": "hooks/reviews.ts",
+          "line": 13
+        }
+      ],
+      "to": "route:reading-list/ALL /api/books/:id/reviews"
+    },
+    {
       "confidence": "heuristic",
       "from": "symbol:reading-list/pages/index.tsx#Home",
       "id": "http:symbol:reading-list/pages/index.tsx#Home->route:reading-list/ALL /api/shelves",
@@ -229,6 +287,14 @@
       "path": "hooks/books.ts"
     },
     {
+      "hash": "9ebc14fe5314fc6ee9a5469710c36ad622ae5b2256e64b8167a16c33211bada4",
+      "id": "file:reading-list/hooks/reviews.ts",
+      "kind": "file",
+      "label": "reviews.ts",
+      "parentId": "module:reading-list/hooks",
+      "path": "hooks/reviews.ts"
+    },
+    {
       "hash": "995d85e32b43edd1df3d450b3dfd3d86e4d8645bf673f7fc1acd09cfa46517d1",
       "id": "file:reading-list/lib/fetcher.ts",
       "kind": "file",
@@ -245,12 +311,28 @@
       "path": "pages/_app.tsx"
     },
     {
+      "hash": "39a7c1d5eda3ed8a6d444af78c117257f2d9f0d090811d0990f44c572c7654a1",
+      "id": "file:reading-list/pages/api/authors/[name].ts",
+      "kind": "file",
+      "label": "[name].ts",
+      "parentId": "module:reading-list/pages/api/authors",
+      "path": "pages/api/authors/[name].ts"
+    },
+    {
       "hash": "725cde381b2185d3d0c73be4cc576c6db24bb0998e658d32e2d224903587e59f",
       "id": "file:reading-list/pages/api/books/[id].ts",
       "kind": "file",
       "label": "[id].ts",
       "parentId": "module:reading-list/pages/api/books",
       "path": "pages/api/books/[id].ts"
+    },
+    {
+      "hash": "a4db67da88ce06073a79b4d20befdd2c7b14274fb32ab323ca3d3fd4c168d2bc",
+      "id": "file:reading-list/pages/api/books/[id]/reviews.ts",
+      "kind": "file",
+      "label": "reviews.ts",
+      "parentId": "module:reading-list/pages/api/books/[id]",
+      "path": "pages/api/books/[id]/reviews.ts"
     },
     {
       "hash": "e2f5b2aeea398a5ec2f9099d6fae5aa400af5d3af1e638873c24abb7b745dc45",
@@ -305,11 +387,25 @@
       "path": "pages/api"
     },
     {
+      "id": "module:reading-list/pages/api/authors",
+      "kind": "module",
+      "label": "authors",
+      "parentId": "module:reading-list/pages/api",
+      "path": "pages/api/authors"
+    },
+    {
       "id": "module:reading-list/pages/api/books",
       "kind": "module",
       "label": "books",
       "parentId": "module:reading-list/pages/api",
       "path": "pages/api/books"
+    },
+    {
+      "id": "module:reading-list/pages/api/books/[id]",
+      "kind": "module",
+      "label": "[id]",
+      "parentId": "module:reading-list/pages/api/books",
+      "path": "pages/api/books/[id]"
     },
     {
       "id": "page:reading-list//",
@@ -322,6 +418,34 @@
         "column": 25,
         "file": "pages/index.tsx",
         "line": 9
+      }
+    },
+    {
+      "id": "route:reading-list/ALL /api/authors/:name",
+      "kind": "route",
+      "label": "ALL /api/authors/:name",
+      "layer": "backend",
+      "method": "ALL",
+      "parentId": "file:reading-list/pages/api/authors/[name].ts",
+      "path": "/api/authors/:name",
+      "source": {
+        "column": 25,
+        "file": "pages/api/authors/[name].ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:reading-list/ALL /api/books/:id/reviews",
+      "kind": "route",
+      "label": "ALL /api/books/:id/reviews",
+      "layer": "backend",
+      "method": "ALL",
+      "parentId": "file:reading-list/pages/api/books/[id]/reviews.ts",
+      "path": "/api/books/:id/reviews",
+      "source": {
+        "column": 25,
+        "file": "pages/api/books/[id]/reviews.ts",
+        "line": 3
       }
     },
     {
@@ -451,6 +575,51 @@
     },
     {
       "exported": true,
+      "id": "symbol:reading-list/hooks/reviews.ts#fetchJson",
+      "kind": "symbol",
+      "label": "fetchJson",
+      "parentId": "file:reading-list/hooks/reviews.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 10,
+        "file": "hooks/reviews.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/hooks/reviews.ts#useAuthor",
+      "kind": "symbol",
+      "label": "useAuthor",
+      "parentId": "file:reading-list/hooks/reviews.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 20,
+        "file": "hooks/reviews.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/hooks/reviews.ts#useReviews",
+      "kind": "symbol",
+      "label": "useReviews",
+      "parentId": "file:reading-list/hooks/reviews.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "hooks/reviews.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
       "id": "symbol:reading-list/lib/fetcher.ts#addToShelf",
       "kind": "symbol",
       "label": "addToShelf",
@@ -496,6 +665,21 @@
     },
     {
       "exported": true,
+      "id": "symbol:reading-list/pages/api/authors/[name].ts#author",
+      "kind": "symbol",
+      "label": "author",
+      "parentId": "file:reading-list/pages/api/authors/[name].ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "pages/api/authors/[name].ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
       "id": "symbol:reading-list/pages/api/books/[id].ts#book",
       "kind": "symbol",
       "label": "book",
@@ -506,6 +690,21 @@
         "endLine": 18,
         "file": "pages/api/books/[id].ts",
         "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:reading-list/pages/api/books/[id]/reviews.ts#reviews",
+      "kind": "symbol",
+      "label": "reviews",
+      "parentId": "file:reading-list/pages/api/books/[id]/reviews.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "pages/api/books/[id]/reviews.ts",
+        "line": 3
       },
       "symbolKind": "function"
     },

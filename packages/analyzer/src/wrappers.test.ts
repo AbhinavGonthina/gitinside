@@ -646,6 +646,103 @@ describe("SWR fetchers (ADR-0193)", () => {
     ]);
     expect(await summary()).toEqual([FETCHER, SEND]);
   });
+
+  it("inlines a fetcher written at the hook (M5B.2b)", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { swr: "2" } }));
+    await put("src/hooks.ts", [
+      'import axios from "axios";',
+      'import useSWR from "swr";',
+      'import useSWRMutation from "swr/mutation";',
+      "",
+      "export function useBooks(id?: string) {",
+      '  useSWR("/api/books", (url: string) => fetch(url).then((r) => r.json()));',
+      "  useSWR(id ? `/api/books/${id}` : null, async (url: string) => {",
+      "    const res = await fetch(url);",
+      "    return res.json();",
+      "  });",
+      '  useSWR("/api/shelves", { fetcher: (url: string) => axios.get(url) });',
+      '  useSWR("/api/tags", (url: string) => fetch(`${url}?all=1`));',
+      '  useSWRMutation("/api/books", (url: string, { arg }: { arg: unknown }) =>',
+      '    fetch(url, { method: "POST", body: JSON.stringify(arg) }));',
+      '  useSWR(["/api/token", id], (url: string) => fetch(url));',
+      '  useSWR("/api/raw", (url: string) => fetch("/api/fixed"));',
+      "}",
+      "function run(key: string, f: (key: string) => unknown) {",
+      "  return f(key);",
+      "}",
+      'run("/api/local", (url: string) => fetch(url));',
+    ]);
+    expect(await summary()).toEqual([
+      "src/hooks.ts:6 GET /api/books [useBooks]",
+      "src/hooks.ts:7 GET /api/books/{} [useBooks]",
+      "src/hooks.ts:11 GET /api/shelves [useBooks]",
+      "src/hooks.ts:12 GET /api/tags [useBooks]",
+      "src/hooks.ts:13 POST /api/books [useBooks]",
+      "src/hooks.ts:15 GET DYNAMIC_URL: the SWR key is an array, which the fetcher may take whole or spread [useBooks]",
+      "src/hooks.ts:16 GET /api/fixed [useBooks]",
+      "src/hooks.ts:21 GET DYNAMIC_URL: the URL starts with a value only known at runtime []",
+    ]);
+  });
+
+  it("reads the key through a fetcher's rest parameter, as in SWR's docs (M5B.2b)", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { swr: "2" } }));
+    await put("src/lib/fetcher.ts", [
+      "export const fetcher = (...args: Parameters<typeof fetch>) =>",
+      "  fetch(...args).then((r) => r.json());",
+    ]);
+    await put("src/hooks.ts", [
+      'import useSWR from "swr";',
+      'import useSWRMutation from "swr/mutation";',
+      'import { fetcher } from "./lib/fetcher";',
+      "export function useMe(id?: string) {",
+      '  useSWR("/api/me", fetcher);',
+      '  useSWR(["/api/token", id], fetcher);',
+      '  useSWRMutation("/api/posts", fetcher);',
+      '  useSWR("/api/inline", (...args: [string]) => fetch(...args));',
+      '  fetcher("/api/sessions", { method: "DELETE" });',
+      "  fetcher(...[`/api/users/${id}`]);",
+      "}",
+    ]);
+    const via = " <- src/lib/fetcher.ts:2";
+    expect(await summary()).toEqual([
+      `src/hooks.ts:5 GET /api/me [useMe]${via}`,
+      `src/hooks.ts:6 GET DYNAMIC_URL: the SWR key is an array, which the fetcher may take whole or spread [useMe]${via}`,
+      `src/hooks.ts:7 ? /api/posts [useMe]${via}`,
+      "src/hooks.ts:8 GET /api/inline [useMe]",
+      `src/hooks.ts:9 DELETE /api/sessions [useMe]${via}`,
+      `src/hooks.ts:10 ? DYNAMIC_URL: the URL can't be read statically [useMe]${via}`,
+    ]);
+
+    // Nothing passes the fetcher a URL: its own request, which can't be read.
+    await put("src/hooks.ts", ["export const none = 1;"]);
+    expect(await summary()).toEqual([
+      "src/lib/fetcher.ts:2 ? DYNAMIC_URL: the URL can't be read statically [fetcher]",
+    ]);
+  });
+
+  it("uses a fetcher written in SWRConfig's value for hooks given none (M5B.2b)", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { swr: "2" } }));
+    await put("src/app.tsx", [
+      'import { SWRConfig } from "swr";',
+      "export function App({ children }: { children: unknown }) {",
+      "  return (",
+      "    <SWRConfig value={{ fetcher: (url: string) => fetch(url).then((r) => r.json()) }}>",
+      "      {children}",
+      "    </SWRConfig>",
+      "  );",
+      "}",
+    ]);
+    await put("src/feed.ts", [
+      'import useSWR from "swr";',
+      'export const useFeed = () => useSWR("/api/feed");',
+    ]);
+    expect(await summary()).toEqual(["src/feed.ts:2 GET /api/feed [useFeed] (heuristic)"]);
+
+    await put("src/feed.ts", ["export const none = 1;"]);
+    expect(await summary()).toEqual([
+      "src/app.tsx:4 GET DYNAMIC_URL: the URL starts with a value only known at runtime [App]",
+    ]);
+  });
 });
 
 describe("collectHttpFacts + bindWrappers (M6.7c)", () => {

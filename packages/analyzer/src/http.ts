@@ -161,6 +161,12 @@ export interface HttpCallSite {
    */
   config?: { value: ProgramExpression; baseURL: ProgramExpression | null | undefined };
   /**
+   * For `fetch(...args)`, the one argument a spread: the array spread, whose first element is
+   * the URL and second the init (so `url` and `method` are `null`). Wrapper inlining (M5B.2b)
+   * reads them from the caller's arguments when it is the wrapper's rest parameter.
+   */
+  spread?: ProgramExpression;
+  /**
    * `exact`, or the weaker confidence of a workspace-package import the axios instance was
    * reached through (M1.8).
    */
@@ -991,11 +997,15 @@ export function createHttpSiteCollector(
         url = innerUrl ? { sp, expression: innerUrl } : null;
         if (init === undefined) init = spread !== -1 && spread <= 1 ? null : inner[1];
       }
+      const [only] = args;
       return {
         client: "fetch",
         ...configMethod(sp, init, "GET"),
         url,
         baseURL: undefined,
+        ...(args.length === 1 && only && ts.isSpreadElement(only)
+          ? { spread: { sp, expression: only.expression } }
+          : {}),
         confidence: "exact",
       };
     }
