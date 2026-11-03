@@ -91,7 +91,6 @@ export async function runMigrations(url: string, options: MigrateOptions = {}): 
   const client = postgres(url, { max: 1, prepare: false, onnotice: () => {} });
   try {
     await client`select set_config('lock_timeout', ${`${timeout}ms`}, false)`;
-    await client`select pg_advisory_lock(${MIGRATION_LOCK_KEY.toString()}::bigint)`;
     try {
       await migrate(drizzle(client, { schema }), { migrationsFolder });
     } finally {
