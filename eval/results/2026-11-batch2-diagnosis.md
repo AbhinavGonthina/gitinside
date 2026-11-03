@@ -32,6 +32,14 @@ Every miss has exactly one cause. Fixing B1 alone would turn 13 FN into TPs and 
 - **What the analyzer does.** `fetcher` takes the whole URL as a parameter, so it's a wrapper, and wrapper requests are reported at the wrapper's callers. It has none, so its request stays in place as `unresolved DYNAMIC_URL` at `libs/fetcher.ts:5` (not scored: no label there, EVALUATION.md §1's M5A.4a2 rule), and the seven `useSWR` sites get no prediction.
 - **General form.** A call to a known data-fetching hook (`useSWR(key, fetcher)`, `useSWRImmutable`, SWR's `useSWRInfinite` with a key function; possibly react-query's `useQuery({ queryKey, queryFn })` only when `queryFn` receives the key) whose fetcher argument resolves to a repo wrapper: inline the wrapper at the hook call with the key as its URL argument. Unlike B1, this needs a list of libraries and their argument contracts, which is a design decision (ADR), not just a detector.
 
+## After M5B.1 and M5B.2: one miss left, behind B2 (B3)
+
+With B1 (M5B.1, ADR-0191) and B2 (M5B.2, ADR-0193) fixed, batch 2 scores precision 100.0% (30/30) and recall 96.8% (30/31) ([`2026-11-03-0.1.0.md`](2026-11-03-0.1.0.md#held-out-batch-2-unseen)). Six of B2's seven hooks now resolve. The seventh, `hooks/useFollowingDetails.ts:6` (`useSWR(\`/api/following?username=${username}\`, fetcher)`), now predicts `GET /api/following` at the hook, but it gets `NO_MATCHING_ROUTE`: a second cause that B2 hid, since nothing was predicted there before.
+
+- **What the code does.** `pages/api/following.ts` serves the request inside `if (req.method !== "POST" && req.method !== "DELETE" && req.method !== "PUT") { … }`, so every method except those three reaches the body (the label is `ALL`, as EVALUATION.md §1 labels a handler that doesn't pick one method).
+- **What the analyzer does.** `next.ts` collects the methods compared with `req.method` and makes one route per method, so the file gets `POST`, `DELETE`, and `PUT`, the three methods the guard *excludes*, and no route the `GET` could match.
+- **General form (B3).** A `req.method !==` comparison (or a negated `===`) whose block serves the request means "every method but these". A fix reads the comparison's polarity, as a fixture written from that form, not from this repo; planned as M5B.2c.
+
 ## Other observations (not scored)
 
 - **Services.** With no root `workspaces`, the boilerplate's `prisma/` and `tests-e2e/` folders have their own `package.json`, so M5A.3f's sibling-folder rule makes them services next to the app. That is the documented rule; whether a test or tooling package should be a service in the diagram is a viewer question, not an accuracy one.

@@ -27,6 +27,7 @@ const NAMES = [
   "next-app-router",
   "next-pages-api",
   "next-connect",
+  "swr-fetchers",
   "prisma-relations",
   "pnpm-monorepo",
   "syntax-error",
@@ -126,6 +127,17 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
     ]);
     expect(links(g, "external_call")).toEqual([
       "route:notes/GET /api/notes/:id -> external:ext/notes-archive.example.com exact",
+    ]);
+  });
+
+  it("swr-fetchers draws each SWR hook's request from the hook's caller (ADR-0193)", async () => {
+    const g = await run("swr-fetchers");
+    expect(links(g, "http")).toEqual([
+      "symbol:reading-list/hooks/books.ts#useAddBook -> route:reading-list/POST /api/books exact",
+      "symbol:reading-list/hooks/books.ts#useBook -> route:reading-list/GET /api/books/:id exact",
+      "symbol:reading-list/hooks/books.ts#useBookPages -> route:reading-list/GET /api/books exact",
+      "symbol:reading-list/pages/index.tsx#Home -> route:reading-list/ALL /api/shelves heuristic",
+      "symbol:reading-list/pages/index.tsx#Home -> unresolved:reading-list/pages/index.tsx:13:27 unresolved DYNAMIC_URL",
     ]);
   });
 
