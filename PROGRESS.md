@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.9e2 Diff mode on the website, then M5B from #15; M5.17e6 (worker startup probe), M5.13, and M5.14b wait on #3 (the revision's logs)
+M6.9e2b Diff mode's controls on the website (Base/Head/Overlay without the top bar, stop comparing), then M5B from #15; M5.17e6 (worker startup probe), M5.13, and M5.14b wait on #3 (the revision's logs)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -257,7 +257,8 @@ Targets: precision ≥ 95%, recall ≥ 80% on the original 5 repos, held-out rep
 - [x] M6.9c2 Counts per version: frame badges, the inspector's summary, an aggregate pill's count still include the other version's items (ADR-0183); a renamed node's base label in Base; tests, screenshots, baselines {model: opus}
 - [x] M6.9d Changes list in the inspector: Added / Changed / Removed / Broken with counts, renamed and moved rows in words, selecting a row flies to it (opening its ancestors), keyboard and screen-reader names; tests, screenshots, baselines {model: opus}
 - [x] M6.9e1 Base's code at the base commit (ADR-0185's consequence): `versionGraph(overlay, "base")` gives every node and edge base has its base record (not only renamed nodes; source lines and call sites are base's), boxes sized for them; `ExplorerDiff` takes Base's `sources`/`loadSource`; the inspector's code preview and Open on GitHub read Base's nodes, and the Overlay's removed nodes and removed trace hops, at the base commit; tests {model: opus}
-- [ ] M6.9e2 Diff mode on the website: `?base=<sha>` in the deep-link codec, both analyses read and the diff computed in the browser (or a stored PR diff later), mismatch and missing-base states, Base's loader at the base commit; tests, screenshots {model: opus}
+- [x] M6.9e2a Diff mode on the website, the comparison (ADR-0189): `?base=<sha>` in the deep-link codec (`BASE_PARAM`, `withBase`), `viewBase` on the server (published analysis of that commit, never GitHub or a job), both graphs loaded side by side and diffed in the browser, the link decoded against the overlay, missing / invalid / other-analyzer bases said in the note (this commit alone), a failed base load on the card, Base's loader at the base commit; tests, screenshots {model: opus}
+- [ ] M6.9e2b Diff mode's controls without the explorer's top bar (the website): Base / Head / Overlay on the canvas or the repo bar, the version kept in the link, a way to stop comparing (the page without `base`), the base commit named and linked on the repo bar; tests, screenshots, baselines {model: opus}
 
 ### M5B: Batch 2's misses + a fresh blind batch 3 (#15, after M6.9, before M6.10)
 Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns written from each library's real contract, never from the batch 2 repos; what can't be known statically stays unresolved. Causes in `eval/results/2026-11-batch2-diagnosis.md` (B1, B2).
@@ -305,6 +306,9 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-02 M6.9e2a done (ecc2ded, ADR-0189): M6.9e2 split into a (the comparison) and b (controls without the top bar). `?base=<sha>` is looked up on the server (`viewBase`: published analysis only, no GitHub, no job), both graphs load side by side and are diffed in the browser, and the link is decoded against the overlay, so a removed route's link opens it with code at the base commit. A malformed, unanalyzed, or other-analyzer base is said in the note, with this commit alone; a failed base load goes on the card.
+- Checks: 7 compare + 3 `viewBase` + 9 page/diagram tests; two mutations (decode against head only, `base` dropped from the address bar) turned 2 red, and the restored code passed. Full `pnpm test` 15/15, root typecheck, lint, `next build`. Screenshots in `docs/milestones/M6/website-diff/` (real CSS and CSP, through a scratch page). The eval report was regenerated for the lockfile.
 
 - 2026-11-02 M5.17e5 done (e987e06, ADR-0188): the deploy was refused because `services replace` calls Resource Manager `projects.get` whenever the file sets `metadata.namespace` (read in gcloud 591.0.0's source). Both service files drop it, so no grant is needed (`iam.json`, step 10, `verify.mjs` unchanged). Step 8 lost the nonexistent schema-version flag (gcloud sets 1.0 itself), and step 0 is marked as repeated per Cloud Shell session.
 - CI's deploy on e987e06 then replaced the kill switch (live) and got the worker past IAM, but the worker's revision failed its startup probe. The sample still serves. Asked for the revision's logs on #3; the fix is M5.17e6 {blocked: #3}.
