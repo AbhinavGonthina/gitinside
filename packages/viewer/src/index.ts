@@ -177,6 +177,7 @@ export {
 } from "./model/filters.js";
 export type { FilterOption, FilterOptions, Filters } from "./model/filters.js";
 export {
+  baseEdgeRecord,
   baseRecord,
   buildDiffOverlay,
   DiffMismatchError,

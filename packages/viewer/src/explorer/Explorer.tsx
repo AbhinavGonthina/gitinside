@@ -172,6 +172,15 @@ export interface ExplorerDiff {
   /** The base and head as the chip names them ("main", "PR #12"); default their short SHAs. */
   baseName?: string | undefined;
   headName?: string | undefined;
+  /**
+   * Base's file text and loader, as `sources` and `loadSource` are head's
+   * (e.g. `createGitHubSourceLoader` at the base commit). The inspector reads
+   * what only base has from these (every node in Base; a removed node or hop
+   * in the Overlay) and links it at base's commit. Without either, those show
+   * no code, only their GitHub link, rather than head's file.
+   */
+  sources?: Readonly<Record<string, string>> | undefined;
+  loadSource?: SourceLoader | undefined;
 }
 
 /** Each diff view in words, for announcements. */
@@ -273,6 +282,7 @@ export function Explorer({
   );
   const hasApp = useMemo(() => hasSourceFiles(graph), [graph]);
   const sourceAccess = useSourceAccess(sources, loadSource);
+  const baseSourceAccess = useSourceAccess(compare?.sources, compare?.loadSource);
   // Made in an effect, not during render, so it's disposed by the same
   // mount it was made in: React StrictMode's simulated unmount and remount
   // (development) then gets a fresh engine and worker, rather than one already
@@ -1083,6 +1093,22 @@ export function Explorer({
   const selectedView = selectedNode ? view.byId.get(selectedNode.id) : undefined;
   /** What the inspector explains: the selection as the version shown has it, else the repo. */
   const panelNode = (selected ? shownIndex.byId.get(selected) : undefined) ?? shownIndex.root;
+  /**
+   * Where the inspector reads code (M6.9e1): base's commit and files for what
+   * the inspector shows as base recorded it (all of Base; in the Overlay, a
+   * node or hop only base has), head's otherwise.
+   */
+  const codeAt = (fromBase: boolean) =>
+    fromBase && compareBase
+      ? { repo: compareBase.repo, sources: baseSourceAccess }
+      : { repo, sources: sourceAccess };
+  const fromBase = (has: ReadonlySet<string> | undefined, id: string | undefined) =>
+    overlay !== undefined &&
+    (version === "base" || (version === "overlay" && id !== undefined && !has?.has(id)));
+  const nodeCode = codeAt(fromBase(overlay?.nodesIn.head, panelNode.id));
+  const stepCode = codeAt(
+    fromBase(overlay?.edgesIn.head, step === null ? undefined : steps[step]?.edge.id),
+  );
   const hint = hints?.steps[hints.at];
 
   /** The popover, under what opened it (the top bar's button, or the canvas's chip or button). */
@@ -1340,8 +1366,8 @@ export function Explorer({
             cutOff={path.cutOff}
             step={step}
             view={view}
-            sources={sourceAccess}
-            repo={repo}
+            sources={stepCode.sources}
+            repo={stepCode.repo}
             playing={playing}
             onStep={goToStep}
             onPlay={togglePlay}
@@ -1357,8 +1383,8 @@ export function Explorer({
             canTrace={selectionTraces}
             traceHint={fallbackStart ? nodeOf(shownIndex, fallbackStart) : undefined}
             canPick={choices.length > 0}
-            sources={sourceAccess}
-            repo={repo}
+            sources={nodeCode.sources}
+            repo={nodeCode.repo}
             onSelect={reveal}
             onBreakDown={breakDown}
             onTrace={startTrace}

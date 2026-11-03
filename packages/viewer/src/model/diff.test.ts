@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { diffGraphs } from "@gitinside/diff";
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
@@ -48,6 +49,44 @@ function expectClosed(overlay: DiffOverlay, version: "base" | "head"): void {
     expect(overlay.nodesIn[version]).toContain(edge?.to);
   }
 }
+
+const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+describe.each(["diff-broken", "diff-rename"])("Base on the %s pair (M6.9e1)", (name) => {
+  const { base, head, diff } = pair(name);
+  const overlay = buildDiffOverlay(base, head, diff);
+  const nodeBack = new Map(diff.nodes.renamed.map((r) => [r.node.id, r.from]));
+  const edgeBack = new Map(diff.edges.renamed.map((r) => [r.edge.id, r.from]));
+  const back = (id: string) => nodeBack.get(id) ?? id;
+
+  it("is base's own graph on the overlay's IDs: its records, sources, and call sites", () => {
+    const graph = versionGraph(overlay, "base");
+    const nodes = graph.nodes.map((n) => ({
+      ...n,
+      id: back(n.id),
+      parentId: n.parentId === null ? null : back(n.parentId),
+    }));
+    const edges = graph.edges.map((e) => ({
+      ...e,
+      id: edgeBack.get(e.id) ?? e.id,
+      from: back(e.from),
+      to: back(e.to),
+    }));
+    expect(nodes.sort(byId)).toEqual([...base.nodes].sort(byId));
+    expect(edges.sort(byId)).toEqual([...base.edges].sort(byId));
+  });
+
+  it("sizes boxes for every base record that differs from the overlay's", () => {
+    const marks = diffMarks(overlay);
+    const inBase = new Map(versionGraph(overlay, "base").nodes.map((n) => [n.id, n]));
+    for (const n of overlay.graph.nodes) {
+      const record = inBase.get(n.id);
+      if (record === undefined || isDeepStrictEqual(record, n)) {
+        expect(marks.baseNode(n), n.id).toBeUndefined();
+      } else expect(marks.baseNode(n), n.id).toEqual(record);
+    }
+  });
+});
 
 describe("buildDiffOverlay on the diff-broken pair", () => {
   const { base, head, diff } = pair("diff-broken");
@@ -193,9 +232,20 @@ describe("buildDiffOverlay on the diff-rename pair", () => {
     expect(() => parseGraph(versionGraph(overlay, "base"))).not.toThrow();
     expect(drawn && baseRecord(overlay, drawn)).toEqual(inBase);
     expect(versionGraph(overlay, "head").nodes.find((n) => n.id === file)).toBe(drawn);
-    // Nodes that weren't renamed are the overlay's own records.
+    // A node base and head record alike is the overlay's own record.
     const service = overlay.graph.nodes.find((n) => n.kind === "service");
     expect(service && baseRecord(overlay, service)).toBeUndefined();
+    // A route that kept its ID but moved with the file is where base had it.
+    const route = overlay.graph.nodes.find((n) => n.id === `route:${p}/GET /api/orders`);
+    expect(route && "source" in route && route.source).toMatchObject({
+      file: "src/orders/routes.ts",
+      line: 20,
+    });
+    const routeInBase = route && baseRecord(overlay, route);
+    expect(routeInBase && "source" in routeInBase && routeInBase.source).toMatchObject({
+      file: "src/routes/orders.ts",
+      line: 19,
+    });
     expect(diffMarks(overlay).baseNode(drawn!)).toEqual(inBase);
     expect(diffMarks(overlay).edgesIn).toBe(overlay.edgesIn);
   });

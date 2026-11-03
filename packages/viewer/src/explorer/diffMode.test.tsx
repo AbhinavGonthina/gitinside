@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { diffGraphs } from "@gitinside/diff";
 import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { diffPair } from "../diffPair.testkit.js";
 import { EDGE_WORDS } from "../edges/describe.js";
 import { frameCounts } from "../layout/size.js";
@@ -383,6 +383,110 @@ describe("Explorer diff mode", { timeout: 30_000 }, () => {
     expect(document.querySelector('.gi-status[data-tone="diff"]')).toBeNull();
     expect(document.querySelector(".gi-badge[data-diff]")).toBeNull();
     expect(document.querySelector(".gi-changes")).toBeNull();
+  });
+});
+
+describe("Explorer diff mode's code (M6.9e1)", { timeout: 30_000 }, () => {
+  const BASE_SHA = "b".repeat(40);
+  const HEAD_SHA = "c".repeat(40);
+  const shas = { base: BASE_SHA, head: HEAD_SHA };
+  /** A loader whose file text says which commit it came from. */
+  const loader = (commit: string) => vi.fn(async (path: string) => `// ${commit} ${path}`);
+  const github = () =>
+    screen.queryByRole("link", { name: /Open on GitHub/ })?.getAttribute("href") ?? undefined;
+  const code = async (text: string) =>
+    waitFor(() => expect(document.querySelector(".gi-inspector")?.textContent).toContain(text), {
+      timeout: 10_000,
+    });
+  const showVersion = async (name: "Base" | "Head" | "Overlay") => {
+    const views = screen.getByRole("radiogroup", { name: "Diff view" });
+    fireEvent.click(within(views).getByRole("radio", { name }));
+    await settle();
+  };
+
+  it("reads Base's nodes at the base commit, where base had them, and Head's at head's", async () => {
+    const R = "diff-rename";
+    const pair = diffPair(R, shas);
+    const atHead = loader("head");
+    const atBase = loader("base");
+    await setup({
+      graph: pair.head,
+      loadSource: atHead,
+      diff: { base: pair.base, diff: pair.diff, loadSource: atBase },
+      initialSelected: `route:${R}/GET /api/orders`,
+    });
+    const repo = "https://github.com/fixtures";
+    expect(github()).toBe(`${repo}/diff-rename-head/blob/${HEAD_SHA}/src/orders/routes.ts#L20`);
+    await code("// head src/orders/routes.ts");
+
+    await showVersion("Base");
+    expect(github()).toBe(`${repo}/diff-rename-base/blob/${BASE_SHA}/src/routes/orders.ts#L19`);
+    await code("// base src/routes/orders.ts");
+    expect(document.querySelector(".gi-inspector__header")?.textContent).toContain(
+      "src/routes/orders.ts:19",
+    );
+    expect(atBase).toHaveBeenCalledWith("src/routes/orders.ts");
+    expect(atHead).not.toHaveBeenCalledWith("src/routes/orders.ts");
+
+    await showVersion("Head");
+    expect(github()).toBe(`${repo}/diff-rename-head/blob/${HEAD_SHA}/src/orders/routes.ts#L20`);
+  });
+
+  it("steps a trace in Base along base's call sites, at the base commit", async () => {
+    const R = "diff-rename";
+    const pair = diffPair(R, shas);
+    const atBase = loader("base");
+    await setup({
+      graph: pair.head,
+      loadSource: loader("head"),
+      diff: { base: pair.base, diff: pair.diff, loadSource: atBase },
+      initialTrace: `route:${R}/GET /api/orders`,
+      initialStep: 0,
+    });
+    const location = () => document.querySelector(".gi-explorer__hop-header code")?.textContent;
+    expect(location()).toBe("src/orders/routes.ts:20");
+    await showVersion("Base");
+    expect(location()).toBe("src/routes/orders.ts:19");
+    await code("// base src/routes/orders.ts");
+  });
+
+  it("reads what the Overlay draws from base alone, a removed route and its hop, at the base commit", async () => {
+    const pair = diffPair("diff-broken", shas);
+    const atBase = loader("base");
+    await setup({
+      graph: pair.head,
+      loadSource: loader("head"),
+      diff: { base: pair.base, diff: pair.diff, loadSource: atBase },
+      initialSelected: DELETE_ROUTE,
+    });
+    expect(github()).toContain(`/diff-broken-base/blob/${BASE_SHA}/src/server.ts#L`);
+    await code("// base src/server.ts");
+    cleanup();
+
+    await setup({
+      graph: pair.head,
+      loadSource: loader("head"),
+      diff: { base: pair.base, diff: pair.diff, loadSource: atBase },
+      initialTrace: DELETE_ROUTE,
+      initialStep: 0,
+    });
+    await code("// base src/server.ts");
+  });
+
+  it("shows Base no code without a base loader, rather than head's", async () => {
+    const R = "diff-rename";
+    const pair = diffPair(R, shas);
+    await setup({
+      graph: pair.head,
+      loadSource: loader("head"),
+      diff: { base: pair.base, diff: pair.diff },
+      initialSelected: `route:${R}/GET /api/orders`,
+    });
+    await code("// head src/orders/routes.ts");
+    await showVersion("Base");
+    expect(github()).toContain(`/blob/${BASE_SHA}/src/routes/orders.ts#L19`);
+    expect(document.querySelector(".gi-inspector")?.textContent).not.toContain("// head");
+    expect(screen.queryByRole("heading", { name: "Code" })).toBeNull();
   });
 });
 
