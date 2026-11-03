@@ -56,15 +56,51 @@ export function createDb(url: string, options: CreateDbOptions = {}): DbHandle {
 }
 
 /**
- * Applies every pending migration to the database at `url`, in order, inside
- * Drizzle's migration table. Use a direct (unpooled) connection: migrations
- * take locks and need a session the pooler won't hand to someone else.
+ * The session advisory lock every migration run holds (ADR-0192), so two worker instances
+ * starting at once, or the worker and the `migrate` CLI, apply each migration once. Any
+ * fixed 64-bit number works; this one is the ASCII of `gimigrat`.
  */
-export async function runMigrations(url: string): Promise<void> {
-  const { db, close } = createDb(url, { max: 1 });
+export const MIGRATION_LOCK_KEY = 0x67696d6967726174n;
+
+/** Default for {@link MigrateOptions.lockTimeoutMs}. */
+export const MIGRATION_LOCK_TIMEOUT_MS = 15_000;
+
+/** Options for {@link runMigrations}. */
+export interface MigrateOptions {
+  /**
+   * How long a run waits for a lock (another run's advisory lock, or a table a migration
+   * alters while queries hold it) before failing with `55P03`. A DDL statement waiting on
+   * a table queues every later query on it, so the wait stays short; a failed worker start
+   * is retried by Cloud Run.
+   */
+  lockTimeoutMs?: number;
+}
+
+/**
+ * Applies every pending migration to the database at `url`, in order, inside Drizzle's
+ * migration table, holding {@link MIGRATION_LOCK_KEY} so concurrent runs take turns (the
+ * second finds nothing pending). Use a direct (unpooled) connection: a session advisory
+ * lock and DDL need a session the pooler won't hand to someone else.
+ */
+export async function runMigrations(url: string, options: MigrateOptions = {}): Promise<void> {
+  const timeout = options.lockTimeoutMs ?? MIGRATION_LOCK_TIMEOUT_MS;
+  if (!Number.isInteger(timeout) || timeout <= 0) {
+    throw new RangeError("lockTimeoutMs must be a positive integer");
+  }
+  // One connection, so the lock, the migrations, and the unlock share a session.
+  const client = postgres(url, { max: 1, prepare: false, onnotice: () => {} });
   try {
-    await migrate(db, { migrationsFolder });
+    await client`select set_config('lock_timeout', ${`${timeout}ms`}, false)`;
+    await client`select pg_advisory_lock(${MIGRATION_LOCK_KEY.toString()}::bigint)`;
+    try {
+      await migrate(drizzle(client, { schema }), { migrationsFolder });
+    } finally {
+      // Ending the session releases it anyway; this only hands it over sooner.
+      await client`select pg_advisory_unlock(${MIGRATION_LOCK_KEY.toString()}::bigint)`.catch(
+        () => undefined,
+      );
+    }
   } finally {
-    await close();
+    await client.end({ timeout: 5 });
   }
 }

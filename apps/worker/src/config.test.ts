@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { CONFIG_DEFAULTS, ConfigError, quotaConfigFromEnv, workerConfigFromEnv } from "./config.js";
+import {
+  CONFIG_DEFAULTS,
+  ConfigError,
+  directUrlOf,
+  quotaConfigFromEnv,
+  workerConfigFromEnv,
+} from "./config.js";
 
 const SECRET = "s".repeat(43);
 const ENV = {
@@ -26,6 +32,8 @@ describe("workerConfigFromEnv", () => {
   it("reads every setting, with defaults for the optional ones", () => {
     expect(workerConfigFromEnv(ENV)).toEqual({
       databaseUrl: ENV.DATABASE_URL,
+      // No pooler locally: migrations go through the same URL.
+      migrationUrl: ENV.DATABASE_URL,
       store: {
         endpoint: "https://axq1ns2example.compat.objectstorage.us-ashburn-1.oraclecloud.com",
         bucket: "gitinside-snapshots",
@@ -77,6 +85,39 @@ describe("workerConfigFromEnv", () => {
       port: 65535,
       githubToken: "gh-token",
     });
+  });
+
+  it("migrates through Neon's direct endpoint: the pooled host without -pooler (ADR-0192)", () => {
+    const pooled =
+      "postgresql://app:pw-value@ep-cool-darkness-a1b2c3d4-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+    const config = workerConfigFromEnv({ ...ENV, DATABASE_URL: pooled });
+    expect(config.databaseUrl).toBe(pooled);
+    expect(config.migrationUrl).toBe(
+      "postgresql://app:pw-value@ep-cool-darkness-a1b2c3d4.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+    );
+  });
+
+  it.each([
+    ["a direct Neon host", "postgres://app:pw@ep-quiet-1234.us-east-2.aws.neon.tech/db"],
+    ["a non-Neon host named like one", "postgres://app:pw@ep-x-pooler.example.com/db"],
+    ["-pooler outside the endpoint ID", "postgres://app:pw@db-pooler.us-east-2.aws.neon.tech/db"],
+  ])("leaves %s as it is", (_what, url) => {
+    expect(directUrlOf(url)).toBe(url);
+  });
+
+  it("migrates through DATABASE_URL_UNPOOLED when set, checked like DATABASE_URL", () => {
+    const direct = "postgresql://user:pw-value@db-direct.example/gitinside?sslmode=require";
+    const config = workerConfigFromEnv({ ...ENV, DATABASE_URL_UNPOOLED: direct });
+    expect(config).toMatchObject({ databaseUrl: ENV.DATABASE_URL, migrationUrl: direct });
+    expect(workerConfigFromEnv({ ...ENV, DATABASE_URL_UNPOOLED: "" }).migrationUrl).toBe(
+      ENV.DATABASE_URL,
+    );
+    expect(problems({ ...ENV, DATABASE_URL_UNPOOLED: "mysql://user:pw-value@db/x" })).toEqual([
+      "DATABASE_URL_UNPOOLED must start with postgres:// or postgresql://",
+    ]);
+    expect(problems({ ...ENV, DATABASE_URL_UNPOOLED: "not a url" })).toEqual([
+      "DATABASE_URL_UNPOOLED is not a URL",
+    ]);
   });
 
   it("needs no Redis, and ignores its variables when they're still set", () => {
