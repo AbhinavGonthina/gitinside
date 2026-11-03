@@ -14,12 +14,12 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5B.2 library-invoked fetchers (B2, #15), then the rest of M5B; M5.13 and M5.14b wait on #3 (CI's redeploy with migrations at startup, then `verify.mjs`)
+M5B.2 library-invoked fetchers (B2, #15), then the rest of M5B; M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
-- [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Google Cloud signup for the worker on Cloud Run (ADR-0111): project, $1 budget, spend cap if offered. Kept open: the remaining steps were posted 2026-11-01 (M5.17e4, `infra/gcp/README.md` → Applying it). He runs them and reports `node infra/gcp/verify.mjs`'s output; we then confirm there that the guardrails are verified, before the trial ends on 2027-01-30. Blocks M5.13 (and so M5.14b); M5.17e no longer waits on it (#14). 2026-11-02: setup applied, the deploy's IAM fixed (M5.17e5) and the kill switch deployed. The worker's revision failed its startup probe: production Neon had no tables (#17). 2026-11-03: the worker now migrates at startup (M5.17e6, ADR-0192); asked him to re-run CI on `main` and `verify.mjs`.
+- [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Google Cloud signup for the worker on Cloud Run (ADR-0111): project, $1 budget, spend cap if offered. Kept open: the remaining steps were posted 2026-11-01 (M5.17e4, `infra/gcp/README.md` → Applying it). He runs them and reports `node infra/gcp/verify.mjs`'s output; we then confirm there that the guardrails are verified, before the trial ends on 2027-01-30. Blocks M5.13 (and so M5.14b); M5.17e no longer waits on it (#14). 2026-11-02: setup applied, the deploy's IAM fixed (M5.17e5) and the kill switch deployed. The worker's revision failed its startup probe: production Neon had no tables (#17). 2026-11-03: the worker now migrates at startup (M5.17e6, ADR-0192), and CI's deploy of it went Ready; asked him for `verify.mjs`'s output.
 
 ## Blockers
 - none
@@ -308,7 +308,7 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 (Newest first. 2–4 lines per task.)
 
 - 2026-11-03 M5.17e6 done (19af335, ADR-0192; #17): the revision exited because production Neon had no tables; nothing on Cloud Run ever migrated. The worker now runs `runMigrations` first at startup (before the pool, sweep, and listen) under a session advisory lock with a 15 s `lock_timeout`, through `DATABASE_URL_UNPOOLED` or the pooled Neon host minus `-pooler` (no new secret or IAM). `startup_failed` logs each wrapped cause's message and SQLSTATE; `check.mjs` starts the worker on an empty database.
-- Checks: config, startup-order, and cause-logging tests; real-Postgres tests for two concurrent runs and a lock timeout, run on CI through draft PR #21 before landing on `main`.
+- Checks: config, startup-order, and cause-logging tests; real-Postgres tests for two concurrent runs and a lock timeout, run on CI through draft PR #21 before landing on `main`. `main`'s deploy (run 41730943145) then put the worker's revision live: startup probe passed.
 
 - 2026-11-03 M5B.1 done (5ca9ecf, ADR-0191; report a0157c8): a `pages/api` default export that is a next-connect router (factory found through the checker: v0 `nc()`, v1 `createRouter()`, repo factories, `router.handler()`) gives one route per registered method; inline handlers own their calls (`NextFacts.inlineHandlers`, merged with Express's). A pattern argument, `.trace`/`.connect`, or the router passed on keeps `ALL` with `NEXT_CONNECT_UNSEEN_METHODS`. `KEY_FORMAT` 5 → 6. New fixture `next-connect`.
 - Checks: 5 new next tests + fixture guard; a mutation (HTTP owners on Express's handlers only) turned the ownership test red. Analyzer 1,011/1,011 (3 first-test timeouts in a stalled full run passed alone), root typecheck, lint. Eval: batch 2 45.8% → 100.0% precision, 35.5% → 77.4% recall (nextjs-prisma-boilerplate 13/13); others unchanged.
