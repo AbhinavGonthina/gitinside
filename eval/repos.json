@@ -1,6 +1,16 @@
 {
   "repos": [
     {
+      "owner": "Avinash905",
+      "name": "Recipen",
+      "url": "https://github.com/Avinash905/Recipen",
+      "sha": "bfc1845b1fa9e09d2a5022910c05f432af3e91ea",
+      "license": "MIT",
+      "shape": "env-api-urls",
+      "why": "Held out, batch 3 (M5B.5). Vite React SPA (client/, JSX) and a CommonJS Express + Mongoose server (server/) side by side, no root package.json. Every API request is an RTK Query endpoint (builder.query/builder.mutation in four feature apiSlice.injectEndpoints modules, query returning a path string or { url, method }); the API slice's baseQuery is a custom baseQueryWithReauth that hands each endpoint's args to fetchBaseQuery({ baseUrl: import.meta.env.VITE_SERVER_BASE_URL }) (no in-code fallback) and itself calls baseQuery(\"/auth/refresh\") after a 403. Routers are mounted at /api/auth, /api/user, /api/recipe, /api/blog, /api/stripe with router.route(path).<method>(…) chains. One axios upload goes to Cloudinary on an env-only URL. ~97 JS source files.",
+      "heldOut": 3
+    },
+    {
       "owner": "harundogdu",
       "name": "twitter-clone",
       "url": "https://github.com/harundogdu/twitter-clone",
@@ -104,6 +114,10 @@
     {
       "batch": 2,
       "seen": "Its misses were diagnosed and fixed in M5B.1–M5B.2c (next-connect methods, SWR fetchers, negated req.method tests), each fix written from the library's contract and its own fixture (ADR-0168)."
+    },
+    {
+      "batch": 3,
+      "seen": null
     }
   ]
 }

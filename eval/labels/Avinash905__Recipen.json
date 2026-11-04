@@ -1,0 +1,237 @@
+{
+  "repo": "Avinash905/Recipen",
+  "sha": "bfc1845b1fa9e09d2a5022910c05f432af3e91ea",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/common/uploadImage.js", "line": 24 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(import.meta.env.VITE_CLOUDINARY_BASE_URL, data, config): an image upload to Cloudinary's API (the base URL is env-only, blank in client/.env.example), not a route in the repo"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authApiSlice.js", "line": 6 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 12,
+        "route": "POST /api/auth/login"
+      },
+      "notes": "RTK Query endpoint signIn: builder.mutation({ query: () => ({ url: \"/auth/login\", method: \"POST\" }) }) on apiSlice.injectEndpoints. apiSlice's baseQuery is baseQueryWithReauth (client/src/redux/apiSlice.js), a custom base query that passes args to fetchBaseQuery({ baseUrl: import.meta.env.VITE_SERVER_BASE_URL }); no in-code fallback, client/.env.example sets http://localhost:5000/api and the server listens on PORT 5000. server/index.js mounts authRoutes at /api/auth; router.route(path).<method>(…) chains, route line = the method call"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authApiSlice.js", "line": 13 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 13,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "RTK Query endpoint signUp: { url: \"/auth/register\", method: \"POST\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authApiSlice.js", "line": 20 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 15,
+        "route": "POST /api/auth/logout"
+      },
+      "notes": "RTK Query endpoint logout: { url: \"/auth/logout\", method: \"POST\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authApiSlice.js", "line": 34 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 14,
+        "route": "GET /api/auth/refresh"
+      },
+      "notes": "RTK Query endpoint refresh: a builder.mutation, but its query says method: \"GET\" ({ url: \"/auth/refresh\" })"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogApiSlice.js", "line": 5 },
+      "method": "GET",
+      "target": { "file": "server/routes/blogRoutes.js", "line": 27, "route": "GET /api/blog/:id" },
+      "notes": "RTK Query endpoint getBlog: query returns the string `/blog/${blogId}`, so fetchBaseQuery's default GET. server/index.js mounts blogRoutes at /api/blog"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogApiSlice.js", "line": 9 },
+      "method": "GET",
+      "target": { "file": "server/routes/blogRoutes.js", "line": 19, "route": "GET /api/blog" },
+      "notes": "RTK Query endpoint getBlogs: query returns \"/blog\" (GET); router.route(\"/\") under the /api/blog mount"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogApiSlice.js", "line": 13 },
+      "method": "POST",
+      "target": { "file": "server/routes/blogRoutes.js", "line": 20, "route": "POST /api/blog" },
+      "notes": "RTK Query endpoint addBlog: { url: \"/blog\", method: \"POST\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogApiSlice.js", "line": 21 },
+      "method": "PUT",
+      "target": { "file": "server/routes/blogRoutes.js", "line": 28, "route": "PUT /api/blog/:id" },
+      "notes": "RTK Query endpoint updateBlog: query's block body returns { url: `/blog/${blogId}`, method: \"PUT\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogApiSlice.js", "line": 32 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/blogRoutes.js",
+        "line": 32,
+        "route": "DELETE /api/blog/:id"
+      },
+      "notes": "RTK Query endpoint deleteBlog: { url: `/blog/${blogId}`, method: \"DELETE\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogApiSlice.js", "line": 39 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/blogRoutes.js",
+        "line": 39,
+        "route": "PUT /api/blog/comment/:id"
+      },
+      "notes": "RTK Query endpoint commentBlog: { url: `/blog/comment/${blogId}`, method: \"PUT\" }; two segments after /api/blog, so not PUT /:id"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogApiSlice.js", "line": 50 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/blogRoutes.js",
+        "line": 49,
+        "route": "DELETE /api/blog/comment/:blogId/:commentId"
+      },
+      "notes": "RTK Query endpoint deleteCommentBlog: { url: `/blog/comment/${blogId}/${commentId}`, method: \"DELETE\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/recipe/recipeApiSlice.js", "line": 5 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/recipeRoutes.js",
+        "line": 39,
+        "route": "GET /api/recipe/:id"
+      },
+      "notes": "RTK Query endpoint getRecipe: query returns `/recipe/${recipeId}` (GET). server/index.js mounts recipeRoutes at /api/recipe"
+    },
+    {
+      "callSite": { "file": "client/src/features/recipe/recipeApiSlice.js", "line": 9 },
+      "method": "GET",
+      "target": { "file": "server/routes/recipeRoutes.js", "line": 21, "route": "GET /api/recipe" },
+      "notes": "RTK Query endpoint getRecipes: query returns \"/recipe\" (GET)"
+    },
+    {
+      "callSite": { "file": "client/src/features/recipe/recipeApiSlice.js", "line": 13 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/recipeRoutes.js",
+        "line": 22,
+        "route": "POST /api/recipe"
+      },
+      "notes": "RTK Query endpoint addRecipe: { url: \"/recipe\", method: \"POST\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/recipe/recipeApiSlice.js", "line": 21 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/recipeRoutes.js",
+        "line": 40,
+        "route": "PUT /api/recipe/:id"
+      },
+      "notes": "RTK Query endpoint updateRecipe: { url: `/recipe/${recipeId}`, method: \"PUT\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/recipe/recipeApiSlice.js", "line": 32 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/recipeRoutes.js",
+        "line": 29,
+        "route": "PUT /api/recipe/rate/:id"
+      },
+      "notes": "RTK Query endpoint rateRecipe: { url: `/recipe/rate/${recipeId}`, method: \"PUT\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/recipe/recipeApiSlice.js", "line": 43 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/recipeRoutes.js",
+        "line": 44,
+        "route": "DELETE /api/recipe/:id"
+      },
+      "notes": "RTK Query endpoint deleteRecipe: { url: `/recipe/${recipeId}`, method: \"DELETE\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/recipe/recipeApiSlice.js", "line": 50 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/recipeRoutes.js",
+        "line": 51,
+        "route": "PUT /api/recipe/comment/:id"
+      },
+      "notes": "RTK Query endpoint commentRecipe: { url: `/recipe/comment/${recipeId}`, method: \"PUT\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/recipe/recipeApiSlice.js", "line": 61 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/recipeRoutes.js",
+        "line": 61,
+        "route": "DELETE /api/recipe/comment/:recipeId/:commentId"
+      },
+      "notes": "RTK Query endpoint deleteCommentRecipe: { url: `/recipe/comment/${recipeId}/${commentId}`, method: \"DELETE\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/recipe/recipeApiSlice.js", "line": 71 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/recipeRoutes.js",
+        "line": 71,
+        "route": "PUT /api/recipe/favorite/:id"
+      },
+      "notes": "RTK Query endpoint toggleFavorite: query ({ recipeId }) returns { url: `/recipe/favorite/${recipeId}`, method: \"PUT\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/user/userApiSlice.js", "line": 5 },
+      "method": "GET",
+      "target": { "file": "server/routes/userRoutes.js", "line": 13, "route": "GET /api/user" },
+      "notes": "RTK Query endpoint getUsers: query returns \"/user\" (GET). server/index.js mounts userRoutes at /api/user"
+    },
+    {
+      "callSite": { "file": "client/src/features/user/userApiSlice.js", "line": 9 },
+      "method": "PUT",
+      "target": { "file": "server/routes/userRoutes.js", "line": 17, "route": "PUT /api/user/:id" },
+      "notes": "RTK Query endpoint updateUser: { url: `/user/${userId}`, method: \"PUT\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/user/userApiSlice.js", "line": 20 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 27,
+        "route": "PUT /api/user/disable/:id"
+      },
+      "notes": "RTK Query endpoint disableUser: { url: `/user/disable/${userId}`, method: \"PUT\" }"
+    },
+    {
+      "callSite": { "file": "client/src/features/user/userApiSlice.js", "line": 27 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/subscriptionRoutes.js",
+        "line": 11,
+        "route": "POST /api/stripe/create-checkout-session"
+      },
+      "notes": "RTK Query endpoint subscribeUser: { url: `/stripe/create-checkout-session`, method: \"POST\" }; server/index.js mounts subscriptionRoutes at /api/stripe"
+    },
+    {
+      "callSite": { "file": "client/src/redux/apiSlice.js", "line": 21 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 14,
+        "route": "GET /api/auth/refresh"
+      },
+      "notes": "baseQueryWithReauth calls the fetchBaseQuery result directly with the string \"/auth/refresh\" (GET) after a 403, so the path is fixed here. Its other two calls, baseQuery(args, …) on lines 18 and 26, send whatever an endpoint's query returned; those requests are labeled at the endpoints, like a helper whose caller supplies the path"
+    }
+  ]
+}
