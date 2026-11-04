@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5B.2c Negated `req.method` guards (#15, batch 2's last miss), then M5B.3 and the rest of M5B; M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
+M5B.3 TanStack Query / RTK Query, then M5B.4 and the rest of M5B; M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -265,7 +265,7 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 - [x] M5B.1 next-connect routers in `pages/api` (B1): a default export that is a next-connect router (`nc()`/`nc(opts)`, also through a repo factory like `apiHandler = () => nc(opts)`, v1 `createRouter()` + `export default router.handler()`) gives one route per registered method (`.get/.post/.put/.patch/.delete/.head/.options`, chained or not); `.all(…)` is `ALL`; `.use(…)` registers no method; a path argument on a method call (sub-route matching) handled as next-connect dispatches it or left unresolved; ADR, `next.ts` "Patterns not handled", fixture + golden, eval delta {model: opus}
 - [x] M5B.2 Library-invoked fetchers (B2): ADR on hook contracts (SWR passes the key to the fetcher: `useSWR(key, fetcher)`, `useSWRImmutable`, `useSWRInfinite` with a key function, `SWRConfig`'s default `fetcher` for hooks under it; array keys, `null`/conditional keys); a fetcher that resolves to a repo wrapper is inlined at the hook call with the key as its URL; a key the analyzer can't read stays unresolved at the hook; fixture + golden, eval delta {model: opus}
 - [x] M5B.2b SWR fetchers that aren't symbols (ADR-0193's consequences): an inline fetcher (`useSWR(key, (url) => fetch(url))`, also in `SWRConfig`'s `value`) and SWR's documented `(...args) => fetch(...args)` (the key reaching `fetch` through a rest element, as the URL when the key isn't an array) inlined at the hook like a wrapper fetcher; regression tests first, fixture update + golden, eval delta {model: opus}
-- [ ] M5B.2c Negated `req.method` guards in pages-router handlers (B3, found after M5B.2: `eval/results/2026-11-batch2-diagnosis.md`): a block entered when `req.method !== "A" && req.method !== "B"` (or `!(…===…)`, `!["A","B"].includes(req.method)`) that serves the request means every method but those, not routes for A and B; read the comparison's polarity in `next.ts`, document what stays unhandled; regression tests first, fixture + golden, eval delta {model: opus}
+- [x] M5B.2c Negated `req.method` guards in pages-router handlers (B3, found after M5B.2: `eval/results/2026-11-batch2-diagnosis.md`): a block entered when `req.method !== "A" && req.method !== "B"` (or `!(…===…)`, `!["A","B"].includes(req.method)`) that serves the request means every method but those, not routes for A and B; read the comparison's polarity in `next.ts`, document what stays unhandled; regression tests first, fixture + golden, eval delta {model: opus}
 - [ ] M5B.3 TanStack Query (`useQuery({ queryKey, queryFn })`, `queryFn` reading `queryKey` from its context) and RTK Query (`createApi({ baseQuery: fetchBaseQuery({ baseUrl }), endpoints })` with `query: () => url`): implement whichever is cheap on M5B.2's machinery, document the rest as unhandled; ADR, fixture + golden, eval delta {model: opus}
 - [ ] M5B.4 Eval re-run after M5B.1–3: batch 2 marked seen in `heldOutBatches` (why: fixed in M5B, ADR-0168), its new score reported as seen; README/EVALUATION numbers {model: opus}
 - [ ] M5B.5 Fresh held-out batch 3, repo 1: pick 2–3 new public React/Next + Express/Prisma repos with URL and routing styles unlike the first ten (rules as M3.2, read but never analyzed), pin the first as unseen batch 3, draft and commit its labels; no scoring {model: opus}
@@ -308,6 +308,9 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5B.2c** (`3fd5c11`, ADR-0195): a negated `req.method` test's polarity is read through `!`, `&&`, `||` up to its `if`; a block that does more than answer (calls besides `res`/`console`, no 405/`Allow`) serves every other method, so the handler is open (`ALL`), the named methods routes only when an `else` or later code can serve them. `req.method ?? ""` counts. New fixture `next-method-exclusions`; `KEY_FORMAT` 8 → 9.
+- Eval (`6ab1139`): batch 2 recall 96.8% (30/31) → 100.0% (31/31), precision 100%; main set and batch 1 unchanged. Full `pnpm test` ran out of memory (web, viewer, a bench worker); each package then passed alone.
 
 - 2026-11-03 M5B.2b: SWR fetchers written in place (a call's second argument, or a `fetcher` property in a hook's config or `SWRConfig`'s `value`) are inlined at the hooks that call them, by function node, with no `via`; with no such hook their sites keep their own requests (ADR-0194). `fetch(...args)` spreading the wrapper's rest parameter reads the caller's arguments from that position as URL and init, so SWR's documented fetcher resolves. `swr-fetchers` gained `hooks/reviews.ts` and two routes; `KEY_FORMAT` 8.
 - Eval: unchanged on every set (no labeled repo uses these shapes). Full `pnpm test`: two load flakes (analyzer `imports.test` `UNKNOWN: scandir`, viewer `diffMode` focus) passed on a lone rerun.
