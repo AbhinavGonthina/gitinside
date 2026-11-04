@@ -1,4 +1,4 @@
-STATUS: RUNNING
+STATUS: BLOCKED paused by Abhinav (set STATUS: RUNNING to resume)
 AUTONOMY: ON
 
 # Progress
@@ -14,13 +14,12 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.13 Deploy + production smoke test (unblocked by #19: guardrails treated as verified). M5B.6b waits on #18 (loop again for batch 3's RTK miss?); M5.14b waits on M5.13
+M5.13 Deploy + production smoke test (unblocked by #19: guardrails treated as verified). M5.14b waits on M5.13; #18 answered: M5B.6b replaced by the M5C coverage plan
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
 - [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Google Cloud signup for the worker on Cloud Run (ADR-0111): project, $1 budget, spend cap if offered. Kept open: the remaining steps were posted 2026-11-01 (M5.17e4, `infra/gcp/README.md` → Applying it). He runs them and reports `node infra/gcp/verify.mjs`'s output; we then confirm there that the guardrails are verified, before the trial ends on 2027-01-30. Blocks M5.13 (and so M5.14b); M5.17e no longer waits on it (#14). 2026-11-02: setup applied, the deploy's IAM fixed (M5.17e5) and the kill switch deployed. The worker's revision failed its startup probe: production Neon had no tables (#17). 2026-11-03: the worker now migrates at startup (M5.17e6, ADR-0192), and CI's deploy of it went Ready; asked him for `verify.mjs`'s output. 2026-11-04 (#19): its only mismatch was a `verify.mjs` bug (M5.17e7, fixed); he said to treat the guardrails as verified for M5.13, so M5.13 no longer waits. Kept open until his re-run of the fixed `verify.mjs` passes.
-- [#18](https://github.com/AbhinavGonthina/gitinside-planning/issues/18) Batch 3's blind recall is 64.3% (45/70), all 25 misses one RTK Query cause (C1): loop again (M5B.6b, then batch 3 seen and maybe a batch 4) or accept and move on? Blocks M5B.6b only.
 
 ## Blockers
 - none
@@ -272,13 +271,23 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 - [x] M5B.4 Eval re-run after M5B.1–3: batch 2 marked seen in `heldOutBatches` (why: fixed in M5B, ADR-0168), its new score reported as seen; README/EVALUATION numbers {model: opus}
 - [x] M5B.5 Fresh held-out batch 3, repo 1: pick 2–3 new public React/Next + Express/Prisma repos with URL and routing styles unlike the first ten (rules as M3.2, read but never analyzed), pin the first as unseen batch 3, draft and commit its labels; no scoring {model: opus}
 - [x] M5B.6 Batch 3, repo 2 (and 3): pin, draft and commit labels, then score once, blind (`pnpm eval`); README quotes this as the generalization result, as measured; misses go to a diagnosis note, and if they're big, a summary on #15 before deciding whether to loop again {model: opus}
-- [ ] M5B.6b If #18 says loop again: RTK Query base queries that forward to `fetchBaseQuery` (C1 in `eval/results/2026-11-batch3-diagnosis.md`): a repo function passing its first parameter unchanged to a `fetchBaseQuery` result's call is read as that `fetchBaseQuery` (its `baseUrl` joined), and a direct call of the result with a URL fixed there is a request; written from RTK's documented re-authorization example, ADR, fixture + golden, eval delta, batch 3 marked seen (and a batch 4 if #18 asks for one) {model: opus} {blocked: #18}
+- M5B.6b (loop again on C1) replaced by the M5C coverage plan below (#18, 2026-11-04).
 - [x] M5B.7a Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5B diff (no repo-specific cases), CLI smoke test on a real repo outside the eval, M5B-review.md (tag after the fixes) {model: opus}
 - [x] M5B.7b M5B review fix (fail visibly, finding 1): an RTK Query endpoint under a `createApi` whose `baseQuery` isn't readable as `fetchBaseQuery` (a custom or re-auth base query) is an unresolved site at the endpoint with a reason saying the base query isn't followed, instead of no site; a destructured builder (`({ query }) => …`) read or listed in `http.ts`'s "not handled"; ADR-0196 amendment; regression tests first, fixture + golden, eval delta (batch 3's blind run stays quoted as is; say on #18 how this changes Recipen's sites) {model: opus}
 - [x] M5B.7c M5B review fixes, next-connect (findings 2–4, 6): a router declared outside the page file or exported counts as escaping (keep `ALL`, warn), and so does `.use(x)` with a router that isn't inline middleware; `export { r as default }` isn't an escape; no second `ALL` (and no `NEXT_DUPLICATE_ROUTE` on itself) when `.all()` is registered; a router with only unseen registrations keeps its `NEXT_CONNECT_UNSEEN_METHODS` warnings; regression tests first, eval delta {model: opus}
 - [x] M5B.7d M5B review fix, negated guards (finding 5): calls inside a response call's arguments (`res.json({ error: t("…") })`) aren't work, and a refusal block that only logs before answering (decide which calls count, from Node's and common loggers' shapes, not names from the eval) reads as a guard; ADR-0195 amendment, regression tests first, eval delta {model: opus}
 - [ ] M5B.7e Smoke-test gap (M5B-review.md): Prisma calls on a factory's result (`prisma().tool.findMany()`, the factory typed `(): PrismaClient` returning `global.prisma || new PrismaClient()` under `// @ts-ignore`, no `node_modules`) give no edge and no unresolved node, though `prisma.ts` says factories are handled; confirm red with a fixture of that shape, fix (or make it visible and document it), eval delta {model: opus}
 - [ ] M5B.7f Re-run the milestone checks after M5B.7b–e (suite, analyzer coverage, `pnpm eval --check`), finish M5B-review.md (outcomes), tag m5b {model: opus}
+
+### M5C: Coverage plan (#18, after M5B, before M6.10)
+Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways React/Next apps call their backend and Express/Next receive calls, each as a general documented pattern (fixture, golden, ADR; never a repo special case), then score one fresh blind sample. Precision stays ≥ 95%; what's only known at runtime or lives outside the repo shows as unresolved, never guessed. Fastify, NestJS, Hono, etc. stay in the later expansion (#13).
+- [ ] M5C.1 Ranked pattern list (new `docs/COVERAGE.md`, linked from EVALUATION.md): calling side (`fetch`, axios instances / `baseURL` / interceptors, ky, ofetch, SWR, TanStack Query, RTK Query incl. custom base queries, repo-defined `api.get(...)` wrappers, Next server actions) and receiving side (Express routers and middleware, Next API routes, App Router handlers, next-connect), ranked by measured real usage (npm downloads from the registry's API, counts in public repos from GitHub code search; each number with its source and date), each marked handled / partial / not handled with its ADR; then split M5C.3 into one task per gap, most used first {model: opus}
+- [ ] M5C.2 C1 first (was M5B.6b): RTK Query base queries that forward to `fetchBaseQuery` (`eval/results/2026-11-batch3-diagnosis.md`): a repo function passing its first parameter unchanged to a `fetchBaseQuery` result's call is read as that `fetchBaseQuery` (its `baseUrl` joined), and a direct call of the result with a fixed URL (the refresh call) is a request; written from RTK's documented re-authorization example, ADR, fixture + golden, eval delta, batch 3 marked seen {model: opus}
+- [ ] M5C.3 One task per remaining gap from M5C.1's list (split there, most used first), each a general pattern with fixture + golden + ADR + eval delta {model: opus}
+- [ ] M5C.4 "Mapped completely" in the scorer and report: per repo, every labeled call site matched and nothing false; the share of repos mapped completely per set, and what stays unresolved grouped by reason (runtime-only URLs, services outside the repo); EVALUATION.md; tests {model: opus}
+- [ ] M5C.5a Fresh blind sample, selection: a recorded rule (a GitHub search query, filters, and a seed, written into `repos.json` / EVALUATION.md before drawing), 15–20 random React/Next + Express/Next repos drawn by it (rules as M3.2, read but never analyzed), pinned as unseen batch 4; no labels yet {model: opus}
+- [ ] M5C.5b Batch 4 labels drafted from the code and committed before any run (split per few repos as needed) {model: opus}
+- [ ] M5C.5c Score batch 4 once, blind: recall, precision, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 before deciding on another round {model: opus}
 
 ### M6 (continued)
 - [ ] M6.10 docs/walkthroughs/diff.md {model: opus}
