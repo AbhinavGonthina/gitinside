@@ -128,6 +128,7 @@ const EXPECTED: Record<string, string[]> = {
   "next-server-actions": ["5588e49fb41c26d2", "08f497552460fb40", "bbab3795796925b1"],
   "no-tsconfig": ["ca64d1e9051263e9", "69804ff099267024", "df35ae81cb864468"],
   "object-client": ["e43a79465232523c", "b88b0861a65ae784", "88fe59317e24fda9"],
+  "ofetch-client": ["cb45e31a81e51089", "b5fe0e1f4f661b89", "c9f54236cf59e4f2"],
   "pnpm-monorepo": ["82d59280e3e5a2d3", "5c444436464a6145", "ef999ac25fbce5c5"],
   "prisma-relations": ["fa788ac8d8cf3cce", "2f9ca2e017f04955", "686703b2cc019fb1"],
   "queues-bullmq": ["171ff8834dc5fe07", "1da2d0e97f6b2736", "a82cb33a1ba7a479"],

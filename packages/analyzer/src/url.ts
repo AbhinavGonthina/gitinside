@@ -32,7 +32,9 @@
  *   instead gives one URL per option (M5A.3h, ADR-0166), so `cond ? "/a" : "/b"` is two
  *   requests, and `/x${page ? "?page=" + page : ""}` is one.
  * - axios `baseURL` + URL combined the way axios does: an absolute URL ignores the base;
- *   otherwise one `/` joins them.
+ *   otherwise one `/` joins them. An ofetch `baseURL` (`baseJoin: "withBase"`, M5C.3c) joins
+ *   the same way, except that a URL already starting with the base is left alone (ufo's
+ *   `withBase`), decided only when the base is one literal and the URL starts with text.
  *
  * URL rules (DESIGN.md §7.2):
  * - A literal origin (`https://api.example.com`) becomes a `host` base; scheme and host are
@@ -60,6 +62,9 @@
  * - An env var inside the host (`https://${process.env.HOST}/x`).
  * - A hole that holds a `?` (`/search${qs}`) or several segments; the matcher treats a hole
  *   as part of one segment.
+ * - ofetch's `withBase` check against a base that isn't one literal (an env var), or a URL
+ *   whose leading text is only part of the base before a hole (`/a${x}` on `/api`): joined as
+ *   axios would. ufo's protocol-relative URLs (`//host/x`) and `./`/`../` segments likewise.
  */
 import ts from "typescript";
 import type { Confidence, UrlSegment } from "@gitinside/schema";
@@ -504,6 +509,24 @@ export function joinBaseURL(base: readonly UrlPart[], url: readonly UrlPart[]): 
 }
 
 /**
+ * Combine an ofetch `baseURL` with a request URL the way ofetch does (ufo's `withBase`, M5C.3c):
+ * a URL whose leading text already starts with a literal base, its trailing `/` dropped
+ * (`withoutTrailingSlash`), is left alone, so `ofetch("/api/users", { baseURL: "/api" })` is
+ * `/api/users`; otherwise as {@link joinBaseURL}. Like ufo, the check is a plain prefix test.
+ */
+export function withBase(base: readonly UrlPart[], url: readonly UrlPart[]): UrlPart[] {
+  const b = mergeParts(base);
+  const u = mergeParts(url);
+  const [only] = b;
+  const head = u[0];
+  if (b.length === 1 && only?.kind === "text" && head?.kind === "text") {
+    const prefix = (only.text.endsWith("/") ? only.text.slice(0, -1) : only.text) || "/";
+    if (only.text !== "" && head.text.startsWith(prefix)) return u;
+  }
+  return joinBaseURL(base, url);
+}
+
+/**
  * `new URL(url, base)`: an absolute URL stands alone; two literals resolve with WHATWG
  * rules; a root-relative URL keeps the base's origin (literal, env var, or page origin).
  * Anything else is a hole, because the base's path is unknown.
@@ -565,7 +588,7 @@ export interface UrlNormalizer {
    * unbound parameter is `WRAPPER_DEPTH`: only a caller further out could supply it.
    */
   normalize(
-    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
     bindings?: ParameterBindings,
   ): NormalizedUrl;
   /**
@@ -575,7 +598,7 @@ export interface UrlNormalizer {
    * earlier values first). Past {@link MAX_PATHS} paths, `normalize`'s single result.
    */
   alternatives(
-    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
     bindings?: ParameterBindings,
   ): NormalizedUrl[];
   /** The parameters a call site's URL and `baseURL` read, which a wrapper caller could bind. */
@@ -885,7 +908,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   const normalize = (
-    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
     scope?: ParameterBindings,
   ): NormalizedUrl => {
     confidence = "exact";
@@ -900,7 +923,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   const normalizeSite = (
-    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
   ): NormalizedUrl => {
     if (site.url === null) return dynamic(site.urlDetail ?? DYNAMIC_URL_DETAIL.url);
     let url = parts(site.url);
@@ -913,7 +936,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       if (overflowed(base)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
       if (startsWithParameter(base)) return deeper(WRAPPER_DEPTH_DETAIL.baseURL);
       if (base[0]?.kind === "hole") return dynamic(DYNAMIC_URL_DETAIL.baseLeadingHole);
-      url = joinBaseURL(base, url);
+      url = site.baseJoin === "withBase" ? withBase(base, url) : joinBaseURL(base, url);
       if (overflowed(url)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
     }
     const result = toUrlPattern(url);
@@ -927,7 +950,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   const alternatives = (
-    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
     scope?: ParameterBindings,
   ): NormalizedUrl[] => {
     const out: NormalizedUrl[] = [];
