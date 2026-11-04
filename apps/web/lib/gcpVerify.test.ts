@@ -279,8 +279,17 @@ function healthyProject() {
       },
     },
   };
+  on("GET", "artifactregistry.googleapis.com", `/v1/${registry.name}`, registry);
+  // `repositories.list` leaves out the cleanup policies and the dry-run flag (#19: the live
+  // project's list answer had none, while `gcloud artifacts repositories describe`, a `get`,
+  // showed both); only `get` has them.
   const repositories: Json = { repositories: [registry] };
-  on("GET", "artifactregistry.googleapis.com", at("/repositories"), repositories);
+  on("GET", "artifactregistry.googleapis.com", at("/repositories"), () => ({
+    repositories: repositories.repositories.map((repository: Json) => {
+      const { cleanupPolicies: _policies, cleanupPolicyDryRun: _dryRun, ...listed } = repository;
+      return listed;
+    }),
+  }));
 
   return {
     routes,
@@ -729,6 +738,22 @@ const deviations: [string, (p: ReturnType<typeof healthyProject>) => void, RegEx
     "the registry keeps 30 versions",
     (p) => (p.registry.cleanupPolicies["keep-recent"].mostRecentVersions.keepCount = 30),
     /^registry gitinside: cleanup policies is /,
+  ],
+  [
+    "the registry has no cleanup policies",
+    (p) => delete p.registry.cleanupPolicies,
+    /^registry gitinside: cleanup policies is "\[\]"/,
+  ],
+  [
+    "the registry is listed but can't be read",
+    (p) =>
+      p.on(
+        "GET",
+        "artifactregistry.googleapis.com",
+        `/v1/${p.registry.name}`,
+        googleError(403, "PERMISSION_DENIED", "denied"),
+      ),
+    /^registry: couldn't read it \(artifactregistry\.googleapis\.com answered 403: denied\)$/,
   ],
   [
     "the registry is past the free 0.5 GB",

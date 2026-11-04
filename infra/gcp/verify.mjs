@@ -748,13 +748,15 @@ export async function verifyGuardrails({ token, fetch = globalThis.fetch, base =
       "repositories",
     );
     const name = `projects/${project}/locations/${region}/repositories/${registry.repository}`;
-    const live = repositories.find((repository) => repository.name === name);
-    check(live !== undefined, `registry: no repository ${registry.repository} in ${region}`);
+    const listed = repositories.find((repository) => repository.name === name);
+    check(listed !== undefined, `registry: no repository ${registry.repository} in ${region}`);
     for (const other of repositories) {
-      if (other !== live)
+      if (other !== listed)
         check(false, `registry: a repository infra/gcp doesn't have: ${other.name}`);
     }
-    if (!live) return;
+    if (!listed) return;
+    // `list` leaves out the cleanup policies and the dry-run flag (#19); only `get` has them.
+    const live = await google.get("artifactregistry.googleapis.com", `/v1/${name}`);
     const what = `registry ${registry.repository}`;
     same(what, "format", live.format, registry.format);
     same(what, "cleanupPolicyDryRun", live.cleanupPolicyDryRun ?? false, false);
