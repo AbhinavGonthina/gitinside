@@ -125,6 +125,7 @@ const EXPECTED: Record<string, string[]> = {
   "next-connect": ["e3491958e79cd2ff", "55cdbe3076562dd7", "92e18284d06069a5"],
   "next-method-exclusions": ["fa1a9684081bccc7", "99edf2121fa9bee3", "f3c616510a54c58a"],
   "next-pages-api": ["cfc5e40c69391f0d", "7a84135e11ca8c0f", "5adb677acbeb0974"],
+  "next-server-actions": ["5588e49fb41c26d2", "08f497552460fb40", "bbab3795796925b1"],
   "no-tsconfig": ["ca64d1e9051263e9", "69804ff099267024", "df35ae81cb864468"],
   "object-client": ["e43a79465232523c", "b88b0861a65ae784", "88fe59317e24fda9"],
   "pnpm-monorepo": ["82d59280e3e5a2d3", "5c444436464a6145", "ef999ac25fbce5c5"],

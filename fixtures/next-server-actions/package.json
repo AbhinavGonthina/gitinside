@@ -1,0 +1,4 @@
+{
+  "name": "todo-actions",
+  "dependencies": { "@prisma/client": "6", "next": "15", "react": "19" }
+}

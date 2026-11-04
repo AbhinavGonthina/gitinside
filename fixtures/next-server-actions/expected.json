@@ -1,0 +1,484 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem",
+      "id": "calls:symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem->symbol:todo-actions/app/todos/actions.ts#deleteTodo",
+      "kind": "calls",
+      "label": "server action",
+      "sites": [
+        {
+          "column": 27,
+          "file": "app/todos/TodoItem.tsx",
+          "line": 12
+        }
+      ],
+      "to": "symbol:todo-actions/app/todos/actions.ts#deleteTodo"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem",
+      "id": "calls:symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem->symbol:todo-actions/app/todos/actions.ts#listTodos",
+      "kind": "calls",
+      "label": "server action",
+      "sites": [
+        {
+          "args": 0,
+          "column": 49,
+          "file": "app/todos/TodoItem.tsx",
+          "line": 13
+        }
+      ],
+      "to": "symbol:todo-actions/app/todos/actions.ts#listTodos"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem",
+      "id": "calls:symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem->symbol:todo-actions/app/todos/actions.ts#toggleTodo",
+      "kind": "calls",
+      "label": "server action",
+      "sites": [
+        {
+          "column": 42,
+          "file": "app/todos/TodoItem.tsx",
+          "line": 7
+        }
+      ],
+      "to": "symbol:todo-actions/app/todos/actions.ts#toggleTodo"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:todo-actions/app/todos/page.tsx#TodosPage",
+      "id": "calls:symbol:todo-actions/app/todos/page.tsx#TodosPage->symbol:todo-actions/app/todos/actions.ts#createTodo",
+      "kind": "calls",
+      "label": "server action",
+      "sites": [
+        {
+          "column": 21,
+          "file": "app/todos/page.tsx",
+          "line": 9
+        }
+      ],
+      "to": "symbol:todo-actions/app/todos/actions.ts#createTodo"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:todo-actions/app/todos/page.tsx#TodosPage",
+      "id": "calls:symbol:todo-actions/app/todos/page.tsx#TodosPage->symbol:todo-actions/app/todos/actions.ts#listTodos",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 23,
+          "file": "app/todos/page.tsx",
+          "line": 6
+        }
+      ],
+      "to": "symbol:todo-actions/app/todos/actions.ts#listTodos"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:todo-actions/app/todos/TodoItem.tsx",
+      "id": "imports:file:todo-actions/app/todos/TodoItem.tsx->file:todo-actions/app/todos/actions.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 51,
+          "file": "app/todos/TodoItem.tsx",
+          "line": 4
+        }
+      ],
+      "to": "file:todo-actions/app/todos/actions.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:todo-actions/app/todos/actions.ts",
+      "id": "imports:file:todo-actions/app/todos/actions.ts->file:todo-actions/lib/db.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 20,
+          "file": "app/todos/actions.ts",
+          "line": 3
+        }
+      ],
+      "to": "file:todo-actions/lib/db.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:todo-actions/app/todos/page.tsx",
+      "id": "imports:file:todo-actions/app/todos/page.tsx->file:todo-actions/app/todos/TodoItem.tsx",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 26,
+          "file": "app/todos/page.tsx",
+          "line": 2
+        }
+      ],
+      "to": "file:todo-actions/app/todos/TodoItem.tsx"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:todo-actions/app/todos/page.tsx",
+      "id": "imports:file:todo-actions/app/todos/page.tsx->file:todo-actions/app/todos/actions.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 39,
+          "file": "app/todos/page.tsx",
+          "line": 1
+        }
+      ],
+      "to": "file:todo-actions/app/todos/actions.ts"
+    },
+    {
+      "confidence": "exact",
+      "fields": [
+        "done"
+      ],
+      "from": "symbol:todo-actions/app/todos/actions.ts#listTodos",
+      "id": "reads:symbol:todo-actions/app/todos/actions.ts#listTodos->model:todo-actions/Todo",
+      "kind": "reads",
+      "sites": [
+        {
+          "column": 18,
+          "file": "app/todos/actions.ts",
+          "line": 6
+        }
+      ],
+      "to": "model:todo-actions/Todo"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:todo-actions//todos",
+      "id": "renders:page:todo-actions//todos->symbol:todo-actions/app/todos/page.tsx#TodosPage",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 31,
+          "file": "app/todos/page.tsx",
+          "line": 4
+        }
+      ],
+      "to": "symbol:todo-actions/app/todos/page.tsx#TodosPage"
+    },
+    {
+      "confidence": "exact",
+      "from": "model:todo-actions/Todo",
+      "id": "stores:model:todo-actions/Todo->datastore:infra/todo-actions/prisma/schema.prisma#db",
+      "kind": "stores",
+      "sites": [
+        {
+          "column": 1,
+          "file": "prisma/schema.prisma",
+          "line": 1
+        }
+      ],
+      "to": "datastore:infra/todo-actions/prisma/schema.prisma#db"
+    },
+    {
+      "confidence": "exact",
+      "fields": [
+        "id",
+        "title"
+      ],
+      "from": "symbol:todo-actions/app/todos/actions.ts#createTodo",
+      "id": "writes:symbol:todo-actions/app/todos/actions.ts#createTodo->model:todo-actions/Todo",
+      "kind": "writes",
+      "sites": [
+        {
+          "column": 17,
+          "file": "app/todos/actions.ts",
+          "line": 10
+        }
+      ],
+      "to": "model:todo-actions/Todo"
+    },
+    {
+      "confidence": "exact",
+      "fields": [
+        "id"
+      ],
+      "from": "symbol:todo-actions/app/todos/actions.ts#deleteTodo",
+      "id": "writes:symbol:todo-actions/app/todos/actions.ts#deleteTodo->model:todo-actions/Todo",
+      "kind": "writes",
+      "sites": [
+        {
+          "column": 17,
+          "file": "app/todos/actions.ts",
+          "line": 19
+        }
+      ],
+      "to": "model:todo-actions/Todo"
+    },
+    {
+      "confidence": "exact",
+      "fields": [
+        "done",
+        "id"
+      ],
+      "from": "symbol:todo-actions/app/todos/actions.ts#toggleTodo",
+      "id": "writes:symbol:todo-actions/app/todos/actions.ts#toggleTodo->model:todo-actions/Todo",
+      "kind": "writes",
+      "sites": [
+        {
+          "column": 17,
+          "file": "app/todos/actions.ts",
+          "line": 14
+        }
+      ],
+      "to": "model:todo-actions/Todo"
+    }
+  ],
+  "nodes": [
+    {
+      "engine": "postgres",
+      "id": "datastore:infra/todo-actions/prisma/schema.prisma#db",
+      "kind": "datastore",
+      "label": "postgres",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 1,
+        "file": "prisma/schema.prisma",
+        "line": 1
+      }
+    },
+    {
+      "hash": "8de71b7ca443281c41c8286c02853e86b123a12cff9e4ab22d0ae8a688c80a98",
+      "id": "file:todo-actions/app/todos/TodoItem.tsx",
+      "kind": "file",
+      "label": "TodoItem.tsx",
+      "parentId": "module:todo-actions/app/todos",
+      "path": "app/todos/TodoItem.tsx"
+    },
+    {
+      "hash": "1f3080b22bfaddab4887ebf9c0f45016865469afba0c97ecd94f3e03f4b4a475",
+      "id": "file:todo-actions/app/todos/actions.ts",
+      "kind": "file",
+      "label": "actions.ts",
+      "parentId": "module:todo-actions/app/todos",
+      "path": "app/todos/actions.ts"
+    },
+    {
+      "hash": "b8fd82dcbb9fabd446a5f1209a123efe4eecb0de73eee0a846342c46ac48d176",
+      "id": "file:todo-actions/app/todos/page.tsx",
+      "kind": "file",
+      "label": "page.tsx",
+      "parentId": "module:todo-actions/app/todos",
+      "path": "app/todos/page.tsx"
+    },
+    {
+      "hash": "d37e636c21cd71c62cdabbe1d53dee66346acefb6a63a1c48f66df16ec852219",
+      "id": "file:todo-actions/lib/db.ts",
+      "kind": "file",
+      "label": "db.ts",
+      "parentId": "module:todo-actions/lib",
+      "path": "lib/db.ts"
+    },
+    {
+      "hash": "7f00df96de8e1e2c92fd570e69b3da356265ddd8f31ca60d52d57eeb751f1fee",
+      "id": "file:todo-actions/prisma/schema.prisma",
+      "kind": "file",
+      "label": "schema.prisma",
+      "parentId": "module:todo-actions/prisma",
+      "path": "prisma/schema.prisma"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "String"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "String"
+        },
+        {
+          "name": "done",
+          "optional": false,
+          "type": "Boolean"
+        }
+      ],
+      "id": "model:todo-actions/Todo",
+      "kind": "model",
+      "label": "Todo",
+      "layer": "data",
+      "parentId": "file:todo-actions/prisma/schema.prisma",
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "prisma/schema.prisma",
+        "line": 6
+      }
+    },
+    {
+      "id": "module:todo-actions/app/todos",
+      "kind": "module",
+      "label": "todos",
+      "parentId": "service:todo-actions/",
+      "path": "app/todos"
+    },
+    {
+      "id": "module:todo-actions/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "service:todo-actions/",
+      "path": "lib"
+    },
+    {
+      "id": "module:todo-actions/prisma",
+      "kind": "module",
+      "label": "prisma",
+      "parentId": "service:todo-actions/",
+      "path": "prisma"
+    },
+    {
+      "id": "page:todo-actions//todos",
+      "kind": "page",
+      "label": "/todos",
+      "layer": "frontend",
+      "parentId": "file:todo-actions/app/todos/page.tsx",
+      "path": "/todos",
+      "source": {
+        "column": 31,
+        "file": "app/todos/page.tsx",
+        "line": 4
+      }
+    },
+    {
+      "framework": "next",
+      "id": "service:todo-actions/",
+      "kind": "service",
+      "label": "todo-actions",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem",
+      "kind": "symbol",
+      "label": "TodoItem",
+      "parentId": "file:todo-actions/app/todos/TodoItem.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "app/todos/TodoItem.tsx",
+        "line": 6
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:todo-actions/app/todos/actions.ts#createTodo",
+      "kind": "symbol",
+      "label": "createTodo",
+      "parentId": "file:todo-actions/app/todos/actions.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "app/todos/actions.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:todo-actions/app/todos/actions.ts#deleteTodo",
+      "kind": "symbol",
+      "label": "deleteTodo",
+      "parentId": "file:todo-actions/app/todos/actions.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 20,
+        "file": "app/todos/actions.ts",
+        "line": 18
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:todo-actions/app/todos/actions.ts#listTodos",
+      "kind": "symbol",
+      "label": "listTodos",
+      "parentId": "file:todo-actions/app/todos/actions.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "app/todos/actions.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:todo-actions/app/todos/actions.ts#toggleTodo",
+      "kind": "symbol",
+      "label": "toggleTodo",
+      "parentId": "file:todo-actions/app/todos/actions.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 16,
+        "file": "app/todos/actions.ts",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:todo-actions/app/todos/page.tsx#TodosPage",
+      "kind": "symbol",
+      "label": "TodosPage",
+      "parentId": "file:todo-actions/app/todos/page.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "app/todos/page.tsx",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:todo-actions/lib/db.ts#db",
+      "kind": "symbol",
+      "label": "db",
+      "parentId": "file:todo-actions/lib/db.ts",
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "lib/db.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "next-server-actions",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "next-server-actions",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

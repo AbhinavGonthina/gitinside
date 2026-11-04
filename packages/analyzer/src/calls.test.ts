@@ -443,6 +443,166 @@ describe("TypeScript failures per asking service (M6.7d3d1)", () => {
   });
 });
 
+describe("server actions (ADR-0203)", () => {
+  /** `from -> to (confidence)` for each calls edge, then its label if any. */
+  function labeled(graph: ArchitectureGraph): string[] {
+    const short = (id: string): string => id.replace(/^symbol:app\//, "");
+    return graph.edges
+      .filter((e) => e.kind === "calls")
+      .map((e) => `${short(e.from)} -> ${short(e.to)}${e.label ? ` [${e.label}]` : ""}`);
+  }
+
+  beforeEach(async () => {
+    await put("tsconfig.json", JSON.stringify({ compilerOptions: { jsx: "preserve" } }));
+    await put(
+      "app/actions.ts",
+      [
+        '"use server";',
+        "",
+        "export async function createTodo(data: FormData) { await save(data); }",
+        "export async function deleteTodo(id: string) { await save(id); }",
+        "export const archiveTodo = async (id: string, data: FormData) => { await save(id); };",
+        "export async function updateTodo(state: unknown, data: FormData) { return state; }",
+        "export async function listTodos() { return []; }",
+        "async function save(x: unknown) { return x; }",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("marks a client module's calls of a server action, and not a server component's", async () => {
+    await put(
+      "app/DeleteButton.tsx",
+      [
+        '"use client";',
+        'import { deleteTodo, listTodos } from "./actions";',
+        "",
+        "export function DeleteButton({ id }: { id: string }) {",
+        "  return <button onClick={() => deleteTodo(id)}>Delete</button>;",
+        "}",
+        "export async function refresh() { return listTodos(); }",
+        "",
+      ].join("\n"),
+    );
+    await put(
+      "app/page.tsx",
+      [
+        'import { listTodos } from "./actions";',
+        "",
+        "export default async function Page() {",
+        "  const todos = await listTodos();",
+        "  return <ul>{todos.length}</ul>;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const graph = await analyze(dir);
+    expect(labeled(graph)).toEqual([
+      "app/DeleteButton.tsx#DeleteButton -> app/actions.ts#deleteTodo [server action]",
+      "app/DeleteButton.tsx#refresh -> app/actions.ts#listTodos [server action]",
+      "app/actions.ts#archiveTodo -> app/actions.ts#save",
+      "app/actions.ts#createTodo -> app/actions.ts#save",
+      "app/actions.ts#deleteTodo -> app/actions.ts#save",
+      "app/page.tsx#Page -> app/actions.ts#listTodos",
+    ]);
+  });
+
+  it("links a server action passed to a form, a form button, or useActionState", async () => {
+    await put(
+      "app/page.tsx",
+      [
+        'import { createTodo, archiveTodo, listTodos } from "./actions";',
+        "",
+        "function local(data: FormData) { return data; }",
+        "export default function Page({ id }: { id: string }) {",
+        "  async function inline() {",
+        '    "use server";',
+        "    await listTodos();",
+        "  }",
+        "  return (",
+        "    <form action={createTodo}>",
+        "      <button formAction={archiveTodo.bind(null, id)}>Archive</button>",
+        "      <button formAction={inline}>Inline</button>",
+        "      <input formAction={local} />",
+        "    </form>",
+        "  );",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    await put(
+      "app/EditForm.tsx",
+      [
+        '"use client";',
+        'import { useActionState } from "react";',
+        'import * as ReactDom from "react-dom";',
+        'import { updateTodo, deleteTodo } from "./actions";',
+        "",
+        "export function EditForm() {",
+        "  const [state, action] = useActionState(updateTodo, null);",
+        "  const [, legacy] = ReactDom.useFormState(deleteTodo, null);",
+        "  return <form action={action}>{String(state)}{String(legacy)}</form>;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const graph = await analyze(dir);
+    expect(labeled(graph)).toEqual([
+      "app/EditForm.tsx#EditForm -> app/actions.ts#deleteTodo [server action]",
+      "app/EditForm.tsx#EditForm -> app/actions.ts#updateTodo [server action]",
+      "app/actions.ts#archiveTodo -> app/actions.ts#save",
+      "app/actions.ts#createTodo -> app/actions.ts#save",
+      "app/actions.ts#deleteTodo -> app/actions.ts#save",
+      // The inline action is nested in Page, so Page owns its call; `local` isn't an action.
+      "app/page.tsx#Page -> app/actions.ts#archiveTodo [server action]",
+      "app/page.tsx#Page -> app/actions.ts#createTodo [server action]",
+      "app/page.tsx#Page -> app/actions.ts#listTodos",
+    ]);
+    const form = graph.edges.find(
+      (e) =>
+        e.id ===
+        edgeId("calls", "symbol:app/app/page.tsx#Page", "symbol:app/app/actions.ts#createTodo"),
+    );
+    // React decides the arguments, so the site has no count.
+    expect(form?.sites).toEqual([{ file: "app/page.tsx", line: 10, column: 19 }]);
+  });
+
+  it('treats a function whose body starts with "use server" as an action', async () => {
+    await put(
+      "app/ping.ts",
+      [
+        "export async function ping() {",
+        '  "use server";',
+        "  return 1;",
+        "}",
+        "export async function pong() {",
+        "  const x = 1;",
+        '  "use server";',
+        "  return x;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    await put(
+      "app/Ping.tsx",
+      [
+        '"use client";',
+        'import { ping, pong } from "./ping";',
+        "",
+        "export function Ping() {",
+        "  return <form action={ping}><button onClick={() => pong()}>Pong</button></form>;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const graph = await analyze(dir);
+    expect(labeled(graph).filter((e) => e.includes("Ping.tsx"))).toEqual([
+      "app/Ping.tsx#Ping -> app/ping.ts#ping [server action]",
+      "app/Ping.tsx#Ping -> app/ping.ts#pong",
+    ]);
+  });
+});
+
 describe("call and symbol facts", () => {
   /** Each service's symbol nodes and call facts for the repo at `root`, in program order. */
   async function facts(root: string): Promise<{ symbols: GraphNode[][]; calls: CallFacts[] }> {
@@ -491,6 +651,33 @@ describe("call and symbol facts", () => {
         confidence: "exact",
         sites: [site(2), site(9)],
       },
+    ]);
+  });
+
+  it("labels browser calls of another service's server action, and drops passed non-actions", () => {
+    const site = (line: number) => ({ file: "a.tsx", line, column: 1 });
+    const edges = composeCallEdges([
+      {
+        service: "web",
+        calls: [
+          { from: "s:a", to: "s:act", confidence: "exact", site: site(1) },
+          { from: "s:a", to: "s:act", confidence: "exact", site: site(2), browser: true },
+          {
+            from: "s:a",
+            to: "s:local",
+            confidence: "exact",
+            site: site(3),
+            browser: true,
+            passed: true,
+          },
+          { from: "s:b", to: "s:local", confidence: "exact", site: site(4), browser: true },
+        ],
+      },
+      { service: "shared", calls: [], actions: ["s:act"] },
+    ]);
+    expect(edges.map((e) => [e.from, e.to, e.label, e.sites.length])).toEqual([
+      ["s:a", "s:act", "server action", 2],
+      ["s:b", "s:local", undefined, 1],
     ]);
   });
 
