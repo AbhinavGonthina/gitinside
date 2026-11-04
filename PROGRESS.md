@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5C.5b Batch 4 labels: draft from the code the 16 pins in `eval/draws/batch-4.json`, commit with their `repos.json` entries before any run (split per few repos first) (M5.14b2–b3 wait on #21)
+M5C.5b2 Batch 4 labels, repos 5–8 (IceLink, mern-starter-cli, community-resource-board, devcamper), committed with their `repos.json` entries before any run, under ADR-0209's rules (M5.14b2–b3 wait on #21)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -313,7 +313,11 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M5C.5a Fresh blind sample, selection: a recorded rule (a GitHub search query, filters, and a seed, written into `repos.json` / EVALUATION.md before drawing), 15–20 random React/Next + Express/Next repos drawn by it (rules as M3.2, read but never analyzed), pinned as unseen batch 4; no labels yet. Split into a1–a2 (the rule is committed before any candidate list is fetched):
 - [x] M5C.5a1 The rule, committed first (ADR-0208): `eval/draws/batch-4.json` (two strata, `react-express` and `nextjs-prisma` search queries, 8 pins each, seed `2026-11-04`), inclusion rules in EVALUATION.md §1, and `draw.ts` (validated record: whole sorted pools, a walk in the seeded order with no skipping, quota stop; `drawCli.ts` `snapshot` / `status`; `validate` cross-checks `"heldOut": 4` repos against the pins) {model: opus}
 - [x] M5C.5a2 The draw: `pnpm --filter @gitinside/eval draw snapshot 4` (then prettier), walk each stratum in `draw status 4` order reading each candidate (`git clone --depth 1` into `eval/.repos/`, never analyzed) against EVALUATION.md's five inclusion rules, recording every pin (default-branch HEAD SHA, what it exercises) or rejection (the first rule it fails) in the file until 8 pins per stratum; commit as you go (split per stratum if long); no labels, no `repos.json` entries yet {model: opus}
-- [ ] M5C.5b Batch 4 labels drafted from the code and committed before any run (split per few repos as needed) {model: opus}
+- M5C.5b Batch 4 labels drafted from the code and committed before any run, split into b1–b4 in the draw's pin order (4 repos each, each committed with its `repos.json` entries, `"heldOut": 4`; batch 4 declared `"seen": null`; no `pnpm eval` until M5C.5c, so the committed report stays stale meanwhile):
+- [x] M5C.5b1 Label `fiveman1/strafes-site`, `hoangsonww/Tic-Tac-Toe-Fullstack-Game`, `panshak/accountill`, `jigar-sable/instagram-mern` {model: opus}
+- [ ] M5C.5b2 Label `suryansh00001/IceLink`, `pnzaou/mern-starter-cli`, `vijayshikhare/community-resource-board`, `prasadhonrao/devcamper` {model: opus}
+- [ ] M5C.5b3 Label `nateherkai/snagtime`, `wrujel/airbnb-clone`, `jogeshwar01/tesior-web`, `Tanaka0127939/Shopify-Nextjs-Prisma-app` {model: opus}
+- [ ] M5C.5b4 Label `premieroctet/next-crud`, `gruz0/checkmvp`, `SujalXplores/v0.diy`, `Prathamesh-B/notx`; EVALUATION.md's batch 4 table {model: opus}
 - [ ] M5C.5c Score batch 4 once, blind: recall, precision, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 before deciding on another round {model: opus}
 
 ### M6 (continued)
@@ -352,6 +356,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+- **2026-11-04 M5C.5b1** (`5d220c2`): M5C.5b was split into b1–b4, four pins each. The first four were labeled from their code (strafes-site 44, Tic-Tac-Toe 20, accountill 27, instagram-mern 28) and pinned as `"heldOut": 4`, with batch 4 declared unseen. The analyzer never ran on them and `pnpm eval` waits for M5C.5c, so the committed report is stale meanwhile. ADR-0209: a literal public host is followed into the repo only with in-repo deployment evidence (Tic-Tac-Toe's `vercel.json`), and committed generated code is labeled. Four parallel readers drafted the files; every label was re-checked against the source, and 2 missed wasm-glue fetches were added.
 - **2026-11-04 M5C.5a2** (pools `0ae417c`, walk `9865768`): both pools were snapshotted (290 and 306, the totals read before the rule) and committed before any candidate was read. `react-express` pinned 8 of 19 read (6 rejected on rule 3, 5 on rule 4) and `nextjs-prisma` 8 of 16 (4 on rule 3, 3 on rule 4, 1 on rule 5). Every pin's SHA was checked against its clone's HEAD. One reader went 2 candidates past the quota; `validate` refused the record, and neither candidate is in the batch.
 
 - **2026-11-04 M5C.5a1** (`ffc4a0e`, report `bd682db`): batch 4's rule is committed before any candidate list was fetched (ADR-0208): two search strata (`topic:react topic:express`, `topic:nextjs topic:prisma`, MIT, not forks, ≥ 5 stars, ≤ 30 MB, pushed since 2024), 8 pins each, seed `2026-11-04`; only the totals (290, 306) were read, to check both fit under the 1,000-result cap. EVALUATION.md §1 lists five inclusion rules checked in order.
