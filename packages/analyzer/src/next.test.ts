@@ -53,6 +53,15 @@ function nextWarnings(graph: ArchitectureGraph): ArchitectureGraph["warnings"] {
   return graph.warnings.filter((w) => w.code.startsWith("NEXT"));
 }
 
+/** Each service's Next.js facts, before `analyze` merges and de-duplicates them. */
+async function nextFacts(root: string): Promise<NextFacts[]> {
+  const inventory = await buildInventory(root);
+  const workspace = await detectWorkspace(root, inventory.files);
+  const programs = buildServicePrograms(root, workspace, inventory);
+  const resolver = createSymbolResolver(programs, workspace);
+  return programs.map((sp) => collectNextFacts(sp, resolver));
+}
+
 describe("segmentsToPath", () => {
   it.each([
     [[], "app", "/"],
@@ -229,14 +238,6 @@ describe("checkedMethods", () => {
 
 describe("next.js facts", () => {
   const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
-
-  async function nextFacts(root: string): Promise<NextFacts[]> {
-    const inventory = await buildInventory(root);
-    const workspace = await detectWorkspace(root, inventory.files);
-    const programs = buildServicePrograms(root, workspace, inventory);
-    const resolver = createSymbolResolver(programs, workspace);
-    return programs.map((sp) => collectNextFacts(sp, resolver));
-  }
 
   /** The Next.js part of `analyze`'s graph (no Express routes in these repos). */
   function nextPart(graph: ArchitectureGraph) {
@@ -769,6 +770,29 @@ describe("next.js routes", () => {
           message: exported("router"),
         },
       ]);
+    });
+
+    it("gives an exported router one reason however many ways it's exported", async () => {
+      await nextApp(deps);
+      await put("pages/api/both.ts", [
+        'import nc from "next-connect";',
+        "export const router = nc();",
+        "router.get((req, res) => res.end());",
+        "export { router as handler };",
+        "export { router as api };",
+        "export default router;",
+      ]);
+      const warning = {
+        code: "NEXT_CONNECT_UNSEEN_METHODS",
+        file: "pages/api/both.ts",
+        message:
+          "the next-connect router router is exported, so other files may register more methods; kept an ALL route for them",
+      };
+      // The service's own facts (cached as they are), not only the assembled graph.
+      expect((await nextFacts(dir)).flatMap((f) => f.warnings)).toEqual([warning]);
+      const graph = await analyze(dir);
+      expect(entries(graph)).toEqual(["route:web/ALL /api/both", "route:web/GET /api/both"]);
+      expect(nextWarnings(graph)).toEqual([warning]);
     });
 
     it("adds one ALL route, and keeps its warnings, whatever the router registers", async () => {
