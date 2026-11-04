@@ -2,7 +2,7 @@
 
 **Tag:** `m5` (not yet: waits for M5.14b) · **Range:** `m4a..HEAD` (M5.1–M5.12b, M5.14a) · **Date:** 2026-10-29
 
-> **Status: pre-deploy.** Everything that can be verified without production accounts is verified here (M5.14a). The deploy (M5.13) waits on Abhinav's signups (planning #3–#7), so the production half of the acceptance criteria and the `m5` tag come with M5.14b. Sections that need production are marked **Pending M5.14b**.
+> **Status: pre-deploy.** Everything that can be verified without production accounts is verified here (M5.14a). The deploy (M5.13) waits on Abhinav's signups (planning #3–#7), so the production half of the acceptance criteria and the `m5` tag come with M5.14b. Sections that need production are marked **Pending M5.14b**. 2026-11-04: deployed and smoke-tested in production (M5.13, "Smoke test" below).
 
 ## What was built
 
@@ -113,7 +113,26 @@ All above target (analyzer ≥ 85%, others ≥ 70%).
 
 **Whole-job pipeline without production:** the security suite runs real jobs end to end (fake GitHub → tarball → our extractor → the sandboxed child → stored graph) for 18 cases, all green; the Redis + Postgres round trip (`main.test.ts`) runs on CI.
 
-**Website: Pending M5.14b** (needs the deploy).
+**Website, production (M5.13, 2026-11-04).** The deploy is CI's: run 41773843587 (`cfda744`, `ANALYZER_VERSION` 0.2.0 from `38a3b11`) built the image and replaced both Cloud Run services (`Creating Revision…done`, `Routing traffic…done`). Abhinav's run of the fixed `verify.mjs` on #3: "all 119 checks match infra/gcp". Vercel serves `gitinside.abhinavgonthina.dev` from `main`. A scratch script posted each URL to `/api/analyze` like the landing form, polled `/api/jobs/:id` every 3 s, then read the pages, graph, badge, and image. Times below are client wall clock from this laptop, so the job time is accurate to about 3 s.
+
+| Repo (commit) | Files | Services | Queued → done | Graph (JSON / brotli) | Second graph GET |
+|---|---|---|---|---|---|
+| `shadcn-ui/taxonomy` (`298a885`) | 132 | 1 | ≈ 7 s | 439 KB / 34 KB | `x-vercel-cache: HIT` |
+| `documenso/documenso` (`052aca2`) | 2,260 | 16 | 47.3 s | 13.4 MB / 828 KB | `MISS` (3 of 3) |
+| `calcom/cal.diy` (`2eb48ec`, pasted as `calcom/cal.com`) | 5,075 | 113 | 96.3 s | not decoded / 1.68 MB | `MISS` (2 of 2) |
+
+- **Paste → progress → diagram works.** Each job answered `202 queued`, the job API showed the real stages ("Parsing 5,075 files", "Linking function calls", "Saving the diagram") with found facts and a time estimate, then `done`. The diagram page drew under the production CSP with the Web Worker layout (`data-layout="done"` in 1.2–5.3 s, no console errors) in both themes.
+- **Cache hit:** posting the same URL again answered `200 done` with the same SHA in 95–388 ms, without a new job.
+- **Badge and live image:** both `200 image/svg+xml`. The image's second request was a CDN `HIT` for taxonomy and documenso (cal.diy's image was read only under its old name, where it's the link-only badge, also a `HIT`).
+- **ADR-0097's CDN check, half confirmed.** taxonomy's graph URL was a `HIT` (age 99 s on a later read). documenso's and cal.diy's were `MISS` on every read, so each view of a big repo, and each image refresh, reads the bucket. Vercel documents 10 MB as the largest cacheable function response, and 20 MB when the response is streamed ([Vercel CDN Cache](https://vercel.com/docs/caching/cdn-cache)). Ours is chunked and documenso's is 13.4 MB uncompressed, so which limit applies isn't confirmed. Finding that out and fixing it is M5.13a. `store_requests` wasn't read, because this machine has no production database access. M5.14b reads it.
+- **5k files in ≤ 60 s (DESIGN.md §Performance): not met.** cal.diy's 5,075 files took 96.3 s from queued to done on 1 vCPU / 4 GiB. The per-stage times are in that row's `analyses.stats`, which M5.13a reads before deciding what to do.
+- **Readability on big monorepos (M5.13b).** cal.diy's first view (113 services) opens at the 40% zoom floor showing only connection lines, with the boxes off to the side (the minimap shows them). documenso's service names all start with `@documenso/`, so most read only as "@docume…". A renamed repo opened under its old name (`/calcom/cal.com`) says "hasn't been analyzed yet", though the badge and the analysis exist under the new name.
+
+![Production: taxonomy, dark](M5/prod-taxonomy-dark.png)
+![Production: documenso, light](M5/prod-documenso-light.png)
+![Production: cal.diy's first view, dark](M5/prod-cal-diy-dark.png)
+
+**Still for M5.14b:** the rate limit in production, the badge in a real GitHub README, `store_requests` and the quota readings, and the compute count against Google's billing report.
 
 ## Interview questions
 

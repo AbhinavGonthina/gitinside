@@ -302,7 +302,7 @@ Built in steps M6.7a–f (ADR-0090).
 - **Storage:** a local disk cache (`openDiskCache`, `packages/analyzer/src/cache.ts`): gzipped JSON entries named by key hash, atomic renames, LRU by file time, room made before each write so the folder never passes its cap, failures counted and treated as misses. The CLI's default cap is 2 GB. For PR diffs, base and head share entries for unchanged services.
 - **On the worker** (`apps/worker/src/factcache.ts`, ADR-0178): the cache lives in Cloud Run's in-memory `/tmp/cache` and lasts as long as the instance. `public/` holds public repos' facts and `installations/<id>/` each GitHub App installation's (deleted on uninstall, M8.5); a private repo without an installation gets none. The sandboxed child may read and write only its job's folder. All folders share one 64 MiB cap, counted in 4 KiB pages and taken from the memory budget (two cal.com-sized analyses: 25.2 MiB each, `bench/results/2026-11-02-cache-sizes.md`); before a job, other folders are deleted whole, least recently used first, until they hold at most half, and the job's folder gets the rest.
 - **Budgets** (measured in `bench/`):
-  - Full analysis of a 5k-file repo ≤ 60 s on the worker (one Cloud Run instance, 1 vCPU / 4 GiB; measured in M5.13).
+  - Full analysis of a 5k-file repo ≤ 60 s on the worker (one Cloud Run instance, 1 vCPU / 4 GiB). **Not met yet:** M5.13 measured 96.3 s from queued to done for cal.diy's 5,075 files (documenso, 2,260 files: 47.3 s; `docs/milestones/M5-review.md` → Smoke test). M5.13a looks into it.
   - Incremental re-analysis after a 10-file change ≤ 10 s.
 
 ## 10. Data model (Postgres, Drizzle)
