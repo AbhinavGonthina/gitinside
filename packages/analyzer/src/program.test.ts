@@ -306,6 +306,28 @@ describe("buildServicePrograms", () => {
       expect(files.size).toBe(3);
       expect(sourceOf(api)?.languageVersion).toBe(ts.ScriptTarget.ES5);
     });
+
+    it("resolves its imports with each service's own `paths` though its parse is shared", async () => {
+      await tree({
+        ...workspace,
+        [shared]: 'import { z } from "~/z"; export const x = z;',
+        "apps/web/tsconfig.json": { compilerOptions: { paths: { "~/*": ["./*"] } } },
+        "apps/web/z.ts": "export const z = 1;",
+        "apps/api/tsconfig.json": { compilerOptions: { paths: { "~/*": ["./*"] } } },
+        "apps/api/z.ts": "export const z = 2;",
+      });
+      const programs = await build();
+      const [web, api] = ["web", "api"].map((key) => byKey(programs, key));
+      expect(sourceOf(web)).toBe(sourceOf(api));
+      for (const [sp, own, other] of [
+        [web, "apps/web/z.ts", "apps/api/z.ts"],
+        [api, "apps/api/z.ts", "apps/web/z.ts"],
+      ] as const) {
+        expect(sp && resolved(sp, shared, "~/z")).toBe(own);
+        expect(sp?.program.getSourceFile(sp.toAbsolute(own))).toBeDefined();
+        expect(sp?.program.getSourceFile(sp.toAbsolute(other))).toBeUndefined();
+      }
+    });
   });
 
   it("keeps machine paths out of warning messages", async () => {
