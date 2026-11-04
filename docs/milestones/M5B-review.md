@@ -58,11 +58,11 @@ A subagent with no prior context reviewed M5B's commits (analyzer, viewer, eval,
 | # | Severity | Finding | Outcome |
 |---|---|---|---|
 | 1 | Medium | RTK endpoints under a custom `baseQuery` give no request and no unresolved node (`http.ts` `rtkEndpoint` returns `[]`), so a call site vanishes; "fail visibly" broken. Batch 3's 25 misses are this. | Fixed in M5B.7b (`54a7de5`): one unresolved `DYNAMIC_URL` site per endpoint, its detail saying the base query isn't followed; Recipen's missing sites 25 → 1, scores unchanged. The forwarding fix itself stays M5B.6b (#18) |
-| 2 | Low–medium | A next-connect router declared in a shared file and exported: only its own file is walked (`connectRouter`), so `pages/api/a.ts`'s `r.get` and `b.ts`'s `r.post` on one v0 instance give GET-only and POST-only, no warning. Same for `.use(subRouter)`. | Planned: M5B.7c |
-| 3 | Low | `.all(h)` plus any unseen reason adds `ALL` twice (`next.ts` `connectRoutes`), so `NEXT_DUPLICATE_ROUTE` says the file duplicates itself. | Planned: M5B.7c |
-| 4 | Low | `export { handler as default }` is read as the router escaping (`use` exempts only `ExportAssignment`): a spurious warning and `ALL` route. | Planned: M5B.7c |
+| 2 | Low–medium | A next-connect router declared in a shared file and exported: only its own file is walked (`connectRouter`), so `pages/api/a.ts`'s `r.get` and `b.ts`'s `r.post` on one v0 instance give GET-only and POST-only, no warning. Same for `.use(subRouter)`. | Fixed in M5B.7c (`53293dd`): a module-level router from another file, an exported one, and `.use(x)` with a next-connect router each keep `ALL` with `NEXT_CONNECT_UNSEEN_METHODS`; scores unchanged |
+| 3 | Low | `.all(h)` plus any unseen reason adds `ALL` twice (`next.ts` `connectRoutes`), so `NEXT_DUPLICATE_ROUTE` says the file duplicates itself. | Fixed in M5B.7c (`53293dd`), confirmed red by a mutation check |
+| 4 | Low | `export { handler as default }` is read as the router escaping (`use` exempts only `ExportAssignment`): a spurious warning and `ALL` route. | Fixed in M5B.7c (`53293dd`), red first |
 | 5 | Low | A negated guard's refusal with any other call (`log.warn(…)`, `res.json({ error: t("…") })`) reads as serving, adding `ALL`. | Planned: M5B.7d |
-| 6 | Low (docs) | A destructured RTK builder (`({ query }) => …`) isn't read and isn't in `http.ts`'s "not handled" list; a router with only unseen registrations drops its `NEXT_CONNECT_UNSEEN_METHODS` warnings. | RTK part fixed in M5B.7b: a builder destructured in the `endpoints` parameter is read; `const { query } = build` listed as not handled. Warnings: planned, M5B.7c |
+| 6 | Low (docs) | A destructured RTK builder (`({ query }) => …`) isn't read and isn't in `http.ts`'s "not handled" list; a router with only unseen registrations drops its `NEXT_CONNECT_UNSEEN_METHODS` warnings. | RTK part fixed in M5B.7b: a builder destructured in the `endpoints` parameter is read; `const { query } = build` listed as not handled. Warnings fixed in M5B.7c (`53293dd`): a router with only unseen registrations keeps them |
 
 ## Smoke test
 
