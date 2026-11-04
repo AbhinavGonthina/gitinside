@@ -22,6 +22,7 @@ import {
   scoreRepo,
   ScoreError,
   siteMatches,
+  totalUnresolved,
 } from "./score.js";
 
 const SHA = "a".repeat(40);
@@ -428,6 +429,60 @@ describe("scoreRepo", () => {
     ]);
   });
 
+  it("calls a repo mapped completely only with every label right and nothing false (M5C.4)", () => {
+    const u = unresolvedAt(at(2), "DYNAMIC_URL");
+    const g = graph({
+      routes: [users, me],
+      extraNodes: [u.node],
+      edges: [http(users, [at(1)]), u.edge],
+    });
+    // A matched route plus a correct abstention.
+    expect(scoreRepo(labels([label(1, users), label(2, null)]), g).mappedCompletely).toBe(true);
+    // A false negative: the abstaining site has a real target.
+    expect(scoreRepo(labels([label(1, users), label(2, me)]), g).mappedCompletely).toBe(false);
+    // A false positive alone: a route at an unlabeled site.
+    expect(scoreRepo(labels([label(2, null)]), g).mappedCompletely).toBe(false);
+    // A dropped `null` site: neither a false positive nor a false negative, but missing.
+    const dropped = scoreRepo(labels([label(1, users), label(2, null), label(3, null)]), g);
+    expect(dropped.counts).toMatchObject({ falsePositives: 0, falseNegatives: 0, missing: 1 });
+    expect(dropped.mappedCompletely).toBe(false);
+    // Nothing labeled is nothing shown to be mapped.
+    expect(scoreRepo(labels([]), graph({})).mappedCompletely).toBe(false);
+  });
+
+  it("groups labels without a route prediction by what the analyzer said instead (M5C.4)", () => {
+    const dynamic = unresolvedAt(at(1), "DYNAMIC_URL");
+    const dynamic2 = unresolvedAt(at(2), "DYNAMIC_URL");
+    const noMatch = unresolvedAt(at(3), "NO_MATCHING_ROUTE");
+    const both = unresolvedAt(at(4, 20), "DYNAMIC_URL");
+    const x = externalAt([at(4, 5), at(5)]);
+    const g = graph({
+      routes: [users, me],
+      extraNodes: [dynamic.node, dynamic2.node, noMatch.node, both.node, x.node],
+      edges: [dynamic.edge, dynamic2.edge, noMatch.edge, both.edge, x.edge, http(me, [at(7)])],
+    });
+    const score = scoreRepo(
+      labels([
+        label(1, null),
+        label(2, users),
+        label(3, null),
+        label(4, null),
+        label(5, null),
+        label(6, users),
+        // A wrong route is a false positive, not an unresolved answer.
+        label(7, users),
+      ]),
+      g,
+    );
+    expect(score.unresolved).toEqual([
+      { answer: "external host", nullLabels: 1, realTargets: 0 },
+      { answer: "external host + unresolved DYNAMIC_URL", nullLabels: 1, realTargets: 0 },
+      { answer: "no prediction", nullLabels: 0, realTargets: 1 },
+      { answer: "unresolved DYNAMIC_URL", nullLabels: 1, realTargets: 1 },
+      { answer: "unresolved NO_MATCHING_ROUTE", nullLabels: 1, realTargets: 0 },
+    ]);
+  });
+
   it("refuses a graph of another repo or commit", () => {
     expect(() => scoreRepo(labels([]), graph({ repo: "acme/other" }))).toThrow(
       /graph is for acme\/other/,
@@ -463,6 +518,22 @@ describe("scoreAll", () => {
     expect(result.overall.byConfidence.heuristic).toEqual({ truePositives: 0, falsePositives: 1 });
     expect(precision(result.overall)).toBe(0.5);
     expect(recall(result.overall)).toBe(0.5);
+  });
+
+  it("adds up unresolved groups across repos (M5C.4)", () => {
+    const a = unresolvedAt(at(1), "DYNAMIC_URL");
+    const ga = graph({ repo: "a/app", extraNodes: [a.node], edges: [a.edge] });
+    const b = unresolvedAt(at(1), "DYNAMIC_URL");
+    const gb = graph({ repo: "b/app", extraNodes: [b.node], edges: [b.edge] });
+    const result = scoreAll([
+      { labels: labels([label(1, null), label(2, users)], ["."], "a/app"), graph: ga },
+      { labels: labels([label(1, users)], ["."], "b/app"), graph: gb },
+    ]);
+    expect(totalUnresolved(result.repos)).toEqual([
+      { answer: "no prediction", nullLabels: 0, realTargets: 1 },
+      { answer: "unresolved DYNAMIC_URL", nullLabels: 1, realTargets: 1 },
+    ]);
+    expect(totalUnresolved([])).toEqual([]);
   });
 
   it("is deterministic: the same inputs give identical output", () => {
