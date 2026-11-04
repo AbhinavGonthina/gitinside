@@ -385,6 +385,20 @@ describe("childArgs", () => {
     ]);
   });
 
+  it("caps the semi-space only when asked, next to the heap cap (M5.13a5)", () => {
+    const job = { src: "/jobs/1/src", out: "/jobs/1/architecture.json", owner: "a", name: "b" };
+    const files = { script: "/app/child.js", guard: "/app/netguard.js" };
+    const args = childArgs(job, { timeoutMs: 1000, maxHeapMb: 512, semiSpaceMb: 64 }, files, [
+      "/app",
+    ]);
+    expect(args.slice(0, 3)).toEqual([
+      "--max-old-space-size=512",
+      "--max-semi-space-size=64",
+      "--permission",
+    ]);
+    expect(DEFAULT_RUNNER_LIMITS.semiSpaceMb).toBeUndefined();
+  });
+
   it("lets the child read and write its cache folder, and only that one", () => {
     const job = {
       src: "/jobs/1/src",

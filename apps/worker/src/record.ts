@@ -132,6 +132,7 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
         jobMs: { download: timings.downloadMs, analyze: timings.analyzeMs, upload },
         ...(stats.peakRssBytes === undefined ? {} : { peakRssBytes: stats.peakRssBytes }),
         ...(stats.heapBytes === undefined ? {} : { heapBytes: stats.heapBytes }),
+        ...(stats.gcMs === undefined ? {} : { gcMs: stats.gcMs }),
       },
     });
   }

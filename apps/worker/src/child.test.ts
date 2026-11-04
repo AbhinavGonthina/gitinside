@@ -48,7 +48,32 @@ describe("runChildJob", () => {
       expect(Number.isSafeInteger(peakRssBytes) && Number.isSafeInteger(heapBytes)).toBe(true);
       expect(heapBytes).toBeGreaterThan(1024 * 1024);
       expect(peakRssBytes).toBeGreaterThan(1024 * 1024);
+      // Collector pauses by kind, in whole ms (a small fixture may need no collection).
+      const { gcMs } = report.stats;
+      expect(gcMs).toBeTypeOf("object");
+      for (const [kind, ms] of Object.entries(gcMs ?? {})) {
+        expect(["minor", "major", "incremental", "weakcb"]).toContain(kind);
+        expect(Number.isInteger(ms) && ms >= 0).toBe(true);
+      }
     }
+  });
+
+  it("sums the collector's pauses during the analysis by kind (M5.13a5)", async () => {
+    // A fake analyzer that allocates enough to collect, so pauses are certain.
+    const report = await runChildJob(
+      { src: FIXTURE, out: join(dir, "g.json"), owner: "a", name: "b" },
+      {
+        analyze: async (...args) => {
+          let keep: object[] = [];
+          for (let i = 0; i < 2_000_000; i++) {
+            keep.push({ i });
+            if (keep.length > 100_000) keep = [];
+          }
+          return analyze(...args);
+        },
+      },
+    );
+    expect(report.ok && report.stats.gcMs?.minor).toBeGreaterThan(0);
   });
 
   it("passes each analyzer stage on as a step, with the counts the analyzer gives", async () => {

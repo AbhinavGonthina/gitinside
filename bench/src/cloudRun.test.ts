@@ -7,6 +7,7 @@ import {
   median,
   parseContainerRun,
   parseCpuStat,
+  parseSemiSpaces,
   renderCloudRunReport,
   type CloudRunMeta,
   type ContainerRun,
@@ -117,6 +118,13 @@ describe("dockerRunArgs", () => {
     ]);
     expect(() => dockerRunArgs("img:bench", { ...TARGET, sha: "x" })).toThrow(/bad sha/);
   });
+
+  it("passes a semi-space cap to the script only when given one (M5.13a5)", () => {
+    expect(dockerRunArgs("img:bench", TARGET, 64).slice(-2)).toEqual([
+      JSON.stringify(TARGET),
+      "64",
+    ]);
+  });
 });
 
 describe("CONTAINER_SCRIPT", () => {
@@ -125,7 +133,9 @@ describe("CONTAINER_SCRIPT", () => {
     expect(CONTAINER_SCRIPT).toContain('from "./dist/runner.js"');
     expect(CONTAINER_SCRIPT).toContain('mkdtemp("/tmp/jobs/bench-")');
     expect(CONTAINER_SCRIPT).toContain("extractTarball(process.stdin, src)");
-    expect(CONTAINER_SCRIPT).not.toMatch(/limits|cache:/);
+    // Production's caps: only a semi-space cap may be passed on (M5.13a5).
+    expect(CONTAINER_SCRIPT).not.toMatch(/timeoutMs|maxHeapMb|cache:/);
+    expect(CONTAINER_SCRIPT).toContain("limits: { semiSpaceMb }");
     expect(CONTAINER_SCRIPT).toContain('cgroup("memory.peak")');
   });
 });
@@ -162,6 +172,16 @@ describe("parseContainerRun", () => {
       "a failure without a code",
       JSON.stringify(printed({ result: { ok: false, durationMs: 1 } })),
       /without a code/,
+    ],
+    ["a bad semi-space", JSON.stringify(printed({ semiSpaceMb: "64" })), /bad semi-space/],
+    [
+      "bad collector pauses",
+      JSON.stringify(
+        printed({
+          result: { ok: true, durationMs: 1, stats: { stageMs: {}, gcMs: { minor: -1 } } },
+        }),
+      ),
+      /bad collector pauses/,
     ],
     ["a bad hash", JSON.stringify(printed({ graphSha256: 1 })), /bad graph hash/],
     ["bad steps", JSON.stringify(printed({ steps: [{ step: 1, atMs: 0 }] })), /bad steps/],
@@ -224,7 +244,7 @@ describe("renderCloudRunReport", () => {
 
   it("prints each run's readings as measured", () => {
     expect(report).toContain(
-      "| 1 | 76.0 s | 4.1 s | 70.0 s | 2,200 MiB | 2,100 MiB | 2,600 MiB | 71.0 s | 9.0 s |",
+      "| 1 | default | 76.0 s | 4.1 s | 70.0 s | n/a | 2,200 MiB | 2,100 MiB | 2,600 MiB | 71.0 s | 9.0 s |",
     );
   });
 
@@ -250,12 +270,57 @@ describe("renderCloudRunReport", () => {
     const mixed = renderCloudRunReport(META, [runs[0] as ContainerRun, other, failed]);
     expect(mixed).toContain("- **Graphs identical across runs:** **NO**");
     expect(mixed).toContain(
-      "| 3 | 76.0 s | 4.1 s | **LIMIT_MEMORY** after 50.0 s | n/a | n/a | n/a | n/a | n/a |",
+      "| 3 | default | 76.0 s | 4.1 s | **LIMIT_MEMORY** after 50.0 s | n/a | n/a | n/a | n/a | n/a | n/a |",
     );
     expect(mixed).toContain("allows 1 vCPU / unlimited");
     expect(mixed).toContain("over 2 finished runs");
     expect(renderCloudRunReport(META, [failed])).toContain(
       "No run finished, so there is no median.",
     );
+  });
+
+  it("gives collector pauses and, with several semi-space caps, a median per cap (M5.13a5)", () => {
+    const capped = (
+      semiSpaceMb: number | null,
+      durationMs: number,
+      minor: number,
+    ): ContainerRun => {
+      const base = printed().result as { stats: Record<string, unknown> };
+      return run({
+        semiSpaceMb,
+        result: {
+          ok: true,
+          durationMs,
+          stats: { ...base.stats, gcMs: { minor, major: 1000, incremental: 100 } },
+        },
+      });
+    };
+    const alternating = [
+      capped(null, 60_000, 9000),
+      capped(64, 50_000, 3000),
+      capped(null, 62_000, 9200),
+      capped(64, 52_000, 3400),
+    ];
+    const report = renderCloudRunReport(META, alternating);
+    expect(report).toContain("| 2 | 64 MiB | 76.0 s | 4.1 s | 50.0 s | 4.1 s (3.0 s) |");
+    expect(report).toContain(
+      "| default | 2 | 61.0 s | **1.0 s over** | 10.2 s (9.1 s) | 2,100 MiB | 2,600 MiB |",
+    );
+    expect(report).toContain(
+      "| 64 MiB | 2 | 51.0 s | within | 4.3 s (3.2 s) | 2,100 MiB | 2,600 MiB |",
+    );
+    expect(report).not.toContain("**Median analysis:");
+    expect(report).toContain("| Stage | Run 1 (default) | Run 2 (64 MiB) |");
+  });
+});
+
+describe("parseSemiSpaces", () => {
+  it("reads caps in MiB and default as V8's own", () => {
+    expect(parseSemiSpaces("default")).toEqual([undefined]);
+    expect(parseSemiSpaces("default, 32,64")).toEqual([undefined, 32, 64]);
+  });
+
+  it.each(["", "0", "257", "1.5", "32;rm", "-1"])("refuses %j", (text) => {
+    expect(() => parseSemiSpaces(text)).toThrow(/bad --semi-space/);
   });
 });

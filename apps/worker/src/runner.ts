@@ -47,6 +47,11 @@ export interface RunnerLimits {
   timeoutMs: number;
   /** V8 old-space cap in MiB (`--max-old-space-size`). Default 2,560. */
   maxHeapMb: number;
+  /**
+   * V8 semi-space cap in MiB (`--max-semi-space-size`; the young generation holds two). Unset:
+   * V8's own (16 MiB with this heap cap on Node 22). Only the 1-vCPU benchmark sets it (M5.13a5).
+   */
+  semiSpaceMb?: number;
 }
 
 /**
@@ -131,6 +136,7 @@ export function childArgs(
   const cacheDirs = job.cache === undefined ? [] : [job.cache.dir];
   return [
     `--max-old-space-size=${limits.maxHeapMb}`,
+    ...(limits.semiSpaceMb === undefined ? [] : [`--max-semi-space-size=${limits.semiSpaceMb}`]),
     "--permission",
     ...[...readRoots, job.src, ...cacheDirs].map((path) => `--allow-fs-read=${path}`),
     ...[job.out, ...cacheDirs].map((path) => `--allow-fs-write=${path}`),
