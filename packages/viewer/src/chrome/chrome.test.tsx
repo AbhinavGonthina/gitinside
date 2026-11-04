@@ -425,6 +425,23 @@ describe("inspector", () => {
     expect(values[1]?.getAttribute("title")).toBe("apps/api/src/routes/orders.ts");
   });
 
+  it("says a connection is a server action call (ADR-0203)", () => {
+    render(
+      <ConnectionList
+        empty="None"
+        items={[
+          {
+            node: sampleOf("model").node,
+            edge: { kind: "calls", confidence: "exact", label: "server action" },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Order/ }).textContent).toContain(
+      "calls · server action · Exact match",
+    );
+  });
+
   it("says so when there are no connections", () => {
     render(<ConnectionList items={[]} empty="Nothing in the repo calls this." />);
     expect(screen.getByText("Nothing in the repo calls this.")).toBeTruthy();

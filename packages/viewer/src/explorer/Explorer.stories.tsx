@@ -231,6 +231,47 @@ export const OnboardingOverBoxes: Story = {
   },
 };
 
+// The analyzer's output for fixtures/next-server-actions (ADR-0203).
+const ACTIONS = "../../../../fixtures/next-server-actions/";
+const actionsGraph = Object.values(
+  import.meta.glob<ArchitectureGraph>("../../../../fixtures/next-server-actions/expected.json", {
+    eager: true,
+    import: "default",
+  }),
+)[0] as ArchitectureGraph;
+const actionsSources = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<string>("../../../../fixtures/next-server-actions/{app,lib}/**/*.{ts,tsx}", {
+      eager: true,
+      query: "?raw",
+      import: "default",
+    }),
+  ).map(([path, text]) => [path.slice(ACTIONS.length), text]),
+);
+
+/**
+ * Server actions (M5C.3a2): a client component's calls of `"use server"`
+ * functions say "calls · server action" on the line and in the inspector;
+ * the page's server-side `listTodos` call stays a plain call.
+ */
+export const ServerActions: Story = {
+  name: "Server actions",
+  render: () => (
+    <Explore
+      graph={actionsGraph}
+      sources={actionsSources}
+      traceStart="page:todo-actions//todos"
+      initialOpen={[
+        "service:todo-actions/",
+        "module:todo-actions/app/todos",
+        "file:todo-actions/app/todos/TodoItem.tsx",
+        "file:todo-actions/app/todos/actions.ts",
+      ]}
+      initialSelected="symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem"
+    />
+  ),
+};
+
 /** What the analyzer says about files it skipped or couldn't read (M4b.12b). */
 const WARNINGS = [
   { code: "SYNTAX_ERROR", message: "';' expected.", file: "apps/web/lib/legacy/cart.ts" },

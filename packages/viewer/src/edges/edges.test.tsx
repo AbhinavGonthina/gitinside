@@ -128,6 +128,24 @@ describe("describe", () => {
     expect(edgeLabel(edge({ kind: "http", label: "weird" }))).toEqual({ text: "HTTP request" });
   });
 
+  it("notes a browser's call of a server action (ADR-0203)", () => {
+    const action = edge({ kind: "calls", label: "server action" });
+    expect(edgeLabel(action)).toEqual({ text: "calls", notes: ["server action"] });
+    expect(edgeLabelText(edgeLabel(action))).toBe("calls · server action");
+    expect(edgeLabel({ ...action, reason: "AMBIGUOUS" }).notes).toEqual([
+      "server action",
+      "ambiguous",
+    ]);
+    expect(edgeAccessibleName(action, { from: "TodoItem", to: "deleteTodo" })).toBe(
+      "TodoItem calls deleteTodo. calls · server action. Exact match",
+    );
+    expect(edgeLabel(edge({ kind: "calls", label: "something else" }))).toEqual({ text: "calls" });
+    expect(edgeLabel(edge({ kind: "imports", label: "server action" }))).toEqual({
+      text: "imports",
+    });
+    expect(edgeLabel(action, 3)).toEqual({ text: "3 calls" });
+  });
+
   it("never claims a protocol it doesn't know", () => {
     expect(edgeLabelText(edgeLabel(edge({ kind: "external_call" })))).toBe("calls API");
   });

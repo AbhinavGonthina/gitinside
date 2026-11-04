@@ -67,7 +67,7 @@ Clients mostly used by servers to call other services (`got` 163,331,838 and `su
 C1 comes first, as Abhinav asked on #18. After it, the gaps follow the code search count of the form that isn't handled:
 
 1. **M5C.2: RTK Query custom base queries** (row 11; 9,195 files; Recipen's 25 call sites). Done: ADR-0201.
-2. **M5C.3a: Next.js server actions** (row 4; 1,286,781 files). Done: ADR-0203 keeps them as `calls` edges, adds form and `useActionState` references, and labels the browser's calls `server action`; EVALUATION.md doesn't label them. Showing the label in the viewer is M5C.3a2.
+2. **M5C.3a: Next.js server actions** (row 4; 1,286,781 files). Done: ADR-0203 keeps them as `calls` edges, adds form and `useActionState` references, and labels the browser's calls `server action`; EVALUATION.md doesn't label them. The viewer shows it as "calls · server action" (M5C.3a2).
 3. **M5C.3b: Vite and CRA dev proxies** (receiving row 3; 549,376 config files mention `proxy`).
 4. **M5C.3c: ofetch** (row 7; 348,608).
 5. **M5C.3d: `next.config` `rewrites` and `basePath`** (receiving row 5; 86,656).
