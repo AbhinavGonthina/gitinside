@@ -1,0 +1,1 @@
+{ "name": "env-example-prefix", "private": true, "workspaces": ["client", "server"] }

@@ -33,6 +33,11 @@ export function pull(target: string) {
   return signed(target, "gi_fake_wrapper_token_ab12");
 }
 
+/** An env base whose example value has a path (`.env.example`): matching only, never shown. */
+export async function reportSummary() {
+  await fetch(`${process.env.REPORTS_API_URL}/summary`);
+}
+
 export async function countAccounts() {
   await stripe.customers.list({ limit: 1 });
   return prisma.account.count();
