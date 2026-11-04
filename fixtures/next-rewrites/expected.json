@@ -1,0 +1,526 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:web/lib/api.ts#forecast",
+      "id": "external_call:symbol:web/lib/api.ts#forecast->external:ext/api.weather.example.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 21,
+          "file": "web/lib/api.ts",
+          "line": 33
+        }
+      ],
+      "to": "external:ext/api.weather.example.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/lib/api.ts#status",
+      "id": "external_call:symbol:web/lib/api.ts#status->external:ext/status.example.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 21,
+          "file": "web/lib/api.ts",
+          "line": 39
+        }
+      ],
+      "to": "external:ext/status.example.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:web/GET /api/items",
+      "id": "handles:route:web/GET /api/items->symbol:web/app/api/items/route.ts#GET",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 23,
+          "file": "web/app/api/items/route.ts",
+          "line": 1
+        }
+      ],
+      "to": "symbol:web/app/api/items/route.ts#GET"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:web/GET /api/items/:id",
+      "id": "handles:route:web/GET /api/items/:id->symbol:web/app/api/items/[id]/route.ts#GET",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 23,
+          "file": "web/app/api/items/[id]/route.ts",
+          "line": 1
+        }
+      ],
+      "to": "symbol:web/app/api/items/[id]/route.ts#GET"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/lib/api.ts#getItem",
+      "id": "http:symbol:web/lib/api.ts#getItem->route:web/GET /api/items/:id",
+      "kind": "http",
+      "label": "GET /api/items/:id",
+      "sites": [
+        {
+          "column": 21,
+          "file": "web/lib/api.ts",
+          "line": 9
+        }
+      ],
+      "to": "route:web/GET /api/items/:id"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/lib/api.ts#getUser",
+      "id": "http:symbol:web/lib/api.ts#getUser->route:api/GET /users/:id",
+      "kind": "http",
+      "label": "GET /users/:id",
+      "sites": [
+        {
+          "column": 21,
+          "file": "web/lib/api.ts",
+          "line": 27
+        }
+      ],
+      "to": "route:api/GET /users/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/lib/api.ts#listItems",
+      "id": "http:symbol:web/lib/api.ts#listItems->route:web/GET /api/items",
+      "kind": "http",
+      "label": "GET /api/items",
+      "sites": [
+        {
+          "column": 21,
+          "file": "web/lib/api.ts",
+          "line": 3
+        }
+      ],
+      "to": "route:web/GET /api/items"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:web/lib/api.ts#listItemsUnprefixed",
+      "id": "http:symbol:web/lib/api.ts#listItemsUnprefixed->unresolved:web/lib/api.ts:15:21",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 21,
+          "file": "web/lib/api.ts",
+          "line": 15
+        }
+      ],
+      "to": "unresolved:web/lib/api.ts:15:21"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:web/lib/api.ts#listLegacyItems",
+      "id": "http:symbol:web/lib/api.ts#listLegacyItems->route:web/GET /api/items",
+      "kind": "http",
+      "label": "GET /api/items",
+      "sites": [
+        {
+          "column": 21,
+          "file": "web/lib/api.ts",
+          "line": 21
+        }
+      ],
+      "to": "route:web/GET /api/items"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:web/lib/api.ts#listOrders",
+      "id": "http:symbol:web/lib/api.ts#listOrders->route:api/GET /orders",
+      "kind": "http",
+      "label": "GET /orders",
+      "sites": [
+        {
+          "column": 21,
+          "file": "web/lib/api.ts",
+          "line": 45
+        }
+      ],
+      "to": "route:api/GET /orders"
+    }
+  ],
+  "nodes": [
+    {
+      "host": "api.weather.example.com",
+      "id": "external:ext/api.weather.example.com",
+      "kind": "external",
+      "label": "api.weather.example.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "host": "status.example.com",
+      "id": "external:ext/status.example.com",
+      "kind": "external",
+      "label": "status.example.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "de6d20ab354074a4ffae9e77f6ea37967bd84a8bd6fb90745bd357bb8571cd7f",
+      "id": "file:api/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:api/src",
+      "path": "api/src/server.ts"
+    },
+    {
+      "hash": "003b300368ac626bc583a8538b0d748e39506a5158afe15f48c0648d245e1134",
+      "id": "file:web/app/api/items/[id]/route.ts",
+      "kind": "file",
+      "label": "route.ts",
+      "parentId": "module:web/app/api/items/[id]",
+      "path": "web/app/api/items/[id]/route.ts"
+    },
+    {
+      "hash": "8be2010c7ee5a242cd67d3739f595638bf7b1539b44435833dd76fef76badecb",
+      "id": "file:web/app/api/items/route.ts",
+      "kind": "file",
+      "label": "route.ts",
+      "parentId": "module:web/app/api/items",
+      "path": "web/app/api/items/route.ts"
+    },
+    {
+      "hash": "7e65cd28664b00536f316e8fc7443bfdb66a713bbd9234f4b50bbc9744b67155",
+      "id": "file:web/lib/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "parentId": "module:web/lib",
+      "path": "web/lib/api.ts"
+    },
+    {
+      "hash": "5006a83b8af8ce0e96a1bca9282826fdb30fb3fde3a16bec0997a3ab7f1e266d",
+      "id": "file:web/next.config.mjs",
+      "kind": "file",
+      "label": "next.config.mjs",
+      "parentId": "service:web/",
+      "path": "web/next.config.mjs"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "api/src"
+    },
+    {
+      "id": "module:web/app/api/items",
+      "kind": "module",
+      "label": "items",
+      "parentId": "service:web/",
+      "path": "web/app/api/items"
+    },
+    {
+      "id": "module:web/app/api/items/[id]",
+      "kind": "module",
+      "label": "[id]",
+      "parentId": "module:web/app/api/items",
+      "path": "web/app/api/items/[id]"
+    },
+    {
+      "id": "module:web/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "service:web/",
+      "path": "web/lib"
+    },
+    {
+      "id": "route:api/GET /backend/users/:id",
+      "kind": "route",
+      "label": "GET /backend/users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/backend/users/:id",
+      "source": {
+        "column": 5,
+        "file": "api/src/server.ts",
+        "line": 12
+      }
+    },
+    {
+      "id": "route:api/GET /orders",
+      "kind": "route",
+      "label": "GET /orders",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/orders",
+      "source": {
+        "column": 5,
+        "file": "api/src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:api/GET /users/:id",
+      "kind": "route",
+      "label": "GET /users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/users/:id",
+      "source": {
+        "column": 5,
+        "file": "api/src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:web/GET /api/items",
+      "kind": "route",
+      "label": "GET /api/items",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:web/app/api/items/route.ts",
+      "path": "/api/items",
+      "source": {
+        "column": 23,
+        "file": "web/app/api/items/route.ts",
+        "line": 1
+      }
+    },
+    {
+      "id": "route:web/GET /api/items/:id",
+      "kind": "route",
+      "label": "GET /api/items/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:web/app/api/items/[id]/route.ts",
+      "path": "/api/items/:id",
+      "source": {
+        "column": 23,
+        "file": "web/app/api/items/[id]/route.ts",
+        "line": 1
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "@next-rewrites/api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "api"
+    },
+    {
+      "framework": "next",
+      "id": "service:web/",
+      "kind": "service",
+      "label": "@next-rewrites/web",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": "web"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/app/api/items/[id]/route.ts#GET",
+      "kind": "symbol",
+      "label": "GET",
+      "parentId": "file:web/app/api/items/[id]/route.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 4,
+        "file": "web/app/api/items/[id]/route.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/app/api/items/route.ts#GET",
+      "kind": "symbol",
+      "label": "GET",
+      "parentId": "file:web/app/api/items/route.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "web/app/api/items/route.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/api.ts#forecast",
+      "kind": "symbol",
+      "label": "forecast",
+      "parentId": "file:web/lib/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 35,
+        "file": "web/lib/api.ts",
+        "line": 32
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/api.ts#getItem",
+      "kind": "symbol",
+      "label": "getItem",
+      "parentId": "file:web/lib/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "web/lib/api.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/api.ts#getUser",
+      "kind": "symbol",
+      "label": "getUser",
+      "parentId": "file:web/lib/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 29,
+        "file": "web/lib/api.ts",
+        "line": 26
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/api.ts#listItems",
+      "kind": "symbol",
+      "label": "listItems",
+      "parentId": "file:web/lib/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "web/lib/api.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/api.ts#listItemsUnprefixed",
+      "kind": "symbol",
+      "label": "listItemsUnprefixed",
+      "parentId": "file:web/lib/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "web/lib/api.ts",
+        "line": 14
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/api.ts#listLegacyItems",
+      "kind": "symbol",
+      "label": "listLegacyItems",
+      "parentId": "file:web/lib/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "web/lib/api.ts",
+        "line": 20
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/api.ts#listOrders",
+      "kind": "symbol",
+      "label": "listOrders",
+      "parentId": "file:web/lib/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 47,
+        "file": "web/lib/api.ts",
+        "line": 44
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/lib/api.ts#status",
+      "kind": "symbol",
+      "label": "status",
+      "parentId": "file:web/lib/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 41,
+        "file": "web/lib/api.ts",
+        "line": 38
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:web/next.config.mjs#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:web/next.config.mjs",
+      "source": {
+        "column": 1,
+        "endLine": 21,
+        "file": "web/next.config.mjs",
+        "line": 21
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "next-rewrites",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches GET to /api/items (the Next app's basePath in web/next.config.mjs is /shop)",
+      "expression": "fetch(\"/api/items\")",
+      "id": "unresolved:web/lib/api.ts:15:21",
+      "kind": "unresolved",
+      "label": "GET /api/items",
+      "parentId": "service:web/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 21,
+        "file": "web/lib/api.ts",
+        "line": 15
+      }
+    }
+  ],
+  "repo": {
+    "name": "next-rewrites",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "api",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "web",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

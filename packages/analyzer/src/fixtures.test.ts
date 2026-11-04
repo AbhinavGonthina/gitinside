@@ -41,6 +41,7 @@ const NAMES = [
   "env-fallback",
   "env-example-prefix",
   "vite-proxy",
+  "next-rewrites",
   "ofetch-client",
   "object-client",
   "config-wrapper",
@@ -343,6 +344,27 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     const unresolved = g.nodes.find((n) => n.kind === "unresolved");
     expect(unresolved?.kind === "unresolved" && unresolved.detail).toBe(
       "no route matches POST to /api/events",
+    );
+  });
+
+  it("next-rewrites: requests match under basePath and through rewrites (ADR-0206)", async () => {
+    const g = await run("next-rewrites");
+    const api = "symbol:web/lib/api.ts";
+    expect(links(g, "http")).toEqual([
+      `${api}#getItem -> route:web/GET /api/items/:id exact`,
+      `${api}#getUser -> route:api/GET /users/:id heuristic`,
+      `${api}#listItems -> route:web/GET /api/items exact`,
+      `${api}#listItemsUnprefixed -> unresolved:web/lib/api.ts:15:21 unresolved NO_MATCHING_ROUTE`,
+      `${api}#listLegacyItems -> route:web/GET /api/items exact`,
+      `${api}#listOrders -> route:api/GET /orders heuristic`,
+    ]);
+    expect(links(g, "external_call")).toEqual([
+      `${api}#forecast -> external:ext/api.weather.example.com exact`,
+      `${api}#status -> external:ext/status.example.com exact`,
+    ]);
+    const unresolved = g.nodes.find((n) => n.kind === "unresolved");
+    expect(unresolved?.kind === "unresolved" && unresolved.detail).toBe(
+      "no route matches GET to /api/items (the Next app's basePath in web/next.config.mjs is /shop)",
     );
   });
 

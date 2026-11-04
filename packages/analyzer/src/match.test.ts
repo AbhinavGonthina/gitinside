@@ -15,6 +15,7 @@ import {
   type MatchInput,
   type RouteMatch,
 } from "./match.js";
+import { parsePattern, type NextRewrite } from "./nextConfig.js";
 import { formatUrlPattern, toUrlPattern, type UrlPart } from "./url.js";
 import type { Workspace } from "./workspace.js";
 import type { HttpRequest } from "./wrappers.js";
@@ -558,6 +559,143 @@ describe("createRouteMatcher", () => {
     expect(built.edges.map((e) => `${e.kind} ${e.to} ${e.confidence}`)).toEqual([
       "external_call external:ext/api.example.com heuristic",
     ]);
+  });
+
+  it("matches a Next app's routes under its basePath, from any service (ADR-0206)", () => {
+    const next = [route("web", "GET /api/items"), route("web", "GET /api/items/:id")];
+    // A custom server's Express route in the same service isn't under basePath.
+    const custom = route("web", "GET /healthz");
+    const page: GraphNode = {
+      id: "page:web//about",
+      kind: "page",
+      label: "/about",
+      parentId: "service:web/",
+      layer: "frontend",
+      path: "/about",
+    };
+    const matcher = createRouteMatcher(
+      [custom, ...next],
+      workspace,
+      new Set(),
+      undefined,
+      undefined,
+      {
+        configs: (s) =>
+          s === "web"
+            ? {
+                config: "apps/web/next.config.js",
+                basePath: ["shop"],
+                beforeFiles: [],
+                afterFiles: [],
+                fallback: [],
+              }
+            : undefined,
+        nodes: [...next, page],
+      },
+    );
+    const from = (spec: string, file?: string) => show(matcher.match(request(spec, file)));
+    expect(from("GET /shop/api/items")).toBe("exact route:web/GET /api/items");
+    expect(from("GET /shop/api/items/{}")).toBe("exact route:web/GET /api/items/:id");
+    expect(from("GET /healthz")).toBe("exact route:web/GET /healthz");
+    expect(from("GET /api/items")).toBe(
+      "NO_MATCHING_ROUTE: no route matches GET to /api/items (the Next app's basePath in apps/web/next.config.js is /shop)",
+    );
+    // Another service reaches it under basePath too, and gets no basePath hint.
+    expect(from("GET http://localhost:3000/shop/api/items", "apps/api/a.ts")).toBe(
+      "heuristic route:web/GET /api/items",
+    );
+    expect(from("GET /api/items", "apps/api/a.ts")).toBe(
+      "NO_MATCHING_ROUTE: no route matches GET to /api/items",
+    );
+  });
+
+  it("sends a Next app's own root-relative requests through its rewrites (ADR-0206)", () => {
+    const rewrite = (
+      text: string,
+      target: NextRewrite["target"],
+      destination: string | undefined,
+    ): NextRewrite => ({
+      text,
+      source: parsePattern(text),
+      target,
+      destination: destination === undefined ? undefined : parsePattern(destination),
+      basePath: true,
+      conditional: false,
+    });
+    const matcher = createRouteMatcher(
+      [
+        route("web", "GET /api/items"),
+        route("api", "GET /users/:id"),
+        route("api", "GET /api/users/:id"),
+      ],
+      workspace,
+      new Set(),
+      undefined,
+      undefined,
+      {
+        configs: (s) =>
+          s === "web"
+            ? {
+                config: "apps/web/next.config.js",
+                basePath: [],
+                beforeFiles: [],
+                afterFiles: [
+                  rewrite("/old/items", { kind: "internal" }, "/api/items"),
+                  rewrite(
+                    "/api/:path*",
+                    { kind: "host", scheme: "http", host: "localhost:4000" },
+                    "/:path*",
+                  ),
+                  rewrite(
+                    "/maps/:p*",
+                    { kind: "host", scheme: "https", host: "maps.example.com" },
+                    "/:p*",
+                  ),
+                  rewrite("/env/:p*", { kind: "env", name: "BACKEND_URL" }, "/api/:p*"),
+                  rewrite("/cms/:p*", { kind: "env", name: "CMS_HOST" }, "/:p*"),
+                  rewrite(
+                    "/odd/:p*",
+                    { kind: "host", scheme: "http", host: "localhost:4000" },
+                    undefined,
+                  ),
+                  rewrite("/who/:p*", { kind: "unknown" }, "/:p*"),
+                ],
+                fallback: [],
+              }
+            : undefined,
+        nodes: [route("web", "GET /api/items")],
+      },
+    );
+    const from = (spec: string, file?: string) => show(matcher.match(request(spec, file)));
+    // An internal destination keeps the app's own routes exact.
+    expect(from("GET /old/items")).toBe("exact route:web/GET /api/items");
+    // The app's static route is served before afterFiles; the rest goes to the server.
+    expect(from("GET /api/items")).toBe("exact route:web/GET /api/items");
+    expect(from("GET /api/users/{}")).toBe("heuristic route:api/GET /users/:id");
+    expect(from("GET /api/nope")).toBe(
+      "NO_MATCHING_ROUTE: no route matches GET to /api/nope (rewritten to /nope by apps/web/next.config.js)",
+    );
+    // A literal outside host is exact: rewrites apply in production too.
+    expect(matcher.match(request("GET /maps/x"))).toEqual({
+      kind: "external",
+      scheme: "https",
+      host: "maps.example.com",
+    });
+    expect(from("GET /env/users/{}")).toBe("heuristic route:api/GET /api/users/:id");
+    expect(from("GET /cms/x")).toBe(
+      "NO_MATCHING_ROUTE: the rewrite of /cms/:p* in apps/web/next.config.js sends it to the env var CMS_HOST, not named like an API base",
+    );
+    expect(from("GET /odd/x")).toBe(
+      "NO_MATCHING_ROUTE: the rewrite of /odd/:p* in apps/web/next.config.js builds a path that isn't read",
+    );
+    expect(from("GET /who/x")).toBe(
+      "NO_MATCHING_ROUTE: the rewrite of /who/:p* in apps/web/next.config.js sends it to an address that isn't read",
+    );
+    // Other services' requests and absolute URLs don't go through the app's rewrites.
+    expect(from("GET /api/users/{}", "apps/api/a.ts")).toBe("exact route:api/GET /api/users/:id");
+    expect(from("GET http://localhost:3000/old/items")).toBe(
+      "NO_MATCHING_ROUTE: no route matches GET to http://localhost:3000/old/items",
+    );
   });
 
   it("only aligns against routes from the index bucket", () => {
