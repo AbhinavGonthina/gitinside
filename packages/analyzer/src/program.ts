@@ -77,6 +77,41 @@ const libCache = new Map<string, ts.SourceFile>();
 const settingsKeys = ts.createDocumentRegistry();
 
 /**
+ * TypeScript's internal key of the options that change module resolution (`baseUrl`, `paths`
+ * with their `pathsBasePath`, `moduleResolution`, conditions, suffixes, …), the one its own
+ * resolution cache keys redirected options by. Not in its typings, so checked at first use.
+ */
+function resolutionKeyOf(options: ts.CompilerOptions): string {
+  const internals = ts as unknown as {
+    getKeyForCompilerOptions?: (options: ts.CompilerOptions, declarations: unknown) => string;
+    moduleResolutionOptionDeclarations?: unknown;
+  };
+  const { getKeyForCompilerOptions, moduleResolutionOptionDeclarations } = internals;
+  if (
+    typeof getKeyForCompilerOptions !== "function" ||
+    !Array.isArray(moduleResolutionOptionDeclarations)
+  ) {
+    throw new Error("this TypeScript version has no module-resolution options key");
+  }
+  return getKeyForCompilerOptions(options, moduleResolutionOptionDeclarations);
+}
+
+/** Where an {@link InputLog}'s answers go: the service's log, or a resolution's probe list. */
+type InputSink = Pick<InputLog, "read" | "probeFile" | "probeDir">;
+
+/** One repo read or probe made while resolving a module, replayed into each asking service. */
+type Probe =
+  | readonly ["read", path: string, hash: string]
+  | readonly ["file", path: string, exists: boolean]
+  | readonly ["dir", path: string, exists: boolean];
+
+/** A shared module resolution and the repo reads and probes it made (ADR-0197 amendment). */
+interface Resolution {
+  readonly result: ts.ResolvedModuleWithFailedLookupLocations;
+  readonly probes: readonly Probe[];
+}
+
+/**
  * A TypeScript program for one service. It is parsed on first use of {@link program},
  * {@link host}, {@link configFile}, or {@link warnings} (ADR-0177), so a run that reuses a
  * service's cached facts parses it only if another service's analysis needs it.
@@ -87,11 +122,21 @@ export interface ServiceProgram {
   /** The program. Root files are the service's source files; imports may pull in others. */
   readonly program: ts.Program;
   /**
-   * The inventory-backed host, for module resolution in later passes. Every repo path it
-   * reads or probes is recorded in {@link inputs}, so later passes must reach repo files
-   * through it.
+   * The inventory-backed host, for reading repo files in later passes (modules resolve through
+   * {@link resolveModule}). Every repo path it reads or probes is recorded in {@link inputs},
+   * so later passes must reach repo files through it.
    */
   readonly host: ts.CompilerHost;
+  /**
+   * Resolve `specifier` from `containingFile` (absolute) as this program does, through the
+   * run's shared resolutions (ADR-0197 amendment): the reads and probes the resolution made
+   * are recorded in {@link inputs} whether it was resolved now or for another service.
+   */
+  resolveModule(
+    specifier: string,
+    containingFile: string,
+    mode?: ts.ResolutionMode,
+  ): ts.ResolvedModuleWithFailedLookupLocations;
   /** What this service's program and host observed of the repo so far (ADR-0090). */
   readonly inputs: InputLog;
   /** Repo-relative path of the config used, or undefined when defaults were synthesized. */
@@ -201,29 +246,33 @@ export function buildServicePrograms(
   const parsedFiles = new Map<string, ts.SourceFile>();
 
   /**
-   * A host for one service. It answers from the inventory (plus TypeScript's own libs) and
-   * records every repo path it reads or probes in `inputs`, the service's observed inputs.
-   * `settingsKey` is the program's {@link settingsKeys} key, known once its options are.
+   * Module resolutions made so far in this run, shared by every program with the same
+   * {@link resolutionKeyOf} key (ADR-0197 amendment): keyed by that key, the resolution mode,
+   * the containing folder (TypeScript resolves from the folder, and caches per folder too),
+   * and the specifier. Each keeps its reads and probes, which every asking service records.
    */
-  const createHost = (
-    inputs: InputLog,
-    settingsKey: () => string,
-  ): { host: ts.CompilerHost; configHost: ts.ParseConfigHost } => {
+  const resolutions = new Map<string, Resolution>();
+
+  /**
+   * The inventory's answers to TypeScript's file questions (plus its own libs), each repo path
+   * read or probed recorded in `sink`.
+   */
+  const repoAnswers = (sink: InputSink) => {
     const fileExists = (fileName: string): boolean => {
       const rel = toRepoPath(fileName);
       if (rel === undefined) return isLib(fileName) && ts.sys.fileExists(fileName);
       const exists = present.has(rel);
-      inputs.probeFile(rel, exists);
+      sink.probeFile(rel, exists);
       return exists;
     };
     /** A repo file's text and hash, recorded as read, or undefined (recorded as absent). */
     const readRepoFile = (rel: string): { text: string; hash: string } | undefined => {
       if (!present.has(rel)) {
-        inputs.probeFile(rel, false);
+        sink.probeFile(rel, false);
         return undefined;
       }
       const read = files.read(rel);
-      inputs.read(rel, read.hash);
+      sink.read(rel, read.hash);
       return read;
     };
     const readFile = (fileName: string): string | undefined => {
@@ -235,9 +284,79 @@ export function buildServicePrograms(
       const rel = toRepoPath(dirName);
       if (rel === undefined) return dirName.replaceAll("\\", "/") === libDir;
       const exists = dirs.has(rel);
-      inputs.probeDir(rel, exists);
+      sink.probeDir(rel, exists);
       return exists;
     };
+    return { fileExists, readRepoFile, readFile, directoryExists };
+  };
+
+  /**
+   * `specifier` resolved from `containingFile` with `options` (whose {@link resolutionKeyOf}
+   * key is `key`), from {@link resolutions} or resolved now, its probes recorded in `inputs`
+   * unless `recorded` (the resolutions already in `inputs`) has it. A miss resolves without
+   * TypeScript's cache, so its probe list is complete.
+   */
+  const resolveShared = (
+    inputs: InputLog,
+    recorded: Set<Resolution>,
+    options: ts.CompilerOptions,
+    key: string,
+    specifier: string,
+    containingFile: string,
+    mode: ts.ResolutionMode,
+  ): ts.ResolvedModuleWithFailedLookupLocations => {
+    const cacheKey = `${key}\0${mode ?? ""}\0${parentDir(containingFile)}\0${specifier}`;
+    let resolution = resolutions.get(cacheKey);
+    if (!resolution) {
+      const probes: Probe[] = [];
+      const answers = repoAnswers({
+        read: (path, hash) => probes.push(["read", path, hash]),
+        probeFile: (path, exists) => probes.push(["file", path, exists]),
+        probeDir: (path, exists) => probes.push(["dir", path, exists]),
+      });
+      const host: ts.ModuleResolutionHost = {
+        fileExists: answers.fileExists,
+        readFile: answers.readFile,
+        directoryExists: answers.directoryExists,
+        getDirectories: () => [],
+        realpath: (path) => path,
+        getCurrentDirectory: () => rootPath,
+        useCaseSensitiveFileNames: true,
+      };
+      const result = ts.resolveModuleName(
+        specifier,
+        containingFile,
+        options,
+        host,
+        undefined,
+        undefined,
+        mode,
+      );
+      resolution = { result, probes };
+      resolutions.set(cacheKey, resolution);
+    }
+    if (recorded.has(resolution)) return resolution.result;
+    recorded.add(resolution);
+    for (const probe of resolution.probes) {
+      if (probe[0] === "read") inputs.read(probe[1], probe[2]);
+      else if (probe[0] === "file") inputs.probeFile(probe[1], probe[2]);
+      else inputs.probeDir(probe[1], probe[2]);
+    }
+    return resolution.result;
+  };
+
+  /**
+   * A host for one service. It answers from the inventory (plus TypeScript's own libs) and
+   * records every repo path it reads or probes in `inputs`, the service's observed inputs.
+   * `settingsKey` is the program's {@link settingsKeys} key, known once its options are, and
+   * `resolve` its {@link ServiceProgram.resolveModule}, which its imports resolve through.
+   */
+  const createHost = (
+    inputs: InputLog,
+    settingsKey: () => string,
+    resolve: ServiceProgram["resolveModule"],
+  ): { host: ts.CompilerHost; configHost: ts.ParseConfigHost } => {
+    const { fileExists, readRepoFile, readFile, directoryExists } = repoAnswers(inputs);
 
     const host: ts.CompilerHost = {
       fileExists,
@@ -245,6 +364,15 @@ export function buildServicePrograms(
       directoryExists,
       getDirectories: () => [],
       realpath: (path) => path,
+      // As TypeScript's default loader does, minus its cache (no project references here).
+      resolveModuleNameLiterals: (literals, containingFile, _redirect, options, sourceFile) =>
+        literals.map((literal) =>
+          resolve(
+            literal.text,
+            containingFile,
+            ts.getModeForUsageLocation(sourceFile, literal, options),
+          ),
+        ),
       getSourceFile(fileName, languageVersionOrOptions) {
         const version =
           typeof languageVersionOrOptions === "object"
@@ -302,14 +430,32 @@ export function buildServicePrograms(
     service: WorkspacePackage,
     rootFiles: string[],
     inputs: InputLog,
-  ): Pick<ServiceProgram, "program" | "host" | "configFile" | "warnings"> => {
-    /** Set once the options are final, before the program parses anything. */
-    const settings: { key?: string } = {};
-    const { host, configHost } = createHost(inputs, () => {
-      if (settings.key === undefined)
-        throw new Error("a source file was parsed before its options");
-      return settings.key;
-    });
+  ): Pick<ServiceProgram, "program" | "host" | "resolveModule" | "configFile" | "warnings"> => {
+    /** Set once the options are final, before the program parses or resolves anything. */
+    const settings: { key?: string; options?: ts.CompilerOptions; resolutionKey?: string } = {};
+    const recorded = new Set<Resolution>();
+    const resolveModule: ServiceProgram["resolveModule"] = (specifier, containingFile, mode) => {
+      if (settings.options === undefined || settings.resolutionKey === undefined)
+        throw new Error("a module was resolved before its options");
+      return resolveShared(
+        inputs,
+        recorded,
+        settings.options,
+        settings.resolutionKey,
+        specifier,
+        containingFile,
+        mode,
+      );
+    };
+    const { host, configHost } = createHost(
+      inputs,
+      () => {
+        if (settings.key === undefined)
+          throw new Error("a source file was parsed before its options");
+        return settings.key;
+      },
+      resolveModule,
+    );
     const warnings: AnalysisWarning[] = [];
     const flatten = (message: string | ts.DiagnosticMessageChain): string =>
       relativize(ts.flattenDiagnosticMessageText(message, " "));
@@ -371,6 +517,8 @@ export function buildServicePrograms(
       ...options,
       pathsBasePath: undefined,
     });
+    settings.options = options;
+    settings.resolutionKey = resolutionKeyOf(options);
 
     const program = ts.createProgram({
       rootNames: rootFiles.map(toAbsolute),
@@ -401,7 +549,7 @@ export function buildServicePrograms(
         compareStrings(a.code, b.code) ||
         compareStrings(a.message, b.message),
     );
-    return { program, host, configFile, warnings };
+    return { program, host, resolveModule, configFile, warnings };
   };
 
   return workspace.packages.map((service): ServiceProgram => {
@@ -420,6 +568,9 @@ export function buildServicePrograms(
       },
       get host() {
         return parsed().host;
+      },
+      resolveModule(specifier, containingFile, mode) {
+        return parsed().resolveModule(specifier, containingFile, mode);
       },
       get configFile() {
         return parsed().configFile;

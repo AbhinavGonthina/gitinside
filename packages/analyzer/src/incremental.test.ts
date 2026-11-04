@@ -33,7 +33,13 @@ const { builds } = vi.hoisted(() => ({ builds: [] as Set<string>[] }));
 vi.mock("./program.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./program.js")>();
   /** What parses a program on first read. */
-  const parsing = new Set<string | symbol>(["program", "host", "configFile", "warnings"]);
+  const parsing = new Set<string | symbol>([
+    "program",
+    "host",
+    "resolveModule",
+    "configFile",
+    "warnings",
+  ]);
   return {
     ...actual,
     buildServicePrograms: (...args: Parameters<typeof actual.buildServicePrograms>) => {

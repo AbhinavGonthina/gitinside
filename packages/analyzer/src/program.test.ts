@@ -306,6 +306,58 @@ describe("buildServicePrograms", () => {
       expect(files.size).toBe(3);
       expect(sourceOf(api)?.languageVersion).toBe(ts.ScriptTarget.ES5);
     });
+
+    /** `shared` imports a sibling that exists and one that doesn't. */
+    const importing = {
+      ...workspace,
+      [shared]: 'import { y } from "./y"; import "./missing"; export const x = y;',
+      "packages/shared/y.ts": "export const y = 1;",
+    };
+    const files = (sp: ServiceProgram | undefined): Map<string, string> =>
+      new Map(sp?.inputs.snapshot().files);
+
+    it("resolves its imports once when their resolution options match, each service recording the probes", async () => {
+      await tree(importing);
+      const programs = await build();
+      const [web, api, owner] = ["web", "api", "shared"].map((key) => byKey(programs, key));
+      // Web's program is built (and resolves `shared`'s imports) first; api's then reuses them.
+      expect(web?.program.getSourceFile(web.toAbsolute("packages/shared/y.ts"))).toBeDefined();
+      const from = web?.toAbsolute(shared) ?? "";
+      const result = web?.resolveModule("./y", from);
+      expect(result?.resolvedModule?.resolvedFileName).toBe(
+        web?.toAbsolute("packages/shared/y.ts"),
+      );
+      expect(api?.resolveModule("./y", from)).toBe(result);
+      expect(owner?.resolveModule("./y", from)).toBe(result);
+      for (const sp of [web, api, owner]) {
+        const seen = files(sp);
+        expect(seen.get("packages/shared/missing.ts")).toBe("absent");
+        expect(seen.get("packages/shared/missing.tsx")).toBe("absent");
+        expect(seen.get("packages/shared/y.ts")).toMatch(/^[0-9a-f]{64}$/);
+        expect(sp?.inputs.snapshot().dirs).toContainEqual(["packages/shared/missing", false]);
+      }
+    });
+
+    it("resolves again for a service whose `paths` point elsewhere", async () => {
+      await tree({
+        ...workspace,
+        [shared]: 'import { z } from "~/z"; export const x = z;',
+        "apps/web/tsconfig.json": { compilerOptions: { paths: { "~/*": ["./*"] } } },
+        "apps/web/z.ts": "export const z = 1;",
+        "apps/api/tsconfig.json": { compilerOptions: { paths: { "~/*": ["./*"] } } },
+        "apps/api/z.ts": "export const z = 2;",
+      });
+      const programs = await build();
+      const [web, api] = ["web", "api"].map((key) => byKey(programs, key));
+      const target = (sp: ServiceProgram | undefined): string | undefined => {
+        const file = sp?.resolveModule("~/z", sp.toAbsolute(shared)).resolvedModule;
+        return file && sp.toRepoPath(file.resolvedFileName);
+      };
+      expect(target(web)).toBe("apps/web/z.ts");
+      expect(target(api)).toBe("apps/api/z.ts");
+      expect(api?.program.getSourceFile(api.toAbsolute("apps/api/z.ts"))).toBeDefined();
+      expect(api?.program.getSourceFile(api.toAbsolute("apps/web/z.ts"))).toBeUndefined();
+    });
   });
 
   it("keeps machine paths out of warning messages", async () => {

@@ -215,23 +215,14 @@ export function createModuleResolver(
   literal: ts.StringLiteralLike,
 ) => ResolvedImport | undefined {
   const options = sp.program.getCompilerOptions();
-  const cache = ts.createModuleResolutionCache(sp.toAbsolute(""), (f) => f, options);
 
-  /** Resolve `specifier` as TypeScript would from `containingFile`, to a repo file. */
+  /** Resolve `specifier` as the program did from `containingFile`, to a repo file. */
   const resolveTs = (
     specifier: string,
     containingFile: string,
     mode?: ts.ResolutionMode,
   ): string | undefined => {
-    const result = ts.resolveModuleName(
-      specifier,
-      containingFile,
-      options,
-      sp.host,
-      cache,
-      undefined,
-      mode,
-    );
+    const result = sp.resolveModule(specifier, containingFile, mode);
     const fileName = result.resolvedModule?.resolvedFileName;
     return fileName === undefined ? undefined : sp.toRepoPath(fileName);
   };
