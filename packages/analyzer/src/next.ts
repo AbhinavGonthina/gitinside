@@ -25,8 +25,11 @@
  *   well, so a fall-through endpoint is never dropped (see `handledMethods`).
  * - Negated method tests in an `if` (ADR-0195): `!==`, `!(… === …)`, `!["A"].includes(…)`,
  *   through `&&`, `||`, and parentheses. A block that only answers (calls on the response
- *   object or `console`, `throw`, `return`) or names 405 / `Allow` refuses the other methods,
- *   as above. A block that does other work serves every method but the named ones, so an `ALL`
+ *   object or `console`, `throw`, `return`), logs (a statement calling a `log`/`info`/`warn`/
+ *   `error`/`debug`/`trace`/`fatal` method on any receiver), or names 405 / `Allow` refuses
+ *   the other methods, as above; synchronous calls in such a call's arguments build its
+ *   message (`res.json({ error: t("…") })`), and only an awaited one is work. A block that
+ *   does other work serves every method but the named ones, so an `ALL`
  *   route is added, and the named methods are routes only when code after the `if` or its
  *   `else` can serve them (`if (req.method !== "POST" && req.method !== "PUT") { … }` as the
  *   handler's last statement is one `ALL` route).
@@ -67,7 +70,10 @@
  *   doesn't record that.
  * - A negated method test's block is read by what it calls, not by what it answers: a
  *   refusal through a helper (`return reject(res)`, no 405 in sight) reads as serving and adds
- *   an `ALL` route (an extra route, never a dropped one). A negated test outside an `if`
+ *   an `ALL` route (an extra route, never a dropped one), as does a logger called as a plain
+ *   function (`debug("…")`) or with its result used. A block serving data built by a
+ *   synchronous call in the response's arguments (`res.json(listCached())`) reads as a
+ *   refusal, so that one `ALL` route is missing. A negated test outside an `if`
  *   condition (`const other = req.method !== "GET"`, a ternary) stays a refusal, and an
  *   `else` or later code is not checked for which methods actually reach it.
  * - next-connect beyond the forms above: route patterns are not matched against the file's
@@ -105,6 +111,20 @@ const METHODS: ReadonlySet<string> = new Set([
   "PATCH",
   "POST",
   "PUT",
+]);
+
+/**
+ * Method names that log: Node's `console` levels plus `fatal` (pino, bunyan, and winston's
+ * custom levels), read from the call's shape, not from what the receiver is named.
+ */
+const LOG_LEVELS: ReadonlySet<string> = new Set([
+  "debug",
+  "error",
+  "fatal",
+  "info",
+  "log",
+  "trace",
+  "warn",
 ]);
 
 /** Next's default `pageExtensions`. */
@@ -260,23 +280,53 @@ export function handledMethods(handler: ts.SignatureDeclaration): {
     );
   };
   /**
+   * Whether a call only logs: a method named after one of Node's `console` levels or `fatal`
+   * (`logger.warn(…)`, `req.log.error(…)`, pino's, winston's, and bunyan's shapes), called as a
+   * statement (optionally awaited), so its result isn't used.
+   */
+  const logs = (call: ts.CallExpression): boolean => {
+    let statement: ts.Node = call.parent;
+    if (ts.isAwaitExpression(statement)) statement = statement.parent;
+    return (
+      ts.isExpressionStatement(statement) &&
+      ts.isPropertyAccessExpression(call.expression) &&
+      LOG_LEVELS.has(call.expression.name.text)
+    );
+  };
+  /**
    * Whether the block a negated test enters serves the request rather than refusing it: it
-   * names no 405 or `Allow`, and it calls something besides the response and `console`.
+   * names no 405 or `Allow`, and it calls something besides the response, `console`, and a
+   * logger. Inside an answering or logging call's arguments, only an awaited call counts: a
+   * synchronous one builds the message (`res.json({ error: t("…") })`), while `res.json(await
+   * db.list())` reads what it sends.
    */
   const serves = (block: ts.Statement): boolean => {
     let refuses = false;
     let works = false;
-    const look = (node: ts.Node): void => {
+    const look = (node: ts.Node, message: boolean): void => {
       if (
         (ts.isNumericLiteral(node) && node.text === "405") ||
         (ts.isStringLiteralLike(node) && node.text.toLowerCase() === "allow")
       ) {
         refuses = true;
       }
-      if (ts.isCallExpression(node) && !answers(node)) works = true;
-      ts.forEachChild(node, look);
+      if (ts.isAwaitExpression(node)) {
+        look(node.expression, false);
+        return;
+      }
+      if (ts.isCallExpression(node)) {
+        const quiet = answers(node) || logs(node);
+        if (!quiet && !message) works = true;
+        ts.forEachChild(node, (child) => {
+          look(child, message || quiet);
+        });
+        return;
+      }
+      ts.forEachChild(node, (child) => {
+        look(child, message);
+      });
     };
-    look(block);
+    look(block, false);
     return works && !refuses;
   };
   /** Whether a statement inside the handler has anything after it, at any level up to the body. */
