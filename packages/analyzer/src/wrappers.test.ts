@@ -852,3 +852,107 @@ describe("collectHttpFacts + bindWrappers (M6.7c)", () => {
     expect(bindWrappers(after.facts).map((r) => r.owners)).toEqual([[]]);
   });
 });
+
+describe("RTK Query endpoints (ADR-0196)", () => {
+  it("makes each endpoint's query a request through fetchBaseQuery's baseUrl", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";',
+      "export const api = createApi({",
+      '  baseQuery: fetchBaseQuery({ baseUrl: "/api/" }),',
+      "  endpoints: (builder) => ({",
+      '    posts: builder.query<unknown, void>({ query: () => "posts" }),',
+      "    post: builder.query({ query: (id: string) => `/posts/${id}` }),",
+      "    add: builder.mutation({",
+      '      query: (body: unknown) => ({ url: "posts", method: "POST", body }),',
+      "    }),",
+      "    remove: builder.mutation({",
+      "      query(id: string) {",
+      '        return { url: `posts/${id}`, method: "delete" };',
+      "      },",
+      "    }),",
+      "    touch: builder.mutation({ query: (id: string) => ({ url: `posts/${id}/touch` }) }),",
+      "    any: builder.query({ query: (path: string) => path }),",
+      "    local: builder.query({ queryFn: () => ({ data: 1 }) }),",
+      "  }),",
+      "});",
+    ]);
+    expect(await summary()).toEqual([
+      "src/api.ts:5 GET /api/posts [api]",
+      "src/api.ts:6 GET /api/posts/{} [api]",
+      "src/api.ts:7 POST /api/posts [api]",
+      "src/api.ts:10 DELETE /api/posts/{} [api]",
+      "src/api.ts:15 GET /api/posts/{}/touch [api]",
+      // An absolute URL would ignore the base, so a parameter leading the URL can't be read.
+      "src/api.ts:16 GET DYNAMIC_URL: the URL starts with a value only known at runtime [api]",
+    ]);
+  });
+
+  it("reads the base from a const, through retry, for endpoints injected from another file", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/base.ts", [
+      'import { fetchBaseQuery, retry } from "@reduxjs/toolkit/query";',
+      'export const baseQuery = retry(fetchBaseQuery({ baseUrl: "https://api.example.com/v1" }));',
+    ]);
+    await put("src/api.ts", [
+      'import { createApi } from "@reduxjs/toolkit/query/react";',
+      'import { baseQuery } from "./base";',
+      "export const api = createApi({ baseQuery, endpoints: () => ({}) });",
+    ]);
+    await put("src/users.ts", [
+      'import { api } from "./api";',
+      "export const usersApi = api.injectEndpoints({",
+      "  endpoints(build) {",
+      '    return { me: build.query({ query: () => "users/me" }) };',
+      "  },",
+      "});",
+    ]);
+    expect(await summary()).toEqual([
+      "src/users.ts:4 GET https://api.example.com/v1/users/me [usersApi]",
+    ]);
+  });
+
+  it("leaves endpoints alone when the base query isn't fetchBaseQuery or createApi isn't RTK's", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'import { createApi } from "@reduxjs/toolkit/query/react";',
+      'import { createApi as other } from "./mine";',
+      "const custom = async (url: string) => ({ data: await fetch(url) });",
+      "export const a = createApi({",
+      "  baseQuery: custom,",
+      '  endpoints: (b) => ({ x: b.query({ query: () => "x" }) }),',
+      "});",
+      "export const c = other({",
+      "  baseQuery: () => ({ data: 1 }),",
+      '  endpoints: (b: any) => ({ y: b.query({ query: () => "y" }) }),',
+      "});",
+      "const axiosBaseQuery = (o: { baseUrl: string }) => async () => ({ data: o });",
+      "export const d = createApi({",
+      '  baseQuery: axiosBaseQuery({ baseUrl: "/z" }),',
+      '  endpoints: (b) => ({ z: b.query({ query: () => "z" }) }),',
+      "});",
+    ]);
+    await put("src/mine.ts", "export const createApi = (o: unknown) => o;\n");
+    expect(await summary()).toEqual([
+      "src/api.ts:3 GET DYNAMIC_URL: the URL starts with a value only known at runtime [custom]",
+    ]);
+  });
+
+  it("reads TanStack Query's queryFn as any other function: the key in its context isn't followed", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/todos.ts", [
+      'import { useQuery } from "@tanstack/react-query";',
+      "export function useTodos(id: string) {",
+      '  useQuery({ queryKey: ["todos"], queryFn: () => fetch("/api/todos") });',
+      "  useQuery({",
+      '    queryKey: ["/api/todos", id],',
+      "    queryFn: ({ queryKey }) => fetch(String(queryKey[0])),",
+      "  });",
+      "}",
+    ]);
+    expect(await summary()).toEqual([
+      "src/todos.ts:3 GET /api/todos [useTodos]",
+      "src/todos.ts:6 GET DYNAMIC_URL: the URL starts with a value only known at runtime [useTodos]",
+    ]);
+  });
+});

@@ -46,6 +46,18 @@
  * - Method strings: literals, no-substitution templates, consts holding them (imported
  *   too), properties of const object literals (`METHODS.post`), and string enum members.
  *   Lowercase is accepted; methods outside `HttpMethod` are unknown.
+ * - RTK Query endpoints (ADR-0196): `build.query|mutation|infiniteQuery({ query })` inside
+ *   the `endpoints` function (arrow or method) of `createApi(options)` or of
+ *   `api.injectEndpoints(options)` (`api` a `const` holding a `createApi` call, imported too),
+ *   with `createApi` imported from `@reduxjs/toolkit/query` or `@reduxjs/toolkit/query/react`
+ *   and a `baseQuery` that is `fetchBaseQuery(config)` from there (directly, through a
+ *   `const`, or inside RTK's `retry`). fetchBaseQuery makes the `fetch`, so each value `query`
+ *   returns (an arrow, function, or method; named or inline) is one request at the endpoint's
+ *   `build.query(…)` call: a string is the URL, an object literal its `url` and `method`
+ *   (absent: `GET`, the `Request` default). `baseUrl` joins like axios's `baseURL` (RTK's
+ *   `joinUrls` drops the same slashes). The query function's parameters are holes, so one that
+ *   leads the URL is `DYNAMIC_URL`. An unreadable definition or return value is a request with
+ *   no URL, never a guess.
  * - The owner of a call is the innermost symbol containing it, or the Express routes an
  *   inline handler serves. Top-level calls have no owner but are still collected.
  *
@@ -60,9 +72,19 @@
  * - A `defaults.baseURL` write in a module the request's file doesn't import, even when an
  *   entry point loads both (`main.ts` importing `./setup` and `./App`): the request keeps the
  *   `create` config's base, since what an entry point loads isn't modeled.
- * - Other HTTP clients (`ky`, `got`, `superagent`, `ofetch`, React Query fetchers that aren't
- *   one of the above), `XMLHttpRequest`, and `EventSource`/`WebSocket`. An SWR fetcher that
- *   wraps one of the above is inlined at the hook (`wrappers.ts`, ADR-0193).
+ * - Other HTTP clients (`ky`, `got`, `superagent`, `ofetch`), `XMLHttpRequest`, and
+ *   `EventSource`/`WebSocket`. An SWR fetcher that wraps one of the above is inlined at the
+ *   hook (`wrappers.ts`, ADR-0193).
+ * - TanStack Query (ADR-0196): a `queryFn` is read like any other function, so
+ *   `queryFn: () => fetch("/api/todos")` or a call to a wrapper there resolves, but a URL read
+ *   from the key in its context (`({ queryKey }) => fetch(queryKey[0])`, also a `QueryClient`'s
+ *   default `queryFn`) stays `DYNAMIC_URL`: which key reaches it isn't followed.
+ * - RTK Query: a custom `baseQuery` (its own `fetch` or axios calls are collected as usual),
+ *   `fetchBaseQuery` options other than `baseUrl` (a default `method` in its fetch options,
+ *   `paramsSerializer`), `buildCreateApi`/`createApi` reached other than by a plain import, a
+ *   `queryFn` endpoint, `enhanceEndpoints`, and the generated hooks (`useGetPostsQuery`): the
+ *   request is drawn from the API slice that defines the endpoint, not from the components
+ *   that call its hook.
  * - `axios.all`/`axios.spread` add nothing: the requests inside are collected on their own.
  */
 import ts from "typescript";
@@ -115,6 +137,15 @@ const AXIOS_WITH_DATA: ReadonlySet<string> = new Set([
   "put",
   "putForm",
 ]);
+
+/** Modules RTK Query's `createApi`, `fetchBaseQuery`, and `retry` are imported from. */
+const RTK_QUERY_MODULES: ReadonlySet<string> = new Set([
+  "@reduxjs/toolkit/query",
+  "@reduxjs/toolkit/query/react",
+]);
+
+/** The endpoint builder's methods that define an endpoint from a `query` option. */
+const RTK_ENDPOINT_KINDS: ReadonlySet<string> = new Set(["infiniteQuery", "mutation", "query"]);
 
 /** The library that makes a request. */
 export type HttpClient = "fetch" | "axios";
@@ -1038,6 +1069,189 @@ export function createHttpSiteCollector(
     return fromConfig(from, instance, config, url, method);
   };
 
+  // ---- RTK Query ----
+
+  /** The `module#export` a callee identifier is imported as, if it is a plain import. */
+  const importedName = (sp: ServiceProgram, callee: ts.Expression): string | undefined => {
+    const e = unwrap(callee);
+    const declaration = ts.isIdentifier(e) ? symbolAt(sp, e)?.declarations?.[0] : undefined;
+    const binding = declaration && importBinding(declaration);
+    return binding && RTK_QUERY_MODULES.has(binding.module) ? binding.name : undefined;
+  };
+
+  /** The expression a `const` identifier holds (through imports), else the expression itself. */
+  const constValue = (
+    sp: ServiceProgram,
+    expression: ts.Expression,
+    hops: number,
+  ): ProgramExpression & { confidence: Confidence } => {
+    const e = unwrap(expression);
+    const symbol = ts.isIdentifier(e) && hops <= MAX_HOPS ? symbolAt(sp, e) : undefined;
+    const found = symbol && resolveDeclaration(sp, symbol, hops + 1);
+    const d = found?.declaration;
+    if (!found || !d || !ts.isVariableDeclaration(d) || !d.initializer || !isConst(d)) {
+      return { sp, expression: e, confidence: "exact" };
+    }
+    const inner = constValue(found.sp, d.initializer, hops + 1);
+    return { ...inner, confidence: weaker(found.confidence, inner.confidence) };
+  };
+
+  /**
+   * The `baseUrl` a `createApi` call's `baseQuery` gives (ADR-0196): `fetchBaseQuery(config)`
+   * from RTK Query, directly, through a `const`, or wrapped in RTK's `retry`. `undefined` when
+   * the base query is anything else (a custom one makes its own requests, collected on their
+   * own); `baseURL` is `undefined` without a `baseUrl` and `null` when one may be set but can't
+   * be read.
+   */
+  const rtkBase = (
+    sp: ServiceProgram,
+    api: ts.CallExpression,
+    hops: number,
+  ): { baseURL: ProgramExpression | null | undefined; confidence: Confidence } | undefined => {
+    const options = api.arguments[0];
+    const object = options && configObject(sp, options, 0);
+    const value = object && objectProperty(object.sp, object.expression, "baseQuery");
+    if (!value) return undefined;
+    let query = constValue(value.sp, value.expression, hops);
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
+      const e = query.expression;
+      if (!ts.isCallExpression(e)) return undefined;
+      const name = importedName(query.sp, e.expression);
+      const [first] = e.arguments;
+      if (name === "retry" && first) {
+        const inner = constValue(query.sp, first, hops);
+        query = { ...inner, confidence: weaker(query.confidence, inner.confidence) };
+        continue;
+      }
+      if (name !== "fetchBaseQuery") return undefined;
+      if (first && ts.isSpreadElement(first))
+        return { baseURL: null, confidence: query.confidence };
+      return { baseURL: configProperty(query.sp, first, "baseUrl"), confidence: query.confidence };
+    }
+    return undefined;
+  };
+
+  /**
+   * The `createApi` call an `endpoints` function belongs to: the one it is passed to, or for
+   * `api.injectEndpoints({ endpoints })` the one `api` holds (a `const`, imported too).
+   */
+  const rtkApiOf = (
+    sp: ServiceProgram,
+    endpoints: FunctionWithBody,
+  ): { sp: ServiceProgram; call: ts.CallExpression; confidence: Confidence } | undefined => {
+    let holder: ts.Node = endpoints;
+    if (!ts.isMethodDeclaration(endpoints)) {
+      while (ts.isParenthesizedExpression(holder.parent)) holder = holder.parent;
+      if (!ts.isPropertyAssignment(holder.parent) || holder.parent.initializer !== holder) {
+        return undefined;
+      }
+      holder = holder.parent;
+    }
+    const key = (holder as ts.PropertyAssignment | ts.MethodDeclaration).name;
+    if (!(ts.isIdentifier(key) || ts.isStringLiteralLike(key)) || key.text !== "endpoints") {
+      return undefined;
+    }
+    const options: ts.Node = holder.parent;
+    if (!ts.isObjectLiteralExpression(options)) return undefined;
+    let call: ts.Node = options;
+    while (ts.isParenthesizedExpression(call.parent)) call = call.parent;
+    const parent = call.parent;
+    if (!ts.isCallExpression(parent) || parent.arguments[0] !== call) return undefined;
+    if (importedName(sp, parent.expression) === "createApi") {
+      return { sp, call: parent, confidence: "exact" };
+    }
+    const callee = unwrap(parent.expression);
+    if (!ts.isPropertyAccessExpression(callee) || callee.name.text !== "injectEndpoints") {
+      return undefined;
+    }
+    const api = constValue(sp, callee.expression, 0);
+    return ts.isCallExpression(api.expression) &&
+      importedName(api.sp, api.expression.expression) === "createApi"
+      ? { sp: api.sp, call: api.expression, confidence: api.confidence }
+      : undefined;
+  };
+
+  /**
+   * The value of an endpoint definition's `query` option: a property or a method (`query(id)
+   * { … }`); `null` when a spread or computed key could supply it, `undefined` when absent.
+   */
+  const queryOption = (
+    sp: ServiceProgram,
+    definition: ts.ObjectLiteralExpression,
+  ): FunctionWithBody | ConfigValue => {
+    for (let i = definition.properties.length - 1; i >= 0; i--) {
+      const property = definition.properties[i];
+      if (
+        property &&
+        ts.isMethodDeclaration(property) &&
+        (ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name)) &&
+        property.name.text === "query"
+      ) {
+        return isFunctionWithBody(property) ? property : null;
+      }
+      const value = property && ownProperty(sp, property, "query");
+      if (value !== undefined) return value;
+    }
+    return undefined;
+  };
+
+  /**
+   * The requests an RTK Query endpoint makes (ADR-0196): `call` is `build.query(definition)`,
+   * `build.mutation(…)`, or `build.infiniteQuery(…)`, where `build` is the first parameter of
+   * the `endpoints` function of a `createApi` (or `injectEndpoints`) call whose base query is
+   * `fetchBaseQuery`. fetchBaseQuery turns what `query` returns into a `fetch`: a string is the
+   * URL, an object its `url` and `method` (absent: `GET`), joined to `baseUrl` like axios's
+   * `baseURL`. One request per value `query` returns; an endpoint with no `query` (a `queryFn`)
+   * makes none here.
+   */
+  const rtkEndpoint = (sp: ServiceProgram, call: ts.CallExpression): RequestShape[] => {
+    const callee = unwrap(call.expression);
+    if (!ts.isPropertyAccessExpression(callee) || !RTK_ENDPOINT_KINDS.has(callee.name.text)) {
+      return [];
+    }
+    const build = unwrap(callee.expression);
+    const parameter = ts.isIdentifier(build) ? symbolAt(sp, build)?.valueDeclaration : undefined;
+    const endpoints = parameter && ts.isParameter(parameter) ? parameter.parent : undefined;
+    if (!endpoints || !isFunctionWithBody(endpoints) || endpoints.parameters[0] !== parameter) {
+      return [];
+    }
+    const api = rtkApiOf(sp, endpoints);
+    const base = api && rtkBase(api.sp, api.call, 0);
+    const [first] = call.arguments;
+    if (!api || !base || !first || ts.isSpreadElement(first)) return [];
+    const confidence = weaker(api.confidence, base.confidence);
+    const shape = (
+      url: ProgramExpression | null,
+      method: Pick<HttpCallSite, "method" | "methodSource">,
+    ): RequestShape => ({ client: "fetch", ...method, url, baseURL: base.baseURL, confidence });
+    const unknown = [shape(null, { method: null })];
+    const definition = configObject(sp, first, 0);
+    if (!definition) return unknown;
+    const query = queryOption(definition.sp, definition.expression);
+    if (query === undefined) return [];
+    let fn: FunctionWithBody | undefined;
+    if (query && "kind" in query) fn = query;
+    else if (query) {
+      const e = unwrap(query.expression);
+      if (isFunctionWithBody(e)) fn = e;
+      else if (ts.isIdentifier(e)) {
+        const symbol = symbolAt(query.sp, e);
+        fn = symbol && functionOf(resolver.checkerOf(query.sp), symbol);
+      }
+    }
+    const returned = fn ? returnedExpressions(fn) : [];
+    if (returned.length === 0) return unknown;
+    return returned.map((r) => {
+      if (configObject(definition.sp, r, 0)) {
+        const url = configProperty(definition.sp, r, "url");
+        return shape(url ?? null, configMethod(definition.sp, r, "GET"));
+      }
+      return isStringValued(definition.sp, r)
+        ? shape({ sp: definition.sp, expression: r }, { method: "GET" })
+        : shape(null, { method: null });
+    });
+  };
+
   /** Collect the sites in `sp`'s root files. */
   const collectIn = (sp: ServiceProgram): HttpCallSite[] => {
     const sites: HttpCallSite[] = [];
@@ -1050,9 +1264,9 @@ export function createHttpSiteCollector(
         const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
           const request = requestOf(sp, file, node);
-          if (request) {
+          for (const shape of request ? [request] : rtkEndpoint(sp, node)) {
             sites.push({
-              ...request,
+              ...shape,
               sp,
               file,
               call: node,

@@ -1,0 +1,713 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/pages/index.tsx#Board",
+      "id": "calls:symbol:task-board/pages/index.tsx#Board->symbol:task-board/hooks/stats.ts#useStats",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 22,
+          "file": "pages/index.tsx",
+          "line": 9
+        }
+      ],
+      "to": "symbol:task-board/hooks/stats.ts#useStats"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/pages/index.tsx#Board",
+      "id": "calls:symbol:task-board/pages/index.tsx#Board->symbol:task-board/store/api.ts#useAddTaskMutation",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 21,
+          "file": "pages/index.tsx",
+          "line": 8
+        }
+      ],
+      "to": "symbol:task-board/store/api.ts#useAddTaskMutation"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/pages/index.tsx#Board",
+      "id": "calls:symbol:task-board/pages/index.tsx#Board->symbol:task-board/store/api.ts#useListTasksQuery",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 27,
+          "file": "pages/index.tsx",
+          "line": 6
+        }
+      ],
+      "to": "symbol:task-board/store/api.ts#useListTasksQuery"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/pages/index.tsx#Board",
+      "id": "calls:symbol:task-board/pages/index.tsx#Board->symbol:task-board/store/labels.ts#useListLabelsQuery",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 28,
+          "file": "pages/index.tsx",
+          "line": 7
+        }
+      ],
+      "to": "symbol:task-board/store/labels.ts#useListLabelsQuery"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:task-board/ALL /api/stats",
+      "id": "handles:route:task-board/ALL /api/stats->symbol:task-board/pages/api/stats.ts#stats",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/stats.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:task-board/pages/api/stats.ts#stats"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:task-board/GET /api/tasks",
+      "id": "handles:route:task-board/GET /api/tasks->symbol:task-board/pages/api/tasks/index.ts#tasks",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/tasks/index.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:task-board/pages/api/tasks/index.ts#tasks"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:task-board/GET /api/tasks/:id",
+      "id": "handles:route:task-board/GET /api/tasks/:id->symbol:task-board/pages/api/tasks/[id].ts#task",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/tasks/[id].ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:task-board/pages/api/tasks/[id].ts#task"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:task-board/PATCH /api/tasks/:id",
+      "id": "handles:route:task-board/PATCH /api/tasks/:id->symbol:task-board/pages/api/tasks/[id].ts#task",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/tasks/[id].ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:task-board/pages/api/tasks/[id].ts#task"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:task-board/POST /api/tasks",
+      "id": "handles:route:task-board/POST /api/tasks->symbol:task-board/pages/api/tasks/index.ts#tasks",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/tasks/index.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:task-board/pages/api/tasks/index.ts#tasks"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/hooks/stats.ts#useStats",
+      "id": "http:symbol:task-board/hooks/stats.ts#useStats->route:task-board/ALL /api/stats",
+      "kind": "http",
+      "label": "ALL /api/stats",
+      "sites": [
+        {
+          "column": 20,
+          "file": "hooks/stats.ts",
+          "line": 6
+        }
+      ],
+      "to": "route:task-board/ALL /api/stats"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:task-board/hooks/stats.ts#useStats",
+      "id": "http:symbol:task-board/hooks/stats.ts#useStats->unresolved:task-board/hooks/stats.ts:10:32",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 32,
+          "file": "hooks/stats.ts",
+          "line": 10
+        }
+      ],
+      "to": "unresolved:task-board/hooks/stats.ts:10:32"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/store/api.ts#tasksApi",
+      "id": "http:symbol:task-board/store/api.ts#tasksApi->route:task-board/GET /api/tasks",
+      "kind": "http",
+      "label": "GET /api/tasks",
+      "sites": [
+        {
+          "column": 16,
+          "file": "store/api.ts",
+          "line": 14
+        }
+      ],
+      "to": "route:task-board/GET /api/tasks"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/store/api.ts#tasksApi",
+      "id": "http:symbol:task-board/store/api.ts#tasksApi->route:task-board/GET /api/tasks/:id",
+      "kind": "http",
+      "label": "GET /api/tasks/:id",
+      "sites": [
+        {
+          "column": 14,
+          "file": "store/api.ts",
+          "line": 18
+        }
+      ],
+      "to": "route:task-board/GET /api/tasks/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/store/api.ts#tasksApi",
+      "id": "http:symbol:task-board/store/api.ts#tasksApi->route:task-board/PATCH /api/tasks/:id",
+      "kind": "http",
+      "label": "PATCH /api/tasks/:id",
+      "sites": [
+        {
+          "column": 17,
+          "file": "store/api.ts",
+          "line": 25
+        }
+      ],
+      "to": "route:task-board/PATCH /api/tasks/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/store/api.ts#tasksApi",
+      "id": "http:symbol:task-board/store/api.ts#tasksApi->route:task-board/POST /api/tasks",
+      "kind": "http",
+      "label": "POST /api/tasks",
+      "sites": [
+        {
+          "column": 14,
+          "file": "store/api.ts",
+          "line": 21
+        }
+      ],
+      "to": "route:task-board/POST /api/tasks"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:task-board/store/labels.ts#labelsApi",
+      "id": "http:symbol:task-board/store/labels.ts#labelsApi->unresolved:task-board/store/labels.ts:6:19",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 19,
+          "file": "store/labels.ts",
+          "line": 6
+        }
+      ],
+      "to": "unresolved:task-board/store/labels.ts:6:19"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:task-board/pages/index.tsx",
+      "id": "imports:file:task-board/pages/index.tsx->file:task-board/hooks/stats.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 26,
+          "file": "pages/index.tsx",
+          "line": 3
+        }
+      ],
+      "to": "file:task-board/hooks/stats.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:task-board/pages/index.tsx",
+      "id": "imports:file:task-board/pages/index.tsx->file:task-board/store/api.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 55,
+          "file": "pages/index.tsx",
+          "line": 1
+        }
+      ],
+      "to": "file:task-board/store/api.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:task-board/pages/index.tsx",
+      "id": "imports:file:task-board/pages/index.tsx->file:task-board/store/labels.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 36,
+          "file": "pages/index.tsx",
+          "line": 2
+        }
+      ],
+      "to": "file:task-board/store/labels.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:task-board/store/labels.ts",
+      "id": "imports:file:task-board/store/labels.ts->file:task-board/store/api.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 26,
+          "file": "store/labels.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:task-board/store/api.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:task-board//",
+      "id": "renders:page:task-board//->symbol:task-board/pages/index.tsx#Board",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/index.tsx",
+          "line": 5
+        }
+      ],
+      "to": "symbol:task-board/pages/index.tsx#Board"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "c1e79ff665615d2fb929a85b37703877115e33eb56944a2bd1a98bbd5cd7bb8f",
+      "id": "file:task-board/hooks/stats.ts",
+      "kind": "file",
+      "label": "stats.ts",
+      "parentId": "module:task-board/hooks",
+      "path": "hooks/stats.ts"
+    },
+    {
+      "hash": "e51a1420e3aa89146eaa73fef6a78d896c9de29a016b099fa3d03cf96b7e8bb1",
+      "id": "file:task-board/pages/api/stats.ts",
+      "kind": "file",
+      "label": "stats.ts",
+      "parentId": "module:task-board/pages/api",
+      "path": "pages/api/stats.ts"
+    },
+    {
+      "hash": "0d8b9298c50fb85cc9baacc6eec8018c287ff89681d58a65db44106bbcecb1a3",
+      "id": "file:task-board/pages/api/tasks/[id].ts",
+      "kind": "file",
+      "label": "[id].ts",
+      "parentId": "module:task-board/pages/api/tasks",
+      "path": "pages/api/tasks/[id].ts"
+    },
+    {
+      "hash": "c8e2aece695468529c3ba23951394b468ba31e9b3e4e725a7c35c7024bb26a97",
+      "id": "file:task-board/pages/api/tasks/index.ts",
+      "kind": "file",
+      "label": "index.ts",
+      "parentId": "module:task-board/pages/api/tasks",
+      "path": "pages/api/tasks/index.ts"
+    },
+    {
+      "hash": "fa9b2d901ef3ec660cfdfa2053b5ecc1b628135be2dddbc7bd20511dd41eb121",
+      "id": "file:task-board/pages/index.tsx",
+      "kind": "file",
+      "label": "index.tsx",
+      "parentId": "module:task-board/pages",
+      "path": "pages/index.tsx"
+    },
+    {
+      "hash": "c055e53922b79c63652a5e3ba47fb82b12a4c56016803371323399ee36d20bc5",
+      "id": "file:task-board/store/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "parentId": "module:task-board/store",
+      "path": "store/api.ts"
+    },
+    {
+      "hash": "84bd5f250fb84857c1563edc326bee21510b51ab3def852676279cd24f8476a4",
+      "id": "file:task-board/store/labels.ts",
+      "kind": "file",
+      "label": "labels.ts",
+      "parentId": "module:task-board/store",
+      "path": "store/labels.ts"
+    },
+    {
+      "id": "module:task-board/hooks",
+      "kind": "module",
+      "label": "hooks",
+      "parentId": "service:task-board/",
+      "path": "hooks"
+    },
+    {
+      "id": "module:task-board/pages",
+      "kind": "module",
+      "label": "pages",
+      "parentId": "service:task-board/",
+      "path": "pages"
+    },
+    {
+      "id": "module:task-board/pages/api",
+      "kind": "module",
+      "label": "api",
+      "parentId": "module:task-board/pages",
+      "path": "pages/api"
+    },
+    {
+      "id": "module:task-board/pages/api/tasks",
+      "kind": "module",
+      "label": "tasks",
+      "parentId": "module:task-board/pages/api",
+      "path": "pages/api/tasks"
+    },
+    {
+      "id": "module:task-board/store",
+      "kind": "module",
+      "label": "store",
+      "parentId": "service:task-board/",
+      "path": "store"
+    },
+    {
+      "id": "page:task-board//",
+      "kind": "page",
+      "label": "/",
+      "layer": "frontend",
+      "parentId": "file:task-board/pages/index.tsx",
+      "path": "/",
+      "source": {
+        "column": 25,
+        "file": "pages/index.tsx",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:task-board/ALL /api/stats",
+      "kind": "route",
+      "label": "ALL /api/stats",
+      "layer": "backend",
+      "method": "ALL",
+      "parentId": "file:task-board/pages/api/stats.ts",
+      "path": "/api/stats",
+      "source": {
+        "column": 25,
+        "file": "pages/api/stats.ts",
+        "line": 3
+      }
+    },
+    {
+      "id": "route:task-board/GET /api/tasks",
+      "kind": "route",
+      "label": "GET /api/tasks",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:task-board/pages/api/tasks/index.ts",
+      "path": "/api/tasks",
+      "source": {
+        "column": 25,
+        "file": "pages/api/tasks/index.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:task-board/GET /api/tasks/:id",
+      "kind": "route",
+      "label": "GET /api/tasks/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:task-board/pages/api/tasks/[id].ts",
+      "path": "/api/tasks/:id",
+      "source": {
+        "column": 25,
+        "file": "pages/api/tasks/[id].ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:task-board/PATCH /api/tasks/:id",
+      "kind": "route",
+      "label": "PATCH /api/tasks/:id",
+      "layer": "backend",
+      "method": "PATCH",
+      "parentId": "file:task-board/pages/api/tasks/[id].ts",
+      "path": "/api/tasks/:id",
+      "source": {
+        "column": 25,
+        "file": "pages/api/tasks/[id].ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:task-board/POST /api/tasks",
+      "kind": "route",
+      "label": "POST /api/tasks",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:task-board/pages/api/tasks/index.ts",
+      "path": "/api/tasks",
+      "source": {
+        "column": 25,
+        "file": "pages/api/tasks/index.ts",
+        "line": 5
+      }
+    },
+    {
+      "framework": "next",
+      "id": "service:task-board/",
+      "kind": "service",
+      "label": "task-board",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/hooks/stats.ts#useStats",
+      "kind": "symbol",
+      "label": "useStats",
+      "parentId": "file:task-board/hooks/stats.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "hooks/stats.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/pages/api/stats.ts#stats",
+      "kind": "symbol",
+      "label": "stats",
+      "parentId": "file:task-board/pages/api/stats.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "pages/api/stats.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/pages/api/tasks/[id].ts#task",
+      "kind": "symbol",
+      "label": "task",
+      "parentId": "file:task-board/pages/api/tasks/[id].ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "pages/api/tasks/[id].ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/pages/api/tasks/index.ts#tasks",
+      "kind": "symbol",
+      "label": "tasks",
+      "parentId": "file:task-board/pages/api/tasks/index.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "pages/api/tasks/index.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/pages/index.tsx#Board",
+      "kind": "symbol",
+      "label": "Board",
+      "parentId": "file:task-board/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "pages/index.tsx",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/api.ts#tasksApi",
+      "kind": "symbol",
+      "label": "tasksApi",
+      "parentId": "file:task-board/store/api.ts",
+      "source": {
+        "column": 14,
+        "endLine": 35,
+        "file": "store/api.ts",
+        "line": 9
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/api.ts#useAddTaskMutation",
+      "kind": "symbol",
+      "label": "useAddTaskMutation",
+      "parentId": "file:task-board/store/api.ts",
+      "source": {
+        "column": 52,
+        "endLine": 37,
+        "file": "store/api.ts",
+        "line": 37
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/api.ts#useFinishTaskMutation",
+      "kind": "symbol",
+      "label": "useFinishTaskMutation",
+      "parentId": "file:task-board/store/api.ts",
+      "source": {
+        "column": 72,
+        "endLine": 37,
+        "file": "store/api.ts",
+        "line": 37
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/api.ts#useGetTaskQuery",
+      "kind": "symbol",
+      "label": "useGetTaskQuery",
+      "parentId": "file:task-board/store/api.ts",
+      "source": {
+        "column": 35,
+        "endLine": 37,
+        "file": "store/api.ts",
+        "line": 37
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/api.ts#useListTasksQuery",
+      "kind": "symbol",
+      "label": "useListTasksQuery",
+      "parentId": "file:task-board/store/api.ts",
+      "source": {
+        "column": 16,
+        "endLine": 37,
+        "file": "store/api.ts",
+        "line": 37
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/labels.ts#labelsApi",
+      "kind": "symbol",
+      "label": "labelsApi",
+      "parentId": "file:task-board/store/labels.ts",
+      "source": {
+        "column": 14,
+        "endLine": 9,
+        "file": "store/labels.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/labels.ts#useListLabelsQuery",
+      "kind": "symbol",
+      "label": "useListLabelsQuery",
+      "parentId": "file:task-board/store/labels.ts",
+      "source": {
+        "column": 16,
+        "endLine": 11,
+        "file": "store/labels.ts",
+        "line": 11
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "rtk-query",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(String(queryKey[0]))",
+      "id": "unresolved:task-board/hooks/stats.ts:10:32",
+      "kind": "unresolved",
+      "label": "GET String(queryKey[0])",
+      "parentId": "service:task-board/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 32,
+        "file": "hooks/stats.ts",
+        "line": 10
+      }
+    },
+    {
+      "detail": "no route matches GET to /api/labels",
+      "expression": "build.query<string[], void>({ query: () => \"/labels\" })",
+      "id": "unresolved:task-board/store/labels.ts:6:19",
+      "kind": "unresolved",
+      "label": "GET /api/labels",
+      "parentId": "service:task-board/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 19,
+        "file": "store/labels.ts",
+        "line": 6
+      }
+    }
+  ],
+  "repo": {
+    "name": "rtk-query",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
