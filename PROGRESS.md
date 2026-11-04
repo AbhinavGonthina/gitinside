@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5B.7 Milestone check (fresh-eyes review, CLI smoke test, M5B-review.md, tag m5b). M5B.6b waits on #18 (loop again for batch 3's RTK miss?); M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
+M5B.7b RTK endpoints under an unreadable base query made visible (M5B review finding 1). M5B.6b waits on #18 (loop again for batch 3's RTK miss?); M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -272,7 +272,12 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 - [x] M5B.5 Fresh held-out batch 3, repo 1: pick 2–3 new public React/Next + Express/Prisma repos with URL and routing styles unlike the first ten (rules as M3.2, read but never analyzed), pin the first as unseen batch 3, draft and commit its labels; no scoring {model: opus}
 - [x] M5B.6 Batch 3, repo 2 (and 3): pin, draft and commit labels, then score once, blind (`pnpm eval`); README quotes this as the generalization result, as measured; misses go to a diagnosis note, and if they're big, a summary on #15 before deciding whether to loop again {model: opus}
 - [ ] M5B.6b If #18 says loop again: RTK Query base queries that forward to `fetchBaseQuery` (C1 in `eval/results/2026-11-batch3-diagnosis.md`): a repo function passing its first parameter unchanged to a `fetchBaseQuery` result's call is read as that `fetchBaseQuery` (its `baseUrl` joined), and a direct call of the result with a URL fixed there is a request; written from RTK's documented re-authorization example, ADR, fixture + golden, eval delta, batch 3 marked seen (and a batch 4 if #18 asks for one) {model: opus} {blocked: #18}
-- [ ] M5B.7 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5B diff (no repo-specific cases), CLI smoke test on a real repo outside the eval, M5B-review.md, tag m5b {model: opus}
+- [x] M5B.7a Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5B diff (no repo-specific cases), CLI smoke test on a real repo outside the eval, M5B-review.md (tag after the fixes) {model: opus}
+- [ ] M5B.7b M5B review fix (fail visibly, finding 1): an RTK Query endpoint under a `createApi` whose `baseQuery` isn't readable as `fetchBaseQuery` (a custom or re-auth base query) is an unresolved site at the endpoint with a reason saying the base query isn't followed, instead of no site; a destructured builder (`({ query }) => …`) read or listed in `http.ts`'s "not handled"; ADR-0196 amendment; regression tests first, fixture + golden, eval delta (batch 3's blind run stays quoted as is; say on #18 how this changes Recipen's sites) {model: opus}
+- [ ] M5B.7c M5B review fixes, next-connect (findings 2–4, 6): a router declared outside the page file or exported counts as escaping (keep `ALL`, warn), and so does `.use(x)` with a router that isn't inline middleware; `export { r as default }` isn't an escape; no second `ALL` (and no `NEXT_DUPLICATE_ROUTE` on itself) when `.all()` is registered; a router with only unseen registrations keeps its `NEXT_CONNECT_UNSEEN_METHODS` warnings; regression tests first, eval delta {model: opus}
+- [ ] M5B.7d M5B review fix, negated guards (finding 5): calls inside a response call's arguments (`res.json({ error: t("…") })`) aren't work, and a refusal block that only logs before answering (decide which calls count, from Node's and common loggers' shapes, not names from the eval) reads as a guard; ADR-0195 amendment, regression tests first, eval delta {model: opus}
+- [ ] M5B.7e Smoke-test gap (M5B-review.md): Prisma calls on a factory's result (`prisma().tool.findMany()`, the factory typed `(): PrismaClient` returning `global.prisma || new PrismaClient()` under `// @ts-ignore`, no `node_modules`) give no edge and no unresolved node, though `prisma.ts` says factories are handled; confirm red with a fixture of that shape, fix (or make it visible and document it), eval delta {model: opus}
+- [ ] M5B.7f Re-run the milestone checks after M5B.7b–e (suite, analyzer coverage, `pnpm eval --check`), finish M5B-review.md (outcomes), tag m5b {model: opus}
 
 ### M6 (continued)
 - [ ] M6.10 docs/walkthroughs/diff.md {model: opus}
@@ -310,6 +315,8 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5B.7a** (M5B-review.md): uncached suite at `797d3f4` 3,819 passed, 4 skipped (full parallel run hit the known viewer `diffMode` focus flake; viewer 1,079/1,079 alone, the four packages it stopped before green on their own). Analyzer coverage on CI 97.62% / 91.12%; `pnpm eval --check` reproduces. Fresh-eyes review: no repo-specific cases, nothing high; 1 medium (RTK endpoints under a custom base query vanish, no unresolved node) + 5 low, planned as M5B.7b–d. Smoke test on `MileTwo/nextjs-ts-prisma-rest`: SWR and `fetch` requests link `exact`, a URL builder stays `DYNAMIC_URL`, byte-identical rerun; Prisma calls on a factory result silently missing (M5B.7e). Tag after M5B.7f.
 
 - **M5B.6** (labels `cc035be`, report `08caa77`, docs `dfd30bb`): batch 3, repo 2 is `nidhish-nayak/trendz` at `b606329` (`"heldOut": 3`, 46 labels at 46 call sites, from the code alone). Batch 3 has two repos, so no third was added. Its one blind run: precision 100.0% (45/45), recall 64.3% (45/70). trendz scored 45/45, all `heuristic`. Recipen scored 0/25: its RTK API's `baseQuery` is a re-auth wrapper around `fetchBaseQuery`, which ADR-0196 doesn't follow (C1, `eval/results/2026-11-batch3-diagnosis.md`). README/EVALUATION quote it as measured. Summary on #15; the decision to loop again (M5B.6b) is asked in #18. Main set and batches 1–2 unchanged.
 
