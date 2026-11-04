@@ -48,6 +48,18 @@ for (const c of cases) {
     await expect(
       page.locator(`#storybook-root > .gi-root[data-theme="${c.theme}"]`),
     ).toBeAttached();
+    // A story's `play` (a click, then what it causes) must end before the
+    // checks below and the shot (M5B.9: "Diff, change picked" was shot before
+    // its picked box took focus, now and then). "finished" follows the play.
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as { __STORYBOOK_PREVIEW__?: { currentRender?: { phase?: string } } })
+              .__STORYBOOK_PREVIEW__?.currentRender?.phase,
+        ),
+      )
+      .toBe("finished");
     await expect(page.locator("body.sb-show-errordisplay")).toHaveCount(0);
     // Laid-out stories (M4b.2b) draw once their Web Worker answers; a story
     // that fell back to the main thread means the worker broke in a browser.
