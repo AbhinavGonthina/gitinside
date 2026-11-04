@@ -26,6 +26,12 @@
  * Predictions outside the label file's `scope` are not scored. Precision and recall are given
  * overall, per repo, and per confidence level; per-level recall is that level's true positives
  * over all positive labels, so the levels add up to the overall recall.
+ *
+ * **Mapped completely** (#18): a repo with at least one label and no false positive, no false
+ * negative, and no missing label. Every real target is then predicted, and every `null` label
+ * is a correct abstention. Labels whose site has no route prediction are also grouped by what
+ * the analyzer said there instead (an unresolved reason, an external host, or nothing), split
+ * into `null` labels (correctly left unresolved) and real targets (missed).
  */
 import {
   compareStrings,
@@ -114,11 +120,28 @@ export interface FalseNegative {
   predicted: string[];
 }
 
+/** What the analyzer said at a labeled call site that got no route prediction. */
+export interface UnresolvedGroup {
+  /**
+   * `unresolved <REASON>`, `external host`, or `no prediction`; several distinct answers at one
+   * site are joined with ` + `, so each label is counted in exactly one group.
+   */
+  answer: string;
+  /** `null` labels with this answer: no route in the repo, correctly left without one. */
+  nullLabels: number;
+  /** Labels with a real target and this answer: missed routes. */
+  realTargets: number;
+}
+
 /** The score for one repo. */
 export interface RepoScore {
   repo: string;
   sha: string;
   counts: Counts;
+  /** At least one label, and no false positive, false negative, or missing label. */
+  mappedCompletely: boolean;
+  /** Labels without a route prediction at their site, grouped by answer, sorted by answer. */
+  unresolved: UnresolvedGroup[];
   /** Sorted by site, then predicted route. */
   falsePositives: FalsePositive[];
   /** Sorted by call site, then expected target. */
@@ -296,12 +319,20 @@ export function scoreRepo(labels: LabelFile, graph: ArchitectureGraph): RepoScor
 
   const falseNegatives: FalseNegative[] = [];
   const missing: LabeledEdge[] = [];
+  const unresolved = new Map<string, UnresolvedGroup>();
   for (const label of labels.edges) {
     counts.labels++;
     const atSite = predictions.filter((p) => siteMatches(label.callSite, p.site));
     if (atSite.length === 0) {
       counts.missing++;
       missing.push(label);
+    }
+    if (atSite.every((p) => p.kind !== "route")) {
+      const answer = unresolvedAnswer(atSite);
+      const group = unresolved.get(answer) ?? { answer, nullLabels: 0, realTargets: 0 };
+      unresolved.set(answer, group);
+      if (label.target === null) group.nullLabels++;
+      else group.realTargets++;
     }
     if (label.target === null) {
       counts.nullLabels++;
@@ -328,7 +359,33 @@ export function scoreRepo(labels: LabelFile, graph: ArchitectureGraph): RepoScor
   falseNegatives.sort(
     (a, b) => compareLocations(a.callSite, b.callSite) || compareTargets(a.expected, b.expected),
   );
-  return { repo: labels.repo, sha: labels.sha, counts, falsePositives, falseNegatives, missing };
+  return {
+    repo: labels.repo,
+    sha: labels.sha,
+    counts,
+    mappedCompletely:
+      counts.labels > 0 &&
+      counts.falsePositives === 0 &&
+      counts.falseNegatives === 0 &&
+      counts.missing === 0,
+    unresolved: sortGroups(unresolved.values()),
+    falsePositives,
+    falseNegatives,
+    missing,
+  };
+}
+
+/** The group a site's non-route predictions fall in (see {@link UnresolvedGroup.answer}). */
+function unresolvedAnswer(atSite: readonly Prediction[]): string {
+  if (atSite.length === 0) return "no prediction";
+  const answers = atSite.map((p) =>
+    p.kind === "unresolved" ? `unresolved ${p.reason}` : "external host",
+  );
+  return [...new Set(answers)].sort(compareStrings).join(" + ");
+}
+
+function sortGroups(groups: Iterable<UnresolvedGroup>): UnresolvedGroup[] {
+  return [...groups].sort((a, b) => compareStrings(a.answer, b.answer));
 }
 
 /** Add `b`'s counts into `a`. */
@@ -360,4 +417,16 @@ export function scoreAll(
   const overall = emptyCounts();
   for (const r of repos) addCounts(overall, r.counts);
   return { overall, repos };
+}
+
+/** The repos' unresolved groups added up per answer, sorted by answer. */
+export function totalUnresolved(repos: readonly RepoScore[]): UnresolvedGroup[] {
+  const totals = new Map<string, UnresolvedGroup>();
+  for (const g of repos.flatMap((r) => r.unresolved)) {
+    const total = totals.get(g.answer) ?? { answer: g.answer, nullLabels: 0, realTargets: 0 };
+    totals.set(g.answer, total);
+    total.nullLabels += g.nullLabels;
+    total.realTargets += g.realTargets;
+  }
+  return sortGroups(totals.values());
 }

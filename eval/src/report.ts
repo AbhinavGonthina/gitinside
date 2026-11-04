@@ -12,6 +12,7 @@ import { compareStrings, type SourceLocation } from "@gitinside/schema";
 import type { EvalRepo, LabeledEdge, LabelFile, SourcePoint } from "./format.js";
 import {
   SCORED_LEVELS,
+  totalUnresolved,
   type Counts,
   type EvalScore,
   type FalseNegative,
@@ -166,12 +167,57 @@ function list<T>(title: string, items: readonly T[], line: (item: T) => string):
   ];
 }
 
-function countsRow(name: string, c: Counts): string {
+function countsRow(name: string, c: Counts, complete: string): string {
   const [p, r] = rates(c);
   return (
     `| ${name} | ${c.labels} | ${c.positiveLabels} | ${c.truePositives} | ${c.falsePositives} | ` +
-    `${c.falseNegatives} | ${p} | ${r} | ${c.nullLabels} | ${c.abstentions} | ${c.missing} |`
+    `${c.falseNegatives} | ${p} | ${r} | ${c.nullLabels} | ${c.abstentions} | ${c.missing} | ${complete} |`
   );
+}
+
+/** The share of `scored` repos mapped completely, as a sentence. */
+function mappedLine(scored: readonly ScoredRepo[]): string {
+  const complete = scored.filter(({ score: s }) => s.mappedCompletely).length;
+  return `Mapped completely: ${percent(complete, scored.length)} of repos (every labeled call site matched, nothing false).`;
+}
+
+/** What each analyzer answer at a site without a route means, for the unresolved table. */
+const ANSWER_MEANING: Record<string, string> = {
+  "external host": "a literal host outside the repo",
+  "no prediction": "nothing at the site: the request was dropped, or placed at another site",
+  "unresolved DYNAMIC_URL": "the URL is only known at runtime",
+  "unresolved NO_MATCHING_ROUTE":
+    "a URL read from the code that no route in the repo matches: a service outside the repo, or a route the analyzer missed",
+  "unresolved WRAPPER_DEPTH": "the URL comes through more than one wrapper",
+};
+
+function meaning(answer: string): string {
+  return answer
+    .split(" + ")
+    .map((part) => ANSWER_MEANING[part] ?? "see the unresolved reasons in GRAPH_SCHEMA.md")
+    .join("; ");
+}
+
+/** The labels of `scored` that got no route prediction, grouped by the analyzer's answer. */
+function unresolvedTable(scored: readonly ScoredRepo[]): string[] {
+  const groups = totalUnresolved(scored.map(({ score: s }) => s));
+  const intro =
+    "Labeled call sites where the analyzer predicted no route, by what it said instead. A `null` label (no route in the repo) answered this way is correct; a real target is a miss.";
+  if (groups.length === 0) {
+    return [intro, "", "None: every labeled call site got a route prediction.", ""];
+  }
+  const sum = (key: "nullLabels" | "realTargets"): number => groups.reduce((n, g) => n + g[key], 0);
+  return [
+    intro,
+    "",
+    "| Analyzer's answer | Meaning | `null` labels (correct) | Real targets (missed) |",
+    "|---|---|---:|---:|",
+    ...groups.map(
+      (g) => `| ${code(g.answer)} | ${meaning(g.answer)} | ${g.nullLabels} | ${g.realTargets} |`,
+    ),
+    `| **All** | | ${sum("nullLabels")} | ${sum("realTargets")} |`,
+    "",
+  ];
 }
 
 const COUNT_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
@@ -231,16 +277,22 @@ export function renderReport(input: ReportInput): string {
     "",
     `Precision ${rates(o)[0]}, recall ${rates(o)[1]} over ${o.labels} labels in ${repos.length} repos.`,
     "",
+    mappedLine(scored),
+    "",
     ...countsTable(scored, o, "**All repos**"),
     "- **TP / FP / FN:** route predictions that match a label / that match none / labeled real targets never predicted.",
     "- **Abstentions:** `null`-labeled call sites (no route in the repo) where the analyzer predicted only an unresolved node or an external host. Correct, but not part of precision.",
     "- **Missing:** labels with no prediction of any kind at their call site: the request was dropped, or the analyzer placed it at another site (for example inside a helper whose callers the label names).",
+    "- **Mapped completely:** at least one label, and no false positive, false negative, or missing label: every real target predicted and every `null` label a correct abstention.",
     "",
     "### By confidence level",
     "",
     "Recall per level is that level's true positives over all real targets, so the levels add up to the overall recall.",
     "",
     ...levelsTable(o),
+    "### What stays unresolved",
+    "",
+    ...unresolvedTable(scored),
     "## Misses, by repo",
     "",
     ...scored.flatMap(({ score: s }) => repoDetails(s, "###")),
@@ -308,11 +360,12 @@ function reposTable(scored: readonly ScoredRepo[]): string[] {
 }
 
 function countsTable(scored: readonly ScoredRepo[], total: Counts, totalName: string): string[] {
+  const complete = scored.filter(({ score: s }) => s.mappedCompletely).length;
   return [
-    "| Repo | Labels | Real targets | TP | FP | FN | Precision | Recall | `null` labels | Abstentions | Missing |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
-    ...scored.map(({ score: s }) => countsRow(s.repo, s.counts)),
-    countsRow(totalName, total),
+    "| Repo | Labels | Real targets | TP | FP | FN | Precision | Recall | `null` labels | Abstentions | Missing | Mapped completely |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...scored.map(({ score: s }) => countsRow(s.repo, s.counts, s.mappedCompletely ? "yes" : "no")),
+    countsRow(totalName, total, `${complete}/${scored.length}`),
     "",
   ];
 }
@@ -366,10 +419,15 @@ function heldOutSection(set: HeldOutSet): string[] {
     ...reposTable(scored),
     `Precision ${rates(o)[0]}, recall ${rates(o)[1]} over ${o.labels} labels in ${set.repos.length} ${set.repos.length === 1 ? "repo" : "repos"} of batch ${n}.`,
     "",
+    mappedLine(scored),
+    "",
     ...countsTable(scored, o, `**All of batch ${n}**`),
     `### Batch ${n}, by confidence level`,
     "",
     ...levelsTable(o),
+    `### Batch ${n}, what stays unresolved`,
+    "",
+    ...unresolvedTable(scored),
     `### Batch ${n} misses, by repo`,
     "",
     ...scored.flatMap(({ score: s }) => repoDetails(s, "####")),

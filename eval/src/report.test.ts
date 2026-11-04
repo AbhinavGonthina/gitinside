@@ -97,6 +97,8 @@ const SCORE_A: RepoScore = {
       heuristic: { truePositives: 0, falsePositives: 1 },
     },
   }),
+  mappedCompletely: false,
+  unresolved: [{ answer: "no prediction", nullLabels: 0, realTargets: 1 }],
   falsePositives: [
     {
       kind: "route-for-null-label",
@@ -128,6 +130,8 @@ const SCORE_B: RepoScore = {
   repo: "zed/app",
   sha: SHA,
   counts: counts(),
+  mappedCompletely: false,
+  unresolved: [],
   falsePositives: [],
   falseNegatives: [],
   missing: [],
@@ -245,11 +249,63 @@ describe("renderReport", () => {
 
   it("prints counts with raw fractions, n/a for empty ratios, and a total row", () => {
     expect(text).toContain(
-      "| acme/shop | 3 | 2 | 1 | 1 | 1 | 50.0% (1/2) | 50.0% (1/2) | 1 | 0 | 1 |",
+      "| acme/shop | 3 | 2 | 1 | 1 | 1 | 50.0% (1/2) | 50.0% (1/2) | 1 | 0 | 1 | no |",
     );
-    expect(text).toContain("| zed/app | 0 | 0 | 0 | 0 | 0 | n/a | n/a | 0 | 0 | 0 |");
-    expect(text).toContain("| **All repos** | 3 | 2 | 1 | 1 | 1 | 50.0% (1/2) | 50.0% (1/2) |");
+    expect(text).toContain("| zed/app | 0 | 0 | 0 | 0 | 0 | n/a | n/a | 0 | 0 | 0 | no |");
+    expect(text).toContain(
+      "| **All repos** | 3 | 2 | 1 | 1 | 1 | 50.0% (1/2) | 50.0% (1/2) | 1 | 0 | 1 | 0/2 |",
+    );
     expect(text).toContain("Precision 50.0% (1/2), recall 50.0% (1/2) over 3 labels in 2 repos.");
+  });
+
+  it("gives the share of repos mapped completely, per repo and as a sentence (M5C.4)", () => {
+    expect(text).toContain(
+      "Mapped completely: 0.0% (0/2) of repos (every labeled call site matched, nothing false).",
+    );
+    const complete: RepoScore = { ...SCORE_A, mappedCompletely: true };
+    const out = renderReport(
+      input({ score: { overall: SCORE_A.counts, repos: [complete, SCORE_B] } }),
+    );
+    expect(out).toContain("Mapped completely: 50.0% (1/2) of repos");
+    expect(out).toContain("| 50.0% (1/2) | 50.0% (1/2) | 1 | 0 | 1 | yes |");
+    expect(out).toContain(
+      "| **All repos** | 3 | 2 | 1 | 1 | 1 | 50.0% (1/2) | 50.0% (1/2) | 1 | 0 | 1 | 1/2 |",
+    );
+  });
+
+  it("groups what stays unresolved by the analyzer's answer, with its meaning (M5C.4)", () => {
+    expect(text).toContain(
+      "### What stays unresolved\n\nLabeled call sites where the analyzer predicted no route, by what it said instead.",
+    );
+    expect(text).toContain(
+      "| `no prediction` | nothing at the site: the request was dropped, or placed at another site | 0 | 1 |\n| **All** | | 0 | 1 |\n",
+    );
+    const groups: RepoScore = {
+      ...SCORE_B,
+      unresolved: [
+        { answer: "external host + unresolved DYNAMIC_URL", nullLabels: 1, realTargets: 0 },
+        { answer: "unresolved DYNAMIC_URL", nullLabels: 2, realTargets: 1 },
+        { answer: "unresolved RAW_QUERY", nullLabels: 1, realTargets: 0 },
+      ],
+    };
+    const out = renderReport(
+      input({ score: { overall: SCORE_A.counts, repos: [SCORE_A, groups] } }),
+    );
+    expect(out).toContain(
+      [
+        "| `external host + unresolved DYNAMIC_URL` | a literal host outside the repo; the URL is only known at runtime | 1 | 0 |",
+        "| `no prediction` | nothing at the site: the request was dropped, or placed at another site | 0 | 1 |",
+        "| `unresolved DYNAMIC_URL` | the URL is only known at runtime | 2 | 1 |",
+        "| `unresolved RAW_QUERY` | see the unresolved reasons in GRAPH_SCHEMA.md | 1 | 0 |",
+        "| **All** | | 4 | 2 |",
+      ].join("\n"),
+    );
+    const none = renderReport(
+      input({
+        score: { overall: SCORE_A.counts, repos: [{ ...SCORE_A, unresolved: [] }, SCORE_B] },
+      }),
+    );
+    expect(none).toContain("None: every labeled call site got a route prediction.");
   });
 
   it("gives per-level recall over all real targets", () => {
@@ -414,6 +470,14 @@ describe("renderReport", () => {
       );
       expect(section1).toContain("### Batch 1, by confidence level");
       expect(section1).toContain("| pattern | 3 | 0 | 100.0% (3/3) | 75.0% (3/4) |");
+      expect(section1).toContain("Mapped completely: 0.0% (0/1) of repos");
+      expect(section1).toContain(
+        "| **All of batch 1** | 4 | 4 | 3 | 0 | 1 | 100.0% (3/3) | 75.0% (3/4) | 0 | 0 | 0 | 0/1 |",
+      );
+      expect(section1).toContain("### Batch 1, what stays unresolved");
+      expect(section1).toContain("| `no prediction` |");
+      expect(section2).toContain("### Batch 2, what stays unresolved");
+      expect(section2).toContain("None: every labeled call site got a route prediction.");
       expect(section1).toContain("### Batch 1 misses, by repo");
       expect(section1).toContain("#### held/out\n\n**False positives (0)**\n\nNone.");
       expect(section1).toContain(

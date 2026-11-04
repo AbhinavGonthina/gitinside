@@ -144,10 +144,13 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 - **Missing:** a label with no prediction of any kind at its site (a dropped call site) is listed separately too; a missing label with a real target is also a false negative.
 - Precision = TP / (TP + FP); recall = TP / labels with a real target; an empty denominator is reported as "n/a", never as 0% or 100%.
 - Precision and recall are reported **overall, per repo, and per confidence level** (exact / pattern / heuristic). Per-level recall is that level's true positives over *all* labels with a real target, so the three levels add up to the overall recall.
+- **Mapped completely** (#18, M5C.4): a repo with at least one label and no false positive, no false negative, and no missing label, so every real target is predicted and every `null` label is a correct abstention. Each set (the original repos, each held-out batch) reports the share of its repos mapped completely as a raw fraction. A repo with no labels isn't counted as mapped: it shows nothing.
+- **What stays unresolved:** every label whose site has no route prediction is grouped by what the analyzer said there instead: `unresolved <REASON>` (`DYNAMIC_URL` is a URL only known at runtime; `NO_MATCHING_ROUTE` is a URL read from the code that no route in the repo matches, so a service outside the repo or a missed route), `external host` (a literal host outside the repo), or `no prediction`. Several distinct answers at one site form one group (`external host + unresolved DYNAMIC_URL`), so each label counts once. Each group is split into `null` labels (correctly left without a route) and real targets (misses).
 
 **Report:** `eval/results/<YYYY-MM-DD>-<analyzerVersion>.md`, committed, containing:
 - Repos and SHAs, the analyzer version, and machine specs.
-- A counts table with precision and recall.
+- A counts table with precision and recall, and the share of repos mapped completely.
+- What stays unresolved, grouped by the analyzer's answer, per set.
 - Every false positive and false negative with file:line.
 - Limitations.
 
