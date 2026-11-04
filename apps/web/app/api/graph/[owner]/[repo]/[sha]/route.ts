@@ -10,6 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ owner: string; repo: string; sha: string }> },
 ): Promise<Response> {
   return (
-    redirectToCanonical(request.url, "") ?? handleGraphRequest(await params, graphDepsFromEnv())
+    redirectToCanonical(request.url, "") ??
+    handleGraphRequest(await params, graphDepsFromEnv(), request.headers.get("accept-encoding"))
   );
 }

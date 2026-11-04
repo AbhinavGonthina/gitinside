@@ -11,11 +11,23 @@ import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { parseGraph } from "@gitinside/schema";
 import { badgeMessage, renderBadge, renderDiagram } from "@gitinside/viewer/image";
 import { StorageError, type ObjectBody } from "@gitinside/worker/storage";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import shopDemo from "../../../fixtures/shop-demo/expected.json";
 import { IMAGE_CSP } from "./csp";
 import { fakeGitHub, type FakeGitHub, type FakeRepo } from "./github.testkit";
-import { handleGraphRequest } from "./graphRoute";
+import { handleGraphRequest, type GraphRouteDeps } from "./graphRoute";
 import {
   FAILED_IMAGE_CACHE_CONTROL,
   GRAPH_READ_TIMEOUT_MS,
@@ -47,6 +59,22 @@ let graphPaths: string[];
 let enqueued: AnalyzeJob[];
 let failure: Error | undefined;
 let deps: ImageRouteDeps;
+
+/** `/api/graph`'s dependencies: the test database and a fake bucket over `objects`. */
+function graphDeps(): GraphRouteDeps {
+  return {
+    db: t.db,
+    store: {
+      async get(k): Promise<ObjectBody | undefined> {
+        reads.push(k);
+        if (failure) throw failure;
+        const text = objects.get(k);
+        if (text === undefined) return undefined;
+        return { body: new Response(text).body!, contentType: "application/json" };
+      },
+    },
+  };
+}
 
 beforeAll(async () => {
   t = await createTestDb();
@@ -88,18 +116,10 @@ beforeEach(async () => {
         repo: decodeURIComponent(repo!),
         sha: sha!,
       };
-      return handleGraphRequest(params, {
-        db: t.db,
-        store: {
-          async get(k): Promise<ObjectBody | undefined> {
-            reads.push(k);
-            if (failure) throw failure;
-            const text = objects.get(k);
-            if (text === undefined) return undefined;
-            return { body: new Response(text).body!, contentType: "application/json" };
-          },
-        },
-      });
+      const response = await handleGraphRequest(params, graphDeps(), "gzip, deflate");
+      // Decoded as `fetch` decodes the CDN's gzipped answer.
+      if (response.headers.get("content-encoding") !== "gzip") return response;
+      return new Response(response.body!.pipeThrough(new DecompressionStream("gzip")), response);
     },
   };
 });
@@ -313,6 +333,31 @@ describe("cdnGraphReader", () => {
     expect(calls[0]?.init?.headers).toEqual({ accept: "application/json" });
     expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
     expect(GRAPH_READ_TIMEOUT_MS).toBe(10_000);
+  });
+
+  it("reads the gzipped graph over HTTP with the platform's fetch, which asks for gzip and decodes it", async () => {
+    await publish(OLD);
+    const encodings: (string | null)[] = [];
+    const server = createServer((req, res) => {
+      const encoding = new Headers(req.headers as Record<string, string>).get("accept-encoding");
+      encodings.push(encoding);
+      const params = { owner: "Acme", repo: "Shop", sha: OLD };
+      void handleGraphRequest(params, graphDeps(), encoding).then(async (response) => {
+        res.writeHead(response.status, Object.fromEntries(response.headers));
+        res.end(Buffer.from(await response.arrayBuffer()));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    onTestFinished(() => {
+      server.close();
+    });
+    const { port } = server.address() as AddressInfo;
+    const response = await cdnGraphReader(`http://127.0.0.1:${port}`)(
+      `/api/graph/Acme/Shop/${OLD}`,
+    );
+    expect(response.status).toBe(200);
+    expect(encodings[0]).toMatch(/\bgzip\b/);
+    expect(parseGraph(JSON.parse(await response.text()))).toEqual(GRAPH);
   });
 
   it("never leaves the origin", async () => {
