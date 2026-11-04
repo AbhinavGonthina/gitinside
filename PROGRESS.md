@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.13b2 Big monorepos on the website, framing
+M5.13b3 Renamed repos
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -196,7 +196,7 @@ M5.13b2 Big monorepos on the website, framing
 - [x] M5.13a4b A module-resolution cache shared between service programs with the same resolution options (M5.13a2's step 2, the rest): each resolution's probes replayed into the asking service's observed inputs on a hit, so `verifyInputs` still sees every read; goldens, eval, warm == cold bytes unchanged; measured with M5.13a3's workflow; ADR-0197 amendment {model: opus}
 - [x] M5.13a5 The collector on 1 vCPU after M5.13a4 (M5.13a2's step 3): its share from M5.13a3's workflow (`--cpu-prof` or `--trace-gc`), then a young-generation size (`--max-semi-space-size`) tried inside the 4 GiB budget (ADR-0146); keep it only if measured faster; DESIGN.md Budgets with the result (met or what's left) {model: opus}
 - [x] M5.13b1 Big monorepos on the website, labels (M5.13 screenshots): documenso's 16 services all read "@docume…" (a shared `@scope/` prefix eats the label, so show the distinguishing part, the full name still in the inspector, title, and search); regression tests first, screenshots, baselines {model: opus}
-- [ ] M5.13b2 Big monorepos on the website, framing: cal.diy's first view (113 services) opens at the 40% floor framing only lines, with the boxes off-camera (frame the boxes); regression tests first, screenshots, baselines {model: opus}
+- [x] M5.13b2 Big monorepos on the website, framing: cal.diy's first view (113 services) opens at the 40% floor framing only lines, with the boxes off-camera (frame the boxes); regression tests first, screenshots, baselines {model: opus}
 - [ ] M5.13b3 Renamed repos: an old URL (`/calcom/cal.com`) says "hasn't been analyzed yet" though it has been, under the new name (follow GitHub's redirect to the current owner/name); regression tests first, screenshots {model: opus}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
 - [ ] M5.14b Production verification after M5.13 (paste → progress → diagram and the cache hit already passed there): the rate limit in production, the badge in a real GitHub README, `store_requests` and quota readings (needs a production database read: ask Abhinav for the `quota` command's output), compute count vs Google's billing report, finish M5-review.md, tag m5 {model: opus}
@@ -335,6 +335,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+- 2026-11-04 M5.13b2: cal.diy's system level lays out 11,977 × 16,205 px, and at the 40% floor the fit's top-left window held 0 whole boxes (ELK's first layer starts 2,713 px down). `fitLevel` (`explorer/framing.ts`) keeps the fit's zoom but, on an overflowing axis, shows the window holding the most whole boxes (candidates centered on each box, ties leftmost then topmost), for the first view, after a close, and 0 / the fit button; memoized in the explorer (`47206cd`, ADR-0199; CI green on draft PR #24, no baseline changed). Real browser: 17 whole services in both themes (`docs/milestones/M5/framing/`). Regression tests (4 unit, 1 explorer) each seen red under a mutation. Next: M5.13b3.
+
 - 2026-11-04 M5.13b1: split M5.13b into b1 (labels), b2 (framing), and b3 (renamed repos). Below full detail, where service names are scaled up to 3×, a service drops an `@scope/` that other services share, as long as the rest of its name is unique (`HierarchyIndex.scopes`; a `.gi-node__scope` span that `drill.css` hides by `data-detail`, so boxes still don't re-render on a camera move). The tooltip, inspector, breadcrumbs, and search keep the whole name (`177a515`). Linux baselines changed on purpose: the viewer's Zoomed out and Outline stories, and the website's trace screen (`39ec359`, `4b3046b`). CI was green on draft PR #23, then `main` was fast-forwarded. Next: M5.13b2.
 
 - 2026-11-04 M5.13a5: the analysis child reports its collector's main-thread pauses (`gcMs`, also in `analyses.stats`), and the 1-vCPU workflow cycles semi-space caps run by run (`semi_space` input). On four CI CPU models (38 cal.diy runs): pauses are 14–17% of the analysis, 93–97% scavenges; a 32 MiB semi-space cut them 15–23% but the analysis only 0.2–1.0 s (13 of 16 pairs faster), +26–44 MiB; 64 MiB no better. Kept 32 MiB (ADR-0198, `bench/results/2026-11-04-cloudrun-caldiy-m5.13a5.md`). The analysis alone meets ≤ 60 s on all four models (33.7–58.5 s); production end to end waits on #20. Next: M5.13b.
