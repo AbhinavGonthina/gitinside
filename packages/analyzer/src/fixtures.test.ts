@@ -43,6 +43,7 @@ const NAMES = [
   "vite-proxy",
   "next-rewrites",
   "ofetch-client",
+  "ky-client",
   "object-client",
   "config-wrapper",
   "axios-defaults",
@@ -366,6 +367,28 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     expect(unresolved?.kind === "unresolved" && unresolved.detail).toBe(
       "no route matches GET to /api/items (the Next app's basePath in web/next.config.mjs is /shop)",
     );
+  });
+
+  it("ky-client: ky's shorthands, extend/create instances, and its three bases reach routes (ADR-0207)", async () => {
+    const g = await run("ky-client");
+    const p = "ky-client";
+    const notes = `symbol:${p}/src/notes.ts`;
+    expect(links(g, "http")).toEqual([
+      `${notes}#addNote -> route:${p}/POST /api/notes exact`,
+      `${notes}#archive -> unresolved:${p}/src/notes.ts:41:10 unresolved NO_MATCHING_ROUTE`,
+      `${notes}#brokenList -> unresolved:${p}/src/notes.ts:36:10 unresolved DYNAMIC_URL`,
+      `${notes}#getNote -> route:${p}/GET /api/notes/:noteId exact`,
+      `${notes}#listNotes -> route:${p}/GET /api/notes exact`,
+      `${notes}#listTags -> route:${p}/GET /api/v1/tags exact`,
+      `${notes}#saveNote -> route:${p}/PUT /api/notes/:noteId exact`,
+      `${notes}#signIn -> route:${p}/POST /api/session exact`,
+      `${notes}#status -> route:${p}/GET /status exact`,
+    ]);
+    const details = g.nodes.flatMap((n) => (n.kind === "unresolved" ? [n.detail] : []));
+    expect(details.sort()).toEqual([
+      "ky refuses a URL starting with / under a prefixUrl, so this request fails",
+      "no route matches POST to /api/notes/{}/archive",
+    ]);
   });
 
   it("object-client: each call to an exported object's method is its own request (M5A.3b)", async () => {

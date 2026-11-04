@@ -14,6 +14,7 @@ import {
   leadingHoles,
   MAX_PATHS,
   patternParts,
+  resolveKyBaseUrl,
   resolveURL,
   toUrlPattern,
   type UrlPart,
@@ -273,6 +274,37 @@ describe("withBase (ofetch, M5C.3c)", () => {
     ["an empty base", [], [t("/users")], "/users"],
   ])("joins %s", (_name, base, url, expected) => {
     expect(partsText(withBase(base, url))).toBe(expected);
+  });
+});
+
+describe("resolveKyBaseUrl (ky 2's baseUrl, M5C.3e)", () => {
+  it.each<[string, UrlPart[], UrlPart[], string]>([
+    ["a relative URL on a base with a trailing slash", [t("/api/")], [t("users")], "/api/users"],
+    ["a relative URL on a base without one", [t("/api")], [t("users")], "/users"],
+    ["a root-relative URL on a relative base", [t("/api/")], [t("/users")], "/users"],
+    [
+      "a root-relative URL on an absolute base",
+      [t("https://h.com/api/")],
+      [t("/users")],
+      "https://h.com/users",
+    ],
+    ["a relative URL on a bare origin", [t("https://h.com")], [t("users")], "https://h.com/users"],
+    [
+      "a relative URL on an absolute base",
+      [t("https://h.com/v1/x")],
+      [t("users/"), H],
+      "https://h.com/v1/users/{}",
+    ],
+    ["a root-relative URL on an env base", [env("API")], [t("/users")], "{env:API}/users"],
+    ["a relative URL on an env base's path", [env("API"), t("/v1/")], [t("u")], "{env:API}/v1/u"],
+    ["a relative URL on an env base alone", [env("API")], [t("users")], "{}"],
+    ["a relative URL after a hole", [t("/a/"), H], [t("users")], "{}"],
+    ["a dot segment", [t("/api/")], [t("./users")], "{}"],
+    ["a query", [t("/api/")], [t("?q=1")], "{}"],
+    ["a protocol-relative URL", [t("/api/")], [t("//h.com/x")], "{}"],
+    ["an empty base", [], [t("users")], "users"],
+  ])("resolves %s", (_name, base, url, expected) => {
+    expect(partsText(resolveKyBaseUrl(base, url))).toBe(expected);
   });
 });
 
