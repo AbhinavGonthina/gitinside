@@ -39,8 +39,11 @@
  *   registration; `.all(…)` is `ALL`, and `.use(…)` registers none. Each handler argument
  *   naming a symbol node gets a `handles` edge, and inline handlers own the calls inside them
  *   (`inlineHandlers`, as Express's). When more methods may be registered unseen (a route
- *   pattern argument `.get("/x", h)`, `.trace`/`.connect`, or the router passed to other
- *   code), the file's `ALL` route is kept as well, with a `NEXT_CONNECT_UNSEEN_METHODS` warning.
+ *   pattern argument `.get("/x", h)`, `.trace`/`.connect`, the router passed to other code,
+ *   exported, or declared at module level in another file, or another router mounted with
+ *   `.use(sub)`), the file's `ALL` route is kept as well (once, `.all` or not), with a
+ *   `NEXT_CONNECT_UNSEEN_METHODS` warning per reason. `export { router as default }` is the
+ *   default export, not an escape.
  * - Type-only exports (`export type GET = …`) in a `route.ts` are not routes.
  * - Path segments: `[id]` ⇒ `:id`, `[...slug]` and `[[...slug]]` ⇒ `*slug`, route groups
  *   `(group)` and parallel-route slots `@slot` are dropped. App router folders starting with
@@ -69,8 +72,9 @@
  *   `else` or later code is not checked for which methods actually reach it.
  * - next-connect beyond the forms above: route patterns are not matched against the file's
  *   path (next-connect matches them against the request URL), routers mounted with `.use(sub)`
- *   don't add their methods, nor do registrations in another file on an exported router
- *   variable (passing the router to other code keeps the `ALL` route, as above). A wrapped
+ *   don't add their methods, nor do registrations in another file on an exported or shared
+ *   router variable (each keeps the `ALL` route, as above). A router returned from a repo
+ *   function through a local variable (`const r = nc(); return r;`) reads as passed on. A wrapped
  *   default export (`export default withAuth(router)`), a function default export calling
  *   v1's `router.run(req, res)`, and a router with no method registered stay one `ALL` route;
  *   v1's `createEdgeRouter` in app router files is not read.
@@ -524,8 +528,9 @@ function isPattern(checker: ts.TypeChecker, argument: ts.Expression | undefined)
  * one of those. The router is created by next-connect's factory directly or by a repo function
  * returning one (`apiHandler = () => nc(options)`), within {@link MAX_ROUTER_HOPS}. Methods
  * are read from the chains and from calls on the router's variables in their own file; a
- * pattern argument (`.get("/x", h)`), a `trace`/`connect` registration, or the router passed
- * on (`register(handler)`) adds an `unseen` reason.
+ * pattern argument (`.get("/x", h)`), a `trace`/`connect` registration, a router mounted with
+ * `.use(sub)`, or the router passed on (`register(handler)`), exported, or declared at module
+ * level in another file adds an `unseen` reason.
  */
 export function connectRouter(
   checker: ts.TypeChecker,
@@ -537,6 +542,17 @@ export function connectRouter(
 
   const register = (call: ts.CallExpression, name: ts.MemberName): void => {
     const method = CONNECT_METHODS.get(name.text);
+    if (name.text === "use") {
+      // A mounted router's methods aren't read; inline or named middleware registers none.
+      const sub = call.arguments.find((a) => visit(a, 0, false));
+      if (sub) {
+        const text = sub.getText();
+        unseen.push(
+          `the next-connect router mounts another router with .use(${text.length > 40 ? "…" : text}), whose methods aren't read; kept an ALL route for them`,
+        );
+      }
+      return;
+    }
     if (UNNAMED_METHODS.has(name.text)) {
       unseen.push(
         `the next-connect router registers .${name.text}(…), which the graph has no method for; kept an ALL route for it`,
@@ -552,8 +568,11 @@ export function connectRouter(
     }
   };
 
-  /** Whether `node` is a router, recording the registrations chained on it. */
-  const visit = (node: ts.Expression, hops: number): boolean => {
+  /**
+   * Whether `node` is a router, recording the registrations chained on it and its variables
+   * (only checking, when `record` is false).
+   */
+  const visit = (node: ts.Expression, hops: number, record = true): boolean => {
     if (hops > MAX_ROUTER_HOPS) return false;
     let e = unwrap(node);
     const chain: { call: ts.CallExpression; name: ts.MemberName }[] = [];
@@ -572,7 +591,7 @@ export function connectRouter(
         // A repo factory: every value it returns must be a router.
         const fn = functionOf(checker, unwrap(e.expression));
         const returned = fn && isFunctionWithBody(fn) ? returnedExpressions(fn) : [];
-        found = returned.length > 0 && returned.every((r) => visit(r, hops + 1));
+        found = returned.length > 0 && returned.every((r) => visit(r, hops + 1, record));
       }
     } else if (ts.isIdentifier(e)) {
       let symbol = checker.getSymbolAtLocation(e);
@@ -583,13 +602,13 @@ export function connectRouter(
         declaration &&
         ts.isVariableDeclaration(declaration) &&
         declaration.initializer &&
-        visit(declaration.initializer, hops + 1)
+        visit(declaration.initializer, hops + 1, record)
       ) {
-        variables.add(symbol);
+        if (record) variables.add(symbol);
         found = true;
       }
     }
-    if (found) for (const link of chain.reverse()) register(link.call, link.name);
+    if (found && record) for (const link of chain.reverse()) register(link.call, link.name);
     return found;
   };
 
@@ -603,9 +622,25 @@ export function connectRouter(
   if (!visit(top, 0)) return undefined;
 
   // Calls on the router's variables in their own files: chains of registrations, serving
-  // calls, the default export, or else the router escapes and may get more methods.
+  // calls, the default export, or else the router escapes and may get more methods. A
+  // module-level router in another file, or an exported one, may get them in any file.
+  const page = expression.getSourceFile();
   for (const symbol of variables) {
     const declaration = symbol.valueDeclaration as ts.VariableDeclaration;
+    const statement = declaration.parent.parent;
+    const exported = `the next-connect router ${symbol.name} is exported, so other files may register more methods; kept an ALL route for them`;
+    if (declaration.getSourceFile() !== page) {
+      if (ts.isVariableStatement(statement) && ts.isSourceFile(statement.parent)) {
+        unseen.push(
+          `the next-connect router ${symbol.name} is declared in another file, where more methods may be registered; kept an ALL route for them`,
+        );
+      }
+    } else if (
+      ts.isVariableStatement(statement) &&
+      statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+    ) {
+      unseen.push(exported);
+    }
     const use = (id: ts.Identifier): void => {
       let node: ts.Node = id;
       while (ts.isParenthesizedExpression(node.parent) || ts.isNonNullExpression(node.parent)) {
@@ -613,6 +648,12 @@ export function connectRouter(
       }
       let parent = node.parent;
       if (ts.isExportAssignment(parent) || parent === declaration) return;
+      if (ts.isExportSpecifier(parent)) {
+        // `export { router as default }` in the page file is its default export.
+        const inPage = parent.getSourceFile() === page && parent.name.text === "default";
+        if (!inPage && declaration.getSourceFile() === page) unseen.push(exported);
+        return;
+      }
       // Walk up `router.a(…).b(…)`, registering each link, until the chain ends.
       let chained = false;
       while (
@@ -837,6 +878,7 @@ export function collectNextFacts(sp: ServiceProgram, resolver: SymbolResolver): 
     for (const message of router.unseen) {
       warnings.push({ code: "NEXT_CONNECT_UNSEEN_METHODS", file, message });
     }
+    if (byMethod.has("ALL")) return;
     const id = route("ALL", path, file, exportSite);
     if (id !== undefined) addEdge("handles", id, exportTarget, exportSite);
   };
@@ -921,7 +963,7 @@ export function collectNextFacts(sp: ServiceProgram, resolver: SymbolResolver): 
             ? (declaration.propertyName ?? declaration.name)
             : undefined;
       const router = value && ts.isExpression(value) ? connectRouter(checker, value) : undefined;
-      if (router && router.registrations.length > 0) {
+      if (router && (router.registrations.length > 0 || router.unseen.length > 0)) {
         connectRoutes(router, path, file, site, found?.target);
         continue;
       }
