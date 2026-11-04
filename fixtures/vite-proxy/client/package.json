@@ -1,0 +1,5 @@
+{
+  "name": "@vite-proxy/client",
+  "dependencies": { "react": "18" },
+  "devDependencies": { "vite": "5" }
+}

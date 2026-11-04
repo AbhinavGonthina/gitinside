@@ -470,6 +470,96 @@ describe("createRouteMatcher", () => {
     expect(asked.some((a) => a.startsWith("ANALYTICS"))).toBe(false);
   });
 
+  it("matches a request sent through a dev proxy by the path the proxy sends (ADR-0204)", () => {
+    const host = (h: string, path = "") =>
+      ({ kind: "host", scheme: h.startsWith("api.") ? "https" : "http", host: h, path }) as const;
+    const proxied = createRouteMatcher(
+      [
+        route("api", "GET /users"),
+        route("api", "GET /api/users"),
+        route("api", "GET /users/:id"),
+        route("web", "GET /auth/session"),
+        route("web", "GET /health"),
+      ],
+      workspace,
+      new Set(),
+      undefined,
+      (file) =>
+        file.startsWith("apps/web/")
+          ? {
+              config: "apps/web/vite.config.ts",
+              rules: [
+                {
+                  context: "/api",
+                  rewrite: { from: "/api", to: "", anchored: true },
+                  target: host("localhost:5000"),
+                },
+                { context: "/auth", rewrite: undefined, target: host("127.0.0.1:5000") },
+                { context: "/maps", rewrite: undefined, target: host("api.maps.example.com") },
+                { context: "/svc", rewrite: undefined, target: host("backend:4000") },
+                { context: "/odd", rewrite: "unknown", target: host("localhost:5000") },
+                { context: "/env", rewrite: undefined, target: { kind: "unknown" } },
+                { context: undefined, rewrite: undefined, target: { kind: "unknown" } },
+              ],
+            }
+          : undefined,
+    );
+    const from = (spec: string, file?: string) => show(proxied.match(request(spec, file)));
+    // The rewrite strips `/api`, so `/api/users` reaches `/users`, not the `/api/users` route.
+    expect(from("GET /api/users")).toBe("heuristic route:api/GET /users");
+    expect(from("GET /api/users/{}")).toBe("heuristic route:api/GET /users/:id");
+    // A proxied request leaves its own service, so even its routes are only heuristic.
+    expect(from("GET /auth/session")).toBe("heuristic route:web/GET /auth/session");
+    // A literal outside host is an external API; a single-label host may be a compose service.
+    expect(from("GET /maps/tiles")).toBe("external api.maps.example.com");
+    expect(from("GET /svc/users")).toBe(
+      "NO_MATCHING_ROUTE: " +
+        "no route matches GET to /svc/users (sent as /svc/users by the dev proxy in apps/web/vite.config.ts)",
+    );
+    expect(from("GET /env/users/{}")).toBe(
+      "NO_MATCHING_ROUTE: no route matches GET to /env/users/{} (sent as /env/users/{} by the dev proxy in apps/web/vite.config.ts)",
+    );
+    // No fallback to the unrewritten path: that would be a guess.
+    expect(from("GET /api/nope")).toBe(
+      "NO_MATCHING_ROUTE: no route matches GET to /api/nope (sent as /nope by the dev proxy in apps/web/vite.config.ts)",
+    );
+    expect(from("GET /odd/users")).toBe(
+      "NO_MATCHING_ROUTE: the dev proxy for /odd in apps/web/vite.config.ts rewrites the path in a way that isn't read",
+    );
+    // Past an unread entry, or for another service's files, matching is as before.
+    expect(from("GET /health")).toBe("exact route:web/GET /health");
+    expect(from("GET /users", "apps/api/a.ts")).toBe("exact route:api/GET /users");
+    // Only root-relative requests go through the dev server.
+    expect(from("GET http://localhost:5000/api/users")).toBe("heuristic route:api/GET /api/users");
+  });
+
+  it("gives a proxied external call no more than heuristic confidence", () => {
+    const proxied = createRouteMatcher([], workspace, new Set(), undefined, () => ({
+      config: "vite.config.ts",
+      rules: [
+        {
+          context: "/",
+          rewrite: undefined,
+          target: { kind: "host", scheme: "https", host: "api.example.com", path: "" },
+        },
+      ],
+    }));
+    const match = proxied.match(request("GET /x"));
+    expect(match).toEqual({
+      kind: "external",
+      scheme: "https",
+      host: "api.example.com",
+      confidence: "heuristic",
+    });
+    const site = { file: "apps/web/a.ts", line: 1, column: 1 };
+    // Only the fields the edge builder reads.
+    const sent = { ...request("GET /x"), owners: ["symbol:web/a.ts#f"], site } as unknown;
+    const built = buildHttpEdges([sent as HttpRequest], proxied, workspace);
+    expect(built.edges.map((e) => `${e.kind} ${e.to} ${e.confidence}`)).toEqual([
+      "external_call external:ext/api.example.com heuristic",
+    ]);
+  });
+
   it("only aligns against routes from the index bucket", () => {
     // A request whose first segment is a hole can't reach a literal-first route.
     expect(m("GET /{}/users")).toBe("NO_MATCHING_ROUTE: no route matches GET to /{}/users");

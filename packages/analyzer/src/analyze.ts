@@ -19,6 +19,7 @@ import {
   type StageFacts,
 } from "./facts.js";
 import { errorText } from "./failures.js";
+import { readDevProxies } from "./devProxy.js";
 import { readEnvPrefixes } from "./envExamples.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { createFindings, type AnalysisFindings } from "./findings.js";
@@ -481,6 +482,7 @@ async function analyzeRoot(
         workspace,
         new Set(express.listedRoutes),
         await readEnvPrefixes(root, inventory.files),
+        await readDevProxies(root, inventory.files, workspace),
       );
       return buildHttpEdges(requests, matcher, workspace);
     },

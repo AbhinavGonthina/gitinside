@@ -1,0 +1,399 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "symbol:client/src/api.ts#forecast",
+      "id": "external_call:symbol:client/src/api.ts#forecast->external:ext/api.weather.example.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 21,
+          "file": "client/src/api.ts",
+          "line": 20
+        }
+      ],
+      "to": "external:ext/api.weather.example.com"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:admin/src/stats.js#loadStats",
+      "id": "http:symbol:admin/src/stats.js#loadStats->route:server/GET /stats",
+      "kind": "http",
+      "label": "GET /stats",
+      "sites": [
+        {
+          "column": 21,
+          "file": "admin/src/stats.js",
+          "line": 3
+        }
+      ],
+      "to": "route:server/GET /stats"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:client/src/api.ts#getUser",
+      "id": "http:symbol:client/src/api.ts#getUser->route:server/GET /users/:id",
+      "kind": "http",
+      "label": "GET /users/:id",
+      "sites": [
+        {
+          "column": 21,
+          "file": "client/src/api.ts",
+          "line": 9
+        }
+      ],
+      "to": "route:server/GET /users/:id"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:client/src/api.ts#listOrders",
+      "id": "http:symbol:client/src/api.ts#listOrders->unresolved:client/src/api.ts:26:21",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 21,
+          "file": "client/src/api.ts",
+          "line": 26
+        }
+      ],
+      "to": "unresolved:client/src/api.ts:26:21"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:client/src/api.ts#listUsers",
+      "id": "http:symbol:client/src/api.ts#listUsers->route:server/GET /users",
+      "kind": "http",
+      "label": "GET /users",
+      "sites": [
+        {
+          "column": 21,
+          "file": "client/src/api.ts",
+          "line": 3
+        }
+      ],
+      "to": "route:server/GET /users"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:client/src/api.ts#signIn",
+      "id": "http:symbol:client/src/api.ts#signIn->route:server/POST /auth/login",
+      "kind": "http",
+      "label": "POST /auth/login",
+      "sites": [
+        {
+          "column": 9,
+          "file": "client/src/api.ts",
+          "line": 15
+        }
+      ],
+      "to": "route:server/POST /auth/login"
+    }
+  ],
+  "nodes": [
+    {
+      "host": "api.weather.example.com",
+      "id": "external:ext/api.weather.example.com",
+      "kind": "external",
+      "label": "api.weather.example.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "11ffcb4fca43ba65537b726e450248456e89cfbfb503f30fdd5db72b16168759",
+      "id": "file:admin/src/stats.js",
+      "kind": "file",
+      "label": "stats.js",
+      "parentId": "module:admin/src",
+      "path": "admin/src/stats.js"
+    },
+    {
+      "hash": "772049c512256d092623b55e0e4af94bfefca334dac1f1387a89879b5aac7a4f",
+      "id": "file:client/src/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "parentId": "module:client/src",
+      "path": "client/src/api.ts"
+    },
+    {
+      "hash": "f2f949dc8f885fdf1c72bbef250a11e15f1463169889a6073c0faab560c63def",
+      "id": "file:client/vite.config.ts",
+      "kind": "file",
+      "label": "vite.config.ts",
+      "parentId": "service:client/",
+      "path": "client/vite.config.ts"
+    },
+    {
+      "hash": "4a425fc770ef728eebd5a9fbdce1f22646a8777661934d653d1bf6f90c6edcc9",
+      "id": "file:server/src/index.ts",
+      "kind": "file",
+      "label": "index.ts",
+      "parentId": "module:server/src",
+      "path": "server/src/index.ts"
+    },
+    {
+      "id": "module:admin/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:admin/",
+      "path": "admin/src"
+    },
+    {
+      "id": "module:client/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:client/",
+      "path": "client/src"
+    },
+    {
+      "id": "module:server/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:server/",
+      "path": "server/src"
+    },
+    {
+      "id": "route:server/GET /api/users",
+      "kind": "route",
+      "label": "GET /api/users",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:server/src/index.ts",
+      "path": "/api/users",
+      "source": {
+        "column": 5,
+        "file": "server/src/index.ts",
+        "line": 19
+      }
+    },
+    {
+      "id": "route:server/GET /stats",
+      "kind": "route",
+      "label": "GET /stats",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:server/src/index.ts",
+      "path": "/stats",
+      "source": {
+        "column": 5,
+        "file": "server/src/index.ts",
+        "line": 15
+      }
+    },
+    {
+      "id": "route:server/GET /users",
+      "kind": "route",
+      "label": "GET /users",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:server/src/index.ts",
+      "path": "/users",
+      "source": {
+        "column": 5,
+        "file": "server/src/index.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:server/GET /users/:id",
+      "kind": "route",
+      "label": "GET /users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:server/src/index.ts",
+      "path": "/users/:id",
+      "source": {
+        "column": 5,
+        "file": "server/src/index.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:server/POST /auth/login",
+      "kind": "route",
+      "label": "POST /auth/login",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:server/src/index.ts",
+      "path": "/auth/login",
+      "source": {
+        "column": 5,
+        "file": "server/src/index.ts",
+        "line": 12
+      }
+    },
+    {
+      "framework": "react",
+      "id": "service:admin/",
+      "kind": "service",
+      "label": "@vite-proxy/admin",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": "admin"
+    },
+    {
+      "framework": "react",
+      "id": "service:client/",
+      "kind": "service",
+      "label": "@vite-proxy/client",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": "client"
+    },
+    {
+      "framework": "express",
+      "id": "service:server/",
+      "kind": "service",
+      "label": "@vite-proxy/server",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "server"
+    },
+    {
+      "exported": true,
+      "id": "symbol:admin/src/stats.js#loadStats",
+      "kind": "symbol",
+      "label": "loadStats",
+      "parentId": "file:admin/src/stats.js",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "admin/src/stats.js",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/src/api.ts#forecast",
+      "kind": "symbol",
+      "label": "forecast",
+      "parentId": "file:client/src/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 22,
+        "file": "client/src/api.ts",
+        "line": 19
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/src/api.ts#getUser",
+      "kind": "symbol",
+      "label": "getUser",
+      "parentId": "file:client/src/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "client/src/api.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/src/api.ts#listOrders",
+      "kind": "symbol",
+      "label": "listOrders",
+      "parentId": "file:client/src/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 28,
+        "file": "client/src/api.ts",
+        "line": 25
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/src/api.ts#listUsers",
+      "kind": "symbol",
+      "label": "listUsers",
+      "parentId": "file:client/src/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "client/src/api.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/src/api.ts#signIn",
+      "kind": "symbol",
+      "label": "signIn",
+      "parentId": "file:client/src/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 16,
+        "file": "client/src/api.ts",
+        "line": 14
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/vite.config.ts#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:client/vite.config.ts",
+      "source": {
+        "column": 1,
+        "endLine": 20,
+        "file": "client/vite.config.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "vite-proxy",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches GET to /api/orders (sent as /orders by the dev proxy in client/vite.config.ts)",
+      "expression": "fetch(\"/api/orders\")",
+      "id": "unresolved:client/src/api.ts:26:21",
+      "kind": "unresolved",
+      "label": "GET /api/orders",
+      "parentId": "service:client/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 21,
+        "file": "client/src/api.ts",
+        "line": 26
+      }
+    }
+  ],
+  "repo": {
+    "name": "vite-proxy",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "admin",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "client",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "server",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

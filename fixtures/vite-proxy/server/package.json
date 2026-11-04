@@ -1,0 +1,1 @@
+{ "name": "@vite-proxy/server", "dependencies": { "express": "4" } }
