@@ -1,0 +1,827 @@
+{
+  "about": "Raw measurements behind docs/COVERAGE.md (M5C.1). npm: api.npmjs.org/downloads/point/last-month/<pkg>. GitHub: REST GET /search/code (legacy engine) total_count with per_page=1, authenticated; one query per language (TypeScript, TSX, JavaScript) where byLanguage is present. evalRepos: regexes over each pinned eval repo's source files at its pinned SHA (counts are files matching), see eval/repos.json. The first run's '\"from X\"' phrases matched almost nothing (the engine keeps the quote characters on 'X'), so the second run measures the same libraries by identifier or '\"import X\"'; COVERAGE.md uses the second run where both exist.",
+  "firstRun": {
+    "measuredAt": "2026-11-04T12:52:15.809Z",
+    "npm": {
+      "axios": {
+        "downloads": 449708740,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "ky": {
+        "downloads": 28733005,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "ofetch": {
+        "downloads": 88754211,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "swr": {
+        "downloads": 78623930,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "@tanstack/react-query": {
+        "downloads": 254287015,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "react-query": {
+        "downloads": 6533385,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "@reduxjs/toolkit": {
+        "downloads": 138320163,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "node-fetch": {
+        "downloads": 835744455,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "cross-fetch": {
+        "downloads": 153252667,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "isomorphic-fetch": {
+        "downloads": 43953314,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "isomorphic-unfetch": {
+        "downloads": 11186703,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "unfetch": {
+        "downloads": 36449677,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "undici": {
+        "downloads": 919890436,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "got": {
+        "downloads": 163331838,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "superagent": {
+        "downloads": 96172686,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "wretch": {
+        "downloads": 993770,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "redaxios": {
+        "downloads": 1244404,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "express": {
+        "downloads": 590925414,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "next": {
+        "downloads": 275607626,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "next-connect": {
+        "downloads": 583148,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      },
+      "react": {
+        "downloads": 757020076,
+        "start": "2026-10-05",
+        "end": "2026-11-03"
+      }
+    },
+    "search": {
+      "fetch": {
+        "phrase": "\"await fetch\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 6782976,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 6520832,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 10289152,
+            "incomplete": false
+          }
+        }
+      },
+      "axios": {
+        "phrase": "\"from axios\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 5184,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 1512,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 6864,
+            "incomplete": false
+          }
+        }
+      },
+      "axiosCreate": {
+        "phrase": "\"axios.create\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 563200,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 31904,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 700416,
+            "incomplete": false
+          }
+        }
+      },
+      "axiosInterceptors": {
+        "phrase": "\"interceptors.request.use\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 274432,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 14560,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 364544,
+            "incomplete": false
+          }
+        }
+      },
+      "ky": {
+        "phrase": "\"from ky\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 3380,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 1032,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 2148,
+            "incomplete": false
+          }
+        }
+      },
+      "ofetch": {
+        "phrase": "\"from ofetch\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 108,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 3,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 3,
+            "incomplete": false
+          }
+        }
+      },
+      "swr": {
+        "phrase": "\"from swr\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 651,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 744,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 331,
+            "incomplete": false
+          }
+        }
+      },
+      "tanstackQuery": {
+        "phrase": "\"from @tanstack/react-query\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 193,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 112,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 73,
+            "incomplete": false
+          }
+        }
+      },
+      "reactQueryV3": {
+        "phrase": "\"from react-query\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 377,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 532,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 641,
+            "incomplete": false
+          }
+        }
+      },
+      "rtkFetchBaseQuery": {
+        "phrase": "\"fetchBaseQuery\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 48768,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 10512,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 37440,
+            "incomplete": false
+          }
+        }
+      },
+      "rtkBaseQueryFn": {
+        "phrase": "\"BaseQueryFn\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 8592,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 480,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 123,
+            "incomplete": false
+          }
+        }
+      },
+      "serverActions": {
+        "phrase": "\"use server\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 1006606,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 153455,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 126720,
+            "incomplete": false
+          }
+        }
+      },
+      "expressImport": {
+        "phrase": "\"from express\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 15712,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 1606,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 25216,
+            "incomplete": false
+          }
+        }
+      },
+      "expressRequire": {
+        "phrase": "\"require express\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 471,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 28,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 3288,
+            "incomplete": false
+          }
+        }
+      },
+      "expressRouter": {
+        "phrase": "\"express.Router\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 588800,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 580,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 4481024,
+            "incomplete": false
+          }
+        }
+      },
+      "nextApiRequest": {
+        "phrase": "\"NextApiRequest\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 345088,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 12496,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 2548,
+            "incomplete": false
+          }
+        }
+      },
+      "appRouterGet": {
+        "phrase": "\"export async function GET\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 6185525,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 108,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 1073152,
+            "incomplete": false
+          }
+        }
+      },
+      "nextConnect": {
+        "phrase": "\"next-connect\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 8480,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 338,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 10400,
+            "incomplete": false
+          }
+        }
+      }
+    },
+    "evalRepos": {
+      "Avinash905/Recipen": {
+        "sha": "bfc1845b1fa9e09d2a5022910c05f432af3e91ea",
+        "headMatches": true,
+        "heldOut": 3,
+        "files": 98,
+        "pagesApi": 0,
+        "appRoutes": 0,
+        "found": {
+          "axios": 1,
+          "rtkQuery": 1,
+          "rtkCustomBaseQuery": 1,
+          "express": 6
+        }
+      },
+      "harundogdu/twitter-clone": {
+        "sha": "bef848a958e8fd26856149abfa7980d071577219",
+        "headMatches": true,
+        "heldOut": 2,
+        "files": 88,
+        "pagesApi": 14,
+        "appRoutes": 0,
+        "found": {
+          "fetch": 1,
+          "axios": 8,
+          "swr": 7
+        }
+      },
+      "hoangsonww/WealthWise-Finance-Tracker": {
+        "sha": "8abd4ea065e461233584a63e65b70252604f67f9",
+        "headMatches": true,
+        "heldOut": null,
+        "files": 308,
+        "pagesApi": 0,
+        "appRoutes": 2,
+        "found": {
+          "express": 32,
+          "fetch": 5,
+          "tanstackQuery": 10
+        }
+      },
+      "jgudo/foodie": {
+        "sha": "84f5e6d81f48e9cd0149ec07a2611049a852746a",
+        "headMatches": true,
+        "heldOut": null,
+        "files": 167,
+        "pagesApi": 0,
+        "appRoutes": 0,
+        "found": {
+          "axios": 1,
+          "axiosInterceptors": 1,
+          "express": 16
+        }
+      },
+      "krishnaacharyaa/wanderlust": {
+        "sha": "2d83720e4318a7f999d3f9d751013b105f0c805a",
+        "headMatches": true,
+        "heldOut": null,
+        "files": 109,
+        "pagesApi": 0,
+        "appRoutes": 0,
+        "found": {
+          "express": 13,
+          "axios": 8,
+          "axiosCreate": 1
+        }
+      },
+      "MananGandhi1810/online-ide": {
+        "sha": "7c36e7cf05af91d17971165c235417862e68d3a7",
+        "headMatches": true,
+        "heldOut": 1,
+        "files": 80,
+        "pagesApi": 0,
+        "appRoutes": 0,
+        "found": {
+          "express": 7,
+          "axios": 9,
+          "fetch": 1
+        }
+      },
+      "nemanjam/nextjs-prisma-boilerplate": {
+        "sha": "239c284cd453ae78fbae123827657a1e2bc464b9",
+        "headMatches": true,
+        "heldOut": 2,
+        "files": 213,
+        "pagesApi": 7,
+        "appRoutes": 0,
+        "found": {
+          "tanstackQuery": 30,
+          "axios": 14,
+          "axiosCreate": 1,
+          "axiosInterceptors": 1,
+          "nextConnect": 1,
+          "express": 1
+        }
+      },
+      "nidhish-nayak/trendz": {
+        "sha": "b606329b46d802baebee2c881ec0109b0033de59",
+        "headMatches": true,
+        "heldOut": 3,
+        "files": 190,
+        "pagesApi": 0,
+        "appRoutes": 0,
+        "found": {
+          "tanstackQuery": 25,
+          "axios": 8,
+          "axiosCreate": 1,
+          "express": 56
+        }
+      },
+      "pankil-soni/conversa": {
+        "sha": "2b97aa82a5743c5097ca35e1d828e42b86916514",
+        "headMatches": true,
+        "heldOut": null,
+        "files": 112,
+        "pagesApi": 0,
+        "appRoutes": 0,
+        "found": {
+          "express": 5,
+          "fetch": 3
+        }
+      },
+      "RishiBakshii/mern-ecommerce": {
+        "sha": "82303dc20b9d9ccfd0b45ecb3a6217eafe481491",
+        "headMatches": true,
+        "heldOut": 1,
+        "files": 123,
+        "pagesApi": 0,
+        "appRoutes": 0,
+        "found": {
+          "express": 11,
+          "axios": 1,
+          "axiosCreate": 1
+        }
+      },
+      "shadcn-ui/taxonomy": {
+        "sha": "298a8857c7128a0d121e7f699dfd729f23b3966d",
+        "headMatches": true,
+        "heldOut": null,
+        "files": 131,
+        "pagesApi": 1,
+        "appRoutes": 5,
+        "found": {
+          "fetch": 7
+        }
+      },
+      "shamahoque/mern-social": {
+        "sha": "4a81f6c87b98fe54a8c92d33a6302f58876ecde1",
+        "headMatches": true,
+        "heldOut": 1,
+        "files": 43,
+        "pagesApi": 0,
+        "appRoutes": 0,
+        "found": {
+          "fetch": 3,
+          "express": 4
+        }
+      }
+    }
+  },
+  "secondRun": {
+    "measuredAt": "2026-11-04T13:02:59.907Z",
+    "perLanguage": {
+      "axiosImport": {
+        "phrase": "\"import axios\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 1575205,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 1149036,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 7018163,
+            "incomplete": false
+          }
+        }
+      },
+      "kyImport": {
+        "phrase": "\"import ky\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 15168,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 9840,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 10512,
+            "incomplete": false
+          }
+        }
+      },
+      "ofetch": {
+        "phrase": "ofetch",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 148224,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 45760,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 154624,
+            "incomplete": false
+          }
+        }
+      },
+      "useSWR": {
+        "phrase": "useSWR",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 67741,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 167168,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 56960,
+            "incomplete": false
+          }
+        }
+      },
+      "queryClientProvider": {
+        "phrase": "QueryClientProvider",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 28800,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 903168,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 116480,
+            "incomplete": false
+          }
+        }
+      },
+      "queryFnQueryKey": {
+        "phrase": "\"queryFn: ({ queryKey\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 1578,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 1828,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 444,
+            "incomplete": false
+          }
+        }
+      },
+      "expressImport": {
+        "phrase": "\"import express\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 1316864,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 7608,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 2035712,
+            "incomplete": false
+          }
+        }
+      },
+      "nextRequest": {
+        "phrase": "NextRequest",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 3617085,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 32914,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 41408,
+            "incomplete": false
+          }
+        }
+      },
+      "axiosCreateRepeat": {
+        "phrase": "\"axios.create\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 563200,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 31904,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 700416,
+            "incomplete": false
+          }
+        }
+      },
+      "appRouterGetRepeat": {
+        "phrase": "\"export async function GET\"",
+        "byLanguage": {
+          "TypeScript": {
+            "total": 6185525,
+            "incomplete": false
+          },
+          "TSX": {
+            "total": 108,
+            "incomplete": false
+          },
+          "JavaScript": {
+            "total": 1073152,
+            "incomplete": false
+          }
+        }
+      }
+    },
+    "plain": {
+      "routeTsGet": {
+        "q": "\"export async function GET\" filename:route.ts",
+        "result": {
+          "total": 3301376,
+          "incomplete": false
+        }
+      },
+      "routeJsGet": {
+        "q": "\"export async function GET\" filename:route.js",
+        "result": {
+          "total": 256000,
+          "incomplete": false
+        }
+      },
+      "routeTsPost": {
+        "q": "\"export async function POST\" filename:route.ts",
+        "result": {
+          "total": 3497984,
+          "incomplete": false
+        }
+      },
+      "pagesApiTs": {
+        "q": "NextApiRequest path:pages/api",
+        "result": {
+          "total": 145920,
+          "incomplete": false
+        }
+      },
+      "nextRewritesJs": {
+        "q": "rewrites filename:next.config.js",
+        "result": {
+          "total": 25600,
+          "incomplete": false
+        }
+      },
+      "nextRewritesMjs": {
+        "q": "rewrites filename:next.config.mjs",
+        "result": {
+          "total": 22272,
+          "incomplete": false
+        }
+      },
+      "nextRewritesTs": {
+        "q": "rewrites filename:next.config.ts",
+        "result": {
+          "total": 38784,
+          "incomplete": false
+        }
+      },
+      "viteProxyTs": {
+        "q": "proxy filename:vite.config.ts",
+        "result": {
+          "total": 308224,
+          "incomplete": false
+        }
+      },
+      "viteProxyJs": {
+        "q": "proxy filename:vite.config.js",
+        "result": {
+          "total": 241152,
+          "incomplete": false
+        }
+      },
+      "craProxy": {
+        "q": "\"proxy\" filename:package.json path:/client",
+        "result": {
+          "total": 41792,
+          "incomplete": false
+        }
+      }
+    }
+  }
+}
