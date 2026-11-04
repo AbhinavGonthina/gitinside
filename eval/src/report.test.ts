@@ -442,6 +442,12 @@ describe("renderReport", () => {
       expect(heldOut).toContain(
         "- **Held-out batches:** batch 1 (one app, seen), batch 2 (one app, unseen), picked and labeled after",
       );
+      expect(heldOut).toContain("generalize. Only an unseen batch still tests that. They are");
+      // With every batch seen, the report says nothing tests generalization now.
+      const allSeen = renderReport(input({ heldOut: [batch1, { ...batch2, seen: "Fixed." }] }));
+      expect(allSeen).toContain(
+        "generalize. Only an unseen batch still tests that, and none is unseen now: that needs a fresh batch. They are",
+      );
       const reviewed = renderReport(
         input({
           labels: [
