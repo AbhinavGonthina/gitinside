@@ -1,6 +1,6 @@
 # Held-out batch 3: why 25 labels are missed (M5B.6)
 
-Diagnosis of held-out batch 3's first and only blind measurement, in [`2026-11-03-0.1.0.md`](2026-11-03-0.1.0.md#held-out-batch-3-unseen) (GitInside `cc035be`, the commit that pinned and labeled `nidhish-nayak/trendz`; Recipen's labels were committed earlier in `b8d86a1`): precision 100.0% (45 of 45 predicted routes), recall 64.3% (45 of 70 real targets), no false positives, 25 false negatives, both `null` labels correctly abstained.
+Diagnosis of held-out batch 3's first and only blind measurement, in [`2026-11-03-0.1.0.md` at `08caa77`](https://github.com/AbhinavGonthina/gitinside/blob/08caa77/eval/results/2026-11-03-0.1.0.md#held-out-batch-3-unseen) (GitInside `cc035be`, the commit that pinned and labeled `nidhish-nayak/trendz`; Recipen's labels were committed earlier in `b8d86a1`): precision 100.0% (45 of 45 predicted routes), recall 64.3% (45 of 70 real targets), no false positives, 25 false negatives, both `null` labels correctly abstained.
 
 | Repo | Labels | TP | FP | FN | Precision | Recall |
 |---|---:|---:|---:|---:|---:|---:|
