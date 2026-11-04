@@ -137,7 +137,26 @@ All above target (analyzer ≥ 85%, others ≥ 70%).
 ![Production: documenso, light](M5/prod-documenso-light.png)
 ![Production: cal.diy's first view, dark](M5/prod-cal-diy-dark.png)
 
-**Still for M5.14b:** the rate limit in production, the badge in a real GitHub README, `store_requests` and the quota readings, and the compute count against Google's billing report.
+**Limits and the README badge in production (M5.14b1, 2026-11-04, 10:46–10:58 UTC).** I ran a scratch script from this laptop's single address, posting to `/api/analyze` the same way the landing form does:
+
+| Request | Answer |
+|---|---|
+| `AbhinavGonthina/gitinside` at `41f500d` (never analyzed) | `202 queued`, done ≈ 32 s later |
+| the same repo at its next commit `7c9ed7f`, 1 minute later | `429 REPO_RATE_LIMITED`, `Retry-After: 1735`, "each repo gets one every 30 minutes. Try again in 29 minutes." |
+| `krishnaacharyaa/wanderlust` (the address's 2nd new analysis this hour) | `202 queued`, done |
+| `vercel/commerce` (3rd) | `403 CHALLENGE_REQUIRED` with the Turnstile site key: "You've started several analyses this hour…" |
+| the same with a made-up token | `403 CHALLENGE_FAILED` (Cloudflare's `siteverify` refused it) |
+| `shadcn-ui/taxonomy` (already analyzed), meanwhile | `200 done`: re-asking for a finished diagram is never limited |
+
+- **The 5-an-hour limit's `429` can't be reached from a script.** From the 3rd new analysis on, every request needs a Turnstile token (ADR-0157), and passing that check is exactly what a script shouldn't be able to do. The limit itself is covered by `analyze.test.ts` and the route tests. A check by hand in a browser is optional on #21.
+- **Badge in a real GitHub README.** This repo's README now opens with the Markdown that "Add to README" gives (`7c9ed7f`). GitHub serves it through its image proxy (`camo.githubusercontent.com`, `200 image/svg+xml`, `via: 1.1 varnish`), and the proxy kept our `cache-control: public, max-age=600`. It reads "GitInside | 9 services · 8 datastores · 1 queue" in both of GitHub's themes. Before the analysis, the badge was the link-only one, and that answer stayed in the CDN for its full 10 minutes (as designed).
+- **Check-on-view worked on its own.** The badge and repo page views after the README commit enqueued `7c9ed7f`, which the 30-minute per-repo limit had just refused on `/api/analyze`. Check-on-view doesn't take the per-repo claim. Instead it counts against the repo's own hourly re-checks (`repo:<id>`, `RECHECKS_PER_HOUR` in `lib/repoView.ts`). By 10:58 the repo page said "Up to date with the latest commit" with no console errors. One consequence: every push to a repo with a badge brings a new analysis the next time someone views the README, at most 6 an hour. That's fine for this repo (about 30 s each), and the compute pause (ADR-0156) caps the month. #21's readings will show what it costs.
+
+![GitInside's README on GitHub, dark](M5/readme-badge/github-readme-dark.png)
+![GitInside's README on GitHub, light](M5/readme-badge/github-readme-light.png)
+![The page the badge links to](M5/readme-badge/repo-page-dark.png)
+
+**Still for M5.14b2 (#21):** `store_requests`, `compute_usage`, and the database and bucket sizes against the free limits, and `compute_usage` checked against Google's billing report.
 
 ## Interview questions
 
