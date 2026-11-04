@@ -11,7 +11,10 @@
  *    its name is on the list of API-base names ({@link API_BASE_ENV_ENDINGS}: `API_URL`,
  *    `VITE_API_PATH`, `NEXT_PUBLIC_BACKEND_URL`, …, ADR-0165) or the code's fallback for it is
  *    a loopback URL (`?? "http://localhost:9000"`, ADR-0158);
- *    any other env var matches nothing. A literal loopback host (`localhost`, `127.0.0.1`,
+ *    any other env var matches nothing. When a committed example env file gives such a base
+ *    a URL path (`VITE_API_URL=http://localhost:5000/api` in `.env.example`), the path is
+ *    tried in front of the request's first, then the request alone (`envExamples.ts`,
+ *    ADR-0202); the path is never written into the graph. A literal loopback host (`localhost`, `127.0.0.1`,
  *    `[::1]`, `0.0.0.0`, `*.localhost`, any port) is `heuristic` against every service; any
  *    other literal host is an external API and is never matched to a route.
  * 2. **Method.** Equal methods, an `ALL` route, or a `HEAD` request to a `GET` route are
@@ -43,8 +46,9 @@
  * - Express path syntax beyond named params, optional params, and wildcards (`/ab?cd`,
  *   `:from-:to`, regexes, Express 5 `{braces}`): such a segment matches any single segment at
  *   `pattern`. Case-insensitive and trailing-slash routing options are not read.
- * - `next.config` `basePath` and rewrites, Vite/webpack dev proxies, and env values: an
- *   env-var base is never read, only its name (values may be secrets).
+ * - `next.config` `basePath` and rewrites, Vite/webpack dev proxies, and env values other
+ *   than an example file's URL path: an env var's real value is never read, only its name
+ *   (values may be secrets).
  * - Which service a loopback port belongs to (compose ports, M2.7): every service is a
  *   candidate.
  * - A hole that spans several segments (`/api/${path}` with `path = "a/b"`).
@@ -73,6 +77,7 @@ import {
   type SourceLocation,
   type UnresolvedReason,
 } from "@gitinside/schema";
+import type { EnvPrefixes } from "./envExamples.js";
 import { fileNodeId, withinService } from "./files.js";
 import type { UrlBase } from "./url.js";
 import { clip, CONFIDENCE_RANK, weaker } from "./values.js";
@@ -200,12 +205,14 @@ const bucketOf = (segments: readonly RouteSegment[]): string => {
 /**
  * Build a matcher over the `route` nodes in `nodes` (other kinds are ignored). The first node
  * with a given ID wins, as in graph assembly. Routes in `listed` (`ExpressRoutes.listedRoutes`)
- * match at `heuristic` at best.
+ * match at `heuristic` at best. `envPrefix` gives an env base's path from example env files
+ * (`envExamples.ts`, ADR-0202).
  */
 export function createRouteMatcher(
   nodes: readonly GraphNode[],
   workspace: Workspace,
   listed: ReadonlySet<string> = new Set(),
+  envPrefix: EnvPrefixes = () => undefined,
 ): RouteMatcher {
   const keys = workspace.packages.map((p) => p.key);
   /** method ⇒ first literal segment (or {@link ANY}) ⇒ routes. */
@@ -291,49 +298,62 @@ export function createRouteMatcher(
       }
       const caller = serviceForFile(workspace, request.file)?.key;
 
-      // Ranked by overall level, then by path level: the base and method assumptions are
-      // shared, so a literal path match still beats a param match under an env-var base.
-      let best = FAIL;
-      let bestPath = FAIL;
-      let matched: IndexedRoute[] = [];
-      for (const route of candidates(request.method, segments[0])) {
-        const path = alignSegments(segments, route.segments);
-        const level = Math.max(
-          baseLevel(base, caller, route),
-          methodLevel(request.method, route),
-          path,
-          listed.has(route.id) ? HEURISTIC : EXACT,
-        );
-        if (level === FAIL) continue;
-        if (level < best || (level === best && path < bestPath)) {
-          best = level;
-          bestPath = path;
-          matched = [route];
-        } else if (level === best && path === bestPath) {
-          matched.push(route);
+      /** The routes `path` matches, or undefined when none does. */
+      const rank = (path: readonly UrlSegment[]): RouteMatch | undefined => {
+        // Ranked by overall level, then by path level: the base and method assumptions are
+        // shared, so a literal path match still beats a param match under an env-var base.
+        let best = FAIL;
+        let bestPath = FAIL;
+        let matched: IndexedRoute[] = [];
+        for (const route of candidates(request.method, path[0])) {
+          const aligned = alignSegments(path, route.segments);
+          const level = Math.max(
+            baseLevel(base, caller, route),
+            methodLevel(request.method, route),
+            aligned,
+            listed.has(route.id) ? HEURISTIC : EXACT,
+          );
+          if (level === FAIL) continue;
+          if (level < best || (level === best && aligned < bestPath)) {
+            best = level;
+            bestPath = aligned;
+            matched = [route];
+          } else if (level === best && aligned === bestPath) {
+            matched.push(route);
+          }
         }
-      }
-      if (best === FAIL) {
+        if (best === FAIL) return undefined;
+        // The request's own method beats an `ALL` route at the same level.
+        if (request.method !== null && request.method !== "ALL") {
+          const specific = matched.filter((r) => r.method !== "ALL");
+          if (specific.length > 0) matched = specific;
+        }
+        const ambiguous = matched.length > 1;
+        const level = LEVELS[Math.min(best + (ambiguous ? 1 : 0), HEURISTIC)] ?? "heuristic";
+        const confidence = weaker(level, request.confidence);
         return {
+          kind: "routes",
+          routes: [...new Set(matched.map((r) => r.id))].sort(compareStrings),
+          confidence: confidence === "unresolved" ? "heuristic" : confidence,
+          ambiguous,
+        };
+      };
+
+      // An example env file's path for the base goes in front first (ADR-0202); it stays in
+      // here, so the detail below and every graph string are built without it.
+      const prefix = base.kind === "env" ? envPrefix(base.name, request.file) : undefined;
+      const prefixed =
+        prefix && prefix.length > 0
+          ? rank([...prefix.map((text): UrlSegment => [{ kind: "text", text }]), ...segments])
+          : undefined;
+      return (
+        prefixed ??
+        rank(segments) ?? {
           kind: "unresolved",
           reason: "NO_MATCHING_ROUTE",
           detail: clip(`no route matches ${request.method ?? "a request"} to ${url.text}`),
-        };
-      }
-      // The request's own method beats an `ALL` route at the same level.
-      if (request.method !== null && request.method !== "ALL") {
-        const specific = matched.filter((r) => r.method !== "ALL");
-        if (specific.length > 0) matched = specific;
-      }
-      const ambiguous = matched.length > 1;
-      const level = LEVELS[Math.min(best + (ambiguous ? 1 : 0), HEURISTIC)] ?? "heuristic";
-      const confidence = weaker(level, request.confidence);
-      return {
-        kind: "routes",
-        routes: [...new Set(matched.map((r) => r.id))].sort(compareStrings),
-        confidence: confidence === "unresolved" ? "heuristic" : confidence,
-        ambiguous,
-      };
+        }
+      );
     },
   };
 }

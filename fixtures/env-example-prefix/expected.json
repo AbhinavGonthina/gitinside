@@ -1,0 +1,262 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "unresolved",
+      "from": "symbol:client/src/api.js#checkout",
+      "id": "http:symbol:client/src/api.js#checkout->unresolved:client/src/api.js:28:9",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 9,
+          "file": "client/src/api.js",
+          "line": 28
+        }
+      ],
+      "to": "unresolved:client/src/api.js:28:9"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:client/src/api.js#getBlog",
+      "id": "http:symbol:client/src/api.js#getBlog->route:server/GET /api/blog/:blogId",
+      "kind": "http",
+      "label": "GET /api/blog/:blogId",
+      "sites": [
+        {
+          "column": 21,
+          "file": "client/src/api.js",
+          "line": 16
+        }
+      ],
+      "to": "route:server/GET /api/blog/:blogId"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:client/src/api.js#getStats",
+      "id": "http:symbol:client/src/api.js#getStats->route:server/GET /api/stats",
+      "kind": "http",
+      "label": "GET /api/stats",
+      "sites": [
+        {
+          "column": 21,
+          "file": "client/src/api.js",
+          "line": 22
+        }
+      ],
+      "to": "route:server/GET /api/stats"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:client/src/api.js#signIn",
+      "id": "http:symbol:client/src/api.js#signIn->route:server/POST /api/auth/login",
+      "kind": "http",
+      "label": "POST /api/auth/login",
+      "sites": [
+        {
+          "column": 21,
+          "file": "client/src/api.js",
+          "line": 7
+        }
+      ],
+      "to": "route:server/POST /api/auth/login"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "1ba04fdedf77467d4d9fd738b598cdd551877a0d974d577eb1614412132b5e22",
+      "id": "file:client/src/api.js",
+      "kind": "file",
+      "label": "api.js",
+      "parentId": "module:client/src",
+      "path": "client/src/api.js"
+    },
+    {
+      "hash": "53f8b279be8fd1e1cd027ff14a6d62ae746bdd0ed8ecef1dbfcf1f025b70f1e2",
+      "id": "file:server/src/index.js",
+      "kind": "file",
+      "label": "index.js",
+      "parentId": "module:server/src",
+      "path": "server/src/index.js"
+    },
+    {
+      "id": "module:client/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:client/",
+      "path": "client/src"
+    },
+    {
+      "id": "module:server/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:server/",
+      "path": "server/src"
+    },
+    {
+      "id": "route:server/GET /api/blog/:blogId",
+      "kind": "route",
+      "label": "GET /api/blog/:blogId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:server/src/index.js",
+      "path": "/api/blog/:blogId",
+      "source": {
+        "column": 6,
+        "file": "server/src/index.js",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:server/GET /api/stats",
+      "kind": "route",
+      "label": "GET /api/stats",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:server/src/index.js",
+      "path": "/api/stats",
+      "source": {
+        "column": 5,
+        "file": "server/src/index.js",
+        "line": 17
+      }
+    },
+    {
+      "id": "route:server/POST /api/auth/login",
+      "kind": "route",
+      "label": "POST /api/auth/login",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:server/src/index.js",
+      "path": "/api/auth/login",
+      "source": {
+        "column": 6,
+        "file": "server/src/index.js",
+        "line": 4
+      }
+    },
+    {
+      "id": "route:server/POST /api/checkout",
+      "kind": "route",
+      "label": "POST /api/checkout",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:server/src/index.js",
+      "path": "/api/checkout",
+      "source": {
+        "column": 5,
+        "file": "server/src/index.js",
+        "line": 20
+      }
+    },
+    {
+      "id": "service:client/",
+      "kind": "service",
+      "label": "@example-prefix/client",
+      "parentId": "system:root",
+      "root": "client"
+    },
+    {
+      "framework": "express",
+      "id": "service:server/",
+      "kind": "service",
+      "label": "@example-prefix/server",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "server"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/src/api.js#checkout",
+      "kind": "symbol",
+      "label": "checkout",
+      "parentId": "file:client/src/api.js",
+      "source": {
+        "column": 1,
+        "endLine": 29,
+        "file": "client/src/api.js",
+        "line": 27
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/src/api.js#getBlog",
+      "kind": "symbol",
+      "label": "getBlog",
+      "parentId": "file:client/src/api.js",
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "client/src/api.js",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/src/api.js#getStats",
+      "kind": "symbol",
+      "label": "getStats",
+      "parentId": "file:client/src/api.js",
+      "source": {
+        "column": 1,
+        "endLine": 24,
+        "file": "client/src/api.js",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:client/src/api.js#signIn",
+      "kind": "symbol",
+      "label": "signIn",
+      "parentId": "file:client/src/api.js",
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "client/src/api.js",
+        "line": 6
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "env-example-prefix",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches POST to {env:VITE_PAYMENTS_API_URL}/checkout",
+      "expression": "fetch(`${PAYMENTS}/checkout`, { method: \"POST\", body: JSON.stringify(cart) })",
+      "id": "unresolved:client/src/api.js:28:9",
+      "kind": "unresolved",
+      "label": "POST {env:VITE_PAYMENTS_API_URL}/checkout",
+      "parentId": "service:client/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 9,
+        "file": "client/src/api.js",
+        "line": 28
+      }
+    }
+  ],
+  "repo": {
+    "name": "env-example-prefix",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "client",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "server",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

@@ -18,7 +18,9 @@
  *   `KEY=value`, optionally `export KEY=value`, with `#` comments and quoted values, including
  *   quoted values that span lines. Only the key and, when the value is a URL, its scheme,
  *   host, and port are kept; the rest of the value (credentials, paths, query) is discarded
- *   at parse time and nothing read from a value is ever written into the graph.
+ *   at parse time and nothing read from a value is ever written into the graph. (Example
+ *   env files also give the route matcher a URL path, never written either: `envExamples.ts`,
+ *   ADR-0202.)
  * - Prisma links: a datasource with `url = env("KEY")` is the compose service whose host
  *   name is the URL's host and whose engine matches (`exact`), else the one publishing the
  *   URL's port (or the engine's default port) on a loopback host (`heuristic`). The env files
@@ -216,6 +218,22 @@ const QUOTES = ['"', "'", "`"] as const;
  */
 export function parseEnv(text: string): EnvEntry[] {
   const entries: EnvEntry[] = [];
+  readEnvLines(text, (key, line, column, value) => {
+    const url = urlAuthority(value);
+    entries.push({ key, line, column, ...(url ? { url } : {}) });
+  });
+  return entries;
+}
+
+/**
+ * Hand each `KEY=value` line of an env file to `visit`, with the value unquoted (see
+ * {@link parseEnv} for the rules). The value is the raw text of a possible secret: callers
+ * keep only what SECURITY.md T5 allows and never write it into the graph.
+ */
+export function readEnvLines(
+  text: string,
+  visit: (key: string, line: number, column: number, value: string) => void,
+): void {
   const lines = text.split(/\r?\n/);
   // For each quote, the next line at or after `i` containing it (one backward pass each,
   // so finding where a value closes never rescans the file).
@@ -243,15 +261,8 @@ export function parseEnv(text: string): EnvEntry[] {
       const comment = value.indexOf("#");
       if (comment >= 0) value = value.slice(0, comment);
     }
-    const url = urlAuthority(value);
-    entries.push({
-      key,
-      line,
-      column: (match[1] ?? "").length + 1,
-      ...(url ? { url } : {}),
-    });
+    visit(key, line, (match[1] ?? "").length + 1, value);
   }
-  return entries;
 }
 
 /**

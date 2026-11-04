@@ -1,0 +1,1 @@
+{ "name": "@example-prefix/server", "dependencies": { "express": "4" } }

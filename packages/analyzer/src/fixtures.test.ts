@@ -38,6 +38,7 @@ const NAMES = [
   "axios-baseurl-instance",
   "env-base-heuristic",
   "env-fallback",
+  "env-example-prefix",
   "object-client",
   "config-wrapper",
   "axios-defaults",
@@ -263,6 +264,21 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       "symbol:web/src/client.ts#login -> route:api/POST /api/v1/auth/login heuristic",
       "symbol:web/src/client.ts#track -> unresolved:web/src/client.ts:22:9 unresolved NO_MATCHING_ROUTE",
     ]);
+  });
+
+  it("env-example-prefix: an example env file's path reaches routes, never the graph (ADR-0202)", async () => {
+    const g = await run("env-example-prefix");
+    expect(links(g, "http")).toEqual([
+      "symbol:client/src/api.js#checkout -> unresolved:client/src/api.js:28:9 unresolved NO_MATCHING_ROUTE",
+      "symbol:client/src/api.js#getBlog -> route:server/GET /api/blog/:blogId heuristic",
+      "symbol:client/src/api.js#getStats -> route:server/GET /api/stats heuristic",
+      "symbol:client/src/api.js#signIn -> route:server/POST /api/auth/login heuristic",
+    ]);
+    const unresolved = g.nodes.find((n) => n.kind === "unresolved");
+    expect(unresolved?.kind === "unresolved" && unresolved.detail).toBe(
+      "no route matches POST to {env:VITE_PAYMENTS_API_URL}/checkout",
+    );
+    expect(serializeGraph(g)).not.toContain("localhost:5000");
   });
 
   it("object-client: each call to an exported object's method is its own request (M5A.3b)", async () => {
@@ -493,6 +509,8 @@ describe("secret-leak test (SECURITY.md T5)", () => {
     // Every planted value contains gi_fake / gi-fake; hosts from env values are never written.
     expect(text).not.toMatch(/gi[_-]fake/i);
     expect(text).not.toContain("hooks.example.com");
+    // `.env.example`'s path was tried for matching (ADR-0202), and nothing of it is shown.
+    expect(text).toContain("no route matches GET to {env:REPORTS_API_URL}/summary");
     // The output isn't empty because detection failed: each source of secrets was read.
     expect(ids(g, "datastore")).toContain("datastore:infra/env#ANALYTICS_DB_URL");
     expect(ids(g, "datastore")).toContain("datastore:infra/db");
@@ -500,6 +518,7 @@ describe("secret-leak test (SECURITY.md T5)", () => {
     expect(Object.values(reasons(g)).sort()).toEqual([
       "DYNAMIC_URL",
       "DYNAMIC_URL",
+      "NO_MATCHING_ROUTE",
       "NO_MATCHING_ROUTE",
       "WRAPPER_DEPTH",
     ]);

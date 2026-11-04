@@ -25,7 +25,7 @@
         {
           "column": 26,
           "file": "src/sync.ts",
-          "line": 37
+          "line": 42
         }
       ],
       "to": "external:ext/api.stripe.com"
@@ -105,6 +105,21 @@
       "to": "unresolved:fake-secrets/src/sync.ts:19:9"
     },
     {
+      "confidence": "unresolved",
+      "from": "symbol:fake-secrets/src/sync.ts#reportSummary",
+      "id": "http:symbol:fake-secrets/src/sync.ts#reportSummary->unresolved:fake-secrets/src/sync.ts:38:9",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/sync.ts",
+          "line": 38
+        }
+      ],
+      "to": "unresolved:fake-secrets/src/sync.ts:38:9"
+    },
+    {
       "confidence": "exact",
       "from": "symbol:fake-secrets/src/sync.ts#countAccounts",
       "id": "reads:symbol:fake-secrets/src/sync.ts#countAccounts->model:fake-secrets/Account",
@@ -113,7 +128,7 @@
         {
           "column": 25,
           "file": "src/sync.ts",
-          "line": 38
+          "line": 43
         }
       ],
       "to": "model:fake-secrets/Account"
@@ -211,7 +226,7 @@
       "path": "prisma/schema.prisma"
     },
     {
-      "hash": "a9dad83431ac63af94e0724293ab8664f6641a650224cc4a05d041a4d2cc5a6c",
+      "hash": "8cc8530dfaa204608e60ab61f5f07cc879bae09a29d2cef61034eb325bbaee42",
       "id": "file:fake-secrets/src/sync.ts",
       "kind": "file",
       "label": "sync.ts",
@@ -273,9 +288,9 @@
       "requiredParams": 0,
       "source": {
         "column": 1,
-        "endLine": 39,
+        "endLine": 44,
         "file": "src/sync.ts",
-        "line": 36
+        "line": 41
       },
       "symbolKind": "function"
     },
@@ -356,6 +371,21 @@
     },
     {
       "exported": true,
+      "id": "symbol:fake-secrets/src/sync.ts#reportSummary",
+      "kind": "symbol",
+      "label": "reportSummary",
+      "parentId": "file:fake-secrets/src/sync.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 39,
+        "file": "src/sync.ts",
+        "line": 37
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
       "id": "symbol:fake-secrets/src/sync.ts#signed",
       "kind": "symbol",
       "label": "signed",
@@ -429,6 +459,20 @@
         "column": 10,
         "file": "src/sync.ts",
         "line": 33
+      }
+    },
+    {
+      "detail": "no route matches GET to {env:REPORTS_API_URL}/summary",
+      "expression": "fetch(`${process.env.REPORTS_API_URL}/summary`)",
+      "id": "unresolved:fake-secrets/src/sync.ts:38:9",
+      "kind": "unresolved",
+      "label": "GET {env:REPORTS_API_URL}/summary",
+      "parentId": "service:fake-secrets/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 9,
+        "file": "src/sync.ts",
+        "line": 38
       }
     }
   ],

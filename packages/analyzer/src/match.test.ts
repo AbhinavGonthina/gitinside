@@ -431,6 +431,45 @@ describe("createRouteMatcher", () => {
     expect(from("GET /coded/{}")).toBe("exact route:api/GET /coded/:id");
   });
 
+  it("tries an example env file's path in front of an env base first, never showing it (ADR-0202)", () => {
+    const asked: string[] = [];
+    const prefixed = createRouteMatcher(
+      [
+        route("api", "POST /api/auth/login"),
+        route("api", "GET /users"),
+        route("api", "GET /api/users"),
+      ],
+      workspace,
+      new Set(),
+      (name, file) => {
+        asked.push(`${name} ${file}`);
+        return name === "VITE_SERVER_BASE_URL" || name === "ANALYTICS" ? ["api"] : undefined;
+      },
+    );
+    const from = (spec: string) => show(prefixed.match(request(spec)));
+    expect(from("POST {env:VITE_SERVER_BASE_URL}/auth/login")).toBe(
+      "heuristic route:api/POST /api/auth/login",
+    );
+    // The prefixed path wins over the bare one; the bare one is the fallback.
+    expect(from("GET {env:VITE_SERVER_BASE_URL}/users")).toBe("heuristic route:api/GET /api/users");
+    expect(from("GET {env:VITE_SERVER_BASE_URL}/api/auth/login")).toBe(
+      "NO_MATCHING_ROUTE: no route matches GET to {env:VITE_SERVER_BASE_URL}/api/auth/login",
+    );
+    expect(from("POST {env:VITE_SERVER_BASE_URL}/api/auth/login")).toBe(
+      "heuristic route:api/POST /api/auth/login",
+    );
+    // No match either way: the detail is the request's own URL, without the env path.
+    expect(from("GET {env:VITE_SERVER_BASE_URL}/nope")).toBe(
+      "NO_MATCHING_ROUTE: no route matches GET to {env:VITE_SERVER_BASE_URL}/nope",
+    );
+    // An env var not named like an API base stays unmatched, prefix or not.
+    expect(from("GET {env:ANALYTICS}/users")).toMatch(/isn't named like an API base/);
+    // Root-relative requests never ask.
+    expect(from("GET /users")).toBe("heuristic route:api/GET /users");
+    expect(asked.every((a) => a.endsWith(" apps/web/src/client.ts"))).toBe(true);
+    expect(asked.some((a) => a.startsWith("ANALYTICS"))).toBe(false);
+  });
+
   it("only aligns against routes from the index bucket", () => {
     // A request whose first segment is a hole can't reach a literal-first route.
     expect(m("GET /{}/users")).toBe("NO_MATCHING_ROUTE: no route matches GET to /{}/users");
