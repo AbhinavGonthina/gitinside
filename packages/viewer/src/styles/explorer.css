@@ -93,24 +93,30 @@
   cursor: pointer;
 }
 
-/* Overlays pinned to the canvas corners (UX.md "Layout"). */
+/*
+ * Overlays pinned to the canvas corners (UX.md "Layout"). They sit above the
+ * camera: its transform makes the diagram a stacking context, which DOM
+ * order alone would paint over a pin that comes before it, like the hint
+ * (M5.13b4: cal.diy's boxes covered its words).
+ */
 
 .gi-explorer__pin {
   position: absolute;
+  z-index: 1;
   display: grid;
   gap: var(--space-8);
 }
 
-/* The top pins hold the filters popover under what opened it, so they sit above the minimap's pin. */
+/* The top pins hold the filters popover under what opened it, so they sit above the other pins. */
 .gi-explorer__pin[data-place="top-left"] {
-  z-index: 1;
+  z-index: 2;
   top: var(--space-16);
   left: var(--space-16);
   justify-items: start;
 }
 
 .gi-explorer__pin[data-place="top-right"] {
-  z-index: 1;
+  z-index: 2;
   top: var(--space-16);
   right: var(--space-16);
   justify-items: end;
