@@ -31,7 +31,11 @@ export const INSTANCE_MEMORY_MIB = 4096;
 
 /** What the budget keeps for everything the limits don't bound, in MiB. */
 export const MEMORY_ALLOWANCES_MIB = {
-  /** The child's memory outside the old-space cap (measured ≤ 91 MiB over it). */
+  /**
+   * The child's memory outside the old-space cap (measured ≤ 91 MiB over it with V8's 16 MiB
+   * semi-spaces; ADR-0198's 32 MiB adds 32 MiB of young generation, and cal.diy's container
+   * peak rose 26–44 MiB).
+   */
   childOutsideHeap: 256,
   /** The worker process (measured 96.8 MiB at rest). */
   parent: 256,

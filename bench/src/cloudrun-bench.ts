@@ -28,7 +28,7 @@ import { BENCH, flag, gitinsideCommit, today } from "./env.js";
 //
 // Usage: pnpm bench:cloudrun [--owner calcom] [--repo cal.diy] [--sha <40 hex>] [--runs 3]
 //   [--semi-space default,32,64] [--out dist/cloudrun] [--host "<where this runs>"]
-// `--semi-space` lists the child's semi-space caps in MiB (`default`: V8's own); runs cycle
+// `--semi-space` lists the child's semi-space caps in MiB (`default`: the runner's); runs cycle
 // through them, so each cap is measured on the same runner (M5.13a5).
 
 const IMAGE = "gitinside-worker:bench";

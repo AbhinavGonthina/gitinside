@@ -38,8 +38,8 @@ export function checkTarget(target: CloudRunTarget): CloudRunTarget {
 export const INSTANCE = { cpus: "1", memory: "4g" } as const;
 
 /**
- * Parse `--semi-space`: comma-separated semi-space caps in MiB, `default` for V8's own
- * (M5.13a5). Runs cycle through them in order, so each is measured on the same runner.
+ * Parse `--semi-space`: comma-separated semi-space caps in MiB, `default` for the runner's
+ * default (M5.13a5; V8's own 16 MiB until ADR-0198 made it 32). Runs cycle through them in order, so each is measured on the same runner.
  * Returns `undefined` for `default`. Throws on anything but `default` or 1–256.
  */
 export function parseSemiSpaces(text: string): (number | undefined)[] {
@@ -177,7 +177,10 @@ export interface RunStats {
 /** What one container printed, plus the driver's own wall clock around `docker run`. */
 export interface ContainerRun {
   node: string;
-  /** The child's semi-space cap in MiB; null (or absent, before M5.13a5) for V8's own. */
+  /**
+   * The semi-space cap the bench asked for, in MiB; null (or absent, before M5.13a5) for the
+   * runner's default (V8's own 16 MiB before ADR-0198, 32 MiB since).
+   */
   semiSpaceMb?: number | null;
   cpu: string;
   hostCores: number;

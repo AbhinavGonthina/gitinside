@@ -18,7 +18,7 @@ import {
  * The child is `node child.js` (the analyzer behind a line-based JSON protocol, protocol.ts:
  * progress lines, passed to `onProgress` as they arrive, then one report):
  * - **Memory:** `--max-old-space-size` (2,560 MB). V8 aborts past it; the runner reports
- *   `LIMIT_MEMORY`.
+ *   `LIMIT_MEMORY`. `--max-semi-space-size` (32 MiB) sizes the young generation (ADR-0198).
  * - **Time:** a 5-minute wall-clock timer, then `SIGKILL` (works even while the analyzer is
  *   stuck in synchronous code); `LIMIT_TIME`. CPU is capped by the instance (1 vCPU on Cloud
  *   Run, one job per instance).
@@ -48,8 +48,8 @@ export interface RunnerLimits {
   /** V8 old-space cap in MiB (`--max-old-space-size`). Default 2,560. */
   maxHeapMb: number;
   /**
-   * V8 semi-space cap in MiB (`--max-semi-space-size`; the young generation holds two). Unset:
-   * V8's own (16 MiB with this heap cap on Node 22). Only the 1-vCPU benchmark sets it (M5.13a5).
+   * V8 semi-space cap in MiB (`--max-semi-space-size`; the young generation holds two). Default
+   * 32 (ADR-0198); unset: V8's own (16 MiB with this heap cap on Node 22).
    */
   semiSpaceMb?: number;
 }
@@ -57,11 +57,14 @@ export interface RunnerLimits {
 /**
  * Default analysis limits. The heap cap is sized to fit a 4 GiB Cloud Run instance with the
  * unpacked repo in its in-memory `/tmp` (budget.ts, ADR-0146): 25% over 2,048 MB, under which
- * cal.com and VS Code's `src/vs/platform` (44.8 MiB of source) finished.
+ * cal.com and VS Code's `src/vs/platform` (44.8 MiB of source) finished. The semi-space is
+ * twice V8's: on one vCPU it cut cal.diy's collector pauses by 15–23% and its analysis by
+ * 0.2–1.0 s, for 26–44 MiB more memory (ADR-0198).
  */
 export const DEFAULT_RUNNER_LIMITS: RunnerLimits = {
   timeoutMs: 5 * 60 * 1000,
   maxHeapMb: 2560,
+  semiSpaceMb: 32,
 };
 
 /** Options for {@link runAnalysis}. */

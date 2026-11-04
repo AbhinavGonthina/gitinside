@@ -159,7 +159,7 @@ describe("runAnalysis limits", () => {
   });
 
   it("uses the documented defaults", () => {
-    expect(DEFAULT_RUNNER_LIMITS).toEqual({ timeoutMs: 300_000, maxHeapMb: 2560 });
+    expect(DEFAULT_RUNNER_LIMITS).toEqual({ timeoutMs: 300_000, maxHeapMb: 2560, semiSpaceMb: 32 });
   });
 });
 
@@ -291,6 +291,7 @@ describe("the child's sandbox", () => {
         spawn: "ERR_ACCESS_DENIED",
         worker: "ERR_ACCESS_DENIED",
         heapFlag: "--max-old-space-size=2560",
+        semiSpaceFlag: "--max-semi-space-size=32",
       });
     } finally {
       await rm(secretDir, { recursive: true, force: true });
@@ -385,7 +386,7 @@ describe("childArgs", () => {
     ]);
   });
 
-  it("caps the semi-space only when asked, next to the heap cap (M5.13a5)", () => {
+  it("caps the semi-space when it has a cap, next to the heap cap (M5.13a5)", () => {
     const job = { src: "/jobs/1/src", out: "/jobs/1/architecture.json", owner: "a", name: "b" };
     const files = { script: "/app/child.js", guard: "/app/netguard.js" };
     const args = childArgs(job, { timeoutMs: 1000, maxHeapMb: 512, semiSpaceMb: 64 }, files, [
@@ -396,7 +397,8 @@ describe("childArgs", () => {
       "--max-semi-space-size=64",
       "--permission",
     ]);
-    expect(DEFAULT_RUNNER_LIMITS.semiSpaceMb).toBeUndefined();
+    // Production's default (ADR-0198), so the child runs with it unless a caller says otherwise.
+    expect(DEFAULT_RUNNER_LIMITS.semiSpaceMb).toBe(32);
   });
 
   it("lets the child read and write its cache folder, and only that one", () => {
