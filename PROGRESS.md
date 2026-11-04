@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5C.5a2 Batch 4 draw: snapshot the two pools, walk them in seeded order, pin 8 per stratum (M5.14b2–b3 wait on #21)
+M5C.5b Batch 4 labels: draft from the code the 16 pins in `eval/draws/batch-4.json`, commit with their `repos.json` entries before any run (split per few repos first) (M5.14b2–b3 wait on #21)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -312,7 +312,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M5C.4 "Mapped completely" in the scorer and report: per repo, every labeled call site matched and nothing false; the share of repos mapped completely per set, and what stays unresolved grouped by reason (runtime-only URLs, services outside the repo); EVALUATION.md; tests {model: opus}
 - M5C.5a Fresh blind sample, selection: a recorded rule (a GitHub search query, filters, and a seed, written into `repos.json` / EVALUATION.md before drawing), 15–20 random React/Next + Express/Next repos drawn by it (rules as M3.2, read but never analyzed), pinned as unseen batch 4; no labels yet. Split into a1–a2 (the rule is committed before any candidate list is fetched):
 - [x] M5C.5a1 The rule, committed first (ADR-0208): `eval/draws/batch-4.json` (two strata, `react-express` and `nextjs-prisma` search queries, 8 pins each, seed `2026-11-04`), inclusion rules in EVALUATION.md §1, and `draw.ts` (validated record: whole sorted pools, a walk in the seeded order with no skipping, quota stop; `drawCli.ts` `snapshot` / `status`; `validate` cross-checks `"heldOut": 4` repos against the pins) {model: opus}
-- [ ] M5C.5a2 The draw: `pnpm --filter @gitinside/eval draw snapshot 4` (then prettier), walk each stratum in `draw status 4` order reading each candidate (`git clone --depth 1` into `eval/.repos/`, never analyzed) against EVALUATION.md's five inclusion rules, recording every pin (default-branch HEAD SHA, what it exercises) or rejection (the first rule it fails) in the file until 8 pins per stratum; commit as you go (split per stratum if long); no labels, no `repos.json` entries yet {model: opus}
+- [x] M5C.5a2 The draw: `pnpm --filter @gitinside/eval draw snapshot 4` (then prettier), walk each stratum in `draw status 4` order reading each candidate (`git clone --depth 1` into `eval/.repos/`, never analyzed) against EVALUATION.md's five inclusion rules, recording every pin (default-branch HEAD SHA, what it exercises) or rejection (the first rule it fails) in the file until 8 pins per stratum; commit as you go (split per stratum if long); no labels, no `repos.json` entries yet {model: opus}
 - [ ] M5C.5b Batch 4 labels drafted from the code and committed before any run (split per few repos as needed) {model: opus}
 - [ ] M5C.5c Score batch 4 once, blind: recall, precision, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 before deciding on another round {model: opus}
 
@@ -352,6 +352,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+- **2026-11-04 M5C.5a2** (pools `0ae417c`, walk `9865768`): both pools were snapshotted (290 and 306, the totals read before the rule) and committed before any candidate was read. `react-express` pinned 8 of 19 read (6 rejected on rule 3, 5 on rule 4) and `nextjs-prisma` 8 of 16 (4 on rule 3, 3 on rule 4, 1 on rule 5). Every pin's SHA was checked against its clone's HEAD. One reader went 2 candidates past the quota; `validate` refused the record, and neither candidate is in the batch.
+
 - **2026-11-04 M5C.5a1** (`ffc4a0e`, report `bd682db`): batch 4's rule is committed before any candidate list was fetched (ADR-0208): two search strata (`topic:react topic:express`, `topic:nextjs topic:prisma`, MIT, not forks, ≥ 5 stars, ≤ 30 MB, pushed since 2024), 8 pins each, seed `2026-11-04`; only the totals (290, 306) were read, to check both fit under the 1,000-result cap. EVALUATION.md §1 lists five inclusion rules checked in order.
   - `draw.ts` validates the record (whole sorted pool, a walk in the seeded order with no skips, quota stop, no double pins); `draw snapshot` refuses partial pools and never replaces one. Eval tests 109/109 (15 new; dropping the order check went red in 2). Root typecheck and lint clean. Draw records are excluded from the eval inputs. Eval unchanged.
 - **2026-11-04 M5C.4** (`81ab760`, report `903ff1b`): the scorer marks a repo *mapped completely* (≥ 1 label, no FP, FN, or missing label) and groups labels with no route prediction by the analyzer's answer (`unresolved <REASON>`, `external host`, `no prediction`), split into `null` labels and real targets. The report adds a per-repo column, each set's share, and an unresolved table with meanings; EVALUATION.md §1 documents both.
