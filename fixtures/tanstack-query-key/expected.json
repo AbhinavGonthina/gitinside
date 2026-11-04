@@ -1,0 +1,312 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "symbol:tanstack-query-key/src/queries.ts#statsOptions",
+      "id": "http:symbol:tanstack-query-key/src/queries.ts#statsOptions->route:tanstack-query-key/GET /api/stats",
+      "kind": "http",
+      "label": "GET /api/stats",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/queries.ts",
+          "line": 12
+        }
+      ],
+      "to": "route:tanstack-query-key/GET /api/stats"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:tanstack-query-key/src/queries.ts#useDrafts",
+      "id": "http:symbol:tanstack-query-key/src/queries.ts#useDrafts->unresolved:tanstack-query-key/src/queries.ts:16:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/queries.ts",
+          "line": 16
+        }
+      ],
+      "to": "unresolved:tanstack-query-key/src/queries.ts:16:10"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:tanstack-query-key/src/queries.ts#usePost",
+      "id": "http:symbol:tanstack-query-key/src/queries.ts#usePost->route:tanstack-query-key/GET /api/posts/:postId",
+      "kind": "http",
+      "label": "GET /api/posts/:postId",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/queries.ts",
+          "line": 9
+        }
+      ],
+      "to": "route:tanstack-query-key/GET /api/posts/:postId"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:tanstack-query-key/src/queries.ts#usePosts",
+      "id": "http:symbol:tanstack-query-key/src/queries.ts#usePosts->route:tanstack-query-key/GET /api/posts",
+      "kind": "http",
+      "label": "GET /api/posts",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/queries.ts",
+          "line": 5
+        }
+      ],
+      "to": "route:tanstack-query-key/GET /api/posts"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:tanstack-query-key/src/queries.ts#useTodos",
+      "id": "http:symbol:tanstack-query-key/src/queries.ts#useTodos->route:tanstack-query-key/GET /api/users/:userId/todos",
+      "kind": "http",
+      "label": "GET /api/users/:userId/todos",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/queries.ts",
+          "line": 21
+        }
+      ],
+      "to": "route:tanstack-query-key/GET /api/users/:userId/todos"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "696fb80832f58e81a0e8ec2b82bb035a00fa9b8d47d393697225355b7a341bb2",
+      "id": "file:tanstack-query-key/src/queries.ts",
+      "kind": "file",
+      "label": "queries.ts",
+      "parentId": "module:tanstack-query-key/src",
+      "path": "src/queries.ts"
+    },
+    {
+      "hash": "71d330a2feb7428d78a56e0d9a5763599bed2bfde9e243d2113890120d9d9dc7",
+      "id": "file:tanstack-query-key/src/queryClient.ts",
+      "kind": "file",
+      "label": "queryClient.ts",
+      "parentId": "module:tanstack-query-key/src",
+      "path": "src/queryClient.ts"
+    },
+    {
+      "hash": "6d8571107773d38d9086f5e69f28b6137655236a98b6fa0ac377a5b8e36f66e5",
+      "id": "file:tanstack-query-key/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:tanstack-query-key/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:tanstack-query-key/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:tanstack-query-key/",
+      "path": "src"
+    },
+    {
+      "id": "route:tanstack-query-key/GET /api/posts",
+      "kind": "route",
+      "label": "GET /api/posts",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:tanstack-query-key/src/server.ts",
+      "path": "/api/posts",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:tanstack-query-key/GET /api/posts/:postId",
+      "kind": "route",
+      "label": "GET /api/posts/:postId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:tanstack-query-key/src/server.ts",
+      "path": "/api/posts/:postId",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:tanstack-query-key/GET /api/stats",
+      "kind": "route",
+      "label": "GET /api/stats",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:tanstack-query-key/src/server.ts",
+      "path": "/api/stats",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 15
+      }
+    },
+    {
+      "id": "route:tanstack-query-key/GET /api/users/:userId/todos",
+      "kind": "route",
+      "label": "GET /api/users/:userId/todos",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:tanstack-query-key/src/server.ts",
+      "path": "/api/users/:userId/todos",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 18
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:tanstack-query-key/",
+      "kind": "service",
+      "label": "tanstack-query-key",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:tanstack-query-key/src/queries.ts#statsOptions",
+      "kind": "symbol",
+      "label": "statsOptions",
+      "parentId": "file:tanstack-query-key/src/queries.ts",
+      "source": {
+        "column": 14,
+        "endLine": 12,
+        "file": "src/queries.ts",
+        "line": 12
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:tanstack-query-key/src/queries.ts#useDrafts",
+      "kind": "symbol",
+      "label": "useDrafts",
+      "parentId": "file:tanstack-query-key/src/queries.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/queries.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:tanstack-query-key/src/queries.ts#usePost",
+      "kind": "symbol",
+      "label": "usePost",
+      "parentId": "file:tanstack-query-key/src/queries.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/queries.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:tanstack-query-key/src/queries.ts#usePosts",
+      "kind": "symbol",
+      "label": "usePosts",
+      "parentId": "file:tanstack-query-key/src/queries.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/queries.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:tanstack-query-key/src/queries.ts#useTodos",
+      "kind": "symbol",
+      "label": "useTodos",
+      "parentId": "file:tanstack-query-key/src/queries.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 26,
+        "file": "src/queries.ts",
+        "line": 20
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:tanstack-query-key/src/queryClient.ts#defaultQueryFn",
+      "kind": "symbol",
+      "label": "defaultQueryFn",
+      "parentId": "file:tanstack-query-key/src/queryClient.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 7,
+        "endLine": 8,
+        "file": "src/queryClient.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:tanstack-query-key/src/queryClient.ts#queryClient",
+      "kind": "symbol",
+      "label": "queryClient",
+      "parentId": "file:tanstack-query-key/src/queryClient.ts",
+      "source": {
+        "column": 14,
+        "endLine": 12,
+        "file": "src/queryClient.ts",
+        "line": 10
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "tanstack-query-key",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches GET to /api/drafts",
+      "expression": "useQuery({ queryKey: [\"/drafts\"] })",
+      "id": "unresolved:tanstack-query-key/src/queries.ts:16:10",
+      "kind": "unresolved",
+      "label": "GET /api/drafts",
+      "parentId": "service:tanstack-query-key/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "src/queries.ts",
+        "line": 16
+      }
+    }
+  ],
+  "repo": {
+    "name": "tanstack-query-key",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

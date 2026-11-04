@@ -119,9 +119,10 @@
  *   `prefixUrl`, `prefix`, and `baseUrl` in effect at once (unresolved, saying so). Options the
  *   collector can't see are assumed not to set a base, as for ofetch.
  * - TanStack Query (ADR-0196): a `queryFn` is read like any other function, so
- *   `queryFn: () => fetch("/api/todos")` or a call to a wrapper there resolves, but a URL read
+ *   `queryFn: () => fetch("/api/todos")` or a call to a wrapper there resolves. A URL read
  *   from the key in its context (`({ queryKey }) => fetch(queryKey[0])`, also a `QueryClient`'s
- *   default `queryFn`) stays `DYNAMIC_URL`: which key reaches it isn't followed.
+ *   default `queryFn`) is read at each hook whose key reaches it (M5C.3f, `wrappers.ts`); where
+ *   no hook is followed it stays `DYNAMIC_URL`.
  * - RTK Query: what a custom `baseQuery` other than a forwarding wrapper does with an
  *   endpoint's `query` (the endpoint is unresolved, above; the base query's own `fetch` or
  *   axios calls are collected as usual), a wrapper that rewrites the arguments before

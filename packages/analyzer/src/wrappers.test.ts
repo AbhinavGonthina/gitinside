@@ -1041,22 +1041,118 @@ describe("RTK Query endpoints (ADR-0196)", () => {
       "src/api.ts:6 POST /api/posts [api]",
     ]);
   });
+});
 
-  it("reads TanStack Query's queryFn as any other function: the key in its context isn't followed", async () => {
+describe("TanStack Query's key in context (M5C.3f, ADR-0196)", () => {
+  const LEADING = "DYNAMIC_URL: the URL starts with a value only known at runtime";
+
+  it("reads a queryFn written at the hook with the hook's key", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/todos.ts", [
-      'import { useQuery } from "@tanstack/react-query";',
+      'import { useQuery, useInfiniteQuery } from "@tanstack/react-query";',
+      'const LIST = ["/api/lists"] as const;',
       "export function useTodos(id: string) {",
       '  useQuery({ queryKey: ["todos"], queryFn: () => fetch("/api/todos") });',
       "  useQuery({",
       '    queryKey: ["/api/todos", id],',
       "    queryFn: ({ queryKey }) => fetch(String(queryKey[0])),",
       "  });",
+      "  useQuery({",
+      '    queryKey: ["/api/users", id],',
+      "    queryFn: ({ queryKey: [path, key] }) => fetch(`${path}/${key}`),",
+      "  });",
+      "  useInfiniteQuery({",
+      "    queryKey: LIST,",
+      "    queryFn: (ctx) => fetch(`${ctx.queryKey[0]}?page=${ctx.pageParam}`),",
+      "  });",
+      "}",
+      "export function useApi(key: string[]) {",
+      "  return useQuery({ queryKey: key, queryFn: ({ queryKey }) => fetch(String(queryKey[0])) });",
       "}",
     ]);
     expect(await summary()).toEqual([
-      "src/todos.ts:3 GET /api/todos [useTodos]",
-      "src/todos.ts:6 GET DYNAMIC_URL: the URL starts with a value only known at runtime [useTodos]",
+      "src/todos.ts:4 GET /api/todos [useTodos]",
+      "src/todos.ts:5 GET /api/todos [useTodos]",
+      "src/todos.ts:9 GET /api/users/{} [useTodos]",
+      "src/todos.ts:13 GET /api/lists [useTodos]",
+      // The custom hook's own parameter: only its callers know the key.
+      "src/todos.ts:19 GET WRAPPER_DEPTH: the URL starts with a parameter of the calling function, a wrapper more than one call deep [useApi]",
+    ]);
+  });
+
+  it("uses the QueryClient's default queryFn for options without one, at heuristic", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/client.ts", [
+      'import { QueryClient } from "@tanstack/react-query";',
+      "export const defaultQueryFn = async ({ queryKey }: { queryKey: readonly unknown[] }) =>",
+      "  (await fetch(`/api${queryKey[0]}`)).json();",
+      "export const client = new QueryClient({ defaultOptions: { queries: { queryFn: defaultQueryFn } } });",
+      "export const tests = new QueryClient();",
+    ]);
+    await put("src/posts.ts", [
+      'import { queryOptions, useQuery } from "@tanstack/react-query";',
+      "const opts = { queryKey: ['/stats'] };",
+      "export function usePosts(postId: string, more: object) {",
+      '  useQuery({ queryKey: ["/posts"] });',
+      "  useQuery({ queryKey: [`/posts/${postId}`], enabled: !!postId });",
+      "  useQuery(opts);",
+      "  useQuery({ ...more, queryKey: ['/never'] });",
+      "  return queryOptions({ queryKey: ['/drafts'] });",
+      "}",
+      "export function useApi(key: string[]) {",
+      "  return useQuery({ queryKey: key });",
+      "}",
+    ]);
+    expect(await summary()).toEqual([
+      "src/posts.ts:4 GET /api/posts [usePosts] <- src/client.ts:3 (heuristic)",
+      "src/posts.ts:5 GET /api/posts/{} [usePosts] <- src/client.ts:3 (heuristic)",
+      "src/posts.ts:6 GET /api/stats [usePosts] <- src/client.ts:3 (heuristic)",
+      "src/posts.ts:8 GET /api/drafts [usePosts] <- src/client.ts:3 (heuristic)",
+      // The custom hook's key glued after `/api`: a hole there, as for any wrapper.
+      "src/posts.ts:11 GET /api{} [useApi] <- src/client.ts:3 (heuristic)",
+    ]);
+  });
+
+  it("follows no default when QueryClients set different ones", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/client.ts", [
+      'import { QueryClient } from "@tanstack/react-query";',
+      "export const a = async ({ queryKey }: any) => fetch(String(queryKey[0]));",
+      "export const b = async ({ queryKey }: any) => fetch(`/v2${queryKey[0]}`);",
+      "export const one = new QueryClient({ defaultOptions: { queries: { queryFn: a } } });",
+      "export const two = new QueryClient({ defaultOptions: { queries: { queryFn: b } } });",
+    ]);
+    await put("src/posts.ts", [
+      'import { useQuery } from "@tanstack/react-query";',
+      'export const usePosts = () => useQuery({ queryKey: ["/posts"] });',
+    ]);
+    expect(await summary()).toEqual([
+      `src/client.ts:2 GET ${LEADING} [a]`,
+      "src/client.ts:3 GET /v2{} [b]",
+    ]);
+  });
+
+  it("leaves look-alikes and unread shapes as they were", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/todos.ts", [
+      'import { useQuery as useTanstack } from "@tanstack/react-query";',
+      "const useQuery = (o: any) => o;",
+      "const keys = { all: () => ['/api/all'] };",
+      "export function useTodos() {",
+      // Not TanStack's: a repo function of the same name.
+      "  useQuery({ queryKey: ['/api/a'], queryFn: ({ queryKey }: any) => fetch(queryKey[0]) });",
+      // v4's positional form isn't read.
+      "  useTanstack(['/api/b'] as any, ({ queryKey }: any) => fetch(queryKey[0]));",
+      // A key built by a call, and one read with `.join()`, can't be read.
+      "  useTanstack({ queryKey: keys.all(), queryFn: ({ queryKey }: any) => fetch(queryKey[0]) });",
+      "  useTanstack({ queryKey: ['api', 'c'], queryFn: ({ queryKey }: any) => fetch(queryKey.join('/')) });",
+      "}",
+    ]);
+    expect(await summary()).toEqual([
+      `src/todos.ts:5 GET ${LEADING} [useTodos]`,
+      `src/todos.ts:6 GET ${LEADING} [useTodos]`,
+      `src/todos.ts:7 GET ${LEADING} [useTodos]`,
+      `src/todos.ts:8 GET ${LEADING} [useTodos]`,
     ]);
   });
 });

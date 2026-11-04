@@ -1,0 +1,4 @@
+{
+  "name": "tanstack-query-key",
+  "dependencies": { "@tanstack/react-query": "5", "axios": "1", "express": "4" }
+}

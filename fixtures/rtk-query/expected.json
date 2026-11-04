@@ -191,17 +191,17 @@
     {
       "confidence": "unresolved",
       "from": "symbol:task-board/hooks/stats.ts#useStats",
-      "id": "http:symbol:task-board/hooks/stats.ts#useStats->unresolved:task-board/hooks/stats.ts:10:32",
+      "id": "http:symbol:task-board/hooks/stats.ts#useStats->unresolved:task-board/hooks/stats.ts:8:17",
       "kind": "http",
-      "reason": "DYNAMIC_URL",
+      "reason": "NO_MATCHING_ROUTE",
       "sites": [
         {
-          "column": 32,
+          "column": 17,
           "file": "hooks/stats.ts",
-          "line": 10
+          "line": 8
         }
       ],
-      "to": "unresolved:task-board/hooks/stats.ts:10:32"
+      "to": "unresolved:task-board/hooks/stats.ts:8:17"
     },
     {
       "confidence": "exact",
@@ -918,17 +918,17 @@
       "parentId": null
     },
     {
-      "detail": "the URL starts with a value only known at runtime",
-      "expression": "fetch(String(queryKey[0]))",
-      "id": "unresolved:task-board/hooks/stats.ts:10:32",
+      "detail": "no route matches GET to /api/stats/trend",
+      "expression": "useQuery({ queryKey: [\"/api/stats/trend\", range], queryFn: ({ queryKey }) => fetch(String(queryKey[0])).then((r) => r.j…",
+      "id": "unresolved:task-board/hooks/stats.ts:8:17",
       "kind": "unresolved",
-      "label": "GET String(queryKey[0])",
+      "label": "GET /api/stats/trend",
       "parentId": "service:task-board/",
-      "reason": "DYNAMIC_URL",
+      "reason": "NO_MATCHING_ROUTE",
       "source": {
-        "column": 32,
+        "column": 17,
         "file": "hooks/stats.ts",
-        "line": 10
+        "line": 8
       }
     },
     {
