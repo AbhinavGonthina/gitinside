@@ -12,6 +12,7 @@
     "bench:stress": "node dist/stress.js",
     "bench:capped": "node dist/capped.js",
     "bench:incremental": "node dist/incremental.js",
+    "bench:cloudrun": "node dist/cloudrun-bench.js",
     "bench:render": "vite build --config render/vite.config.ts && node dist/render.js"
   },
   "dependencies": {
