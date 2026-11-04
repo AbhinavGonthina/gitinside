@@ -119,7 +119,8 @@ const propertyName = (name: ts.PropertyName): string | undefined =>
       ? name.text
       : undefined;
 
-function strip(e: ts.Expression): ts.Expression {
+/** `e` without parentheses, `as`, `satisfies`, and type assertions. */
+export function strip(e: ts.Expression): ts.Expression {
   let out = e;
   while (
     ts.isParenthesizedExpression(out) ||
@@ -132,12 +133,18 @@ function strip(e: ts.Expression): ts.Expression {
   return out;
 }
 
-/** Reads one config file's syntax. */
-class ConfigReader {
+/**
+ * Reads one config file's syntax (also `next.config`'s, `nextConfig.ts`). `wrapper` names the
+ * calls looked through to the config object they're given (Vite's `defineConfig`).
+ */
+export class ConfigReader {
   /** Top-level `const` initializers by name (`let`/`var` may change, so they aren't kept). */
   private readonly consts = new Map<string, ts.Expression>();
 
-  constructor(private readonly source: ts.SourceFile) {
+  constructor(
+    private readonly source: ts.SourceFile,
+    private readonly wrapper: (name: string) => boolean = (name) => name === "defineConfig",
+  ) {
     for (const statement of source.statements) {
       if (!ts.isVariableStatement(statement)) continue;
       if (!(statement.declarationList.flags & ts.NodeFlags.Const)) continue;
@@ -181,14 +188,21 @@ class ConfigReader {
     return s;
   }
 
-  /** The object a config expression stands for: through `defineConfig(…)` and functions. */
+  /**
+   * The object a config expression stands for: through wrapper calls (their first argument
+   * that is one) and functions.
+   */
   object(e: ts.Expression, hops = 0): ts.ObjectLiteralExpression | undefined {
     if (hops > MAX_HOPS) return undefined;
     const v = this.value(e);
     if (ts.isObjectLiteralExpression(v)) return v;
     if (ts.isCallExpression(v) && ts.isIdentifier(v.expression)) {
-      const [arg] = v.arguments;
-      return v.expression.text === "defineConfig" && arg ? this.object(arg, hops + 1) : undefined;
+      if (!this.wrapper(v.expression.text)) return undefined;
+      for (const arg of v.arguments) {
+        const found = this.object(arg, hops + 1);
+        if (found) return found;
+      }
+      return undefined;
     }
     if (ts.isArrowFunction(v) || ts.isFunctionExpression(v)) {
       const result = returned(v);
@@ -258,12 +272,12 @@ class ConfigReader {
 }
 
 /** A string literal's or plain template's text. */
-function literalText(e: ts.Expression): string | undefined {
+export function literalText(e: ts.Expression): string | undefined {
   return ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e) ? e.text : undefined;
 }
 
 /** The expression a function returns: its expression body, or its one top-level `return`. */
-function returned(
+export function returned(
   fn: ts.ArrowFunction | ts.FunctionExpression | ts.MethodDeclaration,
 ): ts.Expression | undefined {
   const { body } = fn;
@@ -275,7 +289,7 @@ function returned(
 }
 
 /** A literal target URL, or unknown for another scheme or a value that isn't a URL. */
-function parseTarget(text: string): ProxyTarget {
+export function parseTarget(text: string): ProxyTarget {
   let url: URL;
   try {
     url = new URL(text);

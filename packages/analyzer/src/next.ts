@@ -58,8 +58,10 @@
  *   first by path, with a `NEXT_DUPLICATE_ROUTE` warning.
  *
  * Patterns not handled:
- * - `next.config` settings: `basePath`, `pageExtensions`, `i18n`, rewrites, and redirects (v1.1).
- *   The config is never read, let alone executed.
+ * - `next.config` settings: `pageExtensions`, `i18n`, and redirects. A literal `basePath` and
+ *   static `rewrites` are read from the config's syntax for the route matcher only
+ *   (`nextConfig.ts`, ADR-0206); route and page nodes keep their file-system paths. The
+ *   config is never executed.
  * - Intercepting routes (`(.)photo`, `(..)photo`, `(...)photo`): they re-render another
  *   route, so they produce no node of their own.
  * - `layout`, `template`, `loading`, `error`, `not-found`, `default`, and `middleware` files.

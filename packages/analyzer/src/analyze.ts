@@ -40,6 +40,7 @@ import { createRepoFiles, programRootFiles, serviceInputs } from "./inputs.js";
 import { AnalysisError, buildInventory, type InventoryLimits } from "./inventory.js";
 import { buildHttpEdges, createRouteMatcher } from "./match.js";
 import { collectNextFacts, composeNextRoutes } from "./next.js";
+import { readNextConfigs } from "./nextConfig.js";
 import { buildPrismaSchemas, collectPrismaFacts, composePrisma } from "./prisma.js";
 import { buildServicePrograms, type ServiceProgram } from "./program.js";
 import { collectQueueFacts, composeQueueEdges, usesQueueLibrary } from "./queues.js";
@@ -483,6 +484,7 @@ async function analyzeRoot(
         new Set(express.listedRoutes),
         await readEnvPrefixes(root, inventory.files),
         await readDevProxies(root, inventory.files, workspace),
+        { configs: await readNextConfigs(root, inventory.files, workspace), nodes: next.nodes },
       );
       return buildHttpEdges(requests, matcher, workspace);
     },
