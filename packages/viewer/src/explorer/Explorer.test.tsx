@@ -1457,6 +1457,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "Filters",
       "NoApp",
       "Onboarding",
+      "OnboardingOverBoxes",
       "Outline",
       "Overview",
       "Search",
@@ -1481,6 +1482,12 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       expect(container.querySelector(".gi-explorer")).not.toBeNull();
       cleanup();
     }
+    // The hint over an open frame (M5.13b4): the visual suite checks it's drawn on top.
+    const { container: drilled } = render(<all.OnboardingOverBoxes />);
+    await settle();
+    expect(drilled.querySelector('.gi-hint[data-state="open"]')).not.toBeNull();
+    expect(drilled.querySelector(".gi-drill__node[data-open]")).not.toBeNull();
+    cleanup();
     render(<all.TracingUnresolved />);
     await settle();
     expect(screen.getByText("Step 3 of 3")).toBeTruthy();
