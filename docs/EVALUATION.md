@@ -54,6 +54,21 @@ How they were chosen:
 
 **Coverage plan instead of batch loops** (M5C, Abhinav on #18, 2026-11-04): [COVERAGE.md](COVERAGE.md) ranks the ways React/Next apps send requests and Express/Next receive them by measured use (GitHub code search counts, with npm downloads and the eval set as cross-checks; sources, queries, and dates there). It marks each pattern handled, partial, or not handled, with its ADR. Each gap is then covered as a general pattern with a fixture, a golden test, and an ADR (M5C.2–3), and one fresh blind sample, drawn by a recorded rule, is scored after that (M5C.5).
 
+**Held-out batch 4: drawn by a recorded rule** (M5C.5, ADR-0208; rule committed 2026-11-04 in M5C.5a1, before any candidate list was fetched). Batches 1–3 were picked by browsing search results; batch 4 is drawn so nobody chooses which repos it has. The rule, in [`eval/draws/batch-4.json`](../eval/draws/batch-4.json):
+- **Two strata, 8 pins each (16 repos):** `react-express` = `topic:react topic:express`, `nextjs-prisma` = `topic:nextjs topic:prisma`, each with `license:mit fork:false archived:false stars:>=5 size:<=30000 pushed:>=2024-01-01` (GitHub repository search; `size` in KB). Before committing, only the totals were read (290 and 306 on 2026-11-04), to check each pool is under the search API's 1,000-result cap and so can be fetched whole.
+- **Seed** `2026-11-04`, the day the rule was committed.
+- **Pool:** `pnpm --filter @gitinside/eval build`, then `pnpm --filter @gitinside/eval draw snapshot 4` records every repo each query matches, sorted by name, with the date. It fails rather than record a partial pool, and never replaces one.
+- **Order:** each pool is shuffled by `<seed>/<stratum>` (Fisher–Yates over mulberry32 seeded with the FNV-1a hash, as for the review sample). `pnpm --filter @gitinside/eval draw status 4` prints the next repo to read.
+- **Walk:** candidates are read in that order (`git clone --depth 1` into `eval/.repos/`, never analyzed), each recorded as `pinned` at its default-branch HEAD or `rejected` with the first rule it fails, until the stratum has 8 pins or its pool runs out (then the batch is smaller, as recorded). `pnpm --filter @gitinside/eval validate` fails a walk that leaves the order, skips or repeats a repo, or reads on past the quota. A repo matching both queries is read in the first stratum it comes up in; if it comes up again it's rejected as already drawn.
+- **Inclusion rules,** checked in this order by reading the code at the default-branch HEAD:
+  1. **Not already in the eval:** not pinned in `repos.json`, and not one of the candidates rejected above.
+  2. **A permissive license** in the repo at HEAD (a `LICENSE` file or `package.json` `license`, MIT or another in the format's list).
+  3. **Receiving side in v1 scope:** the routes the frontend calls are Express or Next.js handlers (TS or JS) in the repo. Rejected: another server framework (NestJS, Fastify, Hono, Koa, `routing-controllers`), a backend outside the repo, or only tRPC or GraphQL endpoints.
+  4. **Calling side:** a React or Next.js frontend in the repo sends at least 5 labelable requests (the labeling method's "what is labeled") whose target is a route in the repo. Server actions, socket clients, and library-made requests don't count, as in labeling.
+  5. **Size:** 20 to 400 TS/JS source files (`git ls-files` of `.ts .tsx .js .jsx .mjs .cjs`, not counting `node_modules`, build output, or minified vendor files), so every call site can be labeled by hand.
+- **Shape:** each pin gets the shape from the list above that fits it best, for the report; shapes don't steer the draw.
+- **Afterwards:** M5C.5b labels the pins from their code and commits the labels with each repo's `repos.json` entry (`"heldOut": 4`) before the analyzer first runs on it; M5C.5c scores the batch once. The record keeps every rejection, so the report can say how many candidates were read and why each left.
+
 The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MIT-licensed React + Express apps, read but never analyzed):
 
 | Candidate | How it calls its API | Source files | Status |

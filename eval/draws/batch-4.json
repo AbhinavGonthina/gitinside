@@ -1,0 +1,19 @@
+{
+  "batch": 4,
+  "seed": "2026-11-04",
+  "perStratum": 8,
+  "strata": [
+    {
+      "name": "react-express",
+      "query": "topic:react topic:express license:mit fork:false archived:false stars:>=5 size:<=30000 pushed:>=2024-01-01",
+      "pool": null,
+      "examined": []
+    },
+    {
+      "name": "nextjs-prisma",
+      "query": "topic:nextjs topic:prisma license:mit fork:false archived:false stars:>=5 size:<=30000 pushed:>=2024-01-01",
+      "pool": null,
+      "examined": []
+    }
+  ]
+}
