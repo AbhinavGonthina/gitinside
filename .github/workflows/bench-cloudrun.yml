@@ -1,0 +1,59 @@
+name: Benchmark (1 vCPU)
+
+# The analysis benchmark on Cloud Run's instance size (M5.13a3, bench/src/cloudRun.ts): the
+# worker image built here, then one cold analysis per fresh container started as Cloud Run
+# starts an instance (`docker run --cpus 1 --memory 4g`, /tmp in memory, the image's user,
+# runner, and caps). Nothing is committed by the workflow: download the artifact
+# (`gh run download <run> -n cloudrun-bench -D <dir>`), copy the report and its JSON into
+# bench/results/, and add observations (docs/EVALUATION.md: numbers exactly as measured).
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner:
+        description: Repo owner
+        default: calcom
+      repo:
+        description: Repo name
+        default: cal.diy
+      sha:
+        description: Full commit SHA
+        default: 2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee
+      runs:
+        description: Runs (a fresh container each)
+        default: "3"
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@gitinside/bench
+      - run: docker version
+      # Inputs reach the script as variables, never spliced into the command; it checks them.
+      - run: >-
+          pnpm --filter @gitinside/bench bench:cloudrun --owner "$OWNER" --repo "$REPO"
+          --sha "$SHA" --runs "$RUNS" --host "GitHub Actions $RUNNER_OS runner"
+        env:
+          OWNER: ${{ inputs.owner }}
+          REPO: ${{ inputs.repo }}
+          SHA: ${{ inputs.sha }}
+          RUNS: ${{ inputs.runs }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cloudrun-bench
+          # The report and its raw JSON, not the tarball.
+          path: |
+            bench/dist/cloudrun/*.md
+            bench/dist/cloudrun/*.json
+          if-no-files-found: error

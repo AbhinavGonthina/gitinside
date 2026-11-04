@@ -55,6 +55,16 @@ pnpm bench:capped --heap-mb=2048 .repos/calcom                            # anot
 
 `src/capped.ts` runs each folder through the worker's own sandboxed runner (`runAnalysis`: 2,560 MB heap unless `--heap-mb` says otherwise, 5 minutes, no network, the analyzer's default limits), one after another, and prints a JSON line per folder: source files and MiB, outcome or failure code, time, the last analyzer step seen and when, and for a finished run stage times, graph size, and the child's peak RSS and final heap. It calibrated the 50 MB source-size limit (ADR-0137, `results/2026-10-31-capped-vscode.md`) and the worker's memory budget (ADR-0146, `results/2026-11-01-capped-memory.md`); to measure folders over the source-size limit, raise `MAX_SOURCE_MB` in `packages/analyzer/src/inventory.ts` and rebuild first.
 
+## 1 vCPU, as Cloud Run runs it (CI)
+
+```sh
+gh workflow run "Benchmark (1 vCPU)"                    # cal.diy at 2eb48ec, 3 runs
+gh workflow run "Benchmark (1 vCPU)" -f runs=5 -f sha=<40 hex> -f repo=<name> -f owner=<owner>
+gh run download <run> -n cloudrun-bench -D bench/dist/cloudrun-ci
+```
+
+A laptop can't judge a time budget (`results/2026-11-04-caldiy-stages.md`: 48–92 s for one commit), so `src/cloudrun-bench.ts` runs on a GitHub-hosted runner: it builds the worker image, downloads the repo's tarball once, and starts a fresh container per run as Cloud Run starts an instance (`docker run --cpus 1 --memory 4g --memory-swap 4g`, `/tmp` in memory, the image's user and working directory). Inside, the image's own `extractTarball` unpacks the tarball under `/tmp/jobs` and its sandboxed `runAnalysis` analyzes it with production's limits and no fact cache (`src/cloudRun.ts`). The report gives each run's container, extraction, and analysis time, the child's peak RSS and heap, the container's memory peak (in-memory `/tmp` included) and CPU used and throttled from its cgroup, and each stage per run with its median. Copy the artifact's `.md` and `.json` into `results/` and add observations. Locally it needs Linux and Docker (`pnpm bench:cloudrun`).
+
 ## Render fps
 
 ```sh
