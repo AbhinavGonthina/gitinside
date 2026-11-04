@@ -28,6 +28,12 @@ export interface DiagramNodeProps
   layer?: Layer | undefined;
   /** Count badges, in the order given. */
   counts?: readonly NodeCount[] | undefined;
+  /**
+   * A prefix of the name that other services share (`HierarchyIndex.scopes`),
+   * drawn in a span of its own so the canvas can drop it when zoomed out. The
+   * name still reads whole; a scope the name doesn't start with is ignored.
+   */
+  scope?: string | undefined;
   /** Frames only: draw open, with `children` inside, instead of as a closed card. */
   expanded?: boolean;
   /** Frames only: the nodes drawn inside an expanded frame. */
@@ -94,6 +100,7 @@ export function DiagramNode({
   node,
   layer,
   counts,
+  scope,
   expanded = false,
   children,
   hovered = false,
@@ -141,7 +148,15 @@ export function DiagramNode({
       <span className="gi-node__text">
         <span className="gi-node__label" title={node.label}>
           {label.method && <span className="gi-method">{label.method}</span>}
-          {label.text && <span>{label.text}</span>}
+          {label.text &&
+            (scope && label.text.startsWith(scope) ? (
+              <span>
+                <span className="gi-node__scope">{scope}</span>
+                {label.text.slice(scope.length)}
+              </span>
+            ) : (
+              <span>{label.text}</span>
+            ))}
           {label.code && <code>{label.code}</code>}
         </span>
         {(subtitle.text ?? subtitle.code) && (

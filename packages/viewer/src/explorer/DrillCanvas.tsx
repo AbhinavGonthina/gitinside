@@ -215,6 +215,7 @@ const CanvasBox = memo(function CanvasBox({
         node={node}
         layer={layerOf(index, n.id)}
         counts={counts}
+        scope={from.scopes.get(n.id)}
         expanded={n.open}
         selected={selected}
         emphasis={emphasis}

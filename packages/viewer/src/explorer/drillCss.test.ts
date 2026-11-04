@@ -91,6 +91,14 @@ describe("drill.css", () => {
       expect(body).not.toMatch(/transform var\(--duration/);
     });
 
+    it("drops a service name's shared scope below full detail, where the name is scaled up (M5.13b1)", () => {
+      expect(
+        rule(
+          '.gi-drill:is([data-detail="names"], [data-detail="outline"]) .gi-node[data-kind="service"] .gi-node__scope',
+        ),
+      ).toMatch(/display: none;/);
+    });
+
     it("fades with the standard duration, keeping the fields row's color transitions", () => {
       expect(
         rule(".gi-drill .gi-node :is(.gi-node__label, .gi-node__subtitle, .gi-node__badges)"),

@@ -362,6 +362,23 @@ describe("DiagramNode", () => {
     ]);
   });
 
+  it("sets a shared scope apart in the name, which still reads whole", () => {
+    const node = { ...sample("service"), label: "@documenso/remix" };
+    const { getByRole, rerender } = render(<DiagramNode node={node} scope="@documenso/" />);
+    const label = getByRole("group").querySelector(".gi-node__label")!;
+    expect(label.querySelector(".gi-node__scope")?.textContent).toBe("@documenso/");
+    expect(label.textContent).toBe("@documenso/remix");
+    expect(label.getAttribute("title")).toBe("@documenso/remix");
+    expect(getByRole("group").getAttribute("aria-label")).toContain("@documenso/remix");
+
+    // A scope the name doesn't start with is ignored.
+    rerender(<DiagramNode node={node} scope="@other/" />);
+    expect(getByRole("group").querySelector(".gi-node__scope")).toBeNull();
+    expect(getByRole("group").querySelector(".gi-node__label")?.textContent).toBe(
+      "@documenso/remix",
+    );
+  });
+
   it("draws a closed frame as one element and an open one around its children", () => {
     const { getByRole, rerender } = render(
       <DiagramNode node={sample("service")}>

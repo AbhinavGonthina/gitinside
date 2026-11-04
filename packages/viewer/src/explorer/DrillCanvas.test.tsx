@@ -179,6 +179,19 @@ describe("DrillCanvas", () => {
     );
   });
 
+  it("sets the services' shared scope apart in their names (M5.13b1)", async () => {
+    const cache = quickCache();
+    const view = buildView(index, []);
+    await cache.layout(view);
+    render(<DrillCanvas index={index} view={view} cache={cache} />);
+    const label = (id: string) =>
+      document.querySelector(`[data-node-id="${id}"] > .gi-node .gi-node__label`);
+    expect(label(API)?.querySelector(".gi-node__scope")?.textContent).toBe("@shop/");
+    expect(label(API)?.textContent).toBe("@shop/api");
+    expect(label("service:web/")?.querySelector(".gi-node__scope")?.textContent).toBe("@shop/");
+    expect(document.querySelectorAll(".gi-node__scope")).toHaveLength(2);
+  });
+
   it("asks to break a box down on double-click or Enter, only when it can open", async () => {
     const onOpen = vi.fn();
     render(
