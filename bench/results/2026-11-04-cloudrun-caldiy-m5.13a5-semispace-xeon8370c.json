@@ -1,0 +1,1130 @@
+{
+  "meta": {
+    "date": "2026-11-04",
+    "target": {
+      "owner": "calcom",
+      "repo": "cal.diy",
+      "sha": "2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee"
+    },
+    "gitinsideSha": "6d90553d73c70d79d431d01564518695c9ee63c5",
+    "analyzerVersion": "0.2.0",
+    "host": "GitHub Actions Linux runner",
+    "image": {
+      "compressedBytes": 85950464
+    },
+    "download": {
+      "compressedBytes": 162588076,
+      "ms": 7638
+    },
+    "budgetMs": 60000
+  },
+  "runs": [
+    {
+      "node": "v22.18.0",
+      "semiSpaceMb": null,
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 3488
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 1101,
+            "workspace": 36,
+            "programs": 14485,
+            "imports": 3062,
+            "express": 103,
+            "next": 2085,
+            "prisma": 2496,
+            "infra": 25,
+            "files": 80,
+            "symbols": 194,
+            "calls": 15319,
+            "http": 7998,
+            "sdk": 2253,
+            "queues": 3305,
+            "assemble": 731
+          },
+          "peakRssBytes": 2033631232,
+          "heapBytes": 1890779136,
+          "gcMs": {
+            "incremental": 12,
+            "major": 518,
+            "minor": 7183
+          }
+        },
+        "durationMs": 54901
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 617
+        },
+        {
+          "step": "workspace",
+          "atMs": 1718
+        },
+        {
+          "step": "programs",
+          "atMs": 1756
+        },
+        {
+          "step": "imports",
+          "atMs": 16242
+        },
+        {
+          "step": "express",
+          "atMs": 19304
+        },
+        {
+          "step": "next",
+          "atMs": 19408
+        },
+        {
+          "step": "prisma",
+          "atMs": 21493
+        },
+        {
+          "step": "infra",
+          "atMs": 23989
+        },
+        {
+          "step": "files",
+          "atMs": 24016
+        },
+        {
+          "step": "symbols",
+          "atMs": 24096
+        },
+        {
+          "step": "calls",
+          "atMs": 24290
+        },
+        {
+          "step": "http",
+          "atMs": 39610
+        },
+        {
+          "step": "http",
+          "atMs": 47584
+        },
+        {
+          "step": "sdk",
+          "atMs": 47608
+        },
+        {
+          "step": "queues",
+          "atMs": 49862
+        },
+        {
+          "step": "assemble",
+          "atMs": 53167
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 58307052\nuser_usec 54993810\nsystem_usec 3313241\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 585\nnr_throttled 571\nthrottled_usec 53777030\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2327994368"
+      },
+      "containerMs": 59475
+    },
+    {
+      "node": "v22.18.0",
+      "semiSpaceMb": 32,
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 3435
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 1084,
+            "workspace": 39,
+            "programs": 14491,
+            "imports": 2878,
+            "express": 108,
+            "next": 2022,
+            "prisma": 2376,
+            "infra": 29,
+            "files": 84,
+            "symbols": 184,
+            "calls": 15093,
+            "http": 8018,
+            "sdk": 2148,
+            "queues": 3154,
+            "assemble": 634
+          },
+          "peakRssBytes": 2063556608,
+          "heapBytes": 1918074880,
+          "gcMs": {
+            "incremental": 8,
+            "major": 532,
+            "minor": 5559
+          }
+        },
+        "durationMs": 53905
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 628
+        },
+        {
+          "step": "workspace",
+          "atMs": 1711
+        },
+        {
+          "step": "programs",
+          "atMs": 1752
+        },
+        {
+          "step": "imports",
+          "atMs": 16243
+        },
+        {
+          "step": "express",
+          "atMs": 19121
+        },
+        {
+          "step": "next",
+          "atMs": 19229
+        },
+        {
+          "step": "prisma",
+          "atMs": 21252
+        },
+        {
+          "step": "infra",
+          "atMs": 23628
+        },
+        {
+          "step": "files",
+          "atMs": 23657
+        },
+        {
+          "step": "symbols",
+          "atMs": 23742
+        },
+        {
+          "step": "calls",
+          "atMs": 23925
+        },
+        {
+          "step": "http",
+          "atMs": 39018
+        },
+        {
+          "step": "http",
+          "atMs": 47019
+        },
+        {
+          "step": "sdk",
+          "atMs": 47036
+        },
+        {
+          "step": "queues",
+          "atMs": 49184
+        },
+        {
+          "step": "assemble",
+          "atMs": 52338
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 57354533\nuser_usec 54083351\nsystem_usec 3271182\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 575\nnr_throttled 562\nthrottled_usec 55007172\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2355048448"
+      },
+      "containerMs": 58188
+    },
+    {
+      "node": "v22.18.0",
+      "semiSpaceMb": 64,
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 3506
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 1104,
+            "workspace": 39,
+            "programs": 14372,
+            "imports": 2943,
+            "express": 105,
+            "next": 2020,
+            "prisma": 2398,
+            "infra": 23,
+            "files": 82,
+            "symbols": 172,
+            "calls": 12005,
+            "http": 10892,
+            "sdk": 2123,
+            "queues": 3125,
+            "assemble": 667
+          },
+          "peakRssBytes": 2184769536,
+          "heapBytes": 2016276480,
+          "gcMs": {
+            "incremental": 9,
+            "major": 493,
+            "minor": 5055
+          }
+        },
+        "durationMs": 53708
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 635
+        },
+        {
+          "step": "workspace",
+          "atMs": 1739
+        },
+        {
+          "step": "programs",
+          "atMs": 1779
+        },
+        {
+          "step": "imports",
+          "atMs": 16152
+        },
+        {
+          "step": "express",
+          "atMs": 19095
+        },
+        {
+          "step": "next",
+          "atMs": 19200
+        },
+        {
+          "step": "prisma",
+          "atMs": 21221
+        },
+        {
+          "step": "infra",
+          "atMs": 23618
+        },
+        {
+          "step": "files",
+          "atMs": 23643
+        },
+        {
+          "step": "symbols",
+          "atMs": 23725
+        },
+        {
+          "step": "calls",
+          "atMs": 23897
+        },
+        {
+          "step": "http",
+          "atMs": 35903
+        },
+        {
+          "step": "http",
+          "atMs": 46759
+        },
+        {
+          "step": "sdk",
+          "atMs": 46795
+        },
+        {
+          "step": "queues",
+          "atMs": 48919
+        },
+        {
+          "step": "assemble",
+          "atMs": 52044
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 57203759\nuser_usec 53863821\nsystem_usec 3339938\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 573\nnr_throttled 551\nthrottled_usec 57348549\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2484547584"
+      },
+      "containerMs": 58112
+    },
+    {
+      "node": "v22.18.0",
+      "semiSpaceMb": null,
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 3520
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 1062,
+            "workspace": 35,
+            "programs": 14452,
+            "imports": 3015,
+            "express": 108,
+            "next": 2084,
+            "prisma": 2414,
+            "infra": 24,
+            "files": 83,
+            "symbols": 184,
+            "calls": 15400,
+            "http": 8102,
+            "sdk": 2299,
+            "queues": 3314,
+            "assemble": 691
+          },
+          "peakRssBytes": 2034401280,
+          "heapBytes": 1890148352,
+          "gcMs": {
+            "incremental": 8,
+            "major": 424,
+            "minor": 7492
+          }
+        },
+        "durationMs": 54949
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 678
+        },
+        {
+          "step": "workspace",
+          "atMs": 1740
+        },
+        {
+          "step": "programs",
+          "atMs": 1777
+        },
+        {
+          "step": "imports",
+          "atMs": 16230
+        },
+        {
+          "step": "express",
+          "atMs": 19245
+        },
+        {
+          "step": "next",
+          "atMs": 19353
+        },
+        {
+          "step": "prisma",
+          "atMs": 21437
+        },
+        {
+          "step": "infra",
+          "atMs": 23851
+        },
+        {
+          "step": "files",
+          "atMs": 23877
+        },
+        {
+          "step": "symbols",
+          "atMs": 23959
+        },
+        {
+          "step": "calls",
+          "atMs": 24143
+        },
+        {
+          "step": "http",
+          "atMs": 39543
+        },
+        {
+          "step": "http",
+          "atMs": 47625
+        },
+        {
+          "step": "sdk",
+          "atMs": 47645
+        },
+        {
+          "step": "queues",
+          "atMs": 49945
+        },
+        {
+          "step": "assemble",
+          "atMs": 53259
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 58367435\nuser_usec 55051790\nsystem_usec 3315645\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 586\nnr_throttled 573\nthrottled_usec 52762826\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2325061632"
+      },
+      "containerMs": 59296
+    },
+    {
+      "node": "v22.18.0",
+      "semiSpaceMb": 32,
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 3522
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 1081,
+            "workspace": 33,
+            "programs": 14701,
+            "imports": 3001,
+            "express": 105,
+            "next": 2025,
+            "prisma": 2399,
+            "infra": 56,
+            "files": 62,
+            "symbols": 167,
+            "calls": 14985,
+            "http": 8079,
+            "sdk": 2221,
+            "queues": 3193,
+            "assemble": 635
+          },
+          "peakRssBytes": 2061864960,
+          "heapBytes": 1918119936,
+          "gcMs": {
+            "incremental": 8,
+            "major": 917,
+            "minor": 5260
+          }
+        },
+        "durationMs": 54335
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 650
+        },
+        {
+          "step": "workspace",
+          "atMs": 1730
+        },
+        {
+          "step": "programs",
+          "atMs": 1764
+        },
+        {
+          "step": "imports",
+          "atMs": 16466
+        },
+        {
+          "step": "express",
+          "atMs": 19467
+        },
+        {
+          "step": "next",
+          "atMs": 19573
+        },
+        {
+          "step": "prisma",
+          "atMs": 21599
+        },
+        {
+          "step": "infra",
+          "atMs": 23998
+        },
+        {
+          "step": "files",
+          "atMs": 24055
+        },
+        {
+          "step": "symbols",
+          "atMs": 24117
+        },
+        {
+          "step": "calls",
+          "atMs": 24284
+        },
+        {
+          "step": "http",
+          "atMs": 39269
+        },
+        {
+          "step": "http",
+          "atMs": 47302
+        },
+        {
+          "step": "sdk",
+          "atMs": 47349
+        },
+        {
+          "step": "queues",
+          "atMs": 49570
+        },
+        {
+          "step": "assemble",
+          "atMs": 52763
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 57838120\nuser_usec 54505289\nsystem_usec 3332830\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 580\nnr_throttled 562\nthrottled_usec 54861830\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2354913280"
+      },
+      "containerMs": 58747
+    },
+    {
+      "node": "v22.18.0",
+      "semiSpaceMb": 64,
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 3546
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 1116,
+            "workspace": 37,
+            "programs": 14272,
+            "imports": 2909,
+            "express": 90,
+            "next": 2025,
+            "prisma": 2388,
+            "infra": 24,
+            "files": 70,
+            "symbols": 169,
+            "calls": 15188,
+            "http": 7815,
+            "sdk": 2120,
+            "queues": 3191,
+            "assemble": 603
+          },
+          "peakRssBytes": 2125520896,
+          "heapBytes": 1980985344,
+          "gcMs": {
+            "incremental": 8,
+            "major": 435,
+            "minor": 4807
+          }
+        },
+        "durationMs": 53662
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 644
+        },
+        {
+          "step": "workspace",
+          "atMs": 1760
+        },
+        {
+          "step": "programs",
+          "atMs": 1799
+        },
+        {
+          "step": "imports",
+          "atMs": 16072
+        },
+        {
+          "step": "express",
+          "atMs": 18981
+        },
+        {
+          "step": "next",
+          "atMs": 19070
+        },
+        {
+          "step": "prisma",
+          "atMs": 21096
+        },
+        {
+          "step": "infra",
+          "atMs": 23485
+        },
+        {
+          "step": "files",
+          "atMs": 23537
+        },
+        {
+          "step": "symbols",
+          "atMs": 23635
+        },
+        {
+          "step": "calls",
+          "atMs": 23776
+        },
+        {
+          "step": "http",
+          "atMs": 38964
+        },
+        {
+          "step": "http",
+          "atMs": 46762
+        },
+        {
+          "step": "sdk",
+          "atMs": 46780
+        },
+        {
+          "step": "queues",
+          "atMs": 48900
+        },
+        {
+          "step": "assemble",
+          "atMs": 52092
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 57198084\nuser_usec 53940356\nsystem_usec 3257727\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 573\nnr_throttled 557\nthrottled_usec 56898676\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2426040320"
+      },
+      "containerMs": 58111
+    },
+    {
+      "node": "v22.18.0",
+      "semiSpaceMb": null,
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 3426
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 1102,
+            "workspace": 37,
+            "programs": 14461,
+            "imports": 3008,
+            "express": 112,
+            "next": 2033,
+            "prisma": 2466,
+            "infra": 25,
+            "files": 82,
+            "symbols": 187,
+            "calls": 15195,
+            "http": 8089,
+            "sdk": 2203,
+            "queues": 3323,
+            "assemble": 687
+          },
+          "peakRssBytes": 2034823168,
+          "heapBytes": 1892671488,
+          "gcMs": {
+            "incremental": 7,
+            "major": 560,
+            "minor": 7363
+          }
+        },
+        "durationMs": 54629
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 630
+        },
+        {
+          "step": "workspace",
+          "atMs": 1732
+        },
+        {
+          "step": "programs",
+          "atMs": 1771
+        },
+        {
+          "step": "imports",
+          "atMs": 16234
+        },
+        {
+          "step": "express",
+          "atMs": 19242
+        },
+        {
+          "step": "next",
+          "atMs": 19355
+        },
+        {
+          "step": "prisma",
+          "atMs": 21388
+        },
+        {
+          "step": "infra",
+          "atMs": 23854
+        },
+        {
+          "step": "files",
+          "atMs": 23880
+        },
+        {
+          "step": "symbols",
+          "atMs": 23961
+        },
+        {
+          "step": "calls",
+          "atMs": 24148
+        },
+        {
+          "step": "http",
+          "atMs": 39343
+        },
+        {
+          "step": "http",
+          "atMs": 47390
+        },
+        {
+          "step": "sdk",
+          "atMs": 47432
+        },
+        {
+          "step": "queues",
+          "atMs": 49635
+        },
+        {
+          "step": "assemble",
+          "atMs": 52959
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 57944858\nuser_usec 54642978\nsystem_usec 3301880\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 582\nnr_throttled 567\nthrottled_usec 52419388\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2327744512"
+      },
+      "containerMs": 58910
+    },
+    {
+      "node": "v22.18.0",
+      "semiSpaceMb": 32,
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 3514
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 1045,
+            "workspace": 38,
+            "programs": 14337,
+            "imports": 2968,
+            "express": 115,
+            "next": 2009,
+            "prisma": 2405,
+            "infra": 29,
+            "files": 89,
+            "symbols": 169,
+            "calls": 14918,
+            "http": 7974,
+            "sdk": 2164,
+            "queues": 3219,
+            "assemble": 665
+          },
+          "peakRssBytes": 2063364096,
+          "heapBytes": 1918627840,
+          "gcMs": {
+            "incremental": 9,
+            "major": 594,
+            "minor": 5556
+          }
+        },
+        "durationMs": 53741
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 608
+        },
+        {
+          "step": "workspace",
+          "atMs": 1653
+        },
+        {
+          "step": "programs",
+          "atMs": 1692
+        },
+        {
+          "step": "imports",
+          "atMs": 16031
+        },
+        {
+          "step": "express",
+          "atMs": 18999
+        },
+        {
+          "step": "next",
+          "atMs": 19114
+        },
+        {
+          "step": "prisma",
+          "atMs": 21123
+        },
+        {
+          "step": "infra",
+          "atMs": 23528
+        },
+        {
+          "step": "files",
+          "atMs": 23558
+        },
+        {
+          "step": "symbols",
+          "atMs": 23647
+        },
+        {
+          "step": "calls",
+          "atMs": 23815
+        },
+        {
+          "step": "http",
+          "atMs": 38734
+        },
+        {
+          "step": "http",
+          "atMs": 46685
+        },
+        {
+          "step": "sdk",
+          "atMs": 46708
+        },
+        {
+          "step": "queues",
+          "atMs": 48872
+        },
+        {
+          "step": "assemble",
+          "atMs": 52091
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 57236869\nuser_usec 53946584\nsystem_usec 3290285\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 573\nnr_throttled 559\nthrottled_usec 53443019\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2357907456"
+      },
+      "containerMs": 58136
+    },
+    {
+      "node": "v22.18.0",
+      "semiSpaceMb": 64,
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 3458
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 1141,
+            "workspace": 40,
+            "programs": 14606,
+            "imports": 2851,
+            "express": 80,
+            "next": 2005,
+            "prisma": 2380,
+            "infra": 25,
+            "files": 85,
+            "symbols": 177,
+            "calls": 11989,
+            "http": 10945,
+            "sdk": 2157,
+            "queues": 3211,
+            "assemble": 635
+          },
+          "peakRssBytes": 2183618560,
+          "heapBytes": 2021257216,
+          "gcMs": {
+            "incremental": 9,
+            "major": 708,
+            "minor": 4505
+          }
+        },
+        "durationMs": 53994
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 641
+        },
+        {
+          "step": "workspace",
+          "atMs": 1782
+        },
+        {
+          "step": "programs",
+          "atMs": 1824
+        },
+        {
+          "step": "imports",
+          "atMs": 16431
+        },
+        {
+          "step": "express",
+          "atMs": 19282
+        },
+        {
+          "step": "next",
+          "atMs": 19362
+        },
+        {
+          "step": "prisma",
+          "atMs": 21368
+        },
+        {
+          "step": "infra",
+          "atMs": 23748
+        },
+        {
+          "step": "files",
+          "atMs": 23774
+        },
+        {
+          "step": "symbols",
+          "atMs": 23859
+        },
+        {
+          "step": "calls",
+          "atMs": 24037
+        },
+        {
+          "step": "http",
+          "atMs": 36025
+        },
+        {
+          "step": "http",
+          "atMs": 46951
+        },
+        {
+          "step": "sdk",
+          "atMs": 46971
+        },
+        {
+          "step": "queues",
+          "atMs": 49129
+        },
+        {
+          "step": "assemble",
+          "atMs": 52341
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 57460125\nuser_usec 54241406\nsystem_usec 3218718\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 576\nnr_throttled 562\nthrottled_usec 57497193\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2480594944"
+      },
+      "containerMs": 58326
+    }
+  ]
+}
