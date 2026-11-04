@@ -5,4 +5,4 @@
  */
 
 /** Version stamped into every graph. Part of the cache key, so bump it when output changes. */
-export const ANALYZER_VERSION = "0.1.0";
+export const ANALYZER_VERSION = "0.2.0";
