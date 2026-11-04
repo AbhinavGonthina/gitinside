@@ -394,23 +394,30 @@ export const DiffBare: Story = {
 /**
  * A row picked in the changes list (M6.9d): the explorer breaks the service
  * down to the removed route, selects it, and zooms in to read it; the
- * inspector lists the route's own change.
+ * inspector lists the route's own change. The play ends once focus is on
+ * the route's box, which is drawn a layout after the click (M5B.9: CI's shot
+ * sometimes came before it, without the focus ring).
  */
 export const DiffChangePicked: Story = {
   name: "Diff, change picked",
   render: () => <ExploreDiff />,
   play: async ({ canvasElement }) => {
-    for (let tries = 0; tries < 250; tries++) {
+    const route = '[data-node-id="route:diff-broken/DELETE /api/orders/:id"] > .gi-node';
+    let clicked = false;
+    for (let tries = 0; tries < 500; tries++) {
       const row = canvasElement.querySelector<HTMLElement>(
         '.gi-changes button[aria-label^="Removed: DELETE /api/orders/:id"]',
       );
-      if (row && canvasElement.querySelector('.gi-drill[data-layout="done"]')) {
+      if (!clicked && row && canvasElement.querySelector('.gi-drill[data-layout="done"]')) {
         row.click();
-        return;
+        clicked = true;
       }
+      if (clicked && document.activeElement === canvasElement.querySelector(route)) return;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    throw new Error("The changes list's row wasn't drawn");
+    throw new Error(
+      clicked ? "The picked route's box didn't get focus" : "The changes list's row wasn't drawn",
+    );
   },
 };
 
