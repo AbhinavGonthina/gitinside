@@ -2423,3 +2423,19 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - Draw records aren't eval inputs (`run.ts` excludes `eval/draws`): a repo reaches the scores only through `repos.json` with its labels (M5C.5b), so pinning doesn't touch the report.
 - **Alternatives rejected:** a seed from the snapshot's content (chosen after seeing the pool); one query for both stacks (repo search can't OR topics, and Next apps would crowd out SPAs or the reverse); stopping strata at a combined 16 (one stack could take the whole batch).
 - **Consequences:** batch 4 represents MIT-licensed, topic-tagged, starred, recently pushed repos of the two stacks, not all such apps: untagged repos are out of reach, and the inclusion rules (in scope, 20–400 source files, ≥ 5 requests to the repo's own routes) are part of what the numbers describe. Rejections are counted in the record, so the share of candidates in scope is reported too.
+
+## ADR-0209: Labels follow a literal host into the repo only with in-repo deployment evidence; committed generated code is labeled
+- **Status:** accepted (2026-11-04, M5C.5b1, #18)
+- **Context:** labeling batch 4's first four pins (M5C.5b1, before any run) raised two questions the label rules didn't settle.
+  - `hoangsonww/Tic-Tac-Toe-Fullstack-Game` sends every request to `process.env.REACT_APP_API_BASE || … || "https://tic-tac-toe-backend-api.vercel.app"`, the same host its `frontend/.env.example` sets. This is the question left open when `zayarlyn/jira-clone` was rejected in M5B.5 (EVALUATION.md). The draw pinned the repo under inclusion rule 4 (≥ 5 requests to the repo's own routes), reading that host as the repo's backend.
+  - `fiveman1/strafes-site` commits two swagger-typescript-api clients and wasm-bindgen glue, each headed as generated, with `fetch` calls and fixed paths in them.
+- **Options (host):**
+  1. Always `null` (external): a public host's code is deployment state. This would turn a pinned repo's 20 targets into abstentions and contradict the reading it was drawn under.
+  2. Always follow the host when its paths match the repo's routes: a guess when nothing in the repo ties the host to the server.
+  3. **Follow it only with in-repo evidence that the repo deploys that server there** (e.g. `backend/vercel.json` routing every path to the server), and only if every path sent to the host is one of its routes. The note records the evidence. Chosen.
+- **Options (generated code):** leave it out like build output, or treat it like an SDK library (unlabeled); or **label it as source**, since it is committed TS/JS that runs as written. Chosen, because "every request written in the repo's TS/JS source" covers it, and leaving it out would hide real external calls from the eval. Build output (`build/`, minified bundles) stays out of `scope`.
+- **Decision:**
+  - Tic-Tac-Toe's 20 requests are labeled with their routes in `backend/`. A host-is-external label stays the default whenever such evidence is missing.
+  - strafes-site's generated endpoints (14, all on external hosts) and its two glue fetches are labeled, `null`.
+  - Both rules are in EVALUATION.md §1. They were fixed from the code alone, before the analyzer ran on either repo.
+- **Consequences:** the analyzer can't know which code a public host runs, so Tic-Tac-Toe's targets are likely misses shown under `external host`. Recall then reports a deployment fact no static reading sees, and the report must say so when it quotes the batch. Generated files the analyzer skips would show as missing labels, so strafes-site can't count as mapped completely unless their sites get a prediction.

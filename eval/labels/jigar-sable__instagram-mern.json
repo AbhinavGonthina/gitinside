@@ -1,0 +1,265 @@
+{
+  "repo": "jigar-sable/instagram-mern",
+  "sha": "50e76f3c961553fd8ed5b09145c6063a75d8580b",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["backend", "frontend/src"],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/actions/chatAction.js", "line": 10 },
+      "method": "GET",
+      "target": { "file": "backend/routes/chatRoute.js", "line": 8, "route": "GET /api/v1/chats" },
+      "notes": "getAllChats(): axios.get('/api/v1/chats'), root-relative: CRA's dev proxy (frontend/package.json \"proxy\": \"http://localhost:4000\", server.js PORT defaults to 4000) or, in production, the same Express app that serves frontend/build. backend/app.js mounts the post, user, chat, and message routers (each an express() sub-app) at '/api/v1', in that order; each declares router.route(path).<method>(...) (route line = the method call)"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/chatAction.js", "line": 31 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/chatRoute.js",
+        "line": 7,
+        "route": "POST /api/v1/newChat"
+      },
+      "notes": "addNewChat(): axios.post('/api/v1/newChat', { receiverId })"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/messageAction.js", "line": 10 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/messageRoute.js",
+        "line": 8,
+        "route": "GET /api/v1/messages/:chatId"
+      },
+      "notes": "getAllMessages(): `/api/v1/messages/${chatId}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/messageAction.js", "line": 31 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/messageRoute.js",
+        "line": 7,
+        "route": "POST /api/v1/newMessage"
+      },
+      "notes": "sendMessage(): axios.post('/api/v1/newMessage/'), trailing slash matched by Express's default non-strict routing"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/postAction.js", "line": 11 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/postRoute.js",
+        "line": 8,
+        "route": "POST /api/v1/post/new"
+      },
+      "notes": "addNewPost(): axios.post('/api/v1/post/new', postData); registered before /post/:id's POST (line 18), so it wins"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/postAction.js", "line": 34 },
+      "method": "GET",
+      "target": { "file": "backend/routes/postRoute.js", "line": 12, "route": "GET /api/v1/posts" },
+      "notes": "getPostsOfFollowing(): `/api/v1/posts?page=${page}` inside a setTimeout; query string dropped"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/postAction.js", "line": 56 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/postRoute.js",
+        "line": 17,
+        "route": "GET /api/v1/post/:id"
+      },
+      "notes": "likePost(): axios.get(`/api/v1/post/${postId}`); router.route('/post/:id').get(likeUnlikePost)"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/postAction.js", "line": 77 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/postRoute.js",
+        "line": 22,
+        "route": "POST /api/v1/post/comment/:id"
+      },
+      "notes": "addComment(): `/api/v1/post/comment/${postId}`; two segments after /post, so /post/:id (one segment) doesn't match"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/postAction.js", "line": 97 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/postRoute.js",
+        "line": 18,
+        "route": "POST /api/v1/post/:id"
+      },
+      "notes": "savePost(): axios.post(`/api/v1/post/${postId}`); /post/:id chain's .post(saveUnsavePost). POST /post/new (line 8) is earlier but matches only the literal ID 'new'; the value is a post ID"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/postAction.js", "line": 117 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/routes/postRoute.js",
+        "line": 20,
+        "route": "DELETE /api/v1/post/:id"
+      },
+      "notes": "deletePost(): axios.delete(`/api/v1/post/${postId}`)"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/postAction.js", "line": 137 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/postRoute.js",
+        "line": 14,
+        "route": "GET /api/v1/post/detail/:id"
+      },
+      "notes": "getPostDetails(): `/api/v1/post/detail/${postId}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 15 },
+      "method": "POST",
+      "target": { "file": "backend/routes/userRoute.js", "line": 9, "route": "POST /api/v1/login" },
+      "notes": "loginUser(): axios.post('/api/v1/login', ...) spanning lines 15-19; the user router is mounted at '/api/v1' after the post router, which has no route matching /login"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 45 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 8,
+        "route": "POST /api/v1/signup"
+      },
+      "notes": "registerUser(): axios.post('/api/v1/signup', userData) (multipart)"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 70 },
+      "method": "GET",
+      "target": { "file": "backend/routes/userRoute.js", "line": 13, "route": "GET /api/v1/me" },
+      "notes": "loadUser(): axios.get('/api/v1/me'); router.route('/me').get(...).delete(...)"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 88 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 10,
+        "route": "GET /api/v1/logout"
+      },
+      "notes": "logoutUser(): axios.get('/api/v1/logout')"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 103 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 16,
+        "route": "GET /api/v1/user/:username"
+      },
+      "notes": "getUserDetails(): `/api/v1/user/${username}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 123 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 17,
+        "route": "GET /api/v1/userdetails/:id"
+      },
+      "notes": "getUserDetailsById(): `/api/v1/userdetails/${userId}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 145 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 19,
+        "route": "GET /api/v1/users/suggested"
+      },
+      "notes": "getSuggestedUsers(): axios.get('/api/v1/users/suggested') inside a setTimeout"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 166 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 22,
+        "route": "GET /api/v1/follow/:id"
+      },
+      "notes": "followUser(): `/api/v1/follow/${userId}` (follow/unfollow toggle is a GET)"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 193 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 27,
+        "route": "POST /api/v1/password/forgot"
+      },
+      "notes": "forgotPassword(): axios.post('/api/v1/password/forgot', { email }) spanning lines 193-197"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 224 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 28,
+        "route": "PUT /api/v1/password/reset/:token"
+      },
+      "notes": "resetPassword(): axios.put(`/api/v1/password/reset/${token}`, ...) spanning lines 224-228"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 255 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 24,
+        "route": "PUT /api/v1/update/profile"
+      },
+      "notes": "updateProfile(): axios.put('/api/v1/update/profile', userData) (multipart)"
+    },
+    {
+      "callSite": { "file": "frontend/src/actions/userAction.js", "line": 285 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 25,
+        "route": "PUT /api/v1/update/password"
+      },
+      "notes": "updatePassword(): axios.put('/api/v1/update/password', passwords)"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Chats/SearchModal.jsx", "line": 25 },
+      "method": "GET",
+      "target": { "file": "backend/routes/userRoute.js", "line": 20, "route": "GET /api/v1/users" },
+      "notes": "fetchUsers(): `/api/v1/users?keyword=${term}`; query string dropped. GET /users/suggested is registered earlier but has an extra segment"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Home/PostItem.jsx", "line": 35 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/postRoute.js",
+        "line": 14,
+        "route": "GET /api/v1/post/detail/:id"
+      },
+      "notes": "handleLike(): refetches `/api/v1/post/detail/${_id}` after dispatching likePost"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Home/PostItem.jsx", "line": 43 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/postRoute.js",
+        "line": 14,
+        "route": "GET /api/v1/post/detail/:id"
+      },
+      "notes": "handleComment(): refetches `/api/v1/post/detail/${_id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Home/PostItem.jsx", "line": 50 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/postRoute.js",
+        "line": 14,
+        "route": "GET /api/v1/post/detail/:id"
+      },
+      "notes": "handleSave(): refetches `/api/v1/post/detail/${_id}`"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Navbar/SearchBar/SearchBox.jsx", "line": 17 },
+      "method": "GET",
+      "target": { "file": "backend/routes/userRoute.js", "line": 20, "route": "GET /api/v1/users" },
+      "notes": "fetchUsers(): `/api/v1/users?keyword=${term}`; query string dropped"
+    }
+  ]
+}

@@ -1,0 +1,303 @@
+{
+  "repo": "fiveman1/strafes-site",
+  "sha": "006a01090d3bdd48c5a1d8bce82a318b32dee3da",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 50 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 161, "route": "GET /api/username" },
+      "notes": "getUserIdFromName: tryGetRequest(\"username\", params). tryGetRequest (line 30) appends the query and calls tryRequest, whose fetch(\"/api/\" + url, { method }) (line 20) is the helper's inner request, so each tryGetRequest/tryPostRequest call is the call site. The base is the page's own origin: in dev Vite (client/vite.config.ts) proxies /api to http://127.0.0.1:8080 (the server's PORT fallback, server/src/index.ts:61) unless VITE_USE_PROXY=true points it at the deployed site; in prod the same Express app serves client/build. Every route is registered directly on app in server/src/index.ts with its full /api path (no routers, no mounts)"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 59 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 212, "route": "GET /api/user/:id" },
+      "notes": "getUserData: tryGetRequest(\"user/\" + userId)"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 68 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 235, "route": "GET /api/user/rank/:id" },
+      "notes": "getUserRank: tryGetRequest(\"user/rank/\" + userId, { game, style }); two segments after /user, so GET /api/user/:id (registered first) doesn't match"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 78 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 355, "route": "GET /api/ranks" },
+      "notes": "getRanks: tryGetRequest(\"ranks\", { … })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 103 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 433, "route": "GET /api/times" },
+      "notes": "getTimeData: tryGetRequest(\"times\", { … })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 125 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.ts",
+        "line": 596,
+        "route": "GET /api/user/times/all/:id"
+      },
+      "notes": "getAllTimesForUser: tryGetRequest(\"user/times/all/\" + userId, { game, style })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 138 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.ts",
+        "line": 516,
+        "route": "GET /api/user/times/completions/:id"
+      },
+      "notes": "getCompletionsForUser: tryGetRequest(\"user/times/completions/\" + userId, { … })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 151 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.ts",
+        "line": 548,
+        "route": "GET /api/user/times/wrs/:id"
+      },
+      "notes": "getNumWRsForUser: tryGetRequest(\"user/times/wrs/\" + userId, { … })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 168 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 910, "route": "GET /api/maps" },
+      "notes": "getMaps: tryGetRequest(\"maps\")"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 184 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 179, "route": "GET /api/usersearch" },
+      "notes": "searchByUsername: tryGetRequest(\"usersearch\", { username })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 195 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 282, "route": "GET /api/wrs/leaderboard" },
+      "notes": "getLeaderboardPage: tryGetRequest(\"wrs/leaderboard\", { … })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 209 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 90, "route": "GET /api/auth/user" },
+      "notes": "getLoggedInUser: tryGetRequest(\"auth/user\")"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 217 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 78, "route": "GET /api/login" },
+      "notes": "login: tryGetRequest(\"login\", { path })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 227 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 82, "route": "GET /api/logout" },
+      "notes": "logout: tryGetRequest(\"logout\")"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 231 },
+      "method": "POST",
+      "target": { "file": "server/src/index.ts", "line": 157, "route": "POST /api/auth/settings" },
+      "notes": "updateSettings: tryPostRequest(\"auth/settings\", { … }); tryPostRequest (line 35) sends method \"POST\" through tryRequest"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 243 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 94, "route": "GET /api/auth/user/tiers" },
+      "notes": "getVotingInfo: tryGetRequest(\"auth/user/tiers\")"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 251 },
+      "method": "GET",
+      "target": { "file": "server/src/index.ts", "line": 109, "route": "GET /api/auth/tiers" },
+      "notes": "getCurrentMapTierVote: tryGetRequest(\"auth/tiers\", { mapId })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 261 },
+      "method": "POST",
+      "target": { "file": "server/src/index.ts", "line": 133, "route": "POST /api/auth/tiers" },
+      "notes": "voteForMapTier: tryPostRequest(\"auth/tiers\", { mapId, tier })"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 272 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.ts",
+        "line": 990,
+        "route": "GET /api/replays/times/:id"
+      },
+      "notes": "getReplayById: tryGetRequest(\"replays/times/\" + id)"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 284 },
+      "method": "GET",
+      "target": null,
+      "notes": "getBotFileResponse: fetch(url) with the url returned by GET /api/replays/bots/:id, which is the Location of the StrafesNET API's bot redirect (getBotDownloadURL, server/src/strafes_api/api.ts:166), a signed download URL on another host; the URL is only known at runtime"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 292 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.ts",
+        "line": 923,
+        "route": "GET /api/replays/bots/:id"
+      },
+      "notes": "getBotFileURL: tryGetRequest(\"replays/bots/\" + timeId)"
+    },
+    {
+      "callSite": { "file": "client/src/api/api.ts", "line": 300 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.ts",
+        "line": 960,
+        "route": "GET /api/replays/maps/:id"
+      },
+      "notes": "getMapFileURL: tryGetRequest(\"replays/maps/\" + mapId)"
+    },
+    {
+      "callSite": { "file": "client/src/components/playback/wasmModule.ts", "line": 8 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(wasmUrl), wasmUrl a Vite ?url import of the bundled .wasm file: a static asset (served by express.static from client/build), not a route"
+    },
+    {
+      "callSite": {
+        "file": "client/src/wasm/strafesnet_roblox_bot_player_wasm_module.js",
+        "line": 2380
+      },
+      "method": null,
+      "target": null,
+      "notes": "Generated wasm-bindgen glue (committed JS): the __wbg_fetch import calls fetch(getObject(arg0)) with a URL or Request handed over by the Rust player at runtime (map and bot downloads), so neither the URL nor the method is known statically. Labeled like the generated swagger clients: committed source, whatever wrote it"
+    },
+    {
+      "callSite": {
+        "file": "client/src/wasm/strafesnet_roblox_bot_player_wasm_module.js",
+        "line": 4144
+      },
+      "method": "GET",
+      "target": null,
+      "notes": "__wbg_init's fetch(module_or_path): the default is new URL('…_bg.wasm', import.meta.url) (line 4139), a bundled static asset, not a route. Both callers (components/Replays.tsx:515, playback/mapAssetWorker.ts:7) pass a compiled WebAssembly.Module, so no caller supplies a URL"
+    },
+    {
+      "callSite": { "file": "server/src/index.ts", "line": 188 },
+      "method": "GET",
+      "target": null,
+      "notes": "tryGetCached(\"https://apis.roproxy.com/search-api/omni-search\", { … }); tryGetCached is memoize(tryGetRequest) (server/src/requests.ts:7), whose axios.get(url, …) (requests.ts:15) is the helper's inner request. Roblox search API via roproxy (roblox.com when DISABLE_ROPROXY), external"
+    },
+    {
+      "callSite": { "file": "server/src/roles.ts", "line": 12 },
+      "method": "GET",
+      "target": null,
+      "notes": "tryGetRequest(`https://groups.roproxy.com/v1/groups/${groupId}/roles/${role}/users`, { … }); Roblox groups API, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/maps.ts", "line": 347 },
+      "method": "GET",
+      "target": null,
+      "notes": "Generated swagger-typescript-api client: getMap's this.request({ path: `/map`, method: \"GET\" }) fixes the path; HttpClient.request (line 234) builds `${baseUrl}${path}` and calls customFetch's fetch (line 109), the helper's inner request. MAPS_CLIENT is constructed with baseUrl \"https://maps.strafes.net/public-api/v1\" (server/src/strafes_api/api.ts:29), external. Unused by the app, but a request written in repo source"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/maps.ts", "line": 368 },
+      "method": "GET",
+      "target": null,
+      "notes": "getMap2: this.request({ path: `/map/${id}` }) on maps.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/maps.ts", "line": 386 },
+      "method": "GET",
+      "target": null,
+      "notes": "snfmList: this.request({ path: `/map/${id}/snfm` }) on maps.strafes.net (getMapDownloadURLCore, api.ts:181, reads its redirect Location), external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 433 },
+      "method": "GET",
+      "target": null,
+      "notes": "Generated swagger-typescript-api client: getMap's this.request({ path: `/map`, method: \"GET\" }); HttpClient.request (line 320) prefixes baseUrl and calls customFetch's fetch (line 195). The class default baseUrl \"/api/v1\" (line 190) is overridden by STRAFES_CLIENT's \"https://api.strafes.net/api/v1\" (server/src/strafes_api/api.ts:18), external; nothing in the repo serves /api/v1 anyway"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 454 },
+      "method": "GET",
+      "target": null,
+      "notes": "getMap2: this.request({ path: `/map/${id}` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 500 },
+      "method": "GET",
+      "target": null,
+      "notes": "rank.rankList: this.request({ path: `/rank` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 547 },
+      "method": "GET",
+      "target": null,
+      "notes": "timeList: this.request({ path: `/time` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 572 },
+      "method": "GET",
+      "target": null,
+      "notes": "placementList: this.request({ path: `/time/placement` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 613 },
+      "method": "GET",
+      "target": null,
+      "notes": "worldrecordList: this.request({ path: `/time/worldrecord` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 632 },
+      "method": "GET",
+      "target": null,
+      "notes": "timeDetail: this.request({ path: `/time/${id}` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 650 },
+      "method": "GET",
+      "target": null,
+      "notes": "time.getTime: this.request({ path: `/time/${id}/bot` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 686 },
+      "method": "GET",
+      "target": null,
+      "notes": "userList: this.request({ path: `/user` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 705 },
+      "method": "GET",
+      "target": null,
+      "notes": "userDetail: this.request({ path: `/user/${id}` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/strafes_api/generated/strafes.ts", "line": 731 },
+      "method": "GET",
+      "target": null,
+      "notes": "user.rankList: this.request({ path: `/user/${id}/rank` }) on api.strafes.net, external"
+    },
+    {
+      "callSite": { "file": "server/src/users.ts", "line": 69 },
+      "method": "GET",
+      "target": null,
+      "notes": "tryGetRequest(\"https://thumbnails.roblox.com/v1/users/avatar-headshot\", { … }); Roblox thumbnails API, external"
+    },
+    {
+      "callSite": { "file": "server/src/users.ts", "line": 96 },
+      "method": "POST",
+      "target": null,
+      "notes": "tryPostCached(\"https://users.roblox.com/v1/usernames/users\", { usernames }); tryPostCached is memoize(tryPostRequest), whose axios.post (requests.ts:27) is the inner request. Roblox users API, external"
+    },
+    {
+      "callSite": { "file": "server/src/users.ts", "line": 109 },
+      "method": "GET",
+      "target": null,
+      "notes": "tryGetCached(\"https://users.roblox.com/v1/users/\" + userId); Roblox users API, external"
+    }
+  ]
+}
