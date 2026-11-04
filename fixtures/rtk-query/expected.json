@@ -237,6 +237,36 @@
       "to": "unresolved:task-board/store/labels.ts:6:19"
     },
     {
+      "confidence": "unresolved",
+      "from": "symbol:task-board/store/session.ts#sessionApi",
+      "id": "http:symbol:task-board/store/session.ts#sessionApi->unresolved:task-board/store/session.ts:24:9",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 9,
+          "file": "store/session.ts",
+          "line": 24
+        }
+      ],
+      "to": "unresolved:task-board/store/session.ts:24:9"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:task-board/store/session.ts#sessionApi",
+      "id": "http:symbol:task-board/store/session.ts#sessionApi->unresolved:task-board/store/session.ts:25:13",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 13,
+          "file": "store/session.ts",
+          "line": 25
+        }
+      ],
+      "to": "unresolved:task-board/store/session.ts:25:13"
+    },
+    {
       "confidence": "exact",
       "from": "file:task-board/pages/index.tsx",
       "id": "imports:file:task-board/pages/index.tsx->file:task-board/hooks/stats.ts",
@@ -363,6 +393,14 @@
       "label": "labels.ts",
       "parentId": "module:task-board/store",
       "path": "store/labels.ts"
+    },
+    {
+      "hash": "95c443e8dffbc912efda49e941dae11856e3c326deb0b2f7b4b4e10553c54117",
+      "id": "file:task-board/store/session.ts",
+      "kind": "file",
+      "label": "session.ts",
+      "parentId": "module:task-board/store",
+      "path": "store/session.ts"
     },
     {
       "id": "module:task-board/hooks",
@@ -665,6 +703,63 @@
       "symbolKind": "variable"
     },
     {
+      "exported": false,
+      "id": "symbol:task-board/store/session.ts#baseQueryWithReauth",
+      "kind": "symbol",
+      "label": "baseQueryWithReauth",
+      "parentId": "file:task-board/store/session.ts",
+      "requiredParams": 3,
+      "source": {
+        "column": 7,
+        "endLine": 18,
+        "file": "store/session.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/session.ts#sessionApi",
+      "kind": "symbol",
+      "label": "sessionApi",
+      "parentId": "file:task-board/store/session.ts",
+      "source": {
+        "column": 14,
+        "endLine": 27,
+        "file": "store/session.ts",
+        "line": 20
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/session.ts#useLogOutMutation",
+      "kind": "symbol",
+      "label": "useLogOutMutation",
+      "parentId": "file:task-board/store/session.ts",
+      "source": {
+        "column": 28,
+        "endLine": 29,
+        "file": "store/session.ts",
+        "line": 29
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/session.ts#useMeQuery",
+      "kind": "symbol",
+      "label": "useMeQuery",
+      "parentId": "file:task-board/store/session.ts",
+      "source": {
+        "column": 16,
+        "endLine": 29,
+        "file": "store/session.ts",
+        "line": 29
+      },
+      "symbolKind": "variable"
+    },
+    {
       "id": "system:root",
       "kind": "system",
       "label": "rtk-query",
@@ -696,6 +791,34 @@
         "column": 19,
         "file": "store/labels.ts",
         "line": 6
+      }
+    },
+    {
+      "detail": "the RTK Query baseQuery isn't fetchBaseQuery, and a custom base query isn't followed",
+      "expression": "query<{ name: string }, void>({ query: () => \"…\" })",
+      "id": "unresolved:task-board/store/session.ts:24:9",
+      "kind": "unresolved",
+      "label": "? query<{ name: string }, void>({ query: () => \"…\" })",
+      "parentId": "service:task-board/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 9,
+        "file": "store/session.ts",
+        "line": 24
+      }
+    },
+    {
+      "detail": "the RTK Query baseQuery isn't fetchBaseQuery, and a custom base query isn't followed",
+      "expression": "mutation<void, void>({ query: () => ({ url: \"…\", method: \"DELETE\" }) })",
+      "id": "unresolved:task-board/store/session.ts:25:13",
+      "kind": "unresolved",
+      "label": "? mutation<void, void>({ query: () => ({ url: \"…\", method: \"DELETE\" }) })",
+      "parentId": "service:task-board/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 13,
+        "file": "store/session.ts",
+        "line": 25
       }
     }
   ],
