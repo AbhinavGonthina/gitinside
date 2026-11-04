@@ -23,7 +23,7 @@ on:
         description: Runs (a fresh container each)
         default: "3"
       semi_space:
-        description: Child semi-space caps in MiB, comma-separated, runs cycle through them ("default" is V8's own)
+        description: Child semi-space caps in MiB, comma-separated, runs cycle through them ("default" is the runner's, ADR-0198)
         default: default
 
 permissions:

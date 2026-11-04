@@ -132,6 +132,7 @@ switch (job.owner) {
       worker: await attempt(() => new Worker("0", { eval: true })),
       env: Object.keys(process.env).sort(),
       heapFlag: process.execArgv.find((flag) => flag.startsWith("--max-old-space-size")),
+      semiSpaceFlag: process.execArgv.find((flag) => flag.startsWith("--max-semi-space-size")),
     });
     break;
   case "cache": {
