@@ -1,6 +1,6 @@
 # M5B review: Batch 2's misses + a fresh blind batch 3
 
-**Tag:** `m5b` (after the review fixes M5B.7b–e and the re-check M5B.7f) · **Range:** `c6540a3..797d3f4`, M5B commits only (M5B.1–M5B.6; M5.17e6's worker migrations, `19af335`, are interleaved and belong to M5) · **Date:** 2026-11-03
+**Tag:** `m5b`, after the review fixes M5B.7b–e and the re-check M5B.7f (2026-11-04) · **Range:** `c6540a3..797d3f4`, M5B commits only (M5B.1–M5B.6; M5.17e6's worker migrations, `19af335`, are interleaved and belong to M5); fixes `54a7de5`, `53293dd`, `b4b42f3`, `97e135b`, `d123148` · **Date:** 2026-11-03
 
 ## What was built
 
@@ -30,7 +30,7 @@ Four new fixtures with goldens: `next-connect`, `swr-fetchers`, `next-method-exc
   | Held-out batch 2 (now *seen*) | 45.8% (11/24), 35.5% (11/31), blind | **100.0% (31/31), 100.0% (31/31)**, all `exact`; recall 77.4% after M5B.1, 96.8% after M5B.2, 100.0% after M5B.2c |
   | Held-out batch 3 (*unseen*, scored once) | n/a | **100.0% (45/45), 64.3% (45/70)** ([blind run at `08caa77`](https://github.com/AbhinavGonthina/gitinside/blob/08caa77/eval/results/2026-11-03-0.1.0.md#held-out-batch-3-unseen)) |
 
-  Batch 3 is the generalization result, and it's below the 80% recall target: trendz 45/45 (TanStack Query over an axios instance, all `heuristic`), Recipen 0/25. Every Recipen miss has one cause (C1 in the [diagnosis](../../eval/results/2026-11-batch3-diagnosis.md)): its RTK API's `baseQuery` is RTK's documented re-auth wrapper around a `fetchBaseQuery` result, which ADR-0196 doesn't follow. Whether to loop again for it is asked in #18 (M5B.6b, blocked).
+  Batch 3 is the generalization result, and it's below the 80% recall target: trendz 45/45 (TanStack Query over an axios instance, all `heuristic`), Recipen 0/25. Every Recipen miss has one cause (C1 in the [diagnosis](../../eval/results/2026-11-batch3-diagnosis.md)): its RTK API's `baseQuery` is RTK's documented re-auth wrapper around a `fetchBaseQuery` result, which ADR-0196 doesn't follow. Abhinav's answer on #18 (2026-11-04): no more batch-by-batch loops. M5C covers the common calling and receiving patterns from a ranked list instead (C1 first, M5C.2), then scores one fresh blind sample.
 
 ## Key decisions and trade-offs
 
@@ -45,9 +45,9 @@ Four new fixtures with goldens: `next-connect`, `swr-fetchers`, `next-method-exc
 
 ## What's still weak
 
-- **Generalization is still below target:** 64.3% blind recall on batch 3, all from one unread wrapper (C1), and the 25 missed sites aren't even shown as unresolved (finding 1).
+- **Generalization is still below target:** 64.3% blind recall on batch 3, all from one unread wrapper (C1). Since M5B.7b the missed endpoints at least show as unresolved with a reason; following the wrapper is M5C.2.
 - **Small sample:** 12 hobby-size repos, 330 labels; labels unreviewed (#1).
-- **The `ALL` fallbacks are coarse:** an `ALL` route can match a client's wrong-method call, which hides a broken connection from the PR bot (finding 5).
+- **The `ALL` fallbacks are coarse:** an `ALL` route can match a client's wrong-method call, which hides a broken connection from the PR bot (finding 5). M5B.7d narrowed it the other way: a negated block answering with a synchronous call (`res.json(getSettings())`) or doing its only work in a statement call named like a log level (`audit.log(entry)`) now reads as a refusal, so its `ALL` route is missing and a client's call to it shows as unresolved (re-check findings R2–R3; ADR-0195 names the cost).
 - **Generated RTK hooks aren't followed:** requests are drawn from the API slice, not from the components calling `use…Query`.
 - **URL builders aren't evaluated:** in the smoke test, `useSWR(id ? restEndpoints.tool(id) : null, fetcher)` stays `DYNAMIC_URL` because `tool: (id) => \`/api/tool/${id}\`` is a function returning a URL, not a request. That's visible with its reason, but a link a reader would expect.
 
@@ -57,12 +57,30 @@ A subagent with no prior context reviewed M5B's commits (analyzer, viewer, eval,
 
 | # | Severity | Finding | Outcome |
 |---|---|---|---|
-| 1 | Medium | RTK endpoints under a custom `baseQuery` give no request and no unresolved node (`http.ts` `rtkEndpoint` returns `[]`), so a call site vanishes; "fail visibly" broken. Batch 3's 25 misses are this. | Fixed in M5B.7b (`54a7de5`): one unresolved `DYNAMIC_URL` site per endpoint, its detail saying the base query isn't followed; Recipen's missing sites 25 → 1, scores unchanged. The forwarding fix itself stays M5B.6b (#18) |
+| 1 | Medium | RTK endpoints under a custom `baseQuery` give no request and no unresolved node (`http.ts` `rtkEndpoint` returns `[]`), so a call site vanishes; "fail visibly" broken. Batch 3's 25 misses are this. | Fixed in M5B.7b (`54a7de5`): one unresolved `DYNAMIC_URL` site per endpoint, its detail saying the base query isn't followed; Recipen's missing sites 25 → 1, scores unchanged. Following the wrapper is M5C.2 (#18) |
 | 2 | Low–medium | A next-connect router declared in a shared file and exported: only its own file is walked (`connectRouter`), so `pages/api/a.ts`'s `r.get` and `b.ts`'s `r.post` on one v0 instance give GET-only and POST-only, no warning. Same for `.use(subRouter)`. | Fixed in M5B.7c (`53293dd`): a module-level router from another file, an exported one, and `.use(x)` with a next-connect router each keep `ALL` with `NEXT_CONNECT_UNSEEN_METHODS`; scores unchanged |
 | 3 | Low | `.all(h)` plus any unseen reason adds `ALL` twice (`next.ts` `connectRoutes`), so `NEXT_DUPLICATE_ROUTE` says the file duplicates itself. | Fixed in M5B.7c (`53293dd`), confirmed red by a mutation check |
 | 4 | Low | `export { handler as default }` is read as the router escaping (`use` exempts only `ExportAssignment`): a spurious warning and `ALL` route. | Fixed in M5B.7c (`53293dd`), red first |
 | 5 | Low | A negated guard's refusal with any other call (`log.warn(…)`, `res.json({ error: t("…") })`) reads as serving, adding `ALL`. | Fixed in M5B.7d (`b4b42f3`): a log-level method called as a statement and synchronous calls in an answer's arguments aren't work (an awaited one is); ADR-0195 amended, scores unchanged |
 | 6 | Low (docs) | A destructured RTK builder (`({ query }) => …`) isn't read and isn't in `http.ts`'s "not handled" list; a router with only unseen registrations drops its `NEXT_CONNECT_UNSEEN_METHODS` warnings. | RTK part fixed in M5B.7b: a builder destructured in the `endpoints` parameter is read; `const { query } = build` listed as not handled. Warnings fixed in M5B.7c (`53293dd`): a router with only unseen registrations keeps them |
+
+## Re-check after the fixes (M5B.7f, 2026-11-04)
+
+- **Tests (local at `667571f`, `npx turbo run test --force`, 0 of 15 cached):** 3,919 passed, 4 skipped, nothing failed: analyzer 1,071, viewer 1,090, web 650, worker 627 (+1 skipped), db 142 (+3 skipped), diff 122, bench 95, eval 89, schema 33. After the `KEY_FORMAT` bump (`d123148`): analyzer 1,071/1,071, root typecheck and lint clean.
+- **Coverage (CI run 41821296763 on `cd52687`):** analyzer 97.67% lines, 91.11% branches (target 85%); `next.ts` 97.51% / 90.5%, `http.ts` 98.19% / 90.61%, `wrappers.ts` 95.96% / 90.7%, `prisma.ts` 95.65% / 86.51%, `incremental.ts` 100% / 89.77%. Diff 99.01% / 93.61%. Every other package ≥ 94.62% lines (target 70%).
+- **Accuracy:** no delta from any fix. The report at `d123148` ([2026-11-04-0.2.0](../../eval/results/2026-11-04-0.2.0.md)) has the same counts as at `797d3f4`, and `pnpm eval --check` reproduced it byte for byte. Batch 3's blind result stays quoted as measured: 100.0% (45/45) precision, 64.3% (45/70) recall.
+- **CI:** all five jobs green on `cd52687` after one rerun. The `visual` job failed `Explorer / Diff, change picked` on `0b0c70f` (dark, 951 px) and on `cd52687` (light, 947 px), the ~950 px flake first seen in M5B.1; a rerun passed it, and the deploy then shipped. M5B.9 makes it stable.
+
+A second fresh-eyes review (a subagent with no prior context, read-only) went through the four fix commits. It found no repo-specific cases (no eval repo names in `packages/`), no nondeterminism, the "not handled" lists updated in each detector, and regression tests for every finding.
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| R1 | Medium | `97e135b` changed what a service's cached Prisma facts hold but left `KEY_FORMAT` at 13 (`ANALYZER_VERSION` is still 0.2.0), so a worker's `/tmp` cache from before it would reuse old facts for an unchanged service: `prisma().tool.findMany()` again with no edge and no unresolved node, and warm ≠ cold | Fixed in `d123148` (`KEY_FORMAT` 14), deployed with run 41821296763. No eval delta |
+| R2 | Medium (accepted) | Since M5B.7d, a negated block answering with a synchronous call (`return res.status(200).json(getSettings())`) reads as a refusal, so its `ALL` route is missing | Accepted: the cost is named in ADR-0195's amendment, and a client's call to such a route shows as unresolved (`NO_MATCHING_ROUTE`), not as a wrong edge. Listed under weaknesses |
+| R3 | Low (accepted) | A statement call named like a log level (`await audit.log(entry)`) as a negated block's only work reads as a log line, with the same effect as R2 | Accepted, as R2 |
+| R4 | Low | `export const router = nc(); export { router as handler };` adds the "is exported" reason twice, so `NEXT_CONNECT_UNSEEN_METHODS` is warned twice for one file | Follow-up M5B.8 |
+| R5 | Low (known) | The re-auth wrapper's own refresh call (`rawBaseQuery("session/refresh", …)`) is neither an edge nor an unresolved node | Documented under `http.ts`'s "not handled"; M5C.2 follows the wrapper and its refresh call |
+| R6 | Low (accepted) | The callee-name rule draws a `heuristic` edge for `createPrismaMock().user.findMany()` | Accepted: edges from it are marked `heuristic`, and a negative case (`cache()`) is tested |
 
 ## Smoke test
 
