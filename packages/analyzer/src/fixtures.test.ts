@@ -29,6 +29,7 @@ const NAMES = [
   "next-connect",
   "next-method-exclusions",
   "swr-fetchers",
+  "rtk-query",
   "prisma-relations",
   "pnpm-monorepo",
   "syntax-error",
@@ -128,6 +129,19 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
     ]);
     expect(links(g, "external_call")).toEqual([
       "route:notes/GET /api/notes/:id -> external:ext/notes-archive.example.com exact",
+    ]);
+  });
+
+  it("rtk-query makes each RTK Query endpoint a request from its API slice (ADR-0196)", async () => {
+    const g = await run("rtk-query");
+    expect(links(g, "http")).toEqual([
+      "symbol:task-board/hooks/stats.ts#useStats -> route:task-board/ALL /api/stats exact",
+      "symbol:task-board/hooks/stats.ts#useStats -> unresolved:task-board/hooks/stats.ts:10:32 unresolved DYNAMIC_URL",
+      "symbol:task-board/store/api.ts#tasksApi -> route:task-board/GET /api/tasks exact",
+      "symbol:task-board/store/api.ts#tasksApi -> route:task-board/GET /api/tasks/:id exact",
+      "symbol:task-board/store/api.ts#tasksApi -> route:task-board/PATCH /api/tasks/:id exact",
+      "symbol:task-board/store/api.ts#tasksApi -> route:task-board/POST /api/tasks exact",
+      "symbol:task-board/store/labels.ts#labelsApi -> unresolved:task-board/store/labels.ts:6:19 unresolved NO_MATCHING_ROUTE",
     ]);
   });
 

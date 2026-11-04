@@ -92,7 +92,8 @@
  *   reaching axios (`axios.get(...args)`) or `fetch` with other arguments around it;
  *   `SWRConfig` values that are functions or spread
  *   props, a `fetcher` passed in the third (options) argument, `useSWRSubscription`, `mutate`,
- *   other data-fetching libraries (TanStack Query, RTK Query: M5B.3), and SWR required with
+ *   other data-fetching libraries (TanStack Query's key in its `queryFn`'s context, RTK Query's
+ *   generated hooks: `http.ts`, ADR-0196), and SWR required with
  *   `require()` or reached through a namespace import or a re-export.
  */
 import ts from "typescript";

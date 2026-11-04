@@ -1,0 +1,3 @@
+# rtk-query
+
+Tests: RTK Query endpoints as requests (ADR-0196). `store/api.ts`'s `createApi` uses `fetchBaseQuery({ baseUrl: "/api/" })`, so each endpoint's `query` is a `fetch` RTK makes: `listTasks` and `getTask` are `GET`s, `addTask` a `POST`, and `finishTask` (a `query` method) a `PATCH`, each drawn from `tasksApi` at its `builder.query(…)` call. `countTasks` has a `queryFn`, no request. `store/labels.ts` injects `listLabels` into the same API, so it takes `tasksApi`'s base; `/labels` has no route, so it is unmatched. `hooks/stats.ts` holds two TanStack Query hooks: a `queryFn` calling `fetch` with its own URL resolves, and one reading the URL from `queryKey` stays unresolved (not followed). The page calls the generated hooks, which aren't linked to the endpoints.
