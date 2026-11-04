@@ -48,6 +48,8 @@ How they were chosen:
 
 **Held-out batch 3, first and only blind measurement** (M5B.6, 2026-11-03, [`eval/results/2026-11-03-0.1.0.md` at `08caa77`](https://github.com/AbhinavGonthina/gitinside/blob/08caa77/eval/results/2026-11-03-0.1.0.md#held-out-batch-3-unseen), GitInside `cc035be`; labels committed in `b8d86a1` and `cc035be`, before the analyzer first ran on either repo): precision 100.0% (45/45), recall 64.3% (45/70), below the 80% target; trendz 100.0% (45/45) both, all `heuristic`; Recipen n/a / 0.0% (0/25), no prediction at any of its 25 call sites; both `null` labels abstained. The one cause (C1: an RTK Query API whose `baseQuery` is a repo re-authorization wrapper around a `fetchBaseQuery` result, which ADR-0196 doesn't follow) is in [the batch 3 diagnosis](../eval/results/2026-11-batch3-diagnosis.md) and is not fixed in M5B.6. Batch 3 stays unseen until a fix is chosen with its misses in view.
 
+**Coverage plan instead of batch loops** (M5C, Abhinav on #18, 2026-11-04): [COVERAGE.md](COVERAGE.md) ranks the ways React/Next apps send requests and Express/Next receive them by measured use (GitHub code search counts, with npm downloads and the eval set as cross-checks; sources, queries, and dates there). It marks each pattern handled, partial, or not handled, with its ADR. Each gap is then covered as a general pattern with a fixture, a golden test, and an ADR (M5C.2–3), and one fresh blind sample, drawn by a recorded rule, is scored after that (M5C.5).
+
 The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MIT-licensed React + Express apps, read but never analyzed):
 
 | Candidate | How it calls its API | Source files | Status |
