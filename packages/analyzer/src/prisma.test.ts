@@ -468,6 +468,45 @@ describe("buildPrisma via analyze", () => {
     ]);
   });
 
+  it("trusts a factory's declared client return type when its body can't be traced", async () => {
+    // The shape of a Next.js starter's `services/prisma.ts` (M5B smoke test): the cached
+    // client lives on an untyped `global` under `// @ts-ignore`, so only the signature says
+    // what the factory returns.
+    await app();
+    await put(
+      "tsconfig.json",
+      JSON.stringify({ compilerOptions: { baseUrl: "." }, exclude: ["pages"] }),
+    );
+    await put("prisma/schema.prisma", SCHEMA);
+    await put("services/prisma.ts", [
+      "import { PrismaClient } from '@prisma/client';",
+      "export * from '@prisma/client';",
+      "export default function prisma(): PrismaClient {",
+      "  // @ts-ignore",
+      "  global.prisma = global.prisma || new PrismaClient();",
+      "  // @ts-ignore",
+      "  return global.prisma;",
+      "}",
+      "// @ts-ignore",
+      "export const getDb = (): PrismaClient => global.prisma;",
+    ]);
+    await put("pages/api/user.ts", [
+      "import prisma, { getDb } from 'services/prisma';",
+      "export default async function handler() {",
+      "  await prisma().post.create({ data: { title: 't' } });",
+      "  return prisma().user.findMany();",
+      "}",
+      "export const one = () => getDb().user.findUnique({ where: { id: 1 } });",
+    ]);
+    const graph = await analyze(dir);
+    expect(usage(graph)).toEqual([
+      "reads symbol:api/pages/api/user.ts#handler -> model:api/User (exact)",
+      "reads symbol:api/pages/api/user.ts#one -> model:api/User (exact) [id]",
+      "writes symbol:api/pages/api/user.ts#handler -> model:api/Post (exact) [title]",
+    ]);
+    expect(unresolved(graph)).toEqual([]);
+  });
+
   it("attributes calls in inline Express handlers to their routes", async () => {
     await app("api", { express: "4" });
     await put("schema.prisma", SCHEMA);
@@ -561,10 +600,14 @@ describe("buildPrisma via analyze", () => {
       "export async function notPrisma(cache: any) { return cache.user.findMany(); }",
       "export async function notModel(db: any) { return db.comment.findMany(); }",
       "export async function notOp(db: any) { return db.user.findAll(); }",
+      "export async function viaFactory(ctx: any) { return ctx.prisma().user.count(); }",
+      "export async function viaCall(getDb: any) { return getDb().post.findMany(); }",
+      "export async function notFactory(cache: any) { return cache().user.findMany(); }",
     ]);
     const graph = await analyze(dir);
     expect(usage(graph)).toEqual([
       "reads symbol:api/src/trpc.ts#list -> model:api/User (heuristic)",
+      "reads symbol:api/src/trpc.ts#viaFactory -> model:api/User (heuristic)",
       "writes symbol:api/src/trpc.ts#viaTx -> model:api/Post (heuristic)",
     ]);
     expect(unresolved(graph)).toEqual([]);

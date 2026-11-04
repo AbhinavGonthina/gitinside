@@ -27,11 +27,16 @@
  *   imports (workspace packages too, via the shared resolver), `export default`, CommonJS
  *   exports, class properties, `??`/`||`, ternaries, `await`, `$extends(…)`, and factory
  *   functions, to `new PrismaClient()` (or a class extending it), or to a declaration typed
- *   `PrismaClient`, `Prisma.TransactionClient`, or such a class. The first parameter of a
- *   callback passed to `client.$transaction` is a client too. Those edges are `exact`.
- * - Receivers the checker can't trace (untyped `ctx.db`) still count when their name is
- *   `db`, `database`, `client`, `tx`, `trx`, or contains `prisma`, and the model and op
- *   match; those edges are `heuristic`.
+ *   `PrismaClient`, `Prisma.TransactionClient`, or such a class. A factory's declared return
+ *   type counts on its own (`function prisma(): PrismaClient`, whose body returns an untyped
+ *   `global.prisma` under `@ts-ignore`). The first parameter of a callback passed to
+ *   `client.$transaction` is a client too. Those edges are `exact`.
+ * - Receivers the checker can't trace (untyped `ctx.db`, or a call of an untyped
+ *   `ctx.prisma()`, named by its callee) still count when their name is `db`, `database`,
+ *   `client`, `tx`, `trx`, or contains `prisma`, and the model and op match; those edges are
+ *   `heuristic`. Other untraced receivers give no edge and no `unresolved` node: a call
+ *   shaped like `x.user.findMany()` on a value that isn't known to be a client is most often
+ *   not Prisma at all (a cache, a repository, a mock).
  * - The model is looked up in the schema of the service that created (or typed) the client,
  *   else of the calling service, else the single service whose schema has it (`heuristic`
  *   when several services have schemas). Several candidates make an `unresolved` node with
@@ -1067,7 +1072,11 @@ export function collectPrismaFacts(
         declaration && ts.isVariableDeclaration(declaration) && declaration.initializer
           ? unwrap(declaration.initializer)
           : declaration;
-      if (!fn || !isFunctionWithBody(fn)) return undefined;
+      if (!fn || !ts.isFunctionLike(fn)) return undefined;
+      // `function prisma(): PrismaClient { return global.prisma; }`: the signature says what
+      // a body the checker can't follow (an untyped `global` under `@ts-ignore`) returns.
+      if (isClientType(sp, fn.type)) return exact(sp, fn);
+      if (!isFunctionWithBody(fn)) return undefined;
       for (const returned of returnedExpressions(fn)) {
         const found = clientOf(sp, returned, hops + 1);
         if (found) return found;
@@ -1135,10 +1144,12 @@ export function collectPrismaFacts(
       const receiver = unwrap(delegate.expression);
       const origin = clientOf(sp, receiver, 0);
       if (!origin) {
-        const name = ts.isIdentifier(receiver)
-          ? receiver.text
-          : ts.isPropertyAccessExpression(receiver)
-            ? receiver.name.text
+        // A factory's call (`ctx.prisma().user`) is named by its callee.
+        const named = ts.isCallExpression(receiver) ? unwrap(receiver.expression) : receiver;
+        const name = ts.isIdentifier(named)
+          ? named.text
+          : ts.isPropertyAccessExpression(named)
+            ? named.name.text
             : undefined;
         if (name === undefined || !CLIENT_NAME.test(name)) return;
       }
