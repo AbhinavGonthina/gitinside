@@ -1,0 +1,4 @@
+{
+  "name": "roster",
+  "dependencies": { "next": "13", "react": "18" }
+}

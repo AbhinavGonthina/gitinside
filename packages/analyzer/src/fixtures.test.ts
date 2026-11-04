@@ -27,6 +27,7 @@ const NAMES = [
   "next-app-router",
   "next-pages-api",
   "next-connect",
+  "next-method-exclusions",
   "swr-fetchers",
   "prisma-relations",
   "pnpm-monorepo",
@@ -127,6 +128,24 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
     ]);
     expect(links(g, "external_call")).toEqual([
       "route:notes/GET /api/notes/:id -> external:ext/notes-archive.example.com exact",
+    ]);
+  });
+
+  it("next-method-exclusions reads which way a req.method test points (ADR-0195)", async () => {
+    const g = await run("next-method-exclusions");
+    expect(ids(g, "route")).toEqual([
+      "route:roster/ALL /api/invites",
+      "route:roster/ALL /api/members",
+      "route:roster/GET /api/teams",
+      "route:roster/POST /api/invites",
+    ]);
+    expect(links(g, "http")).toEqual([
+      "symbol:roster/pages/index.tsx#dropMember -> route:roster/ALL /api/members exact",
+      "symbol:roster/pages/index.tsx#loadInvites -> route:roster/ALL /api/invites exact",
+      "symbol:roster/pages/index.tsx#loadMembers -> route:roster/ALL /api/members exact",
+      "symbol:roster/pages/index.tsx#loadTeams -> route:roster/GET /api/teams exact",
+      "symbol:roster/pages/index.tsx#renameTeam -> unresolved:roster/pages/index.tsx:22:10 unresolved NO_MATCHING_ROUTE",
+      "symbol:roster/pages/index.tsx#sendInvite -> route:roster/POST /api/invites exact",
     ]);
   });
 
