@@ -1,4 +1,4 @@
-STATUS: BLOCKED paused by Abhinav (set STATUS: RUNNING to resume)
+STATUS: RUNNING
 AUTONOMY: ON
 
 # Progress
