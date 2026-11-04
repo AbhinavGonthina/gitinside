@@ -248,6 +248,66 @@ describe("buildServicePrograms", () => {
     ]);
   });
 
+  describe("a file loaded by several services", () => {
+    const shared = "packages/shared/x.ts";
+    const workspace = {
+      "package.json": { workspaces: ["apps/*", "packages/*"] },
+      "apps/web/package.json": { name: "web" },
+      "apps/web/a.ts": 'import { x } from "../../packages/shared/x";',
+      "apps/api/package.json": { name: "api" },
+      "apps/api/b.ts": 'import { x } from "../../packages/shared/x";',
+      "packages/shared/package.json": { name: "shared" },
+      [shared]: "export const x = 1;",
+    };
+    const sourceOf = (sp: ServiceProgram | undefined): ts.SourceFile | undefined =>
+      sp?.program.getSourceFile(sp.toAbsolute(shared));
+    const byKey = (programs: ServiceProgram[], key: string): ServiceProgram | undefined =>
+      programs.find((p) => p.service.key === key);
+
+    it("is parsed once when their options parse it alike, each service recording its read", async () => {
+      await tree(workspace);
+      const programs = await build();
+      const [web, api, owner] = ["web", "api", "shared"].map((key) => byKey(programs, key));
+      const file = sourceOf(owner);
+      expect(file).toBeDefined();
+      expect(sourceOf(web)).toBe(file);
+      expect(sourceOf(api)).toBe(file);
+      for (const sp of [web, api, owner]) {
+        const read = sp?.inputs.snapshot().files.find(([path]) => path === shared);
+        expect(read?.[1]).toMatch(/^[0-9a-f]{64}$/);
+        const checker = sp?.program.getTypeChecker();
+        const module = file && checker?.getSymbolAtLocation(file);
+        expect(module && checker?.getExportsOfModule(module).map((s) => s.name)).toEqual(["x"]);
+      }
+    });
+
+    it("is parsed once when each service's config has its own `paths`", async () => {
+      await tree({
+        ...workspace,
+        "apps/web/tsconfig.json": { compilerOptions: { paths: { "~/*": ["./*"] } } },
+        "apps/api/tsconfig.json": { compilerOptions: { paths: { "~/*": ["./*"] } } },
+      });
+      const programs = await build();
+      const [web, api, owner] = ["web", "api", "shared"].map((key) => byKey(programs, key));
+      expect(sourceOf(web)).toBeDefined();
+      expect(sourceOf(web)).toBe(sourceOf(owner));
+      expect(sourceOf(api)).toBe(sourceOf(owner));
+    });
+
+    it("is parsed again for a service whose options parse or bind it differently", async () => {
+      await tree({
+        ...workspace,
+        "apps/web/tsconfig.json": { compilerOptions: { jsx: "react-jsx" } },
+        "apps/api/tsconfig.json": { compilerOptions: { target: "es5" } },
+      });
+      const programs = await build();
+      const [web, api, owner] = ["web", "api", "shared"].map((key) => byKey(programs, key));
+      const files = new Set([sourceOf(web), sourceOf(api), sourceOf(owner)]);
+      expect(files.size).toBe(3);
+      expect(sourceOf(api)?.languageVersion).toBe(ts.ScriptTarget.ES5);
+    });
+  });
+
   it("keeps machine paths out of warning messages", async () => {
     await tree({ "tsconfig.json": { extends: "./missing.json" }, "a.ts": "" });
     const sp = await only();

@@ -70,6 +70,13 @@ const NODE_MODULE_KINDS: ReadonlySet<ts.ModuleKind> = new Set([
 const libCache = new Map<string, ts.SourceFile>();
 
 /**
+ * Used only for {@link ts.DocumentRegistry.getKeyForCompilationSettings}: TypeScript's own
+ * key of the options that change how a file is parsed or bound (target, module, JSX, module
+ * detection, strictness, …), the one its language service shares source files by.
+ */
+const settingsKeys = ts.createDocumentRegistry();
+
+/**
  * A TypeScript program for one service. It is parsed on first use of {@link program},
  * {@link host}, {@link configFile}, or {@link warnings} (ADR-0177), so a run that reuses a
  * service's cached facts parses it only if another service's analysis needs it.
@@ -135,7 +142,8 @@ function withResolution(options: ts.CompilerOptions): ts.CompilerOptions {
  * Build one TypeScript program per service, reading only files in the inventory, through
  * `files` (shared with the rest of the run, so programs that load one file share its text).
  * Each is parsed on first use (see {@link ServiceProgram}); reading every `program` builds
- * them all.
+ * them all. Programs whose options parse and bind a file alike share its `SourceFile`
+ * (ADR-0197), so a file several services reach is parsed once; each still records its read.
  *
  * Handles:
  * - `tsconfig.json` (else `jsconfig.json`) in the service folder, including `extends`
@@ -185,11 +193,21 @@ export function buildServicePrograms(
   const relativize = (text: string): string => text.replaceAll(`${rootPath}/`, "");
 
   /**
+   * Repo files parsed so far in this run, shared by every program that parses a file alike
+   * (ADR-0197): keyed by the program's settings key, the parse options TypeScript hands the
+   * host, the content hash, and the file name. TypeScript's language service shares source
+   * files between projects by the same key, so their checkers can bind and query one copy.
+   */
+  const parsedFiles = new Map<string, ts.SourceFile>();
+
+  /**
    * A host for one service. It answers from the inventory (plus TypeScript's own libs) and
    * records every repo path it reads or probes in `inputs`, the service's observed inputs.
+   * `settingsKey` is the program's {@link settingsKeys} key, known once its options are.
    */
   const createHost = (
     inputs: InputLog,
+    settingsKey: () => string,
   ): { host: ts.CompilerHost; configHost: ts.ParseConfigHost } => {
     const fileExists = (fileName: string): boolean => {
       const rel = toRepoPath(fileName);
@@ -198,16 +216,20 @@ export function buildServicePrograms(
       inputs.probeFile(rel, exists);
       return exists;
     };
-    const readFile = (fileName: string): string | undefined => {
-      const rel = toRepoPath(fileName);
-      if (rel === undefined) return isLib(fileName) ? ts.sys.readFile(fileName) : undefined;
+    /** A repo file's text and hash, recorded as read, or undefined (recorded as absent). */
+    const readRepoFile = (rel: string): { text: string; hash: string } | undefined => {
       if (!present.has(rel)) {
         inputs.probeFile(rel, false);
         return undefined;
       }
-      const { text, hash } = files.read(rel);
-      inputs.read(rel, hash);
-      return text;
+      const read = files.read(rel);
+      inputs.read(rel, read.hash);
+      return read;
+    };
+    const readFile = (fileName: string): string | undefined => {
+      const rel = toRepoPath(fileName);
+      if (rel === undefined) return isLib(fileName) ? ts.sys.readFile(fileName) : undefined;
+      return readRepoFile(rel)?.text;
     };
     const directoryExists = (dirName: string): boolean => {
       const rel = toRepoPath(dirName);
@@ -228,15 +250,30 @@ export function buildServicePrograms(
           typeof languageVersionOrOptions === "object"
             ? languageVersionOrOptions.languageVersion
             : languageVersionOrOptions;
-        const cacheKey = `${version}:${fileName}`;
-        if (isLib(fileName)) {
+        const rel = toRepoPath(fileName);
+        if (rel === undefined) {
+          if (!isLib(fileName)) return undefined;
+          const cacheKey = `${version}:${fileName}`;
           const cached = libCache.get(cacheKey);
           if (cached) return cached;
+          const text = ts.sys.readFile(fileName);
+          if (text === undefined) return undefined;
+          const sourceFile = ts.createSourceFile(fileName, text, languageVersionOrOptions, true);
+          libCache.set(cacheKey, sourceFile);
+          return sourceFile;
         }
-        const text = readFile(fileName);
-        if (text === undefined) return undefined;
-        const sourceFile = ts.createSourceFile(fileName, text, languageVersionOrOptions, true);
-        if (isLib(fileName)) libCache.set(cacheKey, sourceFile);
+        // Read (and recorded) for every program, even when the parse is shared.
+        const read = readRepoFile(rel);
+        if (read === undefined) return undefined;
+        const format =
+          typeof languageVersionOrOptions === "object"
+            ? `${languageVersionOrOptions.impliedNodeFormat ?? ""}:${languageVersionOrOptions.jsDocParsingMode ?? ""}`
+            : "";
+        const key = `${settingsKey()}\0${version}:${format}\0${read.hash}\0${fileName}`;
+        const cached = parsedFiles.get(key);
+        if (cached) return cached;
+        const sourceFile = ts.createSourceFile(fileName, read.text, languageVersionOrOptions, true);
+        parsedFiles.set(key, sourceFile);
         return sourceFile;
       },
       getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options).replaceAll("\\", "/"),
@@ -266,7 +303,13 @@ export function buildServicePrograms(
     rootFiles: string[],
     inputs: InputLog,
   ): Pick<ServiceProgram, "program" | "host" | "configFile" | "warnings"> => {
-    const { host, configHost } = createHost(inputs);
+    /** Set once the options are final, before the program parses anything. */
+    const settings: { key?: string } = {};
+    const { host, configHost } = createHost(inputs, () => {
+      if (settings.key === undefined)
+        throw new Error("a source file was parsed before its options");
+      return settings.key;
+    });
     const warnings: AnalysisWarning[] = [];
     const flatten = (message: string | ts.DiagnosticMessageChain): string =>
       relativize(ts.flattenDiagnosticMessageText(message, " "));
@@ -322,6 +365,12 @@ export function buildServicePrograms(
       }
     }
     options = { ...options, ...FORCED_OPTIONS };
+    // TypeScript's key ends with `pathsBasePath` (it also keys module resolution), which only
+    // changes how `paths` resolve, never a parse; left in, each config with `paths` parsed alone.
+    settings.key = settingsKeys.getKeyForCompilationSettings({
+      ...options,
+      pathsBasePath: undefined,
+    });
 
     const program = ts.createProgram({
       rootNames: rootFiles.map(toAbsolute),
