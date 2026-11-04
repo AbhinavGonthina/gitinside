@@ -137,5 +137,6 @@ const EXPECTED: Record<string, string[]> = {
   "swr-fetchers": ["bba1e337e7b53ccd", "694d35429918cdd4", "8f4ab8aea9ed9036"],
   "syntax-error": ["55396ca32388bd0f", "9cb7f0340d7cb270", "7b0e096375125e04"],
   "url-alternatives": ["6cbdfe701f1334a7", "db8ab97b3b62d5e5", "97cd61834becbd45"],
+  "vite-proxy": ["9b3e0e072f9758ac", "4b2b176b72454cd2", "545a523731bd1732"],
   "wrapper-fetch": ["12360e06fae71333", "791e0ed4bfa41857", "f3719fe458b7bffc"],
 };

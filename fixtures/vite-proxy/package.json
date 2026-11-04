@@ -1,0 +1,1 @@
+{ "name": "vite-proxy-demo", "private": true, "workspaces": ["client", "admin", "server"] }

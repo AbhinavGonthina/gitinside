@@ -40,6 +40,7 @@ const NAMES = [
   "env-base-heuristic",
   "env-fallback",
   "env-example-prefix",
+  "vite-proxy",
   "object-client",
   "config-wrapper",
   "axios-defaults",
@@ -303,6 +304,25 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       "no route matches POST to {env:VITE_PAYMENTS_API_URL}/checkout",
     );
     expect(serializeGraph(g)).not.toContain("localhost:5000");
+  });
+
+  it("vite-proxy: requests match the path a Vite or CRA dev proxy sends (ADR-0204)", async () => {
+    const g = await run("vite-proxy");
+    const api = "symbol:client/src/api.ts";
+    expect(links(g, "http")).toEqual([
+      "symbol:admin/src/stats.js#loadStats -> route:server/GET /stats heuristic",
+      `${api}#getUser -> route:server/GET /users/:id heuristic`,
+      `${api}#listOrders -> unresolved:client/src/api.ts:26:21 unresolved NO_MATCHING_ROUTE`,
+      `${api}#listUsers -> route:server/GET /users heuristic`,
+      `${api}#signIn -> route:server/POST /auth/login heuristic`,
+    ]);
+    expect(links(g, "external_call")).toEqual([
+      `${api}#forecast -> external:ext/api.weather.example.com heuristic`,
+    ]);
+    const unresolved = g.nodes.find((n) => n.kind === "unresolved");
+    expect(unresolved?.kind === "unresolved" && unresolved.detail).toBe(
+      "no route matches GET to /api/orders (sent as /orders by the dev proxy in client/vite.config.ts)",
+    );
   });
 
   it("object-client: each call to an exported object's method is its own request (M5A.3b)", async () => {

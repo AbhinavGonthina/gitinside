@@ -17,6 +17,12 @@
  *    ADR-0202); the path is never written into the graph. A literal loopback host (`localhost`, `127.0.0.1`,
  *    `[::1]`, `0.0.0.0`, `*.localhost`, any port) is `heuristic` against every service; any
  *    other literal host is an external API and is never matched to a route.
+ *    A root-relative request from an app with a dev proxy (Vite's `server.proxy`, CRA's
+ *    `"proxy"`, `devProxy.ts`, ADR-0204) that takes its path is matched by the path the proxy
+ *    sends (its `rewrite` applied, the target's path in front), `heuristic` for routes in
+ *    every service, its own included; a target outside the repo (a dotted host that isn't
+ *    loopback) makes it an external call, also `heuristic`. A rewrite that isn't read leaves
+ *    it unresolved rather than matching the unrewritten path.
  * 2. **Method.** Equal methods, an `ALL` route, or a `HEAD` request to a `GET` route are
  *    `exact`. A request whose method can't be read matches every method at `heuristic`.
  *    A route reached only through routers loaded from a folder listing (`listed`, ADR-0162)
@@ -46,11 +52,12 @@
  * - Express path syntax beyond named params, optional params, and wildcards (`/ab?cd`,
  *   `:from-:to`, regexes, Express 5 `{braces}`): such a segment matches any single segment at
  *   `pattern`. Case-insensitive and trailing-slash routing options are not read.
- * - `next.config` `basePath` and rewrites, Vite/webpack dev proxies, and env values other
- *   than an example file's URL path: an env var's real value is never read, only its name
- *   (values may be secrets).
- * - Which service a loopback port belongs to (compose ports, M2.7): every service is a
- *   candidate.
+ * - `next.config` `basePath` and rewrites, the dev proxies listed as not handled in
+ *   `devProxy.ts` (webpack-dev-server, CRA's `setupProxy.js`, regex keys, …), and env values
+ *   other than an example file's URL path: an env var's real value is never read, only its
+ *   name (values may be secrets).
+ * - Which service a loopback port belongs to (compose ports, M2.7; a dev proxy's target):
+ *   no service records the port it listens on, so every service is a candidate.
  * - A hole that spans several segments (`/api/${path}` with `path = "a/b"`).
  *
  * Requests that match nothing are {@link RouteMatch} outcomes too (`external` for a literal
@@ -77,6 +84,7 @@ import {
   type SourceLocation,
   type UnresolvedReason,
 } from "@gitinside/schema";
+import { formatProxyPath, proxyRequest, type DevProxies } from "./devProxy.js";
 import type { EnvPrefixes } from "./envExamples.js";
 import { fileNodeId, withinService } from "./files.js";
 import type { UrlBase } from "./url.js";
@@ -97,8 +105,16 @@ export type RouteMatch =
       /** True when several routes matched equally well. */
       ambiguous: boolean;
     }
-  /** A literal host outside the repo (an external API, M2.5). */
-  | { kind: "external"; scheme: string | null; host: string }
+  /**
+   * A literal host outside the repo (an external API, M2.5). `confidence` caps the edge's
+   * (`heuristic` for a dev proxy's target, ADR-0204); absent means `exact`.
+   */
+  | {
+      kind: "external";
+      scheme: string | null;
+      host: string;
+      confidence?: Exclude<Confidence, "unresolved">;
+    }
   | {
       kind: "unresolved";
       reason: "DYNAMIC_URL" | "WRAPPER_DEPTH" | "NO_MATCHING_ROUTE";
@@ -176,6 +192,14 @@ export function isLoopbackHost(host: string): boolean {
 }
 
 /**
+ * True when a dev proxy's target may be a server in this repo: the local machine, or a
+ * single-label host such as a docker-compose service name (`http://api:5000`, ADR-0204).
+ */
+function mayBeInRepo(host: string): boolean {
+  return isLoopbackHost(host) || (!host.startsWith("[") && !host.split(":")[0]?.includes("."));
+}
+
+/**
  * True when an env-var base may point at this repo: its name looks like an API base, or the
  * code's fallback for it is a loopback host (ADR-0158).
  */
@@ -206,13 +230,15 @@ const bucketOf = (segments: readonly RouteSegment[]): string => {
  * Build a matcher over the `route` nodes in `nodes` (other kinds are ignored). The first node
  * with a given ID wins, as in graph assembly. Routes in `listed` (`ExpressRoutes.listedRoutes`)
  * match at `heuristic` at best. `envPrefix` gives an env base's path from example env files
- * (`envExamples.ts`, ADR-0202).
+ * (`envExamples.ts`, ADR-0202), and `devProxy` the dev proxy a calling file's app sends
+ * root-relative requests through (`devProxy.ts`, ADR-0204).
  */
 export function createRouteMatcher(
   nodes: readonly GraphNode[],
   workspace: Workspace,
   listed: ReadonlySet<string> = new Set(),
   envPrefix: EnvPrefixes = () => undefined,
+  devProxy: DevProxies = () => undefined,
 ): RouteMatcher {
   const keys = workspace.packages.map((p) => p.key);
   /** method ⇒ first literal segment (or {@link ANY}) ⇒ routes. */
@@ -260,7 +286,10 @@ export function createRouteMatcher(
     return out;
   };
 
-  /** The level the base gives a route, or {@link FAIL} when it can't reach it. */
+  /**
+   * The level the base gives a route, or {@link FAIL} when it can't reach it. `caller` is
+   * undefined for a request a dev proxy sends on: its server's service isn't known.
+   */
   const baseLevel = (base: UrlBase, caller: string | undefined, route: IndexedRoute): number => {
     switch (base.kind) {
       case "path":
@@ -296,10 +325,13 @@ export function createRouteMatcher(
           detail: `the env var ${base.name} isn't named like an API base (${API_BASE_ENV_HINT})`,
         };
       }
-      const caller = serviceForFile(workspace, request.file)?.key;
+      const own = serviceForFile(workspace, request.file)?.key;
 
-      /** The routes `path` matches, or undefined when none does. */
-      const rank = (path: readonly UrlSegment[]): RouteMatch | undefined => {
+      /** The routes `path` from `caller`'s service matches, or undefined when none does. */
+      const rank = (
+        path: readonly UrlSegment[],
+        caller: string | undefined,
+      ): RouteMatch | undefined => {
         // Ranked by overall level, then by path level: the base and method assumptions are
         // shared, so a literal path match still beats a param match under an env-var base.
         let best = FAIL;
@@ -339,16 +371,45 @@ export function createRouteMatcher(
         };
       };
 
+      // A root-relative request goes to the app's dev server, which may proxy it (ADR-0204).
+      const proxy = base.kind === "path" ? devProxy(request.file) : undefined;
+      const sent = proxy ? proxyRequest(proxy, segments) : undefined;
+      if (proxy && sent?.kind === "proxied") {
+        const { context, target } = sent.rule;
+        if (target.kind === "host" && !mayBeInRepo(target.host)) {
+          const { scheme, host } = target;
+          return { kind: "external", scheme, host, confidence: "heuristic" };
+        }
+        if (!sent.segments) {
+          return {
+            kind: "unresolved",
+            reason: "NO_MATCHING_ROUTE",
+            detail: clip(
+              `the dev proxy for ${context ?? "this path"} in ${proxy.config} rewrites the path in a way that isn't read`,
+            ),
+          };
+        }
+        return (
+          rank(sent.segments, undefined) ?? {
+            kind: "unresolved",
+            reason: "NO_MATCHING_ROUTE",
+            detail: clip(
+              `no route matches ${request.method ?? "a request"} to ${url.text} (sent as ${formatProxyPath(sent.segments)} by the dev proxy in ${proxy.config})`,
+            ),
+          }
+        );
+      }
+
       // An example env file's path for the base goes in front first (ADR-0202); it stays in
       // here, so the detail below and every graph string are built without it.
       const prefix = base.kind === "env" ? envPrefix(base.name, request.file) : undefined;
       const prefixed =
         prefix && prefix.length > 0
-          ? rank([...prefix.map((text): UrlSegment => [{ kind: "text", text }]), ...segments])
+          ? rank([...prefix.map((text): UrlSegment => [{ kind: "text", text }]), ...segments], own)
           : undefined;
       return (
         prefixed ??
-        rank(segments) ?? {
+        rank(segments, own) ?? {
           kind: "unresolved",
           reason: "NO_MATCHING_ROUTE",
           detail: clip(`no route matches ${request.method ?? "a request"} to ${url.text}`),
@@ -483,7 +544,7 @@ export function buildHttpEdges(
         const node = externalNode(host);
         const to = node.id;
         if (!nodes.has(to)) nodes.set(to, node);
-        const level = weaker("exact", request.confidence);
+        const level = weaker(match.confidence ?? "exact", request.confidence);
         const confidence = level === "unresolved" ? "heuristic" : level;
         for (const from of sources) {
           addEdge("external_call", from, to, confidence, request.site, undefined, undefined);
