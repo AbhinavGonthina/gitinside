@@ -1,0 +1,374 @@
+{
+  "meta": {
+    "date": "2026-11-04",
+    "target": {
+      "owner": "calcom",
+      "repo": "cal.diy",
+      "sha": "2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee"
+    },
+    "gitinsideSha": "c7e14a60c82e3a20544d3d692bbcdc37c6b9d1b9",
+    "analyzerVersion": "0.2.0",
+    "host": "GitHub Actions Linux runner",
+    "image": {
+      "compressedBytes": 85944113
+    },
+    "download": {
+      "compressedBytes": 162588076,
+      "ms": 6604
+    },
+    "budgetMs": 60000
+  },
+  "runs": [
+    {
+      "node": "v22.18.0",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 2981
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 973,
+            "workspace": 34,
+            "programs": 11327,
+            "imports": 2548,
+            "express": 107,
+            "next": 1638,
+            "prisma": 2092,
+            "infra": 22,
+            "files": 94,
+            "symbols": 186,
+            "calls": 11254,
+            "http": 6405,
+            "sdk": 1877,
+            "queues": 2838,
+            "assemble": 527
+          },
+          "peakRssBytes": 2035662848,
+          "heapBytes": 1891426304
+        },
+        "durationMs": 43329
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 513
+        },
+        {
+          "step": "workspace",
+          "atMs": 1486
+        },
+        {
+          "step": "programs",
+          "atMs": 1521
+        },
+        {
+          "step": "imports",
+          "atMs": 12849
+        },
+        {
+          "step": "express",
+          "atMs": 15398
+        },
+        {
+          "step": "next",
+          "atMs": 15505
+        },
+        {
+          "step": "prisma",
+          "atMs": 17143
+        },
+        {
+          "step": "infra",
+          "atMs": 19236
+        },
+        {
+          "step": "files",
+          "atMs": 19259
+        },
+        {
+          "step": "symbols",
+          "atMs": 19354
+        },
+        {
+          "step": "calls",
+          "atMs": 19540
+        },
+        {
+          "step": "http",
+          "atMs": 30793
+        },
+        {
+          "step": "http",
+          "atMs": 37178
+        },
+        {
+          "step": "sdk",
+          "atMs": 37199
+        },
+        {
+          "step": "queues",
+          "atMs": 39076
+        },
+        {
+          "step": "assemble",
+          "atMs": 41915
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 46295919\nuser_usec 42803610\nsystem_usec 3492309\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 464\nnr_throttled 458\nthrottled_usec 41828471\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2326183936"
+      },
+      "containerMs": 47696
+    },
+    {
+      "node": "v22.18.0",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 2953
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 954,
+            "workspace": 27,
+            "programs": 11177,
+            "imports": 2512,
+            "express": 101,
+            "next": 1637,
+            "prisma": 2056,
+            "infra": 22,
+            "files": 72,
+            "symbols": 130,
+            "calls": 11579,
+            "http": 6413,
+            "sdk": 1963,
+            "queues": 2875,
+            "assemble": 505
+          },
+          "peakRssBytes": 2035748864,
+          "heapBytes": 1891622912
+        },
+        "durationMs": 43444
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 497
+        },
+        {
+          "step": "workspace",
+          "atMs": 1451
+        },
+        {
+          "step": "programs",
+          "atMs": 1480
+        },
+        {
+          "step": "imports",
+          "atMs": 12658
+        },
+        {
+          "step": "express",
+          "atMs": 15170
+        },
+        {
+          "step": "next",
+          "atMs": 15271
+        },
+        {
+          "step": "prisma",
+          "atMs": 16909
+        },
+        {
+          "step": "infra",
+          "atMs": 18965
+        },
+        {
+          "step": "files",
+          "atMs": 18988
+        },
+        {
+          "step": "symbols",
+          "atMs": 19060
+        },
+        {
+          "step": "calls",
+          "atMs": 19190
+        },
+        {
+          "step": "http",
+          "atMs": 30769
+        },
+        {
+          "step": "http",
+          "atMs": 37165
+        },
+        {
+          "step": "sdk",
+          "atMs": 37182
+        },
+        {
+          "step": "queues",
+          "atMs": 39145
+        },
+        {
+          "step": "assemble",
+          "atMs": 42020
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 46384981\nuser_usec 42972590\nsystem_usec 3412390\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 465\nnr_throttled 456\nthrottled_usec 40445788\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2328223744"
+      },
+      "containerMs": 47062
+    },
+    {
+      "node": "v22.18.0",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "hostCores": 4,
+      "extract": {
+        "files": 7703,
+        "directories": 2579,
+        "tarBytes": 213166080,
+        "skipped": 7,
+        "ms": 2946
+      },
+      "result": {
+        "ok": true,
+        "stats": {
+          "files": 5043,
+          "nodes": 19303,
+          "edges": 31544,
+          "unresolved": 720,
+          "warnings": 144,
+          "graphBytes": 26028666,
+          "stageMs": {
+            "inventory": 974,
+            "workspace": 28,
+            "programs": 10946,
+            "imports": 2498,
+            "express": 107,
+            "next": 1695,
+            "prisma": 2038,
+            "infra": 22,
+            "files": 72,
+            "symbols": 172,
+            "calls": 11406,
+            "http": 6532,
+            "sdk": 1937,
+            "queues": 2850,
+            "assemble": 586
+          },
+          "peakRssBytes": 2033786880,
+          "heapBytes": 1889263616
+        },
+        "durationMs": 43301
+      },
+      "graphSha256": "041b1f48bdf8cb4846cc4fe5cf65442e5c47e301ff03813b16d1a07a123940da",
+      "steps": [
+        {
+          "step": "inventory",
+          "atMs": 499
+        },
+        {
+          "step": "workspace",
+          "atMs": 1473
+        },
+        {
+          "step": "programs",
+          "atMs": 1502
+        },
+        {
+          "step": "imports",
+          "atMs": 12449
+        },
+        {
+          "step": "express",
+          "atMs": 14947
+        },
+        {
+          "step": "next",
+          "atMs": 15054
+        },
+        {
+          "step": "prisma",
+          "atMs": 16749
+        },
+        {
+          "step": "infra",
+          "atMs": 18787
+        },
+        {
+          "step": "files",
+          "atMs": 18810
+        },
+        {
+          "step": "symbols",
+          "atMs": 18882
+        },
+        {
+          "step": "calls",
+          "atMs": 19054
+        },
+        {
+          "step": "http",
+          "atMs": 30460
+        },
+        {
+          "step": "http",
+          "atMs": 36979
+        },
+        {
+          "step": "sdk",
+          "atMs": 36992
+        },
+        {
+          "step": "queues",
+          "atMs": 38930
+        },
+        {
+          "step": "assemble",
+          "atMs": 41780
+        }
+      ],
+      "cgroup": {
+        "cpuMax": "100000 100000",
+        "cpuStat": "usage_usec 46203213\nuser_usec 42705914\nsystem_usec 3497299\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 464\nnr_throttled 453\nthrottled_usec 39744331\nnr_bursts 0\nburst_usec 0",
+        "memoryMax": "4294967296",
+        "memoryPeak": "2328862720"
+      },
+      "containerMs": 46981
+    }
+  ]
+}
