@@ -268,6 +268,7 @@ export const ServerActions: Story = {
         "file:todo-actions/app/todos/actions.ts",
       ]}
       initialSelected="symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem"
+      initialZoom={0.8}
     />
   ),
 };
