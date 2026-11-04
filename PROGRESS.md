@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5B.5 Fresh held-out batch 3, repo 1 (pick, pin unseen, label; no scoring), then M5B.6 and M5B.7; M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
+M5B.6 Batch 3, repo 2 (`nidhish-nayak/trendz`): pin, label, then score once, blind; then M5B.7. M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -268,7 +268,7 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 - [x] M5B.2c Negated `req.method` guards in pages-router handlers (B3, found after M5B.2: `eval/results/2026-11-batch2-diagnosis.md`): a block entered when `req.method !== "A" && req.method !== "B"` (or `!(…===…)`, `!["A","B"].includes(req.method)`) that serves the request means every method but those, not routes for A and B; read the comparison's polarity in `next.ts`, document what stays unhandled; regression tests first, fixture + golden, eval delta {model: opus}
 - [x] M5B.3 TanStack Query (`useQuery({ queryKey, queryFn })`, `queryFn` reading `queryKey` from its context) and RTK Query (`createApi({ baseQuery: fetchBaseQuery({ baseUrl }), endpoints })` with `query: () => url`): implement whichever is cheap on M5B.2's machinery, document the rest as unhandled; ADR, fixture + golden, eval delta {model: opus}
 - [x] M5B.4 Eval re-run after M5B.1–3: batch 2 marked seen in `heldOutBatches` (why: fixed in M5B, ADR-0168), its new score reported as seen; README/EVALUATION numbers {model: opus}
-- [ ] M5B.5 Fresh held-out batch 3, repo 1: pick 2–3 new public React/Next + Express/Prisma repos with URL and routing styles unlike the first ten (rules as M3.2, read but never analyzed), pin the first as unseen batch 3, draft and commit its labels; no scoring {model: opus}
+- [x] M5B.5 Fresh held-out batch 3, repo 1: pick 2–3 new public React/Next + Express/Prisma repos with URL and routing styles unlike the first ten (rules as M3.2, read but never analyzed), pin the first as unseen batch 3, draft and commit its labels; no scoring {model: opus}
 - [ ] M5B.6 Batch 3, repo 2 (and 3): pin, draft and commit labels, then score once, blind (`pnpm eval`); README quotes this as the generalization result, as measured; misses go to a diagnosis note, and if they're big, a summary on #15 before deciding whether to loop again {model: opus}
 - [ ] M5B.7 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5B diff (no repo-specific cases), CLI smoke test on a real repo outside the eval, M5B-review.md, tag m5b {model: opus}
 
@@ -308,6 +308,8 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5B.5** (`b8d86a1`): batch 3 (unseen) opened with `Avinash905/Recipen` (MIT, Vite React + Express + Mongoose, `"heldOut": 3`): 26 labels at 26 call sites from the code alone, never analyzed. Every request is an RTK Query endpoint through a custom `baseQueryWithReauth` around `fetchBaseQuery` (env-only `baseUrl`), plus the wrapper's own `baseQuery("/auth/refresh")` and one Cloudinary upload (`null`). EVALUATION.md fixes the RTK labeling reading (at the `build.query(…)` call, `baseUrl` joined) and lists `nidhish-nayak/trendz` (TanStack Query over an axios instance) for M5B.6; `zayarlyn/jira-clone` rejected (literal own deploy host, no rule for it). Validate, eval tests, lint green; committed report stale vs inputs until M5B.6.
 
 - **M5B.4** (`e243d4f`, report `6fab2fa`, docs `9a263a7`): batch 2 marked seen in `heldOutBatches` (its misses chose M5B.1–2c's fixes, ADR-0168). Scores unchanged: main 138/138, batch 1 78/78, batch 2 31/31 (all `exact`; blind run 45.8% / 35.5%). With every batch seen, the report's limitations now say none is unseen and a fresh batch is needed (test first). README/EVALUATION quote batch 2 after M5B and each fix's recall step; `pnpm eval --check` reproduces the report.
 
