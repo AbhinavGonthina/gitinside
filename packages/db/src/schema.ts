@@ -115,6 +115,8 @@ export interface AnalysisStats {
   /** The analysis child's peak RSS and final V8 heap, in bytes (the memory budget, ADR-0146). */
   peakRssBytes?: number;
   heapBytes?: number;
+  /** The child's main-thread collector pauses in ms by kind (`minor`, `major`, …; M5.13a5). */
+  gcMs?: Record<string, number>;
 }
 
 /**

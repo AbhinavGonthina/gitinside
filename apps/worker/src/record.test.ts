@@ -29,6 +29,7 @@ const STATS = {
   stageMs: { inventory: 3, graph: 1 },
   peakRssBytes: 900_000_000,
   heapBytes: 700_000_000,
+  gcMs: { minor: 4100, major: 900 },
 };
 
 let t: TestDb;
@@ -157,6 +158,7 @@ describe("createAnalysisRecorder", () => {
       stageMs: { inventory: 3, graph: 1 },
       peakRssBytes: 900_000_000,
       heapBytes: 700_000_000,
+      gcMs: { minor: 4100, major: 900 },
     });
     // jsonb keeps its own key order, so compare as an object.
     expect(row.stats!.jobMs).toEqual({

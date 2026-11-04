@@ -13,6 +13,7 @@ import {
   checkTarget,
   dockerRunArgs,
   parseContainerRun,
+  parseSemiSpaces,
   renderCloudRunReport,
   type CloudRunMeta,
   type ContainerRun,
@@ -26,7 +27,9 @@ import { BENCH, flag, gitinsideCommit, today } from "./env.js";
 // Parse only: the repo is extracted and analyzed by the image's sandboxed child, never run.
 //
 // Usage: pnpm bench:cloudrun [--owner calcom] [--repo cal.diy] [--sha <40 hex>] [--runs 3]
-//   [--out dist/cloudrun] [--host "<where this runs>"]
+//   [--semi-space default,32,64] [--out dist/cloudrun] [--host "<where this runs>"]
+// `--semi-space` lists the child's semi-space caps in MiB (`default`: V8's own); runs cycle
+// through them, so each cap is measured on the same runner (M5.13a5).
 
 const IMAGE = "gitinside-worker:bench";
 const ROOT = resolve(BENCH, "..");
@@ -82,7 +85,8 @@ async function main(): Promise<void> {
     sha: flag("sha", "2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee"),
   });
   const runs = Number(flag("runs", "3"));
-  if (!Number.isInteger(runs) || runs < 1 || runs > 10) throw new Error(`bad --runs: ${runs}`);
+  if (!Number.isInteger(runs) || runs < 1 || runs > 12) throw new Error(`bad --runs: ${runs}`);
+  const semiSpaces = parseSemiSpaces(flag("semi-space", "default"));
   const outDir = resolve(BENCH, flag("out", "dist/cloudrun"));
   const host = flag("host", "this machine");
   const gitinsideSha = gitinsideCommit();
@@ -110,8 +114,11 @@ async function main(): Promise<void> {
 
   const results: ContainerRun[] = [];
   for (let i = 0; i < runs; i++) {
-    process.stderr.write(`${target.repo}: run ${i + 1} of ${runs}\n`);
-    const run = await runContainer(tarball, dockerRunArgs(IMAGE, target));
+    const semiSpaceMb = semiSpaces[i % semiSpaces.length];
+    process.stderr.write(
+      `${target.repo}: run ${i + 1} of ${runs}, semi-space ${semiSpaceMb ?? "default"}\n`,
+    );
+    const run = await runContainer(tarball, dockerRunArgs(IMAGE, target, semiSpaceMb));
     process.stderr.write(
       `${target.repo}: run ${i + 1}: ${run.result.ok ? `${run.result.durationMs} ms` : run.result.code}\n`,
     );

@@ -56,6 +56,12 @@ export interface AnalysisStats {
    */
   peakRssBytes?: number;
   heapBytes?: number;
+  /**
+   * Time the child's main thread spent paused in V8's collector, in rounded ms by kind
+   * (`minor`, `major`, `incremental`, `weakcb`; `gc` performance entries, M5.13a5). Work on
+   * V8's helper threads isn't in it. The child always reports it; test fakes may leave it out.
+   */
+  gcMs?: Record<string, number>;
   /** The fact cache's counters, when the job had a cache. */
   cache?: CacheCounts;
 }
@@ -180,9 +186,12 @@ export function parseChildReport(text: string): ChildReport | undefined {
   }
   if (value.ok !== true || !isRecord(value.stats)) return undefined;
   const { files, nodes, edges, unresolved, warnings, graphBytes, stageMs } = value.stats;
-  const { peakRssBytes, heapBytes, cache } = value.stats;
+  const { peakRssBytes, heapBytes, gcMs, cache } = value.stats;
   if (![files, nodes, edges, unresolved, warnings, graphBytes].every(isCount)) return undefined;
   if (!isRecord(stageMs) || !Object.values(stageMs).every(isCount)) return undefined;
+  if (gcMs !== undefined && (!isRecord(gcMs) || !Object.values(gcMs).every(isCount))) {
+    return undefined;
+  }
   if (![peakRssBytes, heapBytes].every((bytes) => bytes === undefined || isCount(bytes))) {
     return undefined;
   }
@@ -204,6 +213,7 @@ export function parseChildReport(text: string): ChildReport | undefined {
       stageMs: stageMs as Record<string, number>,
       ...(peakRssBytes === undefined ? {} : { peakRssBytes: peakRssBytes as number }),
       ...(heapBytes === undefined ? {} : { heapBytes: heapBytes as number }),
+      ...(gcMs === undefined ? {} : { gcMs: gcMs as Record<string, number> }),
       ...(cache === undefined
         ? {}
         : { cache: cacheCounts(cache as Record<(typeof CACHE_COUNTS)[number], number>) }),

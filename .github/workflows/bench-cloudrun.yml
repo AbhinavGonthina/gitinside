@@ -22,6 +22,9 @@ on:
       runs:
         description: Runs (a fresh container each)
         default: "3"
+      semi_space:
+        description: Child semi-space caps in MiB, comma-separated, runs cycle through them ("default" is V8's own)
+        default: default
 
 permissions:
   contents: read
@@ -43,12 +46,14 @@ jobs:
       # Inputs reach the script as variables, never spliced into the command; it checks them.
       - run: >-
           pnpm --filter @gitinside/bench bench:cloudrun --owner "$OWNER" --repo "$REPO"
-          --sha "$SHA" --runs "$RUNS" --host "GitHub Actions $RUNNER_OS runner"
+          --sha "$SHA" --runs "$RUNS" --semi-space "$SEMI_SPACE"
+          --host "GitHub Actions $RUNNER_OS runner"
         env:
           OWNER: ${{ inputs.owner }}
           REPO: ${{ inputs.repo }}
           SHA: ${{ inputs.sha }}
           RUNS: ${{ inputs.runs }}
+          SEMI_SPACE: ${{ inputs.semi_space }}
       - uses: actions/upload-artifact@v4
         with:
           name: cloudrun-bench

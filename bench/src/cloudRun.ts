@@ -38,11 +38,33 @@ export function checkTarget(target: CloudRunTarget): CloudRunTarget {
 export const INSTANCE = { cpus: "1", memory: "4g" } as const;
 
 /**
+ * Parse `--semi-space`: comma-separated semi-space caps in MiB, `default` for V8's own
+ * (M5.13a5). Runs cycle through them in order, so each is measured on the same runner.
+ * Returns `undefined` for `default`. Throws on anything but `default` or 1–256.
+ */
+export function parseSemiSpaces(text: string): (number | undefined)[] {
+  return text.split(",").map((part) => {
+    const value = part.trim();
+    if (value === "default") return undefined;
+    const mb = Number(value);
+    if (!/^\d+$/.test(value) || mb < 1 || mb > 256) {
+      throw new Error(`bad --semi-space value: ${JSON.stringify(value)}`);
+    }
+    return mb;
+  });
+}
+
+/**
  * The `docker run` arguments for one run: a fresh container (removed on exit) reading the
  * tarball on stdin, Cloud Run's resources, the variables it sets, and `node` running
- * {@link CONTAINER_SCRIPT} as the image's own user in its own working directory.
+ * {@link CONTAINER_SCRIPT} as the image's own user in its own working directory. With
+ * `semiSpaceMb`, the analysis child gets that semi-space cap; production's other limits stay.
  */
-export function dockerRunArgs(image: string, target: CloudRunTarget): string[] {
+export function dockerRunArgs(
+  image: string,
+  target: CloudRunTarget,
+  semiSpaceMb?: number,
+): string[] {
   return [
     "run",
     "--rm",
@@ -66,13 +88,15 @@ export function dockerRunArgs(image: string, target: CloudRunTarget): string[] {
     "-e",
     CONTAINER_SCRIPT,
     JSON.stringify(checkTarget(target)),
+    ...(semiSpaceMb === undefined ? [] : [String(semiSpaceMb)]),
   ];
 }
 
 /**
  * Runs inside the container: extract stdin into a job folder under `/tmp/jobs` as job.ts does
  * (top folder stripped, production's limits), analyze it with the sandboxed child (production's
- * heap and time caps, no cache), hash the graph, and print one JSON line with the timings, the
+ * heap and time caps, no cache; a semi-space cap when the second argument gives one), hash the
+ * graph, and print one JSON line with the timings, the
  * child's stats, the analyzer steps as they arrived, and the container's cgroup readings
  * (`memory.peak` counts the in-memory `/tmp` too, as Cloud Run's instance limit does).
  */
@@ -84,6 +108,7 @@ import { performance } from "node:perf_hooks";
 import { extractTarball } from "./dist/extract.js";
 import { runAnalysis } from "./dist/runner.js";
 const target = JSON.parse(process.argv[1]);
+const semiSpaceMb = process.argv[2] === undefined ? undefined : Number(process.argv[2]);
 const cgroup = async (name) => {
   try { return (await readFile("/sys/fs/cgroup/" + name, "utf8")).trim(); } catch { return null; }
 };
@@ -99,13 +124,17 @@ try {
   start = performance.now();
   const result = await runAnalysis(
     { src, out, owner: target.owner, name: target.repo, sha: target.sha },
-    { onProgress: ({ step }) => steps.push({ step, atMs: Math.round(performance.now() - start) }) },
+    {
+      ...(semiSpaceMb === undefined ? {} : { limits: { semiSpaceMb } }),
+      onProgress: ({ step }) => steps.push({ step, atMs: Math.round(performance.now() - start) }),
+    },
   );
   const graphSha256 = result.ok
     ? createHash("sha256").update(await readFile(out)).digest("hex")
     : null;
   console.log(JSON.stringify({
     node: process.version,
+    semiSpaceMb: semiSpaceMb ?? null,
     cpu: cpus()[0]?.model.trim() ?? "unknown",
     hostCores: cpus().length,
     extract: {
@@ -141,11 +170,15 @@ export interface RunStats {
   stageMs: Record<string, number>;
   peakRssBytes?: number;
   heapBytes?: number;
+  /** Main-thread collector pauses in ms by kind (M5.13a5); absent before it. */
+  gcMs?: Record<string, number>;
 }
 
 /** What one container printed, plus the driver's own wall clock around `docker run`. */
 export interface ContainerRun {
   node: string;
+  /** The child's semi-space cap in MiB; null (or absent, before M5.13a5) for V8's own. */
+  semiSpaceMb?: number | null;
   cpu: string;
   hostCores: number;
   extract: { files: number; directories: number; tarBytes: number; skipped: number; ms: number };
@@ -190,9 +223,12 @@ export function parseContainerRun(stdout: string, containerMs: number): Containe
     return fail("isn't JSON");
   }
   if (!isRecord(value)) return fail("isn't an object");
-  const { node, cpu, hostCores, extract, result, graphSha256, steps, cgroup } = value;
+  const { node, cpu, hostCores, extract, result, graphSha256, steps, cgroup, semiSpaceMb } = value;
   if (typeof node !== "string" || typeof cpu !== "string" || !isCount(hostCores)) {
     return fail("has no machine");
+  }
+  if (semiSpaceMb !== undefined && semiSpaceMb !== null && !isCount(semiSpaceMb)) {
+    return fail("has a bad semi-space");
   }
   if (
     !isRecord(extract) ||
@@ -211,6 +247,12 @@ export function parseContainerRun(stdout: string, containerMs: number): Containe
       !Object.values(stats.stageMs).every(isCount)
     ) {
       return fail("has no stage times");
+    }
+    if (
+      stats.gcMs !== undefined &&
+      (!isRecord(stats.gcMs) || !Object.values(stats.gcMs).every(isCount))
+    ) {
+      return fail("has bad collector pauses");
     }
   } else if (typeof result.code !== "string") {
     return fail("has a failure without a code");
@@ -286,6 +328,18 @@ const mib = (bytes: number | undefined): string =>
   bytes === undefined ? "n/a" : `${count(bytes / MIB)} MiB`;
 const cgroupBytes = (text: string | null): number | undefined =>
   text !== null && /^\d+$/.test(text) ? Number(text) : undefined;
+const semiSpace = (run: ContainerRun): string =>
+  run.semiSpaceMb == null ? "default" : `${run.semiSpaceMb} MiB`;
+/** All collector pauses and the minor ones, in ms; undefined before M5.13a5. */
+const pauses = (stats: RunStats | undefined): { total: number; minor: number } | undefined =>
+  stats?.gcMs === undefined
+    ? undefined
+    : {
+        total: Object.values(stats.gcMs).reduce((sum, ms) => sum + ms, 0),
+        minor: stats.gcMs.minor ?? 0,
+      };
+const pausesText = (gc: { total: number; minor: number } | undefined): string =>
+  gc === undefined ? "n/a" : `${seconds(gc.total)} (${seconds(gc.minor)})`;
 
 /** Render the Markdown report. Numbers are printed exactly as measured. */
 export function renderCloudRunReport(meta: CloudRunMeta, runs: readonly ContainerRun[]): string {
@@ -297,9 +351,10 @@ export function renderCloudRunReport(meta: CloudRunMeta, runs: readonly Containe
   const hashes = new Set(ok.map((r) => r.run.graphSha256));
   const stages = [...new Set(ok.flatMap((r) => Object.keys(r.stats.stageMs)))];
   const medianAnalysis = median(ok.map((r) => r.ms));
+  const configs = [...new Set(runs.map(semiSpace))];
   const limits = [...new Set(runs.map((r) => cpuLimit(r.cgroup.cpuMax)))];
 
-  const lines = [
+  const lines: string[] = [
     `# 1-vCPU analysis benchmark: ${owner}/${repo} (${meta.date})`,
     "",
     `- **Repo:** https://github.com/${owner}/${repo} at \`${sha}\``,
@@ -313,8 +368,8 @@ export function renderCloudRunReport(meta: CloudRunMeta, runs: readonly Containe
     "",
     "## Runs",
     "",
-    "| Run | Container | Extraction | Analysis | Peak RSS (child) | Final heap (child) | Container memory peak | CPU used | CPU throttled |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| Run | Semi-space | Container | Extraction | Analysis | GC pauses (minor) | Peak RSS (child) | Final heap (child) | Container memory peak | CPU used | CPU throttled |",
+    "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ...runs.map((r, i) => {
       const cpu = parseCpuStat(r.cgroup.cpuStat);
       const used = cpu.usage_usec === undefined ? "n/a" : seconds(cpu.usage_usec / 1000);
@@ -324,19 +379,45 @@ export function renderCloudRunReport(meta: CloudRunMeta, runs: readonly Containe
         ? seconds(r.result.durationMs)
         : `**${r.result.code}** after ${seconds(r.result.durationMs)}`;
       const stats = r.result.ok ? r.result.stats : undefined;
-      return `| ${i + 1} | ${seconds(r.containerMs)} | ${seconds(r.extract.ms)} | ${analysis} | ${mib(stats?.peakRssBytes)} | ${mib(stats?.heapBytes)} | ${mib(cgroupBytes(r.cgroup.memoryPeak))} | ${used} | ${throttled} |`;
+      return `| ${i + 1} | ${semiSpace(r)} | ${seconds(r.containerMs)} | ${seconds(r.extract.ms)} | ${analysis} | ${pausesText(pauses(stats))} | ${mib(stats?.peakRssBytes)} | ${mib(stats?.heapBytes)} | ${mib(cgroupBytes(r.cgroup.memoryPeak))} | ${used} | ${throttled} |`;
     }),
     "",
-    medianAnalysis === null
-      ? "No run finished, so there is no median."
-      : `**Median analysis: ${seconds(medianAnalysis)}** over ${ok.length} finished run${ok.length === 1 ? "" : "s"}, against DESIGN.md §9's ≤ ${seconds(meta.budgetMs)} for a 5k-file repo: ${medianAnalysis <= meta.budgetMs ? "within" : `**${seconds(medianAnalysis - meta.budgetMs)} over**`}.`,
-    "",
   ];
+  const against = (ms: number): string =>
+    ms <= meta.budgetMs ? "within" : `**${seconds(ms - meta.budgetMs)} over**`;
+  if (configs.length > 1) {
+    // Several semi-space caps on one runner (M5.13a5): a median per cap, never one over all.
+    lines.push(
+      `## By semi-space cap (runs alternate between them; DESIGN.md §9's budget is ≤ ${seconds(meta.budgetMs)})`,
+      "",
+      "| Semi-space | Finished runs | Median analysis | Against the budget | Median GC pauses (minor) | Median final heap (child) | Median container memory peak |",
+      "|---|---:|---:|---|---:|---:|---:|",
+      ...configs.map((config) => {
+        const mine = ok.filter((r) => semiSpace(r.run) === config);
+        const analysis = median(mine.map((r) => r.ms));
+        const gc = mine.flatMap((r) => pauses(r.stats) ?? []);
+        const middle = (values: number[]): number | undefined => median(values) ?? undefined;
+        const total = middle(gc.map((g) => g.total));
+        const minor = middle(gc.map((g) => g.minor));
+        const heap = middle(mine.flatMap((r) => r.stats.heapBytes ?? []));
+        const peak = middle(mine.flatMap((r) => cgroupBytes(r.run.cgroup.memoryPeak) ?? []));
+        return `| ${config} | ${mine.length} | ${analysis === null ? "n/a" : seconds(analysis)} | ${analysis === null ? "n/a" : against(analysis)} | ${total === undefined || minor === undefined ? "n/a" : pausesText({ total, minor })} | ${mib(heap)} | ${mib(peak)} |`;
+      }),
+      "",
+    );
+  } else {
+    lines.push(
+      medianAnalysis === null
+        ? "No run finished, so there is no median."
+        : `**Median analysis: ${seconds(medianAnalysis)}** over ${ok.length} finished run${ok.length === 1 ? "" : "s"}, against DESIGN.md §9's ≤ ${seconds(meta.budgetMs)} for a 5k-file repo: ${against(medianAnalysis)}.`,
+      "",
+    );
+  }
   if (ok.length > 0) {
     lines.push(
       "## Stages",
       "",
-      `| Stage | ${ok.map((_, i) => `Run ${i + 1}`).join(" | ")} | Median |`,
+      `| Stage | ${ok.map((r) => `Run ${runs.indexOf(r.run) + 1}${configs.length > 1 ? ` (${semiSpace(r.run)})` : ""}`).join(" | ")} | Median |`,
       `|---|${ok.map(() => "---:|").join("")}---:|`,
       ...stages.map((stage) => {
         const values = ok.map((r) => r.stats.stageMs[stage]);

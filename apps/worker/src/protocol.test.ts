@@ -134,6 +134,11 @@ describe("parseChildReport", () => {
     });
   });
 
+  it("keeps the child's collector pauses when present (M5.13a5)", () => {
+    const stats = { ...STATS, gcMs: { minor: 4100, major: 900, incremental: 30 } };
+    expect(parseChildReport(JSON.stringify({ ok: true, stats }))).toEqual({ ok: true, stats });
+  });
+
   it("keeps the fact cache's counters, and only those (M6.7f1)", () => {
     const stats = { ...STATS, cache: CACHE };
     expect(parseChildReport(JSON.stringify({ ok: true, stats }))).toEqual({ ok: true, stats });
@@ -156,6 +161,8 @@ describe("parseChildReport", () => {
     ["stage times as an array", JSON.stringify({ ok: true, stats: { ...STATS, stageMs: [1] } })],
     ["a negative peak RSS", JSON.stringify({ ok: true, stats: { ...STATS, peakRssBytes: -1 } })],
     ["a heap as text", JSON.stringify({ ok: true, stats: { ...STATS, heapBytes: "1" } })],
+    ["a bad pause", JSON.stringify({ ok: true, stats: { ...STATS, gcMs: { minor: 1.5 } } })],
+    ["pauses as a number", JSON.stringify({ ok: true, stats: { ...STATS, gcMs: 3 } })],
     ["cache counts as a number", JSON.stringify({ ok: true, stats: { ...STATS, cache: 3 } })],
     [
       "a missing cache count",

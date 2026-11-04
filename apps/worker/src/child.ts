@@ -1,5 +1,6 @@
 import { realpathSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
+import { constants, PerformanceObserver, type PerformanceEntry } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { AnalysisError, analyze, openDiskCache, serializeGraph } from "@gitinside/analyzer";
 import type { ArchitectureGraph } from "@gitinside/schema";
@@ -27,6 +28,43 @@ import {
  * exits non-zero, and the runner reports `ANALYZER_CRASHED`.
  */
 
+const GC_KINDS = new Map([
+  [constants.NODE_PERFORMANCE_GC_MINOR, "minor"],
+  [constants.NODE_PERFORMANCE_GC_MAJOR, "major"],
+  [constants.NODE_PERFORMANCE_GC_INCREMENTAL, "incremental"],
+  [constants.NODE_PERFORMANCE_GC_WEAKCB, "weakcb"],
+]);
+
+/**
+ * Start summing the collector's main-thread pauses by kind (M5.13a5). `stop` disconnects and
+ * gives the totals in rounded ms; it waits a turn first, since Node queues `gc` entries
+ * after each collection.
+ */
+function watchGc(): { stop: () => Promise<Record<string, number>> } {
+  const totals: Record<string, number> = {};
+  const add = (entries: PerformanceEntry[]): void => {
+    for (const entry of entries) {
+      const kind = GC_KINDS.get((entry.detail as { kind?: number } | null)?.kind ?? -1) ?? "other";
+      totals[kind] = (totals[kind] ?? 0) + entry.duration;
+    }
+  };
+  const observer = new PerformanceObserver((list) => add(list.getEntries()));
+  observer.observe({ entryTypes: ["gc"] });
+  return {
+    stop: async () => {
+      await new Promise((done) => setImmediate(done));
+      // Node has `takeRecords` (since 16); @types/node 22.10 doesn't declare it.
+      add(
+        (observer as PerformanceObserver & { takeRecords: () => PerformanceEntry[] }).takeRecords(),
+      );
+      observer.disconnect();
+      return Object.fromEntries(
+        Object.entries(totals).map(([kind, ms]) => [kind, Math.round(ms)] as const),
+      );
+    },
+  };
+}
+
 /** The analyzer entry points the child uses, injectable for in-process tests. */
 export interface ChildDeps {
   analyze: typeof analyze;
@@ -46,6 +84,7 @@ export async function runChildJob(
   onFound?: (found: FoundFacts) => void,
 ): Promise<ChildReport> {
   const stageMs: Record<string, number> = {};
+  const gc = watchGc();
   // A cache that can't be opened only costs time: the analysis runs cold.
   const cache =
     job.cache === undefined
@@ -75,12 +114,14 @@ export async function runChildJob(
     });
     text = serializeGraph(graph);
   } catch (error) {
+    await gc.stop();
     if (error instanceof AnalysisError) {
       return { ok: false, code: error.code, message: error.message };
     }
     throw error;
   }
   await writeFile(job.out, text);
+  const gcMs = await gc.stop();
   return {
     ok: true,
     stats: {
@@ -94,6 +135,7 @@ export async function runChildJob(
       // `maxRSS` is in KiB.
       peakRssBytes: process.resourceUsage().maxRSS * 1024,
       heapBytes: process.memoryUsage().heapTotal,
+      gcMs,
       ...(cache === undefined ? {} : { cache: cacheCounts(cache.stats()) }),
     },
   };
