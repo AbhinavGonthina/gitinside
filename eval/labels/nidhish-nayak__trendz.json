@@ -1,0 +1,465 @@
+{
+  "repo": "nidhish-nayak/trendz",
+  "sha": "b606329b46d802baebee2c881ec0109b0033de59",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/components/addComment/addComment.tsx", "line": 19 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/comment.route.ts",
+        "line": 12,
+        "route": "POST /api/comments"
+      },
+      "notes": "useMutation mutationFn: axiosRequest.post(\"/comments\", newComment). axiosRequest is axios.create({ baseURL: `${config.serverUrl}/api` }) (client/src/utils/axios.utils.ts); config.serverUrl is VITE_SERVER_URL or VITE_LOCAL_SERVER_URL by import.meta.env.MODE, no in-code fallback (both blank in client/.env.example; error.jsx links the deployed server's /api/test). server/src/main.ts mounts commentRoutes at /api/comments"
+    },
+    {
+      "callSite": { "file": "client/src/components/comment/comment.tsx", "line": 29 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/comment.route.ts",
+        "line": 13,
+        "route": "DELETE /api/comments/:id"
+      },
+      "notes": "mutationFn: axiosRequest.delete(`comments/${id}`); no leading slash, axios joins it to baseURL with one"
+    },
+    {
+      "callSite": { "file": "client/src/components/comments/comments.tsx", "line": 13 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/comment.route.ts",
+        "line": 11,
+        "route": "GET /api/comments"
+      },
+      "notes": "queryFn getComments: axiosRequest.get(`/comments?postId=${postId}`); the query string isn't part of the route"
+    },
+    {
+      "callSite": { "file": "client/src/components/logout/logout.tsx", "line": 26 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 15,
+        "route": "POST /api/auth/logout"
+      },
+      "notes": "plain axios.post(API_URL) with API_URL = `${config.serverUrl}/api/auth/logout` (line 23); main.ts mounts authRoutes at /api/auth"
+    },
+    {
+      "callSite": { "file": "client/src/components/post/post.tsx", "line": 36 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/post.route.ts",
+        "line": 13,
+        "route": "DELETE /api/posts/:postId"
+      },
+      "notes": "mutationFn: (id) => axiosRequest.delete(`posts/${id}`); main.ts mounts postRoutes at /api/posts"
+    },
+    {
+      "callSite": { "file": "client/src/components/post/post.tsx", "line": 56 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/comment.route.ts",
+        "line": 15,
+        "route": "GET /api/comments/count"
+      },
+      "notes": "queryFn getCommentsCount: axiosRequest.get(`/comments/count?postId=${id}`); the router's only /:id route is DELETE, so GET /count is reached"
+    },
+    {
+      "callSite": { "file": "client/src/components/post/post.tsx", "line": 74 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/like.route.ts",
+        "line": 10,
+        "route": "GET /api/likes"
+      },
+      "notes": "queryFn getLikes: axiosRequest.get(`likes?postId=${id}&userId=${currentUser.id}`) on two lines (the URL on line 75); main.ts mounts likeRoutes at /api/likes"
+    },
+    {
+      "callSite": { "file": "client/src/components/post/post.tsx", "line": 95 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/like.route.ts",
+        "line": 11,
+        "route": "POST /api/likes"
+      },
+      "notes": "mutationFn: axiosRequest.post(\"/likes\", likedPost)"
+    },
+    {
+      "callSite": { "file": "client/src/components/post/post.tsx", "line": 107 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/like.route.ts",
+        "line": 12,
+        "route": "DELETE /api/likes/:id"
+      },
+      "notes": "mutationFn: axiosRequest.delete(`likes/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/components/posts/posts.tsx", "line": 33 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/post.route.ts",
+        "line": 11,
+        "route": "GET /api/posts"
+      },
+      "notes": "useInfiniteQuery queryFn getPosts: axiosRequest.get(`/posts?page=${pageParam}&pageSize=5`), the URL on line 35 after a comment"
+    },
+    {
+      "callSite": { "file": "client/src/components/rightbar/activity/activity.tsx", "line": 40 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/activity.route.ts",
+        "line": 8,
+        "route": "GET /api/activities"
+      },
+      "notes": "axiosRequest.get(\"/activities\"); main.ts mounts activityRoutes at /api/activities"
+    },
+    {
+      "callSite": { "file": "client/src/components/rightbar/online/online.tsx", "line": 29 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/user.route.ts",
+        "line": 13,
+        "route": "POST /api/users/onlineUsers"
+      },
+      "notes": "axiosRequest.post(\"/users/onlineUsers\", arrayId) on three lines, when there's no presence data yet; main.ts mounts userRoutes at /api/users"
+    },
+    {
+      "callSite": { "file": "client/src/components/rightbar/online/online.tsx", "line": 37 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/user.route.ts",
+        "line": 13,
+        "route": "POST /api/users/onlineUsers"
+      },
+      "notes": "axiosRequest.post(\"/users/onlineUsers\", array)"
+    },
+    {
+      "callSite": { "file": "client/src/components/rightbar/suggested/suggested.tsx", "line": 23 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/relationship.route.ts",
+        "line": 10,
+        "route": "POST /api/relationships"
+      },
+      "notes": "mutationFn: axiosRequest.post(\"/relationships\", followDetails); main.ts mounts relationshipRoutes at /api/relationships"
+    },
+    {
+      "callSite": { "file": "client/src/components/rightbar/suggested/suggested.tsx", "line": 67 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/friend.route.ts",
+        "line": 13,
+        "route": "GET /api/friends/findPeople"
+      },
+      "notes": "axiosRequest.get(\"/friends/findPeople\"); main.ts mounts friendRoutes at /api/friends"
+    },
+    {
+      "callSite": { "file": "client/src/components/share/share.tsx", "line": 32 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/post.route.ts",
+        "line": 12,
+        "route": "POST /api/posts"
+      },
+      "notes": "mutationFn: axiosRequest.post(\"/posts\", newPost)"
+    },
+    {
+      "callSite": { "file": "client/src/components/stories/stories.tsx", "line": 53 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/story.route.ts",
+        "line": 9,
+        "route": "GET /api/stories"
+      },
+      "notes": "axiosRequest.get(\"/stories\"); main.ts mounts storyRoutes at /api/stories"
+    },
+    {
+      "callSite": { "file": "client/src/components/stories/stories.tsx", "line": 69 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/story.route.ts",
+        "line": 10,
+        "route": "POST /api/stories"
+      },
+      "notes": "mutationFn: axiosRequest.post(\"/stories\", { img: img })"
+    },
+    {
+      "callSite": { "file": "client/src/components/story/story.tsx", "line": 30 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/story.route.ts",
+        "line": 11,
+        "route": "DELETE /api/stories/:storyId"
+      },
+      "notes": "mutationFn: (id) => axiosRequest.delete(`stories/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/context/authContext.tsx", "line": 48 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 14,
+        "route": "POST /api/auth/login"
+      },
+      "notes": "plain axios.post(API_URL, inputs, { withCredentials }) with API_URL = `${config.serverUrl}/api/auth/login` (line 45), inside the context's login()"
+    },
+    {
+      "callSite": { "file": "client/src/hooks/activities/useCommentActivity.tsx", "line": 18 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/activity.route.ts",
+        "line": 9,
+        "route": "POST /api/activities"
+      },
+      "notes": "mutationFn: axiosRequest.post(\"/activities\", body)"
+    },
+    {
+      "callSite": { "file": "client/src/hooks/activities/usePostActivity.tsx", "line": 18 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/activity.route.ts",
+        "line": 9,
+        "route": "POST /api/activities"
+      },
+      "notes": "mutationFn: axiosRequest.post(\"/activities\", body)"
+    },
+    {
+      "callSite": { "file": "client/src/hooks/useHandleToken.tsx", "line": 15 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 11,
+        "route": "GET /api/auth/status"
+      },
+      "notes": "axiosRequest.get(\"/auth/status\")"
+    },
+    {
+      "callSite": { "file": "client/src/pages/explore/components/singlePost.tsx", "line": 42 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/like.route.ts",
+        "line": 11,
+        "route": "POST /api/likes"
+      },
+      "notes": "mutationFn: axiosRequest.post(\"/likes\", likedPost) on the line after the arrow"
+    },
+    {
+      "callSite": { "file": "client/src/pages/explore/components/singlePost.tsx", "line": 56 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/like.route.ts",
+        "line": 12,
+        "route": "DELETE /api/likes/:id"
+      },
+      "notes": "mutationFn: axiosRequest.delete(`likes/${post_id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/explore/components/singlePost.tsx", "line": 71 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/post.route.ts",
+        "line": 13,
+        "route": "DELETE /api/posts/:postId"
+      },
+      "notes": "mutationFn: (post_id) => axiosRequest.delete(`posts/${post_id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/explore/components/singlePost.tsx", "line": 86 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/post.route.ts",
+        "line": 19,
+        "route": "GET /api/posts/:postId"
+      },
+      "notes": "queryFn getSinglePost: axiosRequest.get(`/posts/${post_id}`); post_id is a numeric ID, so not GET /explore (registered first)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/explore/components/singlePost.tsx", "line": 101 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/comment.route.ts",
+        "line": 15,
+        "route": "GET /api/comments/count"
+      },
+      "notes": "queryFn getCommentsCount: axiosRequest.get(`/comments/count?postId=${post_id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/explore/components/singlePost.tsx", "line": 117 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/like.route.ts",
+        "line": 10,
+        "route": "GET /api/likes"
+      },
+      "notes": "queryFn getLikes: axiosRequest.get(`likes?postId=${post_id}&userId=${currentUser.id}`) on two lines"
+    },
+    {
+      "callSite": { "file": "client/src/pages/explore/explore.tsx", "line": 15 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/post.route.ts",
+        "line": 16,
+        "route": "GET /api/posts/explore"
+      },
+      "notes": "axiosRequest.get(\"/posts/explore\"); registered before GET /:postId, so it's reached"
+    },
+    {
+      "callSite": { "file": "client/src/pages/findPeople/findPeople.tsx", "line": 39 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/relationship.route.ts",
+        "line": 10,
+        "route": "POST /api/relationships"
+      },
+      "notes": "mutationFn: axiosRequest.post(\"/relationships\", followDetails)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/findPeople/findPeople.tsx", "line": 71 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/friend.route.ts",
+        "line": 13,
+        "route": "GET /api/friends/findPeople"
+      },
+      "notes": "axiosRequest.get(\"/friends/findPeople\")"
+    },
+    {
+      "callSite": { "file": "client/src/pages/friends/components/followers.tsx", "line": 33 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/friend.route.ts",
+        "line": 11,
+        "route": "GET /api/friends/followers"
+      },
+      "notes": "axiosRequest.get(`/friends/followers`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/friends/components/following.tsx", "line": 33 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/friend.route.ts",
+        "line": 12,
+        "route": "GET /api/friends/following"
+      },
+      "notes": "axiosRequest.get(`/friends/following`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/friends/components/following.tsx", "line": 49 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/relationship.route.ts",
+        "line": 11,
+        "route": "DELETE /api/relationships/:followedUserId"
+      },
+      "notes": "mutationFn: axiosRequest.delete(`/relationships/${followingId}`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/friends/friends.tsx", "line": 39 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/friend.route.ts",
+        "line": 10,
+        "route": "GET /api/friends"
+      },
+      "notes": "axiosRequest.get(`/friends`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/friends/friends.tsx", "line": 57 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/relationship.route.ts",
+        "line": 11,
+        "route": "DELETE /api/relationships/:followedUserId"
+      },
+      "notes": "mutationFn: axiosRequest.delete(`/relationships/${friendId}`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/profile/components/editProfile.tsx", "line": 34 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/user.route.ts",
+        "line": 10,
+        "route": "PUT /api/users"
+      },
+      "notes": "mutationFn: axiosRequest.put(\"/users\", formData)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/profile/components/followUser.tsx", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/relationship.route.ts",
+        "line": 9,
+        "route": "GET /api/relationships/:followedUserId"
+      },
+      "notes": "queryFn: axiosRequest.get(`/relationships/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/profile/components/followUser.tsx", "line": 39 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/relationship.route.ts",
+        "line": 10,
+        "route": "POST /api/relationships"
+      },
+      "notes": "mutationFn: axiosRequest.post(\"/relationships\", followDetails)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/profile/components/followUser.tsx", "line": 52 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/relationship.route.ts",
+        "line": 11,
+        "route": "DELETE /api/relationships/:followedUserId"
+      },
+      "notes": "mutationFn: () => axiosRequest.delete(`/relationships/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/profile/profile.tsx", "line": 56 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 16,
+        "route": "POST /api/auth/deregister"
+      },
+      "notes": "axiosRequest.post(\"auth/deregister\", deleteForm); no leading slash"
+    },
+    {
+      "callSite": { "file": "client/src/pages/profile/profile.tsx", "line": 87 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/user.route.ts",
+        "line": 9,
+        "route": "GET /api/users/find/:userId"
+      },
+      "notes": "queryFn: axiosRequest.get(`/users/find/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/register/register.tsx", "line": 47 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 13,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "plain axios.post(API_URL, { … }) with API_URL = `${config.serverUrl}/api/auth/register` (line 42)"
+    },
+    {
+      "callSite": { "file": "client/src/utils/upload.utils.ts", "line": 19 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/upload.route.ts",
+        "line": 8,
+        "route": "POST /api/upload"
+      },
+      "notes": "axiosRequest.post(\"/upload\", formData); main.ts mounts uploadRoutes at /api/upload"
+    },
+    {
+      "callSite": { "file": "server/src/utils/moderator.util.ts", "line": 27 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.request(options) with options from getModerationAxiosConfig(imageUrl) (server/src/utils/axios.util.ts): method \"POST\", url config.modOptions.modUrl = process.env.MOD_URL, an image-moderation API on RapidAPI (X-RapidAPI-Host header; MOD_URL blank in server/.env.example), not a route in the repo"
+    }
+  ]
+}

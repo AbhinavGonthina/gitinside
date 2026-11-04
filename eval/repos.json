@@ -68,6 +68,16 @@
       "heldOut": 2
     },
     {
+      "owner": "nidhish-nayak",
+      "name": "trendz",
+      "url": "https://github.com/nidhish-nayak/trendz",
+      "sha": "b606329b46d802baebee2c881ec0109b0033de59",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 3 (M5B.6). Vite React + TypeScript client (client/) and a TypeScript Express + Supabase server (server/, `$/` path alias) side by side; the root package.json only runs Prettier. Almost every request is an inline call on one axios.create({ baseURL: `${config.serverUrl}/api`, withCredentials }) instance, mostly inside TanStack Query queryFn/mutationFn arrows and named queryFn functions (useQuery, useInfiniteQuery, useMutation), some paths without a leading slash (`likes/${id}`) or with a query string; config.serverUrl is a ternary between two env vars on import.meta.env.MODE, no in-code fallback. Login, register, and logout call plain axios.post on `${config.serverUrl}/api/auth/...` held in a const. Routers are mounted at /api/* in server/src/main.ts with router.<method>(path, authMiddleware, handler). The server calls an image-moderation API through axios.request(config) on an env URL. Tests use supertest (not labeled). ~190 TS source files incl. tests.",
+      "heldOut": 3
+    },
+    {
       "owner": "pankil-soni",
       "name": "conversa",
       "url": "https://github.com/pankil-soni/conversa",
