@@ -39,6 +39,7 @@ With B1 (M5B.1, ADR-0191) and B2 (M5B.2, ADR-0193) fixed, batch 2 scores precisi
 - **What the code does.** `pages/api/following.ts` serves the request inside `if (req.method !== "POST" && req.method !== "DELETE" && req.method !== "PUT") { … }`, so every method except those three reaches the body (the label is `ALL`, as EVALUATION.md §1 labels a handler that doesn't pick one method).
 - **What the analyzer does.** `next.ts` collects the methods compared with `req.method` and makes one route per method, so the file gets `POST`, `DELETE`, and `PUT`, the three methods the guard *excludes*, and no route the `GET` could match.
 - **General form (B3).** A `req.method !==` comparison (or a negated `===`) whose block serves the request means "every method but these". A fix reads the comparison's polarity, as a fixture written from that form, not from this repo; planned as M5B.2c.
+- **After M5B.2c (ADR-0195).** A negated test whose block does more than answer now leaves the handler open, so `following.ts` is one `ALL` route and the hook matches it. Batch 2 scores precision 100.0% (31/31) and recall 100.0% (31/31) ([`2026-11-03-0.1.0.md`](2026-11-03-0.1.0.md#held-out-batch-2-unseen), at `3fd5c11`). Batch 2 has now been fixed against, so these are seen numbers, not a generalization result (M5B.4).
 
 ## Other observations (not scored)
 
