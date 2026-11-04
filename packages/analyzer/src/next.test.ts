@@ -181,6 +181,43 @@ describe("checkedMethods", () => {
       false,
     ],
     ['function h(req, res) { if (!(req.method === "GET")) return; a(); }', ["GET"], false],
+    // Calls building the answer's message aren't work, and neither is logging before it.
+    [
+      'function h(req, res) { if (req.method !== "POST") { return res.status(400).json({ error: t("only POST") }); } create(); }',
+      ["POST"],
+      false,
+    ],
+    [
+      'function h(req, res) { if (req.method !== "POST") { return res.json({ error: String(req.method) }); } create(); }',
+      ["POST"],
+      false,
+    ],
+    [
+      'function h(req, res) { if (req.method !== "PUT") { logger.warn("bad method", req.method); return res.status(400).end(); } a(); }',
+      ["PUT"],
+      false,
+    ],
+    [
+      'async function h(req, res) { if (req.method !== "PUT") { req.log.error({ m: req.method }); await log.info(format("x")); res.end(); return; } a(); }',
+      ["PUT"],
+      false,
+    ],
+    // An awaited read in the answer, or work beside a log, still serves.
+    [
+      'async function h(req, res) { if (req.method !== "POST") { return res.json({ items: await db.list() }); } }',
+      [],
+      true,
+    ],
+    [
+      'function h(req, res) { if (req.method !== "POST") { logger.info("listing"); return list(res); } }',
+      [],
+      true,
+    ],
+    [
+      'function h(req, res) { if (req.method !== "POST") { const e = store.error(); return res.json(e); } }',
+      [],
+      true,
+    ],
     // Two negations make a positive test.
     ['function h(req, res) { if (!(req.method !== "GET")) a(); else b(); }', ["GET"], true],
     // Outside an `if` condition, a negated test stays a rejection.
