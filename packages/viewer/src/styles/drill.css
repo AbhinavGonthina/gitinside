@@ -144,6 +144,18 @@
   transform-origin: 0 50%;
 }
 
+/*
+ * Scaled up, a name fits only a few characters, so a scope every service
+ * shares (`@documenso/`) would leave each box reading "@docume…" (M5.13b1).
+ * The part that tells them apart is drawn instead; the tooltip, the
+ * inspector, and search keep the whole name.
+ */
+.gi-drill:is([data-detail="names"], [data-detail="outline"])
+  .gi-node[data-kind="service"]
+  .gi-node__scope {
+  display: none;
+}
+
 .gi-drill .gi-node .gi-node__fields {
   transition:
     background-color var(--duration-fast) var(--ease-standard),

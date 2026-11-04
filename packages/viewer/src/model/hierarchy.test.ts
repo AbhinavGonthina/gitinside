@@ -67,6 +67,37 @@ describe("buildHierarchy", () => {
     expect(total).toBe(index.graph.nodes.length - 1);
   });
 
+  it("finds the `@scope/` prefix services share, when the rest of each name is unique", () => {
+    expect([...index.scopes]).toEqual([
+      ["service:api/", "@shop/"],
+      ["service:web/", "@shop/"],
+    ]);
+    const g = shopDemo();
+    const service = (root: string, label: string): GraphNode => ({
+      id: `service:${root}/`,
+      kind: "service",
+      label,
+      parentId: "system:root",
+      root: `apps/${root}`,
+    });
+    const scopes = buildHierarchy({
+      ...g,
+      nodes: [
+        ...g.nodes,
+        // Shares the scope, but "web" is taken: keeps it, and so does @shop/web.
+        service("other-web", "@other/web"),
+        service("admin", "@other/admin"),
+        // Its own scope, shared by nobody: kept whole.
+        service("solo", "@solo/tool"),
+        // Unscoped, and its name collides with nothing.
+        service("docs", "docs"),
+        // "api" is taken by an unscoped service's whole name.
+        service("plain-api", "api"),
+      ],
+    }).scopes;
+    expect([...scopes]).toEqual([["service:admin/", "@other/"]]);
+  });
+
   it("rejects a graph without a root, nodes outside the root, and unknown IDs", () => {
     const g = shopDemo();
     expect(() =>

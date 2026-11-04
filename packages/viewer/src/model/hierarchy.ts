@@ -30,6 +30,41 @@ export interface HierarchyIndex {
   entries: ReadonlyMap<string, readonly EntryNode[]>;
   /** What's inside each node, by kind. */
   inside: ReadonlyMap<string, KindCounts>;
+  /**
+   * Each service's `@scope/` prefix that other services share, when the rest
+   * of its name is unique among the services (`sharedScopes`): the part a
+   * zoomed-out diagram can drop.
+   */
+  scopes: ReadonlyMap<string, string>;
+}
+
+/** An npm scope at the start of a package name, with its slash (`@documenso/`). */
+const SCOPE = /^@[^/]+\//;
+
+/**
+ * The `@scope/` prefixes that only repeat (M5.13b1): in a monorepo whose
+ * packages are all `@documenso/…`, a name scaled up in a zoomed-out diagram
+ * is cut to "@docume…" in every box, so the canvas drops the scope there.
+ * A service keeps its scope when no other service has it (nothing repeats)
+ * or when the rest of its name would read like another service's
+ * (`@a/web` and `@b/web`, or an unscoped `web`). In graph order.
+ */
+function sharedScopes(services: readonly GraphNode[]): Map<string, string> {
+  const scopeCount = new Map<string, number>();
+  const shortCount = new Map<string, number>();
+  for (const s of services) {
+    const scope = SCOPE.exec(s.label)?.[0];
+    if (scope) scopeCount.set(scope, (scopeCount.get(scope) ?? 0) + 1);
+    const short = scope ? s.label.slice(scope.length) : s.label;
+    shortCount.set(short, (shortCount.get(short) ?? 0) + 1);
+  }
+  const scopes = new Map<string, string>();
+  for (const s of services) {
+    const scope = SCOPE.exec(s.label)?.[0];
+    if (!scope || (scopeCount.get(scope) ?? 0) < 2) continue;
+    if (shortCount.get(s.label.slice(scope.length)) === 1) scopes.set(s.id, scope);
+  }
+  return scopes;
 }
 
 /** Whether a node is one of a service's entry points (a route or a page). */
@@ -115,7 +150,9 @@ export function buildHierarchy(graph: ArchitectureGraph): HierarchyIndex {
   }
   for (const list of entries.values()) list.sort(compareEntries);
 
-  return { graph, root, byId, children, depth, service, entries, inside };
+  const scopes = sharedScopes(graph.nodes.filter((n) => n.kind === "service"));
+
+  return { graph, root, byId, children, depth, service, entries, inside, scopes };
 }
 
 /** The node with this ID; throws for an unknown one (a bug in the caller, not the graph). */
