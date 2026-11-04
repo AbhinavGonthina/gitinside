@@ -65,6 +65,12 @@ export interface EdgeText {
   notes?: string[];
 }
 
+/**
+ * The analyzer's label on a `calls` edge the browser makes into a Next.js
+ * server action (ADR-0203). Drawn as a note: "calls · server action".
+ */
+const SERVER_ACTION_LABEL = "server action";
+
 /** An HTTP edge's label is the route's own label, `"POST /api/orders"`. */
 function splitRoute(label: string): { method: string; path: string } | undefined {
   const match = /^([A-Z]+) (\/.*)$/.exec(label);
@@ -74,7 +80,9 @@ function splitRoute(label: string): { method: string; path: string } | undefined
 /**
  * The label drawn on an edge. With `count`, the edge stands for that many
  * edges between hidden descendants (UX.md "Edge aggregation"): "22 calls".
- * An unresolved edge says why, in words, from its reason code.
+ * An unresolved edge says why, in words, from its reason code. A `calls`
+ * edge into a server action from the browser notes it; other `calls` labels
+ * aren't drawn.
  */
 export function edgeLabel(edge: EdgeLike, count?: number): EdgeText {
   const words = EDGE_WORDS[edge.kind];
@@ -86,6 +94,9 @@ export function edgeLabel(edge: EdgeLike, count?: number): EdgeText {
     return { text: REASON_TEXT[edge.reason] };
   }
   const notes = edge.reason === "AMBIGUOUS" ? ["ambiguous"] : [];
+  if (edge.kind === "calls" && edge.label === SERVER_ACTION_LABEL) {
+    notes.unshift(SERVER_ACTION_LABEL);
+  }
   if (edge.kind === "http") {
     const route = edge.label ? splitRoute(edge.label) : undefined;
     if (route) return { method: route.method, code: route.path, notes: ["HTTP", ...notes] };

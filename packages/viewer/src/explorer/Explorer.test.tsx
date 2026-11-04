@@ -1461,6 +1461,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "Outline",
       "Overview",
       "Search",
+      "ServerActions",
       "Share",
       "TracePicker",
       "Tracing",
@@ -1497,6 +1498,20 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
         /^Unresolved \(No route in the repo matches\)\. The env var CMS_URL isn't named like an API base \(/,
       ),
     ).toBeTruthy();
+  });
+
+  it("draw the server actions fixture, its browser calls noted on the lines and in the inspector (M5C.3a2)", async () => {
+    const { container } = render(<all.ServerActions />);
+    await settle();
+    const lines = [...container.querySelectorAll(".gi-edge-label")].map((l) =>
+      l.getAttribute("title"),
+    );
+    // TodoItem's three, and the page's form handing `createTodo` to the browser;
+    // the page's own `listTodos` call runs on the server and stays plain.
+    expect(lines.filter((t) => t === "calls · server action")).toHaveLength(4);
+    expect(lines).toContain("calls");
+    const calls = [...container.querySelectorAll(".gi-connection__edge")].map((l) => l.textContent);
+    expect(calls.filter((t) => t === "calls · server action · Exact match")).toHaveLength(3);
   });
 
   it("draw the diff-broken pair, diffed in the browser, in the diff stories (M6.9b)", async () => {
