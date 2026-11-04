@@ -49,7 +49,6 @@ import {
   centerOn,
   clampZoom,
   ensureVisible,
-  fitCamera,
   frameHop,
   holdInPlace,
   keepInView,
@@ -64,7 +63,7 @@ import { ChangesSection } from "./changes.js";
 import { encodeState, withState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
-import { autoCamera, boxesRect, lastOpened } from "./framing.js";
+import { autoCamera, boxesRect, fitLevel, lastOpened } from "./framing.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { useGlideSpan } from "./glide.js";
 import { hintSteps, OnboardingHint, type HintStep, type OnboardingStore } from "./onboarding.js";
@@ -405,15 +404,20 @@ export function Explorer({
   }, []);
   const size: Size = shown?.layout ?? { width: 0, height: 0 };
   const [handSet, setHandSet] = useState<Camera | null>(null);
-  // 0 and the fit button show the whole level, until the next drill-down or
-  // close; else the explorer frames the node broken down last when the
-  // level is too big to read whole (M4b.15f).
+  // 0 and the fit button show the whole level (its busiest part when it
+  // doesn't fit even at 40%, M5.13b2), until the next drill-down or close;
+  // else the explorer frames the node broken down last when the level is too
+  // big to read whole (M4b.15f).
   const [overview, setOverview] = useState(false);
-  const camera =
-    handSet ??
-    (overview
-      ? fitCamera(size, canvas)
-      : autoCamera(shown, canvas, lastOpened(drill.expansion, shown)));
+  // Memoized: a level too big to fit searches its boxes for the window to
+  // frame (`fitLevel`, quadratic in boxes), and the explorer re-renders on
+  // every hover.
+  const focus = lastOpened(drill.expansion, shown);
+  const auto = useMemo(
+    () => (overview && shown ? fitLevel(shown.layout, canvas) : autoCamera(shown, canvas, focus)),
+    [overview, shown, canvas, focus],
+  );
+  const camera = handSet ?? auto;
   const [cameraMotion, setCameraMotion] = useState<CameraMotion>("layout");
   const live = useRef({ camera, size, canvas });
   live.current = { camera, size, canvas };
