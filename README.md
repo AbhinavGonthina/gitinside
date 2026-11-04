@@ -1,10 +1,12 @@
 # GitInside
 
+[![Architecture of AbhinavGonthina/gitinside, by GitInside](https://gitinside.abhinavgonthina.dev/api/badge/AbhinavGonthina/gitinside.svg)](https://gitinside.abhinavgonthina.dev/AbhinavGonthina/gitinside)
+
 **Git inside your repo.**
 
 See how any codebase really works. Break it down from services to functions, trace every request, and catch broken connections before they ship.
 
-(Status: in development. M1 (analyzer CLI), M2 (cross-service links + infra), M3 (accuracy eval harness), and M4a (design system + prototype, approved) are done; the interactive explorer (M4b, now drilling down to functions) and the website (M5, built and awaiting deploy) are in progress, and the PR bot comes next.)
+(Status: in development. M1 (analyzer CLI), M2 (cross-service links + infra), M3 (accuracy eval harness), M4a (design system + prototype, approved), and M4b (the interactive explorer) are done. The website (M5) is live at [gitinside.abhinavgonthina.dev](https://gitinside.abhinavgonthina.dev), with its last production checks in progress; the graph diff (M6) and the PR bot come next.)
 
 ## Quickstart (analyzer CLI)
 
