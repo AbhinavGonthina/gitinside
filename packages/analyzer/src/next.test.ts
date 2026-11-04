@@ -665,6 +665,113 @@ describe("next.js routes", () => {
       ]);
     });
 
+    it("keeps an ALL route when other files may register on the router", async () => {
+      await nextApp(deps);
+      await put("lib/router.ts", ['import nc from "next-connect";', "export const shared = nc();"]);
+      await put("pages/api/a.ts", [
+        'import { shared } from "../../lib/router";',
+        "export default shared.get((req, res) => res.end());",
+      ]);
+      await put("pages/api/b.ts", [
+        'import { shared } from "../../lib/router";',
+        "shared.post((req, res) => res.end());",
+        "export default shared;",
+      ]);
+      await put("pages/api/exported.ts", [
+        'import nc from "next-connect";',
+        "export const router = nc();",
+        "router.get((req, res) => res.end());",
+        "export default router;",
+      ]);
+      await put("pages/api/renamed.ts", [
+        'import nc from "next-connect";',
+        "const router = nc();",
+        "router.get((req, res) => res.end());",
+        "export { router as handler };",
+        "export default router;",
+      ]);
+      await put("pages/api/mounted.ts", [
+        'import nc from "next-connect";',
+        "function auth(req, res, next) { next(); }",
+        "const sub = nc().post((req, res) => res.end());",
+        "export default nc().use(auth).use(sub).get((req, res) => res.end());",
+      ]);
+      const graph = await analyze(dir);
+      expect(entries(graph)).toEqual([
+        "route:web/ALL /api/a",
+        "route:web/ALL /api/b",
+        "route:web/ALL /api/exported",
+        "route:web/ALL /api/mounted",
+        "route:web/ALL /api/renamed",
+        "route:web/GET /api/a",
+        "route:web/GET /api/exported",
+        "route:web/GET /api/mounted",
+        "route:web/GET /api/renamed",
+      ]);
+      const shared =
+        "the next-connect router shared is declared in another file, where more methods may be registered; kept an ALL route for them";
+      const exported = (name: string): string =>
+        `the next-connect router ${name} is exported, so other files may register more methods; kept an ALL route for them`;
+      expect(nextWarnings(graph)).toEqual([
+        { code: "NEXT_CONNECT_UNSEEN_METHODS", file: "pages/api/a.ts", message: shared },
+        { code: "NEXT_CONNECT_UNSEEN_METHODS", file: "pages/api/b.ts", message: shared },
+        {
+          code: "NEXT_CONNECT_UNSEEN_METHODS",
+          file: "pages/api/exported.ts",
+          message: exported("router"),
+        },
+        {
+          code: "NEXT_CONNECT_UNSEEN_METHODS",
+          file: "pages/api/mounted.ts",
+          message:
+            "the next-connect router mounts another router with .use(sub), whose methods aren't read; kept an ALL route for them",
+        },
+        {
+          code: "NEXT_CONNECT_UNSEEN_METHODS",
+          file: "pages/api/renamed.ts",
+          message: exported("router"),
+        },
+      ]);
+    });
+
+    it("adds one ALL route, and keeps its warnings, whatever the router registers", async () => {
+      await nextApp(deps);
+      await put("pages/api/default.ts", [
+        'import nc from "next-connect";',
+        "const router = nc();",
+        "router.get((req, res) => res.end());",
+        "export { router as default };",
+      ]);
+      await put("pages/api/all.ts", [
+        'import nc from "next-connect";',
+        'export default nc().all((req, res) => res.end()).get("/api/all/:id", (req, res) => res.end());',
+      ]);
+      await put("pages/api/patterns.ts", [
+        'import nc from "next-connect";',
+        'export default nc().post("/api/patterns/:id", (req, res) => res.end());',
+      ]);
+      const graph = await analyze(dir);
+      expect(entries(graph)).toEqual([
+        "route:web/ALL /api/all",
+        "route:web/ALL /api/patterns",
+        "route:web/GET /api/default",
+      ]);
+      expect(nextWarnings(graph)).toEqual([
+        {
+          code: "NEXT_CONNECT_UNSEEN_METHODS",
+          file: "pages/api/all.ts",
+          message:
+            'the next-connect route pattern "/api/all/:id" in .get(…) isn\'t read; kept an ALL route for the methods it may add',
+        },
+        {
+          code: "NEXT_CONNECT_UNSEEN_METHODS",
+          file: "pages/api/patterns.ts",
+          message:
+            'the next-connect route pattern "/api/patterns/:id" in .post(…) isn\'t read; kept an ALL route for the methods it may add',
+        },
+      ]);
+    });
+
     it("reads only next-connect's own routers", async () => {
       await nextApp(deps);
       await put("pages/api/other.ts", [
