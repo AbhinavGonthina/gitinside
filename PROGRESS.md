@@ -14,12 +14,13 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5B.6 Batch 3, repo 2 (`nidhish-nayak/trendz`): pin, label, then score once, blind; then M5B.7. M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
+M5B.7 Milestone check (fresh-eyes review, CLI smoke test, M5B-review.md, tag m5b). M5B.6b waits on #18 (loop again for batch 3's RTK miss?); M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
 - [#3](https://github.com/AbhinavGonthina/gitinside-planning/issues/3) Google Cloud signup for the worker on Cloud Run (ADR-0111): project, $1 budget, spend cap if offered. Kept open: the remaining steps were posted 2026-11-01 (M5.17e4, `infra/gcp/README.md` → Applying it). He runs them and reports `node infra/gcp/verify.mjs`'s output; we then confirm there that the guardrails are verified, before the trial ends on 2027-01-30. Blocks M5.13 (and so M5.14b); M5.17e no longer waits on it (#14). 2026-11-02: setup applied, the deploy's IAM fixed (M5.17e5) and the kill switch deployed. The worker's revision failed its startup probe: production Neon had no tables (#17). 2026-11-03: the worker now migrates at startup (M5.17e6, ADR-0192), and CI's deploy of it went Ready; asked him for `verify.mjs`'s output.
+- [#18](https://github.com/AbhinavGonthina/gitinside-planning/issues/18) Batch 3's blind recall is 64.3% (45/70), all 25 misses one RTK Query cause (C1): loop again (M5B.6b, then batch 3 seen and maybe a batch 4) or accept and move on? Blocks M5B.6b only.
 
 ## Blockers
 - none
@@ -269,7 +270,8 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 - [x] M5B.3 TanStack Query (`useQuery({ queryKey, queryFn })`, `queryFn` reading `queryKey` from its context) and RTK Query (`createApi({ baseQuery: fetchBaseQuery({ baseUrl }), endpoints })` with `query: () => url`): implement whichever is cheap on M5B.2's machinery, document the rest as unhandled; ADR, fixture + golden, eval delta {model: opus}
 - [x] M5B.4 Eval re-run after M5B.1–3: batch 2 marked seen in `heldOutBatches` (why: fixed in M5B, ADR-0168), its new score reported as seen; README/EVALUATION numbers {model: opus}
 - [x] M5B.5 Fresh held-out batch 3, repo 1: pick 2–3 new public React/Next + Express/Prisma repos with URL and routing styles unlike the first ten (rules as M3.2, read but never analyzed), pin the first as unseen batch 3, draft and commit its labels; no scoring {model: opus}
-- [ ] M5B.6 Batch 3, repo 2 (and 3): pin, draft and commit labels, then score once, blind (`pnpm eval`); README quotes this as the generalization result, as measured; misses go to a diagnosis note, and if they're big, a summary on #15 before deciding whether to loop again {model: opus}
+- [x] M5B.6 Batch 3, repo 2 (and 3): pin, draft and commit labels, then score once, blind (`pnpm eval`); README quotes this as the generalization result, as measured; misses go to a diagnosis note, and if they're big, a summary on #15 before deciding whether to loop again {model: opus}
+- [ ] M5B.6b If #18 says loop again: RTK Query base queries that forward to `fetchBaseQuery` (C1 in `eval/results/2026-11-batch3-diagnosis.md`): a repo function passing its first parameter unchanged to a `fetchBaseQuery` result's call is read as that `fetchBaseQuery` (its `baseUrl` joined), and a direct call of the result with a URL fixed there is a request; written from RTK's documented re-authorization example, ADR, fixture + golden, eval delta, batch 3 marked seen (and a batch 4 if #18 asks for one) {model: opus} {blocked: #18}
 - [ ] M5B.7 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5B diff (no repo-specific cases), CLI smoke test on a real repo outside the eval, M5B-review.md, tag m5b {model: opus}
 
 ### M6 (continued)
@@ -308,6 +310,8 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5B.6** (labels `cc035be`, report `08caa77`, docs `dfd30bb`): batch 3, repo 2 is `nidhish-nayak/trendz` at `b606329` (`"heldOut": 3`, 46 labels at 46 call sites, from the code alone). Batch 3 has two repos, so no third was added. Its one blind run: precision 100.0% (45/45), recall 64.3% (45/70). trendz scored 45/45, all `heuristic`. Recipen scored 0/25: its RTK API's `baseQuery` is a re-auth wrapper around `fetchBaseQuery`, which ADR-0196 doesn't follow (C1, `eval/results/2026-11-batch3-diagnosis.md`). README/EVALUATION quote it as measured. Summary on #15; the decision to loop again (M5B.6b) is asked in #18. Main set and batches 1–2 unchanged.
 
 - **M5B.5** (`b8d86a1`): batch 3 (unseen) opened with `Avinash905/Recipen` (MIT, Vite React + Express + Mongoose, `"heldOut": 3`): 26 labels at 26 call sites from the code alone, never analyzed. Every request is an RTK Query endpoint through a custom `baseQueryWithReauth` around `fetchBaseQuery` (env-only `baseUrl`), plus the wrapper's own `baseQuery("/auth/refresh")` and one Cloudinary upload (`null`). EVALUATION.md fixes the RTK labeling reading (at the `build.query(…)` call, `baseUrl` joined) and lists `nidhish-nayak/trendz` (TanStack Query over an axios instance) for M5B.6; `zayarlyn/jira-clone` rejected (literal own deploy host, no rule for it). Validate, eval tests, lint green; committed report stale vs inputs until M5B.6.
 
