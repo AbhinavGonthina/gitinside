@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.13a4b A module-resolution cache shared between service programs
+M5.13a5 The collector on 1 vCPU after M5.13a4
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -193,7 +193,7 @@ M5.13a4b A module-resolution cache shared between service programs
 - [x] M5.13a2 Why 5,075 files took 96.3 s vs DESIGN's ≤ 60 s (M5.13, cal.diy): record the stage times from that row's `analyses.stats` (ask Abhinav for a read-only production query if no other way, or re-measure the same commit locally with the CLI and compare the total), say what's slow, and what would bring it under 60 s on 1 vCPU (without raising the caps); `bench/results/` note, DESIGN.md Budgets {model: opus}
 - [x] M5.13a3 A 1-vCPU analysis benchmark in CI (M5.13a2's step 1): a dispatched workflow running cal.diy at `2eb48ec` through the worker image as Cloud Run does (`docker run --cpus=1 --memory=4g`, `/tmp` in memory, the image's runner and caps), 3 runs, each run's stage times, peak RSS, and heap as an artifact; a `bench/results/` report from it with observations; tests for any script it adds {model: opus}
 - [x] M5.13a4a Parse each repo file once (M5.13a2's step 2: 1.48 parses per file over cal.diy's 113 programs): share `SourceFile`s between service programs whose options parse and bind alike (TypeScript's `DocumentRegistry` settings key + implied node format + content hash), one cache per `buildServicePrograms` run, observed inputs still recorded per service; goldens, eval, and warm == cold bytes unchanged; memory and time measured with M5.13a3's workflow before and after; ADR {model: opus}
-- [ ] M5.13a4b A module-resolution cache shared between service programs with the same resolution options (M5.13a2's step 2, the rest): each resolution's probes replayed into the asking service's observed inputs on a hit, so `verifyInputs` still sees every read; goldens, eval, warm == cold bytes unchanged; measured with M5.13a3's workflow; ADR-0197 amendment {model: opus}
+- [x] M5.13a4b A module-resolution cache shared between service programs with the same resolution options (M5.13a2's step 2, the rest): each resolution's probes replayed into the asking service's observed inputs on a hit, so `verifyInputs` still sees every read; goldens, eval, warm == cold bytes unchanged; measured with M5.13a3's workflow; ADR-0197 amendment {model: opus}
 - [ ] M5.13a5 The collector on 1 vCPU after M5.13a4 (M5.13a2's step 3): its share from M5.13a3's workflow (`--cpu-prof` or `--trace-gc`), then a young-generation size (`--max-semi-space-size`) tried inside the 4 GiB budget (ADR-0146); keep it only if measured faster; DESIGN.md Budgets with the result (met or what's left) {model: opus}
 - [ ] M5.13b Big monorepos on the website (M5.13 screenshots): cal.diy's first view (113 services) opens at the 40% floor framing only lines, with the boxes off-camera; documenso's 16 services all read "@docume…" (a shared `@scope/` prefix eats the label, so show the distinguishing part); a renamed repo's old URL (`/calcom/cal.com`) says "hasn't been analyzed yet" though it has been, under the new name (follow GitHub's redirect). Regression tests first, screenshots, baselines {model: opus}
 - [x] M5.14a Pre-deploy milestone verification: full suite + coverage, fresh-eyes review of `m4a..HEAD` and its fixes, CLI smoke test on a real public repo, M5-review.md (production sections marked pending) {model: opus}
@@ -333,6 +333,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-04 M5.13a4b: built the shared module-resolution cache (key: TypeScript's resolution key incl. `pathsBasePath`; each entry's reads and probes replayed into every asking service; 2 mutation checks red; analyzer 1,071/1,071) and measured it on cal.diy: only 6.5% of resolutions repeat (24,119 → 22,555; 20 keys over 113 services), and misses run without TypeScript's cache to keep probe lists complete, so building every program went 18.3–19.2 s → 23.3–24.8 s, heap +40–50 MiB. **Not merged** (branch `ci/m5.13a4b-shared-resolutions`, `871750a`); `bench/results/2026-11-04-caldiy-m5.13a4b-resolutions.md`, ADR-0197 amendment, a guard test for per-service `paths` under shared parses. Eval re-recorded, no delta. Next: M5.13a5.
 
 - 2026-11-04 M5.13a4a: split M5.13a4 (a4a parses, a4b resolution cache). Service programs share a `SourceFile` when TypeScript's `DocumentRegistry` settings key (without `pathsBasePath`, which only keys resolution), parse options, hash, and name match; each service still records its read (`1bddf4e`, ADR-0197). cal.diy: 7,636 → 5,577 parses (1.08 per file). On 1 vCPU (13 workflow runs, `bench/results/2026-11-04-cloudrun-caldiy-m5.13a4a.md`) the child's heap went 1,975–1,985 → 1,802–1,808 MiB on every run, same graph hash. Time moved less than runners of one CPU model differ, so no gain claimed. Eval: no delta. CI: `1bddf4e` hit the known `diffMode` and `DiffChangePicked` flakes; `c7e14a6` (same code) green. Next: M5.13a4b.
 
