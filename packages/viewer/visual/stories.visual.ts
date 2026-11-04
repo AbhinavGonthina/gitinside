@@ -168,6 +168,24 @@ for (const c of cases) {
     expect(labels.wide, "every edge label fits the room the layout kept").toEqual([]);
     expect(labels.covered, "no edge label covers another").toEqual([]);
 
+    // The canvas's overlays (hint, chips, zoom, minimap) are drawn above the
+    // diagram, never under its boxes or lines (M5.13b4: cal.diy's boxes covered
+    // the onboarding hint's words). Sampled every 8px across each overlay.
+    const buried = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(".gi-explorer__pin > *")].flatMap((overlay) => {
+        const r = overlay.getBoundingClientRect();
+        for (let x = r.left + 2; x < r.right - 2; x += 8) {
+          for (let y = r.top + 2; y < r.bottom - 2; y += 8) {
+            if (document.elementFromPoint(x, y)?.closest(".gi-explorer__drill")) {
+              return [`${overlay.className} at ${Math.round(x)},${Math.round(y)}`];
+            }
+          }
+        }
+        return [];
+      }),
+    );
+    expect(buried, "no overlay is drawn under the diagram").toEqual([]);
+
     // An open popover (filters, share) sits wholly on the page, and its
     // controls fit it (M4b.10b: the share menu's Export row).
     const clipped = await page.evaluate(() =>

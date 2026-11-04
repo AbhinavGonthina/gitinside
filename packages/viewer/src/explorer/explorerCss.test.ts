@@ -60,6 +60,20 @@ describe("explorer.css", () => {
     );
   });
 
+  it("stacks every overlay pin above the camera's diagram, the top corners above the rest (M5.13b4)", () => {
+    // The camera's transform makes the diagram a stacking context; without a
+    // z-index the hint, which comes before it in the DOM, was painted under it.
+    expect(body).toMatch(/\.gi-explorer__pin \{[^}]*position: absolute;[^}]*z-index: 1;/);
+    for (const place of ["top-left", "top-right"]) {
+      expect(body).toMatch(
+        new RegExp(`\\.gi-explorer__pin\\[data-place="${place}"\\] \\{[^}]*z-index: 2;`),
+      );
+    }
+    for (const rule of body.match(/\.gi-explorer__pin\[data-place="[^"]+"\] \{[^}]*\}/g) ?? []) {
+      expect(rule).not.toMatch(/z-index: (?:0|auto)\b/);
+    }
+  });
+
   it("never sets text in the trace color, which is only 3:1 in light (M4a review)", () => {
     // --trace meets the 3:1 graphics bar, not the 4.5:1 text bar, so the current
     // step is marked with a bar and its text stays --text.

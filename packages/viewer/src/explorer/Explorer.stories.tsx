@@ -212,6 +212,25 @@ export const Onboarding: Story = {
   },
 };
 
+/**
+ * A hint over boxes (M5.13b4): three levels into the web app at full size,
+ * so boxes run under the hint, which is drawn above them (cal.diy's boxes
+ * covered its words: the camera's transform painted after it).
+ */
+export const OnboardingOverBoxes: Story = {
+  name: "Onboarding over boxes",
+  render: function Render() {
+    const [store] = useState(() => memoryOnboarding());
+    return (
+      <Explore
+        onboarding={store}
+        initialOpen={["service:web/", "module:web/lib", "file:web/lib/orders.ts"]}
+        initialZoom={1}
+      />
+    );
+  },
+};
+
 /** What the analyzer says about files it skipped or couldn't read (M4b.12b). */
 const WARNINGS = [
   { code: "SYNTAX_ERROR", message: "';' expected.", file: "apps/web/lib/legacy/cart.ts" },
