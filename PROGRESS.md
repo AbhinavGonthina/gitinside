@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5B.7d M5B review fix, negated guards (finding 5). M5B.6b waits on #18 (loop again for batch 3's RTK miss?); M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
+M5B.7e Smoke-test gap, Prisma calls on a factory's result. M5B.6b waits on #18 (loop again for batch 3's RTK miss?); M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -275,7 +275,7 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 - [x] M5B.7a Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5B diff (no repo-specific cases), CLI smoke test on a real repo outside the eval, M5B-review.md (tag after the fixes) {model: opus}
 - [x] M5B.7b M5B review fix (fail visibly, finding 1): an RTK Query endpoint under a `createApi` whose `baseQuery` isn't readable as `fetchBaseQuery` (a custom or re-auth base query) is an unresolved site at the endpoint with a reason saying the base query isn't followed, instead of no site; a destructured builder (`({ query }) => …`) read or listed in `http.ts`'s "not handled"; ADR-0196 amendment; regression tests first, fixture + golden, eval delta (batch 3's blind run stays quoted as is; say on #18 how this changes Recipen's sites) {model: opus}
 - [x] M5B.7c M5B review fixes, next-connect (findings 2–4, 6): a router declared outside the page file or exported counts as escaping (keep `ALL`, warn), and so does `.use(x)` with a router that isn't inline middleware; `export { r as default }` isn't an escape; no second `ALL` (and no `NEXT_DUPLICATE_ROUTE` on itself) when `.all()` is registered; a router with only unseen registrations keeps its `NEXT_CONNECT_UNSEEN_METHODS` warnings; regression tests first, eval delta {model: opus}
-- [ ] M5B.7d M5B review fix, negated guards (finding 5): calls inside a response call's arguments (`res.json({ error: t("…") })`) aren't work, and a refusal block that only logs before answering (decide which calls count, from Node's and common loggers' shapes, not names from the eval) reads as a guard; ADR-0195 amendment, regression tests first, eval delta {model: opus}
+- [x] M5B.7d M5B review fix, negated guards (finding 5): calls inside a response call's arguments (`res.json({ error: t("…") })`) aren't work, and a refusal block that only logs before answering (decide which calls count, from Node's and common loggers' shapes, not names from the eval) reads as a guard; ADR-0195 amendment, regression tests first, eval delta {model: opus}
 - [ ] M5B.7e Smoke-test gap (M5B-review.md): Prisma calls on a factory's result (`prisma().tool.findMany()`, the factory typed `(): PrismaClient` returning `global.prisma || new PrismaClient()` under `// @ts-ignore`, no `node_modules`) give no edge and no unresolved node, though `prisma.ts` says factories are handled; confirm red with a fixture of that shape, fix (or make it visible and document it), eval delta {model: opus}
 - [ ] M5B.7f Re-run the milestone checks after M5B.7b–e (suite, analyzer coverage, `pnpm eval --check`), finish M5B-review.md (outcomes), tag m5b {model: opus}
 
@@ -315,6 +315,8 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5B.7d** (fix `b4b42f3`, report `c159d5c`): a negated `req.method` block that logs (a statement calling a `log`/`info`/`warn`/`error`/`debug`/`trace`/`fatal` method on any receiver) or builds its answer's message with a synchronous call (`res.json({ error: t("…") })`) now reads as a refusal, not as serving; an awaited call in the answer still serves. Four regression tests red first, the `await` rule mutation-checked. ADR-0195 amended (cost: `res.json(syncRead())` in such a block loses its `ALL`), `KEY_FORMAT` 12 → 13. Analyzer 31/31 files, typecheck + lint green. Eval: no delta in any set.
 
 - **M5B.7c** (fix `53293dd`, report `02c0e25`): a next-connect router declared at module level in another file, exported (`export const`, `export { r as x }`), or mounting another router with `.use(sub)` now keeps `ALL` with a `NEXT_CONNECT_UNSEEN_METHODS` reason each; `export { r as default }` is the default export, not an escape; the kept `ALL` isn't added twice after `.all()` (no self-`NEXT_DUPLICATE_ROUTE`); a router with only unseen registrations keeps its warnings. Two regression tests red first (finding 3 by mutation). ADR-0191 amended, `KEY_FORMAT` 11 → 12. Analyzer 31/31 files, typecheck + lint green. Eval: no delta in any set.
 
