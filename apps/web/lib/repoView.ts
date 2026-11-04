@@ -9,9 +9,9 @@ import {
   type PublishedAnalysis,
 } from "@gitinside/db";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
-import { COMMIT_SHA, type BaseView } from "./compare";
+import { COMMIT_SHA, type BaseView, type SearchParams } from "./compare";
 import { QUEUE_UNAVAILABLE, enqueueAnalysis, type EnqueueDeps } from "./enqueue";
-import { resolveRepo, type GitHubOptions, type ResolveResult } from "./github";
+import { resolveRepo, type GitHubOptions, type ResolvedRepo, type ResolveResult } from "./github";
 import type { RepoRef } from "./repoUrl";
 import { findSizeHold } from "./sizeHold";
 
@@ -20,8 +20,10 @@ import { findSizeHold } from "./sizeHold";
  * automatically if the default branch has a new commit", ADR-0068):
  *
  * 1. **Find** the newest finished analysis of the public repo (of the commit, on a
- *    `/<owner>/<repo>/<sha>` permalink). None: the repo page offers "Analyze", which goes
- *    through `/api/analyze` and the visitor's rate limit; a permalink is a 404.
+ *    `/<owner>/<repo>/<sha>` permalink). None: GitHub is asked whether the repo has another
+ *    name now (`findRenamed`, M5.13b3) and the page follows it; else the repo page offers
+ *    "Analyze", which goes through `/api/analyze` and the visitor's rate limit; a permalink
+ *    is a 404.
  * 2. **Permalinks stop there:** a commit's diagram never changes, so no GitHub call.
  * 3. **Check** the default branch's latest commit on GitHub, remembered per repo and shown
  *    analysis for {@link HEAD_TTL_MS} so busy pages don't spend GitHub's hourly quota. If
@@ -47,6 +49,14 @@ import { findSizeHold } from "./sizeHold";
 export const HEAD_TTL_MS = 60_000;
 /** New commits check-on-view may analyze per repo per hour. */
 export const RECHECKS_PER_HOUR = 6;
+/**
+ * Names with no analysis that may be looked up on GitHub per hour, site-wide (a rename,
+ * M5.13b3): about a tenth of a token's 5,000, so made-up URLs can't spend the quota that
+ * `/api/analyze` and check-on-view need. Past it, such a page offers "Analyze" unchecked.
+ */
+export const UNKNOWN_LOOKUPS_PER_HOUR = 500;
+/** {@link UNKNOWN_LOOKUPS_PER_HOUR}'s `rate_limits` key (never `ip:` or `repo:`). */
+export const UNKNOWN_LOOKUPS_KEY = "site:unknown-repo";
 
 /** Recent GitHub answers by repo, so repeated views cost one lookup a minute. */
 export interface HeadCache {
@@ -93,6 +103,8 @@ export interface RepoViewDeps {
   codeSizes?: CodeSizeCache;
   /** Default {@link RECHECKS_PER_HOUR}. */
   rechecksPerHour?: number;
+  /** Default {@link UNKNOWN_LOOKUPS_PER_HOUR}. */
+  unknownLookupsPerHour?: number;
 }
 
 /** How the shown diagram relates to the default branch's latest commit. */
@@ -129,6 +141,8 @@ export type HeadState =
 export type RepoView =
   | { status: "missing" }
   | { status: "not-analyzed"; owner: string; repo: string }
+  /** GitHub knows the repo under another name now (a rename or transfer): open that one. */
+  | { status: "moved"; owner: string; repo: string }
   | {
       status: "ready";
       owner: string;
@@ -181,6 +195,24 @@ async function latestCommit(
 }
 
 /**
+ * Where a `moved` repo page goes: `/<owner>/<repo>` in GitHub's new spelling, with the page's
+ * query as it came (each value of a repeated key, in order), so a deep link survives.
+ */
+export function movedPath(
+  moved: { owner: string; repo: string },
+  query: SearchParams = {},
+): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    for (const one of Array.isArray(value) ? value : [value]) {
+      if (one !== undefined) search.append(key, one);
+    }
+  }
+  const path = `/${encodeURIComponent(moved.owner)}/${encodeURIComponent(moved.repo)}`;
+  return search.size === 0 ? path : `${path}?${search.toString()}`;
+}
+
+/**
  * What a link's `?base=<sha>` compares the shown diagram with (diff mode, M6.9e2): that
  * commit's published analysis of the same repo (looked up by the stored spelling, like a
  * permalink: never checked against GitHub, nothing enqueued). `base` is the raw value.
@@ -201,13 +233,55 @@ export async function viewBase(
   return { status: "ready", sha: base, graphUrl: graphPath(owner, name, base) };
 }
 
+/** Whether GitHub's names are the URL's, ignoring case (GitHub's own rule). */
+function sameName(head: ResolvedRepo, ref: RepoRef): boolean {
+  return (
+    head.owner.toLowerCase() === ref.owner.toLowerCase() &&
+    head.name.toLowerCase() === ref.repo.toLowerCase()
+  );
+}
+
+/**
+ * A name with no published analysis (M5.13b3). GitHub answers a renamed or transferred
+ * repo's old name with the repo itself (`resolveRepo` follows the redirect), so ask it:
+ * - another name ⇒ `moved` there, so old links and README images keep working;
+ * - the same name ⇒ the repo by GitHub's ID, if it was analyzed under an older name (else
+ *   `not-analyzed` in GitHub's spelling);
+ * - GitHub can't say (not found, unavailable), or {@link UNKNOWN_LOOKUPS_PER_HOUR} is used
+ *   up ⇒ `not-analyzed` as written, as before: "Analyze" asks GitHub again anyway.
+ *
+ * Answers are remembered like check-on-view's, so a busy old link asks once a minute.
+ */
+async function findRenamed(
+  ref: RepoRef,
+  deps: RepoViewDeps,
+): Promise<RepoView | { published: PublishedAnalysis; resolved: ResolveResult }> {
+  const { db } = deps;
+  const notAnalyzed: RepoView = { status: "not-analyzed", owner: ref.owner, repo: ref.repo };
+  const key = `${ref.owner}/${ref.repo}@unknown`.toLowerCase();
+  let resolved = deps.heads.get(key);
+  if (resolved === undefined) {
+    const limit = deps.unknownLookupsPerHour ?? UNKNOWN_LOOKUPS_PER_HOUR;
+    if (!(await consumeRateLimit(db, UNKNOWN_LOOKUPS_KEY, limit)).allowed) return notAnalyzed;
+    resolved = await resolveRepo(ref, deps.github);
+    deps.heads.set(key, resolved);
+  }
+  if (!resolved.ok) return notAnalyzed;
+  const head = resolved.repo;
+  if (!sameName(head, ref)) return { status: "moved", owner: head.owner, repo: head.name };
+  const published = await findPublishedAnalysis(db, { providerRepoId: head.providerRepoId });
+  if (published === undefined)
+    return { status: "not-analyzed", owner: head.owner, repo: head.name };
+  return { published, resolved };
+}
+
 /** Decide what `/<owner>/<repo>` (or `/<owner>/<repo>/<sha>` with `sha`) shows. */
 export async function viewRepo(
   ref: RepoRef & { sha?: string },
   deps: RepoViewDeps,
 ): Promise<RepoView> {
   const { db } = deps;
-  const published = await findPublishedAnalysis(db, {
+  let published = await findPublishedAnalysis(db, {
     owner: ref.owner,
     name: ref.repo,
     ...(ref.sha === undefined ? {} : { sha: ref.sha }),
@@ -215,9 +289,14 @@ export async function viewRepo(
   if (ref.sha !== undefined) {
     return published ? ready(published, { state: "pinned" }) : { status: "missing" };
   }
-  if (published === undefined) return { status: "not-analyzed", owner: ref.owner, repo: ref.repo };
-
-  const resolved = await latestCommit(ref, published.analysis, deps);
+  let resolved: ResolveResult;
+  if (published === undefined) {
+    const found = await findRenamed(ref, deps);
+    if ("status" in found) return found;
+    ({ published, resolved } = found);
+  } else {
+    resolved = await latestCommit(ref, published.analysis, deps);
+  }
   if (!resolved.ok) {
     if (resolved.code === "REPO_NOT_FOUND" || resolved.code === "REPO_UNAVAILABLE") {
       // Recorded, so its permalinks and graphs (which never ask GitHub) stop too.

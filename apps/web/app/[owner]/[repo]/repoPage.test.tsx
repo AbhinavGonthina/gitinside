@@ -25,6 +25,9 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
+  redirect: (to: string) => {
+    throw new Error(`NEXT_REDIRECT ${to}`);
+  },
 }));
 vi.mock("../../../lib/serverDeps", () => ({
   repoViewDepsFromEnv: vi.fn(),
@@ -123,6 +126,15 @@ describe("repo page", () => {
     expect(repoViewDepsFromEnv).toHaveBeenCalledWith(process.env, "page-oidc");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Acme / Shop");
     expect(screen.getByRole("button", { name: "Analyze" })).toBeTruthy();
+  });
+
+  it("redirects a renamed repo's old name to its new one, keeping the link's query (M5.13b3)", async () => {
+    vi.mocked(viewRepo).mockResolvedValue({ status: "moved", owner: "Shopco", repo: "Store" });
+    const searchParams = Promise.resolve({ sel: "service:api/", base: BASE });
+    await expect(RepoPage({ params: params("acme", "shop"), searchParams })).rejects.toThrow(
+      `NEXT_REDIRECT /Shopco/Store?sel=service%3Aapi%2F&base=${BASE}`,
+    );
+    expect(viewBase).not.toHaveBeenCalled();
   });
 
   it("draws the diagram of a ready repo", async () => {

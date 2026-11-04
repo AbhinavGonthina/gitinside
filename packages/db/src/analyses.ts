@@ -198,12 +198,20 @@ export interface PublishedAnalysis {
  * The newest `done` analysis of a **public** repo, found by owner and name ignoring case
  * (the diagram page and `/api/graph`, ADR-0068); with `sha`, of that commit. "Newest" is
  * the latest finish, so a re-analysis by a newer analyzer version wins over the old one.
- * Private repos are never returned (M8 adds access checks).
+ * With `providerRepoId` instead of a name, by GitHub's repo ID (a repo renamed since it was
+ * stored, M5.13b3). Private repos are never returned (M8 adds access checks).
  */
 export async function findPublishedAnalysis(
   db: AnyDatabase,
-  query: { owner: string; name: string; sha?: string },
+  query: ({ owner: string; name: string } | { providerRepoId: number }) & { sha?: string },
 ): Promise<PublishedAnalysis | undefined> {
+  const repo =
+    "providerRepoId" in query
+      ? [eq(repos.providerRepoId, query.providerRepoId)]
+      : [
+          sql`lower(${repos.owner}) = lower(${query.owner})`,
+          sql`lower(${repos.name}) = lower(${query.name})`,
+        ];
   const [row] = await db
     .select({
       id: repos.id,
@@ -219,8 +227,7 @@ export async function findPublishedAnalysis(
     .innerJoin(repos, eq(repos.id, analyses.repoId))
     .where(
       and(
-        sql`lower(${repos.owner}) = lower(${query.owner})`,
-        sql`lower(${repos.name}) = lower(${query.name})`,
+        ...repo,
         eq(repos.visibility, "public"),
         eq(analyses.status, "done"),
         query.sha === undefined ? undefined : eq(analyses.sha, query.sha),

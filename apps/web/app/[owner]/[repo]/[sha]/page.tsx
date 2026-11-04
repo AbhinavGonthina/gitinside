@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BASE_PARAM, baseParam, COMMIT_SHA, type SearchParams } from "../../../../lib/compare";
+import { COMMIT_SHA, type SearchParams } from "../../../../lib/compare";
 import { parseRepoPath } from "../../../../lib/repoUrl";
 import { repoScreen } from "../repoScreen";
 
@@ -35,5 +35,5 @@ export default async function CommitPage({
   const { owner, repo, sha } = await params;
   const ref = parseRepoPath(owner, repo);
   if (!ref || !COMMIT_SHA.test(sha)) notFound();
-  return repoScreen(ref, sha, baseParam((await searchParams)?.[BASE_PARAM]));
+  return repoScreen(ref, sha, await searchParams);
 }

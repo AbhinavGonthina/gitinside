@@ -2273,3 +2273,17 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - Anchoring at the first box in reading order: it can still be a lone box with its neighbors off-screen.
   - Compacting the layout (ELK options for long edges): a layout change for every repo, beyond this task. The sparse layout stays as it is.
 - **Consequences:** a big level's first view no longer starts at its top-left corner, so a reader who wants the start of the flow pans there or uses the minimap. Levels that fit at 40% or more look the same as before.
+
+## ADR-0200: A repo page with no analysis asks GitHub for the repo's current name, and follows a rename
+- **Status:** accepted (2026-11-04, M5.13b3); amends ADR-0068 step 1
+- **Context:** `cal.com` was renamed `cal.diy` on GitHub. Its analysis is stored under the name GitHub answered with (`calcom/cal.diy`), so `/calcom/cal.com` found no row by name and said "hasn't been analyzed yet", though GitHub still redirects the old name. The README badge and image at an old URL went link-only the same way. The opposite case fails too: a repo analyzed before a rename is stored under its old name until the next analysis's `upsertRepo`, so its new URL found nothing.
+- **Decision:** when the name finds no published analysis (repo pages and images, not permalinks), `viewRepo` asks GitHub through `resolveRepo`, which already follows the API's same-origin `301`:
+  - GitHub answers with another owner or name (ignoring case) ⇒ `moved`. The page redirects there (Next's `redirect`, a 307, since a rename can be undone), keeping the query so a deep link survives. The image route draws the new name's view.
+  - GitHub answers with the same name ⇒ the published analysis by GitHub's repo ID (`findPublishedAnalysis({ providerRepoId })`), checked on view as usual with that answer (no second lookup). None ⇒ `not-analyzed` in GitHub's spelling.
+  - Not found, unavailable, or the cap below used up ⇒ `not-analyzed` as written, as before.
+- **Quota:** answers are remembered like check-on-view's (a minute, successes only). Made-up names would each cost a GitHub call, so lookups for unknown names are capped site-wide at 500 an hour (`site:unknown-repo` in `rate_limits`, about a tenth of a token's 5,000), leaving the rest for `/api/analyze` and check-on-view. Past the cap, the page offers "Analyze" unchecked, which asks GitHub itself.
+- **Permalinks unchanged:** `/<owner>/<repo>/<sha>` still never asks GitHub (ADR-0068), so a permalink under a name that no longer matches the stored one stays a 404 until the repo is re-analyzed under it. Asking GitHub on every unknown permalink would let any SHA spend quota.
+- **Alternatives rejected:**
+  - Rewriting the stored name on view: a write on a GET, and it would move every graph URL (`/api/graph/<stored name>/…`) the CDN has cached.
+  - Remembering former names in the database: GitHub already keeps them, and asking it is the only way to know a name is still a redirect and not taken by another repo.
+- **Consequences:** a never-analyzed repo's page now costs one GitHub lookup a minute (it used to cost none), and shows GitHub's spelling.

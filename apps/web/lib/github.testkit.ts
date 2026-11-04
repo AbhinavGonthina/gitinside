@@ -17,6 +17,11 @@ export interface FakeRepo {
   sizeKb?: number | null;
   /** `GET …/languages`'s answer, bytes by language; default 50,000 bytes of TypeScript. */
   languages?: Record<string, unknown>;
+  /**
+   * Names it had before a rename or transfer (`owner/name`). Like GitHub, a request under one
+   * is a `301` to `/repositories/{id}` (plus the rest of the path), answered as the repo.
+   */
+  formerNames?: string[];
 }
 
 export interface FakeGitHub {
@@ -48,9 +53,27 @@ export function fakeGitHub(repos: FakeRepo[]): FakeGitHub {
     if (failure instanceof Error) throw failure;
     if (failure !== undefined) return failure;
 
-    const parts = new URL(request.url).pathname.split("/").map(decodeURIComponent);
-    const [, kind, owner = "", name = "", ...rest] = parts;
-    const repo = kind === "repos" ? find(owner, name) : undefined;
+    const url = new URL(request.url);
+    const parts = url.pathname.split("/").map(decodeURIComponent);
+    const [, kind, owner = "", name = "", ...more] = parts;
+    let rest = more;
+    let repo = kind === "repos" ? find(owner, name) : undefined;
+    if (kind === "repos" && repo === undefined) {
+      const former = `${owner}/${name}`.toLowerCase();
+      const moved = repos.find((r) => r.formerNames?.some((n) => n.toLowerCase() === former));
+      if (moved !== undefined) {
+        const location = new URL(`/repositories/${moved.id}`, url);
+        if (rest.length > 0) location.pathname += `/${rest.join("/")}`;
+        return Response.json(
+          { message: "Moved Permanently", url: location.href },
+          { status: 301, headers: { location: location.href } },
+        );
+      }
+    }
+    if (kind === "repositories") {
+      repo = repos.find((r) => String(r.id) === owner);
+      rest = [name, ...more].filter((part) => part !== "");
+    }
     if (repo === undefined) return Response.json({ message: "Not Found" }, { status: 404 });
     if (rest.length === 0) {
       return Response.json({

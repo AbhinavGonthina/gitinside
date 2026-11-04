@@ -138,7 +138,9 @@ export async function handleImageRequest(
   if (deps === undefined) return linkOnly(FAILED_IMAGE_CACHE_CONTROL);
 
   try {
-    const view = await viewRepo(ref, deps.view);
+    let view = await viewRepo(ref, deps.view);
+    // A renamed repo's README keeps its old image URL: draw the repo under its new name.
+    if (view.status === "moved") view = await viewRepo(view, deps.view);
     if (view.status !== "ready") return linkOnly();
     const graph = await loadGraph(view.graphUrl, deps);
     if (graph === undefined) return linkOnly(FAILED_IMAGE_CACHE_CONTROL);

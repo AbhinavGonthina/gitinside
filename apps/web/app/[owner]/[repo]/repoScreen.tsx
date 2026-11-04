@@ -1,8 +1,8 @@
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
-import type { BaseView } from "../../../lib/compare";
+import { notFound, redirect } from "next/navigation";
+import { BASE_PARAM, baseParam, type BaseView, type SearchParams } from "../../../lib/compare";
 import type { RepoRef } from "../../../lib/repoUrl";
-import { viewBase, viewRepo } from "../../../lib/repoView";
+import { movedPath, viewBase, viewRepo } from "../../../lib/repoView";
 import { repoViewDepsFromEnv, VERCEL_OIDC_HEADER } from "../../../lib/serverDeps";
 import { NotAnalyzed } from "./NotAnalyzed";
 import { RepoDiagram } from "./RepoDiagram";
@@ -13,10 +13,12 @@ import { RepoUnavailable } from "./RepoNotice";
  * ADR-0069). Unconfigured or failing lookups say "temporarily unavailable"; a repo GitHub
  * doesn't show publicly, or a commit never analyzed, is a 404. With `base` (a link's
  * `?base=`), the diagram compares with that commit (`viewBase`); a base that can't be
- * compared is a note on the page, not a 404. A plain async function, not a component, so
- * tests can await and render it.
+ * compared is a note on the page, not a 404. A repo GitHub knows under another name now
+ * redirects there, the query (deep link, `?base=`) kept (M5.13b3). A plain async function,
+ * not a component, so tests can await and render it.
  */
-export async function repoScreen(ref: RepoRef, sha?: string, base?: string) {
+export async function repoScreen(ref: RepoRef, sha?: string, query: SearchParams = {}) {
+  const base = baseParam(query[BASE_PARAM]);
   const oidcToken = (await headers()).get(VERCEL_OIDC_HEADER);
   const deps = repoViewDepsFromEnv(process.env, oidcToken);
   if (deps === undefined) return <RepoUnavailable owner={ref.owner} repo={ref.repo} />;
@@ -39,6 +41,8 @@ export async function repoScreen(ref: RepoRef, sha?: string, base?: string) {
     return <RepoUnavailable owner={ref.owner} repo={ref.repo} />;
   }
   if (view.status === "missing") notFound();
+  // Outside the `try`: `redirect` throws Next's own error to do its work.
+  if (view.status === "moved") redirect(movedPath(view, query));
   if (view.status === "not-analyzed") return <NotAnalyzed owner={view.owner} repo={view.repo} />;
   return (
     <RepoDiagram

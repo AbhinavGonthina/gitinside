@@ -17,7 +17,9 @@ import { fakeGitHub, type FakeGitHub, type FakeRepo } from "./github.testkit";
 import {
   createHeadCache,
   graphPath,
+  movedPath,
   RECHECKS_PER_HOUR,
+  UNKNOWN_LOOKUPS_PER_HOUR,
   viewBase,
   viewRepo,
   type RepoViewDeps,
@@ -108,12 +110,10 @@ const ready = (sha: string, head: object, version = VERSION) => ({
 });
 
 describe("viewRepo", () => {
-  it("offers to analyze a repo with no finished analysis, without asking GitHub", async () => {
-    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({
-      status: "not-analyzed",
-      owner: "acme",
-      repo: "shop",
-    });
+  it("offers to analyze a repo with no finished analysis, in GitHub's spelling, asking once a minute", async () => {
+    const notAnalyzed = { status: "not-analyzed", owner: "Acme", repo: "Shop" };
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(notAnalyzed);
+    expect(gh.requests).toHaveLength(2); // repo + commit
     // A failed or running analysis isn't a diagram either.
     const { id } = await startAnalysis(t.db, {
       repoId: await repoId(),
@@ -121,8 +121,84 @@ describe("viewRepo", () => {
       analyzerVersion: VERSION,
     });
     await failAnalysis(t.db, id, "LIMIT_FILES");
-    expect((await viewRepo({ owner: "acme", repo: "shop" }, deps)).status).toBe("not-analyzed");
-    expect(gh.requests).toEqual([]);
+    expect(await viewRepo({ owner: "ACME", repo: "shop" }, deps)).toEqual(notAnalyzed);
+    expect(gh.requests).toHaveLength(2);
+    clock += 61_000;
+    await viewRepo({ owner: "acme", repo: "shop" }, deps);
+    expect(gh.requests).toHaveLength(4);
+    expect(tasks.google.tasks).toEqual([]);
+  });
+
+  it("offers to analyze a name GitHub can't find or can't be asked about, as written", async () => {
+    const asWritten = { status: "not-analyzed", owner: "acme", repo: "nope" };
+    expect(await viewRepo({ owner: "acme", repo: "nope" }, deps)).toEqual(asWritten);
+    gh.failNext(new Error("offline"));
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({
+      ...asWritten,
+      repo: "shop",
+    });
+    // Failures aren't remembered: the next view asks again.
+    expect(await viewRepo({ owner: "acme", repo: "nope" }, deps)).toEqual(asWritten);
+    expect(gh.requests).toHaveLength(3);
+  });
+
+  it("asks GitHub about at most UNKNOWN_LOOKUPS_PER_HOUR unknown names an hour, site-wide", async () => {
+    deps.unknownLookupsPerHour = 2;
+    for (const repo of ["a", "b", "c", "d"]) await viewRepo({ owner: "acme", repo }, deps);
+    expect(gh.requests).toHaveLength(2);
+    // Past the cap, even a real repo is offered unchecked (and its answer wasn't kept).
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({
+      status: "not-analyzed",
+      owner: "acme",
+      repo: "shop",
+    });
+    expect(gh.requests).toHaveLength(2);
+    expect(UNKNOWN_LOOKUPS_PER_HOUR).toBe(500);
+  });
+
+  it("follows a rename: the old name moves to the new one, asking once a minute (M5.13b3)", async () => {
+    await done(OLD);
+    shop.owner = "Shopco";
+    shop.name = "Store";
+    shop.formerNames = ["Acme/Shop"];
+    const moved = { status: "moved", owner: "Shopco", repo: "Store" };
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "current" }),
+    );
+    // Stored under the new name now (the next analysis's upsert), the old name finds nothing.
+    await t.db.update(repos).set({ owner: "Shopco", name: "Store" });
+    const requests = gh.requests.length;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(moved);
+    expect(gh.requests.length - requests).toBe(3); // 301, the repo, its commit
+    expect(await viewRepo({ owner: "Acme", repo: "SHOP" }, deps)).toEqual(moved);
+    expect(gh.requests.length - requests).toBe(3);
+    expect(await viewRepo({ owner: "shopco", repo: "store" }, deps)).toMatchObject({
+      status: "ready",
+      owner: "Shopco",
+      repo: "Store",
+      graphUrl: `/api/graph/Shopco/Store/${OLD}`,
+      head: { state: "current" },
+    });
+    // A permalink never asks GitHub, under either name.
+    const asked = gh.requests.length;
+    expect(await viewRepo({ owner: "acme", repo: "shop", sha: OLD }, deps)).toEqual({
+      status: "missing",
+    });
+    expect(gh.requests).toHaveLength(asked);
+    expect(tasks.google.tasks).toEqual([]);
+  });
+
+  it("finds a repo analyzed under its old name by GitHub's ID, then checks it as usual", async () => {
+    await done(OLD);
+    shop.owner = "Shopco";
+    shop.name = "Store";
+    shop.sha = NEW;
+    // Stored as Acme/Shop; the new name finds it through GitHub, which is asked once.
+    expect(await viewRepo({ owner: "shopco", repo: "store" }, deps)).toMatchObject({
+      ...ready(OLD, { state: "updating", sha: NEW }),
+    });
+    expect(gh.requests).toHaveLength(3); // repo + commit + languages (the size check)
+    expect(await repoSlots()).toBe(1);
   });
 
   it("serves a permalink as is, never checking GitHub; an unknown commit is missing", async () => {
@@ -434,8 +510,8 @@ describe("viewRepo", () => {
     shop.private = false;
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({
       status: "not-analyzed",
-      owner: "acme",
-      repo: "shop",
+      owner: "Acme",
+      repo: "Shop",
     });
     await repoId();
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
@@ -461,6 +537,18 @@ describe("viewRepo", () => {
       repo: "Shop",
     });
     expect(tasks.google.tasks).toEqual([]);
+  });
+});
+
+describe("movedPath", () => {
+  it("opens the new name with the query as it came, repeated keys in order", () => {
+    expect(movedPath({ owner: "Shopco", repo: "Store" })).toBe("/Shopco/Store");
+    expect(
+      movedPath(
+        { owner: "Shopco", repo: "my.store" },
+        { sel: "service:api/", base: ["x", OLD], none: undefined },
+      ),
+    ).toBe(`/Shopco/my.store?sel=service%3Aapi%2F&base=x&base=${OLD}`);
   });
 });
 
