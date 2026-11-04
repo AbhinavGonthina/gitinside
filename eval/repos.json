@@ -11,6 +11,16 @@
       "heldOut": 3
     },
     {
+      "owner": "fiveman1",
+      "name": "strafes-site",
+      "url": "https://github.com/fiveman1/strafes-site",
+      "sha": "006a01090d3bdd48c5a1d8bce82a318b32dee3da",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 4 (M5C.5b1, drawn in stratum react-express). Yarn workspace: a Vite React + TypeScript client, an Express server, and a shared types package. Every client API request goes through client/src/api/api.ts, where tryGetRequest(path, params) / tryPostRequest(path, body) hand a bare path (\"user/rank/\" + id) to tryRequest's fetch(\"/api/\" + url) on the page's own origin (Vite's server.proxy sends /api to the server's port 8080 in dev; the same Express app serves client/build in production). All ~25 routes are app.get/app.post calls with full /api/... paths in server/src/index.ts, no routers or mounts, ending in a *splat SPA fallback. The server calls Roblox APIs through axios helpers (some memoized) and the StrafesNET APIs through two committed, generated swagger-typescript-api clients; the client also fetches its bundled .wasm and signed replay URLs returned by the API, and commits wasm-bindgen glue with fetch calls. ~104 TS/JS source files incl. generated code.",
+      "heldOut": 4
+    },
+    {
       "owner": "harundogdu",
       "name": "twitter-clone",
       "url": "https://github.com/harundogdu/twitter-clone",
@@ -19,6 +29,16 @@
       "shape": "next-api-routes",
       "why": "Held out, batch 2 (M5A.4a2). Single-package Next.js pages router app with Prisma: client components and hooks call its own pages/api handlers by root-relative path. Most reads are SWR keys (useSWR(`/api/posts/${postId}`, fetcher)) handed to one libs/fetcher.ts that calls axios.get(url), so the URL is written at the useSWR call while the request expression is in the fetcher, which no repo code calls; writes are inline axios calls (one URL chosen by a ternary held in a const), plus one fetch. Handlers pick their methods with req.method guards (405, a switch, an open handler that only rejects GET). ~85 TS source files.",
       "heldOut": 2
+    },
+    {
+      "owner": "hoangsonww",
+      "name": "Tic-Tac-Toe-Fullstack-Game",
+      "url": "https://github.com/hoangsonww/Tic-Tac-Toe-Fullstack-Game",
+      "sha": "85aad27646f31b4f918165928091e2a582d6e2b6",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 4 (M5C.5b1, drawn in stratum react-express). A Vite React + TypeScript SPA (frontend/) and a JS Express + Mongoose backend (backend/), no workspace. Most screens call one axios.create({ baseURL: API_URL }) instance (frontend/src/utils/api.ts), API_URL = process.env.REACT_APP_API_BASE || import.meta.env.VITE_API_BASE || \"https://tic-tac-toe-backend-api.vercel.app\" (vite.config.ts defines process.env.REACT_APP_API_BASE with the same fallback; frontend/.env.example sets that host). The game board calls fetch(apiUrl(path)) through a local `${API_BASE}${path}` builder and the navbar inlines the same base; some axios calls are chains split across lines (api, then .get(…) on the next line). That host is labeled as the repo's backend because backend/vercel.json routes every path to it (ADR-0209). backend/app.js mounts five routers at /auth, /profile, /leaderboard, /social, /realtime (no /api prefix) with router.get/post/put calls. The board also opens a WebSocket (not labeled). ~45 TS/JS source files.",
+      "heldOut": 4
     },
     {
       "owner": "hoangsonww",
@@ -37,6 +57,16 @@
       "license": "MIT",
       "shape": "spa-plus-express",
       "why": "Create React App SPA (frontend/) and an Express server (server/) side by side with no workspace config. Requests go through httpRequest(), a wrapper over axios(config) with axios.defaults.baseURL built from REACT_APP_ env vars and an /api/v1 prefix. ~167 source files."
+    },
+    {
+      "owner": "jigar-sable",
+      "name": "instagram-mern",
+      "url": "https://github.com/jigar-sable/instagram-mern",
+      "sha": "50e76f3c961553fd8ed5b09145c6063a75d8580b",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 4 (M5C.5b1, drawn in stratum react-express). A Create React App frontend (React 17, Redux + redux-thunk) whose thunk action creators (frontend/src/actions/*.js) and three components call plain imported axios on root-relative /api/v1/... template URLs, no instance or baseURL; CRA's package.json proxy (http://localhost:4000) reaches the API in dev, and the same Express app serves frontend/build in production. backend/app.js (started by the root server.js) mounts four routers, each created with express() rather than express.Router(), at the same /api/v1 prefix; each declares router.route(path).<method>(…) chains. S3 and SendGrid are reached only through SDKs, and chat runs over socket.io. Commits its CRA build output under frontend/build (out of scope). ~80 TS/JS source files without the build.",
+      "heldOut": 4
     },
     {
       "owner": "krishnaacharyaa",
@@ -87,6 +117,16 @@
       "why": "Vite React frontend whose single API module builds every fetch URL as `${API_BASE}/...` with API_BASE = import.meta.env.VITE_API_URL ?? a localhost fallback; the CommonJS Express backend mounts routers via app.use(path, require(...)). No root package.json. ~112 source files."
     },
     {
+      "owner": "panshak",
+      "name": "accountill",
+      "url": "https://github.com/panshak/accountill",
+      "sha": "399f2a35dcdd542fc84ffaf4f35a064e62c6d22a",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 4 (M5C.5b1, drawn in stratum react-express). A Create React App SPA (React, Redux) beside an ESM Express + Mongoose server, no workspace. Most requests are one-line wrappers in client/src/api/index.js on one axios.create({ baseURL: process.env.REACT_APP_API }) instance (no in-code fallback; the README sets http://localhost:5000, the server's PORT fallback), with literal or template paths and query strings, and an interceptor that only adds a header; three components call plain axios on `${process.env.REACT_APP_API}/…`. server/index.js mounts four routers at /invoices, /clients, /users, /profiles (flat router.<method>() calls) and registers /send-pdf, /create-pdf, /fetch-pdf on app. Route order matters (a literal /count before /:id, /profiles/search caught by /:id), and one client request (GET /clients/:id) has no route. A fetch uploads to Cloudinary. Commits its CRA build output under client/build (out of scope). ~75 TS/JS source files without the build.",
+      "heldOut": 4
+    },
+    {
       "owner": "RishiBakshii",
       "name": "mern-ecommerce",
       "url": "https://github.com/RishiBakshii/mern-ecommerce",
@@ -128,6 +168,10 @@
     {
       "batch": 3,
       "seen": "Its misses were diagnosed in eval/results/2026-11-batch3-diagnosis.md and fixed in M5C.2 (RTK Query base queries that forward to fetchBaseQuery), written from RTK's documented re-authorization example and its own fixture (ADR-0201)."
+    },
+    {
+      "batch": 4,
+      "seen": null
     }
   ]
 }

@@ -1,0 +1,209 @@
+{
+  "repo": "hoangsonww/Tic-Tac-Toe-Fullstack-Game",
+  "sha": "85aad27646f31b4f918165928091e2a582d6e2b6",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/components/Board.tsx", "line": 173 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/leaderboard.js",
+        "line": 996,
+        "route": "POST /leaderboard/matchmaking/cancel"
+      },
+      "notes": "beforeunload handler: fetch(url, { method: \"POST\", keepalive }) with const url = apiUrl(\"/leaderboard/matchmaking/cancel\") on line 172. apiUrl (lines 42-45) is a useCallback string builder `${API_BASE}${path}`, API_BASE = process.env.REACT_APP_API_BASE || \"https://tic-tac-toe-backend-api.vercel.app\" (lines 39-41); vite.config.ts defines process.env.REACT_APP_API_BASE with the same fallback and frontend/.env.example sets REACT_APP_API_BASE and VITE_API_BASE to that host. That host is this repo's backend: backend/vercel.json routes every path to backend/src/server.ts, which serves createApp() from backend/app.js, so the fallback is followed into the repo. app.js mounts leaderboardRoutes at /leaderboard (no /api prefix)"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Board.tsx", "line": 229 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/realtime.js",
+        "line": 322,
+        "route": "POST /realtime/resign"
+      },
+      "notes": "resignMatch(): fetch(apiUrl(\"/realtime/resign\"), { method: \"POST\" }); app.js mounts realtimeRoutes at /realtime"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Board.tsx", "line": 344 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/leaderboard.js",
+        "line": 226,
+        "route": "POST /leaderboard/ai-match"
+      },
+      "notes": "handleAIMatchResult(): fetch(apiUrl(\"/leaderboard/ai-match\"), { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Board.tsx", "line": 417 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/leaderboard.js",
+        "line": 372,
+        "route": "POST /leaderboard/matchmaking"
+      },
+      "notes": "startMatchmaking(): fetch(apiUrl(\"/leaderboard/matchmaking\"), { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Board.tsx", "line": 468 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/leaderboard.js",
+        "line": 560,
+        "route": "GET /leaderboard/matchmaking/status"
+      },
+      "notes": "checkMatchmakingStatus(): fetch(apiUrl(`/leaderboard/matchmaking/status?player=${username}`), { headers }) on several lines (the URL on line 469), no method so GET; the query string isn't part of the route. GET /match/:id (line 1073) can't match the two-segment matchmaking/status path"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Board.tsx", "line": 515 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/realtime.js",
+        "line": 174,
+        "route": "POST /realtime/poll"
+      },
+      "notes": "fetchMatchState(): fetch(apiUrl(\"/realtime/poll\"), { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Board.tsx", "line": 627 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/realtime.js",
+        "line": 186,
+        "route": "POST /realtime/move"
+      },
+      "notes": "syncMove(): fetch(apiUrl(\"/realtime/move\"), { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Board.tsx", "line": 662 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/leaderboard.js",
+        "line": 783,
+        "route": "POST /leaderboard/match/timeout"
+      },
+      "notes": "handleMatchTimeout(): fetch(apiUrl(\"/leaderboard/match/timeout\"), { method: \"POST\" }); the router's only /match/:id route is GET"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/ForgotPassword.tsx", "line": 35 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/auth.js",
+        "line": 166,
+        "route": "POST /auth/forgot-password"
+      },
+      "notes": "api.post(\"/auth/forgot-password\", { email }). api = axios.create({ baseURL: API_URL }) in frontend/src/utils/api.ts, API_URL = process.env.REACT_APP_API_BASE || import.meta.env.VITE_API_BASE || \"https://tic-tac-toe-backend-api.vercel.app\" (lines 3-9), the repo's own backend deployed on Vercel (backend/vercel.json -> backend/src/server.ts -> createApp in backend/app.js), so the fallback is followed into the repo. app.js mounts authRoutes at /auth"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/ForgotPassword.tsx", "line": 52 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/auth.js",
+        "line": 219,
+        "route": "POST /auth/reset-password"
+      },
+      "notes": "api.post(\"/auth/reset-password\", { email, newPassword })"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Leaderboard.tsx", "line": 40 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/leaderboard.js",
+        "line": 71,
+        "route": "GET /leaderboard"
+      },
+      "notes": "api\\n.get(\"/leaderboard\", { params: { page, limit } }): the call expression starts at `api` (line 40), .get on line 41; params become a query string, not part of the route. router.get(\"/\") under the /leaderboard mount"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Login.tsx", "line": 39 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/auth.js",
+        "line": 103,
+        "route": "POST /auth/login"
+      },
+      "notes": "api.post(\"/auth/login\", data)"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Navbar.tsx", "line": 64 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/auth.js",
+        "line": 273,
+        "route": "GET /auth/validate-token"
+      },
+      "notes": "fetch(`${apiBase}/auth/validate-token`, { method: \"GET\" }) with apiBase = REACT_APP_API_BASE || VITE_API_BASE || \"https://tic-tac-toe-backend-api.vercel.app\" (lines 57-63), the same base as utils/api.ts, followed into the repo's backend"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Profile.tsx", "line": 87 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/profile.js",
+        "line": 53,
+        "route": "GET /profile"
+      },
+      "notes": "mount effect: api\\n.get(\"/profile\", { headers }), the call expression starting at `api` (line 87), .get on line 88. app.js mounts profileRoutes at /profile; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Profile.tsx", "line": 123 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/profile.js",
+        "line": 53,
+        "route": "GET /profile"
+      },
+      "notes": "debounced search effect with an empty query: api\\n.get(\"/profile\", { headers }), starting at `api` (line 123), .get on line 124"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Profile.tsx", "line": 143 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/profile.js",
+        "line": 245,
+        "route": "GET /profile/search"
+      },
+      "notes": "debounced search effect: api\\n.get(`/profile/search?username=${…}`, { headers }), starting at `api` (line 143), .get on line 144, the URL on line 145; the query string isn't part of the route"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Profile.tsx", "line": 202 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/profile.js",
+        "line": 245,
+        "route": "GET /profile/search"
+      },
+      "notes": "loadProfileByUsername(): api.get(`/profile/search?username=${…}&exact=true`, { headers }) on several lines"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Profile.tsx", "line": 276 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/routes/profile.js",
+        "line": 109,
+        "route": "PUT /profile"
+      },
+      "notes": "handleFieldSave(): api.put(\"/profile\", dataToUpdate, { headers }); router.put(\"/\") (PUT /games on line 171 is a different path)"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Profile.tsx", "line": 335 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/routes/profile.js",
+        "line": 109,
+        "route": "PUT /profile"
+      },
+      "notes": "handleSocialMediaSave(): api.put(\"/profile\", dataToUpdate, { headers })"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Register.tsx", "line": 44 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/auth.js",
+        "line": 45,
+        "route": "POST /auth/register"
+      },
+      "notes": "api.post(\"/auth/register\", { ...data, password })"
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+{
+  "repo": "panshak/accountill",
+  "sha": "399f2a35dcdd542fc84ffaf4f35a064e62c6d22a",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["client/src", "server"],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 15 },
+      "method": "GET",
+      "target": { "file": "server/routes/invoices.js", "line": 7, "route": "GET /invoices/:id" },
+      "notes": "fetchInvoice(): API.get(`/invoices/${id}`). API = axios.create({ baseURL: process.env.REACT_APP_API }), no in-code fallback (the commented-out line 3 had http://localhost:5000); README's client .env sets REACT_APP_API = http://localhost:5000 = server/index.js's PORT fallback 5000. The request interceptor only adds an authorization header. server/index.js mounts invoiceRoutes at /invoices; router.get('/count') is registered first but an invoice id isn't \"count\""
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 16 },
+      "method": "POST",
+      "target": { "file": "server/routes/invoices.js", "line": 9, "route": "POST /invoices" },
+      "notes": "addInvoice(): API.post('/invoices')"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 17 },
+      "method": "PATCH",
+      "target": { "file": "server/routes/invoices.js", "line": 10, "route": "PATCH /invoices/:id" },
+      "notes": "updateInvoice(): API.patch(`/invoices/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 18 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/invoices.js",
+        "line": 11,
+        "route": "DELETE /invoices/:id"
+      },
+      "notes": "deleteInvoice(): API.delete(`/invoices/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 19 },
+      "method": "GET",
+      "target": { "file": "server/routes/invoices.js", "line": 8, "route": "GET /invoices" },
+      "notes": "fetchInvoicesByUser(): API.get(`/invoices?searchQuery=…`); the query string is dropped, so router.get('/') under the /invoices mount"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 21 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchClient(): API.get(`/clients/${id}`), but server/routes/clients.js registers no GET /:id (only GET /, GET /user, POST /, PATCH /:id, DELETE /:id), so the request matches no route in the repo"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 22 },
+      "method": "GET",
+      "target": { "file": "server/routes/clients.js", "line": 6, "route": "GET /clients" },
+      "notes": "fetchClients(): API.get(`/clients?page=${page}`); query dropped. server/index.js mounts clientRoutes at /clients"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 23 },
+      "method": "POST",
+      "target": { "file": "server/routes/clients.js", "line": 8, "route": "POST /clients" },
+      "notes": "addClient(): API.post('/clients')"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 24 },
+      "method": "PATCH",
+      "target": { "file": "server/routes/clients.js", "line": 9, "route": "PATCH /clients/:id" },
+      "notes": "updateClient(): API.patch(`/clients/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 25 },
+      "method": "DELETE",
+      "target": { "file": "server/routes/clients.js", "line": 10, "route": "DELETE /clients/:id" },
+      "notes": "deleteClient(): API.delete(`/clients/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 26 },
+      "method": "GET",
+      "target": { "file": "server/routes/clients.js", "line": 7, "route": "GET /clients/user" },
+      "notes": "fetchClientsByUser(): API.get(`/clients/user?searchQuery=…`); query dropped. The clients router has no GET /:id, so nothing shadows /user"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 29 },
+      "method": "POST",
+      "target": { "file": "server/routes/userRoutes.js", "line": 6, "route": "POST /users/signin" },
+      "notes": "signIn(): API.post('/users/signin'). server/index.js mounts userRoutes at /users"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 30 },
+      "method": "POST",
+      "target": { "file": "server/routes/userRoutes.js", "line": 7, "route": "POST /users/signup" },
+      "notes": "signUp(): API.post('/users/signup')"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 31 },
+      "method": "POST",
+      "target": { "file": "server/routes/userRoutes.js", "line": 8, "route": "POST /users/forgot" },
+      "notes": "forgot(): API.post('/users/forgot')"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 32 },
+      "method": "POST",
+      "target": { "file": "server/routes/userRoutes.js", "line": 9, "route": "POST /users/reset" },
+      "notes": "reset(): API.post('/users/reset')"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 34 },
+      "method": "GET",
+      "target": { "file": "server/routes/profile.js", "line": 6, "route": "GET /profiles/:id" },
+      "notes": "fetchProfilesBySearch(): API.get(`/profiles/search?searchQuery=…`). server/routes/profile.js has no /search route; router.get('/:id') (line 6) matches it with id = \"search\", so Express dispatches there"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 35 },
+      "method": "GET",
+      "target": { "file": "server/routes/profile.js", "line": 6, "route": "GET /profiles/:id" },
+      "notes": "fetchProfile(): API.get(`/profiles/${id}`). server/index.js mounts profile at /profiles"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 36 },
+      "method": "GET",
+      "target": { "file": "server/routes/profile.js", "line": 8, "route": "GET /profiles" },
+      "notes": "fetchProfiles(): API.get('/profiles'); router.get('/', getProfiles) on line 7 is commented out, so router.get('/', getProfilesByUser) on line 8 handles it"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 37 },
+      "method": "GET",
+      "target": { "file": "server/routes/profile.js", "line": 8, "route": "GET /profiles" },
+      "notes": "fetchProfilesByUser(): API.get(`/profiles?searchQuery=…`); query dropped"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 38 },
+      "method": "POST",
+      "target": { "file": "server/routes/profile.js", "line": 9, "route": "POST /profiles" },
+      "notes": "createProfile(): API.post('/profiles')"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 39 },
+      "method": "PATCH",
+      "target": { "file": "server/routes/profile.js", "line": 10, "route": "PATCH /profiles/:id" },
+      "notes": "updateProfile(): API.patch(`/profiles/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/api/index.js", "line": 40 },
+      "method": "DELETE",
+      "target": { "file": "server/routes/profile.js", "line": 11, "route": "DELETE /profiles/:id" },
+      "notes": "deleteProfile(): API.delete(`/profiles/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/components/Invoice/Invoice.js", "line": 93 },
+      "method": "GET",
+      "target": { "file": "server/routes/invoices.js", "line": 6, "route": "GET /invoices/count" },
+      "notes": "getTotalCount(): plain axios.get(`${process.env.REACT_APP_API}/invoices/count?searchQuery=…`); REACT_APP_API = http://localhost:5000 per README. router.get('/count') is registered before router.get('/:id'), so the literal wins"
+    },
+    {
+      "callSite": { "file": "client/src/components/InvoiceDetails/InvoiceDetails.js", "line": 121 },
+      "method": "POST",
+      "target": { "file": "server/index.js", "line": 87, "route": "POST /create-pdf" },
+      "notes": "createAndDownloadPdf(): axios.post(`${process.env.REACT_APP_API}/create-pdf`, …); registered directly on app in server/index.js"
+    },
+    {
+      "callSite": { "file": "client/src/components/InvoiceDetails/InvoiceDetails.js", "line": 140 },
+      "method": "GET",
+      "target": { "file": "server/index.js", "line": 97, "route": "GET /fetch-pdf" },
+      "notes": "then-chained axios.get(`${process.env.REACT_APP_API}/fetch-pdf`, { responseType: 'blob' }); app.get('/fetch-pdf') sends the generated invoice.pdf with res.sendFile, a route handler rather than express.static"
+    },
+    {
+      "callSite": { "file": "client/src/components/InvoiceDetails/InvoiceDetails.js", "line": 153 },
+      "method": "POST",
+      "target": { "file": "server/index.js", "line": 53, "route": "POST /send-pdf" },
+      "notes": "sendPdf(): axios.post(`${process.env.REACT_APP_API}/send-pdf`, …)"
+    },
+    {
+      "callSite": { "file": "client/src/components/Settings/Form/Uploader.js", "line": 45 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(url, { method: \"post\" }) with url = \"https://api.cloudinary.com/v1_1/almpo/image/upload\" (line 33): a logo upload to Cloudinary, not a route in the repo"
+    }
+  ]
+}
