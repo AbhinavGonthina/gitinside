@@ -57,8 +57,16 @@
  * is `WRAPPER_DEPTH` rather than `DYNAMIC_URL`. Only a parameter in the URL's leading part
  * makes a function a wrapper ({@link leadingHoles}, M5A.3j). See `wrappers.ts`.
  *
+ * TanStack Query's key in a function's context (M5C.3f, ADR-0196's amendment): `queryKey`
+ * destructured from a parameter (`({ queryKey })`, also its elements `({ queryKey: [url] })`),
+ * `ctx.queryKey` on an identifier parameter, and an element at a literal index of either
+ * (`queryKey[0]`) read that parameter: unbound, a `param` hole; bound (to the options object a
+ * hook passes, `wrappers.ts`), that object's `queryKey` property and its array literal's element,
+ * read in the caller's scope. Only the property named `queryKey` is followed through a pattern.
+ *
  * Not handled (each becomes a hole, so usually `DYNAMIC_URL`):
- * - `var` variables, `let`s `lets.ts` can't follow, destructured parameters, function results, array
+ * - `var` variables, `let`s `lets.ts` can't follow, destructured parameters other than a
+ *   context's `queryKey`, `queryKey.join("/")`, a key element read at a computed index, function results, array
  *   `.join()`, `.concat()`, `path.join`, `URLSearchParams` built into the path.
  * - Mutating a `URL` after creation (`u.pathname = …`) and relative `new URL()` URLs whose
  *   base isn't literal (the base's path is unknown).
@@ -782,6 +790,117 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     return [hole];
   };
 
+  /**
+   * What a read of a TanStack Query context's key stands for (see the file comment): the
+   * parameter it reads when unbound, or the value it reads from the bound options object
+   * (`outer`: in the caller's scope). `null` when it is such a read but can't be followed,
+   * `undefined` when the expression is no such read.
+   */
+  type KeyRead = { param: ts.ParameterDeclaration } | { value: ProgramExpression; outer: boolean };
+
+  /** The `queryKey` property of the object a context parameter holds. */
+  const contextKey = (d: ts.ParameterDeclaration, hops: number): KeyRead | null => {
+    if (!bindings?.has(d)) return { param: d };
+    const bound = bindings.get(d);
+    if (!bound) return null;
+    const e = unwrap(bound.expression);
+    const object = ts.isObjectLiteralExpression(e)
+      ? { sp: bound.sp, expression: e }
+      : reader.constObject(bound.sp, e, hops + 1);
+    const key = object && objectProperty(object.sp, object.expression, "queryKey");
+    return key ? { value: key, outer: true } : null;
+  };
+
+  /** Element `index` of the array literal (or `const` holding one) a key read gives. */
+  const keyElement = (read: KeyRead | null, index: number, hops: number): KeyRead | null => {
+    if (!read || "param" in read) return read;
+    let e = unwrap(read.value.expression);
+    let sp = read.value.sp;
+    if (ts.isIdentifier(e)) {
+      const symbol = reader.symbolAt(sp, e);
+      const found = symbol && reader.resolveDeclaration(sp, symbol, hops + 1);
+      const d = found?.declaration;
+      if (found && d && ts.isVariableDeclaration(d) && d.initializer && isConst(d)) {
+        note(found.confidence);
+        e = unwrap(d.initializer);
+        sp = found.sp;
+      } else if (d && ts.isParameter(d)) {
+        // The caller's own parameter (a custom hook's key): only a caller further out knows it.
+        return read.outer ? { param: d } : null;
+      }
+    }
+    if (!ts.isArrayLiteralExpression(e)) return null;
+    const before = e.elements.slice(0, index + 1);
+    if (before.some((x) => ts.isSpreadElement(x))) return null;
+    const element = e.elements[index];
+    return element && !ts.isOmittedExpression(element)
+      ? { value: { sp, expression: element }, outer: read.outer }
+      : null;
+  };
+
+  /** What a binding element read from a parameter's `queryKey` stands for. */
+  const keyBinding = (d: ts.BindingElement, hops: number): KeyRead | null | undefined => {
+    if (hops > MAX_HOPS) return null;
+    const pattern = d.parent;
+    if (ts.isObjectBindingPattern(pattern)) {
+      const key = d.propertyName ?? d.name;
+      const named =
+        (ts.isIdentifier(key) || ts.isStringLiteralLike(key)) && key.text === "queryKey";
+      if (!named || d.dotDotDotToken || !ts.isParameter(pattern.parent)) return undefined;
+      return contextKey(pattern.parent, hops);
+    }
+    const owner = pattern.parent;
+    if (!ts.isBindingElement(owner)) return undefined;
+    const array = keyBinding(owner, hops + 1);
+    if (array === undefined) return undefined;
+    if (d.dotDotDotToken) return null;
+    return keyElement(array, pattern.elements.indexOf(d), hops);
+  };
+
+  /** A key read (see {@link KeyRead}), if `e` is one. */
+  const keyRead = (
+    sp: ServiceProgram,
+    e: ts.Expression,
+    hops: number,
+  ): KeyRead | null | undefined => {
+    if (hops > MAX_HOPS) return undefined;
+    if (ts.isIdentifier(e)) {
+      const d = reader.symbolAt(sp, e)?.valueDeclaration;
+      return d && ts.isBindingElement(d) ? keyBinding(d, hops) : undefined;
+    }
+    if (ts.isPropertyAccessExpression(e) && e.name.text === "queryKey") {
+      const object = unwrap(e.expression);
+      const d = ts.isIdentifier(object) ? reader.symbolAt(sp, object)?.valueDeclaration : undefined;
+      return d && ts.isParameter(d) && ts.isIdentifier(d.name) ? contextKey(d, hops) : undefined;
+    }
+    if (ts.isElementAccessExpression(e) && ts.isNumericLiteral(e.argumentExpression)) {
+      const array = keyRead(sp, unwrap(e.expression), hops + 1);
+      if (array === undefined) return undefined;
+      return keyElement(array, Number(e.argumentExpression.text), hops);
+    }
+    return undefined;
+  };
+
+  /** The parts a key read gives. */
+  const keyParts = (read: KeyRead | null, hops: number): UrlPart[] => {
+    if (!read) return [HOLE];
+    if ("param" in read) {
+      used.add(read.param);
+      const hole: UrlPart = { kind: "hole", param: true };
+      holes.set(hole, read.param);
+      return [hole];
+    }
+    if (!read.outer) return partsOf(read.value.sp, read.value.expression, hops + 1);
+    // The options object is read in the caller's scope, where these bindings don't apply.
+    const outer = bindings;
+    bindings = undefined;
+    try {
+      return partsOf(read.value.sp, read.value.expression, hops + 1);
+    } finally {
+      bindings = outer;
+    }
+  };
+
   const identifierParts = (sp: ServiceProgram, e: ts.Identifier, hops: number): UrlPart[] => {
     const symbol = reader.symbolAt(sp, e);
     const found = symbol && reader.resolveDeclaration(sp, symbol, hops + 1);
@@ -893,6 +1012,8 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     const env = envName(sp, e);
     if (env !== undefined) return [{ kind: "env", name: env }];
     if (isLocationOrigin(sp, e)) return [{ kind: "origin" }];
+    const key = keyRead(sp, e, hops);
+    if (key !== undefined) return keyParts(key, hops);
     if (ts.isIdentifier(e)) return identifierParts(sp, e, hops);
     if (ts.isPropertyAccessExpression(e)) {
       const fromEnum = reader.enumString(sp, e);

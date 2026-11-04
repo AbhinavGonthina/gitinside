@@ -30,6 +30,7 @@ const NAMES = [
   "next-method-exclusions",
   "swr-fetchers",
   "rtk-query",
+  "tanstack-query-key",
   "next-server-actions",
   "prisma-relations",
   "pnpm-monorepo",
@@ -142,7 +143,8 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
     const g = await run("rtk-query");
     expect(links(g, "http")).toEqual([
       "symbol:task-board/hooks/stats.ts#useStats -> route:task-board/ALL /api/stats exact",
-      "symbol:task-board/hooks/stats.ts#useStats -> unresolved:task-board/hooks/stats.ts:10:32 unresolved DYNAMIC_URL",
+      // The URL read from the hook's queryKey (M5C.3f): no route serves /api/stats/trend.
+      "symbol:task-board/hooks/stats.ts#useStats -> unresolved:task-board/hooks/stats.ts:8:17 unresolved NO_MATCHING_ROUTE",
       "symbol:task-board/store/api.ts#tasksApi -> route:task-board/GET /api/tasks exact",
       "symbol:task-board/store/api.ts#tasksApi -> route:task-board/GET /api/tasks/:id exact",
       "symbol:task-board/store/api.ts#tasksApi -> route:task-board/PATCH /api/tasks/:id exact",
@@ -155,6 +157,21 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
       "symbol:task-board/store/session.ts#sessionApi -> route:task-board/GET /api/session exact",
     ]);
     expect(g.nodes.filter((n) => n.kind === "unresolved" && n.id.includes("session"))).toEqual([]);
+  });
+
+  it("tanstack-query-key reads each hook's key through its queryFn's context (M5C.3f)", async () => {
+    const g = await run("tanstack-query-key");
+    const p = "tanstack-query-key";
+    const q = `symbol:${p}/src/queries.ts`;
+    expect(links(g, "http")).toEqual([
+      `${q}#statsOptions -> route:${p}/GET /api/stats heuristic`,
+      `${q}#useDrafts -> unresolved:${p}/src/queries.ts:16:10 unresolved NO_MATCHING_ROUTE`,
+      `${q}#usePost -> route:${p}/GET /api/posts/:postId heuristic`,
+      `${q}#usePosts -> route:${p}/GET /api/posts heuristic`,
+      `${q}#useTodos -> route:${p}/GET /api/users/:userId/todos exact`,
+    ]);
+    const details = g.nodes.flatMap((n) => (n.kind === "unresolved" ? [n.detail] : []));
+    expect(details).toEqual(["no route matches GET to /api/drafts"]);
   });
 
   it("next-method-exclusions reads which way a req.method test points (ADR-0195)", async () => {

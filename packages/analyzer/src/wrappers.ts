@@ -69,6 +69,17 @@
  *   `(...args) => fetch(...args)`, M5B.2b): the caller's argument at the rest parameter's
  *   position is the URL and the next one the init (absent: `GET`; after a spread, or SWR
  *   mutation's `{ arg }`: unknown).
+ * - TanStack Query's key in a `queryFn`'s context (M5C.3f, ADR-0196's amendment), from its
+ *   contract: `useQuery`, `useSuspenseQuery`, `useInfiniteQuery`, `useSuspenseInfiniteQuery`,
+ *   `usePrefetchQuery`, `usePrefetchInfiniteQuery`, `queryOptions`, and `infiniteQueryOptions`,
+ *   imported from `@tanstack/react-query` or `react-query`, call the options' `queryFn` with a
+ *   context whose `queryKey` is the options' `queryKey`. A call whose options (an object
+ *   literal or a `const` object) name a wrapper or a function written there as `queryFn` is a
+ *   call to it at the hook, its first parameter bound to the options; options with no
+ *   `queryFn` (and no spread) use the default every `new QueryClient({ defaultOptions: {
+ *   queries: { queryFn } } })` in the service sets, at `heuristic`. The URL reads the key
+ *   (`queryKey[0]`, `({ queryKey: [url] })`, `ctx.queryKey[1]`: `url.ts`); a key that is the
+ *   caller's own parameter is `WRAPPER_DEPTH`.
  *
  * Patterns not handled:
  * - Functions nested inside other functions as wrappers themselves (their parameters aren't
@@ -92,9 +103,13 @@
  *   reaching axios (`axios.get(...args)`) or `fetch` with other arguments around it;
  *   `SWRConfig` values that are functions or spread
  *   props, a `fetcher` passed in the third (options) argument, `useSWRSubscription`, `mutate`,
- *   other data-fetching libraries (TanStack Query's key in its `queryFn`'s context, RTK Query's
- *   generated hooks: `http.ts`, ADR-0196), and SWR required with
+ *   RTK Query's generated hooks (`http.ts`, ADR-0196), and SWR required with
  *   `require()` or reached through a namespace import or a re-export.
+ * - TanStack Query: v3/v4's positional `useQuery(key, fn)`, `useQueries`, `QueryClient`
+ *   methods (`fetchQuery`, `prefetchQuery`, `ensureQueryData`, `setQueryDefaults`,
+ *   `setDefaultOptions`), options built by a call or spread (`useQuery({ ...opts })`), a key
+ *   read with `.join()` or at a computed index, and the other frameworks' adapters. Their
+ *   `queryFn` sites keep their own requests (`DYNAMIC_URL` when the URL reads the key).
  */
 import ts from "typescript";
 import {
@@ -274,8 +289,9 @@ function wrapped(node: ts.Node): ts.Node {
 
 /**
  * True when a function sits where SWR takes a fetcher (M5B.2b): a call's second argument, or
- * the `fetcher` property of an object literal (a hook's config or `SWRConfig`'s `value`). Only
- * the syntax is checked; `callersIn` finds the hook that calls it.
+ * the `fetcher` property of an object literal (a hook's config or `SWRConfig`'s `value`); or
+ * where TanStack Query takes a `queryFn` (M5C.3f): an object literal's `queryFn` property.
+ * Only the syntax is checked; `callersIn` finds the hook that calls it.
  */
 function inFetcherPosition(fn: FunctionWithBody): boolean {
   const e = wrapped(fn);
@@ -285,7 +301,7 @@ function inFetcherPosition(fn: FunctionWithBody): boolean {
     ts.isPropertyAssignment(p) &&
     p.initializer === e &&
     (ts.isIdentifier(p.name) || ts.isStringLiteralLike(p.name)) &&
-    p.name.text === "fetcher"
+    (p.name.text === "fetcher" || p.name.text === "queryFn")
   );
 }
 
@@ -318,15 +334,48 @@ const SWR_MODULES: ReadonlySet<string> = new Set(
   [...SWR_HOOKS.keys()].map((key) => key.slice(0, key.indexOf("#"))),
 );
 
-/** True when a file imports from SWR (so it may call a hook or render `SWRConfig`). */
-function importsSwr(sourceFile: ts.SourceFile): boolean {
+/** True when a file imports from one of `modules`. */
+function importsFrom(sourceFile: ts.SourceFile, modules: ReadonlySet<string>): boolean {
   return sourceFile.statements.some(
     (s) =>
       ts.isImportDeclaration(s) &&
       ts.isStringLiteralLike(s.moduleSpecifier) &&
-      SWR_MODULES.has(s.moduleSpecifier.text),
+      modules.has(s.moduleSpecifier.text),
   );
 }
+
+/**
+ * TanStack Query's exports that run an options object's `queryFn` with a context holding the
+ * object's `queryKey` (M5C.3f, ADR-0196's amendment), by `module#export`, for React
+ * (`@tanstack/react-query`, v4 and v5) and v3 (`react-query`). `queryOptions` and
+ * `infiniteQueryOptions` only return the options; their call is where the key is written.
+ */
+const QUERY_HOOKS: ReadonlySet<string> = new Set(
+  ["@tanstack/react-query", "react-query"].flatMap((module) =>
+    [
+      "useQuery",
+      "useSuspenseQuery",
+      "useInfiniteQuery",
+      "useSuspenseInfiniteQuery",
+      "usePrefetchQuery",
+      "usePrefetchInfiniteQuery",
+      "queryOptions",
+      "infiniteQueryOptions",
+    ].map((name) => `${module}#${name}`),
+  ),
+);
+
+/** TanStack Query's `QueryClient`, whose `defaultOptions.queries.queryFn` is the default. */
+const QUERY_CLIENTS: ReadonlySet<string> = new Set(
+  ["@tanstack/react-query", "@tanstack/query-core", "react-query"].map(
+    (module) => `${module}#QueryClient`,
+  ),
+);
+
+/** Modules a file must import from for its calls to be checked against TanStack's. */
+const QUERY_MODULES: ReadonlySet<string> = new Set(
+  [...QUERY_HOOKS, ...QUERY_CLIENTS].map((key) => key.slice(0, key.indexOf("#"))),
+);
 
 /** The `module#export` an identifier is imported as, if it is a plain import. */
 function importedAs(checker: ts.TypeChecker, node: ts.Node): string | undefined {
@@ -707,13 +756,74 @@ export function collectHttpFacts(
       ts.forEachChild(node, visit);
     };
     for (const sourceFile of files) visit(sourceFile);
+    return unknown ? undefined : onlyDefault(found);
+  };
+
+  /** The one default fetcher found, at `heuristic`; none when zero or several were. */
+  const onlyDefault = (
+    found: ReadonlyMap<string | FunctionWithBody, Confidence>,
+  ): FetcherTarget | undefined => {
     const [only, ...others] = [...found];
-    if (unknown || !only || others.length > 0) return undefined;
+    if (!only || others.length > 0) return undefined;
     const [key, confidence] = only;
     const heuristic = weaker(confidence, "heuristic");
     return typeof key === "string"
       ? { id: key, confidence: heuristic }
       : { fn: key, confidence: heuristic };
+  };
+
+  /** An object literal, or the `const` object an expression names. */
+  const objectAt = (value: ProgramExpression): ProgramExpression | undefined => {
+    const e = unwrap(value.expression);
+    if (ts.isObjectLiteralExpression(e)) return { sp: value.sp, expression: e };
+    return reader.constObject(value.sp, e, 0);
+  };
+
+  /**
+   * The default `queryFn` of TanStack Query's `QueryClient`s in `sp` (M5C.3f), like
+   * `SWRConfig`'s fetcher: when every `new QueryClient({ defaultOptions: { queries: { queryFn
+   * } } })` that sets one sets the same (a wrapper, or one written there), at `heuristic`,
+   * since which client a hook runs under isn't modeled. A client whose options can't be read,
+   * or two different defaults, give none.
+   */
+  const defaultQueryFnIn = (
+    sp: ServiceProgram,
+    files: readonly ts.SourceFile[],
+  ): FetcherTarget | undefined => {
+    const checker = resolver.checkerOf(sp);
+    const found = new Map<string | FunctionWithBody, Confidence>();
+    let unknown = false;
+    /** A property of an options object: `null` when it can't be read. */
+    const property = (value: ProgramExpression | undefined, name: string): ConfigValue => {
+      const object = value && objectAt(value);
+      return object && ts.isObjectLiteralExpression(object.expression)
+        ? objectProperty(object.sp, object.expression, name)
+        : null;
+    };
+    const visit = (node: ts.Node): void => {
+      const callee = ts.isNewExpression(node) ? unwrap(node.expression) : undefined;
+      if (
+        ts.isNewExpression(node) &&
+        callee &&
+        ts.isIdentifier(callee) &&
+        QUERY_CLIENTS.has(importedAs(checker, callee) ?? "")
+      ) {
+        const [options] = node.arguments ?? [];
+        const defaults = options && property({ sp, expression: options }, "defaultOptions");
+        const queries = defaults && property(defaults, "queries");
+        const queryFn = queries && property(queries, "queryFn");
+        // A client that sets no default `queryFn` (`new QueryClient()`, in tests) is left out.
+        if (options && defaults !== undefined && queries !== undefined && queryFn !== undefined) {
+          const target = queryFn ? fetcherTarget(queryFn.sp, queryFn.expression) : undefined;
+          const key = target && ("id" in target ? target.id : target.fn);
+          if (target && key) found.set(key, weaker(found.get(key) ?? "exact", target.confidence));
+          else unknown = true;
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    for (const sourceFile of files) visit(sourceFile);
+    return unknown ? undefined : onlyDefault(found);
   };
 
   /**
@@ -731,7 +841,15 @@ export function collectHttpFacts(
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
       const byNode = sourceFile && resolver.callers.get(sourceFile);
       return sourceFile && byNode
-        ? [{ file, sourceFile, byNode, swr: importsSwr(sourceFile) }]
+        ? [
+            {
+              file,
+              sourceFile,
+              byNode,
+              swr: importsFrom(sourceFile, SWR_MODULES),
+              query: importsFrom(sourceFile, QUERY_MODULES),
+            },
+          ]
         : [];
     });
     let defaultFetcher: ReturnType<typeof defaultFetcherIn> | null = null;
@@ -741,12 +859,31 @@ export function collectHttpFacts(
         sp,
         files.filter((f) => f.swr).map((f) => f.sourceFile),
       ));
+    let defaultQueryFn: ReturnType<typeof defaultQueryFnIn> | null = null;
+    /** The `QueryClient`s' default `queryFn`, found on the first query that needs it. */
+    const queryDefault = (): ReturnType<typeof defaultQueryFnIn> =>
+      (defaultQueryFn ??= defaultQueryFnIn(
+        sp,
+        files.filter((f) => f.query).map((f) => f.sourceFile),
+      ));
     const add = (id: string, caller: Caller): void => {
       const list = callers.get(id) ?? [];
       list.push(caller);
       callers.set(id, list);
     };
-    for (const { file, sourceFile, byNode, swr } of files) {
+    /**
+     * The `queryFn` a TanStack Query call runs with its options in the context (M5C.3f): the
+     * options' own `queryFn`, else the `QueryClient`s' default. None when the options can't
+     * be read or a spread may set `queryFn`.
+     */
+    const queryFnOf = (options: ts.Expression): FetcherTarget | undefined => {
+      const object = objectAt({ sp, expression: options });
+      if (!object || !ts.isObjectLiteralExpression(object.expression)) return undefined;
+      const queryFn = objectProperty(object.sp, object.expression, "queryFn");
+      if (queryFn === undefined) return queryDefault();
+      return queryFn ? fetcherTarget(queryFn.sp, queryFn.expression) : undefined;
+    };
+    for (const { file, sourceFile, byNode, swr, query } of files) {
       const visit = (node: ts.Node, owners: Owners): void => {
         const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
@@ -774,6 +911,27 @@ export function collectHttpFacts(
                 ...caller,
                 confidence: used.confidence,
                 hook: { keys: keysOf(sp, key, 0), rest: contract.rest },
+              };
+              if ("id" in used) add(used.id, hooked);
+              else hooks.set(used.fn, [...(hooks.get(used.fn) ?? []), hooked]);
+            }
+          }
+          // TanStack Query calls `queryFn({ queryKey, … })`: its context parameter is bound to
+          // the options object, whose `queryKey` the URL reads (`url.ts`).
+          const [options] = node.arguments;
+          if (
+            query &&
+            options &&
+            !ts.isSpreadElement(options) &&
+            ts.isIdentifier(callee) &&
+            QUERY_HOOKS.has(importedAs(checker, callee) ?? "")
+          ) {
+            const used = queryFnOf(options);
+            if (used) {
+              const hooked = {
+                ...caller,
+                confidence: used.confidence,
+                hook: { keys: [options], rest: "missing" as const },
               };
               if ("id" in used) add(used.id, hooked);
               else hooks.set(used.fn, [...(hooks.get(used.fn) ?? []), hooked]);
@@ -847,8 +1005,8 @@ export function collectHttpFacts(
     const bindings = new Map<ts.ParameterDeclaration, ProgramExpression | undefined>();
     /** Parameters with no argument and no default: `undefined` at runtime. */
     const missing = new Set<ts.ParameterDeclaration>();
+    // A destructured parameter is bound too: the URL reads only its `queryKey` (`url.ts`).
     wrapper.fn.parameters.forEach((d, i) => {
-      if (!ts.isIdentifier(d.name)) return;
       const arg = args[i];
       if (d.dotDotDotToken || (spread !== -1 && spread <= i)) {
         bindings.set(d, undefined);
