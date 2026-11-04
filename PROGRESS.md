@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5C.4 "Mapped completely" in the scorer and report (M5.14b2–b3 wait on #21)
+M5C.5a Fresh blind sample, selection: recorded rule, 15–20 random repos pinned as unseen batch 4 (M5.14b2–b3 wait on #21)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -309,7 +309,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M5C.3d `next.config` `rewrites` and `basePath` (COVERAGE receiving row 5, 86,656): a static `basePath` prefixes the Next service's routes and pages for matching, and static `rewrites()` (array or `{ beforeFiles, afterFiles, fallback }`) map a source path to its destination (a route in the repo, or an external host); read from the config's syntax, never run; anything computed stays as today and is documented; ADR, fixture + golden, eval delta {model: opus}
 - [x] M5C.3e ky (COVERAGE calling row 10, 35,520): `ky(url, { method })`, `ky.get|post|put|patch|delete|head(url)`, `ky.create|extend({ prefixUrl })` instances, from ky's documented API; ADR, fixture + golden, eval delta {model: opus}
 - [x] M5C.3f TanStack Query key in context (COVERAGE calling row 12, 3,850): a `queryFn` reading `queryKey` from its context argument (`({ queryKey }) => fetch(queryKey[0])`, also a `QueryClient`'s `defaultOptions.queries.queryFn`) gets the URL from each `useQuery` whose key reaches it, like SWR's key (ADR-0193); ADR-0196 amendment, fixture + golden, eval delta {model: opus}
-- [ ] M5C.4 "Mapped completely" in the scorer and report: per repo, every labeled call site matched and nothing false; the share of repos mapped completely per set, and what stays unresolved grouped by reason (runtime-only URLs, services outside the repo); EVALUATION.md; tests {model: opus}
+- [x] M5C.4 "Mapped completely" in the scorer and report: per repo, every labeled call site matched and nothing false; the share of repos mapped completely per set, and what stays unresolved grouped by reason (runtime-only URLs, services outside the repo); EVALUATION.md; tests {model: opus}
 - [ ] M5C.5a Fresh blind sample, selection: a recorded rule (a GitHub search query, filters, and a seed, written into `repos.json` / EVALUATION.md before drawing), 15–20 random React/Next + Express/Next repos drawn by it (rules as M3.2, read but never analyzed), pinned as unseen batch 4; no labels yet {model: opus}
 - [ ] M5C.5b Batch 4 labels drafted from the code and committed before any run (split per few repos as needed) {model: opus}
 - [ ] M5C.5c Score batch 4 once, blind: recall, precision, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 before deciding on another round {model: opus}
@@ -350,6 +350,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+- **2026-11-04 M5C.4** (`81ab760`, report `903ff1b`): the scorer marks a repo *mapped completely* (≥ 1 label, no FP, FN, or missing label) and groups labels with no route prediction by the analyzer's answer (`unresolved <REASON>`, `external host`, `no prediction`), split into `null` labels and real targets. The report adds a per-repo column, each set's share, and an unresolved table with meanings; EVALUATION.md §1 documents both.
+  - Eval tests 94/94 (5 new cases); a mutation dropping the missing-label check went red. Root typecheck and lint clean. Report: every set 100% mapped completely (5/5, 3/3, 2/2, 2/2, all seen); unresolved are only correct `null` abstentions. Scores unchanged (TP 138, FP 0, FN 0 over 144).
 - **M5C.3f done (TanStack Query key in context, ADR-0196 amendment; `b4a4082`, report `dab6d7a`):** `useQuery`, `useSuspenseQuery`, `useInfiniteQuery`, their prefetch forms, `queryOptions`, and `infiniteQueryOptions` call their `queryFn` on SWR's `Caller.hook` path, the context parameter bound to the options object; `url.ts` reads `queryKey` (destructured, nested `[path, id]`, `ctx.queryKey`, literal index) from it in the caller's scope. Options without `queryFn` use every `QueryClient`'s same default at `heuristic`. `KEY_FORMAT` 18 → 19.
   - Fixture `tanstack-query-key` (4 heuristic, 1 exact, 1 unresolved); `rtk-query`'s trend query is now `NO_MATCHING_ROUTE` for `/api/stats/trend`. Two mutations went red (6 tests each). Analyzer 1,227/1,227, viewer `bytes` hash added, diff `rename` green, root typecheck and lint clean. Eval unchanged (TP 138, FP 0, FN 0 over 144).
 - **M5C.3e done (ky, ADR-0207; `bb4b5e9`, report `1726901`):** ky's default export, `x(url, options)`, the six shorthands, and `create`/`extend` instances (the shared tracer now takes each library's instance makers). ky 2.x (current) replaced ky 1's `prefixUrl` with `prefix` and added `baseUrl`, so all three join as their major does: `prefixUrl` with a leading `/` is unresolved (ky throws), `baseUrl` resolves like a link (`resolveKyBaseUrl`), and two base options at once are unresolved with a reason. `KEY_FORMAT` 17 → 18.
