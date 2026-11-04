@@ -1,0 +1,620 @@
+{
+  "analyzerVersion": "0.1.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:roster/lib/members.ts#invitesFor",
+      "id": "calls:symbol:roster/lib/members.ts#invitesFor->symbol:roster/lib/members.ts#membersOf",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 17,
+          "file": "lib/members.ts",
+          "line": 13
+        }
+      ],
+      "to": "symbol:roster/lib/members.ts#membersOf"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:roster/pages/api/invites.ts#invites",
+      "id": "calls:symbol:roster/pages/api/invites.ts#invites->symbol:roster/lib/members.ts#invite",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 37,
+          "file": "pages/api/invites.ts",
+          "line": 10
+        }
+      ],
+      "to": "symbol:roster/lib/members.ts#invite"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:roster/pages/api/invites.ts#invites",
+      "id": "calls:symbol:roster/pages/api/invites.ts#invites->symbol:roster/lib/members.ts#invitesFor",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 27,
+          "file": "pages/api/invites.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:roster/lib/members.ts#invitesFor"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:roster/pages/api/members.ts#members",
+      "id": "calls:symbol:roster/pages/api/members.ts#members->symbol:roster/lib/members.ts#membersOf",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 41,
+          "file": "pages/api/members.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:roster/lib/members.ts#membersOf"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:roster/ALL /api/invites",
+      "id": "handles:route:roster/ALL /api/invites->symbol:roster/pages/api/invites.ts#invites",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 31,
+          "file": "pages/api/invites.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:roster/pages/api/invites.ts#invites"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:roster/ALL /api/members",
+      "id": "handles:route:roster/ALL /api/members->symbol:roster/pages/api/members.ts#members",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 31,
+          "file": "pages/api/members.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:roster/pages/api/members.ts#members"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:roster/GET /api/teams",
+      "id": "handles:route:roster/GET /api/teams->symbol:roster/pages/api/teams.ts#teamList",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/teams.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:roster/pages/api/teams.ts#teamList"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:roster/POST /api/invites",
+      "id": "handles:route:roster/POST /api/invites->symbol:roster/pages/api/invites.ts#invites",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 31,
+          "file": "pages/api/invites.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:roster/pages/api/invites.ts#invites"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:roster/pages/index.tsx#dropMember",
+      "id": "http:symbol:roster/pages/index.tsx#dropMember->route:roster/ALL /api/members",
+      "kind": "http",
+      "label": "ALL /api/members",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 6
+        }
+      ],
+      "to": "route:roster/ALL /api/members"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:roster/pages/index.tsx#loadInvites",
+      "id": "http:symbol:roster/pages/index.tsx#loadInvites->route:roster/ALL /api/invites",
+      "kind": "http",
+      "label": "ALL /api/invites",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 10
+        }
+      ],
+      "to": "route:roster/ALL /api/invites"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:roster/pages/index.tsx#loadMembers",
+      "id": "http:symbol:roster/pages/index.tsx#loadMembers->route:roster/ALL /api/members",
+      "kind": "http",
+      "label": "ALL /api/members",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 2
+        }
+      ],
+      "to": "route:roster/ALL /api/members"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:roster/pages/index.tsx#loadTeams",
+      "id": "http:symbol:roster/pages/index.tsx#loadTeams->route:roster/GET /api/teams",
+      "kind": "http",
+      "label": "GET /api/teams",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 18
+        }
+      ],
+      "to": "route:roster/GET /api/teams"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:roster/pages/index.tsx#renameTeam",
+      "id": "http:symbol:roster/pages/index.tsx#renameTeam->unresolved:roster/pages/index.tsx:22:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 22
+        }
+      ],
+      "to": "unresolved:roster/pages/index.tsx:22:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:roster/pages/index.tsx#sendInvite",
+      "id": "http:symbol:roster/pages/index.tsx#sendInvite->route:roster/POST /api/invites",
+      "kind": "http",
+      "label": "POST /api/invites",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 14
+        }
+      ],
+      "to": "route:roster/POST /api/invites"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:roster/pages/api/invites.ts",
+      "id": "imports:file:roster/pages/api/invites.ts->file:roster/lib/members.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 36,
+          "file": "pages/api/invites.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:roster/lib/members.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:roster/pages/api/members.ts",
+      "id": "imports:file:roster/pages/api/members.ts->file:roster/lib/members.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 27,
+          "file": "pages/api/members.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:roster/lib/members.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:roster//",
+      "id": "renders:page:roster//->symbol:roster/pages/index.tsx#Roster",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/index.tsx",
+          "line": 25
+        }
+      ],
+      "to": "symbol:roster/pages/index.tsx#Roster"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "64861ac111b11ea9727ad2e34eada581ac61c10a0919788adebe6e3599a990c1",
+      "id": "file:roster/lib/members.ts",
+      "kind": "file",
+      "label": "members.ts",
+      "parentId": "module:roster/lib",
+      "path": "lib/members.ts"
+    },
+    {
+      "hash": "38716d439ba34d24ca586cbde4bcfa0d0f25adbeaf8db6cd4b36d1c1cb0a301a",
+      "id": "file:roster/pages/api/invites.ts",
+      "kind": "file",
+      "label": "invites.ts",
+      "parentId": "module:roster/pages/api",
+      "path": "pages/api/invites.ts"
+    },
+    {
+      "hash": "e10f3abe4114b38737b06537f7c289853a9c22663a0f37b8e8db79fef22cb315",
+      "id": "file:roster/pages/api/members.ts",
+      "kind": "file",
+      "label": "members.ts",
+      "parentId": "module:roster/pages/api",
+      "path": "pages/api/members.ts"
+    },
+    {
+      "hash": "e72971f3bbde2a08c124e8aae092a45cfbc897296a9d16d58fcdf1f833a97bc9",
+      "id": "file:roster/pages/api/teams.ts",
+      "kind": "file",
+      "label": "teams.ts",
+      "parentId": "module:roster/pages/api",
+      "path": "pages/api/teams.ts"
+    },
+    {
+      "hash": "0eb4293a8e0a4c566be20bd5cf41c713ecf441980f41a6c0727a433e0072351f",
+      "id": "file:roster/pages/index.tsx",
+      "kind": "file",
+      "label": "index.tsx",
+      "parentId": "module:roster/pages",
+      "path": "pages/index.tsx"
+    },
+    {
+      "id": "module:roster/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "service:roster/",
+      "path": "lib"
+    },
+    {
+      "id": "module:roster/pages",
+      "kind": "module",
+      "label": "pages",
+      "parentId": "service:roster/",
+      "path": "pages"
+    },
+    {
+      "id": "module:roster/pages/api",
+      "kind": "module",
+      "label": "api",
+      "parentId": "module:roster/pages",
+      "path": "pages/api"
+    },
+    {
+      "id": "page:roster//",
+      "kind": "page",
+      "label": "/",
+      "layer": "frontend",
+      "parentId": "file:roster/pages/index.tsx",
+      "path": "/",
+      "source": {
+        "column": 25,
+        "file": "pages/index.tsx",
+        "line": 25
+      }
+    },
+    {
+      "id": "route:roster/ALL /api/invites",
+      "kind": "route",
+      "label": "ALL /api/invites",
+      "layer": "backend",
+      "method": "ALL",
+      "parentId": "file:roster/pages/api/invites.ts",
+      "path": "/api/invites",
+      "source": {
+        "column": 31,
+        "file": "pages/api/invites.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:roster/ALL /api/members",
+      "kind": "route",
+      "label": "ALL /api/members",
+      "layer": "backend",
+      "method": "ALL",
+      "parentId": "file:roster/pages/api/members.ts",
+      "path": "/api/members",
+      "source": {
+        "column": 31,
+        "file": "pages/api/members.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:roster/GET /api/teams",
+      "kind": "route",
+      "label": "GET /api/teams",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:roster/pages/api/teams.ts",
+      "path": "/api/teams",
+      "source": {
+        "column": 25,
+        "file": "pages/api/teams.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:roster/POST /api/invites",
+      "kind": "route",
+      "label": "POST /api/invites",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:roster/pages/api/invites.ts",
+      "path": "/api/invites",
+      "source": {
+        "column": 31,
+        "file": "pages/api/invites.ts",
+        "line": 5
+      }
+    },
+    {
+      "framework": "next",
+      "id": "service:roster/",
+      "kind": "service",
+      "label": "roster",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/lib/members.ts#invite",
+      "kind": "symbol",
+      "label": "invite",
+      "parentId": "file:roster/lib/members.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 20,
+        "file": "lib/members.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/lib/members.ts#invitesFor",
+      "kind": "symbol",
+      "label": "invitesFor",
+      "parentId": "file:roster/lib/members.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "lib/members.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/lib/members.ts#membersOf",
+      "kind": "symbol",
+      "label": "membersOf",
+      "parentId": "file:roster/lib/members.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "lib/members.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/api/invites.ts#invites",
+      "kind": "symbol",
+      "label": "invites",
+      "parentId": "file:roster/pages/api/invites.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "pages/api/invites.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/api/members.ts#members",
+      "kind": "symbol",
+      "label": "members",
+      "parentId": "file:roster/pages/api/members.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "pages/api/members.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/api/teams.ts#teamList",
+      "kind": "symbol",
+      "label": "teamList",
+      "parentId": "file:roster/pages/api/teams.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "pages/api/teams.ts",
+        "line": 6
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/index.tsx#Roster",
+      "kind": "symbol",
+      "label": "Roster",
+      "parentId": "file:roster/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 27,
+        "file": "pages/index.tsx",
+        "line": 25
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/index.tsx#dropMember",
+      "kind": "symbol",
+      "label": "dropMember",
+      "parentId": "file:roster/pages/index.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "pages/index.tsx",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/index.tsx#loadInvites",
+      "kind": "symbol",
+      "label": "loadInvites",
+      "parentId": "file:roster/pages/index.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "pages/index.tsx",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/index.tsx#loadMembers",
+      "kind": "symbol",
+      "label": "loadMembers",
+      "parentId": "file:roster/pages/index.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "pages/index.tsx",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/index.tsx#loadTeams",
+      "kind": "symbol",
+      "label": "loadTeams",
+      "parentId": "file:roster/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "pages/index.tsx",
+        "line": 17
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/index.tsx#renameTeam",
+      "kind": "symbol",
+      "label": "renameTeam",
+      "parentId": "file:roster/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "pages/index.tsx",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:roster/pages/index.tsx#sendInvite",
+      "kind": "symbol",
+      "label": "sendInvite",
+      "parentId": "file:roster/pages/index.tsx",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "pages/index.tsx",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "next-method-exclusions",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches PUT to /api/teams",
+      "expression": "fetch(\"/api/teams\", { method: \"PUT\" })",
+      "id": "unresolved:roster/pages/index.tsx:22:10",
+      "kind": "unresolved",
+      "label": "PUT /api/teams",
+      "parentId": "service:roster/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "pages/index.tsx",
+        "line": 22
+      }
+    }
+  ],
+  "repo": {
+    "name": "next-method-exclusions",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

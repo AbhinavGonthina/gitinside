@@ -89,6 +89,7 @@ describe("checkedMethods", () => {
       ["DELETE", "GET"],
     ],
     ['function h(req, res) { if (!["PUT", "PATCH"].includes(req.method)) {} }', ["PATCH", "PUT"]],
+    ['function h(req, res) { if (["GET"].includes(req.method ?? "")) {} }', ["GET"]],
     ['function h(req, res) { const { method } = req; if (method === "GET") {} }', ["GET"]],
     ['function h(req, res) { const m = req.method; if (m === "PUT") {} }', ["PUT"]],
     ['function h({ method: m }, res) { if (m === "PATCH") {} }', ["PATCH"]],
@@ -127,6 +128,65 @@ describe("checkedMethods", () => {
     ['function h(req, res) { if (req.method === "BREW") a(); create(); }', false],
   ])("%s leaves other methods open: %s", (code, open) => {
     expect(handledMethods(handler(code)).open).toBe(open);
+  });
+
+  it.each([
+    // A negated test whose block does the work serves every method but the ones it names (B3).
+    [
+      'async function h(req, res) { if (req.method !== "POST" && req.method !== "DELETE") { const u = await db.find(); return res.json(u); } }',
+      [],
+      true,
+    ],
+    ['function h(req, res) { if (!(req.method === "POST")) { return list(res); } }', [], true],
+    [
+      'function h(req, res) { if (!["POST", "PUT"].includes(req.method)) { return list(res); } }',
+      [],
+      true,
+    ],
+    [
+      'function h(req, res) { const { method } = req; if (method != "PUT") { try { list(); } catch (e) { console.log(e); } } }',
+      [],
+      true,
+    ],
+    // What follows the block, or its `else`, is where the named methods go.
+    [
+      'function h(req, res) { if (req.method !== "POST") { return list(res); } return create(res); }',
+      ["POST"],
+      true,
+    ],
+    [
+      'function h(req, res) { if (req.method !== "GET") { other(); } else { get(); } }',
+      ["GET"],
+      true,
+    ],
+    [
+      'function h(req, res) { try { if (req.method !== "GET") { other(); } get(); } catch {} }',
+      ["GET"],
+      true,
+    ],
+    // A block that only answers (or names 405) rejects the other methods, as before.
+    [
+      'function h(req, res) { if (req.method !== "POST") { return res.status(400).json({ message: "no" }); } create(); }',
+      ["POST"],
+      false,
+    ],
+    [
+      'function h(req, res) { if (req.method !== "GET") { return methodNotAllowed(res, 405); } a(); }',
+      ["GET"],
+      false,
+    ],
+    [
+      'function h(req, res) { if (req.method !== "GET") { console.error("bad"); throw new Error("no"); } a(); }',
+      ["GET"],
+      false,
+    ],
+    ['function h(req, res) { if (!(req.method === "GET")) return; a(); }', ["GET"], false],
+    // Two negations make a positive test.
+    ['function h(req, res) { if (!(req.method !== "GET")) a(); else b(); }', ["GET"], true],
+    // Outside an `if` condition, a negated test stays a rejection.
+    ['function h(req, res) { const other = req.method !== "GET"; work(other); }', ["GET"], false],
+  ])("%s handles %j, open: %s", (code, methods, open) => {
+    expect(handledMethods(handler(code))).toEqual({ methods, open });
   });
 });
 

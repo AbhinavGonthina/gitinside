@@ -19,10 +19,17 @@
  *   `_document`, and `_error` at the folder root. Files under `pages/api/` are API routes:
  *   method `ALL`, unless the default-export handler compares its request's method with
  *   string literals (`req.method === "POST"`, `!==`, `switch (req.method)`, `["GET"].includes
- *   (req.method)`, also through `const { method } = req`), in which case one route per method.
- *   When other methods may still fall through to real code (no negative guard, `default`,
- *   or 405, and the checks don't end the handler), an `ALL` route is added as well, so a
- *   fall-through endpoint is never dropped (see `handledMethods`).
+ *   (req.method)`, also through `const { method } = req` and `req.method ?? ""`), in which case
+ *   one route per method. When other methods may still fall through to real code (no negative
+ *   guard, `default`, or 405, and the checks don't end the handler), an `ALL` route is added as
+ *   well, so a fall-through endpoint is never dropped (see `handledMethods`).
+ * - Negated method tests in an `if` (ADR-0195): `!==`, `!(… === …)`, `!["A"].includes(…)`,
+ *   through `&&`, `||`, and parentheses. A block that only answers (calls on the response
+ *   object or `console`, `throw`, `return`) or names 405 / `Allow` refuses the other methods,
+ *   as above. A block that does other work serves every method but the named ones, so an `ALL`
+ *   route is added, and the named methods are routes only when code after the `if` or its
+ *   `else` can serve them (`if (req.method !== "POST" && req.method !== "PUT") { … }` as the
+ *   handler's last statement is one `ALL` route).
  * - next-connect routers in `pages/api` (ADR-0191): a default export that is a router from
  *   `next-connect`'s factory (v0's default export `nc(opts)`, v1's `createRouter()`), imported
  *   or required, directly, through a variable, or through repo functions returning one
@@ -55,6 +62,11 @@
  *   which stays `ALL`.
  * - An optional catch-all `[[...slug]]` also matches its parent path; the `*slug` pattern
  *   doesn't record that.
+ * - A negated method test's block is read by what it calls, not by what it answers: a
+ *   refusal through a helper (`return reject(res)`, no 405 in sight) reads as serving and adds
+ *   an `ALL` route (an extra route, never a dropped one). A negated test outside an `if`
+ *   condition (`const other = req.method !== "GET"`, a ternary) stays a refusal, and an
+ *   `else` or later code is not checked for which methods actually reach it.
  * - next-connect beyond the forms above: route patterns are not matched against the file's
  *   path (next-connect matches them against the request URL), routers mounted with `.use(sub)`
  *   don't add their methods, nor do registrations in another file on an exported router
@@ -162,12 +174,13 @@ export function checkedMethods(handler: ts.SignatureDeclaration): HttpMethod[] {
 /**
  * The methods a pages API handler checks (see {@link checkedMethods}) and whether other
  * methods may still reach real code (`open`). The set is closed when the remainder is
- * visibly rejected or empty: a negative guard (`req.method !== "POST"`,
- * `!["GET"].includes(method)`), a `switch` with a `default`, a `405` or `Allow` response,
+ * visibly rejected or empty: a negative guard whose block only answers (`req.method !==
+ * "POST"`, `!["GET"].includes(method)`), a `switch` with a `default`, a `405` or `Allow` response,
  * or positive checks whose `if` has no final `else` and is the handler's last statement
  * (a trailing `switch` without `default` counts the same). Otherwise, as in
  * `if (req.method === "GET") return list(); return create();`, it's open, and the caller
- * adds an `ALL` route so the fall-through endpoint isn't dropped.
+ * adds an `ALL` route so the fall-through endpoint isn't dropped. A negated test whose block
+ * does the work (B3) leaves it open too: that block is where the other methods go.
  */
 export function handledMethods(handler: ts.SignatureDeclaration): {
   methods: HttpMethod[];
@@ -198,6 +211,10 @@ export function handledMethods(handler: ts.SignatureDeclaration): {
   const isMethod = (expression: ts.Expression): boolean => {
     const e = unwrap(expression);
     if (ts.isIdentifier(e)) return methodNames.has(e.text);
+    // `req.method ?? ""`, which strict types ask for in `.includes(…)`.
+    if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+      return isMethod(e.left);
+    }
     return (
       ts.isPropertyAccessExpression(e) &&
       e.name.text === "method" &&
@@ -214,6 +231,111 @@ export function handledMethods(handler: ts.SignatureDeclaration): {
   /** Positive checks (`===`, `includes`, `switch` without `default`), for the open/closed test. */
   const positive: ts.Node[] = [];
   let rejectsOthers = false;
+  /** Set when a negated test's block serves the request: every other method reaches code. */
+  let servesOthers = false;
+
+  const responseName = handler.parameters[1]?.name;
+  /** Whether a call only answers: on the response object (`res.status(400).json(…)`) or `console`. */
+  const answers = (call: ts.CallExpression): boolean => {
+    let e: ts.Expression = call.expression;
+    while (
+      ts.isPropertyAccessExpression(e) ||
+      ts.isElementAccessExpression(e) ||
+      ts.isCallExpression(e) ||
+      ts.isParenthesizedExpression(e) ||
+      ts.isNonNullExpression(e)
+    ) {
+      e = e.expression;
+    }
+    return (
+      ts.isIdentifier(e) &&
+      (e.text === "console" ||
+        (responseName !== undefined &&
+          ts.isIdentifier(responseName) &&
+          e.text === responseName.text))
+    );
+  };
+  /**
+   * Whether the block a negated test enters serves the request rather than refusing it: it
+   * names no 405 or `Allow`, and it calls something besides the response and `console`.
+   */
+  const serves = (block: ts.Statement): boolean => {
+    let refuses = false;
+    let works = false;
+    const look = (node: ts.Node): void => {
+      if (
+        (ts.isNumericLiteral(node) && node.text === "405") ||
+        (ts.isStringLiteralLike(node) && node.text.toLowerCase() === "allow")
+      ) {
+        refuses = true;
+      }
+      if (ts.isCallExpression(node) && !answers(node)) works = true;
+      ts.forEachChild(node, look);
+    };
+    look(block);
+    return works && !refuses;
+  };
+  /** Whether a statement inside the handler has anything after it, at any level up to the body. */
+  const followed = (statement: ts.Node): boolean => {
+    for (let node = statement; node !== body; node = node.parent) {
+      const parent = node.parent;
+      if (ts.isBlock(parent) || ts.isCaseClause(parent) || ts.isDefaultClause(parent)) {
+        const list: readonly ts.Statement[] = parent.statements;
+        if (list.indexOf(node as ts.Statement) < list.length - 1) return true;
+      }
+    }
+    return false;
+  };
+  /**
+   * Whether a method test holds for the methods it names or for all others (`!==`, `!(…)`,
+   * an odd number of `!`), and the `if` whose condition it is, following `(…)`, `!`, `&&`, and
+   * `||` up to it.
+   */
+  const polarity = (
+    test: ts.Node,
+    negated: boolean,
+  ): { negated: boolean; guard?: ts.IfStatement } => {
+    let node = test;
+    for (;;) {
+      const parent = node.parent;
+      if (
+        ts.isPrefixUnaryExpression(parent) &&
+        parent.operator === ts.SyntaxKind.ExclamationToken
+      ) {
+        negated = !negated;
+      } else if (ts.isIfStatement(parent) && parent.expression === node) {
+        return { negated, guard: parent };
+      } else if (
+        !ts.isParenthesizedExpression(parent) &&
+        !(
+          ts.isBinaryExpression(parent) &&
+          (parent.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+            parent.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+        )
+      ) {
+        return { negated };
+      }
+      node = parent;
+    }
+  };
+  /**
+   * Records a method test naming `names`: a positive one for the open/closed test; a negated
+   * one as a rejection of the others, unless its block serves them (B3), in which case the
+   * named methods are routes only when code after the block or its `else` can serve them.
+   */
+  const record = (test: ts.Node, negated: boolean, names: readonly ts.Expression[]): void => {
+    const { negated: negative, guard } = polarity(test, negated);
+    if (!negative) {
+      names.forEach(literal);
+      positive.push(test);
+    } else if (guard && serves(guard.thenStatement)) {
+      servesOthers = true;
+      if (guard.elseStatement || followed(guard)) names.forEach(literal);
+    } else {
+      names.forEach(literal);
+      rejectsOthers = true;
+    }
+  };
   const visit = (node: ts.Node): void => {
     if (
       (ts.isNumericLiteral(node) && node.text === "405") ||
@@ -244,9 +366,7 @@ export function handledMethods(handler: ts.SignatureDeclaration): {
           kind === ts.SyntaxKind.ExclamationEqualsEqualsToken ||
           kind === ts.SyntaxKind.ExclamationEqualsToken;
         if (isMethod(node.left) || isMethod(node.right)) {
-          literal(isMethod(node.left) ? node.right : node.left);
-          if (negative) rejectsOthers = true;
-          else positive.push(node);
+          record(node, negative, [isMethod(node.left) ? node.right : node.left]);
         }
       }
     } else if (ts.isSwitchStatement(node) && isMethod(node.expression)) {
@@ -263,18 +383,13 @@ export function handledMethods(handler: ts.SignatureDeclaration): {
       isMethod(node.arguments[0])
     ) {
       const list = unwrap(node.expression.expression);
-      if (ts.isArrayLiteralExpression(list)) list.elements.forEach(literal);
-      let outer: ts.Node = node.parent;
-      while (ts.isParenthesizedExpression(outer)) outer = outer.parent;
-      const negated =
-        ts.isPrefixUnaryExpression(outer) && outer.operator === ts.SyntaxKind.ExclamationToken;
-      if (negated) rejectsOthers = true;
-      else positive.push(node);
+      record(node, false, ts.isArrayLiteralExpression(list) ? list.elements : []);
     }
     ts.forEachChild(node, visit);
   };
   visit(body);
   const methods = [...found].filter((m) => METHODS.has(m)).sort(compareStrings) as HttpMethod[];
+  if (servesOthers) return { methods, open: true };
   if (methods.length === 0 || rejectsOthers) return { methods, open: false };
 
   // Every positive check must sit in an `if` (or be a `switch`) with no final `else`, inside

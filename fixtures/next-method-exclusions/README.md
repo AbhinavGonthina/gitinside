@@ -1,0 +1,3 @@
+# next-method-exclusions
+
+Tests: `pages/api` handlers that test `req.method` negatively (B3, ADR-0195). `members.ts` serves every method but POST and DELETE inside `if (req.method !== "POST" && req.method !== "DELETE") { … }`, its last statement, so it's one `ALL` route (the page's `DELETE` matches it, as Next would run nothing for it but still answer the path). `invites.ts` lists inside `if (!["POST"].includes(req.method)) { … }` and creates after it: `POST` plus `ALL`. `teams.ts`'s `if (!(req.method === "GET")) { return res.status(400)… }` only answers, so it refuses the rest: `GET` alone, and the page's `PUT` has no route to match.
