@@ -341,7 +341,10 @@ function heldOutLimitation(batches: readonly HeldOutSet[]): string {
       (b) => `batch ${b.batch} (${apps(b.repos.length)}, ${b.seen === null ? "unseen" : "seen"})`,
     )
     .join(", ");
-  return `- **Held-out batches:** ${each}, picked and labeled after the recall work began to test whether fixes made for the original set generalize. Only an unseen batch still tests that. They are just as small, and their labels are not in the owner's review sample.`;
+  const none = batches.every((b) => b.seen !== null)
+    ? ", and none is unseen now: that needs a fresh batch"
+    : "";
+  return `- **Held-out batches:** ${each}, picked and labeled after the recall work began to test whether fixes made for the original set generalize. Only an unseen batch still tests that${none}. They are just as small, and their labels are not in the owner's review sample.`;
 }
 
 /** One held-out batch (#13, ADR-0168) in a section of its own, with its own totals. */

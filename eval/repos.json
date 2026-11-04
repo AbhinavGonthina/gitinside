@@ -103,7 +103,7 @@
     },
     {
       "batch": 2,
-      "seen": null
+      "seen": "Its misses were diagnosed and fixed in M5B.1–M5B.2c (next-connect methods, SWR fetchers, negated req.method tests), each fix written from the library's contract and its own fixture (ADR-0168)."
     }
   ]
 }
