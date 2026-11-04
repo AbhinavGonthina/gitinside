@@ -129,7 +129,7 @@ const EXPECTED: Record<string, string[]> = {
   "pnpm-monorepo": ["82d59280e3e5a2d3", "5c444436464a6145", "ef999ac25fbce5c5"],
   "prisma-relations": ["fa788ac8d8cf3cce", "2f9ca2e017f04955", "686703b2cc019fb1"],
   "queues-bullmq": ["171ff8834dc5fe07", "1da2d0e97f6b2736", "a82cb33a1ba7a479"],
-  "rtk-query": ["6f2f3ac18d390bc0", "ea601619ea6e5805", "267e1f0eb3b2d374"],
+  "rtk-query": ["1dcc5ffd993bcc95", "4a8dfd57c432dfd8", "8fd9f9f594059b9b"],
   "shop-demo": ["a293bcabb8929d22", "d5cbf1bed672075b", "24c3b4e9fa0d57ac"],
   "sibling-apps": ["661d856493c7cb37", "fd9db09229cd509d", "3397c2b738f0e5c3"],
   "swr-fetchers": ["bba1e337e7b53ccd", "694d35429918cdd4", "8f4ab8aea9ed9036"],

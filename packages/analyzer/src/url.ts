@@ -152,7 +152,7 @@ export const DYNAMIC_URL_DETAIL = {
   tooComplex: "the URL is too large or too complex to read statically",
   hookKey: "the SWR key is an array, which the fetcher may take whole or spread",
   rtkBaseQuery:
-    "the RTK Query baseQuery isn't fetchBaseQuery, and a custom base query isn't followed",
+    "the RTK Query baseQuery isn't fetchBaseQuery or a function passing its arguments on to one, so it isn't followed",
 } as const;
 
 export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];

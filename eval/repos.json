@@ -127,7 +127,7 @@
     },
     {
       "batch": 3,
-      "seen": null
+      "seen": "Its misses were diagnosed in eval/results/2026-11-batch3-diagnosis.md and fixed in M5C.2 (RTK Query base queries that forward to fetchBaseQuery), written from RTK's documented re-authorization example and its own fixture (ADR-0201)."
     }
   ]
 }

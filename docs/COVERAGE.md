@@ -45,7 +45,7 @@ Ranked by code search count.
 | 8 | SWR (`useSWR(key, fetcher)`, `SWRConfig`'s `fetcher`) | 291,869 (`useSWR`) | `swr` 78,623,930 | 1 | handled: the fetcher is inlined at the hook with each key. Not handled: method fetchers, nested named fetchers, and array keys (which stay `DYNAMIC_URL`) | ADR-0193, ADR-0194; `wrappers.ts` |
 | 9 | RTK Query with `fetchBaseQuery({ baseUrl })` | 96,720 (`fetchBaseQuery`) | `@reduxjs/toolkit` 138,320,163 (all Redux users) | 1 | handled | ADR-0196 |
 | 10 | ky (`ky.get(url)`, `ky.create({ prefixUrl })`, `ky.extend`) | 35,520 (`"import ky"`) | `ky` 28,733,005 | 0 | not handled | `http.ts` "not handled"; M5C.3e |
-| 11 | RTK Query with a custom base query (a re-auth wrapper around `fetchBaseQuery`, typed `BaseQueryFn`) | 9,195 (`BaseQueryFn`) | (in `@reduxjs/toolkit`) | 1 (Recipen, all 25 of its call sites) | not handled: each endpoint is an unresolved node saying the base query isn't followed (M5B.7b) | ADR-0196; M5C.2 |
+| 11 | RTK Query with a custom base query (a re-auth wrapper around `fetchBaseQuery`, typed `BaseQueryFn`) | 9,195 (`BaseQueryFn`) | (in `@reduxjs/toolkit`) | 1 (Recipen, all 25 of its call sites) | handled since M5C.2 when the wrapper passes its arguments on unchanged to one `fetchBaseQuery` (RTK's re-auth example), and its own calls of the `fetchBaseQuery` result are requests. A wrapper that rewrites, hands on, or splits its arguments stays an unresolved node per endpoint (M5B.7b) | ADR-0196, ADR-0201 |
 | 12 | TanStack Query key in context: `queryFn: ({ queryKey }) => fetch(queryKey[0])`, a `QueryClient`'s default `queryFn` | 3,850 (`"queryFn: ({ queryKey"`) | (in row 5) | 0 | not handled: stays `DYNAMIC_URL` | ADR-0196; M5C.3f |
 | — | Repo-defined wrappers (`api.get(path)` over `fetch` or axios) | can't be counted with a code search (any name, any shape) | — | at least 3 (WealthWise's path-taking `fetch` wrapper, foodie's wrapper over `axios(config)`, twitter-clone's SWR fetcher; EVALUATION.md §1) | partial: inlined one level deep, including `const` object methods and whole-config parameters. A wrapper calling a wrapper is `WRAPPER_DEPTH`, and destructured parameters aren't bound | ADR-0032, ADR-0159, ADR-0160, ADR-0164; `wrappers.ts` "not handled" |
 
@@ -66,7 +66,7 @@ Clients mostly used by servers to call other services (`got` 163,331,838 and `su
 
 C1 comes first, as Abhinav asked on #18. After it, the gaps follow the code search count of the form that isn't handled:
 
-1. **M5C.2: RTK Query custom base queries** (row 11; 9,195 files; Recipen's 25 call sites).
+1. **M5C.2: RTK Query custom base queries** (row 11; 9,195 files; Recipen's 25 call sites). Done: ADR-0201.
 2. **M5C.3a: Next.js server actions** (row 4; 1,286,781 files). This needs an ADR first: draw the client-to-server call as a request (and how), or keep it as a `calls` edge and say so. EVALUATION.md also needs a label rule for it.
 3. **M5C.3b: Vite and CRA dev proxies** (receiving row 3; 549,376 config files mention `proxy`).
 4. **M5C.3c: ofetch** (row 7; 348,608).

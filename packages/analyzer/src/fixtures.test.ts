@@ -16,9 +16,6 @@ import { inlineWrappers, type HttpRequest } from "./wrappers.js";
 
 const FIXTURES = fileURLToPath(new URL("../../../fixtures/", import.meta.url));
 
-const RTK_DETAIL =
-  "the RTK Query baseQuery isn't fetchBaseQuery, and a custom base query isn't followed";
-
 /** Analyze `fixtures/<name>` with a fixed repo identity so goldens don't depend on the checkout path. */
 async function run(name: string): Promise<ArchitectureGraph> {
   return analyze(join(FIXTURES, name), { owner: "fixtures", name });
@@ -145,17 +142,13 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
       "symbol:task-board/store/api.ts#tasksApi -> route:task-board/PATCH /api/tasks/:id exact",
       "symbol:task-board/store/api.ts#tasksApi -> route:task-board/POST /api/tasks exact",
       "symbol:task-board/store/labels.ts#labelsApi -> unresolved:task-board/store/labels.ts:6:19 unresolved NO_MATCHING_ROUTE",
-      // Under a re-auth base query, the endpoints are shown unresolved, not dropped (M5B.7b).
-      "symbol:task-board/store/session.ts#sessionApi -> unresolved:task-board/store/session.ts:24:9 unresolved DYNAMIC_URL",
-      "symbol:task-board/store/session.ts#sessionApi -> unresolved:task-board/store/session.ts:25:13 unresolved DYNAMIC_URL",
+      // A re-auth base query forwarding to fetchBaseQuery is that fetchBaseQuery (M5C.2), and
+      // its own refresh call is a request.
+      "symbol:task-board/store/session.ts#baseQueryWithReauth -> route:task-board/ALL /api/session/refresh exact",
+      "symbol:task-board/store/session.ts#sessionApi -> route:task-board/DELETE /api/session exact",
+      "symbol:task-board/store/session.ts#sessionApi -> route:task-board/GET /api/session exact",
     ]);
-    const details = g.nodes.flatMap((n) =>
-      n.kind === "unresolved" && n.id.includes("session.ts") ? [`${n.label} | ${n.detail}`] : [],
-    );
-    expect(details).toEqual([
-      `? query<{ name: string }, void>({ query: () => "…" }) | ${RTK_DETAIL}`,
-      `? mutation<void, void>({ query: () => ({ url: "…", method: "DELETE" }) }) | ${RTK_DETAIL}`,
-    ]);
+    expect(g.nodes.filter((n) => n.kind === "unresolved" && n.id.includes("session"))).toEqual([]);
   });
 
   it("next-method-exclusions reads which way a req.method test points (ADR-0195)", async () => {

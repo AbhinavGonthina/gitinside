@@ -58,9 +58,20 @@
  *   (absent: `GET`, the `Request` default). `baseUrl` joins like axios's `baseURL` (RTK's
  *   `joinUrls` drops the same slashes). The query function's parameters are holes, so one that
  *   leads the URL is `DYNAMIC_URL`. An unreadable definition or return value is a request with
- *   no URL, never a guess. Under any other `baseQuery` (a custom or re-auth one, or one that
- *   can't be read), each endpoint with a `query` is one request with no URL or method,
- *   `DYNAMIC_URL` saying the base query isn't followed (M5B.7b): shown, not dropped.
+ *   no URL, never a guess. A `baseQuery` that is a repo function passing its first parameter
+ *   on unchanged to a `fetchBaseQuery` result's call (RTK's documented re-authorization
+ *   wrapper, `(args, api, extraOptions) => rawBaseQuery(args, api, extraOptions)`, also inside
+ *   a nested callback or `retry`) counts as that `fetchBaseQuery` (M5C.2): every other use of
+ *   the parameter only reads it (`args.url`, `typeof args`, a comparison), and all its forwards
+ *   go to one `fetchBaseQuery`. Under any other `baseQuery` (one that rewrites, reassigns, or
+ *   hands on its arguments, picks between bases, or can't be read), each endpoint with a
+ *   `query` is one request with no URL or method, `DYNAMIC_URL` saying the base query isn't
+ *   followed (M5B.7b): shown, not dropped.
+ * - A call of a `fetchBaseQuery` result in repo code (M5C.2; the re-auth wrapper's
+ *   `rawBaseQuery("/auth/refresh", api, extraOptions)`) is a request read from its first
+ *   argument like a `query` value, joined to that `fetchBaseQuery`'s `baseUrl`, in a service
+ *   whose program imports RTK Query. A first argument that is a parameter of the enclosing
+ *   function is the forwarding call above and makes no request of its own.
  * - The owner of a call is the innermost symbol containing it, or the Express routes an
  *   inline handler serves. Top-level calls have no owner but are still collected.
  *
@@ -82,13 +93,18 @@
  *   `queryFn: () => fetch("/api/todos")` or a call to a wrapper there resolves, but a URL read
  *   from the key in its context (`({ queryKey }) => fetch(queryKey[0])`, also a `QueryClient`'s
  *   default `queryFn`) stays `DYNAMIC_URL`: which key reaches it isn't followed.
- * - RTK Query: what a custom `baseQuery` does with an endpoint's `query` (the endpoint is
- *   unresolved, above; the base query's own `fetch` or axios calls are collected as usual),
- *   `fetchBaseQuery` options other than `baseUrl` (a default `method` in its fetch options,
- *   `paramsSerializer`), `buildCreateApi`/`createApi` reached other than by a plain import, a
- *   builder destructured anywhere but in the `endpoints` function's parameter (`const { query }
- *   = build`) or passed on to a helper, a call of a `fetchBaseQuery` result in repo code (a
- *   re-auth wrapper's `rawBaseQuery("/auth/refresh", api, extraOptions)`), a
+ * - RTK Query: what a custom `baseQuery` other than a forwarding wrapper does with an
+ *   endpoint's `query` (the endpoint is unresolved, above; the base query's own `fetch` or
+ *   axios calls are collected as usual), a wrapper that rewrites the arguments before
+ *   forwarding them (`{ ...args, url: "/v2" + args.url }`: the rewritten call is an unreadable
+ *   request of its own) or logs them (`log(args)` counts as handing them on), a destructured
+ *   first parameter, `fetchBaseQuery` options other than `baseUrl` (a default `method` in its
+ *   fetch options, `paramsSerializer`), `buildCreateApi`/`createApi` reached other than by a
+ *   plain import, a builder destructured anywhere but in the `endpoints` function's parameter
+ *   (`const { query } = build`) or passed on to a helper, a repo helper that takes a URL and
+ *   passes it to a `fetchBaseQuery` result (`get(path) { return rawBaseQuery(path, …) }`: a
+ *   parameter there reads as forwarding, so no request), a `fetchBaseQuery` result called in a
+ *   service whose program has no RTK Query import (one imported from another package), a
  *   `queryFn` endpoint, `enhanceEndpoints`, and the generated hooks (`useGetPostsQuery`): the
  *   request is drawn from the API slice that defines the endpoint, not from the components
  *   that call its hook.
@@ -245,6 +261,13 @@ interface AxiosValue {
   origin: AxiosOrigin;
   /** The value `create` was called on, when its config sets no `baseURL` of its own. */
   parent?: AxiosValue;
+  confidence: Confidence;
+}
+
+/** A `fetchBaseQuery(config)` call (RTK Query) a base query comes from. */
+interface FetchBaseQuery {
+  sp: ServiceProgram;
+  call: ts.CallExpression;
   confidence: Confidence;
 }
 
@@ -1111,11 +1134,169 @@ export function createHttpSiteCollector(
   };
 
   /**
+   * The `fetchBaseQuery(config)` call (imported from RTK Query) a base query expression is:
+   * directly, through a `const`, or wrapped in RTK's `retry`. With `forwarding`, also a repo
+   * function passing its first parameter on unchanged to one (see {@link forwardedBase}).
+   */
+  const fetchBaseQueryOf = (
+    sp: ServiceProgram,
+    expression: ts.Expression,
+    hops: number,
+    forwarding: boolean,
+  ): FetchBaseQuery | undefined => {
+    let query = constValue(sp, expression, hops);
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
+      const e = query.expression;
+      if (ts.isCallExpression(e)) {
+        const name = importedName(query.sp, e.expression);
+        const [first] = e.arguments;
+        if (name === "retry" && first) {
+          const inner = constValue(query.sp, first, hops);
+          query = { ...inner, confidence: weaker(query.confidence, inner.confidence) };
+          continue;
+        }
+        return name === "fetchBaseQuery"
+          ? { sp: query.sp, call: e, confidence: query.confidence }
+          : undefined;
+      }
+      if (!forwarding) return undefined;
+      let fn: { sp: ServiceProgram; fn: FunctionWithBody; confidence: Confidence } | undefined;
+      if (isFunctionWithBody(e)) fn = { sp: query.sp, fn: e, confidence: "exact" };
+      else if (ts.isIdentifier(e)) {
+        const symbol = symbolAt(query.sp, e);
+        const found = symbol && resolveDeclaration(query.sp, symbol, hops + 1);
+        if (found && isFunctionWithBody(found.declaration)) {
+          fn = { sp: found.sp, fn: found.declaration, confidence: found.confidence };
+        }
+      }
+      const base = fn && forwardedBase(fn.sp, fn.fn, hops + 1);
+      return (
+        fn &&
+        base && {
+          ...base,
+          confidence: weaker(query.confidence, weaker(fn.confidence, base.confidence)),
+        }
+      );
+    }
+    return undefined;
+  };
+
+  /** The expression around `node` that only changes its type: parentheses, `as`, `!`. */
+  const typeOnlyParent = (node: ts.Expression): ts.Expression => {
+    let outer = node;
+    while (
+      ts.isParenthesizedExpression(outer.parent) ||
+      ts.isAsExpression(outer.parent) ||
+      ts.isSatisfiesExpression(outer.parent) ||
+      ts.isNonNullExpression(outer.parent) ||
+      ts.isTypeAssertionExpression(outer.parent)
+    ) {
+      outer = outer.parent;
+    }
+    return outer;
+  };
+
+  /**
+   * True when a parameter reference only reads it: a property read (`args.url`, never written
+   * or deleted), `typeof args`, or an equality or `instanceof` comparison.
+   */
+  const onlyReads = (reference: ts.Identifier): boolean => {
+    const outer = typeOnlyParent(reference);
+    const parent = outer.parent;
+    if (
+      (ts.isPropertyAccessExpression(parent) || ts.isElementAccessExpression(parent)) &&
+      parent.expression === outer
+    ) {
+      const user = typeOnlyParent(parent).parent;
+      const written =
+        (ts.isBinaryExpression(user) &&
+          user.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+          user.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+          typeOnlyParent(parent) === user.left) ||
+        ts.isDeleteExpression(user) ||
+        ts.isPrefixUnaryExpression(user) ||
+        ts.isPostfixUnaryExpression(user);
+      return !written;
+    }
+    if (ts.isTypeOfExpression(parent)) return true;
+    if (!ts.isBinaryExpression(parent)) return false;
+    const kind = parent.operatorToken.kind;
+    return (
+      kind === ts.SyntaxKind.EqualsEqualsEqualsToken ||
+      kind === ts.SyntaxKind.ExclamationEqualsEqualsToken ||
+      kind === ts.SyntaxKind.EqualsEqualsToken ||
+      kind === ts.SyntaxKind.ExclamationEqualsToken ||
+      kind === ts.SyntaxKind.InstanceOfKeyword
+    );
+  };
+
+  /**
+   * The `fetchBaseQuery` a base query function sends every endpoint's arguments through, as in
+   * RTK's documented re-authorization example (`baseQueryWithReauth = async (args, api,
+   * extraOptions) => { let result = await rawBaseQuery(args, api, extraOptions); … }`, M5C.2):
+   * its first parameter, a plain identifier, is the first argument of at least one call of a
+   * `fetchBaseQuery` result (nested functions included, so a mutex's callback too), and every
+   * other use of it only reads it ({@link onlyReads}). `undefined` when it is assigned, passed
+   * to anything else (another base query, a logger), built into another value that reaches a
+   * `fetchBaseQuery` result (a rewritten URL), or forwarded to two different `fetchBaseQuery`
+   * calls: the endpoints' URL or base would then depend on what isn't followed.
+   */
+  const forwardedBase = (
+    sp: ServiceProgram,
+    fn: FunctionWithBody,
+    hops: number,
+  ): FetchBaseQuery | undefined => {
+    const [parameter] = fn.parameters;
+    if (!parameter || parameter.dotDotDotToken || !ts.isIdentifier(parameter.name) || !fn.body) {
+      return undefined;
+    }
+    const name = parameter.name;
+    const symbol = symbolAt(sp, name);
+    if (!symbol || hops > MAX_HOPS) return undefined;
+    const references = (node: ts.Node): boolean =>
+      (ts.isIdentifier(node) && node.text === name.text && symbolAt(sp, node) === symbol) ||
+      (ts.forEachChild(node, references) ?? false);
+    let base: FetchBaseQuery | undefined;
+    let followed = true;
+    const visit = (node: ts.Node): void => {
+      if (!followed) return;
+      if (ts.isCallExpression(node)) {
+        const [first, ...rest] = node.arguments;
+        const target = first && fetchBaseQueryOf(sp, node.expression, hops, false);
+        if (first && target) {
+          if (ts.isSpreadElement(first)) followed = !references(first);
+          else if (ts.isIdentifier(unwrap(first)) && references(unwrap(first))) {
+            if (base && base.call !== target.call) followed = false;
+            base = target;
+          } else if (references(first)) followed = false;
+          visit(node.expression);
+          for (const arg of rest) visit(arg);
+          return;
+        }
+      }
+      if (ts.isIdentifier(node) && node.text === name.text && symbolAt(sp, node) === symbol) {
+        followed = onlyReads(node);
+        return;
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(fn.body);
+    return followed ? base : undefined;
+  };
+
+  /** The `baseUrl` a `fetchBaseQuery` call sets: `undefined` without one, `null` if unreadable. */
+  const baseUrlOf = (base: FetchBaseQuery): ProgramExpression | null | undefined => {
+    const [config] = base.call.arguments;
+    if (config && ts.isSpreadElement(config)) return null;
+    return configProperty(base.sp, config, "baseUrl");
+  };
+
+  /**
    * The `baseUrl` a `createApi` call's `baseQuery` gives (ADR-0196): `fetchBaseQuery(config)`
-   * from RTK Query, directly, through a `const`, or wrapped in RTK's `retry`. `undefined` when
-   * the base query is anything else or can't be read (its endpoints are then unresolved,
-   * M5B.7b); `baseURL` is `undefined` without a `baseUrl` and `null` when one may be set but
-   * can't be read.
+   * from RTK Query, directly, through a `const`, or wrapped in RTK's `retry`, or a repo function
+   * forwarding its arguments to one (M5C.2). `undefined` when the base query is anything else
+   * or can't be read (its endpoints are then unresolved, M5B.7b); `baseURL` is `undefined`
+   * without a `baseUrl` and `null` when one may be set but can't be read.
    */
   const rtkBase = (
     sp: ServiceProgram,
@@ -1125,24 +1306,76 @@ export function createHttpSiteCollector(
     const options = api.arguments[0];
     const object = options && configObject(sp, options, 0);
     const value = object && objectProperty(object.sp, object.expression, "baseQuery");
-    if (!value) return undefined;
-    let query = constValue(value.sp, value.expression, hops);
-    for (let hop = 0; hop < MAX_HOPS; hop++) {
-      const e = query.expression;
-      if (!ts.isCallExpression(e)) return undefined;
-      const name = importedName(query.sp, e.expression);
-      const [first] = e.arguments;
-      if (name === "retry" && first) {
-        const inner = constValue(query.sp, first, hops);
-        query = { ...inner, confidence: weaker(query.confidence, inner.confidence) };
-        continue;
-      }
-      if (name !== "fetchBaseQuery") return undefined;
-      if (first && ts.isSpreadElement(first))
-        return { baseURL: null, confidence: query.confidence };
-      return { baseURL: configProperty(query.sp, first, "baseUrl"), confidence: query.confidence };
+    const base = value ? fetchBaseQueryOf(value.sp, value.expression, hops, true) : undefined;
+    return base && { baseURL: baseUrlOf(base), confidence: base.confidence };
+  };
+
+  /**
+   * The request `fetchBaseQuery` makes for an endpoint's arguments: a string is the URL, an
+   * object literal its `url` and `method` (absent: `GET`, the `Request` default), anything else
+   * a request with no URL or method.
+   */
+  const rtkArgsRequest = (
+    sp: ServiceProgram,
+    args: ts.Expression,
+    baseURL: ProgramExpression | null | undefined,
+    confidence: Confidence,
+  ): RequestShape => {
+    const shape = (
+      url: ProgramExpression | null,
+      method: Pick<HttpCallSite, "method" | "methodSource">,
+    ): RequestShape => ({ client: "fetch", ...method, url, baseURL, confidence });
+    if (configObject(sp, args, 0)) {
+      const url = configProperty(sp, args, "url");
+      return shape(url ?? null, configMethod(sp, args, "GET"));
     }
-    return undefined;
+    return isStringValued(sp, args)
+      ? shape({ sp, expression: args }, { method: "GET" })
+      : shape(null, { method: null });
+  };
+
+  const usesRtk = new Map<ServiceProgram, boolean>();
+
+  /** True when a file of `sp`'s program imports RTK Query (so a call may be a base query's). */
+  const importsRtk = (sp: ServiceProgram): boolean => {
+    let known = usesRtk.get(sp);
+    if (known === undefined) {
+      known = sp.program
+        .getSourceFiles()
+        .some(
+          (f) =>
+            !f.isDeclarationFile &&
+            f.statements.some(
+              (s) =>
+                ts.isImportDeclaration(s) &&
+                ts.isStringLiteral(s.moduleSpecifier) &&
+                RTK_QUERY_MODULES.has(s.moduleSpecifier.text),
+            ),
+        );
+      usesRtk.set(sp, known);
+    }
+    return known;
+  };
+
+  /**
+   * A call of a `fetchBaseQuery` result in repo code (M5C.2), such as a re-auth wrapper's
+   * `rawBaseQuery("/auth/refresh", api, extraOptions)`: fetchBaseQuery makes the `fetch`, so
+   * its first argument is a request like an endpoint's `query` value, joined to its `baseUrl`.
+   * A first argument that is a parameter of the function around the call (`rawBaseQuery(args,
+   * api, extraOptions)`) carries some caller's arguments, for a base query RTK calls with an
+   * endpoint's: those requests are at the endpoints (see {@link forwardedBase}), so it is none.
+   */
+  const rtkDirectCall = (sp: ServiceProgram, call: ts.CallExpression): RequestShape | undefined => {
+    const [first] = call.arguments;
+    if (!first || ts.isSpreadElement(first) || !importsRtk(sp)) return undefined;
+    const callee = unwrap(call.expression);
+    if (!ts.isIdentifier(callee) && !ts.isCallExpression(callee)) return undefined;
+    const base = fetchBaseQueryOf(sp, callee, 0, false);
+    if (!base) return undefined;
+    const arg = unwrap(first);
+    const declaration = ts.isIdentifier(arg) ? symbolAt(sp, arg)?.valueDeclaration : undefined;
+    if (declaration && ts.isParameter(declaration)) return undefined;
+    return rtkArgsRequest(sp, first, baseUrlOf(base), base.confidence);
   };
 
   /**
@@ -1274,11 +1507,9 @@ export function createHttpSiteCollector(
       ];
     }
     const confidence = weaker(api.confidence, base.confidence);
-    const shape = (
-      url: ProgramExpression | null,
-      method: Pick<HttpCallSite, "method" | "methodSource">,
-    ): RequestShape => ({ client: "fetch", ...method, url, baseURL: base.baseURL, confidence });
-    const unknown = [shape(null, { method: null })];
+    const unknown: RequestShape[] = [
+      { client: "fetch", method: null, url: null, baseURL: base.baseURL, confidence },
+    ];
     if (!definition) return unknown;
     let fn: FunctionWithBody | undefined;
     if (query && "kind" in query) fn = query;
@@ -1292,15 +1523,7 @@ export function createHttpSiteCollector(
     }
     const returned = fn ? returnedExpressions(fn) : [];
     if (returned.length === 0) return unknown;
-    return returned.map((r) => {
-      if (configObject(definition.sp, r, 0)) {
-        const url = configProperty(definition.sp, r, "url");
-        return shape(url ?? null, configMethod(definition.sp, r, "GET"));
-      }
-      return isStringValued(definition.sp, r)
-        ? shape({ sp: definition.sp, expression: r }, { method: "GET" })
-        : shape(null, { method: null });
-    });
+    return returned.map((r) => rtkArgsRequest(definition.sp, r, base.baseURL, confidence));
   };
 
   /** Collect the sites in `sp`'s root files. */
@@ -1314,7 +1537,7 @@ export function createHttpSiteCollector(
       const visit = (node: ts.Node, owners: Owners): void => {
         const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
-          const request = requestOf(sp, file, node);
+          const request = requestOf(sp, file, node) ?? rtkDirectCall(sp, node);
           for (const shape of request ? [request] : rtkEndpoint(sp, node)) {
             sites.push({
               ...shape,

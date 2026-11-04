@@ -63,6 +63,20 @@
     },
     {
       "confidence": "exact",
+      "from": "route:task-board/ALL /api/session/refresh",
+      "id": "handles:route:task-board/ALL /api/session/refresh->symbol:task-board/pages/api/session/refresh.ts#refresh",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/session/refresh.ts",
+          "line": 4
+        }
+      ],
+      "to": "symbol:task-board/pages/api/session/refresh.ts#refresh"
+    },
+    {
+      "confidence": "exact",
       "from": "route:task-board/ALL /api/stats",
       "id": "handles:route:task-board/ALL /api/stats->symbol:task-board/pages/api/stats.ts#stats",
       "kind": "handles",
@@ -74,6 +88,34 @@
         }
       ],
       "to": "symbol:task-board/pages/api/stats.ts#stats"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:task-board/DELETE /api/session",
+      "id": "handles:route:task-board/DELETE /api/session->symbol:task-board/pages/api/session/index.ts#session",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/session/index.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:task-board/pages/api/session/index.ts#session"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:task-board/GET /api/session",
+      "id": "handles:route:task-board/GET /api/session->symbol:task-board/pages/api/session/index.ts#session",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/api/session/index.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:task-board/pages/api/session/index.ts#session"
     },
     {
       "confidence": "exact",
@@ -237,26 +279,26 @@
       "to": "unresolved:task-board/store/labels.ts:6:19"
     },
     {
-      "confidence": "unresolved",
-      "from": "symbol:task-board/store/session.ts#sessionApi",
-      "id": "http:symbol:task-board/store/session.ts#sessionApi->unresolved:task-board/store/session.ts:24:9",
+      "confidence": "exact",
+      "from": "symbol:task-board/store/session.ts#baseQueryWithReauth",
+      "id": "http:symbol:task-board/store/session.ts#baseQueryWithReauth->route:task-board/ALL /api/session/refresh",
       "kind": "http",
-      "reason": "DYNAMIC_URL",
+      "label": "ALL /api/session/refresh",
       "sites": [
         {
-          "column": 9,
+          "column": 11,
           "file": "store/session.ts",
-          "line": 24
+          "line": 14
         }
       ],
-      "to": "unresolved:task-board/store/session.ts:24:9"
+      "to": "route:task-board/ALL /api/session/refresh"
     },
     {
-      "confidence": "unresolved",
+      "confidence": "exact",
       "from": "symbol:task-board/store/session.ts#sessionApi",
-      "id": "http:symbol:task-board/store/session.ts#sessionApi->unresolved:task-board/store/session.ts:25:13",
+      "id": "http:symbol:task-board/store/session.ts#sessionApi->route:task-board/DELETE /api/session",
       "kind": "http",
-      "reason": "DYNAMIC_URL",
+      "label": "DELETE /api/session",
       "sites": [
         {
           "column": 13,
@@ -264,7 +306,22 @@
           "line": 25
         }
       ],
-      "to": "unresolved:task-board/store/session.ts:25:13"
+      "to": "route:task-board/DELETE /api/session"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/store/session.ts#sessionApi",
+      "id": "http:symbol:task-board/store/session.ts#sessionApi->route:task-board/GET /api/session",
+      "kind": "http",
+      "label": "GET /api/session",
+      "sites": [
+        {
+          "column": 9,
+          "file": "store/session.ts",
+          "line": 24
+        }
+      ],
+      "to": "route:task-board/GET /api/session"
     },
     {
       "confidence": "exact",
@@ -347,6 +404,22 @@
       "path": "hooks/stats.ts"
     },
     {
+      "hash": "9f861d96d0e634b1bc24ebac7dd6931c3c3b1ad1e2ebd9069bd76ebd40d7e073",
+      "id": "file:task-board/pages/api/session/index.ts",
+      "kind": "file",
+      "label": "index.ts",
+      "parentId": "module:task-board/pages/api/session",
+      "path": "pages/api/session/index.ts"
+    },
+    {
+      "hash": "0df66479062dc439ad1917e2b4365754e7a0966aa280dabb15baef9f3dd15f98",
+      "id": "file:task-board/pages/api/session/refresh.ts",
+      "kind": "file",
+      "label": "refresh.ts",
+      "parentId": "module:task-board/pages/api/session",
+      "path": "pages/api/session/refresh.ts"
+    },
+    {
       "hash": "e51a1420e3aa89146eaa73fef6a78d896c9de29a016b099fa3d03cf96b7e8bb1",
       "id": "file:task-board/pages/api/stats.ts",
       "kind": "file",
@@ -424,6 +497,13 @@
       "path": "pages/api"
     },
     {
+      "id": "module:task-board/pages/api/session",
+      "kind": "module",
+      "label": "session",
+      "parentId": "module:task-board/pages/api",
+      "path": "pages/api/session"
+    },
+    {
       "id": "module:task-board/pages/api/tasks",
       "kind": "module",
       "label": "tasks",
@@ -451,6 +531,20 @@
       }
     },
     {
+      "id": "route:task-board/ALL /api/session/refresh",
+      "kind": "route",
+      "label": "ALL /api/session/refresh",
+      "layer": "backend",
+      "method": "ALL",
+      "parentId": "file:task-board/pages/api/session/refresh.ts",
+      "path": "/api/session/refresh",
+      "source": {
+        "column": 25,
+        "file": "pages/api/session/refresh.ts",
+        "line": 4
+      }
+    },
+    {
       "id": "route:task-board/ALL /api/stats",
       "kind": "route",
       "label": "ALL /api/stats",
@@ -461,6 +555,34 @@
       "source": {
         "column": 25,
         "file": "pages/api/stats.ts",
+        "line": 3
+      }
+    },
+    {
+      "id": "route:task-board/DELETE /api/session",
+      "kind": "route",
+      "label": "DELETE /api/session",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:task-board/pages/api/session/index.ts",
+      "path": "/api/session",
+      "source": {
+        "column": 25,
+        "file": "pages/api/session/index.ts",
+        "line": 3
+      }
+    },
+    {
+      "id": "route:task-board/GET /api/session",
+      "kind": "route",
+      "label": "GET /api/session",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:task-board/pages/api/session/index.ts",
+      "path": "/api/session",
+      "source": {
+        "column": 25,
+        "file": "pages/api/session/index.ts",
         "line": 3
       }
     },
@@ -541,6 +663,36 @@
         "endLine": 13,
         "file": "hooks/stats.ts",
         "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/pages/api/session/index.ts#session",
+      "kind": "symbol",
+      "label": "session",
+      "parentId": "file:task-board/pages/api/session/index.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "pages/api/session/index.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/pages/api/session/refresh.ts#refresh",
+      "kind": "symbol",
+      "label": "refresh",
+      "parentId": "file:task-board/pages/api/session/refresh.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "pages/api/session/refresh.ts",
+        "line": 4
       },
       "symbolKind": "function"
     },
@@ -791,34 +943,6 @@
         "column": 19,
         "file": "store/labels.ts",
         "line": 6
-      }
-    },
-    {
-      "detail": "the RTK Query baseQuery isn't fetchBaseQuery, and a custom base query isn't followed",
-      "expression": "query<{ name: string }, void>({ query: () => \"…\" })",
-      "id": "unresolved:task-board/store/session.ts:24:9",
-      "kind": "unresolved",
-      "label": "? query<{ name: string }, void>({ query: () => \"…\" })",
-      "parentId": "service:task-board/",
-      "reason": "DYNAMIC_URL",
-      "source": {
-        "column": 9,
-        "file": "store/session.ts",
-        "line": 24
-      }
-    },
-    {
-      "detail": "the RTK Query baseQuery isn't fetchBaseQuery, and a custom base query isn't followed",
-      "expression": "mutation<void, void>({ query: () => ({ url: \"…\", method: \"DELETE\" }) })",
-      "id": "unresolved:task-board/store/session.ts:25:13",
-      "kind": "unresolved",
-      "label": "? mutation<void, void>({ query: () => ({ url: \"…\", method: \"DELETE\" }) })",
-      "parentId": "service:task-board/",
-      "reason": "DYNAMIC_URL",
-      "source": {
-        "column": 13,
-        "file": "store/session.ts",
-        "line": 25
       }
     }
   ],

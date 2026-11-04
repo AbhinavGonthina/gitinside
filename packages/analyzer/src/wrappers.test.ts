@@ -7,7 +7,7 @@ import { buildExpressRoutes } from "./express.js";
 import { collectHttpCalls } from "./http.js";
 import { buildInventory } from "./inventory.js";
 import { buildServicePrograms, type ServiceProgram } from "./program.js";
-import { createUrlNormalizer } from "./url.js";
+import { createUrlNormalizer, DYNAMIC_URL_DETAIL } from "./url.js";
 import {
   bindWrappers,
   collectHttpFacts,
@@ -936,13 +936,88 @@ describe("RTK Query endpoints (ADR-0196)", () => {
       "});",
     ]);
     await put("src/mine.ts", "export const createApi = (o: unknown) => o;\n");
-    const unfollowed =
-      "DYNAMIC_URL: the RTK Query baseQuery isn't fetchBaseQuery, and a custom base query isn't followed";
+    const unfollowed = `DYNAMIC_URL: ${DYNAMIC_URL_DETAIL.rtkBaseQuery}`;
     expect(await summary()).toEqual([
       "src/api.ts:3 GET DYNAMIC_URL: the URL starts with a value only known at runtime [custom]",
       // The base query decides the method too, so it isn't read from `query`.
       `src/api.ts:6 ? ${unfollowed} [a]`,
       `src/api.ts:16 ? ${unfollowed} [d]`,
+    ]);
+  });
+
+  it("follows a base query that passes its arguments on to a fetchBaseQuery (RTK's re-auth example)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/base.ts", [
+      'import { fetchBaseQuery } from "@reduxjs/toolkit/query";',
+      'export const raw = fetchBaseQuery({ baseUrl: "/api/" });',
+    ]);
+    await put("src/api.ts", [
+      'import { createApi, retry } from "@reduxjs/toolkit/query/react";',
+      'import { raw } from "./base";',
+      "declare const mutex: { runExclusive(f: () => Promise<void>): Promise<void> };",
+      "async function withReauth(args: any, api: any, extraOptions: any) {",
+      "  let result = await raw(args, api, extraOptions);",
+      "  if (result.error) {",
+      '    const refreshed = await raw("auth/refresh", api, extraOptions);',
+      '    await raw({ url: "auth/logout", method: "POST" }, api, extraOptions);',
+      "    if (refreshed.data) {",
+      "      await mutex.runExclusive(async () => {",
+      "        result = await raw(args, api, extraOptions);",
+      "      });",
+      "    }",
+      "  }",
+      "  return result;",
+      "}",
+      "export const a = createApi({",
+      "  baseQuery: retry(withReauth),",
+      "  endpoints: (b) => ({",
+      '    me: b.query({ query: () => "users/me" }),',
+      '    rename: b.mutation({ query: (name: string) => ({ url: `users/${name}`, method: "PUT" }) }),',
+      "  }),",
+      "});",
+    ]);
+    expect(await summary()).toEqual([
+      // The wrapper's own calls with a URL fixed there are requests; its forwarding calls aren't.
+      "src/api.ts:7 GET /api/auth/refresh [withReauth]",
+      "src/api.ts:8 POST /api/auth/logout [withReauth]",
+      "src/api.ts:20 GET /api/users/me [a]",
+      "src/api.ts:21 PUT /api/users/{} [a]",
+    ]);
+  });
+
+  it("doesn't follow a base query that changes its arguments, picks a base, or hands them elsewhere", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";',
+      'const raw = fetchBaseQuery({ baseUrl: "/api/" });',
+      'const other = fetchBaseQuery({ baseUrl: "/other/" });',
+      "declare const log: (x: unknown) => void;",
+      "const rewrites = (args: any, api: any, extra: any) =>",
+      '  raw(typeof args === "string" ? `v2/${args}` : args, api, extra);',
+      "const reassigns = (args: any, api: any, extra: any) => {",
+      '  args = { url: "fixed" };',
+      "  return raw(args, api, extra);",
+      "};",
+      "const picks = (args: any, api: any, extra: any) =>",
+      "  api.endpoint === 'x' ? raw(args, api, extra) : other(args, api, extra);",
+      "const logs = (args: any, api: any, extra: any) => {",
+      "  log(args);",
+      "  return raw(args, api, extra);",
+      "};",
+      "export const a = createApi({ baseQuery: rewrites, endpoints: (b) => ({ x: b.query({ query: () => 'x' }) }) });",
+      "export const c = createApi({ baseQuery: reassigns, endpoints: (b) => ({ x: b.query({ query: () => 'x' }) }) });",
+      "export const d = createApi({ baseQuery: picks, endpoints: (b) => ({ x: b.query({ query: () => 'x' }) }) });",
+      "export const e = createApi({ baseQuery: logs, endpoints: (b) => ({ x: b.query({ query: () => 'x' }) }) });",
+    ]);
+    const unfollowed = `? DYNAMIC_URL: ${DYNAMIC_URL_DETAIL.rtkBaseQuery}`;
+    expect(await summary()).toEqual([
+      // A call of the fetchBaseQuery result with a computed argument is a request whose URL
+      // can't be read, never the endpoint's.
+      "src/api.ts:6 ? DYNAMIC_URL: the URL can't be read statically [rewrites]",
+      `src/api.ts:17 ${unfollowed} [a]`,
+      `src/api.ts:18 ${unfollowed} [c]`,
+      `src/api.ts:19 ${unfollowed} [d]`,
+      `src/api.ts:20 ${unfollowed} [e]`,
     ]);
   });
 
