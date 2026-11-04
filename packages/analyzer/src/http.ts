@@ -1,5 +1,5 @@
 /**
- * HTTP call-site collection (M2.1): every outbound `fetch`, axios, and ofetch request in the repo,
+ * HTTP call-site collection (M2.1): every outbound `fetch`, axios, ofetch, and ky request in the repo,
  * with its method, URL expression, and base URL expression, ready for the URL normalizer
  * (M2.2) and the route matcher (M2.4). Nothing here becomes graph output yet; every
  * collected site later yields an edge, resolved or unresolved (ROADMAP M2 "no call site
@@ -42,6 +42,15 @@
  *   the instance's. The base joins the URL as ofetch's (ufo's `withBase`): as axios's, except
  *   that a URL already starting with a literal base is left alone. `x.native(url, init?)` is
  *   the platform's `fetch`, without base or default method.
+ * - ky (M5C.3e, ADR-0207), from its documented API (ky 1 and ky 2): the default export of `ky`
+ *   (also `k.default` under `import * as k`), and instances from `<ky or instance>.extend(options)`,
+ *   which merges `options` over the defaults of what it is called on, and `.create(options)`,
+ *   which starts from ky's own defaults. Requests are `x(url, options?)`, its method the call's
+ *   `method`, else the instance's, else `GET`, and `x.get|post|put|patch|delete|head(url,
+ *   options?)`, which set the method. The base is the call's `prefixUrl` (ky 1), `prefix`, or
+ *   `baseUrl` (ky 2), else the instance's, each joined as ky does (`url.ts`): `prefixUrl` and
+ *   `prefix` by plain string joining with one `/`, `prefixUrl` refusing a URL that starts with
+ *   `/` (ky throws, so it's unresolved with that reason), and `baseUrl` by URL resolution.
  * - Values are traced with the checker the same way the Prisma client is: through
  *   variables, imports (workspace packages too, via the shared resolver), `export default`,
  *   CommonJS exports, `??`/`||`/`&&`, ternaries, `await`, and factory functions that return
@@ -94,7 +103,7 @@
  * - A `defaults.baseURL` write in a module the request's file doesn't import, even when an
  *   entry point loads both (`main.ts` importing `./setup` and `./App`): the request keeps the
  *   `create` config's base, since what an entry point loads isn't modeled.
- * - Other HTTP clients (`ky`, `got`, `superagent`), `XMLHttpRequest`, and
+ * - Other HTTP clients (`got`, `superagent`), `XMLHttpRequest`, and
  *   `EventSource`/`WebSocket`. An SWR fetcher that wraps one of the above is inlined at the
  *   hook (`wrappers.ts`, ADR-0193).
  * - ofetch: Nuxt's global `$fetch` and `useFetch` (auto-imported, never imported from
@@ -103,6 +112,12 @@
  *   that change the request, and a `query`/`params` option (paths only are matched). Options
  *   the collector can't see (a parameter, a spread hiding `baseURL`) are assumed not to set a
  *   `baseURL`, as for axios's shorthand calls.
+ * - ky: `require("ky")` and `ky-universal`, `extend` given a function (both bases and the
+ *   method unknown), `ky.query` (the `QUERY` method isn't an `HttpMethod`), a `Request` object
+ *   as the input (ky ignores the bases then; read as a URL it's unreadable), `hooks.beforeRequest`
+ *   that change the request, `searchParams` (paths only are matched), and more than one of
+ *   `prefixUrl`, `prefix`, and `baseUrl` in effect at once (unresolved, saying so). Options the
+ *   collector can't see are assumed not to set a base, as for ofetch.
  * - TanStack Query (ADR-0196): a `queryFn` is read like any other function, so
  *   `queryFn: () => fetch("/api/todos")` or a call to a wrapper there resolves, but a URL read
  *   from the key in its context (`({ queryKey }) => fetch(queryKey[0])`, also a `QueryClient`'s
@@ -188,8 +203,17 @@ const RTK_ENDPOINT_KINDS: ReadonlySet<string> = new Set(["infiniteQuery", "mutat
 /** What ofetch's `ofetch` module exports as its fetch function (M5C.3c). */
 const OFETCH_EXPORTS: ReadonlySet<string> = new Set(["$fetch", "ofetch"]);
 
+/** ky's shorthand methods (M5C.3e), each making a request with its own name as the method. */
+const KY_METHODS: ReadonlySet<string> = new Set(["delete", "get", "head", "patch", "post", "put"]);
+
 /** The library that makes a request. */
-export type HttpClient = "fetch" | "axios" | "ofetch";
+export type HttpClient = "fetch" | "axios" | "ofetch" | "ky";
+
+/**
+ * How a site's `baseURL` joins its URL, when not as axios's does (see `url.ts`): ofetch's
+ * `withBase`, ky 1's `prefixUrl`, ky 2's `prefix`, or ky 2's `baseUrl`.
+ */
+export type BaseJoin = "withBase" | "kyPrefixUrl" | "kyPrefix" | "kyBaseUrl";
 
 /**
  * One outbound HTTP request in the source. `null` means "set, but not statically readable"
@@ -233,9 +257,9 @@ export interface HttpCallSite {
   baseURL: ProgramExpression | null | undefined;
   /**
    * `withBase` for ofetch, whose join (ufo's `withBase`) leaves a URL that already starts with
-   * the base alone; absent for axios's join (see `url.ts`).
+   * the base alone, and ky's three joins (M5C.3e); absent for axios's join (see `url.ts`).
    */
-  baseJoin?: "withBase";
+  baseJoin?: BaseJoin;
   /**
    * A whole axios config the collector can't locate (`axios(req)`, `api.request(req)` with
    * `req` a parameter), and the `baseURL` of the instance it is passed to, which applies when
@@ -292,6 +316,19 @@ interface OfetchValue {
   baseURL: ProgramExpression | null | undefined;
   /** The default `method` its `create` options set, likewise. */
   method: ConfigValue;
+  confidence: Confidence;
+}
+
+/** ky's options that set a base for the input (M5C.3e): ky 1's, then ky 2's. */
+const KY_BASES = ["prefixUrl", "prefix", "baseUrl"] as const;
+
+/** What an expression evaluates to when it is ky or a ky instance (M5C.3e). */
+interface KyValue {
+  /**
+   * The defaults its `create`/`extend` options set for `prefixUrl`, `prefix`, `baseUrl`, and
+   * `method`: `undefined` for none, `null` for unknown.
+   */
+  defaults: Record<(typeof KY_BASES)[number] | "method", ConfigValue>;
   confidence: Confidence;
 }
 
@@ -401,7 +438,7 @@ export function toMethod(text: string): HttpMethod | null {
 }
 
 /**
- * Collect every `fetch`, axios, and ofetch request in the service programs (see the file comment for
+ * Collect every `fetch`, axios, ofetch, and ky request in the service programs (see the file comment for
  * what is recognized). A site's owners name the inline handlers it may be in by node key, so
  * nothing here depends on the Express composition (ADR-0094). Sorted by file, line, and column.
  */
@@ -675,14 +712,17 @@ export function createHttpSiteCollector(
     return undefined;
   };
 
-  // ---- client values (axios, ofetch) ----
+  // ---- client values (axios, ofetch, ky) ----
 
   /**
    * Where a client library's own values come from (M5C.3c): its imports and `require`s, type
-   * annotations, and `x.create(options)`. Everything else (variables, imports across the repo,
-   * factories, `??`, `await`) is traced the same way for every library by {@link createTracer}.
+   * annotations, and `x.create(options)` (or its other {@link ClientLibrary.creators}).
+   * Everything else (variables, imports across the repo, factories, `??`, `await`) is traced
+   * the same way for every library by {@link createTracer}.
    */
   interface ClientLibrary<V extends { confidence: Confidence }> {
+    /** The methods that make an instance from one of its values (`create`, ky's `extend`). */
+    creators: ReadonlySet<string>;
     /** What an import binding of a module is (`*` for a namespace, else the export's name). */
     imported(sp: ServiceProgram, binding: { module: string; name: string }): V | undefined;
     /** What `require(module)` (or its `.default`) is. */
@@ -693,9 +733,12 @@ export function createHttpSiteCollector(
       declaration: ts.Declaration,
       type: ts.TypeNode | undefined,
     ): V | undefined;
-    /** What `create(options)` called on one of its values makes. */
-    created(sp: ServiceProgram, call: ts.CallExpression, parent: V): V;
+    /** What `creator(options)` (one of {@link creators}) called on one of its values makes. */
+    created(sp: ServiceProgram, call: ts.CallExpression, parent: V, creator: string): V;
   }
+
+  /** `create` only: axios's and ofetch's instance maker. */
+  const CREATE: ReadonlySet<string> = new Set(["create"]);
 
   /**
    * A function telling what an expression is when it is one of `lib`'s values: traced with the
@@ -846,10 +889,11 @@ export function createHttpSiteCollector(
       }
       if (ts.isCallExpression(e)) {
         const callee = unwrap(e.expression);
-        // `axios.create(config)`, `ofetch.create(options)`, or `instance.create(…)`.
-        if (ts.isPropertyAccessExpression(callee) && callee.name.text === "create") {
+        // `axios.create(config)`, `ofetch.create(options)`, `ky.extend(options)`, or
+        // `instance.create(…)`.
+        if (ts.isPropertyAccessExpression(callee) && lib.creators.has(callee.name.text)) {
           const parent = valueOf(sp, callee.expression, hops + 1);
-          return parent && lib.created(sp, e, parent);
+          return parent && lib.created(sp, e, parent, callee.name.text);
         }
         // A factory function that returns the library or an instance.
         const name = ts.isIdentifier(callee)
@@ -892,6 +936,7 @@ export function createHttpSiteCollector(
 
   /** What an expression is when it is axios or an axios instance. */
   const axiosOf = createTracer<AxiosValue>({
+    creators: CREATE,
     imported: (sp, binding) =>
       binding.module === "axios" && (binding.name === "default" || binding.name === "*")
         ? axiosRoot(sp)
@@ -921,6 +966,7 @@ export function createHttpSiteCollector(
    * A spread or an options value the collector can't see makes both unknown.
    */
   const ofetchOf = createTracer<OfetchValue>({
+    creators: CREATE,
     imported: (_sp, binding) =>
       binding.module === "ofetch" && OFETCH_EXPORTS.has(binding.name) ? OFETCH_ROOT : undefined,
     required: () => undefined,
@@ -936,6 +982,46 @@ export function createHttpSiteCollector(
         method: method === undefined ? parent.method : method,
         confidence: parent.confidence,
       };
+    },
+  });
+
+  // ---- ky ----
+
+  /** ky's own defaults: no base, and `GET`. */
+  const KY_DEFAULTS: KyValue["defaults"] = {
+    prefixUrl: undefined,
+    prefix: undefined,
+    baseUrl: undefined,
+    method: undefined,
+  };
+
+  /**
+   * What an expression is when it is ky's default export or an instance (M5C.3e). `extend`
+   * merges its options over the defaults of what it is called on, and `create` over ky's own
+   * (ky's docs: "complete new defaults"), so an instance's bases and method are its own, else
+   * the ones it started from. A spread, a function (`extend((parent) => …)`), or options the
+   * collector can't see make them all unknown.
+   */
+  const kyOf = createTracer<KyValue>({
+    creators: new Set(["create", "extend"]),
+    imported: (_sp, binding) =>
+      binding.module === "ky" && binding.name === "default"
+        ? { defaults: KY_DEFAULTS, confidence: "exact" }
+        : undefined,
+    required: () => undefined,
+    typed: () => undefined,
+    created: (sp, call, parent, creator) => {
+      const options = call.arguments[0];
+      const start = creator === "extend" ? parent.defaults : KY_DEFAULTS;
+      const defaults = { ...start };
+      for (const key of [...KY_BASES, "method"] as const) {
+        const own =
+          options && (ts.isSpreadElement(options) || isFunctionWithBody(unwrap(options)))
+            ? null
+            : configProperty(sp, options, key);
+        if (own !== undefined) defaults[key] = own;
+      }
+      return { defaults, confidence: parent.confidence };
     },
   });
 
@@ -1167,7 +1253,74 @@ export function createHttpSiteCollector(
     };
   };
 
-  /** The request a call in `file` makes, if it is a `fetch`, axios, or ofetch request. */
+  /** The join each of ky's base options uses (see `url.ts`). */
+  const KY_JOINS: Record<(typeof KY_BASES)[number], BaseJoin> = {
+    prefixUrl: "kyPrefixUrl",
+    prefix: "kyPrefix",
+    baseUrl: "kyBaseUrl",
+  };
+
+  /**
+   * The request `instance(url, options?)` or `instance.get(url, options?)` (`shorthand` the
+   * method its name sets, which wins over `options.method`, as ky merges it last) makes with ky
+   * (M5C.3e). Otherwise the method is the call's, else the instance's, else `GET`, read like
+   * ofetch's ({@link ofetchRequest}). Each base option is the call's, else the instance's;
+   * options the collector can't see are assumed not to set one. One the instance has but that
+   * can't be read makes the base unknown. With more than one base option in effect the request
+   * has no URL, saying why: how ky 1 and ky 2 combine them isn't followed.
+   */
+  const kyRequest = (
+    sp: ServiceProgram,
+    instance: KyValue,
+    url: ProgramExpression | null,
+    options: ts.Expression | null | undefined,
+    shorthand?: HttpMethod,
+  ): RequestShape => {
+    const own = (name: string): ConfigValue =>
+      options === null ? null : configProperty(sp, options, name);
+    let method: Pick<HttpCallSite, "method" | "methodSource">;
+    const ownMethod = shorthand === undefined ? own("method") : undefined;
+    if (shorthand !== undefined) {
+      method = { method: shorthand };
+    } else if (
+      instance.defaults.method === undefined ||
+      (ownMethod !== undefined && ownMethod !== null)
+    ) {
+      method = configMethod(sp, options, "GET");
+    } else if (ownMethod === undefined) {
+      method = { method: methodOf(instance.defaults.method, "GET") };
+    } else {
+      method = { method: null };
+    }
+    const bases = KY_BASES.flatMap((key) => {
+      const value = own(key) ?? instance.defaults[key];
+      return value === undefined ? [] : [{ key, value }];
+    });
+    const [only] = bases;
+    if (bases.some((b) => b.value === null)) {
+      return { client: "ky", ...method, url, baseURL: null, confidence: instance.confidence };
+    }
+    if (bases.length > 1) {
+      return {
+        client: "ky",
+        ...method,
+        url: null,
+        urlDetail: DYNAMIC_URL_DETAIL.kyBases,
+        baseURL: undefined,
+        confidence: instance.confidence,
+      };
+    }
+    return {
+      client: "ky",
+      ...method,
+      url,
+      baseURL: only?.value,
+      ...(only ? { baseJoin: KY_JOINS[only.key] } : {}),
+      confidence: instance.confidence,
+    };
+  };
+
+  /** The request a call in `file` makes, if it is a `fetch`, axios, ofetch, or ky request. */
   const requestOf = (
     sp: ServiceProgram,
     file: string,
@@ -1234,6 +1387,14 @@ export function createHttpSiteCollector(
         };
       }
       if (instance) return ofetchRequest(sp, instance, urlArg(0), arg(1));
+    }
+
+    const ky = kyOf(sp, callee, 0);
+    if (ky) return kyRequest(sp, ky, urlArg(0), arg(1));
+    if (ts.isPropertyAccessExpression(callee) && KY_METHODS.has(callee.name.text)) {
+      const instance = kyOf(sp, callee.expression, 0);
+      const method = toMethod(callee.name.text);
+      if (instance && method) return kyRequest(sp, instance, urlArg(0), arg(1), method);
     }
 
     const direct = axiosOf(sp, callee, 0);

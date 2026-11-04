@@ -1,0 +1,576 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#addNote",
+      "id": "calls:symbol:ky-client/src/notes.ts#addNote->symbol:ky-client/src/http.ts#writer",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 17
+        }
+      ],
+      "to": "symbol:ky-client/src/http.ts#writer"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#archive",
+      "id": "calls:symbol:ky-client/src/notes.ts#archive->symbol:ky-client/src/http.ts#writer",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 41
+        }
+      ],
+      "to": "symbol:ky-client/src/http.ts#writer"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#getNote",
+      "id": "calls:symbol:ky-client/src/notes.ts#getNote->symbol:ky-client/src/http.ts#api",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:ky-client/src/http.ts#api"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#status",
+      "id": "calls:symbol:ky-client/src/notes.ts#status->symbol:ky-client/src/http.ts#v1",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 31
+        }
+      ],
+      "to": "symbol:ky-client/src/http.ts#v1"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#addNote",
+      "id": "http:symbol:ky-client/src/notes.ts#addNote->route:ky-client/POST /api/notes",
+      "kind": "http",
+      "label": "POST /api/notes",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 17
+        }
+      ],
+      "to": "route:ky-client/POST /api/notes"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:ky-client/src/notes.ts#archive",
+      "id": "http:symbol:ky-client/src/notes.ts#archive->unresolved:ky-client/src/notes.ts:41:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 41
+        }
+      ],
+      "to": "unresolved:ky-client/src/notes.ts:41:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:ky-client/src/notes.ts#brokenList",
+      "id": "http:symbol:ky-client/src/notes.ts#brokenList->unresolved:ky-client/src/notes.ts:36:10",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 36
+        }
+      ],
+      "to": "unresolved:ky-client/src/notes.ts:36:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#getNote",
+      "id": "http:symbol:ky-client/src/notes.ts#getNote->route:ky-client/GET /api/notes/:noteId",
+      "kind": "http",
+      "label": "GET /api/notes/:noteId",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 9
+        }
+      ],
+      "to": "route:ky-client/GET /api/notes/:noteId"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#listNotes",
+      "id": "http:symbol:ky-client/src/notes.ts#listNotes->route:ky-client/GET /api/notes",
+      "kind": "http",
+      "label": "GET /api/notes",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 5
+        }
+      ],
+      "to": "route:ky-client/GET /api/notes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#listTags",
+      "id": "http:symbol:ky-client/src/notes.ts#listTags->route:ky-client/GET /api/v1/tags",
+      "kind": "http",
+      "label": "GET /api/v1/tags",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 26
+        }
+      ],
+      "to": "route:ky-client/GET /api/v1/tags"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#saveNote",
+      "id": "http:symbol:ky-client/src/notes.ts#saveNote->route:ky-client/PUT /api/notes/:noteId",
+      "kind": "http",
+      "label": "PUT /api/notes/:noteId",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 13
+        }
+      ],
+      "to": "route:ky-client/PUT /api/notes/:noteId"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#signIn",
+      "id": "http:symbol:ky-client/src/notes.ts#signIn->route:ky-client/POST /api/session",
+      "kind": "http",
+      "label": "POST /api/session",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 22
+        }
+      ],
+      "to": "route:ky-client/POST /api/session"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ky-client/src/notes.ts#status",
+      "id": "http:symbol:ky-client/src/notes.ts#status->route:ky-client/GET /status",
+      "kind": "http",
+      "label": "GET /status",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/notes.ts",
+          "line": 31
+        }
+      ],
+      "to": "route:ky-client/GET /status"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:ky-client/src/notes.ts",
+      "id": "imports:file:ky-client/src/notes.ts->file:ky-client/src/http.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 33,
+          "file": "src/notes.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:ky-client/src/http.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "781899bf5bcc520799b66d9a036458498a79bf39ad8f26c20d853b1cb3ee7218",
+      "id": "file:ky-client/src/http.ts",
+      "kind": "file",
+      "label": "http.ts",
+      "parentId": "module:ky-client/src",
+      "path": "src/http.ts"
+    },
+    {
+      "hash": "b2fdef472db903d10d43a62b5efa4d3ea12cefe8867929bd0069fd9965947a7e",
+      "id": "file:ky-client/src/notes.ts",
+      "kind": "file",
+      "label": "notes.ts",
+      "parentId": "module:ky-client/src",
+      "path": "src/notes.ts"
+    },
+    {
+      "hash": "0b9347c6c0110db2213fef18adc1af5013155e840076f072cc20ae74eaddcf3b",
+      "id": "file:ky-client/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:ky-client/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:ky-client/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:ky-client/",
+      "path": "src"
+    },
+    {
+      "id": "route:ky-client/GET /api/notes",
+      "kind": "route",
+      "label": "GET /api/notes",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ky-client/src/server.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:ky-client/GET /api/notes/:noteId",
+      "kind": "route",
+      "label": "GET /api/notes/:noteId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ky-client/src/server.ts",
+      "path": "/api/notes/:noteId",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:ky-client/GET /api/v1/tags",
+      "kind": "route",
+      "label": "GET /api/v1/tags",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ky-client/src/server.ts",
+      "path": "/api/v1/tags",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 26
+      }
+    },
+    {
+      "id": "route:ky-client/GET /status",
+      "kind": "route",
+      "label": "GET /status",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ky-client/src/server.ts",
+      "path": "/status",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 29
+      }
+    },
+    {
+      "id": "route:ky-client/POST /api/notes",
+      "kind": "route",
+      "label": "POST /api/notes",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:ky-client/src/server.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 14
+      }
+    },
+    {
+      "id": "route:ky-client/POST /api/session",
+      "kind": "route",
+      "label": "POST /api/session",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:ky-client/src/server.ts",
+      "path": "/api/session",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 23
+      }
+    },
+    {
+      "id": "route:ky-client/PUT /api/notes/:noteId",
+      "kind": "route",
+      "label": "PUT /api/notes/:noteId",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:ky-client/src/server.ts",
+      "path": "/api/notes/:noteId",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 18
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:ky-client/",
+      "kind": "service",
+      "label": "ky-client",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/http.ts#api",
+      "kind": "symbol",
+      "label": "api",
+      "parentId": "file:ky-client/src/http.ts",
+      "source": {
+        "column": 14,
+        "endLine": 4,
+        "file": "src/http.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/http.ts#v1",
+      "kind": "symbol",
+      "label": "v1",
+      "parentId": "file:ky-client/src/http.ts",
+      "source": {
+        "column": 14,
+        "endLine": 10,
+        "file": "src/http.ts",
+        "line": 10
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/http.ts#writer",
+      "kind": "symbol",
+      "label": "writer",
+      "parentId": "file:ky-client/src/http.ts",
+      "source": {
+        "column": 14,
+        "endLine": 7,
+        "file": "src/http.ts",
+        "line": 7
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/notes.ts#addNote",
+      "kind": "symbol",
+      "label": "addNote",
+      "parentId": "file:ky-client/src/notes.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "src/notes.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/notes.ts#archive",
+      "kind": "symbol",
+      "label": "archive",
+      "parentId": "file:ky-client/src/notes.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 42,
+        "file": "src/notes.ts",
+        "line": 40
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/notes.ts#brokenList",
+      "kind": "symbol",
+      "label": "brokenList",
+      "parentId": "file:ky-client/src/notes.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 37,
+        "file": "src/notes.ts",
+        "line": 35
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/notes.ts#getNote",
+      "kind": "symbol",
+      "label": "getNote",
+      "parentId": "file:ky-client/src/notes.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/notes.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/notes.ts#listNotes",
+      "kind": "symbol",
+      "label": "listNotes",
+      "parentId": "file:ky-client/src/notes.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/notes.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/notes.ts#listTags",
+      "kind": "symbol",
+      "label": "listTags",
+      "parentId": "file:ky-client/src/notes.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 27,
+        "file": "src/notes.ts",
+        "line": 25
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/notes.ts#saveNote",
+      "kind": "symbol",
+      "label": "saveNote",
+      "parentId": "file:ky-client/src/notes.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "src/notes.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/notes.ts#signIn",
+      "kind": "symbol",
+      "label": "signIn",
+      "parentId": "file:ky-client/src/notes.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "src/notes.ts",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ky-client/src/notes.ts#status",
+      "kind": "symbol",
+      "label": "status",
+      "parentId": "file:ky-client/src/notes.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 32,
+        "file": "src/notes.ts",
+        "line": 30
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "ky-client",
+      "parentId": null
+    },
+    {
+      "detail": "ky refuses a URL starting with / under a prefixUrl, so this request fails",
+      "expression": "api.get(\"/notes\")",
+      "id": "unresolved:ky-client/src/notes.ts:36:10",
+      "kind": "unresolved",
+      "label": "GET \"/notes\"",
+      "parentId": "service:ky-client/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 10,
+        "file": "src/notes.ts",
+        "line": 36
+      }
+    },
+    {
+      "detail": "no route matches POST to /api/notes/{}/archive",
+      "expression": "writer(`notes/${id}/archive`)",
+      "id": "unresolved:ky-client/src/notes.ts:41:10",
+      "kind": "unresolved",
+      "label": "POST /api/notes/{}/archive",
+      "parentId": "service:ky-client/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "src/notes.ts",
+        "line": 41
+      }
+    }
+  ],
+  "repo": {
+    "name": "ky-client",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

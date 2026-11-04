@@ -121,6 +121,7 @@ const EXPECTED: Record<string, string[]> = {
   "fake-secrets": ["2b1e07e08b9a6c57", "8be4b2600775eaee", "cf911a93a59b2b14"],
   "fetch-template-literal": ["8b80d7390797ba19", "248e377451753beb", "261682dcd8866049"],
   "fixed-url-helpers": ["ab7626f2e1d493e9", "03409237b6bb3e26", "2c08a0fb3fc72402"],
+  "ky-client": ["98b488d4045dd56e", "a36d5c046e900109", "a2a2f4377183f742"],
   "next-app-router": ["066275a4f8746a39", "6e60eb042b05a1ec", "7c9f3558ff0124c2"],
   "next-connect": ["e3491958e79cd2ff", "55cdbe3076562dd7", "92e18284d06069a5"],
   "next-method-exclusions": ["fa1a9684081bccc7", "99edf2121fa9bee3", "f3c616510a54c58a"],

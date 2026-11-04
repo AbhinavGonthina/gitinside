@@ -616,6 +616,99 @@ describe("collectHttpCalls: ofetch (M5C.3c)", () => {
   });
 });
 
+describe("collectHttpCalls: ky (M5C.3e)", () => {
+  it("collects ky calls, shorthands, and extend/create instances, with their base and method", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { ky: "1" } }));
+    await put("src/http.ts", [
+      'import ky from "ky";',
+      'export const api = ky.create({ prefixUrl: "/api" });',
+      'export const v2 = api.extend({ prefixUrl: "/api/v2" });',
+      'export const poster = api.extend({ method: "post" });',
+      'export const fresh = api.create({ prefix: "/fresh" });',
+      'export const based = ky.extend({ baseUrl: "https://h.com/v1/" });',
+      'export const viaFn = api.extend((parent) => ({ ...parent, prefixUrl: "/fn" }));',
+      'export const both = based.extend({ prefix: "/p" });',
+    ]);
+    await put("src/use.ts", [
+      'import ky from "ky";',
+      'import * as k from "ky";',
+      'import { api, v2, poster, fresh, based, viaFn, both } from "./http";',
+      "export async function run(id: string, opts: object) {",
+      '  await ky("/plain");',
+      '  await ky.post("/users", { json: {} }).json();',
+      "  await api.get(`users/${id}`);",
+      '  await api("users", { method: "DELETE" });',
+      '  await v2.get("stats");',
+      '  await poster("login");',
+      '  await poster.get("check", { method: "POST" });',
+      '  await poster("opaque", opts);',
+      '  await api("opaque", opts);',
+      '  await fresh.put("x");',
+      '  await based.patch("users");',
+      '  await viaFn.head("fn");',
+      '  await both("p");',
+      '  await k.default.delete("/ns");',
+      '  await ky("/own", { prefixUrl: "/api", method: "put" });',
+      "}",
+    ]);
+    const owner = "[symbol:web/src/use.ts#run]";
+    const sites = await collect();
+    expect(summary(sites)).toEqual([
+      `src/use.ts:5:9 ky GET "/plain" base=- ${owner}`,
+      `src/use.ts:6:9 ky POST "/users" base=- ${owner}`,
+      `src/use.ts:7:9 ky GET \`users/\${id}\` base="/api" ${owner}`,
+      `src/use.ts:8:9 ky DELETE "users" base="/api" ${owner}`,
+      `src/use.ts:9:9 ky GET "stats" base="/api/v2" ${owner}`,
+      `src/use.ts:10:9 ky POST "login" base="/api" ${owner}`,
+      `src/use.ts:11:9 ky GET "check" base="/api" ${owner}`,
+      `src/use.ts:12:9 ky ? "opaque" base="/api" ${owner}`,
+      `src/use.ts:13:9 ky ? "opaque" base="/api" ${owner}`,
+      `src/use.ts:14:9 ky PUT "x" base="/fresh" ${owner}`,
+      `src/use.ts:15:9 ky PATCH "users" base="https://h.com/v1/" ${owner}`,
+      `src/use.ts:16:9 ky HEAD "fn" base=? ${owner}`,
+      `src/use.ts:17:9 ky GET ? base=- ${owner}`,
+      `src/use.ts:18:9 ky DELETE "/ns" base=- ${owner}`,
+      `src/use.ts:19:9 ky PUT "/own" base="/api" ${owner}`,
+    ]);
+    // Wrapper inlining re-reads an unseen options' method from the caller (M2.3), but not
+    // under an instance whose own default `method` would apply instead.
+    expect(sites[7]?.methodSource).toBeUndefined();
+    expect(sites[8]?.methodSource?.kind).toBe("config");
+    expect(sites.map((s) => s.baseJoin ?? "-")).toEqual([
+      "-",
+      "-",
+      ...Array<string>(7).fill("kyPrefixUrl"),
+      "kyPrefix",
+      "kyBaseUrl",
+      "-",
+      "-",
+      "-",
+      "kyPrefixUrl",
+    ]);
+    expect(sites[12]?.urlDetail).toBe(
+      "more than one of ky's prefixUrl, prefix, and baseUrl is set, which isn't followed",
+    );
+  });
+
+  it("ignores look-alikes: local or other modules' ky, a named import, extend() itself", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/local.ts", ["export default function ky(p: string) { return p; }"]);
+    await put("src/a.ts", [
+      'import other from "./local";',
+      'import mine from "my-ky";',
+      'import ky, { HTTPError } from "ky";',
+      'other("/local");',
+      'mine.get("/mine");',
+      'new HTTPError("/x");',
+      'ky.extend({ prefixUrl: "/api" });',
+      'ky.stop("/stop");',
+      "const o = { get: (p: string) => p };",
+      'o.get("/o");',
+    ]);
+    expect(summary(await collect())).toEqual([]);
+  });
+});
+
 describe("collectHttpCalls: owners", () => {
   it("attributes calls to inline Express routes, the innermost symbol, or nothing at top level", async () => {
     await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));

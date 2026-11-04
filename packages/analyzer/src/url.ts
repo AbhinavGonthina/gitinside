@@ -35,6 +35,9 @@
  *   otherwise one `/` joins them. An ofetch `baseURL` (`baseJoin: "withBase"`, M5C.3c) joins
  *   the same way, except that a URL already starting with the base is left alone (ufo's
  *   `withBase`), decided only when the base is one literal and the URL starts with text.
+ *   ky's bases (M5C.3e): ky 2's `prefix` and ky 1's `prefixUrl` join as axios's, except that
+ *   under `prefixUrl` a URL starting with `/` is `DYNAMIC_URL` (ky throws on it); ky 2's
+ *   `baseUrl` resolves the URL against it (`resolveKyBaseUrl`).
  *
  * URL rules (DESIGN.md §7.2):
  * - A literal origin (`https://api.example.com`) becomes a `host` base; scheme and host are
@@ -65,6 +68,9 @@
  * - ofetch's `withBase` check against a base that isn't one literal (an env var), or a URL
  *   whose leading text is only part of the base before a hole (`/a${x}` on `/api`): joined as
  *   axios would. ufo's protocol-relative URLs (`//host/x`) and `./`/`../` segments likewise.
+ * - ky: an absolute URL under a `prefix` or `prefixUrl` stands alone (ky would glue it on), and
+ *   a `baseUrl` with a `?` or `#`, or a relative URL starting with `.`, `?`, or `#`, under it
+ *   (a hole). ky 1 adds one `/` without trimming the prefix's own slashes; joined as axios's.
  */
 import ts from "typescript";
 import type { Confidence, UrlSegment } from "@gitinside/schema";
@@ -158,6 +164,8 @@ export const DYNAMIC_URL_DETAIL = {
   hookKey: "the SWR key is an array, which the fetcher may take whole or spread",
   rtkBaseQuery:
     "the RTK Query baseQuery isn't fetchBaseQuery or a function passing its arguments on to one, so it isn't followed",
+  kyBases: "more than one of ky's prefixUrl, prefix, and baseUrl is set, which isn't followed",
+  kyPrefixUrlSlash: "ky refuses a URL starting with / under a prefixUrl, so this request fails",
 } as const;
 
 export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];
@@ -524,6 +532,38 @@ export function withBase(base: readonly UrlPart[], url: readonly UrlPart[]): Url
     if (only.text !== "" && head.text.startsWith(prefix)) return u;
   }
   return joinBaseURL(base, url);
+}
+
+/**
+ * Resolve a request URL against ky 2's `baseUrl` (M5C.3e), as ky does with URL resolution
+ * against the page: a root-relative URL keeps only the base's origin (none for a
+ * root-relative base, so the URL stands alone), and a relative one replaces the base's last
+ * path segment (`users` on `/api/` is `/api/users`, on `/api` it's `/users`). A base whose last
+ * segment can't be found (an env var alone before a relative URL), and `.`/`..`, `?`, `#`, or
+ * `//` at the URL's start, give a hole. Absolute URLs never get here (`normalizeSite`).
+ */
+export function resolveKyBaseUrl(base: readonly UrlPart[], url: readonly UrlPart[]): UrlPart[] {
+  const u = mergeParts(url);
+  const b = mergeParts(base);
+  const head = u[0];
+  const first = b[0];
+  const last = b[b.length - 1];
+  if (b.length === 0) return u;
+  if (head?.kind !== "text" || /^(\.|\?|#|\/\/)/.test(head.text)) return [HOLE];
+  if (head.text.startsWith("/")) {
+    if (first?.kind === "text" && first.text.startsWith("/") && !first.text.startsWith("//")) {
+      return u;
+    }
+    return resolveURL(u, b);
+  }
+  if (last?.kind !== "text") return [HOLE];
+  const origin = b.length === 1 ? ORIGIN.exec(last.text) : null;
+  const directory =
+    origin && origin[0].length === last.text.length
+      ? `${last.text}/`
+      : last.text.slice(0, last.text.lastIndexOf("/") + 1);
+  if (directory === "") return [HOLE];
+  return mergeParts([...b.slice(0, -1), text(directory), ...u]);
 }
 
 /**
@@ -936,7 +976,17 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       if (overflowed(base)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
       if (startsWithParameter(base)) return deeper(WRAPPER_DEPTH_DETAIL.baseURL);
       if (base[0]?.kind === "hole") return dynamic(DYNAMIC_URL_DETAIL.baseLeadingHole);
-      url = site.baseJoin === "withBase" ? withBase(base, url) : joinBaseURL(base, url);
+      const head = mergeParts(url)[0];
+      // ky 1 throws on this ("`input` must not begin with a slash when using `prefixUrl`").
+      if (site.baseJoin === "kyPrefixUrl" && head?.kind === "text" && head.text.startsWith("/")) {
+        return dynamic(DYNAMIC_URL_DETAIL.kyPrefixUrlSlash);
+      }
+      url =
+        site.baseJoin === "withBase"
+          ? withBase(base, url)
+          : site.baseJoin === "kyBaseUrl"
+            ? resolveKyBaseUrl(base, url)
+            : joinBaseURL(base, url);
       if (overflowed(url)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
     }
     const result = toUrlPattern(url);
