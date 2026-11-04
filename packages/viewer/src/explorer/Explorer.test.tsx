@@ -11,6 +11,7 @@ import { buildView } from "../model/view.js";
 import { shopDemo, shopDemoSources } from "../shopDemo.testkit.js";
 import { durations } from "../tokens.js";
 import { fitCamera, READABLE_ZOOM } from "./camera.js";
+import { fitLevel } from "./framing.js";
 import { decodeState, DEFAULT_STATE, encodeState, type ExplorerState } from "./deepLink.js";
 import * as stories from "./Explorer.stories.js";
 import { Explorer, PLAY_STEP_MS } from "./Explorer.js";
@@ -991,6 +992,37 @@ describe("Explorer framing on a small canvas (M4b.15f)", { timeout: 30_000 }, ()
     const { container, box } = await setup({ initialOpen: [WEB, API] });
     await waitFor(() => expect(cameraOf(container).zoom).toBeGreaterThanOrEqual(READABLE_ZOOM));
     expect(wholly(placed(container, box(ROUTE)))).toBe(true);
+  });
+
+  it("fits a level too big for the floor on its boxes, not its top-left corner (M5.13b2)", async () => {
+    const { container, press } = await setup({ initialOpen: [WEB, API, SRC] });
+    await waitFor(() =>
+      expect(container.querySelector(".gi-explorer")?.hasAttribute("data-settled")).toBe(true),
+    );
+    await press("0");
+    const level = stage(container);
+    expect(fitScale(level, SMALL)).toBe(0.4);
+    const boxes = [
+      ...container.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving])"),
+    ].map((el) => ({
+      x: parseFloat(el.style.left),
+      y: parseFloat(el.style.top),
+      width: parseFloat(el.style.width),
+      height: parseFloat(el.style.height),
+    }));
+    const fitted = fitLevel({ ...level, boxes }, SMALL);
+    expect(cameraOf(container)).toEqual(fitted);
+    // Here the plain fit's top-left corner holds fewer whole boxes than the level's fit.
+    const whole = (c: { zoom: number; x: number; y: number }) =>
+      boxes.filter((b) =>
+        wholly({
+          x: b.x * c.zoom + c.x,
+          y: b.y * c.zoom + c.y,
+          right: (b.x + b.width) * c.zoom + c.x,
+          bottom: (b.y + b.height) * c.zoom + c.y,
+        }),
+      ).length;
+    expect(whole(fitted)).toBeGreaterThan(whole(fitCamera(level, SMALL)));
   });
 
   it("frames each trace step's two ends", async () => {

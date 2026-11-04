@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { shopDemo } from "../shopDemo.testkit.js";
-import { fitCamera, READABLE_ZOOM } from "./camera.js";
+import type { Rect } from "../chrome/describe.js";
+import { fitCamera, READABLE_ZOOM, type Camera } from "./camera.js";
 import { FIT_INSET } from "./fit.js";
-import { autoCamera, boxesRect, entriesRect, lastOpened } from "./framing.js";
+import { autoCamera, boxesRect, entriesRect, fitLevel, lastOpened } from "./framing.js";
 import type { Shown } from "./transition.js";
 
 const index = buildHierarchy(shopDemo());
@@ -86,9 +87,88 @@ describe("framing", () => {
     const frame = shown.layout.boxes.find((b) => b.id === API);
     expect(frame && frame.x * framed.zoom + framed.x).toBe(FIT_INSET.x);
     expect(frame && frame.y * framed.zoom + framed.y).toBe(FIT_INSET.y);
-    // Nothing to frame: the fit.
-    expect(autoCamera(shown, small, undefined)).toEqual(fitCamera(shown.layout, small));
+    // Nothing to frame: the level's fit.
+    expect(autoCamera(shown, small, undefined)).toEqual(fitLevel(shown.layout, small));
     expect(autoCamera(undefined, small, API)).toEqual(fitCamera({ width: 0, height: 0 }, small));
+  });
+});
+
+describe("fitLevel", () => {
+  const CANVAS = { width: 1000, height: 800 };
+  /** Boxes 200 × 60 in a column at `x`, from `y`, 100 apart. */
+  const column = (prefix: string, x: number, y: number, count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      id: `${prefix}${i}`,
+      x,
+      y: y + i * 100,
+      width: 200,
+      height: 60,
+    }));
+  /** The boxes wholly in the canvas's room inside the inset at this camera. */
+  const framed = (boxes: (Rect & { id: string })[], c: Camera) =>
+    boxes
+      .filter((b) => {
+        const left = b.x * c.zoom + c.x;
+        const top = b.y * c.zoom + c.y;
+        return (
+          left >= FIT_INSET.x &&
+          top >= FIT_INSET.y &&
+          left + b.width * c.zoom <= CANVAS.width - FIT_INSET.x &&
+          top + b.height * c.zoom <= CANVAS.height - FIT_INSET.y
+        );
+      })
+      .map((b) => b.id);
+
+  it("is the fit when the level fits", () => {
+    const layout = { width: 900, height: 600, edges: [], boxes: column("a", 40, 40, 5) };
+    expect(fitLevel(layout, CANVAS)).toEqual(fitCamera(layout, CANVAS));
+    expect(fitLevel(layout, { width: 0, height: 0 })).toEqual({ zoom: 1, x: 0, y: 0 });
+  });
+
+  it("frames the most boxes at the floor, not an empty top-left corner (M5.13b2)", () => {
+    // Like cal.diy's 113 services: a sparse level far over the canvas, its
+    // top-left corner crossed only by lines.
+    const boxes = [
+      ...column("lone", 40, 3000, 1),
+      ...column("far", 9000, 200, 2),
+      ...column("busy", 5000, 7000, 6),
+    ];
+    const layout = { width: 10_000, height: 10_000, edges: [], boxes };
+    const fit = fitCamera(layout, CANVAS);
+    expect(fit.zoom).toBe(0.4);
+    expect(framed(boxes, fit)).toEqual([]);
+    const c = fitLevel(layout, CANVAS);
+    expect(c.zoom).toBe(fit.zoom);
+    expect(framed(boxes, c)).toEqual(["busy0", "busy1", "busy2", "busy3", "busy4", "busy5"]);
+  });
+
+  it("picks the leftmost of windows holding as many, then the topmost", () => {
+    const boxes = [
+      ...column("right", 8000, 1000, 3),
+      ...column("low", 2000, 8000, 3),
+      ...column("high", 2000, 4000, 3),
+    ];
+    const layout = { width: 10_000, height: 10_000, edges: [], boxes };
+    expect(framed(boxes, fitLevel(layout, CANVAS))).toEqual(["high0", "high1", "high2"]);
+  });
+
+  it("keeps the fit's place on an axis that fits", () => {
+    const boxes = [...column("a", 40, 40, 1), ...column("b", 6000, 40, 2)];
+    const layout = { width: 10_000, height: 300, edges: [], boxes };
+    const fit = fitCamera(layout, CANVAS);
+    const c = fitLevel(layout, CANVAS);
+    expect(c.y).toBe(fit.y);
+    expect(framed(boxes, c)).toEqual(["b0", "b1"]);
+  });
+
+  it("stays inside the level at its edges", () => {
+    const boxes = column("edge", 9760, 9600, 3).map((b) => ({ ...b, y: b.y - 200 }));
+    const layout = { width: 10_000, height: 10_000, edges: [], boxes };
+    const c = fitLevel(layout, CANVAS);
+    expect(framed(boxes, c)).toEqual(["edge0", "edge1", "edge2"]);
+    // The level's far corner sits at the inset's corner, not past it.
+    expect(layout.width * c.zoom + c.x).toBe(CANVAS.width - FIT_INSET.x);
+    expect(layout.height * c.zoom + c.y).toBe(CANVAS.height - FIT_INSET.y);
   });
 
   it("finds the node opened last that the drawn view still has open", () => {
