@@ -586,7 +586,10 @@ describe("Explorer diff mode's changes list", { timeout: 30_000 }, () => {
     expect(wrapper(DELETE_ROUTE)).toBeNull();
     fireEvent.click(row("Removed: DELETE /api/orders/:id")!);
     await settle();
-    await waitFor(() => expect(document.activeElement).toBe(box(DELETE_ROUTE)));
+    // Focus lands a layout after the click; under CI's load that took over waitFor's default 1 s (M5B.9).
+    await waitFor(() => expect(document.activeElement).toBe(box(DELETE_ROUTE)), {
+      timeout: 10_000,
+    });
     expect(box(DELETE_ROUTE)?.getAttribute("aria-selected")).toBe("true");
     expect(document.querySelector(".gi-inspector__header h2")?.textContent).toBe(
       "DELETE/api/orders/:id",
@@ -632,7 +635,9 @@ describe("Explorer diff mode's changes list", { timeout: 30_000 }, () => {
       .getAllByRole("radio")
       .filter((r) => r.getAttribute("aria-checked") === "true");
     expect(checked.map((r) => r.textContent)).toEqual(["Overlay"]);
-    await waitFor(() => expect(document.activeElement).toBe(box(DELETE_ROUTE)));
+    await waitFor(() => expect(document.activeElement).toBe(box(DELETE_ROUTE)), {
+      timeout: 10_000,
+    });
     expect(
       screen.getByText(
         /^Showing the changes between base and head: DELETE \/api\/orders\/:id isn't in the head version\./,
@@ -647,7 +652,9 @@ describe("Explorer diff mode's changes list", { timeout: 30_000 }, () => {
     await settle();
     fireEvent.click(row(`Added: PUT /api/orders`)!);
     await settle();
-    await waitFor(() => expect(document.activeElement).toBe(box(PUT_ROUTE)));
+    await waitFor(() => expect(document.activeElement).toBe(box(PUT_ROUTE)), {
+      timeout: 10_000,
+    });
     const checked = within(views)
       .getAllByRole("radio")
       .filter((r) => r.getAttribute("aria-checked") === "true");
