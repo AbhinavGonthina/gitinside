@@ -912,10 +912,10 @@ describe("RTK Query endpoints (ADR-0196)", () => {
     ]);
   });
 
-  it("leaves endpoints alone when the base query isn't fetchBaseQuery or createApi isn't RTK's", async () => {
+  it("shows endpoints under a base query that isn't fetchBaseQuery as unresolved, not as nothing", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/api.ts", [
-      'import { createApi } from "@reduxjs/toolkit/query/react";',
+      'import { createApi, retry } from "@reduxjs/toolkit/query/react";',
       'import { createApi as other } from "./mine";',
       "const custom = async (url: string) => ({ data: await fetch(url) });",
       "export const a = createApi({",
@@ -928,13 +928,42 @@ describe("RTK Query endpoints (ADR-0196)", () => {
       "});",
       "const axiosBaseQuery = (o: { baseUrl: string }) => async () => ({ data: o });",
       "export const d = createApi({",
-      '  baseQuery: axiosBaseQuery({ baseUrl: "/z" }),',
-      '  endpoints: (b) => ({ z: b.query({ query: () => "z" }) }),',
+      '  baseQuery: retry(axiosBaseQuery({ baseUrl: "/z" })),',
+      "  endpoints: (b) => ({",
+      '    z: b.mutation({ query: () => ({ url: "z", method: "POST" }) }),',
+      "    local: b.query({ queryFn: () => ({ data: 1 }) }),",
+      "  }),",
       "});",
     ]);
     await put("src/mine.ts", "export const createApi = (o: unknown) => o;\n");
+    const unfollowed =
+      "DYNAMIC_URL: the RTK Query baseQuery isn't fetchBaseQuery, and a custom base query isn't followed";
     expect(await summary()).toEqual([
       "src/api.ts:3 GET DYNAMIC_URL: the URL starts with a value only known at runtime [custom]",
+      // The base query decides the method too, so it isn't read from `query`.
+      `src/api.ts:6 ? ${unfollowed} [a]`,
+      `src/api.ts:16 ? ${unfollowed} [d]`,
+    ]);
+  });
+
+  it("reads a destructured endpoint builder", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";',
+      "export const api = createApi({",
+      '  baseQuery: fetchBaseQuery({ baseUrl: "/api" }),',
+      "  endpoints: ({ query, mutation: send }) => ({",
+      '    posts: query({ query: () => "posts" }),',
+      '    add: send({ query: () => ({ url: "posts", method: "POST" }) }),',
+      "  }),",
+      "});",
+      // Not the builder: a function of the same name.
+      "const query = (o: unknown) => o;",
+      'query({ query: () => "nope" });',
+    ]);
+    expect(await summary()).toEqual([
+      "src/api.ts:5 GET /api/posts [api]",
+      "src/api.ts:6 POST /api/posts [api]",
     ]);
   });
 

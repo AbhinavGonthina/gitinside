@@ -151,6 +151,8 @@ export const DYNAMIC_URL_DETAIL = {
   emptyHost: "the URL has an empty host",
   tooComplex: "the URL is too large or too complex to read statically",
   hookKey: "the SWR key is an array, which the fetcher may take whole or spread",
+  rtkBaseQuery:
+    "the RTK Query baseQuery isn't fetchBaseQuery, and a custom base query isn't followed",
 } as const;
 
 export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];
@@ -563,7 +565,7 @@ export interface UrlNormalizer {
    * unbound parameter is `WRAPPER_DEPTH`: only a caller further out could supply it.
    */
   normalize(
-    site: Pick<HttpCallSite, "url" | "baseURL">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
     bindings?: ParameterBindings,
   ): NormalizedUrl;
   /**
@@ -573,7 +575,7 @@ export interface UrlNormalizer {
    * earlier values first). Past {@link MAX_PATHS} paths, `normalize`'s single result.
    */
   alternatives(
-    site: Pick<HttpCallSite, "url" | "baseURL">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
     bindings?: ParameterBindings,
   ): NormalizedUrl[];
   /** The parameters a call site's URL and `baseURL` read, which a wrapper caller could bind. */
@@ -883,7 +885,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   const normalize = (
-    site: Pick<HttpCallSite, "url" | "baseURL">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
     scope?: ParameterBindings,
   ): NormalizedUrl => {
     confidence = "exact";
@@ -897,8 +899,10 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     }
   };
 
-  const normalizeSite = (site: Pick<HttpCallSite, "url" | "baseURL">): NormalizedUrl => {
-    if (site.url === null) return dynamic(DYNAMIC_URL_DETAIL.url);
+  const normalizeSite = (
+    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
+  ): NormalizedUrl => {
+    if (site.url === null) return dynamic(site.urlDetail ?? DYNAMIC_URL_DETAIL.url);
     let url = parts(site.url);
     if (overflowed(url)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
     if (startsWithParameter(url)) return deeper(WRAPPER_DEPTH_DETAIL.url);
@@ -923,7 +927,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   const alternatives = (
-    site: Pick<HttpCallSite, "url" | "baseURL">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "urlDetail">,
     scope?: ParameterBindings,
   ): NormalizedUrl[] => {
     const out: NormalizedUrl[] = [];

@@ -46,7 +46,8 @@
  * - Method strings: literals, no-substitution templates, consts holding them (imported
  *   too), properties of const object literals (`METHODS.post`), and string enum members.
  *   Lowercase is accepted; methods outside `HttpMethod` are unknown.
- * - RTK Query endpoints (ADR-0196): `build.query|mutation|infiniteQuery({ query })` inside
+ * - RTK Query endpoints (ADR-0196): `build.query|mutation|infiniteQuery({ query })` (or
+ *   `query(…)` destructured from the builder, `({ query, mutation: send }) => …`) inside
  *   the `endpoints` function (arrow or method) of `createApi(options)` or of
  *   `api.injectEndpoints(options)` (`api` a `const` holding a `createApi` call, imported too),
  *   with `createApi` imported from `@reduxjs/toolkit/query` or `@reduxjs/toolkit/query/react`
@@ -57,7 +58,9 @@
  *   (absent: `GET`, the `Request` default). `baseUrl` joins like axios's `baseURL` (RTK's
  *   `joinUrls` drops the same slashes). The query function's parameters are holes, so one that
  *   leads the URL is `DYNAMIC_URL`. An unreadable definition or return value is a request with
- *   no URL, never a guess.
+ *   no URL, never a guess. Under any other `baseQuery` (a custom or re-auth one, or one that
+ *   can't be read), each endpoint with a `query` is one request with no URL or method,
+ *   `DYNAMIC_URL` saying the base query isn't followed (M5B.7b): shown, not dropped.
  * - The owner of a call is the innermost symbol containing it, or the Express routes an
  *   inline handler serves. Top-level calls have no owner but are still collected.
  *
@@ -79,9 +82,13 @@
  *   `queryFn: () => fetch("/api/todos")` or a call to a wrapper there resolves, but a URL read
  *   from the key in its context (`({ queryKey }) => fetch(queryKey[0])`, also a `QueryClient`'s
  *   default `queryFn`) stays `DYNAMIC_URL`: which key reaches it isn't followed.
- * - RTK Query: a custom `baseQuery` (its own `fetch` or axios calls are collected as usual),
+ * - RTK Query: what a custom `baseQuery` does with an endpoint's `query` (the endpoint is
+ *   unresolved, above; the base query's own `fetch` or axios calls are collected as usual),
  *   `fetchBaseQuery` options other than `baseUrl` (a default `method` in its fetch options,
  *   `paramsSerializer`), `buildCreateApi`/`createApi` reached other than by a plain import, a
+ *   builder destructured anywhere but in the `endpoints` function's parameter (`const { query }
+ *   = build`) or passed on to a helper, a call of a `fetchBaseQuery` result in repo code (a
+ *   re-auth wrapper's `rawBaseQuery("/auth/refresh", api, extraOptions)`), a
  *   `queryFn` endpoint, `enhanceEndpoints`, and the generated hooks (`useGetPostsQuery`): the
  *   request is drawn from the API slice that defines the endpoint, not from the components
  *   that call its hook.
@@ -99,6 +106,7 @@ import { isFunctionWithBody, returnedExpressions, type FunctionWithBody } from "
 import { NO_OWNERS, ownersAt, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
+import { DYNAMIC_URL_DETAIL, type DynamicUrlDetail } from "./url.js";
 import {
   createValueReader,
   isConst,
@@ -179,6 +187,12 @@ export interface HttpCallSite {
   methodSource?: MethodSource;
   /** The URL argument or `url` config property, or `null` when it can't be read. */
   url: ProgramExpression | null;
+  /**
+   * Why `url` is `null` when the collector knows more than "unreadable" (an RTK Query endpoint
+   * under a base query it doesn't follow); the URL normalizer reports it as the `DYNAMIC_URL`
+   * detail. Absent otherwise.
+   */
+  urlDetail?: DynamicUrlDetail;
   /**
    * The axios `baseURL` in effect: the call's own, else the instance's. `undefined` when none
    * is set (always for `fetch`), `null` when one may be set but can't be read.
@@ -1099,9 +1113,9 @@ export function createHttpSiteCollector(
   /**
    * The `baseUrl` a `createApi` call's `baseQuery` gives (ADR-0196): `fetchBaseQuery(config)`
    * from RTK Query, directly, through a `const`, or wrapped in RTK's `retry`. `undefined` when
-   * the base query is anything else (a custom one makes its own requests, collected on their
-   * own); `baseURL` is `undefined` without a `baseUrl` and `null` when one may be set but can't
-   * be read.
+   * the base query is anything else or can't be read (its endpoints are then unresolved,
+   * M5B.7b); `baseURL` is `undefined` without a `baseUrl` and `null` when one may be set but
+   * can't be read.
    */
   const rtkBase = (
     sp: ServiceProgram,
@@ -1196,39 +1210,76 @@ export function createHttpSiteCollector(
   };
 
   /**
+   * The `endpoints` function an endpoint builder call's callee comes from: `build.query` (or
+   * `mutation`, `infiniteQuery`) with `build` the function's first parameter, or `query` (also
+   * renamed, `{ mutation: send }`) destructured in that parameter (M5B.7b). It is checked to
+   * belong to a `createApi` by {@link rtkApiOf}.
+   */
+  const rtkEndpointsOf = (
+    sp: ServiceProgram,
+    calleeExpression: ts.Expression,
+  ): FunctionWithBody | undefined => {
+    const callee = unwrap(calleeExpression);
+    let parameter: ts.Node | undefined;
+    if (ts.isPropertyAccessExpression(callee) && RTK_ENDPOINT_KINDS.has(callee.name.text)) {
+      const build = unwrap(callee.expression);
+      parameter = ts.isIdentifier(build) ? symbolAt(sp, build)?.valueDeclaration : undefined;
+    } else if (ts.isIdentifier(callee)) {
+      const element = symbolAt(sp, callee)?.valueDeclaration;
+      if (!element || !ts.isBindingElement(element) || element.dotDotDotToken) return undefined;
+      const key = element.propertyName ?? element.name;
+      if (!(ts.isIdentifier(key) || ts.isStringLiteralLike(key))) return undefined;
+      if (!RTK_ENDPOINT_KINDS.has(key.text)) return undefined;
+      const pattern = element.parent;
+      if (!ts.isObjectBindingPattern(pattern)) return undefined;
+      parameter = pattern.parent;
+    }
+    const endpoints = parameter && ts.isParameter(parameter) ? parameter.parent : undefined;
+    return endpoints && isFunctionWithBody(endpoints) && endpoints.parameters[0] === parameter
+      ? endpoints
+      : undefined;
+  };
+
+  /**
    * The requests an RTK Query endpoint makes (ADR-0196): `call` is `build.query(definition)`,
    * `build.mutation(…)`, or `build.infiniteQuery(…)`, where `build` is the first parameter of
-   * the `endpoints` function of a `createApi` (or `injectEndpoints`) call whose base query is
-   * `fetchBaseQuery`. fetchBaseQuery turns what `query` returns into a `fetch`: a string is the
-   * URL, an object its `url` and `method` (absent: `GET`), joined to `baseUrl` like axios's
-   * `baseURL`. One request per value `query` returns; an endpoint with no `query` (a `queryFn`)
-   * makes none here.
+   * the `endpoints` function of a `createApi` (or `injectEndpoints`) call (see
+   * {@link rtkEndpointsOf}). With `fetchBaseQuery` as the base query, what `query` returns
+   * becomes a `fetch`: a string is the URL, an object its `url` and `method` (absent: `GET`),
+   * joined to `baseUrl` like axios's `baseURL`, one request per value `query` returns. Under any
+   * other base query, one request with no URL or method and the `rtkBaseQuery` detail (M5B.7b).
+   * An endpoint with no `query` (a `queryFn`) makes none here.
    */
   const rtkEndpoint = (sp: ServiceProgram, call: ts.CallExpression): RequestShape[] => {
-    const callee = unwrap(call.expression);
-    if (!ts.isPropertyAccessExpression(callee) || !RTK_ENDPOINT_KINDS.has(callee.name.text)) {
-      return [];
-    }
-    const build = unwrap(callee.expression);
-    const parameter = ts.isIdentifier(build) ? symbolAt(sp, build)?.valueDeclaration : undefined;
-    const endpoints = parameter && ts.isParameter(parameter) ? parameter.parent : undefined;
-    if (!endpoints || !isFunctionWithBody(endpoints) || endpoints.parameters[0] !== parameter) {
-      return [];
-    }
-    const api = rtkApiOf(sp, endpoints);
-    const base = api && rtkBase(api.sp, api.call, 0);
+    const endpoints = rtkEndpointsOf(sp, call.expression);
+    const api = endpoints && rtkApiOf(sp, endpoints);
     const [first] = call.arguments;
-    if (!api || !base || !first || ts.isSpreadElement(first)) return [];
+    if (!api || !first || ts.isSpreadElement(first)) return [];
+    const definition = configObject(sp, first, 0);
+    const query = definition && queryOption(definition.sp, definition.expression);
+    if (definition && query === undefined) return [];
+    const base = rtkBase(api.sp, api.call, 0);
+    // Another base query decides the URL and method from what `query` returns, so the request
+    // is shown, unresolved, rather than dropped or guessed (fail visibly).
+    if (!base) {
+      return [
+        {
+          client: "fetch",
+          method: null,
+          url: null,
+          urlDetail: DYNAMIC_URL_DETAIL.rtkBaseQuery,
+          baseURL: undefined,
+          confidence: api.confidence,
+        },
+      ];
+    }
     const confidence = weaker(api.confidence, base.confidence);
     const shape = (
       url: ProgramExpression | null,
       method: Pick<HttpCallSite, "method" | "methodSource">,
     ): RequestShape => ({ client: "fetch", ...method, url, baseURL: base.baseURL, confidence });
     const unknown = [shape(null, { method: null })];
-    const definition = configObject(sp, first, 0);
     if (!definition) return unknown;
-    const query = queryOption(definition.sp, definition.expression);
-    if (query === undefined) return [];
     let fn: FunctionWithBody | undefined;
     if (query && "kind" in query) fn = query;
     else if (query) {
