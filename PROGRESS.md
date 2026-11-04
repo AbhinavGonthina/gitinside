@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5B.4 Eval re-run after M5B.1–3 (batch 2 marked seen), then batch 3 (M5B.5–6) and M5B.7; M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
+M5B.5 Fresh held-out batch 3, repo 1 (pick, pin unseen, label; no scoring), then M5B.6 and M5B.7; M5.13 and M5.14b wait on #3 (`verify.mjs`'s output)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -267,7 +267,7 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 - [x] M5B.2b SWR fetchers that aren't symbols (ADR-0193's consequences): an inline fetcher (`useSWR(key, (url) => fetch(url))`, also in `SWRConfig`'s `value`) and SWR's documented `(...args) => fetch(...args)` (the key reaching `fetch` through a rest element, as the URL when the key isn't an array) inlined at the hook like a wrapper fetcher; regression tests first, fixture update + golden, eval delta {model: opus}
 - [x] M5B.2c Negated `req.method` guards in pages-router handlers (B3, found after M5B.2: `eval/results/2026-11-batch2-diagnosis.md`): a block entered when `req.method !== "A" && req.method !== "B"` (or `!(…===…)`, `!["A","B"].includes(req.method)`) that serves the request means every method but those, not routes for A and B; read the comparison's polarity in `next.ts`, document what stays unhandled; regression tests first, fixture + golden, eval delta {model: opus}
 - [x] M5B.3 TanStack Query (`useQuery({ queryKey, queryFn })`, `queryFn` reading `queryKey` from its context) and RTK Query (`createApi({ baseQuery: fetchBaseQuery({ baseUrl }), endpoints })` with `query: () => url`): implement whichever is cheap on M5B.2's machinery, document the rest as unhandled; ADR, fixture + golden, eval delta {model: opus}
-- [ ] M5B.4 Eval re-run after M5B.1–3: batch 2 marked seen in `heldOutBatches` (why: fixed in M5B, ADR-0168), its new score reported as seen; README/EVALUATION numbers {model: opus}
+- [x] M5B.4 Eval re-run after M5B.1–3: batch 2 marked seen in `heldOutBatches` (why: fixed in M5B, ADR-0168), its new score reported as seen; README/EVALUATION numbers {model: opus}
 - [ ] M5B.5 Fresh held-out batch 3, repo 1: pick 2–3 new public React/Next + Express/Prisma repos with URL and routing styles unlike the first ten (rules as M3.2, read but never analyzed), pin the first as unseen batch 3, draft and commit its labels; no scoring {model: opus}
 - [ ] M5B.6 Batch 3, repo 2 (and 3): pin, draft and commit labels, then score once, blind (`pnpm eval`); README quotes this as the generalization result, as measured; misses go to a diagnosis note, and if they're big, a summary on #15 before deciding whether to loop again {model: opus}
 - [ ] M5B.7 Milestone check: full suite + analyzer coverage, fresh-eyes review of the M5B diff (no repo-specific cases), CLI smoke test on a real repo outside the eval, M5B-review.md, tag m5b {model: opus}
@@ -308,6 +308,8 @@ Targets unchanged: precision ≥ 95%, recall ≥ 80%. Fix general patterns writt
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+
+- **M5B.4** (`e243d4f`, report `6fab2fa`, docs `9a263a7`): batch 2 marked seen in `heldOutBatches` (its misses chose M5B.1–2c's fixes, ADR-0168). Scores unchanged: main 138/138, batch 1 78/78, batch 2 31/31 (all `exact`; blind run 45.8% / 35.5%). With every batch seen, the report's limitations now say none is unseen and a fresh batch is needed (test first). README/EVALUATION quote batch 2 after M5B and each fix's recall step; `pnpm eval --check` reproduces the report.
 
 - **M5B.3** (`207ec1a`, ADR-0196): RTK Query endpoints (`build.query|mutation|infiniteQuery` under `createApi` / `injectEndpoints` with RTK's `fetchBaseQuery`, also via a `const` or `retry`) are `fetch` sites at their definition, one per value `query` returns, `baseUrl` joined like axios's `baseURL`; custom base queries and the generated hooks' callers aren't followed. TanStack Query needs no contract (`queryFn` is ordinary code; a URL from `queryKey` stays `DYNAMIC_URL`), pinned by a test. New fixture `rtk-query`; `KEY_FORMAT` 9 → 10.
 - Eval (`506e120`): unchanged, main set TP 138 / FP 0 / FN 0, batches as before (no eval repo uses RTK Query). Analyzer 1,056/1,056, diff 122/122, lint and root typecheck green.
