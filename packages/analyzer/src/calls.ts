@@ -471,7 +471,25 @@ export function createSymbolResolver(
  * instance of a class imported from another workspace package; workspace packages reached
  * through `require` or `import x = require()` rather than ES imports; computed element access
  * (`a[name]()`); and function values passed around and called later (`cb()` where `cb` is a
- * parameter).
+ * parameter), except the server actions React calls (below).
+ *
+ * Next.js server actions (ADR-0203) stay `calls` edges: Next gives an action no URL of its
+ * own, so there is no route to draw a request to. An action is an exported function of a
+ * file whose directive prologue holds `"use server"`, or a top-level function whose body's
+ * prologue does. A `calls` edge into an action is labeled `"server action"` when the call
+ * leaves the browser:
+ * - the call is in a file whose prologue holds `"use client"`;
+ * - or React calls the action: it is the value of a `<form action={…}>`, a `<button>` or
+ *   `<input>` `formAction={…}`, or the first argument of `useActionState` / `useFormState`
+ *   imported from `react` or `react-dom` (also `React.useActionState`), directly or through
+ *   `.bind(…)`. Such a reference is a site without `args` (React decides them), and makes
+ *   an edge only when it names an action.
+ *
+ * Not handled: an action defined inside a component (`async function save() { "use server" }`
+ * in a page) has no symbol node, so the component owns what it calls and a form naming it
+ * makes no edge; a call from a module without `"use client"` that only client modules import
+ * (it runs in the browser too) gets no label; actions reached through props, context, or a
+ * custom component's `action` prop make no edge; `require("react")` hooks aren't recognized.
  */
 export function buildCallEdges(
   programs: readonly ServiceProgram[],
@@ -488,6 +506,10 @@ export interface CallFact {
   to: string;
   confidence: Confidence;
   site: CallSite;
+  /** The call leaves the browser: it's in a `"use client"` file, or React makes it. */
+  browser?: true;
+  /** React calls `to` (a form action or `useActionState`'s); an edge only if it's an action. */
+  passed?: true;
 }
 
 /**
@@ -500,36 +522,172 @@ export interface CallFacts {
   service: string;
   /** Calls in file and source order. */
   calls: CallFact[];
+  /** Symbol node IDs of the server actions its files declare, in file order; absent if none. */
+  actions?: string[];
+}
+
+/** The label of a `calls` edge into a server action from the browser (ADR-0203). */
+export const SERVER_ACTION_LABEL = "server action";
+
+/** Whether a directive prologue (a file's or a function body's statements) holds `directive`. */
+function hasDirective(statements: readonly ts.Statement[], directive: string): boolean {
+  for (const statement of statements) {
+    if (!ts.isExpressionStatement(statement) || !ts.isStringLiteral(statement.expression)) {
+      return false;
+    }
+    if (statement.expression.text === directive) return true;
+  }
+  return false;
+}
+
+/** The body of a symbol's function value (declaration, `const f = () => {}`), if a block. */
+function functionBody(node: ts.Node): ts.Block | undefined {
+  let value: ts.Node | undefined = node;
+  if (ts.isVariableDeclaration(node)) value = node.initializer && unwrap(node.initializer);
+  else if (ts.isExportAssignment(node)) value = unwrap(node.expression);
+  const body =
+    value &&
+    (ts.isFunctionDeclaration(value) || ts.isFunctionExpression(value) || ts.isArrowFunction(value))
+      ? value.body
+      : undefined;
+  return body && ts.isBlock(body) ? body : undefined;
+}
+
+/** Symbol node IDs of the server actions a file declares (see {@link buildCallEdges}). */
+function serverActions(sp: ServiceProgram, file: string, sourceFile: ts.SourceFile): string[] {
+  if (!sourceFile.text.includes("use server")) return [];
+  const wholeFile = hasDirective(sourceFile.statements, "use server");
+  return extractSymbols(sourceFile)
+    .filter((s) => {
+      if (s.symbolKind !== "function") return false;
+      if (wholeFile) return s.exported;
+      const body = functionBody(s.node);
+      return body !== undefined && hasDirective(body.statements, "use server");
+    })
+    .map((s) => symbolNodeId(sp.service, file, s.qualified));
+}
+
+const REACT_MODULES: ReadonlySet<string> = new Set(["react", "react-dom"]);
+const ACTION_HOOKS: ReadonlySet<string> = new Set(["useActionState", "useFormState"]);
+
+/**
+ * Whether a callee is React's `useActionState` / `useFormState`: imported by name from
+ * `react` or `react-dom`, or read from a default or namespace import of one.
+ */
+function isActionHook(checker: ts.TypeChecker, callee: ts.Expression): boolean {
+  const e = unwrap(callee);
+  const local = ts.isPropertyAccessExpression(e) ? e.expression : e;
+  if (!ts.isIdentifier(local)) return false;
+  const declaration = checker.getSymbolAtLocation(local)?.declarations?.[0];
+  let statement: ts.Node | undefined;
+  let name: string | undefined;
+  if (declaration && ts.isImportSpecifier(declaration) && local === e) {
+    statement = declaration.parent.parent.parent;
+    name = (declaration.propertyName ?? declaration.name).text;
+  } else if (declaration && ts.isPropertyAccessExpression(e)) {
+    if (ts.isNamespaceImport(declaration)) statement = declaration.parent.parent;
+    else if (ts.isImportClause(declaration)) statement = declaration.parent;
+    name = e.name.text;
+  }
+  return (
+    statement !== undefined &&
+    ts.isImportDeclaration(statement) &&
+    ts.isStringLiteral(statement.moduleSpecifier) &&
+    REACT_MODULES.has(statement.moduleSpecifier.text) &&
+    name !== undefined &&
+    ACTION_HOOKS.has(name)
+  );
+}
+
+/** The attribute React calls with the form's data on each intrinsic element. */
+const FORM_ATTRIBUTES: Readonly<Record<string, string>> = {
+  form: "action",
+  button: "formAction",
+  input: "formAction",
+};
+
+/**
+ * The function value React calls when `node` runs: a form element's action attribute or an
+ * action hook's first argument, seen through `.bind(…)`; undefined for any other node.
+ */
+function passedAction(checker: ts.TypeChecker, node: ts.Node): ts.Expression | undefined {
+  let value: ts.Expression | undefined;
+  if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name)) {
+    const element = node.parent.parent;
+    const tag = ts.isIdentifier(element.tagName) ? element.tagName.text : undefined;
+    const initializer = node.initializer;
+    if (
+      tag !== undefined &&
+      FORM_ATTRIBUTES[tag] === node.name.text &&
+      initializer !== undefined &&
+      ts.isJsxExpression(initializer)
+    ) {
+      value = initializer.expression;
+    }
+  } else if (ts.isCallExpression(node) && isActionHook(checker, node.expression)) {
+    value = node.arguments[0];
+  }
+  if (value === undefined) return undefined;
+  const e = unwrap(value);
+  if (
+    ts.isCallExpression(e) &&
+    ts.isPropertyAccessExpression(e.expression) &&
+    e.expression.name.text === "bind"
+  ) {
+    return e.expression.expression;
+  }
+  return e;
 }
 
 /** The resolved calls in one service's root files (see {@link buildCallEdges} for the rules). */
 export function collectCallFacts(sp: ServiceProgram, resolver: SymbolResolver): CallFacts {
   const calls: CallFact[] = [];
+  const actions: string[] = [];
+  const checker = resolver.checkerOf(sp);
   for (const file of sp.rootFiles) {
     const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
     const byNode = sourceFile && resolver.callers.get(sourceFile);
     if (!sourceFile || !byNode) continue;
+    actions.push(...serverActions(sp, file, sourceFile));
+    const browser = hasDirective(sourceFile.statements, "use client");
+
+    /** Record a call of `callee`'s symbol by `owner`, at `name`. */
+    const record = (
+      owner: string,
+      callee: ts.Expression,
+      name: ts.Node,
+      extra: Pick<CallFact, "browser" | "passed"> & { args?: number },
+    ): void => {
+      const target = resolver.resolve(sp, callee);
+      if (!target || target.id === owner) return;
+      const position = sourceFile.getLineAndCharacterOfPosition(name.getStart(sourceFile));
+      const { args, ...flags } = extra;
+      calls.push({
+        from: owner,
+        to: target.id,
+        confidence: target.confidence,
+        site: {
+          file,
+          line: position.line + 1,
+          column: position.character + 1,
+          ...(args === undefined ? {} : { args }),
+        },
+        ...flags,
+      });
+    };
 
     const visit = (node: ts.Node, caller: string | undefined): void => {
       const owner = byNode.get(node) ?? caller;
       if (owner !== undefined && (ts.isCallExpression(node) || ts.isNewExpression(node))) {
-        const target = resolver.resolve(sp, node.expression);
-        if (target && target.id !== owner) {
-          const name = calleeName(node.expression) ?? node;
-          const position = sourceFile.getLineAndCharacterOfPosition(name.getStart(sourceFile));
-          const args = node.arguments ?? [];
-          calls.push({
-            from: owner,
-            to: target.id,
-            confidence: target.confidence,
-            site: {
-              file,
-              line: position.line + 1,
-              column: position.character + 1,
-              ...(args.some(ts.isSpreadElement) ? {} : { args: args.length }),
-            },
-          });
-        }
+        const args = node.arguments ?? [];
+        record(owner, node.expression, calleeName(node.expression) ?? node, {
+          ...(browser ? { browser: true } : {}),
+          ...(args.some(ts.isSpreadElement) ? {} : { args: args.length }),
+        });
+      }
+      const passed = owner === undefined ? undefined : passedAction(checker, node);
+      if (owner !== undefined && passed !== undefined) {
+        record(owner, passed, calleeName(passed) ?? passed, { browser: true, passed: true });
       }
       ts.forEachChild(node, (child) => {
         visit(child, owner);
@@ -537,24 +695,30 @@ export function collectCallFacts(sp: ServiceProgram, resolver: SymbolResolver): 
     };
     visit(sourceFile, undefined);
   }
-  return { service: sp.service.key, calls };
+  return { service: sp.service.key, calls, ...(actions.length > 0 ? { actions } : {}) };
 }
 
 /**
  * The global step over every service's {@link CallFacts}, in program order: one `calls` edge
  * per caller and callee (every site listed, `exact` if any call is), sorted by ID with sites
- * in file order.
+ * in file order. An edge into a server action (any service's) from the browser is labeled
+ * {@link SERVER_ACTION_LABEL}; a function React is passed makes an edge only if it's an action.
  */
 export function composeCallEdges(all: readonly CallFacts[]): GraphEdge[] {
+  const actions = new Set(all.flatMap((f) => f.actions ?? []));
   const edges = new Map<string, GraphEdge>();
-  for (const { from, to, confidence, site } of all.flatMap((f) => f.calls)) {
+  for (const { from, to, confidence, site, browser, passed } of all.flatMap((f) => f.calls)) {
+    const action = actions.has(to);
+    if (passed && !action) continue;
     const id = edgeId("calls", from, to);
+    const label = browser && action ? { label: SERVER_ACTION_LABEL } : {};
     const existing = edges.get(id);
     if (existing) {
       existing.sites.push(site);
       if (confidence === "exact") existing.confidence = "exact";
+      Object.assign(existing, label);
     } else {
-      edges.set(id, { id, kind: "calls", from, to, confidence, sites: [site] });
+      edges.set(id, { id, kind: "calls", from, to, confidence, ...label, sites: [site] });
     }
   }
 

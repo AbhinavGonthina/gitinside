@@ -30,6 +30,7 @@ const NAMES = [
   "next-method-exclusions",
   "swr-fetchers",
   "rtk-query",
+  "next-server-actions",
   "prisma-relations",
   "pnpm-monorepo",
   "syntax-error",
@@ -181,6 +182,29 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
       "symbol:reading-list/pages/index.tsx#Home -> route:reading-list/ALL /api/shelves heuristic",
       "symbol:reading-list/pages/index.tsx#Home -> unresolved:reading-list/pages/index.tsx:13:27 unresolved DYNAMIC_URL",
     ]);
+  });
+
+  it("next-server-actions labels the browser's calls of server actions (ADR-0203)", async () => {
+    const g = await run("next-server-actions");
+    const calls = g.edges
+      .filter((e) => e.kind === "calls")
+      .map((e) => `${e.from} -> ${e.to}${e.label ? ` [${e.label}]` : ""}`);
+    expect(calls).toEqual([
+      "symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem -> symbol:todo-actions/app/todos/actions.ts#deleteTodo [server action]",
+      "symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem -> symbol:todo-actions/app/todos/actions.ts#listTodos [server action]",
+      "symbol:todo-actions/app/todos/TodoItem.tsx#TodoItem -> symbol:todo-actions/app/todos/actions.ts#toggleTodo [server action]",
+      "symbol:todo-actions/app/todos/page.tsx#TodosPage -> symbol:todo-actions/app/todos/actions.ts#createTodo [server action]",
+      // A server component's own call runs on the server.
+      "symbol:todo-actions/app/todos/page.tsx#TodosPage -> symbol:todo-actions/app/todos/actions.ts#listTodos",
+    ]);
+    // The actions' Prisma calls are theirs, so a trace goes on from the form to the model.
+    expect(links(g, "reads", "writes")).toEqual([
+      "symbol:todo-actions/app/todos/actions.ts#createTodo -> model:todo-actions/Todo exact",
+      "symbol:todo-actions/app/todos/actions.ts#deleteTodo -> model:todo-actions/Todo exact",
+      "symbol:todo-actions/app/todos/actions.ts#listTodos -> model:todo-actions/Todo exact",
+      "symbol:todo-actions/app/todos/actions.ts#toggleTodo -> model:todo-actions/Todo exact",
+    ]);
+    expect(g.edges.filter((e) => e.kind === "http")).toEqual([]);
   });
 
   it("prisma-relations finds models, a datastore, and an unresolved raw query", async () => {
