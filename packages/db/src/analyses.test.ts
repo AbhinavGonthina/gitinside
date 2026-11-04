@@ -428,10 +428,28 @@ describe("findPublishedAnalysis", () => {
     expect(await findPublishedAnalysis(t.db, { owner: "acme", name: "other" })).toBeUndefined();
   });
 
+  it("finds a repo by GitHub's ID, whatever its stored name (a rename, M5.13b3)", async () => {
+    const { id: repoId } = await upsertRepo(t.db, { ...FACTS, owner: "Acme", name: "Shop" });
+    await done(repoId, SHA, VERSION, "2026-10-01T00:00:00Z");
+    await done(repoId, OTHER, VERSION, "2026-10-02T00:00:00Z");
+    const other = await upsertRepo(t.db, { ...FACTS, providerRepoId: 99, name: "other" });
+    await done(other.id, SHA, VERSION, "2026-10-03T00:00:00Z");
+    const { providerRepoId } = FACTS;
+
+    expect(await findPublishedAnalysis(t.db, { providerRepoId })).toMatchObject({
+      repo: { id: repoId, providerRepoId, owner: "Acme", name: "Shop" },
+      analysis: { sha: OTHER },
+    });
+    expect((await findPublishedAnalysis(t.db, { providerRepoId, sha: SHA }))?.repo.id).toBe(repoId);
+    expect(await findPublishedAnalysis(t.db, { providerRepoId: 7 })).toBeUndefined();
+  });
+
   it("never returns a private repo's analysis", async () => {
     const { id: repoId } = await upsertRepo(t.db, { ...FACTS, visibility: "private" });
     await done(repoId, SHA, VERSION, "2026-10-01T00:00:00Z");
     expect(await findPublishedAnalysis(t.db, { owner: "acme", name: "shop" })).toBeUndefined();
+    const { providerRepoId } = FACTS;
+    expect(await findPublishedAnalysis(t.db, { providerRepoId })).toBeUndefined();
   });
 
   it("stops serving a hidden repo, permalinks included, until GitHub's facts restore it", async () => {

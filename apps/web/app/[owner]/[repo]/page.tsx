@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BASE_PARAM, baseParam, type SearchParams } from "../../../lib/compare";
+import type { SearchParams } from "../../../lib/compare";
 import { parseRepoPath } from "../../../lib/repoUrl";
 import { repoScreen } from "./repoScreen";
 
@@ -31,5 +31,5 @@ export default async function RepoPage({
   const { owner, repo } = await params;
   const ref = parseRepoPath(owner, repo);
   if (!ref) notFound();
-  return repoScreen(ref, undefined, baseParam((await searchParams)?.[BASE_PARAM]));
+  return repoScreen(ref, undefined, await searchParams);
 }

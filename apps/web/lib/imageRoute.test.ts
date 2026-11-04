@@ -209,11 +209,24 @@ describe("handleImageRequest", () => {
     expect(reads).toEqual([key(NEW)]);
   });
 
+  it("draws a renamed repo's image at its old URL, the README a rename left behind (M5.13b3)", async () => {
+    await publish();
+    await t.db.update(repos).set({ owner: "Shopco", name: "Store" });
+    shop.owner = "Shopco";
+    shop.name = "Store";
+    shop.formerNames = ["acme/shop"];
+    const response = await badge();
+    expectImage(response, IMAGE_CACHE_CONTROL);
+    expect(await response.text()).toBe(renderBadge({ message: badgeMessage(GRAPH) }));
+    expect(graphPaths).toEqual([`/api/graph/Shopco/Store/${OLD}`]);
+    expect(enqueued).toEqual([]);
+  });
+
   it("is the same link-only badge for unknown, private, gone, and impossible repos", async () => {
     const answers: string[] = [];
-    // Never analyzed: no GitHub call, nothing read.
+    // Never analyzed: GitHub asked only whether it has another name (M5.13b3), nothing read.
     answers.push(await (await badge()).text());
-    expect(gh.requests).toEqual([]);
+    expect(gh.requests).toHaveLength(2);
     // Private: never in our public rows.
     await publish(OLD, "private");
     answers.push(await (await badge()).text());
