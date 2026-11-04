@@ -1,0 +1,1 @@
+{ "name": "ofetch-client", "dependencies": { "express": "4", "ofetch": "1" } }

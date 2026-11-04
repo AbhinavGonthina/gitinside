@@ -1,0 +1,600 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/local.ts#label",
+      "id": "calls:symbol:ofetch-client/src/local.ts#label->symbol:ofetch-client/src/local.ts#ofetch",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/local.ts",
+          "line": 7
+        }
+      ],
+      "to": "symbol:ofetch-client/src/local.ts#ofetch"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#getUser",
+      "id": "calls:symbol:ofetch-client/src/users.ts#getUser->symbol:ofetch-client/src/http.ts#api",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:ofetch-client/src/http.ts#api"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#listUsers",
+      "id": "calls:symbol:ofetch-client/src/users.ts#listUsers->symbol:ofetch-client/src/http.ts#api",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:ofetch-client/src/http.ts#api"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#loadStats",
+      "id": "calls:symbol:ofetch-client/src/users.ts#loadStats->symbol:ofetch-client/src/http.ts#v2",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 25
+        }
+      ],
+      "to": "symbol:ofetch-client/src/http.ts#v2"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#signIn",
+      "id": "calls:symbol:ofetch-client/src/users.ts#signIn->symbol:ofetch-client/src/http.ts#poster",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 21
+        }
+      ],
+      "to": "symbol:ofetch-client/src/http.ts#poster"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#track",
+      "id": "calls:symbol:ofetch-client/src/users.ts#track->symbol:ofetch-client/src/http.ts#poster",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 35
+        }
+      ],
+      "to": "symbol:ofetch-client/src/http.ts#poster"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#createUser",
+      "id": "http:symbol:ofetch-client/src/users.ts#createUser->route:ofetch-client/POST /api/users",
+      "kind": "http",
+      "label": "POST /api/users",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 13
+        }
+      ],
+      "to": "route:ofetch-client/POST /api/users"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#getUser",
+      "id": "http:symbol:ofetch-client/src/users.ts#getUser->route:ofetch-client/GET /api/users/:id",
+      "kind": "http",
+      "label": "GET /api/users/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 9
+        }
+      ],
+      "to": "route:ofetch-client/GET /api/users/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#health",
+      "id": "http:symbol:ofetch-client/src/users.ts#health->route:ofetch-client/GET /api/health",
+      "kind": "http",
+      "label": "GET /api/health",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 30
+        }
+      ],
+      "to": "route:ofetch-client/GET /api/health"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#listUsers",
+      "id": "http:symbol:ofetch-client/src/users.ts#listUsers->route:ofetch-client/GET /api/users",
+      "kind": "http",
+      "label": "GET /api/users",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 5
+        }
+      ],
+      "to": "route:ofetch-client/GET /api/users"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#loadStats",
+      "id": "http:symbol:ofetch-client/src/users.ts#loadStats->route:ofetch-client/GET /api/v2/stats",
+      "kind": "http",
+      "label": "GET /api/v2/stats",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 25
+        }
+      ],
+      "to": "route:ofetch-client/GET /api/v2/stats"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#removeUser",
+      "id": "http:symbol:ofetch-client/src/users.ts#removeUser->route:ofetch-client/DELETE /api/users/:id",
+      "kind": "http",
+      "label": "DELETE /api/users/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 17
+        }
+      ],
+      "to": "route:ofetch-client/DELETE /api/users/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:ofetch-client/src/users.ts#signIn",
+      "id": "http:symbol:ofetch-client/src/users.ts#signIn->route:ofetch-client/POST /api/auth/login",
+      "kind": "http",
+      "label": "POST /api/auth/login",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 21
+        }
+      ],
+      "to": "route:ofetch-client/POST /api/auth/login"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:ofetch-client/src/users.ts#track",
+      "id": "http:symbol:ofetch-client/src/users.ts#track->unresolved:ofetch-client/src/users.ts:35:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/users.ts",
+          "line": 35
+        }
+      ],
+      "to": "unresolved:ofetch-client/src/users.ts:35:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:ofetch-client/src/users.ts",
+      "id": "imports:file:ofetch-client/src/users.ts->file:ofetch-client/src/http.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 33,
+          "file": "src/users.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:ofetch-client/src/http.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "05cf63c9d7b39a186da75b5c8756beb7cf4faebbd52b74dedbe8e72dcf5593bf",
+      "id": "file:ofetch-client/src/http.ts",
+      "kind": "file",
+      "label": "http.ts",
+      "parentId": "module:ofetch-client/src",
+      "path": "src/http.ts"
+    },
+    {
+      "hash": "17a9496b5f757cab1fdd1af81524c818759d3bd67bc8489d777d62b944287e5b",
+      "id": "file:ofetch-client/src/local.ts",
+      "kind": "file",
+      "label": "local.ts",
+      "parentId": "module:ofetch-client/src",
+      "path": "src/local.ts"
+    },
+    {
+      "hash": "94998d6015d9b21c1c3863dfb644e3c0402abf9c6756263a240e8a2a7b3092d5",
+      "id": "file:ofetch-client/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:ofetch-client/src",
+      "path": "src/server.ts"
+    },
+    {
+      "hash": "ec685f5e06df602a16541167e6b7ac9d4ead05d419df69b2b9182c3b2b54fc07",
+      "id": "file:ofetch-client/src/users.ts",
+      "kind": "file",
+      "label": "users.ts",
+      "parentId": "module:ofetch-client/src",
+      "path": "src/users.ts"
+    },
+    {
+      "id": "module:ofetch-client/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:ofetch-client/",
+      "path": "src"
+    },
+    {
+      "id": "route:ofetch-client/DELETE /api/users/:id",
+      "kind": "route",
+      "label": "DELETE /api/users/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:ofetch-client/src/server.ts",
+      "path": "/api/users/:id",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 18
+      }
+    },
+    {
+      "id": "route:ofetch-client/GET /api/health",
+      "kind": "route",
+      "label": "GET /api/health",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ofetch-client/src/server.ts",
+      "path": "/api/health",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 29
+      }
+    },
+    {
+      "id": "route:ofetch-client/GET /api/users",
+      "kind": "route",
+      "label": "GET /api/users",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ofetch-client/src/server.ts",
+      "path": "/api/users",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:ofetch-client/GET /api/users/:id",
+      "kind": "route",
+      "label": "GET /api/users/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ofetch-client/src/server.ts",
+      "path": "/api/users/:id",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:ofetch-client/GET /api/v2/stats",
+      "kind": "route",
+      "label": "GET /api/v2/stats",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:ofetch-client/src/server.ts",
+      "path": "/api/v2/stats",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 26
+      }
+    },
+    {
+      "id": "route:ofetch-client/POST /api/auth/login",
+      "kind": "route",
+      "label": "POST /api/auth/login",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:ofetch-client/src/server.ts",
+      "path": "/api/auth/login",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 23
+      }
+    },
+    {
+      "id": "route:ofetch-client/POST /api/users",
+      "kind": "route",
+      "label": "POST /api/users",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:ofetch-client/src/server.ts",
+      "path": "/api/users",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 14
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:ofetch-client/",
+      "kind": "service",
+      "label": "ofetch-client",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/http.ts#api",
+      "kind": "symbol",
+      "label": "api",
+      "parentId": "file:ofetch-client/src/http.ts",
+      "source": {
+        "column": 14,
+        "endLine": 4,
+        "file": "src/http.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/http.ts#poster",
+      "kind": "symbol",
+      "label": "poster",
+      "parentId": "file:ofetch-client/src/http.ts",
+      "source": {
+        "column": 14,
+        "endLine": 10,
+        "file": "src/http.ts",
+        "line": 10
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/http.ts#v2",
+      "kind": "symbol",
+      "label": "v2",
+      "parentId": "file:ofetch-client/src/http.ts",
+      "source": {
+        "column": 14,
+        "endLine": 7,
+        "file": "src/http.ts",
+        "line": 7
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/local.ts#label",
+      "kind": "symbol",
+      "label": "label",
+      "parentId": "file:ofetch-client/src/local.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 8,
+        "file": "src/local.ts",
+        "line": 6
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:ofetch-client/src/local.ts#ofetch",
+      "kind": "symbol",
+      "label": "ofetch",
+      "parentId": "file:ofetch-client/src/local.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 4,
+        "file": "src/local.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/users.ts#createUser",
+      "kind": "symbol",
+      "label": "createUser",
+      "parentId": "file:ofetch-client/src/users.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "src/users.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/users.ts#getUser",
+      "kind": "symbol",
+      "label": "getUser",
+      "parentId": "file:ofetch-client/src/users.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/users.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/users.ts#health",
+      "kind": "symbol",
+      "label": "health",
+      "parentId": "file:ofetch-client/src/users.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/users.ts",
+        "line": 29
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/users.ts#listUsers",
+      "kind": "symbol",
+      "label": "listUsers",
+      "parentId": "file:ofetch-client/src/users.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/users.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/users.ts#loadStats",
+      "kind": "symbol",
+      "label": "loadStats",
+      "parentId": "file:ofetch-client/src/users.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 26,
+        "file": "src/users.ts",
+        "line": 24
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/users.ts#removeUser",
+      "kind": "symbol",
+      "label": "removeUser",
+      "parentId": "file:ofetch-client/src/users.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "src/users.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/users.ts#signIn",
+      "kind": "symbol",
+      "label": "signIn",
+      "parentId": "file:ofetch-client/src/users.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 22,
+        "file": "src/users.ts",
+        "line": 20
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:ofetch-client/src/users.ts#track",
+      "kind": "symbol",
+      "label": "track",
+      "parentId": "file:ofetch-client/src/users.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 36,
+        "file": "src/users.ts",
+        "line": 34
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "ofetch-client",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches POST to /api/events",
+      "expression": "poster(\"/events\", { body: { event } })",
+      "id": "unresolved:ofetch-client/src/users.ts:35:10",
+      "kind": "unresolved",
+      "label": "POST /api/events",
+      "parentId": "service:ofetch-client/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "src/users.ts",
+        "line": 35
+      }
+    }
+  ],
+  "repo": {
+    "name": "ofetch-client",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

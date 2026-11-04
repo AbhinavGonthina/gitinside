@@ -535,6 +535,87 @@ describe("collectHttpCalls: axios", () => {
   });
 });
 
+describe("collectHttpCalls: ofetch (M5C.3c)", () => {
+  it("collects calls of ofetch, $fetch, and create() instances, with their base and method", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { ofetch: "1" } }));
+    await put("src/http.ts", [
+      'import { ofetch } from "ofetch";',
+      'export const api = ofetch.create({ baseURL: "/api" });',
+      'export const v2 = api.create({ baseURL: "/api/v2" });',
+      'export const poster = api.create({ method: "POST" });',
+      'export function makeClient() { return ofetch.create({ baseURL: "/made" }); }',
+    ]);
+    await put("src/use.ts", [
+      'import { $fetch, ofetch as http } from "ofetch";',
+      'import * as of from "ofetch";',
+      'import { api, v2, poster, makeClient } from "./http";',
+      "export async function run(id: string, opts: object, m: string) {",
+      '  await http("/plain");',
+      '  await $fetch("/users", { method: "post", baseURL: "/api" });',
+      "  await api(`/users/${id}`);",
+      '  await api.raw("/users", { method: "DELETE" });',
+      '  await v2("/stats");',
+      '  await poster("/login");',
+      '  await poster("/check", { method: "GET" });',
+      '  await poster("/opaque", opts);',
+      '  await api("/opaque", opts);',
+      '  await api("/m", { method: m });',
+      '  await of.$fetch("/ns");',
+      '  await makeClient()("/made");',
+      '  await api.native("/native", { method: "PUT" });',
+      '  await api("/x", { ...opts, method: "PATCH" });',
+      "}",
+    ]);
+    const owner = "[symbol:web/src/use.ts#run]";
+    expect(summary(await collect())).toEqual([
+      `src/use.ts:5:9 ofetch GET "/plain" base=- ${owner}`,
+      `src/use.ts:6:9 ofetch POST "/users" base="/api" ${owner}`,
+      `src/use.ts:7:9 ofetch GET \`/users/\${id}\` base="/api" ${owner}`,
+      `src/use.ts:8:9 ofetch DELETE "/users" base="/api" ${owner}`,
+      `src/use.ts:9:9 ofetch GET "/stats" base="/api/v2" ${owner}`,
+      `src/use.ts:10:9 ofetch POST "/login" base="/api" ${owner}`,
+      `src/use.ts:11:9 ofetch GET "/check" base="/api" ${owner}`,
+      `src/use.ts:12:9 ofetch ? "/opaque" base="/api" ${owner}`,
+      `src/use.ts:13:9 ofetch ? "/opaque" base="/api" ${owner}`,
+      `src/use.ts:14:9 ofetch ? "/m" base="/api" ${owner}`,
+      `src/use.ts:15:9 ofetch GET "/ns" base=- ${owner}`,
+      `src/use.ts:16:9 ofetch GET "/made" base="/made" ${owner}`,
+      `src/use.ts:17:9 ofetch PUT "/native" base=- ${owner}`,
+      `src/use.ts:18:9 ofetch PATCH "/x" base="/api" ${owner}`,
+    ]);
+    const sites = await collect();
+    // Wrapper inlining re-reads an unseen options' method from the caller (M2.3), but not
+    // under an instance whose own default `method` would apply instead.
+    expect(sites[7]?.methodSource).toBeUndefined();
+    expect(sites[8]?.methodSource?.kind).toBe("config");
+    expect(sites.map((s) => s.baseJoin ?? "-")).toEqual([
+      ...Array<string>(12).fill("withBase"),
+      "-",
+      "withBase",
+    ]);
+  });
+
+  it("ignores look-alikes: local or other modules' ofetch, Nuxt's global $fetch, create() itself", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/local.ts", ["export function ofetch(p: string) { return p; }"]);
+    await put("src/a.ts", [
+      'import { ofetch as other } from "./local";',
+      'import { ofetch as mine } from "my-ofetch";',
+      'import { ofetch, createFetch } from "ofetch";',
+      "declare const $fetch: (p: string) => Promise<unknown>;",
+      'other("/local");',
+      'mine("/mine");',
+      '$fetch("/nuxt-global");',
+      'ofetch.create({ baseURL: "/api" });',
+      'createFetch()("/created");',
+      "const o = { raw: (p: string) => p, native: (p: string) => p };",
+      'o.raw("/o");',
+      'o.native("/o");',
+    ]);
+    expect(summary(await collect())).toEqual([]);
+  });
+});
+
 describe("collectHttpCalls: owners", () => {
   it("attributes calls to inline Express routes, the innermost symbol, or nothing at top level", async () => {
     await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));

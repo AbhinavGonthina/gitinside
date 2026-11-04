@@ -1,5 +1,5 @@
 /**
- * HTTP call-site collection (M2.1): every outbound `fetch` and axios request in the repo,
+ * HTTP call-site collection (M2.1): every outbound `fetch`, axios, and ofetch request in the repo,
  * with its method, URL expression, and base URL expression, ready for the URL normalizer
  * (M2.2) and the route matcher (M2.4). Nothing here becomes graph output yet; every
  * collected site later yields an edge, resolved or unresolved (ROADMAP M2 "no call site
@@ -34,6 +34,14 @@
  *   does `create()` without a `baseURL` on axios or an instance whose reached defaults are
  *   assigned: `create` copies them when it runs, and that may be before or after the
  *   assignment.
+ * - ofetch (M5C.3c, ADR-0205), from its documented API: `ofetch` or `$fetch` imported from
+ *   `ofetch` (named, renamed, or as `of.ofetch` under `import * as of`), and instances from
+ *   `<ofetch or instance>.create(options)`, which merge `options` over the defaults of what they
+ *   are called on. Requests are `x(url, options?)` and `x.raw(url, options?)`, their method
+ *   the call's `method`, else the instance's, else `GET`, and their `baseURL` the call's, else
+ *   the instance's. The base joins the URL as ofetch's (ufo's `withBase`): as axios's, except
+ *   that a URL already starting with a literal base is left alone. `x.native(url, init?)` is
+ *   the platform's `fetch`, without base or default method.
  * - Values are traced with the checker the same way the Prisma client is: through
  *   variables, imports (workspace packages too, via the shared resolver), `export default`,
  *   CommonJS exports, `??`/`||`/`&&`, ternaries, `await`, and factory functions that return
@@ -86,9 +94,15 @@
  * - A `defaults.baseURL` write in a module the request's file doesn't import, even when an
  *   entry point loads both (`main.ts` importing `./setup` and `./App`): the request keeps the
  *   `create` config's base, since what an entry point loads isn't modeled.
- * - Other HTTP clients (`ky`, `got`, `superagent`, `ofetch`), `XMLHttpRequest`, and
+ * - Other HTTP clients (`ky`, `got`, `superagent`), `XMLHttpRequest`, and
  *   `EventSource`/`WebSocket`. An SWR fetcher that wraps one of the above is inlined at the
  *   hook (`wrappers.ts`, ADR-0193).
+ * - ofetch: Nuxt's global `$fetch` and `useFetch` (auto-imported, never imported from
+ *   `ofetch`; Vue is outside v1), `require("ofetch")`, `createFetch`, the old `ohmyfetch`
+ *   package, a declaration typed `$Fetch` without a traced value, `onRequest` interceptors
+ *   that change the request, and a `query`/`params` option (paths only are matched). Options
+ *   the collector can't see (a parameter, a spread hiding `baseURL`) are assumed not to set a
+ *   `baseURL`, as for axios's shorthand calls.
  * - TanStack Query (ADR-0196): a `queryFn` is read like any other function, so
  *   `queryFn: () => fetch("/api/todos")` or a call to a wrapper there resolves, but a URL read
  *   from the key in its context (`({ queryKey }) => fetch(queryKey[0])`, also a `QueryClient`'s
@@ -171,8 +185,11 @@ const RTK_QUERY_MODULES: ReadonlySet<string> = new Set([
 /** The endpoint builder's methods that define an endpoint from a `query` option. */
 const RTK_ENDPOINT_KINDS: ReadonlySet<string> = new Set(["infiniteQuery", "mutation", "query"]);
 
+/** What ofetch's `ofetch` module exports as its fetch function (M5C.3c). */
+const OFETCH_EXPORTS: ReadonlySet<string> = new Set(["$fetch", "ofetch"]);
+
 /** The library that makes a request. */
-export type HttpClient = "fetch" | "axios";
+export type HttpClient = "fetch" | "axios" | "ofetch";
 
 /**
  * One outbound HTTP request in the source. `null` means "set, but not statically readable"
@@ -214,6 +231,11 @@ export interface HttpCallSite {
    * is set (always for `fetch`), `null` when one may be set but can't be read.
    */
   baseURL: ProgramExpression | null | undefined;
+  /**
+   * `withBase` for ofetch, whose join (ufo's `withBase`) leaves a URL that already starts with
+   * the base alone; absent for axios's join (see `url.ts`).
+   */
+  baseJoin?: "withBase";
   /**
    * A whole axios config the collector can't locate (`axios(req)`, `api.request(req)` with
    * `req` a parameter), and the `baseURL` of the instance it is passed to, which applies when
@@ -261,6 +283,15 @@ interface AxiosValue {
   origin: AxiosOrigin;
   /** The value `create` was called on, when its config sets no `baseURL` of its own. */
   parent?: AxiosValue;
+  confidence: Confidence;
+}
+
+/** What an expression evaluates to when it is ofetch's fetch function or an instance (M5C.3c). */
+interface OfetchValue {
+  /** The default `baseURL` its `create` options set: `undefined` for none, `null` for unknown. */
+  baseURL: ProgramExpression | null | undefined;
+  /** The default `method` its `create` options set, likewise. */
+  method: ConfigValue;
   confidence: Confidence;
 }
 
@@ -370,7 +401,7 @@ export function toMethod(text: string): HttpMethod | null {
 }
 
 /**
- * Collect every `fetch` and axios request in the service programs (see the file comment for
+ * Collect every `fetch`, axios, and ofetch request in the service programs (see the file comment for
  * what is recognized). A site's owners name the inline handlers it may be in by node key, so
  * nothing here depends on the Express composition (ADR-0094). Sorted by file, line, and column.
  */
@@ -644,199 +675,269 @@ export function createHttpSiteCollector(
     return undefined;
   };
 
-  const axiosOfDeclaration = (
-    sp: ServiceProgram,
-    declaration: ts.Declaration,
-    hops: number,
-  ): AxiosValue | undefined => {
-    const binding = importBinding(declaration);
-    if (binding) {
-      return binding.module === "axios" && (binding.name === "default" || binding.name === "*")
-        ? axiosRoot(sp)
-        : undefined;
-    }
-    if (
-      ts.isVariableDeclaration(declaration) ||
-      ts.isPropertyDeclaration(declaration) ||
-      ts.isPropertySignature(declaration) ||
-      ts.isParameter(declaration)
-    ) {
-      const typed = axiosOfType(sp, declaration, declaration.type);
-      if (typed) return typed;
-      const init = ts.isPropertySignature(declaration) ? undefined : declaration.initializer;
-      if (!init) return undefined;
-      if (requiredModule(init) === "axios") return axiosRoot(sp);
-      return axiosOf(sp, init, hops + 1);
-    }
-    if (ts.isPropertyAssignment(declaration)) return axiosOf(sp, declaration.initializer, hops + 1);
-    if (ts.isShorthandPropertyAssignment(declaration)) {
-      const value = resolver.checkerOf(sp).getShorthandAssignmentValueSymbol(declaration);
-      return value && axiosOfSymbol(sp, value, hops + 1);
-    }
-    if (ts.isExportAssignment(declaration)) return axiosOf(sp, declaration.expression, hops + 1);
-    // CommonJS: `module.exports = x` and `exports.x = y` declare on the assignment.
-    if (ts.isBinaryExpression(declaration)) return axiosOf(sp, declaration.right, hops + 1);
-    const parent = declaration.parent as ts.Node | undefined;
-    if (
-      ts.isPropertyAccessExpression(declaration) &&
-      parent &&
-      ts.isBinaryExpression(parent) &&
-      parent.left === declaration
-    ) {
-      return axiosOf(sp, parent.right, hops + 1);
-    }
-    return undefined;
-  };
+  // ---- client values (axios, ofetch) ----
 
   /**
-   * Results by symbol (each symbol belongs to one program's checker). A symbol being traced
-   * maps to `null`, so cycles stop. Visiting order is fixed, so results stay deterministic.
+   * Where a client library's own values come from (M5C.3c): its imports and `require`s, type
+   * annotations, and `x.create(options)`. Everything else (variables, imports across the repo,
+   * factories, `??`, `await`) is traced the same way for every library by {@link createTracer}.
    */
-  const axiosBySymbol = new Map<ts.Symbol, AxiosValue | null>();
-
-  const axiosOfSymbol = (
-    sp: ServiceProgram,
-    start: ts.Symbol,
-    hops: number,
-  ): AxiosValue | undefined => {
-    if (hops > MAX_HOPS) return undefined;
-    const known = axiosBySymbol.get(start);
-    if (known !== undefined) return known ?? undefined;
-    axiosBySymbol.set(start, null);
-    const result = traceAxiosSymbol(sp, start, hops);
-    axiosBySymbol.set(start, result ?? null);
-    return result;
-  };
-
-  const traceAxiosSymbol = (
-    sp: ServiceProgram,
-    start: ts.Symbol,
-    hops: number,
-  ): AxiosValue | undefined => {
-    let symbol = start;
-    if (symbol.flags & ts.SymbolFlags.Alias) {
-      // Check the import (or, in JS files, the `require`) itself first: `axios` has no
-      // declarations without `node_modules`.
-      const own = symbol.declarations?.[0];
-      const direct = own && axiosOfDeclaration(sp, own, hops);
-      if (direct) return direct;
-      const aliased = resolver.checkerOf(sp).getAliasedSymbol(symbol);
-      if ((aliased.declarations ?? []).length === 0) {
-        const target = own && resolver.importTarget(sp, own);
-        const found = target && axiosOfSymbol(target.sp, target.symbol, hops + 1);
-        return found && target
-          ? { ...found, confidence: weaker(target.confidence, found.confidence) }
-          : undefined;
-      }
-      symbol = aliased;
-    }
-    for (const declaration of symbol.declarations ?? []) {
-      const found = axiosOfDeclaration(sp, declaration, hops);
-      if (found) return found;
-    }
-    return undefined;
-  };
+  interface ClientLibrary<V extends { confidence: Confidence }> {
+    /** What an import binding of a module is (`*` for a namespace, else the export's name). */
+    imported(sp: ServiceProgram, binding: { module: string; name: string }): V | undefined;
+    /** What `require(module)` (or its `.default`) is. */
+    required(sp: ServiceProgram, module: string): V | undefined;
+    /** What a declaration's type annotation says. */
+    typed(
+      sp: ServiceProgram,
+      declaration: ts.Declaration,
+      type: ts.TypeNode | undefined,
+    ): V | undefined;
+    /** What `create(options)` called on one of its values makes. */
+    created(sp: ServiceProgram, call: ts.CallExpression, parent: V): V;
+  }
 
   /**
-   * Results by factory function, like {@link axiosBySymbol}: without it, factories that each
-   * return several calls of the next one are traced exponentially often.
+   * A function telling what an expression is when it is one of `lib`'s values: traced with the
+   * checker through variables, imports (workspace packages too, via the shared resolver),
+   * `export default`, CommonJS exports, `??`/`||`/`&&`, ternaries, `await`, `create` calls, and
+   * factory functions that return the value.
    */
-  const axiosByFactory = new Map<FunctionWithBody, AxiosValue | null>();
-
-  /** The first axios value a factory function returns. */
-  const axiosOfFactory = (
-    sp: ServiceProgram,
-    fn: FunctionWithBody,
-    hops: number,
-  ): AxiosValue | undefined => {
-    const known = axiosByFactory.get(fn);
-    if (known !== undefined) return known ?? undefined;
-    axiosByFactory.set(fn, null);
-    let result: AxiosValue | undefined;
-    for (const returned of returnedExpressions(fn)) {
-      result = axiosOf(sp, returned, hops + 1);
-      if (result) break;
-    }
-    axiosByFactory.set(fn, result ?? null);
-    return result;
-  };
-
-  /** What an expression is when it is axios or an axios instance. */
-  const axiosOf = (
-    sp: ServiceProgram,
-    expression: ts.Expression,
-    hops: number,
-  ): AxiosValue | undefined => {
-    if (hops > MAX_HOPS) return undefined;
-    const e = unwrap(expression);
-    if (ts.isAwaitExpression(e)) return axiosOf(sp, e.expression, hops + 1);
-    if (requiredModule(e) === "axios") return axiosRoot(sp);
-    if (ts.isBinaryExpression(e)) {
-      const op = e.operatorToken.kind;
+  const createTracer = <V extends { confidence: Confidence }>(
+    lib: ClientLibrary<V>,
+  ): ((sp: ServiceProgram, expression: ts.Expression, hops: number) => V | undefined) => {
+    const ofDeclaration = (
+      sp: ServiceProgram,
+      declaration: ts.Declaration,
+      hops: number,
+    ): V | undefined => {
+      const binding = importBinding(declaration);
+      if (binding) return lib.imported(sp, binding);
       if (
-        op === ts.SyntaxKind.QuestionQuestionToken ||
-        op === ts.SyntaxKind.BarBarToken ||
-        op === ts.SyntaxKind.AmpersandAmpersandToken
+        ts.isVariableDeclaration(declaration) ||
+        ts.isPropertyDeclaration(declaration) ||
+        ts.isPropertySignature(declaration) ||
+        ts.isParameter(declaration)
       ) {
-        return axiosOf(sp, e.left, hops + 1) ?? axiosOf(sp, e.right, hops + 1);
+        const typed = lib.typed(sp, declaration, declaration.type);
+        if (typed) return typed;
+        const init = ts.isPropertySignature(declaration) ? undefined : declaration.initializer;
+        if (!init) return undefined;
+        const module = requiredModule(init);
+        const required = module === undefined ? undefined : lib.required(sp, module);
+        return required ?? valueOf(sp, init, hops + 1);
       }
-      if (op === ts.SyntaxKind.EqualsToken || op === ts.SyntaxKind.QuestionQuestionEqualsToken) {
-        return axiosOf(sp, e.right, hops + 1);
+      if (ts.isPropertyAssignment(declaration)) {
+        return valueOf(sp, declaration.initializer, hops + 1);
+      }
+      if (ts.isShorthandPropertyAssignment(declaration)) {
+        const value = resolver.checkerOf(sp).getShorthandAssignmentValueSymbol(declaration);
+        return value && ofSymbol(sp, value, hops + 1);
+      }
+      if (ts.isExportAssignment(declaration)) return valueOf(sp, declaration.expression, hops + 1);
+      // CommonJS: `module.exports = x` and `exports.x = y` declare on the assignment.
+      if (ts.isBinaryExpression(declaration)) return valueOf(sp, declaration.right, hops + 1);
+      const parent = declaration.parent as ts.Node | undefined;
+      if (
+        ts.isPropertyAccessExpression(declaration) &&
+        parent &&
+        ts.isBinaryExpression(parent) &&
+        parent.left === declaration
+      ) {
+        return valueOf(sp, parent.right, hops + 1);
       }
       return undefined;
-    }
-    if (ts.isConditionalExpression(e)) {
-      return axiosOf(sp, e.whenTrue, hops + 1) ?? axiosOf(sp, e.whenFalse, hops + 1);
-    }
-    if (ts.isCallExpression(e)) {
-      const callee = unwrap(e.expression);
-      // `axios.create(config)` or `instance.create(config)`.
-      if (ts.isPropertyAccessExpression(callee) && callee.name.text === "create") {
-        const parent = axiosOf(sp, callee.expression, hops + 1);
-        if (!parent) return undefined;
-        const own = configProperty(sp, e.arguments[0], "baseURL");
-        return {
-          baseURL: own,
-          origin: e,
-          ...(own === undefined ? { parent } : {}),
-          confidence: parent.confidence,
-        };
-      }
-      // A factory function that returns axios or an instance.
-      const name = ts.isIdentifier(callee)
-        ? callee
-        : ts.isPropertyAccessExpression(callee)
-          ? callee.name
-          : undefined;
-      const symbol = name && symbolAt(sp, name);
-      const fn = symbol && functionOf(resolver.checkerOf(sp), symbol);
-      return fn ? axiosOfFactory(sp, fn, hops) : undefined;
-    }
-    if (ts.isIdentifier(e) || ts.isPropertyAccessExpression(e)) {
-      const symbol = symbolAt(sp, ts.isIdentifier(e) ? e : e.name);
-      if (symbol) return axiosOfSymbol(sp, symbol, hops + 1);
-      if (ts.isPropertyAccessExpression(e)) {
-        const object = unwrap(e.expression);
-        // `axios.default` under `import * as axios` or `require("axios")`.
-        if (e.name.text === "default") {
-          const inner = axiosOf(sp, object, hops + 1);
-          if (inner) return inner;
+    };
+
+    /**
+     * Results by symbol (each symbol belongs to one program's checker). A symbol being traced
+     * maps to `null`, so cycles stop. Visiting order is fixed, so results stay deterministic.
+     */
+    const bySymbol = new Map<ts.Symbol, V | null>();
+
+    const ofSymbol = (sp: ServiceProgram, start: ts.Symbol, hops: number): V | undefined => {
+      if (hops > MAX_HOPS) return undefined;
+      const known = bySymbol.get(start);
+      if (known !== undefined) return known ?? undefined;
+      bySymbol.set(start, null);
+      const result = traceSymbol(sp, start, hops);
+      bySymbol.set(start, result ?? null);
+      return result;
+    };
+
+    /** A value reached through a workspace import, no surer than the import. */
+    const through = (
+      target: { sp: ServiceProgram; symbol: ts.Symbol; confidence: Confidence } | undefined,
+      hops: number,
+    ): V | undefined => {
+      const found = target && ofSymbol(target.sp, target.symbol, hops + 1);
+      return found && target
+        ? { ...found, confidence: weaker(target.confidence, found.confidence) }
+        : undefined;
+    };
+
+    const traceSymbol = (sp: ServiceProgram, start: ts.Symbol, hops: number): V | undefined => {
+      let symbol = start;
+      if (symbol.flags & ts.SymbolFlags.Alias) {
+        // Check the import (or, in JS files, the `require`) itself first: a library has no
+        // declarations without `node_modules`.
+        const own = symbol.declarations?.[0];
+        const direct = own && ofDeclaration(sp, own, hops);
+        if (direct) return direct;
+        const aliased = resolver.checkerOf(sp).getAliasedSymbol(symbol);
+        if ((aliased.declarations ?? []).length === 0) {
+          return own ? through(resolver.importTarget(sp, own), hops) : undefined;
         }
-        // `http.api` where `http` is a namespace import of a workspace package.
-        if (ts.isIdentifier(object)) {
-          const declaration = symbolAt(sp, object)?.declarations?.[0];
-          if (declaration && ts.isNamespaceImport(declaration)) {
-            const target = resolver.importTarget(sp, declaration, e.name.text);
-            const found = target && axiosOfSymbol(target.sp, target.symbol, hops + 1);
-            return found && target
-              ? { ...found, confidence: weaker(target.confidence, found.confidence) }
-              : undefined;
+        symbol = aliased;
+      }
+      for (const declaration of symbol.declarations ?? []) {
+        const found = ofDeclaration(sp, declaration, hops);
+        if (found) return found;
+      }
+      return undefined;
+    };
+
+    /**
+     * Results by factory function, like {@link bySymbol}: without it, factories that each
+     * return several calls of the next one are traced exponentially often.
+     */
+    const byFactory = new Map<FunctionWithBody, V | null>();
+
+    /** The first value a factory function returns. */
+    const ofFactory = (sp: ServiceProgram, fn: FunctionWithBody, hops: number): V | undefined => {
+      const known = byFactory.get(fn);
+      if (known !== undefined) return known ?? undefined;
+      byFactory.set(fn, null);
+      let result: V | undefined;
+      for (const returned of returnedExpressions(fn)) {
+        result = valueOf(sp, returned, hops + 1);
+        if (result) break;
+      }
+      byFactory.set(fn, result ?? null);
+      return result;
+    };
+
+    const valueOf = (
+      sp: ServiceProgram,
+      expression: ts.Expression,
+      hops: number,
+    ): V | undefined => {
+      if (hops > MAX_HOPS) return undefined;
+      const e = unwrap(expression);
+      if (ts.isAwaitExpression(e)) return valueOf(sp, e.expression, hops + 1);
+      const module = requiredModule(e);
+      if (module !== undefined) return lib.required(sp, module);
+      if (ts.isBinaryExpression(e)) {
+        const op = e.operatorToken.kind;
+        if (
+          op === ts.SyntaxKind.QuestionQuestionToken ||
+          op === ts.SyntaxKind.BarBarToken ||
+          op === ts.SyntaxKind.AmpersandAmpersandToken
+        ) {
+          return valueOf(sp, e.left, hops + 1) ?? valueOf(sp, e.right, hops + 1);
+        }
+        if (op === ts.SyntaxKind.EqualsToken || op === ts.SyntaxKind.QuestionQuestionEqualsToken) {
+          return valueOf(sp, e.right, hops + 1);
+        }
+        return undefined;
+      }
+      if (ts.isConditionalExpression(e)) {
+        return valueOf(sp, e.whenTrue, hops + 1) ?? valueOf(sp, e.whenFalse, hops + 1);
+      }
+      if (ts.isCallExpression(e)) {
+        const callee = unwrap(e.expression);
+        // `axios.create(config)`, `ofetch.create(options)`, or `instance.create(…)`.
+        if (ts.isPropertyAccessExpression(callee) && callee.name.text === "create") {
+          const parent = valueOf(sp, callee.expression, hops + 1);
+          return parent && lib.created(sp, e, parent);
+        }
+        // A factory function that returns the library or an instance.
+        const name = ts.isIdentifier(callee)
+          ? callee
+          : ts.isPropertyAccessExpression(callee)
+            ? callee.name
+            : undefined;
+        const symbol = name && symbolAt(sp, name);
+        const fn = symbol && functionOf(resolver.checkerOf(sp), symbol);
+        return fn ? ofFactory(sp, fn, hops) : undefined;
+      }
+      if (ts.isIdentifier(e) || ts.isPropertyAccessExpression(e)) {
+        const symbol = symbolAt(sp, ts.isIdentifier(e) ? e : e.name);
+        if (symbol) return ofSymbol(sp, symbol, hops + 1);
+        if (ts.isPropertyAccessExpression(e)) {
+          const object = unwrap(e.expression);
+          // `axios.default` under `import * as axios` or `require("axios")`.
+          if (e.name.text === "default") {
+            const inner = valueOf(sp, object, hops + 1);
+            if (inner) return inner;
+          }
+          // `of.ofetch` under `import * as of from "ofetch"`, or `http.api` where `http` is a
+          // namespace import of a workspace package.
+          if (ts.isIdentifier(object)) {
+            const declaration = symbolAt(sp, object)?.declarations?.[0];
+            if (declaration && ts.isNamespaceImport(declaration)) {
+              const binding = importBinding(declaration);
+              const member = binding && lib.imported(sp, { ...binding, name: e.name.text });
+              if (member) return member;
+              return through(resolver.importTarget(sp, declaration, e.name.text), hops);
+            }
           }
         }
       }
-    }
-    return undefined;
+      return undefined;
+    };
+
+    return valueOf;
   };
+
+  /** What an expression is when it is axios or an axios instance. */
+  const axiosOf = createTracer<AxiosValue>({
+    imported: (sp, binding) =>
+      binding.module === "axios" && (binding.name === "default" || binding.name === "*")
+        ? axiosRoot(sp)
+        : undefined,
+    required: (sp, module) => (module === "axios" ? axiosRoot(sp) : undefined),
+    typed: axiosOfType,
+    created: (sp, call, parent) => {
+      const own = configProperty(sp, call.arguments[0], "baseURL");
+      return {
+        baseURL: own,
+        origin: call,
+        ...(own === undefined ? { parent } : {}),
+        confidence: parent.confidence,
+      };
+    },
+  });
+
+  // ---- ofetch ----
+
+  /** `ofetch` (or `$fetch`) imported from `ofetch`: no base and `GET` by default. */
+  const OFETCH_ROOT: OfetchValue = { baseURL: undefined, method: undefined, confidence: "exact" };
+
+  /**
+   * What an expression is when it is ofetch's `ofetch` or `$fetch`, or an instance its `create`
+   * made. `create(options)` merges `options` over the defaults of what it is called on (ofetch's
+   * `$fetch.create`), so an instance's `baseURL` and `method` are its own, else its parent's.
+   * A spread or an options value the collector can't see makes both unknown.
+   */
+  const ofetchOf = createTracer<OfetchValue>({
+    imported: (_sp, binding) =>
+      binding.module === "ofetch" && OFETCH_EXPORTS.has(binding.name) ? OFETCH_ROOT : undefined,
+    required: () => undefined,
+    typed: () => undefined,
+    created: (sp, call, parent) => {
+      const options = call.arguments[0];
+      const read = (name: string): ConfigValue =>
+        options && ts.isSpreadElement(options) ? null : configProperty(sp, options, name);
+      const baseURL = read("baseURL");
+      const method = read("method");
+      return {
+        baseURL: baseURL === undefined ? parent.baseURL : baseURL,
+        method: method === undefined ? parent.method : method,
+        confidence: parent.confidence,
+      };
+    },
+  });
 
   // ---- defaults assignments ----
 
@@ -1030,7 +1131,43 @@ export function createHttpSiteCollector(
     };
   };
 
-  /** The request a call in `file` makes, if it is a `fetch` or axios request. */
+  /**
+   * The request `instance(url, options?)` (or `instance.raw(…)`) makes with ofetch (M5C.3c).
+   * The call's own `baseURL` and `method` win over the instance's defaults, and the method is
+   * `GET` when neither sets one. `options` is `null` after a spread. Options the collector can't
+   * see are assumed not to set a `baseURL`, as for axios's shorthand calls; their `method` is
+   * re-read by wrapper inlining (M2.3) from the caller's arguments, unless the instance has a
+   * default `method` of its own.
+   */
+  const ofetchRequest = (
+    sp: ServiceProgram,
+    instance: OfetchValue,
+    url: ProgramExpression | null,
+    options: ts.Expression | null | undefined,
+  ): RequestShape => {
+    const own = (name: string): ConfigValue =>
+      options === null ? null : configProperty(sp, options, name);
+    const ownBase = own("baseURL");
+    const ownMethod = own("method");
+    let method: Pick<HttpCallSite, "method" | "methodSource">;
+    if (instance.method === undefined || (ownMethod !== undefined && ownMethod !== null)) {
+      method = configMethod(sp, options, "GET");
+    } else if (ownMethod === undefined) {
+      method = { method: methodOf(instance.method, "GET") };
+    } else {
+      method = { method: null };
+    }
+    return {
+      client: "ofetch",
+      ...method,
+      url,
+      baseURL: ownBase === undefined || ownBase === null ? instance.baseURL : ownBase,
+      baseJoin: "withBase",
+      confidence: instance.confidence,
+    };
+  };
+
+  /** The request a call in `file` makes, if it is a `fetch`, axios, or ofetch request. */
   const requestOf = (
     sp: ServiceProgram,
     file: string,
@@ -1079,6 +1216,26 @@ export function createHttpSiteCollector(
     }
 
     const callee = unwrap(call.expression);
+    const ofetch = ofetchOf(sp, callee, 0);
+    if (ofetch) return ofetchRequest(sp, ofetch, urlArg(0), arg(1));
+    if (
+      ts.isPropertyAccessExpression(callee) &&
+      (callee.name.text === "raw" || callee.name.text === "native")
+    ) {
+      const instance = ofetchOf(sp, callee.expression, 0);
+      // `x.native(…)` is the platform's `fetch`, without the instance's defaults.
+      if (instance && callee.name.text === "native") {
+        return {
+          client: "ofetch",
+          ...configMethod(sp, arg(1), "GET"),
+          url: urlArg(0),
+          baseURL: undefined,
+          confidence: instance.confidence,
+        };
+      }
+      if (instance) return ofetchRequest(sp, instance, urlArg(0), arg(1));
+    }
+
     const direct = axiosOf(sp, callee, 0);
     if (direct) {
       const first = arg(0);

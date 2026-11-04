@@ -41,6 +41,7 @@ const NAMES = [
   "env-fallback",
   "env-example-prefix",
   "vite-proxy",
+  "ofetch-client",
   "object-client",
   "config-wrapper",
   "axios-defaults",
@@ -322,6 +323,26 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     const unresolved = g.nodes.find((n) => n.kind === "unresolved");
     expect(unresolved?.kind === "unresolved" && unresolved.detail).toBe(
       "no route matches GET to /api/orders (sent as /orders by the dev proxy in client/vite.config.ts)",
+    );
+  });
+
+  it("ofetch-client: ofetch, $fetch, and create() instances reach routes (ADR-0205)", async () => {
+    const g = await run("ofetch-client");
+    const p = "ofetch-client";
+    const users = `symbol:${p}/src/users.ts`;
+    expect(links(g, "http")).toEqual([
+      `${users}#createUser -> route:${p}/POST /api/users exact`,
+      `${users}#getUser -> route:${p}/GET /api/users/:id exact`,
+      `${users}#health -> route:${p}/GET /api/health exact`,
+      `${users}#listUsers -> route:${p}/GET /api/users exact`,
+      `${users}#loadStats -> route:${p}/GET /api/v2/stats exact`,
+      `${users}#removeUser -> route:${p}/DELETE /api/users/:id exact`,
+      `${users}#signIn -> route:${p}/POST /api/auth/login exact`,
+      `${users}#track -> unresolved:${p}/src/users.ts:35:10 unresolved NO_MATCHING_ROUTE`,
+    ]);
+    const unresolved = g.nodes.find((n) => n.kind === "unresolved");
+    expect(unresolved?.kind === "unresolved" && unresolved.detail).toBe(
+      "no route matches POST to /api/events",
     );
   });
 

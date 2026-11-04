@@ -17,6 +17,7 @@ import {
   resolveURL,
   toUrlPattern,
   type UrlPart,
+  withBase,
 } from "./url.js";
 import { detectWorkspace } from "./workspace.js";
 
@@ -247,6 +248,31 @@ describe("joinBaseURL", () => {
     ["a URL starting with a hole", [t("/api")], [H], "/api/{}"],
   ])("joins %s", (_name, base, url, expected) => {
     expect(partsText(joinBaseURL(base, url))).toBe(expected);
+  });
+});
+
+describe("withBase (ofetch, M5C.3c)", () => {
+  it.each<[string, UrlPart[], UrlPart[], string]>([
+    ["a URL already under the base", [t("/api")], [t("/api/users")], "/api/users"],
+    ["a base with a trailing slash", [t("/api/")], [t("/api/users")], "/api/users"],
+    ["a URL under the base, then a hole", [t("/api")], [t("/api/users/"), H], "/api/users/{}"],
+    ["a plain prefix test, as ufo's", [t("/api")], [t("/apiary")], "/apiary"],
+    ["the root base", [t("/")], [t("/users")], "/users"],
+    ["a URL outside the base", [t("/api")], [t("/users")], "/api/users"],
+    ["a relative URL", [t("/api")], [t("users")], "/api/users"],
+    ["an absolute base", [t("https://h.com/v1")], [t("/v1/x")], "https://h.com/v1/v1/x"],
+    [
+      "an absolute base, URL under it",
+      [t("https://h.com")],
+      [t("https://h.com/x")],
+      "https://h.com/x",
+    ],
+    ["an env base (not compared)", [env("API_URL")], [t("/users")], "{env:API_URL}/users"],
+    ["a base with a hole (not compared)", [t("/api/"), H], [t("/api/x")], "/api/{}/api/x"],
+    ["a URL starting with a hole", [t("/api")], [H], "/api/{}"],
+    ["an empty base", [], [t("/users")], "/users"],
+  ])("joins %s", (_name, base, url, expected) => {
+    expect(partsText(withBase(base, url))).toBe(expected);
   });
 });
 
