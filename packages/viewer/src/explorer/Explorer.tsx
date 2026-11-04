@@ -488,15 +488,15 @@ export function Explorer({
   // A connection picked in the inspector: once its level is drawn, fly to it
   // if it's off the canvas (UX.md "selecting flies there, drilling if needed").
   // A palette pick or a changes-list row also zooms in until it's readable
-  // and moves focus to its box, so the keys go on from there.
-  const flyTo = useRef<string | null>(null);
-  const picked = useRef(false);
+  // and moves focus to its box, so the keys go on from there. The ask is
+  // state, not a ref: a click can come before an earlier render's effects
+  // have run, and that pass, on the level before the pick, would use it up
+  // without a box to focus (M5C.3a3, as M5.16b1).
+  const [flyTo, setFlyTo] = useState<{ id: string; zoomIn: boolean } | null>(null);
   useEffect(() => {
-    const id = flyTo.current;
-    if (!id || !shown || shown.view !== view) return;
-    flyTo.current = null;
-    const zoomIn = picked.current;
-    picked.current = false;
+    if (!flyTo || !shown || shown.view !== view) return;
+    setFlyTo(null);
+    const { id, zoomIn } = flyTo;
     if (zoomIn) boxElement(rootRef.current, id)?.focus({ preventScroll: true });
     const box = shown.layout.boxes.find((b) => b.id === id);
     if (!box) return;
@@ -928,8 +928,7 @@ export function Explorer({
   function pickSearch(id: string) {
     leaveDialog(true);
     setSearching(false);
-    picked.current = true;
-    reveal(id);
+    reveal(id, true);
   }
 
   /**
@@ -940,8 +939,7 @@ export function Explorer({
   function pickChange(id: string) {
     const missing = overlay && version !== "overlay" && !overlay.nodesIn[version].has(id);
     if (missing) setVersion("overlay");
-    picked.current = true;
-    reveal(id);
+    reveal(id, true);
     if (missing) {
       setAnnouncement(
         `Showing ${VERSION_TEXT.overlay}: ${nodeOf(index, id).label} isn't in ${VERSION_TEXT[version]}. ${selectionAnnouncement(index, id, hiddenKinds)}`,
@@ -1035,11 +1033,12 @@ export function Explorer({
 
   /**
    * A connection in the inspector or a palette pick: show it if the filters
-   * hide it, drill until it's a box, and select it (UX.md).
+   * hide it, drill until it's a box, and select it (UX.md). `zoomIn` (a
+   * palette pick, a changes-list row) also zooms in to read it and focuses it.
    */
-  function reveal(id: string) {
+  function reveal(id: string, zoomIn = false) {
     const shownUnder = showNode(id);
-    flyTo.current = id;
+    setFlyTo({ id, zoomIn });
     drill.reveal(id, shownUnder);
     select(id);
   }
@@ -1418,7 +1417,7 @@ export function Explorer({
             canPick={choices.length > 0}
             sources={nodeCode.sources}
             repo={nodeCode.repo}
-            onSelect={reveal}
+            onSelect={(id) => reveal(id)}
             onBreakDown={breakDown}
             onTrace={startTrace}
             filteredOut={selectedNode !== undefined && filtered.has(selectedNode.id)}

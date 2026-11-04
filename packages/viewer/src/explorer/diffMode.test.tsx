@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { diffGraphs } from "@gitinside/diff";
 import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { diffPair } from "../diffPair.testkit.js";
 import { EDGE_WORDS } from "../edges/describe.js";
 import { frameCounts } from "../layout/size.js";
@@ -597,6 +597,40 @@ describe("Explorer diff mode's changes list", { timeout: 30_000 }, () => {
     // The selection's inspector lists only its own changes.
     expect(changes()?.querySelector("h3")?.textContent).toBe("Changes here");
     expect(within(changes()!).getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("focuses a row's node even when the row is clicked before the last render's effects ran", async () => {
+    const { box } = await setup();
+    const drill = document.querySelector(".gi-drill") as HTMLElement;
+    const canvas = document.querySelector(".gi-explorer__canvas") as HTMLElement;
+    // A render outside act (a wheel pan), with React's Scheduler yielding
+    // after every task, so its effects wait for a later task, as they do on
+    // a loaded machine; the row is clicked in between. That pass of the
+    // fly-to effect, on the level before the pick, used the pick up (M5C.3a3).
+    const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    env.IS_REACT_ACT_ENVIRONMENT = false;
+    let time = performance.now();
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => (time += 10));
+    onTestFinished(() => {
+      clock.mockRestore();
+      env.IS_REACT_ACT_ENVIRONMENT = true;
+    });
+    await new Promise<void>((resolve) => {
+      new MutationObserver((_, observer) => {
+        observer.disconnect();
+        resolve();
+      }).observe(drill, { attributes: true, attributeFilter: ["style"] });
+      canvas.dispatchEvent(
+        new WheelEvent("wheel", { deltaY: 40, bubbles: true, cancelable: true }),
+      );
+    });
+    clock.mockRestore();
+    env.IS_REACT_ACT_ENVIRONMENT = true;
+    fireEvent.click(row("Removed: DELETE /api/orders/:id")!);
+    await settle();
+    await waitFor(() => expect(document.activeElement).toBe(box(DELETE_ROUTE)), {
+      timeout: 10_000,
+    });
   });
 
   it("lists a selected frame's changes inside it, and none for an unchanged node", async () => {
