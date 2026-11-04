@@ -302,7 +302,111 @@
           "Zlvsky/realm-of-dungeons"
         ]
       },
-      "examined": []
+      "examined": [
+        {
+          "repo": "fiveman1/strafes-site",
+          "verdict": "pinned",
+          "sha": "006a01090d3bdd48c5a1d8bce82a318b32dee3da",
+          "reason": "spa-plus-express: Vite React TS SPA whose fetch wrapper tryRequest builds \"/api/\" + url (15+ calls in client/src/api/api.ts); inline app.get/app.post Express routes in server/src/index.ts; yarn workspaces; ~104 files"
+        },
+        {
+          "repo": "ARITRA69/snapshotyourwebsite",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): only 2 labelable axios.post calls (both to the Express server's /take-screenshot); the rest is Next server actions"
+        },
+        {
+          "repo": "hoangsonww/Tic-Tac-Toe-Fullstack-Game",
+          "verdict": "pinned",
+          "sha": "85aad27646f31b4f918165928091e2a582d6e2b6",
+          "reason": "axios-baseurl: Vite React TS SPA with an axios instance (baseURL from REACT_APP_API_BASE / VITE_API_BASE, falling back to a deployed URL) plus fetch through an apiUrl() helper; JS Express routers mounted with app.use; ~45 files"
+        },
+        {
+          "repo": "Global-Software-Consulting/project-scaffolding-skills",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): no TS/JS source at all; Markdown skill and reference docs plus shell smoke tests"
+        },
+        {
+          "repo": "notakto/notakto-website",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): a Next.js frontend with no API routes or Express; its axios clients call a backend outside the repo through NEXT_PUBLIC_API_URL"
+        },
+        {
+          "repo": "vincenzo-afk/CHAT",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the client reaches the server only through tRPC; Express has only an OAuth callback and a storage proxy, which the frontend doesn't fetch"
+        },
+        {
+          "repo": "YOUSSEF-BT/Ai-Summarizer",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): only 2 labelable requests (apiRequest POSTs to /api/summarize and /api/translate)"
+        },
+        {
+          "repo": "panshak/accountill",
+          "verdict": "pinned",
+          "sha": "399f2a35dcdd542fc84ffaf4f35a064e62c6d22a",
+          "reason": "axios-baseurl: CRA React + Redux; an axios instance (baseURL process.env.REACT_APP_API) with ~25 one-line wrappers in client/src/api/index.js, template-literal ids and query strings; JS Express routers; ~74 files without the committed client/build bundles"
+        },
+        {
+          "repo": "vincenzo-afk/FortunoGen",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the same tRPC template as vincenzo-afk/CHAT; the client calls only tRPC procedures"
+        },
+        {
+          "repo": "thinakaranmanokaran/LinkSet",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): only 2 axios.post calls, both to a hard-coded deployed host (linkset.onrender.com)"
+        },
+        {
+          "repo": "yudinikita/expense-tracker",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the server is Fastify + Apollo GraphQL (apollo-server-fastify)"
+        },
+        {
+          "repo": "jigar-sable/instagram-mern",
+          "verdict": "pinned",
+          "sha": "50e76f3c961553fd8ed5b09145c6063a75d8580b",
+          "reason": "spa-plus-express: CRA React + Redux actions calling bare axios.get/post on root-relative /api/v1/... URLs (dev proxy); JS Express router.route(path).get().post() chains mounted at /api/v1; ~80 files without the committed frontend/build bundles"
+        },
+        {
+          "repo": "fariasmateuss/tindev",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): the React web frontend has 4 axios call sites (frontend/src/pages); the other 4 are in a React Native app (mobile/), not a v1 frontend"
+        },
+        {
+          "repo": "ibr0r0/apeeye",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): an Expo/React Native app whose server is a Cloudflare Worker with Durable Objects"
+        },
+        {
+          "repo": "ar5had/ecommerce-site-template",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): the React client sends no fetch/axios requests; Express only serves webpack dev middleware and static files"
+        },
+        {
+          "repo": "suryansh00001/IceLink",
+          "verdict": "pinned",
+          "sha": "99bf50f2f7bbf3c4ea908f09c488f0c88b0467cc",
+          "reason": "axios-baseurl: CRA React TS; an axiosInstance (baseURL REACT_APP_API_URL || 'http://localhost:5000/api') used by api modules; TS Express routers at /api/users, /api/chats, /api/messages, plus a call.routes.ts never mounted; ~72 files"
+        },
+        {
+          "repo": "pnzaou/mern-starter-cli",
+          "verdict": "pinned",
+          "sha": "0ac0fabd3c686db6d755bf2f8f150ed11065987c",
+          "reason": "axios-baseurl: a scaffolding CLI whose templates/ hold a Vite React client (axios instance, baseURL from VITE_API_URL with a localhost fallback + /api/v1, 11 calls) and a TS Express server; no per-template package.json; ~67 files"
+        },
+        {
+          "repo": "vijayshikhare/community-resource-board",
+          "verdict": "pinned",
+          "sha": "4e5d2a4de3f2e260cc11c31ccf9326e9bbbae228",
+          "reason": "axios-baseurl: CRA React; an axios instance whose baseURL comes from a normalizeBaseUrl(REACT_APP_API_URL || NODE_ENV ternary) helper, ~25 apiHelpers calls on full /api/... paths; JS Express app.use('/api/...', require(...)); ~50 files"
+        },
+        {
+          "repo": "prasadhonrao/devcamper",
+          "verdict": "pinned",
+          "sha": "883b5213057396c80c4317d727023f0915c60289",
+          "reason": "env-api-urls: CRA React services calling fetch(uri), uri from an async fetchApiEndPoint(path) whose base is read at runtime from public/config/config.json; JS Express router.route chains under /api/v1; ~67 files"
+        }
+      ]
     },
     {
       "name": "nextjs-prisma",
@@ -619,7 +723,96 @@
           "zyadhajaji/threadforge"
         ]
       },
-      "examined": []
+      "examined": [
+        {
+          "repo": "nateherkai/snagtime",
+          "verdict": "pinned",
+          "sha": "1c95490a4bfb498084fcb8295439befe194c229a",
+          "reason": "next-api-routes: App Router; one repo wrapper request(path) in lib/api-client.ts with ~45 root-relative /api/... template URLs called through api-adapter.ts; route.ts handlers with dynamic [id]/[slug] segments; ~201 files"
+        },
+        {
+          "repo": "wrujel/airbnb-clone",
+          "verdict": "pinned",
+          "sha": "988b5d367505993e22e2e54f7c69d848aeb5f3e1",
+          "reason": "next-api-routes: App Router; 8 direct axios.post/delete calls on root-relative literal and template URLs (/api/favorites/${id}, /api/reservations); route.ts handlers; ~102 files"
+        },
+        {
+          "repo": "myminethealmighty/scraper",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): the dashboard sends only 2 fetch requests (/api/jobs, /api/resume); logout is a form action and Telegram login a widget's data-auth-url"
+        },
+        {
+          "repo": "jovdim/next-auth-template",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): all data work is server actions, with no fetch or axios anywhere; the only route is NextAuth's [...nextauth]"
+        },
+        {
+          "repo": "jogeshwar01/tesior-web",
+          "verdict": "pinned",
+          "sha": "e2f26175ef3b874e22981a559fec355e3ac511f8",
+          "reason": "next-plus-server-monorepo: Turborepo with a Next app (direct root-relative fetch templates like /api/task/${id}?workspaceId=, SWR keys with a repo fetcher, route.ts) beside Cloudflare workers the frontend doesn't call; ~198 files"
+        },
+        {
+          "repo": "innovatorved/nexttalk-frontend",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): an Apollo GraphQL client to a backend outside the repo; the only routes are NextAuth's and a hello stub"
+        },
+        {
+          "repo": "Tanaka0127939/Shopify-Nextjs-Prisma-app",
+          "verdict": "pinned",
+          "sha": "a52a2e56e60a9c875366c4c51807303d25707778",
+          "reason": "next-api-routes: pages-router JS Shopify app; 3 direct root-relative fetches plus 3 through a repo hook useDataFetcher(url) to /api/apps and /api/apps/debug/gql; pages/api handlers; ~42 files"
+        },
+        {
+          "repo": "premieroctet/next-crud",
+          "verdict": "pinned",
+          "sha": "729caabc27befe5a520bb144b83e2a0e06bbd276",
+          "reason": "next-api-routes: a library with a pages-router example; root-relative fetches (/api/users, /api/users/${id}, ?page=) to a pages/api/[...nextcrud] catch-all and /api/users/custom, plus one on an API_URL env base; ~53 files"
+        },
+        {
+          "repo": "CNVioletTech/image2-ai",
+          "verdict": "rejected",
+          "reason": "Rule 5 (size): 723 TS/JS source files (498 in a Vue admin console), above 400"
+        },
+        {
+          "repo": "workforce0/workforce0",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the backend is Fastify (backend/package.json)"
+        },
+        {
+          "repo": "pizzaql/pizzaql",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the backend is a graphql-yoga GraphQL server only, with no REST routes"
+        },
+        {
+          "repo": "Shreyas-29/cura",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): only 4 axios.post calls (/api/onboarding/step-*); everything else is server actions inside useMutation"
+        },
+        {
+          "repo": "gruz0/checkmvp",
+          "verdict": "pinned",
+          "sha": "7fd7e741754fba3b0aa03f5b1e04a055e6379b93",
+          "reason": "next-api-routes: App Router; 7+ direct root-relative fetches (/api/concepts, /api/ideas/${id}/pdf, /api/apps/hypothesis_generator/${id}) plus client classes on ${this.baseURL}; route.ts handlers; ~328 files"
+        },
+        {
+          "repo": "VictorMoni/Conduit",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): GraphQL only, an Apollo client to a Nexus schema at pages/api/index.ts, with no fetch or axios to REST routes"
+        },
+        {
+          "repo": "SujalXplores/v0.diy",
+          "verdict": "pinned",
+          "sha": "eb12736c008129ba6fdab407905c34ef3068eb9c",
+          "reason": "next-api-routes: App Router; a repo wrapper requestJson(url), SWR with requestJson as fetcher, URLs from a chatUrls object of path builders (/api/chats/${id}/files), direct fetches, and URLs handed to an AI SDK transport (not labelable); ~197 files"
+        },
+        {
+          "repo": "Prathamesh-B/notx",
+          "verdict": "pinned",
+          "sha": "915b5ff14ea12c1e49c8c3fc9072c70730c5884f",
+          "reason": "next-api-routes: pages router; 6 direct fetch POSTs on literal URLs (/api/note/addNote, /api/auth/login), one written without a leading slash ('api/auth/signup'); pages/api handlers; 20 files, the size floor"
+        }
+      ]
     }
   ]
 }
