@@ -38,10 +38,14 @@ const EVAL = fileURLToPath(new URL("../", import.meta.url));
 const ROOT = resolve(EVAL, "..");
 const RESULTS = join(EVAL, "results");
 
-/** Everything the scores depend on. Reports themselves are excluded. */
+/**
+ * Everything the scores depend on. Reports themselves are excluded, and so are draw records
+ * (draw.ts): a repo only enters the scores through `repos.json` with its labels.
+ */
 const INPUT_PATHS = [
   "eval",
   ":(exclude)eval/results",
+  ":(exclude)eval/draws",
   "packages/analyzer",
   "packages/schema",
   "pnpm-lock.yaml",

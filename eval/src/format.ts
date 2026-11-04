@@ -319,7 +319,12 @@ export class EvalInputError extends Error {
   }
 }
 
-function parseWith<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, file: string, text: string): T {
+/** Parse `text` as JSON and validate it with `schema`; `file` names it in errors. */
+export function parseWith<T>(
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  file: string,
+  text: string,
+): T {
   let json: unknown;
   try {
     json = JSON.parse(text);
