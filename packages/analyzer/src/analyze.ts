@@ -440,7 +440,7 @@ async function analyzeRoot(
     "calls",
     () => {
       collect("calls", (sp) => collectCallFacts(sp, resolver));
-      return composeCallEdges(stageFacts(bundles, "calls"));
+      return composeCallEdges(stageFacts(bundles, "calls"), inlineHandlers);
     },
     () => [],
   );

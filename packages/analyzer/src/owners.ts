@@ -1,6 +1,6 @@
 /**
- * Who a call belongs to, as a per-service fact (M6.7d2, ADR-0094). The Prisma, HTTP, SDK, and
- * queue detectors draw an edge from the code a call sits in: the innermost symbol node, or the
+ * Who a call belongs to, as a per-service fact (M6.7d2, ADR-0094). The calls, Prisma, HTTP,
+ * SDK, and queue detectors draw an edge from the code a call sits in: the innermost symbol node, or the
  * routes of an inline Express handler (`app.get("/u", (req, res) => …)`) around it. Which
  * function expressions are inline handlers is only known once Express is composed over every
  * service (a router's routes come from the files that mount it), so a detector's walk records
@@ -8,7 +8,11 @@
  * the composition. The walk itself never needs another service's analysis.
  */
 import ts from "typescript";
-import { nodeKey } from "./calls.js";
+
+/** A stable key for a node: repo path, kind, and span. Equal across programs loading the file. */
+export function nodeKey(path: string, node: ts.Node): string {
+  return `${path}:${node.kind}:${node.pos}:${node.end}`;
+}
 
 /** The owners of a call before Express composition. Plain data (JSON round-trips). */
 export interface Owners {

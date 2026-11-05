@@ -3,6 +3,21 @@
   "edges": [
     {
       "confidence": "exact",
+      "from": "route:checker-crash/POST /echo",
+      "id": "calls:route:checker-crash/POST /echo->symbol:checker-crash/src/schema.js#Schema.safeParse",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 23,
+          "file": "src/server.js",
+          "line": 8
+        }
+      ],
+      "to": "symbol:checker-crash/src/schema.js#Schema.safeParse"
+    },
+    {
+      "confidence": "exact",
       "from": "symbol:checker-crash/src/schema.js#Schema.safeParse",
       "id": "calls:symbol:checker-crash/src/schema.js#Schema.safeParse->symbol:checker-crash/src/schema.js#result",
       "kind": "calls",

@@ -9,6 +9,7 @@ import {
 } from "@gitinside/schema";
 import { errorText } from "./failures.js";
 import { createModuleResolver, extractImports, type ManifestCache } from "./imports.js";
+import { bindOwners, NO_OWNERS, nodeKey, ownersAt, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { extractSymbols, symbolNodeId, unwrap } from "./symbols.js";
 import type { Workspace } from "./workspace.js";
@@ -85,10 +86,8 @@ function importOf(
     : undefined;
 }
 
-/** A stable key for a node: repo path, kind, and span. Equal across programs loading the file. */
-export function nodeKey(path: string, node: ts.Node): string {
-  return `${path}:${node.kind}:${node.pos}:${node.end}`;
-}
+// Here since M1.9; it lives in `owners.ts` so that module needs nothing from this one.
+export { nodeKey };
 
 /**
  * A checker whose `getSymbolAtLocation` answers `undefined` (no symbol known) and whose
@@ -442,11 +441,17 @@ export function createSymbolResolver(
 }
 
 /**
- * Build `calls` edges (symbol → symbol) for calls whose callee resolves to a symbol node.
+ * Build `calls` edges (symbol or inline-handler route → symbol) for calls whose callee
+ * resolves to a symbol node.
  *
  * The caller is the innermost symbol (see `extractSymbols`) whose declaration contains the
  * call, so calls inside nested functions and callbacks belong to the enclosing top-level
- * function, and calls inside a method belong to the method. The callee is resolved with the
+ * function, and calls inside a method belong to the method. A call inside an inline route
+ * handler (`app.post("/a", auth, async (req, res) => { await create(…) })`, also through a
+ * one-level wrapper `asyncHandler(async (req, res) => …)`; Express's or next-connect's
+ * `inlineHandlers`) belongs to the handler's routes instead, even inside a
+ * symbol that registers them, as Prisma, HTTP, SDK, and queue calls do (`owners.ts`,
+ * ADR-0094). The callee is resolved with the
  * service program's type checker:
  * - `f()`, `ns.f()`, `obj.method()`, `this.method()`, `super.method()`, `a["m"]()`, `new C()`
  *   (to the class), optional calls `a?.b()`, and calls through parentheses, `as`, and `!`.
@@ -464,8 +469,9 @@ export function createSymbolResolver(
  * the call passes (`args`; `new C` without parentheses passes 0), except when an argument is
  * a spread (`f(...xs)`), whose length isn't known statically.
  *
- * Not handled, and producing no edge: calls at file top level (there is no caller symbol);
- * recursion (self-edges); calls to nested functions, constructors, accessors, third-party
+ * Not handled, and producing no edge: calls at file top level outside every inline handler
+ * (there is no caller); recursion (self-edges); the wrapper call itself
+ * (`asyncHandler(…)` at top level has no caller); calls to nested functions, constructors, accessors, third-party
  * packages, and built-ins (no symbol node); JSX elements (`renders`, M1.11); tagged
  * templates and decorators; callees reached through untyped values, such as a method on an
  * instance of a class imported from another workspace package; workspace packages reached
@@ -494,14 +500,18 @@ export function createSymbolResolver(
 export function buildCallEdges(
   programs: readonly ServiceProgram[],
   resolver: SymbolResolver,
+  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
 ): GraphEdge[] {
-  return composeCallEdges(programs.map((sp) => collectCallFacts(sp, resolver)));
+  return composeCallEdges(
+    programs.map((sp) => collectCallFacts(sp, resolver)),
+    inlineHandlers,
+  );
 }
 
 /** One resolved call in a service's file, before merging into edges. */
 export interface CallFact {
-  /** The calling symbol's node ID. */
-  from: string;
+  /** Who makes the call: the calling symbol, or the routes of an inline handler around it. */
+  owners: Owners;
   /** The called symbol's node ID. */
   to: string;
   confidence: Confidence;
@@ -651,19 +661,19 @@ export function collectCallFacts(sp: ServiceProgram, resolver: SymbolResolver): 
     actions.push(...serverActions(sp, file, sourceFile));
     const browser = hasDirective(sourceFile.statements, "use client");
 
-    /** Record a call of `callee`'s symbol by `owner`, at `name`. */
+    /** Record a call of `callee`'s symbol by `owners`, at `name`. */
     const record = (
-      owner: string,
+      owners: Owners,
       callee: ts.Expression,
       name: ts.Node,
       extra: Pick<CallFact, "browser" | "passed"> & { args?: number },
     ): void => {
       const target = resolver.resolve(sp, callee);
-      if (!target || target.id === owner) return;
+      if (!target) return;
       const position = sourceFile.getLineAndCharacterOfPosition(name.getStart(sourceFile));
       const { args, ...flags } = extra;
       calls.push({
-        from: owner,
+        owners,
         to: target.id,
         confidence: target.confidence,
         site: {
@@ -676,24 +686,26 @@ export function collectCallFacts(sp: ServiceProgram, resolver: SymbolResolver): 
       });
     };
 
-    const visit = (node: ts.Node, caller: string | undefined): void => {
-      const owner = byNode.get(node) ?? caller;
-      if (owner !== undefined && (ts.isCallExpression(node) || ts.isNewExpression(node))) {
+    const visit = (node: ts.Node, outer: Owners): void => {
+      const owners = ownersAt(file, node, byNode.get(node), outer);
+      // Top-level code outside every function expression has no owner, whatever composes.
+      const owned = owners.ids.length > 0 || owners.handlers.length > 0;
+      if (owned && (ts.isCallExpression(node) || ts.isNewExpression(node))) {
         const args = node.arguments ?? [];
-        record(owner, node.expression, calleeName(node.expression) ?? node, {
+        record(owners, node.expression, calleeName(node.expression) ?? node, {
           ...(browser ? { browser: true } : {}),
           ...(args.some(ts.isSpreadElement) ? {} : { args: args.length }),
         });
       }
-      const passed = owner === undefined ? undefined : passedAction(checker, node);
-      if (owner !== undefined && passed !== undefined) {
-        record(owner, passed, calleeName(passed) ?? passed, { browser: true, passed: true });
+      const passed = owned ? passedAction(checker, node) : undefined;
+      if (passed !== undefined) {
+        record(owners, passed, calleeName(passed) ?? passed, { browser: true, passed: true });
       }
       ts.forEachChild(node, (child) => {
-        visit(child, owner);
+        visit(child, owners);
       });
     };
-    visit(sourceFile, undefined);
+    visit(sourceFile, NO_OWNERS);
   }
   return { service: sp.service.key, calls, ...(actions.length > 0 ? { actions } : {}) };
 }
@@ -701,24 +713,32 @@ export function collectCallFacts(sp: ServiceProgram, resolver: SymbolResolver): 
 /**
  * The global step over every service's {@link CallFacts}, in program order: one `calls` edge
  * per caller and callee (every site listed, `exact` if any call is), sorted by ID with sites
- * in file order. An edge into a server action (any service's) from the browser is labeled
+ * in file order. Each call's owners are bound to the routes of `inlineHandlers` (Express's
+ * and Next's, see `owners.ts`); a call with no owner, or of its own owner, makes no edge. An
+ * edge into a server action (any service's) from the browser is labeled
  * {@link SERVER_ACTION_LABEL}; a function React is passed makes an edge only if it's an action.
  */
-export function composeCallEdges(all: readonly CallFacts[]): GraphEdge[] {
+export function composeCallEdges(
+  all: readonly CallFacts[],
+  inlineHandlers: ReadonlyMap<string, readonly string[]> = new Map(),
+): GraphEdge[] {
   const actions = new Set(all.flatMap((f) => f.actions ?? []));
   const edges = new Map<string, GraphEdge>();
-  for (const { from, to, confidence, site, browser, passed } of all.flatMap((f) => f.calls)) {
+  for (const { owners, to, confidence, site, browser, passed } of all.flatMap((f) => f.calls)) {
     const action = actions.has(to);
     if (passed && !action) continue;
-    const id = edgeId("calls", from, to);
     const label = browser && action ? { label: SERVER_ACTION_LABEL } : {};
-    const existing = edges.get(id);
-    if (existing) {
-      existing.sites.push(site);
-      if (confidence === "exact") existing.confidence = "exact";
-      Object.assign(existing, label);
-    } else {
-      edges.set(id, { id, kind: "calls", from, to, confidence, ...label, sites: [site] });
+    for (const from of bindOwners(owners, inlineHandlers)) {
+      if (from === to) continue;
+      const id = edgeId("calls", from, to);
+      const existing = edges.get(id);
+      if (existing) {
+        existing.sites.push({ ...site });
+        if (confidence === "exact") existing.confidence = "exact";
+        Object.assign(existing, label);
+      } else {
+        edges.set(id, { id, kind: "calls", from, to, confidence, ...label, sites: [{ ...site }] });
+      }
     }
   }
 

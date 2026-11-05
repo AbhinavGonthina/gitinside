@@ -3,6 +3,21 @@
   "edges": [
     {
       "confidence": "exact",
+      "from": "route:api/GET /greet",
+      "id": "calls:route:api/GET /greet->symbol:shared/src/index.ts#greet",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 12,
+          "file": "apps/api/src/index.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:shared/src/index.ts#greet"
+    },
+    {
+      "confidence": "exact",
       "from": "file:api/src/index.ts",
       "id": "imports:file:api/src/index.ts->file:shared/src/index.ts",
       "kind": "imports",
