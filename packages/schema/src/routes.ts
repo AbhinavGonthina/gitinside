@@ -105,12 +105,28 @@ function segmentLevel(segment: UrlSegment, route: RouteSegment): number {
   }
 }
 
+/** Options for {@link alignSegments}. */
+export interface AlignOptions {
+  /**
+   * Whether a wildcard of a route with no literal segment (`/*splat`, Express `*`,
+   * `/:lang/*rest`) may take a wholly unknown call segment (`{}`). Default true; the analyzer's
+   * matcher and the diff pass false: such a route matches every path, so a match that rests
+   * on it taking an unread value says nothing about where the request goes (ADR-0033, M5C.7c).
+   */
+  rootWildcardsTakeHoles?: boolean;
+}
+
 /**
  * The best level ({@link ALIGN}) at which a call's path segments align with a route's.
  * Dynamic programming over (call segment, route segment), so optional params and
  * wildcards cost O(call × route) rather than backtracking.
  */
-export function alignSegments(call: readonly UrlSegment[], route: readonly RouteSegment[]): number {
+export function alignSegments(
+  call: readonly UrlSegment[],
+  route: readonly RouteSegment[],
+  { rootWildcardsTakeHoles = true }: AlignOptions = {},
+): number {
+  const wildcardsTakeHoles = rootWildcardsTakeHoles || route.some((r) => r.kind === "literal");
   const memo = new Map<number, number>();
   const width = route.length + 1;
   const go = (i: number, j: number): number => {
@@ -122,6 +138,8 @@ export function alignSegments(call: readonly UrlSegment[], route: readonly Route
     let best: number = FAIL;
     if (r?.kind === "wildcard") {
       for (let k = r.min; i + k <= call.length; k++) {
+        const taken = call[i + k - 1];
+        if (!wildcardsTakeHoles && k > 0 && taken && isHole(taken)) break;
         best = Math.min(best, Math.max(PATTERN, go(i + k, j + 1)));
       }
     } else if (r) {

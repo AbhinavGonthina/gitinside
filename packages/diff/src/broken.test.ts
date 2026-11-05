@@ -259,6 +259,13 @@ describe("detectBroken: HTTP calls re-resolved against base routes", () => {
     expect(reasons(base, head)).toEqual([]);
   });
 
+  it("doesn't take a wholly unknown part into a catch-all of every path, as the matcher doesn't (M5C.7c)", () => {
+    const { base, head } = routePair("GET", "/*splat", "GET /files/{}");
+    expect(reasons(base, head)).toEqual([]);
+    const under = routePair("GET", "/files/*", "GET /files/{}");
+    expect(reasons(under.base, under.head)).toEqual(["TARGET_REMOVED: GET /files/* was removed"]);
+  });
+
   it("is ROUTE_CHANGED when the handler now serves another route, also after the handler moved", () => {
     const { base, head } = routePair("POST", "/api/orders", "POST /api/orders");
     const put = route("PUT", "/api/orders");

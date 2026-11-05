@@ -107,7 +107,8 @@ export function parseHttpLabel(label: string): HttpCall | undefined {
 /**
  * Whether a call could reach a route, by the analyzer's rules (`match.ts`): methods equal,
  * an `ALL` route or request, `HEAD` to a `GET` route, or an unknown method; and the path
- * aligns at any level.
+ * aligns at any level, with no wildcard of a route without literals (`/*`) taking a wholly
+ * unknown segment (M5C.7c).
  */
 function reaches(call: HttpCall, route: RouteNode): boolean {
   const { method } = call;
@@ -117,7 +118,10 @@ function reaches(call: HttpCall, route: RouteNode): boolean {
     route.method === "ALL" ||
     method === route.method ||
     (method === "HEAD" && route.method === "GET");
-  return methodOk && alignSegments(call.segments, parseRoutePath(route.path)) !== ALIGN.FAIL;
+  const aligned = alignSegments(call.segments, parseRoutePath(route.path), {
+    rootWildcardsTakeHoles: false,
+  });
+  return methodOk && aligned !== ALIGN.FAIL;
 }
 
 const lowerFirst = (name: string): string => name.charAt(0).toLowerCase() + name.slice(1);
