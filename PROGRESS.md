@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.14b3h Re-run the milestone checks after M5.14b3b–g, fill in R1–R14's outcomes, tag m5 (M5.14b4 waits on #22)
+M5C.6 Act on Abhinav's decision on #18 (option 2, precision first): plan the fixes as one task per general pattern (M5.14b4 waits on #22)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -212,7 +212,7 @@ M5.14b3h Re-run the milestone checks after M5.14b3b–g, fill in R1–R14's outc
 - [x] M5.14b3g1 Stranded queued rows (R10): a row `queued` past every attempt's window (3 × 330 s plus backoff) gets a fresh task on the next request instead of 24 h of `ALREADY_EXISTS`; tests red first, ADR-0147 amendment {model: opus}
 - [x] M5.14b3g2 Secret Manager reads (R11): counted per cold start with the compute meters and paused at 80% of the free reads; tests red first {model: opus}
 - [x] M5.14b3g3 The OIDC header (R12): confirm from Vercel's docs whether a client-sent `x-vercel-oidc-token` is replaced, else prefer `VERCEL_OIDC_TOKEN`; tests red first {model: opus}
-- [ ] M5.14b3h Re-run the milestone checks after M5.14b3b–g (suite uncached, CI green, `pnpm eval --check`), fill in R1–R14's outcomes and CI at the tag in M5-review.md, tag m5 {model: opus}
+- [x] M5.14b3h Re-run the milestone checks after M5.14b3b–g (suite uncached, CI green, `pnpm eval --check`), fill in R1–R14's outcomes and CI at the tag in M5-review.md, tag m5 {model: opus}
 - [ ] M5.14b4 `compute_usage` vs Google's settled billing report (#22, M5.14b2: the report read on #21 hadn't caught up): Nov 1–4 by SKU against our count (attribute the 677.1 s with #22's per-row job times: jobs vs startup, shutdown, maintenance); the kill switch's requests per #22, and if it's the rest of Google's 51, size its monthly share and count it or reserve it out of `COMPUTE_ALLOWANCE` (tests red first), plus a worker crash-looping before `meter.startup` (R13); ADR-0156 amendment, M5-review.md {model: opus} {blocked: #22}
 - [x] M5.14c M5 review follow-up (ADR-0079, ADR-0080): guard `getTypeAtLocation` like `getSymbolAtLocation` (eval re-record) {model: opus}
 - [x] M5.14d M5 review follow-ups, web: stale head cache showing an older commit as current after a job; no "Analyze again" for permanent failures {model: opus}
@@ -379,6 +379,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **2026-11-05 M5.14b3h:** M5 tagged `m5`. Uncached suite 4,180 passed + 4 CI-only skipped (15/15 tasks, 0 cached), root typecheck and lint clean, `pnpm eval --check` reproduced `2026-11-05-0.2.0.md` byte-for-byte. CI run 42023270111 at `5e0ced9` green on all five jobs; its coverage table and the at-tag counts are in M5-review.md, with R13 the one open finding (M5.14b4, #22). Docs only. Next M5C.6.
 - **2026-11-05 M5.14b3g3:** R12 fixed. Vercel's docs (OIDC reference, request headers) don't say a client-sent `x-vercel-oidc-token` is replaced, and they say a function gets the token only in that header, so `VERCEL_OIDC_TOKEN` can't be preferred in production. Instead `GoogleTokenSource.token(subject?)` refreshes with the calling request's own token, and a pending refresh is shared only by callers with the same subject. Red first: a forged header arriving between a genuine request's setup and its refresh made the genuine one fail. ADR-0142 amendment; web 681/681. Next M5.14b3h.
 - **2026-11-05 M5.14b3g2 (R11):** `compute_usage.secret_accesses` (migration `0008`, additive) and a fifth meter `secret_manager` (10,000 a month, pause at 8,000 = 2,000 starts). The worker counts `SECRET_READS_PER_START` (4, pinned to `service.json`) right after the database opens, before the sweep, so a failed start still counts; Cloud Run's docs confirm env-var secrets resolve at each instance start. ADR-0156 amendment, SECURITY.md T9. Tests red first (and a mutation check); full `pnpm test` green (db 152, worker 639, web 677). No eval delta.
 - **2026-11-05 M5.14b3g1 (R10):** split M5.14b3g into g1–g3. A `queued` row whose task Cloud Tasks gave up on now gets a fresh task from the next request: `findAnalysisToQueue` (web) fails it with `QUEUE_UNAVAILABLE` via `failStrandedAnalysis` (db) once it's waited 1,200 s and a dispatch slot is free (fewer than 2 rows running younger than 330 s), so the caller treats it as a new analysis with every limit. ADR-0147 amendment; constants pinned to `queue.json`. Tests red first; db 150, web 676 passed; typecheck and lint clean. No eval delta.
