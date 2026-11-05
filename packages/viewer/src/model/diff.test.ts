@@ -256,6 +256,57 @@ describe("buildDiffOverlay on the diff-rename pair", () => {
     expectClosed(overlay, "head");
   });
 
+  it("draws an importer left on a moved file's old path as a broken, removed edge to its new place", () => {
+    const app = `file:${p}/src/app.ts`;
+    const moved = `file:${p}/src/orders/routes.ts`;
+    const missed = `unresolved:${p}/src/app.ts:2:24`;
+    const source = { file: "src/app.ts", line: 2, column: 24 };
+    const stayed = parseGraph({
+      ...head,
+      nodes: [
+        ...head.nodes,
+        {
+          id: missed,
+          kind: "unresolved",
+          label: "./routes/orders",
+          parentId: app,
+          reason: "UNKNOWN_SYMBOL",
+          expression: "./routes/orders",
+          source,
+        },
+      ],
+      edges: [
+        ...head.edges.filter((e) => e.id !== `imports:${app}->${moved}`),
+        {
+          id: `imports:${app}->${missed}`,
+          kind: "imports",
+          from: app,
+          to: missed,
+          confidence: "unresolved",
+          reason: "UNKNOWN_SYMBOL",
+          sites: [source],
+        },
+      ],
+    });
+    const contents = { base: fromDisk(`${p}-base`), head: fromDisk(`${p}-head`) };
+    const d = diffGraphs(base, stayed, { contents });
+    const o = buildDiffOverlay(base, stayed, d);
+    const baseEdge = `imports:${app}->file:${p}/src/routes/orders.ts`;
+    expect([...o.broken.values()]).toEqual([
+      {
+        edge: baseEdge,
+        from: app,
+        to: moved,
+        reason: "TARGET_MOVED",
+        detail: "src/routes/orders.ts is now at src/orders/routes.ts",
+      },
+    ]);
+    expect(o.edges.get(baseEdge)).toBe("removed");
+    expect(o.graph.edges.find((e) => e.id === baseEdge)).toMatchObject({ from: app, to: moved });
+    expectClosed(o, "base");
+    expectClosed(o, "head");
+  });
+
   it("puts a removed node under its renamed parent's head ID", () => {
     // Head without one of the moved file's symbols: it's removed, from a renamed file.
     const gone = `symbol:${p}/src/orders/routes.ts#orders`;

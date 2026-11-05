@@ -404,6 +404,84 @@ describe("detectBroken: imports and Prisma models", () => {
     expect(diff.broken).toEqual([]);
   });
 
+  describe("a moved file whose importer didn't follow (M6 review C1)", () => {
+    const moved: GraphNode = {
+      ...legacy,
+      id: nodeId("file", "api", "src/old/legacy.ts"),
+      path: "apps/api/src/old/legacy.ts",
+    };
+    /** Base: client and server import legacy. Head: legacy moved; server follows, client keeps `specifier`. */
+    const movePair = (specifier: string) => {
+      const base = graph(
+        "a1b2c3f",
+        [...BASE_NODES, legacy],
+        [edge("imports", clientFile, legacy.id), edge("imports", serverFile, legacy.id)],
+      );
+      const [n, e] = unresolvedCall("imports", clientFile, 1, {
+        label: specifier,
+        expression: specifier,
+        reason: "UNKNOWN_SYMBOL",
+      });
+      const head = graph(
+        "d4e5f60",
+        [...BASE_NODES, moved, n],
+        [e, edge("imports", serverFile, moved.id)],
+      );
+      return { base, head };
+    };
+
+    it("is broken, TARGET_MOVED, naming where the file went", () => {
+      const { base, head } = movePair("./lib/legacy");
+      const diff = diffGraphs(base, head);
+      expect(diff.nodes.renamed.map((r) => [r.from, r.node.id])).toEqual([[legacy.id, moved.id]]);
+      expect(diff.broken).toEqual([
+        {
+          edge: edgeId("imports", clientFile, legacy.id),
+          from: clientFile,
+          to: legacy.id,
+          reason: "TARGET_MOVED",
+          detail: "apps/api/src/lib/legacy.ts is now at apps/api/src/old/legacy.ts",
+          sites: [loc("apps/api/src/client.ts", 1)],
+        },
+      ]);
+      expect(diff.edges.removed).toEqual([edgeId("imports", clientFile, legacy.id)]);
+      expect(stringifyGraph(applyDiff(base, diff))).toBe(stringifyGraph(head));
+    });
+
+    it("isn't broken when the importer now imports another file", () => {
+      const { base, head } = movePair("./lib/other");
+      expect(diffGraphs(base, head).broken).toEqual([]);
+    });
+
+    it("reports the renamed importer as the source", () => {
+      const { base, head } = movePair("./lib/legacy");
+      const client2 = nodeId("file", "api", "src/client2.ts");
+      const moveClient = (id: string) => (id === clientFile ? client2 : id);
+      const both = graph(
+        "d4e5f60",
+        head.nodes.map((n) =>
+          n.id === clientFile
+            ? { ...n, id: client2, path: "apps/api/src/client2.ts" }
+            : n.parentId === clientFile
+              ? { ...n, parentId: client2 }
+              : n,
+        ),
+        head.edges.map((e) => ({
+          ...e,
+          id: edgeId(e.kind, moveClient(e.from), e.to),
+          from: moveClient(e.from),
+        })),
+      );
+      const renames = new Map([
+        [clientFile, client2],
+        [legacy.id, moved.id],
+      ]);
+      expect(detectBroken(base, both, renames).map((b) => [b.from, b.to, b.reason])).toEqual([
+        [client2, legacy.id, "TARGET_MOVED"],
+      ]);
+    });
+  });
+
   const invoice: GraphNode = {
     id: nodeId("model", "api", "Invoice"),
     kind: "model",

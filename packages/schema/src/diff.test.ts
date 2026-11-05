@@ -240,6 +240,33 @@ describe("GraphDiff", () => {
     ]);
   });
 
+  it("requires a TARGET_MOVED edge to be removed, to a renamed target", () => {
+    const imports = edgeId("imports", page, renamedFrom);
+    const moved = sampleDiff();
+    moved.edges.removed.push(imports);
+    moved.broken.push({
+      edge: imports,
+      from: page,
+      to: renamedFrom,
+      reason: "TARGET_MOVED",
+      detail: "apps/api/src/order.ts is now at apps/api/src/orders.ts",
+      sites: [loc("apps/web/lib/api.ts", 1)],
+    });
+    moved.summary = summarizeDiff(moved);
+    expect(messages(moved)).toEqual([]);
+
+    const kept = structuredClone(moved);
+    kept.edges.removed = kept.edges.removed.filter((id) => id !== imports);
+    kept.summary = summarizeDiff(kept);
+    expect(messages(kept)).toEqual([`broken edge ${imports} isn't a removed edge`]);
+
+    const notRenamed = structuredClone(moved);
+    notRenamed.broken[1] = { ...notRenamed.broken[1]!, to: model };
+    expect(messages(notRenamed)).toEqual([
+      `broken edge ${imports} (TARGET_MOVED) targets ${model}, which isn't renamed`,
+    ]);
+  });
+
   it("requires modified and updated entries to name a change, and never `id`", () => {
     const d = sampleDiff();
     d.nodes.modified[0] = { ...d.nodes.modified[0]!, changes: [] };

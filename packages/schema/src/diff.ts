@@ -49,6 +49,8 @@ export const BrokenReason = z.enum([
   "TARGET_REMOVED",
   /** The target route's method or path changed. */
   "ROUTE_CHANGED",
+  /** The target was renamed or moved (a file to another folder), but the source still asks for it where it was. */
+  "TARGET_MOVED",
   /** The target function needs more arguments than the call passes. */
   "PARAMETERS_ADDED",
   /** A model field the source reads or writes was removed. */
@@ -191,19 +193,23 @@ function checkIntegrity(diff: DiffShape, ctx: z.RefinementCtx): void {
   );
 
   // A broken edge's source is in head. Its target is gone (`TARGET_REMOVED`,
-  // `ROUTE_CHANGED`), or still there but changed (`PARAMETERS_ADDED`, `FIELD_REMOVED`:
-  // the edge itself survives, ADR-0088).
+  // `ROUTE_CHANGED`), renamed while the edge wasn't (`TARGET_MOVED`: the base edge is
+  // removed), or still there but changed (`PARAMETERS_ADDED`, `FIELD_REMOVED`: the edge
+  // itself survives, ADR-0088).
   const removedNodes = new Set(nodes.removed);
   const removedEdges = new Set(edges.removed);
-  const changedNodes = new Set([
-    ...nodes.modified.map((c) => c.node.id),
-    ...nodes.renamed.map((r) => r.from),
-  ]);
+  const renamedNodes = new Set(nodes.renamed.map((r) => r.from));
+  const changedNodes = new Set([...nodes.modified.map((c) => c.node.id), ...renamedNodes]);
   for (const b of diff.broken) {
     if (b.reason === "TARGET_REMOVED" || b.reason === "ROUTE_CHANGED") {
       if (!removedEdges.has(b.edge)) issue(`broken edge ${b.edge} isn't a removed edge`);
       if (!removedNodes.has(b.to))
         issue(`broken edge ${b.edge} targets ${b.to}, which isn't removed`);
+    } else if (b.reason === "TARGET_MOVED") {
+      if (!removedEdges.has(b.edge)) issue(`broken edge ${b.edge} isn't a removed edge`);
+      if (!renamedNodes.has(b.to)) {
+        issue(`broken edge ${b.edge} (${b.reason}) targets ${b.to}, which isn't renamed`);
+      }
     } else {
       if (removedEdges.has(b.edge)) issue(`broken edge ${b.edge} (${b.reason}) was removed`);
       if (!changedNodes.has(b.to)) {

@@ -60,7 +60,6 @@ Every incremental test compares warm and cold bytes over fixture edits (edit, ad
 ## What's still weak
 
 - **Real commits don't speed up on a shared-library monorepo:** cal.com's real commits run at parity because one shared package reaches 88 services. The cache only skips unchanged services; re-collecting one is no cheaper. Finer-grained invalidation (per file within a service) wasn't attempted.
-- **Renames are broken silently** (C1): a caller left behind by a move is not flagged as broken.
 - **Broken-route detection drifts from the matcher** (C2): routes reached through example-env prefixes, dev proxies, or `basePath` are never flagged.
 - **Inline Express handlers' calls aren't drawn** (smoke S2, from M1, not M6): a route's trace stops at the route, and a PR that removes a function those handlers call flags nothing.
 - **A rename plus an edit in one commit is a removal and an addition:** `creatArticle` → `createArticle` with about 15 lines added scores under the 0.8 body threshold (see the smoke test). This is by design (ADR-0086), but it's the common shape of a real rename.
@@ -85,7 +84,7 @@ Findings marked "confirmed" were traced in the code by the reviewer; "plausible"
 
 | # | Severity | Finding | Outcome |
 |---|---|---|---|
-| C1 | Medium (confirmed) | A target that was renamed or moved never counts as broken (`broken.ts` `gone`), even when a caller didn't follow: `util.ts` moves, one importer keeps `./util` (`UNKNOWN_SYMBOL` in head), and the diff shows a rename, a removed edge, and an unresolved node, but no break | Planned: M6.11b |
+| C1 | Medium (confirmed) | A target that was renamed or moved never counts as broken (`broken.ts` `gone`), even when a caller didn't follow: `util.ts` moves, one importer keeps `./util` (`UNKNOWN_SYMBOL` in head), and the diff shows a rename, a removed edge, and an unresolved node, but no break | Fixed in M6.11b: `TARGET_MOVED` ("… is now at …"), ADR-0087 amendment |
 | C2 | Medium (confirmed) | `parseHttpLabel` re-resolves only `{env:…}` and loopback origins; the matcher also applies example-env prefixes, dev-proxy rewrites, and `basePath`/rewrites, so a removed route reached through them isn't flagged (ADR-0087 promised no drift) | Planned: M6.11c |
 | C3 | Medium (confirmed) | `KEY_FORMAT` bumps are manual, one was missed (M5B.7e), and no test catches it; a CLI `--cache` folder would serve stale facts | Planned: M6.11f |
 | C4 | Medium (confirmed) | DESIGN.md's "≤ 10 s incremental" budget had no status, though cal.com's real commits run at 0.96–1.01× | Fixed in this task: marked **Not met** with the numbers |
