@@ -272,6 +272,52 @@ describe("createRouteMatcher", () => {
     );
   });
 
+  it("doesn't match a wholly unknown part to catch-alls of every path alone (M5C.7c)", () => {
+    const spa = createRouteMatcher(
+      [
+        route("api", "GET /*splat"),
+        route("api", "GET /api/items/:id"),
+        route("api", "GET /api/teams/:id/*rest"),
+        route("web", "GET /docs/*slug"),
+        route("web", "ALL /files/*"),
+      ],
+      workspace,
+    );
+    const s = (spec: string, file = "apps/web/src/client.ts") =>
+      show(spa.match(request(spec, file)));
+    expect(s("GET /api/{}")).toBe(
+      "NO_MATCHING_ROUTE: only a catch-all of every path matches /api/{} (GET /*splat), so its unknown part doesn't pick a route",
+    );
+    expect(s("GET /v/{}/{}", "apps/api/a.ts")).toBe(
+      "NO_MATCHING_ROUTE: only a catch-all of every path matches /v/{}/{} (GET /*splat), so its unknown part doesn't pick a route",
+    );
+    const express = createRouteMatcher(
+      [route("api", "ALL *"), route("api", "GET /:a/*b")],
+      workspace,
+    );
+    expect(show(express.match(request("POST /api/{}", "apps/api/a.ts")))).toBe(
+      "NO_MATCHING_ROUTE: only a catch-all of every path matches /api/{} (ALL *), so its unknown part doesn't pick a route",
+    );
+    expect(show(express.match(request("GET /api/{}", "apps/api/a.ts")))).toBe(
+      "NO_MATCHING_ROUTE: only a catch-all of every path matches /api/{} (ALL *, GET /:a/*b), so its unknown part doesn't pick a route",
+    );
+    // A catch-all under a literal (Next's `pages/api/[...slug]`) takes the unknown part: the
+    // request named its prefix.
+    expect(s("GET /docs/{}")).toBe("pattern route:web/GET /docs/*slug");
+    expect(s("POST /files/{}")).toBe("pattern route:web/ALL /files/*");
+    // A literal path under a catch-all, a param taking the unknown part, and a partly
+    // literal segment still match.
+    expect(s("GET /api/health")).toBe("heuristic route:api/GET /*splat");
+    expect(s("GET /docs/intro")).toBe("pattern route:web/GET /docs/*slug");
+    expect(s("GET /docs/v-{}")).toBe("pattern route:web/GET /docs/*slug");
+    expect(s("GET /api/items/{}")).toBe("heuristic route:api/GET /api/items/:id");
+    expect(s("GET /api/teams/{}", "apps/api/a.ts")).toBe(
+      "pattern route:api/GET /api/teams/:id/*rest",
+    );
+    // Other failures keep their own detail.
+    expect(s("POST /api/{}")).toBe("NO_MATCHING_ROUTE: no route matches POST to /api/{}");
+  });
+
   it("links every equally good route, one level weaker, and records AMBIGUOUS", () => {
     expect(m("GET /v1/{}/items", "apps/api/a.ts")).toBe("exact route:api/GET /v1/:org/items");
     expect(m("GET /v1/acme/{}", "apps/api/a.ts")).toBe("pattern route:api/GET /v1/:org/:kind");

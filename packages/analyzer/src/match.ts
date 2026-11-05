@@ -41,7 +41,11 @@
  *      matches a param too, as a possible match (`pattern`).
  *    - A partly literal segment (`user-{}`) matches a literal it can spell (`pattern`). A pure
  *      hole never matches a literal: nothing says the runtime value is that literal.
- *    - A wildcard (`*`, `*rest`, `:p*`, `:p+`) takes the rest of its segments (`pattern`).
+ *    - A wildcard (`*`, `*rest`, `:p*`, `:p+`, Next's `[...slug]`) takes the rest of its
+ *      segments (`pattern`). In a route with no literal segment (a SPA's `GET /*splat`,
+ *      Express `*`), it never takes a pure hole (M5C.7c): such a route matches every path, so
+ *      `/api/{}` against it doesn't say where the request goes. When only such routes would
+ *      take a request, it is unresolved (`NO_MATCHING_ROUTE`, naming them).
  *    - An optional param (`:id?`) may be absent (`exact`).
  *
  * Choosing among matches: only the strongest level counts. At that level, the strongest path
@@ -372,6 +376,17 @@ export function createRouteMatcher(
       }
       const own = serviceForFile(workspace, request.file)?.key;
 
+      /**
+       * Why a path matched nothing when only catch-alls would have taken it (M5C.7c): the
+       * first such path's sentence, used in place of the plain "no route matches".
+       */
+      let catchAllOnly: string | undefined;
+      const noRoute = (detail: string): RouteMatch => ({
+        kind: "unresolved",
+        reason: "NO_MATCHING_ROUTE",
+        detail: clip(catchAllOnly ?? detail),
+      });
+
       /** The routes `path` from `caller`'s service matches, or undefined when none does. */
       const rank = (
         path: readonly UrlSegment[],
@@ -382,15 +397,28 @@ export function createRouteMatcher(
         let best = FAIL;
         let bestPath = FAIL;
         let matched: IndexedRoute[] = [];
+        /** Routes with no literal matched only by a wildcard taking a wholly unknown segment. */
+        const catchAlls: IndexedRoute[] = [];
         for (const route of candidates(request.method, path[0])) {
-          const aligned = alignSegments(path, route.segments);
+          // A route with no literal matches every path, so its wildcard never takes a hole:
+          // `/api/{}` against a SPA's `/*splat` says nothing about where it goes (M5C.7c).
+          const aligned = alignSegments(path, route.segments, { rootWildcardsTakeHoles: false });
           const level = Math.max(
             baseLevel(base, caller, route),
             methodLevel(request.method, route),
             aligned,
             listed.has(route.id) ? HEURISTIC : EXACT,
           );
-          if (level === FAIL) continue;
+          if (level === FAIL) {
+            if (aligned === FAIL && alignSegments(path, route.segments) !== FAIL) {
+              const other = Math.max(
+                baseLevel(base, caller, route),
+                methodLevel(request.method, route),
+              );
+              if (other !== FAIL) catchAlls.push(route);
+            }
+            continue;
+          }
           if (level < best || (level === best && aligned < bestPath)) {
             best = level;
             bestPath = aligned;
@@ -399,7 +427,13 @@ export function createRouteMatcher(
             matched.push(route);
           }
         }
-        if (best === FAIL) return undefined;
+        if (best === FAIL) {
+          if (catchAlls.length > 0 && catchAllOnly === undefined) {
+            const names = [...new Set(catchAlls.map((r) => labels.get(r.id) ?? r.id))];
+            catchAllOnly = `only a catch-all of every path matches ${url.text} (${names.sort(compareStrings).join(", ")}), so its unknown part doesn't pick a route`;
+          }
+          return undefined;
+        }
         // The request's own method beats an `ALL` route at the same level.
         if (request.method !== null && request.method !== "ALL") {
           const specific = matched.filter((r) => r.method !== "ALL");
@@ -447,13 +481,10 @@ export function createRouteMatcher(
           };
         }
         return (
-          rank(sent.segments, undefined) ?? {
-            kind: "unresolved",
-            reason: "NO_MATCHING_ROUTE",
-            detail: clip(
-              `no route matches ${request.method ?? "a request"} to ${url.text} (sent as ${formatProxyPath(sent.segments)} by the dev proxy in ${proxy.config})`,
-            ),
-          }
+          rank(sent.segments, undefined) ??
+          noRoute(
+            `no route matches ${request.method ?? "a request"} to ${url.text} (sent as ${formatProxyPath(sent.segments)} by the dev proxy in ${proxy.config})`,
+          )
         );
       }
 
@@ -491,7 +522,7 @@ export function createRouteMatcher(
         // is any service's, as for a dev proxy's target.
         return (
           rank(rewritten.segments, target.kind === "internal" ? own : undefined) ??
-          unread(
+          noRoute(
             `no route matches ${request.method ?? "a request"} to ${url.text} (rewritten to ${formatProxyPath(rewritten.segments)} by ${app.config})`,
           )
         );
@@ -514,11 +545,8 @@ export function createRouteMatcher(
           : "";
       return (
         prefixed ??
-        rank(segments, own) ?? {
-          kind: "unresolved",
-          reason: "NO_MATCHING_ROUTE",
-          detail: clip(`no route matches ${request.method ?? "a request"} to ${url.text}${hint}`),
-        }
+        rank(segments, own) ??
+        noRoute(`no route matches ${request.method ?? "a request"} to ${url.text}${hint}`)
       );
     },
   };

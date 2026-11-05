@@ -31,4 +31,19 @@ describe("route grammar", () => {
     expect(alignSegments(call("/api/orders"), parseRoutePath("/api/orders/:id"))).toBe(ALIGN.FAIL);
     expect(alignSegments(call("/files/a/b"), parseRoutePath("/files/*"))).toBe(ALIGN.PATTERN);
   });
+
+  it("can keep a route with no literal from taking a wholly unknown segment (M5C.7c)", () => {
+    const strict = { rootWildcardsTakeHoles: false };
+    expect(alignSegments(call("/api/{}"), parseRoutePath("/*splat"))).toBe(ALIGN.PATTERN);
+    expect(alignSegments(call("/api/{}"), parseRoutePath("/*splat"), strict)).toBe(ALIGN.FAIL);
+    expect(alignSegments(call("/v/{}"), parseRoutePath("/:lang/*rest"), strict)).toBe(ALIGN.FAIL);
+    expect(alignSegments(call("/{}"), parseRoutePath("/:p+"), strict)).toBe(ALIGN.FAIL);
+    // Literals still go under it, its wildcard may take nothing, and a param takes a hole.
+    expect(alignSegments(call("/api/a/b"), parseRoutePath("/*splat"), strict)).toBe(ALIGN.PATTERN);
+    expect(alignSegments(call("/{}"), parseRoutePath("/:id/*rest"), strict)).toBe(ALIGN.PATTERN);
+    // A catch-all under a literal still takes an unknown rest.
+    expect(alignSegments(call("/api/{}/x"), parseRoutePath("/api/:p+"), strict)).toBe(
+      ALIGN.PATTERN,
+    );
+  });
 });
