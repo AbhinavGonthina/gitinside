@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5C.5b3 Batch 4 labels, repos 9–12 (snagtime, airbnb-clone, tesior-web, Shopify-Nextjs-Prisma-app), committed with their `repos.json` entries before any run, under ADR-0209's rules (M5.14b2–b3 wait on #21)
+M5C.5b4 Batch 4 labels, repos 13–16 (next-crud, checkmvp, v0.diy, notx), committed with their `repos.json` entries before any run, plus EVALUATION.md's batch 4 table (M5.14b2–b3 wait on #21)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -316,7 +316,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M5C.5b Batch 4 labels drafted from the code and committed before any run, split into b1–b4 in the draw's pin order (4 repos each, each committed with its `repos.json` entries, `"heldOut": 4`; batch 4 declared `"seen": null`; no `pnpm eval` until M5C.5c, so the committed report stays stale meanwhile):
 - [x] M5C.5b1 Label `fiveman1/strafes-site`, `hoangsonww/Tic-Tac-Toe-Fullstack-Game`, `panshak/accountill`, `jigar-sable/instagram-mern` {model: opus}
 - [x] M5C.5b2 Label `suryansh00001/IceLink`, `pnzaou/mern-starter-cli`, `vijayshikhare/community-resource-board`, `prasadhonrao/devcamper` {model: opus}
-- [ ] M5C.5b3 Label `nateherkai/snagtime`, `wrujel/airbnb-clone`, `jogeshwar01/tesior-web`, `Tanaka0127939/Shopify-Nextjs-Prisma-app` {model: opus}
+- [x] M5C.5b3 Label `nateherkai/snagtime`, `wrujel/airbnb-clone`, `jogeshwar01/tesior-web`, `Tanaka0127939/Shopify-Nextjs-Prisma-app` {model: opus}
 - [ ] M5C.5b4 Label `premieroctet/next-crud`, `gruz0/checkmvp`, `SujalXplores/v0.diy`, `Prathamesh-B/notx`; EVALUATION.md's batch 4 table {model: opus}
 - [ ] M5C.5c Score batch 4 once, blind: recall, precision, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 before deciding on another round {model: opus}
 
@@ -356,6 +356,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+- **2026-11-04 M5C.5b3** (labels `4f8c9d8`): snagtime 70 labels (all routed; 22 in Playwright tests and a load-check script), airbnb-clone 8 (all routed), tesior-web 24 (21 routed; GitHub and CoinGecko external, and an edge middleware fetch on a scheme-less env host is `null`), Shopify app 6 (all routed, two `ALL` handlers). Four readers drafted; I printed every label's call-site and route line from the checkout and grepped each tree. EVALUATION.md now settles test/script fetches (labeled; `page.request` isn't) and env bases with no value (followed only with in-code evidence, else `null`). `validate`: 24 repos, 668 labels at 663 call sites.
 - **2026-11-04 M5C.5b2** (labels `989581c`): IceLink 17 labels (all routed), mern-starter-cli 11 (all routed), community-resource-board 50 (all routed), devcamper 33 (28 routed; four client paths match no route, one static config fetch). Four parallel readers drafted; I re-checked every request expression in each tree with `git grep` and every route line. EVALUATION.md now settles build-mode bases (development value), runtime config files (read the same way), and regex-constrained params (dropped). `validate`: 20 repos, 560 labels at 555 call sites.
 - **2026-11-04 M5C.5b1** (`5d220c2`): M5C.5b was split into b1–b4, four pins each. The first four were labeled from their code (strafes-site 44, Tic-Tac-Toe 20, accountill 27, instagram-mern 28) and pinned as `"heldOut": 4`, with batch 4 declared unseen. The analyzer never ran on them and `pnpm eval` waits for M5C.5c, so the committed report is stale meanwhile. ADR-0209: a literal public host is followed into the repo only with in-repo deployment evidence (Tic-Tac-Toe's `vercel.json`), and committed generated code is labeled. Four parallel readers drafted the files; every label was re-checked against the source, and 2 missed wasm-glue fetches were added.
 - **2026-11-04 M5C.5a2** (pools `0ae417c`, walk `9865768`): both pools were snapshotted (290 and 306, the totals read before the rule) and committed before any candidate was read. `react-express` pinned 8 of 19 read (6 rejected on rule 3, 5 on rule 4) and `nextjs-prisma` 8 of 16 (4 on rule 3, 3 on rule 4, 1 on rule 5). Every pin's SHA was checked against its clone's HEAD. One reader went 2 candidates past the quota; `validate` refused the record, and neither candidate is in the batch.
