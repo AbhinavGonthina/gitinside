@@ -525,8 +525,63 @@ const vector = fc.array(fc.nat(9_999), { minLength: LENGTH, maxLength: LENGTH })
 const graphArb = vector.map((values) => build(new Choices(values), "a1b2c3d"));
 
 /**
+ * `built` with the file in `slot` moved to `moved_<name>` in its folder, same text (a
+ * rename by hash), everything under it and every edge to it following; except imports
+ * from the files `stays` picks, which keep the old specifier and become unresolved, as the
+ * analyzer reports an importer that didn't follow (`TARGET_MOVED`).
+ */
+function moveFile(built: Built, slot: FileSlot, stays: (importer: string) => boolean): Built {
+  if (!built.graph.nodes.some((n) => n.id === slot.id)) return built;
+  const was = `${slot.service}/${slot.folder}/${slot.name}`;
+  const now = `${slot.service}/${slot.folder}/moved_${slot.name}`;
+  const moved = JSON.parse(JSON.stringify(built.graph).replaceAll(was, now)) as ArchitectureGraph;
+  const movedId = nodeId("file", slot.service, `${slot.folder}/moved_${slot.name}`);
+  const nodes = moved.nodes.map((n) =>
+    n.id === movedId ? { ...n, label: `moved_${slot.name}` } : n,
+  );
+  const files = new Map(nodes.flatMap((n) => (n.kind === "file" ? [[n.id, n] as const] : [])));
+  const edges: GraphEdge[] = [];
+  for (const e of moved.edges) {
+    const importer = files.get(e.from);
+    const follows =
+      e.kind !== "imports" || e.to !== movedId || e.from === movedId || !stays(e.from);
+    if (follows || importer === undefined) {
+      edges.push(e);
+      continue;
+    }
+    const spec = specifier(importer.path, slot.path);
+    const [service = "", ...rest] = importer.id.slice("file:".length).split("/");
+    const source = { file: importer.path, line: 99, column: 1 };
+    const id = nodeId("unresolved", service, `${rest.join("/")}:99:1`);
+    nodes.push({
+      id,
+      kind: "unresolved",
+      label: spec,
+      parentId: importer.id,
+      reason: "UNKNOWN_SYMBOL",
+      expression: spec,
+      source,
+    });
+    edges.push({
+      id: edgeId("imports", importer.id, id),
+      kind: "imports",
+      from: importer.id,
+      to: id,
+      confidence: "unresolved",
+      reason: "UNKNOWN_SYMBOL",
+      sites: [source],
+    });
+  }
+  const texts = new Map(
+    [...built.texts].map(([path, text]) => [path.replace(was, now), text] as const),
+  );
+  return { graph: parseGraph({ ...moved, nodes, edges }), texts };
+}
+
+/**
  * A base/head pair: head reads base's choices with a share of them (5%, 15%, or 30%)
- * replaced, and the diff gets the file texts or not.
+ * replaced, half the time one file moves (`moveFile`), and the diff gets the file texts
+ * or not.
  */
 const pairArb = fc
   .record({
@@ -534,12 +589,18 @@ const pairArb = fc
     alt: vector,
     mask: vector,
     rate: fc.constantFrom(5, 15, 30),
+    move: fc.nat(2 * FILE_SLOTS.length - 1),
+    stayMask: fc.nat(2 ** FILE_SLOTS.length - 1),
     withContents: fc.boolean(),
   })
-  .map(({ base, alt, mask, rate, withContents }) => {
+  .map(({ base, alt, mask, rate, move, stayMask, withContents }) => {
     const head = base.map((v, i) => ((mask[i] ?? 0) % 100 < rate ? (alt[i] ?? v) : v));
     const before = build(new Choices(base), "a1b2c3d");
-    const after = build(new Choices(head), "e4f5a6b");
+    const slot = FILE_SLOTS[move];
+    const stays = (importer: string) =>
+      ((stayMask >> FILE_SLOTS.findIndex((f) => f.id === importer)) & 1) === 1;
+    const built = build(new Choices(head), "e4f5a6b");
+    const after = slot === undefined ? built : moveFile(built, slot, stays);
     const contents: FileContents | undefined = withContents
       ? { base: (p) => before.texts.get(p), head: (p) => after.texts.get(p) }
       : undefined;
@@ -598,6 +659,7 @@ describe("diff properties (fast-check)", { timeout: 60_000 }, () => {
         "FIELD_REMOVED",
         "PARAMETERS_ADDED",
         "ROUTE_CHANGED",
+        "TARGET_MOVED",
         "TARGET_REMOVED",
         "edge rename",
         "modified",

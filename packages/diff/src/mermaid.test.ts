@@ -227,6 +227,35 @@ describe("renderMermaidSummary on hand-built graphs", () => {
     expect(text).toContain("  linkStyle 0 stroke:#a87700,stroke-width:2px");
   });
 
+  it("says a connection to a moved file broke because the target moved", () => {
+    const moved = nodeId("file", "api", "src/srv.ts");
+    const missed = nodeId("unresolved", "web", "src/page.ts:1:1");
+    const base = graph(nodes, [edge("imports", page, server)]);
+    const head = graph(
+      [
+        ...nodes.map((n) =>
+          n.id === server
+            ? ({ ...n, id: moved, label: "srv.ts", path: "apps/api/src/srv.ts" } as GraphNode)
+            : n.parentId === server
+              ? { ...n, parentId: moved }
+              : n,
+        ),
+        {
+          id: missed,
+          kind: "unresolved",
+          label: "../../api/src/server",
+          parentId: page,
+          reason: "UNKNOWN_SYMBOL",
+          expression: "../../api/src/server",
+          source: { file: "apps/web/src/page.ts", line: 1, column: 1 },
+        },
+      ],
+      [{ ...edge("imports", page, missed), confidence: "unresolved", reason: "UNKNOWN_SYMBOL" }],
+    );
+    expect(diffGraphs(base, head).broken.map((b) => b.reason)).toEqual(["TARGET_MOVED"]);
+    expect(summary(base, head)).toContain('  n1 -.->|"Broken: target moved"| n2');
+  });
+
   it("names the service when two drawn nodes would read the same", () => {
     const pg = (service: string): Extract<GraphNode, { kind: "datastore" }> => ({
       id: nodeId("datastore", service, "postgres"),

@@ -342,18 +342,18 @@ The files a relative specifier can name, the way TypeScript resolves it without 
 
 ### `stillCalls(edge, target, source, node)` (lines 129–156)
 
-Given a base edge whose target is gone, and one unresolved node a head edge of the same kind reaches from the same source: is this the same call?
+Given a base edge whose target is gone (or moved while this edge didn't follow), and one unresolved node a head edge of the same kind reaches from the same source: is this the same call?
 
 - **`http` ⇒ route:** only `NO_MATCHING_ROUTE` nodes (a `DYNAMIC_URL` call never resolved to the route in the first place), and `parseHttpLabel` + `reaches`.
 - **`imports` ⇒ file:** only `UNKNOWN_SYMBOL` nodes from a file, and the specifier (the node's `expression`) must name the target's path.
 - **`reads`/`writes` ⇒ model:** only `UNKNOWN_SYMBOL`, and the expression's second-to-last part must be the model's accessor: `prisma.invoice.findMany` ⇒ `invoice` = `lowerFirst("Invoice")`. This is Prisma's own naming rule for client accessors.
 - Anything else: `false` (not handled, documented).
 
-### `explain(target, replacedBy)` (lines 159–174)
+### `explain(target, replacedBy, movedTo)` (lines 158–183)
 
-The user-facing words: a removed route with replacements ⇒ `ROUTE_CHANGED`, "POST /api/orders is now PUT /api/orders" (several joined with "or"); otherwise `TARGET_REMOVED`, "src/legacy.ts was removed" (files by path, models as "model X", others by label).
+The user-facing words, with targets named by `nameOf` (files by path, models as "model X", others by label): a target head renamed or moved (`movedTo`, its head self) ⇒ `TARGET_MOVED`, "src/routes/orders.ts is now at src/orders/routes.ts" ("X moved" if both read the same); a removed route with replacements ⇒ `ROUTE_CHANGED`, "POST /api/orders is now PUT /api/orders" (several joined with "or"); otherwise `TARGET_REMOVED`, "src/legacy.ts was removed".
 
-### `contractBreak(target, now, edge)` (lines 206–242)
+### `contractBreak(target, now, edge)` (lines 215–251)
 
 For targets that **survive** but changed what they accept (ADR-0088). The analyzer records the facts this needs: each TypeScript symbol's `requiredParams`, each call site's argument count (`args`), and each Prisma site's `missingFields` (names the call uses that head's model lacks).
 
@@ -362,24 +362,26 @@ For targets that **survive** but changed what they accept (ADR-0088). The analyz
 
 Only the offending sites are listed, never every site of the edge.
 
-### `detectBroken(base, head, renames)` (lines 270–357)
+### `detectBroken(base, head, renames)` (lines 284–377)
 
-**Setup** (275–294):
+**Setup** (289–310):
 
-- `gone(id)`: not in head **and** not renamed. A moved file isn't gone.
+- `gone(id)`: not in head **and** not renamed. A moved file isn't gone, but pass 1 still checks it (step 3 below).
+- `headEdges`: head edges by ID, for "did this edge follow the move?" and for pass 2.
 - `headOut`: head edges by source.
 - `handlersOf`: base route ⇒ its handler symbols (from `handles` edges).
 - `newRoutesOf`: head handler ⇒ routes it serves that are **new** in head (not in base, not a rename target). This is how `ROUTE_CHANGED` is told apart from `TARGET_REMOVED`: the same handler now serves a different route.
 
-**Pass 1, targets gone** (296–334). For each base edge:
+**Pass 1, targets gone or left behind** (311–355). For each base edge:
 
-1. 299: skip unless its target is gone. Targets that are themselves `unresolved` are skipped (an unresolved call that vanished isn't a broken connection).
-2. 300–302: the source as it is in head (its rename, if any). **No head source ⇒ skip.** This line is why `GET /api/health` isn't broken: `ping` was removed too.
-3. 304–312: the head edges from that source of the **same kind** that end at an unresolved node for which `stillCalls` holds. None ⇒ the call is really gone, skip.
-4. 314–319: replacements: for each of the target's base handlers (through its rename), the new head routes it serves.
-5. 320–333: the broken edge, with the head call sites of the matching edges, deduplicated by location and sorted.
+1. 314: targets that are themselves `unresolved` are skipped (an unresolved call that vanished isn't a broken connection).
+2. 315–317: the source as it is in head (its rename, if any). **No head source ⇒ skip.** This line is why `GET /api/health` isn't broken: `ping` was removed too.
+3. 318–322: the target must be gone, or renamed (`movedTo`) with **no head edge of this kind from the source to its new ID**. If that edge exists, the caller followed the move and the edge is a plain rename. If it doesn't, the base edge is removed, and the question is whether the caller still asks for the old place (M6.11b, review finding C1).
+4. 324–332: the head edges from that source of the **same kind** that end at an unresolved node for which `stillCalls` holds, against the target **as base had it** (its old path). None ⇒ the call is really gone, skip.
+5. 334–339: replacements: for each of the target's base handlers (through its rename), the new head routes it serves.
+6. 340–354: the broken edge, with the head call sites of the matching edges, deduplicated by location and sorted; `explain` picks `TARGET_MOVED` when `movedTo` is set.
 
-**Pass 2, targets that survive** (337–355). For each base edge, map both endpoints through renames; if the target still exists in head and head still has the edge between the same (renamed) endpoints, ask `contractBreak`. The two passes can't both fire for one edge: pass 1 needs the target gone, pass 2 needs it present.
+**Pass 2, targets that survive** (357–375). For each base edge, map both endpoints through renames; if the target still exists in head and head still has the edge between the same (renamed) endpoints, ask `contractBreak`. The two passes can't both fire for one edge: pass 1 needs the target gone or the edge removed, pass 2 needs the target present and the edge kept.
 
 The result is sorted by edge ID.
 
@@ -397,14 +399,15 @@ The result is sorted by edge ID.
 
 ### What it deliberately doesn't detect
 
-From the header comment (lines 264–268), with the reason in each case being "no head evidence in the graph":
+From the header comment (lines 276–282), with the reason in each case being "no head evidence in the graph":
 
 - Calls to **removed functions**: the analyzer makes no unresolved node for a call it can't resolve to a symbol, so head holds nothing to re-resolve.
 - **Aliased or package imports** (`@/x`, `@acme/shared`): `relativeImportTargets` can't map them.
 - **Clipped URL labels**, and `renders`, `publishes`, `consumes`, `external_call`, `stores` edges.
+- A source that follows a moved target with one call and keeps the old path with another: its edge is renamed (it followed), so it's no candidate.
 - Symbols with **no `requiredParams`** (JavaScript, overloads, inherited constructors), **parameter type** changes, and model fields whose **type changed or became required**.
 
-`broken.test.ts:444` pins the first one down as documented behaviour.
+`broken.test.ts:522` pins the first one down as documented behaviour.
 
 ---
 
@@ -496,6 +499,7 @@ You understand the graph diff when you can answer each of these without looking:
 - [ ] The diff has no TypeScript program. How does it know `placeOrder` still POSTs to `/api/orders`? What did the analyzer have to do for this to work?
 - [ ] Why does `stillCalls` accept only `NO_MATCHING_ROUTE` for HTTP, and why does `parseHttpLabel` refuse clipped labels and remote hosts?
 - [ ] How is `ROUTE_CHANGED` told apart from `TARGET_REMOVED`?
+- [ ] `util.ts` moved to `lib/util.ts`; one importer followed and one kept `./util`. Which base edge is renamed, which is broken, and what tells `detectBroken` the two apart? Why is the moved file matched at its base path?
 - [ ] Why isn't `GET /api/health` broken? Name the line.
 - [ ] In `PARAMETERS_ADDED`, why `args >= was` and not just `args < needs`? Why are spread calls never flagged?
 - [ ] Why can't one base edge be broken by both passes?

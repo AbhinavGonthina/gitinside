@@ -155,22 +155,31 @@ function stillCalls(
   }
 }
 
-/** Why a target no longer answers, in the words shown to the user. */
+/** A target in the words shown to the user: files by path, models as "model X", others by label. */
+const nameOf = (node: GraphNode): string =>
+  node.kind === "file" ? node.path : node.kind === "model" ? `model ${node.label}` : node.label;
+
+/**
+ * Why a target no longer answers, in the words shown to the user. `movedTo` is the
+ * target's head self when it was renamed or moved rather than removed.
+ */
 function explain(
   target: GraphNode,
   replacedBy: readonly RouteNode[],
+  movedTo: GraphNode | undefined,
 ): Pick<BrokenEdge, "reason" | "detail"> {
+  if (movedTo !== undefined) {
+    const was = nameOf(target);
+    const now = nameOf(movedTo);
+    const detail =
+      was === now ? `${was} moved` : `${was} is now ${movedTo.kind === "file" ? "at " : ""}${now}`;
+    return { reason: "TARGET_MOVED", detail };
+  }
   if (target.kind === "route" && replacedBy.length > 0) {
     const now = replacedBy.map((r) => r.label).join(" or ");
     return { reason: "ROUTE_CHANGED", detail: `${target.label} is now ${now}` };
   }
-  const what =
-    target.kind === "file"
-      ? target.path
-      : target.kind === "model"
-        ? `model ${target.label}`
-        : target.label;
-  return { reason: "TARGET_REMOVED", detail: `${what} was removed` };
+  return { reason: "TARGET_REMOVED", detail: `${nameOf(target)} was removed` };
 }
 
 /** Append `value` to the list under `key`. */
@@ -243,15 +252,18 @@ function contractBreak(
 
 /**
  * Broken connections (DESIGN.md §8 step 4, ADR-0087): base edges whose target is gone
- * from head (removed, not renamed) while their source, or what it was renamed to, still
- * makes the call. "Still makes the call" is decided by re-resolving head's unresolved
- * calls from that source against the base target:
+ * from head, or renamed while the edge didn't follow it (no head edge to the renamed
+ * target), while their source, or what it was renamed to, still makes the call. "Still
+ * makes the call" is decided by re-resolving head's unresolved calls from that source
+ * against the base target, as it was in base:
  * - `http` ⇒ route: a `NO_MATCHING_ROUTE` call whose method and path reach the route by the
  *   analyzer's own path grammar. If head has a new route served by the same handler (or
  *   its renamed self), the reason is `ROUTE_CHANGED` ("POST /x is now PUT /x").
  * - `imports` ⇒ file: an `UNKNOWN_SYMBOL` relative specifier naming the file's path.
  * - `reads`/`writes` ⇒ model: an `UNKNOWN_SYMBOL` Prisma call through the model's accessor.
- * Each broken edge lists the head call sites that still make the call.
+ * A renamed or moved target is `TARGET_MOVED` ("src/util.ts is now at src/lib/util.ts",
+ * ADR-0087's M6.11b amendment): a file moved by hash or content while one importer kept
+ * the old specifier. Each broken edge lists the head call sites that still make the call.
  *
  * Base edges whose target survives (by ID or rename) are broken when the target's contract
  * changed under a call that still exists in head (ADR-0088):
@@ -263,9 +275,11 @@ function contractBreak(
  *
  * Doesn't handle (no head evidence in the graph): calls to removed functions (unresolved
  * calls make no node), aliased or package imports (`@/x`, `@acme/shared`), clipped URL
- * labels, `renders`/`publishes`/`consumes`/`external_call`/`stores` edges, symbols with no
- * `requiredParams` (JavaScript, overloads, inherited constructors), parameters whose type
- * changed, and model fields whose type changed or became required.
+ * labels, a source that follows a renamed target with one call and not another (its edge
+ * is renamed, so it isn't a candidate), `renders`/`publishes`/`consumes`/`external_call`/
+ * `stores` edges, symbols with no `requiredParams` (JavaScript, overloads, inherited
+ * constructors), parameters whose type changed, and model fields whose type changed or
+ * became required.
  */
 export function detectBroken(
   base: ArchitectureGraph,
@@ -293,13 +307,19 @@ export function detectBroken(
     add(newRoutesOf, edge.to, route);
   }
 
+  const headEdges = new Map(head.edges.map((e) => [e.id, e]));
   const out: BrokenEdge[] = [];
   for (const edge of base.edges) {
     const target = baseNodes.get(edge.to);
-    if (target === undefined || target.kind === "unresolved" || !gone(target.id)) continue;
+    if (target === undefined || target.kind === "unresolved") continue;
     const from = renames.get(edge.from) ?? edge.from;
     const source = headNodes.get(from);
     if (source === undefined) continue;
+    // A renamed target counts only when this edge didn't follow it (it's removed).
+    const movedId = renames.get(target.id);
+    const movedTo = movedId === undefined ? undefined : headNodes.get(movedId);
+    if (movedTo !== undefined && headEdges.has(edgeId(edge.kind, from, movedTo.id))) continue;
+    if (movedTo === undefined && !gone(target.id)) continue;
 
     const calls = (headOut.get(from) ?? []).filter((e) => {
       const node = headNodes.get(e.to);
@@ -328,13 +348,13 @@ export function detectBroken(
       ...explain(
         target,
         [...replacedBy.values()].sort((a, b) => compareStrings(a.id, b.id)),
+        movedTo,
       ),
       sites: [...sites.values()].sort(compareLocations),
     });
   }
 
   // Targets that survive but changed their contract (ADR-0088).
-  const headEdges = new Map(head.edges.map((e) => [e.id, e]));
   for (const edge of base.edges) {
     const target = baseNodes.get(edge.to);
     const from = renames.get(edge.from) ?? edge.from;

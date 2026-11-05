@@ -56,6 +56,7 @@ const KIND_WORDS: Record<NodeKind, string> = {
 const BROKEN_WORDS: Record<BrokenReason, string> = {
   TARGET_REMOVED: "target removed",
   ROUTE_CHANGED: "route changed",
+  TARGET_MOVED: "target moved",
   PARAMETERS_ADDED: "needs more arguments",
   FIELD_REMOVED: "field removed",
 };
