@@ -1,0 +1,169 @@
+{
+  "repo": "premieroctet/next-crud",
+  "sha": "729caabc27befe5a520bb144b83e2a0e06bbd276",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "example/Api.ts", "line": 491 },
+      "method": "GET",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "Generated swagger-typescript-api client (committed source, ADR-0209): users.usersList's this.request({ path: `/users`, method: \"GET\" }) fixes the path; HttpClient.request (line 405) builds `${baseUrl || this.baseUrl}${path}` and calls customFetch's fetch (line 306), the helper's inner request. The class default baseUrl is \"http://localhost:3000/api\" (line 302), the example's own `next dev` (default port 3000, example/.env says the same). Never instantiated in the repo, but a request written in repo source. /api/users is served by the pages-router catch-all, whose handler hands every method to NextCrud: ALL"
+    },
+    {
+      "callSite": { "file": "example/Api.ts", "line": 507 },
+      "method": "POST",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "usersCreate: this.request({ path: `/users`, method: \"POST\" }) on the localhost:3000/api default base; pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/Api.ts", "line": 525 },
+      "method": "GET",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "usersDetail: this.request({ path: `/users/${id}`, method: \"GET\" }); pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/Api.ts", "line": 541 },
+      "method": "PUT",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "usersUpdate: this.request({ path: `/users/${id}`, method: \"PUT\" }); pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/Api.ts", "line": 559 },
+      "method": "DELETE",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "usersDelete: this.request({ path: `/users/${id}`, method: \"DELETE\" }); pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/Api.ts", "line": 588 },
+      "method": "GET",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "posts.postsList: this.request({ path: `/posts`, method: \"GET\" }); /api/posts reaches the pages/api catch-all (no literal file for it), ALL"
+    },
+    {
+      "callSite": { "file": "example/Api.ts", "line": 604 },
+      "method": "POST",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "postsCreate: this.request({ path: `/posts`, method: \"POST\" }); pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/Api.ts", "line": 622 },
+      "method": "GET",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "postsDetail: this.request({ path: `/posts/${id}`, method: \"GET\" }); pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/Api.ts", "line": 638 },
+      "method": "PUT",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "postsUpdate: this.request({ path: `/posts/${id}`, method: \"PUT\" }); pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/Api.ts", "line": 656 },
+      "method": "DELETE",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "postsDelete: this.request({ path: `/posts/${id}`, method: \"DELETE\" }); pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/pages/index.tsx", "line": 10 },
+      "method": "GET",
+      "target": {
+        "file": "example/pages/api/users/custom.ts",
+        "line": 3,
+        "route": "GET /api/users/custom"
+      },
+      "notes": "onCustomUserHandler: fetch('/api/users/custom'), root-relative. Next serves the literal pages/api/users/custom.ts before the [...nextcrud] catch-all. Its handler's whole body is if (req.method === 'GET') { … } with no else, so it serves only GET (like a switch on req.method with no default)"
+    },
+    {
+      "callSite": { "file": "example/pages/users/[id].tsx", "line": 22 },
+      "method": "PUT",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "onSubmit: fetch(`/api/users/${user.id}`, { method: 'PUT' }); pages/api catch-all, whose handler hands every method to NextCrud: ALL"
+    },
+    {
+      "callSite": { "file": "example/pages/users/[id].tsx", "line": 71 },
+      "method": "GET",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "getServerSideProps: fetch(`${process.env.API_URL}/users/${ctx.query.id}`) on the server. No in-code fallback; the committed example/.env sets API_URL=http://localhost:3000/api and the example runs `next dev` (default port 3000), so it reaches its own /api/users/:id, served by the pages/api catch-all: ALL"
+    },
+    {
+      "callSite": { "file": "example/pages/users/create.tsx", "line": 14 },
+      "method": "POST",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "onSubmit: fetch(`/api/users`, { method: 'POST' }); pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/pages/users/index.tsx", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "useInfiniteQuery's query function: fetch (line 27) with `/api/users?page=${pageParam}` on the next line; query dropped, pages/api catch-all, ALL"
+    },
+    {
+      "callSite": { "file": "example/pages/users/index.tsx", "line": 52 },
+      "method": "DELETE",
+      "target": {
+        "file": "example/pages/api/[...nextcrud].ts",
+        "line": 32,
+        "route": "ALL /api/*nextcrud"
+      },
+      "notes": "onDeleteUser: fetch(`/api/users/${id}`, { method: 'DELETE' }); pages/api catch-all, ALL"
+    }
+  ]
+}

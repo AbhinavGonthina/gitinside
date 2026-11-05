@@ -1,0 +1,273 @@
+{
+  "repo": "SujalXplores/v0.diy",
+  "sha": "eb12736c008129ba6fdab407905c34ef3068eb9c",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/features/chat/components/preview-panel.tsx", "line": 128 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/preview-url/route.ts",
+        "line": 9,
+        "route": "GET /api/chats/:chatId/preview-url"
+      },
+      "notes": "reload(): requestJson(chatUrls.previewUrl(chatId)); chatUrls.previewUrl builds `/api/chats/${id}/preview-url` (chat-api.ts line 24). requestJson(url, init) (lib/http-client.ts) is fetch(url, …) on the path it is given, so the label is at this requestJson call; no init, so GET"
+    },
+    {
+      "callSite": { "file": "src/features/chat/hooks/use-chat-session.ts", "line": 221 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/resume/route.ts",
+        "line": 10,
+        "route": "POST /api/chats/:chatId/resume"
+      },
+      "notes": "resume(): fetch(chatUrls.resume(chatId), { method: \"POST\", signal }), handed to runExternalStream as a request function; chatUrls.resume is `/api/chats/${id}/resume`"
+    },
+    {
+      "callSite": { "file": "src/features/chat/hooks/use-chat-session.ts", "line": 323 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/resolve/route.ts",
+        "line": 13,
+        "route": "POST /api/chats/:chatId/resolve"
+      },
+      "notes": "resolveTask(): fetch(chatUrls.resolve(chatId), { method: \"POST\", … }); chatUrls.resolve is `/api/chats/${id}/resolve`"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 37 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/messages/route.ts",
+        "line": 13,
+        "route": "GET /api/chats/:chatId/messages"
+      },
+      "notes": "fetchMessagesPage(): requestJson(`${chatUrls.messages(chatId)}?${params}`, {}); query dropped; empty init, so GET. The path is fixed here (the helper takes an id, not a path), so the label is at this requestJson call"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 48 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/messages/[messageId]/stop/route.ts",
+        "line": 10,
+        "route": "POST /api/chats/:chatId/messages/:messageId/stop"
+      },
+      "notes": "stopMessage(): requestJson(chatUrls.stop(chatId, messageId), { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 59 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/restore/route.ts",
+        "line": 9,
+        "route": "POST /api/chats/:chatId/restore"
+      },
+      "notes": "restoreMessage(): requestJson(chatUrls.restore(chatId), { method: \"POST\", json })"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 67 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/files/route.ts",
+        "line": 9,
+        "route": "GET /api/chats/:chatId/files"
+      },
+      "notes": "fetchFiles(): requestJson(chatUrls.files(chatId), {}). code-panel.tsx's useSWR([chatUrls.files(chatId), revision], () => fetchFiles(chatId)) passes a fetcher that ignores its key and calls this helper, which fixes the path itself, so the label is here, not at the useSWR call"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 74 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/files/route.ts",
+        "line": 18,
+        "route": "PATCH /api/chats/:chatId/files"
+      },
+      "notes": "updateFiles(): requestJson(chatUrls.files(chatId), { method: \"PATCH\", json })"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 84 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/deploy/route.ts",
+        "line": 7,
+        "route": "POST /api/chats/:chatId/deploy"
+      },
+      "notes": "deployChat(): requestJson(chatUrls.deploy(chatId), { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 94 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/project/route.ts",
+        "line": 7,
+        "route": "POST /api/chats/:chatId/project"
+      },
+      "notes": "createVercelProject(): requestJson(chatUrls.project(chatId), { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 102 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/duplicate/route.ts",
+        "line": 11,
+        "route": "POST /api/chats/:chatId/duplicate"
+      },
+      "notes": "duplicateChat(): requestJson(chatUrls.duplicate(chatId), { method: \"POST\", json: {} }); also re-exported by chats/lib/chat-actions-api.ts"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 110 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/migrate/route.ts",
+        "line": 17,
+        "route": "POST /api/chats/:chatId/migrate"
+      },
+      "notes": "migrateChat(): requestJson(chatUrls.migrate(chatId), { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 124 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/import/files/route.ts",
+        "line": 10,
+        "route": "POST /api/chats/import/files"
+      },
+      "notes": "importChat(source): requestJson(`/api/chats/import/${kind}`, { method: \"POST\" }), kind from the ImportSource union \"repo\" | \"zip\" | \"files\"; import-menu.tsx passes all three as literals (kind: \"files\" at line 147), so one label per route (ADR-0041). The literal import segment wins over [chatId] in Next's routing"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 124 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/import/repo/route.ts",
+        "line": 10,
+        "route": "POST /api/chats/import/repo"
+      },
+      "notes": "importChat(source) with kind: \"repo\" (import-menu.tsx line 167); see the files label"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 124 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/chats/import/zip/route.ts",
+        "line": 10,
+        "route": "POST /api/chats/import/zip"
+      },
+      "notes": "importChat(source) with kind: \"zip\" (import-menu.tsx line 127); see the files label"
+    },
+    {
+      "callSite": { "file": "src/features/chat/lib/chat-api.ts", "line": 141 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/connect-status/route.ts",
+        "line": 11,
+        "route": "GET /api/chats/:chatId/connect-status"
+      },
+      "notes": "fetchConnectStatus(): requestJson(chatUrls.connectStatus(chatId, requestId), {}); the builder appends ?requestId=…, query dropped"
+    },
+    {
+      "callSite": { "file": "src/features/chats/hooks/use-user-chats.ts", "line": 12 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/chats/route.ts",
+        "line": 15,
+        "route": "GET /api/chats"
+      },
+      "notes": "useSWR(isSignedIn ? USER_CHATS_CACHE_KEY : null) with no fetcher of its own: SWR calls the global fetcher from SWRConfig (components/providers/swr-provider.tsx line 11, requestJson(url)) with the key, so the label is at this useSWR call; USER_CHATS_CACHE_KEY = chatUrls.list = \"/api/chats\". Conditional key, still one label. The mutate(USER_CHATS_CACHE_KEY) revalidations elsewhere aren't labeled"
+    },
+    {
+      "callSite": { "file": "src/features/chats/lib/chat-actions-api.ts", "line": 10 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/route.ts",
+        "line": 20,
+        "route": "PATCH /api/chats/:chatId"
+      },
+      "notes": "renameChat(): requestJson(chatUrls.chat(chatId), { method: \"PATCH\", json: { title } }); chatUrls.chat is `/api/chats/${id}`"
+    },
+    {
+      "callSite": { "file": "src/features/chats/lib/chat-actions-api.ts", "line": 18 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/route.ts",
+        "line": 41,
+        "route": "DELETE /api/chats/:chatId"
+      },
+      "notes": "deleteChat(): requestJson(chatUrls.chat(chatId), { method: \"DELETE\" })"
+    },
+    {
+      "callSite": { "file": "src/features/chats/lib/chat-actions-api.ts", "line": 31 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/chats/[chatId]/route.ts",
+        "line": 20,
+        "route": "PATCH /api/chats/:chatId"
+      },
+      "notes": "updateChatVisibility(): requestJson(chatUrls.chat(chatId), { method: \"PATCH\", json: { privacy } })"
+    },
+    {
+      "callSite": { "file": "src/features/credits/lib/credits-api.ts", "line": 13 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/user/credits/route.ts",
+        "line": 5,
+        "route": "GET /api/user/credits"
+      },
+      "notes": "fetchCredits = () => requestJson(CREDITS_URL, {}), CREDITS_URL = \"/api/user/credits\". credits-summary.tsx's useSWR(CREDITS_URL, fetchCredits) hands SWR a fetcher that ignores the key and fixes the path itself, so the label is here, not at the useSWR call"
+    },
+    {
+      "callSite": { "file": "src/features/v0-api-key/lib/v0-api-key-api.ts", "line": 13 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/user/v0-key/route.ts",
+        "line": 41,
+        "route": "GET /api/user/v0-key"
+      },
+      "notes": "fetchV0ApiKeyStatus(): requestJson(V0_KEY_ENDPOINT), \"/api/user/v0-key\"; no init, so GET. Reached from use-v0-api-key-form.ts's useSWR(isOpen ? \"v0-api-key-status\" : null, fetchV0ApiKeyStatus), whose key is a cache name, not a URL, and whose fetcher fixes the path itself"
+    },
+    {
+      "callSite": { "file": "src/features/v0-api-key/lib/v0-api-key-api.ts", "line": 17 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/user/v0-key/route.ts",
+        "line": 55,
+        "route": "PUT /api/user/v0-key"
+      },
+      "notes": "saveV0ApiKey(): requestJson(V0_KEY_ENDPOINT, { method: \"PUT\", json })"
+    },
+    {
+      "callSite": { "file": "src/features/v0-api-key/lib/v0-api-key-api.ts", "line": 25 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/user/v0-key/route.ts",
+        "line": 73,
+        "route": "DELETE /api/user/v0-key"
+      },
+      "notes": "deleteV0ApiKey(): requestJson(V0_KEY_ENDPOINT, { method: \"DELETE\" })"
+    },
+    {
+      "callSite": { "file": "src/server/chats/legacy-chats.ts", "line": 58 },
+      "method": "GET",
+      "target": null,
+      "notes": "getLegacyChat(): requestV1(apiKey, `/chats/${chatId}`). requestV1(apiKey, path) (server/v0/legacy-api.ts) is fetch(`${LEGACY_V0_API_URL}${path}`) with no method, LEGACY_V0_API_URL the literal \"https://api.v0.dev/v1\" (server/env.ts): v0's API, an external host"
+    },
+    {
+      "callSite": { "file": "src/server/chats/legacy-chats.ts", "line": 113 },
+      "method": "GET",
+      "target": null,
+      "notes": "migrateLegacyChat(): requestV1(apiKey, `/chats/${legacyChatId}`) to https://api.v0.dev/v1, external"
+    },
+    {
+      "callSite": { "file": "src/server/chats/legacy-chats.ts", "line": 124 },
+      "method": "GET",
+      "target": null,
+      "notes": "migrateLegacyChat(): requestV1(apiKey, `/chats/${legacyChatId}/versions/${versionId}/download?…`) to https://api.v0.dev/v1, external"
+    },
+    {
+      "callSite": { "file": "src/server/v0/credits.ts", "line": 28 },
+      "method": "GET",
+      "target": null,
+      "notes": "getPlan(): requestV1(apiKey, \"/user/plan\") to https://api.v0.dev/v1, external; the .json() on the same line is not a request"
+    }
+  ]
+}

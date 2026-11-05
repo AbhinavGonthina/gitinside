@@ -1,0 +1,102 @@
+{
+  "repo": "gruz0/checkmvp",
+  "sha": "7fd7e741754fba3b0aa03f5b1e04a055e6379b93",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/app/concepts/[id]/audiences/TargetAudiences.tsx", "line": 102 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/concepts/[id]/route.ts",
+        "line": 19,
+        "route": "POST /api/concepts/:id"
+      },
+      "notes": "fetch(`/api/concepts/${conceptId}`, { method: \"POST\" }), root-relative on the same Next app (no basePath, rewrites, or middleware)"
+    },
+    {
+      "callSite": { "file": "src/app/ideas/[id]/IdeaAnalysisReport.tsx", "line": 232 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/ideas/[id]/route.ts",
+        "line": 5,
+        "route": "DELETE /api/ideas/:id"
+      },
+      "notes": "fetch(`/api/ideas/${data.id}`, { method: \"DELETE\" }) archiving the report; route.ts exports DELETE only"
+    },
+    {
+      "callSite": { "file": "src/app/ideas/[id]/components/DownloadPDFButton.tsx", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/ideas/[id]/pdf/route.ts",
+        "line": 7,
+        "route": "GET /api/ideas/:id/pdf"
+      },
+      "notes": "fetch(`/api/ideas/${ideaId}/pdf`, { method: \"GET\" }); the literal pdf/ folder under [id]"
+    },
+    {
+      "callSite": {
+        "file": "src/app/ideas/[id]/marketing/social_media_campaigns/SocialMediaCampaigns.tsx",
+        "line": 60
+      },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ideas/[id]/social_media_campaigns/route.ts",
+        "line": 5,
+        "route": "POST /api/ideas/:id/social_media_campaigns"
+      },
+      "notes": "fetch(`/api/ideas/${data.id}/social_media_campaigns`, { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/common/client/Concept/Service.ts", "line": 68 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/concepts/[id]/reservation/route.ts",
+        "line": 47,
+        "route": "GET /api/concepts/:id/reservation"
+      },
+      "notes": "server-side client class: fetch(`${this.baseURL}/concepts/${conceptId}/reservation`, { method: \"GET\" }), path fixed in getConceptForReservation(); constructed in src/idea/service/Service.ts:42 (imported under the alias IdeaService) with env.CONCEPT_SERVICE_API_BASE, no in-code fallback (src/lib/env.ts requires it); .env.example (and .env.test) set it to http://localhost:3000/api, this Next app's own port (Dockerfile PORT=3000), so the env-base rule follows it to the app's route"
+    },
+    {
+      "callSite": { "file": "src/common/client/Idea/Service.ts", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ideas/route.ts",
+        "line": 5,
+        "route": "POST /api/ideas"
+      },
+      "notes": "server-side client class: fetch(`${this.baseURL}/ideas`, { method: \"POST\" }), path fixed in reserve(); constructed in src/concept/service/Service.ts:22 with env.IDEA_SERVICE_API_BASE, no in-code fallback; .env.example sets it to http://localhost:3000/api, this Next app's own server"
+    },
+    {
+      "callSite": { "file": "src/components/ConceptForm.tsx", "line": 318 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/concepts/route.ts",
+        "line": 9,
+        "route": "POST /api/concepts"
+      },
+      "notes": "fetch('/api/concepts', { method: \"POST\" }) on form submit"
+    },
+    {
+      "callSite": { "file": "src/components/HypothesisGenerator.tsx", "line": 158 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/apps/hypothesis_generator/[id]/route.ts",
+        "line": 5,
+        "route": "GET /api/apps/hypothesis_generator/:id"
+      },
+      "notes": "fetch(`/api/apps/hypothesis_generator/${id}`), no options so GET; polling in pollHypothesis()"
+    },
+    {
+      "callSite": { "file": "src/components/HypothesisGenerator.tsx", "line": 196 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/apps/hypothesis_generator/route.ts",
+        "line": 15,
+        "route": "POST /api/apps/hypothesis_generator"
+      },
+      "notes": "fetch('/api/apps/hypothesis_generator', { method: \"POST\" }) on submit"
+    }
+  ]
+}
