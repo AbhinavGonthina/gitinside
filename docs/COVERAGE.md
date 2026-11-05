@@ -84,7 +84,7 @@ Batch 4's blind run (M5C.5c) measured precision 94.4%, below the 95% floor, and 
 
 **Planned, in order** (PROGRESS.md M5C.7a–g, then M5C.8):
 
-1. **M5C.7a, J (6 FP):** a wrapper that forwards the caller's options through a rest spread loses the caller's `method`, so each call matched every method.
+1. **M5C.7a, J (6 FP):** a wrapper that forwards the caller's options through a rest spread loses the caller's `method`, so each call matched every method. **Done** (ADR-0033's M5C.7a amendment): the method is read through a rest element, and an unread method between routes of different methods is unresolved; batch 4 precision 94.4% → 97.4%.
 2. **M5C.7b, I (4 FP, 4 FN):** a pages-router handler exported through a wrapper (`withMiddleware("…")(handler)`) stays `ALL`, though it gates on `req.method`.
 3. **M5C.7c, O (1 FP):** a wholly unknown path after a prefix (`/api/{}`) matched only a SPA catch-all.
 4. **M5C.7d, E + H (24 FN):** URLs from repo functions that only build a string from their parameters, including object-literal arrow properties and functions behind React's `useCallback`/`useMemo`. This is the calling side's twin of the repo-defined wrapper row (ADR-0032).

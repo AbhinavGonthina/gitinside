@@ -245,10 +245,18 @@ describe("createRouteMatcher", () => {
     expect(m("POST /api/hooks")).toBe("exact route:web/ALL /api/hooks");
   });
 
-  it("is heuristic, and possibly ambiguous, when the method is unknown", () => {
+  it("is heuristic when the method is unknown, and unresolved when only the method would pick (M5C.7a)", () => {
     expect(m("? /api/session")).toBe("heuristic route:web/GET /api/session");
+    expect(m("? /api/hooks")).toBe("heuristic route:web/ALL /api/hooks");
     expect(m("? /api/users", "apps/api/a.ts")).toBe(
-      "heuristic route:api/GET /api/users,route:api/POST /api/users AMBIGUOUS",
+      "AMBIGUOUS: the method isn't read, and routes for GET, POST match /api/users",
+    );
+    expect(m("? /api/legacy")).toBe(
+      "AMBIGUOUS: the method isn't read, and routes for ALL, GET match /api/legacy",
+    );
+    // Routes of one method that tie on the path are still linked, as for a known method.
+    expect(m("? /v1/acme/items", "apps/api/a.ts")).toBe(
+      "heuristic route:api/GET /v1/:org/:kind,route:api/GET /v1/:org/items AMBIGUOUS",
     );
   });
 

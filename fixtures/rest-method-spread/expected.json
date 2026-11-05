@@ -1,0 +1,467 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#dropToken",
+      "id": "calls:symbol:rest-method-spread/src/tokens.ts#dropToken->symbol:rest-method-spread/src/request.ts#sendJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 32,
+          "file": "src/tokens.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:rest-method-spread/src/request.ts#sendJson"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#readProfile",
+      "id": "calls:symbol:rest-method-spread/src/tokens.ts#readProfile->symbol:rest-method-spread/src/request.ts#sendJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 48,
+          "file": "src/tokens.ts",
+          "line": 10
+        }
+      ],
+      "to": "symbol:rest-method-spread/src/request.ts#sendJson"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#readToken",
+      "id": "calls:symbol:rest-method-spread/src/tokens.ts#readToken->symbol:rest-method-spread/src/request.ts#sendJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 32,
+          "file": "src/tokens.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:rest-method-spread/src/request.ts#sendJson"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#storeToken",
+      "id": "calls:symbol:rest-method-spread/src/tokens.ts#storeToken->symbol:rest-method-spread/src/request.ts#sendJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 3,
+          "file": "src/tokens.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:rest-method-spread/src/request.ts#sendJson"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#tokenRequest",
+      "id": "calls:symbol:rest-method-spread/src/tokens.ts#tokenRequest->symbol:rest-method-spread/src/request.ts#sendJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 49,
+          "file": "src/tokens.ts",
+          "line": 16
+        }
+      ],
+      "to": "symbol:rest-method-spread/src/request.ts#sendJson"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#uploadAvatar",
+      "id": "calls:symbol:rest-method-spread/src/tokens.ts#uploadAvatar->symbol:rest-method-spread/src/request.ts#postForm",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 3,
+          "file": "src/tokens.ts",
+          "line": 13
+        }
+      ],
+      "to": "symbol:rest-method-spread/src/request.ts#postForm"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#dropToken",
+      "id": "http:symbol:rest-method-spread/src/tokens.ts#dropToken->route:rest-method-spread/DELETE /api/tokens",
+      "kind": "http",
+      "label": "DELETE /api/tokens",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/tokens.ts",
+          "line": 8,
+          "request": "DELETE /api/tokens"
+        }
+      ],
+      "to": "route:rest-method-spread/DELETE /api/tokens"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:rest-method-spread/src/tokens.ts#readProfile",
+      "id": "http:symbol:rest-method-spread/src/tokens.ts#readProfile->route:rest-method-spread/GET /api/profile",
+      "kind": "http",
+      "label": "GET /api/profile",
+      "sites": [
+        {
+          "column": 48,
+          "file": "src/tokens.ts",
+          "line": 10,
+          "request": "? /api/profile"
+        }
+      ],
+      "to": "route:rest-method-spread/GET /api/profile"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#readToken",
+      "id": "http:symbol:rest-method-spread/src/tokens.ts#readToken->route:rest-method-spread/GET /api/tokens",
+      "kind": "http",
+      "label": "GET /api/tokens",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/tokens.ts",
+          "line": 3,
+          "request": "GET /api/tokens"
+        }
+      ],
+      "to": "route:rest-method-spread/GET /api/tokens"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#storeToken",
+      "id": "http:symbol:rest-method-spread/src/tokens.ts#storeToken->route:rest-method-spread/PUT /api/tokens",
+      "kind": "http",
+      "label": "PUT /api/tokens",
+      "sites": [
+        {
+          "column": 3,
+          "file": "src/tokens.ts",
+          "line": 6,
+          "request": "PUT /api/tokens"
+        }
+      ],
+      "to": "route:rest-method-spread/PUT /api/tokens"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:rest-method-spread/src/tokens.ts#tokenRequest",
+      "id": "http:symbol:rest-method-spread/src/tokens.ts#tokenRequest->unresolved:rest-method-spread/src/tokens.ts:16:49",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 49,
+          "file": "src/tokens.ts",
+          "line": 16
+        }
+      ],
+      "to": "unresolved:rest-method-spread/src/tokens.ts:16:49"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:rest-method-spread/src/tokens.ts#uploadAvatar",
+      "id": "http:symbol:rest-method-spread/src/tokens.ts#uploadAvatar->route:rest-method-spread/POST /api/avatar",
+      "kind": "http",
+      "label": "POST /api/avatar",
+      "sites": [
+        {
+          "column": 3,
+          "file": "src/tokens.ts",
+          "line": 13,
+          "request": "POST /api/avatar"
+        }
+      ],
+      "to": "route:rest-method-spread/POST /api/avatar"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:rest-method-spread/src/tokens.ts",
+      "id": "imports:file:rest-method-spread/src/tokens.ts->file:rest-method-spread/src/request.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 51,
+          "file": "src/tokens.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:rest-method-spread/src/request.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "4c0057338006f4eedae3b9a2ad4a714afff8335c682c1a6ad3d1bde26a866f05",
+      "id": "file:rest-method-spread/src/request.ts",
+      "kind": "file",
+      "label": "request.ts",
+      "parentId": "module:rest-method-spread/src",
+      "path": "src/request.ts"
+    },
+    {
+      "hash": "dab0200c6495b108fe1ab091f5b6db3b1a10465f82dc63d91fef5a27eefbed4f",
+      "id": "file:rest-method-spread/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:rest-method-spread/src",
+      "path": "src/server.ts"
+    },
+    {
+      "hash": "f773abeed707fd393cdbcb082020c994912e1004ce332ca01730720f69b330be",
+      "id": "file:rest-method-spread/src/tokens.ts",
+      "kind": "file",
+      "label": "tokens.ts",
+      "parentId": "module:rest-method-spread/src",
+      "path": "src/tokens.ts"
+    },
+    {
+      "id": "module:rest-method-spread/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:rest-method-spread/",
+      "path": "src"
+    },
+    {
+      "id": "route:rest-method-spread/DELETE /api/tokens",
+      "kind": "route",
+      "label": "DELETE /api/tokens",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:rest-method-spread/src/server.ts",
+      "path": "/api/tokens",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 14
+      }
+    },
+    {
+      "id": "route:rest-method-spread/GET /api/profile",
+      "kind": "route",
+      "label": "GET /api/profile",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:rest-method-spread/src/server.ts",
+      "path": "/api/profile",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 18
+      }
+    },
+    {
+      "id": "route:rest-method-spread/GET /api/tokens",
+      "kind": "route",
+      "label": "GET /api/tokens",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:rest-method-spread/src/server.ts",
+      "path": "/api/tokens",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:rest-method-spread/POST /api/avatar",
+      "kind": "route",
+      "label": "POST /api/avatar",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:rest-method-spread/src/server.ts",
+      "path": "/api/avatar",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 22
+      }
+    },
+    {
+      "id": "route:rest-method-spread/PUT /api/tokens",
+      "kind": "route",
+      "label": "PUT /api/tokens",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:rest-method-spread/src/server.ts",
+      "path": "/api/tokens",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:rest-method-spread/",
+      "kind": "service",
+      "label": "rest-method-spread",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:rest-method-spread/src/request.ts#postForm",
+      "kind": "symbol",
+      "label": "postForm",
+      "parentId": "file:rest-method-spread/src/request.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/request.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:rest-method-spread/src/request.ts#sendJson",
+      "kind": "symbol",
+      "label": "sendJson",
+      "parentId": "file:rest-method-spread/src/request.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "src/request.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:rest-method-spread/src/tokens.ts#dropToken",
+      "kind": "symbol",
+      "label": "dropToken",
+      "parentId": "file:rest-method-spread/src/tokens.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 8,
+        "file": "src/tokens.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:rest-method-spread/src/tokens.ts#readProfile",
+      "kind": "symbol",
+      "label": "readProfile",
+      "parentId": "file:rest-method-spread/src/tokens.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 10,
+        "file": "src/tokens.ts",
+        "line": 10
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:rest-method-spread/src/tokens.ts#readToken",
+      "kind": "symbol",
+      "label": "readToken",
+      "parentId": "file:rest-method-spread/src/tokens.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "src/tokens.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:rest-method-spread/src/tokens.ts#storeToken",
+      "kind": "symbol",
+      "label": "storeToken",
+      "parentId": "file:rest-method-spread/src/tokens.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 6,
+        "file": "src/tokens.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:rest-method-spread/src/tokens.ts#tokenRequest",
+      "kind": "symbol",
+      "label": "tokenRequest",
+      "parentId": "file:rest-method-spread/src/tokens.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 16,
+        "file": "src/tokens.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:rest-method-spread/src/tokens.ts#uploadAvatar",
+      "kind": "symbol",
+      "label": "uploadAvatar",
+      "parentId": "file:rest-method-spread/src/tokens.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 13,
+        "file": "src/tokens.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "rest-method-spread",
+      "parentId": null
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, GET, PUT match /api/tokens",
+      "expression": "sendJson(\"/api/tokens\", init)",
+      "id": "unresolved:rest-method-spread/src/tokens.ts:16:49",
+      "kind": "unresolved",
+      "label": "? /api/tokens",
+      "parentId": "service:rest-method-spread/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 49,
+        "file": "src/tokens.ts",
+        "line": 16
+      }
+    }
+  ],
+  "repo": {
+    "name": "rest-method-spread",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

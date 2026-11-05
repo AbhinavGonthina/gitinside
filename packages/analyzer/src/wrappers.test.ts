@@ -429,6 +429,59 @@ describe("inlineWrappers", () => {
     ]);
   });
 
+  it("reads the caller's method through a rest element of the init (M5C.7a)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      "type Init = RequestInit & { json?: unknown };",
+      "export async function send(url: string, init: Init = {}) {",
+      "  const { json, headers, ...rest } = init;",
+      "  return fetch(url, { ...rest, headers, body: JSON.stringify(json) });",
+      "}",
+      "export function inParams(url: string, { json, ...rest }: Init = {}) {",
+      "  return fetch(url, { ...rest, body: JSON.stringify(json) });",
+      "}",
+      "export function named(url: string, init: Init) {",
+      "  const { method, ...rest } = init;",
+      '  return fetch(url, { method: "POST", ...rest });',
+      "}",
+      "export function computed(url: string, init: Init, key: string) {",
+      "  const { [key]: dropped, ...rest } = init;",
+      "  return fetch(url, { ...rest });",
+      "}",
+      "export function reassignable(url: string, init: Init) {",
+      "  let { json, ...rest } = init;",
+      "  return fetch(url, { ...rest });",
+      "}",
+      'const PUT = { method: "PUT" } as const;',
+      "export async function use(dynamicInit: Init) {",
+      '  await send("/api/key");',
+      '  await send("/api/key", { method: "PUT", json: {} });',
+      '  await send("/api/key", { method: "DELETE" });',
+      '  await send("/api/key", PUT);',
+      '  await send("/api/key", dynamicInit);',
+      '  await inParams("/api/key", { method: "PATCH" });',
+      '  await inParams("/api/key");',
+      '  await named("/api/key", { method: "DELETE" });',
+      '  await computed("/api/key", { method: "DELETE" }, "x");',
+      '  await reassignable("/api/key", { method: "DELETE" });',
+      "}",
+    ]);
+    expect(await summary()).toEqual([
+      "src/http.ts:23 GET /api/key [use] <- src/http.ts:4",
+      "src/http.ts:24 PUT /api/key [use] <- src/http.ts:4",
+      "src/http.ts:25 DELETE /api/key [use] <- src/http.ts:4",
+      "src/http.ts:26 PUT /api/key [use] <- src/http.ts:4",
+      "src/http.ts:27 ? /api/key [use] <- src/http.ts:4",
+      "src/http.ts:28 PATCH /api/key [use] <- src/http.ts:7",
+      "src/http.ts:29 GET /api/key [use] <- src/http.ts:7",
+      // `method` is taken out of `rest`, so the literal before the spread stands.
+      "src/http.ts:30 POST /api/key [use] <- src/http.ts:11",
+      // A computed key could be `method`; a `let` could be reassigned.
+      "src/http.ts:31 ? /api/key [use] <- src/http.ts:15",
+      "src/http.ts:32 ? /api/key [use] <- src/http.ts:19",
+    ]);
+  });
+
   it("keeps a request at its site when a parameter only fills a later hole or the query (M5A.3j)", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/api.ts", [
