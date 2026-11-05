@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5.14b3e2 `LIMIT_TIME`'s website message names production's real limit; m5 is tagged in M5.14b3h (M5.14b4 waits on #22)
+M5.14b3f `/api/analyze`, small (R6–R8); m5 is tagged in M5.14b3h (M5.14b4 waits on #22)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -207,7 +207,7 @@ M5.14b3e2 `LIMIT_TIME`'s website message names production's real limit; m5 is ta
 - [x] M5.14b3c Bot check on every Analyze button (R2): the repo page's Analyze (`useAnalyze.ts`) and the progress page's "Try again" (`JobProgress.tsx`) handle `CHALLENGE_REQUIRED` like the landing form (a shared hook or component with `BotCheck`); tests red first (repo page answered `CHALLENGE_REQUIRED`), screenshots dark and light {model: opus}
 - [x] M5.14b3d Deploy what isn't deployed (R3): `deploy.mjs changed` diffs against the deployed revision (the service image's revision label via the Run API, or always deploy), not `github.event.before`, so a failed or cancelled worker run is shipped by the next push; tests for the script; ADR-0170 amendment; drop the CLAUDE.md lesson's workaround if it no longer applies {model: opus}
 - [x] M5.14b3e A budget cut by the download isn't "too big" (R4): when the analysis's timeout was cut below its own limit by earlier stages, running out fails with a retriable code (not `LIMIT_TIME`, no 7-day hold); `LIMIT_TIME` only for the uncut limit; tests red first, ADR-0143 amendment {model: opus}
-- [ ] M5.14b3e2 `LIMIT_TIME`'s website message says "took over 5 minutes", but in production the analysis's guaranteed share is 230 s (ADR-0143's M5.14b3e amendment) and it gets at most 260 s: name the real limit (one constant shared with the worker's numbers, or a test pinning the two together); jobs.test.ts first {model: opus}
+- [x] M5.14b3e2 `LIMIT_TIME`'s website message says "took over 5 minutes", but in production the analysis's guaranteed share is 230 s (ADR-0143's M5.14b3e amendment) and it gets at most 260 s: name the real limit (one constant shared with the worker's numbers, or a test pinning the two together); jobs.test.ts first {model: opus}
 - [ ] M5.14b3f `/api/analyze`, small (R6–R8): the bot check counts before deciding (no peek-then-consume race); a throw from `enqueueAnalysis` refunds the slot and releases the repo claim; a row that failed permanently isn't re-queued (`422` with its reason, like check-on-view); tests red first {model: opus}
 - [ ] M5.14b3g Worker and Google, small (R10–R12): a row `queued` past every attempt's window (3 × 330 s plus backoff) gets a fresh task on the next request instead of 24 h of `ALREADY_EXISTS`; Secret Manager reads counted per cold start with the compute meters and paused at 80% of the free reads; confirm from Vercel's docs whether a client-sent `x-vercel-oidc-token` is replaced, else prefer `VERCEL_OIDC_TOKEN`; tests red first {model: opus}
 - [ ] M5.14b3h Re-run the milestone checks after M5.14b3b–g (suite uncached, CI green, `pnpm eval --check`), fill in R1–R14's outcomes and CI at the tag in M5-review.md, tag m5 {model: opus}
@@ -375,7 +375,9 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [ ] M9.7 Milestone verification + M9-review.md + tag m9; set STATUS: DONE {model: opus}
 
 ## Session notes
+
 (Newest first. 2–4 lines per task.)
+- **2026-11-05 M5.14b3e2 (`LIMIT_TIME`'s real limit):** the website said "took over 5 minutes"; it now says "took over 3 min 50 s", the analysis's guaranteed 230 s share. The worker's new `guaranteedAnalysisMs` is the one source (`processJob` uses it); web's `ANALYSIS_TIME_LIMIT_SECONDS` copy is pinned to `guaranteedAnalysisMs(JOB_BUDGET_MS)` by `limits.test.ts` (230 → 240 mutation red). Tests red first in `jobs.test.ts`; web 44/44 files, worker 636 + `run.test` EPERM flake passing alone; typecheck + lint clean. ADR-0143 amendment, R4 row in M5-review.md. No analyzer change, so no eval delta.
 - **2026-11-05 M5.14b3e (a cut timeout isn't "too big", R4):** in a 280 s attempt the child never gets its own 5 min, so "uncut" can't be the rule. The analysis now has a guaranteed share (own limit, or the attempt's start less 20 s reserve and `DOWNLOAD_ALLOWANCE_MS` 30 s: 230 s), still gets everything left, and running out with less (or nothing left) is the new retriable `ANALYSIS_TIME_CUT` (no hold). Tests red first in `job.test.ts`/`run.test.ts`, `<`→`<=` mutation red; worker 636 passed, typecheck + lint clean. ADR-0143 amendment, SECURITY.md T3, R4 in M5-review.md. Added M5.14b3e2 (the website's "over 5 minutes" wording). No analyzer change, so no eval delta.
 - **2026-11-05 M5.14b3d (deploy what isn't deployed, R3):** `apply` labels both services' revisions `gitinside-commit: <sha>`; `changed <sha>` now runs after the auth step, describes both services, trusts the label only for an observed, Ready, newest revision serving all traffic, and diffs from it (anything unknown deploys; a manual run always does). No more `github.event.before`, so a failed or cancelled run ships with the next push.
   Tests red first (9), two guards mutation-checked; web 664/664, typecheck and lint clean. ADR-0170 amended, infra README, M5-review R3, two CLAUDE.md lessons updated. Live: `88f89d0`'s deploy found no label, deployed, both revisions routed.
