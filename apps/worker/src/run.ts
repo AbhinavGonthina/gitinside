@@ -30,8 +30,9 @@ import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
  *   retries it too, and it fails the same way each time without doing any work.
  * - **Already done:** Cloud Tasks delivers at least once, and the website can queue a job
  *   again; a push whose job's row is already `done` (final) is answered `200` at once, with
- *   no GitHub call, download, or child (ADR-0145). If the lookup fails, the job runs as
- *   usual: `startAnalysis` still leaves a `done` row alone.
+ *   no GitHub call, download, or child (ADR-0145). If the lookup fails or loses a race, the
+ *   recorder's start finds the `done` row, leaves it alone, and the attempt stops there
+ *   with the same answer (R9).
  * - **Cancelled:** if the caller hangs up (Cloud Tasks gave up) or the process shuts down
  *   (`signal`), the job is killed and fails with the retriable `CANCELLED`.
  * - **After the job,** before the answer, `afterJob` gets what's left of the budget: the

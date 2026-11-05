@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import type { JobRequest } from "./request.js";
 import { JobFailure } from "./failure.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
-import { processJob, type JobDeps } from "./job.js";
+import { JobAlreadyDone, processJob, type JobDeps } from "./job.js";
 import { createAnalysisRecorder, type AnalysisRecorder } from "./record.js";
 import type { RunResult } from "./runner.js";
 import { startFakeS3, type FakeS3 } from "./s3.testkit.js";
@@ -298,6 +298,25 @@ describe("createAnalysisRecorder", () => {
     expect(seen).toEqual([false]);
     expect(await r.done?.(ID)).toBe(true);
     expect(await r.done?.(`analyze-${"f".repeat(32)}`)).toBe(false);
+  });
+
+  it("stops before the download when the start finds the row already `done` (R9)", async () => {
+    await processJob({ id: ID, request: REQUEST }, deps(recorder()));
+    const finished = await onlyAnalysis();
+    github.requests.length = 0;
+    // A second push that `POST /run`'s `done` check missed (a race, or a failed lookup).
+    let runs = 0;
+    const run: JobDeps["run"] = async (child) => {
+      runs++;
+      return writeGraph(child);
+    };
+    await expect(
+      processJob({ id: ID, request: REQUEST }, deps(recorder(), { run })),
+    ).rejects.toBeInstanceOf(JobAlreadyDone);
+    expect(github.requests.map((r) => r.url)).toEqual(["/repos/acme/shop"]);
+    expect(runs).toBe(0);
+    expect(s3.objects.size).toBe(1);
+    expect(await onlyAnalysis()).toEqual(finished);
   });
 
   it("refuses to publish a job that was never recorded", async () => {

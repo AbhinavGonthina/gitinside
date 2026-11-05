@@ -268,6 +268,12 @@ export interface QueuedAnalysis {
   status: AnalysisSummary["status"];
   /** Whether this call put the row in the queue (inserted it, or moved it from `failed`). */
   entered: boolean;
+  /**
+   * Whether the row is `queued` for a retry: an attempt already ran and failed retriably
+   * ({@link requeueAnalysis}), so the queue's own task will push it again after its backoff
+   * and nobody may create another (R1, second M5 review).
+   */
+  retrying: boolean;
   /** When the row last entered the queue: names its Cloud Tasks task (ADR-0141). */
   queuedAt: Date;
 }
@@ -282,8 +288,8 @@ export interface QueueOptions extends JobOptions {
  * Record that the web app is queuing a job for this commit: insert a `queued` row, or move a
  * `failed` one back to `queued` (a new job will run it again: attempts start over, and it
  * joins the back of the queue). `queued`, `running`, and `done` rows are left as they are;
- * the returned status is the row's after the call, and `entered` says whether this call
- * queued it.
+ * the returned status is the row's after the call, `entered` says whether this call
+ * queued it, and `retrying` whether a `queued` row is waiting for its task's retry.
  */
 export async function queueAnalysis(
   db: AnyDatabase,
@@ -313,9 +319,14 @@ export async function queueAnalysis(
       setWhere: eq(analyses.status, "failed"),
     })
     .returning({ id: analyses.id, queuedAt: analyses.queuedAt });
-  if (row !== undefined) return { ...row, status: "queued", entered: true };
+  if (row !== undefined) return { ...row, status: "queued", entered: true, retrying: false };
   const [existing] = await db
-    .select({ id: analyses.id, status: analyses.status, queuedAt: analyses.queuedAt })
+    .select({
+      id: analyses.id,
+      status: analyses.status,
+      queuedAt: analyses.queuedAt,
+      attempts: analyses.attempts,
+    })
     .from(analyses)
     .where(
       and(
@@ -324,13 +335,20 @@ export async function queueAnalysis(
         eq(analyses.analyzerVersion, key.analyzerVersion),
       ),
     );
-  return { ...(existing as Omit<QueuedAnalysis, "entered">), entered: false };
+  const { id, status, queuedAt, attempts } = existing as Omit<
+    QueuedAnalysis,
+    "entered" | "retrying"
+  > & { attempts: number };
+  // Entering the queue sets `attempts` to 0 and only a start raises it, so a `queued` row
+  // with attempts is one `requeueAnalysis` put back for its task's retry.
+  return { id, status, queuedAt, entered: false, retrying: status === "queued" && attempts > 0 };
 }
 
 /**
  * Back to `queued` after a failed attempt that will be retried, at the back of the queue
  * (the retry waits out a backoff anyway) and without the attempt's progress. Only a
- * `running` row moves.
+ * `running` row moves. Its `attempts` stay, so {@link queueAnalysis} reports it `retrying`
+ * and the website creates no second task beside the retry (R1).
  */
 export async function requeueAnalysis(db: AnyDatabase, id: string): Promise<boolean> {
   const rows = await db

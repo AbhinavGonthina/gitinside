@@ -92,7 +92,7 @@ describe("runAttempt", () => {
     const logs: Record<string, unknown>[] = [];
     const { input, progress } = attempt(REQUEST, { attempt: 2 });
     const result = await runAttempt(input, deps(), (e) => void logs.push(e));
-    expect(result.ok && result.outcome.stats).toEqual(STATS);
+    expect(result.ok && result.outcome?.stats).toEqual(STATS);
     expect(progress).toEqual([
       { stage: "download", progress: 0 },
       { stage: "extract", progress: 10 },
@@ -288,7 +288,7 @@ describe("runAttempt", () => {
       { ...deps(), recorder },
       (e) => void logs.push(e),
     );
-    expect(result.ok && result.outcome.stats).toEqual(STATS);
+    expect(result.ok && result.outcome?.stats).toEqual(STATS);
     await vi.waitFor(() => expect(written.map((w) => w.progress.stage)).toContain("upload"));
     expect(written.map((w) => w.progress.stage)).toEqual(["download", "analyze", "upload"]);
     expect(logs).toContainEqual({
@@ -297,6 +297,22 @@ describe("runAttempt", () => {
       stage: "extract",
       message: "db down",
     });
+  });
+
+  it("succeeds with nothing to do when the start finds the row already done (R9)", async () => {
+    const logs: Record<string, unknown>[] = [];
+    const failed = vi.fn(async () => undefined);
+    const publish = vi.fn(async () => undefined);
+    const recorder: JobRecorder = { start: async () => "done", failed };
+    const run = vi.fn(writeGraph);
+    const result = await runAttempt(
+      attempt(REQUEST, { attempt: 2 }).input,
+      { ...deps(run), recorder, publish },
+      (e) => void logs.push(e),
+    );
+    expect(result).toEqual({ ok: true, alreadyDone: true });
+    expect([run, publish, failed].map((f) => f.mock.calls.length)).toEqual([0, 0, 0]);
+    expect(logs).toEqual([{ event: "job_already_done", id: ID, attempt: 2 }]);
   });
 
   it("fails a permanent failure with its code, not retriable, and logs it", async () => {

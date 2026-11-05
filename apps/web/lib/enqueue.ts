@@ -17,7 +17,9 @@ import { WorkerUnavailableError } from "./worker";
  *
  * 1. **The row first.** The repo and a `queued` row are written (`queueAnalysis`), under the
  *    job ID the worker derives too (`jobIdFor` from `@gitinside/worker/request`). The row is
- *    the dedupe: a commit already `running` or `done` gets no task.
+ *    the dedupe: a commit already `running` or `done` gets no task, and neither does one
+ *    `queued` for a retry (`retrying`): Cloud Tasks pushes that task again after its backoff,
+ *    and a second task would run beside it (R1, ADR-0142's amendment).
  * 2. **Then the task,** named from the row's queue entry (`taskIdFor(jobId, queued_at)`), so
  *    two requests racing for one entry create one task, and a failed job queued again gets a
  *    fresh name.
@@ -72,6 +74,8 @@ export async function enqueueAnalysis(
   );
   if (row.status === "done") return { status: "done" };
   if (row.status === "running") return { status: "running", jobId, entered: false };
+  // Its task will push it again after the backoff; a new task would run beside it (R1).
+  if (row.retrying) return { status: "queued", jobId, entered: false };
 
   try {
     await deps.queue.createTask(job, taskIdFor(jobId, row.queuedAt));

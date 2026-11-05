@@ -7,7 +7,7 @@ import {
   type TimingSample,
 } from "./estimate.js";
 import { JobFailure } from "./failure.js";
-import { processJob, type JobDeps, type JobOutcome } from "./job.js";
+import { JobAlreadyDone, processJob, type JobDeps, type JobOutcome } from "./job.js";
 import {
   STAGE_PROGRESS,
   stepProgress,
@@ -56,8 +56,14 @@ export interface AttemptInput {
   report?: (progress: StoredProgress) => Promise<void>;
 }
 
-/** How an attempt ended. */
-export type AttemptResult = { ok: true; outcome: JobOutcome } | { ok: false; failure: JobFailure };
+/**
+ * How an attempt ended. `alreadyDone`: the recorder's start found the row `done`, so nothing
+ * ran (R9); it succeeds all the same, since the result exists.
+ */
+export type AttemptResult =
+  | { ok: true; outcome: JobOutcome; alreadyDone?: never }
+  | { ok: true; alreadyDone: true; outcome?: never }
+  | { ok: false; failure: JobFailure };
 
 /** The progress stored when an analyzer step starts (or its count becomes known). */
 export function progressForStep({ step, count }: StepProgress): StoredProgress {
@@ -81,7 +87,7 @@ const messageOf = (error: unknown): string =>
 /**
  * Run one attempt. Never rejects: the result says whether it succeeded, and a failure carries
  * its code (an invalid request is `INVALID_REQUEST`, anything unexpected `WORKER_ERROR`).
- * Logs `job_done` or `job_failed`.
+ * Logs `job_done`, `job_already_done`, or `job_failed`.
  */
 export async function runAttempt(
   input: AttemptInput,
@@ -166,6 +172,10 @@ export async function runAttempt(
     log({ event: "job_done", id, attempt, nodes: outcome.stats.nodes, ...outcome.timings });
     return { ok: true, outcome };
   } catch (error) {
+    if (error instanceof JobAlreadyDone) {
+      log({ event: "job_already_done", id, attempt });
+      return { ok: true, alreadyDone: true };
+    }
     failure =
       error instanceof JobFailure
         ? error

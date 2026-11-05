@@ -634,6 +634,27 @@ describe("queueAnalysis", () => {
     ).rejects.toThrow();
   });
 
+  it("says a queued row is waiting for a retry once an attempt ran (R1)", async () => {
+    const queued = await queueAnalysis(t.db, await key());
+    expect(queued.retrying).toBe(false);
+    expect((await queueAnalysis(t.db, await key())).retrying).toBe(false);
+    await startAnalysis(t.db, await key());
+    await requeueAnalysis(t.db, queued.id);
+    expect(await queueAnalysis(t.db, await key())).toMatchObject({
+      id: queued.id,
+      status: "queued",
+      entered: false,
+      retrying: true,
+    });
+    // Queued again after failing for good, attempts start over.
+    await startAnalysis(t.db, await key());
+    await failAnalysis(t.db, queued.id, "DOWNLOAD_FAILED");
+    expect(await queueAnalysis(t.db, await key())).toMatchObject({
+      entered: true,
+      retrying: false,
+    });
+  });
+
   it("leaves running and done rows alone", async () => {
     const id = await started();
     const { queuedAt } = await analysis(id);
@@ -641,6 +662,7 @@ describe("queueAnalysis", () => {
       id,
       status: "running",
       entered: false,
+      retrying: false,
       queuedAt,
     });
     await completeAnalysis(t.db, id, { snapshotKey: "k", stats: STATS });

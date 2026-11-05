@@ -7,6 +7,7 @@ import {
   failAnalysis,
   queueAnalysis,
   repos,
+  requeueAnalysis,
   startAnalysis,
   upsertRepo,
 } from "@gitinside/db";
@@ -125,6 +126,39 @@ describe("enqueueAnalysis", () => {
       taskIdFor(JOB_ID, first!.queuedAt),
       taskIdFor(JOB_ID, again!.queuedAt),
     ]);
+    expect(tasks.google.tasks).toHaveLength(2);
+  });
+
+  it("a row waiting for its retry gets no second task, and costs no operation (R1)", async () => {
+    await enqueueAnalysis(REPO, deps);
+    const [first] = await rows();
+    // The task's first attempt failed retriably: the worker put the row back in the queue,
+    // and Cloud Tasks will push the same task again after its backoff.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const key = { repoId: await repoId(), sha: SHA, analyzerVersion: VERSION };
+    await startAnalysis(t.db, key, { jobId: JOB_ID });
+    await requeueAnalysis(t.db, first!.id);
+
+    expect(await enqueueAnalysis(REPO, deps)).toEqual({
+      status: "queued",
+      jobId: JOB_ID,
+      entered: false,
+    });
+    expect(tasks.taskIds()).toEqual([taskIdFor(JOB_ID, first!.queuedAt)]);
+    expect((await computeUsageThisMonth(t.db)).taskOperations).toBe(1);
+  });
+
+  it("a retry that failed for good is queued again with a fresh task", async () => {
+    await enqueueAnalysis(REPO, deps);
+    const [first] = await rows();
+    const key = { repoId: await repoId(), sha: SHA, analyzerVersion: VERSION };
+    await startAnalysis(t.db, key, { jobId: JOB_ID });
+    await requeueAnalysis(t.db, first!.id);
+    await startAnalysis(t.db, key, { jobId: JOB_ID });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await failAnalysis(t.db, first!.id, "DOWNLOAD_FAILED");
+
+    expect(await enqueueAnalysis(REPO, deps)).toMatchObject({ status: "queued", entered: true });
     expect(tasks.google.tasks).toHaveLength(2);
   });
 

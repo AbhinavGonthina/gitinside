@@ -406,6 +406,27 @@ describe("POST /run, a job already done (M5.17c2b)", () => {
     expect(events[0]).toEqual({ event: "done_check_failed", id: ID, message: "db down" });
   });
 
+  it("answers 200 done with no work when the check missed it and the start finds it (R9)", async () => {
+    const { recorder, calls } = doneRecorder(() => Promise.reject(new Error("db down")));
+    let runs = 0;
+    const run: JobDeps["run"] = async (job) => {
+      runs++;
+      return writeGraph(job);
+    };
+    const before = github.requests.length;
+    const events: Record<string, unknown>[] = [];
+    const origin = await start({
+      deps: deps(run, { ...recorder, start: async () => "done" }),
+      log: (e) => void events.push(e),
+    });
+    expect(await post(origin, JSON.stringify(REQUEST))).toEqual({
+      status: 200,
+      body: { id: ID, state: "done" },
+    });
+    expect([runs, calls.failed, github.requests.length - before]).toEqual([0, [], 0]);
+    expect(events).toContainEqual({ event: "job_already_done", id: ID, attempt: 1 });
+  });
+
   it("checks only once a job may start: a busy worker still answers 429", async () => {
     let release: () => void = () => undefined;
     const held = new Promise<void>((resolve) => (release = resolve));
