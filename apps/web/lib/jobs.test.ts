@@ -208,6 +208,11 @@ describe("failureView", () => {
     expect(failureView("LIMIT_ENTRIES").message).toBe(
       "This repo has over 60,000 files and folders, the limit for one analysis. Try a smaller repo.",
     );
+    // Production's time limit: the analysis's guaranteed share of an attempt, 230 s, not the
+    // child's own 5 minutes (ADR-0143's M5.14b3e amendment; limits.test.ts pins the number).
+    expect(failureView("LIMIT_TIME").message).toBe(
+      `The analysis took over 3${NBSP}min 50${NBSP}s, the limit for one repo. A repo with many services can take that long even under ${MAX_SOURCE_MB}${NBSP}MB of source code. Try a smaller repo.`,
+    );
     // Memory and time fail only after both size checks passed: say that's still possible.
     for (const code of ["LIMIT_TIME", "LIMIT_MEMORY"]) {
       expect(failureView(code).message, code).toContain(

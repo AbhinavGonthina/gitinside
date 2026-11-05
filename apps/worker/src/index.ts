@@ -69,9 +69,11 @@ export {
 } from "./github.js";
 export {
   DEFAULT_DOWNLOAD_TIMEOUT_MS,
+  DOWNLOAD_ALLOWANCE_MS,
   PUBLISH_RESERVE_MS,
   SKIPPED_SAMPLE_SIZE,
   STAGE_PROGRESS,
+  guaranteedAnalysisMs,
   processJob,
   sweepJobsRoot,
   type JobArtifact,

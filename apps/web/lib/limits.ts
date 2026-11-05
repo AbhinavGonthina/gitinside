@@ -20,8 +20,24 @@ export const SUPPORTED_SOURCE_MB = 50;
 export const SUPPORTED_UNPACKED_MB = 400;
 export const SUPPORTED_ENTRIES = 60_000;
 
+/**
+ * The analysis's time limit in production, in seconds: its guaranteed share of a Cloud Run
+ * attempt (the worker's `guaranteedAnalysisMs(JOB_BUDGET_MS)`, 280 s less 20 s to publish and
+ * 30 s for the download; limits.test.ts keeps them equal). `LIMIT_TIME` means it ran at least
+ * this long; the child's own 5 minutes never fit in an attempt (ADR-0143's M5.14b3e amendment).
+ */
+export const ANALYSIS_TIME_LIMIT_SECONDS = 230;
+
 /** A no-break space (U+00A0), written as a code so it can't pass for a plain one. */
 export const NBSP = String.fromCharCode(0xa0);
+
+/** "3 min 50 s", with no-break spaces inside each part. */
+export const ANALYSIS_TIME_LIMIT = [
+  `${String(Math.floor(ANALYSIS_TIME_LIMIT_SECONDS / 60))}${NBSP}min`,
+  ...(ANALYSIS_TIME_LIMIT_SECONDS % 60 === 0
+    ? []
+    : [`${String(ANALYSIS_TIME_LIMIT_SECONDS % 60)}${NBSP}s`]),
+].join(" ");
 
 /** "50 MB" with a no-break space, so a wrapped line never leaves the unit on its own. */
 export const SUPPORTED_SOURCE_SIZE = `${SUPPORTED_SOURCE_MB}${NBSP}MB`;
