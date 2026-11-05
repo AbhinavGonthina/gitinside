@@ -26,11 +26,20 @@ export function deployTarget(): DeployTarget;
 export function plan(projectNumber: string | undefined): { provider: string; account: string };
 export function imageInputs(): string[];
 export function touchesImage(paths: string[], inputs?: string[]): boolean;
+export const COMMIT_LABEL: string;
 export function needsDeploy(
-  before: string | undefined,
+  deployed: string | undefined,
   after: string,
   git?: (args: string[]) => string,
 ): boolean;
+/** A service as `gcloud run services describe --format=json` answers it (only what's read). */
+export function deployedCommit(service: unknown): string | undefined;
+export function deployNeeded(options: {
+  after: string;
+  exec: (command: string, args: string[]) => string;
+  git?: (args: string[]) => string;
+  always?: boolean;
+}): boolean;
 export function render(text: string, values: Record<string, string>, target?: DeployTarget): string;
 export function queueUpdateArgs(queue: Queue, project: string): string[];
 export const VARIABLES: string[];

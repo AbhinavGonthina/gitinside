@@ -4,12 +4,12 @@
  * CI's `deploy` job on a push to `main` once every other job is green. Run from the repo root:
  *
  *   node infra/gcp/deploy.mjs plan            values for the workflow's auth step ($GITHUB_OUTPUT)
- *   node infra/gcp/deploy.mjs changed <before> <after>   whether the image's inputs changed
+ *   node infra/gcp/deploy.mjs changed <sha>   whether the image's inputs changed since what's live
  *   node infra/gcp/deploy.mjs apply <sha>     build, push, render, replace both services, queue
  *
  * Everything it deploys comes from this folder's reviewed files; the only outside values are
- * the repo variables `GCP_PROJECT_NUMBER` and `SNAPSHOTS_*` (identifiers, not secrets) and the
- * image digest it pushes. It never creates or grants anything: the services, queue, registry,
+ * the repo variables `GCP_PROJECT_NUMBER` and `SNAPSHOTS_*` (identifiers, not secrets), the
+ * commit, and the image digest it pushes. It never creates or grants anything: the services, queue, registry,
  * and IAM are set up once by hand (`README.md`, "Applying it"), and the deploy account may only
  * push to the registry, replace the two services, and update the queue (`iam.json`).
  */
@@ -99,20 +99,83 @@ export function touchesImage(paths, inputs = imageInputs()) {
 }
 
 const ZERO_SHA = /^0{40}$/;
+const COMMIT_SHA = /^[0-9a-f]{40}$/;
 
 /**
- * Whether a push from `before` to `after` needs a deploy. Deploys when it can't tell (a new
- * branch, or `before` missing from the checkout's history), so a change is never skipped.
+ * The revision label carrying the commit a deploy built from (`{{COMMIT}}` in both services'
+ * templates), so the next deploy can compare with what's live rather than with the last push.
  */
-export function needsDeploy(before, after, git = gitOutput) {
-  if (!before || ZERO_SHA.test(before)) return true;
+export const COMMIT_LABEL = "gitinside-commit";
+
+/** The services the deploy replaces, in its order: the kill switch before the worker it stops. */
+const SERVICE_FILES = ["killswitch.json", "service.json"];
+
+/**
+ * Whether going from the deployed commit `deployed` to `after` needs a deploy. Deploys when
+ * it can't tell (nothing known to be deployed, or a commit missing from the checkout's
+ * history), so a change is never skipped.
+ */
+export function needsDeploy(deployed, after, git = gitOutput) {
+  if (!deployed || ZERO_SHA.test(deployed)) return true;
   let names;
   try {
-    names = git(["diff", "--name-only", before, after]);
+    names = git(["diff", "--name-only", deployed, after]);
   } catch {
     return true;
   }
   return touchesImage(names.split("\n").filter((line) => line !== ""));
+}
+
+/**
+ * The commit a service (as `gcloud run services describe --format=json` answers) runs, or
+ * `undefined` unless that's certain: its latest spec is rolled out (observed), its newest
+ * revision is the ready one, the service is Ready, and that revision serves all traffic. A
+ * revision that failed its startup probe leaves traffic on an older one, so it isn't deployed.
+ */
+export function deployedCommit(service) {
+  const status = service?.status ?? {};
+  const generation = service?.metadata?.generation;
+  if (generation === undefined || status.observedGeneration !== generation) return undefined;
+  const ready = (status.conditions ?? []).find((condition) => condition.type === "Ready");
+  if (ready?.status !== "True") return undefined;
+  const latest = status.latestReadyRevisionName;
+  if (!latest || status.latestCreatedRevisionName !== latest) return undefined;
+  const serving = (status.traffic ?? []).filter((route) => (route.percent ?? 0) > 0);
+  if (serving.length === 0 || serving.some((route) => route.revisionName !== latest)) {
+    return undefined;
+  }
+  const commit = service.spec?.template?.metadata?.labels?.[COMMIT_LABEL];
+  return COMMIT_SHA.test(commit ?? "") ? commit : undefined;
+}
+
+/**
+ * Whether `after` needs a deploy: unless `always` (a manual run), it reads both services from
+ * Cloud Run and deploys if either doesn't certainly run a commit from which the image's inputs
+ * are unchanged. A run that failed, was cancelled, or never reached the deploy is so shipped by
+ * the next one (R3, second M5 review).
+ */
+export function deployNeeded({ after, exec, git = gitOutput, always = false }) {
+  if (always) return true;
+  const target = deployTarget();
+  for (const file of SERVICE_FILES) {
+    let service;
+    try {
+      const answer = exec("gcloud", [
+        "run",
+        "services",
+        "describe",
+        read(file).metadata.name,
+        `--region=${target.region}`,
+        `--project=${target.project}`,
+        "--format=json",
+      ]);
+      service = JSON.parse(answer);
+    } catch {
+      return true;
+    }
+    if (needsDeploy(deployedCommit(service), after, git)) return true;
+  }
+  return false;
 }
 
 const PLACEHOLDER = /\{\{([A-Z0-9_]+)\}\}/g;
@@ -214,8 +277,9 @@ export function apply({ sha, env, exec, out }) {
   const digest = JSON.parse(pushed).find((reference) => reference.startsWith(`${target.image}@`));
   if (!digest) throw new Error(`no digest for ${tag} in ${pushed.trim()}`);
   values.IMAGE = digest;
+  values.COMMIT = sha;
   // The kill switch first: the stop must never lag behind the worker it stops.
-  for (const file of ["killswitch.json", "service.json"]) {
+  for (const file of SERVICE_FILES) {
     const rendered = join(out, file);
     writeFileSync(rendered, render(readFileSync(join(GCP, file), "utf8"), values, target));
     exec("gcloud", [
@@ -259,13 +323,15 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (command === "plan") {
     output(plan(process.env.GCP_PROJECT_NUMBER));
   } else if (command === "changed") {
-    output({ deploy: String(needsDeploy(args[0], args[1])) });
+    if (!COMMIT_SHA.test(args[0] ?? "")) throw new Error(`not a commit SHA: "${args[0]}"`);
+    const always = process.env.GITHUB_EVENT_NAME === "workflow_dispatch";
+    output({ deploy: String(deployNeeded({ after: args[0], exec: execShown, always })) });
   } else if (command === "apply") {
     const out = mkdtempSync(join(process.env.RUNNER_TEMP ?? tmpdir(), "gitinside-deploy-"));
     const digest = apply({ sha: args[0], env: process.env, exec: execShown, out });
     console.log(`deployed ${digest}`);
   } else {
-    console.error("usage: deploy.mjs plan | changed <before> <after> | apply <sha>");
+    console.error("usage: deploy.mjs plan | changed <sha> | apply <sha>");
     process.exit(2);
   }
 }

@@ -152,27 +152,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The pushed range, to tell whether the image's inputs changed.
+          # The whole history, to diff from the commit the live services run.
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - id: changed
-        run: node infra/gcp/deploy.mjs changed "$BEFORE" "$GITHUB_SHA"
-        env:
-          # Empty on a manual run, which always deploys.
-          BEFORE: ${{ github.event_name == 'push' && github.event.before || '' }}
       - id: plan
-        if: steps.changed.outputs.deploy == 'true'
         run: node infra/gcp/deploy.mjs plan
       # Pinned by commit: this step holds the job's Google credentials.
-      - if: steps.changed.outputs.deploy == 'true'
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
           workload_identity_provider: ${{ steps.plan.outputs.provider }}
           service_account: ${{ steps.plan.outputs.account }}
-      - if: steps.changed.outputs.deploy == 'true'
-        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      # Against the commit both services run (their revision label), not the previous push,
+      # so a run that failed or never deployed is shipped now. A manual run always deploys.
+      - id: changed
+        run: node infra/gcp/deploy.mjs changed "$GITHUB_SHA"
       - if: steps.changed.outputs.deploy == 'true'
         run: node infra/gcp/deploy.mjs apply "$GITHUB_SHA"

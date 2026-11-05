@@ -14,6 +14,7 @@
   "spec": {
     "template": {
       "metadata": {
+        "labels": { "gitinside-commit": "{{COMMIT}}" },
         "annotations": {
           "autoscaling.knative.dev/minScale": "0",
           "autoscaling.knative.dev/maxScale": "2",

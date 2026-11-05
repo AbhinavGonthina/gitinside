@@ -242,6 +242,7 @@ describe("infra/gcp service.json (Cloud Run)", () => {
   it("uses only the placeholders the deploy knows", () => {
     const text = readFileSync(join(GCP, "service.json"), "utf8");
     expect([...text.matchAll(/\{\{([A-Z_]+)\}\}/g)].map((m) => m[1]).sort()).toEqual([
+      "COMMIT",
       "IMAGE",
       "SNAPSHOTS_ACCESS_KEY_ID",
       "SNAPSHOTS_BUCKET",

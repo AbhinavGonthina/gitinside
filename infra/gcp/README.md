@@ -49,7 +49,7 @@ Project `gitinside-513223`, region `us-east4` (northern Virginia, beside Vercel'
 | `startupProbe` | `GET /health`, every 2 s, up to 60 s | Traffic only once the server listens; no liveness probe (an instance is busy with its one job) |
 | `serviceAccountName` | `gitinside-worker` | Its own account, never the default compute account (which has Editor on the project) |
 
-**Variables.** Plain values, filled in by the deploy (M5.17e) from GitHub Actions variables: `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_BUCKET`, `SNAPSHOTS_ACCESS_KEY_ID` (an identifier, not a secret), and `{{IMAGE}}`. From Secret Manager, version `latest`, read when an instance starts: `DATABASE_URL` (`worker-database-url`), `SNAPSHOTS_SECRET_ACCESS_KEY` (`worker-snapshots-secret-key`), `ENQUEUE_HMAC_SECRET` (`enqueue-hmac-secret`, the same value as in Vercel), and `GITHUB_TOKEN` (`worker-github-token`: Cloud Run's outbound addresses are shared, so the anonymous limit of 60 an hour would run out; a fine-grained token with "Public repositories (read-only)" access and no permissions, so a leak reads only public data, SECURITY.md §4). `PORT` is set by Cloud Run and `HOST` by the image.
+**Variables.** Plain values, filled in by the deploy (M5.17e) from GitHub Actions variables: `SNAPSHOTS_NAMESPACE`, `SNAPSHOTS_REGION`, `SNAPSHOTS_BUCKET`, `SNAPSHOTS_ACCESS_KEY_ID` (an identifier, not a secret), `{{IMAGE}}`, and `{{COMMIT}}` (the revision's `gitinside-commit` label, which the next deploy compares with). From Secret Manager, version `latest`, read when an instance starts: `DATABASE_URL` (`worker-database-url`), `SNAPSHOTS_SECRET_ACCESS_KEY` (`worker-snapshots-secret-key`), `ENQUEUE_HMAC_SECRET` (`enqueue-hmac-secret`, the same value as in Vercel), and `GITHUB_TOKEN` (`worker-github-token`: Cloud Run's outbound addresses are shared, so the anonymous limit of 60 an hour would run out; a fine-grained token with "Public repositories (read-only)" access and no permissions, so a leak reads only public data, SECURITY.md §4). `PORT` is set by Cloud Run and `HOST` by the image.
 
 **Migrations** (ADR-0192). Each instance applies pending migrations at startup, before it listens, so a new revision takes no traffic (its startup probe fails) until Neon's schema matches its code. It connects to Neon's direct endpoint, the `worker-database-url` host without `-pooler` (same role and password), since a session advisory lock and DDL don't go through PgBouncer's transaction pooling; that lock makes two instances starting together take turns. A migration waits at most 15 s for a lock and then fails the start, which Cloud Run retries. No extra secret, role, or step: the deploy is unchanged. Migrations must keep the previous revision working (add, don't rename or drop in the same commit), since it serves until the new one is ready.
 
@@ -116,12 +116,12 @@ Unlinking billing stops every paid service in the project, the worker included, 
 CI's last job, `deploy` in `.github/workflows/ci.yml` (ADR-0170), on a push to `main` or a manual run there:
 
 ```
-every other CI job green ─▶ deploy.mjs changed <before> <sha>: did the image's inputs change?
-                              (apps/worker, the workspace packages it builds from, root manifests, infra/gcp)
-   │ yes (or can't tell)
-   ▼
-GitHub OIDC token ──Workload Identity Federation, pool "github"──▶ gitinside-deploy (no key anywhere)
+every other CI job green ─▶ GitHub OIDC token ──Workload Identity Federation, pool "github"──▶ gitinside-deploy (no key anywhere)
    │
+   ▼ deploy.mjs changed <sha>: did the image's inputs change since the commit both services run?
+       (their gitinside-commit revision label; apps/worker, the workspace packages it builds from,
+        root manifests, infra/gcp)
+   │ yes (or can't tell)
    ▼ deploy.mjs apply <sha>
 docker build ─▶ push us-east4-docker.pkg.dev/gitinside-513223/gitinside/worker:<sha>
    ─▶ render killswitch.json, service.json with the pushed digest and the repo variables
@@ -131,10 +131,10 @@ docker build ─▶ push us-east4-docker.pkg.dev/gitinside-513223/gitinside/work
 | Piece | What | Why |
 |---|---|---|
 | Trigger | `needs` all four CI jobs; `main` only; skipped while `GCP_PROJECT_NUMBER` isn't set | Nothing ships red, and the job is idle until #3's setup exists |
-| Change check | `git diff --name-only` of the pushed range against the image's inputs, read from the worker's `package.json` and its workspace dependencies; a new branch or a manual run always deploys | Most commits are docs or the website, and each build is a new image in the registry |
+| Change check | `git diff --name-only` from the commit the live services run to this one, against the image's inputs (read from the worker's `package.json` and its workspace dependencies). The live commit is each service's `gitinside-commit` revision label (`{{COMMIT}}`), trusted only when its newest revision is Ready and serves all traffic; no label, a failed or half-rolled revision, a failed describe, or a commit git doesn't have deploys, and so does a manual run | Most commits are docs or the website, and each build is a new image in the registry. Comparing with what's live, not the previous push, means a run that failed, was cancelled, or never reached the deploy is shipped by the next push (R3, second M5 review) |
 | Provider condition | repository and owner **IDs**, `ref == refs/heads/main`, `workflow_ref` = `ci.yml` on main, event `push` or `workflow_dispatch` | A pull request, another branch, another workflow file, or a re-created repo of the same name gets no token |
 | Image | pinned by digest in both services | The services run exactly what was pushed, whatever the tag later points to |
-| Render | on the parsed JSON, string by string; `IMAGE` must be this registry's worker by digest, other values identifiers | A repo variable can't change a service's structure |
+| Render | on the parsed JSON, string by string; `IMAGE` must be this registry's worker by digest, other values (`COMMIT`, the repo variables) identifiers | A repo variable can't change a service's structure |
 | Actions | `google-github-actions/auth` and `setup-gcloud` pinned by commit | They hold the job's Google credentials |
 | Registry | keep the 3 most recent versions, delete anything else older than an hour; CI fails if the image passes 150 MB gzipped (`check.mjs`; 85.9 MB on 2026-11-01) | 3 × 150 MB fits Artifact Registry's free 0.5 GB: the running image, the one before, and one from a deploy that failed half way. Cleanup runs about daily, so a day with many deploys can pass 0.5 GB for hours, cents at most |
 
