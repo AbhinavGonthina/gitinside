@@ -1,7 +1,6 @@
 import {
   claimRepoAnalysis,
   consumeRateLimit,
-  findAnalysis,
   findComputePause,
   refundRateLimit,
   releaseRepoAnalysis,
@@ -9,7 +8,12 @@ import {
 } from "@gitinside/db";
 import { passBotCheck, type BotCheck, type BotRefusal } from "./botCheck";
 import { rateLimitKey } from "./clientIp";
-import { enqueueAnalysis, type EnqueueDeps, type EnqueueResult } from "./enqueue";
+import {
+  enqueueAnalysis,
+  findAnalysisToQueue,
+  type EnqueueDeps,
+  type EnqueueResult,
+} from "./enqueue";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
 import {
   failureView,
@@ -32,7 +36,9 @@ import { findSizeHold, type SizeHold } from "./sizeHold";
  *    (the repo row refreshed from GitHub's facts). Viewing and re-asking are never
  *    rate-limited.
  * 4. **Dedupe:** a commit already `queued` or `running` gets the same job back (the job ID
- *    is derived from the commit), again without counting against the limit. A commit whose
+ *    is derived from the commit), again without counting against the limit; one `queued`
+ *    with no task coming any more is a new analysis instead (`findAnalysisToQueue`, R10).
+ *    A commit whose
  *    analysis failed in a way that would fail again (`permanentFailure`: a limit, an
  *    unreadable download) isn't queued again: `422 ANALYSIS_FAILED` with the job page's
  *    reason, like check-on-view (R8). A GitHub access failure is retried, since step 2 just
@@ -179,7 +185,7 @@ export async function requestAnalysis(
   const { repo } = resolved;
   const commit = { owner: repo.owner, repo: repo.name, sha: repo.sha };
 
-  const existing = await findAnalysis(deps.db, {
+  const existing = await findAnalysisToQueue(deps.db, {
     providerRepoId: repo.providerRepoId,
     sha: repo.sha,
     analyzerVersion: deps.analyzerVersion,

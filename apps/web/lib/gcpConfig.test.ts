@@ -15,7 +15,13 @@ import {
   workerConfigFromEnv,
 } from "@gitinside/worker";
 import { describe, expect, it } from "vitest";
-import { DISPATCH_DEADLINE_SECONDS } from "./cloudTasks";
+import {
+  DISPATCH_DEADLINE_SECONDS,
+  QUEUE_SLOTS,
+  RETRY_BACKOFF_SECONDS,
+  STRANDED_AFTER_SECONDS,
+  TASK_ATTEMPTS,
+} from "./cloudTasks";
 
 /**
  * `infra/gcp`'s reviewed config (ADR-0151) against the code it has to agree with: the worker's
@@ -271,6 +277,16 @@ describe("infra/gcp queue.json (Cloud Tasks)", () => {
     expect(waits).toEqual([30, 60]);
     const span = MAX_ATTEMPTS * DISPATCH_DEADLINE_SECONDS + waits.reduce((a, b) => a + b, 0);
     expect(span).toBeLessThanOrEqual(MAX_TASK_AGE_SECONDS / 24);
+  });
+
+  it("is what the website assumes when it calls a queued row stranded (R10)", () => {
+    expect(TASK_ATTEMPTS).toBe(queue.retryConfig.maxAttempts);
+    expect(RETRY_BACKOFF_SECONDS).toEqual(backoffs(queue.retryConfig));
+    expect(QUEUE_SLOTS).toBe(queue.rateLimits.maxConcurrentDispatches);
+    const span = MAX_ATTEMPTS * DISPATCH_DEADLINE_SECONDS + 30 + 60;
+    expect(STRANDED_AFTER_SECONDS).toBe(span + 120);
+    // Far sooner than maintenance's day, which stays for rows nobody asks about.
+    expect(STRANDED_AFTER_SECONDS).toBeLessThan(MAX_TASK_AGE_SECONDS / 24);
   });
 
   it("is named as the website names it", () => {

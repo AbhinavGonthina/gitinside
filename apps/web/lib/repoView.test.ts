@@ -5,6 +5,7 @@ import {
   computeUsage,
   countComputeUsage,
   failAnalysis,
+  queueAnalysis,
   rateLimits,
   repos,
   startAnalysis,
@@ -24,6 +25,7 @@ import {
   viewRepo,
   type RepoViewDeps,
 } from "./repoView";
+import { STRANDED_AFTER_SECONDS, taskIdFor } from "./cloudTasks";
 import { createCodeSizeCache } from "./codeSize";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeTaskQueue } from "./google.testkit";
@@ -447,6 +449,27 @@ describe("viewRepo", () => {
     expect(await repoSlots()).toBe(1);
     const stored = await t.db.select().from(analyses);
     expect(stored.find((r) => r.sha === NEW)?.errorCode).toBeNull();
+  });
+
+  it("gives a commit queued past every attempt of its task a fresh task, charged to the repo (R10)", async () => {
+    await done(OLD);
+    shop.sha = NEW;
+    // Queued that long ago, with its task: Cloud Tasks gave up on it before the worker wrote
+    // anything, and its name stays taken for a day. (The done row's entry doesn't matter.)
+    const key = { repoId: await repoId(), sha: NEW, analyzerVersion: VERSION };
+    await queueAnalysis(t.db, key, { jobId: jobFor(NEW) });
+    const queuedAt = new Date(Date.now() - (STRANDED_AFTER_SECONDS + 5) * 1000);
+    await t.db.update(analyses).set({ queuedAt });
+    const job = { owner: "Acme", repo: "Shop", sha: NEW };
+    await tasks.queue.createTask(job, taskIdFor(jobFor(NEW), queuedAt));
+
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "updating", sha: NEW, jobId: jobFor(NEW) }),
+    );
+    expect(tasks.google.tasks).toHaveLength(2);
+    expect(new Set(tasks.taskIds()).size).toBe(2);
+    expect(await rows()).toContainEqual({ sha: NEW, status: "queued", version: VERSION });
+    expect(await repoSlots()).toBe(1);
   });
 
   it("without a queue, a row that never got its task is behind (unavailable), not failed", async () => {

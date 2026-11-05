@@ -2,12 +2,22 @@ import {
   QUEUE_UNAVAILABLE_CODE,
   countComputeUsage,
   failAnalysis,
+  failStrandedAnalysis,
+  findAnalysis,
   queueAnalysis,
   upsertRepo,
+  type AnalysisSummary,
   type AnyDatabase,
+  type StrandedWait,
 } from "@gitinside/db";
 import { jobIdFor } from "@gitinside/worker/request";
-import { taskIdFor, type TaskQueue } from "./cloudTasks";
+import {
+  DISPATCH_DEADLINE_SECONDS,
+  QUEUE_SLOTS,
+  STRANDED_AFTER_SECONDS,
+  taskIdFor,
+  type TaskQueue,
+} from "./cloudTasks";
 import type { ResolvedRepo } from "./github";
 import { WorkerUnavailableError } from "./worker";
 
@@ -57,6 +67,33 @@ export type EnqueueResult =
   | { status: "queued" | "running"; jobId: string; entered: boolean }
   /** The task couldn't be created; a row this call queued is failed. */
   | { status: "unavailable" };
+
+/** When a `queued` row has no task coming any more (`failStrandedAnalysis`). */
+const STRANDED_WAIT: StrandedWait = {
+  queuedForSeconds: STRANDED_AFTER_SECONDS,
+  // Cloud Tasks frees a slot once the push is answered or its deadline passes.
+  runningForSeconds: DISPATCH_DEADLINE_SECONDS,
+  slots: QUEUE_SLOTS,
+};
+
+/**
+ * The commit's analysis (`findAnalysis`), for a caller that may queue it: `/api/analyze`
+ * and check-on-view. A `queued` row no task is coming for any more (R10: Cloud Tasks gave
+ * up before the worker wrote anything, e.g. three `503`s at a cold start or a `401` during
+ * a secret rotation) is failed with {@link QUEUE_UNAVAILABLE} first. The caller then treats
+ * the commit as a new analysis (every limit applies, a slot is taken), and
+ * {@link enqueueAnalysis} queues it again under a fresh task name, where it used to count as
+ * in flight, its name refused as `ALREADY_EXISTS`, until maintenance failed it a day later.
+ */
+export async function findAnalysisToQueue(
+  db: AnyDatabase,
+  key: Parameters<typeof findAnalysis>[1],
+): Promise<AnalysisSummary | undefined> {
+  const found = await findAnalysis(db, key);
+  if (found?.status !== "queued") return found;
+  if (!(await failStrandedAnalysis(db, found.id, STRANDED_WAIT))) return found;
+  return findAnalysis(db, key);
+}
 
 /** Queue `repo`'s commit (GitHub's facts, as resolved) unless it's already in flight or done. */
 export async function enqueueAnalysis(

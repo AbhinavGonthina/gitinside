@@ -56,6 +56,22 @@ export const RUN_PATH = "/run";
  * timeout (ADR-0111). Google allows 15 s to 30 min for HTTP targets (checked 2026-10-31).
  */
 export const DISPATCH_DEADLINE_SECONDS = 330;
+/** The queue's deliveries per task (`maxAttempts`, the worker's `MAX_ATTEMPTS`). */
+export const TASK_ATTEMPTS = 3;
+/** The queue's waits between those deliveries, in seconds (`minBackoff` 30 s, doubling). */
+export const RETRY_BACKOFF_SECONDS: readonly number[] = [30, 60];
+/** The queue's concurrent dispatches (`maxConcurrentDispatches`: one per worker instance). */
+export const QUEUE_SLOTS = 2;
+/**
+ * How long a row stays `queued` before a request may give it a fresh task (R10, ADR-0147's
+ * amendment): every delivery's deadline plus both backoffs (18 min), and 2 min for the
+ * first dispatch and the worker's first write. Only once a dispatch slot is free, too
+ * (`failStrandedAnalysis`): a task waiting behind other jobs can take longer.
+ */
+export const STRANDED_AFTER_SECONDS =
+  TASK_ATTEMPTS * DISPATCH_DEADLINE_SECONDS +
+  RETRY_BACKOFF_SECONDS.reduce((sum, wait) => sum + wait, 0) +
+  120;
 
 const ID = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
 const LOCATION = /^[a-z]+-[a-z]+[0-9]+$/;

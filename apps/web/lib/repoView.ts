@@ -1,6 +1,5 @@
 import {
   consumeRateLimit,
-  findAnalysis,
   findComputePause,
   findPublishedAnalysis,
   hideRepo,
@@ -10,7 +9,12 @@ import {
 } from "@gitinside/db";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
 import { COMMIT_SHA, type BaseView, type SearchParams } from "./compare";
-import { QUEUE_UNAVAILABLE, enqueueAnalysis, type EnqueueDeps } from "./enqueue";
+import {
+  QUEUE_UNAVAILABLE,
+  enqueueAnalysis,
+  findAnalysisToQueue,
+  type EnqueueDeps,
+} from "./enqueue";
 import { resolveRepo, type GitHubOptions, type ResolvedRepo, type ResolveResult } from "./github";
 import type { RepoRef } from "./repoUrl";
 import { findSizeHold } from "./sizeHold";
@@ -37,8 +41,9 @@ import { findSizeHold } from "./sizeHold";
  *    (`findSizeHold`, #11) ⇒ `behind`, `too-big`; over twice the supported size of TypeScript
  *    and JavaScript by GitHub's count (`findTooMuchCode`, ADR-0154) ⇒ `behind`,
  *    `too-much-code`; new analyses paused for the month's compute (`findComputePause`,
- *    ADR-0156) ⇒ `behind`, `paused`; none, or a row whose task was never
- *    created (`QUEUE_UNAVAILABLE`) ⇒ enqueued on Cloud Tasks (`enqueueAnalysis`).
+ *    ADR-0156) ⇒ `behind`, `paused`; none, a row whose task was never created
+ *    (`QUEUE_UNAVAILABLE`), or one `queued` with no task coming any more
+ *    (`findAnalysisToQueue`, R10) ⇒ enqueued on Cloud Tasks (`enqueueAnalysis`).
  * 5. **Who pays:** re-analysis on view is charged to the repo, not the visitor
  *    (`repo:<GitHub ID>`, {@link RECHECKS_PER_HOUR} per hour), since a README image or a
  *    shared link is viewed by many people at once, and only a repo someone already paid to
@@ -315,7 +320,7 @@ export async function viewRepo(
     return ready(published, { state: "current" });
   }
 
-  const existing = await findAnalysis(db, {
+  const existing = await findAnalysisToQueue(db, {
     providerRepoId: head.providerRepoId,
     sha: head.sha,
     analyzerVersion: deps.analyzerVersion,
