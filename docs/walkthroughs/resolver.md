@@ -367,6 +367,8 @@ Both read a parameter of the function they're in, so both are wrapper bodies.
 
 **Goal:** apps rarely call `fetch` directly; they call `api.get("/users")` or `request("/projects")`. A site inside such a helper can't be resolved alone, but each *call* to the helper can. `inlineWrappers` turns each call into its own `HttpRequest`, re-normalizing the helper's URL with the parameters bound to that call's arguments. Exactly one level (ADR-0032).
 
+> **Since M5C.7f** (ADR-0032's amendment): a helper that passes its own parameter on as the start of another helper's path is a wrapper too, up to three deep. Its callers are inlined through the chain: each level's arguments are read with the next level's bindings (`ParameterBindings.outer`) instead of with bindings switched off. So `legacyProjects → requestVia("/api/projects")` below is now `GET /api/projects`; the `requestVia` rows describe M2's one-level behaviour, which still applies past the third level. See the `wrapper-chain` fixture.
+
 ```mermaid
 sequenceDiagram
   participant L as listProjects (caller)

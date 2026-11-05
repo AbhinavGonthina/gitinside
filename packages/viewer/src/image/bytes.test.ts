@@ -148,5 +148,6 @@ const EXPECTED: Record<string, string[]> = {
   "url-alternatives": ["6cbdfe701f1334a7", "db8ab97b3b62d5e5", "97cd61834becbd45"],
   "vite-proxy": ["9b3e0e072f9758ac", "4b2b176b72454cd2", "545a523731bd1732"],
   "workspace-root-files": ["fdbc469bea2d70c7", "0e720004c4d99d39", "6b8780fa3237d923"],
-  "wrapper-fetch": ["12360e06fae71333", "791e0ed4bfa41857", "f3719fe458b7bffc"],
+  "wrapper-chain": ["f249726542aa0a4d", "0c40730082dcefd8", "68c772d30e5c1f6a"],
+  "wrapper-fetch": ["4681a4e560c54da0", "c69fa9fa49ddbc87", "1de9141ac1810a27"],
 };

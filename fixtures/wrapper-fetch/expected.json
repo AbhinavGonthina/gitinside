@@ -62,21 +62,6 @@
       "to": "symbol:wrapper-fetch/src/http.ts#request"
     },
     {
-      "confidence": "unresolved",
-      "from": "symbol:wrapper-fetch/src/http.ts#requestVia",
-      "id": "http:symbol:wrapper-fetch/src/http.ts#requestVia->unresolved:wrapper-fetch/src/http.ts:15:10",
-      "kind": "http",
-      "reason": "WRAPPER_DEPTH",
-      "sites": [
-        {
-          "column": 10,
-          "file": "src/http.ts",
-          "line": 15
-        }
-      ],
-      "to": "unresolved:wrapper-fetch/src/http.ts:15:10"
-    },
-    {
       "confidence": "exact",
       "from": "symbol:wrapper-fetch/src/projects.ts#createProject",
       "id": "http:symbol:wrapper-fetch/src/projects.ts#createProject->route:wrapper-fetch/POST /api/projects",
@@ -91,6 +76,22 @@
         }
       ],
       "to": "route:wrapper-fetch/POST /api/projects"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-fetch/src/projects.ts#legacyProjects",
+      "id": "http:symbol:wrapper-fetch/src/projects.ts#legacyProjects->route:wrapper-fetch/GET /api/projects",
+      "kind": "http",
+      "label": "GET /api/projects",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/projects.ts",
+          "line": 12,
+          "request": "GET /api/projects"
+        }
+      ],
+      "to": "route:wrapper-fetch/GET /api/projects"
     },
     {
       "confidence": "exact",
@@ -125,7 +126,7 @@
   ],
   "nodes": [
     {
-      "hash": "579c02f6e7e09c4b6b3298930b14da6b30c9b591ebfe5ff60524c90c5cd023cd",
+      "hash": "59d0fa3206460e191287262e0f3cad83de8fb01261a28d50d5cdf11b4e6bc442",
       "id": "file:wrapper-fetch/src/http.ts",
       "kind": "file",
       "label": "http.ts",
@@ -287,20 +288,6 @@
       "kind": "system",
       "label": "wrapper-fetch",
       "parentId": null
-    },
-    {
-      "detail": "the URL starts with a parameter of the calling function, a wrapper more than one call deep",
-      "expression": "requestRaw(url)",
-      "id": "unresolved:wrapper-fetch/src/http.ts:15:10",
-      "kind": "unresolved",
-      "label": "GET requestRaw(url)",
-      "parentId": "service:wrapper-fetch/",
-      "reason": "WRAPPER_DEPTH",
-      "source": {
-        "column": 10,
-        "file": "src/http.ts",
-        "line": 15
-      }
     }
   ],
   "repo": {

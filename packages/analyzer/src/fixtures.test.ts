@@ -61,6 +61,7 @@ const NAMES = [
   "url-alternatives",
   "ambiguous-routes",
   "wrapper-fetch",
+  "wrapper-chain",
   "external-sdk",
   "compose-and-env",
   "fake-secrets",
@@ -682,12 +683,24 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
   });
 
-  it("wrapper-fetch: one level is inlined per caller; a second level is WRAPPER_DEPTH", async () => {
+  it("wrapper-chain: wrappers over wrappers inline at the outermost caller, up to three deep (M5C.7f)", async () => {
+    const g = await run("wrapper-chain");
+    const p = "wrapper-chain";
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/src/api/boards.ts#createBoard -> route:${p}/POST /api/boards exact`,
+      `symbol:${p}/src/api/boards.ts#listBoards -> route:${p}/GET /api/boards exact`,
+      `symbol:${p}/src/api/boards.ts#loadBoard -> route:${p}/GET /api/boards/:id exact`,
+      `symbol:${p}/src/api/boards.ts#loadStats -> route:${p}/GET /api/stats exact`,
+      `symbol:${p}/src/api/feed.ts#getTracked -> unresolved:${p}/src/api/feed.ts:5:10 unresolved WRAPPER_DEPTH`,
+    ]);
+  });
+
+  it("wrapper-fetch: each wrapper call is inlined, also through a wrapper over a wrapper", async () => {
     const g = await run("wrapper-fetch");
     const p = "wrapper-fetch";
     expect(links(g, "http")).toEqual([
-      `symbol:${p}/src/http.ts#requestVia -> unresolved:${p}/src/http.ts:15:10 unresolved WRAPPER_DEPTH`,
       `symbol:${p}/src/projects.ts#createProject -> route:${p}/POST /api/projects exact`,
+      `symbol:${p}/src/projects.ts#legacyProjects -> route:${p}/GET /api/projects exact`,
       `symbol:${p}/src/projects.ts#listProjects -> route:${p}/GET /api/projects exact`,
     ]);
   });

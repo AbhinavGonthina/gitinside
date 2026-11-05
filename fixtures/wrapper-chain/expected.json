@@ -1,0 +1,555 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/boards.ts#createBoard",
+      "id": "calls:symbol:wrapper-chain/src/api/boards.ts#createBoard->symbol:wrapper-chain/src/api/client.ts#postJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 48,
+          "file": "src/api/boards.ts",
+          "line": 7
+        }
+      ],
+      "to": "symbol:wrapper-chain/src/api/client.ts#postJson"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/boards.ts#listBoards",
+      "id": "calls:symbol:wrapper-chain/src/api/boards.ts#listBoards->symbol:wrapper-chain/src/api/client.ts#getJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 45,
+          "file": "src/api/boards.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:wrapper-chain/src/api/client.ts#getJson"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/boards.ts#loadBoard",
+      "id": "calls:symbol:wrapper-chain/src/api/boards.ts#loadBoard->symbol:wrapper-chain/src/api/client.ts#getJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 42,
+          "file": "src/api/boards.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:wrapper-chain/src/api/client.ts#getJson"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/boards.ts#loadStats",
+      "id": "calls:symbol:wrapper-chain/src/api/boards.ts#loadStats->symbol:wrapper-chain/src/api/client.ts#getCached",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 32,
+          "file": "src/api/boards.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:wrapper-chain/src/api/client.ts#getCached"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/client.ts#getCached",
+      "id": "calls:symbol:wrapper-chain/src/api/client.ts#getCached->symbol:wrapper-chain/src/api/client.ts#getJson",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/api/client.ts",
+          "line": 18
+        }
+      ],
+      "to": "symbol:wrapper-chain/src/api/client.ts#getJson"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/client.ts#getJson",
+      "id": "calls:symbol:wrapper-chain/src/api/client.ts#getJson->symbol:wrapper-chain/src/api/client.ts#send",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 3,
+          "column": 10,
+          "file": "src/api/client.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:wrapper-chain/src/api/client.ts#send"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/client.ts#postJson",
+      "id": "calls:symbol:wrapper-chain/src/api/client.ts#postJson->symbol:wrapper-chain/src/api/client.ts#send",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 3,
+          "column": 10,
+          "file": "src/api/client.ts",
+          "line": 13
+        }
+      ],
+      "to": "symbol:wrapper-chain/src/api/client.ts#send"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/feed.ts#getTracked",
+      "id": "calls:symbol:wrapper-chain/src/api/feed.ts#getTracked->symbol:wrapper-chain/src/api/client.ts#getCached",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/api/feed.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:wrapper-chain/src/api/client.ts#getCached"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/feed.ts#loadFeed",
+      "id": "calls:symbol:wrapper-chain/src/api/feed.ts#loadFeed->symbol:wrapper-chain/src/api/feed.ts#getTracked",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 31,
+          "file": "src/api/feed.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:wrapper-chain/src/api/feed.ts#getTracked"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/boards.ts#createBoard",
+      "id": "http:symbol:wrapper-chain/src/api/boards.ts#createBoard->route:wrapper-chain/POST /api/boards",
+      "kind": "http",
+      "label": "POST /api/boards",
+      "sites": [
+        {
+          "column": 48,
+          "file": "src/api/boards.ts",
+          "line": 7,
+          "request": "POST /api/boards"
+        }
+      ],
+      "to": "route:wrapper-chain/POST /api/boards"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/boards.ts#listBoards",
+      "id": "http:symbol:wrapper-chain/src/api/boards.ts#listBoards->route:wrapper-chain/GET /api/boards",
+      "kind": "http",
+      "label": "GET /api/boards",
+      "sites": [
+        {
+          "column": 45,
+          "file": "src/api/boards.ts",
+          "line": 5,
+          "request": "GET /api/boards"
+        }
+      ],
+      "to": "route:wrapper-chain/GET /api/boards"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/boards.ts#loadBoard",
+      "id": "http:symbol:wrapper-chain/src/api/boards.ts#loadBoard->route:wrapper-chain/GET /api/boards/:id",
+      "kind": "http",
+      "label": "GET /api/boards/:id",
+      "sites": [
+        {
+          "column": 42,
+          "file": "src/api/boards.ts",
+          "line": 3,
+          "request": "GET /api/boards/{}"
+        }
+      ],
+      "to": "route:wrapper-chain/GET /api/boards/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:wrapper-chain/src/api/boards.ts#loadStats",
+      "id": "http:symbol:wrapper-chain/src/api/boards.ts#loadStats->route:wrapper-chain/GET /api/stats",
+      "kind": "http",
+      "label": "GET /api/stats",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/api/boards.ts",
+          "line": 9,
+          "request": "GET /api/stats"
+        }
+      ],
+      "to": "route:wrapper-chain/GET /api/stats"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:wrapper-chain/src/api/feed.ts#getTracked",
+      "id": "http:symbol:wrapper-chain/src/api/feed.ts#getTracked->unresolved:wrapper-chain/src/api/feed.ts:5:10",
+      "kind": "http",
+      "reason": "WRAPPER_DEPTH",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/api/feed.ts",
+          "line": 5
+        }
+      ],
+      "to": "unresolved:wrapper-chain/src/api/feed.ts:5:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:wrapper-chain/src/api/boards.ts",
+      "id": "imports:file:wrapper-chain/src/api/boards.ts->file:wrapper-chain/src/api/client.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 46,
+          "file": "src/api/boards.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:wrapper-chain/src/api/client.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:wrapper-chain/src/api/feed.ts",
+      "id": "imports:file:wrapper-chain/src/api/feed.ts->file:wrapper-chain/src/api/client.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/api/feed.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:wrapper-chain/src/api/client.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "0a48b005137ddd9b5c0ebd20b5880a48c490c32c7881a2fd7ca9c8e62f44f04a",
+      "id": "file:wrapper-chain/src/api/boards.ts",
+      "kind": "file",
+      "label": "boards.ts",
+      "parentId": "module:wrapper-chain/src/api",
+      "path": "src/api/boards.ts"
+    },
+    {
+      "hash": "0272b7603285b1737a09b3f52414672808a08680cab78dc98080e6cefbf6148a",
+      "id": "file:wrapper-chain/src/api/client.ts",
+      "kind": "file",
+      "label": "client.ts",
+      "parentId": "module:wrapper-chain/src/api",
+      "path": "src/api/client.ts"
+    },
+    {
+      "hash": "e47624dba9a40cf001a302afa18999e9de28a2a97b704a197d9e5a5f24a40d69",
+      "id": "file:wrapper-chain/src/api/feed.ts",
+      "kind": "file",
+      "label": "feed.ts",
+      "parentId": "module:wrapper-chain/src/api",
+      "path": "src/api/feed.ts"
+    },
+    {
+      "hash": "be7d65ab0cbc52c57ee3504e9838d5a0a6e18d0319552a3f220349c6e0629e96",
+      "id": "file:wrapper-chain/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:wrapper-chain/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:wrapper-chain/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:wrapper-chain/",
+      "path": "src"
+    },
+    {
+      "id": "module:wrapper-chain/src/api",
+      "kind": "module",
+      "label": "api",
+      "parentId": "module:wrapper-chain/src",
+      "path": "src/api"
+    },
+    {
+      "id": "route:wrapper-chain/GET /api/boards",
+      "kind": "route",
+      "label": "GET /api/boards",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:wrapper-chain/src/server.ts",
+      "path": "/api/boards",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:wrapper-chain/GET /api/boards/:id",
+      "kind": "route",
+      "label": "GET /api/boards/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:wrapper-chain/src/server.ts",
+      "path": "/api/boards/:id",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:wrapper-chain/GET /api/feed",
+      "kind": "route",
+      "label": "GET /api/feed",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:wrapper-chain/src/server.ts",
+      "path": "/api/feed",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:wrapper-chain/GET /api/stats",
+      "kind": "route",
+      "label": "GET /api/stats",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:wrapper-chain/src/server.ts",
+      "path": "/api/stats",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:wrapper-chain/POST /api/boards",
+      "kind": "route",
+      "label": "POST /api/boards",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:wrapper-chain/src/server.ts",
+      "path": "/api/boards",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 7
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:wrapper-chain/",
+      "kind": "service",
+      "label": "wrapper-chain",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-chain/src/api/boards.ts#createBoard",
+      "kind": "symbol",
+      "label": "createBoard",
+      "parentId": "file:wrapper-chain/src/api/boards.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 7,
+        "file": "src/api/boards.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-chain/src/api/boards.ts#listBoards",
+      "kind": "symbol",
+      "label": "listBoards",
+      "parentId": "file:wrapper-chain/src/api/boards.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 5,
+        "file": "src/api/boards.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-chain/src/api/boards.ts#loadBoard",
+      "kind": "symbol",
+      "label": "loadBoard",
+      "parentId": "file:wrapper-chain/src/api/boards.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "src/api/boards.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-chain/src/api/boards.ts#loadStats",
+      "kind": "symbol",
+      "label": "loadStats",
+      "parentId": "file:wrapper-chain/src/api/boards.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 9,
+        "file": "src/api/boards.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-chain/src/api/client.ts#getCached",
+      "kind": "symbol",
+      "label": "getCached",
+      "parentId": "file:wrapper-chain/src/api/client.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "src/api/client.ts",
+        "line": 17
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-chain/src/api/client.ts#getJson",
+      "kind": "symbol",
+      "label": "getJson",
+      "parentId": "file:wrapper-chain/src/api/client.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/api/client.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-chain/src/api/client.ts#postJson",
+      "kind": "symbol",
+      "label": "postJson",
+      "parentId": "file:wrapper-chain/src/api/client.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "src/api/client.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:wrapper-chain/src/api/client.ts#send",
+      "kind": "symbol",
+      "label": "send",
+      "parentId": "file:wrapper-chain/src/api/client.ts",
+      "requiredParams": 3,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/api/client.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-chain/src/api/feed.ts#getTracked",
+      "kind": "symbol",
+      "label": "getTracked",
+      "parentId": "file:wrapper-chain/src/api/feed.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/api/feed.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:wrapper-chain/src/api/feed.ts#loadFeed",
+      "kind": "symbol",
+      "label": "loadFeed",
+      "parentId": "file:wrapper-chain/src/api/feed.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 8,
+        "file": "src/api/feed.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "wrapper-chain",
+      "parentId": null
+    },
+    {
+      "detail": "the URL's leading part is a parameter of the calling function, a wrapper more than three calls deep",
+      "expression": "getCached(path)",
+      "id": "unresolved:wrapper-chain/src/api/feed.ts:5:10",
+      "kind": "unresolved",
+      "label": "GET getCached(path)",
+      "parentId": "service:wrapper-chain/",
+      "reason": "WRAPPER_DEPTH",
+      "source": {
+        "column": 10,
+        "file": "src/api/feed.ts",
+        "line": 5
+      }
+    }
+  ],
+  "repo": {
+    "name": "wrapper-chain",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

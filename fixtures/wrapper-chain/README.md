@@ -1,0 +1,3 @@
+# wrapper-chain
+
+Tests: wrappers calling wrappers (M5C.7f, ADR-0032's amendment). `send(path, init, timeout)` fetches `"/api/" + path`; `getJson(path, query?)` and `postJson(path, body)` pass their path on to it, and `getCached(path)` passes its path on to `getJson`, three wrappers deep. Each request is placed at the outermost call that supplies the path: `loadBoard` ⇒ `GET /api/boards/:id`, `listBoards` ⇒ `GET /api/boards` (the query dropped), `createBoard` ⇒ `POST /api/boards`, and `loadStats` ⇒ `GET /api/stats` through all three. Nothing is left at the calls inside the wrappers. `getTracked(path)` would be a fourth level, so its call to `getCached` is `unresolved` with `WRAPPER_DEPTH`, and `loadFeed` (its caller) gets no request.

@@ -6,7 +6,7 @@ export async function request(path: string, init: RequestInit = {}) {
   return res.json();
 }
 
-/** A wrapper around a wrapper: its URL is the caller's parameter, so WRAPPER_DEPTH. */
+/** A wrapper around a wrapper: inlined at `requestVia`'s callers (M5C.7f). */
 export function requestRaw(url: string) {
   return fetch(url);
 }

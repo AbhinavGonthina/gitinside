@@ -448,7 +448,7 @@
       }
     },
     {
-      "detail": "the URL starts with a parameter of the calling function, a wrapper more than one call deep",
+      "detail": "the URL starts with a parameter of the calling function, and no call to that function was followed",
       "expression": "signed(target, \"…\")",
       "id": "unresolved:fake-secrets/src/sync.ts:33:10",
       "kind": "unresolved",
