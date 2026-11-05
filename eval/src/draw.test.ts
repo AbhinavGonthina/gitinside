@@ -13,6 +13,7 @@ import {
   type SearchPage,
 } from "./draw.js";
 import { EvalInputError, parseReposFile, type EvalRepo } from "./format.js";
+import { seededShuffle } from "./sample.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const SHA = "a".repeat(40);
@@ -38,7 +39,15 @@ function order(): string[] {
   const file = draw();
   const [stratum] = file.strata;
   if (!stratum?.pool) throw new Error("no pool");
-  return drawOrder(file.seed, stratum, stratum.pool);
+  return drawOrder(file, stratum, stratum.pool);
+}
+
+/** {@link draw} with an exclusion list. */
+function excluding(
+  repos: string[],
+  examined: DrawFile["strata"][number]["examined"] = [],
+): DrawFile {
+  return { ...draw(examined), exclude: repos.map((repo) => ({ repo, why: "batch 4" })) };
 }
 
 const pin = (repo: string): DrawFile["strata"][number]["examined"][number] => ({
@@ -59,12 +68,28 @@ describe("drawOrder", () => {
     expect([...a].sort()).toEqual([...POOL].sort());
     const file = draw();
     const pool = { fetched: "2026-11-04", total: POOL.length, repos: POOL };
-    expect(drawOrder(file.seed, { name: "react-express" }, pool)).toEqual(a);
+    expect(drawOrder(file, { name: "react-express" }, pool)).toEqual(a);
     const others = [
-      drawOrder("2026-11-05", { name: "react-express" }, pool),
-      drawOrder(file.seed, { name: "nextjs-prisma" }, pool),
+      drawOrder({ seed: "2026-11-05" }, { name: "react-express" }, pool),
+      drawOrder(file, { name: "nextjs-prisma" }, pool),
     ];
     expect(others.some((o) => o.join() !== a.join())).toBe(true);
+  });
+
+  it("leaves out excluded repos, matching names case-insensitively", () => {
+    const file = excluding(["B/TWO", "c/three"]);
+    const [stratum] = file.strata;
+    if (!stratum?.pool) throw new Error("no pool");
+    const left = drawOrder(file, stratum, stratum.pool);
+    expect([...left].sort()).toEqual(["a/one", "d/four", "e/five"]);
+    expect(left).toEqual(seededShuffle(["a/one", "d/four", "e/five"], "2026-11-04/react-express"));
+  });
+
+  it("keeps an unexcluded draw's order (batch 4's) when the list is empty", () => {
+    const file = excluding([]);
+    const [stratum] = file.strata;
+    if (!stratum?.pool) throw new Error("no pool");
+    expect(drawOrder(file, stratum, stratum.pool)).toEqual(order());
   });
 });
 
@@ -124,6 +149,25 @@ describe("drawProblems", () => {
     expect(drawProblems(file).map((p) => p.message)).toEqual([
       `${first} is already pinned in stratum react-express`,
     ]);
+  });
+
+  it("rejects an exclusion list that isn't sorted and distinct", () => {
+    expect(drawProblems(excluding(["b/two", "A/one", "a/ONE"]))).toEqual([
+      { path: ["exclude", 1, "repo"], message: "exclusions must be sorted by owner/name" },
+      { path: ["exclude", 2, "repo"], message: "excluded twice" },
+    ]);
+  });
+
+  it("rejects reading an excluded repo and accepts the walk around it", () => {
+    const file = excluding(["b/two"]);
+    const [stratum] = file.strata;
+    if (!stratum?.pool) throw new Error("no pool");
+    const [first = "", second = ""] = drawOrder(file, stratum, stratum.pool);
+    expect(drawProblems(excluding(["b/two"], [reject(first), pin(second)]))).toEqual([]);
+    expect(drawProblems(excluding(["b/two"], [pin("b/two")]))[0]).toEqual({
+      path: ["strata", 0, "examined", 0, "repo"],
+      message: "b/two is excluded",
+    });
   });
 });
 
@@ -243,13 +287,34 @@ describe("drawCrossCheck", () => {
       "x/y is in batch 4, but its draw didn't pin it",
     ]);
   });
+
+  it("requires an exclusion list to name every earlier repo and earlier draw's candidate", () => {
+    const earlier = { ...draw([reject("p/read"), pin("q/pinned")]), batch: 3 };
+    const later = { ...excluding(["O/Orig"]), batch: 5 };
+    const repos = [repo("o", "orig", SHA), repo("x", "b3", SHA, 3), repo("y", "b5", SHA, 5)];
+    expect(drawCrossCheck(later, repos, [earlier, later])).toEqual([
+      "p/read is read for batch 3, but not excluded",
+      "q/pinned is read for batch 3, but not excluded",
+      "x/b3 is in batch 3, but not excluded",
+      "y/b5 is in batch 5, but its draw didn't pin it",
+    ]);
+    const all = ["o/orig", "p/read", "q/pinned", "x/b3"];
+    expect(
+      drawCrossCheck({ ...later, exclude: excluding(all).exclude }, repos.slice(0, 2), [earlier]),
+    ).toEqual([]);
+    // Without a list (batch 4), rule 1 was checked by reading, so nothing is required.
+    expect(drawCrossCheck({ ...draw(), batch: 5 }, repos.slice(0, 2), [earlier])).toEqual([]);
+  });
 });
 
 describe("the committed draw records", () => {
-  it("are valid and agree with repos.json", () => {
+  it("are valid and agree with repos.json and each other", () => {
     const { repos } = parseReposFile("repos.json", readFileSync(`${root}/repos.json`, "utf8"));
     const draws = loadDrawFiles(root);
-    expect(draws.map((d) => d.file)).toContain("batch-4.json");
-    for (const { draw: file } of draws) expect(drawCrossCheck(file, repos)).toEqual([]);
+    expect(draws.map((d) => d.file)).toEqual(
+      expect.arrayContaining(["batch-4.json", "batch-5.json"]),
+    );
+    const all = draws.map((d) => d.draw);
+    for (const file of all) expect(drawCrossCheck(file, repos, all)).toEqual([]);
   });
 });

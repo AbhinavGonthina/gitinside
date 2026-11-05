@@ -1,8 +1,9 @@
 /**
  * A fresh blind sample drawn by a recorded rule (docs/EVALUATION.md §1, "Held-out batch 4",
  * M5C.5). The rule (search queries, a seed, how many to pin) is committed in
- * `eval/draws/batch-<n>.json` before any candidate is seen. Each stratum's whole candidate
- * pool is then snapshotted from GitHub's search, shuffled by the seed, and walked in that
+ * `eval/draws/batch-<n>.json` before any candidate is seen, with the repos it leaves out
+ * (from batch 5, M5C.8). Each stratum's whole candidate pool is then snapshotted from
+ * GitHub's search, stripped of those repos, shuffled by the seed, and walked in that
  * order: every candidate is read (never analyzed) and pinned or rejected with a reason, until
  * the stratum has its quota or the pool runs out. Nothing can be skipped, so the sample is
  * the seed's, not the reader's.
@@ -74,6 +75,16 @@ export const stratumSchema = z
 
 export type Stratum = z.infer<typeof stratumSchema>;
 
+/** A repo left out of every pool before it is shuffled, and why (inclusion rule 1). */
+export const exclusionSchema = z
+  .object({
+    repo: fullName,
+    why: z.string().min(1),
+  })
+  .strict();
+
+export type Exclusion = z.infer<typeof exclusionSchema>;
+
 const drawObjectSchema = z
   .object({
     batch: z.number().int().min(1),
@@ -81,6 +92,11 @@ const drawObjectSchema = z
     seed: z.string().min(1),
     /** How many repos each stratum pins before its walk stops. */
     perStratum: z.number().int().min(1),
+    /**
+     * Repos already in or read for the eval, committed with the rule, sorted by owner/name.
+     * The walk never meets them. Absent in batch 4, whose reader checked rule 1 by hand.
+     */
+    exclude: z.array(exclusionSchema).optional(),
     strata: z.array(stratumSchema).min(1),
   })
   .strict();
@@ -99,9 +115,23 @@ export function parseDrawFile(file: string, text: string): DrawFile {
   return parseWith(drawFileSchema, file, text);
 }
 
-/** The order a stratum's pool is walked in: the sorted pool shuffled by `<seed>/<name>`. */
-export function drawOrder(seed: string, stratum: Pick<Stratum, "name">, pool: Pool): string[] {
-  return seededShuffle(pool.repos, `${seed}/${stratum.name}`);
+/** The rule's excluded repos, by {@link nameKey}. */
+function excludedKeys(draw: Pick<DrawFile, "exclude">): Set<string> {
+  return new Set((draw.exclude ?? []).map((e) => nameKey(e.repo)));
+}
+
+/**
+ * The order a stratum's pool is walked in: the sorted pool without the rule's excluded repos,
+ * shuffled by `<seed>/<name>`.
+ */
+export function drawOrder(
+  draw: Pick<DrawFile, "seed" | "exclude">,
+  stratum: Pick<Stratum, "name">,
+  pool: Pool,
+): string[] {
+  const excluded = excludedKeys(draw);
+  const repos = pool.repos.filter((r) => !excluded.has(nameKey(r)));
+  return seededShuffle(repos, `${draw.seed}/${stratum.name}`);
 }
 
 /** A problem with a draw file, at a JSON path. */
@@ -113,12 +143,27 @@ export interface DrawProblem {
 /**
  * Everything that makes a draw file's record untrustworthy: a pool that isn't the sorted,
  * whole result set, a walk that leaves the seeded order or goes past its quota, a repo pinned
- * twice, or a stratum walked before its pool was recorded.
+ * twice, a stratum walked before its pool was recorded, or an exclusion list that isn't
+ * sorted and distinct.
  */
 export function drawProblems(file: DrawFile): DrawProblem[] {
   const problems: DrawProblem[] = [];
   const pinnedIn = new Map<string, string>();
   const names = new Set<string>();
+  const exclude = file.exclude ?? [];
+  for (let i = 1; i < exclude.length; i++) {
+    const order = compareStrings(
+      nameKey(exclude[i - 1]?.repo ?? ""),
+      nameKey(exclude[i]?.repo ?? ""),
+    );
+    if (order >= 0) {
+      problems.push({
+        path: ["exclude", i, "repo"],
+        message: order === 0 ? "excluded twice" : "exclusions must be sorted by owner/name",
+      });
+    }
+  }
+  const excluded = excludedKeys(file);
   file.strata.forEach((stratum, s) => {
     const at = (...rest: (string | number)[]): (string | number)[] => ["strata", s, ...rest];
     if (names.has(stratum.name)) {
@@ -148,11 +193,13 @@ export function drawProblems(file: DrawFile): DrawProblem[] {
         });
       }
     }
-    const order = drawOrder(file.seed, stratum, pool);
+    const order = drawOrder(file, stratum, pool);
     let pinned = 0;
     stratum.examined.forEach((entry, i) => {
       const expected = order[i];
-      if (pinned >= file.perStratum) {
+      if (excluded.has(nameKey(entry.repo))) {
+        problems.push({ path: at("examined", i, "repo"), message: `${entry.repo} is excluded` });
+      } else if (pinned >= file.perStratum) {
         problems.push({
           path: at("examined", i),
           message: `the walk stops once ${file.perStratum} repos are pinned`,
@@ -189,7 +236,7 @@ export type WalkState =
 /** Where a stratum's walk stands: waiting for its pool, the next repo to read, or done. */
 export function walkState(file: DrawFile, stratum: Stratum): WalkState {
   if (!stratum.pool) return { state: "no-pool" };
-  const order = drawOrder(file.seed, stratum, stratum.pool);
+  const order = drawOrder(file, stratum, stratum.pool);
   const pinned = stratum.examined.filter((e) => e.verdict === "pinned").length;
   const examined = stratum.examined.length;
   const repo = order[examined];
@@ -250,16 +297,39 @@ export function loadDrawFiles(root: string): { file: string; draw: DrawFile }[] 
 }
 
 /**
- * Problems between a draw and `repos.json`: a repo in the draw's batch that the walk didn't
- * pin, or pinned at another SHA. A pin not yet in `repos.json` is fine (it is added with its
- * labels).
+ * Problems between a draw, `repos.json`, and the other draw records: a repo in the draw's
+ * batch that the walk didn't pin, or pinned at another SHA. A pin not yet in `repos.json` is
+ * fine (it is added with its labels). When the draw has an exclusion list, it must also name
+ * every repo of the original set and of earlier batches, and every candidate an earlier
+ * draw read.
  */
-export function drawCrossCheck(draw: DrawFile, repos: readonly EvalRepo[]): string[] {
+export function drawCrossCheck(
+  draw: DrawFile,
+  repos: readonly EvalRepo[],
+  draws: readonly DrawFile[] = [],
+): string[] {
   const pins = new Map<string, Examined>();
   for (const stratum of draw.strata) {
     for (const e of stratum.examined) if (e.verdict === "pinned") pins.set(nameKey(e.repo), e);
   }
   const problems: string[] = [];
+  if (draw.exclude) {
+    const excluded = excludedKeys(draw);
+    const missing = (name: string, what: string): void => {
+      if (!excluded.has(nameKey(name))) problems.push(`${name} is ${what}, but not excluded`);
+    };
+    for (const repo of repos) {
+      if (repo.heldOut !== undefined && repo.heldOut >= draw.batch) continue;
+      const what = repo.heldOut === undefined ? "in the original set" : `in batch ${repo.heldOut}`;
+      missing(`${repo.owner}/${repo.name}`, what);
+    }
+    for (const earlier of draws) {
+      if (earlier.batch >= draw.batch) continue;
+      for (const stratum of earlier.strata) {
+        for (const e of stratum.examined) missing(e.repo, `read for batch ${earlier.batch}`);
+      }
+    }
+  }
   for (const repo of repos) {
     if (repo.heldOut !== draw.batch) continue;
     const name = `${repo.owner}/${repo.name}`;
