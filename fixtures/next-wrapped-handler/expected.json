@@ -1,0 +1,835 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:pantry/pages/api/shelves.ts#default",
+      "id": "calls:symbol:pantry/pages/api/shelves.ts#default->symbol:pantry/lib/guards.ts#withSession",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 16,
+          "file": "pages/api/shelves.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:pantry/lib/guards.ts#withSession"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:pantry/pages/api/shelves/[id].ts#default",
+      "id": "calls:symbol:pantry/pages/api/shelves/[id].ts#default->symbol:pantry/lib/guards.ts#withRole",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 16,
+          "file": "pages/api/shelves/[id].ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:pantry/lib/guards.ts#withRole"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:pantry/pages/api/stock.ts#guarded",
+      "id": "calls:symbol:pantry/pages/api/stock.ts#guarded->symbol:pantry/lib/guards.ts#withRole",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 3,
+          "file": "pages/api/stock.ts",
+          "line": 4
+        }
+      ],
+      "to": "symbol:pantry/lib/guards.ts#withRole"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:pantry/pages/api/stock.ts#guarded",
+      "id": "calls:symbol:pantry/pages/api/stock.ts#guarded->symbol:pantry/lib/guards.ts#withSession",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 17,
+          "file": "pages/api/stock.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:pantry/lib/guards.ts#withSession"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/ALL /api/auth/*auth",
+      "id": "handles:route:pantry/ALL /api/auth/*auth->symbol:pantry/pages/api/auth/[...auth].ts#default",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 1,
+          "file": "pages/api/auth/[...auth].ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:pantry/pages/api/auth/[...auth].ts#default"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/DELETE /api/shelves/:id",
+      "id": "handles:route:pantry/DELETE /api/shelves/:id->symbol:pantry/pages/api/shelves/[id].ts#default",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 1,
+          "file": "pages/api/shelves/[id].ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:pantry/pages/api/shelves/[id].ts#default"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/DELETE /api/shelves/:id",
+      "id": "handles:route:pantry/DELETE /api/shelves/:id->symbol:pantry/pages/api/shelves/[id].ts#shelf",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 34,
+          "file": "pages/api/shelves/[id].ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:pantry/pages/api/shelves/[id].ts#shelf"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/GET /api/shelves",
+      "id": "handles:route:pantry/GET /api/shelves->symbol:pantry/pages/api/shelves.ts#default",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 1,
+          "file": "pages/api/shelves.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:pantry/pages/api/shelves.ts#default"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/GET /api/shelves",
+      "id": "handles:route:pantry/GET /api/shelves->symbol:pantry/pages/api/shelves.ts#shelves",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 28,
+          "file": "pages/api/shelves.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:pantry/pages/api/shelves.ts#shelves"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/PATCH /api/stock",
+      "id": "handles:route:pantry/PATCH /api/stock->symbol:pantry/pages/api/stock.ts#guarded",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 16,
+          "file": "pages/api/stock.ts",
+          "line": 10
+        }
+      ],
+      "to": "symbol:pantry/pages/api/stock.ts#guarded"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/POST /api/shelves",
+      "id": "handles:route:pantry/POST /api/shelves->symbol:pantry/pages/api/shelves.ts#default",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 1,
+          "file": "pages/api/shelves.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:pantry/pages/api/shelves.ts#default"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/POST /api/shelves",
+      "id": "handles:route:pantry/POST /api/shelves->symbol:pantry/pages/api/shelves.ts#shelves",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 28,
+          "file": "pages/api/shelves.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:pantry/pages/api/shelves.ts#shelves"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/PUT /api/shelves/:id",
+      "id": "handles:route:pantry/PUT /api/shelves/:id->symbol:pantry/pages/api/shelves/[id].ts#default",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 1,
+          "file": "pages/api/shelves/[id].ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:pantry/pages/api/shelves/[id].ts#default"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:pantry/PUT /api/shelves/:id",
+      "id": "handles:route:pantry/PUT /api/shelves/:id->symbol:pantry/pages/api/shelves/[id].ts#shelf",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 34,
+          "file": "pages/api/shelves/[id].ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:pantry/pages/api/shelves/[id].ts#shelf"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:pantry/pages/index.tsx#addShelf",
+      "id": "http:symbol:pantry/pages/index.tsx#addShelf->route:pantry/POST /api/shelves",
+      "kind": "http",
+      "label": "POST /api/shelves",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 6,
+          "request": "POST /api/shelves"
+        }
+      ],
+      "to": "route:pantry/POST /api/shelves"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:pantry/pages/index.tsx#archiveShelf",
+      "id": "http:symbol:pantry/pages/index.tsx#archiveShelf->unresolved:pantry/pages/index.tsx:18:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 18
+        }
+      ],
+      "to": "unresolved:pantry/pages/index.tsx:18:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:pantry/pages/index.tsx#countStock",
+      "id": "http:symbol:pantry/pages/index.tsx#countStock->route:pantry/PATCH /api/stock",
+      "kind": "http",
+      "label": "PATCH /api/stock",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 22,
+          "request": "PATCH /api/stock"
+        }
+      ],
+      "to": "route:pantry/PATCH /api/stock"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:pantry/pages/index.tsx#loadShelves",
+      "id": "http:symbol:pantry/pages/index.tsx#loadShelves->route:pantry/GET /api/shelves",
+      "kind": "http",
+      "label": "GET /api/shelves",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 2,
+          "request": "GET /api/shelves"
+        }
+      ],
+      "to": "route:pantry/GET /api/shelves"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:pantry/pages/index.tsx#removeShelf",
+      "id": "http:symbol:pantry/pages/index.tsx#removeShelf->route:pantry/DELETE /api/shelves/:id",
+      "kind": "http",
+      "label": "DELETE /api/shelves/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 14,
+          "request": "DELETE /api/shelves/{}"
+        }
+      ],
+      "to": "route:pantry/DELETE /api/shelves/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:pantry/pages/index.tsx#renameShelf",
+      "id": "http:symbol:pantry/pages/index.tsx#renameShelf->route:pantry/PUT /api/shelves/:id",
+      "kind": "http",
+      "label": "PUT /api/shelves/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 10,
+          "request": "PUT /api/shelves/{}"
+        }
+      ],
+      "to": "route:pantry/PUT /api/shelves/:id"
+    },
+    {
+      "confidence": "pattern",
+      "from": "symbol:pantry/pages/index.tsx#signOut",
+      "id": "http:symbol:pantry/pages/index.tsx#signOut->route:pantry/ALL /api/auth/*auth",
+      "kind": "http",
+      "label": "ALL /api/auth/*auth",
+      "sites": [
+        {
+          "column": 10,
+          "file": "pages/index.tsx",
+          "line": 26,
+          "request": "POST /api/auth/signout"
+        }
+      ],
+      "to": "route:pantry/ALL /api/auth/*auth"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:pantry/pages/api/shelves.ts",
+      "id": "imports:file:pantry/pages/api/shelves.ts->file:pantry/lib/guards.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 49,
+          "file": "pages/api/shelves.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:pantry/lib/guards.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:pantry/pages/api/shelves/[id].ts",
+      "id": "imports:file:pantry/pages/api/shelves/[id].ts->file:pantry/lib/guards.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 46,
+          "file": "pages/api/shelves/[id].ts",
+          "line": 1
+        }
+      ],
+      "to": "file:pantry/lib/guards.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:pantry/pages/api/stock.ts",
+      "id": "imports:file:pantry/pages/api/stock.ts->file:pantry/lib/guards.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 39,
+          "file": "pages/api/stock.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:pantry/lib/guards.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "page:pantry//",
+      "id": "renders:page:pantry//->symbol:pantry/pages/index.tsx#Pantry",
+      "kind": "renders",
+      "sites": [
+        {
+          "column": 25,
+          "file": "pages/index.tsx",
+          "line": 29
+        }
+      ],
+      "to": "symbol:pantry/pages/index.tsx#Pantry"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "384d78903a7f770e00dfdcb2c2373d5a9763311bfad52abe87b7b9bd0894d0f5",
+      "id": "file:pantry/lib/guards.ts",
+      "kind": "file",
+      "label": "guards.ts",
+      "parentId": "module:pantry/lib",
+      "path": "lib/guards.ts"
+    },
+    {
+      "hash": "8137c65bb7759998b8d27796de612917ae884965589afcc220aa9e6b13b78963",
+      "id": "file:pantry/pages/api/auth/[...auth].ts",
+      "kind": "file",
+      "label": "[...auth].ts",
+      "parentId": "module:pantry/pages/api/auth",
+      "path": "pages/api/auth/[...auth].ts"
+    },
+    {
+      "hash": "513359f4f223ce336595efae211c1b6201588b1d23abfdc093d7ee7183063ed2",
+      "id": "file:pantry/pages/api/shelves.ts",
+      "kind": "file",
+      "label": "shelves.ts",
+      "parentId": "module:pantry/pages/api",
+      "path": "pages/api/shelves.ts"
+    },
+    {
+      "hash": "2bb290b51ed5150689ae639eae64adce425312cae63d327e8a387dc6b815d6b3",
+      "id": "file:pantry/pages/api/shelves/[id].ts",
+      "kind": "file",
+      "label": "[id].ts",
+      "parentId": "module:pantry/pages/api/shelves",
+      "path": "pages/api/shelves/[id].ts"
+    },
+    {
+      "hash": "965c7f7cb9a64389d463f5357be7b6770f668a41b46564552960ea924f423494",
+      "id": "file:pantry/pages/api/stock.ts",
+      "kind": "file",
+      "label": "stock.ts",
+      "parentId": "module:pantry/pages/api",
+      "path": "pages/api/stock.ts"
+    },
+    {
+      "hash": "95ea99aa883950c844532b392d34dd80cca2ab7b7bffb6921a79db90bc878df7",
+      "id": "file:pantry/pages/index.tsx",
+      "kind": "file",
+      "label": "index.tsx",
+      "parentId": "module:pantry/pages",
+      "path": "pages/index.tsx"
+    },
+    {
+      "id": "module:pantry/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "service:pantry/",
+      "path": "lib"
+    },
+    {
+      "id": "module:pantry/pages",
+      "kind": "module",
+      "label": "pages",
+      "parentId": "service:pantry/",
+      "path": "pages"
+    },
+    {
+      "id": "module:pantry/pages/api",
+      "kind": "module",
+      "label": "api",
+      "parentId": "module:pantry/pages",
+      "path": "pages/api"
+    },
+    {
+      "id": "module:pantry/pages/api/auth",
+      "kind": "module",
+      "label": "auth",
+      "parentId": "module:pantry/pages/api",
+      "path": "pages/api/auth"
+    },
+    {
+      "id": "module:pantry/pages/api/shelves",
+      "kind": "module",
+      "label": "shelves",
+      "parentId": "module:pantry/pages/api",
+      "path": "pages/api/shelves"
+    },
+    {
+      "id": "page:pantry//",
+      "kind": "page",
+      "label": "/",
+      "layer": "frontend",
+      "parentId": "file:pantry/pages/index.tsx",
+      "path": "/",
+      "source": {
+        "column": 25,
+        "file": "pages/index.tsx",
+        "line": 29
+      }
+    },
+    {
+      "id": "route:pantry/ALL /api/auth/*auth",
+      "kind": "route",
+      "label": "ALL /api/auth/*auth",
+      "layer": "backend",
+      "method": "ALL",
+      "parentId": "file:pantry/pages/api/auth/[...auth].ts",
+      "path": "/api/auth/*auth",
+      "source": {
+        "column": 1,
+        "file": "pages/api/auth/[...auth].ts",
+        "line": 3
+      }
+    },
+    {
+      "id": "route:pantry/DELETE /api/shelves/:id",
+      "kind": "route",
+      "label": "DELETE /api/shelves/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:pantry/pages/api/shelves/[id].ts",
+      "path": "/api/shelves/:id",
+      "source": {
+        "column": 1,
+        "file": "pages/api/shelves/[id].ts",
+        "line": 14
+      }
+    },
+    {
+      "id": "route:pantry/GET /api/shelves",
+      "kind": "route",
+      "label": "GET /api/shelves",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:pantry/pages/api/shelves.ts",
+      "path": "/api/shelves",
+      "source": {
+        "column": 1,
+        "file": "pages/api/shelves.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:pantry/PATCH /api/stock",
+      "kind": "route",
+      "label": "PATCH /api/stock",
+      "layer": "backend",
+      "method": "PATCH",
+      "parentId": "file:pantry/pages/api/stock.ts",
+      "path": "/api/stock",
+      "source": {
+        "column": 16,
+        "file": "pages/api/stock.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:pantry/POST /api/shelves",
+      "kind": "route",
+      "label": "POST /api/shelves",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:pantry/pages/api/shelves.ts",
+      "path": "/api/shelves",
+      "source": {
+        "column": 1,
+        "file": "pages/api/shelves.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:pantry/PUT /api/shelves/:id",
+      "kind": "route",
+      "label": "PUT /api/shelves/:id",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:pantry/pages/api/shelves/[id].ts",
+      "path": "/api/shelves/:id",
+      "source": {
+        "column": 1,
+        "file": "pages/api/shelves/[id].ts",
+        "line": 14
+      }
+    },
+    {
+      "framework": "next",
+      "id": "service:pantry/",
+      "kind": "service",
+      "label": "pantry",
+      "layer": "frontend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/lib/guards.ts#withRole",
+      "kind": "symbol",
+      "label": "withRole",
+      "parentId": "file:pantry/lib/guards.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 30,
+        "file": "lib/guards.ts",
+        "line": 24
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/lib/guards.ts#withSession",
+      "kind": "symbol",
+      "label": "withSession",
+      "parentId": "file:pantry/lib/guards.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 21,
+        "file": "lib/guards.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/api/auth/[...auth].ts#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:pantry/pages/api/auth/[...auth].ts",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "pages/api/auth/[...auth].ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/api/shelves.ts#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:pantry/pages/api/shelves.ts",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "pages/api/shelves.ts",
+        "line": 9
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": false,
+      "id": "symbol:pantry/pages/api/shelves.ts#shelves",
+      "kind": "symbol",
+      "label": "shelves",
+      "parentId": "file:pantry/pages/api/shelves.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "pages/api/shelves.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/api/shelves/[id].ts#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:pantry/pages/api/shelves/[id].ts",
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "pages/api/shelves/[id].ts",
+        "line": 14
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": false,
+      "id": "symbol:pantry/pages/api/shelves/[id].ts#shelf",
+      "kind": "symbol",
+      "label": "shelf",
+      "parentId": "file:pantry/pages/api/shelves/[id].ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "pages/api/shelves/[id].ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/api/stock.ts#guarded",
+      "kind": "symbol",
+      "label": "guarded",
+      "parentId": "file:pantry/pages/api/stock.ts",
+      "source": {
+        "column": 7,
+        "endLine": 8,
+        "file": "pages/api/stock.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/index.tsx#Pantry",
+      "kind": "symbol",
+      "label": "Pantry",
+      "parentId": "file:pantry/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "pages/index.tsx",
+        "line": 29
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/index.tsx#addShelf",
+      "kind": "symbol",
+      "label": "addShelf",
+      "parentId": "file:pantry/pages/index.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "pages/index.tsx",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/index.tsx#archiveShelf",
+      "kind": "symbol",
+      "label": "archiveShelf",
+      "parentId": "file:pantry/pages/index.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "pages/index.tsx",
+        "line": 17
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/index.tsx#countStock",
+      "kind": "symbol",
+      "label": "countStock",
+      "parentId": "file:pantry/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "pages/index.tsx",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/index.tsx#loadShelves",
+      "kind": "symbol",
+      "label": "loadShelves",
+      "parentId": "file:pantry/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "pages/index.tsx",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/index.tsx#removeShelf",
+      "kind": "symbol",
+      "label": "removeShelf",
+      "parentId": "file:pantry/pages/index.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "pages/index.tsx",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/index.tsx#renameShelf",
+      "kind": "symbol",
+      "label": "renameShelf",
+      "parentId": "file:pantry/pages/index.tsx",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "pages/index.tsx",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:pantry/pages/index.tsx#signOut",
+      "kind": "symbol",
+      "label": "signOut",
+      "parentId": "file:pantry/pages/index.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 27,
+        "file": "pages/index.tsx",
+        "line": 25
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "next-wrapped-handler",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches PATCH to /api/shelves/{}",
+      "expression": "fetch(`/api/shelves/${id}`, { method: \"PATCH\" })",
+      "id": "unresolved:pantry/pages/index.tsx:18:10",
+      "kind": "unresolved",
+      "label": "PATCH /api/shelves/{}",
+      "parentId": "service:pantry/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "pages/index.tsx",
+        "line": 18
+      }
+    }
+  ],
+  "repo": {
+    "name": "next-wrapped-handler",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "NEXT_WRAPPED_HANDLER",
+      "file": "pages/api/auth/[...auth].ts",
+      "message": "the default export calls NextAuth(…), and none of its arguments is a function in the repo, so its method checks aren't read; kept an ALL route"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

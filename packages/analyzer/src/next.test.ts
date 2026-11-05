@@ -457,25 +457,168 @@ describe("next.js routes", () => {
       "page:web//docs/*path",
       "route:web/ALL /api",
       "route:web/ALL /api/items",
-      "route:web/ALL /api/wrapped",
       "route:web/DELETE /api/users/:id",
       "route:web/GET /api/items",
       "route:web/GET /api/users/:id",
       "route:web/POST /api/orders",
+      "route:web/PUT /api/wrapped",
     ]);
     expect(links(graph)).toEqual([
       "handles route:web/ALL /api -> symbol:web/pages/api/index.ts#health (exact)",
       "handles route:web/ALL /api/items -> symbol:web/pages/api/items.ts#items (exact)",
-      "handles route:web/ALL /api/wrapped -> symbol:web/pages/api/wrapped.ts#default (exact)",
       "handles route:web/DELETE /api/users/:id -> symbol:web/pages/api/users/[id].ts#handler (exact)",
       "handles route:web/GET /api/items -> symbol:web/pages/api/items.ts#items (exact)",
       "handles route:web/GET /api/users/:id -> symbol:web/pages/api/users/[id].ts#handler (exact)",
       "handles route:web/POST /api/orders -> symbol:web/pages/api/orders.ts#orders (exact)",
+      "handles route:web/PUT /api/wrapped -> symbol:web/pages/api/wrapped.ts#default (exact)",
+      "handles route:web/PUT /api/wrapped -> symbol:web/pages/api/wrapped.ts#inner (exact)",
       "renders page:web// -> symbol:web/pages/index.tsx#Home (exact)",
       "renders page:web//404 -> symbol:web/pages/404.tsx#NotFound (exact)",
       "renders page:web//blog/:slug -> symbol:web/pages/blog/[slug].tsx#Post (exact)",
       "renders page:web//docs/*path -> symbol:web/pages/docs/[[...path]].tsx#Docs (exact)",
     ]);
+  });
+
+  describe("a wrapped default export (M5C.7b)", () => {
+    /** A handler answering GET and POST and refusing the rest with 405. */
+    const getPost = [
+      "async function handler(req, res) {",
+      '  if (req.method === "GET") return res.json([]);',
+      '  if (req.method === "POST") return res.status(201).end();',
+      "  res.status(405).end();",
+      "}",
+    ];
+
+    beforeEach(async () => {
+      await nextApp();
+      await put("lib/wrap.ts", [
+        "export const wrap = (fn, options?) => fn;",
+        "export const scoped = (scope) => (fn) => fn;",
+      ]);
+    });
+
+    it("reads the method checks of the handler a wrapper call is given", async () => {
+      await put("pages/api/plain.ts", [
+        'import { wrap } from "../../lib/wrap";',
+        ...getPost,
+        "export default wrap(handler);",
+      ]);
+      await put("pages/api/curried.ts", [
+        'import { scoped } from "../../lib/wrap";',
+        ...getPost,
+        'export default scoped("admin")(handler);',
+      ]);
+      await put("pages/api/held.ts", [
+        'import { wrap } from "../../lib/wrap";',
+        ...getPost,
+        "const wrapped = wrap(handler);",
+        "export default wrapped;",
+      ]);
+      await put("pages/api/nested.ts", [
+        'import { scoped, wrap } from "../../lib/wrap";',
+        ...getPost,
+        'export default wrap(scoped("admin")(handler), { log: true });',
+      ]);
+      await put("pages/api/specifier.ts", [
+        'import { wrap } from "../../lib/wrap";',
+        ...getPost,
+        "const wrapped = wrap(handler);",
+        "export { wrapped as default };",
+      ]);
+      const graph = await analyze(dir);
+      const files = ["curried", "held", "nested", "plain", "specifier"];
+      expect(entries(graph)).toEqual([
+        ...files.map((f) => `route:web/GET /api/${f}`),
+        ...files.map((f) => `route:web/POST /api/${f}`),
+      ]);
+      for (const f of files) {
+        expect(links(graph)).toContain(
+          `handles route:web/GET /api/${f} -> symbol:web/pages/api/${f}.ts#handler (exact)`,
+        );
+      }
+      expect(nextWarnings(graph)).toEqual([]);
+    });
+
+    it("reads an inline handler and one imported from another repo file", async () => {
+      await put("lib/handlers.ts", ["export " + getPost[0], ...getPost.slice(1)]);
+      await put("pages/api/imported.ts", [
+        'import { wrap } from "../../lib/wrap";',
+        'import { handler } from "../../lib/handlers";',
+        "export default wrap(handler);",
+      ]);
+      await put("pages/api/inline.ts", [
+        'import { wrap } from "../../lib/wrap";',
+        "export default wrap(async (req, res) => {",
+        '  if (req.method !== "DELETE") return res.status(405).end();',
+        "  res.end();",
+        "});",
+      ]);
+      const graph = await analyze(dir);
+      expect(entries(graph)).toEqual([
+        "route:web/DELETE /api/inline",
+        "route:web/GET /api/imported",
+        "route:web/POST /api/imported",
+      ]);
+      expect(links(graph)).toContain(
+        "handles route:web/GET /api/imported -> symbol:web/lib/handlers.ts#handler (exact)",
+      );
+      expect(nextWarnings(graph)).toEqual([]);
+    });
+
+    it("takes the last argument that is a function", async () => {
+      await put("pages/api/options.ts", [
+        'import { wrap } from "../../lib/wrap";',
+        ...getPost,
+        'export default wrap(handler, { scope: "admin" });',
+      ]);
+      expect(entries(await analyze(dir))).toEqual([
+        "route:web/GET /api/options",
+        "route:web/POST /api/options",
+      ]);
+    });
+
+    it("keeps one ALL route, silently, for a followed handler without method checks", async () => {
+      await put("pages/api/any.ts", [
+        'import { wrap } from "../../lib/wrap";',
+        "function handler(req, res) { res.end(); }",
+        "export default wrap(handler);",
+      ]);
+      const graph = await analyze(dir);
+      expect(entries(graph)).toEqual(["route:web/ALL /api/any"]);
+      expect(nextWarnings(graph)).toEqual([]);
+    });
+
+    it("keeps ALL and says why when no argument is a function in the repo", async () => {
+      await nextApp({ next: "15", "next-auth": "4", "some-mw": "1" });
+      await put("pages/api/auth/[...nextauth].ts", [
+        'import NextAuth from "next-auth";',
+        "export default NextAuth({ providers: [] });",
+      ]);
+      await put("pages/api/outside.ts", [
+        'import { protect } from "some-mw";',
+        'import { handle } from "some-mw";',
+        "export default protect(handle);",
+      ]);
+      const graph = await analyze(dir);
+      expect(entries(graph)).toEqual([
+        "route:web/ALL /api/auth/*nextauth",
+        "route:web/ALL /api/outside",
+      ]);
+      expect(nextWarnings(graph)).toEqual([
+        {
+          code: "NEXT_WRAPPED_HANDLER",
+          file: "pages/api/auth/[...nextauth].ts",
+          message:
+            "the default export calls NextAuth(…), and none of its arguments is a function in the repo, so its method checks aren't read; kept an ALL route",
+        },
+        {
+          code: "NEXT_WRAPPED_HANDLER",
+          file: "pages/api/outside.ts",
+          message:
+            "the default export calls protect(…), and none of its arguments is a function in the repo, so its method checks aren't read; kept an ALL route",
+        },
+      ]);
+    });
   });
 
   it("uses src/ only when app/ and pages/ are absent at the service root", async () => {

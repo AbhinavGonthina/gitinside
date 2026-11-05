@@ -1,0 +1,3 @@
+# next-wrapped-handler
+
+Tests: `pages/api` handlers exported through a wrapper (M5C.7b, ADR-0195's amendment). `shelves.ts` exports `withSession(shelves)`, `shelves/[id].ts` the curried `withRole("admin")(shelf)`, and `stock.ts` a `const` holding `withSession(withRole("staff")(async (req, res) => …))`. Each route's methods are read from the handler the wrapper is given: `GET` and `POST`, `PUT` and `DELETE` (the `switch` ends in a 405 `default`), and `PATCH`. The page's `PATCH` to `/api/shelves/{}` matches no route (before, each file was one `ALL` route that it matched). `auth/[...auth].ts` exports `NextAuth({ … })`, whose only argument is no function in the repo: it keeps one `ALL` route with a `NEXT_WRAPPED_HANDLER` warning, and the page's sign-out matches it.

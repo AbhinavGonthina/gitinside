@@ -29,6 +29,7 @@ export const WARNING_TITLES: Readonly<Record<string, string>> = {
   NEXT_CONNECT_UNSEEN_METHODS: "next-connect routers with methods that couldn't be read",
   NEXT_DUPLICATE_ROUTE: "Next.js routes defined twice",
   NEXT_ROUTE_NO_METHODS: "Next.js route files without handlers",
+  NEXT_WRAPPED_HANDLER: "Next.js API handlers behind wrappers that couldn't be read",
   PRISMA_DUPLICATE_MODEL: "Prisma models defined twice",
   PRISMA_DYNAMIC_PROVIDER: "Prisma providers set at runtime",
   PRISMA_NO_DATASOURCE: "Prisma schemas without a datasource",
