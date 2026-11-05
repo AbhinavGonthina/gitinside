@@ -1,8 +1,8 @@
 # M5 review: Website (public) + live badge
 
-**Tag:** `m5` (not yet: after the second review's fixes, M5.14b3b–g, the re-check M5.14b3h tags it) · **Range:** `m4a..m5`, M5 commits only (M5.1–M5.18, M5.13a–b, M5.14a–f, M5.14b1–b3); M5A, M5B, M5C, and M6 commits are interleaved and reviewed in their own milestones · **Dates:** pre-deploy review 2026-10-29 (M5.14a), deployed 2026-11-04 (M5.13), production checks and the second review 2026-11-05 (M5.14b1–b3)
+**Tag:** `m5` (2026-11-05, after the second review's fixes M5.14b3b–g3 and the re-check M5.14b3h) · **Range:** `m4a..m5`, M5 commits only (M5.1–M5.18, M5.13a–b, M5.14a–f, M5.14b1–b3); M5A, M5B, M5C, and M6 commits are interleaved and reviewed in their own milestones · **Dates:** pre-deploy review 2026-10-29 (M5.14a), deployed 2026-11-04 (M5.13), production checks, the second review, its fixes, and the tag 2026-11-05 (M5.14b1–b3h)
 
-> **Status: acceptance met, review fixes pending.** All five acceptance criteria were met in production (see "Acceptance criteria" below). The sections up to "Fresh-eyes review" were first written before the deploy (M5.14a) and are now updated for what shipped: between that review and the deploy, the worker moved from an Oracle VM with BullMQ and Redis to Google Cloud Run with Cloud Tasks (ADR-0111, ADR-0114), and snapshots moved from R2 to Oracle Object Storage (ADR-0095). That later work had its own fresh-eyes review ("Second fresh-eyes review": 1 high, 4 medium, 9 low), whose fixes are planned as M5.14b3b–g; M5.14b3h re-runs the checks, fills in the outcomes, and tags `m5`. One follow-up stays open without holding the tag: M5.14b4 compares `compute_usage` with Google's settled billing report once it has caught up (planning #22).
+> **Status: done, tagged `m5`.** All five acceptance criteria were met in production (see "Acceptance criteria" below). The sections up to "Fresh-eyes review" were first written before the deploy (M5.14a) and are now updated for what shipped: between that review and the deploy, the worker moved from an Oracle VM with BullMQ and Redis to Google Cloud Run with Cloud Tasks (ADR-0111, ADR-0114), and snapshots moved from R2 to Oracle Object Storage (ADR-0095). That later work had its own fresh-eyes review ("Second fresh-eyes review": 1 high, 4 medium, 9 low). Thirteen of its findings are fixed (M5.14b3b–g3), and M5.14b3h re-ran the checks before the tag ("Results", "CI"). One follow-up stays open without holding the tag: M5.14b4 compares `compute_usage` with Google's settled billing report once it has caught up (planning #22), and R13 goes with it.
 
 ## What was built
 
@@ -34,7 +34,11 @@ Decisions are ADR-0055 to ADR-0079 (pre-deploy), then ADR-0095–0097, ADR-0111,
   - **Analyzer coverage couldn't be measured locally.** Its "exponentially shared mounts" test passed in 5.5 s under plain `test` but timed out at 30 s under `coverage` all three times, even with the machine otherwise idle; M5.8c saw the same on clean `main`. Its number comes from CI (below). The analyzer didn't change in M5.14a.
 - **CI on the fixes (`aa2ec6d`):** green; analyzer coverage 97.57% lines (see "CI" below).
 - **Eval:** unchanged since M5.8c (report `eval/results/2026-10-29-0.1.0.md`: TP 28, FP 1, FN 110). M5.14a didn't touch the analyzer, schema, eval, or lockfile, so no re-record.
-- The numbers above are the pre-deploy check's (M5.14a, `aa2ec6d`). M5.14b3h adds the counts at the tag.
+- The numbers above are the pre-deploy check's (M5.14a, `aa2ec6d`).
+- **At the tag (M5.14b3h, `5e0ced9`, the last commit before this review's update):** these counts cover the whole tree, so they include the interleaved M5A, M5B, M5C, and M6 work too.
+  - **Local, uncached** (`npx turbo run test --force --concurrency=1 --continue`: 15 of 15 tasks, 0 cached): 4,180 passed, 4 skipped (real-Postgres cases that run on CI only). By package: analyzer 1,243, viewer 1,095, web 681, worker 639 (+1 skipped), db 152 (+3 skipped), diff 132, eval 109, bench 95, schema 34. Root typecheck and lint clean.
+  - **CI:** all 4,184 passed, coverage above every target (see "CI" below).
+  - **Eval:** `pnpm eval --check` reproduced `eval/results/2026-11-05-0.2.0.md` byte-for-byte (original 5 repos: precision 100.0% (138/138), recall 100.0% (138/138); the held-out batches are reported separately there).
 
 ### Acceptance criteria
 
@@ -77,7 +81,8 @@ The trigger turned out to be a gitignored Storybook build (`storybook-static/ass
 - **The 5-an-hour per-address `429` is proven by tests only;** production checks stop at the bot check, as they should.
 - **Every push to a repo with a badge is analyzed the next time someone views the README** (check-on-view, at most 6 an hour per repo). Fine at today's traffic; the compute pause bounds the month.
 - **Neon's quota limit is SPEC's figure** (1 GB, `QUOTA_LIMITS`); production uses 0.85% of it.
-- **The second review's findings** (R1–R14 below) are open until M5.14b3b–g; R1 (duplicate tasks after a retry) is the one that can cost compute.
+- **One of the second review's findings is still open:** R13 (the kill switch's instance time and a worker that crash-loops before it counts its start aren't in `compute_usage`), folded into M5.14b4. The other 13 are fixed (R1–R14 below).
+- **R12's fix trusts Google, not Vercel:** Vercel's docs don't say a client-sent `x-vercel-oidc-token` is replaced, so the web app can't tell a forged one from a real one. Since M5.14b3g3 a forged header can fail only its own request, because Google's token exchange rejects it.
 
 ## Fresh-eyes review
 
@@ -130,7 +135,23 @@ Checked and fine, per the reviewers: the HMAC check (constant time, raw body, a 
 
 ## CI
 
-Run [40939747567](https://github.com/AbhinavGonthina/gitinside/actions/runs/40939747567) for `aa2ec6d` (the three fix commits): all four jobs green (`check`, `visual`, `worker-image`, `web-e2e`).
+**At the tag:** run [42023270111](https://github.com/AbhinavGonthina/gitinside/actions/runs/42023270111) for `5e0ced9`. All five jobs are green: `check`, `visual`, `worker-image`, `web-e2e`, and `deploy`. The deploy's `changed` step read both services' `gitinside-commit` labels and found nothing new to ship, so `apply` was skipped. The worker fix before it (M5.14b3g2, `729d48c`) had been shipped by its own run, [42021331989](https://github.com/AbhinavGonthina/gitinside/actions/runs/42021331989), which ran `apply`. The commit that tags `m5` changes only docs.
+
+| Package | Tests | Lines | Branches |
+|---|---:|---:|---:|
+| analyzer | 1,243 | 97.63% | 91.04% |
+| viewer | 1,095 | 99.29% | 94.39% |
+| web | 681 | 98.18% | 97.22% |
+| worker (incl. the real-Postgres tests) | 640 | 95.66% | 93.64% |
+| db | 155 | 99.18% | 91.97% |
+| diff | 132 | 99.02% | 93.46% |
+| eval | 109 | 99.65% | 96.15% |
+| bench | 95 | 100% | 92.57% |
+| schema | 34 | 94.67% | 88.23% |
+
+All above target (analyzer and diff ≥ 85%, others ≥ 70%).
+
+**Pre-deploy:** run [40939747567](https://github.com/AbhinavGonthina/gitinside/actions/runs/40939747567) for `aa2ec6d` (the three fix commits): all four jobs green (`check`, `visual`, `worker-image`, `web-e2e`).
 
 | Package | Tests | Lines | Branches |
 |---|---:|---:|---:|
