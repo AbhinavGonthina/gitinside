@@ -79,9 +79,9 @@ export async function consumeRateLimit(
 
 /**
  * How many requests are counted against `key` in the current hour, without counting this one
- * (0 when the window has no row yet). The bot check reads it to tell when an address, or the
- * whole site, is asking more than people usually do (ADR-0157). `at` as in
- * {@link consumeRateLimit}.
+ * (0 when the window has no row yet). Not for deciding anything a parallel request could
+ * race past: the bot check counts first and decides on {@link consumeRateLimit}'s count
+ * (ADR-0157's R6 amendment). `at` as in {@link consumeRateLimit}.
  */
 export async function peekRateLimit(db: AnyDatabase, key: string, at?: Date): Promise<number> {
   const moment = at === undefined ? sql`now()` : sql`${at.toISOString()}::timestamptz`;

@@ -90,7 +90,6 @@ beforeEach(async () => {
 
 const AT = new Date("2026-10-31T14:30:00.000Z");
 const HOUR_START = new Date("2026-10-31T14:00:00.000Z");
-const KEY = "ip:abc";
 
 /** A check whose verdict is fixed, recording the tokens it's asked about. */
 function fakeCheck(verdict: Verdict): BotCheck & { tokens: string[] } {
@@ -111,17 +110,17 @@ async function counted(key: string, count: number, windowStart = HOUR_START) {
 
 describe("passBotCheck", () => {
   it("asks nobody below both thresholds, and counts the request site-wide", async () => {
-    await counted(KEY, CHALLENGE_AFTER_PER_ADDRESS - 1);
-    await counted(SITE_ANALYZE_KEY, CHALLENGE_AFTER_SITE - 2);
+    await counted(SITE_ANALYZE_KEY, CHALLENGE_AFTER_SITE - 1);
     const bot = fakeCheck("failed");
-    expect(await passBotCheck(bot, t.db, KEY, undefined, AT)).toBeUndefined();
+    const started = CHALLENGE_AFTER_PER_ADDRESS - 1;
+    expect(await passBotCheck(bot, t.db, started, undefined, AT)).toBeUndefined();
     expect(bot.tokens).toEqual([]);
-    expect(await peekRateLimit(t.db, SITE_ANALYZE_KEY, AT)).toBe(CHALLENGE_AFTER_SITE - 1);
+    expect(await peekRateLimit(t.db, SITE_ANALYZE_KEY, AT)).toBe(CHALLENGE_AFTER_SITE);
   });
 
   it("asks an address that started enough analyses this hour, saying why", async () => {
-    await counted(KEY, CHALLENGE_AFTER_PER_ADDRESS);
-    expect(await passBotCheck(fakeCheck("passed"), t.db, KEY, undefined, AT)).toEqual({
+    const started = CHALLENGE_AFTER_PER_ADDRESS;
+    expect(await passBotCheck(fakeCheck("passed"), t.db, started, undefined, AT)).toEqual({
       status: 403,
       body: {
         error: "CHALLENGE_REQUIRED",
@@ -136,35 +135,54 @@ describe("passBotCheck", () => {
 
   it("asks everyone once the site has had enough requests this hour", async () => {
     await counted(SITE_ANALYZE_KEY, CHALLENGE_AFTER_SITE);
-    expect(await passBotCheck(fakeCheck("passed"), t.db, "ip:new", undefined, AT)).toMatchObject({
+    expect(await passBotCheck(fakeCheck("passed"), t.db, 0, undefined, AT)).toMatchObject({
       status: 403,
       body: { error: "CHALLENGE_REQUIRED", message: challengeMessage("site") },
     });
     expect(challengeMessage("site")).toMatch(/^GitInside is busier than usual/);
+    // Counted to decide, then given back: refused requests don't add up.
+    expect(await peekRateLimit(t.db, SITE_ANALYZE_KEY, AT)).toBe(CHALLENGE_AFTER_SITE);
   });
 
-  it("an earlier hour's counts don't carry over", async () => {
-    const before = new Date("2026-10-31T13:00:00.000Z");
-    await counted(KEY, 5, before);
-    await counted(SITE_ANALYZE_KEY, 500, before);
-    expect(await passBotCheck(fakeCheck("failed"), t.db, KEY, undefined, AT)).toBeUndefined();
+  it("counts a parallel burst before deciding: only the ones under the threshold pass (R6)", async () => {
+    await counted(SITE_ANALYZE_KEY, CHALLENGE_AFTER_SITE - 2);
+    const answers = await Promise.all(
+      [1, 2, 3, 4].map(() => passBotCheck(fakeCheck("passed"), t.db, 0, undefined, AT)),
+    );
+    expect(answers.map((a) => a?.body.error ?? "passed").sort()).toEqual([
+      "CHALLENGE_REQUIRED",
+      "CHALLENGE_REQUIRED",
+      "passed",
+      "passed",
+    ]);
+    expect(await peekRateLimit(t.db, SITE_ANALYZE_KEY, AT)).toBe(CHALLENGE_AFTER_SITE);
+  });
+
+  it("an earlier hour's site count doesn't carry over", async () => {
+    await counted(SITE_ANALYZE_KEY, 500, new Date("2026-10-31T13:00:00.000Z"));
+    expect(await passBotCheck(fakeCheck("failed"), t.db, 0, undefined, AT)).toBeUndefined();
   });
 
   it("lets a token that passes through, and counts it", async () => {
-    await counted(KEY, CHALLENGE_AFTER_PER_ADDRESS);
     const bot = fakeCheck("passed");
-    expect(await passBotCheck(bot, t.db, KEY, "tok.en", AT)).toBeUndefined();
+    const started = CHALLENGE_AFTER_PER_ADDRESS;
+    expect(await passBotCheck(bot, t.db, started, "tok.en", AT)).toBeUndefined();
     expect(bot.tokens).toEqual(["tok.en"]);
     expect(await peekRateLimit(t.db, SITE_ANALYZE_KEY, AT)).toBe(1);
+    // The site's check passed the same way, counted once.
+    await counted(SITE_ANALYZE_KEY, CHALLENGE_AFTER_SITE, new Date("2026-10-31T15:00:00.000Z"));
+    const later = new Date("2026-10-31T15:30:00.000Z");
+    expect(await passBotCheck(bot, t.db, 0, "tok.en2", later)).toBeUndefined();
+    expect(await peekRateLimit(t.db, SITE_ANALYZE_KEY, later)).toBe(CHALLENGE_AFTER_SITE + 1);
   });
 
   it("refuses a token that doesn't pass, and says so when Cloudflare can't be asked", async () => {
-    await counted(KEY, CHALLENGE_AFTER_PER_ADDRESS);
-    expect(await passBotCheck(fakeCheck("failed"), t.db, KEY, "t", AT)).toEqual({
+    const started = CHALLENGE_AFTER_PER_ADDRESS;
+    expect(await passBotCheck(fakeCheck("failed"), t.db, started, "t", AT)).toEqual({
       status: 403,
       body: { error: "CHALLENGE_FAILED", message: CHALLENGE_FAILED_MESSAGE, siteKey: "0x4AAA" },
     });
-    expect(await passBotCheck(fakeCheck("unavailable"), t.db, KEY, "t", AT)).toEqual({
+    expect(await passBotCheck(fakeCheck("unavailable"), t.db, started, "t", AT)).toEqual({
       status: 503,
       body: { error: "CHALLENGE_UNAVAILABLE", message: CHALLENGE_UNAVAILABLE_MESSAGE },
     });
@@ -173,7 +191,7 @@ describe("passBotCheck", () => {
 
   it("doesn't check a token nobody asked for", async () => {
     const bot = fakeCheck("failed");
-    expect(await passBotCheck(bot, t.db, KEY, "stale", AT)).toBeUndefined();
+    expect(await passBotCheck(bot, t.db, 0, "stale", AT)).toBeUndefined();
     expect(bot.tokens).toEqual([]);
   });
 });

@@ -1,4 +1,9 @@
-import { consumeRateLimit, peekRateLimit, type AnyDatabase } from "@gitinside/db";
+import {
+  consumeRateLimit,
+  refundRateLimit,
+  type AnyDatabase,
+  type RateLimitResult,
+} from "@gitinside/db";
 import { TURNSTILE_ACTION } from "./turnstile";
 
 /**
@@ -116,50 +121,65 @@ export const CHALLENGE_UNAVAILABLE_MESSAGE =
 
 /**
  * Decide whether this request for a new analysis needs the bot check and, if so, whether
- * `token` passes it. `key` is the caller's hourly rate-limit key. A request let through is
- * counted in the site-wide hour, so a burst from many addresses turns the check on for all.
- * `at` reads and counts the hour at a fixed moment instead of the database clock (tests).
+ * `token` passes it. `started` is how many new analyses the caller's address had started this
+ * hour before this one: the count its own hourly slot was taken at, so requests racing from
+ * one address each see a different number (R6). The site-wide hour is counted the same way,
+ * before deciding, and given back if the request is refused, so a burst from many addresses
+ * turns the check on for all and no request of a parallel burst reads a stale count.
+ * `at` counts the hour at a fixed moment instead of the database clock (tests).
  */
 export async function passBotCheck(
   check: BotCheck,
   db: AnyDatabase,
-  key: string,
+  started: number,
   token: string | undefined,
   at?: Date,
 ): Promise<BotRefusal | undefined> {
-  const [mine, site] = await Promise.all([
-    peekRateLimit(db, key, at),
-    peekRateLimit(db, SITE_ANALYZE_KEY, at),
-  ]);
-  const reason: ChallengeReason | undefined =
-    mine >= CHALLENGE_AFTER_PER_ADDRESS
-      ? "address"
-      : site >= CHALLENGE_AFTER_SITE
-        ? "site"
-        : undefined;
-  if (reason !== undefined) {
-    const { siteKey } = check;
-    if (token === undefined) {
-      return {
-        status: 403,
-        body: { error: "CHALLENGE_REQUIRED", message: challengeMessage(reason), siteKey },
-      };
-    }
-    const verdict = await check.verify(token);
-    if (verdict === "failed") {
-      return {
-        status: 403,
-        body: { error: "CHALLENGE_FAILED", message: CHALLENGE_FAILED_MESSAGE, siteKey },
-      };
-    }
-    if (verdict === "unavailable") {
-      return {
-        status: 503,
-        body: { error: "CHALLENGE_UNAVAILABLE", message: CHALLENGE_UNAVAILABLE_MESSAGE },
-      };
-    }
+  let site: RateLimitResult | undefined;
+  let reason: ChallengeReason | undefined;
+  if (started >= CHALLENGE_AFTER_PER_ADDRESS) {
+    reason = "address";
+  } else {
+    // A counter, not a limit: no request is refused on it.
+    site = await consumeRateLimit(db, SITE_ANALYZE_KEY, 2_000_000_000, at);
+    if (site.count - 1 >= CHALLENGE_AFTER_SITE) reason = "site";
   }
-  // A counter, not a limit: no request is refused on it.
-  await consumeRateLimit(db, SITE_ANALYZE_KEY, 2_000_000_000, at);
+  if (reason === undefined) return undefined;
+  const refusal = await challenge(check, reason, token);
+  if (refusal === undefined) {
+    // Let through on a passing token: counted site-wide like any other.
+    if (site === undefined) await consumeRateLimit(db, SITE_ANALYZE_KEY, 2_000_000_000, at);
+  } else if (site !== undefined) {
+    await refundRateLimit(db, SITE_ANALYZE_KEY, site.windowStart);
+  }
+  return refusal;
+}
+
+/** Ask for the check (no token yet) or verify `token`; `undefined` once it passes. */
+async function challenge(
+  check: BotCheck,
+  reason: ChallengeReason,
+  token: string | undefined,
+): Promise<BotRefusal | undefined> {
+  const { siteKey } = check;
+  if (token === undefined) {
+    return {
+      status: 403,
+      body: { error: "CHALLENGE_REQUIRED", message: challengeMessage(reason), siteKey },
+    };
+  }
+  const verdict = await check.verify(token);
+  if (verdict === "failed") {
+    return {
+      status: 403,
+      body: { error: "CHALLENGE_FAILED", message: CHALLENGE_FAILED_MESSAGE, siteKey },
+    };
+  }
+  if (verdict === "unavailable") {
+    return {
+      status: 503,
+      body: { error: "CHALLENGE_UNAVAILABLE", message: CHALLENGE_UNAVAILABLE_MESSAGE },
+    };
+  }
   return undefined;
 }

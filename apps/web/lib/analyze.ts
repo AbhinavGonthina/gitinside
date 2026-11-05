@@ -9,9 +9,15 @@ import {
 } from "@gitinside/db";
 import { passBotCheck, type BotCheck, type BotRefusal } from "./botCheck";
 import { rateLimitKey } from "./clientIp";
-import { enqueueAnalysis, type EnqueueDeps } from "./enqueue";
+import { enqueueAnalysis, type EnqueueDeps, type EnqueueResult } from "./enqueue";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
-import { pausedMessage, sizeHoldMessage, tooMuchCodeMessage } from "./jobs";
+import {
+  failureView,
+  pausedMessage,
+  permanentFailure,
+  sizeHoldMessage,
+  tooMuchCodeMessage,
+} from "./jobs";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import { resolveRepo, type GitHubOptions, type ResolveFailure } from "./github";
 import { parseRepoUrl } from "./repoUrl";
@@ -26,7 +32,11 @@ import { findSizeHold, type SizeHold } from "./sizeHold";
  *    (the repo row refreshed from GitHub's facts). Viewing and re-asking are never
  *    rate-limited.
  * 4. **Dedupe:** a commit already `queued` or `running` gets the same job back (the job ID
- *    is derived from the commit), again without counting against the limit.
+ *    is derived from the commit), again without counting against the limit. A commit whose
+ *    analysis failed in a way that would fail again (`permanentFailure`: a limit, an
+ *    unreadable download) isn't queued again: `422 ANALYSIS_FAILED` with the job page's
+ *    reason, like check-on-view (R8). A GitHub access failure is retried, since step 2 just
+ *    found the repo public.
  * 5. **Too big:** a repo whose analysis hit a `LIMIT_*` limit in the past week is refused
  *    (`422 REPO_TOO_BIG`, saying why and until when) unless it has shrunk to half its size
  *    (`findSizeHold`, #11); so is one with over twice the supported source size of TypeScript
@@ -35,19 +45,21 @@ import { findSizeHold, type SizeHold } from "./sizeHold";
  * 6. **Paused:** while the month's Google compute is at 80% of the free allowance, no new
  *    analysis starts (`503 ANALYSIS_PAUSED`, until the next UTC month: `findComputePause`,
  *    ADR-0156). Finished diagrams and jobs already in flight are unaffected.
- * 7. **Bot check:** when the caller's address or the whole site is asking for more new
+ * 7. **Rate limit:** a new analysis takes a slot in the caller's hourly window (5 signed
+ *    out), or is refused with `429 RATE_LIMITED`. Taken first, in one statement, so the bot
+ *    check can decide on the count it was taken at (R6). Every later refusal gives it back,
+ *    and so does an answer that queued nothing new (the queue was down, or someone else's
+ *    request queued it first) or a throw.
+ * 8. **Bot check:** when the caller's address or the whole site is asking for more new
  *    analyses this hour than people usually do, the request needs a Turnstile token that
  *    Cloudflare accepts (`passBotCheck`, ADR-0157): `403 CHALLENGE_REQUIRED` with the
- *    widget's site key, `403 CHALLENGE_FAILED`, or `503 CHALLENGE_UNAVAILABLE`. No slot or
- *    claim is used.
- * 8. **Per repo:** one new analysis per repo every {@link REPO_ANALYSIS_MINUTES} minutes,
+ *    widget's site key, `403 CHALLENGE_FAILED`, or `503 CHALLENGE_UNAVAILABLE`. No claim is
+ *    taken.
+ * 9. **Per repo:** one new analysis per repo every {@link REPO_ANALYSIS_MINUTES} minutes,
  *    whoever asks (`claimRepoAnalysis`, #11, ADR-0155): another commit is refused with
  *    `429 REPO_RATE_LIMITED` and when to try again. The claiming commit itself still goes
- *    through (a duplicate, or a retry of its failed run).
- * 9. **Rate limit** anything else: a new analysis counts against the caller's hourly
- *    window (5 signed out). The slot is given back unless this request queued the commit
- *    (the queue was down, or someone else's request queued it first). The repo's claim is
- *    given back when the caller is over its limit or the queue was down.
+ *    through (a duplicate, or a retry of its failed run). The claim is given back when the
+ *    queue was down or `enqueueAnalysis` threw (R7).
  * 10. **Enqueue** on Cloud Tasks (`enqueueAnalysis`): the `queued` row first, then the task
  *    named from it; a row whose task can't be created is failed, and the answer is `503`.
  */
@@ -61,8 +73,11 @@ export interface AnalyzeDeps extends EnqueueDeps {
   hourlyLimit: number;
   /** The Turnstile check (`passBotCheck`, ADR-0157); without it, nobody is asked. */
   botCheck?: BotCheck;
-  /** The bot check's hour at a fixed moment (tests); default the database clock. */
-  botCheckClock?: () => Date;
+  /**
+   * The hour the caller's slots and the bot check's counts are in, at a fixed moment (tests);
+   * default the database clock.
+   */
+  rateLimitClock?: () => Date;
   /** GitHub's code counts by commit (`findTooMuchCode`); without it, asked every time. */
   codeSizes?: CodeSizeCache;
   /** Clock for "try again in N minutes" (tests fix it). Default `Date.now`. */
@@ -78,6 +93,7 @@ export type AnalyzeSuccess =
 export type AnalyzeErrorCode =
   | "INVALID_URL"
   | ResolveFailure
+  | "ANALYSIS_FAILED"
   | "REPO_TOO_BIG"
   | "REPO_RATE_LIMITED"
   | "ANALYSIS_PAUSED"
@@ -90,6 +106,16 @@ export type AnalyzeErrorCode =
  * each address's hourly limit.
  */
 export const REPO_ANALYSIS_MINUTES = 30;
+
+/**
+ * Permanent failures about GitHub's access to the repo, not its code: this request's lookup
+ * just found it public, so another try can pass.
+ */
+const ACCESS_FAILURES: ReadonlySet<string> = new Set([
+  "REPO_NOT_FOUND",
+  "REPO_NOT_PUBLIC",
+  "REPO_UNAVAILABLE",
+]);
 
 export interface AnalyzeError {
   error: AnalyzeErrorCode;
@@ -164,6 +190,17 @@ export async function requestAnalysis(
     return { status: 200, body: { status: "done", ...commit } };
   }
 
+  if (existing?.status === "failed") {
+    const code = existing.errorCode ?? "";
+    // Would fail the same way again, unless it was GitHub's access, just answered afresh.
+    if (permanentFailure(code) !== undefined && !ACCESS_FAILURES.has(code)) {
+      return {
+        status: 422,
+        body: { error: "ANALYSIS_FAILED", message: failureView(code).message },
+      };
+    }
+  }
+
   const inFlight = existing?.status === "queued" || existing?.status === "running";
   if (!inFlight) {
     const hold = await findSizeHold(deps.db, repo);
@@ -182,24 +219,40 @@ export async function requestAnalysis(
   let charged: Date | undefined;
   let claimed: { repoId: string; claimedAt: Date } | undefined;
   if (!inFlight) {
+    // The slot first, in one statement: the bot check decides on the count it was taken at,
+    // so a parallel burst can't all read the same count (R6).
+    const at = deps.rateLimitClock?.();
+    const limit = await consumeRateLimit(deps.db, key, deps.hourlyLimit, at);
+    if (!limit.allowed) return rateLimited(limit.resetAt, deps);
+    charged = limit.windowStart;
     if (deps.botCheck) {
-      const at = deps.botCheckClock?.();
-      const refusal = await passBotCheck(deps.botCheck, deps.db, key, challengeToken, at);
-      if (refusal) return refusal;
+      const started = limit.count - 1;
+      const refusal = await passBotCheck(deps.botCheck, deps.db, started, challengeToken, at);
+      if (refusal) {
+        await refundRateLimit(deps.db, key, charged);
+        return refusal;
+      }
     }
     const { id: repoId } = await upsertRepo(deps.db, repo);
     const claim = await claimRepoAnalysis(deps.db, repoId, repo.sha, REPO_ANALYSIS_MINUTES * 60);
-    if (claim.status === "refused") return repoLimited(claim.retryAt, deps);
-    if (claim.status === "claimed") claimed = { repoId, claimedAt: claim.claimedAt };
-    const limit = await consumeRateLimit(deps.db, key, deps.hourlyLimit);
-    if (!limit.allowed) {
-      if (claimed) await releaseRepoAnalysis(deps.db, claimed.repoId, claimed.claimedAt);
-      return rateLimited(limit.resetAt, deps);
+    if (claim.status === "refused") {
+      await refundRateLimit(deps.db, key, charged);
+      return repoLimited(claim.retryAt, deps);
     }
-    charged = limit.windowStart;
+    if (claim.status === "claimed") claimed = { repoId, claimedAt: claim.claimedAt };
   }
 
-  const queued = await enqueueAnalysis(repo, deps);
+  let queued: EnqueueResult;
+  try {
+    queued = await enqueueAnalysis(repo, deps);
+  } catch (error) {
+    // Nothing was queued (R7): give both back, then answer the original error.
+    await Promise.allSettled([
+      charged && refundRateLimit(deps.db, key, charged),
+      claimed && releaseRepoAnalysis(deps.db, claimed.repoId, claimed.claimedAt),
+    ]);
+    throw error;
+  }
   // Only a new analysis this request queued keeps the slot. The repo's claim stays whenever
   // the commit is analyzed, even if a racing request for it queued the job.
   const isNew = queued.status === "queued" && queued.entered;

@@ -143,7 +143,7 @@ describe("handleAnalyzeRequest", () => {
       const deps: AnalyzeDeps = {
         ...depsWithoutDb(),
         db: t.db,
-        botCheckClock: () => AT,
+        rateLimitClock: () => AT,
         botCheck: {
           siteKey: "0x4AAA",
           verify: async (token) => {
