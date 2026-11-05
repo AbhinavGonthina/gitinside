@@ -1,0 +1,2 @@
+ALTER TABLE "compute_usage" ADD COLUMN "secret_accesses" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "compute_usage" ADD CONSTRAINT "compute_usage_secret_accesses_check" CHECK ("compute_usage"."secret_accesses" >= 0);

@@ -3,7 +3,13 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { COMPUTE_ALLOWANCE, COMPUTE_PAUSE_RATIO, WORKER_MEMORY_GB } from "@gitinside/db";
-import { MAX_ATTEMPTS, QUOTA_ALARM_RATIO, QUOTA_LIMITS, RETENTION_POLICY } from "@gitinside/worker";
+import {
+  MAX_ATTEMPTS,
+  QUOTA_ALARM_RATIO,
+  QUOTA_LIMITS,
+  RETENTION_POLICY,
+  SECRET_READS_PER_START,
+} from "@gitinside/worker";
 import { describe, expect, it } from "vitest";
 import { REPO_ANALYSIS_MINUTES } from "./analyze";
 import { CHALLENGE_AFTER_PER_ADDRESS, CHALLENGE_AFTER_SITE } from "./botCheck";
@@ -49,6 +55,9 @@ const GB = 1_000_000_000;
 /** Instance-seconds a month before the pause, on the binding meter (memory, ADR-0156). */
 const pauseInstanceSeconds =
   (COMPUTE_PAUSE_RATIO * COMPUTE_ALLOWANCE.memoryGbSeconds) / WORKER_MEMORY_GB;
+/** Instance starts a month before the pause, on Secret Manager's meter (M5.14b3g2). */
+const pauseStarts =
+  (COMPUTE_PAUSE_RATIO * COMPUTE_ALLOWANCE.secretAccesses) / SECRET_READS_PER_START;
 
 const rows: [string, string][] = [
   ["New analyses per address, signed out", `${SIGNED_OUT_HOURLY_LIMIT} per hour (IPv6 per /64)`],
@@ -87,11 +96,11 @@ const rows: [string, string][] = [
   ],
   [
     "Free compute counted a month",
-    `${n(COMPUTE_ALLOWANCE.vcpuSeconds)} vCPU-s, ${n(COMPUTE_ALLOWANCE.memoryGbSeconds)} GB-s, ${n(COMPUTE_ALLOWANCE.runRequests)} Cloud Run requests, ${n(COMPUTE_ALLOWANCE.taskOperations)} Cloud Tasks operations`,
+    `${n(COMPUTE_ALLOWANCE.vcpuSeconds)} vCPU-s, ${n(COMPUTE_ALLOWANCE.memoryGbSeconds)} GB-s, ${n(COMPUTE_ALLOWANCE.runRequests)} Cloud Run requests, ${n(COMPUTE_ALLOWANCE.taskOperations)} Cloud Tasks operations, ${n(COMPUTE_ALLOWANCE.secretAccesses)} Secret Manager accesses (${SECRET_READS_PER_START} per instance start)`,
   ],
   [
     "Compute pause",
-    `new analyses stop at ${percent(COMPUTE_PAUSE_RATIO)} of any meter until the next UTC month: ≈ ${(pauseInstanceSeconds / 3600).toFixed(1)} h of instance time (memory runs out first)`,
+    `new analyses stop at ${percent(COMPUTE_PAUSE_RATIO)} of any meter until the next UTC month: ≈ ${(pauseInstanceSeconds / 3600).toFixed(1)} h of instance time (memory runs out first) or ${n(pauseStarts)} instance starts, whichever comes first`,
   ],
   ["Quota alarm", `\`quota_alarm\` at ${percent(QUOTA_ALARM_RATIO)} of any free limit`],
   [

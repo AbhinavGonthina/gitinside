@@ -377,11 +377,12 @@ describe("startWorkerProcess", () => {
       instanceMs: 2_400 + 10_000,
       runRequests: 0,
       taskOperations: 0,
+      secretAccesses: 4,
     });
     await pushTask(fakeTask(origin(worker), JOB, SECRET));
     await fetch(`${origin(worker)}/health`);
     const usage = await computeUsageThisMonth(t.db);
-    expect(usage).toMatchObject({ runRequests: 1, taskOperations: 1 });
+    expect(usage).toMatchObject({ runRequests: 1, taskOperations: 1, secretAccesses: 4 });
     expect(usage.instanceMs).toBeGreaterThanOrEqual(12_500);
   });
 
@@ -446,6 +447,9 @@ describe("startWorkerProcess", () => {
     await expect(startWorkerProcess(config(), { log, openDb, migrate })).rejects.toThrow();
     expect(closes).toBe(1);
     expect(events(lines)).toEqual(["worker_starting", "migrations_applied"]);
+    // Cloud Run read the secrets before the process began, so a failed start still used them
+    // (and Cloud Run will start another instance, reading them again).
+    expect(await computeUsageThisMonth(t.db)).toMatchObject({ instanceMs: 0, secretAccesses: 4 });
   });
 
   it("migrates through the direct URL before anything else touches the database", async () => {
@@ -558,6 +562,7 @@ describe("startWorkerProcess", () => {
         { resource: "cloud_run_memory" },
         { resource: "cloud_run_requests" },
         { resource: "cloud_tasks" },
+        { resource: "secret_manager", used: 4 },
       ],
     });
     // The worker's store is counted: the job's upload, retention's and the quota's listings.

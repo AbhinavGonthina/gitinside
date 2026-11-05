@@ -317,11 +317,12 @@ describe("with a database and a bucket", () => {
   });
 
   it("measures the month's Google compute after the stores, in alarm from 80% of the free allowance", async () => {
-    // 2 hours of 1 vCPU / 4 GiB instance time; 80% of Cloud Tasks' free operations.
+    // 2 hours of 1 vCPU / 4 GiB instance time; 80% of Cloud Tasks' free operations; 25 starts.
     await countComputeUsage(t.db, {
       instanceMs: 2 * HOUR,
       runRequests: 90,
       taskOperations: 800_000,
+      secretAccesses: 100,
     });
     const readings = await measureQuotas({ db: t.db, store: store() });
     expect(readings.map((reading) => reading.resource)).toEqual([
@@ -332,12 +333,14 @@ describe("with a database and a bucket", () => {
       "cloud_run_memory",
       "cloud_run_requests",
       "cloud_tasks",
+      "secret_manager",
     ]);
     expect(readings.slice(3)).toEqual([
       expect.objectContaining({ used: 7_200, limit: 180_000, percent: 4, alarm: false }),
       expect.objectContaining({ unit: "gb_seconds", limit: 360_000, percent: 8.5, alarm: false }),
       expect.objectContaining({ used: 90, limit: 2_000_000, alarm: false }),
       expect.objectContaining({ used: 800_000, limit: 1_000_000, percent: 80, alarm: true }),
+      expect.objectContaining({ used: 100, limit: 10_000, percent: 1, alarm: false }),
     ]);
 
     await runMaintenance({ db: t.db, store: store(), log });
@@ -359,7 +362,13 @@ describe("with a database and a bucket", () => {
     const readings = await measureQuotas({
       db: t.db,
       store: store(),
-      compute: { vcpuSeconds: 1, memoryGbSeconds: 1, runRequests: 5, taskOperations: 1 },
+      compute: {
+        vcpuSeconds: 1,
+        memoryGbSeconds: 1,
+        runRequests: 5,
+        taskOperations: 1,
+        secretAccesses: 1,
+      },
     });
     expect(readings.find((reading) => reading.resource === "cloud_run_requests")).toMatchObject({
       used: 4,

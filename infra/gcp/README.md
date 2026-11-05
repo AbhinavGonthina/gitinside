@@ -53,7 +53,7 @@ Project `gitinside-513223`, region `us-east4` (northern Virginia, beside Vercel'
 
 **Migrations** (ADR-0192). Each instance applies pending migrations at startup, before it listens, so a new revision takes no traffic (its startup probe fails) until Neon's schema matches its code. It connects to Neon's direct endpoint, the `worker-database-url` host without `-pooler` (same role and password), since a session advisory lock and DDL don't go through PgBouncer's transaction pooling; that lock makes two instances starting together take turns. A migration waits at most 15 s for a lock and then fails the start, which Cloud Run retries. No extra secret, role, or step: the deploy is unchanged. Migrations must keep the previous revision working (add, don't rename or drop in the same commit), since it serves until the new one is ready.
 
-Secret Manager's free tier is 6 active secret versions and 10,000 accesses a month. Four secrets leave one version spare for a rotation; four reads per cold start allow 2,500 cold starts a month.
+Secret Manager's free tier is 6 active secret versions and 10,000 accesses a month. Four secrets leave one version spare for a rotation; four reads per cold start allow 2,500 cold starts a month. The worker counts its four reads at each start in `compute_usage` (M5.14b3g2), so new analyses pause at 2,000 starts like any other meter at 80%.
 
 ## The queue (`queue.json`)
 
@@ -317,7 +317,7 @@ Not checked: the Vercel Workload Identity pool (no file here yet), secret values
 |---|---|
 | Check the guardrails | `pnpm verify-guardrails` (above) |
 | Logs (JSON lines) | Cloud Run → `gitinside-worker` → Logs, or `gcloud run services logs read gitinside-worker --region us-east4` |
-| Quota check (Object Storage bytes and requests, Neon, and the month's Cloud Run vCPU- and GB-seconds, requests, and Cloud Tasks operations as GitInside counts them, vs. the free limits; exit 2 at 80%, when new analyses are paused, ADR-0156) | From a checkout with the production values in `apps/worker/.env`: `pnpm --filter @gitinside/worker quota` |
+| Quota check (Object Storage bytes and requests, Neon, and the month's Cloud Run vCPU- and GB-seconds, requests, Cloud Tasks operations, and Secret Manager accesses as GitInside counts them, vs. the free limits; exit 2 at 80%, when new analyses are paused, ADR-0156) | From a checkout with the production values in `apps/worker/.env`: `pnpm --filter @gitinside/worker quota` |
 | Quota alarms from maintenance | Logs, filter `jsonPayload.event="quota_alarm"` |
 | Rotate the HMAC secret | Add the old value as a temporary secret `enqueue-hmac-secret-previous` mounted as `ENQUEUE_HMAC_SECRET_PREVIOUS`, add a new version of `enqueue-hmac-secret`, deploy, update Vercel; once a day has passed (the longest a signed task can wait), remove the variable, deploy, and delete the temporary secret |
 

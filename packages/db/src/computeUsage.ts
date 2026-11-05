@@ -6,8 +6,9 @@
  *
  * - **What's counted** (`compute_usage`, one row a month, added to in one statement, so
  *   concurrent processes never lose an increment): the worker's billed Cloud Run instance
- *   time in ms, its Cloud Run requests, and Cloud Tasks operations. Who counts what is in
- *   the worker's `compute.ts` and the website's `enqueue.ts`.
+ *   time in ms, its Cloud Run requests, Cloud Tasks operations, and Secret Manager accesses
+ *   (its secrets, read at each instance start). Who counts what is in the worker's
+ *   `compute.ts` and the website's `enqueue.ts`.
  * - **What it's worth:** each instance-second is {@link WORKER_VCPUS} vCPU-seconds and
  *   {@link WORKER_MEMORY_GB} GB-seconds, the worker's fixed size (infra/gcp).
  * - **Months** start on the database clock's UTC month, as for `store_requests`. Google's
@@ -28,17 +29,21 @@ export interface ComputeAllowance {
   runRequests: number;
   /** Cloud Tasks: 1 million operations a month (ADR-0114). */
   taskOperations: number;
+  /** Secret Manager: 10,000 access operations a month (ADR-0151). */
+  secretAccesses: number;
 }
 
 /**
  * The free allowance, from Google's free-tier page (Cloud Run's three figures, read
- * 2026-11-01) and ADR-0114 (Cloud Tasks; its pricing page didn't render to check again).
+ * 2026-11-01), ADR-0114 (Cloud Tasks; its pricing page didn't render to check again), and
+ * ADR-0151 (Secret Manager; its pricing page didn't render on 2026-11-05 either).
  */
 export const COMPUTE_ALLOWANCE: ComputeAllowance = {
   vcpuSeconds: 180_000,
   memoryGbSeconds: 360_000,
   runRequests: 2_000_000,
   taskOperations: 1_000_000,
+  secretAccesses: 10_000,
 };
 
 /** vCPUs per worker instance (infra/gcp/service.json). */
@@ -60,6 +65,7 @@ export interface ComputeUsage {
   instanceMs: number;
   runRequests: number;
   taskOperations: number;
+  secretAccesses: number;
 }
 
 /** What to add with {@link countComputeUsage}; each a non-negative integer, at least one positive. */
@@ -67,12 +73,18 @@ export interface ComputeCount {
   instanceMs?: number;
   runRequests?: number;
   taskOperations?: number;
+  secretAccesses?: number;
 }
 
 /** One allowance and what this month used of it. */
 export interface ComputeMeter {
-  resource: "cloud_run_vcpu" | "cloud_run_memory" | "cloud_run_requests" | "cloud_tasks";
-  unit: "vcpu_seconds" | "gb_seconds" | "requests" | "operations";
+  resource:
+    | "cloud_run_vcpu"
+    | "cloud_run_memory"
+    | "cloud_run_requests"
+    | "cloud_tasks"
+    | "secret_manager";
+  unit: "vcpu_seconds" | "gb_seconds" | "requests" | "operations" | "accesses";
   used: number;
   limit: number;
   /** `used / limit` as a percentage, rounded down to 0.1. */
@@ -89,20 +101,22 @@ export async function countComputeUsage(db: AnyDatabase, count: ComputeCount): P
   const instanceMs = count.instanceMs ?? 0;
   const runRequests = count.runRequests ?? 0;
   const taskOperations = count.taskOperations ?? 0;
-  const amounts = [instanceMs, runRequests, taskOperations];
+  const secretAccesses = count.secretAccesses ?? 0;
+  const amounts = [instanceMs, runRequests, taskOperations, secretAccesses];
   if (amounts.some((amount) => !Number.isSafeInteger(amount) || amount < 0)) {
     throw new Error("compute counts must be non-negative integers");
   }
   if (amounts.every((amount) => amount === 0)) throw new Error("nothing to count");
   await db
     .insert(computeUsage)
-    .values({ monthStart: MONTH, instanceMs, runRequests, taskOperations })
+    .values({ monthStart: MONTH, instanceMs, runRequests, taskOperations, secretAccesses })
     .onConflictDoUpdate({
       target: computeUsage.monthStart,
       set: {
         instanceMs: sql`${computeUsage.instanceMs} + ${instanceMs}`,
         runRequests: sql`${computeUsage.runRequests} + ${runRequests}`,
         taskOperations: sql`${computeUsage.taskOperations} + ${taskOperations}`,
+        secretAccesses: sql`${computeUsage.secretAccesses} + ${secretAccesses}`,
       },
     });
 }
@@ -115,7 +129,8 @@ export async function computeUsageThisMonth(db: AnyDatabase): Promise<ComputeUsa
     select extract(epoch from ${MONTH})::text as month_start,
       coalesce(sum(${computeUsage.instanceMs}), 0)::text as instance_ms,
       coalesce(sum(${computeUsage.runRequests}), 0)::text as run_requests,
-      coalesce(sum(${computeUsage.taskOperations}), 0)::text as task_operations
+      coalesce(sum(${computeUsage.taskOperations}), 0)::text as task_operations,
+      coalesce(sum(${computeUsage.secretAccesses}), 0)::text as secret_accesses
     from ${computeUsage}
     where ${computeUsage.monthStart} = ${MONTH}`);
   // postgres.js returns an array of rows, PGlite an object with `rows`.
@@ -124,6 +139,7 @@ export async function computeUsageThisMonth(db: AnyDatabase): Promise<ComputeUsa
     instance_ms: string;
     run_requests: string;
     task_operations: string;
+    secret_accesses: string;
   }[];
   const [row] = rows;
   if (row === undefined) throw new Error("the month's compute count returned no row");
@@ -134,12 +150,16 @@ export async function computeUsageThisMonth(db: AnyDatabase): Promise<ComputeUsa
     instanceMs: Number(row.instance_ms),
     runRequests: Number(row.run_requests),
     taskOperations: Number(row.task_operations),
+    secretAccesses: Number(row.secret_accesses),
   };
 }
 
-/** Each allowance against `usage`. Pure; vCPU, memory, Cloud Run requests, Cloud Tasks. */
+/**
+ * Each allowance against `usage`. Pure; vCPU, memory, Cloud Run requests, Cloud Tasks,
+ * Secret Manager.
+ */
 export function computeMeters(
-  usage: Pick<ComputeUsage, "instanceMs" | "runRequests" | "taskOperations">,
+  usage: Pick<ComputeUsage, "instanceMs" | "runRequests" | "taskOperations" | "secretAccesses">,
   allowance: ComputeAllowance = COMPUTE_ALLOWANCE,
 ): ComputeMeter[] {
   const meter = (
@@ -161,6 +181,7 @@ export function computeMeters(
     meter("cloud_run_memory", "gb_seconds", seconds * WORKER_MEMORY_GB, allowance.memoryGbSeconds),
     meter("cloud_run_requests", "requests", usage.runRequests, allowance.runRequests),
     meter("cloud_tasks", "operations", usage.taskOperations, allowance.taskOperations),
+    meter("secret_manager", "accesses", usage.secretAccesses, allowance.secretAccesses),
   ];
 }
 

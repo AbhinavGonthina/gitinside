@@ -40,7 +40,20 @@ describe("compute usage counts", () => {
       instanceMs: 0,
       runRequests: 0,
       taskOperations: 0,
+      secretAccesses: 0,
     });
+  });
+
+  it("count Secret Manager accesses beside the rest, in the same row (M5.14b3g2)", async () => {
+    await countComputeUsage(t.db, { secretAccesses: 4 });
+    await countComputeUsage(t.db, { instanceMs: 100, secretAccesses: 4 });
+    expect(await computeUsageThisMonth(t.db)).toMatchObject({
+      instanceMs: 100,
+      runRequests: 0,
+      taskOperations: 0,
+      secretAccesses: 8,
+    });
+    expect(await t.db.select().from(computeUsage)).toHaveLength(1);
   });
 
   it("add up in one row for the current UTC month, concurrent counts included", async () => {
@@ -83,6 +96,7 @@ describe("compute usage counts", () => {
       { runRequests: 1.5 },
       { taskOperations: Number.NaN },
       { instanceMs: 1, runRequests: -1 },
+      { secretAccesses: -4 },
     ]) {
       await expect(countComputeUsage(t.db, count)).rejects.toThrow(/non-negative integers/);
     }
@@ -91,12 +105,22 @@ describe("compute usage counts", () => {
     await expect(
       t.db.insert(computeUsage).values({ monthStart: new Date(), runRequests: -1 }),
     ).rejects.toThrow();
+    await expect(
+      t.db.insert(computeUsage).values({ monthStart: new Date(), secretAccesses: -1 }),
+    ).rejects.toThrow();
   });
 });
 
 describe("compute meters", () => {
   it("turn instance time into vCPU- and GB-seconds of a 1 vCPU / 4 GiB worker", () => {
-    expect(computeMeters({ instanceMs: 3_600_000, runRequests: 60, taskOperations: 120 })).toEqual([
+    expect(
+      computeMeters({
+        instanceMs: 3_600_000,
+        runRequests: 60,
+        taskOperations: 120,
+        secretAccesses: 40,
+      }),
+    ).toEqual([
       {
         resource: "cloud_run_vcpu",
         unit: "vcpu_seconds",
@@ -129,21 +153,46 @@ describe("compute meters", () => {
         percent: 0,
         alarm: false,
       },
+      {
+        resource: "secret_manager",
+        unit: "accesses",
+        used: 40,
+        limit: 10_000,
+        percent: 0.4,
+        alarm: false,
+      },
     ]);
   });
 
   it("raise the alarm at exactly 80% of an allowance, not below", () => {
-    type Usage = Partial<{ instanceMs: number; runRequests: number; taskOperations: number }>;
+    type Usage = Partial<{
+      instanceMs: number;
+      runRequests: number;
+      taskOperations: number;
+      secretAccesses: number;
+    }>;
+    const none = { instanceMs: 0, runRequests: 0, taskOperations: 0, secretAccesses: 0 };
     const alarms = (usage: Usage, allowance = COMPUTE_ALLOWANCE) =>
-      computeMeters({ instanceMs: 0, runRequests: 0, taskOperations: 0, ...usage }, allowance)
+      computeMeters({ ...none, ...usage }, allowance)
         .filter((meter) => meter.alarm)
         .map((meter) => meter.resource);
-    const small = { vcpuSeconds: 1_000, memoryGbSeconds: 1e6, runRequests: 10, taskOperations: 5 };
+    const small = {
+      vcpuSeconds: 1_000,
+      memoryGbSeconds: 1e6,
+      runRequests: 10,
+      taskOperations: 5,
+      secretAccesses: 20,
+    };
     expect(alarms({ instanceMs: 799_999 }, small)).toEqual([]);
     expect(alarms({ instanceMs: 800_000 }, small)).toEqual(["cloud_run_vcpu"]);
     expect(alarms({ runRequests: 7 }, small)).toEqual([]);
     expect(alarms({ runRequests: 8 }, small)).toEqual(["cloud_run_requests"]);
     expect(alarms({ taskOperations: 4 }, small)).toEqual(["cloud_tasks"]);
+    expect(alarms({ secretAccesses: 15 }, small)).toEqual([]);
+    expect(alarms({ secretAccesses: 16 }, small)).toEqual(["secret_manager"]);
+    // The real allowance: 8,000 accesses, 2,000 cold starts of 4 secrets each.
+    expect(alarms({ secretAccesses: 7_999 })).toEqual([]);
+    expect(alarms({ secretAccesses: 8_000 })).toEqual(["secret_manager"]);
     // With the real allowance, memory runs out first: 4.3 GB-seconds per vCPU-second.
     expect(alarms({ instanceMs: memoryShareMs(0.8) })).toEqual(["cloud_run_memory"]);
     expect(alarms({ instanceMs: memoryShareMs(0.8) - 1_000 })).toEqual([]);
@@ -165,6 +214,13 @@ describe("findComputePause", () => {
     await countComputeUsage(t.db, { taskOperations: 800_000 });
     expect((await findComputePause(t.db))?.meters.map((meter) => meter.resource)).toEqual([
       "cloud_tasks",
+    ]);
+  });
+
+  it("pauses on Secret Manager accesses alone", async () => {
+    await countComputeUsage(t.db, { secretAccesses: 8_000 });
+    expect((await findComputePause(t.db))?.meters).toMatchObject([
+      { resource: "secret_manager", unit: "accesses", used: 8_000, limit: 10_000, alarm: true },
     ]);
   });
 

@@ -78,6 +78,7 @@ describe("runQuota", () => {
         { resource: "cloud_run_memory", unit: "gb_seconds", used: 0, limit: 360_000, alarm: false },
         { resource: "cloud_run_requests", unit: "requests", limit: 2_000_000, alarm: false },
         { resource: "cloud_tasks", unit: "operations", limit: 1_000_000, alarm: false },
+        { resource: "secret_manager", unit: "accesses", used: 0, limit: 10_000, alarm: false },
       ],
     });
     expect(closes).toBe(1);
