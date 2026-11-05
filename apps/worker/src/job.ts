@@ -16,7 +16,9 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis, type RunOptions, type RunResult } f
  *    `<jobsRoot>/<id>-<random>/src` (extract.ts); nothing is buffered on disk first. All of
  *    it shares one budget, {@link DEFAULT_DOWNLOAD_TIMEOUT_MS}.
  * 2. **analyze:** the sandboxed child (runner.ts) writes `architecture.json` next to `src`,
- *    reusing facts from the job's fact cache folder (factcache.ts) if it has one.
+ *    reusing facts from the job's fact cache folder (factcache.ts) if it has one. Under an
+ *    attempt's deadline, running out of time it was guaranteed is `LIMIT_TIME`; running out
+ *    after earlier stages ate into that share is the retriable `ANALYSIS_TIME_CUT`.
  * 3. **publish:** the caller's `publish` stores the graph (record.ts: the bucket, then Postgres).
  * 4. **clean up:** the job folder is deleted whatever happened. A failed attempt is
  *    recorded as queued again, or failed if it was final.
@@ -164,10 +166,37 @@ export interface JobContext {
  */
 export const PUBLISH_RESERVE_MS = 20_000;
 
+/**
+ * How long the stages before the analysis (recording the start, the download, extraction)
+ * may take before the analysis's timeout counts as cut by them (R4, second M5 review). In a
+ * 280 s attempt the analysis is guaranteed 280 − 20 − 30 = 230 s: running out after at least
+ * that is `LIMIT_TIME` (the repo is too big, held 7 days); running out of less is the
+ * retriable `ANALYSIS_TIME_CUT`. cal.diy's 5,043 files downloaded in 9.5 s in production
+ * (bench/results/2026-11-04-caldiy-stages.md).
+ */
+export const DOWNLOAD_ALLOWANCE_MS = 30_000;
+
 /** What's left for a stage: its own budget, cut to the attempt's remaining time if it has one. */
 function stageBudget(context: JobContext, own: number): number {
   if (context.timeLeft === undefined) return own;
   return Math.min(own, context.timeLeft() - PUBLISH_RESERVE_MS);
+}
+
+/**
+ * The analysis's timeout under the attempt's deadline, and whether earlier stages cut it below
+ * its guaranteed share: its own limit, or what the attempt had at its start less the publish
+ * reserve and {@link DOWNLOAD_ALLOWANCE_MS}, whichever is smaller.
+ */
+function analysisBudget(
+  own: number,
+  atStart: number,
+  context: JobContext,
+): { timeoutMs: number; cut: boolean } {
+  const left = stageBudget(context, own);
+  const guaranteed = Math.min(own, atStart - PUBLISH_RESERVE_MS - DOWNLOAD_ALLOWANCE_MS);
+  // A cut budget in whole seconds, so the log line doesn't show a fraction.
+  const timeoutMs = left < own ? Math.floor(left / 1000) * 1000 : own;
+  return { timeoutMs, cut: left < guaranteed };
 }
 
 const JOB_FOLDER_ID = /^[A-Za-z0-9_-]{1,100}$/;
@@ -219,6 +248,7 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
   if (context.request.kind !== "analyze") {
     throw new JobFailure("UNSUPPORTED_JOB", `${context.request.kind} jobs arrive with M6`);
   }
+  const atStart = context.timeLeft?.();
   await mkdir(deps.jobsRoot, { recursive: true });
   const dir = await mkdtemp(join(deps.jobsRoot, `${context.id}-`));
   const attempt: { record?: RecordedJob } = {};
@@ -241,12 +271,13 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
     });
     const limits = deps.runOptions?.limits;
     let timeoutMs: number | undefined;
-    if (context.timeLeft !== undefined) {
+    let cut = false;
+    if (atStart !== undefined) {
       const own = limits?.timeoutMs ?? DEFAULT_RUNNER_LIMITS.timeoutMs;
-      const left = stageBudget(context, own);
-      // A cut budget in whole seconds, so LIMIT_TIME's log line doesn't show a fraction.
-      timeoutMs = left < own ? Math.floor(left / 1000) * 1000 : own;
-      if (timeoutMs <= 0) throw new JobFailure("LIMIT_TIME", "no time left for the analysis");
+      ({ timeoutMs, cut } = analysisBudget(own, atStart, context));
+      if (timeoutMs <= 0) {
+        throw new JobFailure("ANALYSIS_TIME_CUT", "no time left for the analysis");
+      }
     }
     const result = await run(
       { src, out, owner, name: repo, sha, ...(cache === undefined ? {} : { cache }) },
@@ -266,6 +297,10 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
             }),
       },
     );
+    if (!result.ok && result.code === "LIMIT_TIME" && cut) {
+      const detail = `analysis cut to ${String(timeoutMs)} ms by the stages before it`;
+      throw new JobFailure("ANALYSIS_TIME_CUT", detail);
+    }
     if (!result.ok) throw new JobFailure(result.code, result.stderrTail);
     const analyzeMs = elapsed(start);
 
