@@ -10,6 +10,7 @@ import {
   DOWNLOAD_ALLOWANCE_MS,
   PUBLISH_RESERVE_MS,
   SKIPPED_SAMPLE_SIZE,
+  guaranteedAnalysisMs,
   processJob,
   sweepJobsRoot,
   type JobArtifact,
@@ -540,6 +541,13 @@ describe("processJob time budget (R4, second M5 review)", () => {
     };
     return { timeLeft: () => clock.left, recorder, calls };
   }
+
+  it("guaranteedAnalysisMs is that share, never more than the analysis's own limit", () => {
+    expect(guaranteedAnalysisMs(BUDGET)).toBe(GUARANTEE);
+    expect(GUARANTEE).toBe(230_000);
+    expect(guaranteedAnalysisMs(BUDGET, 60_000)).toBe(60_000);
+    expect(guaranteedAnalysisMs(10 * 60_000)).toBe(5 * 60_000);
+  });
 
   const timedOut = vi.fn(
     async (): Promise<RunResult> => ({

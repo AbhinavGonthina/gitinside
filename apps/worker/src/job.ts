@@ -183,9 +183,21 @@ function stageBudget(context: JobContext, own: number): number {
 }
 
 /**
+ * The analysis's guaranteed share of an attempt that had `atStart` ms when the job began: its
+ * own limit (`own`, default the runner's 5 minutes), or `atStart` less the publish reserve and
+ * {@link DOWNLOAD_ALLOWANCE_MS}, whichever is smaller. Running out after at least this much is
+ * `LIMIT_TIME`, so it's the time limit the website names (230 s for `JOB_BUDGET_MS`).
+ */
+export function guaranteedAnalysisMs(
+  atStart: number,
+  own: number = DEFAULT_RUNNER_LIMITS.timeoutMs,
+): number {
+  return Math.min(own, atStart - PUBLISH_RESERVE_MS - DOWNLOAD_ALLOWANCE_MS);
+}
+
+/**
  * The analysis's timeout under the attempt's deadline, and whether earlier stages cut it below
- * its guaranteed share: its own limit, or what the attempt had at its start less the publish
- * reserve and {@link DOWNLOAD_ALLOWANCE_MS}, whichever is smaller.
+ * its {@link guaranteedAnalysisMs} share.
  */
 function analysisBudget(
   own: number,
@@ -193,7 +205,7 @@ function analysisBudget(
   context: JobContext,
 ): { timeoutMs: number; cut: boolean } {
   const left = stageBudget(context, own);
-  const guaranteed = Math.min(own, atStart - PUBLISH_RESERVE_MS - DOWNLOAD_ALLOWANCE_MS);
+  const guaranteed = guaranteedAnalysisMs(atStart, own);
   // A cut budget in whole seconds, so the log line doesn't show a fraction.
   const timeoutMs = left < own ? Math.floor(left / 1000) * 1000 : own;
   return { timeoutMs, cut: left < guaranteed };

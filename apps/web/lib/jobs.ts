@@ -10,6 +10,7 @@ import {
   type JobStage,
 } from "@gitinside/worker/progress";
 import {
+  ANALYSIS_TIME_LIMIT,
   NBSP,
   SUPPORTED_ENTRIES,
   SUPPORTED_SIZE,
@@ -108,7 +109,7 @@ const PERMANENT: Readonly<Record<string, { reason: string; advice?: string }>> =
     advice: SMALLER,
   },
   LIMIT_TIME: {
-    reason: `The analysis took over 5 minutes, the limit for one repo. ${MANY_SERVICES} take that long ${UNDER_SIZE}`,
+    reason: `The analysis took over ${ANALYSIS_TIME_LIMIT}, the limit for one repo. ${MANY_SERVICES} take that long ${UNDER_SIZE}`,
     advice: SMALLER,
   },
   LIMIT_MEMORY: {

@@ -1,7 +1,10 @@
 import { DEFAULT_LIMITS, MAX_SOURCE_MB } from "@gitinside/analyzer";
+import { JOB_BUDGET_MS, guaranteedAnalysisMs } from "@gitinside/worker";
 import { DEFAULT_EXTRACT_LIMITS } from "@gitinside/worker/extract";
 import { describe, expect, it } from "vitest";
 import {
+  ANALYSIS_TIME_LIMIT,
+  ANALYSIS_TIME_LIMIT_SECONDS,
   NBSP,
   SUPPORTED_ENTRIES,
   SUPPORTED_SIZE,
@@ -20,6 +23,11 @@ describe("supported size", () => {
   it("is the worker's own extraction limits (ADR-0146)", () => {
     expect(SUPPORTED_UNPACKED_MB * 1024 * 1024).toBe(DEFAULT_EXTRACT_LIMITS.maxBytes);
     expect(SUPPORTED_ENTRIES).toBe(DEFAULT_EXTRACT_LIMITS.maxEntries);
+  });
+
+  it("is the worker's guaranteed analysis time in a production attempt (R4)", () => {
+    expect(ANALYSIS_TIME_LIMIT_SECONDS * 1000).toBe(guaranteedAnalysisMs(JOB_BUDGET_MS));
+    expect(ANALYSIS_TIME_LIMIT).toBe(`3${NBSP}min 50${NBSP}s`);
   });
 
   it("says both numbers in words, never breaking between 50 and MB", () => {

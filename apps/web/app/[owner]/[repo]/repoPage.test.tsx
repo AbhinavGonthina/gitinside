@@ -324,7 +324,9 @@ describe("RepoDiagram", () => {
     renderDiagram({ state: "behind", sha: NEWER, reason: "failed", errorCode: "LIMIT_TIME" });
     await screen.findByRole("region", { name: "Diagram" });
     expect(
-      screen.getByText(/took over 5 minutes, the limit for one repo\. A repo with many services/),
+      screen.getByText(
+        /took over 3\smin 50\ss, the limit for one repo\. A repo with many services/,
+      ),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Analyze again" })).toBeNull();
   });
