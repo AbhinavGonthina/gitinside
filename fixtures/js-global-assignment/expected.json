@@ -1,0 +1,231 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "symbol:js-global-assignment/scripts/load-check.ts#check",
+      "id": "http:symbol:js-global-assignment/scripts/load-check.ts#check->route:api/GET /api/health/ready",
+      "kind": "http",
+      "label": "GET /api/health/ready",
+      "sites": [
+        {
+          "column": 23,
+          "file": "scripts/load-check.ts",
+          "line": 4,
+          "request": "GET {env:LOAD_BASE_URL}/api/health/ready"
+        }
+      ],
+      "to": "route:api/GET /api/health/ready"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:js-global-assignment/scripts/load-check.ts#check",
+      "id": "http:symbol:js-global-assignment/scripts/load-check.ts#check->route:api/POST /api/bookings/:slug",
+      "kind": "http",
+      "label": "POST /api/bookings/:slug",
+      "sites": [
+        {
+          "column": 24,
+          "file": "scripts/load-check.ts",
+          "line": 5,
+          "request": "POST {env:LOAD_BASE_URL}/api/bookings/{}"
+        }
+      ],
+      "to": "route:api/POST /api/bookings/:slug"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:js-global-assignment/tests/site.ts#readiness",
+      "id": "http:symbol:js-global-assignment/tests/site.ts#readiness->unresolved:js-global-assignment/tests/site.ts:4:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "tests/site.ts",
+          "line": 4
+        }
+      ],
+      "to": "unresolved:js-global-assignment/tests/site.ts:4:10"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "0dc9fd70286b54de3a13c36d5432cff19fe4fe56eb6948c09e7d29a1821b5fc7",
+      "id": "file:api/src/main.ts",
+      "kind": "file",
+      "label": "main.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/main.ts"
+    },
+    {
+      "hash": "84f6d128b2e28c924bdbc19393c46c978ed5e48a4ec17e7b91dcabaeff1f8ead",
+      "id": "file:js-global-assignment/scripts/load-check.ts",
+      "kind": "file",
+      "label": "load-check.ts",
+      "parentId": "module:js-global-assignment/scripts",
+      "path": "scripts/load-check.ts"
+    },
+    {
+      "hash": "1322794fd7ba37eb0b44f151037ba90cb515d80e5a34738993a68ca5ef78d617",
+      "id": "file:js-global-assignment/scripts/set-test-env.mjs",
+      "kind": "file",
+      "label": "set-test-env.mjs",
+      "parentId": "module:js-global-assignment/scripts",
+      "path": "scripts/set-test-env.mjs"
+    },
+    {
+      "hash": "915f172f50d000822fa56e8d04f94e6d20a4bf6c237d1ba0676f31617c8ba98c",
+      "id": "file:js-global-assignment/tests/site.ts",
+      "kind": "file",
+      "label": "site.ts",
+      "parentId": "module:js-global-assignment/tests",
+      "path": "tests/site.ts"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "apps/api/src"
+    },
+    {
+      "id": "module:js-global-assignment/scripts",
+      "kind": "module",
+      "label": "scripts",
+      "parentId": "service:js-global-assignment/",
+      "path": "scripts"
+    },
+    {
+      "id": "module:js-global-assignment/tests",
+      "kind": "module",
+      "label": "tests",
+      "parentId": "service:js-global-assignment/",
+      "path": "tests"
+    },
+    {
+      "id": "route:api/GET /api/health/ready",
+      "kind": "route",
+      "label": "GET /api/health/ready",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/main.ts",
+      "path": "/api/health/ready",
+      "source": {
+        "column": 8,
+        "file": "apps/api/src/main.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:api/POST /api/bookings/:slug",
+      "kind": "route",
+      "label": "POST /api/bookings/:slug",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:api/src/main.ts",
+      "path": "/api/bookings/:slug",
+      "source": {
+        "column": 8,
+        "file": "apps/api/src/main.ts",
+        "line": 9
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "@jsga/api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "apps/api"
+    },
+    {
+      "id": "service:js-global-assignment/",
+      "kind": "service",
+      "label": "js-global-assignment",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:js-global-assignment/scripts/load-check.ts#check",
+      "kind": "symbol",
+      "label": "check",
+      "parentId": "file:js-global-assignment/scripts/load-check.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "scripts/load-check.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:js-global-assignment/tests/site.ts#readiness",
+      "kind": "symbol",
+      "label": "readiness",
+      "parentId": "file:js-global-assignment/tests/site.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "tests/site.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:js-global-assignment/tests/site.ts#siteURL",
+      "kind": "symbol",
+      "label": "siteURL",
+      "parentId": "file:js-global-assignment/tests/site.ts",
+      "source": {
+        "column": 14,
+        "endLine": 1,
+        "file": "tests/site.ts",
+        "line": 1
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "js-global-assignment",
+      "parentId": null
+    },
+    {
+      "detail": "the env var PUBLIC_APP_URL isn't named like an API base (*_API_URL, *_API_PATH, …)",
+      "expression": "fetch(`${siteURL}/api/health/ready`)",
+      "id": "unresolved:js-global-assignment/tests/site.ts:4:10",
+      "kind": "unresolved",
+      "label": "GET {env:PUBLIC_APP_URL}/api/health/ready",
+      "parentId": "service:js-global-assignment/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "tests/site.ts",
+        "line": 4
+      }
+    }
+  ],
+  "repo": {
+    "name": "js-global-assignment",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/api",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

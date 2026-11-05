@@ -151,7 +151,7 @@ import type { SymbolResolver } from "./calls.js";
 import { isFunctionWithBody, returnedExpressions, type FunctionWithBody } from "./express.js";
 import { NO_OWNERS, ownersAt, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
-import { unwrap } from "./symbols.js";
+import { isJsExpando, unwrap } from "./symbols.js";
 import { DYNAMIC_URL_DETAIL, type DynamicUrlDetail } from "./url.js";
 import {
   createValueReader,
@@ -389,10 +389,17 @@ export function importBinding(
   return ts.isStringLiteralLike(specifier) ? { module: specifier.text, name } : undefined;
 }
 
-/** True when a declaration is part of the repo's own code, not a lib or `.d.ts` file. */
+/**
+ * True when a declaration is part of the repo's own code, not a lib or `.d.ts` file, nor a JS
+ * file's assignment to a global's property (`window.x = …`, ADR-0211).
+ */
 function isRepoCode(sp: ServiceProgram, declaration: ts.Declaration): boolean {
   const sourceFile = declaration.getSourceFile();
-  return !sourceFile.isDeclarationFile && sp.toRepoPath(sourceFile.fileName) !== undefined;
+  return (
+    !sourceFile.isDeclarationFile &&
+    !isJsExpando(declaration) &&
+    sp.toRepoPath(sourceFile.fileName) !== undefined
+  );
 }
 
 /**

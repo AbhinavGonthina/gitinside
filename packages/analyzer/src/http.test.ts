@@ -186,6 +186,16 @@ describe("collectHttpCalls: fetch", () => {
       "src/a.ts:16:1 fetch GET ? base=- []",
     ]);
   });
+
+  it("keeps window.fetch and fetch global when a JS file assigns their properties (M5C.7e2)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/setup.js", ['window.title = "x";', "fetch.polyfilled = true;"]);
+    await put("src/a.ts", ['window.fetch("/w");', 'fetch("/f");']);
+    expect(summary(await collect())).toEqual([
+      'src/a.ts:1:1 fetch GET "/w" base=- []',
+      'src/a.ts:2:1 fetch GET "/f" base=- []',
+    ]);
+  });
 });
 
 describe("collectHttpCalls: axios", () => {

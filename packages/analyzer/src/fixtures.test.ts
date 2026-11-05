@@ -56,6 +56,7 @@ const NAMES = [
   "express-inline-calls",
   "sibling-apps",
   "workspace-root-files",
+  "js-global-assignment",
   "fixed-url-helpers",
   "url-alternatives",
   "ambiguous-routes",
@@ -615,6 +616,23 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
         message:
           "1 source file under examples/ belongs to no workspace package and is not analyzed (examples/widget/index.ts)",
       },
+    ]);
+  });
+
+  it("js-global-assignment: a JS file setting process.env.X doesn't hide env bases elsewhere (M5C.7e2)", async () => {
+    const g = await run("js-global-assignment");
+    const p = "js-global-assignment";
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/scripts/load-check.ts#check -> route:api/GET /api/health/ready heuristic`,
+      `symbol:${p}/scripts/load-check.ts#check -> route:api/POST /api/bookings/:slug heuristic`,
+      `symbol:${p}/tests/site.ts#readiness -> unresolved:${p}/tests/site.ts:4:10 unresolved NO_MATCHING_ROUTE`,
+    ]);
+    const unresolved = g.nodes.filter((n) => n.kind === "unresolved");
+    expect(unresolved.map((n) => [n.reason, n.detail])).toEqual([
+      [
+        "NO_MATCHING_ROUTE",
+        "the env var PUBLIC_APP_URL isn't named like an API base (*_API_URL, *_API_PATH, …)",
+      ],
     ]);
   });
 

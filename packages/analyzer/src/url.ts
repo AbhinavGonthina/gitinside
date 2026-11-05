@@ -21,7 +21,9 @@
  *   carrying the fallback's parts (ADR-0158): at the start of a URL, a literal fallback URL or
  *   root-relative path adds its path after the env base (`?? "http://localhost:4000/api/v1"`
  *   ⇒ `{env:X}/api/v1/…`) and records its host; later on, a fallback of text and holes takes
- *   the env var's place (`/api/${process.env.V || "v1"}` ⇒ `/api/v1`).
+ *   the env var's place (`/api/${process.env.V || "v1"}` ⇒ `/api/v1`). `process` is the
+ *   global unless the repo declares it; a JS file's `process.env.NODE_ENV = "test"` doesn't
+ *   (ADR-0211), and the same goes for `window`, `location`, `URL`, and `String`.
  * - `window.location.origin` (also `location`, `self.location`, `globalThis.location`,
  *   `document.location`): the page's own origin, so the URL is root-relative.
  * - `new URL(url, base?)`, `.href`, `.toString()`, and `String(x)`. A relative `url` is
@@ -101,7 +103,7 @@ import type { SymbolResolver } from "./calls.js";
 import type { HttpCallSite } from "./http.js";
 import type { ServiceProgram } from "./program.js";
 import { letValues } from "./lets.js";
-import { propertyName, unwrap } from "./symbols.js";
+import { isJsExpando, propertyName, unwrap } from "./symbols.js";
 import {
   createValueReader,
   isConst,
@@ -770,11 +772,14 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     return all.every((p) => JSON.stringify(p) === first) && all[0] ? all[0] : [HOLE];
   };
 
-  /** True when an identifier names a global, not something the repo declares. */
+  /**
+   * True when an identifier names a global, not something the repo declares. A JS file's
+   * assignment to one of its properties (`process.env.X = …`) declares nothing (ADR-0211).
+   */
   const isGlobal = (sp: ServiceProgram, identifier: ts.Identifier, name: string): boolean => {
     if (identifier.text !== name) return false;
     const declarations = reader.symbolAt(sp, identifier)?.declarations ?? [];
-    return declarations.every((d) => d.getSourceFile().isDeclarationFile);
+    return declarations.every((d) => d.getSourceFile().isDeclarationFile || isJsExpando(d));
   };
 
   /** True for `process.env` and `import.meta.env`. */
@@ -1260,7 +1265,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   /** True when a callee is the global `URL` class or `URL` imported from `url`/`node:url`. */
   const isURLConstructor = (sp: ServiceProgram, callee: ts.Identifier): boolean => {
     const declarations = reader.symbolAt(sp, callee)?.declarations ?? [];
-    if (declarations.every((d) => d.getSourceFile().isDeclarationFile)) {
+    if (declarations.every((d) => d.getSourceFile().isDeclarationFile || isJsExpando(d))) {
       return callee.text === "URL";
     }
     return declarations.every((d) => {

@@ -1,0 +1,3 @@
+# js-global-assignment
+
+Tests: a JS file that assigns a property of a global (`process.env.NODE_ENV = "test"` in `scripts/set-test-env.mjs`). TypeScript binds that assignment as a declaration of `process` in the repo, which used to make every `process.env.X` read in the service look like a repo object, so every env base became `DYNAMIC_URL` (ADR-0211). The root service's `scripts/load-check.ts` reads `new URL(path, new URL(process.env.LOAD_BASE_URL!))` and links both requests to `@jsga/api` (`heuristic`). `tests/site.ts`'s `PUBLIC_APP_URL` isn't named like an API base (ADR-0165), so it stays an `unresolved` `NO_MATCHING_ROUTE` node that names the env var.
