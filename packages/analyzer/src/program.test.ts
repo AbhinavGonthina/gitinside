@@ -242,7 +242,9 @@ describe("buildServicePrograms", () => {
       "schema.prisma": "",
     });
     const programs = await build();
+    // The root schema makes the root a service too (ADR-0021 amendment), with no program files.
     expect(programs.map((p) => [p.service.key, p.rootFiles])).toEqual([
+      ["app", []],
       ["web", ["apps/web/a.ts"]],
       ["p", ["apps/web/plugins/p/b.ts"]],
     ]);

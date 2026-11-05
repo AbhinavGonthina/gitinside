@@ -184,6 +184,62 @@ describe("detectWorkspace", () => {
     expect(ws.warnings.map((w) => w.code)).toEqual(["WORKSPACE_NO_MATCH"]);
   });
 
+  it("makes the root a service beside workspace packages when it has source files outside them", async () => {
+    await tree({
+      "package.json": { name: "@acme/mono", workspaces: ["apps/*", "!apps/legacy"] },
+      "apps/web/package.json": { name: "web", dependencies: { next: "15" } },
+      "apps/web/app/page.tsx": "",
+      "apps/legacy/package.json": { name: "legacy" },
+      "apps/legacy/index.ts": "",
+      "examples/demo/package.json": { name: "demo" },
+      "examples/demo/index.ts": "",
+      "tests/e2e/home.spec.ts": "",
+      "scripts/seed.mts": "",
+    });
+    const ws = await detect();
+    expect(summary(ws)).toEqual([
+      ["mono", "", "@acme/mono"],
+      ["web", "apps/web", "web"],
+    ]);
+    // Other projects' folders (an excluded package, an example app) aren't the root's.
+    expect(ws.packages[0]?.except).toEqual(["apps/legacy", "examples/demo"]);
+    expect(serviceForFile(ws, "tests/e2e/home.spec.ts")?.key).toBe("mono");
+    expect(serviceForFile(ws, "scripts/seed.mts")?.key).toBe("mono");
+    expect(serviceForFile(ws, "apps/web/app/page.tsx")?.key).toBe("web");
+    expect(serviceForFile(ws, "apps/legacy/index.ts")).toBeUndefined();
+    expect(serviceForFile(ws, "examples/demo/index.ts")).toBeUndefined();
+    expect(serviceForFile(ws, "examples/demo-2/index.ts")?.key).toBe("mono");
+  });
+
+  it("leaves the root out of a workspace when its only source files are other projects'", async () => {
+    await tree({
+      "pnpm-workspace.yaml": "packages:\n  - 'apps/*'\n",
+      "apps/api/package.json": { name: "api" },
+      "apps/api/index.ts": "",
+      "examples/demo/package.json": { name: "demo" },
+      "examples/demo/index.ts": "",
+      "README.md": "",
+    });
+    expect(summary(await detect())).toEqual([["api", "apps/api", "api"]]);
+  });
+
+  it("keys a nameless workspace root `app`, and takes excluded Nx projects out of it", async () => {
+    await tree({
+      "nx.json": {},
+      "pnpm-workspace.yaml": "packages:\n  - 'apps/*'\n  - '!apps/legacy'\n",
+      "apps/admin/project.json": {},
+      "apps/legacy/project.json": {},
+      "apps/legacy/main.ts": "",
+      "tools/gen.ts": "",
+    });
+    const ws = await detect();
+    expect(summary(ws)).toEqual([
+      ["app", "", "app"],
+      ["admin", "apps/admin", "admin"],
+    ]);
+    expect(ws.packages[0]?.except).toEqual(["apps/legacy"]);
+  });
+
   it("reads npm/yarn workspaces arrays and yarn's { packages } form", async () => {
     await tree({
       "package.json": { workspaces: { packages: ["apps/*", "packages/*"] } },

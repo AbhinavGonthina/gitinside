@@ -55,6 +55,7 @@ const NAMES = [
   "express-class-app",
   "express-inline-calls",
   "sibling-apps",
+  "workspace-root-files",
   "fixed-url-helpers",
   "url-alternatives",
   "ambiguous-routes",
@@ -591,6 +592,29 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       // Root-relative into another service: `heuristic` (a proxy is assumed, match.ts).
       `${client}#createPost -> route:backend/POST /api/posts heuristic`,
       `${client}#loadPost -> route:backend/GET /api/posts/:id heuristic`,
+    ]);
+  });
+
+  it("workspace-root-files: a workspace root's tests and scripts are a service; an example app isn't (M5C.7e)", async () => {
+    const g = await run("workspace-root-files");
+    expect(ids(g, "service").sort()).toEqual(["service:api/", "service:relay-mono/"]);
+    expect(ids(g, "file").sort()).toEqual([
+      "file:api/src/server.ts",
+      "file:relay-mono/scripts/seed.mts",
+      "file:relay-mono/tests/e2e/health.spec.ts",
+    ]);
+    expect(links(g, "http")).toEqual([
+      `symbol:relay-mono/scripts/seed.mts#seedOrders -> route:api/POST /api/orders heuristic`,
+      `symbol:relay-mono/tests/e2e/health.spec.ts#readHealth -> route:api/GET /api/health heuristic`,
+    ]);
+    // The example app keeps its own warning: it's another project, not the root's.
+    expect(g.warnings.filter((w) => w.code === "FILES_OUTSIDE_SERVICE")).toEqual([
+      {
+        code: "FILES_OUTSIDE_SERVICE",
+        file: "examples",
+        message:
+          "1 source file under examples/ belongs to no workspace package and is not analyzed (examples/widget/index.ts)",
+      },
     ]);
   });
 

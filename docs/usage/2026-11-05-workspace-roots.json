@@ -1,0 +1,424 @@
+{
+  "about": "Raw measurements behind M5C.7e (docs/COVERAGE.md 'After batch 4', ADR-0021's M5C.7e amendment): do workspace monorepos keep source files at the root, outside every package? 'counts': GitHub REST GET /search/code (legacy engine, authenticated) total_count for a root workspace config (pnpm-workspace.yaml naming packages; a root package.json with workspaces). 'repos': the first 20 non-fork hits per query whose config file is at the repo root, each read at its default branch (git tree, recursive; folders node_modules, dist, build, out, .next, coverage, vendor skipped). Packages are the folders with a package.json that a workspace pattern matches (the analyzer's compileGlob, ! exclusions applied); other package.json folders are other projects. 'root source in folders' means a source file (the analyzer's SOURCE_EXTENSIONS) in a folder outside both, the form M5C.7e reads (root tests/, scripts/, or a root app's src/); 'root top-level files only' means only files directly at the root (tool config like eslint.config.js); 'no packages matched' repos fall back to one root service and are unchanged. Some 'folders' hits are vendored tools (rive-app and salte-auth commit .yarn/ releases). No repo in batches 1-3 or the original set has a workspace root with its own source (eval/dist/root-files.mjs, M5C.7e: WealthWise is the only workspace repo there, and its root holds none).",
+  "measuredAt": "2026-11-05T15:37:43.001Z",
+  "counts": {
+    "packages filename:pnpm-workspace.yaml": 120832,
+    "workspaces filename:package.json path:/": 203008
+  },
+  "repos": [
+    {
+      "repo": "vladmandic/sdnext",
+      "kind": "pnpm",
+      "packages": 0,
+      "rootFiles": 55,
+      "rootFolders": ["cli", "test", "ui"],
+      "example": ["cli/api-model.js", "cli/api-pulid.js", "cli/api-txt2img.js"],
+      "result": "no packages matched"
+    },
+    {
+      "repo": "arktypeio/arktype",
+      "kind": "pnpm",
+      "packages": 12,
+      "rootFiles": 2,
+      "rootFolders": [],
+      "example": [],
+      "result": "root top-level files only"
+    },
+    {
+      "repo": "tegojs/tego",
+      "kind": "pnpm",
+      "packages": 23,
+      "rootFiles": 6,
+      "rootFolders": ["scripts"],
+      "example": ["scripts/sync-package-metadata.js", "scripts/update-settings.js"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "LookJohnny/soulForge",
+      "kind": "pnpm",
+      "packages": 3,
+      "rootFiles": 40,
+      "rootFolders": ["demo", "packages", "studio"],
+      "example": [
+        "demo/export_unity_behavior_events.mjs",
+        "demo/record_vtuber_life_web.mjs",
+        "demo/synthesize_vtuber_voice_track.mjs"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "gunnartorfis/sonner-native-toasts",
+      "kind": "pnpm",
+      "packages": 2,
+      "rootFiles": 48,
+      "rootFolders": ["src"],
+      "example": [
+        "src/__tests__/animation-utils.test.ts",
+        "src/__tests__/animations.test.ts",
+        "src/__tests__/channel-lifetime.test.tsx"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "hofstadter-io/hof",
+      "kind": "pnpm",
+      "packages": 6,
+      "rootFiles": 0,
+      "rootFolders": [],
+      "example": [],
+      "result": "no root source"
+    },
+    {
+      "repo": "lusess123/web-pdm",
+      "kind": "pnpm",
+      "packages": 2,
+      "rootFiles": 22,
+      "rootFolders": ["docs", "mock", "test"],
+      "example": ["docs/GitHub星标快照.ts", "docs/GitHub星标趋势.tsx", "docs/erd.tsx"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "maxmind/GeoIP2-node",
+      "kind": "pnpm",
+      "packages": 2,
+      "rootFiles": 27,
+      "rootFolders": ["src"],
+      "example": ["src/errors.spec.ts", "src/errors.ts", "src/index.ts"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "ncounterspecialist/twick",
+      "kind": "pnpm",
+      "packages": 23,
+      "rootFiles": 4,
+      "rootFolders": ["scripts"],
+      "example": [
+        "scripts/action-for-publish.js",
+        "scripts/fix-binary-permissions.js",
+        "scripts/get-publish-order.js"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "wenerme/wener",
+      "kind": "pnpm",
+      "packages": 1,
+      "rootFiles": 6,
+      "rootFolders": ["notes", "scripts"],
+      "example": [
+        "notes/mgmt/marketing/growth/LessIsMoreFormula.js",
+        "notes/web/userscript/gemini-bulk-delete.js",
+        "notes/web/userscript/github-stars.js"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "projectwallace/wallace-cli",
+      "kind": "pnpm",
+      "packages": 0,
+      "rootFiles": 10,
+      "rootFolders": ["src"],
+      "example": ["src/bin.ts", "src/components.ts", "src/formatters.ts"],
+      "result": "no packages matched"
+    },
+    {
+      "repo": "weiesky/cc-viewer",
+      "kind": "pnpm",
+      "packages": 5,
+      "rootFiles": 41,
+      "rootFolders": ["scripts", "test"],
+      "example": [
+        "scripts/check-no-control-bytes.js",
+        "scripts/gen-default-voicepack.js",
+        "scripts/gen-star-history.mjs"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "mmazzarolo/ordinary-puzzles-app",
+      "kind": "pnpm",
+      "packages": 0,
+      "rootFiles": 118,
+      "rootFolders": ["e2e", "plugins", "public", "scripts", "src", "tools"],
+      "example": ["e2e/fixtures.ts", "e2e/product-flows.spec.ts", "e2e/progress.spec.ts"],
+      "result": "no packages matched"
+    },
+    {
+      "repo": "ethui/ethui",
+      "kind": "pnpm",
+      "packages": 4,
+      "rootFiles": 2,
+      "rootFolders": ["icons", "packages"],
+      "example": ["icons/generate.tsx", "packages/abiparse/index.ts"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "hyperstackjs/hyperstack",
+      "kind": "pnpm",
+      "packages": 15,
+      "rootFiles": 1,
+      "rootFolders": [],
+      "example": [],
+      "result": "root top-level files only"
+    },
+    {
+      "repo": "umijs/tnf",
+      "kind": "pnpm",
+      "packages": 9,
+      "rootFiles": 108,
+      "rootFolders": ["bin", "client", "e2e", "scripts", "src"],
+      "example": ["bin/tnf.js", "client/router.d.ts", "client/router.js"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "shiguredo/sora-js-sdk",
+      "kind": "pnpm",
+      "packages": 1,
+      "rootFiles": 19,
+      "rootFolders": ["src", "tests"],
+      "example": ["src/base.ts", "src/constants.ts", "src/errors.ts"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "egoist/vitekit",
+      "kind": "pnpm",
+      "packages": 5,
+      "rootFiles": 0,
+      "rootFolders": [],
+      "example": [],
+      "result": "no root source"
+    },
+    {
+      "repo": "naver/egjs-conveyer",
+      "kind": "pnpm",
+      "packages": 8,
+      "rootFiles": 2,
+      "rootFolders": ["config"],
+      "example": ["config/docs-version-up.js", "config/update-type-consts.js"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "ag-grid/ag-grid-demos",
+      "kind": "pnpm",
+      "packages": 16,
+      "rootFiles": 0,
+      "rootFolders": [],
+      "example": [],
+      "result": "no root source"
+    },
+    {
+      "repo": "naver/egjs-infinitegrid",
+      "kind": "npm",
+      "packages": 8,
+      "rootFiles": 2,
+      "rootFolders": ["config"],
+      "example": ["config/docs-version-up.js", "config/duplicate.js"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "kriasoft/react-app",
+      "kind": "npm",
+      "packages": 2,
+      "rootFiles": 0,
+      "rootFolders": [],
+      "example": [],
+      "result": "no root source"
+    },
+    {
+      "repo": "hikerpig/pintora",
+      "kind": "npm",
+      "packages": 11,
+      "rootFiles": 5,
+      "rootFolders": ["scripts"],
+      "example": ["scripts/ai-lint.mjs", "scripts/ai-sync.mjs"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "ihexxa/quickshare",
+      "kind": "npm",
+      "packages": 1,
+      "rootFiles": 0,
+      "rootFolders": [],
+      "example": [],
+      "result": "no root source"
+    },
+    {
+      "repo": "rive-app/rive-react-native",
+      "kind": "npm",
+      "packages": 1,
+      "rootFiles": 11,
+      "rootFolders": [".yarn", "scripts", "src"],
+      "example": [
+        ".yarn/plugins/@yarnpkg/plugin-interactive-tools.cjs",
+        ".yarn/plugins/@yarnpkg/plugin-workspace-tools.cjs",
+        ".yarn/releases/yarn-4.7.0.cjs"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "codercup/unibest",
+      "kind": "npm",
+      "packages": 1,
+      "rootFiles": 55,
+      "rootFolders": ["docs", "scripts", "src", "vite-plugins"],
+      "example": [
+        "docs/.vitepress/composables/cases.ts",
+        "docs/.vitepress/config.mts",
+        "docs/.vitepress/theme/index.ts"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "nstudio/xplat",
+      "kind": "npm",
+      "packages": 0,
+      "rootFiles": 14,
+      "rootFolders": ["e2e", "scripts"],
+      "example": ["e2e/schematics/web.test.ts", "e2e/utils.ts", "scripts/check-imports.js"],
+      "result": "no packages matched"
+    },
+    {
+      "repo": "aureliushq/catalystui",
+      "kind": "npm",
+      "packages": 4,
+      "rootFiles": 2,
+      "rootFolders": [],
+      "example": [],
+      "result": "root top-level files only"
+    },
+    {
+      "repo": "a-type/verdant",
+      "kind": "npm",
+      "packages": 12,
+      "rootFiles": 1,
+      "rootFolders": [],
+      "example": [],
+      "result": "root top-level files only"
+    },
+    {
+      "repo": "hypothesi/mcp-server-tauri",
+      "kind": "npm",
+      "packages": 4,
+      "rootFiles": 6,
+      "rootFolders": ["docs", "scripts"],
+      "example": [
+        "docs/.vitepress/config.mts",
+        "docs/.vitepress/theme/index.ts",
+        "docs/.vitepress/versions.data.ts"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "kenshoo/react-tree",
+      "kind": "npm",
+      "packages": 3,
+      "rootFiles": 2,
+      "rootFolders": [],
+      "example": [],
+      "result": "root top-level files only"
+    },
+    {
+      "repo": "tonkeeper/tonapi-js",
+      "kind": "npm",
+      "packages": 5,
+      "rootFiles": 29,
+      "rootFolders": ["examples", "tests"],
+      "example": ["examples/emulate.ts", "examples/gasless.ts", "examples/send-jetton.ts"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "salte-auth/salte-auth",
+      "kind": "npm",
+      "packages": 17,
+      "rootFiles": 4,
+      "rootFolders": [".yarn"],
+      "example": [".yarn/releases/yarn-3.2.4.cjs"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "lundegaard/react-union",
+      "kind": "npm",
+      "packages": 20,
+      "rootFiles": 6,
+      "rootFolders": ["scripts", "tests"],
+      "example": ["scripts/CI/repoIntegrity.js", "tests/enzymeSetup.js"],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "BitskiCo/bitski-js",
+      "kind": "npm",
+      "packages": 5,
+      "rootFiles": 0,
+      "rootFolders": [],
+      "example": [],
+      "result": "no root source"
+    },
+    {
+      "repo": "taotao7/FrameBaker",
+      "kind": "npm",
+      "packages": 3,
+      "rootFiles": 28,
+      "rootFolders": ["scripts", "tests"],
+      "example": [
+        "scripts/check_animation.ts",
+        "scripts/check_animation_package.ts",
+        "scripts/version.ts"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "pie6k/codablejson",
+      "kind": "npm",
+      "packages": 2,
+      "rootFiles": 0,
+      "rootFolders": [],
+      "example": [],
+      "result": "no root source"
+    },
+    {
+      "repo": "react-zero-ui/core",
+      "kind": "npm",
+      "packages": 2,
+      "rootFiles": 5,
+      "rootFolders": ["scripts"],
+      "example": [
+        "scripts/install-local-tarball.js",
+        "scripts/pack-release.mjs",
+        "scripts/set-compat-fixture-versions.mjs"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "mikialex/artgl",
+      "kind": "npm",
+      "packages": 13,
+      "rootFiles": 7,
+      "rootFolders": ["packages", "script"],
+      "example": [
+        "packages/wasm-scene/client/renderer.ts",
+        "packages/wasm-scene/client/wasm-scene-graph.ts",
+        "packages/wasm-scene/src/webgl/array_pool.js"
+      ],
+      "result": "root source in folders"
+    },
+    {
+      "repo": "dfinity/ic-docutrack",
+      "kind": "npm",
+      "packages": 2,
+      "rootFiles": 3,
+      "rootFolders": [],
+      "example": [],
+      "result": "root top-level files only"
+    }
+  ],
+  "tally": {
+    "pnpm: no packages matched": 3,
+    "pnpm: root top-level files only": 2,
+    "pnpm: root source in folders": 12,
+    "pnpm: no root source": 3,
+    "npm: root source in folders": 11,
+    "npm: no root source": 4,
+    "npm: no packages matched": 1,
+    "npm: root top-level files only": 4
+  }
+}

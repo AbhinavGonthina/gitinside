@@ -327,7 +327,7 @@ describe("import edges", () => {
           'import { shared } from "@acme/shared";',
           'import { other } from "@acme/shared";',
           'import { gone } from "./missing";',
-          'import { s } from "../../scripts/seed";',
+          'import { s } from "../../tools/seed/seed";',
           "export const x = [shared, other, gone, s];",
           "",
         ].join("\n"),
@@ -339,7 +339,9 @@ describe("import edges", () => {
         'export { util } from "./util";\nexport const shared = 1, other = 2;\n',
       );
       await put("packages/shared/src/util.ts", "export const util = 1;\n");
-      await put("scripts/seed.ts", "export const s = 1;\n");
+      // Another project (no workspace pattern names it), so outside every service.
+      await put("tools/seed/package.json", JSON.stringify({ name: "seed" }));
+      await put("tools/seed/seed.ts", "export const s = 1;\n");
     }
 
     it("composes JSON round-tripped facts into the graph's import edges, nodes, and warnings", async () => {
@@ -394,17 +396,27 @@ describe("import edges", () => {
   });
 
   it("warns when an import resolves to a file outside every service", async () => {
-    await put("package.json", JSON.stringify({ workspaces: ["apps/*"] }));
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*", "!apps/old"] }));
     await put("apps/web/package.json", JSON.stringify({ name: "web" }));
-    await put("apps/web/app.ts", 'import { s } from "../../scripts/seed";\n');
-    await put("scripts/seed.ts", "export const s = 1;\n");
+    await put("apps/web/app.ts", 'import { s } from "../old/seed";\n');
+    await put("apps/old/package.json", JSON.stringify({ name: "old" }));
+    await put("apps/old/seed.ts", "export const s = 1;\n");
     const graph = await analyze(dir);
     expect(importEdges(graph)).toEqual([]);
     expect(graph.warnings).toContainEqual({
       code: "IMPORT_OUTSIDE_SERVICE",
       file: "apps/web/app.ts",
-      message:
-        '"../../scripts/seed" at 1:19 resolves to scripts/seed.ts, which belongs to no service',
+      message: '"../old/seed" at 1:19 resolves to apps/old/seed.ts, which belongs to no service',
     });
+  });
+
+  it("links a package's import of a workspace root's own file to the root service", async () => {
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*"] }));
+    await put("apps/web/package.json", JSON.stringify({ name: "web" }));
+    await put("apps/web/app.ts", 'import { s } from "../../scripts/seed";\n');
+    await put("scripts/seed.ts", "export const s = 1;\n");
+    const graph = await analyze(dir);
+    expect(importEdges(graph)).toEqual(["file:web/app.ts -> file:app/scripts/seed.ts (exact)"]);
+    expect(graph.warnings.map((w) => w.code)).not.toContain("IMPORT_OUTSIDE_SERVICE");
   });
 });

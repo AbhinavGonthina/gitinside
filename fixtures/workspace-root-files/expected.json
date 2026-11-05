@@ -1,0 +1,185 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "symbol:relay-mono/scripts/seed.mts#seedOrders",
+      "id": "http:symbol:relay-mono/scripts/seed.mts#seedOrders->route:api/POST /api/orders",
+      "kind": "http",
+      "label": "POST /api/orders",
+      "sites": [
+        {
+          "column": 11,
+          "file": "scripts/seed.mts",
+          "line": 5,
+          "request": "POST http://localhost:4000/api/orders"
+        }
+      ],
+      "to": "route:api/POST /api/orders"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:relay-mono/tests/e2e/health.spec.ts#readHealth",
+      "id": "http:symbol:relay-mono/tests/e2e/health.spec.ts#readHealth->route:api/GET /api/health",
+      "kind": "http",
+      "label": "GET /api/health",
+      "sites": [
+        {
+          "column": 21,
+          "file": "tests/e2e/health.spec.ts",
+          "line": 6,
+          "request": "GET http://localhost:4000/api/health"
+        }
+      ],
+      "to": "route:api/GET /api/health"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "4aa9f35ef4c1a017d5b321381db0aec72d598684ee0761965085a01d081d1cda",
+      "id": "file:api/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:api/src",
+      "path": "apps/api/src/server.ts"
+    },
+    {
+      "hash": "32246d76c3be8b1dd4391b2bf9cb0ce072e953b34953c522a6b5c1200f4bfeb5",
+      "id": "file:relay-mono/scripts/seed.mts",
+      "kind": "file",
+      "label": "seed.mts",
+      "parentId": "module:relay-mono/scripts",
+      "path": "scripts/seed.mts"
+    },
+    {
+      "hash": "0a394839a6ebb601faeec574b6e1914e5133c067aff698d9830664c385d5c2c3",
+      "id": "file:relay-mono/tests/e2e/health.spec.ts",
+      "kind": "file",
+      "label": "health.spec.ts",
+      "parentId": "module:relay-mono/tests/e2e",
+      "path": "tests/e2e/health.spec.ts"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "apps/api/src"
+    },
+    {
+      "id": "module:relay-mono/scripts",
+      "kind": "module",
+      "label": "scripts",
+      "parentId": "service:relay-mono/",
+      "path": "scripts"
+    },
+    {
+      "id": "module:relay-mono/tests/e2e",
+      "kind": "module",
+      "label": "e2e",
+      "parentId": "service:relay-mono/",
+      "path": "tests/e2e"
+    },
+    {
+      "id": "route:api/GET /api/health",
+      "kind": "route",
+      "label": "GET /api/health",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/health",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:api/POST /api/orders",
+      "kind": "route",
+      "label": "POST /api/orders",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:api/src/server.ts",
+      "path": "/api/orders",
+      "source": {
+        "column": 5,
+        "file": "apps/api/src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "relay-api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "apps/api"
+    },
+    {
+      "id": "service:relay-mono/",
+      "kind": "service",
+      "label": "relay-mono",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:relay-mono/scripts/seed.mts#seedOrders",
+      "kind": "symbol",
+      "label": "seedOrders",
+      "parentId": "file:relay-mono/scripts/seed.mts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "scripts/seed.mts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:relay-mono/tests/e2e/health.spec.ts#readHealth",
+      "kind": "symbol",
+      "label": "readHealth",
+      "parentId": "file:relay-mono/tests/e2e/health.spec.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 8,
+        "file": "tests/e2e/health.spec.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "workspace-root-files",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "workspace-root-files",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "FILES_OUTSIDE_SERVICE",
+      "file": "examples",
+      "message": "1 source file under examples/ belongs to no workspace package and is not analyzed (examples/widget/index.ts)"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "apps/api",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
