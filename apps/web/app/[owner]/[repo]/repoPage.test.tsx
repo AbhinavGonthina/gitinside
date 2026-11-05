@@ -13,6 +13,8 @@ import {
 } from "../../../lib/repoStatus";
 import { viewBase, viewRepo, type RepoView, type RepoViewDeps } from "../../../lib/repoView";
 import { repoViewDepsFromEnv } from "../../../lib/serverDeps";
+import type { TurnstileOptions } from "../../../lib/turnstile";
+import { CHECK_FAILED_MESSAGE } from "../../BotCheck";
 import CommitPage, { generateMetadata as commitMetadata } from "./[sha]/page";
 import { AddToReadme, COPIED_MESSAGE, COPIED_MS, COPY_FAILED_MESSAGE } from "./AddToReadme";
 import { NotAnalyzed } from "./NotAnalyzed";
@@ -42,6 +44,34 @@ vi.mock("../../../lib/repoView", async (original) => ({
   viewRepo: vi.fn(),
   viewBase: vi.fn(),
 }));
+
+// Cloudflare's script never loads in tests: a fake `window.turnstile` stands in.
+const turnstile = {
+  render: vi.fn<(container: HTMLElement, options: TurnstileOptions) => string>(),
+  remove: vi.fn<(id: string) => void>(),
+};
+const { loadTurnstile } = vi.hoisted(() => ({ loadTurnstile: vi.fn() }));
+vi.mock("../../../lib/turnstile", async (original) => ({
+  ...(await original<typeof import("../../../lib/turnstile")>()),
+  loadTurnstile,
+}));
+beforeEach(() => {
+  turnstile.render.mockReset().mockReturnValue("widget-1");
+  turnstile.remove.mockReset();
+  loadTurnstile.mockReset().mockResolvedValue(turnstile);
+});
+
+const CHALLENGE_MESSAGE = "GitInside is busier than usual, so we're checking that you're a person.";
+const challenged = { error: "CHALLENGE_REQUIRED", message: CHALLENGE_MESSAGE, siteKey: "0x4AAA" };
+
+/** The options the widget was drawn with, once the bot check is on screen. */
+async function widgetOptions(): Promise<TurnstileOptions> {
+  await waitFor(() => expect(turnstile.render).toHaveBeenCalledTimes(1));
+  const [container, options] = turnstile.render.mock.calls[0]!;
+  expect(container).toBe(screen.getByTestId("bot-check"));
+  expect(options).toMatchObject({ sitekey: "0x4AAA", action: "analyze" });
+  return options;
+}
 
 const SHA = "a".repeat(40);
 const NEWER = "b".repeat(40);
@@ -297,6 +327,29 @@ describe("RepoDiagram", () => {
       screen.getByText(/took over 5 minutes, the limit for one repo\. A repo with many services/),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Analyze again" })).toBeNull();
+  });
+
+  it("runs the bot check for Analyze again when asked (M5 review R2)", async () => {
+    fetchMock.mockImplementation((url) =>
+      url === "/api/analyze" ? analyzeResponse(403, challenged) : graphResponse(),
+    );
+    renderDiagram({ state: "behind", sha: NEWER, reason: "failed", errorCode: "DOWNLOAD_FAILED" });
+    await screen.findByRole("region", { name: "Diagram" });
+    fireEvent.click(screen.getByRole("button", { name: "Analyze again" }));
+    const options = await widgetOptions();
+    expect(screen.getByText(CHALLENGE_MESSAGE).getAttribute("role")).toBe("status");
+    fetchMock.mockImplementation((url) =>
+      url === "/api/analyze"
+        ? analyzeResponse(202, { status: "queued", jobId: JOB, owner: "acme", repo: "shop" })
+        : graphResponse(),
+    );
+    act(() => options.callback("tok.en"));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/acme/shop/jobs/${JOB}`));
+    const asks = fetchMock.mock.calls.filter(([url]) => url === "/api/analyze");
+    expect(JSON.parse(String(asks[1]?.[1]?.body))).toEqual({
+      url: "acme/shop",
+      turnstileToken: "tok.en",
+    });
   });
 
   it("goes to the progress page of a started re-analysis", async () => {
@@ -870,5 +923,53 @@ describe("NotAnalyzed", () => {
     expect(screen.getByRole("link", { name: "Open on GitHub" }).getAttribute("href")).toBe(
       "https://github.com/acme/shop",
     );
+  });
+
+  it("runs the bot check when asked, then analyzes with its token (M5 review R2)", async () => {
+    fetchMock
+      .mockImplementationOnce(() => analyzeResponse(403, challenged))
+      .mockImplementationOnce(() =>
+        analyzeResponse(202, { status: "queued", jobId: JOB, owner: "acme", repo: "shop" }),
+      );
+    render(<NotAnalyzed owner="acme" repo="shop" />);
+    fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
+    const options = await widgetOptions();
+    // Said calmly, as a status, not as a refusal.
+    expect(screen.getByRole("status").textContent).toBe(CHALLENGE_MESSAGE);
+    expect(screen.queryByRole("alert")).toBeNull();
+    act(() => options.callback("tok.en"));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/acme/shop/jobs/${JOB}`));
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
+      url: "acme/shop",
+      turnstileToken: "tok.en",
+    });
+    expect(turnstile.remove).toHaveBeenCalledWith("widget-1");
+  });
+
+  it("drops the bot check and asks afresh when Analyze is pressed again meanwhile", async () => {
+    fetchMock
+      .mockImplementationOnce(() => analyzeResponse(403, challenged))
+      .mockImplementationOnce(() =>
+        analyzeResponse(202, { status: "queued", jobId: JOB, owner: "acme", repo: "shop" }),
+      );
+    render(<NotAnalyzed owner="acme" repo="shop" />);
+    fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
+    await widgetOptions();
+    fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
+    expect(turnstile.remove).toHaveBeenCalledWith("widget-1");
+    expect(screen.queryByRole("status")).toBeNull();
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/acme/shop/jobs/${JOB}`));
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({ url: "acme/shop" });
+  });
+
+  it("says so in place when the bot check fails", async () => {
+    fetchMock.mockImplementationOnce(() => analyzeResponse(403, challenged));
+    render(<NotAnalyzed owner="acme" repo="shop" />);
+    fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
+    const options = await widgetOptions();
+    act(() => void options["error-callback"]());
+    expect(screen.getByRole("alert").textContent).toBe(CHECK_FAILED_MESSAGE);
+    expect(screen.queryByTestId("bot-check")).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

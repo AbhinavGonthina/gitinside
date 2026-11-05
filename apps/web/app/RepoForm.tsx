@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useId, useRef, useState, type FormEvent } from "react";
 import { SUPPORTED_SIZE } from "../lib/limits";
 import { parseRepoUrl } from "../lib/repoUrl";
-import { startAnalysis } from "../lib/startAnalysis";
-import { BotCheck } from "./BotCheck";
+import { useStartAnalysis } from "./useStartAnalysis";
 
 /**
  * The landing page's one field: paste a GitHub repo URL, press Analyze.
@@ -20,49 +19,23 @@ import { BotCheck } from "./BotCheck";
 export function RepoForm() {
   const router = useRouter();
   const [value, setValue] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const [challenge, setChallenge] = useState<{
-    siteKey: string;
-    url: string;
-    message: string;
-  } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const id = useId();
-
-  const fail = (message: string) => {
-    setError(message);
-    input.current?.focus();
-  };
-
-  const run = async (url: string, token?: string) => {
-    setError(null);
-    setPending(true);
-    const answer = await startAnalysis(url, fetch, token);
-    if (answer.ok) {
-      router.push(answer.href);
-      return;
-    }
-    setPending(false);
-    if (answer.challenge) {
-      setChallenge({ siteKey: answer.challenge.siteKey, url, message: answer.message });
-      return;
-    }
-    setChallenge(null);
-    fail(answer.message);
-  };
+  const { start, pending, error, fail, clearError, asked, check } = useStartAnalysis({
+    onStarted: (href) => router.push(href),
+    onFailed: () => input.current?.focus(),
+    stayPending: true,
+  });
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    // Not `disabled` while pending: a disabled button drops keyboard focus (CLAUDE.md lessons).
     if (pending) return;
     const result = parseRepoUrl(value);
     if (!result.ok) {
-      setChallenge(null);
       fail(result.error);
       return;
     }
-    await run(value);
+    await start(value);
   };
 
   return (
@@ -86,7 +59,7 @@ export function RepoForm() {
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
-            if (error) setError(null);
+            if (error) clearError();
           }}
           aria-invalid={error ? true : undefined}
           aria-describedby={`${id}-hint`}
@@ -104,23 +77,10 @@ export function RepoForm() {
         {error ??
           (pending
             ? "Checking the latest commit on GitHub…"
-            : (challenge?.message ??
+            : (asked ??
               `Public repos, no sign-in. TypeScript and JavaScript (React, Next.js, Express, Prisma), ${SUPPORTED_SIZE}.`))}
       </p>
-      {challenge && (
-        <BotCheck
-          siteKey={challenge.siteKey}
-          onToken={(token) => {
-            const { url } = challenge;
-            setChallenge(null);
-            void run(url, token);
-          }}
-          onError={(message) => {
-            setChallenge(null);
-            fail(message);
-          }}
-        />
-      )}
+      {check}
     </form>
   );
 }

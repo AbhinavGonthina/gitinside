@@ -7,10 +7,11 @@ import { useAnalyze } from "./useAnalyze";
 
 /**
  * A public repo nobody has analyzed yet (ADR-0068): one button that analyzes it, charged
- * to this visitor's hourly limit like the landing form. A refusal is said in place.
+ * to this visitor's hourly limit like the landing form. A refusal is said in place, and the
+ * bot check (ADR-0157) runs under the button when the server asks for it.
  */
 export function NotAnalyzed({ owner, repo }: { owner: string; repo: string }) {
-  const { analyze, busy, error } = useAnalyze(owner, repo);
+  const { analyze, busy, error, asked, check } = useAnalyze(owner, repo);
   return (
     <main className="notice">
       <h1 className="notice__title">
@@ -25,6 +26,11 @@ export function NotAnalyzed({ owner, repo }: { owner: string; repo: string }) {
           {error}
         </p>
       )}
+      {asked && (
+        <p className="progress__notice" role="status">
+          {asked}
+        </p>
+      )}
       <div className="progress__actions">
         <Button variant="primary" onClick={analyze} aria-busy={busy || undefined}>
           Analyze
@@ -36,6 +42,7 @@ export function NotAnalyzed({ owner, repo }: { owner: string; repo: string }) {
           </a>
         </p>
       </div>
+      {check}
     </main>
   );
 }

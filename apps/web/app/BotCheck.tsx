@@ -65,5 +65,5 @@ export function BotCheck({
     };
   }, [siteKey]);
 
-  return <div ref={box} className="repo-form__check" data-testid="bot-check" />;
+  return <div ref={box} className="bot-check" data-testid="bot-check" />;
 }

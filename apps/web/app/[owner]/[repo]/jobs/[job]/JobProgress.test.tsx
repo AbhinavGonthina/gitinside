@@ -2,6 +2,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { TAKING_LONGER } from "@gitinside/worker/progress";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { failureView, type JobView } from "../../../../../lib/jobs";
+import type { TurnstileOptions } from "../../../../../lib/turnstile";
+import { CHECK_TIMED_OUT_MESSAGE } from "../../../../BotCheck";
 import { COPIED_MS, JOB_LINK_COPIED, JOB_LINK_COPY_FAILED, JobProgress } from "./JobProgress";
 
 const push = vi.fn();
@@ -9,6 +11,22 @@ const replace = vi.fn();
 // One object, like Next.js's own router: the stream's effect depends on it.
 const router = { push, replace };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
+
+// Cloudflare's script never loads in tests: a fake `window.turnstile` stands in.
+const turnstile = {
+  render: vi.fn<(container: HTMLElement, options: TurnstileOptions) => string>(),
+  remove: vi.fn<(id: string) => void>(),
+};
+const { loadTurnstile } = vi.hoisted(() => ({ loadTurnstile: vi.fn() }));
+vi.mock("../../../../../lib/turnstile", async (original) => ({
+  ...(await original<typeof import("../../../../../lib/turnstile")>()),
+  loadTurnstile,
+}));
+beforeEach(() => {
+  turnstile.render.mockReset().mockReturnValue("widget-1");
+  turnstile.remove.mockReset();
+  loadTurnstile.mockReset().mockResolvedValue(turnstile);
+});
 
 const JOB = `analyze-${"d".repeat(32)}`;
 
@@ -231,6 +249,54 @@ describe("JobProgress", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(2));
     expect(screen.getAllByRole("alert")[1]?.textContent).toBe(message);
+  });
+
+  it("runs the bot check for 'Try again' when asked, then retries with its token (M5 review R2)", async () => {
+    const message = "GitInside is busier than usual, so we're checking that you're a person.";
+    fetchMock
+      .mockResolvedValueOnce(
+        Response.json({ error: "CHALLENGE_REQUIRED", message, siteKey: "0x4AAA" }, { status: 403 }),
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          { status: "queued", jobId: JOB, owner: "acme", repo: "shop", sha: "c".repeat(40) },
+          { status: 202 },
+        ),
+      );
+    show();
+    latest().send(failureView("DOWNLOAD_FAILED"));
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(turnstile.render).toHaveBeenCalledTimes(1));
+    const [container, options] = turnstile.render.mock.calls[0]!;
+    expect(container).toBe(screen.getByTestId("bot-check"));
+    expect(options).toMatchObject({ sitekey: "0x4AAA", action: "analyze" });
+    // Said as a status beside the failure, not as a second failure.
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByText(message).getAttribute("role")).toBe("status");
+    act(() => options.callback("tok.en"));
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
+      url: "acme/shop",
+      turnstileToken: "tok.en",
+    });
+    expect(turnstile.remove).toHaveBeenCalledWith("widget-1");
+  });
+
+  it("a bot check that times out says so next to the failure", async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json(
+        { error: "CHALLENGE_REQUIRED", message: "Checking.", siteKey: "0x4AAA" },
+        { status: 403 },
+      ),
+    );
+    show();
+    latest().send(failureView("JOB_STALLED"));
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(turnstile.render).toHaveBeenCalledTimes(1));
+    act(() => turnstile.render.mock.calls[0]![1]["timeout-callback"]());
+    expect(screen.getAllByRole("alert")[1]?.textContent).toBe(CHECK_TIMED_OUT_MESSAGE);
+    expect(screen.queryByTestId("bot-check")).toBeNull();
+    expect(screen.queryByText("Checking.")).toBeNull();
   });
 
   it("keeps the last progress with a notice while the worker is unreachable", () => {
