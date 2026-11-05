@@ -85,6 +85,7 @@ function healthyProject() {
     SNAPSHOTS_REGION: "us-ashburn-1",
     SNAPSHOTS_BUCKET: "gitinside-snapshots",
     SNAPSHOTS_ACCESS_KEY_ID: "0123456789abcdef",
+    COMMIT: "0123456789abcdef0123456789abcdef01234567",
   };
   const service = (name: string): Json => ({
     ...JSON.parse(render(text(`infra/gcp/${name}`), values)),
