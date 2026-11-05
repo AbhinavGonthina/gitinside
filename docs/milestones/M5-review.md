@@ -1,24 +1,26 @@
 # M5 review: Website (public) + live badge
 
-**Tag:** `m5` (not yet: waits for M5.14b) · **Range:** `m4a..HEAD` (M5.1–M5.12b, M5.14a) · **Date:** 2026-10-29
+**Tag:** `m5` (not yet: after the second review's fixes, M5.14b3b–g, the re-check M5.14b3h tags it) · **Range:** `m4a..m5`, M5 commits only (M5.1–M5.18, M5.13a–b, M5.14a–f, M5.14b1–b3); M5A, M5B, M5C, and M6 commits are interleaved and reviewed in their own milestones · **Dates:** pre-deploy review 2026-10-29 (M5.14a), deployed 2026-11-04 (M5.13), production checks and the second review 2026-11-05 (M5.14b1–b3)
 
-> **Status: pre-deploy.** Everything that can be verified without production accounts is verified here (M5.14a). The deploy (M5.13) waits on Abhinav's signups (planning #3–#7), so the production half of the acceptance criteria and the `m5` tag come with M5.14b. Sections that need production are marked **Pending M5.14b**. 2026-11-04: deployed and smoke-tested in production (M5.13, "Smoke test" below).
+> **Status: acceptance met, review fixes pending.** All five acceptance criteria were met in production (see "Acceptance criteria" below). The sections up to "Fresh-eyes review" were first written before the deploy (M5.14a) and are now updated for what shipped: between that review and the deploy, the worker moved from an Oracle VM with BullMQ and Redis to Google Cloud Run with Cloud Tasks (ADR-0111, ADR-0114), and snapshots moved from R2 to Oracle Object Storage (ADR-0095). That later work had its own fresh-eyes review ("Second fresh-eyes review": 1 high, 4 medium, 9 low), whose fixes are planned as M5.14b3b–g; M5.14b3h re-runs the checks, fills in the outcomes, and tags `m5`. One follow-up stays open without holding the tag: M5.14b4 compares `compute_usage` with Google's settled billing report once it has caught up (planning #22).
 
 ## What was built
 
-The whole path from "paste a public repo URL" to "see the diagram", plus README images, minus the production accounts it will run on.
+The whole path from "paste a public repo URL" to "see the diagram", plus README images, running in production at `gitinside.abhinavgonthina.dev`.
 
 | Piece | Where | What it does |
 |---|---|---|
-| Website | `apps/web` (Next.js 16 App Router) | Landing page with the URL form, progress page (SSE), diagram page `/<owner>/<repo>[/<sha>]` with every state, "Add to README", dark/light by cookie, nonce CSP |
-| Web API | `apps/web/lib/*Route.ts` | `POST /api/analyze` (latest SHA, cache, dedupe, 5/h per IP), `GET /api/jobs/:id[/events]`, `GET /api/graph/…` (streamed from R2), badge and diagram SVGs with check-on-view |
+| Website | `apps/web` (Next.js 16 App Router, Vercel Hobby) | Landing page with the URL form, progress page (SSE, found facts, time left, job link), diagram page `/<owner>/<repo>[/<sha>]` with every state, "Add to README", dark/light by cookie, nonce CSP |
+| Web API | `apps/web/lib/*Route.ts` | `POST /api/analyze` (latest SHA, cache, dedupe, abuse limits below), `GET /api/jobs/:id[/events]` read from the job's row, `GET /api/graph/…` (gzipped, CDN-cached a day), badge and diagram SVGs with check-on-view, renamed repos followed to their new name |
+| Queue | Cloud Tasks (`apps/web/lib/cloudTasks.ts`, `googleAuth.ts`) | A task per queue entry with the HMAC-signed job as body, created keylessly (Vercel OIDC ⇒ Workload Identity Federation), 2 dispatches at once, 3 attempts |
+| Abuse limits | `apps/web/lib/analyze.ts`, `sizeHold.ts`, `codeSize.ts`, `botCheck.ts` (SECURITY.md T9) | 5/h per address, one new analysis per repo per 30 min, "too big" remembered 7 days, a size check from GitHub's language count before any download, a monthly compute pause at 80% of Google's free allowance, Turnstile only when traffic looks automated |
 | README images | `packages/viewer/src/image/` | `@gitinside/viewer/image`: `renderBadge` and `renderDiagram` as standalone, escaped, deterministic SVG |
-| Database | `packages/db` | Drizzle schema (7 tables) with integrity in the database, committed SQL migrations, PGlite locally and Postgres on CI |
-| Worker | `apps/worker` | Our own streaming tar extractor, a sandboxed analysis child (permission model, empty env, network guard, heap cap, 5 min SIGKILL), HMAC enqueue API, BullMQ worker, R2 store with our own SigV4, Postgres records, progress events, hourly retention + quota check |
-| Infra | `infra/oracle/` | Hardened image (non-root, read-only root, no capabilities), compose with internal-only Redis, DNS-allowlisting egress gateway, Caddy TLS, idempotent `provision.sh`, CI container check |
+| Database | `packages/db` (Neon free) | Drizzle schema with integrity in the database, committed SQL migrations applied by the worker at startup under an advisory lock; the `analyses` row is the job (ID, attempts, queue entry, progress); request and compute meters |
+| Worker | `apps/worker` (Cloud Run, 1 vCPU / 4 GiB, max 2 instances) | `POST /run` (Cloud Run IAM + HMAC, one job per request under a 280 s budget), our own streaming tar extractor, a sandboxed analysis child (permission model, empty env, network guard, heap cap, kill time from the deadline), our own SigV4 store on Oracle Object Storage, maintenance at the end of a job (retention, quota check, stale rows) |
+| Infra | `infra/gcp/` | Service, queue, and IAM as reviewed JSON tested against the code, a billing kill switch (1 USD budget ⇒ Pub/Sub ⇒ unlink billing), keyless deploy from CI, `verify.mjs` reading the live project back (119 checks), CI's container check of the image as Cloud Run runs it |
 | Security suite | `apps/worker/src/security.test.ts`, `fixtures/malicious/` | Each malicious repo through the whole job pipeline at the production limits |
 
-Decisions are ADR-0055 to ADR-0079.
+Decisions are ADR-0055 to ADR-0079 (pre-deploy), then ADR-0095–0097, ADR-0111, ADR-0114, ADR-0135–0157, ADR-0169–0171, ADR-0188, ADR-0192, and ADR-0197–0199.
 
 ![Diagram page, dark](M5/repo-current-dark.png)
 ![Progress page, running, light](M5/progress-light-running.png)
@@ -32,12 +34,26 @@ Decisions are ADR-0055 to ADR-0079.
   - **Analyzer coverage couldn't be measured locally.** Its "exponentially shared mounts" test passed in 5.5 s under plain `test` but timed out at 30 s under `coverage` all three times, even with the machine otherwise idle; M5.8c saw the same on clean `main`. Its number comes from CI (below). The analyzer didn't change in M5.14a.
 - **CI on the fixes (`aa2ec6d`):** green; analyzer coverage 97.57% lines (see "CI" below).
 - **Eval:** unchanged since M5.8c (report `eval/results/2026-10-29-0.1.0.md`: TP 28, FP 1, FN 110). M5.14a didn't touch the analyzer, schema, eval, or lockfile, so no re-record.
-- **Pending M5.14b:** paste URL → progress → diagram in production; the second request served from cache; the rate limit enforced; the badge rendering in a real GitHub README; production timings and quota readings.
+- The numbers above are the pre-deploy check's (M5.14a, `aa2ec6d`). M5.14b3h adds the counts at the tag.
+
+### Acceptance criteria
+
+| Criterion (ROADMAP M5) | Result | Evidence |
+|---|---|---|
+| Paste URL → progress → diagram works in production | Met | M5.13: taxonomy, documenso, and cal.diy pasted, real stages shown, diagrams drawn under the production CSP in both themes ("Smoke test") |
+| Second request served from cache | Met | M5.13: the same URL again answered `200 done` in 95–388 ms with no new job; graph URLs are CDN `HIT`s, big ones too since M5.13a1 |
+| Rate limit enforced | Met | M5.14b1: the per-repo `429 REPO_RATE_LIMITED` and Turnstile's `403 CHALLENGE_REQUIRED` / `CHALLENGE_FAILED` in production. The 5-an-hour `429` can't be reached from a script past the bot check, so it rests on `analyze.test.ts` and the route tests |
+| Security tests green | Met | The security suite (18 malicious-repo cases) in every CI run, including the one at the tag |
+| Badge renders in a GitHub README | Met | M5.14b1: this repo's README, through GitHub's image proxy, in both of GitHub's themes |
+
+Also measured, not criteria: every free-tier meter under 1% after the first 8 production analyses (M5.14b2), and DESIGN.md's 5k files in ≤ 60 s **not met** on Cloud Run's vCPU (cal.diy 81.6 s of analysis, M5.13a2–a5 and #20).
 
 ## Key decisions and trade-offs
 
 - **The worker parses tarballs itself** (ADR-0058). Every byte written goes through our checks (paths, link types, sizes, entry counts), instead of trusting a tar library's defaults with hostile input.
-- **Three sandboxes deep for the analysis child** (ADR-0059, ADR-0074, ADR-0075): Node's permission model with an empty env and a network guard, then a no-capability, read-only container, then an egress gateway that resolves only GitHub, R2, and Neon. Each layer assumes the one inside it failed.
+- **Three sandboxes deep for the analysis child** (ADR-0059, ADR-0074, ADR-0075): Node's permission model with an empty env and a network guard, then a no-capability, read-only container, then an egress gateway that resolves only GitHub, R2, and Neon. Each layer assumes the one inside it failed. **On Cloud Run** (ADR-0152) the platform applies no capability drops and has no egress gateway at $0, so the child's own guards (permission model, empty env, `netguard.ts`) are the network boundary, the image itself is non-root with nothing writable outside `/tmp` (ADR-0150), and the worker is reachable only through Cloud Run IAM plus the HMAC.
+- **Cloud Run and Cloud Tasks instead of an Oracle VM** (ADR-0111, ADR-0114): scale to zero inside Google's free tier, no always-on Redis; the `analyses` row in Neon is the job (ADR-0139), and Cloud Tasks gives the concurrency, retries, and dedupe the queue used to. The price is one deadline for the whole job (Cloud Run's request timeout, ADR-0143) and `/tmp` in memory (ADR-0146).
+- **Spending can't go above zero by accident** (ADR-0156, ADR-0169): new analyses pause at 80% of the free compute, and a 1 USD budget alert unlinks billing from the project.
 - **Our own SigV4** (ADR-0062) instead of the AWS SDK: about 150 lines checked against AWS's published examples, versus a large dependency tree in the process that holds the bucket keys.
 - **Check-on-view charged to the repo, not the visitor** (ADR-0068). A README image is viewed by many people, so a new commit is analyzed at most 6 times an hour per repo, whoever opens it.
 - **Always an image** (ADR-0072). README routes never return a 5xx or a 404 for a repo; everything without a diagram gets the same link-only badge, so the image never confirms a private repo exists.
@@ -52,13 +68,16 @@ The trigger turned out to be a gitignored Storybook build (`storybook-static/ass
 
 ## What's still weak
 
-- **Nothing has run in production.** The VM, Neon, R2, Vercel, and DNS are all waiting on signups (#3–#7). `provision.sh` has only run on CI's containers.
-- **The deferred review findings are all fixed** (M5.14c–f, before the deploy): `getTypeAtLocation` guarded (M5.14c); the stale head cache and "Analyze again" for permanent failures (M5.14d); retention removes completed BullMQ jobs behind its deleted rows (M5.14e); the egress gateway reads host names only, and Redis requires a generated password (M5.14f). The last two are verified on CI's containers only, like the rest of the VM setup.
-- **`ANALYZER_VERSION` is still `0.1.0`** although M5 changed the output; it's bumped right before the first deploy (M5.13).
+*Updated at the tag (2026-11-05). The pre-deploy list's items that are now resolved: the deploy itself (M5.13); the deferred review findings (M5.14c–f, two of them on the VM stack that M5.17 then removed); `ANALYZER_VERSION` (0.2.0, `38a3b11`); case variants of a graph path (redirected to the stored spelling, M5.12d2); the M4a prototype diagram page (replaced by M4b's explorer).*
+
+- **5k files in ≤ 60 s isn't met in production.** cal.diy took 92.7 s from queued to done, 81.6 s of it analysis, every stage 1.6–2.0× slower than on CI's 1-vCPU runner (#20). On CI the analysis alone now meets the budget (33.7–58.5 s median over four CPU models, with 1.5 s to spare on the slowest), after sharing parsed files (ADR-0197) and a 32 MiB semi-space (ADR-0198). Production's rows predate both, so the next production run of cal.diy measures them there (DESIGN.md Budgets). The caps weren't raised.
+- **The compute meter isn't confirmed against Google's bill yet,** and the kill switch's own Cloud Run time probably isn't counted (ADR-0156's 2026-11-05 amendment). Our count was above everything Google had reported, the safe side. M5.14b4 settles it on #22.
+- **On Cloud Run the analysis child's in-process guards are the only network boundary** (ADR-0152). The VM's no-capability container and DNS-allowlisting gateway have no free equivalent there. The child's probes pin the guard (M5.17f), but a Node permission-model escape would reach the network as the worker.
 - **A repo that goes private is hidden only once someone opens its repo page or README image.** Permalinks never ask GitHub, and a CDN copy of a graph can live a day (ADR-0079).
-- **Case variants of a path** (`/Acme/shop` vs. `/acme/shop`) are separate CDN keys that each reach the database.
-- **The diagram page is the M4a prototype** until M4b (blocked on the design gate, #2): fixed column layout, small text on big repos, and overlapping labels in the README image for large graphs.
-- **Neon's quota limit is SPEC's assumption** (1 GB) until #4 reports the real figure.
+- **The 5-an-hour per-address `429` is proven by tests only;** production checks stop at the bot check, as they should.
+- **Every push to a repo with a badge is analyzed the next time someone views the README** (check-on-view, at most 6 an hour per repo). Fine at today's traffic; the compute pause bounds the month.
+- **Neon's quota limit is SPEC's figure** (1 GB, `QUOTA_LIMITS`); production uses 0.85% of it.
+- **The second review's findings** (R1–R14 below) are open until M5.14b3b–g; R1 (duplicate tasks after a retry) is the one that can cost compute.
 
 ## Fresh-eyes review
 
@@ -85,6 +104,29 @@ Two subagents with no prior context reviewed `m4a..HEAD`: one the web side (apps
 The reviewers also confirmed these were fine: SVG escaping and the image CSP; the HMAC client, the strict `/api/analyze` body, SSE cleanup, errors logged by name only; tar paths, link types, limits, checksums, and exclusive creates; constant-time HMAC over the raw body; SigV4 canonicalization; the child's empty env and permission roots; GitHub redirects with the token kept to the API host; retention's delete order; status constraints matching the migration; every timer cleared or unref'd.
 
 **After the fixes:** 1,997 local tests green, typecheck and lint clean. Two existing tests changed on purpose: `repoView`'s "stops serving" test (a hidden repo now stays hidden until an analysis request) and the security suite's over-long-path case (now expects the cut path).
+
+## Second fresh-eyes review (M5.14b3a, 2026-11-05)
+
+The first review stopped at `aa2ec6d`. Everything M5 built after it (the move to Cloud Run and Cloud Tasks, the abuse limits, the kill switch and deploy, the progress page additions, and the fixes from the production smoke test) got its own review at `2c0fa50`. Two subagents with no prior context read the M5 commits only: one the server side (worker, db, infra, CI deploy, bench), one the web and viewer side. They checked against DESIGN.md, SECURITY.md, TESTING.md, UX.md, DESIGN_SYSTEM.md, `infra/gcp/README.md`, and the ADRs, verified each finding against the code at HEAD, and edited nothing. Together: 1 high, 4 medium, 9 low. I checked R1 against the code myself before planning it (`enqueueAnalysis` creates a task for any `queued` row, named from its current `queued_at`).
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| R1 | High | A retried attempt moves the row back to `queued` with a new `queued_at` (`requeueAnalysis`), so a request or a repo view during Cloud Tasks' backoff creates a second task under a new name beside the pending retry. An in-flight row skips the size hold, the compute pause, the bot check, and the rate limit, so a repo that keeps failing retriably can be multiplied by polling, and two attempts can run at once and overwrite each other's row. | Planned: M5.14b3b |
+| R2 | Medium | Only the landing form handles `CHALLENGE_REQUIRED`. The repo page's Analyze buttons and the progress page's "Try again" ignore it, so a busy hour shows "Analyze continues once it does" with no widget and nothing continuing. | Planned: M5.14b3c |
+| R3 | Medium | CI's deploy diffs against the previous push (`github.event.before`), not against what's deployed, so a worker change whose run failed or was cancelled in the concurrency group is never shipped by the next docs push, silently (a lesson already records one case). | Planned: M5.14b3d |
+| R4 | Medium | When a slow download eats the job's 280 s budget, the analysis's cut timeout ends as the permanent `LIMIT_TIME`, which isn't retried and starts the 7-day "too big" hold: a network problem reads as "too big". | Planned: M5.14b3e |
+| R5 | Medium | CLAUDE.md's hosting line still named the Oracle VM with Redis/BullMQ, and DESIGN.md said logs are rotated by Docker's log driver. | Fixed here (docs). DESIGN.md's R2 mention is now marked as history. |
+| R6 | Low | The bot check reads both counts (`peekRateLimit`) and counts later, so a parallel burst can all read under the threshold and skip Turnstile. The hourly limit, the per-repo claim, and the pause still bound it. | Planned: M5.14b3f |
+| R7 | Low | A throw from `enqueueAnalysis` (a database error) answers 500 but keeps the visitor's hourly slot and the repo's 30-minute claim. | Planned: M5.14b3f |
+| R8 | Low | `/api/analyze` re-queues a row that failed permanently (`TAR_INVALID`, `TAR_UNSAFE_PATH`), which the job view and check-on-view treat as final, and the same-commit rule lets each retry past the per-repo limit. | Planned: M5.14b3f |
+| R9 | Low | `record.ts` ignores `startAnalysis`'s `done` and downloads, analyzes, and uploads anyway when the pre-check missed it. | Planned: M5.14b3b (with R1) |
+| R10 | Low | A task Cloud Tasks gives up on before the worker records anything (three 503s or 429s at cold start, a 401 during a bad secret rotation) leaves the row `queued` for 24 h 10 min, and re-requests hit `ALREADY_EXISTS`. | Planned: M5.14b3g |
+| R11 | Low | Secret Manager's free reads (about 2,500 cold starts a month, `infra/gcp/README.md`) aren't counted or paused on. | Planned: M5.14b3g |
+| R12 | Low | A request's `x-vercel-oidc-token` header becomes the instance's token for the next Google refresh. Safe only if Vercel replaces a client-sent header of that name; not confirmed. A forged one would make enqueue fail on that instance until a genuine request arrives. | Planned: M5.14b3g (confirm from Vercel's docs, or prefer the environment's token) |
+| R13 | Low | The kill switch's instance time and a worker crash-looping before `meter.startup` aren't counted in `compute_usage`. | Folded into M5.14b4 (the kill switch is already its question) |
+| R14 | Low | No test for "enqueue after a requeue". | Planned: M5.14b3b |
+
+Checked and fine, per the reviewers: the HMAC check (constant time, raw body, a day's age, repeated headers refused); `POST /run`'s answers against the queue's attempts; the 280 s / 300 s / 330 s deadlines and maintenance's 60 s floor; shutdown order; progress writes only on `running` rows; migrations under an advisory lock; the kill switch (reads billing first, retries through Pub/Sub, never fires on a 0 budget, logs no token); per-resource IAM and deploy federation limited to `ci.yml` on `main`; atomic counting; the child's empty env and permission flags; job folders cleaned; the limits' order and refunds in `analyze.ts`; HTTP codes; Turnstile's server check (action required, Cloudflare errors fail closed); the Google token cache and the Cloud Tasks client's `ALREADY_EXISTS` handling; the local push unreachable on Vercel; gzip with `Vary`; cache keys; rename following (no loop, capped lookups, private repos still 404); time left never negative; the progress page's live regions; and the viewer fixes (whole accessible names, the fit, the overlay stacking, the focus races).
 
 ## CI
 
@@ -178,7 +220,7 @@ All above target (analyzer ≥ 85%, others ≥ 70%).
 ## Interview questions
 
 **1. A stranger's repo can contain anything. Walk through what stops it from hurting you.**
-It's never executed or installed: we download GitHub's tarball and parse it. Our own extractor refuses absolute or `..` paths, skips every link and device, and caps bytes (on the decompressed stream, so gzip bombs stop early), entries, and path lengths. The analyzer runs in a child process with Node's permission model (read only the code and the repo, write only the graph file), an empty environment, a heap cap, a 5-minute SIGKILL, and a network guard. That child runs in a read-only container with no capabilities, and the container's only route out is a gateway that resolves just GitHub, R2, and Neon. The security suite proves each layer with sentinels and canaries at the real limits. *Follow-up:* "Which layer is weakest?" Netguard is in-process JavaScript; the review found the shared namespace can still reach Redis without a password, so M5.14c adds `requirepass`.
+It's never executed or installed: we download GitHub's tarball and parse it. Our own extractor refuses absolute or `..` paths, skips every link and device, and caps bytes (on the decompressed stream, so gzip bombs stop early), entries, and path lengths. The analyzer runs in a child process with Node's permission model (read only the code and the repo, write only the graph file), an empty environment, a heap cap, a kill time taken from the job's deadline, and a network guard. The worker that starts it runs in a non-root image with nothing writable outside `/tmp`, and nobody can call it except Cloud Tasks (Cloud Run IAM, plus an HMAC over the body). The security suite proves each layer with sentinels and canaries at the real limits. *Follow-up:* "Which layer is weakest?" On the original VM design, a container with no capabilities and a DNS-allowlisting gateway sat outside the child. Cloud Run offers neither for free, so since ADR-0152 the child's in-process guards are the network boundary. That's the trade we took for scale-to-zero at $0, and the child's network probes in the tests pin it.
 
 **2. Why write your own SigV4 signer instead of using the AWS SDK?**
 The worker process holds the bucket keys and parses hostile input, so every dependency there is attack surface and supply-chain risk. We need one signed request shape for four operations (PUT, GET, LIST, DELETE). That's about 150 lines, verified byte for byte against the three worked examples in AWS's docs, plus a fake S3 that checks signatures and body hashes in tests. The trade-off is owning the edge cases: the fake S3 caught that S3 error codes contain digits (`XAmzContentSHA256Mismatch`).
@@ -186,10 +228,10 @@ The worker process holds the bucket keys and parses hostile input, so every depe
 **3. A repo goes private after it was analyzed. What happens now, and what still leaks?**
 The next time someone opens its repo page or README image, GitHub answers 404 for it, and `viewRepo` calls `hideRepo`, which flips the row to private. Every public route reads through `findPublishedAnalysis`, which filters on public, so permalinks, graphs, and images all stop at once. It comes back only when an analysis request sees GitHub say it's public again. What still leaks: permalinks never ask GitHub (to protect the 60-an-hour quota), so a permalink-only audience isn't checked, and a CDN copy of a graph can live up to a day. The fresh-eyes review found that the first version didn't record the change at all.
 
-**4. How do you keep a free R2 bucket under 10 GB without a transaction across Postgres and R2?**
-A pure planner decides from the database rows and the bucket's own listing (what R2 bills): keep the 5 newest commits per public repo and anything a recent PR names, and drop the oldest past 8 GB. The runner deletes rows before objects. With no transaction spanning both stores, you choose the order whose failure is harmless: a crash after the row delete leaves an orphan object, which the next run deletes after an hour's grace, never a row pointing at a missing graph. A row whose object is missing is only reported, so a listing bug can't wipe the database.
+**4. How do you keep a free bucket (Oracle Object Storage, 20 GB) inside its quota without a transaction across Postgres and the bucket?**
+A pure planner decides from the database rows and the bucket's own listing (what the provider counts): keep the 5 newest commits per public repo and anything a recent PR names, and drop the oldest past 16 GB. The runner deletes rows before objects. With no transaction spanning both stores, you choose the order whose failure is harmless: a crash after the row delete leaves an orphan object, which the next run deletes after an hour's grace, never a row pointing at a missing graph. A row whose object is missing is only reported, so a listing bug can't wipe the database.
 
 **5. Why is the analysis's job ID derived from the commit instead of random?**
-Dedupe and replay safety in one step. The same commit (and analyzer version) is always the same BullMQ job, so a second visitor's request gets the job already in flight, and a replayed signed request is a no-op. It also lets the web app refund a rate-limit slot when the job already existed. The review found the cost: a permanent failure or a completed job is kept a day under that ID, so the ID must also carry its scope (installation, M8.3), and retention must remove the completed job when it deletes the row (M5.14c).
+Dedupe and replay safety in one step. The same commit (and analyzer version) is always the same job and the same `analyses` row, so a second visitor's request gets the job already in flight, and the web app can refund a rate-limit slot when the job already existed. The Cloud Tasks task is named from the job ID plus the row's queue entry time, so creating it twice answers `ALREADY_EXISTS` (already queued), while a retry after a failure gets a fresh name. A push for a row that's already `done` answers `200` before any download (ADR-0145), so a duplicate delivery costs nothing. The cost: the ID must also carry its scope once private repos arrive (installation, M8.3), or two tenants' jobs for one commit would collide.
 
 Quiz yourself: open Claude Code and say 'quiz me on M5'.
