@@ -28,6 +28,7 @@ const NAMES = [
   "next-pages-api",
   "next-connect",
   "next-method-exclusions",
+  "next-wrapped-handler",
   "swr-fetchers",
   "rtk-query",
   "tanstack-query-key",
@@ -210,6 +211,35 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
       "symbol:roster/pages/index.tsx#renameTeam -> unresolved:roster/pages/index.tsx:22:10 unresolved NO_MATCHING_ROUTE",
       "symbol:roster/pages/index.tsx#sendInvite -> route:roster/POST /api/invites exact",
     ]);
+  });
+
+  it("next-wrapped-handler reads req.method tests through a wrapped default export (M5C.7b)", async () => {
+    const g = await run("next-wrapped-handler");
+    const page = "symbol:pantry/pages/index.tsx";
+    expect(ids(g, "route")).toEqual([
+      "route:pantry/ALL /api/auth/*auth",
+      "route:pantry/DELETE /api/shelves/:id",
+      "route:pantry/GET /api/shelves",
+      "route:pantry/PATCH /api/stock",
+      "route:pantry/POST /api/shelves",
+      "route:pantry/PUT /api/shelves/:id",
+    ]);
+    expect(links(g, "http")).toEqual([
+      `${page}#addShelf -> route:pantry/POST /api/shelves exact`,
+      `${page}#archiveShelf -> unresolved:pantry/pages/index.tsx:18:10 unresolved NO_MATCHING_ROUTE`,
+      `${page}#countStock -> route:pantry/PATCH /api/stock exact`,
+      `${page}#loadShelves -> route:pantry/GET /api/shelves exact`,
+      `${page}#removeShelf -> route:pantry/DELETE /api/shelves/:id exact`,
+      `${page}#renameShelf -> route:pantry/PUT /api/shelves/:id exact`,
+      `${page}#signOut -> route:pantry/ALL /api/auth/*auth pattern`,
+    ]);
+    expect(links(g, "handles")).toContain(
+      "route:pantry/GET /api/shelves -> symbol:pantry/pages/api/shelves.ts#shelves exact",
+    );
+    expect(links(g, "handles")).toContain(
+      "route:pantry/PATCH /api/stock -> symbol:pantry/pages/api/stock.ts#guarded exact",
+    );
+    expect(g.warnings.filter((w) => w.code === "NEXT_WRAPPED_HANDLER")).toHaveLength(1);
   });
 
   it("swr-fetchers draws each SWR hook's request from the hook's caller (ADR-0193)", async () => {

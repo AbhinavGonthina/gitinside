@@ -23,6 +23,13 @@
  *   one route per method. When other methods may still fall through to real code (no negative
  *   guard, `default`, or 405, and the checks don't end the handler), an `ALL` route is added as
  *   well, so a fall-through endpoint is never dropped (see `handledMethods`).
+ * - Wrapped pages API handlers (M5C.7b): a default export that is a call (`export default
+ *   withSession(handler)`, `withRole("admin")(handler)`, `wrap(handler, options)`, nested
+ *   `withA(withB(handler))`, or a `const` holding one) has its method checks read, as above,
+ *   from the last of the outermost call's arguments that is a function in the repo (inline,
+ *   local, or imported) or is itself such a call. That handler also gets a `handles` edge when
+ *   it's a symbol node. When no argument can be followed (`NextAuth({ … })`, a handler from a
+ *   package), the file keeps one `ALL` route with a `NEXT_WRAPPED_HANDLER` warning.
  * - Negated method tests in an `if` (ADR-0195): `!==`, `!(… === …)`, `!["A"].includes(…)`,
  *   through `&&`, `||`, and parentheses. A block that only answers (calls on the response
  *   object or `console`, `throw`, `return`), logs (a statement calling a `log`/`info`/`warn`/
@@ -65,9 +72,14 @@
  * - Intercepting routes (`(.)photo`, `(..)photo`, `(...)photo`): they re-render another
  *   route, so they produce no node of their own.
  * - `layout`, `template`, `loading`, `error`, `not-found`, `default`, and `middleware` files.
- * - HEAD and OPTIONS handlers that Next adds implicitly, `export *` from modules that don't
- *   resolve, and method checks in a wrapped default export (`export default withAuth(h)`),
- *   which stays `ALL`.
+ * - HEAD and OPTIONS handlers that Next adds implicitly, and `export *` from modules that
+ *   don't resolve.
+ * - What a wrapper does with methods itself: a wrapper that answers some method on its own
+ *   (a CORS wrapper's `OPTIONS`) adds no route for it, and one that dispatches by method to
+ *   handlers in an object (`byMethod({ GET: list })`) passes no function, so it stays `ALL`
+ *   with the warning. A function argument after the handler (an error callback,
+ *   `wrap(handler, onError)`) is read in its place. `export { handler as default }` naming
+ *   a plain function isn't read either (`ALL`).
  * - An optional catch-all `[[...slug]]` also matches its parent path; the `*slug` pattern
  *   doesn't record that.
  * - A negated method test's block is read by what it calls, not by what it answers: a
@@ -83,9 +95,9 @@
  *   don't add their methods, nor do registrations in another file on an exported or shared
  *   router variable (each keeps the `ALL` route, as above). A router returned from a repo
  *   function through a local variable (`const r = nc(); return r;`) reads as passed on. A wrapped
- *   default export (`export default withAuth(router)`), a function default export calling
- *   v1's `router.run(req, res)`, and a router with no method registered stay one `ALL` route;
- *   v1's `createEdgeRouter` in app router files is not read.
+ *   default export (`export default withAuth(router)`, usually with `NEXT_WRAPPED_HANDLER`), a
+ *   function default export calling v1's `router.run(req, res)`, and a router with no method
+ *   registered stay one `ALL` route; v1's `createEdgeRouter` in app router files is not read.
  */
 import ts from "typescript";
 import {
@@ -185,6 +197,48 @@ function functionOf(
     let symbol = checker.getSymbolAtLocation(node);
     if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
     return functionOf(checker, symbol?.valueDeclaration, hops + 1);
+  }
+  return undefined;
+}
+
+/** The call a value expression is, following identifiers to their initializers. */
+function callOf(
+  checker: ts.TypeChecker,
+  node: ts.Node | undefined,
+  hops = 0,
+): ts.CallExpression | undefined {
+  if (!node || hops > 8) return undefined;
+  if (ts.isCallExpression(node)) return node;
+  if (ts.isVariableDeclaration(node)) {
+    return node.initializer && callOf(checker, unwrap(node.initializer), hops + 1);
+  }
+  if (ts.isIdentifier(node)) {
+    let symbol = checker.getSymbolAtLocation(node);
+    if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+    return callOf(checker, symbol?.valueDeclaration, hops + 1);
+  }
+  return undefined;
+}
+
+/**
+ * The handler a wrapped default export passes on (ADR-0195's M5C.7b amendment): the last of
+ * the call's arguments that is a function in the repo (`wrap(handler)`, `wrap("…")(handler)`,
+ * `wrap(handler, options)`), or that is itself such a wrapped call (`withA(withB(handler))`),
+ * with the argument expression naming it. Undefined when no argument can be followed.
+ */
+function wrappedHandler(
+  checker: ts.TypeChecker,
+  call: ts.CallExpression,
+  hops = 0,
+): { handler: ts.SignatureDeclaration; argument: ts.Expression } | undefined {
+  if (hops > 8) return undefined;
+  for (const argument of [...call.arguments].reverse()) {
+    const value = unwrap(argument);
+    const handler = functionOf(checker, value);
+    if (handler) return { handler, argument: value };
+    const inner = callOf(checker, value);
+    const found = inner && wrappedHandler(checker, inner, hops + 1);
+    if (found) return found;
   }
   return undefined;
 }
@@ -1019,14 +1073,39 @@ export function collectNextFacts(sp: ServiceProgram, resolver: SymbolResolver): 
         connectRoutes(router, path, file, site, found?.target);
         continue;
       }
-      const handler = functionOf(checker, declaration);
+      let handler = functionOf(checker, declaration);
+      // A wrapped handler (`export default wrap(handler)`) is read through the wrapper and
+      // handles the route beside the wrapper call (ADR-0195's M5C.7b amendment).
+      let inner: { target: CallTarget | undefined; site: SourceLocation } | undefined;
+      const call =
+        !handler && !router && value && ts.isExpression(value) && callOf(checker, unwrap(value));
+      if (call) {
+        const wrapped = wrappedHandler(checker, call);
+        if (wrapped) {
+          handler = wrapped.handler;
+          const { argument } = wrapped;
+          inner = {
+            target: resolver.resolve(sp, argument),
+            site: locationOf(argument, sp.toRepoPath(argument.getSourceFile().fileName) ?? file),
+          };
+        } else {
+          const callee = call.expression.getText();
+          warnings.push({
+            code: "NEXT_WRAPPED_HANDLER",
+            file,
+            message: `the default export calls ${callee.length > 40 ? "…" : callee}(…), and none of its arguments is a function in the repo, so its method checks aren't read; kept an ALL route`,
+          });
+        }
+      }
       const { methods: checked, open } = handler
         ? handledMethods(handler)
         : { methods: [], open: false };
       const methods: HttpMethod[] = checked.length === 0 || open ? ["ALL", ...checked] : checked;
       for (const method of methods) {
         const id = route(method, path, file, site);
-        if (id !== undefined) addEdge("handles", id, found?.target, site);
+        if (id === undefined) continue;
+        addEdge("handles", id, found?.target, site);
+        if (inner) addEdge("handles", id, inner.target, inner.site);
       }
       continue;
     }

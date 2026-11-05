@@ -1,0 +1,4 @@
+{
+  "name": "pantry",
+  "dependencies": { "next": "13", "next-auth": "4", "react": "18" }
+}
