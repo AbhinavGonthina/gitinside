@@ -56,7 +56,7 @@ A pnpm + Turborepo monorepo:
 - `eval/` holds the accuracy eval (pinned repos, hand-written labels, scorer, committed reports).
 - `bench/` holds benchmarks, and `fixtures/` holds golden test repos.
 
-Design notes: [docs/DESIGN.md](docs/DESIGN.md). Milestone reviews: [M1](docs/milestones/M1-review.md), [M2](docs/milestones/M2-review.md), [M3](docs/milestones/M3-review.md). How cross-service links are resolved: [docs/walkthroughs/resolver.md](docs/walkthroughs/resolver.md).
+Design notes: [docs/DESIGN.md](docs/DESIGN.md). Milestone reviews: [M1](docs/milestones/M1-review.md), [M2](docs/milestones/M2-review.md), [M3](docs/milestones/M3-review.md). How cross-service links are resolved: [docs/walkthroughs/resolver.md](docs/walkthroughs/resolver.md). How two commits' graphs are diffed and broken connections found: [docs/walkthroughs/diff.md](docs/walkthroughs/diff.md).
 
 ## Results so far
 
