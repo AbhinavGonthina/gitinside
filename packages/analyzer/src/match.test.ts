@@ -994,7 +994,7 @@ describe("analyze: http edges", () => {
       .filter((n) => n.kind === "unresolved")
       .map((n) => n.kind === "unresolved" && `${n.id} | ${n.label} | ${n.reason}: ${n.detail}`);
     expect(unresolved).toEqual([
-      "unresolved:web/lib/client.ts:16:10 | GET get(p) | WRAPPER_DEPTH: the URL starts with a parameter of the calling function, a wrapper more than one call deep",
+      "unresolved:web/lib/client.ts:16:10 | GET get(p) | WRAPPER_DEPTH: the URL starts with a parameter of the calling function, and no call to that function was followed",
       "unresolved:web/lib/client.ts:19:10 | GET {env:ANALYTICS}/e | NO_MATCHING_ROUTE: the env var ANALYTICS isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "unresolved:web/lib/client.ts:21:6 | GET /api/top-level | NO_MATCHING_ROUTE: no route matches GET to /api/top-level",
       "unresolved:web/lib/client.ts:3:10 | GET /api/nothing | NO_MATCHING_ROUTE: no route matches GET to /api/nothing",

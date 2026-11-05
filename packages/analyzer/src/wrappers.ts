@@ -1,6 +1,6 @@
 /**
- * One-level wrapper inlining (M2.3, DESIGN.md §7.1): turns collected HTTP call sites into
- * {@link HttpRequest}s. A call site whose URL or axios `baseURL` reads a parameter of the
+ * Wrapper inlining (M2.3, DESIGN.md §7.1; wrappers over wrappers since M5C.7f): turns
+ * collected HTTP call sites into {@link HttpRequest}s. A call site whose URL or axios `baseURL` reads a parameter of the
  * function it sits in in its leading part (the start, the host, glued to the path, or the
  * first segment: `leadingHoles` in `url.ts`, M5A.3j), whose axios config is a parameter, or
  * whose method reads one is a wrapper body (`function get(path) { return fetch(BASE + path) }`);
@@ -8,7 +8,20 @@
  * leaves the request at its own call, as EVALUATION.md §1 labels it;
  * each call to that function (`get("/users")`) becomes its own request, with the parameters
  * bound to the caller's arguments and the URL normalized again. A request whose URL still
- * starts with a parameter (the caller is a wrapper too) is `WRAPPER_DEPTH`.
+ * starts with a parameter of a caller that isn't followed is `WRAPPER_DEPTH`.
+ *
+ * Wrappers over wrappers (M5C.7f, ADR-0032's amendment): a symbol function whose call to a
+ * wrapper passes its own parameter as the leading part of an argument that wrapper's URL
+ * reads (`get(path) { return request(path, { method: "GET" }) }`, also `` `${path}?${q}` ``;
+ * not `request("/users/" + id)`, which fixes the route) is a wrapper too, up to
+ * {@link MAX_WRAPPER_DEPTH} wrappers deep. Its callers are inlined through the chain: each
+ * level's arguments are read with the next level's bindings (`ParameterBindings.outer`), the
+ * method too, and the request is placed at the outermost call, as EVALUATION.md §1 labels
+ * it. The calls inside the chain make no request of their own then, and a wrapper another
+ * wrapper calls keeps none either (its sites are represented through the outer one). A
+ * function passing its parameter into a chain already at the limit gets `WRAPPER_DEPTH` at
+ * that call; a call that would loop isn't followed; past {@link MAX_CHAIN_REQUESTS}
+ * requests, one call's are collapsed to one `DYNAMIC_URL` per site.
  *
  * Per-service facts (M6.7c, ADR-0092): {@link collectHttpFacts} gives each service its
  * {@link HttpFacts}, plain data with no TypeScript nodes: the requests of its sites that aren't
@@ -102,7 +115,11 @@
  * - A config parameter read through properties (`axios({ url: config.path })`), a `baseURL`
  *   in a shorthand call's config parameter (`api.get(path, config)`: the instance's applies),
  *   and axios instances passed as parameters: those sites are not collected or have no URL.
- * - Inlining more than one level: the outer callers of a wrapper's caller are not followed.
+ * - Wrappers over wrappers past {@link MAX_WRAPPER_DEPTH} (`WRAPPER_DEPTH`), and a function
+ *   that passes its parameter on only after a literal segment (`get(p) { return request("v1/"
+ *   + p) }`: read like an id, `leadingHoles`), only as a method or a whole axios config, or
+ *   through a hook (SWR or TanStack calling a function that calls a wrapper): its call is
+ *   inlined there, one level, as before.
  * - A function whose route is fixed but whose method is a parameter is still a wrapper (the
  *   method is only known at its callers); see `leadingHoles` for the URL shapes misread.
  * - SWR fetchers written as a method (`{ fetcher(url) {…} }`) or as a named function nested
@@ -143,6 +160,7 @@ import {
   DYNAMIC_URL_DETAIL,
   WRAPPER_DEPTH_DETAIL,
   type NormalizedUrl,
+  type ParameterBindings,
   type UrlNormalizer,
 } from "./url.js";
 import {
@@ -205,7 +223,13 @@ export interface WrapperFact {
   id: string;
   /** The name a call to it is spelled with (the last part of its qualified name). */
   name: string;
-  /** The requests its sites make when no service calls it, in site order. */
+  /**
+   * The wrappers its body calls with its parameters in their URL's leading part (M5C.7f),
+   * sorted; absent when none. Those calls are its requests, not call facts, and the wrappers
+   * they reach count as called.
+   */
+  inner?: string[];
+  /** The requests its sites (then its calls to `inner` wrappers) make when no service calls it. */
   requests: HttpRequestFact[];
 }
 
@@ -244,13 +268,52 @@ export interface HttpFactsScope {
   known?: ReadonlyMap<ServiceProgram, readonly string[]>;
 }
 
+/**
+ * How many path-taking wrappers deep a request is followed (M5C.7f): a wrapper calling a
+ * wrapper calling a wrapper is inlined at the outermost one's callers; a function passing its
+ * parameter into a fourth level's URL is `WRAPPER_DEPTH` there.
+ */
+export const MAX_WRAPPER_DEPTH = 3;
+
+/**
+ * The most requests one call makes through wrappers over wrappers (M5C.7f, a budget like
+ * ADR-0039's): past it, each innermost site it reaches keeps one request, `DYNAMIC_URL`, so
+ * calls fanning out at every level can't multiply the work.
+ */
+export const MAX_CHAIN_REQUESTS = 100;
+
 /** A wrapper function and the call sites in its body that read its parameters. */
 interface Wrapper {
   sp: ServiceProgram;
   fn: FunctionWithBody;
+  /** Repo-relative file of the function. */
+  file: string;
   sites: HttpCallSite[];
   /** The parameters that reach each site's leading part (`leadingParameters`), any function's. */
   leading: Map<HttpCallSite, ReadonlySet<ts.ParameterDeclaration>>;
+  /** Calls in its body to wrappers that put its parameters in their URL's leading part. */
+  inner: InnerCall[];
+  /** How many wrappers deep its deepest request goes: 1 with only sites of its own. */
+  depth: number;
+}
+
+/** A wrapper's call to another wrapper that its own callers are inlined through (M5C.7f). */
+interface InnerCall {
+  /** The symbol node ID of the wrapper called. */
+  id: string;
+  caller: Caller;
+  /** The calling wrapper's parameters the request's URL reads through this call. */
+  reads: ReadonlySet<ts.ParameterDeclaration>;
+}
+
+/**
+ * One wrapper call being inlined, seen from the wrapper calls in its body (M5C.7f): the
+ * wrapper's bindings, and `resolve`, which gives a value with them (and the scopes further
+ * out) applied, as `inlineWith`'s `bound` does.
+ */
+interface Scope {
+  bindings: ParameterBindings;
+  resolve: (value: ProgramExpression) => ProgramExpression | "missing" | null;
 }
 
 /**
@@ -551,15 +614,21 @@ export function collectHttpFacts(
    * around the site whose value is a function containing it, directly or inside callbacks it
    * declares (`new Promise(async (resolve) => { await axios(req) })`, M5A.3c).
    */
-  const wrapperOf = (site: HttpCallSite): { id: string; fn: FunctionWithBody } | undefined => {
-    const byNode = resolver.callers.get(site.call.getSourceFile());
+  const wrapperOf = (site: HttpCallSite): { id: string; fn: FunctionWithBody } | undefined =>
+    functionAround(site.call);
+
+  /** Like {@link wrapperOf}, for any call: the symbol function it sits in, if any. */
+  const functionAround = (
+    call: ts.CallExpression,
+  ): { id: string; fn: FunctionWithBody } | undefined => {
+    const byNode = resolver.callers.get(call.getSourceFile());
     if (!byNode) return undefined;
-    let n: ts.Node | undefined = site.call.parent;
+    let n: ts.Node | undefined = call.parent;
     while (n && !byNode.has(n)) n = n.parent;
     const id = n && byNode.get(n);
     const fn = n && valueFunction(n);
     if (id === undefined || !fn || !isFunctionWithBody(fn)) return undefined;
-    for (let f = enclosingFunction(site.call); f; f = enclosingFunction(f)) {
+    for (let f = enclosingFunction(call); f; f = enclosingFunction(f)) {
       if (f === fn) return { id, fn };
     }
     return undefined;
@@ -641,7 +710,15 @@ export function collectHttpFacts(
         }
         let inline = inlineFetchers.get(fetcher);
         if (!inline) {
-          inline = { sp: site.sp, fn: fetcher, sites: [], leading: new Map() };
+          inline = {
+            sp: site.sp,
+            fn: fetcher,
+            file: site.file,
+            sites: [],
+            leading: new Map(),
+            inner: [],
+            depth: 1,
+          };
           inlineFetchers.set(fetcher, inline);
           fetchers.push(inline);
         }
@@ -652,8 +729,11 @@ export function collectHttpFacts(
       const wrapper: Wrapper = mine.get(found.id) ?? {
         sp: site.sp,
         fn: found.fn,
+        file: site.file,
         sites: [],
         leading: new Map(),
+        inner: [],
+        depth: 1,
       };
       wrapper.sites.push(site);
       wrapper.leading.set(site, leading());
@@ -676,6 +756,9 @@ export function collectHttpFacts(
       findWrappers(sp);
     });
   }
+  /** The programs whose wrappers were looked for up front, in program order. */
+  const scanned = programs.filter((sp) => owned.has(sp));
+  /** Names calls to wrappers are spelled with; grows as wrappers over wrappers are found. */
   const names = new Set([...wrappers.keys(), ...pending.keys()].map(symbolName));
   /** The wrapper with this ID, finding its program's wrappers first when only known by ID. */
   const wrapperById = (id: string): Wrapper | undefined => {
@@ -684,6 +767,13 @@ export function collectHttpFacts(
       for (const [other, owner] of pending) if (owner === sp) pending.delete(other);
       resolver.asking(sp, () => {
         findWrappers(sp);
+        // Its wrappers over wrappers, whose names are known already (M5C.7f).
+        let fresh: ReadonlySet<string> | undefined;
+        for (let round = 0; round <= MAX_WRAPPER_DEPTH; round++) {
+          const added = discoverIn(sp, callersIn(sp, fresh).callers);
+          if (added.length === 0) break;
+          fresh = new Set(added);
+        }
       });
     }
     return wrappers.get(id);
@@ -891,10 +981,12 @@ export function collectHttpFacts(
 
   /**
    * The service's calls to wrappers, by wrapper ID, and the hooks that call its fetchers
-   * written in place (M5B.2b), by function node, in file and visit order.
+   * written in place (M5B.2b), by function node, in file and visit order. With `only`, just
+   * the calls to those wrappers (found in a later round, M5C.7f), and no fetchers in place.
    */
   const callersIn = (
     sp: ServiceProgram,
+    only?: ReadonlySet<string>,
   ): { callers: Map<string, Caller[]>; hooks: Map<ts.Node, Caller[]> } => {
     const callers = new Map<string, Caller[]>();
     const hooks = new Map<ts.Node, Caller[]>();
@@ -930,6 +1022,7 @@ export function collectHttpFacts(
         files.filter((f) => f.query).map((f) => f.sourceFile),
       ));
     const add = (id: string, caller: Caller): void => {
+      if (only && !only.has(id)) return;
       const list = callers.get(id) ?? [];
       list.push(caller);
       callers.set(id, list);
@@ -976,7 +1069,7 @@ export function collectHttpFacts(
                 hook: { keys: keysOf(sp, key, 0), rest: contract.rest },
               };
               if ("id" in used) add(used.id, hooked);
-              else hooks.set(used.fn, [...(hooks.get(used.fn) ?? []), hooked]);
+              else if (!only) hooks.set(used.fn, [...(hooks.get(used.fn) ?? []), hooked]);
             }
           }
           // TanStack Query calls `queryFn({ queryKey, … })`: its context parameter is bound to
@@ -997,7 +1090,7 @@ export function collectHttpFacts(
                 hook: { keys: [options], rest: "missing" as const },
               };
               if ("id" in used) add(used.id, hooked);
-              else hooks.set(used.fn, [...(hooks.get(used.fn) ?? []), hooked]);
+              else if (!only) hooks.set(used.fn, [...(hooks.get(used.fn) ?? []), hooked]);
             }
           }
         }
@@ -1052,9 +1145,46 @@ export function collectHttpFacts(
   };
 
   /**
+   * A wrapper's parameters bound to a call's arguments (see `inlineWith`), the arguments read
+   * with `outer` when the call sits in a wrapper being inlined too (M5C.7f).
+   */
+  const bindArguments = (
+    wrapper: Wrapper,
+    callerSp: ServiceProgram,
+    given: readonly ts.Expression[] | undefined,
+    rest: "missing" | "unknown",
+    outer: ParameterBindings | undefined,
+  ): { bindings: ParameterBindings; missing: Set<ts.ParameterDeclaration> } => {
+    const args = given ?? [];
+    const spread = args.findIndex((a) => ts.isSpreadElement(a));
+    const map = new Map<ts.ParameterDeclaration, ProgramExpression | undefined>();
+    /** Parameters with no argument and no default: `undefined` at runtime. */
+    const missing = new Set<ts.ParameterDeclaration>();
+    // A destructured parameter is bound too: the URL reads only its `queryKey` (`url.ts`).
+    wrapper.fn.parameters.forEach((d, i) => {
+      const arg = args[i];
+      if (d.dotDotDotToken || (spread !== -1 && spread <= i)) {
+        map.set(d, undefined);
+      } else if (arg) {
+        map.set(d, { sp: callerSp, expression: arg });
+      } else if ((given === undefined && i === 0) || rest === "unknown") {
+        map.set(d, undefined);
+      } else if (d.initializer) {
+        map.set(d, { sp: wrapper.sp, expression: d.initializer });
+      } else {
+        map.set(d, undefined);
+        missing.add(d);
+      }
+    });
+    return { bindings: outer ? Object.assign(map, { outer }) : map, missing };
+  };
+
+  /**
    * The requests a call to a wrapper makes with these arguments: `undefined` when the first
    * one can't be read as a URL (an SWR array key), and arguments past the end either absent
-   * (`missing`, so defaults apply) or `unknown`.
+   * (`missing`, so defaults apply) or `unknown`. `outer` is the wrapper call the caller sits
+   * in when the caller is a wrapper over this one, and `chain` the wrappers being inlined
+   * around it, outermost first (M5C.7f).
    */
   const inlineWith = (
     id: string | undefined,
@@ -1062,28 +1192,12 @@ export function collectHttpFacts(
     caller: Caller,
     given: readonly ts.Expression[] | undefined,
     rest: "missing" | "unknown",
+    outer?: Scope,
+    chain: readonly string[] = [],
   ): HttpRequestFact[] => {
     const args = given ?? [];
     const spread = args.findIndex((a) => ts.isSpreadElement(a));
-    const bindings = new Map<ts.ParameterDeclaration, ProgramExpression | undefined>();
-    /** Parameters with no argument and no default: `undefined` at runtime. */
-    const missing = new Set<ts.ParameterDeclaration>();
-    // A destructured parameter is bound too: the URL reads only its `queryKey` (`url.ts`).
-    wrapper.fn.parameters.forEach((d, i) => {
-      const arg = args[i];
-      if (d.dotDotDotToken || (spread !== -1 && spread <= i)) {
-        bindings.set(d, undefined);
-      } else if (arg) {
-        bindings.set(d, { sp: caller.sp, expression: arg });
-      } else if ((given === undefined && i === 0) || rest === "unknown") {
-        bindings.set(d, undefined);
-      } else if (d.initializer) {
-        bindings.set(d, { sp: wrapper.sp, expression: d.initializer });
-      } else {
-        bindings.set(d, undefined);
-        missing.add(d);
-      }
-    });
+    const { bindings, missing } = bindArguments(wrapper, caller.sp, given, rest, outer?.bindings);
 
     /** Argument `i`: `null` when unknown (a spread at or before it), `undefined` when absent. */
     const argAt = (i: number): ts.Expression | null | undefined => {
@@ -1091,13 +1205,20 @@ export function collectHttpFacts(
       return args[i] ?? (rest === "unknown" ? null : undefined);
     };
 
-    /** A value with this call's bindings: `missing` for an absent argument, `null` if unknown. */
+    /**
+     * A value with this call's bindings, and the outer calls' (M5C.7f): `missing` for an
+     * absent argument, `null` if unknown.
+     */
     const bound = (value: ProgramExpression): ProgramExpression | "missing" | null => {
       const d = parameterOf(value.sp, value.expression, wrapper.fn);
-      return d ? boundParameter(d) : value;
+      if (d) return boundParameter(d);
+      return outer ? outer.resolve(value) : value;
     };
-    const boundParameter = (d: ts.ParameterDeclaration): ProgramExpression | "missing" | null =>
-      missing.has(d) ? "missing" : (bindings.get(d) ?? null);
+    const boundParameter = (d: ts.ParameterDeclaration): ProgramExpression | "missing" | null => {
+      if (missing.has(d)) return "missing";
+      const v = bindings.get(d) ?? null;
+      return v && outer ? outer.resolve(v) : v;
+    };
 
     /** The method a `method` value names; absent (or `undefined`) is the default, `GET`. */
     const methodValue = (value: ConfigValue): HttpMethod | null => {
@@ -1180,9 +1301,10 @@ export function collectHttpFacts(
       const url = argAt(index);
       const init = argAt(index + 1);
       return {
+        // The caller's argument is read in the caller's scope (its own bindings, M5C.7f).
         urls: normalizer.alternatives(
           { url: url ? { sp: caller.sp, expression: url } : null, baseURL: site.baseURL },
-          bindings,
+          outer?.bindings ?? bindings,
         ),
         shown: url ? [url] : [],
         method:
@@ -1194,7 +1316,7 @@ export function collectHttpFacts(
       };
     };
 
-    return wrapper.sites.flatMap((site): HttpRequestFact[] => {
+    const fromSites = wrapper.sites.flatMap((site): HttpRequestFact[] => {
       const index = restIndex(site, wrapper.fn);
       const fromSpread = index === undefined ? undefined : spreadRequest(site, index);
       const fromConfig = site.config && configUrl(site.config);
@@ -1232,19 +1354,222 @@ export function collectHttpFacts(
         expression,
       }));
     });
+
+    // Its calls to wrappers it passes its parameters to (M5C.7f): each inlined with this
+    // call's bindings, then placed at this call. A chain past the depth limit, or a cycle,
+    // reads no further.
+    const scope: Scope = { bindings, resolve: bound };
+    const fromInner = wrapper.inner.flatMap(({ id: innerId, caller: innerCall, reads }) => {
+      const innerWrapper = wrappers.get(innerId);
+      if (!innerWrapper) return [];
+      const ids = id === undefined ? chain : [...chain, id];
+      const followed =
+        ids.length < MAX_WRAPPER_DEPTH && !ids.includes(innerId)
+          ? inlineWith(
+              innerId,
+              innerWrapper,
+              innerCall,
+              innerCall.call.arguments,
+              "missing",
+              scope,
+              ids,
+            )
+          : inlineWith(innerId, innerWrapper, innerCall, innerCall.call.arguments, "missing").map(
+              tooDeepRequest,
+            );
+      const expression = redactedText(
+        caller.call,
+        wrapper.fn.parameters.flatMap((d, i) => {
+          const arg = args[i];
+          return reads.has(d) && arg ? [arg] : [];
+        }),
+      );
+      return followed.map((request) => ({
+        ...request,
+        ...(id === undefined ? {} : { via: id }),
+        file: caller.file,
+        site: caller.site,
+        owners: caller.owners,
+        confidence: weaker(request.confidence, caller.confidence),
+        label: request.url.resolved ? request.label : `${request.method ?? "?"} ${expression}`,
+        expression,
+      }));
+    });
+    const requests = [...fromSites, ...withinBudget(fromInner)];
+    // A function passing its parameter into a chain already at the depth limit.
+    return tooDeep.has(caller.call) ? requests.map(tooDeepRequest) : requests;
+  };
+
+  /**
+   * `requests`, or past {@link MAX_CHAIN_REQUESTS} one `DYNAMIC_URL` request per site they
+   * come from (the first), so every site is still represented.
+   */
+  const withinBudget = (requests: HttpRequestFact[]): HttpRequestFact[] => {
+    if (requests.length <= MAX_CHAIN_REQUESTS) return requests;
+    const seen = new Set<string>();
+    return requests.flatMap((request) => {
+      const key = JSON.stringify(request.call.site);
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [
+        {
+          ...request,
+          url: { resolved: false, reason: "DYNAMIC_URL", detail: DYNAMIC_URL_DETAIL.tooComplex },
+          label: `${request.method ?? "?"} ${request.expression}`,
+        },
+      ];
+    });
+  };
+
+  /** A request made `WRAPPER_DEPTH`: its chain of wrappers is deeper than followed (M5C.7f). */
+  const tooDeepRequest = (request: HttpRequestFact): HttpRequestFact => ({
+    ...request,
+    url: { resolved: false, reason: "WRAPPER_DEPTH", detail: WRAPPER_DEPTH_DETAIL.chain },
+    label: `${request.method ?? "?"} ${request.expression}`,
+  });
+
+  // ---- wrappers over wrappers (M5C.7f) ----
+
+  /** Calls that are some wrapper's {@link InnerCall}: its requests, not call facts. */
+  const innerCalls = new Set<ts.CallExpression>();
+  /** Calls passing a parameter into a chain already {@link MAX_WRAPPER_DEPTH} deep. */
+  const tooDeep = new Set<ts.CallExpression>();
+
+  /** True when wrapper `from` is `to` or reaches it through inner calls. */
+  const reaches = (from: string, to: string, hops = 0): boolean =>
+    from === to ||
+    (hops <= MAX_WRAPPER_DEPTH &&
+      (wrappers.get(from)?.inner ?? []).some((c) => reaches(c.id, to, hops + 1)));
+
+  /** A wrapper's own parameters its requests' URLs read: its sites', and its inner calls'. */
+  const urlParameters = (wrapper: Wrapper): Set<ts.ParameterDeclaration> => {
+    const found = new Set<ts.ParameterDeclaration>();
+    for (const site of wrapper.sites) {
+      for (const d of normalizer.parameters(site)) if (d.parent === wrapper.fn) found.add(d);
+    }
+    for (const { reads } of wrapper.inner) for (const d of reads) found.add(d);
+    return found;
+  };
+
+  /**
+   * What a call to a wrapper passes on of the function `fn` it sits in: `fn`'s parameters in
+   * the leading part of an argument the wrapper's URL reads (`leadingHoles`, applied to the
+   * argument: `get(path)`, `get(\`${path}?${query}\`)`, not `get("/users/" + id)`), and all of
+   * `fn`'s parameters those arguments read.
+   */
+  const passedOn = (
+    wrapper: Wrapper,
+    caller: Caller,
+    fn: FunctionWithBody,
+  ): { leading: boolean; reads: Set<ts.ParameterDeclaration> } => {
+    const own = (d: ts.ParameterDeclaration): boolean => d.parent === fn;
+    const args = caller.call.arguments;
+    const spread = args.findIndex((a) => ts.isSpreadElement(a));
+    let leading = false;
+    const reads = new Set<ts.ParameterDeclaration>();
+    for (const d of urlParameters(wrapper)) {
+      const i = wrapper.fn.parameters.indexOf(d);
+      const arg = args[i];
+      if (d.dotDotDotToken || !arg || (spread !== -1 && spread <= i)) continue;
+      const value = { url: { sp: caller.sp, expression: arg }, baseURL: undefined };
+      if ([...normalizer.leadingParameters(value)].some(own)) leading = true;
+      for (const p of normalizer.parameters(value)) if (own(p)) reads.add(p);
+    }
+    return { leading, reads };
+  };
+
+  /**
+   * Find wrappers over wrappers among `sp`'s calls to wrappers: a symbol function that passes
+   * its own parameter on as the start of a path (`passedOn`) becomes a wrapper too, that call
+   * its {@link InnerCall}, unless the chain would be deeper than {@link MAX_WRAPPER_DEPTH}
+   * (the call goes to `tooDeep`) or loop. Returns the IDs of the wrappers it added.
+   */
+  const discoverIn = (sp: ServiceProgram, callers: ReadonlyMap<string, Caller[]>): string[] => {
+    const added: string[] = [];
+    for (const [id, list] of [...callers].sort(([a], [b]) => compareStrings(a, b))) {
+      const callee = wrapperById(id);
+      if (!callee) continue;
+      for (const caller of list) {
+        if (caller.hook || innerCalls.has(caller.call) || tooDeep.has(caller.call)) continue;
+        const around = functionAround(caller.call);
+        if (!around || reaches(id, around.id)) continue;
+        const found = passedOn(callee, caller, around.fn);
+        if (!found.leading) continue;
+        if (callee.depth >= MAX_WRAPPER_DEPTH) {
+          tooDeep.add(caller.call);
+          continue;
+        }
+        let outer = wrappers.get(around.id);
+        if (!outer) {
+          outer = {
+            sp,
+            fn: around.fn,
+            file: caller.file,
+            sites: [],
+            leading: new Map(),
+            inner: [],
+            depth: 1,
+          };
+          wrappers.set(around.id, outer);
+          owned.get(sp)?.set(around.id, outer);
+          added.push(around.id);
+        }
+        outer.inner.push({ id, caller, reads: found.reads });
+        outer.inner.sort((a, b) => compareLocations(a.caller.site, b.caller.site));
+        outer.depth = Math.max(outer.depth, callee.depth + 1);
+        innerCalls.add(caller.call);
+      }
+    }
+    return added;
+  };
+
+  /** Each scanned program's calls to wrappers, gathered over the discovery rounds. */
+  const callerCache = new Map<ServiceProgram, ReturnType<typeof callersIn>>();
+  // Rounds: each finds wrappers over the last round's, so a chain of `MAX_WRAPPER_DEPTH` is
+  // found, and one more round marks calls past it.
+  let fresh: ReadonlySet<string> | undefined;
+  for (let round = 0; round <= MAX_WRAPPER_DEPTH; round++) {
+    const added: string[] = [];
+    for (const sp of scanned) {
+      resolver.asking(sp, () => {
+        const found = callersIn(sp, fresh);
+        const cached = callerCache.get(sp);
+        if (!cached) callerCache.set(sp, found);
+        else for (const [id, list] of found.callers) cached.callers.set(id, list);
+        added.push(...discoverIn(sp, found.callers));
+      });
+    }
+    if (added.length === 0) break;
+    for (const id of added) names.add(symbolName(id));
+    fresh = new Set(added);
+  }
+
+  /** Record that `sp`'s facts depend on the programs of a wrapper and those it calls. */
+  const reached = (sp: ServiceProgram, wrapper: Wrapper, hops = 0): void => {
+    // The facts now depend on the wrapper's program (inputs.ts follows `reached`).
+    resolver.programOf(wrapper.file, sp);
+    if (hops >= MAX_WRAPPER_DEPTH) return;
+    for (const { id } of wrapper.inner) {
+      const inner = wrapperById(id);
+      if (inner) reached(sp, inner, hops + 1);
+    }
   };
 
   /** `sp`'s facts, once every service's wrappers are known. */
   const factsOf = (sp: ServiceProgram): HttpFacts => {
     const calls: WrapperCallFact[] = [];
-    const { callers, hooks } = callersIn(sp);
+    const { callers, hooks } = callerCache.get(sp) ?? callersIn(sp);
     for (const [id, list] of [...callers].sort(([a], [b]) => compareStrings(a, b))) {
       const wrapper = wrapperById(id);
       if (!wrapper) continue;
-      const first = wrapper.sites[0];
-      // The facts now depend on the wrapper's program (inputs.ts follows `reached`).
-      if (first) resolver.programOf(first.file, sp);
-      calls.push({ wrapper: id, requests: list.flatMap((caller) => inline(id, wrapper, caller)) });
+      reached(sp, wrapper);
+      // A wrapper's call to another is its own request (M5C.7f), not a call fact.
+      const outside = list.filter((caller) => !innerCalls.has(caller.call));
+      if (outside.length === 0) continue;
+      calls.push({
+        wrapper: id,
+        requests: outside.flatMap((caller) => inline(id, wrapper, caller)),
+      });
     }
     return {
       service: sp.service.key,
@@ -1260,11 +1585,22 @@ export function collectHttpFacts(
       ],
       wrappers: [...(owned.get(sp) ?? [])]
         .sort(([a], [b]) => compareStrings(a, b))
-        .map(([id, wrapper]) => ({
-          id,
-          name: symbolName(id),
-          requests: wrapper.sites.flatMap(own),
-        })),
+        .map(([id, wrapper]): WrapperFact => {
+          const inner = [...new Set(wrapper.inner.map((c) => c.id))].sort(compareStrings);
+          return {
+            id,
+            name: symbolName(id),
+            ...(inner.length > 0 ? { inner } : {}),
+            requests: [
+              ...wrapper.sites.flatMap(own),
+              // Uncalled, its calls to other wrappers make their requests where they are.
+              ...wrapper.inner.flatMap(({ id: innerId, caller }) => {
+                const innerWrapper = wrapperById(innerId);
+                return innerWrapper ? inline(innerId, innerWrapper, caller) : [];
+              }),
+            ],
+          };
+        }),
       calls,
     };
   };
@@ -1292,9 +1628,11 @@ export function bindWrappers(
     }
   }
   const wrappers = facts.flatMap((f) => f.wrappers).sort((a, b) => compareStrings(a.id, b.id));
+  // A wrapper another wrapper calls (M5C.7f) is represented by that one's requests.
+  const inner = new Set(wrappers.flatMap((w) => w.inner ?? []));
   for (const wrapper of wrappers) {
     const calls = called.get(wrapper.id) ?? [];
-    requests.push(...(calls.length > 0 ? calls : wrapper.requests));
+    requests.push(...(calls.length > 0 ? calls : inner.has(wrapper.id) ? [] : wrapper.requests));
   }
   return requests
     .map((request) => ({ ...request, owners: bindOwners(request.owners, inlineHandlers) }))
@@ -1302,7 +1640,7 @@ export function bindWrappers(
 }
 
 /**
- * Inline one level of wrapper functions: {@link collectHttpFacts}, then
+ * Inline wrapper functions (and wrappers over them): {@link collectHttpFacts}, then
  * {@link bindWrappers}. Every site yields at least one request: its own, or one per visible
  * call to its wrapper.
  */

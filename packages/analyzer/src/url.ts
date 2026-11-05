@@ -64,9 +64,11 @@
  *
  * Parameters (M2.3): an identifier parameter is a hole marked `param`. While inlining a
  * wrapper call (`normalize(site, bindings)`), a bound parameter reads the caller's argument
- * in the caller's scope, and a URL or `baseURL` that still starts with an unbound parameter
- * is `WRAPPER_DEPTH` rather than `DYNAMIC_URL`. Only a parameter in the URL's leading part
- * makes a function a wrapper ({@link leadingHoles}, M5A.3j). See `wrappers.ts`.
+ * in the caller's scope (with the caller's own bindings when it is a wrapper being inlined
+ * too, `ParameterBindings.outer`, M5C.7f), and a URL or `baseURL` that still starts with an
+ * unbound parameter is `WRAPPER_DEPTH` rather than `DYNAMIC_URL`. Only a parameter in the
+ * URL's leading part makes a function a wrapper ({@link leadingHoles}, M5A.3j). See
+ * `wrappers.ts`.
  *
  * TanStack Query's key in a function's context (M5C.3f, ADR-0196's amendment): `queryKey`
  * destructured from a parameter (`({ queryKey })`, also its elements `({ queryKey: [url] })`),
@@ -196,15 +198,20 @@ export const DYNAMIC_URL_DETAIL = {
 
 export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];
 
-/** Why a URL is `WRAPPER_DEPTH`, in words shown to the user. */
+/**
+ * Why a URL is `WRAPPER_DEPTH`, in words shown to the user. The first three are also what a
+ * wrapper over wrappers (M5C.7f) shows when nothing calls it.
+ */
 export const WRAPPER_DEPTH_DETAIL = {
-  url: "the URL starts with a parameter of the calling function, a wrapper more than one call deep",
+  url: "the URL starts with a parameter of the calling function, and no call to that function was followed",
   baseURL:
-    "the axios baseURL starts with a parameter of the calling function, a wrapper more than one call deep",
+    "the axios baseURL starts with a parameter of the calling function, and no call to that function was followed",
   config:
-    "the axios config is a parameter of the calling function, a wrapper more than one call deep",
+    "the axios config is a parameter of the calling function, and no call to that function was followed",
   inner:
     "the URL's leading part is a parameter of a function inside the wrapper, a wrapper more than one call deep",
+  chain:
+    "the URL's leading part is a parameter of the calling function, a wrapper more than three calls deep",
 } as const;
 
 export type WrapperDepthDetail = (typeof WRAPPER_DEPTH_DETAIL)[keyof typeof WRAPPER_DEPTH_DETAIL];
@@ -224,9 +231,14 @@ export type NormalizedUrl =
 
 /**
  * Values bound to a wrapper's parameters while inlining one call to it (M2.3): the caller's
- * argument or the parameter's default, `undefined` when neither is readable.
+ * argument or the parameter's default, `undefined` when neither is readable. `outer` holds
+ * the caller's own bindings when the caller is a wrapper being inlined too (M5C.7f): the
+ * arguments are read with those, else with none.
  */
-export type ParameterBindings = ReadonlyMap<ts.ParameterDeclaration, ProgramExpression | undefined>;
+export type ParameterBindings = ReadonlyMap<
+  ts.ParameterDeclaration,
+  ProgramExpression | undefined
+> & { readonly outer?: ParameterBindings };
 
 /**
  * One call of a string builder being read (M5C.7d): the builder's parameters bound to the
@@ -716,15 +728,23 @@ export interface UrlNormalizer {
     site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
     bindings?: ParameterBindings,
   ): NormalizedUrl[];
-  /** The parameters a call site's URL and `baseURL` read, which a wrapper caller could bind. */
-  parameters(site: Pick<HttpCallSite, "url" | "baseURL">): ReadonlySet<ts.ParameterDeclaration>;
+  /**
+   * The parameters a call site's URL and `baseURL` read, which a wrapper caller could bind.
+   * With `bindings`, the unbound ones read through them: a caller's own (M5C.7f).
+   */
+  parameters(
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+    bindings?: ParameterBindings,
+  ): ReadonlySet<ts.ParameterDeclaration>;
   /**
    * The parameters that reach the leading part of a call site's URL or `baseURL`
    * ({@link leadingHoles}): those that make its function a wrapper (M5A.3j). A parameter
-   * whose position is lost (`new URL(path, base)`) counts as leading.
+   * whose position is lost (`new URL(path, base)`) counts as leading. With `bindings`, the
+   * unbound ones that reach it through them: a caller's that make it a wrapper too (M5C.7f).
    */
   leadingParameters(
     site: Pick<HttpCallSite, "url" | "baseURL">,
+    bindings?: ParameterBindings,
   ): ReadonlySet<ts.ParameterDeclaration>;
 }
 
@@ -860,9 +880,9 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     if (bindings?.has(d)) {
       const bound = bindings.get(d);
       if (!bound) return [HOLE];
-      // The argument is read in the caller's scope, where these bindings don't apply.
+      // The argument is read in the caller's scope, with the caller's own bindings if any.
       const outer = { bindings, frame };
-      bindings = undefined;
+      bindings = bindings.outer;
       frame = undefined;
       try {
         return partsOf(bound.sp, bound.expression, hops + 1);
@@ -980,9 +1000,9 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       return [hole];
     }
     if (!read.outer) return partsOf(read.value.sp, read.value.expression, hops + 1);
-    // The options object is read in the caller's scope, where these bindings don't apply.
+    // The options object is read in the caller's scope, with the caller's own bindings if any.
     const outer = { bindings, frame };
-    bindings = undefined;
+    bindings = bindings?.outer;
     frame = undefined;
     try {
       return partsOf(read.value.sp, read.value.expression, hops + 1);
@@ -1387,10 +1407,16 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
 
   const parameters = (
     site: Pick<HttpCallSite, "url" | "baseURL">,
+    scope?: ParameterBindings,
   ): ReadonlySet<ts.ParameterDeclaration> => {
     used.clear();
-    if (site.url) parts(site.url);
-    if (site.baseURL) parts(site.baseURL);
+    bindings = scope;
+    try {
+      if (site.url) parts(site.url);
+      if (site.baseURL) parts(site.baseURL);
+    } finally {
+      bindings = undefined;
+    }
     const found = new Set(used);
     used.clear();
     holes.clear();
@@ -1398,6 +1424,18 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   const leadingParameters = (
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+    scope?: ParameterBindings,
+  ): ReadonlySet<ts.ParameterDeclaration> => {
+    bindings = scope;
+    try {
+      return leadingIn(site);
+    } finally {
+      bindings = undefined;
+    }
+  };
+
+  const leadingIn = (
     site: Pick<HttpCallSite, "url" | "baseURL">,
   ): ReadonlySet<ts.ParameterDeclaration> => {
     used.clear();

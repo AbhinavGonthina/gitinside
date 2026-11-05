@@ -263,7 +263,7 @@ describe("inlineWrappers", () => {
       "src/api.ts:5 GET /post/{} [getPost] <- src/fetcher.ts:6",
       "src/api.ts:6 DELETE /logout [logout] <- src/fetcher.ts:6",
       "src/api.ts:7 GET https://other.example.com/x [other] <- src/fetcher.ts:6",
-      "src/api.ts:8 ? WRAPPER_DEPTH: the axios config is a parameter of the calling function, a wrapper more than one call deep [pass] <- src/fetcher.ts:6",
+      "src/api.ts:8 ? WRAPPER_DEPTH: the axios config is a parameter of the calling function, and no call to that function was followed [pass] <- src/fetcher.ts:6",
       "src/api.ts:9 GET DYNAMIC_URL: the URL can't be read statically [noUrl] <- src/fetcher.ts:6",
       "src/api.ts:10 ? DYNAMIC_URL: the URL can't be read statically [spread] <- src/fetcher.ts:6",
       "src/api.ts:11 GET https://api.example.com/v1/users [users] <- src/fetcher.ts:15",
@@ -311,13 +311,15 @@ describe("inlineWrappers", () => {
       "  return apiGet(other);",
       "}",
     ]);
-    // `get` inlines at lines 5, 8, and 11; `apiGet` is not inlined at line 17 (two levels);
-    // `nowhere` has no callers, so its own site stays.
+    // `get` inlines at line 8; `apiGet` and `call` pass their parameter on, so they're
+    // wrappers over `get` (M5C.7f), and `load` over `apiGet`: with no callers, `call` and
+    // `load` keep their requests at lines 11 and 17. `nowhere` has no callers, so its own
+    // site stays.
     expect(await summary()).toEqual([
-      "src/http.ts:5 GET /api{} [apiGet] <- src/http.ts:2",
       "src/http.ts:8 GET /api/users/{} [loadUser] <- src/http.ts:2",
       "src/http.ts:11 GET /api{} [call] <- src/http.ts:2",
       "src/http.ts:14 GET DYNAMIC_URL: the URL starts with a value only known at runtime [nowhere]",
+      "src/http.ts:17 GET /api{} [load] <- src/http.ts:2",
     ]);
   });
 
@@ -345,9 +347,9 @@ describe("inlineWrappers", () => {
       'export const fixed = () => fromBase("https://b.example.com", "/y");',
     ]);
     expect(await summary()).toEqual([
-      "src/based.ts:6 GET WRAPPER_DEPTH: the axios baseURL starts with a parameter of the calling function, a wrapper more than one call deep [forward] <- src/based.ts:3",
+      "src/based.ts:6 GET WRAPPER_DEPTH: the axios baseURL starts with a parameter of the calling function, and no call to that function was followed [forward] <- src/based.ts:3",
       "src/based.ts:8 GET https://b.example.com/y [fixed] <- src/based.ts:3",
-      "src/http.ts:5 GET WRAPPER_DEPTH: the URL starts with a parameter of the calling function, a wrapper more than one call deep [get] <- src/http.ts:2",
+      "src/http.ts:5 GET WRAPPER_DEPTH: the URL starts with a parameter of the calling function, and no call to that function was followed [get] <- src/http.ts:2",
       "src/http.ts:8 GET /api/users [users] <- src/http.ts:2",
     ]);
   });
@@ -604,6 +606,173 @@ describe("inlineWrappers", () => {
   });
 });
 
+describe("wrappers calling wrappers (M5C.7f)", () => {
+  it("inlines a path-taking wrapper's call to another at the outer wrapper's callers", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      "async function send(path: string, init: RequestInit) {",
+      '  return fetch("/api/" + path, { ...init });',
+      "}",
+      "function getJson(path: string, query?: string) {",
+      '  return send(query ? `${path}?${query}` : path, { method: "GET" });',
+      "}",
+      "export function postJson(path: string, body: unknown) {",
+      '  return send(path, { method: "POST", body: JSON.stringify(body) });',
+      "}",
+      'export const loadTeam = (id: string) => getJson("teams/" + id);',
+      'export const listTeams = () => getJson("teams", "page=1");',
+      'export const saveTeam = (team: unknown) => postJson("teams", team);',
+    ]);
+    // Nothing is left at `send`'s calls inside `getJson` and `postJson` (lines 5 and 8).
+    expect(await summary()).toEqual([
+      "src/http.ts:10 GET /api/teams/{} [loadTeam] <- src/http.ts:2",
+      "src/http.ts:11 GET /api/teams [listTeams] <- src/http.ts:2",
+      "src/http.ts:12 POST /api/teams [saveTeam] <- src/http.ts:2",
+    ]);
+  });
+
+  it("follows three wrappers deep, and marks a fourth WRAPPER_DEPTH", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      'export function l1(path: string) { return fetch("/api" + path); }',
+      "export function l2(path: string) { return l1(path); }",
+      "export function l3(path: string) { return l2(path); }",
+      "export function l4(path: string) { return l3(path); }",
+      'export const three = () => l3("/three");',
+      'export const four = () => l4("/four");',
+    ]);
+    expect(await summary()).toEqual([
+      "src/http.ts:4 GET WRAPPER_DEPTH: the URL's leading part is a parameter of the calling function, a wrapper more than three calls deep [l4] <- src/http.ts:1",
+      "src/http.ts:5 GET /api/three [three] <- src/http.ts:1",
+    ]);
+  });
+
+  it("reads a method passed down through both wrappers", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      "function request(method: string, path: string, init?: RequestInit) {",
+      '  return fetch("/api" + path, { ...init, method });',
+      "}",
+      "function call(method: string, path: string, init?: RequestInit) {",
+      "  return request(method, path, init);",
+      "}",
+      'export const remove = () => call("DELETE", "/teams/1");',
+      'export const unknown = (m: string) => call(m, "/teams");',
+    ]);
+    expect(await summary()).toEqual([
+      "src/http.ts:7 DELETE /api/teams/1 [remove] <- src/http.ts:2",
+      "src/http.ts:8 ? /api/teams [unknown] <- src/http.ts:2",
+    ]);
+  });
+
+  it("ends a cycle of wrappers calling each other, keeping every site", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      "export function ping(path: string, n: number): Promise<Response> {",
+      '  return n > 0 ? pong(path, n - 1) : fetch("/api" + path);',
+      "}",
+      "export function pong(path: string, n: number): Promise<Response> {",
+      "  return ping(path, n);",
+      "}",
+      'export const go = () => pong("/x", 2);',
+    ]);
+    expect(await summary()).toEqual([
+      "src/http.ts:2 GET /api{} [ping] <- src/http.ts:2",
+      "src/http.ts:7 GET /api/x [go] <- src/http.ts:2",
+    ]);
+  });
+
+  it("collapses a call's requests to one per site past the budget", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    // 11 × 11 = 121 requests per call to `l3`, past MAX_CHAIN_REQUESTS (100).
+    const fan = (name: string, callee: string): string[] => [
+      `export function ${name}(path: string) {`,
+      ...Array.from({ length: 11 }, (_, i) => `  ${callee}(path + "/x${i}");`),
+      "}",
+    ];
+    await put("src/http.ts", [
+      'export function l1(path: string) { return fetch("/api" + path); }',
+      ...fan("l2", "l1"),
+      ...fan("l3", "l2"),
+      'export const run = () => l3("/a");',
+      'export const few = () => l2("/b");',
+    ]);
+    const all = await summary();
+    expect(all.filter((r) => r.includes("[run]"))).toEqual([
+      `src/http.ts:28 GET DYNAMIC_URL: ${DYNAMIC_URL_DETAIL.tooComplex} [run] <- src/http.ts:1`,
+    ]);
+    expect(all.filter((r) => r.includes("[few]"))).toHaveLength(11);
+  });
+
+  it("keeps a wrapper over a wrapper as a fact of its service, also when only known by ID", async () => {
+    await put("package.json", JSON.stringify({ name: "root", workspaces: ["packages/*"] }));
+    await put("packages/sdk/package.json", JSON.stringify({ name: "@acme/sdk" }));
+    await put("packages/sdk/src/index.ts", [
+      "function request(path: string) {",
+      '  return fetch("/api" + path);',
+      "}",
+      "export function getJson(path: string) {",
+      "  return request(path);",
+      "}",
+    ]);
+    await put(
+      "packages/web/package.json",
+      JSON.stringify({ name: "web", dependencies: { "@acme/sdk": "*" } }),
+    );
+    await put("packages/web/src/page.ts", [
+      'import { getJson } from "../../sdk/src/index";',
+      'export const load = () => getJson("/teams");',
+    ]);
+    const all = await facts();
+    const sdkProgram = all.programs.find((p) =>
+      p.rootFiles.some((f) => f.startsWith("packages/sdk/")),
+    );
+    const webProgram = all.programs.find((p) =>
+      p.rootFiles.some((f) => f.startsWith("packages/web/")),
+    );
+    if (!sdkProgram || !webProgram) throw new Error("no programs");
+    const sdk = all.facts.find((f) => f.service === sdkProgram.service.key);
+    const web = all.facts.find((f) => f.service === webProgram.service.key);
+    expect(sdk?.wrappers.map((w) => [w.name, w.inner ?? [], w.requests.map(brief)])).toEqual([
+      [
+        "getJson",
+        ["symbol:sdk/src/index.ts#request"],
+        ["packages/sdk/src/index.ts:5 GET /api{} <- request"],
+      ],
+      ["request", [], ["packages/sdk/src/index.ts:2 GET /api{}"]],
+    ]);
+    // `getJson`'s call to `request` is its own request, not a call fact.
+    expect(sdk?.calls).toEqual([]);
+    expect(web?.calls.map((c) => [c.wrapper, c.requests.map(brief)])).toEqual([
+      ["symbol:sdk/src/index.ts#getJson", ["packages/web/src/page.ts:2 GET /api/teams <- getJson"]],
+    ]);
+    expect(bindWrappers(all.facts).map(brief)).toEqual([
+      "packages/web/src/page.ts:2 GET /api/teams <- getJson",
+    ]);
+    const keys = (set: ReadonlySet<ServiceProgram>) => [...set].map((p) => p.service.key);
+    expect(keys(all.resolver.reached(webProgram))).toEqual([sdkProgram.service.key]);
+    // A run that reuses the SDK's facts finds its wrappers only when the web app calls one.
+    const inventory = await buildInventory(dir);
+    const workspace = await detectWorkspace(dir, inventory.files);
+    const programs = buildServicePrograms(dir, workspace, inventory);
+    const resolver = createSymbolResolver(programs, workspace);
+    const reusedSdk = programs.find((p) => p.service.key === sdkProgram.service.key);
+    const onlyWeb = programs.find((p) => p.service.key === webProgram.service.key);
+    if (!reusedSdk || !onlyWeb) throw new Error("no programs");
+    const partial = collectHttpFacts(
+      collectHttpCalls(programs, resolver),
+      programs,
+      resolver,
+      createUrlNormalizer(resolver),
+      {
+        only: new Set([onlyWeb]),
+        known: new Map([[reusedSdk, sdk?.wrappers.map((w) => w.id) ?? []]]),
+      },
+    );
+    expect(partial).toEqual([web]);
+  });
+});
+
 describe("SWR fetchers (ADR-0193)", () => {
   /** The fetchers' own requests, kept when no hook or call passes them a URL. */
   const FETCHER =
@@ -655,7 +824,7 @@ describe("SWR fetchers (ADR-0193)", () => {
       `src/hooks.ts:10 GET /api/feed [usePosts]${via}`,
       `src/hooks.ts:11 GET /api/users/{} [usePosts]${via}`,
       `src/hooks.ts:12 GET DYNAMIC_URL: the SWR key is an array, which the fetcher may take whole or spread [usePosts]${via}`,
-      `src/hooks.ts:13 GET WRAPPER_DEPTH: the URL starts with a parameter of the calling function, a wrapper more than one call deep [usePosts]${via}`,
+      `src/hooks.ts:13 GET WRAPPER_DEPTH: the URL starts with a parameter of the calling function, and no call to that function was followed [usePosts]${via}`,
       `src/hooks.ts:14 GET /api/config [usePosts]${via}`,
       `src/hooks.ts:15 GET /api/items [usePosts]${via}`,
       "src/hooks.ts:17 POST /api/posts [usePosts] <- src/lib/fetcher.ts:4",
@@ -1145,7 +1314,7 @@ describe("TanStack Query's key in context (M5C.3f, ADR-0196)", () => {
       "src/todos.ts:9 GET /api/users/{} [useTodos]",
       "src/todos.ts:13 GET /api/lists [useTodos]",
       // The custom hook's own parameter: only its callers know the key.
-      "src/todos.ts:19 GET WRAPPER_DEPTH: the URL starts with a parameter of the calling function, a wrapper more than one call deep [useApi]",
+      "src/todos.ts:19 GET WRAPPER_DEPTH: the URL starts with a parameter of the calling function, and no call to that function was followed [useApi]",
     ]);
   });
 

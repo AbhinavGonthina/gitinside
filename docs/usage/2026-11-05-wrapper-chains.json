@@ -1,0 +1,153 @@
+{
+  "about": "Raw measurements behind M5C.7f (docs/COVERAGE.md 'After batch 4', ADR-0032's M5C.7f amendment): how common is a path-taking wrapper calling another one (getJson(path) => request(path, { method: 'GET' }) => fetch). None of the original set or batches 1-3 has one (eval/dist/chains.mjs over their checkouts lists 0 wrappers over wrappers; batch 4's strafes-site has 2). 'counts': GitHub REST GET /search/code (legacy engine, authenticated) total_count per query, for files that both define a fetch call and return a call of a request helper; a count says the shape is common, not that each hit is a chain. 'sample': the first 20 non-fork hits of 'sampleQuery', one per repo, each file analyzed alone as a one-file repo with the built analyzer (parsed, never run; callers in other files aren't there, so 'requestsAtTheirCallers' is a lower bound): 'wrappers' counts all wrappers, 'wrappersOverWrappers' the ones M5C.7f finds. 3 of 20 files have one (jonesphillip/weft, entropyconquers/simfleet, mugenoesis/Trident). Read by hand: Trident's web/src/api.ts has request<T>(path, init) fetching `${API_BASE}${path}`, and postJson/putJson passing their path on to it, called with fixed routes like `/models/${id}/orient`; its 60 requests at those callers were each placed inside postJson/putJson before M5C.7f.",
+  "date": "2026-11-05",
+  "counts": {
+    "\"return request(\" \"await fetch(\" language:TypeScript": 21152,
+    "\"return request(\" \"await fetch(\" language:JavaScript": 40256,
+    "\"return apiFetch(\" \"await fetch(\" language:TypeScript": 5992,
+    "\"return fetchJson(\" \"await fetch(\" language:TypeScript": 4108
+  },
+  "sampleQuery": "\"return request(\" \"await fetch(\" language:TypeScript",
+  "sample": [
+    {
+      "repo": "Nanjiren01/AIChatWeb",
+      "file": "app/requests.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "fwerkor/local-shell-mcp",
+      "file": "ui/src/api.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "jonesphillip/weft",
+      "file": "src/api/client.ts",
+      "wrappers": 2,
+      "wrappersOverWrappers": ["getScheduledRuns -> request"],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "ZhiweiChen-coder/OpenAshare",
+      "file": "lib/api.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "loonghfut/siyuan-steve-tools",
+      "file": "src/api/api.ts",
+      "wrappers": 2,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "Achuan-2/siyuan-plugin-imgReEditor",
+      "file": "src/api.ts",
+      "wrappers": 0,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "entropyconquers/simfleet",
+      "file": "src/cli.ts",
+      "wrappers": 2,
+      "wrappersOverWrappers": ["post -> request"],
+      "requestsAtTheirCallers": 10
+    },
+    {
+      "repo": "Achuan-2/siyuan-plugin-highlight-cloze",
+      "file": "src/api.ts",
+      "wrappers": 0,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "zerob13/mock-openai-api",
+      "file": "web/src/api.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "Achuan-2/siyuan-plugin-childdoc-organizer",
+      "file": "src/api.ts",
+      "wrappers": 0,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "famotime/siyuan-canvas",
+      "file": "src/api.ts",
+      "wrappers": 0,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "tako0614/ide",
+      "file": "web/src/api.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "SmirnovaOyama/Smirnova-wellbeing",
+      "file": "src/api.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "mugenoesis/Trident",
+      "file": "web/src/api.ts",
+      "wrappers": 3,
+      "wrappersOverWrappers": ["postJson -> request", "putJson -> request"],
+      "requestsAtTheirCallers": 60
+    },
+    {
+      "repo": "JKc66/whats_recall",
+      "file": "web/src/api.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "Leo-Ayh-Oday/ahy-governance",
+      "file": "web/src/api.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "reloadlife/agents",
+      "file": "web/src/api.ts",
+      "wrappers": 2,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "SimonBlancoE/discographic",
+      "file": "src/lib/api.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "luqin2007/siyuan-reference-code-block-plugin",
+      "file": "src/api.ts",
+      "wrappers": 0,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    },
+    {
+      "repo": "cropflre/NOWEN",
+      "file": "src/lib/api.ts",
+      "wrappers": 1,
+      "wrappersOverWrappers": [],
+      "requestsAtTheirCallers": 0
+    }
+  ]
+}

@@ -318,7 +318,7 @@
       "parentId": null
     },
     {
-      "detail": "the axios config is a parameter of the calling function, a wrapper more than one call deep",
+      "detail": "the axios config is a parameter of the calling function, and no call to that function was followed",
       "expression": "httpRequest<unknown>(config)",
       "id": "unresolved:web/src/services/api.ts:17:44",
       "kind": "unresolved",
