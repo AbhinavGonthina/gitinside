@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.10 docs/walkthroughs/diff.md (M5.14b2–b3 wait on #21, M5C.6 on #18)
+M6.11 Milestone verification + M6-review.md + tag m6 (M5.14b2–b3 wait on #21, M5C.6 on #18)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -323,7 +323,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [ ] M5C.6 Act on Abhinav's decision on #18 after batch 4 (precision 94.4% < 95%, recall 51.1%; options in the #18 comment, causes in `eval/results/2026-11-batch4-diagnosis.md`): plan the chosen fixes here as one task per general pattern (fixture + golden + ADR + eval delta), or record that batch 4 is quoted as is {model: opus} {blocked: #18}
 
 ### M6 (continued)
-- [ ] M6.10 docs/walkthroughs/diff.md {model: opus}
+- [x] M6.10 docs/walkthroughs/diff.md {model: opus}
 - [ ] M6.11 Milestone verification + M6-review.md + tag m6 {model: opus}
 
 ### M7: PR backtesting
@@ -358,6 +358,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 ## Session notes
 (Newest first. 2–4 lines per task.)
+- **2026-11-04 M6.10** (`227765a`): `docs/walkthroughs/diff.md` walks `compare.ts` → `fingerprint.ts` → `rename.ts` → `diff.ts` → `broken.ts` → `apply.ts` → `mermaid.ts` in data-flow order, line by line through `isNodeModified`'s parent-rename rule, `assign`'s tie tiers, the four rename matchers, `classify`, `diffWarnings`, and both `detectBroken` passes. The `diff-broken` pair is traced to its six broken connections (and why `GET /api/health` isn't one); `diff-rename` illustrates the matchers. Three Mermaid diagrams, a threshold table, a 25-item explain-it-back checklist; README links it. Docs only; lint green. Next: M6.11.
 - **M5C.5c** (report `bb6c94d`, docs `919e565`): batch 4 scored once, blind: precision 94.4% (184/195), below the 95% floor; recall 51.1% (184/360); mapped completely 6/16; all 37 `null` labels got no route. `eval/results/2026-11-batch4-diagnosis.md` traces the 176 FN and 11 FP to 15 causes, none dominant (largest: a `baseURL` through a repo function, 50; a fetched JSON config, 28; workspace-root tests/scripts outside every package, 22; helper → helper, 21). FPs all right path: a `...rest`-spread method (6), wrapped pages-router exports read as `ALL` (4), a SPA catch-all (1). README/EVALUATION quote it; posted on #18 (reopened) with options, recommending precision fixes first then general recall patterns and a batch 5. M5C.6 waits on #18.
 - **2026-11-04 M5C.5b4** (labels `71b5b18`): next-crud 16 labels (all routed; 10 in a committed, unused generated client, the rest to a `[...nextcrud]` catch-all and a literal route beside it), checkmvp 9 (all routed; two server-side clients on an `.env.example` base pointing at the app itself), v0.diy 28 at 26 sites (24 routed; four v0 API calls external), notx 6 (all routed; one path without a leading slash). Four readers drafted; I printed every label's lines and grepped each tree. EVALUATION.md has the 16-row batch 4 table and five new label rules (relative paths, committed env values, non-405 gates, literal-union segments, the global SWR fetcher). Batch 4: 397 labels, 360 with a route; `validate`: 28 repos, 727 labels at 720 call sites.
 - **2026-11-04 M5C.5b3** (labels `4f8c9d8`): snagtime 70 labels (all routed; 22 in Playwright tests and a load-check script), airbnb-clone 8 (all routed), tesior-web 24 (21 routed; GitHub and CoinGecko external, and an edge middleware fetch on a scheme-less env host is `null`), Shopify app 6 (all routed, two `ALL` handlers). Four readers drafted; I printed every label's call-site and route line from the checkout and grepped each tree. EVALUATION.md now settles test/script fetches (labeled; `page.request` isn't) and env bases with no value (followed only with in-code evidence, else `null`). `validate`: 24 repos, 668 labels at 663 call sites.
