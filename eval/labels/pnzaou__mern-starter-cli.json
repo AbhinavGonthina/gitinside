@@ -1,0 +1,119 @@
+{
+  "repo": "pnzaou/mern-starter-cli",
+  "sha": "0ac0fabd3c686db6d755bf2f8f150ed11065987c",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 7 },
+      "method": "POST",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 18,
+        "route": "POST /api/v1/auth/register"
+      },
+      "notes": "authAPI.register(): api.post('/auth/register'). api = axios.create({ baseURL }) in templates/client/src/lib/axios.js, baseURL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/v1`; templates/client/env.example.txt sets VITE_API_URL=http://localhost:5000, templates/server/src/index.ts listens on PORT ?? 5000 (server env.example.txt PORT=5000). The interceptors only add a Bearer header and retry after a refresh. templates/server/src/app.ts mounts appRouter (routes/index.ts) at /api/v1, which mounts authRouter at /auth"
+    },
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 8 },
+      "method": "POST",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 19,
+        "route": "POST /api/v1/auth/login"
+      },
+      "notes": "authAPI.login(): api.post('/auth/login')"
+    },
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 11 },
+      "method": "POST",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 21,
+        "route": "POST /api/v1/auth/logout"
+      },
+      "notes": "authAPI.logout(): api.post('/auth/logout')"
+    },
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 12 },
+      "method": "POST",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 22,
+        "route": "POST /api/v1/auth/verify-email"
+      },
+      "notes": "authAPI.verifyEmail(): api.post('/auth/verify-email', { token })"
+    },
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 13 },
+      "method": "POST",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 23,
+        "route": "POST /api/v1/auth/forgot-password"
+      },
+      "notes": "authAPI.forgotPassword(): api.post('/auth/forgot-password', { email })"
+    },
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 15 },
+      "method": "POST",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 24,
+        "route": "POST /api/v1/auth/reset-password"
+      },
+      "notes": "authAPI.resetPassword(): the arrow starts on line 14, the api.post('/auth/reset-password', …) call is on line 15"
+    },
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 18 },
+      "method": "GET",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 27,
+        "route": "GET /api/v1/auth/me"
+      },
+      "notes": "authAPI.me(): api.get('/auth/me')"
+    },
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 19 },
+      "method": "PATCH",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 28,
+        "route": "PATCH /api/v1/auth/me"
+      },
+      "notes": "authAPI.updateProfile(): api.patch('/auth/me', data)"
+    },
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 20 },
+      "method": "POST",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 29,
+        "route": "POST /api/v1/auth/change-password"
+      },
+      "notes": "authAPI.changePassword(): api.post('/auth/change-password', data); authRouter.post( starts on line 29, its path on line 30"
+    },
+    {
+      "callSite": { "file": "templates/client/src/api/auth.js", "line": 21 },
+      "method": "POST",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 35,
+        "route": "POST /api/v1/auth/resend-verification"
+      },
+      "notes": "authAPI.resendVerification(): api.post('/auth/resend-verification')"
+    },
+    {
+      "callSite": { "file": "templates/client/src/lib/axios.js", "line": 48 },
+      "method": "POST",
+      "target": {
+        "file": "templates/server/src/routes/auth.routes.ts",
+        "line": 20,
+        "route": "POST /api/v1/auth/refresh"
+      },
+      "notes": "refreshSession(): api.post('/auth/refresh'), the path fixed inside the helper, so labeled here; authAPI.refresh() (auth.js line 10) and the 401 response interceptor (line 69) only call refreshSession(). Same api instance and base as auth.js"
+    }
+  ]
+}

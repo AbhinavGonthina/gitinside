@@ -1,0 +1,505 @@
+{
+  "repo": "vijayshikhare/community-resource-board",
+  "sha": "4e5d2a4de3f2e260cc11c31ccf9326e9bbbae228",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["backend", "frontend/src"],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/components/ResourceCard.jsx", "line": 21 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 187,
+        "route": "PATCH /api/resources/:id/terminate"
+      },
+      "notes": "api.patch(`/api/resources/${resource._id}/terminate`). api is frontend/src/services/api.jsx's axios.create({ baseURL: API_BASE_URL }), API_BASE_URL = normalizeBaseUrl(process.env.REACT_APP_API_URL || (NODE_ENV === 'production' ? 'https://community-resource-board-api.onrender.com' : 'http://localhost:5000')). The development fallback http://localhost:5000 matches frontend/.env.example's REACT_APP_API_URL and backend/src/server.js's PORT fallback 5000 (backend/.env.example PORT=5000). normalizeBaseUrl only trims trailing slashes and strips a trailing /api, so the base is the host root and the client's full /api/... paths are not double-prefixed. The interceptors only add auth headers. server.js mounts routes/resources at /api/resources (routes/resourceRoutes.js is never mounted)"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/AuthContext.jsx", "line": 71 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/auth.js",
+        "line": 135,
+        "route": "POST /api/auth/login"
+      },
+      "notes": "login(): api.post('/api/auth/login', …) on the services/api.jsx instance (base http://localhost:5000 in development). server.js mounts routes/auth at /api/auth; router.post( on line 135 with the '/login' path on the next line"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/AuthContext.jsx", "line": 105 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/auth.js",
+        "line": 41,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "register(): api.post('/api/auth/register', payload)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/AdminConsole.jsx", "line": 22 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 221,
+        "route": "GET /api/users/admin/stats"
+      },
+      "notes": "api.get('/api/users/admin/stats') inside a Promise.all; server.js mounts routes/users at /api/users"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/AdminConsole.jsx", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 272,
+        "route": "GET /api/users/admin/users"
+      },
+      "notes": "api.get('/api/users/admin/users') inside the same Promise.all"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/AdminConsole.jsx", "line": 24 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 97,
+        "route": "GET /api/resources/admin/all"
+      },
+      "notes": "api.get('/api/resources/admin/all'); registered before router.get('/:id') (line 361), and it has two segments anyway"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/AdminConsole.jsx", "line": 60 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 293,
+        "route": "PATCH /api/users/admin/users/:id/role"
+      },
+      "notes": "api.patch(`/api/users/admin/users/${userId}/role`, { role })"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/AdminConsole.jsx", "line": 74 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 329,
+        "route": "PATCH /api/users/admin/users/:id/status"
+      },
+      "notes": "api.patch(`/api/users/admin/users/${user._id}/status`, { isActive })"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/AdminConsole.jsx", "line": 88 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 364,
+        "route": "DELETE /api/users/admin/users/:id"
+      },
+      "notes": "api.delete(`/api/users/admin/users/${user._id}`)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/AdminConsole.jsx", "line": 105 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 187,
+        "route": "PATCH /api/resources/:id/terminate"
+      },
+      "notes": "api.patch(`/api/resources/${resource._id}/terminate`, { reason })"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/AdminConsole.jsx", "line": 120 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 288,
+        "route": "PATCH /api/resources/:id/reissue"
+      },
+      "notes": "api.patch(`/api/resources/${resource._id}/reissue`, { adminResponse })"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ApplicationForm.jsx", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 361,
+        "route": "GET /api/resources/:id"
+      },
+      "notes": "api.get(`/api/resources/${id}`) with the route param id; the literal routes /my, /admin/all, /featured, /organizer/my registered earlier don't match a resource id"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ApplicationForm.jsx", "line": 63 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/applications.js",
+        "line": 76,
+        "route": "POST /api/applications"
+      },
+      "notes": "api.post('/api/applications', data, multipart headers); server.js mounts routes/applications at /api/applications (routes/applicationRoutes.js is never mounted)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ApplicationsReview.jsx", "line": 61 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/applications.js",
+        "line": 192,
+        "route": "GET /api/applications/organizer"
+      },
+      "notes": "fetchApplications(): api.get(`/api/applications/organizer?${params.toString()}`); query dropped. router.get('/organizer') is registered before the '/:id([0-9a-fA-F]{24})' routes, and 'organizer' isn't 24 hex characters anyway"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ApplicationsReview.jsx", "line": 101 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/applications.js",
+        "line": 261,
+        "route": "PATCH /api/applications/:id/status"
+      },
+      "notes": "updateStatus(): api.patch(`/api/applications/${id}/status`, { status }) with an application _id (a 24-hex ObjectId). The route is registered as '/:id([0-9a-fA-F]{24})/status'; the regex constraint is dropped in the route spelling, leaving :id"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/CreateResource.jsx", "line": 80 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 382,
+        "route": "POST /api/resources"
+      },
+      "notes": "api.post('/api/resources', payload)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/EditResource.jsx", "line": 45 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 361,
+        "route": "GET /api/resources/:id"
+      },
+      "notes": "api.get(`/api/resources/${id}`)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/EditResource.jsx", "line": 104 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 500,
+        "route": "PUT /api/resources/:id"
+      },
+      "notes": "api.put(`/api/resources/${id}`, { … }); router.put('/:id', auth, updateResource)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Home.jsx", "line": 33 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 333,
+        "route": "GET /api/resources/featured"
+      },
+      "notes": "fetchFeatured(): api.get('/api/resources/featured'); router.get('/featured') (line 333) is registered before router.get('/:id') (line 361), so the literal wins"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Home.jsx", "line": 40 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 114,
+        "route": "GET /api/resources"
+      },
+      "notes": "fallback api.get('/api/resources', { params }) when no featured resources; params become a query string"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Organizer.jsx", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 80,
+        "route": "GET /api/resources/my"
+      },
+      "notes": "api.get('/api/resources/my'); router.get('/my') is the router's first route, ahead of router.get('/:id')"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Organizer.jsx", "line": 58 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 501,
+        "route": "PATCH /api/resources/:id"
+      },
+      "notes": "api.patch(`/api/resources/${resource._id}`, { status }); router.patch('/:id', auth, updateResource). The /:id/terminate, /:id/appeal, /:id/reissue routes need a second segment"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Organizer.jsx", "line": 71 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 503,
+        "route": "DELETE /api/resources/:id"
+      },
+      "notes": "api.delete(`/api/resources/${resource._id}`)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Organizer.jsx", "line": 86 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 239,
+        "route": "PATCH /api/resources/:id/appeal"
+      },
+      "notes": "api.patch(`/api/resources/${resource._id}/appeal`, { reason })"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ResourceDetail.jsx", "line": 64 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 187,
+        "route": "PATCH /api/resources/:id/terminate"
+      },
+      "notes": "api.patch(`/api/resources/${id}/terminate`, { reason })"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ResourcePolicyEnforcement.jsx", "line": 20 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 97,
+        "route": "GET /api/resources/admin/all"
+      },
+      "notes": "api.get('/api/resources/admin/all')"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ResourcePolicyEnforcement.jsx", "line": 62 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 187,
+        "route": "PATCH /api/resources/:id/terminate"
+      },
+      "notes": "api.patch(`/api/resources/${resource._id}/terminate`, { reason })"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/ResourcePolicyEnforcement.jsx", "line": 77 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 288,
+        "route": "PATCH /api/resources/:id/reissue"
+      },
+      "notes": "api.patch(`/api/resources/${resource._id}/reissue`, { adminResponse })"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/SearchResources.jsx", "line": 66 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 187,
+        "route": "PATCH /api/resources/:id/terminate"
+      },
+      "notes": "api.patch(`/api/resources/${resource._id}/terminate`, { reason })"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 86 },
+      "method": "GET",
+      "target": { "file": "backend/src/server.js", "line": 126, "route": "GET /health" },
+      "notes": "checkApiHealth(): api.get('/health'), path fixed in the helper (no caller in the repo, still a request written in source). app.get('/health') is registered directly on app in server.js, outside /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 116 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/auth.js",
+        "line": 41,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "apiHelpers.registerUser(): api.post('/api/auth/register', payload); the path is fixed in the helper, so its callers aren't labeled"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 125 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/auth.js",
+        "line": 135,
+        "route": "POST /api/auth/login"
+      },
+      "notes": "apiHelpers.loginUser(): api.post('/api/auth/login', …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 134 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/auth.js",
+        "line": 287,
+        "route": "POST /api/auth/forgot-password"
+      },
+      "notes": "apiHelpers.requestPasswordReset(): api.post('/api/auth/forgot-password', { email })"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 143 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/auth.js",
+        "line": 368,
+        "route": "POST /api/auth/reset-password"
+      },
+      "notes": "apiHelpers.resetPassword(): api.post('/api/auth/reset-password', …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 152 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/auth.js",
+        "line": 197,
+        "route": "POST /api/auth/google"
+      },
+      "notes": "apiHelpers.loginWithGoogle(): api.post('/api/auth/google', { credential })"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 161 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 13,
+        "route": "GET /api/users/profile"
+      },
+      "notes": "apiHelpers.getUserProfile(): api.get('/api/users/profile')"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 170 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 34,
+        "route": "PUT /api/users/profile"
+      },
+      "notes": "apiHelpers.updateUserProfile(): api.put('/api/users/profile', profileData)"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 185 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 73,
+        "route": "PUT /api/users/profile/photo"
+      },
+      "notes": "apiHelpers.uploadProfilePhoto(): api.put('/api/users/profile/photo', { profilePhoto }) inside the FileReader's onload callback"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 203 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 110,
+        "route": "PUT /api/users/change-password"
+      },
+      "notes": "apiHelpers.changePassword(): api.put('/api/users/change-password', …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 215 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 221,
+        "route": "GET /api/users/admin/stats"
+      },
+      "notes": "apiHelpers.getAdminStats(): api.get('/api/users/admin/stats')"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 224 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 272,
+        "route": "GET /api/users/admin/users"
+      },
+      "notes": "apiHelpers.getAdminUsers(): api.get('/api/users/admin/users')"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 233 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 293,
+        "route": "PATCH /api/users/admin/users/:id/role"
+      },
+      "notes": "apiHelpers.setAdminUserRole(): api.patch(`/api/users/admin/users/${userId}/role`, { role })"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 242 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 329,
+        "route": "PATCH /api/users/admin/users/:id/status"
+      },
+      "notes": "apiHelpers.setAdminUserStatus(): api.patch(`/api/users/admin/users/${userId}/status`, { isActive })"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 251 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/users.js",
+        "line": 364,
+        "route": "DELETE /api/users/admin/users/:id"
+      },
+      "notes": "apiHelpers.deleteAdminUser(): api.delete(`/api/users/admin/users/${userId}`)"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 260 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 97,
+        "route": "GET /api/resources/admin/all"
+      },
+      "notes": "apiHelpers.getAdminResources(): api.get('/api/resources/admin/all')"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 269 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 114,
+        "route": "GET /api/resources"
+      },
+      "notes": "apiHelpers.getAllResources() (aliased as getResources): api.get('/api/resources', { params })"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 278 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 333,
+        "route": "GET /api/resources/featured"
+      },
+      "notes": "apiHelpers.getFeaturedResources(): api.get('/api/resources/featured'); /featured is registered before /:id"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 287 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/resources.js",
+        "line": 361,
+        "route": "GET /api/resources/:id"
+      },
+      "notes": "apiHelpers.getResourceById(): api.get(`/api/resources/${resourceId}`)"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 296 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/applications.js",
+        "line": 76,
+        "route": "POST /api/applications"
+      },
+      "notes": "apiHelpers.createApplication(): api.post('/api/applications', { … })"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/api.jsx", "line": 310 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/applications.js",
+        "line": 149,
+        "route": "GET /api/applications/my"
+      },
+      "notes": "apiHelpers.getMyApplications() (aliased as getApplications): api.get('/api/applications/my'); registered before the '/:id([0-9a-fA-F]{24})' routes"
+    }
+  ]
+}
