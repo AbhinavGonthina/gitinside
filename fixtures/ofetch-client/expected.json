@@ -101,7 +101,8 @@
         {
           "column": 10,
           "file": "src/users.ts",
-          "line": 13
+          "line": 13,
+          "request": "POST /api/users"
         }
       ],
       "to": "route:ofetch-client/POST /api/users"
@@ -116,7 +117,8 @@
         {
           "column": 10,
           "file": "src/users.ts",
-          "line": 9
+          "line": 9,
+          "request": "GET /api/users/{}"
         }
       ],
       "to": "route:ofetch-client/GET /api/users/:id"
@@ -131,7 +133,8 @@
         {
           "column": 10,
           "file": "src/users.ts",
-          "line": 30
+          "line": 30,
+          "request": "GET /api/health"
         }
       ],
       "to": "route:ofetch-client/GET /api/health"
@@ -146,7 +149,8 @@
         {
           "column": 10,
           "file": "src/users.ts",
-          "line": 5
+          "line": 5,
+          "request": "GET /api/users"
         }
       ],
       "to": "route:ofetch-client/GET /api/users"
@@ -161,7 +165,8 @@
         {
           "column": 10,
           "file": "src/users.ts",
-          "line": 25
+          "line": 25,
+          "request": "GET /api/v2/stats"
         }
       ],
       "to": "route:ofetch-client/GET /api/v2/stats"
@@ -176,7 +181,8 @@
         {
           "column": 10,
           "file": "src/users.ts",
-          "line": 17
+          "line": 17,
+          "request": "DELETE /api/users/{}"
         }
       ],
       "to": "route:ofetch-client/DELETE /api/users/:id"
@@ -191,7 +197,8 @@
         {
           "column": 10,
           "file": "src/users.ts",
-          "line": 21
+          "line": 21,
+          "request": "POST /api/auth/login"
         }
       ],
       "to": "route:ofetch-client/POST /api/auth/login"

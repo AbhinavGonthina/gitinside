@@ -319,6 +319,38 @@ describe("detectBroken: HTTP calls re-resolved against base routes", () => {
     ]);
   });
 
+  /** `routePair`, with the base edge's site recording the request that matched it. */
+  const requestPair = (path: string, request: string, label: string) => {
+    const { base, head } = routePair("GET", path, label);
+    const site = { ...loc("apps/api/src/client.ts", 4), request };
+    const recorded = graph(
+      "a1b2c3f",
+      base.nodes,
+      base.edges.map((e) => (e.kind === "http" ? { ...e, sites: [site] } : e)),
+    );
+    return { base: recorded, head };
+  };
+
+  // M6.11c: the matcher can reach a route through an example env path, a dev proxy, a
+  // Next `basePath`, or rewrites, which the label alone doesn't show.
+  it.each([
+    ["an example env path", "/api/auth/login", "GET {env:VITE_API_URL}/auth/login"],
+    ["a dev proxy's rewrite", "/users", "GET /api/users"],
+    ["a Next basePath", "/api/items", "GET /shop/api/items"],
+    ["a Next rewrite", "/orders", "GET /shop/orders"],
+  ])("is broken when base matched the same request through %s", (_how, path, request) => {
+    const { base, head } = requestPair(path, request, request);
+    expect(reasons(base, head)).toEqual([`TARGET_REMOVED: GET ${path} was removed`]);
+  });
+
+  it.each([
+    ["head's call is another request", "GET /api/users", "GET /api/people"],
+    ["the label was clipped", "GET /api/users/…", "GET /api/users/…"],
+  ])("isn't broken through a recorded request when %s", (_why, request, label) => {
+    const { base, head } = requestPair("/users", request, label);
+    expect(reasons(base, head)).toEqual([]);
+  });
+
   it("lists every head site that still makes the call, once each, in order", () => {
     const { base } = routePair("GET", "/api/orders", undefined);
     const [n1, e1] = unresolvedCall("http", caller, 9, {

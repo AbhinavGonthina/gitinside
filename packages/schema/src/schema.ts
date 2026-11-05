@@ -83,13 +83,19 @@ export type SourceLocation = z.infer<typeof SourceLocation>;
 
 /**
  * Where an edge's call is made, plus facts about that one call that the diff checks
- * against head's target (ADR-0088).
+ * against head (ADR-0088, ADR-0087's M6.11c amendment).
  */
 export const CallSite = SourceLocation.extend({
   /** For `calls` edges: how many arguments the call passes; absent when a spread hides it. */
   args: z.number().int().nonnegative().optional(),
   /** For `reads`/`writes` edges to a model: names the call uses as fields the model lacks, sorted. */
   missingFields: z.array(z.string().min(1)).min(1).optional(),
+  /**
+   * For `http` edges to a route: the request as an unresolved node would label it
+   * (`POST {env:API_URL}/auth/login`), so the diff knows head's unresolved call is the same
+   * one, whatever path the matcher sent it by (ADR-0087's M6.11c amendment).
+   */
+  request: z.string().min(1).optional(),
 }).strict();
 export type CallSite = z.infer<typeof CallSite>;
 

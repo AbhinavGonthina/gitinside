@@ -69,7 +69,8 @@
         {
           "column": 17,
           "file": "src/client.ts",
-          "line": 4
+          "line": 4,
+          "request": "GET /api/orders"
         }
       ],
       "to": "route:diff-broken/GET /api/orders"

@@ -12,7 +12,8 @@
         {
           "column": 21,
           "file": "src/client.ts",
-          "line": 3
+          "line": 3,
+          "request": "GET /v1/acme/items"
         }
       ],
       "to": "route:ambiguous-routes/GET /v1/:org/items"
@@ -28,7 +29,8 @@
         {
           "column": 21,
           "file": "src/client.ts",
-          "line": 3
+          "line": 3,
+          "request": "GET /v1/acme/items"
         }
       ],
       "to": "route:ambiguous-routes/GET /v1/acme/:kind"
@@ -43,7 +45,8 @@
         {
           "column": 21,
           "file": "src/client.ts",
-          "line": 9
+          "line": 9,
+          "request": "GET /v1/{}/items"
         }
       ],
       "to": "route:ambiguous-routes/GET /v1/:org/items"

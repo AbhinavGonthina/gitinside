@@ -11,7 +11,8 @@
         {
           "column": 9,
           "file": "apps/web/src/client.ts",
-          "line": 17
+          "line": 17,
+          "request": "POST {env:REACT_APP_SERVER}/api/v2/authenticate"
         }
       ],
       "to": "route:api/POST /api/v2/authenticate"
@@ -26,7 +27,8 @@
         {
           "column": 21,
           "file": "apps/web/src/client.ts",
-          "line": 11
+          "line": 11,
+          "request": "GET {env:NEXT_PUBLIC_API_URL}/api/v1/users/{}"
         }
       ],
       "to": "route:api/GET /api/v1/users/:id"
@@ -41,7 +43,8 @@
         {
           "column": 21,
           "file": "apps/web/src/client.ts",
-          "line": 5
+          "line": 5,
+          "request": "POST {env:NEXT_PUBLIC_API_URL}/api/v1/auth/login"
         }
       ],
       "to": "route:api/POST /api/v1/auth/login"

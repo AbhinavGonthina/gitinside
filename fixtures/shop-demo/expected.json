@@ -128,7 +128,8 @@
         {
           "column": 21,
           "file": "apps/web/lib/orders.ts",
-          "line": 13
+          "line": 13,
+          "request": "GET {env:NEXT_PUBLIC_API_URL}/api/orders"
         }
       ],
       "to": "route:api/GET /api/orders"
@@ -143,7 +144,8 @@
         {
           "column": 21,
           "file": "apps/web/lib/orders.ts",
-          "line": 5
+          "line": 5,
+          "request": "POST {env:NEXT_PUBLIC_API_URL}/api/orders"
         }
       ],
       "to": "route:api/POST /api/orders"

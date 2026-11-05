@@ -67,7 +67,8 @@
         {
           "column": 21,
           "file": "web/lib/api.ts",
-          "line": 9
+          "line": 9,
+          "request": "GET /shop/api/items/{}"
         }
       ],
       "to": "route:web/GET /api/items/:id"
@@ -82,7 +83,8 @@
         {
           "column": 21,
           "file": "web/lib/api.ts",
-          "line": 27
+          "line": 27,
+          "request": "GET /shop/backend/users/{}"
         }
       ],
       "to": "route:api/GET /users/:id"
@@ -97,7 +99,8 @@
         {
           "column": 21,
           "file": "web/lib/api.ts",
-          "line": 3
+          "line": 3,
+          "request": "GET /shop/api/items"
         }
       ],
       "to": "route:web/GET /api/items"
@@ -127,7 +130,8 @@
         {
           "column": 21,
           "file": "web/lib/api.ts",
-          "line": 21
+          "line": 21,
+          "request": "GET /shop/legacy/items"
         }
       ],
       "to": "route:web/GET /api/items"
@@ -142,7 +146,8 @@
         {
           "column": 21,
           "file": "web/lib/api.ts",
-          "line": 45
+          "line": 45,
+          "request": "GET /shop/orders"
         }
       ],
       "to": "route:api/GET /orders"

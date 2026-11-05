@@ -11,7 +11,8 @@
         {
           "column": 36,
           "file": "apps/web/src/services/admin.ts",
-          "line": 8
+          "line": 8,
+          "request": "POST /api/admin/users/{}/ban"
         }
       ],
       "to": "route:api/POST /api/admin/users/:id/ban"
@@ -26,7 +27,8 @@
         {
           "column": 32,
           "file": "apps/web/src/services/admin.ts",
-          "line": 6
+          "line": 6,
+          "request": "GET /api/admin/users"
         }
       ],
       "to": "route:api/GET /api/admin/users"
@@ -41,7 +43,8 @@
         {
           "column": 40,
           "file": "apps/web/src/services/fetcher.ts",
-          "line": 7
+          "line": 7,
+          "request": "GET {env:REACT_APP_API_URL}/api/v1/users/{}"
         }
       ],
       "to": "route:api/GET /api/v1/users/:id"

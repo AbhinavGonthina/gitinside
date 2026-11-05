@@ -86,7 +86,8 @@
         {
           "column": 3,
           "file": "apps/web/src/services/api.ts",
-          "line": 13
+          "line": 13,
+          "request": "GET /post/{}"
         }
       ],
       "to": "route:api/GET /post/:id"
@@ -101,7 +102,8 @@
         {
           "column": 3,
           "file": "apps/web/src/services/api.ts",
-          "line": 6
+          "line": 6,
+          "request": "POST /authenticate"
         }
       ],
       "to": "route:api/POST /authenticate"
@@ -116,7 +118,8 @@
         {
           "column": 29,
           "file": "apps/web/src/services/api.ts",
-          "line": 15
+          "line": 15,
+          "request": "DELETE /logout"
         }
       ],
       "to": "route:api/DELETE /logout"

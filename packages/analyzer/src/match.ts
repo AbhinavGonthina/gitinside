@@ -83,6 +83,7 @@ import {
   parseRoutePath,
   segmentText,
   SYSTEM_ID,
+  type CallSite,
   type Confidence,
   type GraphEdge,
   type GraphNode,
@@ -559,7 +560,9 @@ export interface HttpEdges {
 /**
  * Match every request and draw edges from each of its owners (or, for top-level code, its
  * file node), so every request is in the graph (ROADMAP M2: no call site dropped):
- * - Matched routes: an `http` edge to each route.
+ * - Matched routes: an `http` edge to each route, each site carrying the request's `label`
+ *   as `request`, so the diff can find the same call unresolved in head however the path
+ *   was matched (an example env path, a dev proxy, `basePath`, rewrites; ADR-0087).
  * - A literal external host: an `external` node (`external:ext/<host>`, under the system)
  *   and an `external_call` edge to it, `exact` unless the request itself is weaker.
  * - Anything else: an `unresolved` node at the request's site (the wrapper call when
@@ -586,7 +589,7 @@ export function buildHttpEdges(
     from: string,
     to: string,
     confidence: Confidence,
-    site: SourceLocation,
+    site: CallSite,
     reason: UnresolvedReason | undefined,
     label: string | undefined,
   ): void => {
@@ -621,14 +624,17 @@ export function buildHttpEdges(
           ? [fileNodeId(service, request.file)]
           : [];
     switch (match.kind) {
-      case "routes":
+      case "routes": {
+        // The request's text, so the diff can tell head's unresolved call is this one.
+        const site = { ...request.site, request: request.label };
         for (const from of sources) {
           for (const to of match.routes) {
             const reason = match.ambiguous ? "AMBIGUOUS" : undefined;
-            addEdge("http", from, to, match.confidence, request.site, reason, matcher.label(to));
+            addEdge("http", from, to, match.confidence, site, reason, matcher.label(to));
           }
         }
         break;
+      }
       case "external": {
         const host = externalHost(match.scheme, match.host);
         const node = externalNode(host);

@@ -71,7 +71,8 @@
         {
           "column": 10,
           "file": "src/notes.ts",
-          "line": 17
+          "line": 17,
+          "request": "POST /api/notes"
         }
       ],
       "to": "route:ky-client/POST /api/notes"
@@ -116,7 +117,8 @@
         {
           "column": 10,
           "file": "src/notes.ts",
-          "line": 9
+          "line": 9,
+          "request": "GET /api/notes/{}"
         }
       ],
       "to": "route:ky-client/GET /api/notes/:noteId"
@@ -131,7 +133,8 @@
         {
           "column": 10,
           "file": "src/notes.ts",
-          "line": 5
+          "line": 5,
+          "request": "GET /api/notes"
         }
       ],
       "to": "route:ky-client/GET /api/notes"
@@ -146,7 +149,8 @@
         {
           "column": 10,
           "file": "src/notes.ts",
-          "line": 26
+          "line": 26,
+          "request": "GET /api/v1/tags"
         }
       ],
       "to": "route:ky-client/GET /api/v1/tags"
@@ -161,7 +165,8 @@
         {
           "column": 10,
           "file": "src/notes.ts",
-          "line": 13
+          "line": 13,
+          "request": "PUT /api/notes/{}"
         }
       ],
       "to": "route:ky-client/PUT /api/notes/:noteId"
@@ -176,7 +181,8 @@
         {
           "column": 10,
           "file": "src/notes.ts",
-          "line": 22
+          "line": 22,
+          "request": "POST /api/session"
         }
       ],
       "to": "route:ky-client/POST /api/session"
@@ -191,7 +197,8 @@
         {
           "column": 10,
           "file": "src/notes.ts",
-          "line": 31
+          "line": 31,
+          "request": "GET /status"
         }
       ],
       "to": "route:ky-client/GET /status"

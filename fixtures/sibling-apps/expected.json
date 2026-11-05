@@ -11,7 +11,8 @@
         {
           "column": 10,
           "file": "frontend/src/posts.ts",
-          "line": 8
+          "line": 8,
+          "request": "POST /api/posts"
         }
       ],
       "to": "route:backend/POST /api/posts"
@@ -26,7 +27,8 @@
         {
           "column": 10,
           "file": "frontend/src/posts.ts",
-          "line": 4
+          "line": 4,
+          "request": "GET /api/posts/{}"
         }
       ],
       "to": "route:backend/GET /api/posts/:id"

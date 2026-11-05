@@ -25,7 +25,8 @@
         {
           "column": 21,
           "file": "admin/src/stats.js",
-          "line": 3
+          "line": 3,
+          "request": "GET /stats"
         }
       ],
       "to": "route:server/GET /stats"
@@ -40,7 +41,8 @@
         {
           "column": 21,
           "file": "client/src/api.ts",
-          "line": 9
+          "line": 9,
+          "request": "GET /api/users/{}"
         }
       ],
       "to": "route:server/GET /users/:id"
@@ -70,7 +72,8 @@
         {
           "column": 21,
           "file": "client/src/api.ts",
-          "line": 3
+          "line": 3,
+          "request": "GET /api/users"
         }
       ],
       "to": "route:server/GET /users"
@@ -85,7 +88,8 @@
         {
           "column": 9,
           "file": "client/src/api.ts",
-          "line": 15
+          "line": 15,
+          "request": "POST /auth/login"
         }
       ],
       "to": "route:server/POST /auth/login"

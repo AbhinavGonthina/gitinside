@@ -11,7 +11,8 @@
         {
           "column": 29,
           "file": "src/queries.ts",
-          "line": 12
+          "line": 12,
+          "request": "GET /api/stats"
         }
       ],
       "to": "route:tanstack-query-key/GET /api/stats"
@@ -41,7 +42,8 @@
         {
           "column": 10,
           "file": "src/queries.ts",
-          "line": 9
+          "line": 9,
+          "request": "GET /api/posts/{}"
         }
       ],
       "to": "route:tanstack-query-key/GET /api/posts/:postId"
@@ -56,7 +58,8 @@
         {
           "column": 10,
           "file": "src/queries.ts",
-          "line": 5
+          "line": 5,
+          "request": "GET /api/posts"
         }
       ],
       "to": "route:tanstack-query-key/GET /api/posts"
@@ -71,7 +74,8 @@
         {
           "column": 10,
           "file": "src/queries.ts",
-          "line": 21
+          "line": 21,
+          "request": "GET /api/users/{}/todos"
         }
       ],
       "to": "route:tanstack-query-key/GET /api/users/:userId/todos"
