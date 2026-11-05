@@ -7,6 +7,8 @@ import type { JobRequest } from "./request.js";
 import { JobFailure } from "./failure.js";
 import { startFakeGitHub, tarballFrom, tarballOf, type FakeGitHub } from "./github.testkit.js";
 import {
+  DOWNLOAD_ALLOWANCE_MS,
+  PUBLISH_RESERVE_MS,
   SKIPPED_SAMPLE_SIZE,
   processJob,
   sweepJobsRoot,
@@ -517,6 +519,105 @@ describe("processJob analysis and publishing", () => {
     await processJob({ id: ID, request: REQUEST }, deps({ run }));
     expect(new Set(seen).size).toBe(2);
     expect(seen.every((out) => out.includes(`${ID}-`))).toBe(true);
+  });
+});
+
+describe("processJob time budget (R4, second M5 review)", () => {
+  const BUDGET = 280_000;
+  /** What the analysis is guaranteed in a 280 s attempt: 280 s − 20 s reserve − 30 s download. */
+  const GUARANTEE = BUDGET - PUBLISH_RESERVE_MS - DOWNLOAD_ALLOWANCE_MS;
+
+  /** An attempt whose earlier stages (start, download) take `usedMs` of its budget. */
+  function slowStart(usedMs: number) {
+    const clock = { left: BUDGET };
+    const calls: unknown[][] = [];
+    const recorder: JobRecorder = {
+      start: async () => {
+        clock.left -= usedMs;
+        return { analysisId: "a1", repoId: "r1", visibility: "public", owner: "a", name: "s" };
+      },
+      failed: async (_record, code, final) => void calls.push([code, final]),
+    };
+    return { timeLeft: () => clock.left, recorder, calls };
+  }
+
+  const timedOut = vi.fn(
+    async (): Promise<RunResult> => ({
+      ok: false,
+      code: "LIMIT_TIME",
+      message: "LIMIT_TIME",
+      stderrTail: "",
+      durationMs: 1,
+    }),
+  );
+
+  it("fails LIMIT_TIME (permanent) when the analysis had at least its guaranteed share", async () => {
+    const { timeLeft, recorder, calls } = slowStart(DOWNLOAD_ALLOWANCE_MS);
+    const error = await failure(
+      processJob({ id: ID, request: REQUEST, timeLeft }, deps({ recorder, run: timedOut })),
+    );
+    expect([error.code, error.retriable]).toEqual(["LIMIT_TIME", false]);
+    expect(calls).toEqual([["LIMIT_TIME", true]]);
+    const options = timedOut.mock.calls.at(-1) as unknown as [unknown, RunOptions];
+    expect(options[1].limits?.timeoutMs).toBe(GUARANTEE);
+  });
+
+  it("fails retriably, not LIMIT_TIME, when earlier stages cut the analysis below its share", async () => {
+    const { timeLeft, recorder, calls } = slowStart(DOWNLOAD_ALLOWANCE_MS + 1000);
+    const error = await failure(
+      processJob({ id: ID, request: REQUEST, timeLeft }, deps({ recorder, run: timedOut })),
+    );
+    expect([error.code, error.retriable]).toEqual(["ANALYSIS_TIME_CUT", true]);
+    expect(calls).toEqual([["ANALYSIS_TIME_CUT", false]]);
+  });
+
+  it("on the last attempt, a cut timeout fails for good, still without a LIMIT_* code", async () => {
+    const { timeLeft, recorder, calls } = slowStart(200_000);
+    const error = await failure(
+      processJob(
+        { id: ID, request: REQUEST, timeLeft, lastAttempt: true },
+        deps({ recorder, run: timedOut }),
+      ),
+    );
+    expect(error.code).toBe("ANALYSIS_TIME_CUT");
+    expect(calls).toEqual([["ANALYSIS_TIME_CUT", true]]);
+  });
+
+  it("fails retriably without starting the child when nothing is left for it", async () => {
+    const { timeLeft, recorder, calls } = slowStart(BUDGET - PUBLISH_RESERVE_MS - 500);
+    timedOut.mockClear();
+    const error = await failure(
+      processJob({ id: ID, request: REQUEST, timeLeft }, deps({ recorder, run: timedOut })),
+    );
+    expect([error.code, error.retriable]).toEqual(["ANALYSIS_TIME_CUT", true]);
+    expect(timedOut).not.toHaveBeenCalled();
+    expect(calls).toEqual([["ANALYSIS_TIME_CUT", false]]);
+  });
+
+  it("keeps the runner's other failures as they are under a cut budget", async () => {
+    const { timeLeft, recorder } = slowStart(200_000);
+    const run = async (): Promise<RunResult> => ({
+      ok: false,
+      code: "LIMIT_MEMORY",
+      message: "LIMIT_MEMORY",
+      stderrTail: "",
+      durationMs: 1,
+    });
+    const error = await failure(
+      processJob({ id: ID, request: REQUEST, timeLeft }, deps({ recorder, run })),
+    );
+    expect(error.code).toBe("LIMIT_MEMORY");
+  });
+
+  it("keeps LIMIT_TIME when the runner's own, shorter limit was not cut", async () => {
+    const { timeLeft, recorder } = slowStart(200_000);
+    const error = await failure(
+      processJob(
+        { id: ID, request: REQUEST, timeLeft },
+        deps({ recorder, run: timedOut, runOptions: { limits: { timeoutMs: 10_000 } } }),
+      ),
+    );
+    expect(error.code).toBe("LIMIT_TIME");
   });
 });
 

@@ -15,6 +15,11 @@ export const RETRIABLE_CODES: ReadonlySet<string> = new Set([
   "DOWNLOAD_FAILED",
   /** The download didn't finish within its budget. */
   "DOWNLOAD_TIMEOUT",
+  /**
+   * The analysis ran out of time that earlier stages (a slow start or download) had taken
+   * from it, so it wasn't the repo that was too big (`LIMIT_TIME`; job.ts, R4).
+   */
+  "ANALYSIS_TIME_CUT",
   /** GitHub refused with a rate limit; the queue's retry backoff waits it out. */
   "GITHUB_RATE_LIMITED",
   /** The worker shut down mid-job (or the push hung up); the next delivery runs it again. */

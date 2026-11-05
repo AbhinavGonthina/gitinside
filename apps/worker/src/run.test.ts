@@ -654,7 +654,7 @@ describe("POST /run, one deadline", () => {
     expect(limits).toEqual([own]);
   });
 
-  it("fails LIMIT_TIME without starting the child when nothing is left for it", async () => {
+  it("fails retriably (not LIMIT_TIME) without starting the child when nothing is left for it", async () => {
     const { clock, read } = steppedClock();
     const { recorder, calls } = fakeRecorder();
     const late: JobRecorder = {
@@ -670,12 +670,13 @@ describe("POST /run, one deadline", () => {
       return writeGraph(job);
     };
     const origin = await start({ deps: deps(run, late), clock: read });
+    // A slow start or download isn't the repo being too big (R4): Cloud Tasks retries it.
     expect(await post(origin, JSON.stringify(REQUEST))).toEqual({
-      status: 200,
-      body: { id: ID, state: "failed", errorCode: "LIMIT_TIME" },
+      status: 503,
+      body: { error: "ANALYSIS_TIME_CUT" },
     });
     expect(runs).toBe(0);
-    expect(calls.failed).toEqual([{ code: "LIMIT_TIME", final: true }]);
+    expect(calls.failed).toEqual([{ code: "ANALYSIS_TIME_CUT", final: false }]);
   });
 
   it("cuts the download to what's left: a retriable DOWNLOAD_TIMEOUT", async () => {
