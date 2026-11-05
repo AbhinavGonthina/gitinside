@@ -1,0 +1,61 @@
+{
+  "repo": "Prathamesh-B/notx",
+  "sha": "915b5ff14ea12c1e49c8c3fc9072c70730c5884f",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "pages/allNotes.tsx", "line": 19 },
+      "method": "POST",
+      "target": {
+        "file": "pages/api/note/fetchNote.ts",
+        "line": 9,
+        "route": "ALL /api/note/fetchNote"
+      },
+      "notes": "fetchUserNotes: fetch('/api/note/fetchNote', { method: 'POST' }), root-relative on the same Next app. Pages-router API routes: the route line is the default-export handler; fetchNote.ts never checks req.method and runs its code for every method, so the handler is open: ALL"
+    },
+    {
+      "callSite": { "file": "pages/allNotes.tsx", "line": 56 },
+      "method": "PUT",
+      "target": {
+        "file": "pages/api/note/updateNote.ts",
+        "line": 9,
+        "route": "PUT /api/note/updateNote"
+      },
+      "notes": "handleUpdate: fetch('/api/note/updateNote', { method: 'PUT' }); updateNote.ts runs its code only when req.method === \"PUT\" and answers every other method with an error (500, not 405), so it admits PUT only"
+    },
+    {
+      "callSite": { "file": "pages/allNotes.tsx", "line": 89 },
+      "method": "DELETE",
+      "target": {
+        "file": "pages/api/note/deleteNote.ts",
+        "line": 9,
+        "route": "ALL /api/note/deleteNote"
+      },
+      "notes": "handleDelete: fetch('/api/note/deleteNote', { method: 'DELETE' }); deleteNote.ts never checks req.method, so the handler is open: ALL"
+    },
+    {
+      "callSite": { "file": "pages/createNote.tsx", "line": 21 },
+      "method": "POST",
+      "target": {
+        "file": "pages/api/note/addNote.ts",
+        "line": 9,
+        "route": "POST /api/note/addNote"
+      },
+      "notes": "handleSubmit: fetch('/api/note/addNote', { method: 'POST' }); addNote.ts runs its code only when req.method === \"POST\" (500 otherwise), so it admits POST only"
+    },
+    {
+      "callSite": { "file": "pages/login.tsx", "line": 18 },
+      "method": "POST",
+      "target": { "file": "pages/api/auth/login.ts", "line": 9, "route": "POST /api/auth/login" },
+      "notes": "handleSubmit: fetch('/api/auth/login', { method: 'POST' }); login.ts runs its code only when req.method === \"POST\" (500 otherwise), so it admits POST only"
+    },
+    {
+      "callSite": { "file": "pages/signup.tsx", "line": 17 },
+      "method": "POST",
+      "target": { "file": "pages/api/auth/signup.ts", "line": 9, "route": "POST /api/auth/signup" },
+      "notes": "handleSubmit: fetch(\"api/auth/signup\", { method: 'POST' }), written without a leading slash, so the browser resolves it against the page's URL. The call is in pages/signup.tsx itself, which renders only at /signup (no other file imports it; next.config.js sets no basePath or trailingSlash), so the base is / and the URL is /api/auth/signup. signup.ts runs its code only when req.method === \"POST\" (500 otherwise), so it admits POST only"
+    }
+  ]
+}

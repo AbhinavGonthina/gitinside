@@ -21,6 +21,16 @@
       "heldOut": 4
     },
     {
+      "owner": "gruz0",
+      "name": "checkmvp",
+      "url": "https://github.com/gruz0/checkmvp",
+      "sha": "7fd7e741754fba3b0aa03f5b1e04a055e6379b93",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 4 (M5C.5b4, drawn in stratum nextjs-prisma). A single Next.js App Router app (src/app) with Prisma, Redis rate limiting, and OpenAI, whose route.ts handlers under src/app/api export one method each ([id] segments, literal pdf/ and social_media_campaigns/ folders beside [id]). Client components call them with root-relative fetch (literals and one-id templates, one bare GET with no options). Two server-side client classes (src/common/client/{Concept,Idea}/Service.ts) fetch paths fixed in their methods on `${this.baseURL}`, constructed elsewhere with env.CONCEPT_SERVICE_API_BASE / env.IDEA_SERVICE_API_BASE (zod-required, no in-code fallback; .env.example and .env.test set both to http://localhost:3000/api, the app's own port), so the app calls its own routes over HTTP. Traps: the Concept client is imported under the alias IdeaService; the clients' unit tests stub global.fetch; a route test hands a new Request(...) straight to a handler; GET /api/limits has no caller. Not labeled: the OpenAI SDK, Sentry, Plausible, and ioredis. ~328 TS/JS source files incl. ~45 tests.",
+      "heldOut": 4
+    },
+    {
       "owner": "harundogdu",
       "name": "twitter-clone",
       "url": "https://github.com/harundogdu/twitter-clone",
@@ -167,6 +177,26 @@
       "heldOut": 4
     },
     {
+      "owner": "Prathamesh-B",
+      "name": "notx",
+      "url": "https://github.com/Prathamesh-B/notx",
+      "sha": "915b5ff14ea12c1e49c8c3fc9072c70730c5884f",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 4 (M5C.5b4, drawn in stratum nextjs-prisma). A single Next.js pages-router app (Prisma, JWT in localStorage, Mantine UI): every request is a plain fetch written inline in a page component (pages/allNotes.tsx, createNote.tsx, login.tsx, signup.tsx) on a literal same-origin path, the method in the options object; no wrapper, SWR, or axios. Routes are pages/api/** default-export handlers. Traps: signup.tsx writes its URL without a leading slash (\"api/auth/signup\"), which the browser resolves against the page's own URL (/signup, no basePath or trailingSlash, so /api/auth/signup); most handlers run only under `if (req.method === \"X\")` and answer any other method with a 500 (labeled by method), while fetchNote.ts and deleteNote.ts check no method (ALL), so a POST to one and a DELETE to the other reach ALL routes. Not labeled: Link and Router.push navigations; pages/api/hello.ts and fetchAllNotes.ts have no callers. 20 TS/JS source files, the size floor.",
+      "heldOut": 4
+    },
+    {
+      "owner": "premieroctet",
+      "name": "next-crud",
+      "url": "https://github.com/premieroctet/next-crud",
+      "sha": "729caabc27befe5a520bb144b83e2a0e06bbd276",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 4 (M5C.5b4, drawn in stratum nextjs-prisma). A library (src/, a Prisma-backed CRUD handler for Next.js) with a pages-router example app in example/. The example's pages call their own API with root-relative fetch (/api/users, `/api/users/${id}`, a ?page= query inside a react-query useInfiniteQuery, /api/users/custom), and getServerSideProps fetches `${process.env.API_URL}/users/${id}` with no in-code fallback (the committed example/.env sets http://localhost:3000/api, Next's default dev port). A committed, generated swagger-typescript-api client (example/Api.ts, never instantiated) calls this.request({ path, method }) in ten endpoint methods on a default http://localhost:3000/api base. Routes: one pages/api/[...nextcrud].ts catch-all whose handler hands every method to the library (ALL /api/*nextcrud), a literal pages/api/users/custom.ts that Next serves ahead of the catch-all and that runs code only for GET, and an App Router app/api/appdir/[...nextcrud]/route.ts that nothing calls. Traps: literal before catch-all, the request helper inside the generated client, an env base set only in a committed .env, and the library's handler code, which sends no requests. Not labeled: swagger-ui-react's own fetch of /api/docs; the library's tests call handlers directly through node-mocks-http. ~53 TS/JS source files incl. tests and the docs site.",
+      "heldOut": 4
+    },
+    {
       "owner": "RishiBakshii",
       "name": "mern-ecommerce",
       "url": "https://github.com/RishiBakshii/mern-ecommerce",
@@ -194,6 +224,16 @@
       "shape": "spa-plus-express",
       "why": "Held out (M5A.2c). One package: a webpack React client (client/) server-rendered by an Express + Mongoose server (server/), Babel ES modules. Per-feature client/*/api-*.js modules call fetch with root-relative, concatenated paths ('/api/users/' + params.userId) on the same origin; the server mounts three routers at '/', each declaring full paths in router.route(path).get(…).put(…) chains, plus a catch-all app.get('*') for server-side rendering. Default branch second-edition. ~43 JS source files.",
       "heldOut": 1
+    },
+    {
+      "owner": "SujalXplores",
+      "name": "v0.diy",
+      "url": "https://github.com/SujalXplores/v0.diy",
+      "sha": "eb12736c008129ba6fdab407905c34ef3068eb9c",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 4 (M5C.5b4, drawn in stratum nextjs-prisma). A Next.js App Router app (Drizzle on Postgres, NextAuth) in one package whose browser code calls its own src/app/api/**/route.ts handlers (mostly `export const X = handleRoute(...)`) through one wrapper, requestJson(url, init) in src/lib/http-client.ts, from per-feature lib/*-api.ts modules, with URLs from a chatUrls object of path builders (`${chatPath(id)}/files`, chatPath URI-encoding the id); two fetch(chatUrls.resume(id))-style calls are direct. Traps: a global SWRConfig fetcher (requestJson) behind a useSWR(key) with no fetcher of its own, on a conditional key; useSWR calls whose fetcher ignores its key (one key isn't a URL), so the helper's request is the call site; `/api/chats/import/${kind}` over a three-member literal union, each member passed by a caller (three labels, ADR-0041); a literal import/ folder beside [chatId]; server-side calls to v0's API through a requestV1(apiKey, path) wrapper on the literal https://api.v0.dev/v1 (null). Not labeled: the chat stream, sent by @v0-sdk/react's V0Transport with useChat; v0 SDK client calls; SWR mutate revalidations; a server-action login and NextAuth calls; a download link. ~197 TS/JS source files.",
+      "heldOut": 4
     },
     {
       "owner": "suryansh00001",
