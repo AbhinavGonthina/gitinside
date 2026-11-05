@@ -892,7 +892,10 @@ describe("analyze: http edges", () => {
       "symbol:web/lib/client.ts#orders -> route:api/GET /api/orders heuristic GET /api/orders",
     ]);
     const me = graph.edges.find((e) => e.from === "symbol:web/lib/client.ts#me");
-    expect(me?.sites).toEqual([{ file: "apps/web/lib/client.ts", line: 4, column: 10 }]);
+    // The site keeps the request's text for the diff (ADR-0087's M6.11c amendment).
+    expect(me?.sites).toEqual([
+      { file: "apps/web/lib/client.ts", line: 4, column: 10, request: "GET /api/me" },
+    ]);
   });
 
   it("keeps unmatched requests as unresolved nodes and literal hosts as external nodes", async () => {

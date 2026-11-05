@@ -68,7 +68,8 @@
         {
           "column": 10,
           "file": "src/client.ts",
-          "line": 10
+          "line": 10,
+          "request": "GET /legacy/reports/daily"
         }
       ],
       "to": "route:express-folder-routers/GET /legacy/reports/daily"
@@ -83,7 +84,8 @@
         {
           "column": 10,
           "file": "src/client.ts",
-          "line": 14
+          "line": 14,
+          "request": "GET /health"
         }
       ],
       "to": "route:express-folder-routers/GET /health"
@@ -98,7 +100,8 @@
         {
           "column": 10,
           "file": "src/client.ts",
-          "line": 2
+          "line": 2,
+          "request": "GET /api/v1/users/{}"
         }
       ],
       "to": "route:express-folder-routers/GET /api/v1/users/:id"
@@ -113,7 +116,8 @@
         {
           "column": 10,
           "file": "src/client.ts",
-          "line": 6
+          "line": 6,
+          "request": "POST /api/v1/orders"
         }
       ],
       "to": "route:express-folder-routers/POST /api/v1/orders"

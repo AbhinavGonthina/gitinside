@@ -26,7 +26,8 @@
         {
           "column": 21,
           "file": "client/src/api.js",
-          "line": 16
+          "line": 16,
+          "request": "GET {env:VITE_SERVER_BASE_URL}/blog/{}"
         }
       ],
       "to": "route:server/GET /api/blog/:blogId"
@@ -41,7 +42,8 @@
         {
           "column": 21,
           "file": "client/src/api.js",
-          "line": 22
+          "line": 22,
+          "request": "GET {env:VITE_ADMIN_API_URL}/api/stats"
         }
       ],
       "to": "route:server/GET /api/stats"
@@ -56,7 +58,8 @@
         {
           "column": 21,
           "file": "client/src/api.js",
-          "line": 7
+          "line": 7,
+          "request": "POST {env:VITE_SERVER_BASE_URL}/auth/login"
         }
       ],
       "to": "route:server/POST /api/auth/login"

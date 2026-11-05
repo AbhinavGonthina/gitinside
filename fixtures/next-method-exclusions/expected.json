@@ -127,7 +127,8 @@
         {
           "column": 10,
           "file": "pages/index.tsx",
-          "line": 6
+          "line": 6,
+          "request": "DELETE /api/members"
         }
       ],
       "to": "route:roster/ALL /api/members"
@@ -142,7 +143,8 @@
         {
           "column": 10,
           "file": "pages/index.tsx",
-          "line": 10
+          "line": 10,
+          "request": "GET /api/invites"
         }
       ],
       "to": "route:roster/ALL /api/invites"
@@ -157,7 +159,8 @@
         {
           "column": 10,
           "file": "pages/index.tsx",
-          "line": 2
+          "line": 2,
+          "request": "GET /api/members"
         }
       ],
       "to": "route:roster/ALL /api/members"
@@ -172,7 +175,8 @@
         {
           "column": 10,
           "file": "pages/index.tsx",
-          "line": 18
+          "line": 18,
+          "request": "GET /api/teams"
         }
       ],
       "to": "route:roster/GET /api/teams"
@@ -202,7 +206,8 @@
         {
           "column": 10,
           "file": "pages/index.tsx",
-          "line": 14
+          "line": 14,
+          "request": "POST /api/invites"
         }
       ],
       "to": "route:roster/POST /api/invites"

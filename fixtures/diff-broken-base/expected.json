@@ -97,7 +97,8 @@
         {
           "column": 10,
           "file": "src/client.ts",
-          "line": 12
+          "line": 12,
+          "request": "DELETE /api/orders/{}"
         }
       ],
       "to": "route:diff-broken/DELETE /api/orders/:id"
@@ -112,7 +113,8 @@
         {
           "column": 17,
           "file": "src/client.ts",
-          "line": 4
+          "line": 4,
+          "request": "GET /api/orders"
         }
       ],
       "to": "route:diff-broken/GET /api/orders"
@@ -127,7 +129,8 @@
         {
           "column": 10,
           "file": "src/client.ts",
-          "line": 16
+          "line": 16,
+          "request": "GET /api/health"
         }
       ],
       "to": "route:diff-broken/GET /api/health"
@@ -142,7 +145,8 @@
         {
           "column": 10,
           "file": "src/client.ts",
-          "line": 8
+          "line": 8,
+          "request": "POST /api/orders"
         }
       ],
       "to": "route:diff-broken/POST /api/orders"

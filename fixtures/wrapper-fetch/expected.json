@@ -86,7 +86,8 @@
         {
           "column": 10,
           "file": "src/projects.ts",
-          "line": 8
+          "line": 8,
+          "request": "POST /api/projects"
         }
       ],
       "to": "route:wrapper-fetch/POST /api/projects"
@@ -101,7 +102,8 @@
         {
           "column": 10,
           "file": "src/projects.ts",
-          "line": 4
+          "line": 4,
+          "request": "GET /api/projects"
         }
       ],
       "to": "route:wrapper-fetch/GET /api/projects"

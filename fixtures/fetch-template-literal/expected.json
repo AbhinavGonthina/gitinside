@@ -11,7 +11,8 @@
         {
           "column": 6,
           "file": "src/client.ts",
-          "line": 20
+          "line": 20,
+          "request": "GET /api/users"
         }
       ],
       "to": "route:fetch-template-literal/GET /api/users"
@@ -26,7 +27,8 @@
         {
           "column": 21,
           "file": "src/client.ts",
-          "line": 9
+          "line": 9,
+          "request": "GET /api/users"
         }
       ],
       "to": "route:fetch-template-literal/GET /api/users"
@@ -56,7 +58,8 @@
         {
           "column": 21,
           "file": "src/client.ts",
-          "line": 3
+          "line": 3,
+          "request": "GET /api/users/{}"
         }
       ],
       "to": "route:fetch-template-literal/GET /api/users/:id"

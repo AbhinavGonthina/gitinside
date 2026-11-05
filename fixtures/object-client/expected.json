@@ -131,7 +131,8 @@
         {
           "column": 10,
           "file": "apps/web/src/hooks/use-accounts.ts",
-          "line": 13
+          "line": 13,
+          "request": "POST {env:NEXT_PUBLIC_API_URL}/api/v1/accounts"
         }
       ],
       "to": "route:api/POST /api/v1/accounts"
@@ -146,7 +147,8 @@
         {
           "column": 10,
           "file": "apps/web/src/hooks/use-accounts.ts",
-          "line": 21
+          "line": 21,
+          "request": "DELETE {env:NEXT_PUBLIC_API_URL}/api/v1/accounts/{}"
         }
       ],
       "to": "route:api/DELETE /api/v1/accounts/:id"
@@ -161,7 +163,8 @@
         {
           "column": 10,
           "file": "apps/web/src/hooks/use-accounts.ts",
-          "line": 9
+          "line": 9,
+          "request": "GET {env:NEXT_PUBLIC_API_URL}/api/v1/accounts"
         }
       ],
       "to": "route:api/GET /api/v1/accounts"
@@ -176,7 +179,8 @@
         {
           "column": 10,
           "file": "apps/web/src/hooks/use-accounts.ts",
-          "line": 17
+          "line": 17,
+          "request": "PATCH {env:NEXT_PUBLIC_API_URL}/api/v1/accounts/{}"
         }
       ],
       "to": "route:api/PATCH /api/v1/accounts/:id"

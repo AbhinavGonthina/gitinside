@@ -68,7 +68,8 @@
         {
           "column": 10,
           "file": "pages/index.tsx",
-          "line": 6
+          "line": 6,
+          "request": "POST /api/notes"
         }
       ],
       "to": "route:notes/POST /api/notes"
@@ -83,7 +84,8 @@
         {
           "column": 10,
           "file": "pages/index.tsx",
-          "line": 2
+          "line": 2,
+          "request": "GET /api/notes"
         }
       ],
       "to": "route:notes/GET /api/notes"
@@ -98,7 +100,8 @@
         {
           "column": 10,
           "file": "pages/index.tsx",
-          "line": 10
+          "line": 10,
+          "request": "DELETE /api/notes/{}"
         }
       ],
       "to": "route:notes/DELETE /api/notes/:id"

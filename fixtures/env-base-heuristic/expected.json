@@ -11,7 +11,8 @@
         {
           "column": 21,
           "file": "apps/web/src/users.ts",
-          "line": 11
+          "line": 11,
+          "request": "GET {env:NEXT_PUBLIC_API_URL}/users/me"
         }
       ],
       "to": "route:api/GET /users/me"
@@ -26,7 +27,8 @@
         {
           "column": 21,
           "file": "apps/web/src/users.ts",
-          "line": 5
+          "line": 5,
+          "request": "GET {env:NEXT_PUBLIC_API_URL}/users/{}"
         }
       ],
       "to": "route:api/GET /users/:id"

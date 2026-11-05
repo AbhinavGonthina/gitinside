@@ -185,12 +185,22 @@ describe("ArchitectureGraph", () => {
     expect(ArchitectureGraph.safeParse(g).success).toBe(false);
   });
 
-  it("accepts call-site facts (argument counts, missing fields), but not empty or unknown ones", () => {
+  it("accepts call-site facts (argument counts, missing fields, requests), but not empty or unknown ones", () => {
     const g = sampleGraph();
     const site = loc("apps/api/src/orders.ts", 51);
-    g.edges[1] = { ...g.edges[1]!, sites: [{ ...site, args: 0, missingFields: ["state"] }] };
+    g.edges[1] = {
+      ...g.edges[1]!,
+      sites: [{ ...site, args: 0, missingFields: ["state"], request: "GET /api/orders" }],
+    };
     expect(messages(g)).toEqual([]);
-    for (const bad of [{ args: -1 }, { args: 1.5 }, { missingFields: [] }, { calls: 1 }]) {
+    const bads = [
+      { args: -1 },
+      { args: 1.5 },
+      { missingFields: [] },
+      { request: "" },
+      { calls: 1 },
+    ];
+    for (const bad of bads) {
       g.edges[1] = { ...g.edges[1]!, sites: [{ ...site, ...bad }] };
       expect(ArchitectureGraph.safeParse(g).success).toBe(false);
     }

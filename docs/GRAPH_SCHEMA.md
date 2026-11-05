@@ -54,14 +54,15 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 
 ```ts
 { id, kind, from, to, confidence, label?, reason?, fields?: string[], sites: CallSite[] }
-CallSite = { file, line, column, endLine?, args?: number, missingFields?: string[] }
+CallSite = { file, line, column, endLine?, args?: number, missingFields?: string[], request?: string }
 ```
 
 `fields` appears only on `reads`/`writes` edges to a model: the model fields the call sites name in `select`, `where`, `data`, and similar arguments, sorted (ADR-0028).
 
-Call sites carry facts about that one call, which the diff checks against head's target (ADR-0088):
+Call sites carry facts about that one call, which the diff checks against head (ADR-0088, ADR-0087):
 - `args` (on `calls` edges): how many arguments the call passes; absent when a spread argument (`f(...xs)`) hides the count.
 - `missingFields` (on `reads`/`writes` edges to a model): names the call uses as fields that the model doesn't declare, sorted; absent when there are none. Query keywords (`AND`/`OR`/`NOT`, `_count` and other `_` selectors, compound unique keys like `email_tenantId`) aren't listed.
+- `request` (on `http` edges to a route): the request as an unresolved node would label it, `<METHOD|?> <url>` with the URL as read from the code (`POST {env:VITE_API_URL}/auth/login`, `GET /api/users`). It's the same text whether the matcher found the route by that path or through an example env path, a dev proxy, a Next `basePath`, or rewrites, so the diff can tell that head's unresolved call is the one that used to reach a removed route (ADR-0087's M6.11c amendment). It never holds an env value or a query string.
 
 - There is one edge per `(kind, from, to)`, with ID `edgeId(kind, from, to)`, i.e. `<kind>:<from>-><to>`. Each call site that produced it is listed in `sites`.
 - Edges connect leaf-level nodes (symbols, routes, pages, models, datastores, externals). The viewer aggregates them upward to whatever level is visible.
@@ -96,7 +97,7 @@ Call sites carry facts about that one call, which the diff checks against head's
 5. `confidence: "unresolved"` is used exactly when the target is an `unresolved` node.
 6. No unknown fields (strict objects).
 
-New optional fields (`requiredParams`, `args`, `missingFields`, ADR-0088) don't change the version: graphs written before them still parse.
+New optional fields (`requiredParams`, `args`, `missingFields`, ADR-0088; `request`, ADR-0087) don't change the version: graphs written before them still parse.
 
 ## Canonical serialization
 

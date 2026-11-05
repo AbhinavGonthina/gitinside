@@ -534,9 +534,14 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${j}#removeEntry -> route:${p}/DELETE /api/entries/:entryId heuristic`,
       `${j}#removeEntry -> route:${p}/DELETE /api/entries/moderation/:entryId heuristic`,
     ]);
-    // Both alternatives of a call share its one site.
+    // Both alternatives of a call share its one site, each edge with the request it matched.
     const removes = g.edges.filter((e) => e.from === `${j}#removeEntry`);
-    expect(new Set(removes.map((e) => JSON.stringify(e.sites)))).toHaveProperty("size", 1);
+    const at = removes.map((e) => e.sites.map(({ file, line, column }) => [file, line, column]));
+    expect(new Set(at.map((s) => JSON.stringify(s)))).toHaveProperty("size", 1);
+    expect(removes.map((e) => e.sites.map((s) => s.request))).toEqual([
+      ["DELETE {env:VITE_API_PATH}/api/entries/{}"],
+      ["DELETE {env:VITE_API_PATH}/api/entries/moderation/{}"],
+    ]);
     expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
   });
 

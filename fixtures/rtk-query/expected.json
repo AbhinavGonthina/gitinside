@@ -183,7 +183,8 @@
         {
           "column": 20,
           "file": "hooks/stats.ts",
-          "line": 6
+          "line": 6,
+          "request": "GET /api/stats"
         }
       ],
       "to": "route:task-board/ALL /api/stats"
@@ -213,7 +214,8 @@
         {
           "column": 16,
           "file": "store/api.ts",
-          "line": 14
+          "line": 14,
+          "request": "GET /api/tasks"
         }
       ],
       "to": "route:task-board/GET /api/tasks"
@@ -228,7 +230,8 @@
         {
           "column": 14,
           "file": "store/api.ts",
-          "line": 18
+          "line": 18,
+          "request": "GET /api/tasks/{}"
         }
       ],
       "to": "route:task-board/GET /api/tasks/:id"
@@ -243,7 +246,8 @@
         {
           "column": 17,
           "file": "store/api.ts",
-          "line": 25
+          "line": 25,
+          "request": "PATCH /api/tasks/{}"
         }
       ],
       "to": "route:task-board/PATCH /api/tasks/:id"
@@ -258,7 +262,8 @@
         {
           "column": 14,
           "file": "store/api.ts",
-          "line": 21
+          "line": 21,
+          "request": "POST /api/tasks"
         }
       ],
       "to": "route:task-board/POST /api/tasks"
@@ -288,7 +293,8 @@
         {
           "column": 11,
           "file": "store/session.ts",
-          "line": 14
+          "line": 14,
+          "request": "GET /api/session/refresh"
         }
       ],
       "to": "route:task-board/ALL /api/session/refresh"
@@ -303,7 +309,8 @@
         {
           "column": 13,
           "file": "store/session.ts",
-          "line": 25
+          "line": 25,
+          "request": "DELETE /api/session"
         }
       ],
       "to": "route:task-board/DELETE /api/session"
@@ -318,7 +325,8 @@
         {
           "column": 9,
           "file": "store/session.ts",
-          "line": 24
+          "line": 24,
+          "request": "GET /api/session"
         }
       ],
       "to": "route:task-board/GET /api/session"

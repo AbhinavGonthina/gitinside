@@ -135,6 +135,10 @@ function stillCalls(
   switch (edge.kind) {
     case "http": {
       if (target.kind !== "route" || node.reason !== "NO_MATCHING_ROUTE") return false;
+      // The same request text that matched in base, however the matcher sent its path.
+      if (!node.label.endsWith("…") && edge.sites.some((s) => s.request === node.label)) {
+        return true;
+      }
       const call = parseHttpLabel(node.label);
       return call !== undefined && reaches(call, target);
     }
@@ -256,9 +260,12 @@ function contractBreak(
  * target), while their source, or what it was renamed to, still makes the call. "Still
  * makes the call" is decided by re-resolving head's unresolved calls from that source
  * against the base target, as it was in base:
- * - `http` ⇒ route: a `NO_MATCHING_ROUTE` call whose method and path reach the route by the
- *   analyzer's own path grammar. If head has a new route served by the same handler (or
- *   its renamed self), the reason is `ROUTE_CHANGED` ("POST /x is now PUT /x").
+ * - `http` ⇒ route: a `NO_MATCHING_ROUTE` call whose label is a base site's `request` (the
+ *   same request text, however the matcher sent its path: an example env path, a dev
+ *   proxy, `basePath`, rewrites; ADR-0087's M6.11c amendment), or whose method and path
+ *   reach the route by the analyzer's own path grammar. If head has a new route served by
+ *   the same handler (or its renamed self), the reason is `ROUTE_CHANGED` ("POST /x is now
+ *   PUT /x").
  * - `imports` ⇒ file: an `UNKNOWN_SYMBOL` relative specifier naming the file's path.
  * - `reads`/`writes` ⇒ model: an `UNKNOWN_SYMBOL` Prisma call through the model's accessor.
  * A renamed or moved target is `TARGET_MOVED` ("src/util.ts is now at src/lib/util.ts",
@@ -275,7 +282,8 @@ function contractBreak(
  *
  * Doesn't handle (no head evidence in the graph): calls to removed functions (unresolved
  * calls make no node), aliased or package imports (`@/x`, `@acme/shared`), clipped URL
- * labels, a source that follows a renamed target with one call and not another (its edge
+ * labels, a call whose text changed and that reached the route only through a matcher path
+ * form (or a base graph from before sites had `request`), a source that follows a renamed target with one call and not another (its edge
  * is renamed, so it isn't a candidate), `renders`/`publishes`/`consumes`/`external_call`/
  * `stores` edges, symbols with no `requiredParams` (JavaScript, overloads, inherited
  * constructors), parameters whose type changed, and model fields whose type changed or

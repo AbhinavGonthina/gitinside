@@ -125,7 +125,8 @@
         {
           "column": 10,
           "file": "hooks/books.ts",
-          "line": 27
+          "line": 27,
+          "request": "POST /api/books"
         }
       ],
       "to": "route:reading-list/POST /api/books"
@@ -140,7 +141,8 @@
         {
           "column": 10,
           "file": "hooks/books.ts",
-          "line": 12
+          "line": 12,
+          "request": "GET /api/books/{}"
         }
       ],
       "to": "route:reading-list/GET /api/books/:id"
@@ -155,7 +157,8 @@
         {
           "column": 10,
           "file": "hooks/books.ts",
-          "line": 23
+          "line": 23,
+          "request": "GET /api/books"
         }
       ],
       "to": "route:reading-list/GET /api/books"
@@ -170,7 +173,8 @@
         {
           "column": 10,
           "file": "hooks/reviews.ts",
-          "line": 17
+          "line": 17,
+          "request": "GET /api/authors/{}"
         }
       ],
       "to": "route:reading-list/ALL /api/authors/:name"
@@ -185,7 +189,8 @@
         {
           "column": 10,
           "file": "hooks/reviews.ts",
-          "line": 13
+          "line": 13,
+          "request": "GET /api/books/{}/reviews"
         }
       ],
       "to": "route:reading-list/ALL /api/books/:id/reviews"
@@ -200,7 +205,8 @@
         {
           "column": 29,
           "file": "pages/index.tsx",
-          "line": 10
+          "line": 10,
+          "request": "GET /api/shelves"
         }
       ],
       "to": "route:reading-list/ALL /api/shelves"

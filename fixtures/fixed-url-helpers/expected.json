@@ -71,7 +71,8 @@
         {
           "column": 10,
           "file": "src/editor.ts",
-          "line": 13
+          "line": 13,
+          "request": "GET /api/authors"
         }
       ],
       "to": "route:fixed-url-helpers/GET /api/authors"
@@ -86,7 +87,8 @@
         {
           "column": 21,
           "file": "src/posts-api.ts",
-          "line": 3
+          "line": 3,
+          "request": "DELETE /api/posts/{}"
         }
       ],
       "to": "route:fixed-url-helpers/DELETE /api/posts/:postId"
@@ -101,7 +103,8 @@
         {
           "column": 5,
           "file": "src/posts-api.ts",
-          "line": 11
+          "line": 11,
+          "request": "GET /api/posts/{}/comments"
         }
       ],
       "to": "route:fixed-url-helpers/GET /api/posts/:postId/comments"
@@ -116,7 +119,8 @@
         {
           "column": 29,
           "file": "src/posts-api.ts",
-          "line": 8
+          "line": 8,
+          "request": "GET /api/posts/{}"
         }
       ],
       "to": "route:fixed-url-helpers/GET /api/posts/:postId"
