@@ -5,7 +5,7 @@ M5.13's production smoke test measured 96.3 s from queued to done for `calcom/ca
 - **Repo:** https://github.com/calcom/cal.diy at `2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee`, fetched with `git fetch --depth 1` into `bench/.repos/caldiy-2eb48ec` (the same files as GitHub's tarball, which the worker extracts).
 - **Code:** gitinside `cc3fe55` (analyzer 0.2.0, the version production ran), built before measuring.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, Windows 11, Node v22.13.0, other programs open.
-- **Production's own stage times** are in that row's `analyses.stats` (`stageMs`, and `jobMs`: download, analyze, upload), which only a production database read can show; asked for in gitinside-planning#20 (see "What's still owed").
+- **Production's own stage times** are in that row's `analyses.stats` (`stageMs`, and `jobMs`: download, analyze, upload), which only a production database read can show. Abhinav read them on gitinside-planning#20 (2026-11-05); they're under "Production's split" below.
 
 ## Raw output
 
@@ -70,6 +70,42 @@ In order, each measured on step 1's runs before the next is tried:
 
 The fact cache (ADR-0178) doesn't help a first analysis: production's 96.3 s was a cold run.
 
-## What's still owed
+## Production's split (added 2026-11-05, M5.14b2)
 
-- Production's own split for this row (`analyses.stats.stageMs` and `jobMs`, plus `queued_at`/`started_at`/`finished_at`), which says how much of the 96.3 s was the analysis and how much was dispatch, cold start, download, and upload. Asked for in gitinside-planning#20; when it's in, add it here and to DESIGN.md §9.
+The two big rows from M5.13's smoke test, read by Abhinav from production's `analyses` table on gitinside-planning#20 (2026-11-05 ~06:20 UTC), copied unchanged. Both ran at gitinside `cfda744` (analyzer 0.2.0), whose analyzer is the same as `cc3fe55` above and `232ddd9` in `2026-11-04-cloudrun-caldiy.md` (the commits between them changed the website and benchmarks only).
+
+| owner | name | sha | queued_at | started_at | finished_at |
+|---|---|---|---|---|---|
+| calcom | cal.diy | `2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee` | 2026-11-04 05:02:45.481154+00 | 2026-11-04 05:02:46.11948+00 | 2026-11-04 05:04:18.218884+00 |
+| documenso | documenso | `052aca2f955a4a98241266318e493d4e8463d973` | 2026-11-04 05:00:44.165397+00 | 2026-11-04 05:00:44.851541+00 | 2026-11-04 05:01:27.745782+00 |
+
+```json
+{"edges": 31544, "files": 5043, "jobMs": {"upload": 1377, "analyze": 81632, "download": 9502}, "nodes": 19303, "stageMs": {"sdk": 3549, "http": 11872, "next": 2815, "calls": 20017, "files": 105, "infra": 57, "prisma": 3833, "queues": 5290, "express": 163, "imports": 4411, "symbols": 280, "assemble": 947, "programs": 21595, "inventory": 1704, "workspace": 42}, "warnings": 144, "heapBytes": 1262268416, "graphBytes": 26028666, "unresolved": 720, "peakRssBytes": 2270609408, "snapshotBytes": 1411396}
+{"edges": 18146, "files": 2255, "jobMs": {"upload": 759, "analyze": 37331, "download": 5092}, "nodes": 7744, "stageMs": {"sdk": 1969, "http": 4932, "next": 600, "calls": 9501, "files": 12, "infra": 66, "prisma": 3844, "queues": 2275, "express": 100, "imports": 1878, "symbols": 101, "assemble": 545, "programs": 8758, "inventory": 802, "workspace": 15}, "warnings": 19, "heapBytes": 1010171904, "graphBytes": 13410703, "unresolved": 308, "peakRssBytes": 1142939648, "snapshotBytes": 691755}
+```
+
+cal.diy's stages against the 1-vCPU CI runner's medians for the same analyzer (`2026-11-04-cloudrun-caldiy.md`, Xeon Platinum 8573C):
+
+| Stage | Production | CI runner (median) | Ratio |
+|---|---:|---:|---:|
+| programs | 21.6 s | 12.0 s | 1.80× |
+| calls | 20.0 s | 12.3 s | 1.63× |
+| http | 11.9 s | 6.3 s | 1.88× |
+| queues | 5.3 s | 2.6 s | 2.03× |
+| imports | 4.4 s | 2.3 s | 1.92× |
+| prisma | 3.8 s | 2.1 s | 1.83× |
+| sdk | 3.5 s | 1.8 s | 1.97× |
+| next | 2.8 s | 1.7 s | 1.66× |
+| inventory | 1.7 s | 0.9 s | 1.89× |
+| assemble | 0.9 s | 0.5 s | 1.89× |
+| **all stages** | **76.7 s** | **42.8 s** | **1.79×** |
+| analysis (`jobMs.analyze`) | 81.6 s | 44.3 s | 1.84× |
+
+### Observations (hand-written, not generated)
+
+- **Where production's time went:** cal.diy's job was 92.1 s from `started_at` to `finished_at`, and 92.7 s from `queued_at`. The analysis was 81.6 s of it (88%), the download 9.5 s, the upload 1.4 s. M5.13's 96.3 s was client wall clock, which adds the 3 s polling interval and the website's answers.
+- **Dispatch and cold start are not the gap:** `queued_at` to `started_at` was 0.64 s for cal.diy and 0.69 s for documenso. In both cases an instance was already up (documenso finished 78 s before cal.diy was queued; what served documenso isn't recorded).
+- **Production's vCPU ran 1.6–2.0× slower than CI's runner in every stage**, the CPU-bound checker stages and the file-reading `inventory` alike, and the same graph came out (19,303 nodes, 31,544 edges, 720 unresolved, 144 warnings in both). So the gap is the CPU Cloud Run gave the job, not one stage or the network. Documenso agrees: its analysis was 37.3 s of a 42.9 s job.
+- **The budget in production:** these rows ran before ADR-0197 (each file parsed once) and ADR-0198 (the semi-space). On CI those took cal.diy's analysis to 33.7–58.5 s median across four CPU models. At production's 1.8× this runner, the analysis alone would still be over 60 s, but that's an extrapolation, not a measurement: production's next cal.diy analysis (after the next `ANALYZER_VERSION` bump) gives the real figure.
+- **The job clock and the row's clock differ a little:** `jobMs` adds up to 92.5 s for cal.diy and 43.2 s for documenso, 0.4 s and 0.3 s more than `started_at` to `finished_at`, so `started_at` is written a moment after the job's own clock starts.
+- **Memory:** cal.diy's peak RSS was 2,165 MiB, in line with CI's child (2,110–2,115 MiB), within the 4 GiB instance.
