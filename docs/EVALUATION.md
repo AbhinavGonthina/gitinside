@@ -96,6 +96,12 @@ The fourth held-out batch (M5C.5, drawn by the rule above; pins in the draw's or
 
 Each is pinned at its default-branch HEAD as `"heldOut": 4`; the SHAs are in `repos.json`.
 
+**Held-out batch 5: the same rule, with its exclusions committed** (M5C.8, ADR-0208's amendment; rule committed 2026-11-05 in M5C.8a1, before any candidate list was fetched). Batch 4 is seen since M5C.7 fixed its misses, so batch 5 is the blind measurement after those fixes. The rule, in [`eval/draws/batch-5.json`](../eval/draws/batch-5.json), is batch 4's with three changes:
+- **Same strata, queries, and quota** (`react-express`, `nextjs-prisma`, 8 pins each), so batch 5 describes the same population as batch 4. Before committing, only the totals were read (291 and 305 on 2026-11-05), both under the 1,000-result cap.
+- **Seed** `2026-11-05`, the day the rule was committed.
+- **Exclusions in the rule** (inclusion rule 1, now written down before the pool is seen): `exclude` names 278 repos, each with why: the 28 in `repos.json` (original set, batches 1–4), every candidate read and not pinned for an earlier batch (5 for batches 1–3 listed above, batch 4's 19 rejections, and the 2 `react-express` candidates it read past its quota), and every repo named in `docs/usage/` (code-search hits read or analyzed while M5C.1–M5C.7 fixes were designed; 224). `draw` drops them from each pool before the seeded shuffle, so the walk never meets one; the snapshot still records the whole result set. `validate` fails the list if it misses a `repos.json` repo of the original set or an earlier batch, or a candidate in an earlier draw record.
+- **Unchanged:** the pool snapshot, the walk (no skipping, stop at 8 pins), and inclusion rules 2–5. Labels are committed with each pin's `repos.json` entry (`"heldOut": 5`, batch 5 `"seen": null`) before the analyzer first runs on it (M5C.8b), and the batch is scored once (M5C.8c), with precision ≥ 95% the number that has to hold.
+
 The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MIT-licensed React + Express apps, read but never analyzed):
 
 | Candidate | How it calls its API | Source files | Status |

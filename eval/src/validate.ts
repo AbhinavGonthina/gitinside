@@ -16,7 +16,11 @@ try {
   const problems = [
     ...crossCheck(inputs),
     ...draws.flatMap(({ file, draw }) =>
-      drawCrossCheck(draw, inputs.repos).map((p) => `draws/${file}: ${p}`),
+      drawCrossCheck(
+        draw,
+        inputs.repos,
+        draws.map((d) => d.draw),
+      ).map((p) => `draws/${file}: ${p}`),
     ),
   ];
   for (const p of problems) console.error(`  - ${p}`);

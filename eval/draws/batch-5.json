@@ -1,0 +1,1133 @@
+{
+  "batch": 5,
+  "seed": "2026-11-05",
+  "perStratum": 8,
+  "exclude": [
+    {
+      "repo": "414ND1N/Micho",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "a-type/verdant",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "a8hok/React-projects",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Achuan-2/siyuan-plugin-childdoc-organizer",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "Achuan-2/siyuan-plugin-highlight-cloze",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "Achuan-2/siyuan-plugin-imgReEditor",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "adhimrahman/SpotitipV2",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "aelassas/bookcars",
+      "why": "rejected for the original set"
+    },
+    {
+      "repo": "ag-grid/ag-grid-demos",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "agentteams-group/agentteams-dashboard",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "AI45Lab/iDeer",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "akhilreddy59/NotesNest",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "akhilreddy59/NotesNest-FullStack",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "aliasvault/aliasvault",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Ameobea/web-synth",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "AminoJS/Amino.JS",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "ar5had/ecommerce-site-template",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "ARITRA69/snapshotyourwebsite",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "arktypeio/arktype",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "arqex/react-datetime",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "aureliushq/catalystui",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "autobrr/netronome",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Avinash905/Recipen",
+      "why": "batch 3"
+    },
+    {
+      "repo": "axelor/axelor-open-platform",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "bacchus-snu/id-front",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "barryhughes1/pluralSightQuestionnaires_LWCs",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "BeatLeader/BeatSaber-Web-Replays",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "BitskiCo/bitski-js",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "Blinks44/moduix",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "blockscout/blockscout-merits-website",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "bradtraversy/proshop-v2",
+      "why": "rejected for batch 3"
+    },
+    {
+      "repo": "by-be-young/tutor-base",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "ByteLan/DogeBot",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "camthink-ai/NeoMind",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "cbothner/react-activestorage-provider",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "chrispyers/openkiwi",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "christian-fei/my-yt",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "clholgat/ayab-valdi",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "cloud-gov/pages-core",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "CNVioletTech/image2-ai",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "codercup/unibest",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "coldbox-modules/cbwire",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "context-labs/aella-data-explorer",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "crbnos/carbon",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "cropflre/NOWEN",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "crypto-com/chain-desktop-wallet",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "cvzi/telegram-bot-cloudflare",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "cyyynthia/pronoundb.org",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "databricks/app-templates",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "databricks/appkit",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "developersdigest/llm-api-engine",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "devhims/youtube-caption-extractor",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "dfinity/ic-docutrack",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "dmajic00/PekaraZ",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "domw95/azul-tiles",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "dremio/dremio-oss",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "drodzewicz/Work-Flow",
+      "why": "rejected for the original set"
+    },
+    {
+      "repo": "egoist/vitekit",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "elastic/kibana",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Elise-Wong/bc2412-sb",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "emergentvibe/platform",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "entropyconquers/simfleet",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "epicweb-dev/react-performance",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "EternityBots/Nezuko",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "ethui/ethui",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "event-catalog/eventcatalog",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Evil0ctal/Douyin_TikTok_Download_API",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "evoluteur/evolutility-ui-react",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "famotime/siyuan-canvas",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "fariasmateuss/tindev",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "fcsonline/family-map",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "fiveman1/strafes-site",
+      "why": "batch 4"
+    },
+    {
+      "repo": "fluse/rcon-io",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "formbricks/formbricks",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Foveluy/Luy",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "franklioxygen/MyTube",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "funmaker/Hybooru",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "fwerkor/local-shell-mcp",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "Global-Software-Consulting/project-scaffolding-skills",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "google/android-emulator-container-scripts",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "gruz0/checkmvp",
+      "why": "batch 4"
+    },
+    {
+      "repo": "Gthulhu/Gthulhu",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "gunnartorfis/sonner-native-toasts",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "gurkanyakar/x-clone-react",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "GuruUpdesh/taskly",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "handsontable/handsontable",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "harundogdu/twitter-clone",
+      "why": "batch 2"
+    },
+    {
+      "repo": "Hazyzh/jest-html-reporters",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "hikerpig/pintora",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "hoangsonww/Tic-Tac-Toe-Fullstack-Game",
+      "why": "batch 4"
+    },
+    {
+      "repo": "hoangsonww/WealthWise-Finance-Tracker",
+      "why": "original set"
+    },
+    {
+      "repo": "hofstadter-io/hof",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "HomeRiz/hats",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "hopsoft/turbo_boost-commands",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "HousseinSA/LandOfMovies",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "hua1995116/react-resume-site",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "huangwc94/scraping-helper-chrome-extension",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "hunvreus/pagescms",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Hyperlite-hv/Hyperlite",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "hyperstackjs/hyperstack",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "hypothesi/mcp-server-tauri",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "ibr0r0/apeeye",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "Ibragimm228/realtimechat",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "icon-project/iconex_chrome_extension",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "ihexxa/quickshare",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "innovatorved/nexttalk-frontend",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "itark/frosk-dashboard",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Itz-Ashlynn/ChatGPT",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Itz-Murali/Elaina-Ai",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "JananiDevchand/MCP-WITH-UI",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "jgudo/foodie",
+      "why": "original set"
+    },
+    {
+      "repo": "jigar-sable/instagram-mern",
+      "why": "batch 4"
+    },
+    {
+      "repo": "jjsvs/Hashcat-Reactor",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "JKc66/whats_recall",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "jmbruel/toha",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "jogeshwar01/tesior-web",
+      "why": "batch 4"
+    },
+    {
+      "repo": "Jonath-z/assistant-deBot",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "jonesphillip/weft",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "joshwcomeau/waveforms",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "jossmac/react-images",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "jovdim/next-auth-template",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "jsevenheck/game-platform",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "karanshukla/openresto",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "kenshoo/react-tree",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "kriasoft/react-app",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "krishnaacharyaa/wanderlust",
+      "why": "original set"
+    },
+    {
+      "repo": "kryptokinght/react-extension-boilerplate",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "KuekHaoYang/KVideo",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "labradorwelander477/Entaai-UI",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "larsderidder/tether",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "lb08111/nexora-ai-platform",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Leo-Ayh-Oday/ahy-governance",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "lightyen/typescript-paths",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "Lila-Kuhlt/mister-x",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "linagora/openrag",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "LloydAsp/nfd",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "LookJohnny/soulForge",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "loonghfut/siyuan-steve-tools",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "LuanRT/BgUtils",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "lundegaard/react-union",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "luqin2007/siyuan-reference-code-block-plugin",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "lusess123/web-pdm",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "MananGandhi1810/online-ide",
+      "why": "batch 1"
+    },
+    {
+      "repo": "maxmind/GeoIP2-node",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "mayankagarwal09/dev-portfolio",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "mbsantiago/whombat",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "metabase/metabase",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "mhsattarian/archillect-api",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "MichaelMedford/michaelmedford.github.io",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "mikialex/artgl",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "mishushakov/expo-vibe",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "mlwmlw/pcc",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "mmazzarolo/ordinary-puzzles-app",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "mmontag/chip-player-js",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "modelscope/sirchmunk",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "mozilla/fxa",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "mugenoesis/Trident",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "muni-town/weird",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "MuYunyun/reactSPA",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "myminethealmighty/scraper",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "Nanjiren01/AIChatWeb",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "nateherkai/snagtime",
+      "why": "batch 4"
+    },
+    {
+      "repo": "naver/egjs-conveyer",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "naver/egjs-infinitegrid",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "ncounterspecialist/twick",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "NeKonnnn/Astra-Studio",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "nemanjam/nextjs-prisma-boilerplate",
+      "why": "batch 2"
+    },
+    {
+      "repo": "neroneroffy/react-source-code-debug",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "nidhish-nayak/trendz",
+      "why": "batch 3"
+    },
+    {
+      "repo": "nirholas/cryptocurrency.cv",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "nirholas/three.ws",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "nlr-ai/swarm-launchpad",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "notakto/notakto-website",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "nstudio/xplat",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "Oasis-Enterprise/mylo",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "OneCommunityGlobal/HighestGoodNetworkApp",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "opbru/DBMS_project",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "ory/polis",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "pankil-soni/conversa",
+      "why": "original set"
+    },
+    {
+      "repo": "panshak/accountill",
+      "why": "batch 4"
+    },
+    {
+      "repo": "pie6k/codablejson",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "pizzaql/pizzaql",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "pnzaou/mern-starter-cli",
+      "why": "batch 4"
+    },
+    {
+      "repo": "polkadot-js/apps",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "powercord-org/powercord-backend",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "prasadhonrao/devcamper",
+      "why": "batch 4"
+    },
+    {
+      "repo": "prateek-chaubey/YTPro",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Prathamesh-B/notx",
+      "why": "batch 4"
+    },
+    {
+      "repo": "premieroctet/next-crud",
+      "why": "batch 4"
+    },
+    {
+      "repo": "Privoce/vocechat-web",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "projectwallace/wallace-cli",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "QalaTech/speki",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "ralsina/grafito",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "react-zero-ui/core",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "reloadlife/agents",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "REVENGE977/stremio-enhanced",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "RishiBakshii/mern-ecommerce",
+      "why": "batch 1"
+    },
+    {
+      "repo": "rive-app/rive-react-native",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "RMSGMatt/Styling-",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "rocambille/start-express-react",
+      "why": "read past batch 4's quota"
+    },
+    {
+      "repo": "royp888/sola-bot",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "Runfusion/Fusion",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "ryokun6/ryos",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "salte-auth/salte-auth",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "sanyuan0704/react-cloud-music",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "sguimmara/hammerhead.gl",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "shadcn-ui/taxonomy",
+      "why": "original set"
+    },
+    {
+      "repo": "shamahoque/mern-social",
+      "why": "batch 1"
+    },
+    {
+      "repo": "shanhuiyang/TypeScript-MERN-Starter",
+      "why": "rejected for the original set"
+    },
+    {
+      "repo": "shiguredo/sora-js-sdk",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "Shreyas-29/cura",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "sidsagwekar16/RepairRequest",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "sidsagwekar16/RepairRequest-latest-fork",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "Simirall/milistenna",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "SimonBlancoE/discographic",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "SmirnovaOyama/Smirnova-wellbeing",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "Soham7-dev/AspGoat",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "srizzon/git-city",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "streamyfin/streamyfin",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "SujalXplores/v0.diy",
+      "why": "batch 4"
+    },
+    {
+      "repo": "suryansh00001/IceLink",
+      "why": "batch 4"
+    },
+    {
+      "repo": "sync-different/alt-core",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "synthetic-sciences/openscience",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "tabbied-design/tabbied",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "TADI-I/Enviro365",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "tako0614/ide",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "Tanaka0127939/Shopify-Nextjs-Prisma-app",
+      "why": "batch 4"
+    },
+    {
+      "repo": "taotao7/FrameBaker",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "taskcluster/taskcluster",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "tauseef-zc/walkwise-frontend",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "tech-conferences/confs.tech",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "tegojs/tego",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "templetongroup/radiant",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "TerraFirmaCraft/Field-Guide",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "thedaviddias/llms-txt-hub",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "thenewboston-blockchain/Account-Manager",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "ThePredictiveDev/Automated-Financial-Market-Trading-System",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "TheToxProject/client",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "thinakaranmanokaran/LinkSet",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "TicTacToe-Remastered/tic-tac-toe-2.0",
+      "why": "read past batch 4's quota"
+    },
+    {
+      "repo": "tkturners/Minimal_TypeScript",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "tolitius/baymax",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "tonkeeper/tonapi-js",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "tt-a1i/chat_edit",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "umijs/tnf",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "UniAIStudio2048/bananaapiboard",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "velopert/velog-client",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "VictorMoni/Conduit",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "viczenith/ConseQ-X-landing",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "vijayshikhare/community-resource-board",
+      "why": "batch 4"
+    },
+    {
+      "repo": "Vincedream/ddd-fe-demo",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "vincenzo-afk/CHAT",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "vincenzo-afk/FortunoGen",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "vladmandic/sdnext",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "VrtxOmega/coded",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "wangwei-ying3/ming-salvage-sim",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "weiesky/cc-viewer",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "wenerme/wener",
+      "why": "named in docs/usage/2026-11-05-workspace-roots.json"
+    },
+    {
+      "repo": "what-works-global/payload-packages",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "Will-Luck/iplayer-arr",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "woai3c/tan-cli",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "workforce0/workforce0",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "wrujel/airbnb-clone",
+      "why": "batch 4"
+    },
+    {
+      "repo": "xanimos/feedback-forge",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "XiaomiMiMo/MiMo-Code",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "xn030523/cpa-clean",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "xpsony/UmlautAdaptarrEX",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "yagisumi/node-simple-buffer-reader",
+      "why": "named in docs/usage/2026-11-05-nested-configs.json"
+    },
+    {
+      "repo": "yash2607-del/MediChain",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "yezihaohao/react-admin",
+      "why": "named in docs/usage/2026-11-05-js-global-assignment.json"
+    },
+    {
+      "repo": "Yoast/wordpress-seo",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "yoshiko-pg/difit",
+      "why": "named in docs/usage/2026-11-05.json"
+    },
+    {
+      "repo": "YOUSSEF-BT/Ai-Summarizer",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "yudinikita/expense-tracker",
+      "why": "rejected for batch 4"
+    },
+    {
+      "repo": "zayarlyn/jira-clone",
+      "why": "rejected for batch 3"
+    },
+    {
+      "repo": "zerob13/mock-openai-api",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "ZhiweiChen-coder/OpenAshare",
+      "why": "named in docs/usage/2026-11-05-wrapper-chains.json"
+    },
+    {
+      "repo": "zhuohanl/multi-agent-travel-planner-a2a-interop",
+      "why": "named in docs/usage/2026-11-05.json"
+    }
+  ],
+  "strata": [
+    {
+      "name": "react-express",
+      "query": "topic:react topic:express license:mit fork:false archived:false stars:>=5 size:<=30000 pushed:>=2024-01-01",
+      "pool": null,
+      "examined": []
+    },
+    {
+      "name": "nextjs-prisma",
+      "query": "topic:nextjs topic:prisma license:mit fork:false archived:false stars:>=5 size:<=30000 pushed:>=2024-01-01",
+      "pool": null,
+      "examined": []
+    }
+  ]
+}
