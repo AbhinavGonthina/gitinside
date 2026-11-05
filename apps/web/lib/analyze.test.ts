@@ -36,7 +36,7 @@ import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
 import { fakeTaskQueue } from "./google.testkit";
 import { MAX_GITHUB_CODE_BYTES } from "./codeSize";
-import { pausedMessage, sizeHoldMessage, tooMuchCodeMessage } from "./jobs";
+import { failureView, pausedMessage, sizeHoldMessage, tooMuchCodeMessage } from "./jobs";
 
 const SHA = "e".repeat(40);
 const VERSION = "0.1.0";
@@ -289,6 +289,47 @@ describe("requestAnalysis", () => {
     expect(await analysisRows()).toEqual([{ status: "queued", sha: SHA, errorCode: null }]);
     expect(tasks.google.tasks).toHaveLength(1);
     expect(await slotsUsed()).toBe(1);
+  });
+
+  describe("a commit that failed permanently isn't queued again (R8)", () => {
+    async function failedWith(code: string, hoursAgo = 1) {
+      const { id } = await doneAnalysis();
+      await failAnalysis(t.db, id, code);
+      await t.db.update(analyses).set({ finishedAt: new Date(Date.now() - hoursAgo * 3_600_000) });
+    }
+
+    it("refuses it with the job page's reason, using nothing", async () => {
+      for (const code of ["TAR_INVALID", "TAR_UNSAFE_PATH"]) {
+        await t.db.delete(analyses);
+        await failedWith(code);
+        expect(await requestAnalysis("acme/shop", IP, deps), code).toEqual({
+          status: 422,
+          body: { error: "ANALYSIS_FAILED", message: failureView(code).message },
+        });
+        expect(await analysisRows()).toEqual([{ status: "failed", sha: SHA, errorCode: code }]);
+      }
+      expect(tasks.google.requests).toEqual([]);
+      expect(await slotsUsed()).toBe(0);
+      expect(await claimOf(SHOP.id)).toBeUndefined();
+    });
+
+    it("refuses a commit that hit a limit once the repo's 7-day hold is over", async () => {
+      await failedWith("LIMIT_FILES", 8 * 24);
+      expect(await requestAnalysis("acme/shop", IP, deps)).toEqual({
+        status: 422,
+        body: { error: "ANALYSIS_FAILED", message: failureView("LIMIT_FILES").message },
+      });
+      expect(tasks.google.requests).toEqual([]);
+    });
+
+    it("retries a commit GitHub refused before, now that it serves the repo again", async () => {
+      for (const code of ["REPO_NOT_FOUND", "REPO_NOT_PUBLIC", "REPO_UNAVAILABLE"]) {
+        await t.db.delete(analyses);
+        await t.db.update(repos).set({ analysisClaimSha: null, analysisClaimedAt: null });
+        await failedWith(code);
+        expect((await requestAnalysis("acme/shop", IP, deps)).status, code).toBe(202);
+      }
+    });
   });
 
   describe("a repo that was too big (#11)", () => {
@@ -661,7 +702,7 @@ describe("requestAnalysis", () => {
     expect(await slotsUsed()).toBe(1);
   });
 
-  it("rethrows errors that aren't the queue being unavailable", async () => {
+  it("rethrows errors that aren't the queue being unavailable, giving the slot and claim back (R7)", async () => {
     const broken: AnalyzeDeps["queue"] = {
       createTask: async () => {
         throw new Error("bug");
@@ -670,6 +711,9 @@ describe("requestAnalysis", () => {
     await expect(requestAnalysis("acme/shop", IP, { ...deps, queue: broken })).rejects.toThrow(
       "bug",
     );
+    expect(await slotsUsed()).toBe(0);
+    expect(await claimOf(SHOP.id)).toBeUndefined();
+    expect((await requestAnalysis("acme/shop", "198.51.100.9", deps)).status).toBe(202);
   });
 
   it("refuses bad URLs and unknown repos before touching the database", async () => {
@@ -707,7 +751,7 @@ describe("requestAnalysis, the bot check (M5.18e, ADR-0157)", () => {
   beforeEach(() => {
     tokens = [];
     verdict = "passed";
-    deps.botCheckClock = () => AT;
+    deps.rateLimitClock = () => AT;
     deps.botCheck = {
       siteKey: "0x4AAA",
       verify: async (token) => {
@@ -783,6 +827,44 @@ describe("requestAnalysis, the bot check (M5.18e, ADR-0157)", () => {
     expect(await requestAnalysis("acme/other", "198.51.100.2", deps)).toMatchObject({
       status: 403,
       body: { error: "CHALLENGE_REQUIRED", message: challengeMessage("site") },
+    });
+  });
+
+  describe("a parallel burst is counted before it's let through (R6)", () => {
+    const OTHERS = ["1", "2", "3"].map((c, i) => ({
+      id: 300 + i,
+      owner: "acme",
+      name: `r${i}`,
+      sha: c.repeat(40),
+    }));
+    const burst = (addresses: string[]) => {
+      gh = fakeGitHub(OTHERS);
+      deps.github = { fetch: gh.fetch };
+      return Promise.all(addresses.map((a, i) => requestAnalysis(`acme/r${i}`, a, deps)));
+    };
+
+    it("from one address: only the requests under its threshold skip the check", async () => {
+      await t.db.insert(rateLimits).values({
+        key: rateLimitKey(SECRET, IP),
+        windowStart: HOUR_START,
+        count: CHALLENGE_AFTER_PER_ADDRESS - 1,
+      });
+      const answers = await burst([IP, IP, IP]);
+      expect(answers.map((a) => a.status).sort()).toEqual([202, 403, 403]);
+      expect(tasks.google.tasks).toHaveLength(1);
+      // The refused two gave their slots back.
+      expect(await slotsUsed()).toBe(CHALLENGE_AFTER_PER_ADDRESS);
+    });
+
+    it("across addresses: only the requests under the site's threshold skip the check", async () => {
+      await t.db.insert(rateLimits).values({
+        key: SITE_ANALYZE_KEY,
+        windowStart: HOUR_START,
+        count: CHALLENGE_AFTER_SITE - 1,
+      });
+      const answers = await burst(["198.51.100.1", "198.51.100.2", "198.51.100.3"]);
+      expect(answers.map((a) => a.status).sort()).toEqual([202, 403, 403]);
+      expect(tasks.google.tasks).toHaveLength(1);
     });
   });
 
