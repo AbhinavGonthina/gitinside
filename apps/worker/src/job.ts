@@ -57,15 +57,29 @@ export interface RecordedJob {
 }
 
 /**
+ * What {@link processJob} throws when the recorder's start finds the job's row already `done`
+ * (R9, second M5 review): a duplicate push that `POST /run`'s own `done` check missed (a
+ * race, or a failed lookup). Not a failure: nothing is downloaded, run, published, or
+ * recorded, and the attempt succeeds with nothing to do (attempt.ts).
+ */
+export class JobAlreadyDone extends Error {
+  constructor() {
+    super("the job's analysis is already done");
+    this.name = "JobAlreadyDone";
+  }
+}
+
+/**
  * Records each attempt in Postgres (record.ts; ADR-0063). `publish` marks the analysis done;
  * the recorder handles the rest of its lifecycle.
  */
 export interface JobRecorder {
   /**
    * Before the download: look the repo up on GitHub, upsert it, mark the analysis running
-   * as job `jobId` (ADR-0139).
+   * as job `jobId` (ADR-0139). `"done"` if its row is already `done` (final, left as it is):
+   * the job stops there with {@link JobAlreadyDone}.
    */
-  start(request: JobRequest, signal: AbortSignal, jobId: string): Promise<RecordedJob>;
+  start(request: JobRequest, signal: AbortSignal, jobId: string): Promise<RecordedJob | "done">;
   /** After a failed attempt: `final` marks the analysis failed, otherwise queued again. */
   failed(job: RecordedJob, code: string, final: boolean): Promise<void>;
   /**
@@ -176,13 +190,16 @@ async function fetchSource(
     context.signal === undefined ? timeout : AbortSignal.any([context.signal, timeout]);
   try {
     if (deps.recorder !== undefined) {
-      attempt.record = await deps.recorder.start(context.request, signal, context.id);
+      const record = await deps.recorder.start(context.request, signal, context.id);
+      if (record === "done") throw new JobAlreadyDone();
+      attempt.record = record;
     }
     const { owner, repo, sha } = context.request;
     const body = await openTarball({ owner, repo, sha }, { ...deps.download, signal });
     await context.onStage?.("extract");
     return await extractTarball(body, dest, { limits: deps.extractLimits ?? {} });
   } catch (error) {
+    if (error instanceof JobAlreadyDone) throw error;
     if (context.signal?.aborted) throw new JobFailure("CANCELLED", "cancelled while downloading");
     if (timeout.aborted) throw new JobFailure("DOWNLOAD_TIMEOUT", "download budget exceeded");
     if (error instanceof JobFailure) throw error;
@@ -193,8 +210,8 @@ async function fetchSource(
 }
 
 /**
- * Run one job. Resolves with its {@link JobOutcome} or throws a {@link JobFailure};
- * the job folder is gone either way.
+ * Run one job. Resolves with its {@link JobOutcome} or throws a {@link JobFailure} (or
+ * {@link JobAlreadyDone}, before any download); the job folder is gone either way.
  */
 export async function processJob(context: JobContext, deps: JobDeps): Promise<JobOutcome> {
   // The ID names a folder; `POST /run` derives it, but check before touching the disk.

@@ -28,7 +28,8 @@ import {
  *   ID, current name, visibility, and default branch; the repo is upserted and the analysis
  *   marked `running`. A **private repo on a job without an installation is refused**
  *   (`REPO_NOT_PUBLIC`): the worker's token may be able to read it, but it must never reach
- *   the public cache.
+ *   the public cache. A row that's already `done` stays as it is and the start answers
+ *   `"done"`, so the job stops before the download (R9).
  * - **publish = bucket, then Postgres:** the snapshot is uploaded first and the row marked `done`
  *   only after the bucket acknowledged it, so a `done` row always has its object. If the
  *   database write fails, the attempt is retried and the upload repeats under the same
@@ -68,7 +69,7 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
     request: JobRequest,
     signal: AbortSignal,
     jobId: string,
-  ): Promise<RecordedJob> {
+  ): Promise<RecordedJob | "done"> {
     const facts = await fetchRepoFacts(
       { owner: request.owner, repo: request.repo },
       { ...options.github, signal },
@@ -85,12 +86,13 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
         visibility,
         defaultBranch: facts.defaultBranch,
       });
-      const { id: analysisId } = await startAnalysis(
+      const started = await startAnalysis(
         db,
         { repoId, sha: request.sha, analyzerVersion },
         { jobId },
       );
-      return { analysisId, repoId, visibility, owner: facts.owner, name: facts.name };
+      if (started.status === "done") return "done";
+      return { analysisId: started.id, repoId, visibility, owner: facts.owner, name: facts.name };
     } catch (error) {
       throw new JobFailure("RECORD_FAILED", "writing the job's start failed", { cause: error });
     }
