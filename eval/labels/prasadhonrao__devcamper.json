@@ -1,0 +1,319 @@
+{
+  "repo": "prasadhonrao/devcamper",
+  "sha": "883b5213057396c80c4317d727023f0915c60289",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["src/webapi", "src/webapp"],
+  "edges": [
+    {
+      "callSite": { "file": "src/webapp/src/services/adminService.js", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/admin.js",
+        "line": 14,
+        "route": "GET /api/v1/admin/users"
+      },
+      "notes": "getUsers(): uri = await fetchApiEndPoint(`/admin/users`), then fetch(uri). fetchApiEndPoint (src/webapp/src/utils/configService.js) only builds a string, `${config.react_app_devcamper_base_api_uri}${endpoint}`, so the URL is fixed in this function and the label is at the fetch. The base comes from the committed src/webapp/public/config/config.json, fetched at runtime: development 'http://localhost:5000/api/v1' (src/webapi/server.js PORT defaults to 5000; src/webapi/.env.example port=5000), production 'http://devcamper.webapi/api/v1', which deploy/k8s/*/network/ingress.yaml routes (host devcamper.webapi) to devcamper-webapi-service:5000 running the webapi image; both name this repo's server. server.js mounts home at /api/v1, then bootcamps, courses, reviews, user, admin at /api/v1/<name>; routers use router.route(path).<method>(...) chains (route line = the method call)"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/adminService.js", "line": 15 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/admin.js",
+        "line": 15,
+        "route": "GET /api/v1/admin/users/:id"
+      },
+      "notes": "getUser(): `/admin/users/${id}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/adminService.js", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "src/webapi/routes/admin.js",
+        "line": 14,
+        "route": "POST /api/v1/admin/users"
+      },
+      "notes": "createUser(): fetch(uri, { method: 'POST' }) for `/admin/users`; .post(createUser) on the same line as .get"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/adminService.js", "line": 39 },
+      "method": "PUT",
+      "target": {
+        "file": "src/webapi/routes/admin.js",
+        "line": 15,
+        "route": "PUT /api/v1/admin/users/:id"
+      },
+      "notes": "updateUser(): PUT `/admin/users/${id}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/adminService.js", "line": 54 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/webapi/routes/admin.js",
+        "line": 15,
+        "route": "DELETE /api/v1/admin/users/:id"
+      },
+      "notes": "deleteUser(): DELETE `/admin/users/${id}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/bootcampService.js", "line": 8 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/bootcamps.js",
+        "line": 44,
+        "route": "GET /api/v1/bootcamps"
+      },
+      "notes": "getBootcamps(): fetchApiEndPoint(`/bootcamps${query}`), query '' or `?select=...` (dropped); base from public/config/config.json as in adminService.js. router.route('/').get(...) chain (.get on line 44). home's GET '/' at /api/v1 matches only /api/v1 itself"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/bootcampService.js", "line": 18 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/bootcamps.js",
+        "line": 32,
+        "route": "GET /api/v1/bootcamps/publisher/:publisherId"
+      },
+      "notes": "getBootcampsByPublisher(): `/bootcamps/publisher/${publisherId}`. The earlier router.use('/:bootcampId/courses') and use('/:bootcampId/reviews') need a literal second segment, so they don't match"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/bootcampService.js", "line": 29 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/bootcamps.js",
+        "line": 54,
+        "route": "GET /api/v1/bootcamps/:id"
+      },
+      "notes": "getBootcamp(): `/bootcamps/${id}`; router.route('/:id').get(getBootcamp)"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/bootcampService.js", "line": 38 },
+      "method": "POST",
+      "target": {
+        "file": "src/webapi/routes/bootcamps.js",
+        "line": 51,
+        "route": "POST /api/v1/bootcamps"
+      },
+      "notes": "createBootcamp(): POST `/bootcamps`; router.route('/') chain's .post on line 51"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/bootcampService.js", "line": 53 },
+      "method": "PUT",
+      "target": {
+        "file": "src/webapi/routes/bootcamps.js",
+        "line": 55,
+        "route": "PUT /api/v1/bootcamps/:id"
+      },
+      "notes": "updateBootcamp(): PUT `/bootcamps/${id}`. PUT /:id/photo (line 31) has two segments, so it doesn't match"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/bootcampService.js", "line": 68 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/webapi/routes/bootcamps.js",
+        "line": 56,
+        "route": "DELETE /api/v1/bootcamps/:id"
+      },
+      "notes": "deleteBootcamp(): DELETE `/bootcamps/${id}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/bootcampService.js", "line": 79 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/bootcamps.js",
+        "line": 30,
+        "route": "GET /api/v1/bootcamps/radius/:zipcode/:distance"
+      },
+      "notes": "getBootcampsInRadius(): `/bootcamps/radius/${zipcode}/${distance}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/bootcampService.js", "line": 88 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/courses.js",
+        "line": 11,
+        "route": "GET /api/v1/bootcamps/:bootcampId/courses"
+      },
+      "notes": "getCoursesByBootcampId(): `/bootcamps/${bootcampId}/courses`. bootcamps.js line 26 re-routes '/:bootcampId/courses' into the courses router (mergeParams), registered before every bootcamps route, so its router.route('/').get(...) (line 11) handles it"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/courseService.js", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/courses.js",
+        "line": 11,
+        "route": "GET /api/v1/courses"
+      },
+      "notes": "getCourses(): `/courses`; base from public/config/config.json as in adminService.js. courses router mounted directly at /api/v1/courses in server.js (it is also nested under bootcamps)"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/courseService.js", "line": 15 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/courses.js",
+        "line": 21,
+        "route": "GET /api/v1/courses/:id"
+      },
+      "notes": "getCourse(): `/courses/${courseId}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/courseService.js", "line": 24 },
+      "method": "POST",
+      "target": null,
+      "notes": "createCourse(): POST `/courses/bootcamps/${bootcampId}/` = /api/v1/courses/bootcamps/:x. The courses router at /api/v1/courses has only '/' and '/:id' (one segment), and nothing else is mounted there, so no route matches (404). The real route is POST /api/v1/bootcamps/:bootcampId/courses, which the client doesn't call"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/courseService.js", "line": 40 },
+      "method": "PUT",
+      "target": {
+        "file": "src/webapi/routes/courses.js",
+        "line": 22,
+        "route": "PUT /api/v1/courses/:id"
+      },
+      "notes": "updateCourse(): PUT `/courses/${courseId}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/courseService.js", "line": 55 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/webapi/routes/courses.js",
+        "line": 23,
+        "route": "DELETE /api/v1/courses/:id"
+      },
+      "notes": "deleteCourse(): DELETE `/courses/${courseId}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/reviewService.js", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/reviews.js",
+        "line": 11,
+        "route": "GET /api/v1/bootcamps/:bootcampId/reviews"
+      },
+      "notes": "getReviewsByBootcamp(): `/bootcamps/${bootcampId}/reviews`; base from public/config/config.json as in adminService.js. bootcamps.js line 27 re-routes '/:bootcampId/reviews' into the reviews router (mergeParams), registered before the bootcamps routes, so its router.route('/').get(...) (line 11) handles it"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/reviewService.js", "line": 15 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/reviews.js",
+        "line": 11,
+        "route": "GET /api/v1/reviews"
+      },
+      "notes": "getReviews(): `/reviews`; reviews router mounted at /api/v1/reviews"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/reviewService.js", "line": 24 },
+      "method": "GET",
+      "target": {
+        "file": "src/webapi/routes/reviews.js",
+        "line": 22,
+        "route": "GET /api/v1/reviews/:id"
+      },
+      "notes": "getReview(): `/reviews/${id}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/reviewService.js", "line": 33 },
+      "method": "POST",
+      "target": {
+        "file": "src/webapi/routes/reviews.js",
+        "line": 18,
+        "route": "POST /api/v1/reviews"
+      },
+      "notes": "createReview(): POST `/reviews`; reaches the route (line 18), though addReview reads req.params.bootcampId, which is unset on this mount"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/reviewService.js", "line": 48 },
+      "method": "PUT",
+      "target": {
+        "file": "src/webapi/routes/reviews.js",
+        "line": 23,
+        "route": "PUT /api/v1/reviews/:id"
+      },
+      "notes": "updateReview(): PUT `/reviews/${id}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/reviewService.js", "line": 63 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/webapi/routes/reviews.js",
+        "line": 24,
+        "route": "DELETE /api/v1/reviews/:id"
+      },
+      "notes": "deleteReview(): DELETE `/reviews/${id}`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/userService.js", "line": 7 },
+      "method": "POST",
+      "target": {
+        "file": "src/webapi/routes/user.js",
+        "line": 16,
+        "route": "POST /api/v1/user/register"
+      },
+      "notes": "register(): POST `/user/register`; base from public/config/config.json as in adminService.js. user router mounted at /api/v1/user"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/userService.js", "line": 22 },
+      "method": "POST",
+      "target": {
+        "file": "src/webapi/routes/user.js",
+        "line": 17,
+        "route": "POST /api/v1/user/login"
+      },
+      "notes": "login(): POST `/user/login`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/userService.js", "line": 37 },
+      "method": "GET",
+      "target": null,
+      "notes": "logout(): fetch(uri, { method: 'GET' }) for `/user/logout`, but user.js line 18 registers /logout for POST only, and no other router has a GET for /api/v1/user/logout, so no route matches (404)"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/userService.js", "line": 49 },
+      "method": "GET",
+      "target": null,
+      "notes": "getMe(): GET `/user/getMe`; the server's route is /me (user.js line 19), and no route matches /api/v1/user/getMe (404)"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/userService.js", "line": 63 },
+      "method": "POST",
+      "target": {
+        "file": "src/webapi/routes/user.js",
+        "line": 22,
+        "route": "POST /api/v1/user/forgotpassword"
+      },
+      "notes": "forgotPassword(): POST `/user/forgotpassword`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/userService.js", "line": 78 },
+      "method": "PUT",
+      "target": null,
+      "notes": "resetPassword(): PUT `/user/resetpassword` with no token segment; the only route is /resetpassword/:resettoken (user.js line 23), which needs one, so no route matches (404)"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/userService.js", "line": 94 },
+      "method": "PUT",
+      "target": {
+        "file": "src/webapi/routes/user.js",
+        "line": 20,
+        "route": "PUT /api/v1/user/updatedetails"
+      },
+      "notes": "updateDetails(): PUT `/user/updatedetails`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/services/userService.js", "line": 110 },
+      "method": "PUT",
+      "target": {
+        "file": "src/webapi/routes/user.js",
+        "line": 21,
+        "route": "PUT /api/v1/user/updatepassword"
+      },
+      "notes": "updatePassword(): PUT `/user/updatepassword`"
+    },
+    {
+      "callSite": { "file": "src/webapp/src/utils/configService.js", "line": 4 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchConfig(): fetch('/config/config.json'), root-relative to the web app's own origin: a static file in src/webapp/public/config/ (in k8s, a ConfigMap mounted at /app/build/config/config.json), not a route"
+    }
+  ]
+}

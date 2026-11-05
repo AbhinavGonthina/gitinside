@@ -127,6 +127,26 @@
       "heldOut": 4
     },
     {
+      "owner": "pnzaou",
+      "name": "mern-starter-cli",
+      "url": "https://github.com/pnzaou/mern-starter-cli",
+      "sha": "0ac0fabd3c686db6d755bf2f8f150ed11065987c",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 4 (M5C.5b2, drawn in stratum react-express). A scaffolding CLI (bin/cli.js, which sends no requests of its own) whose templates/ hold a Vite React client and a TS Express server, with no per-template package.json. The client calls one axios instance (templates/client/src/lib/axios.js, baseURL `${VITE_API_URL || 'http://localhost:5000'}/api/v1`, the fallback matching env.example.txt and the server's PORT default 5000) through an authAPI object of one-line wrappers, plus a refreshSession() helper with its path fixed inside it; a 401 interceptor re-sends the failed request with api(request), which isn't a call site. The server mounts appRouter at /api/v1 and authRouter under it at /auth (one registration spans several lines); the admin routes are never called. Server tests use supertest and email goes through the Resend SDK (neither labeled). ~67 TS/JS source files.",
+      "heldOut": 4
+    },
+    {
+      "owner": "prasadhonrao",
+      "name": "devcamper",
+      "url": "https://github.com/prasadhonrao/devcamper",
+      "sha": "883b5213057396c80c4317d727023f0915c60289",
+      "license": "MIT",
+      "shape": "env-api-urls",
+      "why": "Held out, batch 4 (M5C.5b2, drawn in stratum react-express). A CRA React client (src/webapp) whose services each do `const uri = await fetchApiEndPoint(path); fetch(uri, …)`: the helper only joins the path to a base read at runtime from the committed public/config/config.json (development http://localhost:5000/api/v1, the Express server's PORT fallback; production http://devcamper.webapi/api/v1, which the repo's k8s ingress routes to the webapi service), so the URL is fixed in each service function. A JS Express API (src/webapi) mounts six routers under /api/v1 with router.route(path) chains split across lines, and nests the courses and reviews routers under /bootcamps/:bootcampId (mergeParams) while also mounting them directly. Four client requests match no route (POST /courses/bootcamps/:id/, GET on the POST-only /user/logout, /user/getMe vs the server's /me, /user/resetpassword without its token), and the config.json fetch is a static file. ~67 TS/JS source files.",
+      "heldOut": 4
+    },
+    {
       "owner": "RishiBakshii",
       "name": "mern-ecommerce",
       "url": "https://github.com/RishiBakshii/mern-ecommerce",
@@ -154,6 +174,26 @@
       "shape": "spa-plus-express",
       "why": "Held out (M5A.2c). One package: a webpack React client (client/) server-rendered by an Express + Mongoose server (server/), Babel ES modules. Per-feature client/*/api-*.js modules call fetch with root-relative, concatenated paths ('/api/users/' + params.userId) on the same origin; the server mounts three routers at '/', each declaring full paths in router.route(path).get(…).put(…) chains, plus a catch-all app.get('*') for server-side rendering. Default branch second-edition. ~43 JS source files.",
       "heldOut": 1
+    },
+    {
+      "owner": "suryansh00001",
+      "name": "IceLink",
+      "url": "https://github.com/suryansh00001/IceLink",
+      "sha": "99bf50f2f7bbf3c4ea908f09c488f0c88b0467cc",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 4 (M5C.5b2, drawn in stratum react-express). A Create React App + TypeScript SPA (frontend/) beside a TS Express + Mongoose backend (backend/), no workspace. Every request goes through one axios.create({ baseURL: process.env.REACT_APP_API_URL || \"http://localhost:5000/api\" }) instance (frontend/src/api/axiosInstance.ts; frontend/.env.example sets the same value, the server's PORT fallback is 5000), whose interceptor only adds a bearer header, called from one-line wrappers in frontend/src/api/{auth,chat,message}.api.ts and directly from AuthContext with literal or template paths relative to the /api base. backend/src/index.ts applies a rate limiter at /api/, then mounts three routers at /api/users, /api/chats, /api/messages (flat router.<method>() calls); a fourth, call.routes.ts, is never mounted and never called. Chat and WebRTC signaling run over socket.io (not labeled); Google auth and Cloudinary are SDKs. ~72 TS/JS source files.",
+      "heldOut": 4
+    },
+    {
+      "owner": "vijayshikhare",
+      "name": "community-resource-board",
+      "url": "https://github.com/vijayshikhare/community-resource-board",
+      "sha": "4e5d2a4de3f2e260cc11c31ccf9326e9bbbae228",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 4 (M5C.5b2, drawn in stratum react-express). A CRA client sends every request through one axios instance (frontend/src/services/api.jsx) whose baseURL is normalizeBaseUrl(REACT_APP_API_URL || (NODE_ENV === 'production' ? an onrender.com host : 'http://localhost:5000')); the helper trims trailing slashes and strips a trailing /api, so the base is the host root (localhost:5000 in development, matching .env.example and the server's PORT fallback) and every path carries its full /api/... prefix. About 20 apiHelpers methods fix their paths inside the helper module, while pages and the auth context call api.get/post/put/patch/delete inline on template paths. backend/src/server.js mounts four JS routers with app.use('/api/<name>', require(...)) after /api rate limiters and registers GET /health on app. Traps: two route files are never mounted, an uploadFile(endpoint) helper has no callers, the applications router uses regex-constrained params ('/:id([0-9a-fA-F]{24})'), literal routes (/my, /admin/all, /featured) are registered before /:id, and several components build /uploads image URLs from the same env var without requesting them. ~50 TS/JS source files.",
+      "heldOut": 4
     }
   ],
   "heldOutBatches": [

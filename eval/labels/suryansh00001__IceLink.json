@@ -1,0 +1,179 @@
+{
+  "repo": "suryansh00001/IceLink",
+  "sha": "99bf50f2f7bbf3c4ea908f09c488f0c88b0467cc",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["backend", "frontend"],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/api/auth.api.ts", "line": 7 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/user.routes.ts",
+        "line": 23,
+        "route": "PUT /api/users/update-avatar"
+      },
+      "notes": "updateAvatar(): axiosInstance.put(\"/users/update-avatar\", formData). axiosInstance = axios.create({ baseURL: process.env.REACT_APP_API_URL || \"http://localhost:5000/api\" }) (frontend/src/api/axiosInstance.ts); frontend/.env.example sets the same http://localhost:5000/api, and backend/src/index.ts listens on PORT || 5000 (backend/.env.example PORT=5000). The request interceptor only adds an Authorization header. backend/src/index.ts applies apiLimiter at /api/ (middleware only), then mounts userRoutes at /api/users"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/auth.api.ts", "line": 16 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/user.routes.ts",
+        "line": 21,
+        "route": "GET /api/users/me"
+      },
+      "notes": "getCurrentUser(): axiosInstance.get(\"/users/me\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/auth.api.ts", "line": 21 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/user.routes.ts",
+        "line": 22,
+        "route": "PUT /api/users/update-details"
+      },
+      "notes": "updateDetails(): axiosInstance.put(\"/users/update-details\", …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/auth.api.ts", "line": 26 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/user.routes.ts",
+        "line": 24,
+        "route": "PUT /api/users/change-password"
+      },
+      "notes": "changePassword(): axiosInstance.put(\"/users/change-password\", …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/chat.api.ts", "line": 5 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/chat.routes.ts",
+        "line": 8,
+        "route": "GET /api/chats"
+      },
+      "notes": "getUserChats(): axiosInstance.get(\"/chats\") on the http://localhost:5000/api base; backend/src/index.ts mounts chatRoutes at /api/chats, router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/chat.api.ts", "line": 11 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/chat.routes.ts",
+        "line": 7,
+        "route": "POST /api/chats"
+      },
+      "notes": "createChat(): axiosInstance.post(\"/chats\", …); router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/chat.api.ts", "line": 16 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/chat.routes.ts",
+        "line": 9,
+        "route": "POST /api/chats/group"
+      },
+      "notes": "createGroupChat(): axiosInstance.post(\"/chats/group\", …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/chat.api.ts", "line": 21 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/chat.routes.ts",
+        "line": 10,
+        "route": "PUT /api/chats/group/:id/rename"
+      },
+      "notes": "renameGroupChat(): axiosInstance.put(`/chats/group/${chatId}/rename`, …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/chat.api.ts", "line": 26 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/chat.routes.ts",
+        "line": 11,
+        "route": "PUT /api/chats/group/:id/adduser"
+      },
+      "notes": "addUserToGroupChat(): axiosInstance.put(`/chats/group/${chatId}/adduser`, …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/chat.api.ts", "line": 31 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/chat.routes.ts",
+        "line": 12,
+        "route": "PUT /api/chats/group/:id/removeuser"
+      },
+      "notes": "removeUserFromGroupChat(): axiosInstance.put(`/chats/group/${chatId}/removeuser`, …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/message.api.ts", "line": 5 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/message.routes.ts",
+        "line": 10,
+        "route": "GET /api/messages/:chatId"
+      },
+      "notes": "getMessagesByChatId(): axiosInstance.get(`/messages/${chatId}`) on the http://localhost:5000/api base; backend/src/index.ts mounts messageRoutes at /api/messages"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/message.api.ts", "line": 10 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/message.routes.ts",
+        "line": 11,
+        "route": "POST /api/messages"
+      },
+      "notes": "sendMessage(): axiosInstance.post(\"/messages\", message); router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/message.api.ts", "line": 18 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/message.routes.ts",
+        "line": 12,
+        "route": "POST /api/messages/media"
+      },
+      "notes": "uploadMedia(): axiosInstance.post(\"/messages/media\", formData); the earlier router.get(\"/:chatId\") is GET-only, so it doesn't catch this POST"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/AuthContext.tsx", "line": 35 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/user.routes.ts",
+        "line": 21,
+        "route": "GET /api/users/me"
+      },
+      "notes": "AuthProvider's fetchUser effect: axiosInstance.get(\"/users/me\") on the same instance (imported from ../api/axiosInstance)"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/AuthContext.tsx", "line": 49 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/user.routes.ts",
+        "line": 18,
+        "route": "POST /api/users/register"
+      },
+      "notes": "register(): axiosInstance.post(\"/users/register\", …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/AuthContext.tsx", "line": 55 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/user.routes.ts",
+        "line": 19,
+        "route": "POST /api/users/login"
+      },
+      "notes": "login(): axiosInstance.post(\"/users/login\", …)"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/AuthContext.tsx", "line": 65 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/user.routes.ts",
+        "line": 20,
+        "route": "POST /api/users/logout"
+      },
+      "notes": "logout(): axiosInstance.post(\"/users/logout\")"
+    }
+  ]
+}
