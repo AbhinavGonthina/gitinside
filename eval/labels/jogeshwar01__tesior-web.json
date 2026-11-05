@@ -1,0 +1,255 @@
+{
+  "repo": "jogeshwar01/tesior-web",
+  "sha": "e2f26175ef3b874e22981a559fec355e3ac511f8",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "apps/next-web/components/modals/add-edit-task-modal.tsx", "line": 97 },
+      "method": "POST",
+      "target": {
+        "file": "apps/next-web/app/api/task/route.ts",
+        "line": 10,
+        "route": "POST /api/task"
+      },
+      "notes": "fetch(`/api/task?workspaceId=${workspace.id}`, { method: \"POST\" }), root-relative on the same Next app (apps/next-web is the only Next app; middleware.ts's matcher skips /api/ paths, so no host rewrite); query dropped"
+    },
+    {
+      "callSite": { "file": "apps/next-web/components/modals/add-workspace-modal.tsx", "line": 69 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/workspaces/[idOrSlug]/exists/route.ts",
+        "line": 5,
+        "route": "GET /api/workspaces/:idOrSlug/exists"
+      },
+      "notes": "fetch(`/api/workspaces/${slug}/exists`), no options so GET; [idOrSlug] => :idOrSlug (only a slug of literally \"repo\" would hit the literal workspaces/repo/exists folder instead, which exports POST only)"
+    },
+    {
+      "callSite": { "file": "apps/next-web/components/modals/add-workspace-modal.tsx", "line": 78 },
+      "method": "POST",
+      "target": {
+        "file": "apps/next-web/app/api/workspaces/repo/exists/route.ts",
+        "line": 5,
+        "route": "POST /api/workspaces/repo/exists"
+      },
+      "notes": "fetch(`/api/workspaces/repo/exists`, { method: \"POST\" }); the literal repo/ folder wins over [idOrSlug] in Next's dispatch"
+    },
+    {
+      "callSite": {
+        "file": "apps/next-web/components/modals/add-workspace-modal.tsx",
+        "line": 123
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/next-web/app/api/workspaces/route.ts",
+        "line": 37,
+        "route": "POST /api/workspaces"
+      },
+      "notes": "fetch(\"/api/workspaces\", { method: \"POST\" }) in the form's onSubmit; the mutate(\"/api/workspaces\") after it only revalidates an SWR key, not labeled"
+    },
+    {
+      "callSite": {
+        "file": "apps/next-web/components/modals/invite-teammate-modal.tsx",
+        "line": 45
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/next-web/app/api/workspaces/[idOrSlug]/invites/route.ts",
+        "line": 11,
+        "route": "POST /api/workspaces/:idOrSlug/invites"
+      },
+      "notes": "fetch(`/api/workspaces/${id}/invites`, { method: \"POST\" }); invites/route.ts exports const POST"
+    },
+    {
+      "callSite": {
+        "file": "apps/next-web/components/modals/wallet-deposit-modal.tsx",
+        "line": 59
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/next-web/app/api/escrow/route.ts",
+        "line": 37,
+        "route": "POST /api/escrow"
+      },
+      "notes": "fetch(`/api/escrow`, { method: \"POST\" }) after the wallet transaction; the Solana connection calls above it are web3 SDK requests, not labeled"
+    },
+    {
+      "callSite": {
+        "file": "apps/next-web/components/modals/wallet-withdraw-modal.tsx",
+        "line": 27
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/next-web/app/api/payment/route.ts",
+        "line": 37,
+        "route": "POST /api/payment"
+      },
+      "notes": "fetch(`/api/payment`, { method: \"POST\" })"
+    },
+    {
+      "callSite": {
+        "file": "apps/next-web/components/table/task/data-table-row-actions.tsx",
+        "line": 32
+      },
+      "method": "PUT",
+      "target": {
+        "file": "apps/next-web/app/api/task/[taskId]/route.ts",
+        "line": 8,
+        "route": "PUT /api/task/:taskId"
+      },
+      "notes": "fetch(`/api/task/${taskId}?workspaceId=${workspace.id}`, { method: \"PUT\" }); [taskId]/route.ts exports PUT only; query dropped"
+    },
+    {
+      "callSite": {
+        "file": "apps/next-web/components/table/task/data-table-row-actions.tsx",
+        "line": 54
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/next-web/app/api/transfer/route.ts",
+        "line": 9,
+        "route": "POST /api/transfer"
+      },
+      "notes": "fetch(`/api/transfer?workspaceId=${workspace.id}`, { method: \"POST\" }); the mutate(...) calls after it only revalidate SWR keys, not labeled"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/hooks/use-public-key.ts", "line": 29 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/wallet/route.ts",
+        "line": 55,
+        "route": "GET /api/wallet"
+      },
+      "notes": "fetch(`/api/wallet?publicKey=${publicKey.toString()}`), no options so GET; query dropped"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/hooks/use-public-key.ts", "line": 36 },
+      "method": "POST",
+      "target": {
+        "file": "apps/next-web/app/api/wallet/route.ts",
+        "line": 8,
+        "route": "POST /api/wallet"
+      },
+      "notes": "fetch(`/api/wallet`, { method: \"POST\" }) when the GET answered 404"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/middleware/admin.ts", "line": 22 },
+      "method": "GET",
+      "target": null,
+      "notes": "Edge middleware: fetch(process.env.NEXT_ADMIN_APP_DOMAIN + `/api/database/admin?userId=…`), no in-code fallback; .env.example sets NEXT_ADMIN_APP_DOMAIN=tesior-admin.xyz, a bare host. The code needs it bare: middleware.ts reaches AdminMiddleware only when ADMIN_HOSTNAMES (lib/utils/constants, holding this value) has the Host header's domain (lib/middleware/utils/parse.ts). So the URL is 'tesior-admin.xyz/api/database/admin?…' with no scheme, which fetch rejects, and the request reaches no route, labeled as written like devcamper's unmatched paths. The route it means is GET /api/database/admin (app/api/database/admin/route.ts line 4)"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useBalance.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/balance/route.ts",
+        "line": 7,
+        "route": "GET /api/balance"
+      },
+      "notes": "useSWR(`/api/balance`, fetcher, …): SWR calls the repo's lib/utils.ts fetcher (fetch(input)) with the key, so the path is supplied here; utils.ts:44 itself is not labeled"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useEscrows.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/escrow/route.ts",
+        "line": 8,
+        "route": "GET /api/escrow"
+      },
+      "notes": "useSWR(`/api/escrow`, fetcher) with the repo's fetcher"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useLeaderboard.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/leaderboard/route.ts",
+        "line": 7,
+        "route": "GET /api/leaderboard"
+      },
+      "notes": "useSWR(`/api/leaderboard`, fetcher) with the repo's fetcher"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/usePayments.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/payment/route.ts",
+        "line": 8,
+        "route": "GET /api/payment"
+      },
+      "notes": "useSWR(`/api/payment`, fetcher) with the repo's fetcher"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useTasks.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/task/route.ts",
+        "line": 70,
+        "route": "GET /api/task"
+      },
+      "notes": "useSWR(`/api/task?workspaceId=${workspaceId}`, fetcher) with the repo's fetcher; query dropped"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useTransfers.ts", "line": 8 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/transfer/route.ts",
+        "line": 122,
+        "route": "GET /api/transfer"
+      },
+      "notes": "useSWR(`/api/transfer?transfer=${sentOrReceived}&workspaceId=${workspaceId}`, fetcher) with the repo's fetcher; query dropped"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useUser.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/user/route.ts",
+        "line": 7,
+        "route": "GET /api/user"
+      },
+      "notes": "useSwr(\"/api/user\", fetcher) (swr's default export imported as useSwr) with the repo's fetcher; user/route.ts exports const GET"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useUserRepos.ts", "line": 7 },
+      "method": "GET",
+      "target": null,
+      "notes": "useSWRImmutable(fetchApiUrl, fetcher) with fetchApiUrl = `https://api.github.com/users/${username}/repos?…` (line 5): the repo's fetcher sends the key to GitHub's API, an external host"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useUsers.ts", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/workspaces/[idOrSlug]/users/route.ts",
+        "line": 5,
+        "route": "GET /api/workspaces/:idOrSlug/users"
+      },
+      "notes": "useSWR(id && `/api/workspaces/${id}/users`, fetcher): a conditional key (no request while id is empty) is still labeled with its url"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useWorkspace.ts", "line": 17 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/workspaces/[idOrSlug]/route.ts",
+        "line": 6,
+        "route": "GET /api/workspaces/:idOrSlug"
+      },
+      "notes": "useSWR(slug && `/api/workspaces/${slug}`, fetcher, …): conditional key, labeled with its url"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/swr/useWorkspaces.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "apps/next-web/app/api/workspaces/route.ts",
+        "line": 6,
+        "route": "GET /api/workspaces"
+      },
+      "notes": "useSWR(\"/api/workspaces\", fetcher, …) with the repo's fetcher"
+    },
+    {
+      "callSite": { "file": "apps/next-web/lib/utils/solana.ts", "line": 25 },
+      "method": "GET",
+      "target": null,
+      "notes": "convertDollarToSolana: fetch(`${COINGECKO_API_URL}?ids=solana&vs_currencies=usd`), COINGECKO_API_URL = \"https://api.coingecko.com/api/v3/simple/price\" (line 18), an external host"
+    }
+  ]
+}

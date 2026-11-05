@@ -1,0 +1,61 @@
+{
+  "repo": "Tanaka0127939/Shopify-Nextjs-Prisma-app",
+  "sha": "a52a2e56e60a9c875366c4c51807303d25707778",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "pages/debug/billing.jsx", "line": 20 },
+      "method": "GET",
+      "target": {
+        "file": "pages/api/apps/debug/createNewSubscription.js",
+        "line": 64,
+        "route": "ALL /api/apps/debug/createNewSubscription"
+      },
+      "notes": "fetch(\"/api/apps/debug/createNewSubscription\"), root-relative on the same Next app (no basePath or rewrites in next.config.js). Pages-router route line is the export default withMiddleware(\"verifyRequest\")(handler); the handler never checks req.method and next-api-middleware's label() adds no method filter, so ALL"
+    },
+    {
+      "callSite": { "file": "pages/debug/billing.jsx", "line": 77 },
+      "method": "GET",
+      "target": {
+        "file": "pages/api/apps/debug/getActiveSubscriptions.js",
+        "line": 44,
+        "route": "ALL /api/apps/debug/getActiveSubscriptions"
+      },
+      "notes": "fetch(\"/api/apps/debug/getActiveSubscriptions\"); handler runs for every method, so ALL"
+    },
+    {
+      "callSite": { "file": "pages/debug/data.jsx", "line": 54 },
+      "method": "GET",
+      "target": { "file": "pages/api/apps/index.js", "line": 21, "route": "GET /api/apps" },
+      "notes": "useDataFetcher(\"\", \"/api/apps\"): the in-file hook (data.jsx:13) calls fetch(url, options) with the caller's path, so the label is at the caller; no options, so GET. apps/index.js answers GET and POST and 400 to anything else (listed methods)"
+    },
+    {
+      "callSite": { "file": "pages/debug/data.jsx", "line": 55 },
+      "method": "POST",
+      "target": { "file": "pages/api/apps/index.js", "line": 21, "route": "POST /api/apps" },
+      "notes": "useDataFetcher(\"\", \"/api/apps\", postOptions) with const postOptions = { method: \"POST\", … } in the same component"
+    },
+    {
+      "callSite": { "file": "pages/debug/data.jsx", "line": 60 },
+      "method": "GET",
+      "target": {
+        "file": "pages/api/apps/debug/gql.js",
+        "line": 26,
+        "route": "GET /api/apps/debug/gql"
+      },
+      "notes": "useDataFetcher(\"\", \"/api/apps/debug/gql\") (path on line 62); gql.js serves GET only, 400 otherwise"
+    },
+    {
+      "callSite": { "file": "pages/debug/webhooks.jsx", "line": 20 },
+      "method": "GET",
+      "target": {
+        "file": "pages/api/apps/debug/activeWebhooks.js",
+        "line": 42,
+        "route": "GET /api/apps/debug/activeWebhooks"
+      },
+      "notes": "fetch(\"/api/apps/debug/activeWebhooks\"); activeWebhooks.js serves GET only, 400 otherwise"
+    }
+  ]
+}
