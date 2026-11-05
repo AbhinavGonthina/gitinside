@@ -156,7 +156,24 @@ All above target (analyzer ≥ 85%, others ≥ 70%).
 ![GitInside's README on GitHub, light](M5/readme-badge/github-readme-light.png)
 ![The page the badge links to](M5/readme-badge/repo-page-dark.png)
 
-**Still for M5.14b2 (#21):** `store_requests`, `compute_usage`, and the database and bucket sizes against the free limits, and `compute_usage` checked against Google's billing report.
+**Quota readings in production (M5.14b2, planning #21).** This machine has no production credentials, so Abhinav read these on 2026-11-05 between 06:10 and 06:20 UTC: production's database (read-only SQL), the bucket's details page in Oracle's console, and Google's billing report for November to date. By then November had 8 finished analyses, among them M5.13's and M5.14b1's.
+
+| Meter | Used (November to date) | Free limit | Share |
+|---|---:|---:|---:|
+| Bucket requests (`store_requests`) | 42 (web 26, worker 16) | 50,000 a month | 0.08% |
+| Bucket size (Oracle's console) | 2.75 MiB, 8 objects | 20 GB | 0.01% |
+| Database (`pg_database_size`) | 8,462,336 bytes (8.1 MiB) | 1 GB (SPEC §5's figure, `QUOTA_LIMITS`) | 0.85% |
+| Cloud Run vCPU (`compute_usage`, 677.1 s of instance time) | 677.1 vCPU-s | 180,000 | 0.38% |
+| Cloud Run memory (677.1 s × 4.295 GB) | 2,908 GB-s | 360,000 | 0.81% |
+| Cloud Run requests | 8 | 2,000,000 | 0.0004% |
+| Cloud Tasks operations | 16 | 1,000,000 | 0.0016% |
+
+- **Every meter is under 1%,** far from the 80% alarm and pause. The bucket matches the analyses: 8 objects for 8 analyses, and the worker's 16 requests average 2 per job. The website's 26 are graph reads that missed the CDN over about a day of views and image refreshes, which fits ADR-0097's cache (M5.13a1).
+- **Google's report:** Cloud Run CPU 126.7 s, memory 113.45 GiB-s, 51 requests; Cloud Tasks 5 operations; 0 USD in total.
+- **That report hadn't caught up, so ADR-0156's estimate isn't confirmed yet.** cal.diy's one push ran 92.1 s on a 4 GiB instance: 368 GiB-s, more than 3× the report's memory for the whole month. Billing usage can lag by a day or more, and cal.diy's job was 25 hours old at the reading. All the reading shows is that our count (677.1 s) isn't below anything Google has reported, which is the safe direction: a low count would make the pause come too late. The settled comparison (Nov 1–4, read on or after Nov 7) is M5.14b4, on planning #22. It doesn't hold the `m5` tag.
+- **Found: the kill switch's compute isn't counted** (ADR-0156 amendment). Google counted 51 Cloud Run requests against the worker's 8. The kill switch is a second Cloud Run service (1 vCPU, 512 MiB) that the budget's Pub/Sub notifications reach several times a day, and its time comes out of the same free allowance. The report's 0.9 GiB-s per vCPU-second, where the worker alone would give 4, fits too. #22's per-service request counts confirm it or not; then M5.14b4 counts it or reserves its share.
+- **The 5-an-hour `429`:** not checked by hand (Abhinav skipped the optional step; the unit and route tests cover it).
+- **Production's split for the big jobs** (planning #20, `bench/results/2026-11-04-caldiy-stages.md` → Production's split): cal.diy's 92.7 s from queued to done was 0.6 s dispatch, 9.5 s download, 81.6 s analysis, and 1.4 s upload. Each stage ran 1.6–2.0× slower than on CI's 1-vCPU runner, and the graph came out identical, so the CPU that Cloud Run gave the job explains the gap to the 60 s budget, not dispatch or the network.
 
 ## Interview questions
 
