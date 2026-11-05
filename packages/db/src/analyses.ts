@@ -4,7 +4,8 @@
  *
  * - **Who calls what:** the web app calls {@link findAnalysis} (the cache lookup),
  *   {@link findPublishedAnalysis} (what a repo page and `/api/graph` serve) and, when it
- *   enqueues a new job, {@link upsertRepo} and {@link queueAnalysis} (ADR-0066), and
+ *   enqueues a new job, {@link upsertRepo} and {@link queueAnalysis} (ADR-0066), before that
+ *   {@link failStrandedAnalysis} on a commit that's `queued` with no task coming, and
  *   {@link hideRepo} when GitHub says a published repo went private or away. The worker calls {@link upsertRepo} and {@link startAnalysis} when a
  *   job starts, {@link completeAnalysis} after the snapshot is in object storage (so a `done`
  *   row always has its object), {@link requeueAnalysis} when an attempt fails but will be
@@ -538,4 +539,55 @@ export async function failStaleQueuedAnalyses(
     .where(and(eq(analyses.status, "queued"), lte(analyses.queuedAt, cutoff)))
     .returning({ id: analyses.id });
   return rows.length;
+}
+
+/** How long {@link failStrandedAnalysis} waits before calling a queued row stranded. */
+export interface StrandedWait {
+  /** Queued (since it last entered the queue) at least this long: every attempt is over. */
+  queuedForSeconds: number;
+  /** A row `running` for less than this still holds one of the queue's dispatch slots. */
+  runningForSeconds: number;
+  /** The queue's concurrent dispatches. */
+  slots: number;
+}
+
+/**
+ * Fail one `queued` analysis with {@link QUEUE_UNAVAILABLE_CODE} when no task can still be
+ * coming for it (R10, second M5 review), so the next request queues it afresh instead of
+ * waiting out {@link failStaleQueuedAnalyses}'s day: it has been queued for
+ * `queuedForSeconds` (past every attempt and backoff of a task), and fewer than `slots`
+ * rows are `running` younger than `runningForSeconds`, so a free dispatch slot would have
+ * pushed a task still waiting in the queue. One statement, so of two racing requests one
+ * fails it. Returns whether it did. A task that does arrive late still starts the row
+ * ({@link startAnalysis}).
+ */
+export async function failStrandedAnalysis(
+  db: AnyDatabase,
+  id: string,
+  wait: StrandedWait,
+): Promise<boolean> {
+  const { queuedForSeconds, runningForSeconds, slots } = wait;
+  for (const seconds of [queuedForSeconds, runningForSeconds]) {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      throw new RangeError("waits must be finite numbers ≥ 0");
+    }
+  }
+  if (!Number.isSafeInteger(slots) || slots < 1) throw new RangeError("slots must be ≥ 1");
+  const queuedBefore = sql`now() - ${queuedForSeconds} * interval '1 second'`;
+  const busySince = sql`now() - ${runningForSeconds} * interval '1 second'`;
+  const busy = sql`(select count(*) from ${analyses} as busy
+    where busy.status = 'running' and busy.started_at > ${busySince})`;
+  const rows = await db
+    .update(analyses)
+    .set({ status: "failed", errorCode: QUEUE_UNAVAILABLE_CODE, finishedAt: sql`now()` })
+    .where(
+      and(
+        eq(analyses.id, id),
+        eq(analyses.status, "queued"),
+        lte(analyses.queuedAt, queuedBefore),
+        sql`${busy} < ${slots}`,
+      ),
+    )
+    .returning({ id: analyses.id });
+  return rows.length > 0;
 }

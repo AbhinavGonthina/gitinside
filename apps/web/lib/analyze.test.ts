@@ -32,6 +32,7 @@ import {
   type Verdict,
 } from "./botCheck";
 import { rateLimitKey } from "./clientIp";
+import { STRANDED_AFTER_SECONDS, taskIdFor } from "./cloudTasks";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
 import { fakeTaskQueue } from "./google.testkit";
@@ -264,6 +265,65 @@ describe("requestAnalysis", () => {
     expect((await requestAnalysis("acme/shop", "198.51.100.1", deps)).status).toBe(202);
     expect(await slotsUsed("198.51.100.1")).toBe(0);
     expect(tasks.google.tasks).toHaveLength(1);
+  });
+
+  describe("a commit queued past every attempt of its task (R10)", () => {
+    /**
+     * Queued that long ago, with its task: Cloud Tasks gave up on it before the worker wrote
+     * anything (3 cold-start 503s), and its name stays taken for a day.
+     */
+    async function strand() {
+      const { id: repoId } = await upsertRepo(t.db, {
+        providerRepoId: SHOP.id,
+        owner: "Acme",
+        name: "Shop",
+        visibility: "public",
+        defaultBranch: "main",
+      });
+      const key = { repoId, sha: SHA, analyzerVersion: VERSION };
+      await queueAnalysis(t.db, key, { jobId: JOB_ID });
+      const queuedAt = new Date(Date.now() - (STRANDED_AFTER_SECONDS + 5) * 1000);
+      await t.db.update(analyses).set({ queuedAt });
+      const job = { owner: "Acme", repo: "Shop", sha: SHA };
+      await tasks.queue.createTask(job, taskIdFor(JOB_ID, queuedAt));
+    }
+
+    it("gets a fresh task, counted as a new analysis", async () => {
+      await strand();
+      const answer = await requestAnalysis("acme/shop", "198.51.100.1", deps);
+      expect(answer).toMatchObject({ status: 202, body: { status: "queued", jobId: JOB_ID } });
+      expect(tasks.google.tasks).toHaveLength(2);
+      expect(new Set(tasks.taskIds()).size).toBe(2);
+      expect(await analysisRows()).toEqual([{ status: "queued", sha: SHA, errorCode: null }]);
+      expect(await slotsUsed("198.51.100.1")).toBe(1);
+    });
+
+    it("meets the limits of a new analysis: paused at 80% of the month's compute", async () => {
+      await strand();
+      await countComputeUsage(t.db, { taskOperations: 800_000 });
+      const answer = await requestAnalysis("acme/shop", "198.51.100.1", deps);
+      expect(answer).toMatchObject({ status: 503, body: { error: "ANALYSIS_PAUSED" } });
+      expect(tasks.google.tasks).toHaveLength(1);
+      expect(await slotsUsed("198.51.100.1")).toBe(0);
+    });
+
+    it("stays in flight while both dispatch slots are busy: its task may be waiting", async () => {
+      await strand();
+      const { id: repoId } = await upsertRepo(t.db, {
+        providerRepoId: 9,
+        owner: "acme",
+        name: "busy",
+        visibility: "public",
+        defaultBranch: "main",
+      });
+      for (const sha of ["1", "2"]) {
+        await startAnalysis(t.db, { repoId, sha: sha.repeat(40), analyzerVersion: VERSION });
+      }
+      const answer = await requestAnalysis("acme/shop", "198.51.100.1", deps);
+      expect(answer).toMatchObject({ status: 202, body: { status: "queued", jobId: JOB_ID } });
+      expect(tasks.google.tasks).toHaveLength(1);
+      expect(await slotsUsed("198.51.100.1")).toBe(0);
+    });
   });
 
   it("racing requests for a new commit: one task, one slot kept between them", async () => {

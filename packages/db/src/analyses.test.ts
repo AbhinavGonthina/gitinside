@@ -8,6 +8,7 @@ import {
   failAnalysis,
   failInterruptedAnalyses,
   failStaleQueuedAnalyses,
+  failStrandedAnalysis,
   findAnalysis,
   findLimitFailure,
   findPublishedAnalysis,
@@ -387,6 +388,102 @@ describe("failStaleQueuedAnalyses", () => {
   it("refuses a negative or non-finite age", async () => {
     for (const seconds of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
       await expect(failStaleQueuedAnalyses(t.db, seconds)).rejects.toThrow(RangeError);
+    }
+  });
+});
+
+describe("failStrandedAnalysis", () => {
+  const WAIT = { queuedForSeconds: 1000, runningForSeconds: 300, slots: 2 };
+
+  async function setUp() {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    const key = (sha: string) => ({ repoId, sha: sha.repeat(40), analyzerVersion: VERSION });
+    const { id } = await queueAnalysis(t.db, key("a"));
+    const queuedFor = (seconds: number) =>
+      t.db
+        .update(analyses)
+        .set({ queuedAt: sql`now() - ${seconds} * interval '1 second'` })
+        .where(eq(analyses.id, id));
+    const running = async (sha: string, seconds: number) => {
+      const row = await startAnalysis(t.db, key(sha));
+      await t.db
+        .update(analyses)
+        .set({ startedAt: sql`now() - ${seconds} * interval '1 second'` })
+        .where(eq(analyses.id, row.id));
+    };
+    return { id, queuedFor, running };
+  }
+
+  it("fails a row queued past the wait while a dispatch slot is free", async () => {
+    const { id, queuedFor, running } = await setUp();
+    await queuedFor(1001);
+    // One job running: the queue's other slot would have pushed a live task long ago.
+    await running("b", 10);
+    expect(await failStrandedAnalysis(t.db, id, WAIT)).toBe(true);
+    expect(await analysis(id)).toMatchObject({
+      status: "failed",
+      errorCode: QUEUE_UNAVAILABLE_CODE,
+    });
+    expect((await analysis(id)).finishedAt).toBeInstanceOf(Date);
+  });
+
+  it("leaves a row that hasn't waited that long", async () => {
+    const { id, queuedFor } = await setUp();
+    await queuedFor(990);
+    expect(await failStrandedAnalysis(t.db, id, WAIT)).toBe(false);
+    expect((await analysis(id)).status).toBe("queued");
+  });
+
+  it("leaves it while every slot is busy: its task may be waiting behind those jobs", async () => {
+    const { id, queuedFor, running } = await setUp();
+    await queuedFor(5000);
+    await running("b", 10);
+    await running("c", 299);
+    expect(await failStrandedAnalysis(t.db, id, WAIT)).toBe(false);
+    expect((await analysis(id)).status).toBe("queued");
+  });
+
+  it("doesn't count a row running longer than a dispatch lasts (Cloud Tasks let it go)", async () => {
+    const { id, queuedFor, running } = await setUp();
+    await queuedFor(5000);
+    await running("b", 10);
+    await running("c", 301);
+    expect(await failStrandedAnalysis(t.db, id, WAIT)).toBe(true);
+  });
+
+  it("fails a row waiting for a retry that never came, and the next queue entry is fresh", async () => {
+    const { id, queuedFor } = await setUp();
+    const { repoId } = await analysis(id);
+    const key = { repoId, sha: SHA, analyzerVersion: VERSION };
+    await startAnalysis(t.db, key);
+    await requeueAnalysis(t.db, id);
+    await queuedFor(1001);
+    const before = (await analysis(id)).queuedAt;
+    expect(await failStrandedAnalysis(t.db, id, WAIT)).toBe(true);
+    const again = await queueAnalysis(t.db, key);
+    expect(again).toMatchObject({ id, status: "queued", entered: true, retrying: false });
+    expect(again.queuedAt.getTime()).toBeGreaterThan(before.getTime());
+  });
+
+  it("touches only a queued row", async () => {
+    const id = await started();
+    await t.db
+      .update(analyses)
+      .set({ queuedAt: sql`now() - interval '5000 seconds'` })
+      .where(eq(analyses.id, id));
+    expect(await failStrandedAnalysis(t.db, id, WAIT)).toBe(false);
+    expect((await analysis(id)).status).toBe("running");
+  });
+
+  it("refuses a negative or non-finite wait, or no slots", async () => {
+    const { id } = await setUp();
+    for (const bad of [
+      { queuedForSeconds: -1 },
+      { runningForSeconds: Number.NaN },
+      { slots: 0 },
+      { slots: 1.5 },
+    ]) {
+      await expect(failStrandedAnalysis(t.db, id, { ...WAIT, ...bad })).rejects.toThrow(RangeError);
     }
   });
 });
