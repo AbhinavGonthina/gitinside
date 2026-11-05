@@ -1,0 +1,919 @@
+{
+  "repo": "nateherkai/snagtime",
+  "sha": "1c95490a4bfb498084fcb8295439befe194c229a",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": {
+        "file": "apps/web/src/components/integrations-view.tsx",
+        "line": 30
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/integrations/google/authorize/route.ts",
+        "line": 6,
+        "route": "POST /api/integrations/google/authorize"
+      },
+      "notes": "connect(): fetch(frontendApi.googleAuthorizePath, { method: \"POST\" }); googleAuthorizePath is the string \"/api/integrations/google/authorize\" (api-client.ts line 96, re-exported by api-adapter.ts), root-relative on the same Next app"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 54
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/auth/session/route.ts",
+        "line": 14,
+        "route": "GET /api/auth/session"
+      },
+      "notes": "snagTimeApi.session: request(\"/api/auth/session\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 55
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/session/route.ts",
+        "line": 18,
+        "route": "POST /api/auth/session"
+      },
+      "notes": "snagTimeApi.login: request(\"/api/auth/session\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 56
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/session/route.ts",
+        "line": 18,
+        "route": "POST /api/auth/session"
+      },
+      "notes": "snagTimeApi.demoLogin: request(\"/api/auth/session\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 57
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/web/src/app/api/auth/session/route.ts",
+        "line": 35,
+        "route": "DELETE /api/auth/session"
+      },
+      "notes": "snagTimeApi.logout: request(\"/api/auth/session\", { method: \"DELETE\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 58
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/register/route.ts",
+        "line": 7,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "snagTimeApi.signup: request(\"/api/auth/register\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 59
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/password-reset/request/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/password-reset/request"
+      },
+      "notes": "snagTimeApi.requestPasswordReset: request(\"/api/auth/password-reset/request\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 60
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/password-reset/consume/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/password-reset/consume"
+      },
+      "notes": "snagTimeApi.resetPassword: request(\"/api/auth/password-reset/consume\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 61
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/verify-email/request/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/verify-email/request"
+      },
+      "notes": "snagTimeApi.requestEmailVerification: request(\"/api/auth/verify-email/request\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 62
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/verify-email/consume/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/verify-email/consume"
+      },
+      "notes": "snagTimeApi.verifyEmail: request(\"/api/auth/verify-email/consume\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 63
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/account/route.ts",
+        "line": 5,
+        "route": "GET /api/account"
+      },
+      "notes": "snagTimeApi.getAccount: request(\"/api/account\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 64
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/web/src/app/api/account/profile-image/route.ts",
+        "line": 7,
+        "route": "PATCH /api/account/profile-image"
+      },
+      "notes": "snagTimeApi.updateProfileImage: request(\"/api/account/profile-image\", { method: \"PATCH\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 65
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/web/src/app/api/account/security/route.ts",
+        "line": 7,
+        "route": "PATCH /api/account/security"
+      },
+      "notes": "snagTimeApi.changePassword: request(\"/api/account/security\", { method: \"PATCH\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 66
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/web/src/app/api/workspace/route.ts",
+        "line": 6,
+        "route": "PATCH /api/workspace"
+      },
+      "notes": "snagTimeApi.completeOnboarding: request(\"/api/workspace\", { method: \"PATCH\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 67
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/workspace/switch/route.ts",
+        "line": 7,
+        "route": "POST /api/workspace/switch"
+      },
+      "notes": "snagTimeApi.switchWorkspace: request(\"/api/workspace/switch\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 68
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/workspace/members/route.ts",
+        "line": 6,
+        "route": "GET /api/workspace/members"
+      },
+      "notes": "snagTimeApi.listWorkspaceMembers: request(\"/api/workspace/members\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 69
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/web/src/app/api/workspace/members/route.ts",
+        "line": 9,
+        "route": "PATCH /api/workspace/members"
+      },
+      "notes": "snagTimeApi.updateWorkspaceMember: request(\"/api/workspace/members\", { method: \"PATCH\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 70
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/workspace/invitations/route.ts",
+        "line": 7,
+        "route": "GET /api/workspace/invitations"
+      },
+      "notes": "snagTimeApi.listWorkspaceInvitations: request(\"/api/workspace/invitations\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 71
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/workspace/invitations/route.ts",
+        "line": 10,
+        "route": "POST /api/workspace/invitations"
+      },
+      "notes": "snagTimeApi.createWorkspaceInvitation: request(\"/api/workspace/invitations\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 72
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/workspace/invitations/accept/route.ts",
+        "line": 6,
+        "route": "POST /api/workspace/invitations/accept"
+      },
+      "notes": "snagTimeApi.acceptWorkspaceInvitation: request(\"/api/workspace/invitations/accept\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 73
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/event-types/route.ts",
+        "line": 6,
+        "route": "GET /api/event-types"
+      },
+      "notes": "snagTimeApi.listEventTypes: request(\"/api/event-types\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 74
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/event-types/[id]/route.ts",
+        "line": 7,
+        "route": "GET /api/event-types/:id"
+      },
+      "notes": "snagTimeApi.getEventType: request(`/api/event-types/${id}`). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 75
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/event-types/route.ts",
+        "line": 9,
+        "route": "POST /api/event-types"
+      },
+      "notes": "snagTimeApi.createEventType: request(\"/api/event-types\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 76
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/web/src/app/api/event-types/[id]/route.ts",
+        "line": 10,
+        "route": "PATCH /api/event-types/:id"
+      },
+      "notes": "snagTimeApi.updateEventType: request(`/api/event-types/${id}`, { method: \"PATCH\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 77
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/web/src/app/api/event-types/[id]/route.ts",
+        "line": 13,
+        "route": "DELETE /api/event-types/:id"
+      },
+      "notes": "snagTimeApi.deleteEventType: request(`/api/event-types/${id}`, { method: \"DELETE\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 78
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/availability/route.ts",
+        "line": 6,
+        "route": "GET /api/availability"
+      },
+      "notes": "snagTimeApi.getAvailability: request(\"/api/availability\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 79
+      },
+      "method": "PUT",
+      "target": {
+        "file": "apps/web/src/app/api/availability/route.ts",
+        "line": 9,
+        "route": "PUT /api/availability"
+      },
+      "notes": "snagTimeApi.setAvailability: request(\"/api/availability\", { method: \"PUT\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 80
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/route.ts",
+        "line": 5,
+        "route": "GET /api/bookings"
+      },
+      "notes": "snagTimeApi.listBookings: request(\"/api/bookings\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 81
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/public/[slug]/route.ts",
+        "line": 7,
+        "route": "GET /api/public/:slug"
+      },
+      "notes": "snagTimeApi.getPublicEventType: request(`/api/public/${slug}`). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 82
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/public/[slug]/slots/route.ts",
+        "line": 7,
+        "route": "GET /api/public/:slug/slots"
+      },
+      "notes": "snagTimeApi.getSlots: request(`/api/public/${slug}/slots?from=…` (the durationId ternary only adds a query parameter)). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 83
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/public/[slug]/bookings/route.ts",
+        "line": 9,
+        "route": "POST /api/public/:slug/bookings"
+      },
+      "notes": "snagTimeApi.createBooking: request(`/api/public/${slug}/bookings`, { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 84
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/checkout/resume/route.ts",
+        "line": 8,
+        "route": "POST /api/bookings/:id/checkout/resume"
+      },
+      "notes": "snagTimeApi.resumeBookingCheckout: request(`/api/bookings/${id}/checkout/resume`, { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 85
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/manage-session/route.ts",
+        "line": 8,
+        "route": "POST /api/bookings/:id/manage-session"
+      },
+      "notes": "snagTimeApi.exchangeBookingManageSession: request(`/api/bookings/${id}/manage-session`, { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 86
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/manage-session/route.ts",
+        "line": 20,
+        "route": "PATCH /api/bookings/:id/manage-session"
+      },
+      "notes": "snagTimeApi.acknowledgeBookingManageSession: request(`/api/bookings/${id}/manage-session`, { method: \"PATCH\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 87
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/route.ts",
+        "line": 15,
+        "route": "GET /api/bookings/:id"
+      },
+      "notes": "snagTimeApi.getBookingForManage: request(`/api/bookings/${id}`). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 88
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/slots/route.ts",
+        "line": 11,
+        "route": "GET /api/bookings/:id/slots"
+      },
+      "notes": "snagTimeApi.getRescheduleSlots: request(`/api/bookings/${id}/slots?from=…`). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 89
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/route.ts",
+        "line": 23,
+        "route": "PATCH /api/bookings/:id"
+      },
+      "notes": "snagTimeApi.rescheduleBooking: request(`/api/bookings/${id}`, { method: \"PATCH\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 90
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/route.ts",
+        "line": 31,
+        "route": "DELETE /api/bookings/:id"
+      },
+      "notes": "snagTimeApi.cancelBooking: request(`/api/bookings/${id}`, { method: \"DELETE\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 91
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/manage-link/route.ts",
+        "line": 7,
+        "route": "POST /api/bookings/manage-link"
+      },
+      "notes": "snagTimeApi.requestBookingManageLink: request(\"/api/bookings/manage-link\", { method: \"POST\" } (the literal manage-link folder wins over [id])). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 92
+      },
+      "method": "PUT",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/manage-link/route.ts",
+        "line": 8,
+        "route": "PUT /api/bookings/manage-link"
+      },
+      "notes": "snagTimeApi.consumeBookingManageLink: request(\"/api/bookings/manage-link\", { method: \"PUT\" } (the literal manage-link folder wins over [id])). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 93
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/settings/branding/route.ts",
+        "line": 7,
+        "route": "GET /api/settings/branding"
+      },
+      "notes": "snagTimeApi.getWorkspaceBranding: request(\"/api/settings/branding\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 94
+      },
+      "method": "PUT",
+      "target": {
+        "file": "apps/web/src/app/api/settings/branding/route.ts",
+        "line": 10,
+        "route": "PUT /api/settings/branding"
+      },
+      "notes": "snagTimeApi.updateWorkspaceBranding: request(\"/api/settings/branding\", { method: \"PUT\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 95
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/integrations/google/status/route.ts",
+        "line": 5,
+        "route": "GET /api/integrations/google/status"
+      },
+      "notes": "snagTimeApi.getGoogleStatus: request(\"/api/integrations/google/status\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 97
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/web/src/app/api/integrations/google/status/route.ts",
+        "line": 8,
+        "route": "DELETE /api/integrations/google/status"
+      },
+      "notes": "snagTimeApi.disconnectGoogle: request(\"/api/integrations/google/status\", { method: \"DELETE\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 98
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/integrations/status/route.ts",
+        "line": 6,
+        "route": "GET /api/integrations/status"
+      },
+      "notes": "snagTimeApi.getIntegrationStatus: request(\"/api/integrations/status\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 99
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/integrations/outbox/route.ts",
+        "line": 7,
+        "route": "POST /api/integrations/outbox"
+      },
+      "notes": "snagTimeApi.retryIntegrationOutbox: request(\"/api/integrations/outbox\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 100
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/integrations/email/inbox/route.ts",
+        "line": 4,
+        "route": "GET /api/integrations/email/inbox"
+      },
+      "notes": "snagTimeApi.listLocalEmailInbox: request(\"/api/integrations/email/inbox\"). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "apps/web/src/lib/api-client.ts",
+        "line": 101
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/integrations/email/inbox/route.ts",
+        "line": 5,
+        "route": "POST /api/integrations/email/inbox"
+      },
+      "notes": "snagTimeApi.retryEmailOutbox: request(\"/api/integrations/email/inbox\", { method: \"POST\" }). request(path, init) (lines 40-51) is fetch(path, { ...init }) with a root-relative path on the same Next app, so the label is at this request() call; method from init (default GET), query string dropped. Callers reach it through frontendApi in components/api-adapter.ts"
+    },
+    {
+      "callSite": {
+        "file": "scripts/load-check.mts",
+        "line": 26
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/health/ready/route.ts",
+        "line": 7,
+        "route": "GET /api/health/ready"
+      },
+      "notes": "postgresProduction(): fetch(new URL(\"/api/health/ready\", base)). base = new URL(process.env.LOAD_BASE_URL!) (line 22), no in-code fallback or example value (a CI secret in .github/workflows/ci.yml's native-production-load job); the script is a load check of this app's own deployment (it requires the operator endpoint to report appBuildId = github.sha), and new URL(\"/api/…\", base) keeps only the base's origin, so the path is the app's own route"
+    },
+    {
+      "callSite": {
+        "file": "scripts/load-check.mts",
+        "line": 31
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/health/operator/route.ts",
+        "line": 6,
+        "route": "GET /api/health/operator"
+      },
+      "notes": "postgresProduction(): fetch(new URL(\"/api/health/operator\", base)). base = new URL(process.env.LOAD_BASE_URL!) (line 22), no in-code fallback or example value (a CI secret in .github/workflows/ci.yml's native-production-load job); the script is a load check of this app's own deployment (it requires the operator endpoint to report appBuildId = github.sha), and new URL(\"/api/…\", base) keeps only the base's origin, so the path is the app's own route"
+    },
+    {
+      "callSite": {
+        "file": "scripts/load-check.mts",
+        "line": 35
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/public/[slug]/bookings/route.ts",
+        "line": 9,
+        "route": "POST /api/public/:slug/bookings"
+      },
+      "notes": "call(key, body, ip, slug): fetch(new URL(`/api/public/${slug}/bookings`, base), { method: \"POST\" }); the path is fixed in this helper (only the slug varies), so the label is at the fetch. base = new URL(process.env.LOAD_BASE_URL!) (line 22), no in-code fallback or example value (a CI secret in .github/workflows/ci.yml's native-production-load job); the script is a load check of this app's own deployment (it requires the operator endpoint to report appBuildId = github.sha), and new URL(\"/api/…\", base) keeps only the base's origin, so the path is the app's own route"
+    },
+    {
+      "callSite": {
+        "file": "scripts/load-check.mts",
+        "line": 36
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/public/[slug]/route.ts",
+        "line": 7,
+        "route": "GET /api/public/:slug"
+      },
+      "notes": "warmup loop: fetch(new URL(`/api/public/${process.env.LOAD_EVENT_SLUG}`, base)). base = new URL(process.env.LOAD_BASE_URL!) (line 22), no in-code fallback or example value (a CI secret in .github/workflows/ci.yml's native-production-load job); the script is a load check of this app's own deployment (it requires the operator endpoint to report appBuildId = github.sha), and new URL(\"/api/…\", base) keeps only the base's origin, so the path is the app's own route"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/accessibility.spec.ts",
+        "line": 71
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/register/route.ts",
+        "line": 7,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "untracedJson(\"/api/auth/register\", { method: \"POST\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/helpers.ts",
+        "line": 84
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/session/route.ts",
+        "line": 18,
+        "route": "POST /api/auth/session"
+      },
+      "notes": "attachSession(): untracedJson(\"/api/auth/session\", { method: \"POST\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/helpers.ts",
+        "line": 100
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/public/[slug]/route.ts",
+        "line": 7,
+        "route": "GET /api/public/:slug"
+      },
+      "notes": "createManagedBooking(): fetch(`${baseURL}/api/public/strategy-call`); strategy-call is the [slug] segment. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/helpers.ts",
+        "line": 102
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/public/[slug]/slots/route.ts",
+        "line": 7,
+        "route": "GET /api/public/:slug/slots"
+      },
+      "notes": "createManagedBooking(): fetch(`${baseURL}/api/public/strategy-call/slots?from=…`), query dropped. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/helpers.ts",
+        "line": 104
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/public/[slug]/bookings/route.ts",
+        "line": 9,
+        "route": "POST /api/public/:slug/bookings"
+      },
+      "notes": "createManagedBooking(): untracedJson(\"/api/public/strategy-call/bookings\", { method: \"POST\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/helpers.ts",
+        "line": 109
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/manage-session/route.ts",
+        "line": 20,
+        "route": "PATCH /api/bookings/:id/manage-session"
+      },
+      "notes": "createManagedBooking(): untracedJson(`/api/bookings/${result.bookingId}/manage-session`, { method: \"PATCH\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/journey.spec.ts",
+        "line": 34
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/verify-email/consume/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/verify-email/consume"
+      },
+      "notes": "untracedJson(\"/api/auth/verify-email/consume\", { method: \"POST\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/journey.spec.ts",
+        "line": 53
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/password-reset/consume/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/password-reset/consume"
+      },
+      "notes": "untracedJson(\"/api/auth/password-reset/consume\", { method: \"POST\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/journey.spec.ts",
+        "line": 78
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/slots/route.ts",
+        "line": 11,
+        "route": "GET /api/bookings/:id/slots"
+      },
+      "notes": "fetch(`${baseURL}/api/bookings/${managed.id}/slots?from=…`), query dropped. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/journey.spec.ts",
+        "line": 80
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/route.ts",
+        "line": 23,
+        "route": "PATCH /api/bookings/:id"
+      },
+      "notes": "untracedJson(`/api/bookings/${managed.id}`, { method: \"PATCH\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/journey.spec.ts",
+        "line": 84
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/manage-link/route.ts",
+        "line": 7,
+        "route": "POST /api/bookings/manage-link"
+      },
+      "notes": "untracedJson(\"/api/bookings/manage-link\", { method: \"POST\" }) (the literal manage-link folder wins over [id]). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/journey.spec.ts",
+        "line": 87
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/[id]/route.ts",
+        "line": 31,
+        "route": "DELETE /api/bookings/:id"
+      },
+      "notes": "untracedJson(`/api/bookings/${managed.id}`, { method: \"DELETE\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/journey.spec.ts",
+        "line": 97
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/workspace/invitations/accept/route.ts",
+        "line": 6,
+        "route": "POST /api/workspace/invitations/accept"
+      },
+      "notes": "untracedJson(\"/api/workspace/invitations/accept\", { method: \"POST\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/journey.spec.ts",
+        "line": 99
+      },
+      "method": "GET",
+      "target": {
+        "file": "apps/web/src/app/api/account/route.ts",
+        "line": 5,
+        "route": "GET /api/account"
+      },
+      "notes": "fetch(`${baseURL}/api/account`). baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/one-use-links.spec.ts",
+        "line": 33
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/register/route.ts",
+        "line": 7,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "untracedJson(\"/api/auth/register\", { method: \"POST\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/one-use-links.spec.ts",
+        "line": 47
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/register/route.ts",
+        "line": 7,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "untracedJson(\"/api/auth/register\", { method: \"POST\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/one-use-links.spec.ts",
+        "line": 54
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/auth/password-reset/request/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/password-reset/request"
+      },
+      "notes": "untracedJson(\"/api/auth/password-reset/request\", { method: \"POST\" }). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    },
+    {
+      "callSite": {
+        "file": "tests/e2e/one-use-links.spec.ts",
+        "line": 96
+      },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/src/app/api/bookings/manage-link/route.ts",
+        "line": 7,
+        "route": "POST /api/bookings/manage-link"
+      },
+      "notes": "untracedJson(\"/api/bookings/manage-link\", { method: \"POST\" }) (the literal manage-link folder wins over [id]). untracedJson(path, init) (tests/e2e/helpers.ts lines 54-62) is fetch(`${baseURL}${path}`, { ...init }), so the label is at this call. baseURL = process.env.NEXT_PUBLIC_APP_URL! (tests/e2e/helpers.ts line 5), no in-code fallback; playwright.config.ts sets it to http://127.0.0.1:${PLAYWRIGHT_PORT || 3210}, the port its webServer (scripts/e2e-server.mjs) starts this Next app on, and .env.example sets http://localhost:3000 (Next's default port)"
+    }
+  ]
+}

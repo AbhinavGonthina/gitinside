@@ -1,0 +1,81 @@
+{
+  "repo": "wrujel/airbnb-clone",
+  "sha": "988b5d367505993e22e2e54f7c69d848aeb5f3e1",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "app/components/modals/RegisterModal.tsx", "line": 38 },
+      "method": "POST",
+      "target": { "file": "app/api/register/route.ts", "line": 5, "route": "POST /api/register" },
+      "notes": "onSubmit: axios (line 38) .post(\"/api/register\", data) chained on the next line; root-relative on the same Next app, App Router route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "app/components/modals/RentModal.tsx", "line": 87 },
+      "method": "POST",
+      "target": { "file": "app/api/listings/route.ts", "line": 6, "route": "POST /api/listings" },
+      "notes": "onSubmit: axios (line 87) .post(\"/api/listings\", data); listings/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "app/hooks/useFavorite.ts", "line": 57 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/favorites/[listingId]/route.ts",
+        "line": 10,
+        "route": "POST /api/favorites/:listingId"
+      },
+      "notes": "toggleFavorite: axios.post(`/api/favorites/${listingId}`) when not yet favorited"
+    },
+    {
+      "callSite": { "file": "app/hooks/useFavorite.ts", "line": 60 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/favorites/[listingId]/route.ts",
+        "line": 42,
+        "route": "DELETE /api/favorites/:listingId"
+      },
+      "notes": "toggleFavorite: axios.delete(`/api/favorites/${listingId}`) when already favorited"
+    },
+    {
+      "callSite": { "file": "app/listings/[listingId]/ListingClient.tsx", "line": 79 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/reservations/route.ts",
+        "line": 6,
+        "route": "POST /api/reservations"
+      },
+      "notes": "onCreateReservation: axios (line 79) .post(\"/api/reservations\", { totalPrice, startDate, endDate, listingId })"
+    },
+    {
+      "callSite": { "file": "app/properties/PropertiesClient.tsx", "line": 28 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/listings/[listingId]/route.ts",
+        "line": 10,
+        "route": "DELETE /api/listings/:listingId"
+      },
+      "notes": "onDelete: axios (line 28) .delete(`/api/listings/${id}`); listings/[listingId]/route.ts exports only DELETE"
+    },
+    {
+      "callSite": { "file": "app/reservations/ReservationsClient.tsx", "line": 28 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/reservations/[reservationId]/route.ts",
+        "line": 10,
+        "route": "DELETE /api/reservations/:reservationId"
+      },
+      "notes": "onCancel: axios (line 28) .delete(`/api/reservations/${id}`)"
+    },
+    {
+      "callSite": { "file": "app/trips/TripsClient.tsx", "line": 30 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/reservations/[reservationId]/route.ts",
+        "line": 10,
+        "route": "DELETE /api/reservations/:reservationId"
+      },
+      "notes": "onCancel: axios (line 30) .delete(`/api/reservations/${id}`)"
+    }
+  ]
+}

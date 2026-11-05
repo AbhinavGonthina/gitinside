@@ -69,6 +69,16 @@
       "heldOut": 4
     },
     {
+      "owner": "jogeshwar01",
+      "name": "tesior-web",
+      "url": "https://github.com/jogeshwar01/tesior-web",
+      "sha": "e2f26175ef3b874e22981a559fec355e3ac511f8",
+      "license": "MIT",
+      "shape": "next-plus-server-monorepo",
+      "why": "Held out, batch 4 (M5C.5b3, drawn in stratum nextjs-prisma). A yarn + Turborepo monorepo whose one Next.js 14 App Router app (apps/next-web) serves the app and admin hostnames, its middleware rewriting pages by Host header (the matcher skips /api). The client calls its route.ts handlers in two ways: direct root-relative fetch templates with query strings (`/api/task/${taskId}?workspaceId=…` as PUT; a literal workspaces/repo/exists folder beside [idOrSlug]) and SWR hooks (useSWR, useSWRImmutable, swr imported as useSwr) passing the repo's own fetcher, some on conditional keys (`slug && …`). Two requests go to external hosts (GitHub's REST API through SWR, CoinGecko), and the edge middleware fetches its own /api/database/admin on an env host that must be bare (it's compared with the Host header), so that URL has no scheme and reaches nothing. Two Cloudflare Hono workers (apps/indexer, apps/tesior-bot) sit beside it; nothing calls them and they send no fetch (Octokit and Prisma only). Solana RPC goes through web3.js. ~198 TS/JS source files.",
+      "heldOut": 4
+    },
+    {
       "owner": "krishnaacharyaa",
       "name": "wanderlust",
       "url": "https://github.com/krishnaacharyaa/wanderlust",
@@ -86,6 +96,16 @@
       "shape": "env-api-urls",
       "why": "Held out (M5A.2b). Vite React frontend (frontend/) and an ESM Express + Prisma backend (backend/) side by side, no root package.json. Every request is an inline axios call (or one streaming fetch) on `${process.env.SERVER_URL}/...`, where process.env.SERVER_URL is substituted by vite.config.js `define` from REACT_APP_SERVER_URL, with no in-code fallback; template ternaries pick between two routes, and a router is mounted at a parameterized path (/editorial/:problemStatementId, mergeParams). The backend calls GitHub's OAuth and user APIs. ~80 JS source files.",
       "heldOut": 1
+    },
+    {
+      "owner": "nateherkai",
+      "name": "snagtime",
+      "url": "https://github.com/nateherkai/snagtime",
+      "sha": "1c95490a4bfb498084fcb8295439befe194c229a",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 4 (M5C.5b3, drawn in stratum nextjs-prisma). A Next.js App Router app (apps/web) with Prisma, served by route.ts handlers under src/app/api (`export async function GET/POST/…`, [id] and [slug] segments, a literal bookings/manage-link folder beside bookings/[id]). Every browser request goes through one request(path, init) wrapper around fetch in src/lib/api-client.ts, called with a root-relative /api/... path in each one-line method of a snagTimeApi object (default GET, query strings, a ternary only in the query); components/api-adapter.ts re-exports the methods without supplying paths, and one component fetches a path constant from that object. Playwright e2e tests send plain fetch calls and an untracedJson(path) helper to NEXT_PUBLIC_APP_URL, which playwright.config.ts sets to the app its webServer starts (page.request is the runner's own client, not labeled), and scripts/load-check.mts fetches `new URL(\"/api/…\", LOAD_BASE_URL)`, a CI secret with no value in the repo whose server must report the commit's build ID. Google, Stripe, and email are reached only through SDKs. ~200 TS/JS source files incl. tests and scripts.",
+      "heldOut": 4
     },
     {
       "owner": "nemanjam",
@@ -186,6 +206,16 @@
       "heldOut": 4
     },
     {
+      "owner": "Tanaka0127939",
+      "name": "Shopify-Nextjs-Prisma-app",
+      "url": "https://github.com/Tanaka0127939/Shopify-Nextjs-Prisma-app",
+      "sha": "a52a2e56e60a9c875366c4c51807303d25707778",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 4 (M5C.5b3, drawn in stratum nextjs-prisma). A pages-router Shopify embedded app in plain JS (Next.js + Prisma) whose debug pages send root-relative fetch requests to its own pages/api handlers, each exported as withMiddleware(\"verifyRequest\")(handler). Three are direct fetch calls; three go through a hook in the same file, useDataFetcher(initial, url, options), so the path and the method (a const options object with method: \"POST\") come from each caller. Some handlers branch on req.method and answer 400 to the rest (labeled by method), others run for every method (ALL). App Bridge adds auth headers to plain fetch, and all traffic to Shopify's Admin and Partners APIs goes through Shopify's libraries (not labeled). ~42 JS source files.",
+      "heldOut": 4
+    },
+    {
       "owner": "vijayshikhare",
       "name": "community-resource-board",
       "url": "https://github.com/vijayshikhare/community-resource-board",
@@ -193,6 +223,16 @@
       "license": "MIT",
       "shape": "axios-baseurl",
       "why": "Held out, batch 4 (M5C.5b2, drawn in stratum react-express). A CRA client sends every request through one axios instance (frontend/src/services/api.jsx) whose baseURL is normalizeBaseUrl(REACT_APP_API_URL || (NODE_ENV === 'production' ? an onrender.com host : 'http://localhost:5000')); the helper trims trailing slashes and strips a trailing /api, so the base is the host root (localhost:5000 in development, matching .env.example and the server's PORT fallback) and every path carries its full /api/... prefix. About 20 apiHelpers methods fix their paths inside the helper module, while pages and the auth context call api.get/post/put/patch/delete inline on template paths. backend/src/server.js mounts four JS routers with app.use('/api/<name>', require(...)) after /api rate limiters and registers GET /health on app. Traps: two route files are never mounted, an uploadFile(endpoint) helper has no callers, the applications router uses regex-constrained params ('/:id([0-9a-fA-F]{24})'), literal routes (/my, /admin/all, /featured) are registered before /:id, and several components build /uploads image URLs from the same env var without requesting them. ~50 TS/JS source files.",
+      "heldOut": 4
+    },
+    {
+      "owner": "wrujel",
+      "name": "airbnb-clone",
+      "url": "https://github.com/wrujel/airbnb-clone",
+      "sha": "988b5d367505993e22e2e54f7c69d848aeb5f3e1",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 4 (M5C.5b3, drawn in stratum nextjs-prisma). A single-package Next.js 16 App Router app with Prisma whose client components send every request with plain imported axios.post/axios.delete on root-relative URLs (literals for creates, templates with one id for deletes and favorites), most written as `axios` with `.post(…)` on the next line, to six route.ts handlers exporting named POST/DELETE functions under [listingId]/[reservationId] folders; one hook picks POST or DELETE on the same path by branch. Reads are server-side Prisma calls in app/actions, auth is NextAuth's pages-router catch-all (called only by the library), and uploads go through a Cloudinary widget. Vitest tests mock axios and send nothing. ~100 TS/JS source files incl. tests.",
       "heldOut": 4
     }
   ],
