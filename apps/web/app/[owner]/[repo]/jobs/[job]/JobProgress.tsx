@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import type { FoundLine } from "@gitinside/worker/progress";
 import { PROGRESS_STEPS, UNAVAILABLE_VIEW, type JobView } from "../../../../../lib/jobs";
-import { repoHref, startAnalysis } from "../../../../../lib/startAnalysis";
+import { repoHref } from "../../../../../lib/startAnalysis";
+import { useStartAnalysis } from "../../../../useStartAnalysis";
 import { COPIED_MS } from "../../AddToReadme";
 
 /** Props for {@link JobProgress}. */
@@ -158,12 +159,22 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
   const [live, setLive] = useState<LiveView | undefined>(undefined);
   const [ended, setEnded] = useState<Extract<JobView, { state: "failed" | "missing" }>>();
   const [notice, setNotice] = useState<string | undefined>(undefined);
-  const [retryError, setRetryError] = useState<string | undefined>(undefined);
-  const [retrying, setRetrying] = useState(false);
   // Bumped by "Try again" when the new job has the same ID, so the stream restarts.
   const [attempt, setAttempt] = useState(0);
   const heading = useRef<HTMLHeadingElement>(null);
   const home = repoHref(owner, repo);
+  // "Try again", with the bot check when the server asks for it (ADR-0157).
+  const retry = useStartAnalysis({
+    onStarted: (href) => {
+      if (href === window.location.pathname) {
+        setEnded(undefined);
+        setLive(undefined);
+        setAttempt((n) => n + 1);
+      } else {
+        router.push(href);
+      }
+    },
+  });
 
   useEffect(() => {
     const source = new EventSource(`/api/jobs/${jobId}/events`);
@@ -194,25 +205,6 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
     if (ended) heading.current?.focus();
   }, [ended]);
 
-  const retry = async () => {
-    if (retrying) return;
-    setRetrying(true);
-    setRetryError(undefined);
-    const answer = await startAnalysis(`${owner}/${repo}`);
-    setRetrying(false);
-    if (!answer.ok) {
-      setRetryError(answer.message);
-      return;
-    }
-    if (answer.href === window.location.pathname) {
-      setEnded(undefined);
-      setLive(undefined);
-      setAttempt((n) => n + 1);
-    } else {
-      router.push(answer.href);
-    }
-  };
-
   const github = `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
   const title = (
     <>
@@ -230,14 +222,23 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
         <p className="progress__failure" role="alert">
           {ended.message}
         </p>
-        {retryError && (
+        {retry.error && (
           <p className="progress__failure" role="alert">
-            {retryError}
+            {retry.error}
+          </p>
+        )}
+        {retry.asked && (
+          <p className="progress__notice" role="status">
+            {retry.asked}
           </p>
         )}
         <div className="progress__actions">
           {canRetry && (
-            <Button variant="primary" onClick={retry} aria-busy={retrying || undefined}>
+            <Button
+              variant="primary"
+              onClick={() => retry.start(`${owner}/${repo}`)}
+              aria-busy={retry.pending || undefined}
+            >
               {ended.state === "missing" ? "Analyze again" : "Try again"}
             </Button>
           )}
@@ -251,6 +252,7 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
             </a>
           </p>
         </div>
+        {retry.check}
       </main>
     );
   }

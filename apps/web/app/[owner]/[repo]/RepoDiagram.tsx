@@ -93,7 +93,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
   // The view on screen, kept by the explorer, for the share menu's Export.
   const exportRef = useRef<ViewExport | undefined>(undefined);
   const status = headStatus(owner, repo, head);
-  const { analyze, busy, error } = useAnalyze(owner, repo);
+  const { analyze, busy, error, asked, check } = useAnalyze(owner, repo);
   // Code previews read the public file at this commit straight from GitHub (ADR-0115).
   const loadSource = useMemo(
     () => createGitHubSourceLoader({ owner, name: repo, sha }),
@@ -266,6 +266,12 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
             {error}
           </p>
         )}
+        {asked && (
+          <p className="repo-bar__asked" role="status">
+            {asked}
+          </p>
+        )}
+        {check}
         <AddToReadme
           owner={owner}
           repo={repo}

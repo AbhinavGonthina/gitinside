@@ -178,10 +178,16 @@ code {
   background: var(--diff-removed);
 }
 
-/* Turnstile's widget (ADR-0157): empty unless Cloudflare wants a click, so it
-   takes no room until then. */
-.repo-form__check:not(:empty) {
+/* Turnstile's widget (ADR-0157), under every Analyze button: empty unless
+   Cloudflare wants a click, so it takes no room until then. */
+.bot-check:not(:empty) {
   margin: var(--space-12) 0 0;
+}
+
+/* In the repo bar it takes its own line, under the reason it's asked. */
+.repo-bar .bot-check:not(:empty) {
+  flex-basis: 100%;
+  margin: 0;
 }
 
 .landing__promises {
@@ -639,11 +645,17 @@ code {
   }
 }
 
-.repo-bar__error {
+.repo-bar__error,
+.repo-bar__asked {
   flex-basis: 100%;
   margin: 0;
   color: var(--text);
   font-size: var(--font-size-13);
+}
+
+/* Why the bot check runs (ADR-0157): a calm status, not a refusal. */
+.repo-bar__asked {
+  color: var(--text-muted);
 }
 
 .repo-bar a {
