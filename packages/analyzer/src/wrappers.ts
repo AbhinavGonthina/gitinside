@@ -33,7 +33,11 @@
  *   is a parameter (its `method` is read from the caller's object literal or const object),
  *   `{ method }` where the value is a parameter (read as a const string), and spreads of a
  *   parameter over a default (`{ method: "GET", ...init }`: the last spread that sets
- *   `method` wins; a missing argument spreads nothing).
+ *   `method` wins; a missing argument spreads nothing). A spread of a rest element copies
+ *   what it was destructured from (M5C.7a): `const { json, headers, ...rest } = init` then
+ *   `fetch(url, { ...rest })` reads the caller's `init`, as does a parameter written
+ *   `{ json, ...rest }`; a pattern that takes `method` out by name leaves `rest` without one,
+ *   and a computed key that isn't a const string makes the method unknown.
  * - A whole axios config that is a parameter (`axios(req)`, `api.request(req)`, M5A.3c): the
  *   caller's object literal or const object gives `url`, `baseURL` (else the instance's), and
  *   `method`, so `httpRequest({ method: "POST", url: "/login" })` is `POST /login`. A caller
@@ -92,6 +96,9 @@
  *   unless some wrapper in the repo has that name: they aren't resolved.
  * - Destructured parameters (`({ path }) => fetch(path)`), `arguments`, and parameters
  *   reassigned in the body (the caller's value is assumed to reach the call).
+ * - A rest element declared with `let` or `var`, nested in another pattern, or destructured
+ *   from anything but a plain value (`const { ...rest } = init ?? {}`): the method it may
+ *   carry is unknown.
  * - A config parameter read through properties (`axios({ url: config.path })`), a `baseURL`
  *   in a shorthand call's config parameter (`api.get(path, config)`: the instance's applies),
  *   and axios instances passed as parameters: those sites are not collected or have no URL.
@@ -474,6 +481,64 @@ export function collectHttpFacts(
     return d && ts.isParameter(d) && d.parent === fn ? d : undefined;
   };
 
+  /**
+   * What spreading `rest` copies when it is the rest element of an object pattern
+   * (M5C.7a): `const { json, ...rest } = init` copies `init` (a `const` declaration only), and a
+   * parameter `{ json, ...rest }` copies its argument. `method` says whether `rest` can hold a
+   * `method`: `false` when the pattern takes it out by name, `null` when a computed key might.
+   * `undefined` when the value isn't such a rest element.
+   */
+  const restElement = (
+    value: ProgramExpression,
+  ):
+    | ({ method: boolean | null } & (
+        | { value: ProgramExpression }
+        | { parameter: ts.ParameterDeclaration }
+      ))
+    | undefined => {
+    const e = unwrap(value.expression);
+    if (!ts.isIdentifier(e)) return undefined;
+    const d = reader.symbolAt(value.sp, e)?.valueDeclaration;
+    if (!d || !ts.isBindingElement(d) || !d.dotDotDotToken) return undefined;
+    const pattern = d.parent;
+    if (!ts.isObjectBindingPattern(pattern)) return undefined;
+    let named = false;
+    let unknown = false;
+    for (const element of pattern.elements) {
+      if (element === d) continue;
+      const key = element.propertyName ?? element.name;
+      const text =
+        ts.isIdentifier(key) || ts.isStringLiteralLike(key)
+          ? key.text
+          : ts.isComputedPropertyName(key)
+            ? reader.constString(value.sp, key.expression, 0)
+            : "";
+      if (text === "method") named = true;
+      else if (text === undefined) unknown = true;
+    }
+    const method = named ? false : unknown ? null : true;
+    const holder = pattern.parent;
+    if (ts.isParameter(holder)) return { method, parameter: holder };
+    if (
+      ts.isVariableDeclaration(holder) &&
+      holder.initializer &&
+      ts.isVariableDeclarationList(holder.parent) &&
+      holder.parent.flags & ts.NodeFlags.Const
+    ) {
+      return { method, value: { sp: value.sp, expression: holder.initializer } };
+    }
+    return undefined;
+  };
+
+  /** True when a method source expression reads `fn`'s parameter, directly or as a rest. */
+  const readsParameter = (value: ProgramExpression, fn: FunctionWithBody): boolean => {
+    const rest = restElement(value);
+    if (!rest) return parameterOf(value.sp, value.expression, fn) !== undefined;
+    return "parameter" in rest
+      ? rest.parameter.parent === fn
+      : parameterOf(rest.value.sp, rest.value.expression, fn) !== undefined;
+  };
+
   /** The expressions an unreadable method could come from. */
   const sourceExpressions = (source: MethodSource): ProgramExpression[] => {
     if (source.kind === "value") return [source.value];
@@ -543,9 +608,7 @@ export function collectHttpFacts(
     (site.config !== undefined &&
       parameterOf(site.config.value.sp, site.config.value.expression, fn) !== undefined) ||
     (site.methodSource !== undefined &&
-      sourceExpressions(site.methodSource).some(
-        (value) => parameterOf(value.sp, value.expression, fn) !== undefined,
-      )) ||
+      sourceExpressions(site.methodSource).some((value) => readsParameter(value, fn))) ||
     restIndex(site, fn) !== undefined;
 
   const direct = new Map<ServiceProgram, HttpCallSite[]>();
@@ -1031,9 +1094,10 @@ export function collectHttpFacts(
     /** A value with this call's bindings: `missing` for an absent argument, `null` if unknown. */
     const bound = (value: ProgramExpression): ProgramExpression | "missing" | null => {
       const d = parameterOf(value.sp, value.expression, wrapper.fn);
-      if (!d) return value;
-      return missing.has(d) ? "missing" : (bindings.get(d) ?? null);
+      return d ? boundParameter(d) : value;
     };
+    const boundParameter = (d: ts.ParameterDeclaration): ProgramExpression | "missing" | null =>
+      missing.has(d) ? "missing" : (bindings.get(d) ?? null);
 
     /** The method a `method` value names; absent (or `undefined`) is the default, `GET`. */
     const methodValue = (value: ConfigValue): HttpMethod | null => {
@@ -1057,9 +1121,19 @@ export function collectHttpFacts(
       if (site.method !== null || !source) return site.method;
       if (source.kind === "value") return methodValue(source.value);
       if (source.kind === "config") return configMethod(source.config);
-      // `{ method: "GET", ...init }`: the last spread that sets `method` wins.
+      // `{ method: "GET", ...init }`: the last spread that sets `method` wins. A rest element
+      // (`const { json, ...rest } = init`) copies `init` unless the pattern takes `method` out.
       for (const spread of source.spreads) {
-        const v = bound(spread);
+        const rest = restElement(spread);
+        if (rest?.method === false) continue;
+        if (rest?.method === null) return null;
+        const v = !rest
+          ? bound(spread)
+          : "value" in rest
+            ? bound(rest.value)
+            : rest.parameter.parent === wrapper.fn
+              ? boundParameter(rest.parameter)
+              : null;
         if (v === "missing") continue;
         const method = v === null ? null : methodProperty(v);
         if (method !== undefined) return methodValue(method);

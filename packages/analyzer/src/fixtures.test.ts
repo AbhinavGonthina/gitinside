@@ -45,6 +45,7 @@ const NAMES = [
   "next-rewrites",
   "ofetch-client",
   "ky-client",
+  "rest-method-spread",
   "object-client",
   "config-wrapper",
   "axios-defaults",
@@ -424,6 +425,24 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     expect(details.sort()).toEqual([
       "ky refuses a URL starting with / under a prefixUrl, so this request fails",
       "no route matches POST to /api/notes/{}/archive",
+    ]);
+  });
+
+  it("rest-method-spread: the caller's method passes through a rest element; an unread one between methods is unresolved (M5C.7a)", async () => {
+    const g = await run("rest-method-spread");
+    const p = "rest-method-spread";
+    const tokens = `symbol:${p}/src/tokens.ts`;
+    expect(links(g, "http")).toEqual([
+      `${tokens}#dropToken -> route:${p}/DELETE /api/tokens exact`,
+      `${tokens}#readProfile -> route:${p}/GET /api/profile heuristic`,
+      `${tokens}#readToken -> route:${p}/GET /api/tokens exact`,
+      `${tokens}#storeToken -> route:${p}/PUT /api/tokens exact`,
+      `${tokens}#tokenRequest -> unresolved:${p}/src/tokens.ts:16:49 unresolved AMBIGUOUS`,
+      `${tokens}#uploadAvatar -> route:${p}/POST /api/avatar exact`,
+    ]);
+    const details = g.nodes.flatMap((n) => (n.kind === "unresolved" ? [n.detail] : []));
+    expect(details).toEqual([
+      "the method isn't read, and routes for DELETE, GET, PUT match /api/tokens",
     ]);
   });
 

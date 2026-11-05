@@ -30,7 +30,9 @@
  *    sent to another literal host is an external call. A destination that isn't read leaves
  *    it unresolved with a reason.
  * 2. **Method.** Equal methods, an `ALL` route, or a `HEAD` request to a `GET` route are
- *    `exact`. A request whose method can't be read matches every method at `heuristic`.
+ *    `exact`. A request whose method can't be read matches every method at `heuristic`, but
+ *    when its best matches are routes of different methods (`GET` and `POST /api/users`), it
+ *    is unresolved (`AMBIGUOUS`, M5C.7a): only the method would pick one.
  *    A route reached only through routers loaded from a folder listing (`listed`, ADR-0162)
  *    is `heuristic` at best too: the listing is read from the repo, but filters on it aren't.
  * 3. **Path**, segment by segment:
@@ -127,7 +129,7 @@ export type RouteMatch =
     }
   | {
       kind: "unresolved";
-      reason: "DYNAMIC_URL" | "WRAPPER_DEPTH" | "NO_MATCHING_ROUTE";
+      reason: "DYNAMIC_URL" | "WRAPPER_DEPTH" | "NO_MATCHING_ROUTE" | "AMBIGUOUS";
       /** Why, in words shown to the user. */
       detail: string;
     };
@@ -402,6 +404,18 @@ export function createRouteMatcher(
         if (request.method !== null && request.method !== "ALL") {
           const specific = matched.filter((r) => r.method !== "ALL");
           if (specific.length > 0) matched = specific;
+        }
+        // An unread method between routes of different methods: only the method would pick
+        // one, so linking them all would be a guess with at most one right (ADR-0033, M5C.7a).
+        const methods = [...new Set(matched.map((r) => r.method))].sort(compareStrings);
+        if (request.method === null && methods.length > 1) {
+          return {
+            kind: "unresolved",
+            reason: "AMBIGUOUS",
+            detail: clip(
+              `the method isn't read, and routes for ${methods.join(", ")} match ${url.text}`,
+            ),
+          };
         }
         const ambiguous = matched.length > 1;
         const level = LEVELS[Math.min(best + (ambiguous ? 1 : 0), HEURISTIC)] ?? "heuristic";
