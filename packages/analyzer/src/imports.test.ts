@@ -129,6 +129,21 @@ describe("import edges", () => {
     expect(importEdges(graph)).toEqual(["file:app/src/app.ts -> file:app/src/lib/a.ts (exact)"]);
   });
 
+  it("resolves a nested jsconfig's paths for the files under it (M5C.7g)", async () => {
+    await put("package.json", JSON.stringify({ name: "starter" }));
+    await put(
+      "templates/client/jsconfig.json",
+      JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": ["./src/*"] } } }),
+    );
+    await put("templates/client/src/api/auth.js", 'import api from "@/lib/axios";\n');
+    await put("templates/client/src/lib/axios.js", "export default {};\n");
+    const graph = await analyze(dir);
+    expect(importEdges(graph)).toEqual([
+      "file:starter/templates/client/src/api/auth.js -> file:starter/templates/client/src/lib/axios.js (exact)",
+    ]);
+    expect(graph.nodes.some((n) => n.kind === "unresolved")).toBe(false);
+  });
+
   it("shows local imports that don't resolve as unresolved nodes", async () => {
     await put(
       "tsconfig.json",

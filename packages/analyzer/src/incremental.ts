@@ -86,7 +86,7 @@ export interface FactKeys {
 }
 
 /** Bump when what an entry means changes without the analyzer's version changing. */
-const KEY_FORMAT = 26;
+const KEY_FORMAT = 27;
 
 /** The {@link EntryUse} of an inputs part entry: shared by the service entries naming it. */
 const SHARED: EntryUse = { shared: true };

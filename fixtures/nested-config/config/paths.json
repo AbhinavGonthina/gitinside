@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "baseUrl": "../admin",
+    "paths": { "#http": ["../web/src/lib/client.js"] }
+  }
+}

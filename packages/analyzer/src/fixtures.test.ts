@@ -62,6 +62,7 @@ const NAMES = [
   "ambiguous-routes",
   "wrapper-fetch",
   "wrapper-chain",
+  "nested-config",
   "external-sdk",
   "compose-and-env",
   "fake-secrets",
@@ -692,6 +693,23 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `symbol:${p}/src/api/boards.ts#loadBoard -> route:${p}/GET /api/boards/:id exact`,
       `symbol:${p}/src/api/boards.ts#loadStats -> route:${p}/GET /api/stats exact`,
       `symbol:${p}/src/api/feed.ts#getTracked -> unresolved:${p}/src/api/feed.ts:5:10 unresolved WRAPPER_DEPTH`,
+    ]);
+  });
+
+  it("nested-config: a nested config's `paths` resolve the files under it, and only those (M5C.7g)", async () => {
+    const g = await run("nested-config");
+    const p = "nested-config";
+    const notes = `symbol:${p}/web/src/notes/notesApi.js`;
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/admin/weekly.ts#weeklyReport -> route:${p}/GET /api/reports/weekly exact`,
+      `${notes}#addNote -> route:${p}/POST /api/notes exact`,
+      `${notes}#listNotes -> route:${p}/GET /api/notes exact`,
+      `${notes}#removeNote -> route:${p}/DELETE /api/notes/:id exact`,
+    ]);
+    expect(links(g, "imports")).toEqual([
+      `file:${p}/admin/weekly.ts -> file:${p}/web/src/lib/client.js exact`,
+      `file:${p}/scripts/seed.js -> unresolved:${p}/scripts/seed.js:2:20 unresolved UNKNOWN_SYMBOL`,
+      `file:${p}/web/src/notes/notesApi.js -> file:${p}/web/src/lib/client.js exact`,
     ]);
   });
 

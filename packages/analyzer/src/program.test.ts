@@ -43,11 +43,21 @@ function resolved(sp: ServiceProgram, from: string, specifier: string): string |
   const result = ts.resolveModuleName(
     specifier,
     sp.toAbsolute(from),
-    sp.program.getCompilerOptions(),
+    sp.resolutionOptions(sp.toAbsolute(from)),
     sp.host,
   );
   const file = result.resolvedModule?.resolvedFileName;
   return file === undefined ? undefined : sp.toRepoPath(file);
+}
+
+/** The file the program's checker resolved `from`'s first import to, or undefined. */
+function checked(sp: ServiceProgram, from: string): string | undefined {
+  const file = sp.program.getSourceFile(sp.toAbsolute(from));
+  const first = file?.statements.find(ts.isImportDeclaration);
+  if (!first) return undefined;
+  const module = sp.program.getTypeChecker().getSymbolAtLocation(first.moduleSpecifier);
+  const target = module?.valueDeclaration?.getSourceFile().fileName;
+  return target === undefined ? undefined : sp.toRepoPath(target);
 }
 
 describe("buildServicePrograms", () => {
@@ -162,6 +172,140 @@ describe("buildServicePrograms", () => {
     expect(sp.warnings.map((w) => [w.code, w.file])).toEqual([
       ["TSCONFIG_INVALID", "tsconfig.json"],
     ]);
+  });
+
+  describe("a nested tsconfig.json or jsconfig.json (M5C.7g)", () => {
+    const client = {
+      "package.json": { name: "starter" },
+      "templates/client/jsconfig.json": {
+        compilerOptions: { baseUrl: ".", paths: { "@/*": ["./src/*"] } },
+      },
+      "templates/client/src/api/auth.js": 'import api from "@/lib/axios";\nexport { api };\n',
+      "templates/client/src/lib/axios.js": "export default {};\n",
+      "bin/cli.js": 'import api from "@/lib/axios";\nexport { api };\n',
+    };
+
+    it("resolves the imports of files under it with its `paths`, in the program too", async () => {
+      await tree(client);
+      const sp = await only();
+      expect(sp.configFile).toBeUndefined();
+      expect(sp.nestedConfigs).toEqual(["templates/client/jsconfig.json"]);
+      expect(sp.warnings).toEqual([
+        {
+          code: "TSCONFIG_MISSING",
+          message: "no tsconfig.json or jsconfig.json; using default compiler options",
+        },
+      ]);
+      const auth = "templates/client/src/api/auth.js";
+      expect(resolved(sp, auth, "@/lib/axios")).toBe("templates/client/src/lib/axios.js");
+      expect(checked(sp, auth)).toBe("templates/client/src/lib/axios.js");
+      // A file outside its folder keeps the service's options.
+      expect(resolved(sp, "bin/cli.js", "@/lib/axios")).toBeUndefined();
+      expect(checked(sp, "bin/cli.js")).toBeUndefined();
+    });
+
+    it("records its read, and its folder's package.json probe, in the service's inputs", async () => {
+      await tree(client);
+      const sp = await only();
+      sp.program.getTypeChecker();
+      const { files, listings } = sp.inputs.snapshot();
+      const answerOf = (path: string) => files.find(([p]) => p === path)?.[1];
+      expect(answerOf("templates/client/jsconfig.json")).toMatch(/^[0-9a-f]{64}$/);
+      expect(answerOf("templates/client/package.json")).toBe("absent");
+      expect(listings[0]?.[1]).toContain("templates/client/jsconfig.json");
+    });
+
+    it("follows its `extends` inside the repo, and replaces the service config's `paths`", async () => {
+      await tree({
+        "tsconfig.json": { compilerOptions: { paths: { "~/*": ["./src/*"] } } },
+        "src/b.ts": "export const b = 1;",
+        "config/paths.json": { compilerOptions: { paths: { "#/*": ["../admin/lib/*"] } } },
+        "admin/tsconfig.json": { extends: "../config/paths.json" },
+        "admin/lib/x.ts": "export const x = 1;",
+        "admin/page.ts": 'import { x } from "#/x";\nimport { b } from "~/b";\n',
+        "src/a.ts": 'import { b } from "~/b";',
+      });
+      const sp = await only();
+      expect(sp.configFile).toBe("tsconfig.json");
+      expect(sp.nestedConfigs).toEqual(["admin/tsconfig.json"]);
+      expect(sp.warnings).toEqual([]);
+      expect(resolved(sp, "admin/page.ts", "#/x")).toBe("admin/lib/x.ts");
+      expect(checked(sp, "admin/page.ts")).toBe("admin/lib/x.ts");
+      // TypeScript resolves a file with one config: the nearest. The service's alias is gone.
+      expect(resolved(sp, "admin/page.ts", "~/b")).toBeUndefined();
+      expect(resolved(sp, "src/a.ts", "~/b")).toBe("src/b.ts");
+    });
+
+    it("uses the deepest config above a file, tsconfig.json before jsconfig.json", async () => {
+      await tree({
+        "package.json": { name: "app" },
+        "web/jsconfig.json": { compilerOptions: { paths: { "@/*": ["./wrong/*"] } } },
+        "web/tsconfig.json": { compilerOptions: { paths: { "@/*": ["./src/*"] } } },
+        "web/src/x.ts": "export const x = 1;",
+        "web/src/a.ts": 'import { x } from "@/x";',
+        "web/admin/tsconfig.json": { compilerOptions: { paths: { "@/*": ["./lib/*"] } } },
+        "web/admin/lib/x.ts": "export const x = 2;",
+        "web/admin/pages/a.ts": 'import { x } from "@/x";',
+      });
+      const sp = await only();
+      expect(sp.nestedConfigs).toEqual(["web/admin/tsconfig.json", "web/tsconfig.json"]);
+      expect(checked(sp, "web/src/a.ts")).toBe("web/src/x.ts");
+      expect(checked(sp, "web/admin/pages/a.ts")).toBe("web/admin/lib/x.ts");
+    });
+
+    it("is ignored in a folder with its own package.json", async () => {
+      await tree({
+        "package.json": { name: "app" },
+        "tools/gen/package.json": { name: "gen" },
+        "tools/gen/tsconfig.json": { compilerOptions: { paths: { "@/*": ["./src/*"] } } },
+        "tools/gen/src/x.ts": "export const x = 1;",
+        "tools/gen/a.ts": 'import { x } from "@/x";',
+      });
+      const sp = await only();
+      expect(sp.nestedConfigs).toEqual([]);
+      expect(checked(sp, "tools/gen/a.ts")).toBeUndefined();
+      const probe = sp.inputs.snapshot().files.find(([p]) => p === "tools/gen/package.json");
+      expect(probe?.[1]).toBeDefined();
+      expect(probe?.[1]).not.toBe("absent");
+    });
+
+    it("belongs to the service that owns its folder", async () => {
+      await tree({
+        "package.json": { workspaces: ["apps/*"] },
+        "apps/web/package.json": { name: "web" },
+        "apps/web/src/admin/tsconfig.json": { compilerOptions: { paths: { "@/*": ["./*"] } } },
+        "apps/web/src/admin/x.ts": "export const x = 1;",
+        "apps/web/src/admin/a.ts": 'import { x } from "@/x";',
+        "apps/api/package.json": { name: "api" },
+        "apps/api/a.ts": "",
+      });
+      const programs = await build();
+      expect(programs.map((p) => [p.service.key, p.nestedConfigs])).toEqual([
+        ["api", []],
+        ["web", ["apps/web/src/admin/tsconfig.json"]],
+      ]);
+      const web = programs.find((p) => p.service.key === "web") as ServiceProgram;
+      expect(checked(web, "apps/web/src/admin/a.ts")).toBe("apps/web/src/admin/x.ts");
+    });
+
+    it("warns when it can't be parsed, and resolves the files under it as the service does", async () => {
+      await tree({
+        "tsconfig.json": { compilerOptions: { paths: { "@/*": ["./src/*"] } } },
+        "src/x.ts": "export const x = 1;",
+        "admin/tsconfig.json": "{",
+        "admin/a.ts": 'import { x } from "@/x";',
+      });
+      const sp = await only();
+      expect(sp.nestedConfigs).toEqual([]);
+      expect(sp.warnings).toEqual([
+        {
+          code: "TSCONFIG_INVALID",
+          file: "admin/tsconfig.json",
+          message: "'}' expected.; using the service's compiler options for the files under it",
+        },
+      ]);
+      expect(checked(sp, "admin/a.ts")).toBe("src/x.ts");
+    });
   });
 
   it("forces safe options over the repo's config", async () => {

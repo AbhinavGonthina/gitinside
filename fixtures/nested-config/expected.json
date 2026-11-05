@@ -1,0 +1,369 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:nested-config/admin/weekly.ts#weeklyReport",
+      "id": "http:symbol:nested-config/admin/weekly.ts#weeklyReport->route:nested-config/GET /api/reports/weekly",
+      "kind": "http",
+      "label": "GET /api/reports/weekly",
+      "sites": [
+        {
+          "column": 26,
+          "file": "admin/weekly.ts",
+          "line": 5,
+          "request": "GET /api/reports/weekly"
+        }
+      ],
+      "to": "route:nested-config/GET /api/reports/weekly"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:nested-config/web/src/notes/notesApi.js#addNote",
+      "id": "http:symbol:nested-config/web/src/notes/notesApi.js#addNote->route:nested-config/POST /api/notes",
+      "kind": "http",
+      "label": "POST /api/notes",
+      "sites": [
+        {
+          "column": 10,
+          "file": "web/src/notes/notesApi.js",
+          "line": 8,
+          "request": "POST /api/notes"
+        }
+      ],
+      "to": "route:nested-config/POST /api/notes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:nested-config/web/src/notes/notesApi.js#listNotes",
+      "id": "http:symbol:nested-config/web/src/notes/notesApi.js#listNotes->route:nested-config/GET /api/notes",
+      "kind": "http",
+      "label": "GET /api/notes",
+      "sites": [
+        {
+          "column": 10,
+          "file": "web/src/notes/notesApi.js",
+          "line": 4,
+          "request": "GET /api/notes"
+        }
+      ],
+      "to": "route:nested-config/GET /api/notes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:nested-config/web/src/notes/notesApi.js#removeNote",
+      "id": "http:symbol:nested-config/web/src/notes/notesApi.js#removeNote->route:nested-config/DELETE /api/notes/:id",
+      "kind": "http",
+      "label": "DELETE /api/notes/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "web/src/notes/notesApi.js",
+          "line": 12,
+          "request": "DELETE /api/notes/{}"
+        }
+      ],
+      "to": "route:nested-config/DELETE /api/notes/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:nested-config/admin/weekly.ts",
+      "id": "imports:file:nested-config/admin/weekly.ts->file:nested-config/web/src/lib/client.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 20,
+          "file": "admin/weekly.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:nested-config/web/src/lib/client.js"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "file:nested-config/scripts/seed.js",
+      "id": "imports:file:nested-config/scripts/seed.js->unresolved:nested-config/scripts/seed.js:2:20",
+      "kind": "imports",
+      "reason": "UNKNOWN_SYMBOL",
+      "sites": [
+        {
+          "column": 20,
+          "file": "scripts/seed.js",
+          "line": 2
+        }
+      ],
+      "to": "unresolved:nested-config/scripts/seed.js:2:20"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:nested-config/web/src/notes/notesApi.js",
+      "id": "imports:file:nested-config/web/src/notes/notesApi.js->file:nested-config/web/src/lib/client.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 20,
+          "file": "web/src/notes/notesApi.js",
+          "line": 1
+        }
+      ],
+      "to": "file:nested-config/web/src/lib/client.js"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "56e7534815a3e620da4ef2d6b382ed525a31c0e37f64827148eccead6fc162ea",
+      "id": "file:nested-config/admin/weekly.ts",
+      "kind": "file",
+      "label": "weekly.ts",
+      "parentId": "module:nested-config/admin",
+      "path": "admin/weekly.ts"
+    },
+    {
+      "hash": "d908134f49811ac4acbca4cb56ef5b014606c0fa1c632878c7b6cdee8b13bc1b",
+      "id": "file:nested-config/scripts/seed.js",
+      "kind": "file",
+      "label": "seed.js",
+      "parentId": "module:nested-config/scripts",
+      "path": "scripts/seed.js"
+    },
+    {
+      "hash": "cd867d6130922a7c7eebbe291315a9895e0cd23d3ddcc48583f0a133b0341296",
+      "id": "file:nested-config/server/index.js",
+      "kind": "file",
+      "label": "index.js",
+      "parentId": "module:nested-config/server",
+      "path": "server/index.js"
+    },
+    {
+      "hash": "821aa0a58aec5c93ca4b60d31b2e878a28064f4fce08a0fa04bb26e77a3f3a87",
+      "id": "file:nested-config/web/src/lib/client.js",
+      "kind": "file",
+      "label": "client.js",
+      "parentId": "module:nested-config/web/src/lib",
+      "path": "web/src/lib/client.js"
+    },
+    {
+      "hash": "12288cca08010848a8a6bcbe6e49ed0da0e67a0a0d23984aa526f39f2a926fd0",
+      "id": "file:nested-config/web/src/notes/notesApi.js",
+      "kind": "file",
+      "label": "notesApi.js",
+      "parentId": "module:nested-config/web/src/notes",
+      "path": "web/src/notes/notesApi.js"
+    },
+    {
+      "id": "module:nested-config/admin",
+      "kind": "module",
+      "label": "admin",
+      "parentId": "service:nested-config/",
+      "path": "admin"
+    },
+    {
+      "id": "module:nested-config/scripts",
+      "kind": "module",
+      "label": "scripts",
+      "parentId": "service:nested-config/",
+      "path": "scripts"
+    },
+    {
+      "id": "module:nested-config/server",
+      "kind": "module",
+      "label": "server",
+      "parentId": "service:nested-config/",
+      "path": "server"
+    },
+    {
+      "id": "module:nested-config/web/src/lib",
+      "kind": "module",
+      "label": "lib",
+      "parentId": "service:nested-config/",
+      "path": "web/src/lib"
+    },
+    {
+      "id": "module:nested-config/web/src/notes",
+      "kind": "module",
+      "label": "notes",
+      "parentId": "service:nested-config/",
+      "path": "web/src/notes"
+    },
+    {
+      "id": "route:nested-config/DELETE /api/notes/:id",
+      "kind": "route",
+      "label": "DELETE /api/notes/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:nested-config/server/index.js",
+      "path": "/api/notes/:id",
+      "source": {
+        "column": 7,
+        "file": "server/index.js",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:nested-config/GET /api/notes",
+      "kind": "route",
+      "label": "GET /api/notes",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:nested-config/server/index.js",
+      "path": "/api/notes",
+      "source": {
+        "column": 7,
+        "file": "server/index.js",
+        "line": 4
+      }
+    },
+    {
+      "id": "route:nested-config/GET /api/reports/weekly",
+      "kind": "route",
+      "label": "GET /api/reports/weekly",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:nested-config/server/index.js",
+      "path": "/api/reports/weekly",
+      "source": {
+        "column": 7,
+        "file": "server/index.js",
+        "line": 7
+      }
+    },
+    {
+      "id": "route:nested-config/POST /api/notes",
+      "kind": "route",
+      "label": "POST /api/notes",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:nested-config/server/index.js",
+      "path": "/api/notes",
+      "source": {
+        "column": 7,
+        "file": "server/index.js",
+        "line": 5
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:nested-config/",
+      "kind": "service",
+      "label": "nested-config",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:nested-config/admin/weekly.ts#weeklyReport",
+      "kind": "symbol",
+      "label": "weeklyReport",
+      "parentId": "file:nested-config/admin/weekly.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "admin/weekly.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:nested-config/scripts/seed.js#seed",
+      "kind": "symbol",
+      "label": "seed",
+      "parentId": "file:nested-config/scripts/seed.js",
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "scripts/seed.js",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:nested-config/web/src/lib/client.js#client",
+      "kind": "symbol",
+      "label": "client",
+      "parentId": "file:nested-config/web/src/lib/client.js",
+      "source": {
+        "column": 7,
+        "endLine": 4,
+        "file": "web/src/lib/client.js",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:nested-config/web/src/notes/notesApi.js#addNote",
+      "kind": "symbol",
+      "label": "addNote",
+      "parentId": "file:nested-config/web/src/notes/notesApi.js",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "web/src/notes/notesApi.js",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:nested-config/web/src/notes/notesApi.js#listNotes",
+      "kind": "symbol",
+      "label": "listNotes",
+      "parentId": "file:nested-config/web/src/notes/notesApi.js",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "web/src/notes/notesApi.js",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:nested-config/web/src/notes/notesApi.js#removeNote",
+      "kind": "symbol",
+      "label": "removeNote",
+      "parentId": "file:nested-config/web/src/notes/notesApi.js",
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "web/src/notes/notesApi.js",
+        "line": 11
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "nested-config",
+      "parentId": null
+    },
+    {
+      "expression": "@/lib/client",
+      "id": "unresolved:nested-config/scripts/seed.js:2:20",
+      "kind": "unresolved",
+      "label": "@/lib/client",
+      "parentId": "service:nested-config/",
+      "reason": "UNKNOWN_SYMBOL",
+      "source": {
+        "column": 20,
+        "file": "scripts/seed.js",
+        "line": 2
+      }
+    }
+  ],
+  "repo": {
+    "name": "nested-config",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

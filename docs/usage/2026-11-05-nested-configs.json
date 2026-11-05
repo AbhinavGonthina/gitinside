@@ -1,0 +1,361 @@
+{
+  "about": "M5C.7g. GitHub REST code search for each query, pages 1-10 of 100 hits (the API's 1,000-hit cap), in its default order; hits whose path is a nested config (not at the repo root) kept, one per repo, forks skipped. Each repo's git tree (default branch) classifies the config's folder: its own package (a package.json in the folder: already a service, ADR-0163), no package.json above it, or nested in a package (the pattern). For the last, the config is read and `resolves` says whether a `paths` target (joined to its baseUrl, else the config's folder, as TypeScript does) names a folder or file present in the tree. Then, for each row that resolves, up to 30 source files under the config's folder were read and `aliasImports` counts those importing through one of its aliases (a `from`, `require(`, or `import(` line starting with an alias prefix). `error` rows lost their connection to GitHub mid-run and weren't retried.",
+  "measuredAt": "2026-11-05T19:36:16.320Z",
+  "counts": {
+    "\"paths\" filename:jsconfig.json": 140800,
+    "\"paths\" filename:tsconfig.json": 1658880
+  },
+  "hits": {
+    "\"paths\" filename:jsconfig.json": 900,
+    "\"paths\" filename:tsconfig.json": 1000
+  },
+  "nestedHits": {
+    "\"paths\" filename:jsconfig.json": 560,
+    "\"paths\" filename:tsconfig.json": 520
+  },
+  "tally": {
+    "no package.json above": 11,
+    "folder is its own package": 730,
+    "nested in a package, own paths that don't resolve": 9,
+    "nested in a package, own paths that resolve": 15,
+    "tree truncated": 7,
+    "config gone from default branch": 1,
+    "nested in a package, no paths of its own": 3,
+    "error": 22
+  },
+  "pattern": [
+    {
+      "repo": "gurkanyakar/x-clone-react",
+      "config": "src/jsconfig.json",
+      "result": "nested in a package, own paths that don't resolve",
+      "paths": ["~/*"],
+      "baseUrl": "./src",
+      "extends": null,
+      "sources": 15
+    },
+    {
+      "repo": "by-be-young/tutor-base",
+      "config": "tutor-nest-vue/jsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["@/*"],
+      "baseUrl": null,
+      "extends": null,
+      "sources": 63,
+      "filesRead": 30,
+      "aliasImports": 8,
+      "example": "tutor-nest-vue/src/composables/useAdminWorkspace.js: import { useAdminStore } from '@/stores/adminStore'"
+    },
+    {
+      "repo": "jmbruel/toha",
+      "config": "assets/jsconfig.json",
+      "result": "nested in a package, own paths that don't resolve",
+      "paths": ["*"],
+      "baseUrl": ".",
+      "extends": null,
+      "sources": 0
+    },
+    {
+      "repo": "Elise-Wong/bc2412-sb",
+      "config": "demo-vue-app/src/jsconfig.json",
+      "result": "nested in a package, own paths that don't resolve",
+      "paths": ["components/*"],
+      "baseUrl": ".",
+      "extends": null,
+      "sources": 1
+    },
+    {
+      "repo": "opbru/DBMS_project",
+      "config": "src/services/jsconfig.json",
+      "result": "nested in a package, own paths that don't resolve",
+      "paths": ["@/*"],
+      "baseUrl": "./",
+      "extends": null,
+      "sources": 1
+    },
+    {
+      "repo": "labradorwelander477/Entaai-UI",
+      "config": "src/core/config/at_root_path/jsconfig.json",
+      "result": "nested in a package, own paths that don't resolve",
+      "paths": ["@/*"],
+      "baseUrl": "src",
+      "extends": null,
+      "sources": 1
+    },
+    {
+      "repo": "414ND1N/Micho",
+      "config": "src/jsconfig.json",
+      "result": "nested in a package, own paths that don't resolve",
+      "paths": ["@/*"],
+      "baseUrl": ".",
+      "extends": null,
+      "sources": 63
+    },
+    {
+      "repo": "coldbox-modules/cbwire",
+      "config": "includes/js/livewire/js/jsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["@/*"],
+      "baseUrl": ".",
+      "extends": null,
+      "sources": 67,
+      "filesRead": 30,
+      "aliasImports": 20,
+      "example": "includes/js/livewire/js/$wire.js: import { dispatch, dispatchSelf, dispatchTo, listen } from '@/events'"
+    },
+    {
+      "repo": "barryhughes1/pluralSightQuestionnaires_LWCs",
+      "config": "04. Completed Solution/main/questionnaires/lwc/jsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": [
+        "c/accountCreator",
+        "c/helloWorld",
+        "c/questionnaireAnswer",
+        "c/questionnaireCard",
+        "c/questionnaireList",
+        "c/questionnaireLwc"
+      ],
+      "baseUrl": ".",
+      "extends": null,
+      "sources": 4,
+      "filesRead": 4,
+      "aliasImports": 0,
+      "example": null
+    },
+    {
+      "repo": "MichaelMedford/michaelmedford.github.io",
+      "config": "assets/jsconfig.json",
+      "result": "nested in a package, own paths that don't resolve",
+      "paths": ["*"],
+      "baseUrl": ".",
+      "extends": null,
+      "sources": 0
+    },
+    {
+      "repo": "Jonath-z/assistant-deBot",
+      "config": "src/dfinity_js_frontend/jsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["@/*"],
+      "baseUrl": null,
+      "extends": null,
+      "sources": 25,
+      "filesRead": 25,
+      "aliasImports": 0,
+      "example": null
+    },
+    {
+      "repo": "TADI-I/Enviro365",
+      "config": "waste-sorting-app/src/jsconfig.json",
+      "result": "nested in a package, own paths that don't resolve",
+      "paths": ["components/*", "utils/*", "assets/*"],
+      "baseUrl": "./",
+      "extends": null,
+      "sources": 6
+    },
+    {
+      "repo": "clholgat/ayab-valdi",
+      "config": "src/modules/state_machine/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": [
+        "state_machine/*",
+        "jasmine/*",
+        "coreutils/*",
+        "source_map/*",
+        "valdi_tsx/*",
+        "valdi_core/*",
+        "file_system/*",
+        "valdi_standalone/*",
+        "valdi_rxjs/*",
+        "valdi_test/*",
+        "bridge_observables/*",
+        "foundation/*",
+        "widgets/*",
+        "constants/*",
+        "tslib"
+      ],
+      "baseUrl": null,
+      "extends": "../../bazel-src/external/valdi~/modules/_configs/base.tsconfig.json",
+      "sources": 15,
+      "filesRead": 15,
+      "aliasImports": 11,
+      "example": "src/modules/state_machine/src/ColorQuantization.ts: import { Mode } from \"constants/src/StateMachineConstants\";"
+    },
+    {
+      "repo": "Blinks44/moduix",
+      "config": "website/snippets/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["@/registry/solid/ui/*", "@/components/ui/*", "@/*"],
+      "baseUrl": null,
+      "extends": "../../packages/solid/tsconfig.json",
+      "sources": 915,
+      "filesRead": 30,
+      "aliasImports": 19,
+      "example": "website/snippets/accordion/solid/basic.tsx: import styles from '@/components/examples/accordion/accordion-basic.module.css';"
+    },
+    {
+      "repo": "what-works-global/payload-packages",
+      "config": "packages/heading-field/dev/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": [
+        "@payload-config",
+        "@whatworks/payload-heading-field",
+        "@whatworks/payload-heading-field/client",
+        "@whatworks/payload-heading-field/rsc"
+      ],
+      "baseUrl": null,
+      "extends": "../../../tools/dev-fixture/tsconfig.dev.json",
+      "sources": 11,
+      "filesRead": 11,
+      "aliasImports": 7,
+      "example": "packages/heading-field/dev/app/(frontend)/page.tsx: import config from '@payload-config'"
+    },
+    {
+      "repo": "sidsagwekar16/RepairRequest",
+      "config": "client/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["@/*", "@assets/*"],
+      "baseUrl": ".",
+      "extends": null,
+      "sources": 101,
+      "filesRead": 30,
+      "aliasImports": 26,
+      "example": "client/assets/Home_1750783509120.tsx: import { Button } from \"@/components/ui/button\";"
+    },
+    {
+      "repo": "sidsagwekar16/RepairRequest-latest-fork",
+      "config": "client/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["@/*", "@assets/*"],
+      "baseUrl": ".",
+      "extends": null,
+      "sources": 101,
+      "filesRead": 30,
+      "aliasImports": 26,
+      "example": "client/assets/Home_1750783509120.tsx: import { Button } from \"@/components/ui/button\";"
+    },
+    {
+      "repo": "nlr-ai/swarm-launchpad",
+      "config": "scripts/tsconfig.json",
+      "result": "nested in a package, own paths that don't resolve",
+      "paths": ["@/*"],
+      "baseUrl": "..",
+      "extends": null,
+      "sources": 17
+    },
+    {
+      "repo": "xanimos/feedback-forge",
+      "config": "packages/payload-plugin/dev/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": [
+        "@payload-config",
+        "@xanimos/payload-feedback-forge",
+        "@xanimos/payload-feedback-forge/client",
+        "@xanimos/payload-feedback-forge/rsc"
+      ],
+      "baseUrl": "./",
+      "extends": "../tsconfig.json",
+      "sources": 20,
+      "filesRead": 20,
+      "aliasImports": 7,
+      "example": "packages/payload-plugin/dev/app/(payload)/admin/[[...segments]]/not-found.tsx: import config from '@payload-config';"
+    },
+    {
+      "repo": "woai3c/tan-cli",
+      "config": "packages/@tancli/plugin-ts-component/generator/template/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["@/*"],
+      "baseUrl": ".",
+      "extends": null,
+      "sources": 9,
+      "filesRead": 9,
+      "aliasImports": 1,
+      "example": "packages/@tancli/plugin-ts-component/generator/template/tests/math.spec.ts: import { add, sub, mul, div } from '@/index'"
+    },
+    {
+      "repo": "domw95/azul-tiles",
+      "config": "profiling/tsconfig.json",
+      "result": "nested in a package, no paths of its own",
+      "paths": [],
+      "baseUrl": null,
+      "extends": null,
+      "sources": 1
+    },
+    {
+      "repo": "epicweb-dev/react-performance",
+      "config": "exercises/02.context/01.solution.memo-context/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["#shared*"],
+      "baseUrl": null,
+      "extends": ["@epic-web/config/typescript"],
+      "sources": 3,
+      "filesRead": 3,
+      "aliasImports": 1,
+      "example": "exercises/02.context/01.solution.memo-context/memo-context.test.ts: import { getComponentCalls } from '#shared/get-component-calls'"
+    },
+    {
+      "repo": "adhimrahman/SpotitipV2",
+      "config": "backup/web-backup/tsconfig.json",
+      "result": "nested in a package, no paths of its own",
+      "paths": [],
+      "baseUrl": null,
+      "extends": null,
+      "sources": 18
+    },
+    {
+      "repo": "jsevenheck/game-platform",
+      "config": "games/flip7/ui-vue/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["@shared/*", "@platform/*", "@/*"],
+      "baseUrl": null,
+      "extends": null,
+      "sources": 7,
+      "filesRead": 7,
+      "aliasImports": 3,
+      "example": "games/flip7/ui-vue/src/composables/useSocket.ts: import type { ClientToServerEvents, ServerToClientEvents } from '@shared/events';"
+    },
+    {
+      "repo": "yagisumi/node-simple-buffer-reader",
+      "config": "test/tsconfig.json",
+      "result": "nested in a package, no paths of its own",
+      "paths": [],
+      "baseUrl": null,
+      "extends": null,
+      "sources": 1
+    },
+    {
+      "repo": "dmajic00/PekaraZ",
+      "config": "frontend/customer/.quasar/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": [
+        "@",
+        "@/*",
+        "#q-app",
+        "#q-app/client",
+        "#q-app/bex/background",
+        "#q-app/bex/content",
+        "#q-app/bex/private/bex-bridge",
+        "#q-app/electron/main",
+        "#q-app/electron/preload",
+        "#q-app/testing",
+        "#q-app/capacitor"
+      ],
+      "baseUrl": null,
+      "extends": null,
+      "sources": 7,
+      "filesRead": 7,
+      "aliasImports": 3,
+      "example": "frontend/customer/.quasar/dev-spa/app.js: import RootComponent from '@/../src/App.vue'"
+    },
+    {
+      "repo": "lightyen/typescript-paths",
+      "config": "packages/typescript-paths/tests/nodenext/tsconfig.json",
+      "result": "nested in a package, own paths that resolve",
+      "paths": ["~/*"],
+      "baseUrl": "src",
+      "extends": null,
+      "sources": 4,
+      "filesRead": 4,
+      "aliasImports": 1,
+      "example": "packages/typescript-paths/tests/nodenext/main.tsx: import App from \"~/App\""
+    }
+  ]
+}
