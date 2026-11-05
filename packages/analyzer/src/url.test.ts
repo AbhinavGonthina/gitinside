@@ -716,6 +716,51 @@ describe("createUrlNormalizer", () => {
     ]);
   });
 
+  it("keeps globals whose properties a JS file assigns (M5C.7e2)", async () => {
+    // TypeScript binds a JS file's top-level `process.env.X = …` as a declaration of
+    // `process` in that file; the global is still the global everywhere else.
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("scripts/setup.mjs", [
+      'process.env.NODE_ENV = "test";',
+      "process.exitCode = 0;",
+      'window.title = "x";',
+      'location.hash = "";',
+      "String.custom = 1;",
+      "URL.custom = 1;",
+      "export {};",
+    ]);
+    await put("scripts/plain.js", ['process.env.DEBUG = "1";']);
+    await put("src/api.ts", [
+      "const base = process.env.LOAD_BASE_URL!;",
+      "export async function load(id: string) {",
+      "  await fetch(`${base}/api/a`);",
+      "  await fetch(`${window.location.origin}/api/b`);",
+      "  await fetch(location.origin + '/api/c');",
+      "  await fetch(String(`/api/d/${id}`));",
+      "  await fetch(new URL('/api/e', new URL(process.env.LOAD_BASE_URL!)));",
+      "}",
+    ]);
+    expect(await normalized()).toEqual([
+      "src/api.ts:3 {env:LOAD_BASE_URL}/api/a",
+      "src/api.ts:4 /api/b",
+      "src/api.ts:5 /api/c",
+      "src/api.ts:6 /api/d/{}",
+      "src/api.ts:7 {env:LOAD_BASE_URL}/api/e",
+    ]);
+  });
+
+  it("still treats a JS file's own declaration of process as a look-alike", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("scripts/shadow.js", [
+      "var process = { env: { API: '/fake' } };",
+      'process.env.NODE_ENV = "test";',
+    ]);
+    await put("src/api.ts", ["export const load = () => fetch(`${process.env.API}/x`);"]);
+    expect(await normalized()).toEqual([
+      "src/api.ts:1 DYNAMIC_URL: the URL starts with a value only known at runtime",
+    ]);
+  });
+
   it("combines axios baseURLs the way axios does", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/api.ts", [

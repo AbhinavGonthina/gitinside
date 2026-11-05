@@ -39,6 +39,20 @@ export function unwrap(expression: ts.Expression): ts.Expression {
   return e;
 }
 
+/**
+ * True for the namespace TypeScript implies when a JS file assigns a property of a name it
+ * doesn't declare (`process.env.NODE_ENV = "test"` at the top level gives `process` a
+ * declaration at that identifier, merged into the global). It's an assignment to the global,
+ * not a declaration that shadows it (ADR-0211).
+ */
+export function isJsExpando(declaration: ts.Declaration): boolean {
+  return (
+    ts.isIdentifier(declaration) &&
+    ts.isPropertyAccessExpression(declaration.parent) &&
+    declaration.parent.expression === declaration
+  );
+}
+
 /** `function` for function and arrow expressions, `class` for class expressions, else `variable`. */
 function valueKind(expression: ts.Expression): SymbolKind {
   const e = unwrap(expression);

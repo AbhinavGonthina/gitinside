@@ -1,0 +1,119 @@
+{
+  "about": "Raw measurements behind M5C.7e2 (docs/COVERAGE.md 'After batch 4', ADR-0211): how common is a JS file that assigns a property of a global at the top level (process.env.NODE_ENV = ...), which TypeScript binds as a declaration of `process` in the repo, so before ADR-0211 every process.env read in the same service read as a runtime value. 'counts': GitHub REST GET /search/code (legacy engine, authenticated) total_count per query. 'repos': the first 20 non-fork hits for '\"process.env.BABEL_ENV = \" language:JavaScript path:scripts' (ejected create-react-app scripts, which set BABEL_ENV and NODE_ENV in scripts/start.js or build.js), one per repo, each with the total_count of 'repo:<repo> \"process.env.REACT_APP_\" path:src' (app files in the same package reading env vars; the legacy index misses some repos, so 0 is a lower bound). 4 of 20 read REACT_APP_ vars in src. Read by hand: velopert/velog-client's src/lib/api/apiClient.ts sets axios.create({ baseURL: host }) with host = process.env.NODE_ENV === 'development' ? '/' : process.env.REACT_APP_API_HOST || '/', so its env base was a hole there. Among the eval checkouts (eval/dist/e2-scan.mjs), the process form is only in batch 4's snagtime (scripts/postgres-runtime-check.mjs, scripts/demo-check.mjs, scripts/container-entrypoint.mjs); batch 1's mern-social (document.cookie = ...) and batch 3's Recipen (window.location.href = ..., document.title = ...) have the window/document form, which affects only window.location.origin and window.fetch reads.",
+  "date": "2026-11-05",
+  "counts": {
+    "\"process.env.NODE_ENV = \" language:JavaScript": 143360,
+    "\"process.env.BABEL_ENV = \" language:JavaScript": 25984,
+    "\"process.env.NODE_ENV = \" extension:mjs": 9344,
+    "\"process.env.NODE_ENV = \" language:TypeScript": 86912
+  },
+  "repos": [
+    {
+      "repo": "yezihaohao/react-admin",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "MuYunyun/reactSPA",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "tech-conferences/confs.tech",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 2
+    },
+    {
+      "repo": "sanyuan0704/react-cloud-music",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "joshwcomeau/waveforms",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "arqex/react-datetime",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "hua1995116/react-resume-site",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "Privoce/vocechat-web",
+      "file": "scripts/build.js",
+      "srcFilesReadingReactAppEnv": 3
+    },
+    {
+      "repo": "Foveluy/Luy",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "kryptokinght/react-extension-boilerplate",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "crypto-com/chain-desktop-wallet",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "icon-project/iconex_chrome_extension",
+      "file": "scripts/dev.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "velopert/velog-client",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 12
+    },
+    {
+      "repo": "thenewboston-blockchain/Account-Manager",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "neroneroffy/react-source-code-debug",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "Hazyzh/jest-html-reporters",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "mmontag/chip-player-js",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 1
+    },
+    {
+      "repo": "Vincedream/ddd-fe-demo",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "huangwc94/scraping-helper-chrome-extension",
+      "file": "scripts/dev.js",
+      "srcFilesReadingReactAppEnv": 0
+    },
+    {
+      "repo": "TheToxProject/client",
+      "file": "scripts/start.js",
+      "srcFilesReadingReactAppEnv": 0
+    }
+  ],
+  "readByHand": [
+    {
+      "repo": "velopert/velog-client",
+      "assigns": "scripts/start.js (a hit for \"process.env.BABEL_ENV = \", the ejected create-react-app script)",
+      "reads": "src/lib/api/apiClient.ts: const host = process.env.NODE_ENV === 'development' ? '/' : process.env.REACT_APP_API_HOST || '/'; axios.create({ baseURL: host })"
+    }
+  ]
+}
