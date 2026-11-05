@@ -1,0 +1,872 @@
+{
+  "about": "Raw measurements behind M5C.7d (docs/COVERAGE.md 'After batch 4', ADR-0032's M5C.7d amendment): is a URL built by calling a repo function, inside a request, used outside batch 4? 'counts': GitHub REST GET /search/code (legacy engine, authenticated) total_count per phrase and language, with the first 3 hits; the engine ignores most punctuation, so a phrase counts files with those words in that order, an upper bound on the pattern. 'classified': for 4 phrases, the first 10 hits per language read at their default branch and classified by the callee's definition in the same file (see its 'method'); 'one-expression' is the form M5C.7d reads. hoangsonww/Tic-Tac-Toe-Fullstack-Game (batch 4) is among the 9 one-expression hits; the other 8 are outside every eval set. Three were read by hand (camthink-ai/NeoMind setup.tsx:36, fcsonline/family-map usePeopleData.js:171, chrispyers/openkiwi App.tsx:193) and are builders called as fetch(builder('/path')). No repo in batches 1-3 or the original set has the pattern (searched M5C.7d).",
+  "counts": {
+    "measuredAt": "2026-11-05T14:18:03.316Z",
+    "search": {
+      "\"fetch(apiUrl(\"": {
+        "byLanguage": {
+          "TypeScript": {
+            "total": 16864,
+            "sample": [
+              "Oasis-Enterprise/mylo/ui/src/api.ts",
+              "evoluteur/evolutility-ui-react/src/dao/dao.ts",
+              "wangwei-ying3/ming-salvage-sim/web/src/api.ts"
+            ]
+          },
+          "TSX": {
+            "total": 18272,
+            "sample": [
+              "modelscope/sirchmunk/web/app/page.tsx",
+              "linagora/openrag/ui/src/lib/auth.tsx",
+              "agentteams-group/agentteams-dashboard/src/app/page.tsx"
+            ]
+          },
+          "JavaScript": {
+            "total": 17920,
+            "sample": [
+              "cvzi/telegram-bot-cloudflare/bot.js",
+              "cvzi/telegram-bot-cloudflare/bot4.js",
+              "cvzi/telegram-bot-cloudflare/bot3.js"
+            ]
+          }
+        }
+      },
+      "\"fetch(getApiUrl(\"": {
+        "byLanguage": {
+          "TypeScript": {
+            "total": 4400,
+            "sample": [
+              "autobrr/netronome/web/src/api/auth.ts",
+              "autobrr/netronome/web/src/api/monitor.ts",
+              "autobrr/netronome/web/src/api/license.ts"
+            ]
+          },
+          "TSX": {
+            "total": 8944,
+            "sample": [
+              "developersdigest/llm-api-engine/app/page.tsx",
+              "context-labs/aella-data-explorer/frontend/src/LaionApp.tsx",
+              "camthink-ai/NeoMind/web/src/pages/setup.tsx"
+            ]
+          },
+          "JavaScript": {
+            "total": 5968,
+            "sample": [
+              "jossmac/react-images/docs/ImageProvider.js",
+              "cloud-gov/pages-core/api/services/GitLab.js",
+              "mlwmlw/pcc/pages/month.js"
+            ]
+          }
+        }
+      },
+      "\"fetch(buildUrl(\"": {
+        "byLanguage": {
+          "TypeScript": {
+            "total": 9776,
+            "sample": [
+              "Ameobea/web-synth/src/api.ts",
+              "LuanRT/BgUtils/examples/index.ts",
+              "Evil0ctal/Douyin_TikTok_Download_API/web/src/lib/api.ts"
+            ]
+          },
+          "TSX": {
+            "total": 1294,
+            "sample": [
+              "srizzon/git-city/src/components/activity/ActivityHub.tsx",
+              "formbricks/formbricks/apps/web/app/(app)/workspaces/[workspaceId]/surveys/[surveyId]/components/ResponseDownloadMenu.tsx",
+              "event-catalog/eventcatalog/packages/core/eventcatalog/src/components/FieldsExplorer/FieldsExplorer.tsx"
+            ]
+          },
+          "JavaScript": {
+            "total": 4744,
+            "sample": [
+              "prateek-chaubey/YTPro/scripts/innertube.js",
+              "cbothner/react-activestorage-provider/src/index.js",
+              "Soham7-dev/AspGoat/wwwroot/LLM-js/pi.js"
+            ]
+          }
+        }
+      },
+      "\"fetch(endpoints.\"": {
+        "byLanguage": {
+          "TypeScript": {
+            "total": 2452,
+            "sample": [
+              "muni-town/weird/src/lib/rauthy/server.ts",
+              "franklioxygen/MyTube/chrome-extension/src/background.ts",
+              "cyyynthia/pronoundb.org/packages/extension/src/worker.ts"
+            ]
+          },
+          "TSX": {
+            "total": 1980,
+            "sample": [
+              "crbnos/carbon/packages/account/src/ui/SecuritySettings.tsx",
+              "cyyynthia/pronoundb.org/packages/extension/src/popup/components/Popup.tsx",
+              "powercord-org/powercord-backend/packages/web/src/components/Contributors.tsx"
+            ]
+          },
+          "JavaScript": {
+            "total": 6464,
+            "sample": [
+              "mayankagarwal09/dev-portfolio/src/MainApp.jsx",
+              "christian-fei/my-yt/client/lib/router.js",
+              "AminoJS/Amino.JS/modules/login.js"
+            ]
+          }
+        }
+      },
+      "\"axios.get(endpoints.\"": {
+        "byLanguage": {
+          "TypeScript": {
+            "total": 713,
+            "sample": [
+              "streamyfin/streamyfin/hooks/useSeerr.ts",
+              "mbsantiago/whombat/front/src/lib/api/sound_events.ts",
+              "Lila-Kuhlt/mister-x/liberica/src/lib/api.ts"
+            ]
+          },
+          "TSX": {
+            "total": 909,
+            "sample": [
+              "tkturners/Minimal_TypeScript/next-ts/src/app/post/[title]/page.tsx",
+              "tkturners/Minimal_TypeScript/next-ts/src/app/product/[id]/page.tsx",
+              "tkturners/Minimal_TypeScript/next-ts/src/app/dashboard/product/[id]/page.tsx"
+            ]
+          },
+          "JavaScript": {
+            "total": 3372,
+            "sample": [
+              "OneCommunityGlobal/HighestGoodNetworkApp/src/actions/wbs.js",
+              "OneCommunityGlobal/HighestGoodNetworkApp/src/components/Faq/api.jsx",
+              "OneCommunityGlobal/HighestGoodNetworkApp/src/actions/information.js"
+            ]
+          }
+        }
+      },
+      "\"fetch(urls.\"": {
+        "byLanguage": {
+          "TypeScript": {
+            "total": 1042,
+            "sample": [
+              "XiaomiMiMo/MiMo-Code/packages/cli/src/plugin/github-copilot/copilot.ts",
+              "REVENGE977/stremio-enhanced/src/core/Updater.ts",
+              "synthetic-sciences/openscience/backend/cli/src/plugin/copilot.ts"
+            ]
+          },
+          "TSX": {
+            "total": 424,
+            "sample": [
+              "google/android-emulator-container-scripts/js/src/components/emulator/emulator.tsx",
+              "metabase/metabase/enterprise/frontend/src/metabase-enterprise/replacement/routes.tsx",
+              "ory/polis/internal-ui/src/identity-federation/EditAttributesMapping.tsx"
+            ]
+          },
+          "JavaScript": {
+            "total": 2552,
+            "sample": [
+              "dremio/dremio-oss/dac/ui/licenseCheck.js",
+              "taskcluster/taskcluster/ui/src/utils/exchangesList.js",
+              "hopsoft/turbo_boost-commands/app/javascript/invoker.js"
+            ]
+          }
+        }
+      },
+      "\"apiUrl = useCallback\"": {
+        "byLanguage": {
+          "TypeScript": {
+            "total": 127,
+            "sample": [
+              "aliasvault/aliasvault/apps/mobile-app/utils/ApiUrlUtility.ts",
+              "aliasvault/aliasvault/apps/browser-extension/src/entrypoints/popup/utils/ApiUrlUtility.ts",
+              "KuekHaoYang/KVideo/components/player/hooks/usePlayerSettings.ts"
+            ]
+          },
+          "TSX": {
+            "total": 426,
+            "sample": [
+              "databricks/app-templates/appkit-files/client/src/pages/files/FilesPage.tsx",
+              "databricks/app-templates/appkit-all-in-one/client/src/pages/files/FilesPage.tsx",
+              "polkadot-js/apps/packages/apps/src/Endpoints/Network.tsx"
+            ]
+          },
+          "JavaScript": {
+            "total": 159,
+            "sample": [
+              "itark/frosk-dashboard/src/store/DataSourceContext.js",
+              "HousseinSA/LandOfMovies/src/hooks/useFetch.jsx",
+              "akhilreddy59/NotesNest/src/pages/NotesList.js"
+            ]
+          }
+        }
+      },
+      "\"getUrl = useCallback\"": {
+        "byLanguage": {
+          "TypeScript": {
+            "total": 166,
+            "sample": [
+              "elastic/kibana/x-pack/platform/plugins/shared/agent_builder/public/application/hooks/use_breadcrumbs.ts",
+              "elastic/kibana/x-pack/platform/plugins/private/canvas/public/routes/workpad/hooks/use_routing_context.ts",
+              "elastic/kibana/x-pack/solutions/security/plugins/security_solution/public/entity_analytics/api/hooks/use_anomaly_single_metric_viewer_url.ts"
+            ]
+          },
+          "TSX": {
+            "total": 247,
+            "sample": [
+              "axelor/axelor-open-platform/axelor-front/src/views/html/html.tsx",
+              "elastic/kibana/x-pack/platform/plugins/shared/ml/public/application/supplied_configurations/supplied_configurations_flyout/data_views_table.tsx",
+              "funmaker/Hybooru/client/hooks/useQuery.tsx"
+            ]
+          },
+          "JavaScript": {
+            "total": 86,
+            "sample": [
+              "Yoast/wordpress-seo/packages/js/src/dashboard/widgets/site-kit-setup-widget.js",
+              "a8hok/React-projects/Text-search/src/best-app.jsx",
+              "Hyperlite-hv/Hyperlite/dashboard/src/next/windows/HostShellWindow.jsx"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "classified": {
+    "measuredAt": "2026-11-05T14:22:47.254Z",
+    "method": "Per query and language, the first 10 hits of GitHub REST search/code (legacy engine, authenticated); each file read at its default branch and classified by regex: 'one-expression' = the callee defined in the same file as an arrow (also inside useCallback/useMemo) whose body starts with a template, string, or `x +`, or a function whose body starts with `return` of one; 'other-body' = defined in the file some other way; 'defined-elsewhere' = imported or not found.",
+    "queries": {
+      "fetch(apiUrl(": {
+        "tally": {
+          "other-body": 18,
+          "defined-elsewhere": 12
+        },
+        "rows": [
+          {
+            "language": "TypeScript",
+            "where": "Oasis-Enterprise/mylo/ui/src/api.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "evoluteur/evolutility-ui-react/src/dao/dao.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "wangwei-ying3/ming-salvage-sim/web/src/api.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "bacchus-snu/id-front/api/index.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "bacchus-snu/id-front/api/oauth.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "Itz-Murali/Elaina-Ai/index.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "mishushakov/expo-vibe/lib/build-client.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "tabbied-design/tabbied/lib/events.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "Ibragimm228/realtimechat/src/lib/v2/api.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "VrtxOmega/coded/src/lib/api.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "modelscope/sirchmunk/web/app/page.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "linagora/openrag/ui/src/lib/auth.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "agentteams-group/agentteams-dashboard/src/app/page.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "fluse/rcon-io/pages/maps.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "devhims/youtube-caption-extractor/sample/app/page.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "fluse/rcon-io/pages/promts.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "ThePredictiveDev/Automated-Financial-Market-Trading-System/frontend/src/App.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "fluse/rcon-io/provider/AppState.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "fluse/rcon-io/components/RCON/Say.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "xpsony/UmlautAdaptarrEX/src/app/setup/page.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "cvzi/telegram-bot-cloudflare/bot.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "cvzi/telegram-bot-cloudflare/bot4.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "cvzi/telegram-bot-cloudflare/bot3.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "cvzi/telegram-bot-cloudflare/bot2.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "LloydAsp/nfd/worker.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "templetongroup/radiant/src/api.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "nirholas/three.ws/src/vault.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "Itz-Ashlynn/ChatGPT/worker.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "Itz-Ashlynn/ChatGPT/worker2.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "xn030523/cpa-clean/app/page.js",
+            "form": "other-body"
+          }
+        ]
+      },
+      "fetch(getApiUrl(": {
+        "tally": {
+          "defined-elsewhere": 21,
+          "other-body": 6,
+          "one-expression": 3
+        },
+        "rows": [
+          {
+            "language": "TypeScript",
+            "where": "autobrr/netronome/web/src/api/auth.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "autobrr/netronome/web/src/api/monitor.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "autobrr/netronome/web/src/api/license.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "autobrr/netronome/web/src/api/version.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "autobrr/netronome/web/src/api/settings.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "autobrr/netronome/web/src/api/packetloss.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "ryokun6/ryos/src/lib/pusherClient.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "NeKonnnn/Astra-Studio/frontend/src/coding/api.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "HomeRiz/hats/src/services/haService.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "tt-a1i/chat_edit/src/api/api.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "developersdigest/llm-api-engine/app/page.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "context-labs/aella-data-explorer/frontend/src/LaionApp.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "camthink-ai/NeoMind/web/src/pages/setup.tsx",
+            "form": "one-expression"
+          },
+          {
+            "language": "TSX",
+            "where": "chrispyers/openkiwi/ui/src/App.tsx",
+            "form": "one-expression"
+          },
+          {
+            "language": "TSX",
+            "where": "jjsvs/Hashcat-Reactor/components/RemoteAccess.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "lb08111/nexora-ai-platform/console/src/App.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "Simirall/milistenna/src/App.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "jjsvs/Hashcat-Reactor/components/File2John.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "blockscout/blockscout-merits-website/src/hooks/useLogin.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "blockscout/blockscout-merits-website/src/hooks/useUserQuery.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "jossmac/react-images/docs/ImageProvider.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "cloud-gov/pages-core/api/services/GitLab.js",
+            "form": "one-expression"
+          },
+          {
+            "language": "JavaScript",
+            "where": "mlwmlw/pcc/pages/month.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "BeatLeader/BeatSaber-Web-Replays/src/utils/playlists.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "mlwmlw/pcc/pages/merchants.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "UniAIStudio2048/bananaapiboard/src/api/group.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "UniAIStudio2048/bananaapiboard/src/api/agent.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "UniAIStudio2048/bananaapiboard/src/api/skills.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "UniAIStudio2048/bananaapiboard/src/api/checkout.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "mlwmlw/pcc/pages/unit/[unit_id].js",
+            "form": "defined-elsewhere"
+          }
+        ]
+      },
+      "fetch(buildUrl(": {
+        "tally": {
+          "defined-elsewhere": 16,
+          "other-body": 14
+        },
+        "rows": [
+          {
+            "language": "TypeScript",
+            "where": "Ameobea/web-synth/src/api.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "LuanRT/BgUtils/examples/index.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "Evil0ctal/Douyin_TikTok_Download_API/web/src/lib/api.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "EternityBots/Nezuko/src/lib/po-token.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "royp888/sola-bot/web/src/api/users.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "Will-Luck/iplayer-arr/frontend/src/api.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "sguimmara/hammerhead.gl/examples/lib.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "tolitius/baymax/src/ui/lib/api.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "zhuohanl/multi-agent-travel-planner-a2a-interop/src/frontend/api.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "larsderidder/tether/ui/src/api.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "srizzon/git-city/src/components/activity/ActivityHub.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "formbricks/formbricks/apps/web/app/(app)/workspaces/[workspaceId]/surveys/[surveyId]/components/ResponseDownloadMenu.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "event-catalog/eventcatalog/packages/core/eventcatalog/src/components/FieldsExplorer/FieldsExplorer.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "Runfusion/Fusion/packages/dashboard/app/components/AgentImportModal.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "handsontable/handsontable/docs/content/recipes/data-management/server-side-expressjs/react/example1.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "AI45Lab/iDeer/client/src/swipeView.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "sync-different/alt-core/web/cass/uiv5/src/App.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "nirholas/cryptocurrency.cv/src/components/APIPlayground.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "karanshukla/openresto/openresto-frontend/context/BrandContext.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "GuruUpdesh/taskly/src/actions/sprint-actions.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "prateek-chaubey/YTPro/scripts/innertube.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "cbothner/react-activestorage-provider/src/index.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "Soham7-dev/AspGoat/wwwroot/LLM-js/pi.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "Soham7-dev/AspGoat/wwwroot/LLM-js/ea.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "mhsattarian/archillect-api/api.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "Soham7-dev/AspGoat/wwwroot/LLM-js/ioh.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "ralsina/grafito/src/assets/js/07-ai.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "ralsina/grafito/src/assets/app.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "ralsina/grafito/src/assets/js/03-init.js",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "TerraFirmaCraft/Field-Guide/assets/static/search.js",
+            "form": "other-body"
+          }
+        ]
+      },
+      "apiUrl = useCallback": {
+        "tally": {
+          "defined-elsewhere": 10,
+          "one-expression": 6,
+          "other-body": 14
+        },
+        "rows": [
+          {
+            "language": "TypeScript",
+            "where": "aliasvault/aliasvault/apps/mobile-app/utils/ApiUrlUtility.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "aliasvault/aliasvault/apps/browser-extension/src/entrypoints/popup/utils/ApiUrlUtility.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "KuekHaoYang/KVideo/components/player/hooks/usePlayerSettings.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "ByteLan/DogeBot/apps/desktop/src/renderer/api.ts",
+            "form": "one-expression"
+          },
+          {
+            "language": "TypeScript",
+            "where": "emergentvibe/platform/src/hooks/useConstitutionLinks.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "thedaviddias/llms-txt-hub/apps/web/hooks/use-load-more.ts",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TypeScript",
+            "where": "tauseef-zc/walkwise-frontend/src/hooks/useApi.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "QalaTech/speki/packages/web/src/hooks/useSpecFileTree.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "QalaTech/speki/packages/web/src/hooks/useSpecCreation.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TypeScript",
+            "where": "QalaTech/speki/packages/web/src/hooks/useSpecContent.ts",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "databricks/app-templates/appkit-files/client/src/pages/files/FilesPage.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "databricks/app-templates/appkit-all-in-one/client/src/pages/files/FilesPage.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "polkadot-js/apps/packages/apps/src/Endpoints/Network.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "mozilla/fxa/packages/fxa-react/lib/hooks.stories.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "polkadot-js/apps/packages/apps/src/Endpoints/index.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "hoangsonww/Tic-Tac-Toe-Fullstack-Game/frontend/src/components/Board.tsx",
+            "form": "one-expression"
+          },
+          {
+            "language": "TSX",
+            "where": "hunvreus/pagescms/components/media/media-view.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "TSX",
+            "where": "databricks/appkit/template/client/src/pages/files/FilesPage.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "hunvreus/pagescms/components/collection/collection.tsx",
+            "form": "other-body"
+          },
+          {
+            "language": "TSX",
+            "where": "yoshiko-pg/difit/src/client/App.tsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "itark/frosk-dashboard/src/store/DataSourceContext.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "HousseinSA/LandOfMovies/src/hooks/useFetch.jsx",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "akhilreddy59/NotesNest/src/pages/NotesList.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "fcsonline/family-map/src/usePeopleData.js",
+            "form": "one-expression"
+          },
+          {
+            "language": "JavaScript",
+            "where": "JananiDevchand/MCP-WITH-UI/frontend/src/App.jsx",
+            "form": "one-expression"
+          },
+          {
+            "language": "JavaScript",
+            "where": "Gthulhu/Gthulhu/api/web/src/context/AppContext.jsx",
+            "form": "defined-elsewhere"
+          },
+          {
+            "language": "JavaScript",
+            "where": "akhilreddy59/NotesNest-FullStack/frontend/src/pages/NotesList.js",
+            "form": "other-body"
+          },
+          {
+            "language": "JavaScript",
+            "where": "RMSGMatt/Styling-/src/components/MapView.jsx",
+            "form": "one-expression"
+          },
+          {
+            "language": "JavaScript",
+            "where": "viczenith/ConseQ-X-landing/src/pages/Admin/SuperAdminShell.js",
+            "form": "one-expression"
+          },
+          {
+            "language": "JavaScript",
+            "where": "yash2607-del/MediChain/client/src/components/PharmacyDashboard.jsx",
+            "form": "other-body"
+          }
+        ]
+      }
+    }
+  }
+}

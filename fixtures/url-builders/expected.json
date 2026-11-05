@@ -1,0 +1,549 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/library.ts#addBook",
+      "id": "calls:symbol:url-builders/src/library.ts#addBook->symbol:url-builders/src/paths.ts#shelfUrls.books",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 25,
+          "file": "src/library.ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:url-builders/src/paths.ts#shelfUrls.books"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/library.ts#listBooks",
+      "id": "calls:symbol:url-builders/src/library.ts#listBooks->symbol:url-builders/src/paths.ts#shelfUrls.books",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 37,
+          "file": "src/library.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:url-builders/src/paths.ts#shelfUrls.books"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/library.ts#openShelf",
+      "id": "calls:symbol:url-builders/src/library.ts#openShelf->symbol:url-builders/src/paths.ts#shelfPath",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 37,
+          "file": "src/library.ts",
+          "line": 4
+        }
+      ],
+      "to": "symbol:url-builders/src/paths.ts#shelfPath"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/library.ts#returnLoan",
+      "id": "calls:symbol:url-builders/src/library.ts#returnLoan->symbol:url-builders/src/paths.ts#loanUrl",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 15,
+          "file": "src/library.ts",
+          "line": 22
+        }
+      ],
+      "to": "symbol:url-builders/src/paths.ts#loanUrl"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/library.ts#searchCatalog",
+      "id": "calls:symbol:url-builders/src/library.ts#searchCatalog->symbol:url-builders/src/paths.ts#trimSlashes",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 27,
+          "file": "src/library.ts",
+          "line": 26
+        }
+      ],
+      "to": "symbol:url-builders/src/paths.ts#trimSlashes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/paths.ts#shelfUrls.books",
+      "id": "calls:symbol:url-builders/src/paths.ts#shelfUrls.books->symbol:url-builders/src/paths.ts#shelfPath",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 34,
+          "file": "src/paths.ts",
+          "line": 10
+        }
+      ],
+      "to": "symbol:url-builders/src/paths.ts#shelfPath"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/LoanCard.tsx#LoanCard",
+      "id": "http:symbol:url-builders/src/LoanCard.tsx#LoanCard->route:url-builders/GET /api/catalog/search",
+      "kind": "http",
+      "label": "GET /api/catalog/search",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/LoanCard.tsx",
+          "line": 17,
+          "request": "GET /api/catalog/search"
+        }
+      ],
+      "to": "route:url-builders/GET /api/catalog/search"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/LoanCard.tsx#LoanCard",
+      "id": "http:symbol:url-builders/src/LoanCard.tsx#LoanCard->route:url-builders/GET /api/loans/:loanId",
+      "kind": "http",
+      "label": "GET /api/loans/:loanId",
+      "sites": [
+        {
+          "column": 5,
+          "file": "src/LoanCard.tsx",
+          "line": 12,
+          "request": "GET /api/loans/{}"
+        }
+      ],
+      "to": "route:url-builders/GET /api/loans/:loanId"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/library.ts#addBook",
+      "id": "http:symbol:url-builders/src/library.ts#addBook->route:url-builders/POST /api/shelves/:shelfId/books",
+      "kind": "http",
+      "label": "POST /api/shelves/:shelfId/books",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/library.ts",
+          "line": 14,
+          "request": "POST /api/shelves/{}/books"
+        }
+      ],
+      "to": "route:url-builders/POST /api/shelves/:shelfId/books"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/library.ts#listBooks",
+      "id": "http:symbol:url-builders/src/library.ts#listBooks->route:url-builders/GET /api/shelves/:shelfId/books",
+      "kind": "http",
+      "label": "GET /api/shelves/:shelfId/books",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/library.ts",
+          "line": 9,
+          "request": "GET /api/shelves/{}/books"
+        }
+      ],
+      "to": "route:url-builders/GET /api/shelves/:shelfId/books"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/library.ts#openShelf",
+      "id": "http:symbol:url-builders/src/library.ts#openShelf->route:url-builders/GET /api/shelves/:shelfId",
+      "kind": "http",
+      "label": "GET /api/shelves/:shelfId",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/library.ts",
+          "line": 4,
+          "request": "GET /api/shelves/{}"
+        }
+      ],
+      "to": "route:url-builders/GET /api/shelves/:shelfId"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:url-builders/src/library.ts#returnLoan",
+      "id": "http:symbol:url-builders/src/library.ts#returnLoan->route:url-builders/DELETE /api/loans/:loanId",
+      "kind": "http",
+      "label": "DELETE /api/loans/:loanId",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/library.ts",
+          "line": 22,
+          "request": "DELETE /api/loans/{}"
+        }
+      ],
+      "to": "route:url-builders/DELETE /api/loans/:loanId"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:url-builders/src/library.ts#searchCatalog",
+      "id": "http:symbol:url-builders/src/library.ts#searchCatalog->unresolved:url-builders/src/library.ts:26:21",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 21,
+          "file": "src/library.ts",
+          "line": 26
+        }
+      ],
+      "to": "unresolved:url-builders/src/library.ts:26:21"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:url-builders/src/library.ts",
+      "id": "imports:file:url-builders/src/library.ts->file:url-builders/src/paths.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 49,
+          "file": "src/library.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:url-builders/src/paths.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "1280c10542c8500c31016ac454edad70edf415bfc175ec671ba526a830ea5a67",
+      "id": "file:url-builders/src/LoanCard.tsx",
+      "kind": "file",
+      "label": "LoanCard.tsx",
+      "parentId": "module:url-builders/src",
+      "path": "src/LoanCard.tsx"
+    },
+    {
+      "hash": "45808531e2a0a8a99aa7f58e1315261c2b1d1c5907e873d30cafa7cce043a46a",
+      "id": "file:url-builders/src/library.ts",
+      "kind": "file",
+      "label": "library.ts",
+      "parentId": "module:url-builders/src",
+      "path": "src/library.ts"
+    },
+    {
+      "hash": "c114c91f0f29029dbc99f76ffa2b5d63b3f8c6a36efe209432e7dea32c6e386d",
+      "id": "file:url-builders/src/paths.ts",
+      "kind": "file",
+      "label": "paths.ts",
+      "parentId": "module:url-builders/src",
+      "path": "src/paths.ts"
+    },
+    {
+      "hash": "6b5540a469d806d21ba8ef0ac576c15e014377aa2c8de91865a93ec8e849b686",
+      "id": "file:url-builders/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:url-builders/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:url-builders/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:url-builders/",
+      "path": "src"
+    },
+    {
+      "id": "route:url-builders/DELETE /api/loans/:loanId",
+      "kind": "route",
+      "label": "DELETE /api/loans/:loanId",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:url-builders/src/server.ts",
+      "path": "/api/loans/:loanId",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 25
+      }
+    },
+    {
+      "id": "route:url-builders/GET /api/catalog/search",
+      "kind": "route",
+      "label": "GET /api/catalog/search",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:url-builders/src/server.ts",
+      "path": "/api/catalog/search",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 29
+      }
+    },
+    {
+      "id": "route:url-builders/GET /api/loans/:loanId",
+      "kind": "route",
+      "label": "GET /api/loans/:loanId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:url-builders/src/server.ts",
+      "path": "/api/loans/:loanId",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 21
+      }
+    },
+    {
+      "id": "route:url-builders/GET /api/shelves/:shelfId",
+      "kind": "route",
+      "label": "GET /api/shelves/:shelfId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:url-builders/src/server.ts",
+      "path": "/api/shelves/:shelfId",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:url-builders/GET /api/shelves/:shelfId/books",
+      "kind": "route",
+      "label": "GET /api/shelves/:shelfId/books",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:url-builders/src/server.ts",
+      "path": "/api/shelves/:shelfId/books",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:url-builders/POST /api/shelves/:shelfId/books",
+      "kind": "route",
+      "label": "POST /api/shelves/:shelfId/books",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:url-builders/src/server.ts",
+      "path": "/api/shelves/:shelfId/books",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 13
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:url-builders/",
+      "kind": "service",
+      "label": "url-builders",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/LoanCard.tsx#LoanCard",
+      "kind": "symbol",
+      "label": "LoanCard",
+      "parentId": "file:url-builders/src/LoanCard.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 24,
+        "file": "src/LoanCard.tsx",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/library.ts#addBook",
+      "kind": "symbol",
+      "label": "addBook",
+      "parentId": "file:url-builders/src/library.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "src/library.ts",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/library.ts#listBooks",
+      "kind": "symbol",
+      "label": "listBooks",
+      "parentId": "file:url-builders/src/library.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/library.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/library.ts#openShelf",
+      "kind": "symbol",
+      "label": "openShelf",
+      "parentId": "file:url-builders/src/library.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/library.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/library.ts#returnLoan",
+      "kind": "symbol",
+      "label": "returnLoan",
+      "parentId": "file:url-builders/src/library.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "src/library.ts",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/library.ts#searchCatalog",
+      "kind": "symbol",
+      "label": "searchCatalog",
+      "parentId": "file:url-builders/src/library.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 28,
+        "file": "src/library.ts",
+        "line": 25
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/paths.ts#loanUrl",
+      "kind": "symbol",
+      "label": "loanUrl",
+      "parentId": "file:url-builders/src/paths.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 15,
+        "file": "src/paths.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/paths.ts#shelfPath",
+      "kind": "symbol",
+      "label": "shelfPath",
+      "parentId": "file:url-builders/src/paths.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/paths.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/paths.ts#shelfUrls",
+      "kind": "symbol",
+      "label": "shelfUrls",
+      "parentId": "file:url-builders/src/paths.ts",
+      "source": {
+        "column": 14,
+        "endLine": 12,
+        "file": "src/paths.ts",
+        "line": 9
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/paths.ts#shelfUrls.books",
+      "kind": "symbol",
+      "label": "books",
+      "parentId": "symbol:url-builders/src/paths.ts#shelfUrls",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 10,
+        "file": "src/paths.ts",
+        "line": 10
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:url-builders/src/paths.ts#trimSlashes",
+      "kind": "symbol",
+      "label": "trimSlashes",
+      "parentId": "file:url-builders/src/paths.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 18,
+        "file": "src/paths.ts",
+        "line": 18
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "url-builders",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(trimSlashes(\"…\") + \"/search?…\" + query)",
+      "id": "unresolved:url-builders/src/library.ts:26:21",
+      "kind": "unresolved",
+      "label": "GET trimSlashes(\"…\") + \"/search?…\" + query",
+      "parentId": "service:url-builders/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 21,
+        "file": "src/library.ts",
+        "line": 26
+      }
+    }
+  ],
+  "repo": {
+    "name": "url-builders",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

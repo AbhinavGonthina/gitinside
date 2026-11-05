@@ -38,6 +38,15 @@
  *   ky's bases (M5C.3e): ky 2's `prefix` and ky 1's `prefixUrl` join as axios's, except that
  *   under `prefixUrl` a URL starting with `/` is `DYNAMIC_URL` (ky throws on it); ky 2's
  *   `baseUrl` resolves the URL against it (`resolveKyBaseUrl`).
+ * - Calls of repo string builders (M5C.7d, ADR-0032's amendment): a function whose body
+ *   returns one template, string, or `+` concatenation (`(id) => \`${API}/users/${id}\``) is
+ *   read at the call with its parameters bound to the call's arguments (read where the call
+ *   is; a missing one takes the parameter's default). The callee may be a function
+ *   declaration, a `const` holding a function, a const object literal's property or method
+ *   (`urls.files(id)`, `urls["files"](id)`), or a `const` holding React's `useCallback(fn, deps)`
+ *   (`fn`) or `useMemo(() => fn, deps)` (`fn`), the hooks imported from `react` (React's docs:
+ *   both give back that function). Builders calling builders are read too, within
+ *   {@link MAX_HOPS} and {@link MAX_STEPS}.
  *
  * URL rules (DESIGN.md §7.2):
  * - A literal origin (`https://api.example.com`) becomes a `host` base; scheme and host are
@@ -66,8 +75,14 @@
  *
  * Not handled (each becomes a hole, so usually `DYNAMIC_URL`):
  * - `var` variables, `let`s `lets.ts` can't follow, destructured parameters other than a
- *   context's `queryKey`, `queryKey.join("/")`, a key element read at a computed index, function results, array
+ *   context's `queryKey`, `queryKey.join("/")`, a key element read at a computed index, array
  *   `.join()`, `.concat()`, `path.join`, `URLSearchParams` built into the path.
+ * - Results of functions that aren't string builders: a body doing anything before its
+ *   `return` (`const p = …; return p;`), returning something else (`base.replace(…)`, a
+ *   ternary, another call), async or generator functions, rest or destructured parameters,
+ *   `let`/`var` functions, class methods, functions from packages, and a call with a spread
+ *   argument. A builder from a hook-like function that isn't React's (`useCallback` imported
+ *   from elsewhere) isn't followed either.
  * - Mutating a `URL` after creation (`u.pathname = …`) and relative `new URL()` URLs whose
  *   base isn't literal (the base's path is unknown).
  * - An env var inside the host (`https://${process.env.HOST}/x`).
@@ -86,12 +101,13 @@ import type { SymbolResolver } from "./calls.js";
 import type { HttpCallSite } from "./http.js";
 import type { ServiceProgram } from "./program.js";
 import { letValues } from "./lets.js";
-import { unwrap } from "./symbols.js";
+import { propertyName, unwrap } from "./symbols.js";
 import {
   createValueReader,
   isConst,
   MAX_HOPS,
   objectProperty,
+  ownProperty,
   weaker,
   type ProgramExpression,
 } from "./values.js";
@@ -209,6 +225,55 @@ export type NormalizedUrl =
  * argument or the parameter's default, `undefined` when neither is readable.
  */
 export type ParameterBindings = ReadonlyMap<ts.ParameterDeclaration, ProgramExpression | undefined>;
+
+/**
+ * One call of a string builder being read (M5C.7d): the builder's parameters bound to the
+ * call's arguments (`undefined` when missing), and the builder call the arguments sit in.
+ */
+interface BuilderFrame {
+  args: ReadonlyMap<ts.ParameterDeclaration, ProgramExpression | undefined>;
+  outer: BuilderFrame | undefined;
+}
+
+/** A repo function a call reaches, with the program that understands it. */
+interface FoundFunction {
+  sp: ServiceProgram;
+  fn: ts.FunctionLikeDeclaration;
+  confidence: Confidence;
+}
+
+/** The React hooks whose result is a function the code gives them (React's documented API). */
+const REACT_HOOKS: ReadonlySet<string> = new Set(["useCallback", "useMemo"]);
+
+/** The expression a function returns: its expression body, or a body of one `return`. */
+function returnedExpression(fn: ts.FunctionLikeDeclaration): ts.Expression | undefined {
+  const body = fn.body;
+  if (!body) return undefined;
+  if (!ts.isBlock(body)) return body;
+  const [only] = body.statements;
+  return body.statements.length === 1 && only && ts.isReturnStatement(only)
+    ? only.expression
+    : undefined;
+}
+
+/**
+ * What a string builder returns (M5C.7d): a function, not async or a generator, with only
+ * plain identifier parameters, whose body returns one template, string, or `+` concatenation.
+ */
+function builderBody(fn: ts.FunctionLikeDeclaration): ts.Expression | undefined {
+  if (fn.asteriskToken || (ts.getCombinedModifierFlags(fn) & ts.ModifierFlags.Async) !== 0) {
+    return undefined;
+  }
+  if (fn.parameters.some((p) => p.dotDotDotToken || !ts.isIdentifier(p.name))) return undefined;
+  const value = returnedExpression(fn);
+  const e = value && unwrap(value);
+  if (!e) return undefined;
+  const builds =
+    ts.isTemplateExpression(e) ||
+    ts.isStringLiteralLike(e) ||
+    (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.PlusToken);
+  return builds ? e : undefined;
+}
 
 const HOLE: UrlPart = { kind: "hole" };
 const OVERFLOW_HOLE: UrlPart = { kind: "hole", overflow: true };
@@ -671,6 +736,11 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
   /** The wrapper parameters bound for the current `normalize` call, if inlining. */
   let bindings: ParameterBindings | undefined;
+  /**
+   * The string-builder call being read (M5C.7d): its parameters bound to the call's
+   * arguments, and the scope (outer builder call and wrapper bindings) they are read in.
+   */
+  let frame: BuilderFrame | undefined;
   /** Parameters read without a binding during the current evaluation. */
   const used = new Set<ts.ParameterDeclaration>();
   /** The parameter each unbound parameter's hole stands for (`leadingParameters`). */
@@ -769,16 +839,30 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     d: ts.ParameterDeclaration,
     hops: number,
   ): UrlPart[] => {
+    if (frame?.args.has(d)) {
+      const arg = frame.args.get(d);
+      // A missing argument takes the parameter's default, read in the builder's own scope.
+      if (!arg) return d.initializer ? partsOf(sp, d.initializer, hops + 1) : [HOLE];
+      // The argument is read where the builder was called.
+      const inner = frame;
+      frame = inner.outer;
+      try {
+        return partsOf(arg.sp, arg.expression, hops + 1);
+      } finally {
+        frame = inner;
+      }
+    }
     if (bindings?.has(d)) {
       const bound = bindings.get(d);
       if (!bound) return [HOLE];
       // The argument is read in the caller's scope, where these bindings don't apply.
-      const outer = bindings;
+      const outer = { bindings, frame };
       bindings = undefined;
+      frame = undefined;
       try {
         return partsOf(bound.sp, bound.expression, hops + 1);
       } finally {
-        bindings = outer;
+        ({ bindings, frame } = outer);
       }
     }
     used.add(d);
@@ -892,12 +976,13 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     }
     if (!read.outer) return partsOf(read.value.sp, read.value.expression, hops + 1);
     // The options object is read in the caller's scope, where these bindings don't apply.
-    const outer = bindings;
+    const outer = { bindings, frame };
     bindings = undefined;
+    frame = undefined;
     try {
       return partsOf(read.value.sp, read.value.expression, hops + 1);
     } finally {
-      bindings = outer;
+      ({ bindings, frame } = outer);
     }
   };
 
@@ -938,6 +1023,144 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     if (!value) return [HOLE];
     note(found.confidence);
     return partsOf(value.sp, value.expression, hops + 1);
+  };
+
+  /**
+   * The module and imported name an identifier's import names, read from the import's syntax
+   * (`react` usually has no types to resolve without `node_modules`); `*` for a namespace.
+   */
+  const importOf = (
+    sp: ServiceProgram,
+    id: ts.Identifier,
+  ): { module: string; name: string } | undefined => {
+    const d = reader.symbolAt(sp, id)?.declarations?.[0];
+    let declaration: ts.ImportDeclaration | ts.JSDocImportTag;
+    let name: string;
+    if (d && ts.isImportSpecifier(d)) {
+      declaration = d.parent.parent.parent;
+      name = (d.propertyName ?? d.name).text;
+    } else if (d && ts.isNamespaceImport(d)) {
+      declaration = d.parent.parent;
+      name = "*";
+    } else if (d && ts.isImportClause(d)) {
+      declaration = d.parent;
+      name = "default";
+    } else {
+      return undefined;
+    }
+    const specifier = declaration.moduleSpecifier;
+    return ts.isStringLiteralLike(specifier) ? { module: specifier.text, name } : undefined;
+  };
+
+  /** `useCallback` or `useMemo` when a callee is that hook imported from `react`. */
+  const reactHook = (sp: ServiceProgram, callee: ts.Expression): string | undefined => {
+    const e = unwrap(callee);
+    if (ts.isIdentifier(e)) {
+      const found = importOf(sp, e);
+      return found?.module === "react" && REACT_HOOKS.has(found.name) ? found.name : undefined;
+    }
+    if (!ts.isPropertyAccessExpression(e) || !REACT_HOOKS.has(e.name.text)) return undefined;
+    const object = unwrap(e.expression);
+    const found = ts.isIdentifier(object) ? importOf(sp, object) : undefined;
+    const whole = found?.module === "react" && (found.name === "*" || found.name === "default");
+    return whole ? e.name.text : undefined;
+  };
+
+  /**
+   * The repo function an expression holds: a function written in place, a name or const
+   * object property holding one, or React's `useCallback(fn, deps)` (`fn`) and
+   * `useMemo(() => fn, deps)` (what the factory returns).
+   */
+  const functionValue = (
+    sp: ServiceProgram,
+    expression: ts.Expression,
+    hops: number,
+  ): FoundFunction | undefined => {
+    if (hops > MAX_HOPS) return undefined;
+    const e = unwrap(expression);
+    if (ts.isArrowFunction(e) || ts.isFunctionExpression(e)) {
+      return { sp, fn: e, confidence: "exact" };
+    }
+    if (!ts.isCallExpression(e)) return calleeFunction(sp, e, hops + 1);
+    const hook = reactHook(sp, e.expression);
+    const [first] = e.arguments;
+    if (!hook || !first || ts.isSpreadElement(first)) return undefined;
+    if (hook === "useCallback") return functionValue(sp, first, hops + 1);
+    const factory = functionValue(sp, first, hops + 1);
+    const made = factory && returnedExpression(factory.fn);
+    const inner = factory && made && functionValue(factory.sp, made, hops + 1);
+    return inner && { ...inner, confidence: weaker(factory.confidence, inner.confidence) };
+  };
+
+  /** The function a callee names: a declaration, a `const`, or a const object's member. */
+  const calleeFunction = (
+    sp: ServiceProgram,
+    callee: ts.Expression,
+    hops: number,
+  ): FoundFunction | undefined => {
+    if (hops > MAX_HOPS) return undefined;
+    const e = unwrap(callee);
+    if (ts.isIdentifier(e)) {
+      const symbol = reader.symbolAt(sp, e);
+      const found = symbol && reader.resolveDeclaration(sp, symbol, hops + 1);
+      const d = found?.declaration;
+      if (!found || !d) return undefined;
+      if (ts.isFunctionDeclaration(d)) return { sp: found.sp, fn: d, confidence: found.confidence };
+      if (!ts.isVariableDeclaration(d) || !d.initializer || !isConst(d)) return undefined;
+      const inner = functionValue(found.sp, d.initializer, hops + 1);
+      return inner && { ...inner, confidence: weaker(found.confidence, inner.confidence) };
+    }
+    let name: string;
+    if (ts.isPropertyAccessExpression(e)) name = e.name.text;
+    else if (ts.isElementAccessExpression(e) && ts.isStringLiteralLike(e.argumentExpression)) {
+      name = e.argumentExpression.text;
+    } else return undefined;
+    const object = reader.constObject(sp, e.expression, hops + 1);
+    if (!object) return undefined;
+    // The last member naming it wins, as at runtime; a spread or computed key could be it.
+    for (let i = object.expression.properties.length - 1; i >= 0; i--) {
+      const member = object.expression.properties[i];
+      if (!member) continue;
+      if (ts.isMethodDeclaration(member) && propertyName(member.name) === name) {
+        return { sp: object.sp, fn: member, confidence: object.confidence };
+      }
+      const value = ownProperty(object.sp, member, name);
+      if (value === undefined) continue;
+      const inner = value ? functionValue(value.sp, value.expression, hops + 1) : undefined;
+      return inner && { ...inner, confidence: weaker(object.confidence, inner.confidence) };
+    }
+    return undefined;
+  };
+
+  /**
+   * A call of a repo string builder (M5C.7d): its returned expression read with the
+   * parameters bound to the call's arguments, `undefined` when the callee is no builder.
+   */
+  const builderCall = (
+    sp: ServiceProgram,
+    call: ts.CallExpression,
+    hops: number,
+  ): UrlPart[] | undefined => {
+    const builder = calleeFunction(sp, call.expression, hops + 1);
+    const body = builder && builderBody(builder.fn);
+    if (!builder || !body) return undefined;
+    if (call.arguments.some((a) => ts.isSpreadElement(a))) return [HOLE];
+    note(builder.confidence);
+    const args = new Map(
+      builder.fn.parameters.map(
+        (p, i): [ts.ParameterDeclaration, ProgramExpression | undefined] => {
+          const arg = call.arguments[i];
+          return [p, arg && { sp, expression: arg }];
+        },
+      ),
+    );
+    const outer = frame;
+    frame = { args, outer };
+    try {
+      return partsOf(builder.sp, body, hops + 1);
+    } finally {
+      frame = outer;
+    }
   };
 
   /** Expressions visited by the current `parts()` call (see {@link MAX_STEPS}). */
@@ -1007,7 +1230,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       ) {
         return partsOf(sp, only, hops + 1);
       }
-      return [HOLE];
+      return builderCall(sp, e, hops) ?? [HOLE];
     }
     const env = envName(sp, e);
     if (env !== undefined) return [{ kind: "env", name: env }];
