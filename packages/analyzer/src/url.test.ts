@@ -519,6 +519,101 @@ describe("createUrlNormalizer", () => {
     ]);
   });
 
+  it("reads URLs returned by repo string-builder functions, with the call's arguments (M5C.7d)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/urls.ts", [
+      'const API = "/api";',
+      "export function userUrl(id: string) {",
+      "  return `${API}/users/${id}`;",
+      "}",
+      "export const postUrl = (id: string) => API + '/posts/' + id;",
+      "const chatPath = (chatId: string) => `${API}/chats/${chatId}`;",
+      "export const chatUrls = {",
+      "  messages: (chatId: string) => `${chatPath(chatId)}/messages`,",
+      "  files(chatId: string) { return chatPath(chatId) + '/files'; },",
+      "  chatPath,",
+      "} as const;",
+      "export const withDefault = (page = 'first') => `/api/pages/${page}`;",
+      "export const trimmed = (base: string) => base.replace(/x$/, '');",
+      "export const twoSteps = (id: string) => { const p = `/api/x/${id}`; return p; };",
+      "export const rest = (...parts: string[]) => `/api/${parts[0]}`;",
+      "export async function later(id: string) { return `/api/later/${id}`; }",
+      'export const loop = (x: string): string => loop(x) + "/a";',
+      "export let mutable = (id: string) => `/api/m/${id}`;",
+    ]);
+    await put("src/api.ts", [
+      'import { userUrl, postUrl, chatUrls, withDefault, trimmed } from "./urls";',
+      'import { twoSteps, rest, later, loop, mutable } from "./urls";',
+      "export async function load(id: string) {",
+      "  await fetch(userUrl(id));",
+      '  await fetch(userUrl("me"));',
+      "  await fetch(postUrl(id));",
+      "  await fetch(chatUrls.messages(id));",
+      '  await fetch(chatUrls.files("c1"));',
+      "  await fetch(chatUrls.chatPath(id));",
+      '  await fetch(chatUrls["messages"]("c2"));',
+      "  await fetch(withDefault());",
+      '  await fetch(withDefault("2"));',
+      "  await fetch(`${userUrl(id)}/avatar`);",
+      '  await fetch(new URL(userUrl(id), "http://localhost:4000"));',
+      '  await fetch(trimmed("/api/t") + "/x");',
+      "  await fetch(twoSteps(id));",
+      '  await fetch(rest("a"));',
+      "  await fetch(later(id) as unknown as string);",
+      '  await fetch(loop("/b"));',
+      "  await fetch(mutable(id));",
+      "  await fetch(userUrl(...[id]));",
+      "}",
+    ]);
+    await put("src/fake.ts", [
+      "export function useCallback(fn: unknown, deps: unknown[]) {",
+      '  return (path: string) => "/fake" + path;',
+      "}",
+    ]);
+    await put("src/Board.tsx", [
+      'import { useCallback, useMemo } from "react";',
+      'import * as React from "react";',
+      'import { useCallback as useLookAlike } from "./fake";',
+      'const API_BASE = "http://localhost:5000/api";',
+      "export function Board({ id }: { id: string }) {",
+      "  const apiUrl = useCallback((path: string) => `${API_BASE}${path}`, []);",
+      "  const roomUrl = useMemo(() => (room: string) => `/api/rooms/${room}`, []);",
+      "  const other = React.useCallback((p: string) => '/api/o' + p, []);",
+      "  const look = useLookAlike((p: string) => `/api/look${p}`, []);",
+      '  void fetch(apiUrl("/realtime/move"));',
+      "  void fetch(roomUrl(id));",
+      '  void fetch(other("/k"));',
+      '  void fetch(look("/l"));',
+      "  return null;",
+      "}",
+    ]);
+    const leading = "DYNAMIC_URL: the URL starts with a value only known at runtime";
+    expect(await normalized()).toEqual([
+      "src/Board.tsx:10 http://localhost:5000/api/realtime/move",
+      "src/Board.tsx:11 /api/rooms/{}",
+      "src/Board.tsx:12 /api/o/k",
+      `src/Board.tsx:13 ${leading}`,
+      "src/api.ts:4 /api/users/{}",
+      "src/api.ts:5 /api/users/me",
+      "src/api.ts:6 /api/posts/{}",
+      "src/api.ts:7 /api/chats/{}/messages",
+      "src/api.ts:8 /api/chats/c1/files",
+      "src/api.ts:9 /api/chats/{}",
+      "src/api.ts:10 /api/chats/c2/messages",
+      "src/api.ts:11 /api/pages/first",
+      "src/api.ts:12 /api/pages/2",
+      "src/api.ts:13 /api/users/{}/avatar",
+      "src/api.ts:14 http://localhost:4000/api/users/{}",
+      `src/api.ts:15 ${leading}`,
+      `src/api.ts:16 ${leading}`,
+      `src/api.ts:17 ${leading}`,
+      `src/api.ts:18 ${leading}`,
+      `src/api.ts:19 ${leading}`,
+      `src/api.ts:20 ${leading}`,
+      `src/api.ts:21 ${leading}`,
+    ]);
+  });
+
   it("reads env bases, the page origin, and new URL", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/env.ts", [

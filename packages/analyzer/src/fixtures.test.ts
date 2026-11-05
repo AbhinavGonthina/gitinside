@@ -47,6 +47,7 @@ const NAMES = [
   "ofetch-client",
   "ky-client",
   "rest-method-spread",
+  "url-builders",
   "object-client",
   "config-wrapper",
   "axios-defaults",
@@ -473,6 +474,22 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     const details = g.nodes.flatMap((n) => (n.kind === "unresolved" ? [n.detail] : []));
     expect(details).toEqual([
       "the method isn't read, and routes for DELETE, GET, PUT match /api/tokens",
+    ]);
+  });
+
+  it("url-builders: a URL returned by a repo string builder is read with the call's arguments (M5C.7d)", async () => {
+    const g = await run("url-builders");
+    const p = "url-builders";
+    const library = `symbol:${p}/src/library.ts`;
+    const card = `symbol:${p}/src/LoanCard.tsx#LoanCard`;
+    expect(links(g, "http")).toEqual([
+      `${card} -> route:${p}/GET /api/catalog/search exact`,
+      `${card} -> route:${p}/GET /api/loans/:loanId exact`,
+      `${library}#addBook -> route:${p}/POST /api/shelves/:shelfId/books exact`,
+      `${library}#listBooks -> route:${p}/GET /api/shelves/:shelfId/books exact`,
+      `${library}#openShelf -> route:${p}/GET /api/shelves/:shelfId exact`,
+      `${library}#returnLoan -> route:${p}/DELETE /api/loans/:loanId exact`,
+      `${library}#searchCatalog -> unresolved:${p}/src/library.ts:26:21 unresolved DYNAMIC_URL`,
     ]);
   });
 

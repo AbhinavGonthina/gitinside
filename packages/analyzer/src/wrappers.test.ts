@@ -142,6 +142,22 @@ describe("inlineWrappers", () => {
     ]);
   });
 
+  it("inlines a wrapper whose URL goes through a repo string builder (M5C.7d)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      'const API = "/api";',
+      "const url = (path: string) => `${API}${path}`;",
+      "export function get(path: string) {",
+      "  return fetch(url(path));",
+      "}",
+    ]);
+    await put("src/users.ts", [
+      'import { get } from "./http";',
+      "export const load = (id: string) => get(`/users/${id}`);",
+    ]);
+    expect(await summary()).toEqual(["src/users.ts:2 GET /api/users/{} [load] <- src/http.ts:4"]);
+  });
+
   it("inlines methods called on class instances and axios wrappers", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/client.ts", [
