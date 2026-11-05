@@ -77,3 +77,26 @@ C1 comes first, as Abhinav asked on #18. After it, the gaps follow the code sear
 **Not planned as tasks:**
 - **The partial edges of handled patterns:** destructured axios instances, wrappers nested more than one level, routers in other workspace packages. None of them can be counted with a code search, and the eval set no longer misses any of them. A fresh sample (M5C.5) that misses one will show it.
 - **URL-rewriting axios interceptors** (row 6): there's no usage count for that kind, and none in the eval set.
+
+## After batch 4 (M5C.6)
+
+Batch 4's blind run (M5C.5c) measured precision 94.4%, below the 95% floor, and recall 51.1%. Its 15 causes are in [`2026-11-batch4-diagnosis.md`](../eval/results/2026-11-batch4-diagnosis.md), by letter. Abhinav's decision on #18 (2026-11-05, option 2): fix the precision causes first, then the general recall patterns ranked by misses, only patterns that show up outside batch 4. Batch 4 counts as seen from then on, and a fresh batch 5 is drawn by the same rule (ADR-0208) and scored once, blind.
+
+**Planned, in order** (PROGRESS.md M5C.7a–g, then M5C.8):
+
+1. **M5C.7a, J (6 FP):** a wrapper that forwards the caller's options through a rest spread loses the caller's `method`, so each call matched every method.
+2. **M5C.7b, I (4 FP, 4 FN):** a pages-router handler exported through a wrapper (`withMiddleware("…")(handler)`) stays `ALL`, though it gates on `req.method`.
+3. **M5C.7c, O (1 FP):** a wholly unknown path after a prefix (`/api/{}`) matched only a SPA catch-all.
+4. **M5C.7d, E + H (24 FN):** URLs from repo functions that only build a string from their parameters, including object-literal arrow properties and functions behind React's `useCallback`/`useMemo`. This is the calling side's twin of the repo-defined wrapper row (ADR-0032).
+5. **M5C.7e, C (22 FN):** source files at a workspace monorepo's root (`tests/`, `scripts/`) that belong to no package.
+6. **M5C.7f, D (21 FN):** a path-taking wrapper calling another one ("wrappers nested more than one level" above, now planned).
+7. **M5C.7g, G (10 FN):** a nested `tsconfig.json`/`jsconfig.json` with its own `paths`, in a folder that isn't a package.
+
+Before fixing a recall pattern (4–7), its task first shows it outside batch 4: a code search count (query and date in `usage/`) or a repo in the earlier eval sets. One that can't be shown is recorded here and not fixed.
+
+**Not planned, and why:**
+- **A (50 FN): a base passed through a repo function that changes it** (`normalizeBaseUrl(env || fallback)` trims a trailing `/api`). Evaluating arbitrary string code (`replace`, regexes) isn't static reading of a URL; M5C.7d covers only functions that build a string from their parameters. It stays `DYNAMIC_URL`, visible at each site.
+- **B (28 FN): a base read from a JSON file the app fetches at runtime.** The value is decided at deployment (a ConfigMap replaces the file). Runtime-only, shown as `DYNAMIC_URL`.
+- **F (10 FN): a generated class client** (`this.request({ path, method })` on a `this.baseUrl` field), and **K (2 FN): a base set from a constructor argument.** Both need values followed through class instances from every `new`; one repo each, and neither has a usage count yet. A fresh sample that misses them again will show it.
+- **L (3 FN): a path segment typed as a union of string literals,** and **M (1 FN): SWR's global fetcher from `SWRConfig`.** One repo, few misses; L would read types as values, which ADR-0166 does only for values in the code. Revisit if batch 5 misses them.
+- **N (1 FN): an env base set only in a committed `.env`.** By design: SECURITY.md T5 and ADR-0202 read only example env files.
