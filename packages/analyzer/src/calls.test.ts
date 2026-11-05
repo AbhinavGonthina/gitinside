@@ -17,8 +17,11 @@ import {
   createSymbolResolver,
   type CallFacts,
 } from "./calls.js";
+import { buildExpressRoutes } from "./express.js";
 import { collectHttpCalls } from "./http.js";
 import { buildInventory } from "./inventory.js";
+import { buildNextRoutes } from "./next.js";
+import type { Owners } from "./owners.js";
 import { buildServicePrograms } from "./program.js";
 import { collectSymbolNodes } from "./symbols.js";
 import { createUrlNormalizer } from "./url.js";
@@ -110,6 +113,60 @@ describe("call edges", () => {
         { file: "src/orders.ts", line: 11, column: 3, args: 1 },
       ],
     });
+  });
+
+  it("draws calls from inline Express handlers' routes, at top level or inside a symbol", async () => {
+    await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));
+    await put(
+      "src/server.ts",
+      [
+        'import express from "express";',
+        'import { create, list, slug } from "./service";',
+        "",
+        "const app = express();",
+        "app.post('/a', async (req, res) => {",
+        "  res.json(await create(slug(req.body.title)));",
+        "});",
+        "app.get('/a', function (_req, res) {",
+        "  res.json([1].map((n) => slug(String(n))));",
+        "});",
+        "app.put('/a', wrap(async (_req, res) => res.json(list())));",
+        "[1].forEach((n) => slug(String(n)));",
+        "slug('top');",
+        "function wrap(fn: (req: unknown, res: { json(x: unknown): void }) => unknown) { return fn; }",
+        "",
+        "export function build() {",
+        "  const inner = express();",
+        "  inner.get('/b', (_req, res) => res.json(list()));",
+        "  slug('build');",
+        "  return inner;",
+        "}",
+        "app.listen(3000);",
+        "",
+      ].join("\n"),
+    );
+    await put(
+      "src/service.ts",
+      [
+        "export async function create(s: string) { return { s }; }",
+        "export function list() { return []; }",
+        "export function slug(t: string) { return t.toLowerCase(); }",
+        "",
+      ].join("\n"),
+    );
+    const graph = await analyze(dir);
+    expect(callEdges(graph)).toEqual([
+      "route:api/GET /a -> api/src/service.ts#slug (exact)",
+      "route:api/GET /b -> api/src/service.ts#list (exact)",
+      "route:api/POST /a -> api/src/service.ts#create (exact)",
+      "route:api/POST /a -> api/src/service.ts#slug (exact)",
+      "route:api/PUT /a -> api/src/service.ts#list (exact)",
+      "api/src/server.ts#build -> api/src/service.ts#slug (exact)",
+    ]);
+    const post = graph.edges.find(
+      (e) => e.id === "calls:route:api/POST /a->symbol:api/src/service.ts#create",
+    );
+    expect(post?.sites).toEqual([{ file: "src/server.ts", line: 6, column: 18, args: 1 }]);
   });
 
   it("records each call's argument count, except through a spread", async () => {
@@ -604,17 +661,30 @@ describe("server actions (ADR-0203)", () => {
 });
 
 describe("call and symbol facts", () => {
-  /** Each service's symbol nodes and call facts for the repo at `root`, in program order. */
-  async function facts(root: string): Promise<{ symbols: GraphNode[][]; calls: CallFacts[] }> {
+  /**
+   * Each service's symbol nodes and call facts for the repo at `root`, in program order, and
+   * both routers' inline handlers.
+   */
+  async function facts(root: string): Promise<{
+    symbols: GraphNode[][];
+    calls: CallFacts[];
+    inlineHandlers: Map<string, string[]>;
+  }> {
     const inventory = await buildInventory(root);
     const workspace = await detectWorkspace(root, inventory.files);
     const programs = buildServicePrograms(root, workspace, inventory);
     const resolver = createSymbolResolver(programs, workspace);
+    const express = buildExpressRoutes(programs, resolver);
+    const next = buildNextRoutes(programs, resolver);
     return {
       symbols: programs.map((sp) => collectSymbolNodes(sp)),
       calls: programs.map((sp) => collectCallFacts(sp, resolver)),
+      inlineHandlers: new Map([...express.inlineHandlers, ...next.inlineHandlers]),
     };
   }
+
+  /** The owners of a call in symbol `id`, outside any inline handler. */
+  const by = (id: string): Owners => ({ handlers: [], ids: [id] });
 
   /** `facts` after a JSON round trip, checked to be unchanged by it. */
   function revived<T>(value: T): T {
@@ -623,13 +693,21 @@ describe("call and symbol facts", () => {
     return copy;
   }
 
-  it.each(["shop-demo", "pnpm-monorepo", "express-basic", "next-pages-api"])(
+  it.each([
+    "shop-demo",
+    "pnpm-monorepo",
+    "express-basic",
+    "express-inline-calls",
+    "next-pages-api",
+    "next-connect",
+  ])(
     "composes %s's call edges and symbol nodes from JSON round-tripped facts as analyze does",
     async (name) => {
       const root = join(FIXTURES, name);
-      const { symbols, calls } = revived(await facts(root));
+      const { inlineHandlers, ...rest } = await facts(root);
+      const { symbols, calls } = revived(rest);
       const graph = await analyze(root);
-      const edges = composeCallEdges(calls);
+      const edges = composeCallEdges(calls, inlineHandlers);
       expect(symbols.flat().length).toBeGreaterThan(0);
       expect(edges).toEqual(graph.edges.filter((e) => e.kind === "calls"));
       expect(symbols.flat()).toEqual(graph.nodes.filter((n) => n.kind === "symbol"));
@@ -638,9 +716,10 @@ describe("call and symbol facts", () => {
 
   it("merges one caller's sites across files and keeps the strongest confidence", () => {
     const site = (line: number) => ({ file: "a.ts", line, column: 1, args: 0 });
+    const owners = by("s:a");
     const edges = composeCallEdges([
-      { service: "a", calls: [{ from: "s:a", to: "s:b", confidence: "heuristic", site: site(9) }] },
-      { service: "b", calls: [{ from: "s:a", to: "s:b", confidence: "exact", site: site(2) }] },
+      { service: "a", calls: [{ owners, to: "s:b", confidence: "heuristic", site: site(9) }] },
+      { service: "b", calls: [{ owners, to: "s:b", confidence: "exact", site: site(2) }] },
     ]);
     expect(edges).toEqual([
       {
@@ -654,23 +733,63 @@ describe("call and symbol facts", () => {
     ]);
   });
 
+  it("binds owners to an inline handler's routes, and drops unowned calls and self-calls", () => {
+    const site = (line: number) => ({ file: "a.ts", line, column: 1, args: 0 });
+    const edges = composeCallEdges(
+      [
+        {
+          service: "a",
+          calls: [
+            // In handler h2 inside h1 inside symbol s:a: h1 is the route's handler.
+            {
+              owners: { handlers: ["h2", "h1"], ids: ["s:a"] },
+              to: "s:b",
+              confidence: "exact",
+              site: site(1),
+            },
+            // A callback at top level that no route serves: no owner.
+            {
+              owners: { handlers: ["h3"], ids: [] },
+              to: "s:b",
+              confidence: "exact",
+              site: site(2),
+            },
+            { owners: by("s:b"), to: "s:b", confidence: "exact", site: site(3) },
+            {
+              owners: { handlers: ["h3"], ids: ["s:a"] },
+              to: "s:b",
+              confidence: "exact",
+              site: site(4),
+            },
+          ],
+        },
+      ],
+      new Map([["h1", ["route:a/GET /x", "route:a/GET /y"]]]),
+    );
+    expect(edges.map((e) => [e.from, e.to, e.sites.map((s) => s.line)])).toEqual([
+      ["route:a/GET /x", "s:b", [1]],
+      ["route:a/GET /y", "s:b", [1]],
+      ["s:a", "s:b", [4]],
+    ]);
+  });
+
   it("labels browser calls of another service's server action, and drops passed non-actions", () => {
     const site = (line: number) => ({ file: "a.tsx", line, column: 1 });
     const edges = composeCallEdges([
       {
         service: "web",
         calls: [
-          { from: "s:a", to: "s:act", confidence: "exact", site: site(1) },
-          { from: "s:a", to: "s:act", confidence: "exact", site: site(2), browser: true },
+          { owners: by("s:a"), to: "s:act", confidence: "exact", site: site(1) },
+          { owners: by("s:a"), to: "s:act", confidence: "exact", site: site(2), browser: true },
           {
-            from: "s:a",
+            owners: by("s:a"),
             to: "s:local",
             confidence: "exact",
             site: site(3),
             browser: true,
             passed: true,
           },
-          { from: "s:b", to: "s:local", confidence: "exact", site: site(4), browser: true },
+          { owners: by("s:b"), to: "s:local", confidence: "exact", site: site(4), browser: true },
         ],
       },
       { service: "shared", calls: [], actions: ["s:act"] },

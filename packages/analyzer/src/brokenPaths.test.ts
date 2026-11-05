@@ -111,3 +111,25 @@ describe("broken connections through the matcher's path forms (M6.11c)", () => {
     ]);
   }, 60_000);
 });
+
+// M6 review S2: an inline Express handler's calls had no edge, so a change to a function it
+// calls was never flagged.
+describe("broken connections from inline Express handlers (M6.11d)", () => {
+  it("flags a call from an inline handler when its callee needs a new argument", async () => {
+    const broken = await brokenAfter("express-inline-calls", (dir) =>
+      edit(
+        dir,
+        "src/articles/service.ts",
+        "deleteArticle(slug: string)",
+        "deleteArticle(slug: string, by: string)",
+      ),
+    );
+    expect(summary(broken)).toEqual([
+      {
+        from: "route:express-inline-calls/DELETE /api/articles/:slug",
+        to: "symbol:express-inline-calls/src/articles/service.ts#deleteArticle",
+        reason: "PARAMETERS_ADDED",
+      },
+    ]);
+  }, 60_000);
+});

@@ -50,6 +50,7 @@ const NAMES = [
   "axios-defaults",
   "express-folder-routers",
   "express-class-app",
+  "express-inline-calls",
   "sibling-apps",
   "fixed-url-helpers",
   "url-alternatives",
@@ -95,6 +96,24 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
     expect(ids(g, "route")).toHaveLength(3);
     // The inline /health handler has no symbol to link; the two imported ones do.
     expect(g.edges.filter((e) => e.kind === "handles")).toHaveLength(2);
+  });
+
+  it("express-inline-calls draws inline handlers' calls from their routes (M6.11d)", async () => {
+    const g = await run("express-inline-calls");
+    const svc = "express-inline-calls";
+    const fn = (name: string) => `symbol:${svc}/src/articles/service.ts#${name}`;
+    expect(g.edges.filter((e) => e.kind === "calls").map((e) => `${e.from} -> ${e.to}`)).toEqual([
+      `route:${svc}/DELETE /api/articles/:slug -> ${fn("deleteArticle")}`,
+      `route:${svc}/GET /api/articles -> ${fn("listArticles")}`,
+      `route:${svc}/GET /api/articles -> ${fn("toSlug")}`,
+      `route:${svc}/POST /api/articles -> ${fn("createArticle")}`,
+      `route:${svc}/POST /api/articles -> ${fn("toSlug")}`,
+    ]);
+    // The named middleware still handles both routes it guards.
+    expect(g.edges.filter((e) => e.kind === "handles").map((e) => e.from)).toEqual([
+      `route:${svc}/DELETE /api/articles/:slug`,
+      `route:${svc}/POST /api/articles`,
+    ]);
   });
 
   it("express-nested-routers composes mount prefixes", async () => {

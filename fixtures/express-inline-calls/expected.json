@@ -1,0 +1,370 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "route:express-inline-calls/DELETE /api/articles/:slug",
+      "id": "calls:route:express-inline-calls/DELETE /api/articles/:slug->symbol:express-inline-calls/src/articles/service.ts#deleteArticle",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 11,
+          "file": "src/articles/routes.ts",
+          "line": 21
+        }
+      ],
+      "to": "symbol:express-inline-calls/src/articles/service.ts#deleteArticle"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-inline-calls/GET /api/articles",
+      "id": "calls:route:express-inline-calls/GET /api/articles->symbol:express-inline-calls/src/articles/service.ts#listArticles",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 23,
+          "file": "src/articles/routes.ts",
+          "line": 13
+        }
+      ],
+      "to": "symbol:express-inline-calls/src/articles/service.ts#listArticles"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-inline-calls/GET /api/articles",
+      "id": "calls:route:express-inline-calls/GET /api/articles->symbol:express-inline-calls/src/articles/service.ts#toSlug",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 56,
+          "file": "src/articles/routes.ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:express-inline-calls/src/articles/service.ts#toSlug"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-inline-calls/POST /api/articles",
+      "id": "calls:route:express-inline-calls/POST /api/articles->symbol:express-inline-calls/src/articles/service.ts#createArticle",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 25,
+          "file": "src/articles/routes.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:express-inline-calls/src/articles/service.ts#createArticle"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-inline-calls/POST /api/articles",
+      "id": "calls:route:express-inline-calls/POST /api/articles->symbol:express-inline-calls/src/articles/service.ts#toSlug",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 39,
+          "file": "src/articles/routes.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:express-inline-calls/src/articles/service.ts#toSlug"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-inline-calls/DELETE /api/articles/:slug",
+      "id": "handles:route:express-inline-calls/DELETE /api/articles/:slug->symbol:express-inline-calls/src/auth.ts#requireUser",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 3,
+          "file": "src/articles/routes.ts",
+          "line": 19
+        }
+      ],
+      "to": "symbol:express-inline-calls/src/auth.ts#requireUser"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-inline-calls/POST /api/articles",
+      "id": "handles:route:express-inline-calls/POST /api/articles->symbol:express-inline-calls/src/auth.ts#requireUser",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 28,
+          "file": "src/articles/routes.ts",
+          "line": 7
+        }
+      ],
+      "to": "symbol:express-inline-calls/src/auth.ts#requireUser"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-inline-calls/src/app.ts",
+      "id": "imports:file:express-inline-calls/src/app.ts->file:express-inline-calls/src/articles/routes.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 26,
+          "file": "src/app.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:express-inline-calls/src/articles/routes.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-inline-calls/src/articles/routes.ts",
+      "id": "imports:file:express-inline-calls/src/articles/routes.ts->file:express-inline-calls/src/articles/service.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 68,
+          "file": "src/articles/routes.ts",
+          "line": 3
+        }
+      ],
+      "to": "file:express-inline-calls/src/articles/service.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-inline-calls/src/articles/routes.ts",
+      "id": "imports:file:express-inline-calls/src/articles/routes.ts->file:express-inline-calls/src/auth.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/articles/routes.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:express-inline-calls/src/auth.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "e9f0cccf63b2cdf09ca7930e239145bf455510d47e26f3f1ac966542f943917e",
+      "id": "file:express-inline-calls/src/app.ts",
+      "kind": "file",
+      "label": "app.ts",
+      "parentId": "module:express-inline-calls/src",
+      "path": "src/app.ts"
+    },
+    {
+      "hash": "0877d0c223a26196e0882971a6f4f913b58396a981e6f9b87a238fbfa628a88f",
+      "id": "file:express-inline-calls/src/articles/routes.ts",
+      "kind": "file",
+      "label": "routes.ts",
+      "parentId": "module:express-inline-calls/src/articles",
+      "path": "src/articles/routes.ts"
+    },
+    {
+      "hash": "1a9ddf4ac0f1ce6ffde18ca18d57bcd60322e97db216a097bf66ed6f20fc3443",
+      "id": "file:express-inline-calls/src/articles/service.ts",
+      "kind": "file",
+      "label": "service.ts",
+      "parentId": "module:express-inline-calls/src/articles",
+      "path": "src/articles/service.ts"
+    },
+    {
+      "hash": "b617d039d0ab5395436b022fe2697cb757d3069fb23ad530767b70aed561de3d",
+      "id": "file:express-inline-calls/src/auth.ts",
+      "kind": "file",
+      "label": "auth.ts",
+      "parentId": "module:express-inline-calls/src",
+      "path": "src/auth.ts"
+    },
+    {
+      "id": "module:express-inline-calls/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:express-inline-calls/",
+      "path": "src"
+    },
+    {
+      "id": "module:express-inline-calls/src/articles",
+      "kind": "module",
+      "label": "articles",
+      "parentId": "module:express-inline-calls/src",
+      "path": "src/articles"
+    },
+    {
+      "id": "route:express-inline-calls/DELETE /api/articles/:slug",
+      "kind": "route",
+      "label": "DELETE /api/articles/:slug",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:express-inline-calls/src/articles/routes.ts",
+      "path": "/api/articles/:slug",
+      "source": {
+        "column": 10,
+        "file": "src/articles/routes.ts",
+        "line": 17
+      }
+    },
+    {
+      "id": "route:express-inline-calls/GET /api/articles",
+      "kind": "route",
+      "label": "GET /api/articles",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-inline-calls/src/articles/routes.ts",
+      "path": "/api/articles",
+      "source": {
+        "column": 10,
+        "file": "src/articles/routes.ts",
+        "line": 12
+      }
+    },
+    {
+      "id": "route:express-inline-calls/POST /api/articles",
+      "kind": "route",
+      "label": "POST /api/articles",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:express-inline-calls/src/articles/routes.ts",
+      "path": "/api/articles",
+      "source": {
+        "column": 10,
+        "file": "src/articles/routes.ts",
+        "line": 7
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:express-inline-calls/",
+      "kind": "service",
+      "label": "express-inline-calls",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-inline-calls/src/articles/routes.ts#articles",
+      "kind": "symbol",
+      "label": "articles",
+      "parentId": "file:express-inline-calls/src/articles/routes.ts",
+      "source": {
+        "column": 14,
+        "endLine": 5,
+        "file": "src/articles/routes.ts",
+        "line": 5
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": false,
+      "id": "symbol:express-inline-calls/src/articles/routes.ts#asyncHandler",
+      "kind": "symbol",
+      "label": "asyncHandler",
+      "parentId": "file:express-inline-calls/src/articles/routes.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 32,
+        "file": "src/articles/routes.ts",
+        "line": 30
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-inline-calls/src/articles/service.ts#createArticle",
+      "kind": "symbol",
+      "label": "createArticle",
+      "parentId": "file:express-inline-calls/src/articles/service.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "src/articles/service.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-inline-calls/src/articles/service.ts#deleteArticle",
+      "kind": "symbol",
+      "label": "deleteArticle",
+      "parentId": "file:express-inline-calls/src/articles/service.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 20,
+        "file": "src/articles/service.ts",
+        "line": 18
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-inline-calls/src/articles/service.ts#listArticles",
+      "kind": "symbol",
+      "label": "listArticles",
+      "parentId": "file:express-inline-calls/src/articles/service.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 16,
+        "file": "src/articles/service.ts",
+        "line": 14
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-inline-calls/src/articles/service.ts#toSlug",
+      "kind": "symbol",
+      "label": "toSlug",
+      "parentId": "file:express-inline-calls/src/articles/service.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 24,
+        "file": "src/articles/service.ts",
+        "line": 22
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-inline-calls/src/auth.ts#requireUser",
+      "kind": "symbol",
+      "label": "requireUser",
+      "parentId": "file:express-inline-calls/src/auth.ts",
+      "requiredParams": 3,
+      "source": {
+        "column": 1,
+        "endLine": 8,
+        "file": "src/auth.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "express-inline-calls",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "express-inline-calls",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

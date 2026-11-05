@@ -62,7 +62,7 @@ async function observe(root: string) {
     express.inlineHandlers,
   );
   buildSymbolNodes(programs);
-  buildCallEdges(programs, resolver);
+  buildCallEdges(programs, resolver, express.inlineHandlers);
   const sites = collectHttpCalls(programs, resolver);
   inlineWrappers(sites, programs, resolver, createUrlNormalizer(resolver), express.inlineHandlers);
   buildSdkEdges(programs, resolver, workspace, express.inlineHandlers);
