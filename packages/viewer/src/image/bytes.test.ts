@@ -146,5 +146,6 @@ const EXPECTED: Record<string, string[]> = {
   "tanstack-query-key": ["ce2f1fe99c5ed702", "8347e6264b3b78cd", "3ca62f021db8f439"],
   "url-alternatives": ["6cbdfe701f1334a7", "db8ab97b3b62d5e5", "97cd61834becbd45"],
   "vite-proxy": ["9b3e0e072f9758ac", "4b2b176b72454cd2", "545a523731bd1732"],
+  "workspace-root-files": ["fdbc469bea2d70c7", "0e720004c4d99d39", "6b8780fa3237d923"],
   "wrapper-fetch": ["12360e06fae71333", "791e0ed4bfa41857", "f3719fe458b7bffc"],
 };

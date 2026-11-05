@@ -30,6 +30,12 @@ export interface WorkspacePackage {
   framework?: string;
   /** Sorted names of every dependency the manifest declares (all four dependency fields). */
   dependencies: string[];
+  /**
+   * Sorted folders inside `dir` whose files this package doesn't own: set only on a workspace
+   * repo's root service, for folders of other projects (a `package.json` or Nx `project.json`
+   * that no workspace pattern names, or that a `!` pattern excludes). Absent when empty.
+   */
+  except?: string[];
 }
 
 /** Result of {@link detectWorkspace}. */
@@ -210,12 +216,18 @@ export function findCycles(graph: ReadonlyMap<string, readonly string[]>): strin
  *   `package.json` is a service (`frontend/` + `backend/`), and the root is one too when it
  *   holds source files outside them (ADR-0163). Without such folders, one root service.
  * - Patterns that match nothing: one root service (single-package fallback).
+ * - A workspace root with source files outside every package (root `tests/`, `scripts/`,
+ *   even a lone `eslint.config.js`) is a service beside the packages, keyed and named like a
+ *   single-package root; folders of other projects (a `package.json` or Nx `project.json`
+ *   no pattern names, or one a `!` pattern excludes) stay outside it, in `except`
+ *   (ADR-0021 amendment).
  * - Warnings for invalid JSON/YAML, invalid `workspaces`, patterns matching nothing,
  *   duplicate package names, and circular runtime dependencies between packages.
  *
- * Not handled: the root package is never a service in a workspace repo, even if it has
- * source files; without workspace config, deeper folders with a `package.json`
- * (`apps/web/`) stay part of the service that contains them; Nx `workspace.json`; Rush and Bazel; globs beyond {@link compileGlob}.
+ * Not handled: without workspace config, deeper folders with a `package.json`
+ * (`apps/web/`) stay part of the service that contains them; a workspace root's own files
+ * aren't told apart by purpose (tool config files make it a service too); Nx
+ * `workspace.json`; Rush and Bazel; globs beyond {@link compileGlob}.
  */
 export async function detectWorkspace(root: string, files: readonly string[]): Promise<Workspace> {
   const present = new Set(files);
@@ -346,6 +358,7 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
     packageName: string | undefined;
     preferred: string;
     manifest: JsonObject;
+    except?: string[];
   }[] = [];
   for (const dir of [...dirs].sort(compareStrings)) {
     const manifest = await readJson(`${dir}/package.json`);
@@ -376,12 +389,27 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
     }
   }
 
-  // The root is a service when nothing else is, or beside sibling folders when it has
-  // source files of its own (a server at the root with a `client/` package).
+  // In a workspace repo, folders of other projects (a manifest no pattern names, or one a
+  // `!` pattern excludes) outside every package aren't the root's: an example app or a
+  // retired package is its own project. Nested ones are covered by their outer folder.
+  const inside = (path: string, dir: string): boolean => path.startsWith(`${dir}/`);
+  // Without workspace config, deeper folders stay the root's (ADR-0163).
+  const except: string[] = [];
+  if (raw.length > 0 && (patterns.length > 0 || nx)) {
+    const others = [...new Set([...manifestDirs, ...nxDirs])]
+      .filter((d) => d !== "" && !raw.some((r) => r.dir === d || inside(d, r.dir)))
+      .sort(compareStrings);
+    for (const d of others) if (!except.some((e) => inside(d, e))) except.push(d);
+  }
+
+  // The root is a service when nothing else is, or beside the packages (or sibling folders)
+  // when it has source files of its own: a server at the root with a `client/` package, or
+  // a monorepo's root `tests/` and `scripts/` (ADR-0021 amendment).
   const ownsSource = (path: string): boolean =>
     SOURCE_EXTENSIONS.some((ext) => path.endsWith(ext)) &&
-    !raw.some((r) => path.startsWith(`${r.dir}/`));
-  if (raw.length === 0 || (patterns.length === 0 && !nx && files.some(ownsSource))) {
+    !raw.some((r) => inside(path, r.dir)) &&
+    !except.some((e) => inside(path, e));
+  if (raw.length === 0 || files.some(ownsSource)) {
     const packageName = manifestName(rootManifest);
     const name = packageName ?? FALLBACK_KEY;
     raw.unshift({
@@ -390,6 +418,7 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
       packageName,
       preferred: unscoped(name),
       manifest: rootManifest ?? {},
+      ...(except.length > 0 ? { except } : {}),
     });
   }
 
@@ -405,6 +434,7 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
       ...(r.packageName !== undefined ? { packageName: r.packageName } : {}),
       ...(framework ? { framework } : {}),
       dependencies: dependencyNames(r.manifest, ALL_DEP_FIELDS),
+      ...(r.except ? { except: r.except } : {}),
     };
   });
 
@@ -443,12 +473,15 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
 
 /**
  * The service a repo-relative file belongs to: the package with the longest `dir` that
- * contains it. Returns undefined for files outside every package (possible in workspace repos).
+ * contains it, outside the package's `except` folders. Returns undefined for files outside
+ * every package (possible in workspace repos: other projects' folders).
  */
 export function serviceForFile(workspace: Workspace, path: string): WorkspacePackage | undefined {
   let best: WorkspacePackage | undefined;
   for (const p of workspace.packages) {
-    const inside = p.dir === "" || path.startsWith(`${p.dir}/`);
+    const inside =
+      (p.dir === "" || path.startsWith(`${p.dir}/`)) &&
+      !(p.except ?? []).some((dir) => path.startsWith(`${dir}/`));
     if (inside && (!best || p.dir.length > best.dir.length)) best = p;
   }
   return best;

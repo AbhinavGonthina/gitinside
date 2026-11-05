@@ -1,0 +1,3 @@
+# workspace-root-files
+
+Tests: a workspace monorepo (npm `workspaces: ["apps/*"]`) whose root holds its own source files, Playwright tests under `tests/e2e/` and a seed script under `scripts/` (ADR-0021 amendment, M5C.7e). The root is a service beside `apps/api`, keyed and labeled by the root `package.json` name (`relay-mono`), so both requests are collected and link to the API's routes (`heuristic`: a literal loopback URL can't say which service listens on port 4000). `examples/widget/` has its own `package.json` that no workspace pattern names, so it's another project, not the root's: its file stays unanalyzed under `FILES_OUTSIDE_SERVICE`.

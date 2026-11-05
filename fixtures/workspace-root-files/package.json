@@ -1,0 +1,10 @@
+{
+  "name": "relay-mono",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  }
+}
