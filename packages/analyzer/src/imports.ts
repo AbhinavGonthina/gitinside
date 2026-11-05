@@ -215,7 +215,8 @@ export function createModuleResolver(
   literal: ts.StringLiteralLike,
 ) => ResolvedImport | undefined {
   const options = sp.program.getCompilerOptions();
-  const cache = ts.createModuleResolutionCache(sp.toAbsolute(""), (f) => f, options);
+  /** One cache per options object: the program's, and each nested config's (ADR-0212). */
+  const caches = new Map<ts.CompilerOptions, ts.ModuleResolutionCache>();
 
   /** Resolve `specifier` as TypeScript would from `containingFile`, to a repo file. */
   const resolveTs = (
@@ -223,10 +224,14 @@ export function createModuleResolver(
     containingFile: string,
     mode?: ts.ResolutionMode,
   ): string | undefined => {
+    const own = sp.resolutionOptions(containingFile);
+    const cache =
+      caches.get(own) ?? ts.createModuleResolutionCache(sp.toAbsolute(""), (f) => f, own);
+    caches.set(own, cache);
     const result = ts.resolveModuleName(
       specifier,
       containingFile,
-      options,
+      own,
       sp.host,
       cache,
       undefined,
@@ -373,14 +378,13 @@ export function collectImportFacts(
 ): ImportFacts {
   const sources = new Set(sourceFiles);
   const facts: ImportFacts = { service: sp.service.key, imports: [], unresolved: [], warnings: [] };
-  const options = sp.program.getCompilerOptions();
-  const pathsKeys = Object.keys(options.paths ?? {});
   const resolveModule = createModuleResolver(sp, workspace, manifests);
 
   for (const file of sp.rootFiles) {
     const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
     if (!sourceFile) continue;
     const from = fileNodeId(sp.service, file);
+    const pathsKeys = Object.keys(sp.resolutionOptions(sourceFile.fileName).paths ?? {});
 
     for (const { specifier, literal } of extractImports(sourceFile)) {
       if (specifier === "" || ASSET_EXTENSIONS.has(extensionOf(specifier))) continue;

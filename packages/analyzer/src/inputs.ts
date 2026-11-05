@@ -9,7 +9,8 @@
  *   read by the module resolver): the SHA-256 of their bytes;
  * - files probed but not read (module resolution candidates): `present` or `absent`;
  * - folders probed (module resolution): whether the inventory has a file under them;
- * - the service's own root files (its folder's listing), so an added file is noticed.
+ * - the service's own root files and candidate nested configs (its folder's listing,
+ *   {@link serviceListings}), so an added file is noticed.
  *
  * A service's analysis also reaches other services' programs, through workspace package
  * imports TypeScript can't resolve and through files of another service that its program
@@ -65,6 +66,51 @@ export function programRootFiles(
   return owned;
 }
 
+/** Config file names a folder inside a service may hold for the files under it (ADR-0212). */
+export const NESTED_CONFIG_NAMES: readonly string[] = ["tsconfig.json", "jsconfig.json"];
+
+/**
+ * Each service's candidate nested configs, by service key (ADR-0212): every
+ * {@link NESTED_CONFIG_NAMES} file in `files` that the service owns ({@link serviceForFile})
+ * in a folder below the service's own, sorted. Which ones apply is decided when the program is
+ * built (a `package.json` beside one rules it out), through the host, so it's recorded there.
+ */
+export function nestedConfigFiles(
+  workspace: Workspace,
+  files: readonly string[],
+): Map<string, string[]> {
+  const found = new Map<string, string[]>();
+  for (const file of files) {
+    const slash = file.lastIndexOf("/");
+    if (slash === -1 || !NESTED_CONFIG_NAMES.includes(file.slice(slash + 1))) continue;
+    const service = serviceForFile(workspace, file);
+    if (!service || file.slice(0, slash) === service.dir) continue;
+    const list = found.get(service.key);
+    if (list) list.push(file);
+    else found.set(service.key, [file]);
+  }
+  for (const list of found.values()) list.sort(compareStrings);
+  return found;
+}
+
+/**
+ * Each service's listing, by service key, sorted: its program's root files
+ * ({@link programRootFiles}) plus its candidate nested configs ({@link nestedConfigFiles}), so
+ * a source file or a nested config added to its folder is noticed. Services with neither are
+ * missing from the map.
+ */
+export function serviceListings(
+  workspace: Workspace,
+  inventory: Pick<Inventory, "files" | "sourceFiles">,
+): Map<string, string[]> {
+  const listings = programRootFiles(workspace, inventory.sourceFiles);
+  for (const [key, configs] of nestedConfigFiles(workspace, inventory.files)) {
+    listings.set(key, [...(listings.get(key) ?? []), ...configs]);
+  }
+  for (const list of listings.values()) list.sort(compareStrings);
+  return listings;
+}
+
 /** A probed file that exists, but whose content wasn't read. */
 export const PRESENT = "present";
 /** A probed file that isn't in the inventory. */
@@ -109,7 +155,10 @@ function sorted<T>(entries: Iterable<[string, T]>): [string, T][] {
   return [...entries].sort((a, b) => compareStrings(a[0], b[0]));
 }
 
-/** Create an empty log for the service `service` with root files `rootFiles`. */
+/**
+ * Create an empty log for the service `service` whose listing is `rootFiles` (its root files,
+ * plus its candidate nested configs: see {@link serviceListings}).
+ */
 export function createInputLog(service: string, rootFiles: readonly string[]): InputLog {
   const files = new Map<string, string>();
   const dirs = new Map<string, boolean>();
@@ -368,7 +417,7 @@ export function createInputVerifier(
       dirs.add(file.slice(0, slash));
     }
   }
-  const listings = programRootFiles(workspace, inventory.sourceFiles);
+  const listings = serviceListings(workspace, inventory);
 
   return async (inputs) => {
     for (const [service, files] of inputs.listings) {

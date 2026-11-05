@@ -449,6 +449,31 @@ describe("verifying observed inputs after an edit", () => {
     expect(await after(() => tree({ "apps/web/tsconfig.json": config }))).toEqual(["web"]);
   });
 
+  describe("a nested config (M5C.7g)", () => {
+    const nested = "apps/web/src/admin/tsconfig.json";
+    const config = { compilerOptions: { paths: { "@/*": ["./*"] } } };
+
+    it("invalidates a service when one appears under its folder", async () => {
+      expect(await after(() => tree({ [nested]: config }))).toEqual(["web"]);
+    });
+
+    it("invalidates a service when its nested config changes or is deleted", async () => {
+      await tree({ [nested]: config });
+      const changed = { compilerOptions: { paths: { "@/*": ["./lib/*"] } } };
+      expect(await after(() => tree({ [nested]: changed }))).toEqual(["web"]);
+      await tree({ [nested]: config });
+      expect(await after(() => rm(join(dir, nested)))).toEqual(["web"]);
+    });
+
+    it("invalidates a service when a package.json appears beside its nested config", async () => {
+      await tree({ [nested]: config });
+      const manifest = { name: "admin" };
+      expect(await after(() => tree({ "apps/web/src/admin/package.json": manifest }))).toEqual([
+        "web",
+      ]);
+    });
+  });
+
   it("invalidates a service when a file it read is deleted", async () => {
     expect(await after(() => rm(join(dir, "apps/api/src/lib/index.ts")))).toEqual(["api"]);
   });

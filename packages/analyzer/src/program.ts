@@ -2,17 +2,19 @@ import { resolve } from "node:path";
 import ts from "typescript";
 import { compareStrings, type AnalysisWarning } from "@gitinside/schema";
 import {
+  NESTED_CONFIG_NAMES,
   createInputLog,
   createRepoFiles,
+  nestedConfigFiles,
   programRootFiles,
   type InputLog,
   type RepoFiles,
 } from "./inputs.js";
 import type { Inventory } from "./inventory.js";
-import type { Workspace, WorkspacePackage } from "./workspace.js";
+import { serviceForFile, type Workspace, type WorkspacePackage } from "./workspace.js";
 
-/** Config files looked up in each service folder, in order. */
-const CONFIG_NAMES: readonly string[] = ["tsconfig.json", "jsconfig.json"];
+/** Config files looked up in each service folder (and nested folder, ADR-0212), in order. */
+const CONFIG_NAMES: readonly string[] = NESTED_CONFIG_NAMES;
 
 /** TS18003 "No inputs were found": expected, because root files come from the inventory, not `include`. */
 const NO_INPUTS = 18003;
@@ -96,6 +98,17 @@ export interface ServiceProgram {
   readonly inputs: InputLog;
   /** Repo-relative path of the config used, or undefined when defaults were synthesized. */
   readonly configFile: string | undefined;
+  /**
+   * Repo-relative paths of the nested configs used for the files under their folders
+   * (ADR-0212), sorted.
+   */
+  readonly nestedConfigs: readonly string[];
+  /**
+   * The options to resolve the imports of `fileName` (absolute, `/`-separated) with: those of
+   * the deepest nested config above it ({@link nestedConfigs}), else the program's. Module
+   * resolution in later passes must use these, as the program itself does.
+   */
+  resolutionOptions(fileName: string): ts.CompilerOptions;
   /** Repo-relative source files owned by this service, sorted. */
   readonly rootFiles: string[];
   /** Config problems and syntax errors, sorted by file, code, message. */
@@ -153,6 +166,12 @@ function withResolution(options: ts.CompilerOptions): ts.CompilerOptions {
  *   `extends` that names an npm package) are `TSCONFIG_INVALID` warnings; the rest of the
  *   config still applies.
  * - Keys the config leaves unset are filled from the defaults; {@link FORCED_OPTIONS} always win.
+ * - Nested configs (ADR-0212): a `tsconfig.json` (else `jsconfig.json`) in a folder below the
+ *   service's that has no `package.json` of its own resolves the imports of the files under it
+ *   (the deepest one wins), read like the service's config (`extends` too). Only module
+ *   resolution follows it (`paths`, `baseUrl`, `moduleResolution`, …): the program parses and
+ *   binds every file with the service's options. An unparseable one is a `TSCONFIG_INVALID`
+ *   warning, and the files under it resolve as the service's do.
  * - No `node_modules`: the host only sees inventory files (which never include
  *   `node_modules`, skipped, or symlinked files) plus TypeScript's own bundled `lib.*.d.ts`.
  *   Package imports therefore stay unresolved here; M1.8 maps workspace packages.
@@ -162,7 +181,9 @@ function withResolution(options: ts.CompilerOptions): ts.CompilerOptions {
  * Not handled: `include`/`exclude`/`files` (every source file in the service folder is a
  * root file, so tests and scripts are analyzed too); project `references` (a solution-style
  * `tsconfig.json` contributes only its own options); tsconfigs outside the service folder
- * unless reached through `extends`. Nothing from the repo is ever executed.
+ * unless reached through `extends`; configs named otherwise (`tsconfig.app.json`) unless
+ * reached through `extends`; a nested config's parse options (`jsx`, `target`). Nothing from the
+ * repo is ever executed.
  */
 export function buildServicePrograms(
   root: string,
@@ -296,13 +317,17 @@ export function buildServicePrograms(
   };
 
   const owned = programRootFiles(workspace, inventory.sourceFiles);
+  const nestedCandidates = nestedConfigFiles(workspace, inventory.files);
 
   /** Parse `service`'s program, recording what it reads in `inputs`. */
   const build = (
     service: WorkspacePackage,
     rootFiles: string[],
     inputs: InputLog,
-  ): Pick<ServiceProgram, "program" | "host" | "configFile" | "warnings"> => {
+  ): Pick<
+    ServiceProgram,
+    "program" | "host" | "configFile" | "nestedConfigs" | "resolutionOptions" | "warnings"
+  > => {
     /** Set once the options are final, before the program parses anything. */
     const settings: { key?: string } = {};
     const { host, configHost } = createHost(inputs, () => {
@@ -314,7 +339,45 @@ export function buildServicePrograms(
     const flatten = (message: string | ts.DiagnosticMessageChain): string =>
       relativize(ts.flattenDiagnosticMessageText(message, " "));
 
-    let options: ts.CompilerOptions = DEFAULT_COMPILER_OPTIONS;
+    /**
+     * A config's options: the file's own (its `extends` chain followed through the host),
+     * unset keys filled from the defaults, and {@link FORCED_OPTIONS}. Undefined, with a
+     * `TSCONFIG_INVALID` warning ending in `fallback`, when its JSON doesn't parse.
+     */
+    const readConfig = (configPath: string, fallback: string): ts.CompilerOptions | undefined => {
+      const absolute = toAbsolute(configPath);
+      const parsedJson = ts.parseConfigFileTextToJson(absolute, host.readFile(absolute) ?? "");
+      if (parsedJson.error) {
+        warnings.push(
+          warn(
+            "TSCONFIG_INVALID",
+            configPath,
+            `${flatten(parsedJson.error.messageText)}; ${fallback}`,
+          ),
+        );
+        return undefined;
+      }
+      const parsed = ts.parseJsonConfigFileContent(
+        parsedJson.config,
+        configHost,
+        parentDir(absolute),
+        undefined,
+        absolute,
+      );
+      for (const error of parsed.errors) {
+        if (error.code === NO_INPUTS) continue;
+        warnings.push(warn("TSCONFIG_INVALID", configPath, flatten(error.messageText)));
+      }
+      const merged: ts.CompilerOptions = { ...parsed.options };
+      for (const [key, value] of Object.entries(DEFAULT_COMPILER_OPTIONS)) {
+        if (merged[key] === undefined && key !== "module" && key !== "moduleResolution") {
+          merged[key] = value as ts.CompilerOptionsValue;
+        }
+      }
+      return { ...withResolution(merged), ...FORCED_OPTIONS };
+    };
+
+    let options: ts.CompilerOptions = { ...DEFAULT_COMPILER_OPTIONS, ...FORCED_OPTIONS };
     let configFile: string | undefined;
     // Probed through the host, so a config added later invalidates the service.
     const configPath = CONFIG_NAMES.map((name) =>
@@ -332,39 +395,71 @@ export function buildServicePrograms(
         );
       }
     } else {
-      const absolute = toAbsolute(configPath);
-      const parsedJson = ts.parseConfigFileTextToJson(absolute, host.readFile(absolute) ?? "");
-      if (parsedJson.error) {
-        warnings.push(
-          warn(
-            "TSCONFIG_INVALID",
-            configPath,
-            `${flatten(parsedJson.error.messageText)}; using default compiler options`,
-          ),
-        );
-      } else {
-        const parsed = ts.parseJsonConfigFileContent(
-          parsedJson.config,
-          configHost,
-          parentDir(absolute),
-          undefined,
-          absolute,
-        );
-        for (const error of parsed.errors) {
-          if (error.code === NO_INPUTS) continue;
-          warnings.push(warn("TSCONFIG_INVALID", configPath, flatten(error.messageText)));
-        }
+      const read = readConfig(configPath, "using default compiler options");
+      if (read !== undefined) {
         configFile = configPath;
-        const merged: ts.CompilerOptions = { ...parsed.options };
-        for (const [key, value] of Object.entries(DEFAULT_COMPILER_OPTIONS)) {
-          if (merged[key] === undefined && key !== "module" && key !== "moduleResolution") {
-            merged[key] = value as ts.CompilerOptionsValue;
-          }
-        }
-        options = withResolution(merged);
+        options = read;
       }
     }
-    options = { ...options, ...FORCED_OPTIONS };
+
+    /** Each nested config's options, by its folder (ADR-0212). */
+    const nested = new Map<string, ts.CompilerOptions>();
+    const nestedConfigs: string[] = [];
+    const folders = new Set((nestedCandidates.get(service.key) ?? []).map(parentDir));
+    for (const folder of [...folders].sort(compareStrings)) {
+      // Probed through the host, so a package.json added beside it invalidates the service.
+      if (host.fileExists(toAbsolute(`${folder}/package.json`))) continue;
+      const path = CONFIG_NAMES.map((name) => `${folder}/${name}`).find((p) =>
+        host.fileExists(toAbsolute(p)),
+      );
+      if (path === undefined) continue;
+      const read = readConfig(path, "using the service's compiler options for the files under it");
+      if (read === undefined) continue;
+      nested.set(folder, read);
+      nestedConfigs.push(path);
+    }
+    nestedConfigs.sort(compareStrings);
+
+    const programOptions = options;
+    const resolutionOptions = (fileName: string): ts.CompilerOptions => {
+      if (nested.size === 0) return programOptions;
+      const rel = toRepoPath(fileName);
+      if (rel === undefined || serviceForFile(workspace, rel)?.key !== service.key) {
+        return programOptions;
+      }
+      for (let d = parentDir(rel); d.length > service.dir.length; d = parentDir(d)) {
+        const found = nested.get(d);
+        if (found) return found;
+      }
+      return programOptions;
+    };
+    if (nested.size > 0) {
+      /** One module resolution cache per options object, as the program keeps for its own. */
+      const caches = new Map<ts.CompilerOptions, ts.ModuleResolutionCache>();
+      host.resolveModuleNameLiterals = (
+        literals,
+        containingFile,
+        redirectedReference,
+        compilerOptions,
+        containingSourceFile,
+      ) => {
+        const own = resolutionOptions(containingFile);
+        const cache = caches.get(own) ?? ts.createModuleResolutionCache(rootPath, (f) => f, own);
+        caches.set(own, cache);
+        return literals.map((literal) =>
+          ts.resolveModuleName(
+            literal.text,
+            containingFile,
+            own,
+            host,
+            cache,
+            redirectedReference,
+            ts.getModeForUsageLocation(containingSourceFile, literal, compilerOptions),
+          ),
+        );
+      };
+    }
+
     // TypeScript's key ends with `pathsBasePath` (it also keys module resolution), which only
     // changes how `paths` resolve, never a parse; left in, each config with `paths` parsed alone.
     settings.key = settingsKeys.getKeyForCompilationSettings({
@@ -401,12 +496,15 @@ export function buildServicePrograms(
         compareStrings(a.code, b.code) ||
         compareStrings(a.message, b.message),
     );
-    return { program, host, configFile, warnings };
+    return { program, host, configFile, nestedConfigs, resolutionOptions, warnings };
   };
 
   return workspace.packages.map((service): ServiceProgram => {
     const rootFiles = owned.get(service.key) ?? [];
-    const inputs = createInputLog(service.key, rootFiles);
+    const inputs = createInputLog(service.key, [
+      ...rootFiles,
+      ...(nestedCandidates.get(service.key) ?? []),
+    ]);
     let built: ReturnType<typeof build> | undefined;
     const parsed = () => (built ??= build(service, rootFiles, inputs));
     return {
@@ -424,6 +522,10 @@ export function buildServicePrograms(
       get configFile() {
         return parsed().configFile;
       },
+      get nestedConfigs() {
+        return parsed().nestedConfigs;
+      },
+      resolutionOptions: (fileName) => parsed().resolutionOptions(fileName),
       get warnings() {
         return parsed().warnings;
       },
