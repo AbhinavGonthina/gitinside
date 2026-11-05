@@ -297,8 +297,9 @@ export const storeRequests = pgTable(
 /**
  * Google compute GitInside used per UTC calendar month, as the worker and the website count
  * it (#11, ADR-0156): the worker's billed Cloud Run instance time in ms (startup, shutdown,
- * and each push's request), its Cloud Run requests, and Cloud Tasks operations (each task
- * created, each push delivered). New analyses pause at 80% of the free allowance.
+ * and each push's request), its Cloud Run requests, Cloud Tasks operations (each task
+ * created, each push delivered), and Secret Manager accesses (the worker's secrets, read by
+ * Cloud Run at each instance start). New analyses pause at 80% of the free allowance.
  */
 export const computeUsage = pgTable(
   "compute_usage",
@@ -307,11 +308,13 @@ export const computeUsage = pgTable(
     instanceMs: bigint("instance_ms", { mode: "number" }).notNull().default(0),
     runRequests: integer("run_requests").notNull().default(0),
     taskOperations: integer("task_operations").notNull().default(0),
+    secretAccesses: integer("secret_accesses").notNull().default(0),
   },
   (t) => [
     check("compute_usage_instance_ms_check", sql`${t.instanceMs} >= 0`),
     check("compute_usage_run_requests_check", sql`${t.runRequests} >= 0`),
     check("compute_usage_task_operations_check", sql`${t.taskOperations} >= 0`),
+    check("compute_usage_secret_accesses_check", sql`${t.secretAccesses} >= 0`),
   ],
 );
 

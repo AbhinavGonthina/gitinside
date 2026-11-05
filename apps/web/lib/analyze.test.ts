@@ -155,6 +155,13 @@ describe("requestAnalysis, the monthly compute budget (M5.18d)", () => {
     expect((await requestAnalysis("acme/shop", IP, deps)).status).toBe(202);
   });
 
+  it("refuses a new analysis at 80% of Secret Manager's free accesses (M5.14b3g2)", async () => {
+    await countComputeUsage(t.db, { secretAccesses: 8_000 });
+    const answer = await requestAnalysis("acme/shop", IP, deps);
+    expect(answer).toMatchObject({ status: 503, body: { error: "ANALYSIS_PAUSED" } });
+    expect(tasks.google.requests).toEqual([]);
+  });
+
   it("still serves finished diagrams and a commit already in flight while paused", async () => {
     await countComputeUsage(t.db, { runRequests: 1_600_000 });
     await doneAnalysis(); // running

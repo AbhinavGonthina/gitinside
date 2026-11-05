@@ -45,6 +45,7 @@ export {
   type VerifyFailure,
 } from "./hmac.js";
 export { FAILURE_CODE, JobFailure, RETRIABLE_CODES } from "./failure.js";
+export { SECRET_READS_PER_START } from "./compute.js";
 export {
   BUDGET_PATH,
   GOOGLE_TIMEOUT_MS,

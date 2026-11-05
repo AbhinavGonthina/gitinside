@@ -57,6 +57,13 @@
       "when": 1793526224934,
       "tag": "0007_compute_usage",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793878279659,
+      "tag": "0008_compute_usage_secret_accesses",
+      "breakpoints": true
     }
   ]
 }

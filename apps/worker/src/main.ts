@@ -162,6 +162,10 @@ export async function startWorkerProcess(
 
     const { db, close: closeDb } = (options.openDb ?? createDb)(config.databaseUrl);
     cleanup.push(["database", closeDb]);
+    // Cloud Run read the secrets before this process began; count them before anything
+    // else can fail the start (a failed start is retried, reading them again).
+    const meter = (options.meter ?? createUsageMeter)({ db, log });
+    await meter.secretReads();
 
     const folders = await sweepJobsRoot(config.jobsRoot);
     const interrupted = await failInterruptedAnalyses(db, INTERRUPTED_AFTER_SECONDS);
@@ -172,7 +176,6 @@ export async function startWorkerProcess(
       ...(config.githubToken === undefined ? {} : { token: config.githubToken }),
     };
     const store = createCountedStore(config.store, db, log);
-    const meter = (options.meter ?? createUsageMeter)({ db, log });
     const recorder = createAnalysisRecorder({ db, store, analyzerVersion, github });
     let afterJob:
       | ((end: { timeLeftMs: number; signal: AbortSignal }) => Promise<unknown>)

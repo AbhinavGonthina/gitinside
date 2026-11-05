@@ -15,6 +15,11 @@ import type { WorkerLog } from "./attempt.js";
  *   has CPU): the request's time so far, one Cloud Run request, and one Cloud Tasks
  *   operation (the delivery; the website counts creating the task). A push answered `429`
  *   while a job runs overlaps it and is counted on top: an overcount, never an undercount.
+ * - **Secrets** ({@link UsageMeter.secretReads}, once per instance, as soon as the database
+ *   is open): Cloud Run reads the service's secrets from Secret Manager before it starts each
+ *   instance, {@link SECRET_READS_PER_START} accesses of the free 10,000 a month. Counted
+ *   before the startup sweep and the listen, since a start that fails there has used them
+ *   too. A start that fails before (bad config, migrations) isn't seen.
  * - **Rounding:** each figure is rounded up to {@link BILLING_STEP_MS}, at least one step.
  *
  * A count that fails is logged (`compute_count_failed`) and the request goes on: the meter
@@ -25,6 +30,8 @@ import type { WorkerLog } from "./attempt.js";
 export const BILLING_STEP_MS = 100;
 /** The most a shutdown can bill: Cloud Run sends SIGKILL 10 s after SIGTERM. */
 export const SHUTDOWN_ALLOWANCE_MS = 10_000;
+/** The secrets `infra/gcp/service.json` mounts as environment variables, each read per start. */
+export const SECRET_READS_PER_START = 4;
 
 /** `ms` rounded up to whole {@link BILLING_STEP_MS} steps, at least one. */
 export function billedMs(ms: number): number {
@@ -38,12 +45,17 @@ export interface UsageMeter {
   startup(ms: number): Promise<void>;
   /** A push is about to be answered, `ms` after it arrived. */
   push(ms: number): Promise<void>;
+  /** The instance is starting: Cloud Run read its secrets for it. */
+  secretReads(): Promise<void>;
 }
 
 /** A {@link UsageMeter} adding to `compute_usage` in `db`. */
 export function createUsageMeter(options: { db: AnyDatabase; log: WorkerLog }): UsageMeter {
   const { db, log } = options;
-  const count = async (what: "startup" | "push", amounts: ComputeCount): Promise<void> => {
+  const count = async (
+    what: "startup" | "push" | "secrets",
+    amounts: ComputeCount,
+  ): Promise<void> => {
     try {
       await countComputeUsage(db, amounts);
     } catch (error) {
@@ -54,5 +66,6 @@ export function createUsageMeter(options: { db: AnyDatabase; log: WorkerLog }): 
   return {
     startup: (ms) => count("startup", { instanceMs: billedMs(ms) + SHUTDOWN_ALLOWANCE_MS }),
     push: (ms) => count("push", { instanceMs: billedMs(ms), runRequests: 1, taskOperations: 1 }),
+    secretReads: () => count("secrets", { secretAccesses: SECRET_READS_PER_START }),
   };
 }
