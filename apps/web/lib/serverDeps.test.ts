@@ -136,6 +136,28 @@ describe("analyzeDepsFromEnv", () => {
     ]);
   });
 
+  it("a forged header fails only its own request, never another request's refresh (R12)", async () => {
+    const { google, env } = withGoogle("enqueue-forged@gitinside-demo.iam.gserviceaccount.com");
+    // A genuine request takes its deps, then a forged one arrives before the first refreshes.
+    const genuine = analyzeDepsFromEnv(env, FAKE_GCP.subjectToken);
+    const forged = analyzeDepsFromEnv(env, "forged.oidc.token");
+    await expect(forged?.queue.createTask(JOB, "analyze-forged-1")).rejects.toThrow(
+      new WorkerUnavailableError("google token: sts status 400"),
+    );
+    expect(await genuine?.queue.createTask(JOB, "analyze-forged-2")).toEqual({ created: true });
+    expect(google.tasks).toHaveLength(1);
+  });
+
+  it("a request without the header doesn't borrow an earlier request's token", async () => {
+    const { google, env } = withGoogle("enqueue-borrow@gitinside-demo.iam.gserviceaccount.com");
+    // The first request's token is never stored for others; the second has none of its own.
+    analyzeDepsFromEnv(env, FAKE_GCP.subjectToken);
+    await expect(
+      analyzeDepsFromEnv(env)?.queue.createTask(JOB, "analyze-borrow-1"),
+    ).rejects.toThrow(new WorkerUnavailableError("google token: no platform OIDC token"));
+    expect(google.requests).toEqual([]);
+  });
+
   it("falls back to VERCEL_OIDC_TOKEN (local development)", async () => {
     const { google, env } = withGoogle("enqueue-env@gitinside-demo.iam.gserviceaccount.com");
     const deps = analyzeDepsFromEnv({ ...env, VERCEL_OIDC_TOKEN: FAKE_GCP.subjectToken });

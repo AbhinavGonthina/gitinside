@@ -107,6 +107,30 @@ describe("createGoogleTokenSource", () => {
     expect(google.requests).toHaveLength(2);
   });
 
+  it("a caller's own subject token is used for its refresh instead of subjectToken", async () => {
+    const { source, subjects } = setup({
+      subjectToken: () => Promise.reject(new Error("no environment token")),
+    });
+    expect(await source.token(OIDC)).toMatch(/^access-/);
+    expect(subjects()).toBe(0);
+    // A cached access token is handed out whatever subject the caller brought.
+    expect(await source.token("forged")).toMatch(/^access-/);
+  });
+
+  it("a caller with another subject doesn't share a refresh it can't vouch for (R12)", async () => {
+    const { google, source } = setup();
+    const [forged, genuine] = await Promise.allSettled([
+      source.token("forged"),
+      source.token(OIDC),
+    ]);
+    expect(forged).toEqual({ status: "rejected", reason: new GoogleAuthError("sts status 400") });
+    expect(genuine).toMatchObject({
+      status: "fulfilled",
+      value: expect.stringMatching(/^access-/),
+    });
+    expect(google.requests).toHaveLength(3);
+  });
+
   it("names the failing step and status, never a token", async () => {
     const wrongAudience = setup({ audience: `${AUDIENCE}-other` });
     const error = await wrongAudience.source.token().catch((e: unknown) => e);

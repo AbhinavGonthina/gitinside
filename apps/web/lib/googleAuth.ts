@@ -37,7 +37,12 @@ export interface GoogleTokenOptions {
 
 /** Hands out a valid access token, refreshing it when needed. */
 export interface GoogleTokenSource {
-  token(): Promise<string>;
+  /**
+   * A valid access token. `subject` is the caller's own platform OIDC token, used if this call
+   * refreshes, instead of `subjectToken` (M5.14b3g3): a request's header is never kept for
+   * another request's refresh, and a caller shares only a refresh that uses its own subject.
+   */
+  token(subject?: string): Promise<string>;
 }
 
 /** Thrown when a token can't be had; `reason` is for logs and holds no secret. */
@@ -68,7 +73,7 @@ export function createGoogleTokenSource(options: GoogleTokenOptions): GoogleToke
   const now = options.now ?? Date.now;
   const timeoutMs = options.timeoutMs ?? 5_000;
   let cached: { token: string; refreshAt: number } | undefined;
-  let pending: Promise<string> | undefined;
+  let pending: { subject: string | undefined; token: Promise<string> } | undefined;
 
   /** POST `json` and return the parsed answer, or throw naming `step`. */
   async function post(step: string, url: string, json: object, bearer?: string) {
@@ -98,10 +103,10 @@ export function createGoogleTokenSource(options: GoogleTokenOptions): GoogleToke
     }
   }
 
-  async function refresh(): Promise<string> {
+  async function refresh(own: string | undefined): Promise<string> {
     let subject: string;
     try {
-      subject = await options.subjectToken();
+      subject = own ?? (await options.subjectToken());
     } catch {
       throw new GoogleAuthError("no platform OIDC token");
     }
@@ -134,12 +139,17 @@ export function createGoogleTokenSource(options: GoogleTokenOptions): GoogleToke
   }
 
   return {
-    async token() {
+    async token(subject) {
       if (cached !== undefined && now() < cached.refreshAt) return cached.token;
-      pending ??= refresh().finally(() => {
-        pending = undefined;
-      });
-      return pending;
+      if (pending !== undefined && pending.subject === subject) return pending.token;
+      const mine = {
+        subject,
+        token: refresh(subject).finally(() => {
+          if (pending === mine) pending = undefined;
+        }),
+      };
+      pending = mine;
+      return mine.token;
     },
   };
 }

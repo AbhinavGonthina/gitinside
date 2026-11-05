@@ -45,6 +45,8 @@ export const SIGNED_OUT_HOURLY_LIMIT = 5;
 /**
  * The header Vercel puts the deployment's OIDC token in on every function request; Google's
  * STS checks the token's signature, issuer, and audience, so a forged one gets nothing.
+ * Vercel's docs don't say a client-sent header of this name is replaced (checked 2026-11-05,
+ * M5.14b3g3), so a request's header is used only for that request's own refresh, never kept.
  */
 export const VERCEL_OIDC_HEADER = "x-vercel-oidc-token";
 
@@ -57,20 +59,19 @@ const PROVIDER =
 
 /**
  * One token source per Google identity, kept for the process so the access token is cached
- * across requests (googleAuth.ts). `platform` is the newest OIDC token a request carried.
+ * across requests (googleAuth.ts). No request's OIDC token is kept in it.
  */
-let google:
-  | { key: string; source: GoogleTokenSource; platform: { token: string | undefined } }
-  | undefined;
+let google: { key: string; source: GoogleTokenSource } | undefined;
 
 /**
  * The Cloud Tasks queue (ADR-0114, ADR-0141), if every variable is set and well formed:
  * `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_TASKS_QUEUE`, `GCP_WORKLOAD_IDENTITY_PROVIDER` (the
  * pool provider's full name), `GCP_ENQUEUE_SERVICE_ACCOUNT` (impersonated; may only create
  * tasks), `GCP_INVOKER_SERVICE_ACCOUNT` (Cloud Tasks pushes as it), `WORKER_URL` (the Cloud
- * Run service's https origin), and `ENQUEUE_HMAC_SECRET` (signs each job). The platform's
- * OIDC token is `oidcToken` (the request's {@link VERCEL_OIDC_HEADER}), else
- * `VERCEL_OIDC_TOKEN` (`vercel env pull`, local development). With no `GCP_*` variable set at
+ * Run service's https origin), and `ENQUEUE_HMAC_SECRET` (signs each job). A refresh this
+ * request causes uses its own `oidcToken` (the request's {@link VERCEL_OIDC_HEADER}), else
+ * `VERCEL_OIDC_TOKEN` (`vercel env pull`, local development; Vercel's functions get the token
+ * only in the header, so the variable can't replace it there). With no `GCP_*` variable set at
  * all, it's the local push queue if opted in ({@link localQueue}); with only some set, none.
  */
 function taskQueue(env: Env, oidcToken: string | null | undefined): TaskQueue | undefined {
@@ -104,28 +105,26 @@ function taskQueue(env: Env, oidcToken: string | null | undefined): TaskQueue | 
   const key = JSON.stringify([audience, serviceAccount]);
   try {
     if (google?.key !== key) {
-      const platform = { token: undefined as string | undefined };
       const source = createGoogleTokenSource({
         audience,
         serviceAccount,
-        // Read at each refresh, so a token that expired in the environment isn't used when a
-        // request brought a fresh one.
+        // Only for a request without the header (local development).
         subjectToken: async () => {
-          const token = platform.token ?? env.VERCEL_OIDC_TOKEN;
+          const token = env.VERCEL_OIDC_TOKEN;
           if (!token) throw new Error("no OIDC token");
           return token;
         },
       });
-      google = { key, source, platform };
+      google = { key, source };
     }
-    if (oidcToken) google.platform.token = oidcToken;
     const { source } = google;
+    const subject = oidcToken || undefined;
     return createTaskQueue({
       queue: { project, location, queue },
       workerUrl,
       invokerServiceAccount,
       secret,
-      token: () => source.token(),
+      token: () => source.token(subject),
     });
   } catch {
     return undefined; // a malformed name or URL; named nowhere public
