@@ -14,11 +14,12 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5C.8c Score batch 5 once, blind (all 16 labeled: 520 labels at 504 call sites, 460 with a route): precision (≥ 95% the hard number), recall, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post on #18 (M5.14b4 waits on #22)
+M6.11e Export in diff mode (U1): export the version shown (M5C.9 waits on #18, M5.14b4 on #22)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
+- [#18](https://github.com/AbhinavGonthina/gitinside-planning/issues/18) Batch 5 blind result (precision 93.5% < 95%, recall 63.0%): fix P/Q (+ R/S/T) and move on, loop again with a batch 6, or quote as is. Blocks M5C.9 only.
 - [#22](https://github.com/AbhinavGonthina/gitinside-planning/issues/22) On or after 2026-11-07: Google's billing report for Nov 1–4 by SKU (settled), a read-only Neon query of November's jobs with their times, and the kill switch's and worker's request counts in Logs Explorer. Blocks M5.14b4 only (not the m5 tag).
 - Reminder (#3, closed 2026-11-04 with "all 119 checks match infra/gcp"): the Google Cloud trial ends 2027-01-30. Remind Abhinav before trial day 90 of anything needed before he activates the full account; he won't activate it until we confirm.
 
@@ -347,7 +348,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M5C.8b2 Label `DOodle25/SyncUP`, `Vishwajit1610/Resonance`, `dotnize/chessu`, `elyse502/ecommerce-app` (`theavnishkumar/online-auction-system` rejected on rule 4 while labeling, walk continued to ecommerce-app, ADR-0208's amendment) {model: opus}
 - [x] M5C.8b3 Label `leswww/agentboard-ce`, `g089h515r806/nextcrawler`, `SamurAIGPT/ai-headshot-generator`, `Farbyte/lawson` (first check each base against the routes' full paths, mounts and ports included, ADR-0208's M5C.8b2 note) {model: opus}
 - [x] M5C.8b4 Label `sahitya-chandra/DSA-Round-Robin`, `BharathxD/DevCircle`, `yigehaozi/relay-status-monitor`, `rakibutsho/SPIDER_NODE-uptime-tracker`; EVALUATION.md's batch 5 table {model: opus}
-- [ ] M5C.8c Score batch 5 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 {model: opus}
+- [x] M5C.8c Score batch 5 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 {model: opus}
+- [ ] M5C.9 Act on Abhinav's decision on #18 after batch 5 (precision 93.5% < 95%, recall 63.0%, 6/16 mapped completely; options in the #18 comment of 2026-11-06, causes P–Y in `eval/results/2026-11-batch5-diagnosis.md`): plan the chosen fixes here as one task per general pattern (fixture + golden + ADR + eval delta), or record that batch 5 is quoted as is {model: opus} {blocked: #18}
 
 ### M6 (continued)
 - [x] M6.10 docs/walkthroughs/diff.md {model: opus}
@@ -398,6 +400,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **M5C.8c (2026-11-06):** batch 5 scored once, blind (report `fe17b6d`, diagnosis + README/EVALUATION `11441ac`): precision 93.5% (290/310), below the 95% floor; recall 63.0% (290/460); 6 of 16 mapped completely; all 60 `null` labels got no route, `exact` 163/0.
+  All 20 FPs come from two wrapper-placement rules (P: a ternary URL on a hook's parameter, 14; Q: a port-only parameter counted as leading, 6); the 170 misses trace to 10 causes (R `require("express").Router()` 59, S local `const` arrow helpers 54, T `let url +=` 27). Posted on #18 with options (recommended: fix P, Q, R, S, T, then return to M6.11); M5C.9 waits on it.
 - **M5C.8b4 (2026-11-05):** labeled DSA-Round-Robin (26 labels at 25 sites, all with a route), DevCircle (19, 16), relay-status-monitor (50 at 48, 36), and SPIDER_NODE-uptime-tracker (26, 22): 121 labels at 118 sites, 100 with a route, pinned `"heldOut": 5` (`88564a4`). Batch 5 is fully labeled (520 at 504, 460 with a route), with its EVALUATION.md table.
   Four parallel readers drafted; I re-checked every label with `eval/dist/check-labels.mjs`, the server's port and mounts, and per-file request counts. ADR-0209's M5C.8b4 amendment: the deployment evidence must name the exact host the code calls, a trailing space is trimmed, a trailing slash to Next follows its 308 redirect, and export-list handlers anchor at the `export` line.
 - **M5C.8b3 (2026-11-05):** labeled agentboard-ce (56 labels at 53 sites, 46 with a route), nextcrawler (53, 47), ai-headshot-generator (15, 7), and lawson (10, 5): 134 labels at 131 sites, 105 with a route, pinned `"heldOut": 5` (`d654f94`). Two readers drafted the large repos, I did the small ones; every label re-checked with `eval/dist/check-labels.mjs` and each tree's per-file request counts matched against the labels.
