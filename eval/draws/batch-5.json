@@ -1453,9 +1453,8 @@
         },
         {
           "repo": "elyse502/PingUp",
-          "verdict": "pinned",
-          "sha": "d6208a0101ce0257453682e6f82192f80d44ae74",
-          "reason": "axios-baseurl: Vite React SPA with one axios instance (baseURL: VITE_BASEURL) in client/src/api/axios.js, ~17 api.get/api.post calls to /api/user|post|story|message/...; Express mounts those four routers in server/server.js; ~50 files"
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side), found while labeling (M5C.8b1, ADR-0208's amendment; first read as a pin at d6208a0): all 17 requests go through axios.create({ baseURL: import.meta.env.VITE_BASEURL }) in client/src/api/axios.js, and nothing in the repo gives VITE_BASEURL a value (no in-code fallback, no committed env file, no dev proxy; the README documents another name, VITE_API_BASE_URL, on port 5000 while server.js listens on PORT || 4000), so by EVALUATION.md's env-base rule every target is null and none reaches a route in the repo"
         },
         {
           "repo": "erayendes/kortext",
@@ -1480,6 +1479,27 @@
           "verdict": "pinned",
           "sha": "932c651a1558b4d82a713e1e3beef71e6ab166ec",
           "reason": "spa-plus-express: Vite React SPA with 6 fetch calls to literal http://localhost:3000/api/... (usePlayerStore x2, AlbumTracks, Albums, Artists, Search), each a route; inline app.get('/api/...') Express routes in backend/server.js; 22 files"
+        },
+        {
+          "repo": "ManiGhazaee/FireCode",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): every request (~17 axios calls in client/src/pages) goes to the literal public host API_URL = https://fire-code-api.vercel.app (client/src/App.tsx; the localhost:80 line is commented out). server/vercel.json routes every path to server.ts, but ProblemPage's GET /api/problem/${name}/${activeNavOption} also sends /solutions and /submissions (App.tsx routes), which no server route serves (only GET /:name/editorial), so by ADR-0209 the host isn't followed into the repo and no request reaches a route in it"
+        },
+        {
+          "repo": "anechunaev/frontend-boilerplate",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): a server-side-rendering starter; its Express server (src/server) serves only SSR, assets, a healthcheck, and a 404 handler, and no source file sends a request (no fetch, axios, or XMLHttpRequest anywhere in src)"
+        },
+        {
+          "repo": "mk314k/authenticate",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): 2 requests, axios.post to ${API_URL}/register and /login in frontend/src/services/authService.ts (backend/src/routes/authRoutes.ts under /api/auth); fewer than 5"
+        },
+        {
+          "repo": "dotnize/chessu",
+          "verdict": "pinned",
+          "sha": "29968f023da244d6ae1ff10c09577b1b5d53c123",
+          "reason": "next-plus-server-monorepo: pnpm workspace with a Next.js App Router client and a TypeScript Express server; ~11 direct fetch calls in client/src/lib/{auth,game,user}.ts on API_URL = NEXT_PUBLIC_API_URL || 'http://localhost:3001' (the server's PORT fallback), one URL built up with query params; the server mounts router.route(path) chains for /games, /auth, /users under /v1; the game itself runs over socket.io (not counted); 52 files"
         }
       ]
     },

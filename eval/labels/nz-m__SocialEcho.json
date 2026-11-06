@@ -1,0 +1,615 @@
+{
+  "repo": "nz-m/SocialEcho",
+  "sha": "4dc6c7822bfff5c0b13e1b8098e8d7ae0084939a",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["client/src", "server"],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/AppContainer.jsx", "line": 24 },
+      "method": "GET",
+      "target": { "file": "server/app.js", "line": 51, "route": "GET /server-status" },
+      "notes": "checkServerStatus(): plain axios.get(\"/server-status\") with no baseURL, root-relative: CRA's dev proxy (client/package.json \"proxy\": \"http://127.0.0.1:4000\" = server/app.js PORT fallback 4000 and server/.env.example PORT=4000) forwards it to the server; app.get(\"/server-status\")"
+    },
+    {
+      "callSite": { "file": "client/src/components/shared/Search.jsx", "line": 33 },
+      "method": "GET",
+      "target": { "file": "server/app.js", "line": 55, "route": "GET /search" },
+      "notes": "debounced search: axios (line 33) .get(`${BASE_URL}/search?q=…`) chained on line 34; BASE_URL = process.env.REACT_APP_API_URL, no in-code fallback; client/.env.example sets http://127.0.0.1:4000 = server/app.js PORT fallback 4000. Query dropped; app.get(\"/search\", decodeToken, search)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/BlockDevice.jsx", "line": 20 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 68,
+        "route": "GET /auth/block-login"
+      },
+      "notes": "handleBlock(): axios (line 20) .get(blockLink) on line 21, blockLink = `${BASE_URL}/auth/block-login?id=…&email=…` (REACT_APP_API_URL, base as in Search.jsx); query dropped. server/app.js mounts contextAuthRoutes at /auth; router.get(\"/block-login\")"
+    },
+    {
+      "callSite": { "file": "client/src/pages/LoginVerified.jsx", "line": 18 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 67,
+        "route": "GET /auth/verify-login"
+      },
+      "notes": "handleVerify(): axios (line 18) .get(verifyUrl) on line 19, verifyUrl = `${BASE_URL}/auth/verify-login?id=…&email=…`; query dropped; router.get(\"/verify-login\") under /auth"
+    },
+    {
+      "callSite": { "file": "client/src/pages/VerifyEmail.jsx", "line": 28 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 66,
+        "route": "GET /auth/verify"
+      },
+      "notes": "handleVerify(): axios (line 28) .get(verificationLink) on line 29, verificationLink = `${BASE_URL}/auth/verify?code=…&email=…`; query dropped; router.get(\"/verify\") under /auth"
+    },
+    {
+      "callSite": { "file": "client/src/redux/actions/refreshTokenAction.js", "line": 18 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 58,
+        "route": "POST /users/refresh-token"
+      },
+      "notes": "refreshTokenAction(): API.post(\"/users/refresh-token\") on this file's own axios.create({ baseURL: process.env.REACT_APP_API_URL }) (base http://127.0.0.1:4000 from client/.env.example). server/app.js mounts userRoutes at /users"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 5 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/admin.route.js",
+        "line": 23,
+        "route": "POST /admin/signin"
+      },
+      "notes": "signIn(): ADMIN_API.post(\"/signin\"). ADMIN_API = axios.create({ baseURL: `${BASE_URL}/admin` }) in redux/api/utils.js, BASE_URL = process.env.REACT_APP_API_URL with no in-code fallback; client/.env.example sets http://127.0.0.1:4000 = server/app.js PORT fallback 4000 (server/.env.example PORT=4000). axios joins base and path, so /admin/signin. server/app.js mounts adminRoutes at /admin; router.post(\"/signin\") is registered before router.use(requireAdminAuth)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 14 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/admin.route.js",
+        "line": 36,
+        "route": "GET /admin/preferences"
+      },
+      "notes": "getServicePreferences(): ADMIN_API.get(\"/preferences\"); router.route(\"/preferences\") chain's .get on line 36"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 23 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/admin.route.js",
+        "line": 37,
+        "route": "PUT /admin/preferences"
+      },
+      "notes": "updateServicePreferences(): ADMIN_API.put(\"/preferences\"); the chain's .put on line 37"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 31 },
+      "method": "GET",
+      "target": { "file": "server/routes/admin.route.js", "line": 40, "route": "GET /admin/logs" },
+      "notes": "getLogs(): ADMIN_API.get(\"/logs\"); router.route(\"/logs\") chain's .get on line 40"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 40 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/admin.route.js",
+        "line": 41,
+        "route": "DELETE /admin/logs"
+      },
+      "notes": "deleteLogs(): ADMIN_API.delete(\"/logs\"); the chain's .delete on line 41"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 48 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/admin.route.js",
+        "line": 28,
+        "route": "GET /admin/communities"
+      },
+      "notes": "getCommunities(): ADMIN_API.get(\"/communities\") (the admin router's, not the /communities mount)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 57 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/admin.route.js",
+        "line": 27,
+        "route": "GET /admin/community/:communityId"
+      },
+      "notes": "getCommunity(): ADMIN_API.get(`/community/${communityId}`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 66 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/admin.route.js",
+        "line": 29,
+        "route": "GET /admin/moderators"
+      },
+      "notes": "getModerators(): ADMIN_API.get(\"/moderators\")"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 75 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/admin.route.js",
+        "line": 31,
+        "route": "PATCH /admin/add-moderators"
+      },
+      "notes": "addModerator(): ADMIN_API.patch(\"/add-moderators\", null, { params }); params become a query string, dropped"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/adminAPI.js", "line": 85 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/admin.route.js",
+        "line": 32,
+        "route": "PATCH /admin/remove-moderators"
+      },
+      "notes": "removeModerator(): ADMIN_API.patch(\"/remove-moderators\", null, { params }); query dropped"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 5 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 59,
+        "route": "POST /users/signin"
+      },
+      "notes": "signIn(): API.post(\"/users/signin\"). API = axios.create({ baseURL: process.env.REACT_APP_API_URL }) in redux/api/utils.js, no in-code fallback; client/.env.example sets http://127.0.0.1:4000 = server/app.js PORT fallback 4000. The interceptor only adds an Authorization header. server/app.js mounts userRoutes at /users; router.post( on line 59 with \"/signin\" on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 18 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 49,
+        "route": "POST /users/signup"
+      },
+      "notes": "signUp(): API.post(\"/users/signup\"); router.post( on line 49 with \"/signup\" on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 34 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 67,
+        "route": "POST /users/logout"
+      },
+      "notes": "logout(): API.post(\"/users/logout\", { headers }) (the headers object is sent as the body); router.post(\"/logout\")"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 47 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 45,
+        "route": "GET /users/moderator"
+      },
+      "notes": "getModProfile(): API.get(\"/users/moderator\"); the literal route (line 45) is registered before router.get(\"/:id\") (line 47)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 56 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 31,
+        "route": "GET /auth/context-data/primary"
+      },
+      "notes": "getContextAuthData(): API.get(\"/auth/context-data/primary\"). server/app.js mounts contextAuthRoutes at /auth; router.get( on line 31 with the path on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 65 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 37,
+        "route": "GET /auth/context-data/trusted"
+      },
+      "notes": "getTrustedContextAuthData(): API.get(\"/auth/context-data/trusted\"); router.get( on line 37"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 74 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 43,
+        "route": "GET /auth/context-data/blocked"
+      },
+      "notes": "getBlockedAuthContextData(): API.get(\"/auth/context-data/blocked\"); router.get( on line 43"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 83 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 49,
+        "route": "GET /auth/user-preferences"
+      },
+      "notes": "getUserPreferences(): API.get(\"/auth/user-preferences\")"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 92 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 51,
+        "route": "DELETE /auth/context-data/:contextId"
+      },
+      "notes": "deleteContextAuthData(): API.delete(`/auth/context-data/${contextId}`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 101 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 53,
+        "route": "PATCH /auth/context-data/block/:contextId"
+      },
+      "notes": "blockContextAuthData(): API.patch(`/auth/context-data/block/${contextId}`); router.patch( on line 53 with the path on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/authAPI.js", "line": 110 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/context-auth.route.js",
+        "line": 58,
+        "route": "PATCH /auth/context-data/unblock/:contextId"
+      },
+      "notes": "unblockContextAuthData(): API.patch(`/auth/context-data/unblock/${contextId}`); router.patch( on line 58"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 5 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 33,
+        "route": "GET /communities/:name"
+      },
+      "notes": "getCommunity(): COMMUNITY_API.get(`/communities/${communityName}`). COMMUNITY_API = axios.create({ baseURL: BASE_URL }) in redux/api/utils.js (REACT_APP_API_URL, http://127.0.0.1:4000 from client/.env.example); its interceptor sets Content-Type and the Authorization header. server/app.js mounts communityRoutes at /communities. The literal /notmember and /member routes come first but a community name isn't one of them"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 14 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 29,
+        "route": "GET /communities/member"
+      },
+      "notes": "getJoinedCommunities(): COMMUNITY_API.get(\"/communities/member\"); literal route registered before /:name"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 28,
+        "route": "GET /communities/notmember"
+      },
+      "notes": "getNotJoinedCommunities(): COMMUNITY_API.get(\"/communities/notmember\"); literal route registered before /:name"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 32 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 40,
+        "route": "POST /communities/:name/join"
+      },
+      "notes": "joinCommunity(): COMMUNITY_API.post( with `/communities/${communityName}/join` on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 43 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 41,
+        "route": "POST /communities/:name/leave"
+      },
+      "notes": "leaveCommunity(): COMMUNITY_API.post( with `/communities/${communityName}/leave` on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 54 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 36,
+        "route": "POST /communities/report"
+      },
+      "notes": "reportPost(): COMMUNITY_API.post(`/communities/report`); the literal route (line 36) comes before POST /:name (line 43)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 65 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 30,
+        "route": "GET /communities/:name/reported-posts"
+      },
+      "notes": "getReportedPosts(): COMMUNITY_API.get( with `/communities/${communityName}/reported-posts` on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 76 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 45,
+        "route": "DELETE /communities/reported-posts/:postId"
+      },
+      "notes": "removeReportedPost(): COMMUNITY_API.delete( with `/communities/reported-posts/${postId}` on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 87 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 32,
+        "route": "GET /communities/:name/members"
+      },
+      "notes": "getCommunityMembers(): COMMUNITY_API.get( with `/communities/${communityName}/members` on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 98 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 31,
+        "route": "GET /communities/:name/moderators"
+      },
+      "notes": "getCommunityMods(): COMMUNITY_API.get( with `/communities/${communityName}/moderators` on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 109 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 38,
+        "route": "POST /communities/:name/ban/:id"
+      },
+      "notes": "banUser(): COMMUNITY_API.post( with `/communities/${communityName}/ban/${userId}` on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/communityAPI.js", "line": 120 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/community.route.js",
+        "line": 39,
+        "route": "POST /communities/:name/unban/:id"
+      },
+      "notes": "unbanUser(): COMMUNITY_API.post( with `/communities/${communityName}/unban/${userId}` on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 5 },
+      "method": "POST",
+      "target": { "file": "server/routes/post.route.js", "line": 62, "route": "POST /posts" },
+      "notes": "createPost(): API.post(\"/posts\") on redux/api/utils.js's API instance (REACT_APP_API_URL, http://127.0.0.1:4000 from client/.env.example). server/app.js mounts postRoutes at /posts; router.post( on line 62 with \"/\" on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 29 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 50,
+        "route": "POST /posts/confirm/:confirmationToken"
+      },
+      "notes": "confirmPost(): API.post(`/posts/confirm/${confirmationToken}`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 38 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 51,
+        "route": "POST /posts/reject/:confirmationToken"
+      },
+      "notes": "rejectPost(): API.post(`/posts/reject/${confirmationToken}`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 47 },
+      "method": "GET",
+      "target": { "file": "server/routes/post.route.js", "line": 47, "route": "GET /posts/:id" },
+      "notes": "getPost(): API.get(`/posts/${id}`); GET /saved (line 44) comes first but a post ID isn't \"saved\""
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 56 },
+      "method": "GET",
+      "target": { "file": "server/routes/post.route.js", "line": 48, "route": "GET /posts" },
+      "notes": "getPosts(): API.get(`/posts?limit=…&skip=…`); query dropped, router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 65 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 43,
+        "route": "GET /posts/community/:communityId"
+      },
+      "notes": "getComPosts(): API.get( with `/posts/community/${communityId}?limit=…&skip=…` on the next line; query dropped"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 76 },
+      "method": "DELETE",
+      "target": { "file": "server/routes/post.route.js", "line": 75, "route": "DELETE /posts/:id" },
+      "notes": "deletePost(): API.delete(`/posts/${id}`); DELETE /pending (line 74) comes first but a post ID isn't \"pending\""
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 85 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 81,
+        "route": "PATCH /posts/:id/like"
+      },
+      "notes": "likePost(): API.patch(`/posts/${id}/like`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 94 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 82,
+        "route": "PATCH /posts/:id/unlike"
+      },
+      "notes": "unlikePost(): API.patch(`/posts/${id}/unlike`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 103 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 53,
+        "route": "POST /posts/:id/comment"
+      },
+      "notes": "addComment(): API.post(`/posts/${id}/comment`); router.post( on line 53 with the path on the next line"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 118 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 79,
+        "route": "PATCH /posts/:id/save"
+      },
+      "notes": "savePost(): API.patch(`/posts/${id}/save`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 127 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 80,
+        "route": "PATCH /posts/:id/unsave"
+      },
+      "notes": "unsavePost(): API.patch(`/posts/${id}/unsave`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 136 },
+      "method": "GET",
+      "target": { "file": "server/routes/post.route.js", "line": 44, "route": "GET /posts/saved" },
+      "notes": "getSavedPosts(): API.get(`/posts/saved`); literal route registered before GET /:id"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 145 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 45,
+        "route": "GET /posts/:publicUserId/userPosts"
+      },
+      "notes": "getPublicPosts(): API.get(`/posts/${publicUserId}/userPosts`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/postAPI.js", "line": 154 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/post.route.js",
+        "line": 46,
+        "route": "GET /posts/:id/following"
+      },
+      "notes": "getFollowingUsersPosts(): API.get(`/posts/${communityId}/following`); GET /:publicUserId/userPosts (line 45) needs a literal userPosts second segment"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/userAPI.js", "line": 5 },
+      "method": "GET",
+      "target": { "file": "server/routes/user.route.js", "line": 47, "route": "GET /users/:id" },
+      "notes": "getUser(): API.get(`/users/${id}`) on redux/api/utils.js's API instance (REACT_APP_API_URL, http://127.0.0.1:4000 from client/.env.example). server/app.js mounts userRoutes at /users; the literal /public-users, /moderator, and /following routes come first but a user ID isn't one of them"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/userAPI.js", "line": 14 },
+      "method": "PUT",
+      "target": { "file": "server/routes/user.route.js", "line": 69, "route": "PUT /users/:id" },
+      "notes": "updateUser(): API.put(`/users/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/userAPI.js", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 44,
+        "route": "GET /users/public-users"
+      },
+      "notes": "getPublicUsers(): API.get(\"/users/public-users\"); literal route registered before GET /:id"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/userAPI.js", "line": 35 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 43,
+        "route": "GET /users/public-users/:id"
+      },
+      "notes": "getPublicUser(): API.get(`/users/public-users/${id}`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/userAPI.js", "line": 44 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 72,
+        "route": "PATCH /users/:id/follow"
+      },
+      "notes": "followUser(): API.patch(`/users/${id}/follow`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/userAPI.js", "line": 53 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 73,
+        "route": "PATCH /users/:id/unfollow"
+      },
+      "notes": "unfollowUser(): API.patch(`/users/${id}/unfollow`)"
+    },
+    {
+      "callSite": { "file": "client/src/redux/api/userAPI.js", "line": 62 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/user.route.js",
+        "line": 46,
+        "route": "GET /users/following"
+      },
+      "notes": "getFollowingUsers(): API.get(\"/users/following\"); literal route registered before GET /:id"
+    },
+    {
+      "callSite": { "file": "server/services/apiServices.js", "line": 19 },
+      "method": "POST",
+      "target": null,
+      "notes": "getCategoriesFromTextRazor(): axios.post(process.env.TEXTRAZOR_API_URL), no in-code fallback; server/.env.example sets https://api.textrazor.com/, an external API"
+    },
+    {
+      "callSite": { "file": "server/services/apiServices.js", "line": 74 },
+      "method": "POST",
+      "target": null,
+      "notes": "getCategoriesFromClassifierAPI(): axios.post(process.env.CLASSIFIER_API_URL), no in-code fallback; server/.env.example sets http://127.0.0.1:5000/classify, the repo's Python Flask service (classifier_server/classifier_api.py, @app.route('/classify', methods=['POST'])), which is not a TS/JS route, so no route in the labeled graph"
+    },
+    {
+      "callSite": { "file": "server/services/apiServices.js", "line": 140 },
+      "method": "POST",
+      "target": null,
+      "notes": "getCategoriesFromInterfaceAPI(): axios.post(process.env.INTERFACE_API_URL), no in-code fallback; server/.env.example sets the Hugging Face inference API (api-inference.huggingface.co), external"
+    },
+    {
+      "callSite": { "file": "server/services/manageClassifier.js", "line": 15 },
+      "method": "PUT",
+      "target": null,
+      "notes": "TextRazorClassifierManager.create(): axios (line 15) .put(`${this.url}/categories/${this.classifierId}`) on line 16, this.url = process.env.TEXTRAZOR_API_URL (https://api.textrazor.com/ in server/.env.example), external"
+    },
+    {
+      "callSite": { "file": "server/services/manageClassifier.js", "line": 27 },
+      "method": "GET",
+      "target": null,
+      "notes": "TextRazorClassifierManager.get(): axios (line 27) .get(`${this.url}/categories/…/_all?…`) on line 28, TextRazor API, external"
+    },
+    {
+      "callSite": { "file": "server/services/manageClassifier.js", "line": 41 },
+      "method": "DELETE",
+      "target": null,
+      "notes": "TextRazorClassifierManager.delete(): axios (line 41) .delete(`${this.url}/categories/${this.classifierId}`) on line 42, TextRazor API, external"
+    }
+  ]
+}

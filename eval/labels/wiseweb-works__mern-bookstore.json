@@ -1,0 +1,105 @@
+{
+  "repo": "wiseweb-works/mern-bookstore",
+  "sha": "529623977b91fce552469d054df063425d0ffe19",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["backend", "frontend"],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/components/AdminLogin.tsx", "line": 25 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/users/user.route.js",
+        "line": 9,
+        "route": "POST /api/auth/admin"
+      },
+      "notes": "axios.post(`${getBaseUrl()}/api/auth/admin`). getBaseUrl() (frontend/src/utils/baseURL.ts) returns the literal http://localhost:5000 = backend/index.js's PORT fallback 5000 (backend/.env.example sets PORT=''). backend/index.js mounts userRoutes at /api/auth; router.post(\"/admin\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/dashboard/Dashboard.tsx", "line": 22 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/stats/admin.stats.js",
+        "line": 8,
+        "route": "GET /api/admin"
+      },
+      "notes": "axios.get(`${getBaseUrl()}/api/admin`) in a useEffect; base http://localhost:5000. backend/index.js mounts adminRoutes (src/stats/admin.stats.js) at /api/admin; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/dashboard/EditBook/UpdateBook.tsx", "line": 65 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/books/book.route.js",
+        "line": 13,
+        "route": "PUT /api/books/edit/:id"
+      },
+      "notes": "axios.put(`${getBaseUrl()}/api/books/edit/${id}`); base http://localhost:5000. bookRoutes mounted at /api/books; router.put(\"/edit/:id\", verifyAdminToken, UpdateBook)"
+    },
+    {
+      "callSite": { "file": "frontend/src/redux/features/books/booksApi.ts", "line": 21 },
+      "method": "GET",
+      "target": { "file": "backend/src/books/book.route.js", "line": 9, "route": "GET /api/books" },
+      "notes": "RTK Query endpoint fetchAllBooks: builder.query, query: () => \"/\" (a string, so GET). baseQuery = fetchBaseQuery({ baseUrl: `${getBaseUrl()}/api/books` }) = http://localhost:5000/api/books; joined with \"/\" it ends in a slash, which Express's non-strict routing matches to router.get(\"/\") under the /api/books mount"
+    },
+    {
+      "callSite": { "file": "frontend/src/redux/features/books/booksApi.ts", "line": 25 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/books/book.route.js",
+        "line": 11,
+        "route": "GET /api/books/:id"
+      },
+      "notes": "RTK Query endpoint fetchBookById: query: (id) => `/${id}` (string, GET) under baseUrl .../api/books; router.get(\"/:id\"), the only GET besides \"/\""
+    },
+    {
+      "callSite": { "file": "frontend/src/redux/features/books/booksApi.ts", "line": 29 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/books/book.route.js",
+        "line": 7,
+        "route": "POST /api/books/create-book"
+      },
+      "notes": "RTK Query endpoint addBook: builder.mutation, { url: `/create-book`, method: \"POST\" } under baseUrl .../api/books; router.post(\"/create-book\", verifyAdminToken, postABook)"
+    },
+    {
+      "callSite": { "file": "frontend/src/redux/features/books/booksApi.ts", "line": 37 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/books/book.route.js",
+        "line": 13,
+        "route": "PUT /api/books/edit/:id"
+      },
+      "notes": "RTK Query endpoint updateBook: { url: `/edit/${id}`, method: \"PUT\" } under baseUrl .../api/books; router.put(\"/edit/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/redux/features/books/booksApi.ts", "line": 48 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/books/book.route.js",
+        "line": 15,
+        "route": "DELETE /api/books/:id"
+      },
+      "notes": "RTK Query endpoint deleteBook: { url: `/${id}`, method: \"DELETE\" } under baseUrl .../api/books; router.delete(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/redux/features/orders/ordersApi.ts", "line": 13 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/orders/order.route.js",
+        "line": 6,
+        "route": "POST /api/orders"
+      },
+      "notes": "RTK Query endpoint createOrder, written (builder.mutation) ({ … }): { url: \"/\", method: \"POST\" }; inline baseQuery fetchBaseQuery({ baseUrl: `${getBaseUrl()}/api/orders` }) = http://localhost:5000/api/orders. orderRoutes mounted at /api/orders; router.post(\"/\") (trailing slash matched, non-strict routing)"
+    },
+    {
+      "callSite": { "file": "frontend/src/redux/features/orders/ordersApi.ts", "line": 21 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/orders/order.route.js",
+        "line": 8,
+        "route": "GET /api/orders/email/:email"
+      },
+      "notes": "RTK Query endpoint getOrderByEmail, written (builder.query) ({ … }): { url: `/email/${email}` } with no method, so GET; router.get(\"/email/:email\") under /api/orders"
+    }
+  ]
+}

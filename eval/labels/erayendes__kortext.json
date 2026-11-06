@@ -1,0 +1,815 @@
+{
+  "repo": "erayendes/kortext",
+  "sha": "cb2b3c1fc73e3f5e2a74e2f03c0fea9b14fd692c",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "server/daemon.ts", "line": 8 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 168, "route": "GET /api/health" },
+      "notes": "serverUp(port): fetch(`http://127.0.0.1:${port}/api/health`), path fixed at the call; port is the server's own PORT (server/index.ts:53, default 3441), which index.ts passes to serverUp/waitForServer to find a running kortext"
+    },
+    {
+      "callSite": { "file": "server/index.ts", "line": 58 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 178, "route": "POST /api/quit" },
+      "notes": "kortext --stop: fetch(`http://127.0.0.1:${PORT}/api/quit`, { method: 'POST' }); PORT = --port ?? process.env.PORT ?? 3441, the port this same CLI's server listens on (line 105)"
+    },
+    {
+      "callSite": { "file": "server/update.ts", "line": 15 },
+      "method": "GET",
+      "target": null,
+      "notes": "distTags(): fetch(TAGS_URL), TAGS_URL = 'https://registry.npmjs.org/-/package/kortext/dist-tags' (line 4), npm's registry: external host"
+    },
+    {
+      "callSite": { "file": "test/engines.test.ts", "line": 94 },
+      "method": "PUT",
+      "target": { "file": "server/app.ts", "line": 298, "route": "PUT /api/projects/:id/engine" },
+      "notes": "put('engine', …). put(path, body) (line 85) is fetch(`http://127.0.0.1:${port}/api/projects/${p.id}/${path}`, { method: 'PUT' }) against buildApp(...).listen(0) started in the test (line 83), this repo's server; the last segment comes from the caller, so each put call is the call site"
+    },
+    {
+      "callSite": { "file": "test/engines.test.ts", "line": 95 },
+      "method": "PUT",
+      "target": { "file": "server/app.ts", "line": 324, "route": "PUT /api/projects/:id/model" },
+      "notes": "put('model', …), see line 94"
+    },
+    {
+      "callSite": { "file": "test/engines.test.ts", "line": 97 },
+      "method": "PUT",
+      "target": { "file": "server/app.ts", "line": 298, "route": "PUT /api/projects/:id/engine" },
+      "notes": "put('engine', { id: 'codex' }), see line 94"
+    },
+    {
+      "callSite": { "file": "test/engines.test.ts", "line": 109 },
+      "method": "PUT",
+      "target": { "file": "server/app.ts", "line": 324, "route": "PUT /api/projects/:id/model" },
+      "notes": "put('model', …), see line 94"
+    },
+    {
+      "callSite": { "file": "test/engines.test.ts", "line": 110 },
+      "method": "PUT",
+      "target": { "file": "server/app.ts", "line": 298, "route": "PUT /api/projects/:id/engine" },
+      "notes": "put('engine', { id: 'copilot' }), see line 94"
+    },
+    {
+      "callSite": { "file": "test/engines.test.ts", "line": 125 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 253, "route": "POST /api/projects" },
+      "notes": "post(body): fetch(`http://127.0.0.1:${port}/api/projects`, { method: 'POST' }), path fixed in the helper; the server is buildApp(...).listen(0) started in the test (line 122)"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 248 },
+      "method": "PUT",
+      "target": {
+        "file": "server/app.ts",
+        "line": 671,
+        "route": "PUT /api/projects/:id/docs/content"
+      },
+      "notes": "save(body): fetch(`http://127.0.0.1:${port}/api/projects/${p.id}/docs/content`, { method: 'PUT' }), path fixed in the helper; server is buildApp(...).listen(0) from the test (line 242)"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 285 },
+      "method": "PUT",
+      "target": {
+        "file": "server/app.ts",
+        "line": 671,
+        "route": "PUT /api/projects/:id/docs/content"
+      },
+      "notes": "fetch(`http://127.0.0.1:${port}/api/projects/${p.id}/docs/content`, { method: 'PUT' }) against the test's own buildApp server (line 277)"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 311 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 1045,
+        "route": "POST /api/projects/:id/kopeng/approve"
+      },
+      "notes": "approve(): fetch(`http://127.0.0.1:${port}/api/projects/${p.id}/kopeng/approve`, { method: 'POST' }) against the test's own buildApp server (line 305)"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 377 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 168, "route": "GET /api/health" },
+      "notes": "fetch(`http://127.0.0.1:${port}/api/health`) with an Origin header, against the test's own buildApp server (line 342)"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 398 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 234, "route": "GET /api/projects" },
+      "notes": "fetch(`${base}/api/projects`), base = the test's own buildApp(...).listen(0) server (line 394); answered 401 by the token middleware, but the path is the route's"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 402 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 234, "route": "GET /api/projects" },
+      "notes": "fetch(`${base}/api/projects`, wrong), see line 398"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 403 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 168, "route": "GET /api/health" },
+      "notes": "fetch(`${base}/api/health`), see line 398"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 405 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 234, "route": "GET /api/projects" },
+      "notes": "fetch(`${base}/api/projects`, { headers: token }), see line 398"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 410 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(`${base}/?project=1&token=…`, { redirect: 'manual' }): path /, query dropped. Its handler is app.get(/^\\/(?!api\\/)/, …) (server/app.ts:118), a RegExp path with no route spelling (no :param or *name form), so no route in the route spelling is reached; ui/dist (the static SPA fallback at line 1136) is build output and only registered when it exists"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 417 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 234, "route": "GET /api/projects" },
+      "notes": "fetch(`${base}/api/projects`, { headers: { cookie } }), see line 398"
+    },
+    {
+      "callSite": { "file": "test/projects.test.ts", "line": 419 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(`${base}/?token=nope`, { redirect: 'manual' }): path /, query dropped; handled by the RegExp route app.get(/^\\/(?!api\\/)/) at server/app.ts:118, which has no route spelling, as at line 410"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 144 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 518, "route": "POST /api/projects/:id/restart" },
+      "notes": "request('restart', {}). fixture's request(suffix, body, method = 'POST') (line 110) is fetch(`http://127.0.0.1:${port}/api/projects/${p.id}/${suffix}`, { method }) against buildApp(...).listen(0) started in fixture (line 96); the suffix and method come from the caller, so each request call is the call site"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 177 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 553, "route": "POST /api/projects/:id/cancel" },
+      "notes": "request('cancel', {}), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 200 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 867,
+        "route": "POST /api/projects/:id/docs/settle-requests"
+      },
+      "notes": "request('docs/settle-requests', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 231 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 867,
+        "route": "POST /api/projects/:id/docs/settle-requests"
+      },
+      "notes": "request('docs/settle-requests', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 250 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request('docs/approve', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 287 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request('docs/approve', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 291 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 867,
+        "route": "POST /api/projects/:id/docs/settle-requests"
+      },
+      "notes": "request('docs/settle-requests', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 322 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request('docs/approve', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 352 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request('docs/approve', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 367 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request('docs/approve', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 385 },
+      "method": "PUT",
+      "target": {
+        "file": "server/app.ts",
+        "line": 671,
+        "route": "PUT /api/projects/:id/docs/content"
+      },
+      "notes": "request('docs/content', …, 'PUT'), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 395 },
+      "method": "PUT",
+      "target": {
+        "file": "server/app.ts",
+        "line": 671,
+        "route": "PUT /api/projects/:id/docs/content"
+      },
+      "notes": "request('docs/content', …, 'PUT'), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 404 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request('docs/approve', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 408 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request('docs/approve', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 412 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request('docs/approve', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 419 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request('docs/approve', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 434 },
+      "method": "PUT",
+      "target": {
+        "file": "server/app.ts",
+        "line": 671,
+        "route": "PUT /api/projects/:id/docs/content"
+      },
+      "notes": "request('docs/content', …, 'PUT'), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 511 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 823,
+        "route": "POST /api/projects/:id/docs/revise"
+      },
+      "notes": "request('docs/revise', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 515 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 389,
+        "route": "POST /api/projects/:id/docs/retry"
+      },
+      "notes": "request('docs/retry', …), see line 144"
+    },
+    {
+      "callSite": { "file": "test/release.test.ts", "line": 570 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 366,
+        "route": "POST /api/projects/:id/run-next"
+      },
+      "notes": "request('run-next', {}), see line 144"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 132 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 215, "route": "POST /api/version/update" },
+      "notes": "request('/version/update'). request(path, body, method = 'POST') (line 116) is fetch(base + path, { method }), base = `http://127.0.0.1:${port}/api` of the test's own buildApp(...).listen(0) server (lines 112-114), path glued on, so each request call is the call site"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "request(path, …) in a for loop over a literal list (lines 134-147): one label per route reached (route = `/projects/${project.id}`). The list's route + '/docs/decide-request' matches no route (it gets the updating 409 or the /api 404 middleware) and so gets no label, as a null can't share a call site with route labels. All answer 409 while updating, but the paths are these routes'"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 967,
+        "route": "POST /api/projects/:id/docs/explain"
+      },
+      "notes": "loop entry route + '/docs/explain', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 797,
+        "route": "POST /api/projects/:id/docs/propose"
+      },
+      "notes": "loop entry route + '/docs/propose', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 389,
+        "route": "POST /api/projects/:id/docs/retry"
+      },
+      "notes": "loop entry route + '/docs/retry', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 823,
+        "route": "POST /api/projects/:id/docs/revise"
+      },
+      "notes": "loop entry route + '/docs/revise', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 500, "route": "POST /api/projects/:id/pause" },
+      "notes": "loop entry route + '/pause', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 518, "route": "POST /api/projects/:id/restart" },
+      "notes": "loop entry route + '/restart', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 366,
+        "route": "POST /api/projects/:id/run-next"
+      },
+      "notes": "loop entry route + '/run-next', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 999,
+        "route": "POST /api/projects/:id/transfer"
+      },
+      "notes": "loop entry route + '/transfer', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 178, "route": "POST /api/quit" },
+      "notes": "loop entry '/quit', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 148 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 215, "route": "POST /api/version/update" },
+      "notes": "loop entry '/version/update', see the first line-148 label"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 157 },
+      "method": "PUT",
+      "target": {
+        "file": "server/app.ts",
+        "line": 671,
+        "route": "PUT /api/projects/:id/docs/content"
+      },
+      "notes": "request(route + '/docs/content', …, 'PUT'), see line 132"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 162 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 629, "route": "GET /api/projects/:id/docs" },
+      "notes": "fetch(base + route + '/docs'), path fixed at the call; base and route as at lines 114-115"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 166 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 168, "route": "GET /api/health" },
+      "notes": "fetch(base + '/health'), base = `http://127.0.0.1:${port}/api` (line 114)"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 173 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 629, "route": "GET /api/projects/:id/docs" },
+      "notes": "fetch(base + route + '/docs'), see line 162"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 180 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 215, "route": "POST /api/version/update" },
+      "notes": "request('/version/update'), see line 132"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 182 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 629, "route": "GET /api/projects/:id/docs" },
+      "notes": "fetch(base + route + '/docs'), see line 162"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 188 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 215, "route": "POST /api/version/update" },
+      "notes": "request('/version/update'), see line 132"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 190 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 629, "route": "GET /api/projects/:id/docs" },
+      "notes": "fetch(base + route + '/docs'), see line 162"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 198 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 967,
+        "route": "POST /api/projects/:id/docs/explain"
+      },
+      "notes": "request(route + '/docs/explain', …), see line 132"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 201 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 215, "route": "POST /api/version/update" },
+      "notes": "request('/version/update'), see line 132"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 209 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 823,
+        "route": "POST /api/projects/:id/docs/revise"
+      },
+      "notes": "request(route + '/docs/revise', …), see line 132"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 213 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 215, "route": "POST /api/version/update" },
+      "notes": "request('/version/update'), see line 132"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 219 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 518, "route": "POST /api/projects/:id/restart" },
+      "notes": "request(route + '/restart'), see line 132"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 224 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 215, "route": "POST /api/version/update" },
+      "notes": "request('/version/update'), see line 132"
+    },
+    {
+      "callSite": { "file": "test/update.test.ts", "line": 227 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 215, "route": "POST /api/version/update" },
+      "notes": "request('/version/update'), see line 132"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 141 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 168, "route": "GET /api/health" },
+      "notes": "api.health: req('/api/health'). req(path, init) (lines 15-40) is fetch(path, { headers, ...init }), so each req call is the call site; method from init (default GET), query dropped. Root-relative: in dev Vite (ui/vite.config.ts) proxies /api to http://localhost:3441, the server's PORT default (server/index.ts:53); built, the same Express app serves ui/dist (server/app.ts:1133-1141). Every route is registered directly on app in server/app.ts with its full /api path (no routers or mounts)"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 142 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 234, "route": "GET /api/projects" },
+      "notes": "api.listProjects: req('/api/projects')"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 144 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 486, "route": "POST /api/projects/:id/archive" },
+      "notes": "api.archiveProject: req(`/api/projects/${projectId}/archive`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 148 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 196, "route": "GET /api/version" },
+      "notes": "api.version: req(`/api/version${fresh ? '?fresh=1' : ''}`), the ternary only adds a query"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 150 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 215, "route": "POST /api/version/update" },
+      "notes": "api.selfUpdate: req('/api/version/update', { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 154 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 178, "route": "POST /api/quit" },
+      "notes": "api.quit: req('/api/quit', { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 155 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 284, "route": "GET /api/engines" },
+      "notes": "api.engines: req('/api/engines')"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 157 },
+      "method": "PUT",
+      "target": { "file": "server/app.ts", "line": 288, "route": "PUT /api/engines" },
+      "notes": "api.selectEngine: req('/api/engines', { method: 'PUT' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 159 },
+      "method": "PUT",
+      "target": { "file": "server/app.ts", "line": 298, "route": "PUT /api/projects/:id/engine" },
+      "notes": "api.setProjectEngine: req(`/api/projects/${projectId}/engine`, { method: 'PUT' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 164 },
+      "method": "PUT",
+      "target": { "file": "server/app.ts", "line": 324, "route": "PUT /api/projects/:id/model" },
+      "notes": "api.setProjectModel: req(`/api/projects/${projectId}/model`, { method: 'PUT' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 169 },
+      "method": "PUT",
+      "target": { "file": "server/app.ts", "line": 341, "route": "PUT /api/projects/:id/effort" },
+      "notes": "api.setProjectEffort: req(`/api/projects/${projectId}/effort`, { method: 'PUT' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 174 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 354, "route": "GET /api/projects/:id/jobs" },
+      "notes": "api.jobs: req(`/api/projects/${projectId}/jobs`)"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 176 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 366,
+        "route": "POST /api/projects/:id/run-next"
+      },
+      "notes": "api.runNext: req(`/api/projects/${projectId}/run-next`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 177 },
+      "method": "GET",
+      "target": {
+        "file": "server/app.ts",
+        "line": 1084,
+        "route": "GET /api/projects/:id/handshake"
+      },
+      "notes": "api.handshake: req(`/api/projects/${projectId}/handshake`)"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 179 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 432,
+        "route": "POST /api/projects/:id/docs/request"
+      },
+      "notes": "api.requestDoc: req(`/api/projects/${projectId}/docs/request`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 184 },
+      "method": "GET",
+      "target": {
+        "file": "server/app.ts",
+        "line": 457,
+        "route": "GET /api/projects/:id/readiness"
+      },
+      "notes": "api.readiness: req(`/api/projects/${projectId}/readiness`)"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 186 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 999,
+        "route": "POST /api/projects/:id/transfer"
+      },
+      "notes": "api.transfer: req(`/api/projects/${projectId}/transfer`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 190 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 1015, "route": "GET /api/projects/:id/kopeng" },
+      "notes": "api.kopengPlan: req(`/api/projects/${projectId}/kopeng`)"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 192 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 1045,
+        "route": "POST /api/projects/:id/kopeng/approve"
+      },
+      "notes": "api.approvePlan: req(`/api/projects/${projectId}/kopeng/approve`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 193 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 629, "route": "GET /api/projects/:id/docs" },
+      "notes": "api.listDocs: req(`/api/projects/${projectId}/docs`)"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 195 },
+      "method": "GET",
+      "target": {
+        "file": "server/app.ts",
+        "line": 641,
+        "route": "GET /api/projects/:id/docs/content"
+      },
+      "notes": "api.docContent: req(`/api/projects/${projectId}/docs/content?rel=…`), query dropped"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 205 },
+      "method": "PUT",
+      "target": {
+        "file": "server/app.ts",
+        "line": 671,
+        "route": "PUT /api/projects/:id/docs/content"
+      },
+      "notes": "api.saveDoc: req(`/api/projects/${projectId}/docs/content`, { method: 'PUT' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 213 },
+      "method": "GET",
+      "target": {
+        "file": "server/app.ts",
+        "line": 654,
+        "route": "GET /api/projects/:id/docs/history"
+      },
+      "notes": "api.docHistory: req(`/api/projects/${projectId}/docs/history?rel=…`), query dropped"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 217 },
+      "method": "GET",
+      "target": {
+        "file": "server/app.ts",
+        "line": 662,
+        "route": "GET /api/projects/:id/docs/history/:versionId"
+      },
+      "notes": "api.docVersionText: req(`/api/projects/${projectId}/docs/history/${versionId}`)"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 229 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 867,
+        "route": "POST /api/projects/:id/docs/settle-requests"
+      },
+      "notes": "api.settleRequests: req(`/api/projects/${projectId}/docs/settle-requests`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 234 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 797,
+        "route": "POST /api/projects/:id/docs/propose"
+      },
+      "notes": "api.proposeRevision: req(`/api/projects/${projectId}/docs/propose`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 239 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 823,
+        "route": "POST /api/projects/:id/docs/revise"
+      },
+      "notes": "api.reviseDoc: req(`/api/projects/${projectId}/docs/revise`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 244 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 389,
+        "route": "POST /api/projects/:id/docs/retry"
+      },
+      "notes": "api.retryDoc: req(`/api/projects/${projectId}/docs/retry`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 255 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 967,
+        "route": "POST /api/projects/:id/docs/explain"
+      },
+      "notes": "api.explainDoc: req(`/api/projects/${projectId}/docs/explain`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 260 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 746,
+        "route": "POST /api/projects/:id/docs/approve"
+      },
+      "notes": "api.approveDoc: req(`/api/projects/${projectId}/docs/approve`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 274 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 253, "route": "POST /api/projects" },
+      "notes": "api.createProject: req('/api/projects', { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 275 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 481, "route": "POST /api/pick-directory" },
+      "notes": "api.pickDirectory: req('/api/pick-directory', { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 277 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 494, "route": "DELETE /api/projects/:id" },
+      "notes": "api.removeProject: req(`/api/projects/${id}`, { method: 'DELETE' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 279 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 500, "route": "POST /api/projects/:id/pause" },
+      "notes": "api.pauseProject: req(`/api/projects/${id}/pause`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 284 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 518, "route": "POST /api/projects/:id/restart" },
+      "notes": "api.restartProject: req(`/api/projects/${id}/restart`, { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "ui/src/api.ts", "line": 286 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 553, "route": "POST /api/projects/:id/cancel" },
+      "notes": "api.cancelProject: req(`/api/projects/${id}/cancel`, { method: 'POST' })"
+    }
+  ]
+}
