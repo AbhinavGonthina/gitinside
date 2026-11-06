@@ -62,6 +62,7 @@ const NAMES = [
   "url-alternatives",
   "conditional-urls",
   "origin-parameters",
+  "local-helpers",
   "ambiguous-routes",
   "wrapper-fetch",
   "wrapper-chain",
@@ -714,6 +715,21 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `symbol:${p}/src/dashboard.ts#boot -> route:${p}/GET /api/readings heuristic`,
       `symbol:${p}/src/probe.ts#latestReadings -> route:${p}/GET /api/readings heuristic`,
       `symbol:${p}/src/probe.ts#stationUp -> route:${p}/GET /api/health heuristic`,
+    ]);
+    expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
+  });
+
+  it("local-helpers: a helper declared inside a function is a wrapper in its scope (M5C.10d)", async () => {
+    const g = await run("local-helpers");
+    const p = "local-helpers";
+    // Requests sit in the functions that call the helpers; `localhost` is `heuristic` (ADR-0158).
+    expect(links(g, "http")).toEqual([
+      `file:${p}/test/notes.test.ts -> route:${p}/GET /api/status heuristic`,
+      `file:${p}/test/notes.test.ts -> route:${p}/POST /api/notes heuristic`,
+      `symbol:${p}/src/notesPanel.ts#notesPanel -> route:${p}/DELETE /api/notes/:noteId exact`,
+      `symbol:${p}/src/notesPanel.ts#notesPanel -> route:${p}/GET /api/notes exact`,
+      `symbol:${p}/src/notesPanel.ts#notesPanel -> route:${p}/POST /api/notes exact`,
+      `symbol:${p}/src/notesPanel.ts#notesPanel -> route:${p}/PUT /api/notes/:noteId/pin exact`,
     ]);
     expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
   });

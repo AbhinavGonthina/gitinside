@@ -1,0 +1,252 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "heuristic",
+      "from": "file:local-helpers/test/notes.test.ts",
+      "id": "http:file:local-helpers/test/notes.test.ts->route:local-helpers/GET /api/status",
+      "kind": "http",
+      "label": "GET /api/status",
+      "sites": [
+        {
+          "column": 11,
+          "file": "test/notes.test.ts",
+          "line": 10,
+          "request": "GET http://localhost:4100/api/status"
+        }
+      ],
+      "to": "route:local-helpers/GET /api/status"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "file:local-helpers/test/notes.test.ts",
+      "id": "http:file:local-helpers/test/notes.test.ts->route:local-helpers/POST /api/notes",
+      "kind": "http",
+      "label": "POST /api/notes",
+      "sites": [
+        {
+          "column": 11,
+          "file": "test/notes.test.ts",
+          "line": 11,
+          "request": "POST http://localhost:4100/api/notes"
+        }
+      ],
+      "to": "route:local-helpers/POST /api/notes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:local-helpers/src/notesPanel.ts#notesPanel",
+      "id": "http:symbol:local-helpers/src/notesPanel.ts#notesPanel->route:local-helpers/DELETE /api/notes/:noteId",
+      "kind": "http",
+      "label": "DELETE /api/notes/:noteId",
+      "sites": [
+        {
+          "column": 19,
+          "file": "src/notesPanel.ts",
+          "line": 14,
+          "request": "DELETE /api/notes/{}"
+        }
+      ],
+      "to": "route:local-helpers/DELETE /api/notes/:noteId"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:local-helpers/src/notesPanel.ts#notesPanel",
+      "id": "http:symbol:local-helpers/src/notesPanel.ts#notesPanel->route:local-helpers/GET /api/notes",
+      "kind": "http",
+      "label": "GET /api/notes",
+      "sites": [
+        {
+          "column": 17,
+          "file": "src/notesPanel.ts",
+          "line": 11,
+          "request": "GET /api/notes"
+        }
+      ],
+      "to": "route:local-helpers/GET /api/notes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:local-helpers/src/notesPanel.ts#notesPanel",
+      "id": "http:symbol:local-helpers/src/notesPanel.ts#notesPanel->route:local-helpers/POST /api/notes",
+      "kind": "http",
+      "label": "POST /api/notes",
+      "sites": [
+        {
+          "column": 16,
+          "file": "src/notesPanel.ts",
+          "line": 12,
+          "request": "POST /api/notes"
+        }
+      ],
+      "to": "route:local-helpers/POST /api/notes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:local-helpers/src/notesPanel.ts#notesPanel",
+      "id": "http:symbol:local-helpers/src/notesPanel.ts#notesPanel->route:local-helpers/PUT /api/notes/:noteId/pin",
+      "kind": "http",
+      "label": "PUT /api/notes/:noteId/pin",
+      "sites": [
+        {
+          "column": 31,
+          "file": "src/notesPanel.ts",
+          "line": 9,
+          "request": "PUT /api/notes/{}/pin"
+        }
+      ],
+      "to": "route:local-helpers/PUT /api/notes/:noteId/pin"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "27f6745523e79225381007832a338736f9f23934f677221d003ae61daf9c8079",
+      "id": "file:local-helpers/src/notesPanel.ts",
+      "kind": "file",
+      "label": "notesPanel.ts",
+      "parentId": "module:local-helpers/src",
+      "path": "src/notesPanel.ts"
+    },
+    {
+      "hash": "4f207a6a5d6b4ddf71b4d78ed416d3af41682190a37f05e592dc526bee3a9c41",
+      "id": "file:local-helpers/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:local-helpers/src",
+      "path": "src/server.ts"
+    },
+    {
+      "hash": "40842e4d5ba751b04c7364be61ae34b3bfbf6cd8d3da8b82cb7e491eee5bd0f2",
+      "id": "file:local-helpers/test/notes.test.ts",
+      "kind": "file",
+      "label": "notes.test.ts",
+      "parentId": "module:local-helpers/test",
+      "path": "test/notes.test.ts"
+    },
+    {
+      "id": "module:local-helpers/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:local-helpers/",
+      "path": "src"
+    },
+    {
+      "id": "module:local-helpers/test",
+      "kind": "module",
+      "label": "test",
+      "parentId": "service:local-helpers/",
+      "path": "test"
+    },
+    {
+      "id": "route:local-helpers/DELETE /api/notes/:noteId",
+      "kind": "route",
+      "label": "DELETE /api/notes/:noteId",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:local-helpers/src/server.ts",
+      "path": "/api/notes/:noteId",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:local-helpers/GET /api/notes",
+      "kind": "route",
+      "label": "GET /api/notes",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:local-helpers/src/server.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:local-helpers/GET /api/status",
+      "kind": "route",
+      "label": "GET /api/status",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:local-helpers/src/server.ts",
+      "path": "/api/status",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:local-helpers/POST /api/notes",
+      "kind": "route",
+      "label": "POST /api/notes",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:local-helpers/src/server.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:local-helpers/PUT /api/notes/:noteId/pin",
+      "kind": "route",
+      "label": "PUT /api/notes/:noteId/pin",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:local-helpers/src/server.ts",
+      "path": "/api/notes/:noteId/pin",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 7
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:local-helpers/",
+      "kind": "service",
+      "label": "local-helpers",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:local-helpers/src/notesPanel.ts#notesPanel",
+      "kind": "symbol",
+      "label": "notesPanel",
+      "parentId": "file:local-helpers/src/notesPanel.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 16,
+        "file": "src/notesPanel.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "local-helpers",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "local-helpers",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

@@ -544,7 +544,7 @@ describe("inlineWrappers", () => {
     ]);
   });
 
-  it("leaves nested functions, unrelated parameters, and uncalled wrappers alone", async () => {
+  it("inlines a local helper, and leaves unrelated parameters and uncalled wrappers alone", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/http.ts", [
       "export function outer() {",
@@ -557,8 +557,9 @@ describe("inlineWrappers", () => {
       'export function unused(path: string) { return fetch("/api" + path); }',
       "export const run = () => fixed('1');",
     ]);
+    // Before M5C.10d, `inner` was no wrapper: its site was `DYNAMIC_URL` at line 2.
     expect(await summary()).toEqual([
-      "src/http.ts:2 GET DYNAMIC_URL: the URL starts with a value only known at runtime [outer]",
+      "src/http.ts:3 GET /x [outer]",
       "src/http.ts:6 GET /api/fixed [fixed]",
       "src/http.ts:8 GET /api{} [unused]",
     ]);
@@ -739,6 +740,176 @@ describe("a parameter that fills only the origin (M5C.10b)", () => {
       "src/client.ts:5 GET http://localhost:{}/api/health [health] <- src/client.ts:2",
       "src/client.ts:10 GET http://localhost:3000/api/users [a] <- src/client.ts:2",
       "src/client.ts:12 GET http://localhost:8080/api/teams [c] <- src/client.ts:2",
+    ]);
+  });
+});
+
+describe("local helpers (M5C.10d)", () => {
+  /** {@link summary}, with `<- file:line` of the fetch for every request placed elsewhere. */
+  async function placed(): Promise<string[]> {
+    return (await requests()).map((r) => {
+      const url = r.url.resolved ? r.url.text : `${r.url.reason}: ${r.url.detail}`;
+      const owners = r.owners.map((o) => o.slice(o.lastIndexOf("#") + 1)).join(",");
+      const moved = r.call.file !== r.file || r.call.site.line !== r.site.line;
+      return (
+        `${r.file}:${r.site.line} ${r.method ?? "?"} ${url} [${owners}]` +
+        (moved ? ` <- ${r.call.file}:${r.call.site.line}` : "")
+      );
+    });
+  }
+
+  it("inlines a const arrow declared in a callback or a component at its calls in scope", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/update.test.ts", [
+      'import { test } from "node:test";',
+      'test("updates", async () => {',
+      '  const base = "http://127.0.0.1:3000/api";',
+      '  const route = "/projects/1";',
+      '  const request = (path: string, body: unknown = {}, method = "POST") =>',
+      "    fetch(base + path, { method, body: JSON.stringify(body) });",
+      '  await request("/version/update");',
+      '  await request(route + "/content", {}, "PUT");',
+      "});",
+    ]);
+    await put("src/Sidebar.tsx", [
+      "export function Sidebar() {",
+      "  const safeFetch = async (url: string, options?: RequestInit) => {",
+      "    const res = await fetch(url, options);",
+      "    return res.json();",
+      "  };",
+      '  const load = () => safeFetch("/api/requests?page=1");',
+      '  const accept = () => safeFetch("/api/accept", { method: "POST" });',
+      "  return { load, accept };",
+      "}",
+    ]);
+    // Nothing is left at the helpers' own `fetch` calls (Sidebar.tsx:3, update.test.ts:6).
+    expect(await placed()).toEqual([
+      "src/Sidebar.tsx:6 GET /api/requests [Sidebar] <- src/Sidebar.tsx:3",
+      "src/Sidebar.tsx:7 POST /api/accept [Sidebar] <- src/Sidebar.tsx:3",
+      "src/update.test.ts:7 POST http://127.0.0.1:3000/api/version/update [] <- src/update.test.ts:6",
+      "src/update.test.ts:8 PUT http://127.0.0.1:3000/api/projects/1/content [] <- src/update.test.ts:6",
+    ]);
+  });
+
+  it("inlines a function declaration nested in a function and a const function expression", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/page.ts", [
+      "export async function load() {",
+      "  async function get(path: string) {",
+      "    return fetch(`/api${path}`);",
+      "  }",
+      "  const del = function (path: string) {",
+      '    return fetch("/api" + path, { method: "DELETE" });',
+      "  };",
+      '  await get("/teams");',
+      '  await del("/teams/1");',
+      "}",
+    ]);
+    expect(await placed()).toEqual([
+      "src/page.ts:8 GET /api/teams [load] <- src/page.ts:3",
+      "src/page.ts:9 DELETE /api/teams/1 [load] <- src/page.ts:6",
+    ]);
+  });
+
+  it("keeps a helper's own request when nothing in scope calls it, or only passes it on", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/page.ts", [
+      "export async function fixture() {",
+      '  const request = (path: string) => fetch("/api" + path);',
+      "  return { request };",
+      "}",
+      "export async function use() {",
+      "  const { request } = await fixture();",
+      '  await request("/x");',
+      "  const get = (path: string) => fetch(path);",
+      '  return ["/a", "/b"].map(get);',
+      "}",
+      "export function other() {",
+      '  const get = (id: string) => fetch("/api/" + id);',
+      "  return get;",
+      "}",
+      "export function shadow() {",
+      '  const get = (path: string) => fetch("/v1" + path);',
+      "  {",
+      "    const get = (n: number) => n;",
+      "    get(1);",
+      "  }",
+      "}",
+    ]);
+    // A helper returned and destructured at the caller isn't followed (ADR-0032's M5C.10d
+    // amendment); `/api/{}` fixes its route, so it was never a wrapper; `get(1)` is another `get`.
+    expect(await placed()).toEqual([
+      "src/page.ts:2 GET /api{} [fixture]",
+      `src/page.ts:8 GET DYNAMIC_URL: ${DYNAMIC_URL_DETAIL.leadingHole} [use]`,
+      "src/page.ts:12 GET /api/{} [other]",
+      "src/page.ts:16 GET /v1{} [shadow]",
+    ]);
+  });
+
+  it("follows chains through local helpers and into a symbol wrapper (M5C.7f's rules)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      'export function getJson(path: string) { return fetch("/api" + path); }',
+    ]);
+    await put("src/use.ts", [
+      'import { getJson } from "./http";',
+      "export function useTeams() {",
+      "  const load = (path: string) => getJson(path);",
+      "  const request = (path: string, body: unknown, method: string) =>",
+      '    fetch("/v2" + path, { method, body: JSON.stringify(body) });',
+      '  const put = (path: string, body: unknown) => request(path, body, "PUT");',
+      '  load("/teams");',
+      '  put("/teams/1", {});',
+      "}",
+    ]);
+    // Nothing at `getJson`'s own site (only a helper calls it) nor at the helpers' calls inside
+    // `load` and `put` (lines 3 and 6).
+    expect(await placed()).toEqual([
+      "src/use.ts:7 GET /api/teams [useTeams] <- src/http.ts:1",
+      "src/use.ts:8 PUT /v2/teams/1 [useTeams] <- src/use.ts:5",
+    ]);
+  });
+
+  it("follows local helpers three deep, and marks a fourth WRAPPER_DEPTH", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/use.ts", [
+      "export function run() {",
+      '  const l1 = (path: string) => fetch("/api" + path);',
+      "  const l2 = (path: string) => l1(path);",
+      "  const l3 = (path: string) => l2(path);",
+      "  const l4 = (path: string) => l3(path);",
+      '  l3("/three");',
+      '  l4("/four");',
+      "}",
+    ]);
+    expect(await placed()).toEqual([
+      "src/use.ts:5 GET WRAPPER_DEPTH: the URL's leading part is a parameter of the calling function, a wrapper more than three calls deep [run] <- src/use.ts:2",
+      "src/use.ts:6 GET /api/three [run] <- src/use.ts:2",
+    ]);
+  });
+
+  it("keeps local helpers out of the wrapper facts", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      'export function getJson(path: string) { return fetch("/api" + path); }',
+    ]);
+    await put("src/use.ts", [
+      'import { getJson } from "./http";',
+      "export function useTeams() {",
+      "  const load = (path: string) => getJson(path);",
+      '  const send = (path: string) => fetch("/v2" + path);',
+      '  load("/teams");',
+      '  send("/teams");',
+      "}",
+    ]);
+    const { facts: [web] = [] } = await facts();
+    expect(web?.wrappers.map((w) => w.name)).toEqual(["getJson"]);
+    expect(web?.calls).toEqual([]);
+    // `getJson` is called only through `load`, so it counts as an inner wrapper (bindWrappers).
+    expect(web?.throughLocals).toEqual([expect.stringMatching(/#getJson$/)]);
+    expect(web?.requests.map(brief).sort()).toEqual([
+      "src/use.ts:5 GET /api/teams <- getJson",
+      "src/use.ts:6 GET /v2/teams",
     ]);
   });
 });
