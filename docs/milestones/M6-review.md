@@ -94,12 +94,12 @@ Findings marked "confirmed" were traced in the code by the reviewer; "plausible"
 | C8 | Low (confirmed) | Temp files from a writer killed mid-write don't count toward the cap (cleaned after an hour), and `remove()` lowers counters even for a file already gone | Fixed in M6.11f: temporary files count toward the total at every listing (not evicted; stale ones deleted), and the cache lowers its count only by what it counted for a file (a corrupt entry another instance wrote no longer takes it to −1); ADR-0213 |
 | C9 | Low (docs) | DESIGN §9's 25.2 MiB per cal.com analysis predates ADR-0180/0181 (now 1.9–4.1 MiB) | Fixed in this task: both figures given |
 | U1 | Medium (confirmed) | Export (SVG, PNG, Mermaid) ignores the version shown: Head exports removed items as plain boxes, Base exports added ones | Fixed in M6.11e: files show the version on screen (`versionView`) at its commit; the Overlay exports head and the share menu says so ([menu](M6/export/menu-overlay-dark.png), [Head's file](M6/export/file-head-dark.png), [Base's file](M6/export/file-base-light.png)) |
-| U2 | Low–medium (confirmed) | "Changes here" is empty for a selection inside a folded added/removed row, though its frame badge counts changes | Planned: M6.11g |
+| U2 | Low–medium (confirmed) | "Changes here" is empty for a selection inside a folded added/removed row, though its frame badge counts changes | Fixed in M6.11g1: the overlay records the row each folded node is folded into (`foldedInto`), and "Changes here" lists that row |
 | U3 | Low (confirmed) | A linked `view=base\|head` whose `sel`/`trace` the version lacks falls back to Overlay silently, and Copy link still says the linked version | Planned: M6.11h |
 | U4 | Low (plausible) | Stop comparing unmounts the focused link; focus likely drops to `<body>` | Planned: M6.11h |
 | U5 | Low (confirmed) | A base graph that fails to load replaces the head diagram with an error card | Planned: M6.11h |
-| U6 | Low (a11y, confirmed) | Zoomed out to `names`/`outline`, added and changed lines differ by color only (WCAG 1.4.1) | Planned: M6.11g |
-| U7 | Low (test gap) | No test that `buildDiffOverlay` accepts every `diffGraphs` output; a legitimate pair it rejects shows an error card | Planned: M6.11g |
+| U6 | Low (a11y, confirmed) | Zoomed out to `names`/`outline`, added and changed lines differ by color only (WCAG 1.4.1) | Planned: M6.11g2 |
+| U7 | Low (test gap) | No test that `buildDiffOverlay` accepts every `diffGraphs` output; a legitimate pair it rejects shows an error card | Fixed in M6.11g1: `diff.properties.test.ts` runs 300 seeded pairs from `@gitinside/diff/testkit` (diff's own generators) through the overlay; none is rejected, and dropping base's parent frames turns it red |
 | U8 | Design note | Stop comparing on the latest page goes to the commit's permalink, not back to check-on-view | Accepted: ADR-0189 chose "this commit's permalink" |
 
 ## Smoke test

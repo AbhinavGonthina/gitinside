@@ -1452,6 +1452,7 @@ export function Explorer({
                   index={index}
                   changes={overlay.changes}
                   within={panelNode.id}
+                  foldedInto={overlay.foldedInto}
                   onSelect={pickChange}
                 />
               )

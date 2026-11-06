@@ -165,6 +165,19 @@ describe("buildDiffOverlay on the diff-broken pair", () => {
     expect(listed).toBe(diff.nodes.removed.length);
   });
 
+  it("says which row each folded node is folded into (M6.11g)", () => {
+    expect(overlay.foldedInto.get(`symbol:${p}/src/legacy.ts#formatCents`)).toBe(
+      `file:${p}/src/legacy.ts`,
+    );
+    // Exactly the nodes a row counts inside it, and no row itself.
+    for (const row of [...overlay.changes.added, ...overlay.changes.removed]) {
+      const folded = [...overlay.foldedInto].filter(([, to]) => to === row.id);
+      expect(folded, row.id).toHaveLength(row.inside);
+      expect(overlay.foldedInto.has(row.id)).toBe(false);
+    }
+    expect(overlay.foldedInto.has(`service:${p}/`)).toBe(false);
+  });
+
   it("lists broken connections by their source, with the diff's words", () => {
     expect(overlay.changes.broken).toHaveLength(diff.broken.length);
     const row = overlay.changes.broken.find((r) => r.broken?.reason === "ROUTE_CHANGED");
@@ -364,6 +377,11 @@ describe("buildDiffOverlay on a move the diff didn't pair (no file contents)", (
   it("still shows the old file as removed and the new one as added", () => {
     expect(overlay.changes.removed.map((r) => r.id)).toContain(`module:${p}/src/routes`);
     expect(overlay.changes.added.map((r) => r.id)).toContain(`module:${p}/src/orders`);
+    // The old file is folded into its removed folder's row, the new one into the added folder's.
+    expect(overlay.foldedInto.get(`file:${p}/src/routes/orders.ts`)).toBe(`module:${p}/src/routes`);
+    expect(overlay.foldedInto.get(`file:${p}/src/orders/routes.ts`)).toBe(`module:${p}/src/orders`);
+    // A changed node is its own row, though its parent was added.
+    expect(overlay.foldedInto.has(`route:${p}/GET /api/orders`)).toBe(false);
   });
 });
 
@@ -375,6 +393,7 @@ describe("buildDiffOverlay with nothing changed", () => {
     expect(overlay.nodes.size + overlay.edges.size + overlay.broken.size).toBe(0);
     expect(overlay.inside.size).toBe(0);
     expect(overlay.changes).toEqual({ added: [], changed: [], removed: [], broken: [] });
+    expect(overlay.foldedInto.size).toBe(0);
   });
 });
 
