@@ -200,6 +200,49 @@ test("Stop comparing takes focus to the diagram (M6.11h)", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("the base's Try again takes focus to the compared diagram (M6.11m)", async ({ page }) => {
+  // The seeded database has one commit, so the permalink is compared with itself. Its graph is
+  // read twice (head first, then base, side by side); the base's read fails once with a 503.
+  const errors = watchErrors(page);
+  await serveRepo(page);
+  let reads = 0;
+  await page.route(`**/api/graph/fixtures/shop-demo/${E2E_SHA}`, (route) => {
+    reads += 1;
+    return reads === 2
+      ? route.fulfill({ status: 503, json: { message: "Base unavailable." } })
+      : route.fallback();
+  });
+  await page.addInitScript(() => localStorage.setItem("gitinside.onboarding", "done"));
+  await page.goto(`${PERMALINK}?base=${E2E_SHA}`);
+  await settle(page);
+  const note = page.locator(".diagram-page__note");
+  await expect(note).toContainText("didn't load, so nothing was compared: Base unavailable.");
+  // The failed base's 503 is the one console error expected.
+  expect(errors.splice(0)).toEqual([
+    expect.stringMatching(/^error: Failed to load resource: .*503/),
+  ]);
+
+  await note.getByRole("button", { name: "Try again" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".gi-status[data-tone='diff']")).toHaveText(/^Comparing /);
+  await expect(note).toHaveCount(0);
+  await expect(page.locator(".gi-drill__node [tabindex='0']:focus")).toHaveCount(1, {
+    timeout: 30_000,
+  });
+  await expect(page.locator(".diagram-page__canvas")).not.toHaveAttribute("tabindex", /.*/);
+  // The explorer's keys work from there.
+  const focused = () =>
+    page.evaluate(() =>
+      document.activeElement?.closest(".gi-drill__node")?.getAttribute("data-node-id"),
+    );
+  const first = await focused();
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(focused).not.toBe(first);
+  expect(await focused()).toBeTruthy();
+  expect(reads).toBe(3);
+  expect(errors).toEqual([]);
+});
+
 test("a long inspector scrolls inside itself; the page stays the window's height", async ({
   page,
 }) => {

@@ -774,7 +774,9 @@ describe("RepoDiagram in diff mode (M6.9e2)", () => {
     // Try again in the note loads the base alone; once it's here, the two compare.
     fetchMock.mockClear().mockImplementation(pair());
     const again = within(document.querySelector(".diagram-page__note") as HTMLElement);
-    fireEvent.click(again.getByRole("button", { name: "Try again" }));
+    const button = again.getByRole("button", { name: "Try again" });
+    button.focus();
+    fireEvent.click(button);
     await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([BASE_URL]);
     expect(note()).toBeUndefined();
@@ -783,6 +785,43 @@ describe("RepoDiagram in diff mode (M6.9e2)", () => {
       .getAllByRole("radio")
       .filter((r) => r.getAttribute("aria-checked") === "true");
     expect(checked.map((r) => r.textContent)).toEqual(["Head"]);
+    // The button went with the note: focus goes on to the compared diagram, not `<body>` (M6.11m).
+    expect(document.activeElement).not.toBe(document.body);
+    const box = () => document.querySelector<HTMLElement>(".gi-drill__node [tabindex='0']");
+    await waitFor(() => expect(box()).not.toBeNull(), { timeout: 25_000 });
+    await waitFor(() => expect(document.activeElement).toBe(box()));
+  }, 60_000);
+
+  it("says each failed Try again of the base in new words, so it's announced (M6.11m)", async () => {
+    const unavailable = () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ message: "Base unavailable." }), { status: 503 }),
+      );
+    fetchMock.mockImplementation((url) => (url === BASE_URL ? unavailable() : pair()(url)));
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);
+    renderDiagram(READY);
+    await screen.findByRole("region", { name: "Diagram" });
+    const live = () => document.querySelector("[aria-live='polite']")?.textContent;
+    const first =
+      "Commit ddddddd's diagram didn't load, so nothing was compared: Base unavailable. This is commit aaaaaaa alone.";
+    expect(live()).toBe(first);
+    const retry = () =>
+      within(document.querySelector(".diagram-page__note") as HTMLElement).getByRole("button", {
+        name: "Try again",
+      });
+    fireEvent.click(retry());
+    await waitFor(() =>
+      expect(live()).toBe(
+        "Commit ddddddd's diagram still didn't load after 2 tries, so nothing was compared: Base unavailable. This is commit aaaaaaa alone.",
+      ),
+    );
+    fireEvent.click(retry());
+    await waitFor(() => expect(live()).toContain("still didn't load after 3 tries"));
+    // Focus stays on the button, which is still there.
+    retry().focus();
+    fireEvent.click(retry());
+    await waitFor(() => expect(live()).toContain("after 4 tries"));
+    expect(document.activeElement).toBe(retry());
   });
 
   it("offers no Try again for a base that can't be read, and leaves this commit on screen", async () => {
@@ -823,7 +862,7 @@ describe("RepoDiagram in diff mode (M6.9e2)", () => {
       .filter((r) => r.getAttribute("aria-checked") === "true");
     expect(checked.map((r) => r.textContent)).toEqual(["Overlay"]);
     expect(note()).toBe(
-      "The link opens on Head, which doesn't have selected route:diff-broken/GET /api/health, so both versions are shown (Overlay).",
+      "The link opens on Head, which doesn't have the selected route GET /api/health, so both versions are shown (Overlay).",
     );
     // Copy link names the Overlay on screen, not the Head the link asked for.
     expect(shared()).toBe(`${window.location.origin}/acme/shop/${SHA}?base=${BASE}&${sel}`);
@@ -882,6 +921,41 @@ describe("RepoDiagram in diff mode (M6.9e2)", () => {
 
     // Without Stop comparing, a diagram leaves focus where it is.
     renderDiagram(undefined);
+    await waitFor(() => expect(box()).not.toBeNull(), { timeout: 25_000 });
+    expect(document.activeElement).toBe(document.body);
+  }, 60_000);
+
+  it("drops Stop comparing's focus once a diagram with no box is drawn, leaving later ones be (M6.11m)", async () => {
+    fetchMock.mockImplementation(pair());
+    window.history.replaceState({}, "", `/acme/shop?base=${BASE}`);
+    renderDiagram(READY);
+    await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
+    const stop = screen.getByRole("link", { name: "Stop comparing" });
+    stop.focus();
+    fireEvent.click(stop);
+    cleanup();
+
+    // This commit's permalink is a repo with no app: the explorer's card, no box to focus.
+    const noApp = {
+      ...brokenHead,
+      nodes: brokenHead.nodes.filter((n) => ["system", "service"].includes(n.kind)),
+      edges: [],
+    };
+    fetchMock.mockImplementation(() => Promise.resolve(stored(noApp, SHA)));
+    window.history.replaceState({}, "", `/acme/shop/${SHA}`);
+    renderDiagram(undefined);
+    await screen.findByText("We couldn't find a TypeScript or JavaScript app here");
+    const host = document.querySelector(".diagram-page__canvas") as HTMLElement;
+    // Focus waits on the diagram's spot, and stays there for now: there's nowhere better.
+    await waitFor(() => expect(document.activeElement).toBe(host));
+    fireEvent.blur(host);
+    expect(host.hasAttribute("tabindex")).toBe(false);
+    cleanup();
+
+    // The next diagram drawn in this tab isn't Stop comparing's: it leaves focus where it is.
+    fetchMock.mockImplementation(pair());
+    renderDiagram(undefined);
+    const box = () => document.querySelector<HTMLElement>(".gi-drill__node [tabindex='0']");
     await waitFor(() => expect(box()).not.toBeNull(), { timeout: 25_000 });
     expect(document.activeElement).toBe(document.body);
   }, 60_000);

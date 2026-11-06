@@ -1,5 +1,6 @@
 "use client";
 
+import type { GraphNode } from "@gitinside/schema";
 import {
   browserOnboarding,
   buildDiffOverlay,
@@ -11,6 +12,7 @@ import {
   encodeState,
   Explorer,
   IconButton,
+  kindName,
   ShareMenu,
   UiIcon,
   withBase,
@@ -62,10 +64,24 @@ const layoutWorker = () =>
 const onboarding = browserOnboarding();
 
 /**
- * Set by Stop comparing (M6.11h): the next diagram drawn takes focus. Module-level, since
- * from the latest commit's page the permalink is another page, so another `RepoDiagram`.
+ * Set by Stop comparing (M6.11h), and by the base's Try again when it succeeds with focus on it
+ * (M6.11m): the next diagram drawn takes focus. Module-level, since from the latest commit's
+ * page the permalink is another page, so another `RepoDiagram`.
  */
-const stopping = { pending: false };
+const focusNext = { pending: false };
+
+/**
+ * A diagram drawn with no box to focus: the explorer's card (no app, a diff that doesn't
+ * match), a level whose layout failed, or a layout that drew no box (every kind hidden).
+ */
+const DRAWN_WITHOUT_BOX =
+  ".gi-explorer[data-empty], .gi-drill > [role='alert'], .gi-drill[data-layout='done']";
+
+/** How the page's notes name a node: its kind and label, as the diagram shows it (M6.11m). */
+function nodeName(node: GraphNode): string {
+  const kind = kindName(node);
+  return `${kind.charAt(0).toLowerCase()}${kind.slice(1)} ${node.label}`;
+}
 
 /**
  * The diagram page (ADR-0069): a repo bar (name, commit, how it relates to the latest
@@ -99,11 +115,19 @@ const stopping = { pending: false };
  * again only when another attempt could help. Focus moves to the card, so a keyboard or
  * screen-reader user lands on it. A base that fails leaves this commit's diagram on screen,
  * alone, with the reason in the note and, when it could help, a Try again for the base alone
- * (M6.11h).
+ * (M6.11h). A Try again that loads it hands focus to the diagram, as Stop comparing does; one
+ * that fails again says so in new words, counting the tries, so it's announced (M6.11m).
  */
 export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiagramProps) {
   const [loads, setLoads] = useState<
-    { head: GraphLoad; base?: GraphLoad; baseUrl: string | undefined } | undefined
+    | {
+        head: GraphLoad;
+        base?: GraphLoad;
+        baseUrl: string | undefined;
+        /** The base's loads so far, counting the note's Try again (M6.11m); 1 if unset. */
+        baseTries?: number;
+      }
+    | undefined
   >();
   // Bumped by "Try again".
   const [attempt, setAttempt] = useState(0);
@@ -153,7 +177,12 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
     if (!compared) return decodeState(window.location.search, buildHierarchy(load.graph));
     const overlay = buildDiffOverlay(compared.base, load.graph, compared.diff);
     const decoded = decodeState(window.location.search, buildHierarchy(overlay.graph));
-    const { state, note: versionNote } = linkedVersion(decoded.state, overlay.nodesIn);
+    const nodes = new Map(overlay.graph.nodes.map((node) => [node.id, node]));
+    const nameOf = (id: string) => {
+      const node = nodes.get(id);
+      return node ? nodeName(node) : id;
+    };
+    const { state, note: versionNote } = linkedVersion(decoded.state, overlay.nodesIn, nameOf);
     return versionNote === undefined ? decoded : { state, ignored: decoded.ignored, versionNote };
   }, [load, compared]);
   // The state since the explorer last reported, for Copy link and Stop comparing.
@@ -185,7 +214,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
       ? [
           base && baseNote(base, sha),
           baseFailure && baseSha !== undefined
-            ? baseFailedNote(baseSha, baseFailure, sha)
+            ? baseFailedNote(baseSha, baseFailure, sha, loads?.baseTries)
             : undefined,
           comparison?.ok === false ? comparison.note : undefined,
           linked.versionNote,
@@ -217,7 +246,11 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
     window.history.replaceState(window.history.state, "", page + hash);
   };
 
-  /** The note's Try again: loads the base alone, leaving this commit's diagram on screen. */
+  /**
+   * The note's Try again: loads the base alone, leaving this commit's diagram on screen. A base
+   * that loads takes the button away, so if it had focus, focus goes on to the diagram (M6.11m),
+   * as after Stop comparing; one that fails again keeps it, and counts the try for the note.
+   */
   const retryBase = () => {
     if (baseUrl === undefined) return;
     baseRetry.current?.abort();
@@ -227,7 +260,12 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
     loadGraph(baseUrl, { signal: controller.signal }).then(
       (baseLoad) => {
         setBaseRetrying(false);
-        setLoads((current) => current && { ...current, base: baseLoad });
+        if (baseLoad.ok && document.activeElement?.closest(".diagram-page__note"))
+          focusNext.pending = true;
+        setLoads(
+          (current) =>
+            current && { ...current, base: baseLoad, baseTries: (current.baseTries ?? 1) + 1 },
+        );
       },
       () => {
         // aborted: the page moved on
@@ -268,33 +306,47 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
   // the reload it starts (Stop comparing from a compared base).
   const fresh = loads === undefined || loads.baseUrl === baseUrl;
 
-  // After Stop comparing (M6.11h): focus waits on the diagram's spot until this commit's diagram
-  // is drawn alone, then goes to its focusable box, so it isn't left on `<body>` when the link
-  // goes. Run when the base goes (a base never compared reloads nothing) and when the load does;
-  // the diagram of the comparison being replaced is never the target. The spot is focusable only
-  // meanwhile: otherwise a click on the empty canvas would take focus out of the explorer.
+  // After Stop comparing (M6.11h), or a Try again of the base that took its focused button away
+  // (M6.11m): focus waits on the diagram's spot until the next diagram is drawn, then goes to
+  // its focusable box, so it isn't left on `<body>`. Run when the base goes (a base never
+  // compared reloads nothing) and when a load lands; the diagram of the comparison being
+  // replaced is never the target. The spot is focusable only meanwhile: otherwise a click on the
+  // empty canvas would take focus out of the explorer. A diagram drawn with no box to focus
+  // still ends the wait (M6.11m), so a later diagram in this tab isn't taken for it; focus then
+  // stays on the spot until it moves on.
   useEffect(() => {
     const host = canvas.current;
-    if (!stopping.pending || !host) return;
+    if (!focusNext.pending || !host) return;
     if (fresh && load && !load.ok) {
-      stopping.pending = false; // the error card takes focus
+      focusNext.pending = false; // the error card takes focus
       host.removeAttribute("tabindex");
       return;
     }
+    const wait = () => {
+      if (!host.contains(document.activeElement)) {
+        host.tabIndex = -1;
+        host.focus();
+      }
+    };
     const land = () => {
       if (!fresh) return false;
       const box = host.querySelector<HTMLElement>(".gi-drill__node [tabindex='0']");
-      if (!box) return false;
-      stopping.pending = false;
-      box.focus();
-      host.removeAttribute("tabindex");
+      if (box) {
+        focusNext.pending = false;
+        box.focus();
+        host.removeAttribute("tabindex");
+        return true;
+      }
+      if (!host.querySelector(DRAWN_WITHOUT_BOX)) return false;
+      focusNext.pending = false;
+      wait();
+      if (document.activeElement === host)
+        host.addEventListener("blur", () => host.removeAttribute("tabindex"), { once: true });
+      else host.removeAttribute("tabindex");
       return true;
     };
     if (land()) return;
-    if (!host.contains(document.activeElement)) {
-      host.tabIndex = -1;
-      host.focus();
-    }
+    wait();
     const observer = new MutationObserver(() => {
       if (land()) observer.disconnect();
     });
@@ -302,10 +354,10 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ["tabindex"],
+      attributeFilter: ["tabindex", "data-layout"],
     });
     return () => observer.disconnect();
-  }, [load, base, fresh]);
+  }, [load, loads, base, fresh]);
 
   return (
     <main className="diagram-page">
@@ -345,7 +397,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
               onClick={(event) => {
                 // Only when this tab moves on, not for a new tab or window.
                 const elsewhere = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
-                stopping.pending = event.button === 0 && !elsewhere;
+                focusNext.pending = event.button === 0 && !elsewhere;
               }}
             >
               Stop comparing
