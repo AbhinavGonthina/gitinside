@@ -184,12 +184,26 @@ describe("alignSegments", () => {
     expect(alignSegments(call(url), parseRoutePath(path))).toBe(level);
   });
 
-  it("stays fast on long paths with many wildcards", () => {
+  it("stays polynomial on long paths with many wildcards", () => {
     const segments = call("/" + Array.from({ length: 200 }, (_, i) => `s${i}`).join("/") + "/z");
     const pattern = parseRoutePath("/" + Array.from({ length: 50 }, () => "*").join("/") + "/y");
-    const start = performance.now();
-    expect(alignSegments(segments, pattern)).toBe(Infinity);
-    expect(performance.now() - start).toBeLessThan(1000);
+    // Counts reads of the call's segments instead of timing the call (M6.11j2: a 1 s bound
+    // failed under CI's coverage). Each (call, route) state reads at most every call segment
+    // once, so a memoized alignment stays under (n + 1)² × m reads (1,005,001 of 2,081,004
+    // here); backtracking passes it
+    // within milliseconds, and throwing there ends the red run at once.
+    const budget = (segments.length + 1) ** 2 * pattern.length;
+    let reads = 0;
+    const counted = new Proxy(segments, {
+      get(target, key, receiver) {
+        if (typeof key === "string" && /^\d+$/.test(key) && ++reads > budget) {
+          throw new Error(`alignSegments read the call's segments over ${budget} times`);
+        }
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
+    expect(alignSegments(counted, pattern)).toBe(Infinity);
+    expect(reads).toBeGreaterThan(0);
   });
 });
 
