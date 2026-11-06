@@ -1,6 +1,6 @@
 # M6 review: Graph diff + incremental analysis
 
-**Status: draft (M6.11a, 2026-11-04; re-checked in M6.11k, 2026-11-06).** The first review's findings were fixed in M6.11b–j3 (outcomes below). M6.11k re-ran the checks (all green) and a second review of those fixes, whose findings R1–R8 are planned as M6.11l–n; M6.11o re-runs the checks once more and tags `m6`. · **Range:** M6 commits from `8f353e3` (M6.1) to `3ee3ad3` (M6.10), interleaved with M5A, M5B, and M5C (#13, #15, #18) · **Checked at:** `3ee3ad3`
+**Status: final (M6.11o, 2026-11-06; drafted in M6.11a, 2026-11-04, re-checked in M6.11k).** The first review's findings were fixed in M6.11b–j3, and the second review's (R1–R8) in M6.11l–n3 (outcomes below). M6.11o re-ran the checks, all green, and tagged `m6`. · **Range:** M6 commits from `8f353e3` (M6.1) to `3ee3ad3` (M6.10), interleaved with M5A, M5B, and M5C (#13, #15, #18), then the fixes M6.11b–n3 · **Checked at:** `3ee3ad3`, `bff0187` (M6.11k), and `b69cbc1` (M6.11o, tagged)
 
 ## What was built
 
@@ -41,6 +41,10 @@ M6 gives GitInside its two "over time" abilities: comparing two versions of a re
   - Tests, uncached (`npx turbo run test --force --concurrency=1 --continue`, 15 of 15 tasks, 0 cached): 4,393 passed, 4 skipped. Analyzer 1,419, viewer 1,115, web 689, worker 639 (+1 skipped), db 152 (+3 skipped), diff 135, eval 114, bench 95, schema 35. Nothing failed or was rerun.
   - Coverage (CI run 42226785666 on `bff0187`): analyzer 97.65% lines, 91.14% branches; diff 99.07% / 93.27%. Every other package is at or above 94.73% lines: viewer 99.3%, db 99.18%, web 98.09%, worker 95.66%, eval 99.66%, bench 100%, schema 94.73%. M6's files: `broken.ts` 98.84% / 94.52%, `rename.ts` 98.42% / 91.38%, `diff.ts` 100% / 97.95%, `mermaid.ts` 99.16% / 89.09%, `incremental.ts` 100% / 90.42%, `cache.ts` 94.08% / 93.84% (down from 97.07% lines: M6.11f's temp-file branches), `workspace.ts` 99.7% / 95.81%, viewer `model/diff.ts` 100% / 94.9%, web `lib/compare.ts` 100% / 88%.
   - `pnpm eval --check`: `eval/results/2026-11-06-0.2.0.md` reproduced byte for byte.
+- **Final check after the second review's fixes (M6.11o, local at `b69cbc1`):**
+  - Tests, uncached (`npx turbo run test --force --concurrency=1 --continue`, 15 of 15 tasks, 0 cached): 4,406 passed, 4 skipped. Analyzer 1,425, viewer 1,116, web 692, worker 639 (+1 skipped), db 152 (+3 skipped), diff 137, eval 114, bench 95, schema 36. Nothing failed or was rerun.
+  - Coverage (CI run 42245446225 on `b69cbc1`, all jobs green, visual and web E2E included): analyzer 97.65% lines, 91.16% branches; diff 99.1% / 93.54%. Every other package is at or above 94.8% lines: viewer 99.3%, db 99.18%, web 98.08%, worker 95.66%, eval 99.66%, bench 100%, schema 94.8%. M6's files: `broken.ts` 98.84% / 94.5%, `rename.ts` 98.48% / 91.78%, `diff.ts` 100% / 98.03%, `mermaid.ts` 99.22% / 90.47%, `incremental.ts` 100% / 90.42%, `cache.ts` 94.08% / 95.38%, `workspace.ts` 99.7% / 95.87%, viewer `model/diff.ts` 100% / 94.9%, web `lib/compare.ts` 100% / 90.62%.
+  - `pnpm eval --check`: `eval/results/2026-11-06-0.2.0.md` reproduced byte for byte.
 - **Accuracy:** M6 changes no matching. Its analyzer commits were refactors with no output change (goldens and eval unchanged), plus M6.4b's new facts (parameter counts, Prisma field names), which re-recorded the report with the same scores.
 
 ## Key decisions and trade-offs
@@ -69,6 +73,7 @@ Every incremental test compares warm and cold bytes over fixture edits (edit, ad
 - **A rename plus an edit in one commit is a removal and an addition:** `creatArticle` → `createArticle` with about 15 lines added scores under the 0.8 body threshold (see the smoke test). This is by design (ADR-0086), but it's the common shape of a real rename.
 - **Exports don't mark changes** (U1, fixed in M6.11e for Base and Head): the Overlay exports head, saying so, rather than an image of the changes.
 - **Uninstall deletion of the worker cache reaches one instance** (C5): planned into M8.5 rather than fixed now.
+- **Left from the second review:** at outline, two broken lines whose pills sit close together draw overlapping ×s (R1); rewriting an existing `FACTS_DIGESTS` entry in place still passes the guard (R3); of two requests at one site reaching one route, the second is re-checked only by method and path (R5, documented); and the rename budget's note reaches the CLI's Mermaid summary but not the viewer until M8.6 (R4).
 
 ## Fresh-eyes review
 
@@ -171,7 +176,7 @@ By asking whether anyone still calls it. When base had an edge to a target that 
 A wrong rename is worse than none. It hides a removal and an addition behind one "renamed" line, and it can hide a broken connection. So a pair needs both ends to be the only candidate in their tier, and the similarity thresholds were set from measurement (a 20% edit still scores ≥ 0.6 in 92–96% of samples; unrelated files do in 0.04%). *Follow-up:* "Where does that cost you?" A rename plus an edit in one commit, like the smoke test's `creatArticle` → `createArticle`, shows as a removal and an addition.
 
 **3. How do you know the incremental cache never changes the output?**
-Three ways. Each cached entry stores every input its service's analysis read or probed (a hash, or "absent") and is reused only if all of them still match. Repo-wide facts are recomputed each run and compared. And every test and benchmark compares warm bytes with cold bytes. *Follow-up:* "What's the weak spot?" `KEY_FORMAT`: if the meaning of the facts changes and nobody bumps it, old entries look valid. It was missed once; M6.11f adds a test that fails until it's bumped.
+Three ways. Each cached entry stores every input its service's analysis read or probed (a hash, or "absent") and is reused only if all of them still match. Repo-wide facts are recomputed each run and compared. And every test and benchmark compares warm bytes with cold bytes. *Follow-up:* "What's the weak spot?" `KEY_FORMAT`: if the meaning of the facts changes and nobody bumps it, old entries look valid. It was missed once; M6.11f added a test that hashes every fixture's stored facts, and M6.11n1 made it fail until a new digest comes with a new `KEY_FORMAT`.
 
 **4. Your cache makes an unchanged repo 5.7× faster but real commits 0.99×. Was it worth it?**
 For the worker, yes: check-on-view re-analyzes on every new commit, and many repos' commits touch one leaf app (2.8×) or no code at all (5.27× for a locale-only commit). On a monorepo where nearly every commit touches a shared package, it's parity, and the review now marks the 10-second budget as not met rather than implying it. *Follow-up:* "What would it take?" Invalidation finer than a service, so editing `packages/lib/constants.ts` re-collects only the files that read that constant.
