@@ -196,6 +196,13 @@ const VERSION_TEXT: Readonly<Record<DiffView, string>> = {
   overlay: "the changes between base and head",
 };
 
+/** What the share menu says each diff view exports (M6.11e): files never mark changes. */
+export const EXPORT_NOTES: Readonly<Record<DiffView, string>> = {
+  base: "Files show the base version, as on screen.",
+  head: "Files show the head version, as on screen.",
+  overlay: "Files show the head version, without marking the changes.",
+};
+
 /** This page's URL with a state's query (the default `linkTo`). */
 function pageLink(query: string): string {
   if (typeof window === "undefined") return withState("", query);
@@ -381,8 +388,24 @@ export function Explorer({
   const legendState = usePresence(legend);
   const [announcement, setAnnouncement] = useState("");
   const [shown, setShown] = useState<Shown>();
-  // Export (M4b.10b): what's drawn, at the layout it was drawn at.
-  const exported = useMemo(() => shown && viewExport(index, shown), [index, shown]);
+  // Export (M4b.10b): what's drawn, at the layout it was drawn at. In diff
+  // mode, only the version shown, and the Overlay's as head (M6.11e).
+  const exportIndex = useMemo(
+    () =>
+      overlay && version === "overlay" ? buildHierarchy(versionGraph(overlay, "head")) : shownIndex,
+    [overlay, version, shownIndex],
+  );
+  const exported = useMemo(() => {
+    if (!shown) return undefined;
+    if (!overlay || !compareBase) return viewExport(index, shown);
+    const drawn = version === "base" ? "base" : "head";
+    return viewExport(index, shown, {
+      version: drawn,
+      index: exportIndex,
+      repo: drawn === "base" ? compareBase.repo : graph.repo,
+      note: EXPORT_NOTES[version],
+    });
+  }, [index, shown, overlay, compareBase, version, exportIndex, graph]);
   useEffect(() => {
     if (exportRef) exportRef.current = exported;
   }, [exportRef, exported]);

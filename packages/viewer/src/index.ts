@@ -156,6 +156,7 @@ export {
   drawnEdge,
   edgeWithin,
   effectiveOpen,
+  versionView,
   viewTrail,
   visibleAncestor,
   weaker,
@@ -294,7 +295,7 @@ export {
   svgToPng,
   viewExport,
 } from "./export/files.js";
-export type { Png, ViewExport } from "./export/files.js";
+export type { ExportVersion, Png, ViewExport } from "./export/files.js";
 export { viewMermaid } from "./export/mermaid.js";
 export { renderViewSvg } from "./export/svg.js";
 export type { ViewSvgOptions } from "./export/svg.js";
@@ -315,7 +316,7 @@ export { EmptyState, WarningList } from "./chrome/EmptyState.js";
 export type { EmptyStateProps, WarningListProps } from "./chrome/EmptyState.js";
 export { groupWarnings, hasSourceFiles, WARNING_TITLES, warningCount } from "./model/warnings.js";
 export type { WarningGroup } from "./model/warnings.js";
-export { Explorer } from "./explorer/Explorer.js";
+export { EXPORT_NOTES, Explorer } from "./explorer/Explorer.js";
 export type { ExplorerDiff, ExplorerProps } from "./explorer/Explorer.js";
 export type { UiIconName } from "./chrome/uiIcons.js";
 export type {

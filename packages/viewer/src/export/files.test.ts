@@ -1,8 +1,10 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { diffPair } from "../diffPair.testkit.js";
 import { layoutInput, runLayout } from "../layout/elk.js";
+import { buildDiffOverlay, versionGraph } from "../model/diff.js";
 import { buildHierarchy } from "../model/hierarchy.js";
-import { buildView } from "../model/view.js";
+import { buildView, versionView } from "../model/view.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import {
   exportName,
@@ -72,6 +74,41 @@ describe("viewExport", () => {
     expect(exported.svg("light")).toBe(renderViewSvg(index, view, layout, { theme: "light" }));
     expect(exported.svg("light")).not.toBe(exported.svg("dark"));
     expect(exported.mermaid()).toBe(viewMermaid(index, view));
+    expect(exported.note).toBeUndefined();
+  });
+
+  it("in diff mode, draws only the version shown, at the overlay's layout and its commit (M6.11e)", async () => {
+    const P = "diff-broken";
+    const shas = { base: "b".repeat(40), head: "c".repeat(40) };
+    const { base, head, diff } = diffPair(P, shas);
+    const overlay = buildDiffOverlay(base, head, diff);
+    const index = buildHierarchy(overlay.graph);
+    const view = buildView(index, [`service:${P}/`, `module:${P}/src`]);
+    const layout = await runLayout(new ELK(), layoutInput(index, view));
+    const removed = "DELETE /api/orders/:id";
+    expect(viewExport(index, { view, layout }).mermaid()).toContain(removed);
+
+    for (const version of ["base", "head"] as const) {
+      const shown = buildHierarchy(versionGraph(overlay, version));
+      const repo = version === "base" ? base.repo : head.repo;
+      const exported = viewExport(
+        index,
+        { view, layout },
+        { version, index: shown, repo, note: "n" },
+      );
+      const at = { ...shown, graph: { ...shown.graph, repo } };
+      expect(exported.name).toBe(`${exportName(repo)}-${version}`);
+      expect(exported.note).toBe("n");
+      const drawn = versionView(view, at);
+      expect(exported.svg("dark")).toBe(renderViewSvg(at, drawn, layout, { theme: "dark" }));
+      expect(exported.mermaid()).toBe(viewMermaid(at, drawn));
+      // Each version's commit, in the footer and the heading.
+      const sha = repo.sha?.slice(0, 7) ?? "";
+      expect(exported.svg("light")).toContain(sha);
+      expect(exported.mermaid()).toContain(`at ${sha}`);
+      expect(exported.mermaid().includes(removed)).toBe(version === "base");
+      expect(exported.svg("dark")).not.toBe(viewExport(index, { view, layout }).svg("dark"));
+    }
   });
 });
 

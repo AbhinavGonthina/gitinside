@@ -887,6 +887,12 @@ a.gi-button {
   font-weight: var(--font-weight-medium);
 }
 
+/* In diff mode (M6.11e): which version the files show, read with the heading. */
+.gi-share__export-note.gi-share__text {
+  margin-top: calc(-1 * var(--space-4));
+  font-size: var(--font-size-12);
+}
+
 .gi-share__export-row {
   display: flex;
   align-items: center;

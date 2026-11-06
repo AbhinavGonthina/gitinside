@@ -200,6 +200,15 @@ describe("ShareMenu export", () => {
     expect(screen.queryByRole("group", { name: "Export this view" })).toBeNull();
   });
 
+  it("says what the export's note says (diff mode's version, M6.11e), and nothing without one", () => {
+    const { group } = openExport({ ...fakeView(), note: "Files show the base version." });
+    expect(group.querySelector(".gi-share__export-note")?.textContent).toBe(
+      "Files show the base version.",
+    );
+    cleanup();
+    expect(openExport(fakeView()).group.querySelector(".gi-share__export-note")).toBeNull();
+  });
+
   it("saves the view as SVG in the screen's theme, or the one chosen", async () => {
     const view = fakeView();
     const { button, themeChoice } = openExport(view, "light");
