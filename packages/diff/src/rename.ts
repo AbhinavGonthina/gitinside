@@ -1,4 +1,9 @@
-import { compareStrings, type ArchitectureGraph, type GraphNode } from "@gitinside/schema";
+import {
+  compareStrings,
+  type ArchitectureGraph,
+  type GraphNode,
+  type RenameLimit,
+} from "@gitinside/schema";
 
 type FileNode = Extract<GraphNode, { kind: "file" }>;
 type ModuleNode = Extract<GraphNode, { kind: "module" }>;
@@ -173,14 +178,16 @@ interface Group {
  * Content comparison has a budget (`maxFilePairs` pairs and `maxShingleLookups`): every
  * removed × added pair when the whole fits, else the same-base-name groups, cheapest
  * first (by lookups, then name), skipping each that no longer fits. The cost is
- * computed from shingle counts before any pair is compared.
+ * computed from shingle counts before any pair is compared. Past the budget, returns
+ * how many files that could have been compared weren't (`RenameLimit`).
  */
 function matchFiles(
   removed: readonly FileNode[],
   added: readonly FileNode[],
   contents: FileContents | undefined,
   into: Map<string, string>,
-): void {
+): RenameLimit | undefined {
+  let limit: RenameLimit | undefined;
   const candidates: Candidate[] = [];
   const rank = (b: FileNode, h: FileNode) => (baseName(b.path) === baseName(h.path) ? 1 : 0);
 
@@ -232,6 +239,17 @@ function matchFiles(
         pairs += g.pairs;
         spent += g.lookups;
       }
+      // Left out: files that could be scored, in no compared group, and with no identical
+      // counterpart (those match by hash whatever the budget).
+      const compared = new Set(groups.flatMap((g) => [...g.removed, ...g.added].map((f) => f.id)));
+      const left = (files: readonly FileNode[], sets: typeof before, others: ReadonlySet<string>) =>
+        files.filter(
+          (f) => sets.get(f.id) !== undefined && !compared.has(f.id) && !others.has(f.hash),
+        ).length;
+      limit = {
+        removed: left(removed, before, new Set(added.map((h) => h.hash))),
+        added: left(added, after, new Set(removed.map((b) => b.hash))),
+      };
     }
     for (const g of groups) {
       for (const b of g.removed) {
@@ -249,6 +267,7 @@ function matchFiles(
     }
   }
   assign(candidates, into);
+  return limit;
 }
 
 /**
@@ -463,11 +482,21 @@ function matchUnresolved(
   }
 }
 
+/** What {@link detectRenames} found. */
+export interface RenameDetection {
+  /** Base ID ⇒ head ID. */
+  renames: Map<string, string>;
+  /** Set when comparing file contents hit its budget (`maxFilePairs`, `maxShingleLookups`). */
+  limit?: RenameLimit;
+}
+
 /**
  * Find which base-only nodes reappear in head under another ID (DESIGN.md §8 step 2):
  * moved or renamed files, the folders they moved with, the symbols inside them (or
- * renamed in place), and the unresolved calls inside them. Returns base ID ⇒ head ID,
- * one-to-one, only between `removed` base IDs and `added` head IDs of the same kind.
+ * renamed in place), and the unresolved calls inside them. The renames map base ID ⇒
+ * head ID, one-to-one, only between `removed` base IDs and `added` head IDs of the same
+ * kind. Past the content-comparison budget, `limit` says how many files weren't compared,
+ * so the diff can say so rather than show their moves as removals and additions silently.
  *
  * Without `contents`, files match only by identical content and symbols only by
  * following their file or class. Deterministic: candidates are scored and sorted, and
@@ -483,7 +512,7 @@ export function detectRenames(
   removed: ReadonlySet<string>,
   added: ReadonlySet<string>,
   contents?: FileContents,
-): Map<string, string> {
+): RenameDetection {
   const baseNodes = new Map(base.nodes.map((n) => [n.id, n]));
   const headNodes = new Map(head.nodes.map((n) => [n.id, n]));
   const only = <K extends GraphNode["kind"]>(
@@ -493,7 +522,12 @@ export function detectRenames(
   ) => nodes.filter((n): n is Extract<GraphNode, { kind: K }> => n.kind === kind && ids.has(n.id));
 
   const renames = new Map<string, string>();
-  matchFiles(only(base.nodes, removed, "file"), only(head.nodes, added, "file"), contents, renames);
+  const limit = matchFiles(
+    only(base.nodes, removed, "file"),
+    only(head.nodes, added, "file"),
+    contents,
+    renames,
+  );
   const movedPaths = new Map<string, string>();
   for (const [from, to] of renames) {
     const b = baseNodes.get(from) as FileNode;
@@ -521,5 +555,5 @@ export function detectRenames(
     movedPaths,
     renames,
   );
-  return renames;
+  return limit === undefined ? { renames } : { renames, limit };
 }

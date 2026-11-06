@@ -130,6 +130,25 @@ export function mermaidShape(kind: NodeKind): [string, string] {
   }
 }
 
+/**
+ * The note for a diff whose rename detection stopped at its budget, or `undefined`. Short
+ * enough for `MAX_LABEL`: "Moves not checked for 401 removed and 2 added files".
+ */
+function renameLimitNote(diff: GraphDiff): string | undefined {
+  const limit = diff.renameLimit;
+  if (limit === undefined) return undefined;
+  const counts = [
+    ...(limit.removed > 0 ? [[limit.removed, "removed"] as const] : []),
+    ...(limit.added > 0 ? [[limit.added, "added"] as const] : []),
+  ];
+  const last = counts.at(-1)?.[0];
+  const text =
+    last === undefined
+      ? "Moves checked only between files of the same name"
+      : `Moves not checked for ${counts.map(([n, word]) => `${n} ${word}`).join(" and ")} ${last === 1 ? "file" : "files"}`;
+  return `  limit["${escapeMermaidLabel(text)}"]`;
+}
+
 interface Connection {
   from: string;
   to: string;
@@ -156,7 +175,8 @@ interface Connection {
  * Doesn't draw: files, folders, and symbols that changed without breaking a connection,
  * `imports`/`calls`/`handles`/`renders` edges, `updated` records (nothing a reader would
  * call a change), and warnings. Past `maxNodes`, the remaining nodes and connections are
- * counted in a closing note rather than drawn.
+ * counted in a closing note rather than drawn. A diff with `renameLimit` gets a note that
+ * moves weren't checked for that many files (they show as removed and added).
  */
 export function renderMermaidSummary(
   diff: GraphDiff,
@@ -248,8 +268,10 @@ export function renderMermaidSummary(
   const names = new Map(drawn.map((id, i) => [id, `n${i + 1}`]));
 
   const lines = ["flowchart LR"];
+  const limitNote = renameLimitNote(diff);
   if (drawn.length === 0) {
     lines.push(`  none["${escapeMermaidLabel("No architecture-level changes")}"]`);
+    if (limitNote !== undefined) lines.push(limitNote);
     return `${lines.join("\n")}\n`;
   }
 
@@ -316,6 +338,7 @@ export function renderMermaidSummary(
     ];
     lines.push(`  more["${escapeMermaidLabel(`...and ${parts.join(" and ")} not drawn`)}"]`);
   }
+  if (limitNote !== undefined) lines.push(limitNote);
 
   for (const s of ["added", "removed", "changed"] as const) {
     const members = classes.get(s);

@@ -123,6 +123,7 @@ What changed between a base and a head graph of one repo (DESIGN.md §8). `packa
   broken: BrokenEdge[],
   warnings: { added: AnalysisWarning[], removed: AnalysisWarning[] },
   summary: { nodes: counts, edges: counts, broken: number }   // counts of every list
+  renameLimit?: { removed: number, added: number }            // only when moved-file detection hit its budget
 }
 NodeChange = { node: GraphNode, changes: string[] }            // head record + names of the fields that differ
 NodeRename = { from: string, node: GraphNode, changes: string[] }
@@ -137,6 +138,7 @@ BrokenEdge = { edge, from, to, reason, detail, sites }
 - **`changes`:** the names of the record's top-level fields that differ, never `id`. At least one for `modified` and `updated`; possibly none for a pure rename.
 - **`broken`:** a base edge (`edge`) whose source (`from`) still exists in head and still makes the call, but whose target (`to`, its base ID) no longer answers it. `reason` is `TARGET_REMOVED`, `ROUTE_CHANGED` (the target is gone), `TARGET_MOVED` (the target was renamed or moved, but this caller still asks for it where it was), `PARAMETERS_ADDED`, or `FIELD_REMOVED` (the target and the edge survive, but the target changed under the call, ADR-0088); `detail` says it in words; `sites` are the head call sites that still make the broken call, as plain locations.
 - **Warnings** are a multiset: head's are base's minus `removed` (one occurrence each) plus `added`.
+- **`renameLimit`:** present only when comparing file contents for moves went past its budget (`maxFilePairs` or `maxShingleLookups`, ADR-0086), so files were compared only with files of the same name, cheapest groups first. `removed`/`added` count the files that could have been compared (read, at least `minFileTokens` tokens, no file of identical content on the other side) but weren't; a move among them shows as a removal and an addition. The Mermaid summary says so in a `limit` note. It's not part of `summary` and `applyDiff` ignores it.
 
 **Integrity rules** (enforced by `parseGraphDiff`): records are valid graph nodes and edges; each node ID and each edge ID appears in at most one list (a rename's `from` and head ID both count); each base edge is broken at most once; a broken edge's source is in head; a `TARGET_REMOVED`/`ROUTE_CHANGED` edge is a removed edge to a removed node (ADR-0087), a `TARGET_MOVED` edge is a removed edge to a renamed node (ADR-0087's M6.11b amendment), a `PARAMETERS_ADDED`/`FIELD_REMOVED` edge isn't removed and its target is modified or renamed (ADR-0088); `summary` matches the lists (`summarizeDiff`); no unknown fields.
 
