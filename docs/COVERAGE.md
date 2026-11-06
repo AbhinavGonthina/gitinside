@@ -108,7 +108,7 @@ Batch 5's blind run (M5C.8c) measured precision 93.5% (290/310), below the 95% f
 
 **Planned, in order** (PROGRESS.md M5C.10a–e, then back to M6.11):
 
-1. **M5C.10a, P (14 FP, 2 FN):** a helper whose URL is picked by a ternary on its own parameter becomes a wrapper through the condition alone, and every caller gets both routes, even where the argument settles which (5 of 7 callers pass no `slug`).
+1. **M5C.10a, P (14 FP, 2 FN):** a helper whose URL is picked by a ternary on its own parameter becomes a wrapper through the condition alone, and every caller gets both routes, even where the argument settles which (5 of 7 callers pass no `slug`). **Done** (ADR-0164's M5C.10a amendment): the cause was the branches collapsing to one hole, which hid where `slug` sat, not the condition; leading parameters are now read on each branch, and a wrapper's argument settles a ternary on its parameter; batch 5 precision 93.5% → 98.0%.
 2. **M5C.10b, Q (6 FP, 1 FN):** a parameter that fills only the origin's port counts as leading (M5A.3j), so a request with a fixed path moves to the callers, where EVALUATION.md §1 doesn't label it. The analyzer's rule is aligned with the label rule.
 3. **M5C.10c, R (59 FN):** Express routers created as `require("express").Router()`, CommonJS's compact spelling of the documented `express.Router()`.
 4. **M5C.10d, S (54 FN):** path-taking helpers declared as local `const` arrows inside a function (a test, a fixture, a component); ADR-0032 makes only symbols wrappers today.

@@ -65,7 +65,11 @@
  *   `WRAPPER_DEPTH`, since only a later call supplies it (M5A.5c); one that only fills a later
  *   hole (`(id) => fetch(base + "/users/" + id)`) leaves the route fixed.
  * - A URL with alternatives (ternary branches, a `let` set in a branch) gives one request per
- *   alternative, at the same site (`UrlNormalizer.alternatives`, M5A.3h).
+ *   alternative, at the same site (`UrlNormalizer.alternatives`, M5A.3h). Whether it is a
+ *   wrapper is read on each branch (M5C.10a): `slug ? \`/api/x/${slug}\` : "/api/y"` fixes its
+ *   routes, so it stays at its own call with both. At a wrapper's call, a ternary on one of its
+ *   parameters takes only the branch the argument settles (`version ? \`/api/${version}${path}\`
+ *   : \`/api${path}\`` called with no `version` sends only `/api${path}`).
  * - SWR calling a wrapper as a fetcher (ADR-0193), from SWR's own contract: `useSWR`,
  *   `useSWRImmutable`, `useSWRInfinite`, `useSWRMutation`, and `preload`, found through their
  *   imports from `swr`, `swr/immutable`, `swr/infinite`, and `swr/mutation`, call
@@ -122,6 +126,9 @@
  *   inlined there, one level, as before.
  * - A function whose route is fixed but whose method is a parameter is still a wrapper (the
  *   method is only known at its callers); see `leadingHoles` for the URL shapes misread.
+ * - A ternary condition at a wrapper's call other than a parameter or its negation (`a ===
+ *   "x"`, `a && b`, `opts.admin`), or a parameter bound to a value whose truthiness isn't
+ *   static (a variable, a call), or an `if` choosing a `let`'s value: both branches are kept.
  * - SWR fetchers written as a method (`{ fetcher(url) {…} }`) or as a named function nested
  *   in a component (`function load(url) {…}` inside it: see the first item), a spread rest parameter
  *   reaching axios (`axios.get(...args)`) or `fetch` with other arguments around it;
@@ -1176,7 +1183,7 @@ export function collectHttpFacts(
         missing.add(d);
       }
     });
-    return { bindings: outer ? Object.assign(map, { outer }) : map, missing };
+    return { bindings: Object.assign(map, { missing }, outer ? { outer } : {}), missing };
   };
 
   /**

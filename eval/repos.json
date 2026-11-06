@@ -455,7 +455,7 @@
     },
     {
       "batch": 5,
-      "seen": null
+      "seen": "Its blind result was 93.5% precision and 63.0% recall (6 of 16 mapped completely). Its misses were diagnosed in eval/results/2026-11-batch5-diagnosis.md, and M5C.10's fixes were chosen from them (#18 option 2), each written from a library's or the language's contract with its own fixture, starting with M5C.10a (a parameter that only picks a ternary's branch doesn't make a wrapper, and a wrapper's argument settles a ternary on it, ADR-0164)."
     }
   ]
 }
