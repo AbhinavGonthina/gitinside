@@ -171,6 +171,35 @@ test("select a page, trace its request, and reopen the same view from the link",
   expect(errors).toEqual([]);
 });
 
+test("Stop comparing takes focus to the diagram (M6.11h)", async ({ page }) => {
+  // On the permalink only: the latest commit's page asks GitHub for the repo, which this
+  // fixture isn't on (repoPage.test.tsx covers leaving that page for a new diagram).
+  const errors = watchErrors(page);
+  await serveRepo(page);
+  await page.addInitScript(() => localStorage.setItem("gitinside.onboarding", "done"));
+  // A base nobody analyzed: not compared, but Stop comparing is offered.
+  await page.goto(`${PERMALINK}?base=${"b".repeat(40)}`);
+  await settle(page);
+  await page.getByRole("link", { name: "Stop comparing" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(PERMALINK);
+  await expect(page.getByRole("link", { name: "Stop comparing" })).toHaveCount(0);
+  await expect(page.locator(".gi-drill__node [tabindex='0']:focus")).toHaveCount(1);
+  // The waiting spot isn't left focusable, so a click on the empty canvas stays in the explorer.
+  await expect(page.locator(".diagram-page__canvas")).not.toHaveAttribute("tabindex", /.*/);
+  // And the explorer's keys work from there: an arrow moves focus to the box beside it (the
+  // datastore, at the right edge, comes first in the tree).
+  const focused = () =>
+    page.evaluate(() =>
+      document.activeElement?.closest(".gi-drill__node")?.getAttribute("data-node-id"),
+    );
+  const first = await focused();
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(focused).not.toBe(first);
+  expect(await focused()).toBeTruthy();
+  expect(errors).toEqual([]);
+});
+
 test("a long inspector scrolls inside itself; the page stays the window's height", async ({
   page,
 }) => {
