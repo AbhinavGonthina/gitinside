@@ -282,6 +282,19 @@ describe("GraphDiff", () => {
     expect(GraphDiff.safeParse(d).success).toBe(false);
   });
 
+  it("accepts a rename limit of file counts, and nothing else there", () => {
+    const limited = { ...sampleDiff(), renameLimit: { removed: 3, added: 0 } };
+    expect(parseGraphDiff(limited).renameLimit).toEqual({ removed: 3, added: 0 });
+    for (const renameLimit of [
+      { removed: -1, added: 0 },
+      { removed: 1.5, added: 0 },
+      { removed: 1 },
+      { removed: 1, added: 1, groups: 2 },
+    ]) {
+      expect(GraphDiff.safeParse({ ...sampleDiff(), renameLimit }).success).toBe(false);
+    }
+  });
+
   it("rejects another schema version and unknown fields", () => {
     expect(GraphDiff.safeParse({ ...sampleDiff(), schemaVersion: "2.0.0" }).success).toBe(false);
     expect(GraphDiff.safeParse({ ...sampleDiff(), extra: 1 }).success).toBe(false);

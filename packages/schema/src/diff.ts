@@ -105,6 +105,21 @@ const edgeLists = z
   })
   .strict();
 
+/**
+ * Set when finding moved files hit its content-comparison budget (ADR-0086): files were
+ * then compared only with files of the same name, and some not at all. The counts are
+ * the removed and added files that could have been compared (read, long enough, no file
+ * of identical content on the other side) but weren't, so a move among them shows as a
+ * removal and an addition.
+ */
+export const RenameLimit = z
+  .object({
+    removed: z.number().int().nonnegative(),
+    added: z.number().int().nonnegative(),
+  })
+  .strict();
+export type RenameLimit = z.infer<typeof RenameLimit>;
+
 const listCounts = z
   .object({
     added: z.number().int().nonnegative(),
@@ -136,6 +151,8 @@ const diffShape = z
       .object({ added: z.array(AnalysisWarning), removed: z.array(AnalysisWarning) })
       .strict(),
     summary: DiffSummary,
+    /** Absent when rename detection compared every pair it could. */
+    renameLimit: RenameLimit.optional(),
   })
   .strict();
 

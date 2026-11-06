@@ -148,6 +148,7 @@ function diffWarnings(
  *
  * Handles: added, removed, modified, updated, and renamed nodes and edges, and broken
  * connections whose target is gone (`detectBroken`; see there for what it doesn't catch).
+ * When comparing file contents hits its budget, `renameLimit` counts the files left out.
  *
  * Throws `IncompatibleGraphsError` for graphs from two analyzer versions.
  */
@@ -161,7 +162,13 @@ export function diffGraphs(
   const after = canonicalize(head);
 
   const nodeIds = onlyIn(before.nodes, after.nodes);
-  const renames = detectRenames(before, after, nodeIds.removed, nodeIds.added, options.contents);
+  const { renames, limit } = detectRenames(
+    before,
+    after,
+    nodeIds.removed,
+    nodeIds.added,
+    options.contents,
+  );
   const nodes = classify(
     before.nodes,
     after.nodes,
@@ -201,6 +208,7 @@ export function diffGraphs(
       ...lists,
       warnings: diffWarnings(before.warnings, after.warnings),
       summary: summarizeDiff(lists),
+      ...(limit === undefined ? {} : { renameLimit: limit }),
     }),
   );
 }

@@ -14,6 +14,7 @@ export {
   similarity,
   tokenize,
   type FileContents,
+  type RenameDetection,
 } from "./rename.js";
 export {
   changedFields,

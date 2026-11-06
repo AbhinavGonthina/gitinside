@@ -95,6 +95,36 @@ describe("renderMermaidSummary on the diff-broken fixture pair", () => {
   it("says so when nothing at the architecture level changed", () => {
     expect(summary(base, base)).toBe('flowchart LR\n  none["No architecture-level changes"]\n');
   });
+
+  it("says when rename detection stopped at its budget, drawn or not", () => {
+    const limited = (removed: number, added: number) =>
+      renderMermaidSummary(
+        { ...diffGraphs(base, base), renameLimit: { removed, added } },
+        base,
+        base,
+      );
+    expect(limited(401, 2)).toBe(
+      [
+        "flowchart LR",
+        '  none["No architecture-level changes"]',
+        '  limit["Moves not checked for 401 removed and 2 added files"]',
+        "",
+      ].join("\n"),
+    );
+    expect(limited(1, 0)).toContain('  limit["Moves not checked for 1 removed file"]');
+    expect(limited(0, 12345)).toContain('  limit["Moves not checked for 12345 added files"]');
+    expect(limited(0, 0)).toContain('  limit["Moves checked only between files of the same name"]');
+
+    const lines = renderMermaidSummary(
+      { ...diffGraphs(base, head), renameLimit: { removed: 3, added: 4 } },
+      base,
+      head,
+    ).split("\n");
+    const note = lines.indexOf('  limit["Moves not checked for 3 removed and 4 added files"]');
+    expect(note).toBeGreaterThan(lines.indexOf('  n11 -.->|"Broken: field removed"| n12'));
+    expect(note).toBeLessThan(lines.findIndex((l) => l.startsWith("  classDef")));
+    expect(summary(base, head)).not.toContain("limit[");
+  });
 });
 
 describe("renderMermaidSummary on hand-built graphs", () => {

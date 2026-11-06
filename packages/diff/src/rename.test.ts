@@ -399,9 +399,25 @@ describe("rename detection rules", () => {
       ...filler("new", side),
     ]);
     const contents = contentsOf({ "src/a.ts": original }, { "lib/y.ts": edited });
-    expect(renamedIds(diffGraphs(before, after, { contents }))).toEqual([
+    const diff = diffGraphs(before, after, { contents });
+    expect(renamedIds(diff)).toEqual([
       [nodeId("file", "api", "src/s.ts"), nodeId("file", "api", "lib/s2.ts")],
     ]);
+    // Only `a.ts` and `y.ts` have contents to compare; `s.ts` matched by its hash.
+    expect(diff.renameLimit).toEqual({ removed: 1, added: 1 });
+  });
+
+  it("records no rename limit when content comparison fits the budget", () => {
+    const original = code("A");
+    const edited = code("A", "  if (total === 0) return -1;");
+    const before = graph("a1b2c3f", [file("src/a.ts", original)]);
+    const after = graph("d4e5f60", [file("lib/y.ts", edited)]);
+    const contents = contentsOf({ "src/a.ts": original }, { "lib/y.ts": edited });
+    const diff = diffGraphs(before, after, { contents });
+    expect(renamedIds(diff)).toEqual([
+      [nodeId("file", "api", "src/a.ts"), nodeId("file", "api", "lib/y.ts")],
+    ]);
+    expect(diff).not.toHaveProperty("renameLimit");
   });
 
   it("caps content comparison by shingle lookups, not pairs alone, cheapest name groups first", () => {
@@ -436,12 +452,16 @@ describe("rename detection rules", () => {
     ]);
     // Base and head paths never coincide here, so one map serves both sides.
     const contents = contentsOf(texts, texts);
-    expect(renamedIds(diffGraphs(before, after, { contents }))).toEqual([
+    const diff = diffGraphs(before, after, { contents });
+    expect(renamedIds(diff)).toEqual([
       // Identical content still matches; the small `util.ts` group fits the budget. The
       // edited `a.ts` → `y.ts` (another name) and `index.ts` (its group too costly) don't.
       [nodeId("file", "api", "src/s.ts"), nodeId("file", "api", "lib/s2.ts")],
       [nodeId("file", "api", "src/util.ts"), nodeId("file", "api", "lib/util.ts")],
     ]);
+    // The 400 `index.ts` on each side plus `a.ts` and `y.ts`: never compared by content.
+    // `util.ts` was compared, and `s.ts`/`s2.ts` have an identical counterpart.
+    expect(diff.renameLimit).toEqual({ removed: n + 1, added: n + 1 });
   });
 
   it("is deterministic and leaves the rename map one-to-one", () => {
