@@ -85,8 +85,20 @@ export interface FactKeys {
   present: Set<string>;
 }
 
-/** Bump when what an entry means changes without the analyzer's version changing. */
-const KEY_FORMAT = 33;
+/**
+ * Bump when what an entry means changes without the analyzer's version changing: when the
+ * facts, observed inputs, or repo-wide facts stored for the same files change.
+ */
+export const KEY_FORMAT = 33;
+
+/**
+ * The SHA-256 of the entries a cold analysis of every fixture stores, at this
+ * {@link KEY_FORMAT} (`keyFormat.test.ts`, M6.11f). A change that alters them fails that test
+ * until `KEY_FORMAT` is bumped and this is set to the digest it prints. A new fixture changes
+ * it too: it usually comes with a change to the facts, and a needless bump only costs misses.
+ * A change that alters entries only for code no fixture has still needs a bump by hand.
+ */
+export const FACTS_DIGEST = "bfa4370095adca585bdb0e0c7ee1879f5d61b110442a7c101ffa957fd36d8770";
 
 /** The {@link EntryUse} of an inputs part entry: shared by the service entries naming it. */
 const SHARED: EntryUse = { shared: true };
