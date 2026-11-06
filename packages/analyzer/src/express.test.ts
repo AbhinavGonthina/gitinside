@@ -338,6 +338,55 @@ describe("express routes", () => {
     ]);
   });
 
+  it("detects routers and apps created on the require itself, in files with no express binding", async () => {
+    await put("handlers/books.js", [
+      "exports.list = (req, res) => res.json([]);",
+      "exports.show = (req, res) => res.json({});",
+    ]);
+    await put("routers/books.js", [
+      'const router = require("express").Router();',
+      'const { list, show } = require("../handlers/books");',
+      'router.get("/", list);',
+      'router.get("/:id", show);',
+      "module.exports = router;",
+    ]);
+    await put("routers/reviews.js", [
+      "const router = require('express').Router({ mergeParams: true });",
+      'router.delete("/:reviewId", (req, res) => res.end());',
+      "module.exports = router;",
+    ]);
+    await put("app.js", [
+      'const app = require("express")();',
+      'const books = require("./routers/books");',
+      'app.use("/books", books);',
+      'app.use("/books/:id/reviews", require("./routers/reviews"));',
+      "module.exports = app;",
+    ]);
+    const graph = await analyze(dir);
+    expect(routes(graph)).toEqual([
+      "app/DELETE /books/:id/reviews/:reviewId",
+      "app/GET /books",
+      "app/GET /books/:id",
+    ]);
+    expect(handles(graph)).toEqual([
+      "app/GET /books -> app/handlers/books.js#list (exact)",
+      "app/GET /books/:id -> app/handlers/books.js#show (exact)",
+    ]);
+    expect(expressWarnings(graph)).toEqual([]);
+  });
+
+  it("doesn't read a call on another module's require as an Express creation", async () => {
+    await put("routes.js", [
+      'const router = require("koa-router")();',
+      'const other = require("@koa/router").Router();',
+      'router.get("/koa", (ctx) => {});',
+      'other.get("/other", (ctx) => {});',
+      "module.exports = router;",
+    ]);
+    const graph = await analyze(dir);
+    expect(routes(graph)).toEqual([]);
+  });
+
   it("binds routers passed to functions, typed parameters, factories, and class properties", async () => {
     await put("src/register.ts", [
       'import type { Express } from "express";',

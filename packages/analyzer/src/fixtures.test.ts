@@ -54,6 +54,7 @@ const NAMES = [
   "express-folder-routers",
   "express-class-app",
   "express-inline-calls",
+  "express-require-router",
   "sibling-apps",
   "workspace-root-files",
   "js-global-assignment",
@@ -123,6 +124,23 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
       `route:${svc}/DELETE /api/articles/:slug`,
       `route:${svc}/POST /api/articles`,
     ]);
+  });
+
+  it("express-require-router finds routers created on the require itself (M5C.10c)", async () => {
+    const g = await run("express-require-router");
+    const svc = "express-require-router";
+    expect(ids(g, "route")).toEqual([
+      `route:${svc}/GET /api/trips`,
+      `route:${svc}/GET /api/trips/:tripId`,
+      `route:${svc}/POST /api/trips/:tripId/stops`,
+    ]);
+    expect(
+      g.edges.filter((e) => e.kind === "http").map((e) => `${e.from} -> ${e.to} ${e.confidence}`),
+    ).toEqual([
+      `symbol:${svc}/client/trips.js#addStop -> route:${svc}/POST /api/trips/:tripId/stops exact`,
+      `symbol:${svc}/client/trips.js#loadTrips -> route:${svc}/GET /api/trips exact`,
+    ]);
+    expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
   });
 
   it("express-nested-routers composes mount prefixes", async () => {

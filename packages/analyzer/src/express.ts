@@ -10,6 +10,8 @@
  * Patterns handled:
  * - Apps and routers: `express()`, `express.Router()`, `Router()` (named import), and the same
  *   through `require("express")`, `import * as express`, and `import express = require()`.
+ *   Also on the `require` itself, with or without options, in a file that binds no `express`
+ *   name (`require("express").Router({ mergeParams: true })`, `require("express")()`).
  * - Routes: `x.get|post|put|patch|delete|head|options|all(path, ...handlers)` (at least one
  *   handler, so `app.get("env")` is not a route) and `x.route(path).get(h).post(h)` chains.
  *   Paths are string literals, arrays of them, consts, `${CONST}` templates, and `+`
@@ -52,6 +54,8 @@
  *   edges from the route (`owners.ts`).
  * - Routers imported from other workspace packages, routers stored in collections
  *   (`routers.forEach((r) => app.use(r))`), and a shadowed `express` name.
+ * - An inline `require` of `express` with a comment inside its parentheses, in a file that
+ *   binds no `express` name: a text check for `require("express")` picks the files to read.
  * - Class properties without a value written more than once, outside the constructor's own
  *   statements (a branch, a method, a callback), from another service's files, or by
  *   destructuring (`({ app: this.app } = x)` isn't seen as a write); static properties.
@@ -340,6 +344,17 @@ function expressBindings(sourceFile: ts.SourceFile): Map<string, ExpressRole> {
   return bindings;
 }
 
+/** A `require("express")` in a file's text, which may create an app or router inline. */
+const INLINE_REQUIRE = /\brequire\s*\(\s*["'`]express["'`]\s*\)/;
+
+/**
+ * True when a file may create an app or router: it binds `express`, or it calls `require` on
+ * it inline (`require("express").Router()`, `require("express")()`), which binds no name.
+ */
+function mayCreate(sourceFile: ts.SourceFile, bindings: ReadonlyMap<string, ExpressRole>): boolean {
+  return bindings.size > 0 || INLINE_REQUIRE.test(sourceFile.text);
+}
+
 /** `app` or `router` when a call creates one with the file's `express` bindings. */
 function creationKind(
   node: ts.CallExpression | ts.NewExpression,
@@ -554,7 +569,7 @@ export function routerCreations(sp: ServiceProgram): RouterCreation[] {
   const creations: RouterCreation[] = [];
   for (const { sourceFile } of rootSources(sp)) {
     const bindings = expressBindings(sourceFile);
-    if (bindings.size === 0) continue;
+    if (!mayCreate(sourceFile, bindings)) continue;
     const add = (node: ts.Node, kind: "app" | "router" | undefined): void => {
       const site = kind && routerSite(sp, node);
       if (kind && site) creations.push({ ...site, kind });
@@ -600,18 +615,20 @@ export function collectExpressFacts(
       visit(sourceFile);
     }
   };
-  const bindingsByFile = new Map<ts.SourceFile, Map<string, ExpressRole>>();
+  /** Each file's `express` bindings, or null when it can't create an app or router. */
+  const bindingsByFile = new Map<ts.SourceFile, Map<string, ExpressRole> | null>();
   /** True for nodes that may be routers: creation calls and parameters (typed or bound). */
   const mayBeRouter = (node: ts.Node): boolean => {
     if (ts.isParameter(node)) return true;
     if (!ts.isCallExpression(node) && !ts.isNewExpression(node)) return false;
     const sourceFile = node.getSourceFile();
     let bindings = bindingsByFile.get(sourceFile);
-    if (!bindings) {
-      bindings = expressBindings(sourceFile);
+    if (bindings === undefined) {
+      const found = expressBindings(sourceFile);
+      bindings = mayCreate(sourceFile, found) ? found : null;
       bindingsByFile.set(sourceFile, bindings);
     }
-    return bindings.size > 0 && creationKind(node, bindings) !== undefined;
+    return bindings !== null && creationKind(node, bindings) !== undefined;
   };
 
   /** Left sides of the assignments to a property name (`x.p = …`, `x["p"] ??= …`), by name. */

@@ -1,0 +1,329 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "route:express-require-router/GET /api/trips",
+      "id": "handles:route:express-require-router/GET /api/trips->symbol:express-require-router/server/controllers/trips.js#listTrips",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 17,
+          "file": "server/routes/trips.js",
+          "line": 5
+        }
+      ],
+      "to": "symbol:express-require-router/server/controllers/trips.js#listTrips"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-require-router/GET /api/trips/:tripId",
+      "id": "handles:route:express-require-router/GET /api/trips/:tripId->symbol:express-require-router/server/controllers/trips.js#getTrip",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 24,
+          "file": "server/routes/trips.js",
+          "line": 6
+        }
+      ],
+      "to": "symbol:express-require-router/server/controllers/trips.js#getTrip"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:express-require-router/client/trips.js#addStop",
+      "id": "http:symbol:express-require-router/client/trips.js#addStop->route:express-require-router/POST /api/trips/:tripId/stops",
+      "kind": "http",
+      "label": "POST /api/trips/:tripId/stops",
+      "sites": [
+        {
+          "column": 10,
+          "file": "client/trips.js",
+          "line": 7,
+          "request": "POST /api/trips/{}/stops"
+        }
+      ],
+      "to": "route:express-require-router/POST /api/trips/:tripId/stops"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:express-require-router/client/trips.js#loadTrips",
+      "id": "http:symbol:express-require-router/client/trips.js#loadTrips->route:express-require-router/GET /api/trips",
+      "kind": "http",
+      "label": "GET /api/trips",
+      "sites": [
+        {
+          "column": 26,
+          "file": "client/trips.js",
+          "line": 2,
+          "request": "GET /api/trips"
+        }
+      ],
+      "to": "route:express-require-router/GET /api/trips"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-require-router/server/index.js",
+      "id": "imports:file:express-require-router/server/index.js->file:express-require-router/server/routes/trips.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 31,
+          "file": "server/index.js",
+          "line": 5
+        }
+      ],
+      "to": "file:express-require-router/server/routes/trips.js"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-require-router/server/routes/trips.js",
+      "id": "imports:file:express-require-router/server/routes/trips.js->file:express-require-router/server/controllers/trips.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 40,
+          "file": "server/routes/trips.js",
+          "line": 3
+        }
+      ],
+      "to": "file:express-require-router/server/controllers/trips.js"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:express-require-router/server/routes/trips.js",
+      "id": "imports:file:express-require-router/server/routes/trips.js->file:express-require-router/server/routes/stops.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 23,
+          "file": "server/routes/trips.js",
+          "line": 2
+        }
+      ],
+      "to": "file:express-require-router/server/routes/stops.js"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "d8ce252777fa9899f40ddc82b51fc8c56537af9ec03b6c6f75494c287eb03bd7",
+      "id": "file:express-require-router/client/trips.js",
+      "kind": "file",
+      "label": "trips.js",
+      "parentId": "module:express-require-router/client",
+      "path": "client/trips.js"
+    },
+    {
+      "hash": "3a880bf36429f1366c9ae3f4532e540d2ab03cf5aa79a00b75b2dfc447e7098a",
+      "id": "file:express-require-router/server/controllers/trips.js",
+      "kind": "file",
+      "label": "trips.js",
+      "parentId": "module:express-require-router/server/controllers",
+      "path": "server/controllers/trips.js"
+    },
+    {
+      "hash": "a69f87f167eb69cf1abfa61786dfaf5e88f5a620ab5bae47b72125df44e5c3b1",
+      "id": "file:express-require-router/server/index.js",
+      "kind": "file",
+      "label": "index.js",
+      "parentId": "module:express-require-router/server",
+      "path": "server/index.js"
+    },
+    {
+      "hash": "2cbc1058fc006c52635c29592b7bfa6f8bc0ce64e56812980da2be399fa06b46",
+      "id": "file:express-require-router/server/routes/stops.js",
+      "kind": "file",
+      "label": "stops.js",
+      "parentId": "module:express-require-router/server/routes",
+      "path": "server/routes/stops.js"
+    },
+    {
+      "hash": "1740592b82b7277910c9106cb34e9e7150eb496098113bd2dbee864c45f82f19",
+      "id": "file:express-require-router/server/routes/trips.js",
+      "kind": "file",
+      "label": "trips.js",
+      "parentId": "module:express-require-router/server/routes",
+      "path": "server/routes/trips.js"
+    },
+    {
+      "id": "module:express-require-router/client",
+      "kind": "module",
+      "label": "client",
+      "parentId": "service:express-require-router/",
+      "path": "client"
+    },
+    {
+      "id": "module:express-require-router/server",
+      "kind": "module",
+      "label": "server",
+      "parentId": "service:express-require-router/",
+      "path": "server"
+    },
+    {
+      "id": "module:express-require-router/server/controllers",
+      "kind": "module",
+      "label": "controllers",
+      "parentId": "module:express-require-router/server",
+      "path": "server/controllers"
+    },
+    {
+      "id": "module:express-require-router/server/routes",
+      "kind": "module",
+      "label": "routes",
+      "parentId": "module:express-require-router/server",
+      "path": "server/routes"
+    },
+    {
+      "id": "route:express-require-router/GET /api/trips",
+      "kind": "route",
+      "label": "GET /api/trips",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-require-router/server/routes/trips.js",
+      "path": "/api/trips",
+      "source": {
+        "column": 8,
+        "file": "server/routes/trips.js",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:express-require-router/GET /api/trips/:tripId",
+      "kind": "route",
+      "label": "GET /api/trips/:tripId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-require-router/server/routes/trips.js",
+      "path": "/api/trips/:tripId",
+      "source": {
+        "column": 8,
+        "file": "server/routes/trips.js",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:express-require-router/POST /api/trips/:tripId/stops",
+      "kind": "route",
+      "label": "POST /api/trips/:tripId/stops",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:express-require-router/server/routes/stops.js",
+      "path": "/api/trips/:tripId/stops",
+      "source": {
+        "column": 8,
+        "file": "server/routes/stops.js",
+        "line": 3
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:express-require-router/",
+      "kind": "service",
+      "label": "express-require-router",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-require-router/client/trips.js#addStop",
+      "kind": "symbol",
+      "label": "addStop",
+      "parentId": "file:express-require-router/client/trips.js",
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "client/trips.js",
+        "line": 6
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-require-router/client/trips.js#loadTrips",
+      "kind": "symbol",
+      "label": "loadTrips",
+      "parentId": "file:express-require-router/client/trips.js",
+      "source": {
+        "column": 1,
+        "endLine": 4,
+        "file": "client/trips.js",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-require-router/server/controllers/trips.js#getTrip",
+      "kind": "symbol",
+      "label": "getTrip",
+      "parentId": "file:express-require-router/server/controllers/trips.js",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "server/controllers/trips.js",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-require-router/server/controllers/trips.js#listTrips",
+      "kind": "symbol",
+      "label": "listTrips",
+      "parentId": "file:express-require-router/server/controllers/trips.js",
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "server/controllers/trips.js",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-require-router/server/routes/stops.js#router",
+      "kind": "symbol",
+      "label": "router",
+      "parentId": "file:express-require-router/server/routes/stops.js",
+      "source": {
+        "column": 7,
+        "endLine": 1,
+        "file": "server/routes/stops.js",
+        "line": 1
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-require-router/server/routes/trips.js#router",
+      "kind": "symbol",
+      "label": "router",
+      "parentId": "file:express-require-router/server/routes/trips.js",
+      "source": {
+        "column": 7,
+        "endLine": 1,
+        "file": "server/routes/trips.js",
+        "line": 1
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "express-require-router",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "express-require-router",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# express-require-router
+
+Tests (M5C.10c, ADR-0026's amendment): an Express router created by calling `Router` on the `require` itself, in a file that binds no `express` name, is a router like `express.Router()`. `server/routes/trips.js` starts `const router = require("express").Router();` and `server/routes/stops.js` `require('express').Router({ mergeParams: true })`; `server/index.js` mounts trips at `/api/trips`, which mounts stops at `/:tripId/stops`. So the routes are `GET /api/trips`, `GET /api/trips/:tripId`, and `POST /api/trips/:tripId/stops`, the two named handlers get `handles` edges, and the client's `loadTrips` and `addStop` requests match them `exact`.
