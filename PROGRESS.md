@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5C.8a2 Batch 5's draw: snapshot both pools, walk each in `draw status 5` order until 8 pins per stratum (#18 option 2; M5.14b4 waits on #22)
+M5C.8b Batch 5 labels: split into b1–b4 (4 repos each, pin order) first, then label b1 (#18 option 2; M5.14b4 waits on #22)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -341,7 +341,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M5C.7g G, a nested `tsconfig.json`/`jsconfig.json` (10 FN): files under a folder with its own `tsconfig.json` or `jsconfig.json` (and no `package.json`) resolve imports with that config's `baseUrl`/`paths` (its `extends` followed inside the repo), not only the service root's; ADR (amends ADR-0022, ADR-0024), the per-service program and the incremental cache's observed inputs (ADR-0091) included, regression tests first, fixture + golden, eval delta {model: opus}
 - M5C.8 Fresh blind batch 5 after M5C.7, by ADR-0208's rule (same two strata and queries, 8 pins each, a new seed; repos already in `eval/repos.json` excluded), labels committed before any run, scored once; split like M5C.5:
 - [x] M5C.8a1 The rule, committed before any candidate list is fetched: `eval/draws/batch-5.json` (seed, the exclusion of batches 1–4 and the original set), EVALUATION.md §1, `draw.ts` support for exclusions if missing; tests {model: opus}
-- [ ] M5C.8a2 The draw: snapshot, walk each stratum in `draw status 5` order recording every pin or rejection until 8 pins per stratum; no labels yet {model: opus}
+- [x] M5C.8a2 The draw: snapshot, walk each stratum in `draw status 5` order recording every pin or rejection until 8 pins per stratum; no labels yet {model: opus}
 - [ ] M5C.8b Batch 5 labels, split into b1–b4 (4 repos each) before starting, each committed with its `repos.json` entries (`"heldOut": 5`, batch 5 `"seen": null`), no `pnpm eval` until M5C.8c {model: opus}
 - [ ] M5C.8c Score batch 5 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 {model: opus}
 
@@ -394,6 +394,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **M5C.8a2 (2026-11-05):** batch 5's walk (`fa4ad4f`; pools snapshotted in `63aeb38`). `react-express` 8 pins of 11 read (rejections: rule 3, 4, 5 once each); `nextjs-prisma` 8 of 13 (rule 3 tRPC only, rule 4 ZenStack hooks, rule 5 ×3). An earlier run had recorded the walk uncommitted; every pin's SHA, MIT license, and file count (22–251) and every rejection's fact were re-checked from the clones first. `validate` and `draw status 5` pass; EVALUATION.md §1 records the draw. No eval delta.
 - **M5C.8a1 (2026-11-05):** `eval/draws/batch-5.json`: batch 4's strata, queries, and quota, seed `2026-11-05` (only totals read: 291, 305), and a committed `exclude` list of 278 repos (the 28 in `repos.json`, 26 candidates read and not pinned for batches 1–4 incl. batch 4's 2 past-quota reads, 224 named in `docs/usage/`). `drawOrder` drops them before the shuffle; `drawProblems` fails an unsorted list or a read of an excluded repo; `drawCrossCheck` fails a list missing an earlier batch's repo or an earlier draw's candidate (ADR-0208 amendment, EVALUATION.md §1). 6 new tests, eval 114.
   Eval: no delta (draw records aren't inputs); report re-recorded for the commit line, `--check` byte-for-byte. Commits `c90dc94`, report `e1c90ce`.
 - **M5C.7g (2026-11-05):** batch 4's G. Shown outside batch 4 first (none in batches 1–3 or the original set; of 798 code-search repos with a nested `paths` config, 730 are their own package and 27 are this pattern, 13 importing through the alias, `docs/usage/2026-11-05-nested-configs.json`). A `tsconfig.json` (else `jsconfig.json`) in a folder below the service's with no `package.json` beside it gives the files under it (deepest wins) its resolution options: the host's `resolveModuleNameLiterals` (only when a service has one) and `ServiceProgram.resolutionOptions` for `imports.ts`; parse options stay the service's (ADR-0212). Candidates join the service's listing (`serviceListings`), so adding one invalidates the cache; `KEY_FORMAT` 27, fixture `nested-config`.
