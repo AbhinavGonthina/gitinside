@@ -1,9 +1,22 @@
-import { BASE_PARAM as VIEWER_BASE_PARAM } from "@gitinside/viewer";
+import {
+  DEFAULT_STATE,
+  BASE_PARAM as VIEWER_BASE_PARAM,
+  type ExplorerState,
+} from "@gitinside/viewer";
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
 import renameBase from "../../../fixtures/diff-rename-base/expected.json";
 import renameHead from "../../../fixtures/diff-rename-head/expected.json";
-import { BASE_PARAM, baseNote, baseParam, COMMIT_SHA, compareGraphs } from "./compare";
+import {
+  BASE_PARAM,
+  baseFailedNote,
+  baseNote,
+  baseParam,
+  COMMIT_SHA,
+  compareGraphs,
+  linkedVersion,
+} from "./compare";
+import { LOAD_FAILED_TITLE, UNREADABLE_MESSAGE, UNREADABLE_TITLE } from "./repoStatus";
 
 const BASE = "b".repeat(40);
 const HEAD = "a".repeat(40);
@@ -48,6 +61,71 @@ describe("baseNote", () => {
     );
     expect(baseNote({ status: "invalid" }, HEAD)).toBe(
       "The link's base isn't a full commit SHA, so nothing was compared. This is commit aaaaaaa alone.",
+    );
+  });
+});
+
+describe("baseFailedNote", () => {
+  it("says a base that didn't load isn't compared, with the server's reason", () => {
+    const failure = {
+      ok: false as const,
+      title: LOAD_FAILED_TITLE,
+      message: "Base unavailable.",
+      retry: true,
+    };
+    expect(baseFailedNote(BASE, failure, HEAD)).toBe(
+      "Commit bbbbbbb's diagram didn't load, so nothing was compared: Base unavailable. This is commit aaaaaaa alone.",
+    );
+  });
+
+  it("says a base that couldn't be read isn't compared, without the card's wording", () => {
+    const failure = {
+      ok: false as const,
+      title: UNREADABLE_TITLE,
+      message: UNREADABLE_MESSAGE,
+      retry: false,
+    };
+    expect(baseFailedNote(BASE, failure, HEAD)).toBe(
+      "Commit bbbbbbb's saved diagram couldn't be read, so nothing was compared. This is commit aaaaaaa alone.",
+    );
+  });
+});
+
+describe("linkedVersion (M6.11h)", () => {
+  const nodesIn = {
+    base: new Set(["service:api/", "route:api/GET /old"]),
+    head: new Set(["service:api/", "route:api/GET /new"]),
+  };
+  const state = (over: Partial<ExplorerState>): ExplorerState => ({
+    ...DEFAULT_STATE,
+    ...over,
+  });
+
+  it("keeps a version that has the link's selection and trace start", () => {
+    const linked = state({ version: "head", selected: "route:api/GET /new" });
+    expect(linkedVersion(linked, nodesIn)).toEqual({ state: linked });
+    const overlay = state({ selected: "route:api/GET /old" });
+    expect(linkedVersion(overlay, nodesIn)).toEqual({ state: overlay });
+  });
+
+  it("opens on the Overlay when the version lacks them, and says so", () => {
+    const linked = state({ version: "head", selected: "route:api/GET /old" });
+    expect(linkedVersion(linked, nodesIn)).toEqual({
+      state: { ...linked, version: "overlay" },
+      note: "The link opens on Head, which doesn't have selected route:api/GET /old, so both versions are shown (Overlay).",
+    });
+    const traced = state({ version: "base", trace: "route:api/GET /new", step: 0 });
+    expect(linkedVersion(traced, nodesIn)).toEqual({
+      state: { ...traced, version: "overlay" },
+      note: "The link opens on Base, which doesn't have traced from route:api/GET /new, so both versions are shown (Overlay).",
+    });
+    const both = state({
+      version: "base",
+      selected: "route:api/GET /new",
+      trace: "route:api/GET /new",
+    });
+    expect(linkedVersion(both, nodesIn).note).toBe(
+      "The link opens on Base, which doesn't have selected route:api/GET /new or traced from route:api/GET /new, so both versions are shown (Overlay).",
     );
   });
 });

@@ -21,7 +21,13 @@ import {
 } from "@gitinside/viewer";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { baseNote, compareGraphs, type BaseView } from "../../../lib/compare";
+import {
+  baseFailedNote,
+  baseNote,
+  compareGraphs,
+  linkedVersion,
+  type BaseView,
+} from "../../../lib/compare";
 import { ignoredNote, shareUrl } from "../../../lib/deepLink";
 import { headStatus, loadGraph, short, type GraphLoad } from "../../../lib/repoStatus";
 import type { HeadState } from "../../../lib/repoView";
@@ -56,6 +62,12 @@ const layoutWorker = () =>
 const onboarding = browserOnboarding();
 
 /**
+ * Set by Stop comparing (M6.11h): the next diagram drawn takes focus. Module-level, since
+ * from the latest commit's page the permalink is another page, so another `RepoDiagram`.
+ */
+const stopping = { pending: false };
+
+/**
  * The diagram page (ADR-0069): a repo bar (name, commit, how it relates to the latest
  * commit), then the diagram. The graph is fetched in the browser from `/api/graph`, so the
  * page itself stays small and the CDN caches the graph per commit. "Add to README" and the
@@ -78,15 +90,21 @@ const onboarding = browserOnboarding();
  * `view`). A base that can't be compared (not a full SHA, never analyzed, another analyzer
  * version) is said in the note, and the diagram is this commit alone. The repo bar names the
  * base commit (linked to GitHub) once it's compared, and with any `base` offers Stop
- * comparing: this commit's permalink with the same state.
+ * comparing: this commit's permalink with the same state, after which focus goes to the
+ * diagram (M6.11h). A linked Base or Head without the link's selection or trace start opens on
+ * the Overlay, said in the note, and Copy link names the Overlay (`linkedVersion`).
  *
- * A graph that fails to load or parse (M4b.12b2), this commit's or the base's, gets the explorer's empty-state card in the
- * error tone where the diagram goes: what happened, why or what to do, and Try again only when
- * another attempt could help. Focus moves to the card, so a keyboard or screen-reader user
- * lands on it.
+ * A graph of this commit that fails to load or parse (M4b.12b2) gets the explorer's empty-state
+ * card in the error tone where the diagram goes: what happened, why or what to do, and Try
+ * again only when another attempt could help. Focus moves to the card, so a keyboard or
+ * screen-reader user lands on it. A base that fails leaves this commit's diagram on screen,
+ * alone, with the reason in the note and, when it could help, a Try again for the base alone
+ * (M6.11h).
  */
 export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiagramProps) {
-  const [loads, setLoads] = useState<{ head: GraphLoad; base?: GraphLoad } | undefined>();
+  const [loads, setLoads] = useState<
+    { head: GraphLoad; base?: GraphLoad; baseUrl: string | undefined } | undefined
+  >();
   // Bumped by "Try again".
   const [attempt, setAttempt] = useState(0);
   const failure = useRef<HTMLDivElement>(null);
@@ -111,13 +129,12 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
   );
   // A base that's a full SHA stays in the link, even one not analyzed yet: it compares once it is.
   const keptBase = base?.status === "ready" || base?.status === "missing" ? base.sha : undefined;
-  // A failed load of either graph goes on the card; head's first.
-  const load =
-    loads === undefined
-      ? undefined
-      : loads.head.ok && loads.base?.ok === false
-        ? loads.base
-        : loads.head;
+  // This commit's failed load goes on the card. The base's leaves this commit on screen, alone,
+  // with a note and its own Try again (M6.11h).
+  const load = loads?.head;
+  const baseFailure = load?.ok && loads?.base?.ok === false ? loads.base : undefined;
+  const [baseRetrying, setBaseRetrying] = useState(false);
+  const baseRetry = useRef<AbortController>(undefined);
   const comparison = useMemo(
     () =>
       loads?.head.ok && loads.base?.ok
@@ -127,14 +144,17 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
   );
   const compared = comparison?.ok ? comparison : undefined;
 
-  // The page's link, read once per loaded graph: the explorer's initial props take it. In
-  // diff mode it names the overlay's nodes (both versions, on head's IDs).
-  const linked = useMemo<DecodedState | undefined>(() => {
+  // The page's link, read once per loaded graph (and again once a retried base compares): the
+  // explorer's initial props take it. In diff mode it names the overlay's nodes (both versions,
+  // on head's IDs), and a Base or Head without the link's selection or trace opens on the
+  // Overlay, said in the note (`linkedVersion`), so Copy link names what's shown.
+  const linked = useMemo<(DecodedState & { versionNote?: string }) | undefined>(() => {
     if (!load?.ok) return undefined;
-    const graph = compared
-      ? buildDiffOverlay(compared.base, load.graph, compared.diff).graph
-      : load.graph;
-    return decodeState(window.location.search, buildHierarchy(graph));
+    if (!compared) return decodeState(window.location.search, buildHierarchy(load.graph));
+    const overlay = buildDiffOverlay(compared.base, load.graph, compared.diff);
+    const decoded = decodeState(window.location.search, buildHierarchy(overlay.graph));
+    const { state, note: versionNote } = linkedVersion(decoded.state, overlay.nodesIn);
+    return versionNote === undefined ? decoded : { state, ignored: decoded.ignored, versionNote };
   }, [load, compared]);
   // The state since the explorer last reported, for Copy link and Stop comparing.
   const [reported, setReported] = useState<ExplorerState>();
@@ -164,7 +184,11 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
     linked && linked !== dismissed
       ? [
           base && baseNote(base, sha),
+          baseFailure && baseSha !== undefined
+            ? baseFailedNote(baseSha, baseFailure, sha)
+            : undefined,
           comparison?.ok === false ? comparison.note : undefined,
+          linked.versionNote,
           ignoredNote(linked.ignored, sha),
         ].filter((text) => text !== undefined)
       : [];
@@ -193,28 +217,95 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
     window.history.replaceState(window.history.state, "", page + hash);
   };
 
+  /** The note's Try again: loads the base alone, leaving this commit's diagram on screen. */
+  const retryBase = () => {
+    if (baseUrl === undefined) return;
+    baseRetry.current?.abort();
+    const controller = new AbortController();
+    baseRetry.current = controller;
+    setBaseRetrying(true);
+    loadGraph(baseUrl, { signal: controller.signal }).then(
+      (baseLoad) => {
+        setBaseRetrying(false);
+        setLoads((current) => current && { ...current, base: baseLoad });
+      },
+      () => {
+        // aborted: the page moved on
+      },
+    );
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
     setLoads(undefined);
     setReported(undefined);
+    setBaseRetrying(false);
     // Side by side: the page waits for the slower one, not for both in turn.
     Promise.all([
       loadGraph(graphUrl, { signal }),
       baseUrl === undefined ? undefined : loadGraph(baseUrl, { signal }),
     ]).then(
       ([headLoad, baseLoad]) =>
-        setLoads(baseLoad ? { head: headLoad, base: baseLoad } : { head: headLoad }),
+        setLoads(
+          baseLoad ? { head: headLoad, base: baseLoad, baseUrl } : { head: headLoad, baseUrl },
+        ),
       () => {
         // aborted: the page moved on
       },
     );
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      baseRetry.current?.abort();
+    };
   }, [graphUrl, baseUrl, attempt]);
 
   useEffect(() => {
     if (load && !load.ok) failure.current?.focus();
   }, [load]);
+
+  // The graphs on screen are of the base the page now names; false between a change of base and
+  // the reload it starts (Stop comparing from a compared base).
+  const fresh = loads === undefined || loads.baseUrl === baseUrl;
+
+  // After Stop comparing (M6.11h): focus waits on the diagram's spot until this commit's diagram
+  // is drawn alone, then goes to its focusable box, so it isn't left on `<body>` when the link
+  // goes. Run when the base goes (a base never compared reloads nothing) and when the load does;
+  // the diagram of the comparison being replaced is never the target. The spot is focusable only
+  // meanwhile: otherwise a click on the empty canvas would take focus out of the explorer.
+  useEffect(() => {
+    const host = canvas.current;
+    if (!stopping.pending || !host) return;
+    if (fresh && load && !load.ok) {
+      stopping.pending = false; // the error card takes focus
+      host.removeAttribute("tabindex");
+      return;
+    }
+    const land = () => {
+      if (!fresh) return false;
+      const box = host.querySelector<HTMLElement>(".gi-drill__node [tabindex='0']");
+      if (!box) return false;
+      stopping.pending = false;
+      box.focus();
+      host.removeAttribute("tabindex");
+      return true;
+    };
+    if (land()) return;
+    if (!host.contains(document.activeElement)) {
+      host.tabIndex = -1;
+      host.focus();
+    }
+    const observer = new MutationObserver(() => {
+      if (land()) observer.disconnect();
+    });
+    observer.observe(host, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["tabindex"],
+    });
+    return () => observer.disconnect();
+  }, [load, base, fresh]);
 
   return (
     <main className="diagram-page">
@@ -249,7 +340,16 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
                 </a>
               </>
             )}
-            <Link href={alone}>Stop comparing</Link>
+            <Link
+              href={alone}
+              onClick={(event) => {
+                // Only when this tab moves on, not for a new tab or window.
+                const elsewhere = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+                stopping.pending = event.button === 0 && !elsewhere;
+              }}
+            >
+              Stop comparing
+            </Link>
           </p>
         )}
         <p className="repo-bar__status" data-tone={status.tone}>
@@ -299,6 +399,16 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
       {note && (
         <div className="diagram-page__note">
           <p aria-hidden="true">{note}</p>
+          {baseFailure?.retry && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={retryBase}
+              aria-busy={baseRetrying || undefined}
+            >
+              Try again
+            </Button>
+          )}
           <IconButton icon="close" label="Dismiss" size="sm" onClick={dismissNote} />
         </div>
       )}
@@ -310,6 +420,8 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
         ) : load.ok ? (
           linked && (
             <Explorer
+              // A base that arrives on Try again starts diff mode afresh, from the link.
+              key={compared ? "compared" : "alone"}
               graph={load.graph}
               topBar={false}
               layoutWorker={layoutWorker}

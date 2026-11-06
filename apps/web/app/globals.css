@@ -805,6 +805,7 @@ code {
 }
 
 .diagram-page__note p {
+  flex: 1;
   margin: 0;
   color: var(--text-muted);
   font-size: var(--font-size-13);
@@ -818,6 +819,12 @@ code {
   flex: 1;
   flex-direction: column;
   min-height: 640px;
+}
+
+/* Focused only while a diagram loads after Stop comparing (M6.11h): a stop on the way to its
+   first box, not a control, so no ring around the whole canvas. */
+.diagram-page__canvas:focus {
+  outline: none;
 }
 
 /* Pinned to the canvas's box, so a long inspector (a trace's steps, a code

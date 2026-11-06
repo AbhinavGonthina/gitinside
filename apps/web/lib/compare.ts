@@ -1,6 +1,7 @@
 import { diffGraphs, IncompatibleGraphsError } from "@gitinside/diff";
 import type { ArchitectureGraph, GraphDiff } from "@gitinside/schema";
-import { short } from "./repoStatus";
+import type { ExplorerState } from "@gitinside/viewer";
+import { short, UNREADABLE_TITLE, type GraphLoad } from "./repoStatus";
 
 /**
  * Diff mode on the website (M6.9e2, ADR-0189): what the diagram page compares its commit
@@ -74,4 +75,52 @@ export function baseNote(base: BaseView, sha: string): string | undefined {
     case "invalid":
       return `The link's base isn't a full commit SHA, so nothing was compared. This is commit ${short(sha)} alone.`;
   }
+}
+
+/**
+ * The note for a base whose graph failed to load or parse (M6.11h, fail visibly): this commit
+ * stays on screen, alone, rather than giving way to an error card, and the note says why
+ * nothing was compared. The card's wording for an unreadable graph ("nothing is shown") would be
+ * wrong here, so that case gets its own words.
+ */
+export function baseFailedNote(
+  baseSha: string,
+  failure: Extract<GraphLoad, { ok: false }>,
+  sha: string,
+): string {
+  const alone = `This is commit ${short(sha)} alone.`;
+  return failure.title === UNREADABLE_TITLE
+    ? `Commit ${short(baseSha)}'s saved diagram couldn't be read, so nothing was compared. ${alone}`
+    : `Commit ${short(baseSha)}'s diagram didn't load, so nothing was compared: ${failure.message} ${alone}`;
+}
+
+/** How the note names Base and Head (the explorer's switch says the same). */
+const VERSION_WORDS = { base: "Base", head: "Head" } as const;
+
+/**
+ * Which nodes each version draws: the overlay's `nodesIn` (`buildDiffOverlay`).
+ */
+export type VersionNodes = Readonly<Record<keyof typeof VERSION_WORDS, ReadonlySet<string>>>;
+
+/**
+ * A link's state as diff mode opens it (M6.11h): a `view` of Base or Head that doesn't have
+ * the link's selection or trace start opens on the Overlay, which has both (the explorer's
+ * `initialVersion` does the same), so Copy link names the version actually shown, and `note`
+ * says what changed and why. A version that has them, or the Overlay, is kept as linked.
+ */
+export function linkedVersion(
+  state: ExplorerState,
+  nodesIn: VersionNodes,
+): { state: ExplorerState; note?: string } {
+  if (state.version === "overlay") return { state };
+  const has = nodesIn[state.version];
+  const lacks = [
+    state.selected !== null && !has.has(state.selected) ? `selected ${state.selected}` : undefined,
+    state.trace !== null && !has.has(state.trace) ? `traced from ${state.trace}` : undefined,
+  ].filter((part) => part !== undefined);
+  if (lacks.length === 0) return { state };
+  return {
+    state: { ...state, version: "overlay" },
+    note: `The link opens on ${VERSION_WORDS[state.version]}, which doesn't have ${lacks.join(" or ")}, so both versions are shown (Overlay).`,
+  };
 }
