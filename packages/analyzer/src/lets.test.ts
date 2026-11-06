@@ -201,6 +201,36 @@ describe("letValues", () => {
     }
   });
 
+  it("reads a `+=` statement as a write whose value is the statement (M5C.10e)", () => {
+    expect(
+      valuesAt(
+        fn(
+          "let url = '/a';",
+          "if (flag) url += '?x=1';",
+          "fetch(url);",
+          "if (other) { url += '&y=2'; } else { url += '&z=3'; }",
+          "fetch(url);",
+          "url += '?w';",
+          "fetch(url);",
+        ),
+      ),
+    ).toEqual(["'/a' | url += '?x=1'", "url += '&y=2' | url += '&z=3'", "url += '?w'"]);
+  });
+
+  it("leaves other compound writes, and a `+=` used as a value, unknown (M5C.10e)", () => {
+    for (const write of [
+      "url -= '/b';",
+      "url ||= '/b';",
+      "url ??= '/b';",
+      "flag && (url += '/b');",
+      "fetch(url += '/b');",
+      "setTimeout(() => { url += '/b'; });",
+    ]) {
+      const [last] = valuesAt(fn("let url = '/a';", write, "fetch(url);")).slice(-1);
+      expect(last, write).toBe("unknown");
+    }
+  });
+
   it("walks the declaring function once per declaration, not once per read", () => {
     const { declaration, reads, refersTo, checks } = compile(
       fn("let url = '/a';", "fetch(url);", "if (flag) url = '/b';", "fetch(url);", "fetch(url);"),

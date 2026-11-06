@@ -63,6 +63,7 @@ const NAMES = [
   "conditional-urls",
   "origin-parameters",
   "local-helpers",
+  "let-query-urls",
   "ambiguous-routes",
   "wrapper-fetch",
   "wrapper-chain",
@@ -732,6 +733,19 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `symbol:${p}/src/notesPanel.ts#notesPanel -> route:${p}/PUT /api/notes/:noteId/pin exact`,
     ]);
     expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
+  });
+
+  it("let-query-urls: a let URL extended inside its query keeps its route (M5C.10e)", async () => {
+    const g = await run("let-query-urls");
+    const p = "let-query-urls";
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/src/player.ts#listTracks -> route:${p}/GET /api/tracks exact`,
+      `symbol:${p}/src/player.ts#listened -> route:${p}/GET /api/history exact`,
+      `symbol:${p}/src/player.ts#playlists -> route:${p}/GET /api/playlists exact`,
+      // The append that may change the path stays visible, not matched to `/:owner`.
+      `symbol:${p}/src/player.ts#playlists -> unresolved:${p}/src/player.ts:30:10 unresolved DYNAMIC_URL`,
+      `symbol:${p}/src/player.ts#showTrack -> route:${p}/GET /api/tracks/:trackId exact`,
+    ]);
   });
 
   it("ambiguous-routes: a tie links to every candidate, weaker, with AMBIGUOUS", async () => {

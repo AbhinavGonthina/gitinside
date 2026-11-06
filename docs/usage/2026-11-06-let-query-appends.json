@@ -1,0 +1,297 @@
+{
+  "about": "Raw measurements behind M5C.10e (docs/COVERAGE.md 'After batch 5', ADR-0166's M5C.10e amendment): how common is a let URL extended with += before a request (let url = ...; if (q) url += `?${q}`; fetch(url)), which before the fix made the let unknown (lets.ts read only plain x = v writes), so the request was DYNAMIC_URL. 'counts': GitHub REST GET /search/code (legacy engine, authenticated) total_count per query on 2026-11-06; the legacy engine drops punctuation, so the quoted phrases match token runs (let url, url, fetch url) and the counts only give scale. 'sample': the first 10 non-fork hits (one per repo) of each of the first two queries, each file read with GET /repos/<repo>/contents/<path> and parsed with TypeScript (never run). 'lets': each let whose name has a `x += ...` and is the first argument of a fetch/axios call, what each append starts with (null: not literal text), and 'queryOnly' (every append starts with ? or &, or the initializer holds a literal ?). 'requests'/'readBefore'/'readAfter': each file analyzed alone as a one-file repo with the built analyzer (eval/dist/usage-lets-analyze.mjs), counting the requests made by a fetch/axios call whose first argument names such a let (matched by name in the file, so a same-named let without += elsewhere in the file counts too), and how many have a read URL: 'readBefore' with this commit's analyzer but += writes rejected as before (lets.ts's old rule), 'readAfter' with the fix. Most unread requests start with a value only known at runtime (this.baseURL, a function's result), which this change doesn't touch. Among the eval checkouts (eval/.repos, every repos.json entry, scanned for let x ... x += in files that request), the form is in batch 5's dotnize/chessu and solid-logic-studios/bucketwise-planner; batch 1's RishiBakshii/mern-ecommerce appends to a let queryString inside .map callbacks, which stays unknown (a write in a nested function).",
+  "date": "2026-11-06",
+  "counts": {
+    "\"let url\" \"url +=\" \"fetch(url\" language:TypeScript": 25088,
+    "\"let url\" \"url +=\" \"fetch(url\" language:JavaScript": 57088,
+    "\"let url\" \"url +=\" \"axios.get(url\" language:JavaScript": 8400,
+    "\"let url\" \"url +=\" \"axios.get(url\" language:TypeScript": 1844
+  },
+  "totals": {
+    "files": 20,
+    "filesWithALetAppendedAndRequested": 11,
+    "filesWhoseEveryLetAppendIsInTheQuery": 8,
+    "requests": 70,
+    "readBefore": 14,
+    "readAfter": 43,
+    "filesGaining": 6
+  },
+  "sample": [
+    {
+      "file": "qq15725/modern-screenshot/src/fetch.ts",
+      "lets": [],
+      "requestCalls": 1,
+      "requests": 1,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "shazow/whatsabi/src/loaders.ts",
+      "lets": [
+        {
+          "line": 510,
+          "name": "url",
+          "appendsStartWith": ["?apikey="],
+          "initHasQuery": false,
+          "queryOnly": true
+        }
+      ],
+      "requestCalls": 2,
+      "requests": 2,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "hayd/deno-udd/registry.ts",
+      "lets": [
+        {
+          "line": 50,
+          "name": "url",
+          "appendsStartWith": ["?after="],
+          "initHasQuery": false,
+          "queryOnly": true
+        }
+      ],
+      "requestCalls": 3,
+      "requests": 11,
+      "readBefore": 3,
+      "readAfter": 11
+    },
+    {
+      "file": "code-rabi/interactive-brokers-mcp/src/http.ts",
+      "lets": [
+        {
+          "line": 83,
+          "name": "url",
+          "appendsStartWith": [null],
+          "initHasQuery": false,
+          "queryOnly": false
+        }
+      ],
+      "requestCalls": 1,
+      "requests": 1,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "rustfs/console/lib/oidc.ts",
+      "lets": [],
+      "requestCalls": 1,
+      "requests": 1,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "skillhub-club/skillhub-desktop/src/api/sync.ts",
+      "lets": [],
+      "requestCalls": 0,
+      "requests": 0,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "Hello-Application-XH/HelloGML/src/utils.ts",
+      "lets": [],
+      "requestCalls": 1,
+      "requests": 1,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "kheina-com/Blue-Blocker/src/shared.ts",
+      "lets": [
+        {
+          "line": 89,
+          "name": "url",
+          "appendsStartWith": ["mutes/users/", "blocks/destr"],
+          "initHasQuery": false,
+          "queryOnly": false
+        },
+        {
+          "line": 414,
+          "name": "url",
+          "appendsStartWith": ["mutes/users/", "blocks/creat"],
+          "initHasQuery": false,
+          "queryOnly": false
+        }
+      ],
+      "requestCalls": 3,
+      "requests": 3,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "jdgwf/battletech-tools/src/utils.ts",
+      "lets": [
+        {
+          "line": 97,
+          "name": "url",
+          "appendsStartWith": ["&AvailableEr", null, null, null, null, "&Name="],
+          "initHasQuery": true,
+          "queryOnly": true
+        }
+      ],
+      "requestCalls": 1,
+      "requests": 1,
+      "readBefore": 0,
+      "readAfter": 1
+    },
+    {
+      "file": "Querijn/BottyMcBotface/src/Pickem.ts",
+      "lets": [
+        {
+          "line": 163,
+          "name": "url",
+          "appendsStartWith": [null, "&user="],
+          "initHasQuery": false,
+          "queryOnly": false
+        }
+      ],
+      "requestCalls": 4,
+      "requests": 4,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "ExodusOSS/cryptocompare/index.js",
+      "lets": [],
+      "requestCalls": 1,
+      "requests": 19,
+      "readBefore": 5,
+      "readAfter": 16
+    },
+    {
+      "file": "LeeluPradhan/G-Index/maker.js",
+      "lets": [
+        {
+          "line": 310,
+          "name": "url",
+          "appendsStartWith": ["?"],
+          "initHasQuery": false,
+          "queryOnly": true
+        },
+        {
+          "line": 321,
+          "name": "url",
+          "appendsStartWith": ["?", "?", "?", "?"],
+          "initHasQuery": false,
+          "queryOnly": true
+        }
+      ],
+      "requestCalls": 6,
+      "requests": 6,
+      "readBefore": 1,
+      "readAfter": 6
+    },
+    {
+      "file": "nazedev/hitori/index.js",
+      "lets": [
+        {
+          "line": 67,
+          "name": "url",
+          "appendsStartWith": ["?"],
+          "initHasQuery": false,
+          "queryOnly": true
+        }
+      ],
+      "requestCalls": 1,
+      "requests": 1,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "the-odds-api/apps-script/Scores.gs",
+      "lets": [],
+      "requestCalls": 0,
+      "requests": 0,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "dangermccann/logseq-template-gallery/api.js",
+      "lets": [
+        {
+          "line": 14,
+          "name": "url",
+          "appendsStartWith": ["&filter="],
+          "initHasQuery": true,
+          "queryOnly": true
+        }
+      ],
+      "requestCalls": 8,
+      "requests": 8,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "leoherzog/WundergroundStationForwarder/code.gs",
+      "lets": [],
+      "requestCalls": 0,
+      "requests": 0,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "jroyal/cloudflare-workers-kv-viewer/index.js",
+      "lets": [
+        {
+          "line": 40,
+          "name": "url",
+          "appendsStartWith": ["?cursor="],
+          "initHasQuery": false,
+          "queryOnly": true
+        }
+      ],
+      "requestCalls": 3,
+      "requests": 3,
+      "readBefore": 2,
+      "readAfter": 3
+    },
+    {
+      "file": "venera-app/venera-configs/wnacg.js",
+      "lets": [],
+      "requestCalls": 1,
+      "requests": 1,
+      "readBefore": 1,
+      "readAfter": 1
+    },
+    {
+      "file": "Sefaria/Sefaria-Mobile/api.js",
+      "lets": [],
+      "requestCalls": 1,
+      "requests": 1,
+      "readBefore": 0,
+      "readAfter": 0
+    },
+    {
+      "file": "xunyixiangchao/goindex/index.js",
+      "lets": [
+        {
+          "line": 75,
+          "name": "url",
+          "appendsStartWith": ["?"],
+          "initHasQuery": false,
+          "queryOnly": true
+        },
+        {
+          "line": 99,
+          "name": "url",
+          "appendsStartWith": ["?"],
+          "initHasQuery": false,
+          "queryOnly": true
+        },
+        {
+          "line": 141,
+          "name": "url",
+          "appendsStartWith": ["?"],
+          "initHasQuery": false,
+          "queryOnly": true
+        }
+      ],
+      "requestCalls": 6,
+      "requests": 6,
+      "readBefore": 2,
+      "readAfter": 5
+    }
+  ]
+}

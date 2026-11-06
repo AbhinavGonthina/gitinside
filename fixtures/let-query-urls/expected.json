@@ -1,0 +1,324 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:let-query-urls/src/player.ts#listTracks",
+      "id": "calls:symbol:let-query-urls/src/player.ts#listTracks->symbol:let-query-urls/src/player.ts#send",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 47,
+          "file": "src/player.ts",
+          "line": 13
+        }
+      ],
+      "to": "symbol:let-query-urls/src/player.ts#send"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:let-query-urls/src/player.ts#showTrack",
+      "id": "calls:symbol:let-query-urls/src/player.ts#showTrack->symbol:let-query-urls/src/player.ts#send",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 47,
+          "file": "src/player.ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:let-query-urls/src/player.ts#send"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:let-query-urls/src/player.ts#listTracks",
+      "id": "http:symbol:let-query-urls/src/player.ts#listTracks->route:let-query-urls/GET /api/tracks",
+      "kind": "http",
+      "label": "GET /api/tracks",
+      "sites": [
+        {
+          "column": 47,
+          "file": "src/player.ts",
+          "line": 13,
+          "request": "GET /api/tracks"
+        }
+      ],
+      "to": "route:let-query-urls/GET /api/tracks"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:let-query-urls/src/player.ts#listened",
+      "id": "http:symbol:let-query-urls/src/player.ts#listened->route:let-query-urls/GET /api/history",
+      "kind": "http",
+      "label": "GET /api/history",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/player.ts",
+          "line": 23,
+          "request": "GET /api/history"
+        }
+      ],
+      "to": "route:let-query-urls/GET /api/history"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:let-query-urls/src/player.ts#playlists",
+      "id": "http:symbol:let-query-urls/src/player.ts#playlists->route:let-query-urls/GET /api/playlists",
+      "kind": "http",
+      "label": "GET /api/playlists",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/player.ts",
+          "line": 30,
+          "request": "GET /api/playlists"
+        }
+      ],
+      "to": "route:let-query-urls/GET /api/playlists"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:let-query-urls/src/player.ts#playlists",
+      "id": "http:symbol:let-query-urls/src/player.ts#playlists->unresolved:let-query-urls/src/player.ts:30:10",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/player.ts",
+          "line": 30
+        }
+      ],
+      "to": "unresolved:let-query-urls/src/player.ts:30:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:let-query-urls/src/player.ts#showTrack",
+      "id": "http:symbol:let-query-urls/src/player.ts#showTrack->route:let-query-urls/GET /api/tracks/:trackId",
+      "kind": "http",
+      "label": "GET /api/tracks/:trackId",
+      "sites": [
+        {
+          "column": 47,
+          "file": "src/player.ts",
+          "line": 14,
+          "request": "GET /api/tracks/{}"
+        }
+      ],
+      "to": "route:let-query-urls/GET /api/tracks/:trackId"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "d4e81ce9ab435870d87aa1a004f61909c4d8c0f0f2cb598cd7bdea9b7bab569f",
+      "id": "file:let-query-urls/src/player.ts",
+      "kind": "file",
+      "label": "player.ts",
+      "parentId": "module:let-query-urls/src",
+      "path": "src/player.ts"
+    },
+    {
+      "hash": "840b0398d5fbbd8d752dcea8f7f1bc1c08ab2b6525868c7d49a25df6d2a8419b",
+      "id": "file:let-query-urls/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:let-query-urls/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:let-query-urls/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:let-query-urls/",
+      "path": "src"
+    },
+    {
+      "id": "route:let-query-urls/GET /api/history",
+      "kind": "route",
+      "label": "GET /api/history",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:let-query-urls/src/server.ts",
+      "path": "/api/history",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:let-query-urls/GET /api/playlists",
+      "kind": "route",
+      "label": "GET /api/playlists",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:let-query-urls/src/server.ts",
+      "path": "/api/playlists",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:let-query-urls/GET /api/playlists/:owner",
+      "kind": "route",
+      "label": "GET /api/playlists/:owner",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:let-query-urls/src/server.ts",
+      "path": "/api/playlists/:owner",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:let-query-urls/GET /api/tracks",
+      "kind": "route",
+      "label": "GET /api/tracks",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:let-query-urls/src/server.ts",
+      "path": "/api/tracks",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:let-query-urls/GET /api/tracks/:trackId",
+      "kind": "route",
+      "label": "GET /api/tracks/:trackId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:let-query-urls/src/server.ts",
+      "path": "/api/tracks/:trackId",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:let-query-urls/",
+      "kind": "service",
+      "label": "let-query-urls",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:let-query-urls/src/player.ts#listTracks",
+      "kind": "symbol",
+      "label": "listTracks",
+      "parentId": "file:let-query-urls/src/player.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 13,
+        "file": "src/player.ts",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:let-query-urls/src/player.ts#listened",
+      "kind": "symbol",
+      "label": "listened",
+      "parentId": "file:let-query-urls/src/player.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 24,
+        "file": "src/player.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:let-query-urls/src/player.ts#playlists",
+      "kind": "symbol",
+      "label": "playlists",
+      "parentId": "file:let-query-urls/src/player.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/player.ts",
+        "line": 26
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:let-query-urls/src/player.ts#send",
+      "kind": "symbol",
+      "label": "send",
+      "parentId": "file:let-query-urls/src/player.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/player.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:let-query-urls/src/player.ts#showTrack",
+      "kind": "symbol",
+      "label": "showTrack",
+      "parentId": "file:let-query-urls/src/player.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 14,
+        "file": "src/player.ts",
+        "line": 14
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "let-query-urls",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(url)",
+      "id": "unresolved:let-query-urls/src/player.ts:30:10",
+      "kind": "unresolved",
+      "label": "GET url",
+      "parentId": "service:let-query-urls/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 10,
+        "file": "src/player.ts",
+        "line": 30
+      }
+    }
+  ],
+  "repo": {
+    "name": "let-query-urls",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# let-query-urls
+
+A `let` URL extended with `+=` (M5C.10e, ADR-0166's amendment). `send(path, query)` starts `let url = \`${API}${path}\`` and appends `?${search}` when there is a query, so it is a wrapper and its callers get their routes (`GET /api/tracks`, `GET /api/tracks/:trackId`). `listened` starts with a literal `?` and appends a different query in each branch, which can't change the path (`GET /api/history`). `playlists` appends `/${owner}` before any `?`, which may change the path: the request without it links `GET /api/playlists`, and the one with it stays unresolved (`DYNAMIC_URL`) rather than guessing `GET /api/playlists/:owner`.

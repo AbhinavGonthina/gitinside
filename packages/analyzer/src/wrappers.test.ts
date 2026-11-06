@@ -158,6 +158,38 @@ describe("inlineWrappers", () => {
     expect(await summary()).toEqual(["src/users.ts:2 GET /api/users/{} [load] <- src/http.ts:4"]);
   });
 
+  it("inlines a wrapper whose let URL is extended with a query by += (M5C.10e)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      'const API = "/api";',
+      "export async function request(path: string, params?: Record<string, string>) {",
+      "  let url = `${API}${path}`;",
+      "  if (params) {",
+      "    const qs = new URLSearchParams(params).toString();",
+      "    if (qs) url += `?${qs}`;",
+      "  }",
+      "  return fetch(url);",
+      "}",
+      "export async function nested(path: string, id: string) {",
+      "  let url = `${API}${path}`;",
+      "  if (id) url += `/${id}`;",
+      "  return fetch(url);",
+      "}",
+    ]);
+    await put("src/users.ts", [
+      'import { nested, request } from "./http";',
+      'export const list = () => request("/users", { page: "2" });',
+      "export const one = (id: string) => request(`/users/${id}`);",
+      'export const sub = () => nested("/teams", "7");',
+    ]);
+    expect(await summary()).toEqual([
+      "src/users.ts:2 GET /api/users [list] <- src/http.ts:8",
+      "src/users.ts:3 GET /api/users/{} [one] <- src/http.ts:8",
+      "src/users.ts:4 GET /api/teams [sub] <- src/http.ts:13",
+      "src/users.ts:4 GET DYNAMIC_URL: the URL starts with a value only known at runtime [sub] <- src/http.ts:13",
+    ]);
+  });
+
   it("inlines methods called on class instances and axios wrappers", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/client.ts", [

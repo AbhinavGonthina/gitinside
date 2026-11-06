@@ -12,12 +12,16 @@
  * - A write inside a loop, `switch`, `try`, or labeled statement that comes before the read (and
  *   doesn't contain it) may or may not have run: its values are added to the earlier ones.
  * - `url = url + "?x"`: the right side reads the values before that write.
+ * - `url += "?x";` statements (M5C.10e, ADR-0166's amendment): the value is the `+=` expression
+ *   itself, whose left reads the values before it; the URL normalizer decides what it reads as
+ *   (only an append inside the query, `url.ts`).
  * - A `let` with no initializer starts with no value: reading it before any write is unknown,
  *   and a path that never writes it adds nothing (it would send `undefined`).
  *
  * Not handled (unknown, so the URL gets a hole):
  * - `var`, exported `let`s, and `let`s in a `for` head.
- * - Any other write: `+=`, `++`, destructuring (`[url] = …`, `({ url } = …)`), `for (url of …)`,
+ * - Any other write: other compound assignments (`-=`, `||=`, `??=`), `++`, a `+=` used as a
+ *   value (`fetch(url += "?x")`), destructuring (`[url] = …`, `({ url } = …)`), `for (url of …)`,
  *   an assignment used as a value (`x && (url = B)`), a write through parentheses, `as`, `!`,
  *   `<T>`, or `satisfies` (`(url as string) = B`), or a write inside a nested function.
  * - A read in a nested function (a callback may run after any write), in the same declaration
@@ -94,7 +98,7 @@ function isWritten(id: ts.Identifier): boolean {
   }
 }
 
-/** A definition: the declaration's initializer or a plain write's right side. */
+/** A definition: the declaration's initializer, a plain write's right side, or a `+=` itself. */
 type Definition = ts.Expression;
 
 /** A `let` whose writes are all plain statements in its own function. */
@@ -105,7 +109,7 @@ interface Writes {
   statement: ts.VariableStatement;
   /** The statements around the `let`, from the block or case clause holding it. */
   statements: readonly ts.Statement[];
-  /** Each `x = value;` statement and its value. */
+  /** Each `x = value;` or `x += value;` statement and its definition. */
   writes: Map<ts.Statement, Definition>;
 }
 
@@ -137,17 +141,22 @@ function writesOf(
     if (ts.isIdentifier(node) && node !== declaration.name && node.text === name) {
       if (refersTo(node) && isWritten(node)) {
         const assignment = node.parent;
+        const op = ts.isBinaryExpression(assignment) ? assignment.operatorToken.kind : undefined;
         const plain =
           ts.isBinaryExpression(assignment) &&
           assignment.left === node &&
-          assignment.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+          (op === ts.SyntaxKind.EqualsToken || op === ts.SyntaxKind.PlusEqualsToken) &&
           ts.isExpressionStatement(assignment.parent) &&
           scopeOf(node) === scope;
         if (!plain) {
           unknown = true;
           return;
         }
-        writes.set(assignment.parent, assignment.right);
+        // `url += v` is `url = url + v`: the statement itself, whose left reads the values before.
+        writes.set(
+          assignment.parent,
+          op === ts.SyntaxKind.PlusEqualsToken ? assignment : assignment.right,
+        );
       }
     }
     ts.forEachChild(node, visit);
