@@ -16,7 +16,7 @@ These are mandatory standards. Nobody reviews each autopilot step, so the tests 
 |---|---|---|---|
 | Unit | Vitest | `packages/*/src/**/*.test.ts` | every push |
 | Golden snapshots | Vitest + fixture repos | `fixtures/<name>/` + `fixtures/<name>/expected.json` | every push |
-| Property | fast-check | `packages/diff`, URL normalizer | every push |
+| Property | fast-check | `packages/diff`, the viewer's diff overlay (on diff's generators), URL normalizer | every push |
 | Determinism | Vitest | analyzer: each fixture analyzed twice, `stringifyGraph` bytes compared | every push |
 | Integration | Vitest over real HTTP (the worker's `POST /run` pushed by a fake Cloud Tasks, a fake GitHub, a fake S3, a fake Google), real Postgres in CI | `apps/web`, `apps/worker`, `packages/db` (PGlite locally, CI's Postgres service when `TEST_DATABASE_URL` is set; ADR-0057) | every push |
 | Component | Storybook stories (every state, light/dark) | `packages/viewer` | every push (build) |

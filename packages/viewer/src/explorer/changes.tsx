@@ -143,6 +143,8 @@ export interface ChangesSectionProps {
   changes: ChangesList;
   /** Only the rows for this node and what's inside it (the selection); the root lists all. */
   within: string;
+  /** Each folded node's row (`DiffOverlay.foldedInto`): a selection folded into one lists that row. */
+  foldedInto: ReadonlyMap<string, string>;
   /** Fly to a row's node, drilling down to it. */
   onSelect: (id: string) => void;
 }
@@ -151,14 +153,28 @@ export interface ChangesSectionProps {
  * The changes list: a group per state with what it stands for counted, each
  * row the node's icon and name, then its change in words. Groups with no
  * rows are left out; the repo overview says when nothing changed, and a
- * selection with no changes in it shows no section.
+ * selection with no changes in it shows no section. A selection folded into
+ * an added or removed row (a file of an added service) lists that row too,
+ * since its frame counts those changes (M6.11g).
  */
-export function ChangesSection({ index, changes, within, onSelect }: ChangesSectionProps) {
+export function ChangesSection({
+  index,
+  changes,
+  within,
+  foldedInto,
+  onSelect,
+}: ChangesSectionProps) {
   const headingId = useId();
   const all = within === index.root.id;
+  const host = foldedInto.get(within);
   const groups = GROUPS.map((g) => ({
     ...g,
-    rows: changes[g.status].filter((r) => all || isWithin(index, r.id, within)),
+    rows: changes[g.status].filter(
+      (r) =>
+        all ||
+        isWithin(index, r.id, within) ||
+        (r.id === host && (g.status === "added" || g.status === "removed")),
+    ),
   })).filter((g) => g.rows.length > 0);
   if (groups.length === 0 && !all) return null;
   return (

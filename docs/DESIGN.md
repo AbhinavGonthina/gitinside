@@ -284,8 +284,9 @@ For each call (method M, pattern P), compare with every route (method M', patter
 - `added(diff(a, b)) == removed(diff(b, a))`.
 - Broken edges never point to nodes that exist unchanged in head.
 - The diff doesn't depend on the order of nodes, edges, sites, or warnings in its inputs.
+- The viewer's overlay accepts every diff (`packages/viewer/src/model/diff.properties.test.ts`, M6.11g): `buildDiffOverlay` never throws, its graph is valid, each version is a tree holding that version's nodes, and every added or removed node is listed as a row or folded into one.
 
-`packages/diff/src/properties.test.ts` builds base/head pairs from a fixed universe of node slots read off one choice vector, head being base's vector with 5–30% of the choices replaced, so pairs share most IDs and include renames (by hash and by content), changed route methods, and calls that became unresolved. A seeded check that the sampled pairs reach every broken-edge reason keeps the properties from passing vacuously.
+`packages/diff/src/testkit.ts` (exported as `@gitinside/diff/testkit` for the viewer's tests) builds base/head pairs from a fixed universe of node slots read off one choice vector, head being base's vector with 5–30% of the choices replaced, so pairs share most IDs and include renames (by hash and by content), changed route methods, and calls that became unresolved. A seeded check that the sampled pairs reach every broken-edge reason keeps the properties from passing vacuously.
 
 **Layout stability:** the viewer lays out head with base positions pinned for nodes that exist in both, and only new nodes are placed (ELK `interactive` layering with fixed positions).
 

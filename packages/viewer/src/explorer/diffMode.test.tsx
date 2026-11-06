@@ -710,6 +710,26 @@ describe("Explorer diff mode's changes list", { timeout: 30_000 }, () => {
     expect(changes()).toBeNull();
   });
 
+  it("shows the row a selection is folded into, rather than nothing (M6.11g, U2)", async () => {
+    const symbol = `symbol:${P}/src/legacy.ts#formatCents`;
+    expect(overlay.foldedInto.get(symbol)).toBe(LEGACY);
+    await setup({ initialOpen: [SERVICE, SRC, LEGACY], initialSelected: symbol });
+    expect(changes()?.querySelector("h3")?.textContent).toBe("Changes here");
+    expect(groups()).toEqual(["Removed2"]);
+    const names = within(changes()!)
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label"));
+    expect(names).toEqual(["Removed: legacy.ts, file. File · src/legacy.ts · 1 more inside"]);
+    // Its row flies to the file it's folded into.
+    fireEvent.click(row("Removed: legacy.ts")!);
+    await settle();
+    await waitFor(
+      () =>
+        expect(document.querySelector(".gi-inspector__header h2")?.textContent).toBe("legacy.ts"),
+      { timeout: 10_000 },
+    );
+  });
+
   it("shows a row Head doesn't have on the overlay, and says so", async () => {
     const { box } = await setup();
     const views = screen.getByRole("radiogroup", { name: "Diff view" });

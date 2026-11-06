@@ -112,6 +112,12 @@ export interface DiffOverlay {
   /** Changes below each node (not counting itself), for every ancestor of a change. */
   inside: ReadonlyMap<string, Readonly<DiffCounts>>;
   changes: ChangesList;
+  /**
+   * Each added or removed node that has no row of its own, by the ID of the
+   * row it's folded into (counted in that row's `inside`), so a selection
+   * inside a folded row can show that row (M6.11g).
+   */
+  foldedInto: ReadonlyMap<string, string>;
 }
 
 /** Thrown when a diff wasn't computed from the two graphs it's paired with. */
@@ -249,6 +255,7 @@ export function buildDiffOverlay(
     edges: [...head.edges, ...removedEdges].sort(byId),
   };
   const all = new Map(graph.nodes.map((n) => [n.id, n]));
+  const foldedInto = new Map<string, string>();
 
   // A node whose parent changed sits under its head parent; base still draws
   // that parent around it (as a plain frame), so each version stays a tree.
@@ -275,7 +282,8 @@ export function buildDiffOverlay(
     baseNodes: baseNodeRecords,
     baseEdges: baseEdgeRecords,
     inside: countInside(all, nodes, broken),
-    changes: changesList(all, nodes, broken, diff, renamedFrom),
+    changes: changesList(all, nodes, broken, diff, renamedFrom, foldedInto),
+    foldedInto,
   };
 }
 
@@ -425,6 +433,8 @@ function changesList(
   broken: ReadonlyMap<string, BrokenConnection>,
   diff: GraphDiff,
   renamedFrom: ReadonlyMap<string, GraphNode>,
+  /** Filled with each folded node's row. */
+  foldedInto: Map<string, string>,
 ): ChangesList {
   const depth = (id: string): number => [...ancestorsOf(all, id)].length;
   const item = (id: string, status: ChangeStatus): ChangeItem => {
@@ -448,6 +458,7 @@ function changesList(
         const row = rows.get(a.id);
         if (row) {
           row.inside++;
+          foldedInto.set(id, row.id);
           break;
         }
       }
