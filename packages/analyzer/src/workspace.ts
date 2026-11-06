@@ -229,7 +229,9 @@ export function findCycles(graph: ReadonlyMap<string, readonly string[]>): strin
  *   by the root `project.json` `name` (`api`, not the package.json's `@api/source`), which
  *   stays its importable `packageName` (M6.11j).
  * - Warnings for invalid JSON/YAML, invalid `workspaces`, patterns matching nothing,
- *   duplicate package names, and circular runtime dependencies between packages.
+ *   duplicate package names, and circular runtime dependencies between packages. Both of
+ *   the last go by `packageName` (what dependencies and imports name), so a nameless package
+ *   is in neither, and an Nx standalone root counts as `@api/source`, not `api` (M6.11n3).
  *
  * Not handled: without workspace config, deeper folders with a `package.json`
  * (`apps/web/`) stay part of the service that contains them; a workspace root's own files
@@ -434,10 +436,15 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
     });
   }
 
+  // Dependencies and imports name packages by their package.json name, so duplicates and
+  // cycles are checked by it: labels (an Nx root's project name, a folder) can't be depended
+  // on, and a nameless package is in neither check (M6.11n3).
   const runtimeDeps = new Map<string, string[]>();
   const packages: WorkspacePackage[] = assignKeys(raw).map((r) => {
     const runtime = dependencyNames(r.manifest, RUNTIME_DEP_FIELDS);
-    if (!runtimeDeps.has(r.name)) runtimeDeps.set(r.name, runtime);
+    if (r.packageName !== undefined && !runtimeDeps.has(r.packageName)) {
+      runtimeDeps.set(r.packageName, runtime);
+    }
     const framework = FRAMEWORKS.find((f) => runtime.includes(f.dep))?.framework;
     return {
       key: r.key,
@@ -451,7 +458,9 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
   });
 
   const byName = new Map<string, string[]>();
-  for (const p of packages) byName.set(p.name, [...(byName.get(p.name) ?? []), p.dir]);
+  for (const { packageName: name, dir } of packages) {
+    if (name !== undefined) byName.set(name, [...(byName.get(name) ?? []), dir || "."]);
+  }
   for (const [name, dirsWithName] of byName) {
     if (dirsWithName.length > 1) {
       warnings.push(
