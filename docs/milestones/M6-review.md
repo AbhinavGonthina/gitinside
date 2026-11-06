@@ -1,6 +1,6 @@
 # M6 review: Graph diff + incremental analysis
 
-**Status: draft (M6.11a, 2026-11-04).** The review's findings are planned as M6.11b–j; M6.11k re-runs the checks, fills in the outcomes, and tags `m6`. · **Range:** M6 commits from `8f353e3` (M6.1) to `3ee3ad3` (M6.10), interleaved with M5A, M5B, and M5C (#13, #15, #18) · **Checked at:** `3ee3ad3`
+**Status: draft (M6.11a, 2026-11-04; re-checked in M6.11k, 2026-11-06).** The first review's findings were fixed in M6.11b–j3 (outcomes below). M6.11k re-ran the checks (all green) and a second review of those fixes, whose findings R1–R8 are planned as M6.11l–n; M6.11o re-runs the checks once more and tags `m6`. · **Range:** M6 commits from `8f353e3` (M6.1) to `3ee3ad3` (M6.10), interleaved with M5A, M5B, and M5C (#13, #15, #18) · **Checked at:** `3ee3ad3`
 
 ## What was built
 
@@ -37,6 +37,10 @@ M6 gives GitInside its two "over time" abilities: comparing two versions of a re
   | 10 real consecutive commits, median per commit | 35.3 s | 36.1 s | 0.99× (0.96–5.27×) |
 
   Nine of the ten real commits touch `packages/lib`, which nearly every service imports, so they re-collect 88–90 services and run at parity. DESIGN.md's "≤ 10 s after a 10-file change" budget is **not met** and now says so (this review, C4).
+- **Re-check after the fixes (M6.11k, local at `bff0187`):**
+  - Tests, uncached (`npx turbo run test --force --concurrency=1 --continue`, 15 of 15 tasks, 0 cached): 4,393 passed, 4 skipped. Analyzer 1,419, viewer 1,115, web 689, worker 639 (+1 skipped), db 152 (+3 skipped), diff 135, eval 114, bench 95, schema 35. Nothing failed or was rerun.
+  - Coverage (CI run 42226785666 on `bff0187`): analyzer 97.65% lines, 91.14% branches; diff 99.07% / 93.27%. Every other package is at or above 94.73% lines: viewer 99.3%, db 99.18%, web 98.09%, worker 95.66%, eval 99.66%, bench 100%, schema 94.73%. M6's files: `broken.ts` 98.84% / 94.52%, `rename.ts` 98.42% / 91.38%, `diff.ts` 100% / 97.95%, `mermaid.ts` 99.16% / 89.09%, `incremental.ts` 100% / 90.42%, `cache.ts` 94.08% / 93.84% (down from 97.07% lines: M6.11f's temp-file branches), `workspace.ts` 99.7% / 95.81%, viewer `model/diff.ts` 100% / 94.9%, web `lib/compare.ts` 100% / 88%.
+  - `pnpm eval --check`: `eval/results/2026-11-06-0.2.0.md` reproduced byte for byte.
 - **Accuracy:** M6 changes no matching. Its analyzer commits were refactors with no output change (goldens and eval unchanged), plus M6.4b's new facts (parameter counts, Prisma field names), which re-recorded the report with the same scores.
 
 ## Key decisions and trade-offs
@@ -61,7 +65,7 @@ Every incremental test compares warm and cold bytes over fixture edits (edit, ad
 
 - **Real commits don't speed up on a shared-library monorepo:** cal.com's real commits run at parity because one shared package reaches 88 services. The cache only skips unchanged services; re-collecting one is no cheaper. Finer-grained invalidation (per file within a service) wasn't attempted.
 - **Broken-route detection drifted from the matcher** (C2, fixed in M6.11c): routes reached through example-env prefixes, dev proxies, or `basePath` were never flagged. A call whose text changed in the same commit and reaches its old route only through one of those forms still isn't.
-- **Inline Express handlers' calls aren't drawn** (smoke S2, from M1, not M6): a route's trace stops at the route, and a PR that removes a function those handlers call flags nothing.
+- **Inline Express handlers' calls weren't drawn** (smoke S2, from M1, not M6; fixed in M6.11d): code at a module's top level, outside any handler, still makes no `calls` edge.
 - **A rename plus an edit in one commit is a removal and an addition:** `creatArticle` → `createArticle` with about 15 lines added scores under the 0.8 body threshold (see the smoke test). This is by design (ADR-0086), but it's the common shape of a real rename.
 - **Exports don't mark changes** (U1, fixed in M6.11e for Base and Head): the Overlay exports head, saying so, rather than an image of the changes.
 - **Uninstall deletion of the worker cache reaches one instance** (C5): planned into M8.5 rather than fixed now.
@@ -128,6 +132,35 @@ The built CLI was run as a user would, on real public repos outside the eval (20
 - **Inline handlers' calls are missing:** all 21 routes are inline arrow handlers, and their calls into the services (`createArticle(…)`) have no edge and no unresolved node. The calls from those handlers aren't in the graph at all (S2 → M6.11d).
 - **Cache and determinism:** the same diff with a warm cache and with no cache gave the same bytes (SHA-256 `69d35ad04d87…` all three times). `analyze` of HEAD with the cache: 108 nodes (21 routes, 39 symbols, 4 models), 105 edges, no warnings.
 - **Mermaid summary of 0cb3c85:** one service, the `Article` model, an "Added reads, writes" line (green) and a "Removed writes" line (red, dashed).
+- **Outcome (M6.11d, re-run in M6.11k on `bff0187`, no cache):** 19 of the 21 routes now have `calls` edges into the services (`POST /api/articles` → `createArticle`). The two without are `GET /` and `GET /api-docs`, which call no repo function. HEAD: 108 nodes, 124 edges (50 `calls`), no warnings. The diff `b3de3d5` → `6ac99ea`: nodes 2 added, 2 removed, 15 modified, 16 updated; edges 15 added, 6 removed, 6 modified, 19 updated; 0 broken, no warnings. Two runs gave the same bytes (SHA-256 `fc7d0f495f20…`).
+
+## Second fresh-eyes review (M6.11k)
+
+A new subagent with no prior context reviewed the fix commits M6.11b–j3 read-only against SPEC.md, DESIGN.md, TESTING.md, and SECURITY.md. It found nothing high-severity, and every fix addresses its finding.
+
+It confirmed the following:
+- `TARGET_MOVED` arises only for file imports.
+- The `request` label equals the unresolved node's label.
+- Inline-handler owners are bound after Express composition.
+- `versionView` filters to the version's own records.
+- Temp files count toward the cache's total and are never evicted.
+- The overlay property test asserts that renames and breaks actually occur.
+- The rename lookup budget is computed correctly and orders groups deterministically.
+- The Nx root naming has tests.
+- The ADR amendments and "not handled" lists match the code.
+
+I checked R1 and R3 in the code before planning them.
+
+| # | Severity | Finding | Outcome |
+|---|---|---|---|
+| R1 | Medium (a11y, confirmed) | U6's glyph skips broken lines, and at `outline` every edge pill is hidden (`drill.css`), broken ones too. With reduced motion (no pulse), a broken line differs from a heuristic dashed line by color and 1 px only (WCAG 1.4.1). | Planned as M6.11l |
+| R2 | Low–medium (confirmed) | The failed-base note's Try again unmounts on success and the explorer remounts, so a keyboard user's focus drops to `<body>` (U4's bug in a new place). A retry that fails again leaves the note's text unchanged, so nothing is announced. | Planned as M6.11m |
+| R3 | Low (confirmed) | The C3 guard checks the digest, not the bump: pasting the printed digest without bumping `KEY_FORMAT` passes, which is M5B.7e's failure mode again. | Planned as M6.11n: a digest per format, and no two formats may share one |
+| R4 | Low (confirmed) | Past `maxFilePairs` or `maxShingleLookups`, a skipped same-name group's moves show as removals and additions with nothing saying rename detection stopped short (fail visibly). | Planned as M6.11n |
+| R5 | Low (plausible) | Sites are de-duplicated by location, so of two requests at one site matching one route, only the first one's `request` text is kept, and a change to the second alone isn't flagged through C2's path | Planned as M6.11n: list it in `detectBroken`'s "not handled" note |
+| R6 | Low (confirmed) | An Nx standalone root's `name` is now its `project.json` name, but `runtimeDeps` and `DUPLICATE_PACKAGE_NAME` still key on `name`, not the importable `packageName`: a false duplicate warning against a lib named `api`, and a cycle through `@api/source` isn't seen | Planned as M6.11n |
+| R7 | Low (confirmed) | After Stop comparing, if the new diagram has no focusable box, the pending focus flag never clears, and the next diagram drawn in that tab takes focus | Planned as M6.11m |
+| R8 | Low (confirmed) | `linkedVersion`'s note shows raw node IDs ("doesn't have selected symbol:apps/api/src/a.ts#foo") | Planned as M6.11m: the node's label |
 
 ## Interview questions
 
