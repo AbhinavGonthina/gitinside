@@ -30,9 +30,13 @@
  *   resolved with WHATWG rules when both sides are literal; a root-relative `url` (`/x`)
  *   keeps only the base's origin, which may be an env var or `location.origin`.
  * - A ternary, and a local `let` read where several values may reach it (`lets.ts`): one
- *   value when every option normalizes to the same parts, else a hole; `alternatives()`
- *   instead gives one URL per option (M5A.3h, ADR-0166), so `cond ? "/a" : "/b"` is two
- *   requests, and `/x${page ? "?page=" + page : ""}` is one.
+ *   value when every option normalizes to the same parts, their shared start and a hole
+ *   when they agree up to a literal `?`, else a hole; `alternatives()` instead gives one URL
+ *   per option (M5A.3h, ADR-0166), so `cond ? "/a" : "/b"` is two requests, and
+ *   `/x${page ? "?page=" + page : ""}` is one.
+ * - A `let` extended by `url += v;` (M5C.10e, ADR-0166's amendment) when the append is in the
+ *   query: `v` starts with `?` or `&`, or `url` already holds a literal `?`
+ *   (`url += \`?${qs}\``, `url += "&page=" + n`). Any other `+=` (`url += "/" + id`) is a hole.
  * - axios `baseURL` + URL combined the way axios does: an absolute URL ignores the base;
  *   otherwise one `/` joins them. An ofetch `baseURL` (`baseJoin: "withBase"`, M5C.3c) joins
  *   the same way, except that a URL already starting with the base is left alone (ufo's
@@ -83,6 +87,8 @@
  * read in the caller's scope. Only the property named `queryKey` is followed through a pattern.
  *
  * Not handled (each becomes a hole, so usually `DYNAMIC_URL`):
+ * - A `+=` that may change the path (`url += "/" + id`, `url += suffix()` before any `?`),
+ *   though `url = url + "/" + id` is read (ADR-0166).
  * - `var` variables, `let`s `lets.ts` can't follow, destructured parameters other than a
  *   context's `queryKey`, `queryKey.join("/")`, a key element read at a computed index, array
  *   `.join()`, `.concat()`, `path.join`, `URLSearchParams` built into the path.
@@ -329,6 +335,45 @@ export function mergeParts(parts: readonly UrlPart[]): UrlPart[] {
     out.push(part);
   }
   return out.length > MAX_PARTS ? [OVERFLOW_HOLE] : out;
+}
+
+/** True when a literal `?` has started the query somewhere in the parts. */
+const hasQuery = (parts: readonly UrlPart[]): boolean =>
+  parts.some((p) => p.kind === "text" && p.text.includes("?"));
+
+/** The longest start two strings share. */
+function sharedStart(a: string, b: string): string {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return a.slice(0, i);
+}
+
+/**
+ * Options that agree up to and including a literal `?`, so they differ only in the query
+ * (M5C.10e): that shared start, then a hole. `undefined` when they differ before any `?`.
+ */
+function queryStart(options: readonly UrlPart[][]): UrlPart[] | undefined {
+  const [head, ...rest] = options.map((p) => mergeParts(p));
+  if (!head) return undefined;
+  const out: UrlPart[] = [];
+  for (const [i, part] of head.entries()) {
+    const key = JSON.stringify(part);
+    if (rest.every((l) => JSON.stringify(l[i]) === key)) {
+      out.push(part);
+      if (hasQuery([part])) return [...out, HOLE];
+      continue;
+    }
+    // The first part that differs: the texts' shared start, if the `?` is in it.
+    if (part.kind !== "text") return undefined;
+    let shared = part.text;
+    for (const l of rest) {
+      const other = l[i];
+      if (other?.kind !== "text") return undefined;
+      shared = sharedStart(shared, other.text);
+    }
+    return shared.includes("?") ? [...out, text(shared), HOLE] : undefined;
+  }
+  return undefined;
 }
 
 /** True when merged parts start with `scheme://` or `//`. */
@@ -845,7 +890,8 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   /**
    * One of several values an expression may have (ternary branches, a `let`'s reaching
    * values). Following one path in `alternatives`, the path's option; otherwise the value
-   * when every option reads the same, else a hole.
+   * when every option reads the same, their shared start and a hole when they differ only
+   * after a literal `?` ({@link queryStart}), else a hole.
    */
   const choose = (options: readonly (() => UrlPart[])[]): UrlPart[] => {
     const [only] = options;
@@ -858,7 +904,8 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     }
     const all = options.map((option) => option());
     const first = JSON.stringify(all[0]);
-    return all.every((p) => JSON.stringify(p) === first) && all[0] ? all[0] : [HOLE];
+    if (all.every((p) => JSON.stringify(p) === first) && all[0]) return all[0];
+    return queryStart(all) ?? [HOLE];
   };
 
   /**
@@ -1333,6 +1380,15 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       const op = e.operatorToken.kind;
       if (op === ts.SyntaxKind.PlusToken) {
         return mergeParts([...partsOf(sp, e.left, hops + 1), ...partsOf(sp, e.right, hops + 1)]);
+      }
+      if (op === ts.SyntaxKind.PlusEqualsToken) {
+        // A `let`'s `url += v;` (lets.ts) is read only inside the query: `v` starts with `?` or
+        // `&`, or a literal `?` is already in `url` (M5C.10e). Any other append is a hole.
+        const left = mergeParts(partsOf(sp, e.left, hops + 1));
+        const right = mergeParts(partsOf(sp, e.right, hops + 1));
+        const [first] = right;
+        const query = first?.kind === "text" && /^[?&]/.test(first.text);
+        return query || hasQuery(left) ? mergeParts([...left, ...right]) : [HOLE];
       }
       if (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken) {
         // `process.env.API_URL ?? "http://localhost:3000/api"`: the env var is the base, and

@@ -1001,6 +1001,70 @@ describe("createUrlNormalizer", () => {
     ]);
   });
 
+  it("reads a let extended with a query by += (M5C.10e)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'const BASE = "/api";',
+      "declare const runtime: () => string;",
+      "export async function load(id: string, flag: boolean, q?: string) {",
+      "  let url = `${BASE}/items`;",
+      "  if (q) url += `?q=${q}`;",
+      "  await fetch(url);",
+      "  let page = `${BASE}/games?`;",
+      "  if (flag) page += `id=${id}`;",
+      "  else page += 'all=1';",
+      "  await fetch(page);",
+      "  let more = '/api/list?a=1';",
+      "  more += '&b=' + id;",
+      "  more += runtime();",
+      "  await fetch(more);",
+      "  let seg = '/api/users';",
+      "  if (flag) seg += '/' + id;",
+      "  await fetch(seg);",
+      "  let tail = '/api/a';",
+      "  tail += runtime();",
+      "  await fetch(tail);",
+      "  let both = '/api/x';",
+      "  if (flag) both += '?one';",
+      "  both += '&two';",
+      "  await fetch(both);",
+      "}",
+    ]);
+    const dynamic = "DYNAMIC_URL: the URL starts with a value only known at runtime";
+    expect(await alternativesOf()).toEqual([
+      "src/api.ts:6 /api/items",
+      "src/api.ts:10 /api/games",
+      "src/api.ts:14 /api/list",
+      `src/api.ts:17 /api/users | ${dynamic}`,
+      `src/api.ts:20 ${dynamic}`,
+      "src/api.ts:24 /api/x&two | /api/x",
+    ]);
+    // One reading: options that agree up to a literal `?` are that start and a hole after it.
+    expect(await normalized()).toEqual([
+      `src/api.ts:6 ${dynamic}`,
+      "src/api.ts:10 /api/games",
+      "src/api.ts:14 /api/list",
+      `src/api.ts:17 ${dynamic}`,
+      `src/api.ts:20 ${dynamic}`,
+      `src/api.ts:24 ${dynamic}`,
+    ]);
+  });
+
+  it(`reads a query built by many appends after a literal ? past ${MAX_PATHS} paths (M5C.10e)`, async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      "export async function search(a?: string, b?: string, c?: string, d?: string) {",
+      "  let url = '/api/search?limit=10';",
+      "  if (a) url += '&a=' + a;",
+      "  if (b) url += '&b=' + b;",
+      "  if (c) url += '&c=' + c;",
+      "  if (d) url += '&d=' + d;",
+      "  await fetch(url);",
+      "}",
+    ]);
+    expect(await alternativesOf()).toEqual(["src/api.ts:7 /api/search"]);
+  });
+
   it(`falls back to one URL past ${MAX_PATHS} paths (M5A.3h)`, async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/api.ts", [
