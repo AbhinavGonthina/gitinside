@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5C.8b Batch 5 labels: split into b1–b4 (4 repos each, pin order) first, then label b1 (#18 option 2; M5.14b4 waits on #22)
+M5C.8b2 Batch 5 labels, repos 5–8 (SyncUP, online-auction-system, Resonance, chessu), committed with their `repos.json` entries before any run, under ADR-0209's rules and its M5C.8b1 amendment (M5.14b4 waits on #22)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -342,7 +342,11 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M5C.8 Fresh blind batch 5 after M5C.7, by ADR-0208's rule (same two strata and queries, 8 pins each, a new seed; repos already in `eval/repos.json` excluded), labels committed before any run, scored once; split like M5C.5:
 - [x] M5C.8a1 The rule, committed before any candidate list is fetched: `eval/draws/batch-5.json` (seed, the exclusion of batches 1–4 and the original set), EVALUATION.md §1, `draw.ts` support for exclusions if missing; tests {model: opus}
 - [x] M5C.8a2 The draw: snapshot, walk each stratum in `draw status 5` order recording every pin or rejection until 8 pins per stratum; no labels yet {model: opus}
-- [ ] M5C.8b Batch 5 labels, split into b1–b4 (4 repos each) before starting, each committed with its `repos.json` entries (`"heldOut": 5`, batch 5 `"seen": null`), no `pnpm eval` until M5C.8c {model: opus}
+- M5C.8b Batch 5 labels drafted from the code and committed before any run, split into b1–b4 in the draw's pin order (4 repos each, each committed with its `repos.json` entries, `"heldOut": 5`; batch 5 declared `"seen": null`; no `pnpm eval` until M5C.8c, so the committed report stays stale meanwhile):
+- [x] M5C.8b1 Label `wiseweb-works/mern-bookstore`, `solid-logic-studios/bucketwise-planner`, `nz-m/SocialEcho`, `erayendes/kortext` (`elyse502/PingUp` rejected on rule 4 while labeling, walk continued to `dotnize/chessu`, ADR-0208's amendment) {model: opus}
+- [ ] M5C.8b2 Label `DOodle25/SyncUP`, `theavnishkumar/online-auction-system`, `Vishwajit1610/Resonance`, `dotnize/chessu` {model: opus}
+- [ ] M5C.8b3 Label `leswww/agentboard-ce`, `g089h515r806/nextcrawler`, `SamurAIGPT/ai-headshot-generator`, `Farbyte/lawson` {model: opus}
+- [ ] M5C.8b4 Label `sahitya-chandra/DSA-Round-Robin`, `BharathxD/DevCircle`, `yigehaozi/relay-status-monitor`, `rakibutsho/SPIDER_NODE-uptime-tracker`; EVALUATION.md's batch 5 table {model: opus}
 - [ ] M5C.8c Score batch 5 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 {model: opus}
 
 ### M6 (continued)
@@ -394,6 +398,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **M5C.8b1 (2026-11-05):** M5C.8b split into b1–b4 (`4503cab`). Labeled mern-bookstore 10, bucketwise-planner 32, SocialEcho 67 (6 null), and kortext 103 at 93 sites (tests count as source): 212 labels, pinned `"heldOut": 5`, batch 5 unseen, nothing analyzed. PingUp (draw pin 4) failed rule 4 under the env-base rule (`VITE_BASEURL` has no value anywhere), so it was re-recorded as rejected and the walk went on (FireCode, frontend-boilerplate, authenticate rejected on rule 4; chessu pinned): ADR-0208 amendment. ADR-0209 amendment: Flask and RegExp routes `null`, literal-array loops give alternatives, `EventSource` not labeled. No eval delta.
 - **M5C.8a2 (2026-11-05):** batch 5's walk (`fa4ad4f`; pools snapshotted in `63aeb38`). `react-express` 8 pins of 11 read (rejections: rule 3, 4, 5 once each); `nextjs-prisma` 8 of 13 (rule 3 tRPC only, rule 4 ZenStack hooks, rule 5 ×3). An earlier run had recorded the walk uncommitted; every pin's SHA, MIT license, and file count (22–251) and every rejection's fact were re-checked from the clones first. `validate` and `draw status 5` pass; EVALUATION.md §1 records the draw. No eval delta.
 - **M5C.8a1 (2026-11-05):** `eval/draws/batch-5.json`: batch 4's strata, queries, and quota, seed `2026-11-05` (only totals read: 291, 305), and a committed `exclude` list of 278 repos (the 28 in `repos.json`, 26 candidates read and not pinned for batches 1–4 incl. batch 4's 2 past-quota reads, 224 named in `docs/usage/`). `drawOrder` drops them before the shuffle; `drawProblems` fails an unsorted list or a read of an excluded repo; `drawCrossCheck` fails a list missing an earlier batch's repo or an earlier draw's candidate (ADR-0208 amendment, EVALUATION.md §1). 6 new tests, eval 114.
   Eval: no delta (draw records aren't inputs); report re-recorded for the commit line, `--check` byte-for-byte. Commits `c90dc94`, report `e1c90ce`.
