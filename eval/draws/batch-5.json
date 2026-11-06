@@ -1417,7 +1417,71 @@
           "Zlvsky/realm-of-dungeons"
         ]
       },
-      "examined": []
+      "examined": [
+        {
+          "repo": "wiseweb-works/mern-bookstore",
+          "verdict": "pinned",
+          "sha": "529623977b91fce552469d054df063425d0ffe19",
+          "reason": "spa-plus-express: Vite React TS SPA with RTK Query endpoints (5 in redux/features/books/booksApi.ts, 2 in orders/ordersApi.ts) plus 3 axios calls to `${getBaseUrl()}/api/...`; Express mounts /api/books, /api/orders, /api/auth, /api/admin routers in backend/index.js; ~10 requests; ~56 files"
+        },
+        {
+          "repo": "solid-logic-studios/bucketwise-planner",
+          "verdict": "pinned",
+          "sha": "27ff33ad401dd8d2c565cf4f6009f418e512cb76",
+          "reason": "env-api-urls: Vite React TS SPA whose fetch wrappers request()/requestAuth() in frontend/src/api/client.ts build VITE_API_BASE || '/api' + path and VITE_AUTH_BASE || '/auth' + path (~30 one-line methods); Express mounts /auth and /api/* routers in backend/src/presentation/http/app.ts; pnpm workspace; ~260 files"
+        },
+        {
+          "repo": "HasanMt12/Hospital_management_client",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): a client-only CRA repo with no server code; every fetch goes to the deployed hospital-management-server-one.vercel.app"
+        },
+        {
+          "repo": "oslabs-beta/kafkalerts",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): only 4 fetch call sites in client/src, two of them to Prometheus ('prometheus', BrokersContainer's resource); 2 reach server/index.js's Express routes"
+        },
+        {
+          "repo": "nz-m/SocialEcho",
+          "verdict": "pinned",
+          "sha": "4dc6c7822bfff5c0b13e1b8098e8d7ae0084939a",
+          "reason": "axios-baseurl: CRA SPA with axios.create({ baseURL: process.env.REACT_APP_API_URL }) instances in client/src/redux/api/utils.js, used by ~55 API.get/post/... calls across client/src/redux/api/*.js; Express mounts /auth, /users, /posts, /communities, /admin in server/app.js; ~178 files"
+        },
+        {
+          "repo": "omercikan/nexthire",
+          "verdict": "rejected",
+          "reason": "Rule 5 (size): 638 TS/JS source files (git ls-files; none under node_modules or build output, one minified pdf.worker), over 400"
+        },
+        {
+          "repo": "elyse502/PingUp",
+          "verdict": "pinned",
+          "sha": "d6208a0101ce0257453682e6f82192f80d44ae74",
+          "reason": "axios-baseurl: Vite React SPA with one axios instance (baseURL: VITE_BASEURL) in client/src/api/axios.js, ~17 api.get/api.post calls to /api/user|post|story|message/...; Express mounts those four routers in server/server.js; ~50 files"
+        },
+        {
+          "repo": "erayendes/kortext",
+          "verdict": "pinned",
+          "sha": "cb2b3c1fc73e3f5e2a74e2f03c0fea9b14fd692c",
+          "reason": "spa-plus-express: Vite React 19 panel whose fetch wrapper req(path) in ui/src/api.ts is called with literal '/api/...' paths (~35 one-line methods); Express 5 registers inline app.get/post/put/delete('/api/...') routes in server/app.ts; ~35 files"
+        },
+        {
+          "repo": "DOodle25/SyncUP",
+          "verdict": "pinned",
+          "sha": "4a4e989e3ee3b54c7794148da8e96c1d8ce5c589",
+          "reason": "spa-plus-express: Vite React SPA (SyncUpFrontend) with ~11 axios calls to literal http://localhost:5000/api/auth|channels/... (two to /api/messages, whose mount is commented out); Express mounts /api/auth and /api/channels in SyncUpBackend/server.js; a second Update/Client + Update/Server pair; ~84 files without the committed SyncUpBackend/node_modules"
+        },
+        {
+          "repo": "theavnishkumar/online-auction-system",
+          "verdict": "pinned",
+          "sha": "ecd4de475fdf49d54153ffaa57d42b392161007a",
+          "reason": "env-api-urls: Vite React SPA with ~19 axios calls in client/src/api/*.js and store/auction/auctionSlice.js on env bases (`${VITE_API}/admin/...`, `${VITE_AUCTION_API}/...`); Express mounts /api/auth|user|auction|contact|admin|upload in server/app.js; ~97 files"
+        },
+        {
+          "repo": "Vishwajit1610/Resonance",
+          "verdict": "pinned",
+          "sha": "932c651a1558b4d82a713e1e3beef71e6ab166ec",
+          "reason": "spa-plus-express: Vite React SPA with 6 fetch calls to literal http://localhost:3000/api/... (usePlayerStore x2, AlbumTracks, Albums, Artists, Search), each a route; inline app.get('/api/...') Express routes in backend/server.js; 22 files"
+        }
+      ]
     },
     {
       "name": "nextjs-prisma",
@@ -1733,7 +1797,81 @@
           "zyadhajaji/threadforge"
         ]
       },
-      "examined": []
+      "examined": [
+        {
+          "repo": "leswww/agentboard-ce",
+          "verdict": "pinned",
+          "sha": "60b57ac1931387f30361bdee618903eb679abf78",
+          "reason": "next-api-routes: App Router; ~40 direct fetch calls from pages and components on root-relative literal and template URLs (/api/settings, /api/git/status?projectId=${...}, /api/commands/run), plus form components that fetch a computed url; route.ts handlers under src/app/api; ~111 files"
+        },
+        {
+          "repo": "g089h515r806/nextcrawler",
+          "verdict": "pinned",
+          "sha": "8b0c5639114b6eeea8272e2d05658594d62dee0b",
+          "reason": "next-api-routes: App Router in JS; ~49 direct fetch calls in admin pages and buttons built by concatenation ('/api/feed/' + id, '/api/listpage/' + id + '/fetch'); route.js handlers under app/api; server.js is a plain http wrapper around Next's handler plus a cron job; ~130 files"
+        },
+        {
+          "repo": "afterclass-io/afterclass.io",
+          "verdict": "rejected",
+          "reason": "Rule 5 (size): 1,582 TS/JS source files (most of its API is tRPC; 6 direct fetches to Next routes pass rules 3-4)"
+        },
+        {
+          "repo": "Wondermove-Inc/saaslens",
+          "verdict": "rejected",
+          "reason": "Rule 5 (size): 1,080 TS/JS source files (861 under src/); Next route handlers under src/app/api and at least 5 frontend fetches pass rules 3-4"
+        },
+        {
+          "repo": "SamurAIGPT/ai-headshot-generator",
+          "verdict": "pinned",
+          "sha": "a5d36f1fee25c23c02fdd7fbbe070d37c1e2d3d5",
+          "reason": "next-api-routes: App Router in JS; 7 requests: 6 direct fetches (/api/creations, /api/upload, /api/headshot, /api/headshot/status, /api/user/apikey x2) and one axios.post('/api/checkout'); route.js handlers under src/app/api; ~37 files"
+        },
+        {
+          "repo": "Farbyte/lawson",
+          "verdict": "pinned",
+          "sha": "34ab42135dd5da47e567bf238f44e229d46bf724",
+          "reason": "next-api-routes: App Router; exactly 5 fetch requests, 4 in one-function helpers in app/_helper_functions (/api/summary, /api/getLatestPdf?userId=${...}, /api/uploadPdf, /api/vectorStore) and 1 in NavSidebar (/api/deletePdf); route.ts handlers under app/api (chat goes through ai/react's useChat, a library request); a Python backend reached only from the handlers; 66 files"
+        },
+        {
+          "repo": "chndrwali/nextjs-starter-kit",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the app's own API is tRPC only (app/api/trpc); its 3 direct fetches go to /api/uploadthing/delete, which no handler in the repo serves, and auth goes through the better-auth client"
+        },
+        {
+          "repo": "sahitya-chandra/DSA-Round-Robin",
+          "verdict": "pinned",
+          "sha": "1a1657433c9d3f7ecc3f1c5fde15818fe8a5d785",
+          "reason": "next-plus-server-monorepo: Turborepo with apps/web (Next) and apps/server (Express, app.use('/api/social'|'/api/match'|...) routers); ~25 fetch/axios calls on API_BASE_URL = NEXT_PUBLIC_API_URL || localhost:5000 (${API_BASE_URL}/api/match/finish/${slug}, a Sidebar-local base), plus one Next route call (/api/feedback); socket.io clients not counted; ~124 files"
+        },
+        {
+          "repo": "BharathxD/DevCircle",
+          "verdict": "pinned",
+          "sha": "efab02e8479337dd705d47cc1d26045b23150274",
+          "reason": "next-api-routes: App Router; ~17 direct axios.get/post/patch/delete calls in components on root-relative literal and template URLs (/api/forum/post/vote, /api/forum/${id}/subscription, /api/forum/post/?postId=${...}); route.ts handlers under src/app/api; ~190 files"
+        },
+        {
+          "repo": "yigehaozi/relay-status-monitor",
+          "verdict": "pinned",
+          "sha": "63ae4434bec7d532ca84c7f917889778e06f9aa6",
+          "reason": "next-api-routes: App Router; ~36 direct fetch calls in dashboard pages on root-relative literal and template URLs (/api/upstreams/${id}/test, /api/alert-rules/${rule.id}, /api/metrics?upstreamKeyId=...); route.ts handlers under src/app/api; ~110 files"
+        },
+        {
+          "repo": "lantingzhang1119/cohort-harbor",
+          "verdict": "rejected",
+          "reason": "Rule 5 (size): ~610 TS/JS source files (~390 under src/, ~180 tests, scripts, e2e) of 647 tracked; Next route handlers and many fetches pass rules 2-4"
+        },
+        {
+          "repo": "zenstackhq/zenstack",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): its only React frontend (samples/next.js) sends every request through ZenStack's @zenstackhq/tanstack-query hooks (library code) to the app/api/model/[...path] catch-all; no fetch or axios request is written in the repo's source"
+        },
+        {
+          "repo": "rakibutsho/SPIDER_NODE-uptime-tracker",
+          "verdict": "pinned",
+          "sha": "c75611c3a11559e68d96c296431099634ee01b06",
+          "reason": "next-api-routes: App Router; ~24 direct fetch calls in auth and dashboard components on root-relative literal and template URLs (/api/monitors/${id}/check, /api/user/profile, /api/status/${id}); route.ts handlers under src/app/api (an RTK Query baseApi with no endpoints); ~151 files"
+        }
+      ]
     }
   ]
 }
