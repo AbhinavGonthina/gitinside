@@ -1,0 +1,3 @@
+# origin-parameters
+
+Tests (M5C.10b, ADR-0164's amendment): a parameter that only fills a literal origin's host or port doesn't make a function a wrapper, since the path after the origin is fixed. `stationUp(port)` fetches `http://127.0.0.1:${port}/api/health`, so its request stays at its own `fetch` (`GET /api/health`, `heuristic` on a loopback host), and `waitForStation(port)`, which only passes the port on, gets nothing. `readStation(port, path)` also takes the path (`http://localhost:${port}${path}`), so it is a wrapper: `latestReadings(port)` fixes the path in its call, so the request is there, and `boot`'s own call with `/api/readings` is another. `boot` passes only its port on, so it isn't a wrapper over either.

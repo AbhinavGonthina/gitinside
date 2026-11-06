@@ -517,11 +517,10 @@ describe("inlineWrappers", () => {
       // Each of these takes part of the leading path, so it stays a wrapper.
       "export const first = (resource: string) => fetch(`${API_BASE}/${resource}`);",
       "export const glued = (path: string) => fetch(`https://api.example.com/v1${path}`);",
-      "export const host = (h: string) => fetch(`https://${h}/status`);",
       "export const both = (path: string, id: string) => fetch(`${API_BASE}${path}/${id}`);",
     ]);
     await put("src/use.ts", [
-      'import { both, conversationApi, deletePost, first, glued, host, models } from "./api";',
+      'import { both, conversationApi, deletePost, first, glued, models } from "./api";',
       "export async function run() {",
       '  await conversationApi.get("c1");',
       '  await conversationApi.list("c1", 2);',
@@ -530,7 +529,6 @@ describe("inlineWrappers", () => {
       '  await models("secret");',
       '  await first("users");',
       '  await glued("/teams");',
-      '  await host("status.example.com");',
       '  await both("/orders", "7");',
       "}",
     ]);
@@ -542,8 +540,7 @@ describe("inlineWrappers", () => {
       "src/api.ts:11 GET https://models.example.com/v1/models [models]",
       "src/use.ts:8 GET {env:VITE_API_URL}/users [run] <- src/api.ts:12",
       "src/use.ts:9 GET https://api.example.com/v1/teams [run] <- src/api.ts:13",
-      "src/use.ts:10 GET https://status.example.com/status [run] <- src/api.ts:14",
-      "src/use.ts:11 GET {env:VITE_API_URL}/orders/7 [run] <- src/api.ts:15",
+      "src/use.ts:10 GET {env:VITE_API_URL}/orders/7 [run] <- src/api.ts:14",
     ]);
   });
 
@@ -696,6 +693,52 @@ describe("a URL picked by a condition (M5C.10a)", () => {
       "src/http.ts:17 GET /cache/z [f] <- src/http.ts:15",
       "src/http.ts:18 GET /api/empty [g] <- src/http.ts:3",
       "src/http.ts:19 GET /api/null [h] <- src/http.ts:3",
+    ]);
+  });
+});
+
+describe("a parameter that fills only the origin (M5C.10b)", () => {
+  it("keeps the request at its own call when the path after the origin is fixed", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/daemon.ts", [
+      "export function isUp(port: number) {",
+      "  return fetch(`http://127.0.0.1:${port}/api/health`);",
+      "}",
+      "export async function waitUntilUp(port: number) {",
+      "  while (!(await isUp(port)).ok) await new Promise((r) => setTimeout(r, 100));",
+      "}",
+      "export const status = (host: string) => fetch(`https://${host}/status`);",
+      "export const start = () => waitUntilUp(4000);",
+      'export const check = () => status("status.example.com");',
+    ]);
+    // Nothing at `waitUntilUp`'s call of `isUp`, nor at `start` or `check`.
+    expect(await summary()).toEqual([
+      "src/daemon.ts:2 GET http://127.0.0.1:{}/api/health [isUp]",
+      `src/daemon.ts:7 GET DYNAMIC_URL: ${DYNAMIC_URL_DETAIL.host} [status]`,
+    ]);
+  });
+
+  it("still makes a wrapper when a parameter also fills the path, and binds the port", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/client.ts", [
+      "export function call(port: number, path: string) {",
+      "  return fetch(`http://localhost:${port}${path}`);",
+      "}",
+      "export function health(port: number) {",
+      '  return call(port, "/api/health");',
+      "}",
+      "export function get(port: number, path: string) {",
+      "  return call(port, path);",
+      "}",
+      'export const a = () => call(3000, "/api/users");',
+      "export const b = () => health(3000);",
+      'export const c = () => get(8080, "/api/teams");',
+    ]);
+    // `health` passes only the port on and fixes the path: its call of `call` is the request.
+    expect(await summary()).toEqual([
+      "src/client.ts:5 GET http://localhost:{}/api/health [health] <- src/client.ts:2",
+      "src/client.ts:10 GET http://localhost:3000/api/users [a] <- src/client.ts:2",
+      "src/client.ts:12 GET http://localhost:8080/api/teams [c] <- src/client.ts:2",
     ]);
   });
 });

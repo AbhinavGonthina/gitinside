@@ -69,7 +69,8 @@
  * unbound parameter is `WRAPPER_DEPTH` rather than `DYNAMIC_URL`. Only a parameter in the
  * URL's leading part makes a function a wrapper ({@link leadingHoles}, M5A.3j), read on each
  * path through the URL's ternaries and `let` values (M5C.10a), so a parameter that only picks
- * a branch, or fills a later hole of one, doesn't. While inlining, a ternary whose condition
+ * a branch, or fills a later hole of one, doesn't, nor one that only fills a literal origin's
+ * host or port ({@link originHoles}, M5C.10b). While inlining, a ternary whose condition
  * is a bound parameter (maybe behind `!`) takes only the branch its value settles: a missing
  * argument is falsy, a literal (or a literal or nullish type) is what it is; any other
  * condition keeps both. See `wrappers.ts`.
@@ -545,21 +546,28 @@ const VALUE_MARK = "\u0000";
 /** A literal origin, or its start, at the start of a URL (`https://h:8080`, `https://`). */
 const LEADING_ORIGIN = /^([a-z][a-z\d+\-.]*:)?\/\/[^/?#]*/i;
 
+/** Origin text ending where its host or port may be whole: a letter, a digit, or `]`. */
+const HOST_END = /[a-z\d\]]$/i;
+
 /**
  * The parameter holes in a URL's parts that reach its leading part (M5A.3j, ADR-0164): only a
  * parameter there makes a function a wrapper, since EVALUATION.md §1 places a request whose
  * route the function fixes at the function's own call. A parameter hole is leading when no
  * literal `?` or `#` comes before it and it is:
- * - at the start, in the host or port, or right after the base (an env var, the page origin,
- *   or a literal origin): `fetch(url)`, `${API}${path}`, `https://${host}/x`;
+ * - at the start, or right after the base (an env var, the page origin, or a literal origin):
+ *   `fetch(url)`, `${API}${path}`, `http://localhost${path}`, `http://${host}${path}`;
  * - glued to the path's text, so the argument brings its own slash: `/api${path}`,
  *   `https://h/v1${endpoint}` (unless its segment already holds a hole: `/c/${id}-${slug}`);
  * - the first path segment: `${API}/${resource}`.
  *
- * A hole after a literal path segment and a `/` (`/posts/${id}`), or in the query, isn't.
+ * A hole after a literal path segment and a `/` (`/posts/${id}`), or in the query, isn't; nor
+ * is one that only fills a literal origin (M5C.10b, ADR-0164's amendment): starting its host,
+ * a label, the port, or a password (`http://127.0.0.1:${port}/api/health`,
+ * `https://${host}/x`), since the path after the origin is fixed.
  * Not handled: a parameter glued to text inside a segment (`/posts/post-${id}`) reads like a
  * path, and a first segment after a literal base's own path (`"https://h/api/" + resource`)
- * like an id.
+ * like an id; a parameter glued to a host's letters (`https://api${env}.example.com/x`) reads
+ * like a path, and one at the very start like a base (`${origin}/api/health`).
  */
 export function leadingHoles(parts: readonly UrlPart[]): Set<UrlPart> {
   const found = new Set<UrlPart>();
@@ -575,15 +583,50 @@ export function leadingHoles(parts: readonly UrlPart[]): Set<UrlPart> {
   return found;
 }
 
+/**
+ * The parameter holes that only fill a literal origin (M5C.10b): those starting its host, a
+ * label, the port, or a password (`http://127.0.0.1:${port}/x`, `https://${host}/x`), which
+ * {@link leadingHoles} doesn't count, since the path after the origin is fixed.
+ */
+export function originHoles(parts: readonly UrlPart[]): Set<UrlPart> {
+  const found = new Set<UrlPart>();
+  let before = "";
+  for (const part of parts) {
+    if (part.kind === "text") {
+      before += part.text;
+      continue;
+    }
+    if (part.kind === "hole" && part.param === true && onlyOrigin(before)) found.add(part);
+    before += VALUE_MARK;
+  }
+  return found;
+}
+
+/**
+ * True when a hole after `before` is still in a literal origin and only fills it: it starts
+ * the host, a label, the port, or a password. One glued after a value or after a host or port
+ * that may be whole (`http://localhost${path}`, `http://${host}${path}`) may start the path.
+ */
+function onlyOrigin(before: string): boolean {
+  if (/[?#]/.test(before) || before.startsWith(VALUE_MARK)) return false;
+  const origin = LEADING_ORIGIN.exec(before);
+  return (
+    origin !== null &&
+    origin[0].length === before.length &&
+    !before.endsWith(VALUE_MARK) &&
+    !HOST_END.test(before)
+  );
+}
+
 /** True when a hole after `before` (text, with values as {@link VALUE_MARK}) is leading. */
 function leadingAt(before: string): boolean {
-  if (/[?#]/.test(before)) return false;
+  if (/[?#]/.test(before) || onlyOrigin(before)) return false;
   let path = before;
   if (path.startsWith(VALUE_MARK)) {
     path = path.slice(VALUE_MARK.length);
   } else {
     const origin = LEADING_ORIGIN.exec(path);
-    // Still in the host or port.
+    // Glued to the origin's end (`onlyOrigin` took the rest): it may start the path.
     if (origin && origin[0].length === path.length) return true;
     if (origin) path = path.slice(origin[0].length);
   }
@@ -754,6 +797,24 @@ export interface UrlNormalizer {
     site: Pick<HttpCallSite, "url" | "baseURL">,
     bindings?: ParameterBindings,
   ): ReadonlySet<ts.ParameterDeclaration>;
+  /**
+   * The parameters a call site's URL or `baseURL` reads only in a literal origin's host or
+   * port ({@link originHoles}) on every path (M5C.10b): a caller passing its own parameter
+   * there leaves the path fixed, so it isn't a wrapper over this site's function.
+   */
+  originParameters(
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+    bindings?: ParameterBindings,
+  ): ReadonlySet<ts.ParameterDeclaration>;
+}
+
+/** Where a site's parameters land: in the leading part, only in the origin, elsewhere. */
+interface Placed {
+  leading: Set<ts.ParameterDeclaration>;
+  /** Parameters with a hole that only fills a literal origin. */
+  origin: Set<ts.ParameterDeclaration>;
+  /** Parameters with a hole outside the origin, or absorbed (`new URL(path, base)`). */
+  other: Set<ts.ParameterDeclaration>;
 }
 
 /** Create a {@link UrlNormalizer} (see the file comment for what it reads). */
@@ -1490,34 +1551,51 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     return found;
   };
 
-  const leadingParameters = (
+  /** Read `site`'s placed parameters on each path with `scope` bound. */
+  const placedWith = (
     site: Pick<HttpCallSite, "url" | "baseURL">,
-    scope?: ParameterBindings,
-  ): ReadonlySet<ts.ParameterDeclaration> => {
+    scope: ParameterBindings | undefined,
+  ): Placed => {
     bindings = scope;
     try {
-      return leadingIn(site);
+      return placedIn(site);
     } finally {
       bindings = undefined;
     }
   };
 
-  /**
-   * The leading parameters of a site, read on each path through its ternaries and `let`
-   * values (M5C.10a, ADR-0164's amendment): a parameter is leading when it is on some path,
-   * so one that only fills a later hole of one branch (`slug ? \`/x/${slug}\` : "/y"`) isn't
-   * absorbed into the hole the branches collapse to. Past {@link MAX_PATHS} paths, one read.
-   */
-  const leadingIn = (
+  const leadingParameters = (
     site: Pick<HttpCallSite, "url" | "baseURL">,
+    scope?: ParameterBindings,
+  ): ReadonlySet<ts.ParameterDeclaration> => placedWith(site, scope).leading;
+
+  const originParameters = (
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+    scope?: ParameterBindings,
   ): ReadonlySet<ts.ParameterDeclaration> => {
-    const found = new Set<ts.ParameterDeclaration>();
+    const { origin, other } = placedWith(site, scope);
+    return new Set([...origin].filter((d) => !other.has(d)));
+  };
+
+  /**
+   * Where a site's parameters land, read on each path through its ternaries and `let` values
+   * (M5C.10a, ADR-0164's amendment): a parameter is leading when it is on some path, so one
+   * that only fills a later hole of one branch (`slug ? \`/x/${slug}\` : "/y"`) isn't absorbed
+   * into the hole the branches collapse to. Past {@link MAX_PATHS} paths, one read.
+   */
+  const placedIn = (site: Pick<HttpCallSite, "url" | "baseURL">): Placed => {
+    const found: Placed = { leading: new Set(), origin: new Set(), other: new Set() };
+    const add = (read: Placed): void => {
+      for (const key of ["leading", "origin", "other"] as const) {
+        for (const d of read[key]) found[key].add(d);
+      }
+    };
     let forced: number[] = [];
     for (let path = 0; path < MAX_PATHS; path++) {
       const state = { forced, taken: [] as number[], counts: [] as number[] };
       choices = state;
       try {
-        for (const d of leadingOnPath(site)) found.add(d);
+        add(placedOnPath(site));
       } finally {
         choices = undefined;
       }
@@ -1527,16 +1605,14 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       if (i < 0) return found;
       forced = [...state.taken.slice(0, i), (state.taken[i] ?? 0) + 1];
     }
-    return leadingOnPath(site);
+    return placedOnPath(site);
   };
 
-  /** The leading parameters of one read of a site (one path while `choices` is set). */
-  const leadingOnPath = (
-    site: Pick<HttpCallSite, "url" | "baseURL">,
-  ): Set<ts.ParameterDeclaration> => {
+  /** Where a site's parameters land on one read (one path while `choices` is set). */
+  const placedOnPath = (site: Pick<HttpCallSite, "url" | "baseURL">): Placed => {
     used.clear();
     holes.clear();
-    const found = new Set<ts.ParameterDeclaration>();
+    const found: Placed = { leading: new Set(), origin: new Set(), other: new Set() };
     /** Parameters with a hole of their own left in the URL's or base's parts. */
     const placed = new Set<ts.ParameterDeclaration>();
     // The URL and the base on their own: axios's join adds a `/` that the URL doesn't have.
@@ -1544,19 +1620,25 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       if (!value) continue;
       const p = parts(value);
       const leading = leadingHoles(p);
+      const origin = originHoles(p);
       for (const part of p) {
         const d = holes.get(part);
         if (!d) continue;
         placed.add(d);
-        if (leading.has(part)) found.add(d);
+        if (leading.has(part)) found.leading.add(d);
+        (origin.has(part) ? found.origin : found.other).add(d);
       }
     }
     // A parameter whose hole was absorbed (`new URL(path, base)`) may be anywhere.
-    for (const d of used) if (!placed.has(d)) found.add(d);
+    for (const d of used) {
+      if (placed.has(d)) continue;
+      found.leading.add(d);
+      found.other.add(d);
+    }
     used.clear();
     holes.clear();
     return found;
   };
 
-  return { parts, normalize, alternatives, parameters, leadingParameters };
+  return { parts, normalize, alternatives, parameters, leadingParameters, originParameters };
 }

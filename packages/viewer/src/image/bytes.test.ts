@@ -136,6 +136,7 @@ const EXPECTED: Record<string, string[]> = {
   "no-tsconfig": ["ca64d1e9051263e9", "69804ff099267024", "df35ae81cb864468"],
   "object-client": ["e43a79465232523c", "b88b0861a65ae784", "88fe59317e24fda9"],
   "ofetch-client": ["cb45e31a81e51089", "b5fe0e1f4f661b89", "c9f54236cf59e4f2"],
+  "origin-parameters": ["20ff6ccdd55aabaf", "cc2b87b7af578d24", "fd4b584615921b55"],
   "pnpm-monorepo": ["77e486ee1e387fd6", "7fc2768ddaedca19", "54850212b037364c"],
   "prisma-relations": ["fa788ac8d8cf3cce", "2f9ca2e017f04955", "686703b2cc019fb1"],
   "queues-bullmq": ["171ff8834dc5fe07", "1da2d0e97f6b2736", "a82cb33a1ba7a479"],

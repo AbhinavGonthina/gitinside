@@ -1,11 +1,12 @@
 /**
  * Wrapper inlining (M2.3, DESIGN.md §7.1; wrappers over wrappers since M5C.7f): turns
  * collected HTTP call sites into {@link HttpRequest}s. A call site whose URL or axios `baseURL` reads a parameter of the
- * function it sits in in its leading part (the start, the host, glued to the path, or the
- * first segment: `leadingHoles` in `url.ts`, M5A.3j), whose axios config is a parameter, or
+ * function it sits in in its leading part (the start, glued to the path, or the first
+ * segment: `leadingHoles` in `url.ts`, M5A.3j), whose axios config is a parameter, or
  * whose method reads one is a wrapper body (`function get(path) { return fetch(BASE + path) }`);
- * a parameter that only fills a later hole or the query (`fetch(\`/api/posts/${id}\`)`)
- * leaves the request at its own call, as EVALUATION.md §1 labels it;
+ * a parameter that only fills a later hole or the query (`fetch(\`/api/posts/${id}\`)`), or
+ * only a literal origin's host or port (`fetch(\`http://127.0.0.1:${port}/api/health\`)`,
+ * M5C.10b), leaves the request at its own call, as EVALUATION.md §1 labels it;
  * each call to that function (`get("/users")`) becomes its own request, with the parameters
  * bound to the caller's arguments and the URL normalized again. A request whose URL still
  * starts with a parameter of a caller that isn't followed is `WRAPPER_DEPTH`.
@@ -13,7 +14,8 @@
  * Wrappers over wrappers (M5C.7f, ADR-0032's amendment): a symbol function whose call to a
  * wrapper passes its own parameter as the leading part of an argument that wrapper's URL
  * reads (`get(path) { return request(path, { method: "GET" }) }`, also `` `${path}?${q}` ``;
- * not `request("/users/" + id)`, which fixes the route) is a wrapper too, up to
+ * not `request("/users/" + id)`, which fixes the route, nor `call(port, "/api/health")`
+ * passing only what that wrapper's origin reads, M5C.10b) is a wrapper too, up to
  * {@link MAX_WRAPPER_DEPTH} wrappers deep. Its callers are inlined through the chain: each
  * level's arguments are read with the next level's bindings (`ParameterBindings.outer`), the
  * method too, and the request is placed at the outermost call, as EVALUATION.md §1 labels
@@ -311,6 +313,8 @@ interface InnerCall {
   caller: Caller;
   /** The calling wrapper's parameters the request's URL reads through this call. */
   reads: ReadonlySet<ts.ParameterDeclaration>;
+  /** Those of `reads` that reach more of the URL than a literal origin (M5C.10b). */
+  path: ReadonlySet<ts.ParameterDeclaration>;
 }
 
 /**
@@ -1459,30 +1463,58 @@ export function collectHttpFacts(
   };
 
   /**
-   * What a call to a wrapper passes on of the function `fn` it sits in: `fn`'s parameters in
-   * the leading part of an argument the wrapper's URL reads (`leadingHoles`, applied to the
-   * argument: `get(path)`, `get(\`${path}?${query}\`)`, not `get("/users/" + id)`), and all of
-   * `fn`'s parameters those arguments read.
+   * A wrapper's own parameters that reach more of its requests' URLs than a literal origin
+   * (M5C.10b): its sites' but those only in a host or port (`originParameters`), and those
+   * its inner calls pass on there.
+   */
+  const pathParameters = (wrapper: Wrapper): Set<ts.ParameterDeclaration> => {
+    const found = new Set<ts.ParameterDeclaration>();
+    for (const site of wrapper.sites) {
+      const origin = normalizer.originParameters(site);
+      for (const d of normalizer.parameters(site)) {
+        if (d.parent === wrapper.fn && !origin.has(d)) found.add(d);
+      }
+    }
+    for (const { path } of wrapper.inner) for (const d of path) found.add(d);
+    return found;
+  };
+
+  /**
+   * What a call to a wrapper passes on of the function `fn` it sits in: whether `fn`'s
+   * parameters reach the leading part of an argument for a parameter that reaches the
+   * wrapper's path (`leadingHoles`, applied to the argument: `get(path)`,
+   * `get(\`${path}?${query}\`)`, not `get("/users/" + id)`, nor a port the wrapper's origin
+   * alone reads, M5C.10b), all of `fn`'s parameters the arguments its URL reads read, and
+   * those of them read by arguments for its path.
    */
   const passedOn = (
     wrapper: Wrapper,
     caller: Caller,
     fn: FunctionWithBody,
-  ): { leading: boolean; reads: Set<ts.ParameterDeclaration> } => {
+  ): {
+    leading: boolean;
+    reads: Set<ts.ParameterDeclaration>;
+    path: Set<ts.ParameterDeclaration>;
+  } => {
     const own = (d: ts.ParameterDeclaration): boolean => d.parent === fn;
     const args = caller.call.arguments;
     const spread = args.findIndex((a) => ts.isSpreadElement(a));
+    const toPath = pathParameters(wrapper);
     let leading = false;
     const reads = new Set<ts.ParameterDeclaration>();
+    const path = new Set<ts.ParameterDeclaration>();
     for (const d of urlParameters(wrapper)) {
       const i = wrapper.fn.parameters.indexOf(d);
       const arg = args[i];
       if (d.dotDotDotToken || !arg || (spread !== -1 && spread <= i)) continue;
       const value = { url: { sp: caller.sp, expression: arg }, baseURL: undefined };
+      const read = [...normalizer.parameters(value)].filter(own);
+      for (const p of read) reads.add(p);
+      if (!toPath.has(d)) continue;
+      for (const p of read) path.add(p);
       if ([...normalizer.leadingParameters(value)].some(own)) leading = true;
-      for (const p of normalizer.parameters(value)) if (own(p)) reads.add(p);
     }
-    return { leading, reads };
+    return { leading, reads, path };
   };
 
   /**
@@ -1521,7 +1553,7 @@ export function collectHttpFacts(
           owned.get(sp)?.set(around.id, outer);
           added.push(around.id);
         }
-        outer.inner.push({ id, caller, reads: found.reads });
+        outer.inner.push({ id, caller, reads: found.reads, path: found.path });
         outer.inner.sort((a, b) => compareLocations(a.caller.site, b.caller.site));
         outer.depth = Math.max(outer.depth, callee.depth + 1);
         innerCalls.add(caller.call);

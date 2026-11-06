@@ -60,6 +60,7 @@ const NAMES = [
   "fixed-url-helpers",
   "url-alternatives",
   "conditional-urls",
+  "origin-parameters",
   "ambiguous-routes",
   "wrapper-fetch",
   "wrapper-chain",
@@ -683,6 +684,18 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `symbol:${p}/src/screens.ts#listBooksV2 -> route:${p}/GET /api/v2/books exact`,
       `symbol:${p}/src/shelf.ts#openShelf -> route:${p}/GET /api/reading-now exact`,
       `symbol:${p}/src/shelf.ts#openShelf -> route:${p}/GET /api/shelves/:shelfId exact`,
+    ]);
+    expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
+  });
+
+  it("origin-parameters: a port parameter keeps the request where the path is fixed (M5C.10b)", async () => {
+    const g = await run("origin-parameters");
+    const p = "origin-parameters";
+    // Loopback hosts are `heuristic` (ADR-0158); nothing at `waitForStation`'s call of `stationUp`.
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/src/dashboard.ts#boot -> route:${p}/GET /api/readings heuristic`,
+      `symbol:${p}/src/probe.ts#latestReadings -> route:${p}/GET /api/readings heuristic`,
+      `symbol:${p}/src/probe.ts#stationUp -> route:${p}/GET /api/health heuristic`,
     ]);
     expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
   });
