@@ -57,6 +57,7 @@ const NAMES = [
   "express-require-router",
   "sibling-apps",
   "workspace-root-files",
+  "nx-standalone",
   "js-global-assignment",
   "fixed-url-helpers",
   "url-alternatives",
@@ -642,6 +643,32 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
           "1 source file under examples/ belongs to no workspace package and is not analyzed (examples/widget/index.ts)",
       },
     ]);
+  });
+
+  it("nx-standalone: the root project is a service named by its project.json beside e2e/ (M6.11j)", async () => {
+    const g = await run("nx-standalone");
+    expect(
+      g.nodes.filter((n) => n.kind === "service").map((n) => [n.id, n.label, n.framework]),
+    ).toEqual([
+      ["service:api/", "api", "express"],
+      ["service:e2e/", "api-e2e", undefined],
+    ]);
+    expect(ids(g, "file").sort()).toEqual([
+      "file:api/jest.config.ts",
+      "file:api/src/app/routes/routes.ts",
+      "file:api/src/app/routes/tag/tag.controller.ts",
+      "file:api/src/app/routes/tag/tag.service.ts",
+      "file:api/src/main.ts",
+      "file:e2e/src/server/server.spec.ts",
+    ]);
+    expect(ids(g, "route")).toEqual(["route:api/GET /api/tags"]);
+    expect(links(g, "calls")).toContain(
+      "route:api/GET /api/tags -> symbol:api/src/app/routes/tag/tag.service.ts#getTags exact",
+    );
+    expect(links(g, "http")).toEqual([
+      "symbol:e2e/src/server/server.spec.ts#readTags -> route:api/GET /api/tags heuristic",
+    ]);
+    expect(g.warnings.filter((w) => w.code === "FILES_OUTSIDE_SERVICE")).toEqual([]);
   });
 
   it("js-global-assignment: a JS file setting process.env.X doesn't hide env bases elsewhere (M5C.7e2)", async () => {

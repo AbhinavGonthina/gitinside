@@ -138,6 +138,7 @@ const EXPECTED: Record<string, string[]> = {
   "next-wrapped-handler": ["36fc8392cef8bf8b", "37b409dd887d0746", "719a1bdfad06894f"],
   "next-server-actions": ["5588e49fb41c26d2", "08f497552460fb40", "bbab3795796925b1"],
   "no-tsconfig": ["ca64d1e9051263e9", "69804ff099267024", "df35ae81cb864468"],
+  "nx-standalone": ["f9eb54ec96c60e39", "c4098e6148075489", "51df016de5d49fcb"],
   "object-client": ["e43a79465232523c", "b88b0861a65ae784", "88fe59317e24fda9"],
   "ofetch-client": ["cb45e31a81e51089", "b5fe0e1f4f661b89", "c9f54236cf59e4f2"],
   "origin-parameters": ["20ff6ccdd55aabaf", "cc2b87b7af578d24", "fd4b584615921b55"],
