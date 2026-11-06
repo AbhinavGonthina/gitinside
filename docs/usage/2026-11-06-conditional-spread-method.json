@@ -1,0 +1,213 @@
+{
+  "about": "Raw measurements behind M5C.10e2 (docs/COVERAGE.md 'After batch 5' item 6, ADR-0033's M5C.10e2 amendment): how common is a request init that spreads a conditional of object literals after its method (fetch(url, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) })), which before the fix hid the method (any spread could supply it), so a wrapper's callers had no method and were AMBIGUOUS or matched every method. 'counts': GitHub REST GET /search/code (legacy engine, authenticated) total_count per query on 2026-11-06; the legacy engine drops punctuation, so the quoted phrases match token runs (body body JSON stringify body, fetch, method) and the counts only give scale. 'sample': the first 10 non-fork hits (one per repo) of each of the first two queries, each file read with GET /repos/<repo>/contents/<path>, saved, and analyzed alone as a one-file repo with the built analyzer (parsed, never run; eval/dist/usage-spreads-analyze.mjs). 'sites': fetch/axios calls whose init object literal (written at the call) spreads a conditional or &&; files with 0 build the init elsewhere (a variable) or in a helper the regex-free scan doesn't see. 'requests': requests the analyzer reports at those calls (a wrapper's callers each count). 'methodReadBefore': with this commit's analyzer but HEAD's values.ts and http.ts (packages/analyzer/dist/make-old-spread.mjs); 'methodReadAfter': with the fix. Of the 42 requests still without a method, 36 (724-office, Portfolio_Frontend, ha-home-energy-advisor) take method from a destructured options parameter with a default (async function api(path, { method = 'GET', body } = {})), a separate form this change doesn't touch. Among the eval checkouts (every repos.json entry, scanned for ...(x ? { / ...(x && { in files that request; eval/dist/spread-scan.mjs), the form in a request init is only in batch 5's solid-logic-studios/bucketwise-planner; the other hits spread into headers, message or request bodies, or Prisma queries, and batch 2's nemanjam/nextjs-prisma-boilerplate spreads ...(NODE_ENV !== 'test' && { onUploadProgress }) into an axios config whose method the call already fixes (its eval scores are unchanged).",
+  "date": "2026-11-06",
+  "counts": {
+    "\"...(body ? { body: JSON.stringify(body) } : {})\" \"fetch(\" \"method\" language:TypeScript": 7176,
+    "\"...(body ? { body: JSON.stringify(body) } : {})\" \"fetch(\" \"method\" language:JavaScript": 10336,
+    "\"...(body && { body: JSON.stringify(body) })\" \"fetch(\" \"method\" language:TypeScript": 1032,
+    "\"...(body && { body: JSON.stringify(body) })\" \"fetch(\" \"method\" language:JavaScript": 826
+  },
+  "totals": {
+    "files": 20,
+    "filesWithASite": 15,
+    "sites": 17,
+    "requests": 95,
+    "methodReadBefore": 0,
+    "methodReadAfter": 53,
+    "filesGaining": 7
+  },
+  "sample": [
+    {
+      "file": "earnmrewards/web3-webflow/src/services/api.ts",
+      "sites": 1,
+      "requests": 1,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "kota-kawamoto/kevent-frontend/src/lib/api.ts",
+      "sites": 0,
+      "requests": 0,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "skajihara/project_xr_front/src/lib/fetcher.ts",
+      "sites": 1,
+      "requests": 1,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "jadechy/monea/app/plugins/01-api-client.ts",
+      "sites": 2,
+      "requests": 2,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "Senthong/Mobile_252_final/PocketFlow/src/services/api.ts",
+      "sites": 0,
+      "requests": 0,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "hyacintheaymar/FasoTransport-V2/frontend/lib/api.ts",
+      "sites": 1,
+      "requests": 4,
+      "methodReadBefore": 0,
+      "methodReadAfter": 4,
+      "readAfter": [
+        "GET DYNAMIC_URL",
+        "POST DYNAMIC_URL",
+        "PATCH DYNAMIC_URL",
+        "DELETE DYNAMIC_URL"
+      ]
+    },
+    {
+      "file": "JOspitia/pharmacy/frontend/src/lib/api.ts",
+      "sites": 0,
+      "requests": 0,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "nuriSherpa/Portfolio_Frontend/src/lib/api/client-fetch.ts",
+      "sites": 1,
+      "requests": 20,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "MihailTs/Online-movie-database/client/src/services/http.ts",
+      "sites": 1,
+      "requests": 4,
+      "methodReadBefore": 0,
+      "methodReadAfter": 4,
+      "readAfter": ["GET DYNAMIC_URL", "POST DYNAMIC_URL", "PUT DYNAMIC_URL", "DELETE DYNAMIC_URL"]
+    },
+    {
+      "file": "YTwsy/OpenSurge-for-Mac/web/src/lanAccess.ts",
+      "sites": 1,
+      "requests": 1,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "Anning01/AIMedia/electron/qiling-api.cjs",
+      "sites": 0,
+      "requests": 0,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "wangziqi06/724-office/xiaowang-v2/tools.mjs",
+      "sites": 1,
+      "requests": 5,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "openwong2kim/wmux/scripts/chat-live-e2e.mjs",
+      "sites": 1,
+      "requests": 9,
+      "methodReadBefore": 0,
+      "methodReadAfter": 9,
+      "readAfter": [
+        "GET http://127.0.0.1:{}/api/sessions/{}/turns",
+        "POST http://127.0.0.1:{}/api/sessions/{}/chat/messages",
+        "POST http://127.0.0.1:{}/api/sessions/{}/chat/cancel",
+        "DELETE http://127.0.0.1:{}/api/sessions/{}/chat/queue/{}",
+        "GET http://127.0.0.1:{}/api/sessions/{}/turns",
+        "POST http://127.0.0.1:{}/api/sessions/{}/chat/cancel"
+      ]
+    },
+    {
+      "file": "Forgemind-git/ForgeChat/mcp-server/src/index.js",
+      "sites": 1,
+      "requests": 19,
+      "methodReadBefore": 0,
+      "methodReadAfter": 19,
+      "readAfter": [
+        "GET DYNAMIC_URL",
+        "GET DYNAMIC_URL",
+        "GET DYNAMIC_URL",
+        "GET DYNAMIC_URL",
+        "GET DYNAMIC_URL",
+        "GET DYNAMIC_URL"
+      ]
+    },
+    {
+      "file": "unimaginative-artist/SOMA/core/MaxAgentBridge.js",
+      "sites": 0,
+      "requests": 0,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "magenie33/wfsim/bot/menus.mjs",
+      "sites": 1,
+      "requests": 4,
+      "methodReadBefore": 0,
+      "methodReadAfter": 4,
+      "readAfter": ["GET DYNAMIC_URL", "DELETE DYNAMIC_URL", "POST DYNAMIC_URL", "PUT DYNAMIC_URL"]
+    },
+    {
+      "file": "BradPerbs/cloudterm/src/main/account.js",
+      "sites": 1,
+      "requests": 0,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    },
+    {
+      "file": "celador/weft/demo/otto/lib.mjs",
+      "sites": 2,
+      "requests": 9,
+      "methodReadBefore": 0,
+      "methodReadAfter": 8,
+      "readAfter": [
+        "GET DYNAMIC_URL",
+        "GET DYNAMIC_URL",
+        "POST DYNAMIC_URL",
+        "GET https://api.cloudflare.com/client/v4/accounts/2d659dee148763a8d64c80135da7165d/queues",
+        "POST https://api.cloudflare.com/client/v4/accounts/2d659dee148763a8d64c80135da7165d/queues/{}/messages",
+        "POST DYNAMIC_URL"
+      ]
+    },
+    {
+      "file": "JoviDeCroock/drydock/scripts/e2e-seed.mjs",
+      "sites": 1,
+      "requests": 5,
+      "methodReadBefore": 0,
+      "methodReadAfter": 5,
+      "readAfter": [
+        "POST DYNAMIC_URL",
+        "POST DYNAMIC_URL",
+        "POST DYNAMIC_URL",
+        "GET DYNAMIC_URL",
+        "POST DYNAMIC_URL"
+      ]
+    },
+    {
+      "file": "consultingtedds/ha-home-energy-advisor/demo/configure.mjs",
+      "sites": 1,
+      "requests": 11,
+      "methodReadBefore": 0,
+      "methodReadAfter": 0,
+      "readAfter": []
+    }
+  ]
+}

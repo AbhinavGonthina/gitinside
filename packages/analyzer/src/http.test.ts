@@ -146,6 +146,49 @@ describe("collectHttpCalls: fetch", () => {
     ]);
   });
 
+  it("reads a method past a spread of a conditional whose objects don't set it (M5C.10e2)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      "export async function load(body: unknown, flag: boolean, extra: RequestInit) {",
+      '  await fetch("/a", { method: "POST", ...(body ? { body: JSON.stringify(body) } : {}) });',
+      '  await fetch("/b", { method: "PUT", ...(flag && { cache: "no-store" }) });',
+      '  await fetch("/c", { method: "PATCH", ...(flag ? {} : body ? { body: "x" } : {}) });',
+      '  await fetch("/d", { method: "POST", ...(flag ? { method: "PUT" } : {}) });',
+      '  await fetch("/e", { method: "POST", ...(flag ? extra : {}) });',
+      '  await fetch("/f", { method: "POST", ...(flag ? { ...extra } : {}) });',
+      '  await fetch("/g", { method: "POST", ...(flag || { body: "x" }) });',
+      '  await fetch("/h", { ...(flag ? { body: "x" } : {}) });',
+      "}",
+    ]);
+    // A branch that sets `method`, or that can't be read, could still supply it; so could the
+    // left side of `||`. With no `method` anywhere, it's the default.
+    expect(summary(await collect()).map((s) => s.split(" base=")[0])).toEqual([
+      'src/api.ts:2:9 fetch POST "/a"',
+      'src/api.ts:3:9 fetch PUT "/b"',
+      'src/api.ts:4:9 fetch PATCH "/c"',
+      'src/api.ts:5:9 fetch ? "/d"',
+      'src/api.ts:6:9 fetch ? "/e"',
+      'src/api.ts:7:9 fetch ? "/f"',
+      'src/api.ts:8:9 fetch ? "/g"',
+      'src/api.ts:9:9 fetch GET "/h"',
+    ]);
+  });
+
+  it("reads an axios config's url and method past a conditional spread that lacks them (M5C.10e2)", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { axios: "1.0.0" } }));
+    await put("src/api.ts", [
+      'import axios from "axios";',
+      "export async function load(data: unknown, extra: object) {",
+      '  await axios({ url: "/a", method: "put", ...(data ? { data } : {}) });',
+      '  await axios({ url: "/b", method: "put", ...(data ? extra : {}) });',
+      "}",
+    ]);
+    expect(summary(await collect()).map((s) => s.split(" base=")[0])).toEqual([
+      'src/api.ts:3:9 axios PUT "/a"',
+      "src/api.ts:4:9 axios ? ?",
+    ]);
+  });
+
   it("recognizes global objects, fetch packages, and Request objects, but not local fetch functions", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/a.ts", [

@@ -532,6 +532,48 @@ describe("inlineWrappers", () => {
     ]);
   });
 
+  it("reads the caller's method past a spread of a conditional that can't set it (M5C.10e2)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      'const API_BASE = "/api";',
+      'export async function request(path: string, method = "GET", body?: unknown) {',
+      "  const headers = { 'Content-Type': 'application/json' };",
+      "  return fetch(`${API_BASE}${path}`, {",
+      "    method,",
+      "    headers,",
+      "    ...(body ? { body: JSON.stringify(body) } : {}),",
+      "  });",
+      "}",
+      "export function either(path: string, method: string, init?: RequestInit) {",
+      "  return fetch(path, { method, ...(init ? init : {}) });",
+      "}",
+      "export function sets(path: string, method: string, flag: boolean) {",
+      '  return fetch(path, { method, ...(flag ? { method: "PUT" } : {}) });',
+      "}",
+      "export function mixed(path: string, method: string, init: RequestInit, flag: boolean) {",
+      '  return fetch(path, { method, ...init, ...(flag ? { body: "x" } : {}) });',
+      "}",
+      "export async function use() {",
+      '  await request("/budgets");',
+      '  await request("/budgets", "POST", { name: "x" });',
+      '  await request("/budgets/1", "DELETE");',
+      '  await either("/e", "PATCH");',
+      '  await sets("/s", "POST", true);',
+      '  await mixed("/m", "POST", { headers: {} }, true);',
+      "}",
+    ]);
+    // `init` could set `method`; so does one branch of `sets`'s spread. In `mixed`, only the
+    // caller's `init` is read for it.
+    expect(await summary()).toEqual([
+      "src/http.ts:20 GET /api/budgets [use] <- src/http.ts:4",
+      "src/http.ts:21 POST /api/budgets [use] <- src/http.ts:4",
+      "src/http.ts:22 DELETE /api/budgets/1 [use] <- src/http.ts:4",
+      "src/http.ts:23 ? /e [use] <- src/http.ts:11",
+      "src/http.ts:24 ? /s [use] <- src/http.ts:14",
+      "src/http.ts:25 POST /m [use] <- src/http.ts:17",
+    ]);
+  });
+
   it("keeps a request at its site when a parameter only fills a later hole or the query (M5A.3j)", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/api.ts", [
