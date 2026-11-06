@@ -296,6 +296,47 @@ describe("openDiskCache", () => {
     expect(await second.get("d")).toEqual(bulky(4, 4000));
   });
 
+  it("counts other writers' temporary files toward the cap (M6.11f)", async () => {
+    const probe = await openDiskCache(join(dir, "probe"));
+    await probe.put("p", bulky(1, 4000));
+    const size = probe.stats().bytes;
+
+    // A writer killed mid-write a minute ago left a file one and a half entries long.
+    const folder = join(dir, "cache");
+    const leftover = Math.floor(size * 1.5);
+    await mkdir(join(folder, "tmp"), { recursive: true });
+    await writeFile(join(folder, "tmp", "killed.tmp"), Buffer.alloc(leftover));
+    const maxBytes = Math.floor(size * 3.2);
+    const cache = await openDiskCache(folder, { maxBytes });
+    expect(cache.stats()).toMatchObject({ entries: 0, bytes: leftover });
+
+    await cache.put("a", bulky(1, 4000));
+    await utimes(entryFile(folder, "a"), 1_000, 1_000);
+    // The leftover file and two entries are past the cap, so a makes room for b.
+    await cache.put("b", bulky(2, 4000));
+    expect(cache.stats()).toMatchObject({ entries: 1, evictions: 1, errors: 0 });
+    expect(await cache.get("b")).toEqual(bulky(2, 4000));
+    expect(await folderBytes(folder)).toBeLessThanOrEqual(maxBytes);
+    expect(cache.stats().bytes).toBe(await folderBytes(folder));
+  });
+
+  it("lowers its counts only for entries it counted (M6.11f)", async () => {
+    const cache = await openDiskCache(dir);
+    const other = await openDiskCache(dir);
+    // Another instance's entry, written after `cache` listed the folder, then corrupted.
+    await other.put("k", [1, 2, 3]);
+    await writeFile(entryFile(dir, "k"), "not gzip");
+    expect(await cache.get("k")).toBeUndefined();
+    expect(existsSync(entryFile(dir, "k"))).toBe(false);
+    expect(cache.stats()).toMatchObject({ misses: 1, entries: 0, bytes: 0 });
+
+    // An entry `cache` never counted, replaced by its own write, is counted once.
+    await other.put("r", "first, which is longer");
+    await cache.put("r", "second");
+    expect(cache.stats()).toMatchObject({ entries: 1, writes: 1 });
+    expect(cache.stats().bytes).toBe(await folderBytes(dir));
+  });
+
   it("deletes stale temporary files on open and keeps fresh ones", async () => {
     await mkdir(join(dir, "tmp"), { recursive: true });
     await writeFile(join(dir, "tmp", "old.tmp"), "x");

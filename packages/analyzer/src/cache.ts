@@ -24,7 +24,11 @@
  *   folder's entries and the file being written never hold more than `maxBytes` at once. If
  *   room can't be made, the write is skipped. Opening with a smaller cap than the folder holds
  *   evicts the same way. A read that hits touches the entry's time. An entry larger than
- *   `maxBytes` is never stored.
+ *   `maxBytes` is never stored. Temporary files count toward the total too (a writer killed
+ *   mid-write leaves one, deleted after an hour), but aren't evicted, since a writer in another
+ *   process may still be using one. Deleting an entry lowers the total only by what this
+ *   instance counted for it, so one written by another process since the last listing can't
+ *   take the count below what's on disk (M6.11f).
  * - **Counts:** reads and writes are counted per kind of entry: the caller's own (one per
  *   service), and the {@link EntryUse.shared} ones they refer to. Sizes count both.
  * - **Failures never fail an analysis:** an unreadable, corrupt, or mismatched entry is a miss
@@ -99,9 +103,12 @@ export interface CacheStats {
   evictions: number;
   /** Writes, touches, and deletions that failed (ignored otherwise). */
   errors: number;
-  /** Bytes held on disk, as last listed plus this instance's own writes since. */
+  /**
+   * Bytes held on disk, as last listed plus this instance's own writes since: entries, and
+   * temporary files of other writes in progress or of writers killed in the last hour.
+   */
   bytes: number;
-  /** Entries held on disk, counted the same way as {@link bytes}. */
+  /** Entries held on disk, counted the same way as {@link bytes} (temporary files aren't). */
   entries: number;
 }
 
@@ -164,6 +171,38 @@ async function listEntries(
   return listed;
 }
 
+/**
+ * Delete the temporary files in `tmpDir` older than {@link STALE_TMP_MS}, and answer the total
+ * size of the rest, counted by `counted`: other writers' files in progress, or files left by
+ * writers killed in the last hour, which take room until they're deleted (M6.11f).
+ */
+async function sweepTemporary(tmpDir: string, counted: (size: number) => number): Promise<number> {
+  const now = Date.now();
+  let total = 0;
+  const names = await readdir(tmpDir).catch(() => [] as string[]);
+  for (const name of names.sort(compareStrings)) {
+    const file = join(tmpDir, name);
+    const info = await stat(file).catch(() => null);
+    if (!info?.isFile()) continue;
+    const stale = now - info.mtimeMs > STALE_TMP_MS;
+    if (
+      stale &&
+      (await rm(file, { force: true }).then(
+        () => true,
+        () => false,
+      ))
+    )
+      continue;
+    total += counted(info.size);
+  }
+  return total;
+}
+
+/** Whether a file system error says the file isn't there. */
+function isMissing(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+
 /** Whether a parsed entry file has the shape {@link DiskCache.put} writes. */
 function isEntry(value: unknown): value is { key: string; value: unknown } {
   return (
@@ -177,8 +216,9 @@ function isEntry(value: unknown): value is { key: string; value: unknown } {
 
 /**
  * Open (creating if needed) a disk cache in `dir`, which should be used for nothing else.
- * Lists the existing entries to learn their total size, and deletes temporary files left by
- * writers that crashed over an hour ago. See the file comment for the guarantees.
+ * Lists the existing entries and temporary files to learn their total size, and deletes
+ * temporary files left by writers that crashed over an hour ago. See the file comment for the
+ * guarantees.
  */
 export async function openDiskCache(
   dir: string,
@@ -192,59 +232,80 @@ export async function openDiskCache(
   await mkdir(entriesDir, { recursive: true });
   await mkdir(tmpDir, { recursive: true });
 
-  const now = Date.now();
-  for (const name of await readdir(tmpDir)) {
-    const file = join(tmpDir, name);
-    const info = await stat(file).catch(() => null);
-    if (info && now - info.mtimeMs > STALE_TMP_MS) await rm(file, { force: true });
-  }
-
-  const counters: CacheStats = {
+  const counters: Omit<CacheStats, "bytes" | "entries"> = {
     hits: 0,
     misses: 0,
     writes: 0,
     shared: { hits: 0, misses: 0, writes: 0 },
     evictions: 0,
     errors: 0,
-    bytes: 0,
-    entries: 0,
   };
-  const recount = (listed: readonly Listed[]): void => {
-    counters.bytes = listed.reduce((sum, entry) => sum + entry.size, 0);
-    counters.entries = listed.length;
+  /**
+   * The entry files this instance counts, with their counted sizes: as last listed, plus its
+   * own writes since. Only these lower the count when deleted, so an entry another process
+   * wrote after the listing can't take the count below what's on disk (M6.11f).
+   */
+  const held = new Map<string, number>();
+  let heldBytes = 0;
+  /** The temporary files' counted size at the last listing. */
+  let temporaryBytes = 0;
+  const total = (): number => heldBytes + temporaryBytes;
+
+  /** Count the entries and temporary files of a fresh listing, replacing the old count. */
+  const recount = (listed: readonly Listed[], temporary: number): void => {
+    held.clear();
+    heldBytes = 0;
+    for (const { file, size } of listed) {
+      held.set(file, size);
+      heldBytes += size;
+    }
+    temporaryBytes = temporary;
+  };
+  /** Stop counting an entry file that's no longer on disk. */
+  const forget = (file: string): void => {
+    heldBytes -= held.get(file) ?? 0;
+    held.delete(file);
   };
 
-  /** Delete an entry file, keeping the counters in step. False when it failed. */
-  const remove = async (file: string, size: number): Promise<boolean> => {
+  /**
+   * Delete an entry file. True when this call deleted it. A file that was already gone is
+   * no longer counted either, but isn't this call's doing; any other failure is an error and
+   * keeps it counted.
+   */
+  const remove = async (file: string): Promise<boolean> => {
     try {
-      await rm(file, { force: true });
-    } catch {
-      counters.errors++;
+      await rm(file);
+    } catch (error) {
+      if (!isMissing(error)) {
+        counters.errors++;
+        return false;
+      }
+      forget(file);
       return false;
     }
-    counters.bytes -= size;
-    counters.entries--;
+    forget(file);
     return true;
   };
 
   /**
    * List the folder again, then delete least recently used entries until the total plus
    * `reserve` (an entry about to be written) is at most the low-water mark, or none is left.
+   * Temporary files count toward the total but aren't evicted (a writer may still be using
+   * one); stale ones are deleted.
    */
   const evict = async (reserve: number): Promise<void> => {
     const listed = await listEntries(entriesDir, counted);
-    recount(listed);
+    recount(listed, await sweepTemporary(tmpDir, counted));
     listed.sort((a, b) => a.time - b.time || compareStrings(a.file, b.file));
     const target = Math.floor(maxBytes * LOW_WATER);
     for (const entry of listed) {
-      if (counters.bytes + reserve <= target) break;
-      if (await remove(entry.file, entry.size)) counters.evictions++;
+      if (total() + reserve <= target) break;
+      if (await remove(entry.file)) counters.evictions++;
     }
   };
 
-  const listed = await listEntries(entriesDir, counted);
-  recount(listed);
-  if (counters.bytes > maxBytes) await evict(0);
+  recount(await listEntries(entriesDir, counted), await sweepTemporary(tmpDir, counted));
+  if (total() > maxBytes) await evict(0);
 
   /** The counts a read or write of an entry used as `use` goes to. */
   const countsOf = (use: EntryUse | undefined): EntryCounts =>
@@ -255,20 +316,18 @@ export async function openDiskCache(
     const size = counted(body.length);
     if (size > maxBytes) return;
     // Until the rename, the old entry for this key (if any) and the new file both exist.
-    if (counters.bytes + size > maxBytes) await evict(size);
-    if (counters.bytes + size > maxBytes) return;
+    if (total() + size > maxBytes) await evict(size);
+    if (total() + size > maxBytes) return;
     const file = entryFile(dir, key);
     const tmp = join(tmpDir, `${randomUUID()}.tmp`);
     try {
       await writeFile(tmp, body);
       await mkdir(dirname(file), { recursive: true });
-      const previous = await stat(file).then(
-        (info) => counted(info.size),
-        () => undefined,
-      );
       await rename(tmp, file);
-      counters.bytes += size - (previous ?? 0);
-      if (previous === undefined) counters.entries++;
+      // A file it replaced counts only if this instance counted it.
+      forget(file);
+      held.set(file, size);
+      heldBytes += size;
       counts.writes++;
     } catch {
       counters.errors++;
@@ -296,7 +355,7 @@ export async function openDiskCache(
         value = parsed.value;
       } catch {
         counts.misses++;
-        await remove(file, counted(data.length));
+        await remove(file);
         return undefined;
       }
       counts.hits++;
@@ -330,6 +389,11 @@ export async function openDiskCache(
       return done;
     },
 
-    stats: () => ({ ...counters, shared: { ...counters.shared } }),
+    stats: () => ({
+      ...counters,
+      shared: { ...counters.shared },
+      bytes: total(),
+      entries: held.size,
+    }),
   };
 }
