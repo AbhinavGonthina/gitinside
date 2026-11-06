@@ -1,0 +1,145 @@
+{
+  "about": "Raw measurements behind M5C.10c (docs/COVERAGE.md 'After batch 5', ADR-0026's M5C.10c amendment): how common is an Express router created by calling Router on the require itself (const router = require('express').Router()), in a file that binds no express name, which before the fix had no router at all (routerCreations skipped files without an express binding). 'counts': GitHub REST GET /search/code (legacy engine, authenticated) total_count per query; the legacy engine drops punctuation, so a quoted phrase matches the token run require express Router, and the express.Router() row is the documented spelling for scale. 'sample': the first 10 hits of each of the two quote styles, each file read with GET /repos/<repo>/contents/<path>; 'form' is whether a line matches /require\\s*\\(\\s*[\"'`]express[\"'`]\\s*\\)\\s*\\.\\s*Router\\s*\\(/, and 'bindsExpress' whether the file also binds express by a top-level require or import (if it did, the old detector already found the router). 20 of 20 have the form and none binds express. Among the eval checkouts (eval/.repos, every repos.json entry), the form is only in batch 5's nz-m/SocialEcho (server/routes/admin, community, context-auth, post, user .route.js).",
+  "date": "2026-11-06",
+  "counts": {
+    "\"require('express').Router()\" language:JavaScript": 272896,
+    "\"require(\\\"express\\\").Router()\" language:JavaScript": 158208,
+    "\"require('express').Router({ mergeParams: true })\" language:JavaScript": 1404,
+    "\"express.Router()\" language:JavaScript": 4448256
+  },
+  "sample": [
+    {
+      "file": "antonshevchenko/pager/api/user.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "var router = require('express').Router();"
+    },
+    {
+      "file": "brucx/mp-push-leancloud/routes.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require('express').Router()"
+    },
+    {
+      "file": "lscofield/node-urlresolver-api/routes.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "let router = require('express').Router();"
+    },
+    {
+      "file": "xiaozhongliu/node-api-seed/router.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require('express').Router()"
+    },
+    {
+      "file": "cirosantilli/node-express-sequelize-nextjs-realworld-example-app/api/tags.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require('express').Router()"
+    },
+    {
+      "file": "tamalchowdhury/reddit-like-site/api/index.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require('express').Router();"
+    },
+    {
+      "file": "NankaiACM/NKOJ-Back-End/api/api.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require('express').Router()"
+    },
+    {
+      "file": "oslabs-beta/DataDoc/dummy/api.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require('express').Router();"
+    },
+    {
+      "file": "CESARBR/knot-gateway-webui/app/api.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "var router = require('express').Router();"
+    },
+    {
+      "file": "praemineo/node-skeleton/routes.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require('express').Router();"
+    },
+    {
+      "file": "mrmodise/nodejs-ecommerce-store/api/api.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require(\"express\").Router();"
+    },
+    {
+      "file": "SysSn13/leetcode-rating-predictor/routes/api.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require(\"express\").Router();"
+    },
+    {
+      "file": "gnehs/PokaPlayer/router/pin.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require(\"express\").Router();"
+    },
+    {
+      "file": "Fantom-foundation/Artion-Server/apis/lock.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require(\"express\").Router();"
+    },
+    {
+      "file": "Astra-Development/Discord-Bot-List-v3/routes/tos.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const app = require(\"express\").Router();"
+    },
+    {
+      "file": "Leonardpepa/Pepaverse/router.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require(\"express\").Router();"
+    },
+    {
+      "file": "LastComrade/Event-Management-System/routes/home.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require(\"express\").Router();"
+    },
+    {
+      "file": "SaraVieira/jsonbox/src/routes.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require(\"express\").Router();"
+    },
+    {
+      "file": "tpximpact/fg-bucks-api/routes/api.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "const router = require(\"express\").Router()"
+    },
+    {
+      "file": "IEEECS-VIT/GPL/routes/api.js",
+      "form": true,
+      "bindsExpress": false,
+      "line": "router = require(\"express\").Router(), // eslint-disable-line new-cap"
+    }
+  ],
+  "checkouts": [
+    {
+      "repo": "nz-m/SocialEcho",
+      "heldOut": 5,
+      "files": [
+        "server/routes/admin.route.js",
+        "server/routes/community.route.js",
+        "server/routes/context-auth.route.js",
+        "server/routes/post.route.js",
+        "server/routes/user.route.js"
+      ]
+    }
+  ]
+}

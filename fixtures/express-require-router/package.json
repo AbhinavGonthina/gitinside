@@ -1,0 +1,1 @@
+{ "name": "express-require-router", "dependencies": { "express": "4" } }

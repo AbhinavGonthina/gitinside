@@ -119,6 +119,7 @@ const EXPECTED: Record<string, string[]> = {
   "express-folder-routers": ["3f764023bc835261", "244a58f3ded7699e", "6f99dc59a79109a7"],
   "express-inline-calls": ["af8ea7899af75629", "d547b6065764721e", "b8f730cab1b6a8c7"],
   "express-nested-routers": ["4e1615e0d7a29102", "8d20ee57d890d141", "11cd55aa40b3f637"],
+  "express-require-router": ["3fdc7295430a17f8", "6344169ae6a4f83e", "dde1a0ab75eff970"],
   "external-sdk": ["2482ec3f82eeabad", "3acd20df34c01c3d", "d7e32a1c0ac3281c"],
   "fake-secrets": ["2b1e07e08b9a6c57", "8be4b2600775eaee", "cf911a93a59b2b14"],
   "fetch-template-literal": ["8b80d7390797ba19", "248e377451753beb", "261682dcd8866049"],
