@@ -396,7 +396,8 @@ export const DiffBrokenDown: Story = {
 /**
  * The same PR zoomed out to 40% (M6.11g2): the pills have faded, so each
  * added, changed, or removed line carries its state's glyph (+, ~, −), not
- * only its color; broken lines keep their dashes and pills.
+ * only its color; broken lines keep their dashes and pills (their own ×
+ * glyph shows at outline, below).
  */
 export const DiffZoomedOut: Story = {
   name: "Diff, zoomed out",
@@ -404,6 +405,22 @@ export const DiffZoomedOut: Story = {
     <ExploreDiff
       initialOpen={["service:diff-broken/", "module:diff-broken/src"]}
       initialZoom={0.4}
+    />
+  ),
+};
+
+/**
+ * The same PR at outline detail, 25% (M6.11l): every pill has faded, broken
+ * ones too, so a broken line carries a glyph of its own (×). Under reduced
+ * motion it doesn't pulse, and the glyph is what tells it from a dashed
+ * heuristic line besides its color (WCAG 1.4.1; `visual/diff.visual.ts`).
+ */
+export const DiffOutline: Story = {
+  name: "Diff, outline",
+  render: () => (
+    <ExploreDiff
+      initialOpen={["service:diff-broken/", "module:diff-broken/src"]}
+      initialZoom={0.25}
     />
   ),
 };

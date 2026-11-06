@@ -80,12 +80,18 @@ describe("drill.css", () => {
       expect(rule(`${inner} .gi-edge__hit`)).toMatch(/pointer-events: none;/);
     });
 
-    it("shows a diff line's glyph below full detail, where its pill fades (M6.11g2, WCAG 1.4.1)", () => {
+    it("shows a diff line's glyph below full detail, and a broken one's at outline, where their pills fade (M6.11g2, M6.11l, WCAG 1.4.1)", () => {
       expect(
         rule(
           '.gi-drill:is([data-detail="names"], [data-detail="outline"]) .gi-edge[data-diff]:not([data-broken]) .gi-edge__mark',
         ),
       ).toMatch(/opacity: 1;/);
+      // At outline a broken line's pill fades like the rest, and under reduced
+      // motion (no pulse) only the glyph tells it from a dashed line. At names
+      // its pill stays, and the glyph would show around the smaller pill.
+      expect(rule('.gi-drill[data-detail="outline"] .gi-edge[data-broken] .gi-edge__mark')).toMatch(
+        /opacity: 1;/,
+      );
       // Drawn at the same screen size whatever the zoom, around its own center.
       expect(rule(".gi-drill .gi-edge__mark-glyph")).toMatch(
         /transform: scale\(var\(--gi-mark-scale, 1\)\);/,

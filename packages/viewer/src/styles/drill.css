@@ -181,12 +181,19 @@
 /*
  * A diff line's glyph (M6.11g2) takes over from its fading pill below full
  * detail, so added, changed, and removed lines differ by shape, not color
- * alone (WCAG 1.4.1). A pill still drawn covers it; a broken line has its
- * dashes and pill. --gi-mark-scale keeps it one size on screen.
+ * alone (WCAG 1.4.1). A pill still drawn covers it. A broken line keeps its
+ * pill at names (its glyph, wider than the zoomed-out pill, would show
+ * around it), but at outline that pill fades too, and under reduced motion
+ * the line doesn't pulse, so its own glyph (M6.11l) is what tells it from a
+ * dashed line. --gi-mark-scale keeps it one size on screen.
  */
 .gi-drill:is([data-detail="names"], [data-detail="outline"])
   .gi-edge[data-diff]:not([data-broken])
   .gi-edge__mark {
+  opacity: 1;
+}
+
+.gi-drill[data-detail="outline"] .gi-edge[data-broken] .gi-edge__mark {
   opacity: 1;
 }
 
