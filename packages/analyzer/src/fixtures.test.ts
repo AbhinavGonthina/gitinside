@@ -64,6 +64,7 @@ const NAMES = [
   "origin-parameters",
   "local-helpers",
   "let-query-urls",
+  "conditional-spread-method",
   "ambiguous-routes",
   "wrapper-fetch",
   "wrapper-chain",
@@ -745,6 +746,18 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       // The append that may change the path stays visible, not matched to `/:owner`.
       `symbol:${p}/src/player.ts#playlists -> unresolved:${p}/src/player.ts:30:10 unresolved DYNAMIC_URL`,
       `symbol:${p}/src/player.ts#showTrack -> route:${p}/GET /api/tracks/:trackId exact`,
+    ]);
+  });
+
+  it("conditional-spread-method: a method before a conditional spread that can't set it stands (M5C.10e2)", async () => {
+    const g = await run("conditional-spread-method");
+    const p = "conditional-spread-method";
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/src/budgets.ts#createBudget -> route:${p}/POST /api/budgets exact`,
+      `symbol:${p}/src/budgets.ts#listBudgets -> route:${p}/GET /api/budgets exact`,
+      `symbol:${p}/src/budgets.ts#removeBudget -> route:${p}/DELETE /api/budgets/:budgetId exact`,
+      // A caller's `override` could set any method, so only the method would pick a route.
+      `symbol:${p}/src/budgets.ts#renameBudget -> unresolved:${p}/src/budgets.ts:19:10 unresolved AMBIGUOUS`,
     ]);
   });
 

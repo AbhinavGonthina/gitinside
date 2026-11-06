@@ -141,7 +141,8 @@ export function isConst(declaration: ts.VariableDeclaration): boolean {
 
 /**
  * A property of an object literal: its value, `undefined` when it is certainly absent, or
- * `null` when a spread or a computed key could supply it.
+ * `null` when a spread or a computed key could supply it. A spread that {@link spreadLacks}
+ * it is passed over.
  */
 export function objectProperty(
   sp: ServiceProgram,
@@ -151,10 +152,30 @@ export function objectProperty(
   for (let i = object.properties.length - 1; i >= 0; i--) {
     const property = object.properties[i];
     if (!property) continue;
+    if (ts.isSpreadAssignment(property) && spreadLacks(sp, property.expression, name)) continue;
     const value = ownProperty(sp, property, name);
     if (value !== undefined) return value;
   }
   return undefined;
+}
+
+/**
+ * True when a spread's value can't supply property `name` (M5C.10e2): an object literal that
+ * certainly lacks it, or a conditional (`c ? { body } : {}`) or `&&` (`c && { body }`) of such
+ * values, nested too. A falsy left side of `&&` spreads nothing. Anything else (a variable,
+ * `||`, `??`, a branch that sets `name` or spreads something unread) could supply it.
+ */
+export function spreadLacks(sp: ServiceProgram, expression: ts.Expression, name: string): boolean {
+  const e = unwrap(expression);
+  if (ts.isObjectLiteralExpression(e)) return objectProperty(sp, e, name) === undefined;
+  if (ts.isConditionalExpression(e)) {
+    return spreadLacks(sp, e.whenTrue, name) && spreadLacks(sp, e.whenFalse, name);
+  }
+  return (
+    ts.isBinaryExpression(e) &&
+    e.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken &&
+    spreadLacks(sp, e.right, name)
+  );
 }
 
 /**

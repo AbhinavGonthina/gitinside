@@ -1,0 +1,3 @@
+# conditional-spread-method
+
+A `method` before a spread of a conditional (M5C.10e2, ADR-0033's amendment). `request(path, method, body)` passes `{ method, headers, ...(body ? { body: JSON.stringify(body) } : {}) }`: neither object in the conditional sets `method`, so the parameter stands and each caller gets its own route (`GET /api/budgets`, `POST /api/budgets`, `DELETE /api/budgets/:budgetId`). `renameBudget` spreads `...(override ? override : {})`, a caller's value that could set any method, so its `PUT` isn't trusted: only the method would pick between `PUT` and `DELETE /api/budgets/:budgetId`, so the request stays unresolved (`AMBIGUOUS`) rather than guessing.

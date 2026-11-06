@@ -58,7 +58,10 @@
  *   instance whose `baseURL` is unknown.
  * - Config objects are object literals, directly or through a variable. A property after
  *   the last spread is read; a property that could come from a spread (or a config the
- *   collector can't see) is unknown (`null`), never guessed. A whole config it can't see
+ *   collector can't see) is unknown (`null`), never guessed. A spread of a conditional or
+ *   `&&` whose object literals all lack the property (`...(body ? { body } : {})`) can't
+ *   supply it and is passed over (M5C.10e2); `||`, `??`, and a branch holding a variable or
+ *   an unread spread are not, so they stay unknown. A whole config it can't see
  *   (`axios(req)`) is kept on the site, so a wrapper's caller can supply it (M5A.3c).
  * - Method strings: literals, no-substitution templates, consts holding them (imported
  *   too), properties of const object literals (`METHODS.post`), and string enum members.
@@ -159,6 +162,7 @@ import {
   MAX_HOPS,
   objectProperty,
   ownProperty,
+  spreadLacks,
   weaker,
   type ConfigValue,
   type ProgramExpression,
@@ -605,7 +609,10 @@ export function createHttpSiteCollector(
       const property = object.properties[i];
       if (!property) continue;
       if (ts.isSpreadAssignment(property)) {
-        spreads.push({ sp, expression: property.expression });
+        // `...(body ? { body } : {})` can't supply it (M5C.10e2).
+        if (!spreadLacks(sp, property.expression, "method")) {
+          spreads.push({ sp, expression: property.expression });
+        }
         continue;
       }
       const value = ownProperty(sp, property, "method");

@@ -1,0 +1,309 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-spread-method/src/budgets.ts#createBudget",
+      "id": "calls:symbol:conditional-spread-method/src/budgets.ts#createBudget->symbol:conditional-spread-method/src/budgets.ts#request",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 3,
+          "column": 59,
+          "file": "src/budgets.ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:conditional-spread-method/src/budgets.ts#request"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-spread-method/src/budgets.ts#listBudgets",
+      "id": "calls:symbol:conditional-spread-method/src/budgets.ts#listBudgets->symbol:conditional-spread-method/src/budgets.ts#request",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 34,
+          "file": "src/budgets.ts",
+          "line": 12
+        }
+      ],
+      "to": "symbol:conditional-spread-method/src/budgets.ts#request"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-spread-method/src/budgets.ts#removeBudget",
+      "id": "calls:symbol:conditional-spread-method/src/budgets.ts#removeBudget->symbol:conditional-spread-method/src/budgets.ts#request",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 45,
+          "file": "src/budgets.ts",
+          "line": 16
+        }
+      ],
+      "to": "symbol:conditional-spread-method/src/budgets.ts#request"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-spread-method/src/budgets.ts#createBudget",
+      "id": "http:symbol:conditional-spread-method/src/budgets.ts#createBudget->route:conditional-spread-method/POST /api/budgets",
+      "kind": "http",
+      "label": "POST /api/budgets",
+      "sites": [
+        {
+          "column": 59,
+          "file": "src/budgets.ts",
+          "line": 14,
+          "request": "POST /api/budgets"
+        }
+      ],
+      "to": "route:conditional-spread-method/POST /api/budgets"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-spread-method/src/budgets.ts#listBudgets",
+      "id": "http:symbol:conditional-spread-method/src/budgets.ts#listBudgets->route:conditional-spread-method/GET /api/budgets",
+      "kind": "http",
+      "label": "GET /api/budgets",
+      "sites": [
+        {
+          "column": 34,
+          "file": "src/budgets.ts",
+          "line": 12,
+          "request": "GET /api/budgets"
+        }
+      ],
+      "to": "route:conditional-spread-method/GET /api/budgets"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-spread-method/src/budgets.ts#removeBudget",
+      "id": "http:symbol:conditional-spread-method/src/budgets.ts#removeBudget->route:conditional-spread-method/DELETE /api/budgets/:budgetId",
+      "kind": "http",
+      "label": "DELETE /api/budgets/:budgetId",
+      "sites": [
+        {
+          "column": 45,
+          "file": "src/budgets.ts",
+          "line": 16,
+          "request": "DELETE /api/budgets/{}"
+        }
+      ],
+      "to": "route:conditional-spread-method/DELETE /api/budgets/:budgetId"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:conditional-spread-method/src/budgets.ts#renameBudget",
+      "id": "http:symbol:conditional-spread-method/src/budgets.ts#renameBudget->unresolved:conditional-spread-method/src/budgets.ts:19:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/budgets.ts",
+          "line": 19
+        }
+      ],
+      "to": "unresolved:conditional-spread-method/src/budgets.ts:19:10"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "dadd2dfe4c330f44938855e3988b5e8423b6ad58f5ed6b7d0dd1e294da88971d",
+      "id": "file:conditional-spread-method/src/budgets.ts",
+      "kind": "file",
+      "label": "budgets.ts",
+      "parentId": "module:conditional-spread-method/src",
+      "path": "src/budgets.ts"
+    },
+    {
+      "hash": "188d8a1473d99c428adf09f8e5f8767b7b9c1197da107c4997ffd61703736138",
+      "id": "file:conditional-spread-method/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:conditional-spread-method/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:conditional-spread-method/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:conditional-spread-method/",
+      "path": "src"
+    },
+    {
+      "id": "route:conditional-spread-method/DELETE /api/budgets/:budgetId",
+      "kind": "route",
+      "label": "DELETE /api/budgets/:budgetId",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:conditional-spread-method/src/server.ts",
+      "path": "/api/budgets/:budgetId",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:conditional-spread-method/GET /api/budgets",
+      "kind": "route",
+      "label": "GET /api/budgets",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:conditional-spread-method/src/server.ts",
+      "path": "/api/budgets",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:conditional-spread-method/POST /api/budgets",
+      "kind": "route",
+      "label": "POST /api/budgets",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:conditional-spread-method/src/server.ts",
+      "path": "/api/budgets",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 7
+      }
+    },
+    {
+      "id": "route:conditional-spread-method/PUT /api/budgets/:budgetId",
+      "kind": "route",
+      "label": "PUT /api/budgets/:budgetId",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:conditional-spread-method/src/server.ts",
+      "path": "/api/budgets/:budgetId",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:conditional-spread-method/",
+      "kind": "service",
+      "label": "conditional-spread-method",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-spread-method/src/budgets.ts#createBudget",
+      "kind": "symbol",
+      "label": "createBudget",
+      "parentId": "file:conditional-spread-method/src/budgets.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 14,
+        "file": "src/budgets.ts",
+        "line": 14
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-spread-method/src/budgets.ts#listBudgets",
+      "kind": "symbol",
+      "label": "listBudgets",
+      "parentId": "file:conditional-spread-method/src/budgets.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 12,
+        "file": "src/budgets.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-spread-method/src/budgets.ts#removeBudget",
+      "kind": "symbol",
+      "label": "removeBudget",
+      "parentId": "file:conditional-spread-method/src/budgets.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 16,
+        "file": "src/budgets.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-spread-method/src/budgets.ts#renameBudget",
+      "kind": "symbol",
+      "label": "renameBudget",
+      "parentId": "file:conditional-spread-method/src/budgets.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 24,
+        "file": "src/budgets.ts",
+        "line": 18
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:conditional-spread-method/src/budgets.ts#request",
+      "kind": "symbol",
+      "label": "request",
+      "parentId": "file:conditional-spread-method/src/budgets.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/budgets.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "conditional-spread-method",
+      "parentId": null
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, PUT match /api/budgets/{}",
+      "expression": "fetch(`${API_BASE}/budgets/${id}`, { method: \"PUT\", ...(override ? override : {}), body: JSON.stringify({ name }), })",
+      "id": "unresolved:conditional-spread-method/src/budgets.ts:19:10",
+      "kind": "unresolved",
+      "label": "? /api/budgets/{}",
+      "parentId": "service:conditional-spread-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/budgets.ts",
+        "line": 19
+      }
+    }
+  ],
+  "repo": {
+    "name": "conditional-spread-method",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
