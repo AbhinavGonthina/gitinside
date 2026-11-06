@@ -1,0 +1,249 @@
+{
+  "repo": "rakibutsho/SPIDER_NODE-uptime-tracker",
+  "sha": "c75611c3a11559e68d96c296431099634ee01b06",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/components/Auth/ForgotPasswordForm.tsx", "line": 28 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/forgot-password/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/forgot-password"
+      },
+      "notes": "root-relative literal; App Router handler"
+    },
+    {
+      "callSite": { "file": "src/components/Auth/RegisterForm.tsx", "line": 46 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/register/route.ts",
+        "line": 8,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "root-relative literal; literal folder register wins over the [...nextauth] catch-all"
+    },
+    {
+      "callSite": { "file": "src/components/Auth/ResetPasswordForm.tsx", "line": 45 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/reset-password/route.ts",
+        "line": 5,
+        "route": "POST /api/auth/reset-password"
+      },
+      "notes": "root-relative literal; literal folder wins over the [...nextauth] catch-all"
+    },
+    {
+      "callSite": { "file": "src/components/Auth/VerifyEmailForm.tsx", "line": 34 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/verify-email/route.ts",
+        "line": 4,
+        "route": "POST /api/auth/verify-email"
+      },
+      "notes": "root-relative literal in a useEffect; literal folder wins over the [...nextauth] catch-all"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/Dashboard.tsx", "line": 73 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/monitors/route.ts",
+        "line": 9,
+        "route": "GET /api/monitors"
+      },
+      "notes": "fetchMonitors(); no options, so GET"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/Dashboard.tsx", "line": 119 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/monitors/route.ts",
+        "line": 35,
+        "route": "POST /api/monitors"
+      },
+      "notes": "handleCreateMonitor"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/Dashboard.tsx", "line": 170 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/monitors/[id]/route.ts",
+        "line": 51,
+        "route": "PATCH /api/monitors/:id"
+      },
+      "notes": "handleEditMonitor, template on editingMonitor.id"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/Dashboard.tsx", "line": 202 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/monitors/[id]/check/route.ts",
+        "line": 12,
+        "route": "POST /api/monitors/:id/check"
+      },
+      "notes": "handleCheckMonitor, manual re-check"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/Dashboard.tsx", "line": 224 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/monitors/[id]/route.ts",
+        "line": 51,
+        "route": "PATCH /api/monitors/:id"
+      },
+      "notes": "handleToggleActive, template on monitor.id"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/Dashboard.tsx", "line": 253 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/monitors/[id]/route.ts",
+        "line": 122,
+        "route": "DELETE /api/monitors/:id"
+      },
+      "notes": "handleDeleteMonitor"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/DashboardStatus.tsx", "line": 48 },
+      "method": "GET",
+      "target": { "file": "src/app/api/status/route.ts", "line": 11, "route": "GET /api/status" },
+      "notes": "fetchStatus(); literal folder status/route.ts, not status/[userId]"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/FeedbackButton.tsx", "line": 29 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/feedback/route.ts",
+        "line": 7,
+        "route": "POST /api/feedback"
+      },
+      "notes": "feedback form submit"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/Incidents.tsx", "line": 49 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/incidents/route.ts",
+        "line": 9,
+        "route": "GET /api/incidents"
+      },
+      "notes": "fetchIncidents()"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/MonitorDetails.tsx", "line": 63 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/monitors/[id]/details/route.ts",
+        "line": 6,
+        "route": "GET /api/monitors/:id/details"
+      },
+      "notes": "fetchDetails(), template on the page's id"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/ProfileComponent.tsx", "line": 84 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/user/profile/route.ts",
+        "line": 20,
+        "route": "GET /api/user/profile"
+      },
+      "notes": "fetchProfile()"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/ProfileComponent.tsx", "line": 157 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/user/profile/route.ts",
+        "line": 73,
+        "route": "PATCH /api/user/profile"
+      },
+      "notes": "profile update"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/ProfileComponent.tsx", "line": 190 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/user/profile/route.ts",
+        "line": 194,
+        "route": "DELETE /api/user/profile"
+      },
+      "notes": "account deletion"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/TelegramSettings.tsx", "line": 26 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/user/profile/route.ts",
+        "line": 20,
+        "route": "GET /api/user/profile"
+      },
+      "notes": "fetchProfile() polling for the Telegram chat ID"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/TelegramSettings.tsx", "line": 76 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/telegram/connect/route.ts",
+        "line": 5,
+        "route": "GET /api/telegram/connect"
+      },
+      "notes": "gets the bot connection link"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/TelegramSettings.tsx", "line": 95 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/telegram/test/route.ts",
+        "line": 7,
+        "route": "POST /api/telegram/test"
+      },
+      "notes": "test message"
+    },
+    {
+      "callSite": { "file": "src/components/Dashboard/TelegramSettings.tsx", "line": 114 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/user/profile/route.ts",
+        "line": 73,
+        "route": "PATCH /api/user/profile"
+      },
+      "notes": "disconnects Telegram through the profile update"
+    },
+    {
+      "callSite": { "file": "src/components/Status/PublicStatus.tsx", "line": 54 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/status/[userId]/route.ts",
+        "line": 12,
+        "route": "GET /api/status/:userId"
+      },
+      "notes": "public status page, template on the page's id"
+    },
+    {
+      "callSite": { "file": "src/instrumentation.ts", "line": 40 },
+      "method": "GET",
+      "target": null,
+      "notes": "healthchecks.io heartbeat on HC_PING_URL, which has no value anywhere in the repo; external service"
+    },
+    {
+      "callSite": { "file": "src/instrumentation.ts", "line": 49 },
+      "method": "GET",
+      "target": null,
+      "notes": "healthchecks.io /fail ping on HC_PING_URL (no value in the repo); external service"
+    },
+    {
+      "callSite": { "file": "src/lib/cron-logic.ts", "line": 64 },
+      "method": "GET",
+      "target": null,
+      "notes": "uptime check of each monitor's user-supplied URL, known only at runtime"
+    },
+    {
+      "callSite": { "file": "src/lib/telegram.ts", "line": 10 },
+      "method": "POST",
+      "target": null,
+      "notes": "Telegram Bot API sendMessage on api.telegram.org; external host"
+    }
+  ]
+}

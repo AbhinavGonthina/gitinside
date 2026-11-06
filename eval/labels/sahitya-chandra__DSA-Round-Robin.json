@@ -1,0 +1,265 @@
+{
+  "repo": "sahitya-chandra/DSA-Round-Robin",
+  "sha": "1a1657433c9d3f7ecc3f1c5fde15818fe8a5d785",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "apps/web/app/(dashboard)/dashboard/page.tsx", "line": 16 },
+      "method": "GET",
+      "target": { "file": "apps/server/src/app.ts", "line": 40, "route": "GET /api/health" },
+      "notes": "fetch(`${API_BASE_URL}/api/health`), no method so GET; API_BASE_URL = NEXT_PUBLIC_API_URL || \"http://localhost:5000\" (lib/api.ts), the server's port (SERVER_PORT || 5000, .env.example SERVER_PORT=5000 and NEXT_PUBLIC_API_URL=http://localhost:5000); app.get(\"/api/health\") in apps/server/src/app.ts"
+    },
+    {
+      "callSite": { "file": "apps/web/app/(dashboard)/feedback/page.tsx", "line": 25 },
+      "method": "POST",
+      "target": {
+        "file": "apps/web/app/api/feedback/route.ts",
+        "line": 4,
+        "route": "POST /api/feedback"
+      },
+      "notes": "fetch(\"/api/feedback\", { method: \"POST\" }), root-relative on the same Next app (apps/web, no basePath; next.config's only rewrite is /api/auth/*, and proxy.ts's matcher skips /api paths); route handler exports POST"
+    },
+    {
+      "callSite": { "file": "apps/web/app/(dashboard)/leaderboard/page.tsx", "line": 53 },
+      "method": "GET",
+      "target": {
+        "file": "apps/server/src/routes/leaderboard.route.ts",
+        "line": 6,
+        "route": "GET /api/leaderboard"
+      },
+      "notes": "axios.get(`${process.env.NEXT_PUBLIC_API_URL || \"http://localhost:5000\"}/api/leaderboard`), inline env base with the same fallback as lib/api.ts (server on 5000); leaderboardRouter mounted at /api/leaderboard, router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "apps/web/app/(dashboard)/leaderboard/page.tsx", "line": 67 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 15,
+        "route": "POST /api/social/request"
+      },
+      "notes": "axios.post(`${API_BASE_URL}/api/social/request`, body); API_BASE_URL falls back to http://localhost:5000 (the server); friendRouter mounted at /api/social, router.post(\"/request\")"
+    },
+    {
+      "callSite": { "file": "apps/web/app/code/[slug]/page.tsx", "line": 99 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/submit.route.ts",
+        "line": 8,
+        "route": "POST /api/submit"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/submit`, { method: \"POST\" }); submitRouter mounted at /api/submit, router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "apps/web/app/code/[slug]/page.tsx", "line": 121 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/match.route.ts",
+        "line": 10,
+        "route": "POST /api/match/finish/:matchId"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/match/finish/${params.slug}`, { method: \"POST\" }); matchRouter mounted at /api/match, router.post(\"/finish/:matchId\")"
+    },
+    {
+      "callSite": { "file": "apps/web/app/code/page.tsx", "line": 105 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/submit.route.ts",
+        "line": 9,
+        "route": "POST /api/submit/solo"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/submit/solo`, { method: \"POST\" }); submitRouter mounted at /api/submit, router.post(\"/solo\")"
+    },
+    {
+      "callSite": { "file": "apps/web/app/code/page.tsx", "line": 137 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/setQuestions.route.ts",
+        "line": 6,
+        "route": "POST /api/setquestions"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/setquestions`, { method: \"POST\" }); setQuestions router mounted at /api/setquestions, router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "apps/web/components/FriendInvitationListener.tsx", "line": 30 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/match.route.ts",
+        "line": 10,
+        "route": "POST /api/match/finish/:matchId"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/match/finish/${data.matchId}`, { method: \"POST\" }) in the rejoin toast's onGiveUp; matchRouter mounted at /api/match"
+    },
+    {
+      "callSite": { "file": "apps/web/components/FriendInvitationListener.tsx", "line": 67 },
+      "method": "GET",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 16,
+        "route": "GET /api/social/requests"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/social/requests?userId=${userId}`), no options so GET; query dropped; friendRouter mounted at /api/social"
+    },
+    {
+      "callSite": { "file": "apps/web/components/FriendInvitationListener.tsx", "line": 87 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 17,
+        "route": "POST /api/social/accept"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/social/accept`, { method: \"POST\" }); friendRouter mounted at /api/social"
+    },
+    {
+      "callSite": { "file": "apps/web/components/FriendInvitationListener.tsx", "line": 108 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 18,
+        "route": "POST /api/social/reject"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/social/reject`, { method: \"POST\" }); friendRouter mounted at /api/social"
+    },
+    {
+      "callSite": { "file": "apps/web/components/Friendship/Chatarea.tsx", "line": 141 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/chat.route.ts",
+        "line": 6,
+        "route": "POST /api/chat/messages"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/chat/messages`, { method: \"POST\" }); chatRouter mounted at /api/chat (the io(`${API_BASE_URL}/friends`) socket on line 90 isn't labeled)"
+    },
+    {
+      "callSite": { "file": "apps/web/components/Friendship/Friends.tsx", "line": 32 },
+      "method": "GET",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 19,
+        "route": "GET /api/social/friends"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/social/friends`, { credentials }), no method so GET; friendRouter mounted at /api/social"
+    },
+    {
+      "callSite": { "file": "apps/web/components/Friendship/QuickAddFriendModal.tsx", "line": 63 },
+      "method": "GET",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 14,
+        "route": "GET /api/social/search"
+      },
+      "notes": "local helper safeFetch(url, options) => fetch(url, options) (line 42, not labeled); this caller passes `${API_BASE_URL}/api/social/search?userName=…&userId=…` with { signal } only, so GET; query dropped"
+    },
+    {
+      "callSite": { "file": "apps/web/components/Friendship/QuickAddFriendModal.tsx", "line": 90 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 15,
+        "route": "POST /api/social/request"
+      },
+      "notes": "safeFetch(`${API_BASE_URL}/api/social/request`, { method: \"POST\" }) through the local helper on line 41"
+    },
+    {
+      "callSite": { "file": "apps/web/components/Friendship/Sidebar.tsx", "line": 72 },
+      "method": "GET",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 16,
+        "route": "GET /api/social/requests"
+      },
+      "notes": "safeFetch(`${API_BASE}/requests?userId=${userId}`), no options so GET; Sidebar-local API_BASE = `${API_BASE_URL}/api/social` (line 35), helper safeFetch's fetch on line 57 not labeled; query dropped"
+    },
+    {
+      "callSite": { "file": "apps/web/components/Friendship/Sidebar.tsx", "line": 88 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 15,
+        "route": "POST /api/social/request"
+      },
+      "notes": "safeFetch(`${API_BASE}/request`, { method: \"POST\" }); API_BASE = `${API_BASE_URL}/api/social`"
+    },
+    {
+      "callSite": { "file": "apps/web/components/Friendship/Sidebar.tsx", "line": 111 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 17,
+        "route": "POST /api/social/accept"
+      },
+      "notes": "safeFetch(`${API_BASE}/accept`, { method: \"POST\" }); API_BASE = `${API_BASE_URL}/api/social`"
+    },
+    {
+      "callSite": { "file": "apps/web/components/Friendship/Sidebar.tsx", "line": 128 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 18,
+        "route": "POST /api/social/reject"
+      },
+      "notes": "safeFetch(`${API_BASE}/reject`, { method: \"POST\" }); API_BASE = `${API_BASE_URL}/api/social`"
+    },
+    {
+      "callSite": { "file": "apps/web/components/Friendship/Sidebar.tsx", "line": 153 },
+      "method": "GET",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 14,
+        "route": "GET /api/social/search"
+      },
+      "notes": "safeFetch(`${API_BASE}/search?userName=…&userId=…`, { signal }), so GET; API_BASE = `${API_BASE_URL}/api/social`; query dropped"
+    },
+    {
+      "callSite": { "file": "apps/web/hooks/useFriendDuel.ts", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "apps/server/src/routes/social.route.ts",
+        "line": 19,
+        "route": "GET /api/social/friends"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/social/friends`, { credentials }), no method so GET; friendRouter mounted at /api/social"
+    },
+    {
+      "callSite": { "file": "apps/web/hooks/useMatchMaker.ts", "line": 31 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/match.route.ts",
+        "line": 9,
+        "route": "POST /api/match"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/match`, { method: \"POST\" }); matchRouter mounted at /api/match, router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "apps/web/hooks/useMatchMaker.ts", "line": 59 },
+      "method": "POST",
+      "target": {
+        "file": "apps/server/src/routes/match.route.ts",
+        "line": 11,
+        "route": "POST /api/match/cancel"
+      },
+      "notes": "fetch(`${API_BASE_URL}/api/match/cancel`, { method: \"POST\" }); matchRouter mounted at /api/match"
+    },
+    {
+      "callSite": { "file": "apps/web/hooks/useSocket.ts", "line": 67 },
+      "method": "GET",
+      "target": {
+        "file": "apps/server/src/routes/match.route.ts",
+        "line": 8,
+        "route": "GET /api/match/active"
+      },
+      "notes": "const url = slug ? `${API_BASE_URL}/api/match/getmatch/${slug}` : `${API_BASE_URL}/api/match/active` (lines 62-64), then fetch(url, { credentials }), GET; this is the no-slug alternative"
+    },
+    {
+      "callSite": { "file": "apps/web/hooks/useSocket.ts", "line": 67 },
+      "method": "GET",
+      "target": {
+        "file": "apps/server/src/routes/match.route.ts",
+        "line": 7,
+        "route": "GET /api/match/getmatch/:matchId"
+      },
+      "notes": "the slug alternative of the same ternary (lines 62-64): `${API_BASE_URL}/api/match/getmatch/${slug}`; matchRouter mounted at /api/match"
+    }
+  ]
+}

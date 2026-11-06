@@ -1,0 +1,445 @@
+{
+  "repo": "yigehaozi/relay-status-monitor",
+  "sha": "63ae4434bec7d532ca84c7f917889778e06f9aa6",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/app/(dashboard)/incidents/page.tsx", "line": 41 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/incidents/route.ts",
+        "line": 8,
+        "route": "GET /api/incidents"
+      },
+      "notes": "fetch(`${base}${param}`) with base = '/api/incidents?limit=100' and param a query string only; root-relative on the same Next app (no basePath, rewrites, or rewriting middleware), query dropped"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/incidents/page.tsx", "line": 60 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/incidents/[id]/route.ts",
+        "line": 9,
+        "route": "PATCH /api/incidents/:id"
+      },
+      "notes": "fetch(`/api/incidents/${id}`, { method: 'PATCH' }) resolving an incident"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/layout.tsx", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/logout/route.ts",
+        "line": 5,
+        "route": "POST /api/auth/logout"
+      },
+      "notes": "fetch('/api/auth/logout', { method: 'POST' }) in handleLogout"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/page.tsx", "line": 61 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/dashboard/route.ts",
+        "line": 8,
+        "route": "GET /api/dashboard"
+      },
+      "notes": "fetch('/api/dashboard') in fetchData"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/page.tsx", "line": 70 },
+      "method": "GET",
+      "target": { "file": "src/app/api/metrics/route.ts", "line": 9, "route": "GET /api/metrics" },
+      "notes": "fetch(`/api/metrics?upstreamKeyId=${item.keyId}&hours=6&limit=200`) per dashboard item; query dropped"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 137 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/alert-rules/route.ts",
+        "line": 5,
+        "route": "GET /api/alert-rules"
+      },
+      "notes": "fetch('/api/alert-rules') in fetchRules"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 157 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/alert-rules/[id]/route.ts",
+        "line": 9,
+        "route": "PUT /api/alert-rules/:id"
+      },
+      "notes": "fetch(`/api/alert-rules/${rule.id}`, { method: 'PUT' }) in toggleRule"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 172 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/alert-rules/[id]/route.ts",
+        "line": 9,
+        "route": "PUT /api/alert-rules/:id"
+      },
+      "notes": "fetch(`/api/alert-rules/${id}`, { method: 'PUT' }) in updateRule"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 204 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/alert-rules/[id]/route.ts",
+        "line": 9,
+        "route": "PUT /api/alert-rules/:id"
+      },
+      "notes": "fetch(`/api/alert-rules/${rule.id}`, { method: 'PUT' }) in commitRuleDraft"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 344 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/alert-channels/route.ts",
+        "line": 5,
+        "route": "GET /api/alert-channels"
+      },
+      "notes": "fetch('/api/alert-channels') in fetchChannels"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 368 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/alert-channels/route.ts",
+        "line": 11,
+        "route": "POST /api/alert-channels"
+      },
+      "notes": "fetch('/api/alert-channels', { method: 'POST' }) adding a Feishu webhook channel"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 396 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/alert-channels/[id]/route.ts",
+        "line": 24,
+        "route": "DELETE /api/alert-channels/:id"
+      },
+      "notes": "fetch(`/api/alert-channels/${id}`, { method: 'DELETE' })"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 406 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/alert-channels/[id]/route.ts",
+        "line": 9,
+        "route": "PUT /api/alert-channels/:id"
+      },
+      "notes": "fetch(`/api/alert-channels/${ch.id}`, { method: 'PUT' }) in toggleChannel"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 556 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 11,
+        "route": "GET /api/settings"
+      },
+      "notes": "fetch('/api/settings').then(...) in a mount effect"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 579 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 23,
+        "route": "PUT /api/settings"
+      },
+      "notes": "fetch('/api/settings', { method: 'PUT' }) in handleSave"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/settings/page.tsx", "line": 782 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/password/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/password"
+      },
+      "notes": "fetch('/api/auth/password', { method: 'POST' }) changing the password"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/[id]/page.tsx", "line": 125 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/route.ts",
+        "line": 9,
+        "route": "GET /api/upstreams/:id"
+      },
+      "notes": "fetch(`/api/upstreams/${id}`) inside Promise.all in fetchBase"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/[id]/page.tsx", "line": 126 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/incidents/route.ts",
+        "line": 8,
+        "route": "GET /api/incidents"
+      },
+      "notes": "fetch(`/api/incidents?upstreamId=${id}&limit=50`) inside Promise.all; query dropped"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/[id]/page.tsx", "line": 154 },
+      "method": "GET",
+      "target": { "file": "src/app/api/metrics/route.ts", "line": 9, "route": "GET /api/metrics" },
+      "notes": "fetch(`/api/metrics?upstreamKeyId=${keyId}&${qs}&limit=2000`) in fetchMetrics; query dropped"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/[id]/page.tsx", "line": 182 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/test/route.ts",
+        "line": 10,
+        "route": "POST /api/upstreams/:id/test"
+      },
+      "notes": "fetch(`/api/upstreams/${upstream.id}/test`, { method: 'POST' }) in handleTest"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/[id]/page.tsx", "line": 208 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/refresh/route.ts",
+        "line": 11,
+        "route": "POST /api/upstreams/:id/refresh"
+      },
+      "notes": "fetch(`/api/upstreams/${upstream.id}/refresh`, { method: 'POST' }) in handleRefresh"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/[id]/page.tsx", "line": 244 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/route.ts",
+        "line": 50,
+        "route": "DELETE /api/upstreams/:id"
+      },
+      "notes": "fetch(`/api/upstreams/${upstream.id}`, { method: 'DELETE' }) in handleDelete"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/[id]/page.tsx", "line": 260 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/keys/[keyId]/metadata/route.ts",
+        "line": 9,
+        "route": "POST /api/keys/:keyId/metadata"
+      },
+      "notes": "fetch(`/api/keys/${key.id}/metadata`, { method: 'POST' }) in handleRefreshMetadata"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 60 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/upstreams/route.ts",
+        "line": 15,
+        "route": "GET /api/upstreams"
+      },
+      "notes": "fetch(`/api/upstreams?${params.toString()}`) in fetchData; query dropped"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 97 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/route.ts",
+        "line": 50,
+        "route": "DELETE /api/upstreams/:id"
+      },
+      "notes": "fetch(`/api/upstreams/${id}`, { method: 'DELETE' }) in handleDelete"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 112 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/route.ts",
+        "line": 28,
+        "route": "PUT /api/upstreams/:id"
+      },
+      "notes": "fetch(`/api/upstreams/${id}`, { method: 'PUT' }) in handleToggle (method on the next line)"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 122 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/test/route.ts",
+        "line": 10,
+        "route": "POST /api/upstreams/:id/test"
+      },
+      "notes": "fetch(`/api/upstreams/${id}/test`, { method: 'POST' }) in handleTest"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 195 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/upstreams/route.ts",
+        "line": 81,
+        "route": "POST /api/upstreams"
+      },
+      "notes": "fetch(url, { method }) with url = upstream ? `/api/upstreams/${upstream.id}` : '/api/upstreams' and method = upstream ? 'PUT' : 'POST' from the same condition (ADR-0041): the create alternative"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 195 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/route.ts",
+        "line": 28,
+        "route": "PUT /api/upstreams/:id"
+      },
+      "notes": "same fetch(url, { method }): the edit alternative, url = `/api/upstreams/${upstream.id}`, method 'PUT'"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 266 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/keys/route.ts",
+        "line": 12,
+        "route": "GET /api/upstreams/:id/keys"
+      },
+      "notes": "fetch(`/api/upstreams/${upstreamId}/keys`) in KeyManager's fetchKeys"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 281 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/keys/[keyId]/route.ts",
+        "line": 53,
+        "route": "DELETE /api/upstreams/:id/keys/:keyId"
+      },
+      "notes": "fetch(`/api/upstreams/${upstreamId}/keys/${keyId}`, { method: 'DELETE' }) in handleDeleteKey"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 289 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/keys/[keyId]/test/route.ts",
+        "line": 9,
+        "route": "POST /api/keys/:keyId/test"
+      },
+      "notes": "fetch(`/api/keys/${keyId}/test`, { method: 'POST' }) in handleTestKey"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 303 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/keys/[keyId]/metadata/route.ts",
+        "line": 9,
+        "route": "POST /api/keys/:keyId/metadata"
+      },
+      "notes": "fetch(`/api/keys/${key.id}/metadata`, { method: 'POST' }) in handleRefreshKey"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 422 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/keys/route.ts",
+        "line": 24,
+        "route": "POST /api/upstreams/:id/keys"
+      },
+      "notes": "fetch(url, { method }) with url = keyData ? `/api/upstreams/${upstreamId}/keys/${keyData.id}` : `/api/upstreams/${upstreamId}/keys` and method = keyData ? 'PUT' : 'POST' from the same condition (ADR-0041): the create alternative"
+    },
+    {
+      "callSite": { "file": "src/app/(dashboard)/upstreams/page.tsx", "line": 422 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/upstreams/[id]/keys/[keyId]/route.ts",
+        "line": 13,
+        "route": "PUT /api/upstreams/:id/keys/:keyId"
+      },
+      "notes": "same fetch(url, { method }): the edit alternative, url = `/api/upstreams/${upstreamId}/keys/${keyData.id}`, method 'PUT'"
+    },
+    {
+      "callSite": { "file": "src/app/login/page.tsx", "line": 26 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/login/route.ts",
+        "line": 6,
+        "route": "POST /api/auth/login"
+      },
+      "notes": "fetch('/api/auth/login', { method: 'POST' }) in handleSubmit"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/newapi.ts", "line": 47 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithTimeout(url, …) (base.ts:120, fetch(url, …) with the path from its parameter, so labeled at this caller) with url = `${buildBaseUrl(ctx.baseUrl)}/api/user/self`: the upstream relay's base URL from the database, runtime and external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/newapi.ts", "line": 134 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithTimeout(url, …) with url = `${buildBaseUrl(ctx.baseUrl)}/api/usage/token/`: upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/newapi.ts", "line": 156 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithTimeout(url, …) with url = `${buildBaseUrl(ctx.baseUrl)}/api/token/search?…`: upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/newapi.ts", "line": 194 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithTimeout(url, …) with url = `${buildBaseUrl(ctx.baseUrl)}/api/user/self/groups`: upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/newapi.ts", "line": 231 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithTimeout(url, …) with url = `${buildBaseUrl(ctx.baseUrl)}/v1/models` (testLatency): upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/newapi.ts", "line": 255 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithTimeout(url, …) with url = `${buildBaseUrl(ctx.baseUrl)}/v1/models` (listModels): upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/newapi.ts", "line": 281 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetchWithTimeout(url, { method: 'POST' }, …) with url = `${buildBaseUrl(ctx.baseUrl)}/v1/chat/completions` (testModel): upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/newapi.ts", "line": 315 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetchWithTimeout(url, { method: 'POST' }, …) with url = `${buildBaseUrl(ctx.baseUrl)}/v1/chat/completions` (testStream): upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/sub2api.ts", "line": 37 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithTimeout(url, …) with url = `${buildBaseUrl(ctx.baseUrl)}/v1/usage`: upstream relay at a runtime base from the database, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/sub2api.ts", "line": 73 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithTimeout(url, …) with url = `${buildBaseUrl(ctx.baseUrl)}/v1/models` (testLatency): upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/sub2api.ts", "line": 90 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithTimeout(url, …) with url = `${buildBaseUrl(ctx.baseUrl)}/v1/models` (listModels): upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/sub2api.ts", "line": 109 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetchWithTimeout(url, { method: 'POST' }, …) with url = `${buildBaseUrl(ctx.baseUrl)}/v1/chat/completions` (testModel): upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/adapters/sub2api.ts", "line": 140 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetchWithTimeout(url, { method: 'POST' }, …) with url = `${buildBaseUrl(ctx.baseUrl)}/v1/chat/completions` (testStream): upstream relay at a runtime base, external"
+    },
+    {
+      "callSite": { "file": "src/lib/alerts/channels/feishu.ts", "line": 117 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(config.webhookUrl, { method: 'POST' }): a Feishu webhook URL from the alert channel's stored config, runtime and external"
+    }
+  ]
+}

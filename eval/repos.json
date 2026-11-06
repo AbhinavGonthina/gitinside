@@ -11,6 +11,16 @@
       "heldOut": 3
     },
     {
+      "owner": "BharathxD",
+      "name": "DevCircle",
+      "url": "https://github.com/BharathxD/DevCircle",
+      "sha": "efab02e8479337dd705d47cc1d26045b23150274",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 5 (M5C.8b4, drawn in stratum nextjs-prisma). A single Next.js App Router app (NextAuth, UploadThing, Prisma, Upstash Redis, Editor.js) whose route.ts handlers under src/app/api mostly export several methods through an export list (export { createPost as POST, editPost as PATCH, deletePost as DELETE }). The client sends 16 direct axios.get/post/patch/delete requests from react-query mutation functions and one useInfiniteQuery fetcher that fixes its own path, all on root-relative literals and templates (/api/forum, /api/forum/post, /api/forum/${id}/subscription, /api/forum/post/comment, /api/forum/post/vote, /api/user, /api/posts, /api/posts/search). Two have a trailing space inside the literal (stripped by URL parsing), and two deletes put a slash before the query (/api/forum/?forumId=), which Next's default trailing-slash redirect (308, method kept) sends to the route without it. No basePath or rewrites; the middleware is next-auth's guard. Server-side, two forum handlers GET `${siteConfig.url}/api/cron` on the literal host https://devcircle.live, which nothing in the repo deploys the app to (sst.config.ts names www.devcircle.live, a different host), so both are null, as is the link-preview handler's axios.get of a runtime ?url= value. Not labeled: NextAuth's signIn, UploadThing's uploadFiles, Editor.js LinkTool's own request to /api/link, OG image URLs, the Upstash client. 195 TS/JS source files.",
+      "heldOut": 5
+    },
+    {
       "owner": "DOodle25",
       "name": "SyncUP",
       "url": "https://github.com/DOodle25/SyncUP",
@@ -277,6 +287,16 @@
       "heldOut": 4
     },
     {
+      "owner": "rakibutsho",
+      "name": "SPIDER_NODE-uptime-tracker",
+      "url": "https://github.com/rakibutsho/SPIDER_NODE-uptime-tracker",
+      "sha": "c75611c3a11559e68d96c296431099634ee01b06",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 5 (M5C.8b4, drawn in stratum nextjs-prisma). A single Next.js 16 App Router app (NextAuth, Prisma, node-cron, Telegram alerts) with route groups (authLayout, commonLayout, dashboardLayout) and route.ts handlers under src/app/api. The client sends 22 root-relative fetch requests on literals and templates, all inline in the auth forms and dashboard components: four literal /api/auth/* routes (register, forgot-password, reset-password, verify-email) that Next serves ahead of the [...nextauth] catch-all beside them, GET/POST /api/monitors, PATCH/DELETE /api/monitors/${id}, POST /api/monitors/${id}/check, GET /api/monitors/${id}/details, GET/PATCH/DELETE /api/user/profile, /api/telegram/connect and /test, /api/feedback, /api/incidents, /api/status, and the public page's /api/status/${id} (a status/[userId] folder beside status/route.ts). Every method sent has an exported handler. No basePath or rewrites; src/proxy.ts (Next 16's middleware) only redirects /dashboard paths. Server-side, the cron's uptime check fetches each monitor's user-supplied URL, the Telegram helper posts to api.telegram.org, and the instrumentation hook pings HC_PING_URL (no value anywhere in the repo), all null. Not labeled: NextAuth's signIn/signOut, nodemailer, a script's node https/http calls to Telegram, and an RTK Query baseApi with no endpoints. 139 TS/JS source files.",
+      "heldOut": 5
+    },
+    {
       "owner": "RishiBakshii",
       "name": "mern-ecommerce",
       "url": "https://github.com/RishiBakshii/mern-ecommerce",
@@ -285,6 +305,16 @@
       "shape": "axios-baseurl",
       "why": "Held out (M5A.2c). Create React App frontend (frontend/) and a CommonJS Express + Mongoose backend (backend/) side by side, no root package.json. Every request goes through one axios.create({ withCredentials, baseURL: process.env.REACT_APP_BASE_URL }) instance imported by per-feature features/*/…Api.jsx modules (axiosi.get(`/cart/user/${id}`)), with no in-code fallback; the auth module's paths have no leading slash (\"auth/login\"). Routers are mounted at /auth, /users, /products, … and chain router.post(...).get(...) calls. ~123 JS source files.",
       "heldOut": 1
+    },
+    {
+      "owner": "sahitya-chandra",
+      "name": "DSA-Round-Robin",
+      "url": "https://github.com/sahitya-chandra/DSA-Round-Robin",
+      "sha": "1a1657433c9d3f7ecc3f1c5fde15818fe8a5d785",
+      "license": "MIT",
+      "shape": "next-plus-server-monorepo",
+      "why": "Held out, batch 5 (M5C.8b4, drawn in stratum nextjs-prisma). A Turborepo of a Next.js App Router app (apps/web), a TypeScript Express + socket.io server (apps/server), a code-runner worker, and shared Prisma/queue packages. The web app's client components and hooks fetch (two axios calls on the leaderboard page) `${API_BASE_URL}/api/...`, API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || \"http://localhost:5000\" (apps/web/lib/api.ts); the leaderboard page also writes the same fallback inline, and the friends Sidebar builds a local API_BASE = `${API_BASE_URL}/api/social`. Two components send requests through a local safeFetch(url, options) helper, labeled at each caller. Port 5000 is the server's own (SERVER_PORT || 5000; the root .env.example sets SERVER_PORT=5000 and NEXT_PUBLIC_API_URL=http://localhost:5000). apps/server/src/app.ts mounts routers at /api/social, /api/submit, /api/setquestions, /api/match, /api/chat, /api/leaderboard (flat router.get/post calls, some on \"/\") and adds app.get(\"/api/health\"); a useSocket ternary picks /api/match/getmatch/:matchId or /api/match/active (one label per alternative, ADR-0041). One root-relative fetch(\"/api/feedback\") reaches the Next app's own route handler (next.config's only rewrite is /api/auth/*, and proxy.ts skips /api). Nothing is null. Not labeled: socket.io clients, better-auth's client (its /api/auth/* requests are the library's), and server actions. 123 TS/JS source files.",
+      "heldOut": 5
     },
     {
       "owner": "SamurAIGPT",
@@ -394,6 +424,16 @@
       "shape": "next-api-routes",
       "why": "Held out, batch 4 (M5C.5b3, drawn in stratum nextjs-prisma). A single-package Next.js 16 App Router app with Prisma whose client components send every request with plain imported axios.post/axios.delete on root-relative URLs (literals for creates, templates with one id for deletes and favorites), most written as `axios` with `.post(…)` on the next line, to six route.ts handlers exporting named POST/DELETE functions under [listingId]/[reservationId] folders; one hook picks POST or DELETE on the same path by branch. Reads are server-side Prisma calls in app/actions, auth is NextAuth's pages-router catch-all (called only by the library), and uploads go through a Cloudinary widget. Vitest tests mock axios and send nothing. ~100 TS/JS source files incl. tests.",
       "heldOut": 4
+    },
+    {
+      "owner": "yigehaozi",
+      "name": "relay-status-monitor",
+      "url": "https://github.com/yigehaozi/relay-status-monitor",
+      "sha": "63ae4434bec7d532ca84c7f917889778e06f9aa6",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 5 (M5C.8b4, drawn in stratum nextjs-prisma). A single Next.js App Router app (Prisma, jose sessions) that monitors AI relay upstreams. Its route.ts handlers under src/app/api export one to three methods each, with [id] and [keyId] folders beside literal test/, refresh/, keys/, metadata/ folders (and keys/[keyId] under upstreams/[id]). Dashboard pages in the (dashboard) route group and the login page call them with root-relative fetch on literals and templates (/api/upstreams/${id}/test, /api/alert-rules/${rule.id}, /api/metrics?upstreamKeyId=…, /api/upstreams?${params}, and a `${base}${param}` whose base is a local /api/incidents?limit=100 literal and param only a query suffix). Two forms in upstreams/page.tsx pick URL and method from one condition (POST to the collection or PUT to /:id, one label per alternative with its own method). next.config.mjs is empty, and src/middleware.ts only checks the session cookie (401 or a redirect to /login), never rewriting. Server-side, two upstream adapters (sub2api, new-api) call fetchWithTimeout(url, …) on `${buildBaseUrl(ctx.baseUrl)}/v1/…` and /api/user/self… paths, each base a relay's address stored in the database, so their 13 call sites are null (the helper's own fetch isn't labeled), as is the Feishu alert channel's post to its stored webhook URL. Not labeled: a crontab curl line that cron-command.ts only builds as display text. 87 TS/JS source files.",
+      "heldOut": 5
     }
   ],
   "heldOutBatches": [
