@@ -105,6 +105,7 @@ const EXPECTED: Record<string, string[]> = {
   "axios-defaults": ["9a41364376ea30fe", "903e1f84ae26d897", "90329d742c6f290b"],
   "checker-crash": ["9ad3cd1ca9d2a5d3", "d1fca9dd0afd2e51", "1032d01b33fc2f77"],
   "compose-and-env": ["b6618b99ea80f918", "23ed7bbed43183c3", "37f6b284edd90c05"],
+  "conditional-urls": ["7b80835ae2dfcaff", "b3eda9136ca3c9be", "f958152dcfcae400"],
   "config-wrapper": ["9b37fdeb4f08d807", "d1474590e6a2dab0", "4e7661c56985e3aa"],
   "diff-broken-base": ["bcd4b43a268fe1d4", "8f4f6940b880d91a", "1697898c7befd3f1"],
   "diff-broken-head": ["857887a7f6f7aafb", "ad567ab1bb9a6594", "6e90d6f1aea7b8a5"],

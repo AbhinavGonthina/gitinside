@@ -59,6 +59,7 @@ const NAMES = [
   "js-global-assignment",
   "fixed-url-helpers",
   "url-alternatives",
+  "conditional-urls",
   "ambiguous-routes",
   "wrapper-fetch",
   "wrapper-chain",
@@ -670,6 +671,18 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     expect(removes.map((e) => e.sites.map((s) => s.request))).toEqual([
       ["DELETE {env:VITE_API_PATH}/api/entries/{}"],
       ["DELETE {env:VITE_API_PATH}/api/entries/moderation/{}"],
+    ]);
+    expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
+  });
+
+  it("conditional-urls: a branch-only parameter keeps the request; an argument settles a ternary (M5C.10a)", async () => {
+    const g = await run("conditional-urls");
+    const p = "conditional-urls";
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/src/screens.ts#listBooks -> route:${p}/GET /api/books exact`,
+      `symbol:${p}/src/screens.ts#listBooksV2 -> route:${p}/GET /api/v2/books exact`,
+      `symbol:${p}/src/shelf.ts#openShelf -> route:${p}/GET /api/reading-now exact`,
+      `symbol:${p}/src/shelf.ts#openShelf -> route:${p}/GET /api/shelves/:shelfId exact`,
     ]);
     expect(g.nodes.some((n) => n.kind === "unresolved")).toBe(false);
   });

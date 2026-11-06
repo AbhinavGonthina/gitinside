@@ -1,0 +1,348 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-urls/src/screens.ts#listBooks",
+      "id": "calls:symbol:conditional-urls/src/screens.ts#listBooks->symbol:conditional-urls/src/shelf.ts#catalog",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 32,
+          "file": "src/screens.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:conditional-urls/src/shelf.ts#catalog"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-urls/src/screens.ts#listBooksV2",
+      "id": "calls:symbol:conditional-urls/src/screens.ts#listBooksV2->symbol:conditional-urls/src/shelf.ts#catalog",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 34,
+          "file": "src/screens.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:conditional-urls/src/shelf.ts#catalog"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-urls/src/screens.ts#showReadingNow",
+      "id": "calls:symbol:conditional-urls/src/screens.ts#showReadingNow->symbol:conditional-urls/src/shelf.ts#openShelf",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 37,
+          "file": "src/screens.ts",
+          "line": 3
+        }
+      ],
+      "to": "symbol:conditional-urls/src/shelf.ts#openShelf"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-urls/src/screens.ts#showShelf",
+      "id": "calls:symbol:conditional-urls/src/screens.ts#showShelf->symbol:conditional-urls/src/shelf.ts#openShelf",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 42,
+          "file": "src/screens.ts",
+          "line": 4
+        }
+      ],
+      "to": "symbol:conditional-urls/src/shelf.ts#openShelf"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-urls/src/screens.ts#listBooks",
+      "id": "http:symbol:conditional-urls/src/screens.ts#listBooks->route:conditional-urls/GET /api/books",
+      "kind": "http",
+      "label": "GET /api/books",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/screens.ts",
+          "line": 5,
+          "request": "GET /api/books"
+        }
+      ],
+      "to": "route:conditional-urls/GET /api/books"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-urls/src/screens.ts#listBooksV2",
+      "id": "http:symbol:conditional-urls/src/screens.ts#listBooksV2->route:conditional-urls/GET /api/v2/books",
+      "kind": "http",
+      "label": "GET /api/v2/books",
+      "sites": [
+        {
+          "column": 34,
+          "file": "src/screens.ts",
+          "line": 6,
+          "request": "GET /api/v2/books"
+        }
+      ],
+      "to": "route:conditional-urls/GET /api/v2/books"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-urls/src/shelf.ts#openShelf",
+      "id": "http:symbol:conditional-urls/src/shelf.ts#openShelf->route:conditional-urls/GET /api/reading-now",
+      "kind": "http",
+      "label": "GET /api/reading-now",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/shelf.ts",
+          "line": 4,
+          "request": "GET /api/reading-now"
+        }
+      ],
+      "to": "route:conditional-urls/GET /api/reading-now"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-urls/src/shelf.ts#openShelf",
+      "id": "http:symbol:conditional-urls/src/shelf.ts#openShelf->route:conditional-urls/GET /api/shelves/:shelfId",
+      "kind": "http",
+      "label": "GET /api/shelves/:shelfId",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/shelf.ts",
+          "line": 4,
+          "request": "GET /api/shelves/{}"
+        }
+      ],
+      "to": "route:conditional-urls/GET /api/shelves/:shelfId"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:conditional-urls/src/screens.ts",
+      "id": "imports:file:conditional-urls/src/screens.ts->file:conditional-urls/src/shelf.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 36,
+          "file": "src/screens.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:conditional-urls/src/shelf.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "431b633bbff40b8e4b1ad9cbd1c9b080b8a42aeabec40027ea5e712c269e35d8",
+      "id": "file:conditional-urls/src/library.ts",
+      "kind": "file",
+      "label": "library.ts",
+      "parentId": "module:conditional-urls/src",
+      "path": "src/library.ts"
+    },
+    {
+      "hash": "860cc8eae7ebfec587bd188e26aa622d6bcd0105badde27a22a0e7200d7d8097",
+      "id": "file:conditional-urls/src/screens.ts",
+      "kind": "file",
+      "label": "screens.ts",
+      "parentId": "module:conditional-urls/src",
+      "path": "src/screens.ts"
+    },
+    {
+      "hash": "eb4c81bb306484f3274942d108adee59d34d833a8d588ea6a38bd212b03083ec",
+      "id": "file:conditional-urls/src/shelf.ts",
+      "kind": "file",
+      "label": "shelf.ts",
+      "parentId": "module:conditional-urls/src",
+      "path": "src/shelf.ts"
+    },
+    {
+      "id": "module:conditional-urls/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:conditional-urls/",
+      "path": "src"
+    },
+    {
+      "id": "route:conditional-urls/GET /api/books",
+      "kind": "route",
+      "label": "GET /api/books",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:conditional-urls/src/library.ts",
+      "path": "/api/books",
+      "source": {
+        "column": 9,
+        "file": "src/library.ts",
+        "line": 13
+      }
+    },
+    {
+      "id": "route:conditional-urls/GET /api/reading-now",
+      "kind": "route",
+      "label": "GET /api/reading-now",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:conditional-urls/src/library.ts",
+      "path": "/api/reading-now",
+      "source": {
+        "column": 9,
+        "file": "src/library.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:conditional-urls/GET /api/shelves/:shelfId",
+      "kind": "route",
+      "label": "GET /api/shelves/:shelfId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:conditional-urls/src/library.ts",
+      "path": "/api/shelves/:shelfId",
+      "source": {
+        "column": 9,
+        "file": "src/library.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:conditional-urls/GET /api/v2/books",
+      "kind": "route",
+      "label": "GET /api/v2/books",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:conditional-urls/src/library.ts",
+      "path": "/api/v2/books",
+      "source": {
+        "column": 9,
+        "file": "src/library.ts",
+        "line": 17
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:conditional-urls/",
+      "kind": "service",
+      "label": "conditional-urls",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-urls/src/screens.ts#listBooks",
+      "kind": "symbol",
+      "label": "listBooks",
+      "parentId": "file:conditional-urls/src/screens.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 5,
+        "file": "src/screens.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-urls/src/screens.ts#listBooksV2",
+      "kind": "symbol",
+      "label": "listBooksV2",
+      "parentId": "file:conditional-urls/src/screens.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 6,
+        "file": "src/screens.ts",
+        "line": 6
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-urls/src/screens.ts#showReadingNow",
+      "kind": "symbol",
+      "label": "showReadingNow",
+      "parentId": "file:conditional-urls/src/screens.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "src/screens.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-urls/src/screens.ts#showShelf",
+      "kind": "symbol",
+      "label": "showShelf",
+      "parentId": "file:conditional-urls/src/screens.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 4,
+        "file": "src/screens.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-urls/src/shelf.ts#catalog",
+      "kind": "symbol",
+      "label": "catalog",
+      "parentId": "file:conditional-urls/src/shelf.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/shelf.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-urls/src/shelf.ts#openShelf",
+      "kind": "symbol",
+      "label": "openShelf",
+      "parentId": "file:conditional-urls/src/shelf.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/shelf.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "conditional-urls",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "conditional-urls",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

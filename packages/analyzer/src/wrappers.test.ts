@@ -606,6 +606,100 @@ describe("inlineWrappers", () => {
   });
 });
 
+describe("a URL picked by a condition (M5C.10a)", () => {
+  it("keeps the request at its own call when no branch's parameter is leading", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/match.ts", [
+      "export function join(slug?: string) {",
+      '  const url = slug ? `/api/x/${slug}` : "/api/y";',
+      "  return fetch(url);",
+      "}",
+      "export function joinLet(slug?: string) {",
+      '  let url = "/api/y";',
+      "  if (slug) url = `/api/x/${slug}`;",
+      "  return fetch(url);",
+      "}",
+      "export function pick(admin: boolean) {",
+      '  return fetch(admin ? "/api/admin" : "/api/user");',
+      "}",
+      "export const a = () => join();",
+      'export const b = () => join("s");',
+      'export const c = () => joinLet("s");',
+      "export const d = () => pick(true);",
+    ]);
+    // One request per branch at the helper's own `fetch`, nothing at the callers.
+    expect(await summary()).toEqual([
+      "src/match.ts:3 GET /api/x/{} [join]",
+      "src/match.ts:3 GET /api/y [join]",
+      "src/match.ts:8 GET /api/y [joinLet]",
+      "src/match.ts:8 GET /api/x/{} [joinLet]",
+      "src/match.ts:11 GET /api/admin [pick]",
+      "src/match.ts:11 GET /api/user [pick]",
+    ]);
+  });
+
+  it("still makes a wrapper when a branch's parameter is leading", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      "export function load(path?: string) {",
+      '  return fetch(path ? `/api${path}` : "/api/home");',
+      "}",
+      'export const a = () => load("/users");',
+      "export const b = () => load();",
+      "declare const p: string | undefined;",
+      "export const c = () => load(p);",
+    ]);
+    expect(await summary()).toEqual([
+      "src/http.ts:4 GET /api/users [a] <- src/http.ts:2",
+      "src/http.ts:5 GET /api/home [b] <- src/http.ts:2",
+      // Unknown at runtime: both branches.
+      "src/http.ts:7 GET /api{} [c] <- src/http.ts:2",
+      "src/http.ts:7 GET /api/home [c] <- src/http.ts:2",
+    ]);
+  });
+
+  it("prunes a branch whose condition the caller's argument settles", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      "export function request(path: string, version?: string) {",
+      "  const url = version ? `/api/${version}${path}` : `/api${path}`;",
+      "  return fetch(url);",
+      "}",
+      'export const a = () => request("/users");',
+      'export const b = () => request("/teams", "v2");',
+      "declare const v: string | undefined;",
+      'export const c = () => request("/items", v);',
+      "export function flag(path: string, legacy = false) {",
+      "  return fetch(legacy ? `/old${path}` : `/api${path}`);",
+      "}",
+      'export const d = () => flag("/x");',
+      'export const e = () => flag("/y", true);',
+      "export function neg(path: string, fresh?: boolean) {",
+      "  return fetch(!fresh ? `/cache${path}` : `/api${path}`);",
+      "}",
+      'export const f = () => neg("/z");',
+      'export const g = () => request("/empty", "");',
+      'export const h = () => request("/null", undefined);',
+    ]);
+    expect(await summary()).toEqual([
+      // A missing argument is `undefined`, so falsy.
+      "src/http.ts:5 GET /api/users [a] <- src/http.ts:3",
+      // A non-empty string literal is truthy.
+      "src/http.ts:6 GET /api/v2/teams [b] <- src/http.ts:3",
+      // A value only known at runtime keeps both branches.
+      "src/http.ts:8 GET /api/{}/items [c] <- src/http.ts:3",
+      "src/http.ts:8 GET /api/items [c] <- src/http.ts:3",
+      // The parameter's default when the argument is missing.
+      "src/http.ts:12 GET /api/x [d] <- src/http.ts:10",
+      "src/http.ts:13 GET /old/y [e] <- src/http.ts:10",
+      // `!` flips it.
+      "src/http.ts:17 GET /cache/z [f] <- src/http.ts:15",
+      "src/http.ts:18 GET /api/empty [g] <- src/http.ts:3",
+      "src/http.ts:19 GET /api/null [h] <- src/http.ts:3",
+    ]);
+  });
+});
+
 describe("wrappers calling wrappers (M5C.7f)", () => {
   it("inlines a path-taking wrapper's call to another at the outer wrapper's callers", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));

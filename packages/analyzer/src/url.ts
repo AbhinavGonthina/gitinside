@@ -67,8 +67,12 @@
  * in the caller's scope (with the caller's own bindings when it is a wrapper being inlined
  * too, `ParameterBindings.outer`, M5C.7f), and a URL or `baseURL` that still starts with an
  * unbound parameter is `WRAPPER_DEPTH` rather than `DYNAMIC_URL`. Only a parameter in the
- * URL's leading part makes a function a wrapper ({@link leadingHoles}, M5A.3j). See
- * `wrappers.ts`.
+ * URL's leading part makes a function a wrapper ({@link leadingHoles}, M5A.3j), read on each
+ * path through the URL's ternaries and `let` values (M5C.10a), so a parameter that only picks
+ * a branch, or fills a later hole of one, doesn't. While inlining, a ternary whose condition
+ * is a bound parameter (maybe behind `!`) takes only the branch its value settles: a missing
+ * argument is falsy, a literal (or a literal or nullish type) is what it is; any other
+ * condition keeps both. See `wrappers.ts`.
  *
  * TanStack Query's key in a function's context (M5C.3f, ADR-0196's amendment): `queryKey`
  * destructured from a parameter (`({ queryKey })`, also its elements `({ queryKey: [url] })`),
@@ -233,12 +237,16 @@ export type NormalizedUrl =
  * Values bound to a wrapper's parameters while inlining one call to it (M2.3): the caller's
  * argument or the parameter's default, `undefined` when neither is readable. `outer` holds
  * the caller's own bindings when the caller is a wrapper being inlined too (M5C.7f): the
- * arguments are read with those, else with none.
+ * arguments are read with those, else with none. `missing` holds the parameters with no
+ * argument and no default, `undefined` at runtime (M5C.10a: a ternary on one is falsy).
  */
 export type ParameterBindings = ReadonlyMap<
   ts.ParameterDeclaration,
   ProgramExpression | undefined
-> & { readonly outer?: ParameterBindings };
+> & {
+  readonly outer?: ParameterBindings;
+  readonly missing?: ReadonlySet<ts.ParameterDeclaration>;
+};
 
 /**
  * One call of a string builder being read (M5C.7d): the builder's parameters bound to the
@@ -857,6 +865,63 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     return ts.isIdentifier(key) || ts.isStringLiteralLike(key) ? key.text : undefined;
   };
 
+  /**
+   * A value's truthiness when it is static (M5C.10a): a literal, `undefined`, or a value whose
+   * type is a single string or number literal, `undefined`, or `null`; else `undefined`.
+   */
+  const truthOf = (value: ProgramExpression): boolean | undefined => {
+    const e = unwrap(value.expression);
+    if (ts.isStringLiteralLike(e)) return e.text !== "";
+    if (ts.isNumericLiteral(e)) return Number(e.text) !== 0;
+    if (e.kind === ts.SyntaxKind.TrueKeyword) return true;
+    if (e.kind === ts.SyntaxKind.FalseKeyword || e.kind === ts.SyntaxKind.NullKeyword) {
+      return false;
+    }
+    if (ts.isTemplateExpression(e) && e.head.text !== "") return true;
+    if (
+      ts.isObjectLiteralExpression(e) ||
+      ts.isArrayLiteralExpression(e) ||
+      ts.isArrowFunction(e) ||
+      ts.isFunctionExpression(e)
+    ) {
+      return true;
+    }
+    if (ts.isIdentifier(e) && isGlobal(value.sp, e, "undefined")) return false;
+    const type = resolver.checkerOf(value.sp).getTypeAtLocation(e);
+    if (type.isStringLiteral()) return type.value !== "";
+    if (type.isNumberLiteral()) return type.value !== 0;
+    if (type.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Null)) return false;
+    return undefined;
+  };
+
+  /**
+   * A ternary's condition while a call is inlined (M5C.10a, ADR-0164's amendment): a parameter,
+   * maybe behind `!`, that the call binds to a missing argument (`undefined`, so falsy) or to a
+   * value {@link truthOf} knows. `undefined` for any other condition, which keeps both branches.
+   */
+  const boundTruth = (sp: ServiceProgram, condition: ts.Expression): boolean | undefined => {
+    let e = unwrap(condition);
+    let negated = false;
+    while (ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.ExclamationToken) {
+      negated = !negated;
+      e = unwrap(e.operand);
+    }
+    if (!ts.isIdentifier(e)) return undefined;
+    const d = reader.symbolAt(sp, e)?.valueDeclaration;
+    if (!d || !ts.isParameter(d)) return undefined;
+    let truth: boolean | undefined;
+    if (frame?.args.has(d)) {
+      // A missing argument takes the parameter's default, read in the builder's own scope.
+      const value =
+        frame.args.get(d) ?? (d.initializer ? { sp, expression: d.initializer } : undefined);
+      truth = value ? truthOf(value) : false;
+    } else if (bindings?.has(d)) {
+      const value = bindings.get(d);
+      truth = bindings.missing?.has(d) ? false : value && truthOf(value);
+    }
+    return truth === undefined ? undefined : truth !== negated;
+  };
+
   /** A parameter read: its bound value while inlining, else a parameter hole. */
   const parameterParts = (
     sp: ServiceProgram,
@@ -1225,6 +1290,8 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       return [HOLE];
     }
     if (ts.isConditionalExpression(e)) {
+      const truth = boundTruth(sp, e.condition);
+      if (truth !== undefined) return partsOf(sp, truth ? e.whenTrue : e.whenFalse, hops + 1);
       return choose([
         () => partsOf(sp, e.whenTrue, hops + 1),
         () => partsOf(sp, e.whenFalse, hops + 1),
@@ -1435,9 +1502,38 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     }
   };
 
+  /**
+   * The leading parameters of a site, read on each path through its ternaries and `let`
+   * values (M5C.10a, ADR-0164's amendment): a parameter is leading when it is on some path,
+   * so one that only fills a later hole of one branch (`slug ? \`/x/${slug}\` : "/y"`) isn't
+   * absorbed into the hole the branches collapse to. Past {@link MAX_PATHS} paths, one read.
+   */
   const leadingIn = (
     site: Pick<HttpCallSite, "url" | "baseURL">,
   ): ReadonlySet<ts.ParameterDeclaration> => {
+    const found = new Set<ts.ParameterDeclaration>();
+    let forced: number[] = [];
+    for (let path = 0; path < MAX_PATHS; path++) {
+      const state = { forced, taken: [] as number[], counts: [] as number[] };
+      choices = state;
+      try {
+        for (const d of leadingOnPath(site)) found.add(d);
+      } finally {
+        choices = undefined;
+      }
+      // The next path, as in `alternatives`.
+      let i = state.taken.length - 1;
+      while (i >= 0 && (state.taken[i] ?? 0) + 1 >= (state.counts[i] ?? 0)) i--;
+      if (i < 0) return found;
+      forced = [...state.taken.slice(0, i), (state.taken[i] ?? 0) + 1];
+    }
+    return leadingOnPath(site);
+  };
+
+  /** The leading parameters of one read of a site (one path while `choices` is set). */
+  const leadingOnPath = (
+    site: Pick<HttpCallSite, "url" | "baseURL">,
+  ): Set<ts.ParameterDeclaration> => {
     used.clear();
     holes.clear();
     const found = new Set<ts.ParameterDeclaration>();
@@ -1455,7 +1551,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
         if (leading.has(part)) found.add(d);
       }
     }
-    // A parameter whose hole was absorbed (`new URL(path, base)`, a ternary) may be anywhere.
+    // A parameter whose hole was absorbed (`new URL(path, base)`) may be anywhere.
     for (const d of used) if (!placed.has(d)) found.add(d);
     used.clear();
     holes.clear();

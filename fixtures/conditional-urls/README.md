@@ -1,0 +1,3 @@
+# conditional-urls
+
+Tests (M5C.10a, ADR-0164's amendment): a parameter that a ternary's branch reads only after a literal segment doesn't make a function a wrapper. `openShelf(shelfId?)` picks `/api/shelves/${shelfId}` or `/api/reading-now`, so its request stays at its own `fetch` with one alternative per branch (`GET /api/shelves/:shelfId`, `GET /api/reading-now`), and its callers `showReadingNow` and `showShelf` get nothing. `catalog(path, version?)` takes the path (`/api${path}`), so it is a wrapper, and at each call the argument settles the ternary on `version`: `listBooks` (no version, `undefined`) sends only `GET /api/books`, `listBooksV2` (`"v2"`) only `GET /api/v2/books`.
