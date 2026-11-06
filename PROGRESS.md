@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M5C.8b4 Batch 5 labels, repos 13–16 (DSA-Round-Robin, DevCircle, relay-status-monitor, SPIDER_NODE-uptime-tracker), committed with their `repos.json` entries before any run, under ADR-0209's rules and its M5C.8b1–b3 amendments, plus EVALUATION.md's batch 5 table (M5.14b4 waits on #22)
+M5C.8c Score batch 5 once, blind (all 16 labeled: 520 labels at 504 call sites, 460 with a route): precision (≥ 95% the hard number), recall, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post on #18 (M5.14b4 waits on #22)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -346,7 +346,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M5C.8b1 Label `wiseweb-works/mern-bookstore`, `solid-logic-studios/bucketwise-planner`, `nz-m/SocialEcho`, `erayendes/kortext` (`elyse502/PingUp` rejected on rule 4 while labeling, walk continued to `dotnize/chessu`, ADR-0208's amendment) {model: opus}
 - [x] M5C.8b2 Label `DOodle25/SyncUP`, `Vishwajit1610/Resonance`, `dotnize/chessu`, `elyse502/ecommerce-app` (`theavnishkumar/online-auction-system` rejected on rule 4 while labeling, walk continued to ecommerce-app, ADR-0208's amendment) {model: opus}
 - [x] M5C.8b3 Label `leswww/agentboard-ce`, `g089h515r806/nextcrawler`, `SamurAIGPT/ai-headshot-generator`, `Farbyte/lawson` (first check each base against the routes' full paths, mounts and ports included, ADR-0208's M5C.8b2 note) {model: opus}
-- [ ] M5C.8b4 Label `sahitya-chandra/DSA-Round-Robin`, `BharathxD/DevCircle`, `yigehaozi/relay-status-monitor`, `rakibutsho/SPIDER_NODE-uptime-tracker`; EVALUATION.md's batch 5 table {model: opus}
+- [x] M5C.8b4 Label `sahitya-chandra/DSA-Round-Robin`, `BharathxD/DevCircle`, `yigehaozi/relay-status-monitor`, `rakibutsho/SPIDER_NODE-uptime-tracker`; EVALUATION.md's batch 5 table {model: opus}
 - [ ] M5C.8c Score batch 5 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, what stays unresolved and why; README/EVALUATION quote it as measured; post the result on #18 {model: opus}
 
 ### M6 (continued)
@@ -398,6 +398,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **M5C.8b4 (2026-11-05):** labeled DSA-Round-Robin (26 labels at 25 sites, all with a route), DevCircle (19, 16), relay-status-monitor (50 at 48, 36), and SPIDER_NODE-uptime-tracker (26, 22): 121 labels at 118 sites, 100 with a route, pinned `"heldOut": 5` (`88564a4`). Batch 5 is fully labeled (520 at 504, 460 with a route), with its EVALUATION.md table.
+  Four parallel readers drafted; I re-checked every label with `eval/dist/check-labels.mjs`, the server's port and mounts, and per-file request counts. ADR-0209's M5C.8b4 amendment: the deployment evidence must name the exact host the code calls, a trailing space is trimmed, a trailing slash to Next follows its 308 redirect, and export-list handlers anchor at the `export` line.
 - **M5C.8b3 (2026-11-05):** labeled agentboard-ce (56 labels at 53 sites, 46 with a route), nextcrawler (53, 47), ai-headshot-generator (15, 7), and lawson (10, 5): 134 labels at 131 sites, 105 with a route, pinned `"heldOut": 5` (`d654f94`). Two readers drafted the large repos, I did the small ones; every label re-checked with `eval/dist/check-labels.mjs` and each tree's per-file request counts matched against the labels.
   - All four passed the base check (root-relative requests on their own Next app). ADR-0209's M5C.8b3 amendment: a URL+method ternary gives one label per alternative with its own method; a component fetching a path prop is labeled at each JSX element; `node-fetch` counts as `fetch`.
 - **M5C.8b2 (2026-11-05):** labeled SyncUP (20 labels, 19 with a route), Resonance (6), chessu (11), and ecommerce-app (16): 53 labels at 53 sites, 52 with a route, pinned `"heldOut": 5` (`4d33352`). Four parallel readers drafted them; each label was re-checked with `eval/dist/check-labels.mjs`, and each tree grepped independently.
