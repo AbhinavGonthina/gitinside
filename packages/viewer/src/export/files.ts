@@ -1,6 +1,8 @@
 import type { GraphRepo } from "@gitinside/schema";
 import type { Shown } from "../explorer/transition.js";
+import type { DiffVersion } from "../model/diff.js";
 import type { HierarchyIndex } from "../model/hierarchy.js";
+import { versionView } from "../model/view.js";
 import type { Theme } from "../ViewerRoot.js";
 import { viewMermaid } from "./mermaid.js";
 import { renderViewSvg } from "./svg.js";
@@ -29,14 +31,45 @@ export interface ViewExport {
   svg(theme: Theme): string;
   /** The view as a Mermaid `flowchart` (`viewMermaid`). */
   mermaid(): string;
+  /** What the share menu says about it, e.g. which version of a diff it is. */
+  note?: string | undefined;
+}
+
+/** Diff mode's version to export (M6.11e): Base or Head, whichever is on screen. */
+export interface ExportVersion {
+  version: DiffVersion;
+  /** The version's hierarchy on the view's IDs (`buildHierarchy(versionGraph(…))`). */
+  index: HierarchyIndex;
+  /** The commit it was analyzed at, for the file name and the footer. */
+  repo: GraphRepo;
+  /** What the share menu says about it. */
+  note?: string | undefined;
 }
 
 /**
  * The view as drawn (its view and the layout it was drawn at) as a
  * {@link ViewExport}. Each file is rendered when asked for, so a view that's
  * never exported costs nothing.
+ *
+ * In diff mode, `version` names the version shown: the files then draw only
+ * what it has, as it recorded it (`versionView`), at the overlay's layout,
+ * with its commit in the name (`…-base`, `…-head`) and the footer.
  */
-export function viewExport(index: HierarchyIndex, shown: Shown): ViewExport {
+export function viewExport(
+  index: HierarchyIndex,
+  shown: Shown,
+  version?: ExportVersion,
+): ViewExport {
+  if (version) {
+    const at = { ...version.index, graph: { ...version.index.graph, repo: version.repo } };
+    const view = versionView(shown.view, at);
+    return {
+      name: `${exportName(version.repo)}-${version.version}`,
+      svg: (theme) => renderViewSvg(at, view, shown.layout, { theme }),
+      mermaid: () => viewMermaid(at, view),
+      note: version.note,
+    };
+  }
   return {
     name: exportName(index.graph.repo),
     svg: (theme) => renderViewSvg(index, shown.view, shown.layout, { theme }),

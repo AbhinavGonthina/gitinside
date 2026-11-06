@@ -4,11 +4,13 @@ import { compareStrings, type ArchitectureGraph } from "@gitinside/schema";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { diffPair } from "../diffPair.testkit.js";
 import { EDGE_WORDS } from "../edges/describe.js";
+import type { ViewExport } from "../export/files.js";
+import type { DiffView } from "../chrome/TopBar.js";
 import { frameCounts } from "../layout/size.js";
 import { buildDiffOverlay, versionGraph } from "../model/diff.js";
 import { buildHierarchy, isWithin, nodeOf } from "../model/hierarchy.js";
 import { countText } from "../nodes/describe.js";
-import { Explorer } from "./Explorer.js";
+import { EXPORT_NOTES, Explorer } from "./Explorer.js";
 import { summaryOf } from "./summary.js";
 import { traceFrom } from "./trace.js";
 
@@ -441,6 +443,57 @@ describe("Explorer diff mode", { timeout: 30_000 }, () => {
     expect(document.querySelector('.gi-status[data-tone="diff"]')).toBeNull();
     expect(document.querySelector(".gi-badge[data-diff]")).toBeNull();
     expect(document.querySelector(".gi-changes")).toBeNull();
+  });
+});
+
+describe("Explorer diff mode's export (M6.11e)", { timeout: 30_000 }, () => {
+  it("exports the version shown, at its commit, and the Overlay as head, saying so", async () => {
+    const shas = { base: "b".repeat(40), head: "c".repeat(40) };
+    const pair = diffPair(P, shas);
+    const exportRef: { current: ViewExport | undefined } = { current: undefined };
+    await setup({
+      graph: pair.head,
+      diff: { base: pair.base, diff: pair.diff },
+      initialOpen: [SERVICE, SRC],
+      exportRef,
+      topBar: false,
+    });
+    const removed = "DELETE /api/orders/:id";
+    const show = async (name: "Base" | "Head" | "Overlay") => {
+      const views = screen.getByRole("radiogroup", { name: "Diff view" });
+      fireEvent.click(within(views).getByRole("radio", { name }));
+      await settle();
+      await waitFor(() =>
+        expect(exportRef.current?.note).toBe(EXPORT_NOTES[name.toLowerCase() as DiffView]),
+      );
+      return exportRef.current as ViewExport;
+    };
+
+    const overlay = exportRef.current;
+    expect(overlay?.note).toBe(EXPORT_NOTES.overlay);
+    expect(overlay?.name).toBe("fixtures-diff-broken-head-ccccccc-head");
+    expect(overlay?.mermaid()).not.toContain(removed);
+
+    const inBase = await show("Base");
+    expect(inBase.name).toBe("fixtures-diff-broken-base-bbbbbbb-base");
+    expect(inBase.mermaid()).toContain(removed);
+    expect(inBase.mermaid()).toContain("at bbbbbbb");
+    expect(inBase.svg("dark")).toContain("bbbbbbb");
+
+    const inHead = await show("Head");
+    expect(inHead.name).toBe("fixtures-diff-broken-head-ccccccc-head");
+    expect(inHead.mermaid()).not.toContain(removed);
+    expect(inHead.mermaid()).toBe(overlay?.mermaid());
+    expect(inHead.svg("light")).toBe(overlay?.svg("light"));
+  });
+
+  it("names no version outside diff mode", async () => {
+    const exportRef: { current: ViewExport | undefined } = { current: undefined };
+    render(<Explorer graph={head} exportRef={exportRef} />);
+    await settle();
+    await waitFor(() => expect(exportRef.current).toBeDefined());
+    expect(exportRef.current?.note).toBeUndefined();
+    expect(exportRef.current?.name).toBe("fixtures-diff-broken-head");
   });
 });
 

@@ -63,7 +63,7 @@ Every incremental test compares warm and cold bytes over fixture edits (edit, ad
 - **Broken-route detection drifted from the matcher** (C2, fixed in M6.11c): routes reached through example-env prefixes, dev proxies, or `basePath` were never flagged. A call whose text changed in the same commit and reaches its old route only through one of those forms still isn't.
 - **Inline Express handlers' calls aren't drawn** (smoke S2, from M1, not M6): a route's trace stops at the route, and a PR that removes a function those handlers call flags nothing.
 - **A rename plus an edit in one commit is a removal and an addition:** `creatArticle` → `createArticle` with about 15 lines added scores under the 0.8 body threshold (see the smoke test). This is by design (ADR-0086), but it's the common shape of a real rename.
-- **Exports ignore diff mode** (U1).
+- **Exports don't mark changes** (U1, fixed in M6.11e for Base and Head): the Overlay exports head, saying so, rather than an image of the changes.
 - **Uninstall deletion of the worker cache reaches one instance** (C5): planned into M8.5 rather than fixed now.
 
 ## Fresh-eyes review
@@ -93,7 +93,7 @@ Findings marked "confirmed" were traced in the code by the reviewer; "plausible"
 | C7 | Low (confirmed) | A broken entry's `to` is the base ID, so a `PARAMETERS_ADDED`/`FIELD_REMOVED` target that was also renamed is drawn twice in the Mermaid summary | Planned: M6.11i |
 | C8 | Low (confirmed) | Temp files from a writer killed mid-write don't count toward the cap (cleaned after an hour), and `remove()` lowers counters even for a file already gone | Planned: M6.11f |
 | C9 | Low (docs) | DESIGN §9's 25.2 MiB per cal.com analysis predates ADR-0180/0181 (now 1.9–4.1 MiB) | Fixed in this task: both figures given |
-| U1 | Medium (confirmed) | Export (SVG, PNG, Mermaid) ignores the version shown: Head exports removed items as plain boxes, Base exports added ones | Planned: M6.11e |
+| U1 | Medium (confirmed) | Export (SVG, PNG, Mermaid) ignores the version shown: Head exports removed items as plain boxes, Base exports added ones | Fixed in M6.11e: files show the version on screen (`versionView`) at its commit; the Overlay exports head and the share menu says so ([menu](M6/export/menu-overlay-dark.png), [Head's file](M6/export/file-head-dark.png), [Base's file](M6/export/file-base-light.png)) |
 | U2 | Low–medium (confirmed) | "Changes here" is empty for a selection inside a folded added/removed row, though its frame badge counts changes | Planned: M6.11g |
 | U3 | Low (confirmed) | A linked `view=base\|head` whose `sel`/`trace` the version lacks falls back to Overlay silently, and Copy link still says the linked version | Planned: M6.11h |
 | U4 | Low (plausible) | Stop comparing unmounts the focused link; focus likely drops to `<body>` | Planned: M6.11h |

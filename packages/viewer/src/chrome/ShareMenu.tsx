@@ -73,7 +73,9 @@ type CopyState = "idle" | "copied" | "failed";
  * With `exports`, an **Export** section (M4b.10b, UX.md "Export") saves the
  * view on screen as an SVG or a PNG (the SVG at {@link PNG_SCALE}×) in the
  * chosen theme (the screen's, to start with), or as Mermaid, saved or
- * copied. Every file is made in the browser; nothing is uploaded.
+ * copied. Every file is made in the browser; nothing is uploaded. An
+ * export's `note` (in diff mode, which version the files show) sits under
+ * the section's heading.
  *
  * With `open` and `onOpenChange`, its owner decides when it's open, so a bar
  * with another menu (the website's Add to README) keeps one open at a time
@@ -270,6 +272,7 @@ export function ShareMenu({
           {exports && (
             <div className="gi-share__export" role="group" aria-labelledby={exportTitleId}>
               <h3 id={exportTitleId}>Export this view</h3>
+              {view?.note && <p className="gi-share__text gi-share__export-note">{view.note}</p>}
               {/* Images in a theme; Mermaid has none, so it gets its own row. */}
               <div className="gi-share__export-row">
                 <Button variant="secondary" size="sm" onClick={() => save("svg")}>

@@ -275,6 +275,39 @@ export function edgeWithin(view: ViewEdge, keep: ReadonlySet<string>): ViewEdge 
 }
 
 /**
+ * A view as one version draws it (diff mode's Base or Head, M6.11e), for
+ * export: only the nodes `version` has, as it recorded them (a renamed node's
+ * base name in Base), and only its connections (`edgeWithin`, each as it
+ * recorded them). IDs, frames, and drawing order stay the view's, so it's
+ * drawn on the view's layout, with gaps where the canvas fades items out.
+ */
+export function versionView(view: GraphView, version: HierarchyIndex): GraphView {
+  const records = new Map(version.graph.edges.map((e) => [e.id, e]));
+  const keep = new Set(records.keys());
+  const nodes = view.nodes.flatMap((n): ViewNode[] => {
+    const node = version.byId.get(n.id);
+    if (!node) return [];
+    const canOpen = (version.children.get(n.id)?.length ?? 0) > 0;
+    return [{ ...n, node, canOpen }];
+  });
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const childrenOf = new Map(
+    [...view.childrenOf].flatMap(([id, kids]): [string, string[]][] =>
+      version.byId.has(id) ? [[id, kids.filter((k) => byId.has(k))]] : [],
+    ),
+  );
+  const edges = view.edges.flatMap((e): ViewEdge[] => {
+    const kept = edgeWithin(e, keep);
+    const [first, ...rest] = (kept?.edges ?? []).map((g) => records.get(g.id) ?? g);
+    if (!first || !byId.has(e.from) || !byId.has(e.to)) return [];
+    // Base may have recorded a connection at another confidence.
+    const confidence = rest.reduce((c, g) => weaker(c, g.confidence), first.confidence);
+    return [{ ...e, confidence, edges: [first, ...rest] }];
+  });
+  return { ...view, nodes, byId, childrenOf, open: view.open.filter((id) => byId.has(id)), edges };
+}
+
+/**
  * The edge as the label and line should draw it: a single edge keeps its own
  * label and reason; an aggregate becomes a count (`count` is set).
  */
