@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M6.11n2 Rename detection that stops at its pair or lookup budget says so in the diff (R4) (M5.14b4 waits on #22)
+M6.11n3 `runtimeDeps` and `DUPLICATE_PACKAGE_NAME` key on the importable package name for Nx standalone roots (R6) (M5.14b4 waits on #22)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -379,7 +379,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M6.11m Diff mode on the website, focus and notes (R2, R7, R8): the failed-base note's Try again hands focus to the diagram after a successful retry (as Stop comparing does), and a retry that fails again changes the note's text so it's announced; the Stop comparing focus flag clears when the new diagram has no focusable box; `linkedVersion`'s note names nodes by label, not ID; tests red first, a real-browser focus check {model: opus}
 - M6.11n Core fixes from the second review (R3, R4, R5, R6), split in three:
 - [x] M6.11n1 R3 and R5: `FACTS_DIGEST` becomes a digest per `KEY_FORMAT` and the guard fails if two formats share one or the newest entry isn't `KEY_FORMAT`'s (so a digest added without a bump fails); `detectBroken`'s "not handled" lists two requests at one site matching one route (only the first's `request` kept); tests red first, ADR-0213 amendment, no graph change {model: opus}
-- [ ] M6.11n2 R4: rename detection that stops at its pair or lookup budget (`maxFilePairs`, `maxShingleLookups`) says so in the diff (a visible note or warning, schema and Mermaid if a field is added); tests red first {model: opus}
+- [x] M6.11n2 R4: rename detection that stops at its pair or lookup budget (`maxFilePairs`, `maxShingleLookups`) says so in the diff (a visible note or warning, schema and Mermaid if a field is added); tests red first {model: opus}
 - [ ] M6.11n3 R6: `runtimeDeps` and `DUPLICATE_PACKAGE_NAME` key on the importable package name, not the Nx root's `project.json` name (a false duplicate against a lib named `api`; a cycle through `@api/source` unseen); tests red first, fixture + golden if needed, eval delta {model: opus}
 - [ ] M6.11o Re-run the milestone checks after M6.11l–n (suite uncached, coverage, `pnpm eval --check`), R1–R8 outcomes in M6-review.md (status no longer draft), tag m6 {model: opus}
 
@@ -397,7 +397,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [ ] M8.3 Install flow + installation webhooks + private snapshot prefix (incl. job IDs scoped by installation, M5 review / ADR-0079) {model: opus}
 - [ ] M8.4 Per-view access checks (60s cache), private isolation, noindex {model: opus}
 - [ ] M8.5 Uninstall → immediate deletion (tested); the worker's fact cache too (M6 review C5): `deleteInstallationCache` reaches only the instance that runs it, other live instances keep `/tmp/cache/installations/<id>` until evicted or recycled, and per-installation folders can't honor a single repo's removal, so decide per-repo folders and a purge at job start against a list of deleted installations/repos (or document the instance-lifetime bound in SECURITY.md T7) {model: opus}
-- [ ] M8.6 PR webhook → diff job → comment + Check Run (updated in place) {model: opus}
+- [ ] M8.6 PR webhook → diff job → comment + Check Run (updated in place); diffs made with file contents can carry `renameLimit` (ADR-0086's M6.11n2 amendment), so the viewer's diff mode shows its note too {model: opus}
 - [ ] M8.7 Push webhook → badge refresh {model: opus}
 - [ ] M8.8 Security tests (signatures, revocation, cross-tenant isolation) {model: opus}
 - [ ] M8.9 Switch autopilot to PR flow reviewed by GitInside's bot; update CLAUDE.md {model: opus}
@@ -416,6 +416,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- 2026-11-06 M6.11n2 (R4): past `maxFilePairs`/`maxShingleLookups`, the diff carries an optional `renameLimit { removed, added }` (files that could have been compared by content but weren't; those with an identical counterpart not counted) and the Mermaid summary ends with a `limit` note, also when nothing else is drawn. Not a warning (`applyDiff` must rebuild head); not in the viewer yet (the website diffs without contents), added to M8.6. Tests red first; a mutation dropping the identical-content exclusion went red. Diff 137/137, schema 36/36, typecheck and lint green; eval unchanged (report regenerated for the schema change). ADR-0086 amendment, walkthrough line refs updated.
 - **M6.11n1 (2026-11-06):** Split M6.11n into n1 (R3, R5), n2 (R4), n3 (R6). R3: `FACTS_DIGESTS` records each format's digest (33, 34 from history); `keyFormat.test.ts` also requires the newest entry to be `KEY_FORMAT`'s and no digest shared, and its message names an older format whose entries match. Red first (missing export), then three mutations each red: an entry without a bump, a shared digest, entries equal to format 33's. Rewriting an entry in place still passes (said in ADR-0213's amendment). R5: `detectBroken`'s "not handled" lists the second request at one site. No graph change, no eval delta.
 - **M6.11m (2026-11-06, `af09d96`):** R2: a Try again that loads the base while its button has focus sets the pending-focus flag (`focusNext`, was `stopping`), so focus waits on the diagram's spot and lands on a box of the compared diagram; a retry that fails again counts the tries in the note ("still didn't load after 2 tries"), so the live region changes. R7: a diagram drawn with no box (`DRAWN_WITHOUT_BOX`: the explorer's card, a failed layout) ends the wait, focus staying on the spot until it leaves. R8: `linkedVersion` names nodes by kind and label. Tests red first; a new seeded E2E (permalink compared with itself, base read failing once) went red on a build without the flag. Web 692/692, seeded E2E 7/7. Visible change is note wording only, so no new screenshots.
 - **M6.11l (2026-11-06):** R1 fixed. A broken line carries its own glyph (× on the red disc, `DIFF_MARK.broken`, whatever its diff state), shown at `outline`, where every pill fades. At `names` its pill stays and the × isn't drawn: the first screenshots showed the 12 px disc sticking out around the 40% pill. New story "Diff, outline" (25%) with Linux baselines (run 42232127545; 8 other images the capture rewrote were noise, restored). `diff.visual.ts` checks both levels under reduced motion in Chromium; each went red on a Storybook build without its rule. Viewer 1,116/1,116, typecheck and lint green. Still weak: close broken pills give overlapping ×s at outline.
