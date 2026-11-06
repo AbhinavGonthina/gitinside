@@ -1,0 +1,329 @@
+{
+  "repo": "solid-logic-studios/bucketwise-planner",
+  "sha": "27ff33ad401dd8d2c565cf4f6009f418e512cb76",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["backend", "frontend"],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 59 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/auth.routes.ts",
+        "line": 10,
+        "route": "POST /auth/refresh"
+      },
+      "notes": "refreshAccessToken(): fetch(`${AUTH_BASE}/refresh`, { method: 'POST' }); AUTH_BASE = VITE_AUTH_BASE || '/auth' (line 26), no env value anywhere, so the fallback '/auth', root-relative, forwarded to Express on port 3000 by the Vite dev proxy (vite.config.ts) and nginx.conf; app.ts line 296 mounts authRouter at /auth"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 160 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/auth.routes.ts",
+        "line": 7,
+        "route": "POST /auth/signup"
+      },
+      "notes": "api.signup: requestAuth('/signup', 'POST', input). requestAuth(path, method, body) (lines 132-156) is fetch(`${AUTH_BASE}${path}`), so the label is at this call; AUTH_BASE = VITE_AUTH_BASE || '/auth' (line 26), no env value anywhere, so the fallback '/auth' (Vite dev proxy / nginx.conf to Express on port 3000); app.ts line 296 mounts authRouter at /auth"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 167 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/auth.routes.ts",
+        "line": 8,
+        "route": "POST /auth/login"
+      },
+      "notes": "api.login: requestAuth('/login', 'POST', input). requestAuth(path, method, body) (lines 132-156) is fetch(`${AUTH_BASE}${path}`), so the label is at this call; AUTH_BASE = VITE_AUTH_BASE || '/auth' (line 26), no env value anywhere, so the fallback '/auth' (Vite dev proxy / nginx.conf to Express on port 3000); app.ts line 296 mounts authRouter at /auth"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 173 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/auth.routes.ts",
+        "line": 9,
+        "route": "POST /auth/logout"
+      },
+      "notes": "api.logout: requestAuth('/logout', 'POST'). requestAuth(path, method, body) (lines 132-156) is fetch(`${AUTH_BASE}${path}`), so the label is at this call; AUTH_BASE = VITE_AUTH_BASE || '/auth' (line 26), no env value anywhere, so the fallback '/auth' (Vite dev proxy / nginx.conf to Express on port 3000); app.ts line 296 mounts authRouter at /auth"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 176 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/dashboard.routes.ts",
+        "line": 20,
+        "route": "GET /api/dashboard"
+      },
+      "notes": "api.getDashboard: request('/dashboard', 'GET', undefined, { currentFortnightId }) (query dropped). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE = VITE_API_BASE || '/api' (line 25): the in-code fallback '/api' (frontend/.env.production agrees; frontend/.env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 308 mounts dashboardRouter at /api/dashboard"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 179 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/fortnight.routes.ts",
+        "line": 34,
+        "route": "GET /api/fortnights/:id"
+      },
+      "notes": "api.getFortnight: request(`/fortnights/${encodeURIComponent(id)}`, 'GET'). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE = VITE_API_BASE || '/api' (line 25): the in-code fallback '/api' (frontend/.env.production agrees; frontend/.env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 306 mounts buildFortnightRouter at /api/fortnights"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 181 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/fortnight.routes.ts",
+        "line": 24,
+        "route": "GET /api/fortnights"
+      },
+      "notes": "api.listFortnights: request('/fortnights', 'GET'). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE = VITE_API_BASE || '/api' (line 25): the in-code fallback '/api' (frontend/.env.production agrees; frontend/.env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 306 mounts buildFortnightRouter at /api/fortnights (router.get('/'))"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 187 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/fortnight.routes.ts",
+        "line": 18,
+        "route": "POST /api/fortnights"
+      },
+      "notes": "api.createFortnight: request('/fortnights', 'POST', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE = VITE_API_BASE || '/api' (line 25): the in-code fallback '/api' (frontend/.env.production agrees; frontend/.env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 306 mounts buildFortnightRouter at /api/fortnights (router.post('/'))"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 198 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/fortnight.routes.ts",
+        "line": 52,
+        "route": "GET /api/transactions"
+      },
+      "notes": "api.listTransactions: request('/transactions', 'GET', undefined, params) (query dropped). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000. Three routers share /api/transactions (app.ts lines 303-305); only the third, buildTransactionRouter from fortnight.routes.ts (line 305), has a GET '/'"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 214 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/transaction.routes.ts",
+        "line": 21,
+        "route": "POST /api/transactions"
+      },
+      "notes": "api.recordTransaction: request('/transactions', 'POST', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 303 mounts transaction.routes.ts's router (imported as buildRecordTransactionRouter) first at /api/transactions"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 227 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/presentation/http/routes/transaction.routes.ts",
+        "line": 27,
+        "route": "PUT /api/transactions/:id"
+      },
+      "notes": "api.updateTransaction: request(`/transactions/${encodeURIComponent(id)}`, 'PUT', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 303 mounts transaction.routes.ts's router at /api/transactions"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 230 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/presentation/http/routes/transaction.routes.ts",
+        "line": 40,
+        "route": "DELETE /api/transactions/:id"
+      },
+      "notes": "api.deleteTransaction: request(`/transactions/${encodeURIComponent(id)}`, 'DELETE'). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 303 mounts transaction.routes.ts's router at /api/transactions"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 237 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 28,
+        "route": "GET /api/debts/payoff-plan"
+      },
+      "notes": "api.getDebtPayoffPlan: request('/debts/payoff-plan', 'GET', undefined, {…}) (query dropped). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 243 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 23,
+        "route": "GET /api/debts"
+      },
+      "notes": "api.listDebts: request('/debts', 'GET'). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts (router.get('/'))"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 253 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 33,
+        "route": "POST /api/debts"
+      },
+      "notes": "api.createDebt: request('/debts', 'POST', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts (router.post('/'))"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 266 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 73,
+        "route": "PUT /api/debts/:id"
+      },
+      "notes": "api.updateDebt: request(`/debts/${encodeURIComponent(id)}`, 'PUT', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 277 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 67,
+        "route": "POST /api/debts/:id/balance-adjustments"
+      },
+      "notes": "api.recordDebtBalanceAdjustment: request(`/debts/${encodeURIComponent(debtId)}/balance-adjustments`, 'POST', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 284 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 62,
+        "route": "GET /api/debts/:id/balance-adjustments"
+      },
+      "notes": "api.listDebtBalanceAdjustments: request(`/debts/${encodeURIComponent(debtId)}/balance-adjustments`, 'GET', undefined, { limit }) (query dropped). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 292 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/profile.routes.ts",
+        "line": 9,
+        "route": "GET /api/profile"
+      },
+      "notes": "api.getProfile: request('/profile', 'GET'). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 309 mounts buildProfileRouter at /api/profile (router.get('/'))"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 304 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/presentation/http/routes/profile.routes.ts",
+        "line": 14,
+        "route": "PUT /api/profile"
+      },
+      "notes": "api.updateProfile: request('/profile', 'PUT', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 309 mounts buildProfileRouter at /api/profile (router.put('/'))"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 310 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/profile.routes.ts",
+        "line": 33,
+        "route": "GET /api/profile/user"
+      },
+      "notes": "api.getUserProfile: request('/profile/user', 'GET'). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 309 mounts buildProfileRouter at /api/profile"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 312 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/presentation/http/routes/profile.routes.ts",
+        "line": 38,
+        "route": "PUT /api/profile/user"
+      },
+      "notes": "api.updateUserProfile: request('/profile/user', 'PUT', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 309 mounts buildProfileRouter at /api/profile"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 315 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/profile.routes.ts",
+        "line": 21,
+        "route": "GET /api/profile/avatar"
+      },
+      "notes": "api.getProfileAvatar: request('/profile/avatar', 'GET'). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 309 mounts buildProfileRouter at /api/profile"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 320 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/profile.routes.ts",
+        "line": 26,
+        "route": "POST /api/profile/avatar"
+      },
+      "notes": "api.uploadProfileAvatar: direct fetch(`${API_BASE}/profile/avatar`, { method: 'POST', body: formData }); API_BASE = VITE_API_BASE || '/api' (line 25): the in-code fallback '/api' (.env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 309 mounts buildProfileRouter at /api/profile"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 355 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/transaction-import.routes.ts",
+        "line": 13,
+        "route": "POST /api/transactions/import/csv/preview"
+      },
+      "notes": "api.previewTransactionCsvImport: direct fetch(`${API_BASE}/transactions/import/csv/preview`, { method: 'POST', body: formData }); API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000. app.ts line 303's transaction.routes.ts router has no POST matching this path (POST '/', PUT/DELETE '/:id'), so line 304's buildTransactionImportRouter serves it"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 371 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/transaction-import.routes.ts",
+        "line": 19,
+        "route": "POST /api/transactions/import/csv/commit"
+      },
+      "notes": "api.commitTransactionCsvImport: request('/transactions/import/csv/commit', 'POST', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000. app.ts line 303's router has no matching POST, so line 304's buildTransactionImportRouter serves it"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 386 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 56,
+        "route": "POST /api/debts/:id/skip-payment"
+      },
+      "notes": "api.skipDebtPayment: request(`/debts/${encodeURIComponent(debtId)}/skip-payment`, 'POST', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 393 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/fortnight.routes.ts",
+        "line": 29,
+        "route": "GET /api/fortnights/:id/skipped-debt-payments"
+      },
+      "notes": "api.listSkippedDebtPayments: request(`/fortnights/${encodeURIComponent(fortnightId)}/skipped-debt-payments`, 'GET'). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 306 mounts buildFortnightRouter at /api/fortnights"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 400 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/presentation/http/routes/chat.routes.ts",
+        "line": 48,
+        "route": "POST /api/chat/message"
+      },
+      "notes": "api.sendChatMessage: request('/chat/message', 'POST', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000. app.ts line 311 mounts buildChatRouter at /api/chat inside if (chatRouter), i.e. only when AI_ENABLED=true and GEMINI_API_KEY is set; the route is registered in code, so it is the target"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 403 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 45,
+        "route": "GET /api/debts/mortgage"
+      },
+      "notes": "api.getMortgage: request('/debts/mortgage', 'GET'). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 406 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 50,
+        "route": "PUT /api/debts/mortgage"
+      },
+      "notes": "api.upsertMortgage: request('/debts/mortgage', 'PUT', input). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts. The literal '/mortgage' PUT (line 50) is registered before PUT '/:id' (line 73), so it wins"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 409 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/presentation/http/routes/debt.routes.ts",
+        "line": 40,
+        "route": "GET /api/debts/mortgage/overpayment-plan"
+      },
+      "notes": "api.getMortgageOverpaymentPlan: request('/debts/mortgage/overpayment-plan', 'GET', undefined, { fortnightlyFeCents }) (query dropped). request(path, …) (lines 78-130) is fetch(`${API_BASE}${path}`), so the label is at this call; API_BASE fallback '/api' (line 25; .env.production agrees, .env.example's http://localhost:3000 omits /api), via the Vite dev proxy / nginx.conf to Express on port 3000; app.ts line 307 mounts buildDebtRouter at /api/debts"
+    }
+  ]
+}

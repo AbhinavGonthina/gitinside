@@ -11,6 +11,16 @@
       "heldOut": 3
     },
     {
+      "owner": "erayendes",
+      "name": "kortext",
+      "url": "https://github.com/erayendes/kortext",
+      "sha": "cb2b3c1fc73e3f5e2a74e2f03c0fea9b14fd692c",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 5 (M5C.8b1, drawn in stratum react-express). One npm package: a Vite React 19 panel (ui/) and a TypeScript Express 5 server (server/) on port 3441, plus node:test tests (test/). The panel sends every request through req(path, init) in ui/src/api.ts, a fetch(path, { headers, ...init }) called by 36 one-line methods with root-relative /api/... literals and templates (Vite proxies /api to the server in dev; the same app serves ui/dist in production). server/app.ts registers every route inline on app with its full path (no routers or mounts; one files/*path catch-all, two RegExp paths for the token redirect and the SPA fallback), behind middleware that can answer 401 or 409 first. The CLI fetches its own server's /api/health and /api/quit, and checks npm's registry (null). The tests start the app on a random port and fetch it directly or through helpers that take a path or a trailing segment (put(path), request(suffix)), one inside a loop over a literal list of paths (one label per route, ADR-0041); two fetch / with ?token=, served by the RegExp redirect route (null, ADR-0209's amendment). Not labeled: one node:http request in a test, iframe and link URLs. The macOS menu-bar app is Swift (out of scope). ~37 TS/JS source files.",
+      "heldOut": 5
+    },
+    {
       "owner": "fiveman1",
       "name": "strafes-site",
       "url": "https://github.com/fiveman1/strafes-site",
@@ -138,6 +148,16 @@
       "heldOut": 3
     },
     {
+      "owner": "nz-m",
+      "name": "SocialEcho",
+      "url": "https://github.com/nz-m/SocialEcho",
+      "sha": "4dc6c7822bfff5c0b13e1b8098e8d7ae0084939a",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 5 (M5C.8b1, drawn in stratum react-express). A Create React App SPA (client/, JS) beside a CommonJS Express + Mongoose server (server/), no workspace. client/src/redux/api/utils.js creates three axios instances, API and COMMUNITY_API on process.env.REACT_APP_API_URL and ADMIN_API on `${BASE_URL}/admin` (no in-code fallback; client/.env.example sets http://127.0.0.1:4000, the server's PORT fallback), whose interceptors only add headers; 55 one-call helpers in redux/api/{admin,auth,community,post,user}API.js use them, refreshTokenAction.js makes its own instance on the same variable, four pages call plain axios on `${BASE_URL}/...` templates (some written `axios` then `.get(…)` on the next line), and one root-relative axios.get('/server-status') goes through CRA's package.json proxy. server/app.js registers /server-status and /search on app, then mounts routers at /auth, /users, /posts, /communities, /admin (flat router.<method>() calls, two router.route(path) chains, literal routes before /:id). The server calls TextRazor and Hugging Face on env URLs (null) and the repo's own Python Flask classifier (classifier_server/, null per ADR-0209's amendment); Perspective goes through googleapis (not labeled). ~168 JS source files.",
+      "heldOut": 5
+    },
+    {
       "owner": "pankil-soni",
       "name": "conversa",
       "url": "https://github.com/pankil-soni/conversa",
@@ -226,6 +246,16 @@
       "heldOut": 1
     },
     {
+      "owner": "solid-logic-studios",
+      "name": "bucketwise-planner",
+      "url": "https://github.com/solid-logic-studios/bucketwise-planner",
+      "sha": "27ff33ad401dd8d2c565cf4f6009f418e512cb76",
+      "license": "MIT",
+      "shape": "env-api-urls",
+      "why": "Held out, batch 5 (M5C.8b1, drawn in stratum react-express). A pnpm workspace with a Vite React + TypeScript SPA (frontend/, Mantine) and a TypeScript Express backend (backend/). Every request is in frontend/src/api/client.ts: 26 one-line api.* methods call request(path, method, body?, searchParams?), which fetches `${API_BASE}${path}` (API_BASE = import.meta.env.VITE_API_BASE || '/api') and retries itself after a 401; 3 call requestAuth(path, method) on AUTH_BASE = VITE_AUTH_BASE || '/auth'; 3 fetch fixed paths directly (/auth/refresh, a FormData avatar upload, a CSV preview upload). The root-relative bases reach the backend through Vite's dev proxy (and nginx.conf); frontend/.env.example sets VITE_API_BASE without the /api the routes need, so labels follow the in-code fallback, which the committed .env.production repeats. backend/src/presentation/http/app.ts mounts /auth, then /api/* routers built by per-area routes/*.routes.ts functions; three routers share /api/transactions (the first to register a method and path wins), one builder name is imported under an alias, and the chat router is mounted only when AI is configured. Gemini is reached through @google/genai (not labeled). ~251 TS/JS source files.",
+      "heldOut": 5
+    },
+    {
       "owner": "SujalXplores",
       "name": "v0.diy",
       "url": "https://github.com/SujalXplores/v0.diy",
@@ -266,6 +296,16 @@
       "heldOut": 4
     },
     {
+      "owner": "wiseweb-works",
+      "name": "mern-bookstore",
+      "url": "https://github.com/wiseweb-works/mern-bookstore",
+      "sha": "529623977b91fce552469d054df063425d0ffe19",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 5 (M5C.8b1, drawn in stratum react-express). A Vite React + TypeScript SPA (frontend/, Firebase Auth) beside an Express + Mongoose backend (backend/), no workspace. Most requests are RTK Query endpoints in two createApi slices: booksApi (5 endpoints, its fetchBaseQuery held in a const, baseUrl `${getBaseUrl()}/api/books`, one query returning \"/\") and ordersApi (2 endpoints written (builder.mutation)({…}) and (builder.query)({…}), an inline fetchBaseQuery on `${getBaseUrl()}/api/orders`); three components call plain axios on `${getBaseUrl()}/api/...` templates. getBaseUrl() returns the literal http://localhost:5000, the server's PORT fallback. backend/index.js mounts routers at /api/books, /api/orders, /api/auth, /api/admin (flat router.<method>() calls) and adds an app.use('/') after the database connects. Firebase Auth makes its own requests (not labeled). ~55 TS/JS source files.",
+      "heldOut": 5
+    },
+    {
       "owner": "wrujel",
       "name": "airbnb-clone",
       "url": "https://github.com/wrujel/airbnb-clone",
@@ -292,6 +332,10 @@
     {
       "batch": 4,
       "seen": "Its misses were diagnosed in eval/results/2026-11-batch4-diagnosis.md, and M5C.7's fixes were chosen from them (#18 option 2), each written from a library's or the language's contract with its own fixture, starting with M5C.7a (a method through a rest element; an unread method between routes of different methods is unresolved, ADR-0033)."
+    },
+    {
+      "batch": 5,
+      "seen": null
     }
   ]
 }
