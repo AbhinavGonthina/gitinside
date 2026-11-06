@@ -1470,9 +1470,8 @@
         },
         {
           "repo": "theavnishkumar/online-auction-system",
-          "verdict": "pinned",
-          "sha": "ecd4de475fdf49d54153ffaa57d42b392161007a",
-          "reason": "env-api-urls: Vite React SPA with ~19 axios calls in client/src/api/*.js and store/auction/auctionSlice.js on env bases (`${VITE_API}/admin/...`, `${VITE_AUCTION_API}/...`); Express mounts /api/auth|user|auction|contact|admin|upload in server/app.js; ~97 files"
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side), found while labeling (M5C.8b2, ADR-0208's amendment; first read as a pin at ecd4de4): no in-code fallback, and client/.env.example sets VITE_API=http://localhost:3000 and VITE_AUCTION_API=http://localhost:3000/auction (the server's port per server/.env.example), both without the /api that server/app.js puts on every mount (/api/auth|user|auction|contact|admin|upload; nothing else is registered, no dev proxy or rewrite adds it), so by EVALUATION.md's env-base rule the requests on those bases reach no route (the README lists the same /api-less paths); of 41 requests only 2 do, both in store/auction/auctionSlice.js, which writes /api itself, fewer than 5"
         },
         {
           "repo": "Vishwajit1610/Resonance",
@@ -1500,6 +1499,37 @@
           "verdict": "pinned",
           "sha": "29968f023da244d6ae1ff10c09577b1b5d53c123",
           "reason": "next-plus-server-monorepo: pnpm workspace with a Next.js App Router client and a TypeScript Express server; ~11 direct fetch calls in client/src/lib/{auth,game,user}.ts on API_URL = NEXT_PUBLIC_API_URL || 'http://localhost:3001' (the server's PORT fallback), one URL built up with query params; the server mounts router.route(path) chains for /games, /auth, /users under /v1; the game itself runs over socket.io (not counted); 52 files"
+        },
+        {
+          "repo": "wlsf82/EngageSphere",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): the CRA frontend sends 1 request, fetch(`${serverURL}/customers?...`) in frontend/src/App.js, to backend/server.js's app.get('/customers'); the other requests are Cypress cy.request calls (a test runner's own client, not labeled) and CRA's serviceWorker.js fetch of its own script file (static); fewer than 5"
+        },
+        {
+          "repo": "codexanjan/taskflow",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the Vite React client talks only to Supabase (a backend outside the repo) through @supabase/supabase-js in client/src/utils/api.js, with localStorage as a guest fallback; nothing in client/ calls the Express server (server/server.js's /api/auth and /api/tasks routers), and its one fetch is public/sw.js passing e.request through"
+        },
+        {
+          "repo": "sujalvk888/airbnb-clone",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): all 19 fetch calls in client/src build `${import.meta.env.VITE_API_URL}/api/...`, and nothing the env-base rule reads gives VITE_API_URL a value: no in-code fallback, no committed env file (none is tracked), no dev proxy (client/vite.config.js), and vercel.json only rewrites to index.html. Only README.md's setup section shows VITE_API_URL=http://localhost:5000, and a README is not one of the rule's sources (as with PingUp), so every target is null and none reaches a route in the repo"
+        },
+        {
+          "repo": "arkaghosh2005/QuickMeet",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): 5 requests, all on two axios.create instances in frontend/src/context/AuthContext.jsx based on import.meta.env.VITE_SERVER_URL (client.post /signup, /login; apiClient post/get/delete /v1/users/history), and nothing in the repo gives VITE_SERVER_URL a value (no in-code fallback, no committed env file, no dev proxy in vite.config.js; the backend's port is process.env.PORT with no fallback either), so by the env-base rule every target is null; the meeting itself runs over socket.io and WebRTC (not counted)"
+        },
+        {
+          "repo": "dyneth02/Sweet-Bliss-Online-Cake-Ordering-Management-System",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): every request in frontend/src (fetch and authenticatedFetch(url) in utils/api.js) goes to a literal http://localhost:8000/..., but backend/server.js listens on process.env.PORT || 3000 and nothing in the repo sets PORT (no committed env file, Dockerfile, or script; no dev proxy in vite.config.js), so no server the repo shows listens on 8000 and, by the env-base rule's check against the server port (ADR-0209's M5C.8b2 amendment), none of them reaches a route in the repo"
+        },
+        {
+          "repo": "elyse502/ecommerce-app",
+          "verdict": "pinned",
+          "sha": "93271928b597b02dd3973a8ef3d9cb28a6f081bd",
+          "reason": "env-api-urls: two Vite React SPAs (frontend/, admin/) with ~20 axios calls on backendUrl + \"/api/...\" concatenations, backendUrl = import.meta.env.VITE_BACKEND_URL, which the committed frontend/.env and admin/.env set to http://localhost:4000 (backend/server.js's PORT || 4000); Express mounts /api/user, /api/product, /api/cart, /api/order routers with flat router.post/get calls; 60 files"
         }
       ]
     },

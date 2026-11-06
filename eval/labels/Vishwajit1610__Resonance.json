@@ -1,0 +1,49 @@
+{
+  "repo": "Vishwajit1610/Resonance",
+  "sha": "932c651a1558b4d82a713e1e3beef71e6ab166ec",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/store/usePlayerStore.js", "line": 102 },
+      "method": "GET",
+      "target": { "file": "backend/server.js", "line": 275, "route": "GET /api/dashboard/recent" },
+      "notes": "fetchRecentTracks (zustand store action): fetch('http://localhost:3000/api/dashboard/recent'), a literal host; the backend listens on process.env.PORT || 3000 (backend/server.js:9), no PORT set in any committed file. Every route is registered inline on app in backend/server.js with its full /api path (no routers or mounts)"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/usePlayerStore.js", "line": 118 },
+      "method": "GET",
+      "target": {
+        "file": "backend/server.js",
+        "line": 297,
+        "route": "GET /api/dashboard/discover"
+      },
+      "notes": "refreshDiscoverTracks: fetch('http://localhost:3000/api/dashboard/discover'), see line 102"
+    },
+    {
+      "callSite": { "file": "frontend/src/views/AlbumTracks.jsx", "line": 16 },
+      "method": "GET",
+      "target": { "file": "backend/server.js", "line": 135, "route": "GET /api/albums/:id/tracks" },
+      "notes": "fetch(`http://localhost:3000/api/albums/${id}/tracks`), id from useParams; see usePlayerStore.js:102 for the host"
+    },
+    {
+      "callSite": { "file": "frontend/src/views/Albums.jsx", "line": 10 },
+      "method": "GET",
+      "target": { "file": "backend/server.js", "line": 186, "route": "GET /api/albums" },
+      "notes": "fetch('http://localhost:3000/api/albums'); see usePlayerStore.js:102 for the host"
+    },
+    {
+      "callSite": { "file": "frontend/src/views/Artists.jsx", "line": 9 },
+      "method": "GET",
+      "target": { "file": "backend/server.js", "line": 98, "route": "GET /api/artists" },
+      "notes": "fetch('http://localhost:3000/api/artists'); see usePlayerStore.js:102 for the host"
+    },
+    {
+      "callSite": { "file": "frontend/src/views/Search.jsx", "line": 36 },
+      "method": "GET",
+      "target": { "file": "backend/server.js", "line": 318, "route": "GET /api/search" },
+      "notes": "fetch(`http://localhost:3000/api/search?q=${encodeURIComponent(debouncedQuery)}`), query dropped; see usePlayerStore.js:102 for the host"
+    }
+  ]
+}

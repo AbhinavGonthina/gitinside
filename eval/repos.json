@@ -11,6 +11,36 @@
       "heldOut": 3
     },
     {
+      "owner": "DOodle25",
+      "name": "SyncUP",
+      "url": "https://github.com/DOodle25/SyncUP",
+      "sha": "4a4e989e3ee3b54c7794148da8e96c1d8ce5c589",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 5 (M5C.8b2, drawn in stratum react-express). Two Vite React + CommonJS Express/Mongoose chat apps side by side, no workspace. SyncUpFrontend calls SyncUpBackend with inline axios.get/post/put/delete on literal http://localhost:5000/api/... URLs (server.js's PORT || 5000), and server.js mounts /api/auth and /api/channels (its /api/messages mount of junk/messageRoutes.js is commented out; the message requests go to channelRoutes.js's /:channelId/messages). Update/Client calls Update/Server on literal http://localhost:3000 (app.js's server.listen(3000)) with inline axios calls, several written axios then .post(…) on the next line and nested in .then cascades; server.js mounts /auth, /users, /workspaces, /channels, /messages, with router.post(\"/\") roots and a /channels/channels route. Traps: two clients reaching two servers on different ports, an axios.delete on a path registered only for PUT (null), and a committed SyncUpBackend/node_modules. Not labeled: the socket.io client, supertest calls in tests, a commented-out request. ~84 TS/JS source files without node_modules.",
+      "heldOut": 5
+    },
+    {
+      "owner": "dotnize",
+      "name": "chessu",
+      "url": "https://github.com/dotnize/chessu",
+      "sha": "29968f023da244d6ae1ff10c09577b1b5d53c123",
+      "license": "MIT",
+      "shape": "next-plus-server-monorepo",
+      "why": "Held out, batch 5 (M5C.8b2, drawn in stratum react-express after PingUp's rejection). A pnpm workspace with a Next.js App Router client (client/), a TypeScript Express server (server/), and a shared types package. Every request is a direct fetch in client/src/lib/{auth,game,user}.ts on API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001' (client/src/config.ts), the server's PORT fallback; they are called from server components (generateMetadata and page bodies) and client components. One PATCH sends /v1/auth/ with a trailing slash, and fetchArchivedGame builds its URL in a let with an id= or userid= query appended in either branch (one route). server/src/server.ts mounts routes/index.ts at /v1, which mounts the games, auth, and users routers; each registers router.route(path).<method>(…) chains on one line. The game itself runs over socket.io (not labeled). 52 TS/JS source files.",
+      "heldOut": 5
+    },
+    {
+      "owner": "elyse502",
+      "name": "ecommerce-app",
+      "url": "https://github.com/elyse502/ecommerce-app",
+      "sha": "93271928b597b02dd3973a8ef3d9cb28a6f081bd",
+      "license": "MIT",
+      "shape": "env-api-urls",
+      "why": "Held out, batch 5 (M5C.8b2, drawn in stratum react-express after online-auction-system's rejection). A Vite React storefront (frontend/) and admin panel (admin/) beside an ESM Express + Mongoose backend (backend/), no workspace. Every request is an inline axios.get/axios.post on backendUrl + \"/api/...\", backendUrl = import.meta.env.VITE_BACKEND_URL with no in-code fallback (exported from admin/src/App.jsx; in the storefront handed to pages through ShopContext's value); the committed frontend/.env and admin/.env set it to http://localhost:4000, backend/server.js's PORT || 4000. server.js mounts /api/user, /api/product, /api/cart, /api/order routers with flat router.post/get calls. Traps: reads and removals sent as POST (/api/cart/get, /api/order/list, /api/product/remove) and registered so, a multi-line productRouter.post(\"/add\", adminAuth, upload.fields([...]), addProduct), and most calls spread over several lines with the URL after axios.post(. Not labeled: the backend's Stripe and Cloudinary SDK calls and the window.location.replace to Stripe's checkout page. 60 TS/JS source files.",
+      "heldOut": 5
+    },
+    {
       "owner": "erayendes",
       "name": "kortext",
       "url": "https://github.com/erayendes/kortext",
@@ -294,6 +324,16 @@
       "shape": "axios-baseurl",
       "why": "Held out, batch 4 (M5C.5b2, drawn in stratum react-express). A CRA client sends every request through one axios instance (frontend/src/services/api.jsx) whose baseURL is normalizeBaseUrl(REACT_APP_API_URL || (NODE_ENV === 'production' ? an onrender.com host : 'http://localhost:5000')); the helper trims trailing slashes and strips a trailing /api, so the base is the host root (localhost:5000 in development, matching .env.example and the server's PORT fallback) and every path carries its full /api/... prefix. About 20 apiHelpers methods fix their paths inside the helper module, while pages and the auth context call api.get/post/put/patch/delete inline on template paths. backend/src/server.js mounts four JS routers with app.use('/api/<name>', require(...)) after /api rate limiters and registers GET /health on app. Traps: two route files are never mounted, an uploadFile(endpoint) helper has no callers, the applications router uses regex-constrained params ('/:id([0-9a-fA-F]{24})'), literal routes (/my, /admin/all, /featured) are registered before /:id, and several components build /uploads image URLs from the same env var without requesting them. ~50 TS/JS source files.",
       "heldOut": 4
+    },
+    {
+      "owner": "Vishwajit1610",
+      "name": "Resonance",
+      "url": "https://github.com/Vishwajit1610/Resonance",
+      "sha": "932c651a1558b4d82a713e1e3beef71e6ab166ec",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 5 (M5C.8b2, drawn in stratum react-express). A Vite React SPA (frontend/, JSX, zustand) beside an ESM Express + SQLite music server (backend/), no workspace. Every API request is a plain fetch on a literal http://localhost:3000/api/... URL (literals, a one-id template, one query string) in a zustand store action or a view's useEffect; the server listens on process.env.PORT || 3000, with no proxy or env base. backend/server.js registers every route inline on app with its full /api path (no routers or mounts); GET /api/artists/:id/albums and /api/health have no caller. Not labeled: the audio element's stream URL (/api/stream/:id) and img src cover art (/api/art/:id), which the browser loads without a fetch (ADR-0209's M5C.8b2 amendment); the library scanner reads local files and sends no requests. 22 TS/JS source files.",
+      "heldOut": 5
     },
     {
       "owner": "wiseweb-works",
