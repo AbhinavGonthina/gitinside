@@ -18,7 +18,10 @@ export interface WorkspacePackage {
   key: string;
   /** Repo-relative directory with `/` separators; `""` for the repo root. */
   dir: string;
-  /** `package.json` name, else Nx `project.json` name, else the folder name. For labels. */
+  /**
+   * `package.json` name, else Nx `project.json` name, else the folder name. For labels. The
+   * root service of an Nx repo takes its root `project.json` name first (Nx standalone apps).
+   */
   name: string;
   /**
    * The `package.json` `name`, when it has one: the only name other code can import the
@@ -221,13 +224,19 @@ export function findCycles(graph: ReadonlyMap<string, readonly string[]>): strin
  *   single-package root; folders of other projects (a `package.json` or Nx `project.json`
  *   no pattern names, or one a `!` pattern excludes) stay outside it, in `except`
  *   (ADR-0021 amendment).
+ * - Nx standalone apps (`nx.json` plus a root `project.json`, source in `src/`, often an
+ *   `e2e/project.json` beside it): the root is a service by the rule above, keyed and labeled
+ *   by the root `project.json` `name` (`api`, not the package.json's `@api/source`), which
+ *   stays its importable `packageName` (M6.11j).
  * - Warnings for invalid JSON/YAML, invalid `workspaces`, patterns matching nothing,
  *   duplicate package names, and circular runtime dependencies between packages.
  *
  * Not handled: without workspace config, deeper folders with a `package.json`
  * (`apps/web/`) stay part of the service that contains them; a workspace root's own files
  * aren't told apart by purpose (tool config files make it a service too); Nx
- * `workspace.json`; Rush and Bazel; globs beyond {@link compileGlob}.
+ * `workspace.json`; Nx `sourceRoot` (a project owns its whole folder, so a standalone root
+ * owns its root config files beside `src/`, and a `sourceRoot` outside the folder is ignored);
+ * a root `project.json` without `nx.json`; Rush and Bazel; globs beyond {@link compileGlob}.
  */
 export async function detectWorkspace(root: string, files: readonly string[]): Promise<Workspace> {
   const present = new Set(files);
@@ -411,7 +420,10 @@ export async function detectWorkspace(root: string, files: readonly string[]): P
     !except.some((e) => inside(path, e));
   if (raw.length === 0 || files.some(ownsSource)) {
     const packageName = manifestName(rootManifest);
-    const name = packageName ?? FALLBACK_KEY;
+    // An Nx standalone app's root `project.json` names the app (`api`); its package.json name
+    // is Nx's workspace placeholder (`@api/source`), kept only for imports.
+    const projectName = nx ? manifestName(await readJson("project.json")) : undefined;
+    const name = projectName ?? packageName ?? FALLBACK_KEY;
     raw.unshift({
       dir: "",
       name,

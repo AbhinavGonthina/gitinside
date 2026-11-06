@@ -89,7 +89,7 @@ export interface FactKeys {
  * Bump when what an entry means changes without the analyzer's version changing: when the
  * facts, observed inputs, or repo-wide facts stored for the same files change.
  */
-export const KEY_FORMAT = 33;
+export const KEY_FORMAT = 34;
 
 /**
  * The SHA-256 of the entries a cold analysis of every fixture stores, at this
@@ -98,7 +98,7 @@ export const KEY_FORMAT = 33;
  * it too: it usually comes with a change to the facts, and a needless bump only costs misses.
  * A change that alters entries only for code no fixture has still needs a bump by hand.
  */
-export const FACTS_DIGEST = "bfa4370095adca585bdb0e0c7ee1879f5d61b110442a7c101ffa957fd36d8770";
+export const FACTS_DIGEST = "50b447482ae47e42dc61ee5ec23c6380721faeb833489b78dd7a79226e15a176";
 
 /** The {@link EntryUse} of an inputs part entry: shared by the service entries naming it. */
 const SHARED: EntryUse = { shared: true };

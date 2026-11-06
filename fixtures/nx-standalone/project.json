@@ -1,0 +1,12 @@
+{
+  "name": "api",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "src",
+  "projectType": "application",
+  "targets": {
+    "serve": {
+      "executor": "@nx/js:node",
+      "options": { "buildTarget": "api:build" }
+    }
+  }
+}

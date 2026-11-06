@@ -1,0 +1,270 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "route:api/GET /api/tags",
+      "id": "calls:route:api/GET /api/tags->symbol:api/src/app/routes/tag/tag.service.ts#getTags",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 26,
+          "file": "src/app/routes/tag/tag.controller.ts",
+          "line": 7
+        }
+      ],
+      "to": "symbol:api/src/app/routes/tag/tag.service.ts#getTags"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:e2e/src/server/server.spec.ts#readTags",
+      "id": "http:symbol:e2e/src/server/server.spec.ts#readTags->route:api/GET /api/tags",
+      "kind": "http",
+      "label": "GET /api/tags",
+      "sites": [
+        {
+          "column": 21,
+          "file": "e2e/src/server/server.spec.ts",
+          "line": 3,
+          "request": "GET http://localhost:3000/api/tags"
+        }
+      ],
+      "to": "route:api/GET /api/tags"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:api/src/app/routes/routes.ts",
+      "id": "imports:file:api/src/app/routes/routes.ts->file:api/src/app/routes/tag/tag.controller.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/app/routes/routes.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:api/src/app/routes/tag/tag.controller.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:api/src/app/routes/tag/tag.controller.ts",
+      "id": "imports:file:api/src/app/routes/tag/tag.controller.ts->file:api/src/app/routes/tag/tag.service.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 25,
+          "file": "src/app/routes/tag/tag.controller.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:api/src/app/routes/tag/tag.service.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:api/src/main.ts",
+      "id": "imports:file:api/src/main.ts->file:api/src/app/routes/routes.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 20,
+          "file": "src/main.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:api/src/app/routes/routes.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "2161bce06634f550a99996358da91e8d84901e8cb3108719366f7e5363817ee8",
+      "id": "file:api/jest.config.ts",
+      "kind": "file",
+      "label": "jest.config.ts",
+      "parentId": "service:api/",
+      "path": "jest.config.ts"
+    },
+    {
+      "hash": "33ad3f93761093bc704c85d367aa811b81cd6e3d525627bc05dfdc727b9acd35",
+      "id": "file:api/src/app/routes/routes.ts",
+      "kind": "file",
+      "label": "routes.ts",
+      "parentId": "module:api/src/app/routes",
+      "path": "src/app/routes/routes.ts"
+    },
+    {
+      "hash": "8e411e594de5340e08bd2b98bdcaed21589a3156d3ea7a7fe0da73a0dcfa70e6",
+      "id": "file:api/src/app/routes/tag/tag.controller.ts",
+      "kind": "file",
+      "label": "tag.controller.ts",
+      "parentId": "module:api/src/app/routes/tag",
+      "path": "src/app/routes/tag/tag.controller.ts"
+    },
+    {
+      "hash": "b8aa418b5de7349339e37e2980f073fafd7ec017f94762ad92a4aca1beae7ed7",
+      "id": "file:api/src/app/routes/tag/tag.service.ts",
+      "kind": "file",
+      "label": "tag.service.ts",
+      "parentId": "module:api/src/app/routes/tag",
+      "path": "src/app/routes/tag/tag.service.ts"
+    },
+    {
+      "hash": "c8ab6e00b8102e06e900c0df0fbd4e84712472eb58f17b1c62c2910df8d0cc8c",
+      "id": "file:api/src/main.ts",
+      "kind": "file",
+      "label": "main.ts",
+      "parentId": "module:api/src",
+      "path": "src/main.ts"
+    },
+    {
+      "hash": "32deb58abca9a717e12a440381f4d48a2f5b6472847de3e70a0afaa3c200d68d",
+      "id": "file:e2e/src/server/server.spec.ts",
+      "kind": "file",
+      "label": "server.spec.ts",
+      "parentId": "module:e2e/src/server",
+      "path": "e2e/src/server/server.spec.ts"
+    },
+    {
+      "id": "module:api/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:api/",
+      "path": "src"
+    },
+    {
+      "id": "module:api/src/app/routes",
+      "kind": "module",
+      "label": "routes",
+      "parentId": "module:api/src",
+      "path": "src/app/routes"
+    },
+    {
+      "id": "module:api/src/app/routes/tag",
+      "kind": "module",
+      "label": "tag",
+      "parentId": "module:api/src/app/routes",
+      "path": "src/app/routes/tag"
+    },
+    {
+      "id": "module:e2e/src/server",
+      "kind": "module",
+      "label": "server",
+      "parentId": "service:e2e/",
+      "path": "e2e/src/server"
+    },
+    {
+      "id": "route:api/GET /api/tags",
+      "kind": "route",
+      "label": "GET /api/tags",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:api/src/app/routes/tag/tag.controller.ts",
+      "path": "/api/tags",
+      "source": {
+        "column": 8,
+        "file": "src/app/routes/tag/tag.controller.ts",
+        "line": 6
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:api/",
+      "kind": "service",
+      "label": "api",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "id": "service:e2e/",
+      "kind": "service",
+      "label": "api-e2e",
+      "parentId": "system:root",
+      "root": "e2e"
+    },
+    {
+      "exported": true,
+      "id": "symbol:api/jest.config.ts#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:api/jest.config.ts",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "jest.config.ts",
+        "line": 1
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:api/src/app/routes/routes.ts#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:api/src/app/routes/routes.ts",
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/app/routes/routes.ts",
+        "line": 6
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:api/src/app/routes/tag/tag.controller.ts#router",
+      "kind": "symbol",
+      "label": "router",
+      "parentId": "file:api/src/app/routes/tag/tag.controller.ts",
+      "source": {
+        "column": 7,
+        "endLine": 4,
+        "file": "src/app/routes/tag/tag.controller.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:api/src/app/routes/tag/tag.service.ts#getTags",
+      "kind": "symbol",
+      "label": "getTags",
+      "parentId": "file:api/src/app/routes/tag/tag.service.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/app/routes/tag/tag.service.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:e2e/src/server/server.spec.ts#readTags",
+      "kind": "symbol",
+      "label": "readTags",
+      "parentId": "file:e2e/src/server/server.spec.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "e2e/src/server/server.spec.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "nx-standalone",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "nx-standalone",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": []
+}

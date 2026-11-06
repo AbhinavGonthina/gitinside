@@ -1,0 +1,11 @@
+{
+  "name": "@api/source",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "express": "4.21.2"
+  },
+  "devDependencies": {
+    "nx": "20.1.0"
+  }
+}

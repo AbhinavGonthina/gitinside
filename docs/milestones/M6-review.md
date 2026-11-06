@@ -110,6 +110,7 @@ The built CLI was run as a user would, on real public repos outside the eval (20
 - `gitinside diff … --repo <clone>` exited 0, but the diff is empty.
 - Both sides are an Nx standalone app: `nx.json`, a root `project.json` with source in `src/`, and an `e2e/project.json`. The `e2e/` project makes it a workspace, the root is never a service in a workspace (a documented limit in `workspace.ts`), and all 33 files under `src/` got `FILES_OUTSIDE_SERVICE`.
 - It's visible as a warning, but the whole app goes unanalyzed (S1 → M6.11j).
+- **Outcome (M6.11j, 2026-11-06):** M5C.7e (a workspace root with its own source is a service, landed the day after this run) had already fixed the coverage; M6.11j names the root by its root `project.json` (`api`, not Nx's placeholder `@api/source`). Re-run on the same commits, the diff has nodes 4 added, 5 removed, 19 modified, 3 renamed (`auth.ts` moved into `routes/auth/`), edges 14 added, 27 removed, 4 modified, 4 renamed, 0 broken, no warnings. Fixture `nx-standalone` keeps the shape covered.
 
 **2. `gothinkster/node-express-prisma-v1-official-app`, `b3de3d5` (first commit) → `6ac99ea` (HEAD, 19 commits):**
 - `gitinside diff b3de3d5 6ac99ea --repo <clone> --cache <dir>` exited 0, a 53.5 KB diff.

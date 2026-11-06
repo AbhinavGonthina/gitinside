@@ -296,6 +296,39 @@ describe("detectWorkspace", () => {
     expect(ws.packages.map((p) => p.packageName)).toEqual([undefined, "@acme/ui"]);
   });
 
+  it("names an Nx standalone app's root service after its root project.json", async () => {
+    await tree({
+      "nx.json": {},
+      "package.json": { name: "@api/source", dependencies: { express: "4.21.2" } },
+      "project.json": { name: "api", sourceRoot: "src" },
+      "src/main.ts": "",
+      "e2e/project.json": { name: "api-e2e" },
+      "e2e/src/server.spec.ts": "",
+    });
+    const ws = await detect();
+    expect(summary(ws)).toEqual([
+      ["api", "", "api"],
+      ["e2e", "e2e", "api-e2e"],
+    ]);
+    // The root package is still importable by its package.json name.
+    expect(ws.packages[0]?.packageName).toBe("@api/source");
+    expect(ws.packages[0]?.framework).toBe("express");
+    expect(serviceForFile(ws, "src/main.ts")?.key).toBe("api");
+    expect(serviceForFile(ws, "e2e/src/server.spec.ts")?.key).toBe("e2e");
+  });
+
+  it("ignores a root project.json without nx.json, and a nameless one", async () => {
+    await tree({
+      "package.json": { name: "@api/source" },
+      "project.json": { name: "api" },
+      "src/main.ts": "",
+    });
+    expect(summary(await detect())).toEqual([["source", "", "@api/source"]]);
+
+    await tree({ "nx.json": {}, "project.json": { sourceRoot: "src" } });
+    expect(summary(await detect())).toEqual([["source", "", "@api/source"]]);
+  });
+
   it("applies ! exclusions to Nx project folders too", async () => {
     await tree({
       "nx.json": {},
