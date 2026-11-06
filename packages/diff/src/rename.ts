@@ -34,11 +34,18 @@ export const RENAME_THRESHOLDS = {
   /** Bodies with fewer tokens never match by equality alone (`const a = 1;` is 5). */
   minBodyTokens: 20,
   /**
-   * Past this many removed × added file pairs, content is compared only between files
-   * with the same base name, so a large refactor stays near-linear. Identical content
-   * is always matched.
+   * Past this many removed × added file pairs, or `maxShingleLookups`, content is
+   * compared only between files with the same base name, so a large refactor stays
+   * near-linear. Identical content is always matched.
    */
   maxFilePairs: 250_000,
+  /**
+   * The most shingle lookups content comparison may make: a pair costs the smaller
+   * file's shingle count. At 22 ns a lookup on real source (M6.11i), about 2 s; pairs
+   * alone allowed 250,000 × 15,000 for 500 large files, over a minute. Past it,
+   * same-name groups are compared cheapest first while the budget lasts.
+   */
+  maxShingleLookups: 100_000_000,
 } as const;
 
 const TOKEN = /[\p{L}_$][\p{L}\p{N}_$]*|\p{N}[\p{L}\p{N}_.]*|\S/gu;
@@ -128,8 +135,45 @@ function fileShingles(text: string | undefined): Set<string> | undefined {
 }
 
 /**
+ * Shingle lookups `jaccard` makes over every pair of sets with these sizes: the sum of
+ * min(a, c), in O((n + m) log m) without visiting the pairs.
+ */
+function lookups(as: readonly number[], cs: readonly number[]): number {
+  const sorted = [...cs].sort((x, y) => x - y);
+  const prefix = [0];
+  for (const c of sorted) prefix.push((prefix.at(-1) ?? 0) + c);
+  let total = 0;
+  for (const a of as) {
+    // `lo` counts the sets smaller than `a`: each costs its own size, the rest cost `a`.
+    let lo = 0;
+    let hi = sorted.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((sorted[mid] ?? 0) < a) lo = mid + 1;
+      else hi = mid;
+    }
+    total += (prefix[lo] ?? 0) + a * (sorted.length - lo);
+  }
+  return total;
+}
+
+/** A set of removed files to compare by content with a set of added ones. */
+interface Group {
+  name: string;
+  removed: readonly FileNode[];
+  added: readonly FileNode[];
+  pairs: number;
+  lookups: number;
+}
+
+/**
  * Moved files: identical content (`hash`) scores 1; otherwise, with contents, a
  * shingle similarity ≥ `fileSimilarity`. A shared base name breaks ties.
+ *
+ * Content comparison has a budget (`maxFilePairs` pairs and `maxShingleLookups`): every
+ * removed × added pair when the whole fits, else the same-base-name groups, cheapest
+ * first (by lookups, then name), skipping each that no longer fits. The cost is
+ * computed from shingle counts before any pair is compared.
  */
 function matchFiles(
   removed: readonly FileNode[],
@@ -151,19 +195,55 @@ function matchFiles(
   if (contents !== undefined) {
     const before = new Map(removed.map((b) => [b.id, fileShingles(contents.base(b.path))]));
     const after = new Map(added.map((h) => [h.id, fileShingles(contents.head(h.path))]));
-    const everyPair = removed.length * added.length <= RENAME_THRESHOLDS.maxFilePairs;
-    const byName = new Map<string, FileNode[]>();
-    for (const h of added)
-      byName.set(baseName(h.path), [...(byName.get(baseName(h.path)) ?? []), h]);
-    for (const b of removed) {
-      const a = before.get(b.id);
-      if (a === undefined) continue;
-      for (const h of everyPair ? added : (byName.get(baseName(b.path)) ?? [])) {
-        const c = after.get(h.id);
-        if (c === undefined || h.hash === b.hash) continue;
-        const score = jaccard(a, c);
-        if (score >= RENAME_THRESHOLDS.fileSimilarity) {
-          candidates.push({ from: b.id, to: h.id, score, rank: rank(b, h) });
+    const sizes = (files: readonly FileNode[], sets: Map<string, Set<string> | undefined>) =>
+      files.flatMap((f) => {
+        const set = sets.get(f.id);
+        return set === undefined ? [] : [set.size];
+      });
+    const group = (name: string, bs: readonly FileNode[], hs: readonly FileNode[]): Group => ({
+      name,
+      removed: bs,
+      added: hs,
+      pairs: bs.length * hs.length,
+      lookups: lookups(sizes(bs, before), sizes(hs, after)),
+    });
+    const { maxFilePairs, maxShingleLookups } = RENAME_THRESHOLDS;
+    const whole = group("", removed, added);
+    let groups = [whole];
+    if (whole.pairs > maxFilePairs || whole.lookups > maxShingleLookups) {
+      const byName = new Map<string, { removed: FileNode[]; added: FileNode[] }>();
+      const named = (path: string) => {
+        const entry = byName.get(baseName(path)) ?? { removed: [], added: [] };
+        byName.set(baseName(path), entry);
+        return entry;
+      };
+      for (const b of removed) named(b.path).removed.push(b);
+      for (const h of added) named(h.path).added.push(h);
+      const cheapest = [...byName]
+        .map(([name, g]) => group(name, g.removed, g.added))
+        .filter((g) => g.pairs > 0)
+        .sort((a, b) => a.lookups - b.lookups || compareStrings(a.name, b.name));
+      groups = [];
+      let pairs = 0;
+      let spent = 0;
+      for (const g of cheapest) {
+        if (pairs + g.pairs > maxFilePairs || spent + g.lookups > maxShingleLookups) continue;
+        groups.push(g);
+        pairs += g.pairs;
+        spent += g.lookups;
+      }
+    }
+    for (const g of groups) {
+      for (const b of g.removed) {
+        const a = before.get(b.id);
+        if (a === undefined) continue;
+        for (const h of g.added) {
+          const c = after.get(h.id);
+          if (c === undefined || h.hash === b.hash) continue;
+          const score = jaccard(a, c);
+          if (score >= RENAME_THRESHOLDS.fileSimilarity) {
+            candidates.push({ from: b.id, to: h.id, score, rank: rank(b, h) });
+          }
         }
       }
     }

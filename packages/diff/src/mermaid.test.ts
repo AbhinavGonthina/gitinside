@@ -227,6 +227,67 @@ describe("renderMermaidSummary on hand-built graphs", () => {
     expect(text).toContain("  linkStyle 0 stroke:#a87700,stroke-width:2px");
   });
 
+  it("draws a broken connection to a renamed target once, under its head node", () => {
+    const base = graph(nodes, [edge("http", load, list)]);
+    const renamed = nodeId("route", "api", "GET /api/v2/orders");
+    const head = graph(
+      nodes.map((n) =>
+        n.id === list
+          ? ({
+              ...n,
+              id: renamed,
+              label: "GET /api/v2/orders",
+              path: "/api/v2/orders",
+            } as GraphNode)
+          : n,
+      ),
+      [edge("http", load, renamed)],
+    );
+    const diff = diffGraphs(base, head);
+    const text = renderMermaidSummary(
+      {
+        ...diff,
+        nodes: {
+          ...diff.nodes,
+          added: [],
+          removed: [],
+          renamed: [
+            {
+              from: list,
+              node: head.nodes.find((n) => n.id === renamed) as GraphNode,
+              changes: ["label"],
+            },
+          ],
+        },
+        edges: { ...diff.edges, added: [], removed: [], modified: [] },
+        broken: [
+          {
+            edge: edgeId("http", load, list),
+            from: load,
+            to: list,
+            reason: "PARAMETERS_ADDED",
+            detail: "GET /api/v2/orders needs more arguments",
+            sites: [],
+          },
+        ],
+      },
+      base,
+      head,
+    );
+    expect(text).toBe(
+      [
+        "flowchart LR",
+        '  n1["function load"]',
+        '  n2(["GET /api/v2/orders - Renamed from GET /api/orders"])',
+        '  n1 -.->|"Broken: needs more arguments"| n2',
+        "  classDef changed stroke:#a87700,stroke-width:2px",
+        "  class n2 changed",
+        "  linkStyle 0 stroke:#d23b3b,stroke-width:3px,stroke-dasharray:5 3",
+        "",
+      ].join("\n"),
+    );
+  });
+
   it("says a connection to a moved file broke because the target moved", () => {
     const moved = nodeId("file", "api", "src/srv.ts");
     const missed = nodeId("unresolved", "web", "src/page.ts:1:1");

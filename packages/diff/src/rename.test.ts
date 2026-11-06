@@ -404,6 +404,46 @@ describe("rename detection rules", () => {
     ]);
   });
 
+  it("caps content comparison by shingle lookups, not pairs alone, cheapest name groups first", () => {
+    // 400 × 400 large `index.ts` files: under the pair budget, but every pair compared
+    // would cost more lookups than the budget allows, and so would their name group.
+    const n = 400;
+    expect(n * n).toBeLessThanOrEqual(RENAME_THRESHOLDS.maxFilePairs);
+    const size = Math.ceil(RENAME_THRESHOLDS.maxShingleLookups / (n * n)) + 10;
+    const big = (seed: string) =>
+      Array.from({ length: size }, (_, i) => `t${seed}x${i}`).join(" ") + "\n";
+    const texts: Record<string, string> = {};
+    const at = (path: string, text: string) => {
+      texts[path] = text;
+      return file(path, text);
+    };
+    const filler = (side: string) =>
+      Array.from({ length: n - 1 }, (_, i) => at(`${side}/f${i}/index.ts`, big(`${side}${i}`)));
+    const moved = big("M");
+    const before = graph("a1b2c3f", [
+      ...filler("old"),
+      at("old/m/index.ts", moved),
+      at("src/a.ts", big("A")),
+      at("src/util.ts", code("U")),
+      at("src/s.ts", code("S")),
+    ]);
+    const after = graph("d4e5f60", [
+      ...filler("new"),
+      at("new/m/index.ts", `${moved}tail one more line\n`),
+      at("lib/y.ts", `${big("A")}tail\n`),
+      at("lib/util.ts", code("U", "  if (total === 0) return -1;")),
+      at("lib/s2.ts", code("S")),
+    ]);
+    // Base and head paths never coincide here, so one map serves both sides.
+    const contents = contentsOf(texts, texts);
+    expect(renamedIds(diffGraphs(before, after, { contents }))).toEqual([
+      // Identical content still matches; the small `util.ts` group fits the budget. The
+      // edited `a.ts` → `y.ts` (another name) and `index.ts` (its group too costly) don't.
+      [nodeId("file", "api", "src/s.ts"), nodeId("file", "api", "lib/s2.ts")],
+      [nodeId("file", "api", "src/util.ts"), nodeId("file", "api", "lib/util.ts")],
+    ]);
+  });
+
   it("is deterministic and leaves the rename map one-to-one", () => {
     const base = golden("diff-rename-base");
     const head = golden("diff-rename-head");
