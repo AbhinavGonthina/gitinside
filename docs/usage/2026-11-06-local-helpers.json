@@ -1,0 +1,201 @@
+{
+  "about": "Raw measurements behind M5C.10d (docs/COVERAGE.md 'After batch 5', ADR-0032's M5C.10d amendment): how common is a path-taking helper declared as a local const inside another function (a test, a fixture, a component), as in batch 5's kortext and DSA-Round-Robin. None of the original set or batches 1-4 has one (eval/dist/s-local-helpers.mjs over their checkouts: the 6 local helpers it lists all fix their route, the parameter filling an id). 'counts': GitHub REST GET /search/code (legacy engine, authenticated) total_count per query; code search drops punctuation, so a count says the words are common, not that each hit is the form. 'sample': the first 20 non-fork hits of 'sampleQuery', one per repo. 'localPathHelpers' is TypeScript's parser on each file: a const arrow or function expression bound inside a function whose fetch URL starts with one of its parameters, and how many calls of that name its scope holds (a loose check: crossdesk's '/api/' + path reads like an id by ADR-0164). 'requestsAtLocalHelperCalls' is the built analyzer after M5C.10d on each file alone as a one-file repo (parsed, never run): requests placed at a local helper's call, with no via; 'resolvedAtLocalHelperCalls' how many of those have a readable URL (alone, no route can match). 9 of 20 files have a helper the analyzer now follows, with 33 requests at its calls, 13 with a readable URL.",
+  "date": "2026-11-06",
+  "counts": {
+    "\"const request = async (path\" \"fetch(\" language:TypeScript": 1896,
+    "\"const request = (path\" \"fetch(\" language:TypeScript": 3216,
+    "\"const request = async (path\" \"fetch(\" language:JavaScript": 6200,
+    "\"const safeFetch = async (url\" language:TypeScript": 199
+  },
+  "sampleQuery": "\"const request = async (path\" \"fetch(\" language:TypeScript",
+  "sample": [
+    {
+      "repo": "different-ai/openwork",
+      "file": "evals/worlds/engine-parity.ts",
+      "localPathHelpers": [
+        {
+          "name": "request",
+          "line": 77,
+          "callers": 1
+        }
+      ],
+      "requestsAtLocalHelperCalls": 1,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "DIYgod/RSSHub",
+      "file": "lib/routes/sgcc/utils.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "omnirush-ai/omnirush-gui",
+      "file": "evals/docs-shots/surfaces.ts",
+      "localPathHelpers": [
+        {
+          "name": "request",
+          "line": 54,
+          "callers": 2
+        }
+      ],
+      "requestsAtLocalHelperCalls": 2,
+      "resolvedAtLocalHelperCalls": 2
+    },
+    {
+      "repo": "teableio/teable",
+      "file": "packages/v2/e2e/src/computed-if-numeric-blank-record-update.e2e.spec.ts",
+      "localPathHelpers": [
+        {
+          "name": "request",
+          "line": 61,
+          "callers": 6
+        }
+      ],
+      "requestsAtLocalHelperCalls": 6,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "KKKKhazix/agent-autoloop",
+      "file": "scripts/history.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "kunkundi/crossdesk",
+      "file": "apps/mcp/ui/viewer.ts",
+      "localPathHelpers": [
+        {
+          "name": "request",
+          "line": 520,
+          "callers": 3
+        }
+      ],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "selfxyz/self",
+      "file": "app/src/services/nfcDebug.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "backnotprop/plannotator",
+      "file": "apps/hook/server/inbox-projects-command.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 3,
+      "resolvedAtLocalHelperCalls": 3
+    },
+    {
+      "repo": "qixing-jk/all-api-hub",
+      "file": "e2e/scenarios/newApiMultiKeyRealSite.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "decentraland/builder",
+      "file": "src/lib/api/builder.ts",
+      "localPathHelpers": [
+        {
+          "name": "request",
+          "line": 671,
+          "callers": 3
+        }
+      ],
+      "requestsAtLocalHelperCalls": 3,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "gnmyt/VoxelDash",
+      "file": "ui/src/lib/RequestUtil.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "postgres-ai/database-lab-engine",
+      "file": "ui/packages/shared/helpers/request.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "fontsource/fontsource",
+      "file": "packages/cli/src/registry/inputs.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "SPlayer-Dev/SPlayer-Next",
+      "file": "electron/main/apis/kugou/modules/login_qr.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "tt-a1i/hive",
+      "file": "scripts/check-terminal-reply-owner.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "deadlock-mod-manager/deadlock-mod-manager",
+      "file": "apps/desktop/src/lib/stats/api.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 0,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "hackerai-tech/hackerai",
+      "file": "lib/health/trigger-probe.ts",
+      "localPathHelpers": [],
+      "requestsAtLocalHelperCalls": 2,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "vercel/eve",
+      "file": "packages/eve/src/setup/integrations/web/provision-auth.ts",
+      "localPathHelpers": [
+        {
+          "name": "request",
+          "line": 76,
+          "callers": 8
+        }
+      ],
+      "requestsAtLocalHelperCalls": 8,
+      "resolvedAtLocalHelperCalls": 8
+    },
+    {
+      "repo": "alookai/alook",
+      "file": "src/daemon/src/cli/use.ts",
+      "localPathHelpers": [
+        {
+          "name": "request",
+          "line": 71,
+          "callers": 7
+        }
+      ],
+      "requestsAtLocalHelperCalls": 7,
+      "resolvedAtLocalHelperCalls": 0
+    },
+    {
+      "repo": "happier-dev/happier",
+      "file": "apps/cli/src/backends/opencode/server/waitForOpenCodeServerHealth.ts",
+      "localPathHelpers": [
+        {
+          "name": "request",
+          "line": 18,
+          "callers": 1
+        }
+      ],
+      "requestsAtLocalHelperCalls": 1,
+      "resolvedAtLocalHelperCalls": 0
+    }
+  ]
+}

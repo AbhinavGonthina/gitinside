@@ -38,6 +38,14 @@
  *   functions, CommonJS `exports.x = function` / `module.exports = { x() {} }`, and methods
  *   and function-valued properties of an exported `const` object literal
  *   (`export const api = { get(path) {…} }`, called as `api.get("/x")`, M5A.3b).
+ * - Local helpers (M5C.10d, ADR-0032's amendment): a `const` bound to an arrow or a function
+ *   expression, or a named function declaration, inside another function's body (a test, a
+ *   fixture, a component: `const request = (path, body) => fetch(base + path, …)`) that isn't a
+ *   symbol, by the same rules, for the calls in its scope (an identifier the checker binds to
+ *   it). Its requests are its service's own, with no `via`; chains through local helpers, or
+ *   from one into a symbol wrapper (`const load = (p) => getJson(p)`), are followed like
+ *   M5C.7f's, and a symbol wrapper reached only that way keeps no request of its own
+ *   (`HttpFacts.throughLocals`). Uncalled in scope, a helper keeps its own requests.
  * - Callers anywhere in the repo whose callee resolves to the wrapper's symbol node with the
  *   shared resolver (M1.9): direct calls, imports (renamed, default, namespace, and workspace
  *   packages at their import's confidence), and methods called on instances the checker types.
@@ -105,10 +113,17 @@
  *   caller's own parameter is `WRAPPER_DEPTH`.
  *
  * Patterns not handled:
- * - Functions nested inside other functions as wrappers themselves (their parameters aren't
- *   bound), object literals that aren't exported `const`s (or `module.exports`), and wrappers
- *   only ever passed around as values (no visible call): their sites stay as they are, so a
- *   parameter at the start of the URL is `DYNAMIC_URL`.
+ * - Nested functions that aren't local helpers (a `let` or `var` binding, an object literal's
+ *   method or property, a callback), object literals that aren't exported `const`s (or
+ *   `module.exports`), and wrappers only ever passed around as values (no visible call: a
+ *   local helper handed to `.map(get)` or SWR): their sites stay as they are, so a parameter at
+ *   the start of the URL is `DYNAMIC_URL`.
+ * - A local helper returned from a function and called where it lands (`return { request }`,
+ *   then `const { request } = await fixture(t); request("/x")`, M5C.10d): following it needs
+ *   the returned object read through the caller's destructuring of a call; its sites keep
+ *   their own requests. A local helper inside a wrapper whose own parameter also leads the URL
+ *   (`function api(base) { const get = (p) => fetch(base + p); … }`) is that wrapper's
+ *   (`WRAPPER_DEPTH` at its callers, M5A.5c), so the helper's own calls aren't followed.
  * - A wrapper with visible callers that is also called invisibly (as a callback): only the
  *   visible calls become requests.
  * - Calls spelled with neither a wrapper's name nor an import alias (`const g = get; g()`),
@@ -263,6 +278,12 @@ export interface HttpFacts {
   wrappers: WrapperFact[];
   /** The service's calls to wrappers, sorted by wrapper ID. */
   calls: WrapperCallFact[];
+  /**
+   * The wrappers the service's local helpers (M5C.10d) call with their parameters in the URL's
+   * leading part, sorted; absent when none. Those calls are the helpers' requests (in
+   * `requests`), so the wrappers count as called, like a {@link WrapperFact}'s `inner`.
+   */
+  throughLocals?: string[];
 }
 
 /** Which programs {@link collectHttpFacts} gives facts for, and what it knows of the rest. */
@@ -471,6 +492,39 @@ function enclosingFunction(node: ts.Node): FunctionWithBody | undefined {
     if (isFunctionWithBody(n)) return n;
   }
   return undefined;
+}
+
+/**
+ * What local helpers (M5C.10d) are keyed by inside {@link collectHttpFacts}, where symbol
+ * wrappers go by their node ID: never a symbol node ID, and never in a fact.
+ */
+const LOCAL_KEY = "local:";
+
+/** True for a local helper's key (see {@link LOCAL_KEY}). */
+const isLocalKey = (id: string): boolean => id.startsWith(LOCAL_KEY);
+
+/** The key of the local helper `fn` in `file`. */
+const localKey = (file: string, fn: ts.Node): string => `${LOCAL_KEY}${file}:${fn.getStart()}`;
+
+/**
+ * The declaration that binds a function as a local helper (M5C.10d): a `const` whose value is
+ * an arrow or a function expression, or a named function declaration, inside another
+ * function's body. The checker gives a call's callee this declaration.
+ */
+function localDeclaration(
+  fn: FunctionWithBody,
+): ts.VariableDeclaration | ts.FunctionDeclaration | undefined {
+  if (ts.isFunctionDeclaration(fn)) return fn.name && enclosingFunction(fn) ? fn : undefined;
+  if (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) return undefined;
+  const e = wrapped(fn);
+  const d = e.parent;
+  return ts.isVariableDeclaration(d) &&
+    d.initializer === e &&
+    ts.isIdentifier(d.name) &&
+    (ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const) !== 0 &&
+    enclosingFunction(d)
+    ? d
+    : undefined;
 }
 
 /** The function a symbol's declaration node holds as its value, if any. */
@@ -693,8 +747,44 @@ export function collectHttpFacts(
 
   const direct = new Map<ServiceProgram, HttpCallSite[]>();
   const owned = new Map<ServiceProgram, Map<string, Wrapper>>();
-  /** Every wrapper in the repo by symbol node ID: the index callers are matched against. */
+  /**
+   * Every wrapper in the repo by symbol node ID, and local helpers (M5C.10d) by
+   * {@link localKey}: the index callers are matched against.
+   */
   const wrappers = new Map<string, Wrapper>();
+  /** Each program's local helpers' keys, in the order found. */
+  const locals = new Map<ServiceProgram, string[]>();
+  /** Local helpers' keys by the declaration binding each, and the names they are bound to. */
+  const localByDeclaration = new Map<ts.Node, string>();
+  const localNames = new Set<string>();
+
+  /** The declaration binding `fn` as a local helper (M5C.10d), unless it is a symbol. */
+  const localHelper = (
+    fn: FunctionWithBody,
+  ): ts.VariableDeclaration | ts.FunctionDeclaration | undefined => {
+    const d = localDeclaration(fn);
+    return d && !resolver.callers.get(d.getSourceFile())?.has(d) ? d : undefined;
+  };
+
+  /** Make `fn` a local helper of `sp` (M5C.10d), if it isn't one yet; its key. */
+  const addLocal = (
+    sp: ServiceProgram,
+    file: string,
+    fn: FunctionWithBody,
+    declaration: ts.VariableDeclaration | ts.FunctionDeclaration,
+  ): { key: string; wrapper: Wrapper; fresh: boolean } => {
+    const key = localKey(file, fn);
+    const known = wrappers.get(key);
+    if (known) return { key, wrapper: known, fresh: false };
+    const wrapper: Wrapper = { sp, fn, file, sites: [], leading: new Map(), inner: [], depth: 1 };
+    wrappers.set(key, wrapper);
+    locals.set(sp, [...(locals.get(sp) ?? []), key]);
+    localByDeclaration.set(declaration, key);
+    if (declaration.name && ts.isIdentifier(declaration.name)) {
+      localNames.add(declaration.name.text);
+    }
+    return { key, wrapper, fresh: true };
+  };
   /** Fetchers written in place (M5B.2b) by function node, and each program's in site order. */
   const inlineFetchers = new Map<ts.Node, Wrapper>();
   const inlineIn = new Map<ServiceProgram, Wrapper[]>();
@@ -716,7 +806,20 @@ export function collectHttpFacts(
           if (inFetcherPosition(f) && readsParameters(site, f, leading())) fetcher = f;
         }
         if (!fetcher) {
-          plain.push(site);
+          // A local helper reading its own parameters (M5C.10d): the innermost one.
+          let local: ReturnType<typeof addLocal> | undefined;
+          for (let f = enclosingFunction(site.call); f && !local; f = enclosingFunction(f)) {
+            const declaration = localHelper(f);
+            if (declaration && readsParameters(site, f, leading())) {
+              local = addLocal(sp, site.file, f, declaration);
+            }
+          }
+          if (local) {
+            local.wrapper.sites.push(site);
+            local.wrapper.leading.set(site, leading());
+          } else {
+            plain.push(site);
+          }
           continue;
         }
         let inline = inlineFetchers.get(fetcher);
@@ -770,7 +873,9 @@ export function collectHttpFacts(
   /** The programs whose wrappers were looked for up front, in program order. */
   const scanned = programs.filter((sp) => owned.has(sp));
   /** Names calls to wrappers are spelled with; grows as wrappers over wrappers are found. */
-  const names = new Set([...wrappers.keys(), ...pending.keys()].map(symbolName));
+  const names = new Set(
+    [...wrappers.keys(), ...pending.keys()].filter((id) => !isLocalKey(id)).map(symbolName),
+  );
   /** The wrapper with this ID, finding its program's wrappers first when only known by ID. */
   const wrapperById = (id: string): Wrapper | undefined => {
     const sp = pending.get(id);
@@ -810,6 +915,17 @@ export function collectHttpFacts(
             0));
     const target = candidate ? resolver.resolve(sp, expression) : undefined;
     return target && (wrappers.has(target.id) || pending.has(target.id)) ? target : undefined;
+  };
+
+  /**
+   * The key of the local helper (M5C.10d) a callee names, if any: an identifier the checker
+   * binds to a local helper's declaration, so only calls in its scope match.
+   */
+  const localAt = (sp: ServiceProgram, expression: ts.Expression): string | undefined => {
+    const e = unwrap(expression);
+    if (!ts.isIdentifier(e) || !localNames.has(e.text)) return undefined;
+    const d = resolver.checkerOf(sp).getSymbolAtLocation(e)?.valueDeclaration;
+    return d && localByDeclaration.get(d);
   };
 
   /** The fetcher an expression handed to SWR is: one written in place, or a wrapper. */
@@ -1001,7 +1117,13 @@ export function collectHttpFacts(
   ): { callers: Map<string, Caller[]>; hooks: Map<ts.Node, Caller[]> } => {
     const callers = new Map<string, Caller[]>();
     const hooks = new Map<ts.Node, Caller[]>();
-    if (names.size === 0 && (inlineIn.get(sp) ?? []).length === 0) return { callers, hooks };
+    if (
+      names.size === 0 &&
+      (inlineIn.get(sp) ?? []).length === 0 &&
+      (locals.get(sp) ?? []).length === 0
+    ) {
+      return { callers, hooks };
+    }
     const checker = resolver.checkerOf(sp);
     const files = sp.rootFiles.flatMap((file) => {
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
@@ -1063,6 +1185,8 @@ export function collectHttpFacts(
           };
           const target = wrapperAt(sp, node.expression);
           if (target) add(target.id, { ...caller, confidence: target.confidence });
+          const local = localNames.size > 0 ? localAt(sp, node.expression) : undefined;
+          if (local) add(local, { ...caller, confidence: "exact" });
           const callee = unwrap(node.expression);
           const contract =
             swr && ts.isIdentifier(callee)
@@ -1209,6 +1333,8 @@ export function collectHttpFacts(
     const args = given ?? [];
     const spread = args.findIndex((a) => ts.isSpreadElement(a));
     const { bindings, missing } = bindArguments(wrapper, caller.sp, given, rest, outer?.bindings);
+    // A local helper (M5C.10d) is no symbol: its requests keep the inner wrapper's, if any.
+    const via = id === undefined || isLocalKey(id) ? {} : { via: id };
 
     /** Argument `i`: `null` when unknown (a spread at or before it), `undefined` when absent. */
     const argAt = (i: number): ts.Expression | null | undefined => {
@@ -1352,7 +1478,7 @@ export function collectHttpFacts(
       const expression = redactedText(caller.call, urlArgs);
       return urls.map((url) => ({
         call: { client: site.client, file: site.file, site: site.site },
-        ...(id === undefined ? {} : { via: id }),
+        ...via,
         file: caller.file,
         site: caller.site,
         owners: caller.owners,
@@ -1397,7 +1523,7 @@ export function collectHttpFacts(
       );
       return followed.map((request) => ({
         ...request,
-        ...(id === undefined ? {} : { via: id }),
+        ...via,
         file: caller.file,
         site: caller.site,
         owners: caller.owners,
@@ -1518,10 +1644,40 @@ export function collectHttpFacts(
   };
 
   /**
-   * Find wrappers over wrappers among `sp`'s calls to wrappers: a symbol function that passes
-   * its own parameter on as the start of a path (`passedOn`) becomes a wrapper too, that call
-   * its {@link InnerCall}, unless the chain would be deeper than {@link MAX_WRAPPER_DEPTH}
-   * (the call goes to `tooDeep`) or loop. Returns the IDs of the wrappers it added.
+   * The function a call to wrapper `callee` sits in that passes its own parameter on as the
+   * start of a path (`passedOn`): the symbol function around it, else the innermost local
+   * helper (M5C.10d) that does, by {@link localKey}.
+   */
+  const passingOn = (
+    callee: Wrapper,
+    caller: Caller,
+  ):
+    | ({ id: string; fn: FunctionWithBody; found: ReturnType<typeof passedOn> } & (
+        | { local?: undefined }
+        | { local: ts.VariableDeclaration | ts.FunctionDeclaration }
+      ))
+    | undefined => {
+    const around = functionAround(caller.call);
+    if (around) {
+      const found = passedOn(callee, caller, around.fn);
+      if (found.leading) return { ...around, found };
+    }
+    for (let f = enclosingFunction(caller.call); f; f = enclosingFunction(f)) {
+      if (f === around?.fn) break;
+      const local = localHelper(f);
+      if (!local) continue;
+      const found = passedOn(callee, caller, f);
+      if (found.leading) return { id: localKey(caller.file, f), fn: f, found, local };
+    }
+    return undefined;
+  };
+
+  /**
+   * Find wrappers over wrappers among `sp`'s calls to wrappers: a symbol function (or a local
+   * helper, M5C.10d) that passes its own parameter on as the start of a path (`passedOn`)
+   * becomes a wrapper too, that call its {@link InnerCall}, unless the chain would be deeper
+   * than {@link MAX_WRAPPER_DEPTH} (the call goes to `tooDeep`) or loop. Returns the IDs (and
+   * local keys) of the wrappers it added.
    */
   const discoverIn = (sp: ServiceProgram, callers: ReadonlyMap<string, Caller[]>): string[] => {
     const added: string[] = [];
@@ -1530,16 +1686,18 @@ export function collectHttpFacts(
       if (!callee) continue;
       for (const caller of list) {
         if (caller.hook || innerCalls.has(caller.call) || tooDeep.has(caller.call)) continue;
-        const around = functionAround(caller.call);
+        const around = passingOn(callee, caller);
         if (!around || reaches(id, around.id)) continue;
-        const found = passedOn(callee, caller, around.fn);
-        if (!found.leading) continue;
+        const { found } = around;
         if (callee.depth >= MAX_WRAPPER_DEPTH) {
           tooDeep.add(caller.call);
           continue;
         }
         let outer = wrappers.get(around.id);
-        if (!outer) {
+        if (!outer && around.local) {
+          outer = addLocal(sp, caller.file, around.fn, around.local).wrapper;
+          added.push(around.id);
+        } else if (!outer) {
           outer = {
             sp,
             fn: around.fn,
@@ -1579,7 +1737,7 @@ export function collectHttpFacts(
       });
     }
     if (added.length === 0) break;
-    for (const id of added) names.add(symbolName(id));
+    for (const id of added) if (!isLocalKey(id)) names.add(symbolName(id));
     fresh = new Set(added);
   }
 
@@ -1594,9 +1752,21 @@ export function collectHttpFacts(
     }
   };
 
+  /** The requests a wrapper makes when nothing calls it: its sites', then its inner calls'. */
+  const uncalled = (wrapper: Wrapper): HttpRequestFact[] => [
+    ...wrapper.sites.flatMap(own),
+    // Uncalled, its calls to other wrappers make their requests where they are.
+    ...wrapper.inner.flatMap(({ id: innerId, caller }) => {
+      const innerWrapper = wrapperById(innerId);
+      return innerWrapper ? inline(innerId, innerWrapper, caller) : [];
+    }),
+  ];
+
   /** `sp`'s facts, once every service's wrappers are known. */
   const factsOf = (sp: ServiceProgram): HttpFacts => {
     const calls: WrapperCallFact[] = [];
+    /** Requests made through each local helper's calls (M5C.10d), by key. */
+    const localCalls = new Map<string, HttpRequestFact[]>();
     const { callers, hooks } = callerCache.get(sp) ?? callersIn(sp);
     for (const [id, list] of [...callers].sort(([a], [b]) => compareStrings(a, b))) {
       const wrapper = wrapperById(id);
@@ -1605,11 +1775,24 @@ export function collectHttpFacts(
       // A wrapper's call to another is its own request (M5C.7f), not a call fact.
       const outside = list.filter((caller) => !innerCalls.has(caller.call));
       if (outside.length === 0) continue;
-      calls.push({
-        wrapper: id,
-        requests: outside.flatMap((caller) => inline(id, wrapper, caller)),
-      });
+      const requests = outside.flatMap((caller) => inline(id, wrapper, caller));
+      if (isLocalKey(id)) localCalls.set(id, requests);
+      else calls.push({ wrapper: id, requests });
     }
+    // A local helper's requests are the service's own: at its calls in scope; else, unless a
+    // wrapper calls it (and so stands for it), its own, as a wrapper's are (`bindWrappers`).
+    const localKeys = locals.get(sp) ?? [];
+    const called = new Set([...wrappers.values()].flatMap((w) => w.inner.map((c) => c.id)));
+    const fromLocals = localKeys.flatMap((key) => {
+      const wrapper = wrappers.get(key);
+      if (!wrapper) return [];
+      return localCalls.get(key) ?? (called.has(key) ? [] : uncalled(wrapper));
+    });
+    const throughLocals = [
+      ...new Set(localKeys.flatMap((key) => (wrappers.get(key)?.inner ?? []).map((c) => c.id))),
+    ]
+      .filter((id) => !isLocalKey(id))
+      .sort(compareStrings);
     return {
       service: sp.service.key,
       requests: [
@@ -1621,26 +1804,23 @@ export function collectHttpFacts(
           );
           return inlined.length > 0 ? inlined : fetcher.sites.flatMap(own);
         }),
+        ...fromLocals,
       ],
       wrappers: [...(owned.get(sp) ?? [])]
         .sort(([a], [b]) => compareStrings(a, b))
         .map(([id, wrapper]): WrapperFact => {
-          const inner = [...new Set(wrapper.inner.map((c) => c.id))].sort(compareStrings);
+          const inner = [...new Set(wrapper.inner.map((c) => c.id))]
+            .filter((innerId) => !isLocalKey(innerId))
+            .sort(compareStrings);
           return {
             id,
             name: symbolName(id),
             ...(inner.length > 0 ? { inner } : {}),
-            requests: [
-              ...wrapper.sites.flatMap(own),
-              // Uncalled, its calls to other wrappers make their requests where they are.
-              ...wrapper.inner.flatMap(({ id: innerId, caller }) => {
-                const innerWrapper = wrapperById(innerId);
-                return innerWrapper ? inline(innerId, innerWrapper, caller) : [];
-              }),
-            ],
+            requests: uncalled(wrapper),
           };
         }),
       calls,
+      ...(throughLocals.length > 0 ? { throughLocals } : {}),
     };
   };
   return programs
@@ -1667,8 +1847,12 @@ export function bindWrappers(
     }
   }
   const wrappers = facts.flatMap((f) => f.wrappers).sort((a, b) => compareStrings(a.id, b.id));
-  // A wrapper another wrapper calls (M5C.7f) is represented by that one's requests.
-  const inner = new Set(wrappers.flatMap((w) => w.inner ?? []));
+  // A wrapper another wrapper calls (M5C.7f), or a local helper (M5C.10d), is represented by
+  // that one's requests.
+  const inner = new Set([
+    ...wrappers.flatMap((w) => w.inner ?? []),
+    ...facts.flatMap((f) => f.throughLocals ?? []),
+  ]);
   for (const wrapper of wrappers) {
     const calls = called.get(wrapper.id) ?? [];
     requests.push(...(calls.length > 0 ? calls : inner.has(wrapper.id) ? [] : wrapper.requests));
