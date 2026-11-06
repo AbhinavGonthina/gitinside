@@ -81,17 +81,20 @@ export function baseNote(base: BaseView, sha: string): string | undefined {
  * The note for a base whose graph failed to load or parse (M6.11h, fail visibly): this commit
  * stays on screen, alone, rather than giving way to an error card, and the note says why
  * nothing was compared. The card's wording for an unreadable graph ("nothing is shown") would be
- * wrong here, so that case gets its own words.
+ * wrong here, so that case gets its own words. After the note's Try again, `tries` (the loads
+ * so far) is named, so each failure reads differently and the live region announces it (M6.11m).
  */
 export function baseFailedNote(
   baseSha: string,
   failure: Extract<GraphLoad, { ok: false }>,
   sha: string,
+  tries = 1,
 ): string {
   const alone = `This is commit ${short(sha)} alone.`;
+  const again = tries > 1 ? ` after ${tries} tries` : "";
   return failure.title === UNREADABLE_TITLE
-    ? `Commit ${short(baseSha)}'s saved diagram couldn't be read, so nothing was compared. ${alone}`
-    : `Commit ${short(baseSha)}'s diagram didn't load, so nothing was compared: ${failure.message} ${alone}`;
+    ? `Commit ${short(baseSha)}'s saved diagram ${tries > 1 ? "still " : ""}couldn't be read${again}, so nothing was compared. ${alone}`
+    : `Commit ${short(baseSha)}'s diagram ${tries > 1 ? "still " : ""}didn't load${again}, so nothing was compared: ${failure.message} ${alone}`;
 }
 
 /** How the note names Base and Head (the explorer's switch says the same). */
@@ -106,17 +109,23 @@ export type VersionNodes = Readonly<Record<keyof typeof VERSION_WORDS, ReadonlyS
  * A link's state as diff mode opens it (M6.11h): a `view` of Base or Head that doesn't have
  * the link's selection or trace start opens on the Overlay, which has both (the explorer's
  * `initialVersion` does the same), so Copy link names the version actually shown, and `note`
- * says what changed and why. A version that has them, or the Overlay, is kept as linked.
+ * says what changed and why, naming each node by `nameOf` (as the diagram shows it, not its ID,
+ * M6.11m). A version that has them, or the Overlay, is kept as linked.
  */
 export function linkedVersion(
   state: ExplorerState,
   nodesIn: VersionNodes,
+  nameOf: (id: string) => string,
 ): { state: ExplorerState; note?: string } {
   if (state.version === "overlay") return { state };
   const has = nodesIn[state.version];
   const lacks = [
-    state.selected !== null && !has.has(state.selected) ? `selected ${state.selected}` : undefined,
-    state.trace !== null && !has.has(state.trace) ? `traced from ${state.trace}` : undefined,
+    state.selected !== null && !has.has(state.selected)
+      ? `the selected ${nameOf(state.selected)}`
+      : undefined,
+    state.trace !== null && !has.has(state.trace)
+      ? `the trace's start, ${nameOf(state.trace)}`
+      : undefined,
   ].filter((part) => part !== undefined);
   if (lacks.length === 0) return { state };
   return {

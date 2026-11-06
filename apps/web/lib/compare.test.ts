@@ -78,6 +78,25 @@ describe("baseFailedNote", () => {
     );
   });
 
+  it("says how many tries failed after Try again, so each failure reads differently (M6.11m)", () => {
+    const failure = {
+      ok: false as const,
+      title: LOAD_FAILED_TITLE,
+      message: "Base unavailable.",
+      retry: true,
+    };
+    expect(baseFailedNote(BASE, failure, HEAD, 2)).toBe(
+      "Commit bbbbbbb's diagram still didn't load after 2 tries, so nothing was compared: Base unavailable. This is commit aaaaaaa alone.",
+    );
+    expect(baseFailedNote(BASE, failure, HEAD, 3)).toBe(
+      "Commit bbbbbbb's diagram still didn't load after 3 tries, so nothing was compared: Base unavailable. This is commit aaaaaaa alone.",
+    );
+    const unreadable = { ...failure, title: UNREADABLE_TITLE, message: UNREADABLE_MESSAGE };
+    expect(baseFailedNote(BASE, unreadable, HEAD, 2)).toBe(
+      "Commit bbbbbbb's saved diagram still couldn't be read after 2 tries, so nothing was compared. This is commit aaaaaaa alone.",
+    );
+  });
+
   it("says a base that couldn't be read isn't compared, without the card's wording", () => {
     const failure = {
       ok: false as const,
@@ -100,32 +119,38 @@ describe("linkedVersion (M6.11h)", () => {
     ...DEFAULT_STATE,
     ...over,
   });
+  // How the page names a node (M6.11m): its kind and label, as the diagram shows it.
+  const names: Record<string, string> = {
+    "route:api/GET /old": "route GET /old",
+    "route:api/GET /new": "route GET /new",
+  };
+  const nameOf = (id: string) => names[id] ?? id;
 
   it("keeps a version that has the link's selection and trace start", () => {
     const linked = state({ version: "head", selected: "route:api/GET /new" });
-    expect(linkedVersion(linked, nodesIn)).toEqual({ state: linked });
+    expect(linkedVersion(linked, nodesIn, nameOf)).toEqual({ state: linked });
     const overlay = state({ selected: "route:api/GET /old" });
-    expect(linkedVersion(overlay, nodesIn)).toEqual({ state: overlay });
+    expect(linkedVersion(overlay, nodesIn, nameOf)).toEqual({ state: overlay });
   });
 
-  it("opens on the Overlay when the version lacks them, and says so", () => {
+  it("opens on the Overlay when the version lacks them, and says so by name, not ID", () => {
     const linked = state({ version: "head", selected: "route:api/GET /old" });
-    expect(linkedVersion(linked, nodesIn)).toEqual({
+    expect(linkedVersion(linked, nodesIn, nameOf)).toEqual({
       state: { ...linked, version: "overlay" },
-      note: "The link opens on Head, which doesn't have selected route:api/GET /old, so both versions are shown (Overlay).",
+      note: "The link opens on Head, which doesn't have the selected route GET /old, so both versions are shown (Overlay).",
     });
     const traced = state({ version: "base", trace: "route:api/GET /new", step: 0 });
-    expect(linkedVersion(traced, nodesIn)).toEqual({
+    expect(linkedVersion(traced, nodesIn, nameOf)).toEqual({
       state: { ...traced, version: "overlay" },
-      note: "The link opens on Base, which doesn't have traced from route:api/GET /new, so both versions are shown (Overlay).",
+      note: "The link opens on Base, which doesn't have the trace's start, route GET /new, so both versions are shown (Overlay).",
     });
     const both = state({
       version: "base",
       selected: "route:api/GET /new",
       trace: "route:api/GET /new",
     });
-    expect(linkedVersion(both, nodesIn).note).toBe(
-      "The link opens on Base, which doesn't have selected route:api/GET /new or traced from route:api/GET /new, so both versions are shown (Overlay).",
+    expect(linkedVersion(both, nodesIn, nameOf).note).toBe(
+      "The link opens on Base, which doesn't have the selected route GET /new or the trace's start, route GET /new, so both versions are shown (Overlay).",
     );
   });
 });
