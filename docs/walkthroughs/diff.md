@@ -166,7 +166,7 @@ Why it matters: without it, moving one file turns into "1 file removed, 1 file a
 
 Without contents, only files with identical content (same `hash`) can match, and symbols match only by following their file.
 
-### `RENAME_THRESHOLDS` (lines 25–42)
+### `RENAME_THRESHOLDS` (lines 25–49)
 
 Every number here was measured, not picked (ADR-0086, on 5,898 files of cal.com and the eval repos):
 
@@ -178,10 +178,11 @@ Every number here was measured, not picked (ADR-0086, on 5,898 files of cal.com 
 | `symbolSimilarity` | 0.8 | a same-name symbol in a moved file whose body was rewritten is a new symbol |
 | `minBodyTokens` | 20 | `const a = 1;` is 5 tokens; equal tiny bodies are coincidences |
 | `maxFilePairs` | 250,000 | past this, only same-base-name files are compared (near-linear on huge refactors) |
+| `maxShingleLookups` | 100,000,000 | the same fallback by work: a pair costs the smaller file's shingle count; ~22 ns a lookup here, so about 2 s (M6.11i) |
 
-`rename.test.ts:454` re-checks them on every fixture in the repo: no two different fixture files match (except known near-copies), and every fixture file still matches itself after a 10% edit.
+`rename.test.ts:494` re-checks them on every fixture in the repo: no two different fixture files match (except known near-copies), and every fixture file still matches itself after a 10% edit.
 
-### Similarity: `tokenize`, `shingles`, `jaccard`, `similarity` (lines 44–75)
+### Similarity: `tokenize`, `shingles`, `jaccard`, `similarity` (lines 51–82)
 
 - **`tokenize`**: identifiers, numbers, and single punctuation characters. Whitespace never becomes a token, so reformatting a file (Prettier) doesn't lower its score (`rename.test.ts:225`).
 - **`shingles(tokens, size)`**: the set of every window of `size` consecutive tokens, joined with `\u0000` (a character no token contains, so `["ab", "c"]` and `["a", "bc"]` differ). A sequence shorter than `size` is one shingle, so short inputs still compare.
@@ -189,7 +190,7 @@ Every number here was measured, not picked (ADR-0086, on 5,898 files of cal.com 
 
 Why shingles and not a line diff: a 4-token window captures local order (`a(b, c)` vs `a(c, b)`) without caring where in the file it sits, so moving a function within the file barely changes the score, and the cost is linear in file size.
 
-### `assign(candidates, into)` (lines 91–118): ties are never broken
+### `assign(candidates, into)` (lines 98–125): ties are never broken
 
 Every matcher produces scored `Candidate`s (`from`, `to`, `score`, `rank`) and hands them to `assign`, which is the "never guess" rule in code:
 
@@ -203,33 +204,35 @@ Step 5 is the subtle one. Say two identical files `a.ts` and `b.ts` are removed 
 
 If instead `a.ts` became `x/a.ts` and `b.ts` became `x/b.ts`, the same-base-name `rank` of 1 puts `a⇒x/a` and `b⇒x/b` in a higher tier of their own, each end once: both match.
 
-### `matchFiles(removed, added, contents, into)` (lines 134–172)
+### `matchFiles(removed, added, contents, into)` (lines 178–252)
 
-- **By hash** (143–149): every removed/added pair with the same `hash` is a candidate with score **1**. This works without contents.
-- **By content** (151–170), only with contents: shingle each file once (`fileShingles` returns `undefined` for unread or under-50-token files, which then never score). For each pair: skip same-hash pairs (already candidates at 1), and keep scores ≥ 0.6.
-  - Line 154: if `removed × added` exceeds `maxFilePairs`, only pairs with the same base name are compared. Identical content is still found by hash, so a mass move of unchanged files isn't affected.
+- **By hash** (187–193): every removed/added pair with the same `hash` is a candidate with score **1**. This works without contents.
+- **By content** (195–249), only with contents: shingle each file once (`fileShingles` returns `undefined` for unread or under-50-token files, which then never score). For each pair: skip same-hash pairs (already candidates at 1), and keep scores ≥ 0.6.
+  - **The budget** (203–235): a `Group` is a set of removed files to compare with a set of added ones, with its `pairs` and its `lookups`. `jaccard` walks the smaller set, so a pair costs min(|A|, |B|); `lookups` (141–158) sums that over every pair without visiting them, by sorting one side's sizes, keeping prefix sums, and binary-searching each size of the other side (`O((n + m) log m)`).
+  - If the whole `removed × added` exceeds `maxFilePairs` or `maxShingleLookups`, files are grouped by base name and the groups are taken cheapest first (lookups, then name), skipping any that no longer fits, so one costly group of 400 large `index.ts` files can't stop a small `util.ts` group (`rename.test.ts:407`). Identical content is still found by hash, so a mass move of unchanged files isn't affected.
+  - Why work and not pairs alone (M6 review C6, M6.11i): 500 removed and 500 added files are under the pair cap, but at 15,000 shingles each (a large generated file) every pair compared is ~3.75 billion lookups, over a minute at 22 ns.
 - `rank` is 1 for a shared base name.
 
 In `diff-rename`, `src/routes/orders.ts` → `src/orders/routes.ts` has a different hash (a doc comment was added and a call renamed) and different base names, so it's found by content. Without contents it's removed + added (`rename.test.ts:159`).
 
-### `matchModules(removed, added, base, head, into)` (lines 179–221)
+### `matchModules(removed, added, base, head, into)` (lines 259–301)
 
 A folder moves when its files did. At this point `into` holds only file renames. For each one whose head file sits in an **added** module, the base file's module gets a vote for the head file's module. A removed module `m` matches added module `to` when the votes `n` are a strict majority **both ways**: more than half of `m`'s files went to `to` (`2n > baseFiles(m)`), and more than half of `to`'s files came from `m` (`2n > headFiles(to)`). Both conditions stop a folder that was split, or a new folder assembled from many places, from being called a move. Only direct file children vote.
 
 `diff-rename`: `src/routes` had one file, which moved to `src/orders`, which has one file: 1 vote, `2 > 1` both ways, so `module:…/src/routes ⇒ module:…/src/orders`.
 
-### `matchSymbols(...)` (lines 260–341)
+### `matchSymbols(...)` (lines 340–421)
 
 Two rules, in order, with rule 1 run again at the end.
 
-**Rule 1, `followParents`** (276–305): a symbol whose parent (a file, or a class for methods) was renamed is looked for under the new parent with the same name.
+**Rule 1, `followParents`** (356–385): a symbol whose parent (a file, or a class for methods) was renamed is looked for under the new parent with the same name.
 
-- `childPrefix(parent)` (244–248) is how child IDs start: `symbol:<file path>#` for a file, `<class ID>.` for a class. Swapping the old prefix for the new one gives the candidate's ID; `symbol:svc/src/routes/orders.ts#listOrders` becomes `symbol:svc/src/orders/routes.ts#listOrders`.
+- `childPrefix(parent)` (324–328) is how child IDs start: `symbol:<file path>#` for a file, `<class ID>.` for a class. Swapping the old prefix for the new one gives the candidate's ID; `symbol:svc/src/routes/orders.ts#listOrders` becomes `symbol:svc/src/orders/routes.ts#listOrders`.
 - The candidate must be head-only and untaken, have the same `symbolKind`, and really be under the new parent.
 - If both bodies can be read, their shingle Jaccard must be ≥ 0.8; a same-name function whose body was rewritten is a new function (`rename.test.ts:241`). **If either body can't be read** (no contents), it matches anyway: following the file is the evidence.
 - `ordered` sorts removed symbols by nesting depth (dots after `#`), so a class is matched before its methods, and the methods can then follow the class in the same pass.
 
-**Rule 2, equal bodies** (308–338), only with contents: a function renamed in place, or moved to another file that wasn't itself renamed.
+**Rule 2, equal bodies** (388–418), only with contents: a function renamed in place, or moved to another file that wasn't itself renamed.
 
 - `bodyText` takes the symbol's lines `source.line..source.endLine` from the file.
 - `bodyTokens` masks the symbol's **own name** as `\u0001`, so `function formatTotal(…)` and `function formatAmount(…)` with the same body tokenize equal. (Recursive calls to itself are masked too, which is what you want.)
@@ -240,13 +243,13 @@ Then `followParents` runs again, so the methods of a class renamed by rule 2 fol
 
 `diff-rename`: the three symbols in the moved file follow it by rule 1 (`createOrder`, `listOrders`, `orders`); `formatTotal ⇒ formatAmount` is rule 2.
 
-### `matchUnresolved(removed, added, movedPaths, into)` (lines 349–384)
+### `matchUnresolved(removed, added, movedPaths, into)` (lines 429–464)
 
 Unresolved nodes are named by position, `unresolved:<service>/<file>:<line>:<col>`, so adding a line above a `fetch` changes its ID. They're matched by **what they say**: the key is (file, mapped through `movedPaths` for base nodes; `reason`; `expression`; `detail`). Within a key, the nodes pair in source order, but only if both sides have **as many** of them. If you had two identical `fetch(url)` calls and removed one, we can't tell which, so neither pairs (rule 2 again).
 
 `diff-rename`: `orders.ts:15:9 ⇒ routes.ts:16:9`. The file moved (mapped by `movedPaths`) and the doc comment pushed the call down one line.
 
-### `detectRenames(base, head, removed, added, contents)` (lines 400–445)
+### `detectRenames(base, head, removed, added, contents)` (lines 480–525)
 
 Runs the four matchers in dependency order, all writing into one `renames` map: **files**, then build `movedPaths` (base path ⇒ head path) from the file pairs, then **modules** (they vote with file renames), **symbols** (they follow file renames), and **unresolved nodes** (they use `movedPaths`). The `only(...)` helper picks base-only/head-only nodes of one kind, so every pair is the same kind and one to one.
 
@@ -443,15 +446,16 @@ Labels come from the repo, which is **untrusted** (SECURITY.md T10): a route pat
 
 One bracket pair per kind (routes as stadiums, models and datastores as cylinders, queues as subroutines, externals as hexagons). Exported because the viewer's Mermaid export uses it too, so both draw a kind the same way.
 
-### `renderMermaidSummary(diff, base, head, options)` (lines 159–327)
+### `renderMermaidSummary(diff, base, head, options)` (lines 160–329)
 
 A PR comment shows the **architecture level**, not every file. So:
 
 - **What's drawn:** nodes of `SHOWN_KINDS` (service, route, page, model, datastore, queue, external) that were added, removed, changed, or renamed; edges of `SHOWN_EDGES` (http, reads, writes, stores, publishes, consumes, external_call); and **every broken connection**, whatever its endpoints' kinds (`quote ⇒ withTax` is two symbols, but it's drawn).
-- **`anchor(id, nodes)`** (180–186): lift an endpoint to the nearest drawn kind by walking `parentId` up. A function calling a route is drawn from its service. Edges that lift to the same `(from, to, status)` merge into one connection labeled with all their kinds ("Added http, reads"); an edge that lifts onto itself (both ends in one service) isn't drawn. Removed edges are lifted in **base** (their nodes may be gone from head); the others in head.
-- **Priority order** (232–243): broken endpoints, then changed nodes, then other connections' endpoints. Only the first `maxNodes` (40) are drawn and named `n1…`; the rest, and connections touching them, are counted in a closing note ("...and 3 more nodes not drawn"). Fail visibly applies here too.
-- **Names** (253–291): `title` is the kind word plus label (`model Invoice`). If two drawn nodes would read the same ("datastore postgres" in two services), each gets its service, else its declaring file. Renames say "Renamed from …" or "Moved" (same label, new place); the rest say "Added"/"Removed"/"Changed".
-- **Styles** (293–325): solid arrows for added and changed, dotted for removed and broken; `classDef`/`linkStyle` with the light theme's diff colors, removals and broken edges dashed, so the change is in the border as well as the word (color is never the only signal).
+- **A broken entry's `to` is its base ID** (190–196). When head also renamed that target (a `PARAMETERS_ADDED` route whose path changed, or any `TARGET_MOVED`), it's mapped through `renamedTo` to its head ID, so the target is drawn once, as "… - Renamed from …", rather than once under each ID (M6 review C7, M6.11i).
+- **`anchor(id, nodes)`** (182–188): lift an endpoint to the nearest drawn kind by walking `parentId` up. A function calling a route is drawn from its service. Edges that lift to the same `(from, to, status)` merge into one connection labeled with all their kinds ("Added http, reads"); an edge that lifts onto itself (both ends in one service) isn't drawn. Removed edges are lifted in **base** (their nodes may be gone from head); the others in head.
+- **Priority order** (234–245): broken endpoints, then changed nodes, then other connections' endpoints. Only the first `maxNodes` (40) are drawn and named `n1…`; the rest, and connections touching them, are counted in a closing note ("...and 3 more nodes not drawn"). Fail visibly applies here too.
+- **Names** (255–293): `title` is the kind word plus label (`model Invoice`). If two drawn nodes would read the same ("datastore postgres" in two services), each gets its service, else its declaring file. Renames say "Renamed from …" or "Moved" (same label, new place); the rest say "Added"/"Removed"/"Changed".
+- **Styles** (295–327): solid arrows for added and changed, dotted for removed and broken; `classDef`/`linkStyle` with the light theme's diff colors, removals and broken edges dashed, so the change is in the border as well as the word (color is never the only signal).
 - `updated` records and warnings are never drawn: nothing a reader would call a change.
 
 ---

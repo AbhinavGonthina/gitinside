@@ -143,7 +143,8 @@ interface Connection {
  * diff and graphs give the same text.
  *
  * Draws:
- * - Broken connections, source to base target, whatever the endpoints' kinds, first.
+ * - Broken connections, source to target (as head names it when renamed), whatever the
+ *   endpoints' kinds, first.
  * - Added, removed, and changed services, routes, pages, models, datastores, queues, and
  *   external hosts, with the change in words ("Added", "Removed", "Changed", "Renamed
  *   from …") and in a colored, for removed dashed, border.
@@ -186,9 +187,10 @@ export function renderMermaidSummary(
     return node === undefined ? undefined : (renamedTo.get(node.id) ?? node.id);
   };
 
+  // A broken entry's `to` is its base ID; a target head also renamed is drawn as its head node.
   const connections: Connection[] = diff.broken.map((b) => ({
     from: b.from,
-    to: b.to,
+    to: renamedTo.get(b.to) ?? b.to,
     status: "broken",
     label: `Broken: ${BROKEN_WORDS[b.reason]}`,
   }));
