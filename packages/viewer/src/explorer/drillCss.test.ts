@@ -80,6 +80,18 @@ describe("drill.css", () => {
       expect(rule(`${inner} .gi-edge__hit`)).toMatch(/pointer-events: none;/);
     });
 
+    it("shows a diff line's glyph below full detail, where its pill fades (M6.11g2, WCAG 1.4.1)", () => {
+      expect(
+        rule(
+          '.gi-drill:is([data-detail="names"], [data-detail="outline"]) .gi-edge[data-diff]:not([data-broken]) .gi-edge__mark',
+        ),
+      ).toMatch(/opacity: 1;/);
+      // Drawn at the same screen size whatever the zoom, around its own center.
+      expect(rule(".gi-drill .gi-edge__mark-glyph")).toMatch(
+        /transform: scale\(var\(--gi-mark-scale, 1\)\);/,
+      );
+    });
+
     it("scales a service's name from its left edge, narrowing it by the same factor", () => {
       const name = rule('.gi-drill .gi-node[data-kind="service"] .gi-node__label');
       expect(name).toMatch(/width: calc\(100% \/ var\(--gi-name-scale, 1\)\);/);

@@ -33,7 +33,7 @@ import { nodeTier, type NodeDiff, type NodeEmphasis } from "../nodes/describe.js
 import { durations, scaleTokens } from "../tokens.js";
 import { ARROW_KEYS, nearestBox, type Direction } from "./a11y.js";
 import { cull, CULL_FROM, cullWindow } from "./cull.js";
-import { detailAt, insideOneService, serviceNameScale } from "./detail.js";
+import { detailAt, insideOneService, markScale, serviceNameScale } from "./detail.js";
 import { planTransition, type BoxExit, type Shown, type TransitionPlan } from "./transition.js";
 
 /**
@@ -294,6 +294,7 @@ const CanvasLine = memo(function CanvasLine({
       edge={edge}
       count={count}
       points={placed.points}
+      markAt={placed.label}
       layer={layerOf(index, e.from)}
       ends={ends}
       selected={selected}
@@ -424,9 +425,10 @@ function fadeInAfter(el: Element | null) {
  * without scrolling; the host's camera follows focus.
  *
  * `zoom` thins the text out for a zoomed-out camera (`detail.ts`): the level
- * is drawn as `data-detail` and the service names' scale as
- * `--gi-name-scale`, with `data-inner` on each line between two boxes of one
- * service; `drill.css` fades and scales, so zooming never resizes a box.
+ * is drawn as `data-detail`, the service names' scale as `--gi-name-scale`,
+ * and the diff glyphs' as `--gi-mark-scale`, with `data-inner` on each line
+ * between two boxes of one service; `drill.css` fades and scales, so zooming
+ * never resizes a box.
  *
  * For big levels (M4b.13a, ADR-0129), with the host's `viewport`, only the
  * boxes, lines, and pills near it are in the page (`cull.ts`); the focused
@@ -697,7 +699,13 @@ export function DrillCanvas({
     <div
       {...rest}
       className={className ? `gi-drill ${className}` : "gi-drill"}
-      style={{ ...style, "--gi-name-scale": serviceNameScale(zoom) } as CSSProperties}
+      style={
+        {
+          ...style,
+          "--gi-name-scale": serviceNameScale(zoom),
+          "--gi-mark-scale": markScale(zoom),
+        } as CSSProperties
+      }
       data-layout={shown ? "done" : "pending"}
       data-detail={detailAt(zoom)}
       aria-busy={busy || !shown || undefined}

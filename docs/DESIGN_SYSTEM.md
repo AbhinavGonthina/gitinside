@@ -96,7 +96,7 @@ The legend is always one click away and is generated from these same tokens.
   - **Traced:** trace-colored 1.75px line, no halo; pill border 70% trace.
   - **Current hop:** trace-colored 3px line with a trace halo and larger particles; the pill gets a full trace border, a 14% trace fill, and a soft ring. The trace owns the edges while it runs, so none is drawn as selected.
   - **Dimmed:** 20% opacity (50% on hover), label too.
-  - **Diff:** line in the diff color; the pill leads with "Added", "Changed", or "Removed". Removed is ghosted to 50% and its label struck through.
+  - **Diff:** line in the diff color; the pill leads with "Added", "Changed", or "Removed". Removed is ghosted to 50% and its label struck through. Zoomed out below full detail, where pills fade, the line carries its state's glyph instead (+, ~, −, in the canvas color on a disc of the line's color, at the pill's point, kept 12 screen px by `--gi-mark-scale`), so the state never rests on color alone (M6.11g2, WCAG 1.4.1). A pill still drawn covers it; a broken line keeps its dashes.
   - **Broken:** pulsing red dashes whatever the confidence, and the pill says what broke ("Route removed in this PR").
 - **Flow:** two particles per edge travel source to target (a canvas ring keeps them visible on a same-colored line). Reduced motion removes them and stops the broken pulse.
 
@@ -210,7 +210,7 @@ Source of truth: `packages/viewer/src/tokens.ts` and `src/styles/tokens.css`, wh
 
 - WCAG 2.2 AA contrast for text and essential graphics in both themes.
 - Visible focus rings (`--accent`, 2px, offset).
-- Color is never the only signal: confidence also uses line style, diff state also uses badges and text.
+- Color is never the only signal: confidence also uses line style, diff state also uses badges and text (and, on a zoomed-out line, a glyph).
 - Keyboard navigation of the graph and screen-reader text are specified in UX.md.
 
 ## 6. Review checklist (every UI task)

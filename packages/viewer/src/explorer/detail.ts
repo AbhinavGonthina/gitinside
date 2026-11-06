@@ -56,6 +56,17 @@ export function serviceNameScale(zoom: number): number {
 }
 
 /**
+ * How much a line's diff glyph is scaled at `zoom` (M6.11g2): 1 at full
+ * detail, where the line's pill says its state in words, else `1 / zoom`,
+ * rounded to a hundredth, so the glyph keeps its own size on screen once the
+ * pills have faded, however far out.
+ */
+export function markScale(zoom: number): number {
+  if (detailAt(zoom) === "full") return 1;
+  return Math.round(100 / zoom) / 100;
+}
+
+/**
  * The line joins two boxes in the same service (or inside one), so it isn't
  * part of the system-level picture `outline` keeps. A line touching a node
  * outside every service (a datastore, a queue, an outside API) or another

@@ -394,6 +394,21 @@ export const DiffBrokenDown: Story = {
 };
 
 /**
+ * The same PR zoomed out to 40% (M6.11g2): the pills have faded, so each
+ * added, changed, or removed line carries its state's glyph (+, ~, −), not
+ * only its color; broken lines keep their dashes and pills.
+ */
+export const DiffZoomedOut: Story = {
+  name: "Diff, zoomed out",
+  render: () => (
+    <ExploreDiff
+      initialOpen={["service:diff-broken/", "module:diff-broken/src"]}
+      initialZoom={0.4}
+    />
+  ),
+};
+
+/**
  * Head alone (M6.9c2): the service counts only head's routes and models, and
  * a line standing for connections head partly dropped says what's left.
  */

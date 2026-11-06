@@ -7,6 +7,7 @@ import {
   DETAIL_ZOOM,
   detailAt,
   insideOneService,
+  markScale,
   SERVICE_NAME_PX,
   serviceNameScale,
 } from "./detail.js";
@@ -43,6 +44,21 @@ describe("serviceNameScale", () => {
     }
     expect(serviceNameScale(0.3)).toBe(2.86);
     expect(serviceNameScale(ZOOM.min)).toBe(3);
+  });
+});
+
+describe("markScale", () => {
+  it("leaves a line's diff glyph alone at full detail, where its pill says the state", () => {
+    expect(markScale(2)).toBe(1);
+    expect(markScale(DETAIL_ZOOM.full)).toBe(1);
+  });
+
+  it("below it, draws the glyph at its own size on screen however far out", () => {
+    for (const zoom of [0.64, 0.5, 0.4, 0.3, ZOOM.min]) {
+      expect(zoom * markScale(zoom)).toBeCloseTo(1, 2);
+    }
+    expect(markScale(0.3)).toBe(3.33);
+    expect(markScale(ZOOM.min)).toBe(4);
   });
 });
 
