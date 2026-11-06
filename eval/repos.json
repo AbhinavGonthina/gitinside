@@ -51,6 +51,16 @@
       "heldOut": 5
     },
     {
+      "owner": "Farbyte",
+      "name": "lawson",
+      "url": "https://github.com/Farbyte/lawson",
+      "sha": "34ab42135dd5da47e567bf238f44e229d46bf724",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 5 (M5C.8b3, drawn in stratum nextjs-prisma). A single Next.js App Router app (Clerk, UploadThing, LangChain, Pinecone, Prisma) with Nextra docs pages, beside a Python FastAPI service (backend/). The client sends five root-relative fetch requests: four inside one-function helpers in app/_helper_functions with the path fixed there (/api/summary, a /api/getLatestPdf?userId= template, /api/uploadPdf, /api/vectorStore) and one in NavSidebar (DELETE /api/deletePdf). The handlers export one method each; getLatestPdf's handler file is route.tsx. Server-side, the handlers fetch the uploaded PDF's runtime URL and the Python service on EMBEDDER_URL (blank in .env.example, no fallback; FastAPI routes v1 can't read), all null. Not labeled: ai/react's useChat (the chat request to /api/chat is the library's), UploadThing's upload button, the Clerk, Pinecone, and Together SDKs, and the Python code. 66 TS/JS source files.",
+      "heldOut": 5
+    },
+    {
       "owner": "fiveman1",
       "name": "strafes-site",
       "url": "https://github.com/fiveman1/strafes-site",
@@ -59,6 +69,16 @@
       "shape": "spa-plus-express",
       "why": "Held out, batch 4 (M5C.5b1, drawn in stratum react-express). Yarn workspace: a Vite React + TypeScript client, an Express server, and a shared types package. Every client API request goes through client/src/api/api.ts, where tryGetRequest(path, params) / tryPostRequest(path, body) hand a bare path (\"user/rank/\" + id) to tryRequest's fetch(\"/api/\" + url) on the page's own origin (Vite's server.proxy sends /api to the server's port 8080 in dev; the same Express app serves client/build in production). All ~25 routes are app.get/app.post calls with full /api/... paths in server/src/index.ts, no routers or mounts, ending in a *splat SPA fallback. The server calls Roblox APIs through axios helpers (some memoized) and the StrafesNET APIs through two committed, generated swagger-typescript-api clients; the client also fetches its bundled .wasm and signed replay URLs returned by the API, and commits wasm-bindgen glue with fetch calls. ~104 TS/JS source files incl. generated code.",
       "heldOut": 4
+    },
+    {
+      "owner": "g089h515r806",
+      "name": "nextcrawler",
+      "url": "https://github.com/g089h515r806/nextcrawler",
+      "sha": "8b0c5639114b6eeea8272e2d05658594d62dee0b",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 5 (M5C.8b3, drawn in stratum nextjs-prisma). A single Next.js App Router crawler admin in plain JS (Prisma on MySQL, Playwright) whose route.js handlers under app/api export GET/POST/PATCH/DELETE per resource ([id] folders beside literal import/, fetch/, batchfetch/, reset/, generatelistpage/ folders). Admin pages and six buttons in components/ call them with root-relative fetch on literals and '+' concatenations ('/api/feed/' + id, '/api/listpage/' + id + '/fetch'), several as GET with no options and one with a ?key= query. server.js is a plain http server on PORT || 3000 handing every request to Next (a pass-through) plus a cron job that crawls through Prisma and Playwright without calling the app's routes; proxy.js only gates /api and /admin on auth. Server-side lib code fetches scraped image and download URLs and a placeholder sync host with node-fetch (null). Not labeled: two commented-out fetches, Playwright page loads, yt-dlp child processes. 132 TS/JS source files.",
+      "heldOut": 5
     },
     {
       "owner": "gruz0",
@@ -136,6 +156,16 @@
       "license": "MIT",
       "shape": "axios-baseurl",
       "why": "Vite React frontend and Express backend (routers mounted at /api/posts, /api/auth, /api/user). Most calls use an axios.create() instance whose baseURL is assigned afterwards via instance.defaults.baseURL from VITE_API_PATH; the rest call axios directly with that env var concatenated. ~109 source files."
+    },
+    {
+      "owner": "leswww",
+      "name": "agentboard-ce",
+      "url": "https://github.com/leswww/agentboard-ce",
+      "sha": "60b57ac1931387f30361bdee618903eb679abf78",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 5 (M5C.8b3, drawn in stratum nextjs-prisma). A single Next.js App Router app (Prisma, next-intl, simple-git) whose route.ts handlers under src/app/api export one or more methods ([id] and [number] folders beside literal run/, triage/, review-draft/, status/ folders). Pages and components call them with root-relative fetch on literals and templates (/api/settings, /api/git/status?projectId=…, /api/commands/run); three forms pick URL and method with one isEditing ternary (POST to the collection or PUT to /:id, one label per alternative, ADR-0041), and a DeleteButton component fetches the endpoint prop it is handed with DELETE, so its five JSX uses are labeled. No basePath, rewrites, or middleware; .env.example's NEXT_PUBLIC_APP_URL is unused. Server-side, handlers call GitHub's REST API and an OpenAI-compatible provider whose base is a stored setting with an api.openai.com fallback (null). 112 TS/JS source files.",
+      "heldOut": 5
     },
     {
       "owner": "MananGandhi1810",
@@ -255,6 +285,16 @@
       "shape": "axios-baseurl",
       "why": "Held out (M5A.2c). Create React App frontend (frontend/) and a CommonJS Express + Mongoose backend (backend/) side by side, no root package.json. Every request goes through one axios.create({ withCredentials, baseURL: process.env.REACT_APP_BASE_URL }) instance imported by per-feature features/*/…Api.jsx modules (axiosi.get(`/cart/user/${id}`)), with no in-code fallback; the auth module's paths have no leading slash (\"auth/login\"). Routers are mounted at /auth, /users, /products, … and chain router.post(...).get(...) calls. ~123 JS source files.",
       "heldOut": 1
+    },
+    {
+      "owner": "SamurAIGPT",
+      "name": "ai-headshot-generator",
+      "url": "https://github.com/SamurAIGPT/ai-headshot-generator",
+      "sha": "a5d36f1fee25c23c02fdd7fbbe070d37c1e2d3d5",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 5 (M5C.8b3, drawn in stratum nextjs-prisma). A single Next.js App Router app in plain JS (NextAuth, Stripe, Prisma) whose route.js handlers under src/app/api export one or two methods each. Client pages call them with root-relative fetch literals (/api/creations, /api/upload, /api/headshot, /api/headshot/status, POST and DELETE /api/user/apikey) and one plain axios.post('/api/checkout'). Server-side, a service and the upload handler fetch muapi.ai (external, one URL built from a config constant), and downloadImage(url) in src/lib/utils.js fetches whatever image URL it is handed, so its five callers are labeled with runtime CDN URLs (null). Not labeled: NextAuth's signIn, the Stripe SDK, <img src> URLs. 36 TS/JS source files.",
+      "heldOut": 5
     },
     {
       "owner": "shadcn-ui",

@@ -1,0 +1,123 @@
+{
+  "repo": "SamurAIGPT/ai-headshot-generator",
+  "sha": "a5d36f1fee25c23c02fdd7fbbe070d37c1e2d3d5",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/app/api/upload/route.js", "line": 30 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch('https://api.muapi.ai/api/v1/upload_file', { method: 'POST' }): muapi.ai, an external host"
+    },
+    {
+      "callSite": { "file": "src/app/gallery/page.js", "line": 33 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/creations/route.js",
+        "line": 6,
+        "route": "GET /api/creations"
+      },
+      "notes": "fetchCreations(): fetch('/api/creations'), root-relative on the same Next app (next.config.mjs is empty, no middleware)"
+    },
+    {
+      "callSite": { "file": "src/app/gallery/page.js", "line": 192 },
+      "method": "GET",
+      "target": null,
+      "notes": "downloadImage(url, …) (src/lib/utils.js:7 fetches its url parameter, so each caller is labeled): url is one of a creation's stored image URLs (muapi.ai CDN outputs), known only at runtime"
+    },
+    {
+      "callSite": { "file": "src/app/gallery/page.js", "line": 271 },
+      "method": "GET",
+      "target": null,
+      "notes": "downloadImage(selectedImage.urls[i], …): a stored image URL, known only at runtime; see line 192"
+    },
+    {
+      "callSite": { "file": "src/app/page.js", "line": 179 },
+      "method": "POST",
+      "target": { "file": "src/app/api/upload/route.js", "line": 6, "route": "POST /api/upload" },
+      "notes": "fetch('/api/upload', { method: 'POST', body: formData })"
+    },
+    {
+      "callSite": { "file": "src/app/page.js", "line": 218 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/headshot/route.js",
+        "line": 6,
+        "route": "POST /api/headshot"
+      },
+      "notes": "handleGenerate(): fetch('/api/headshot', { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "src/app/page.js", "line": 246 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/headshot/status/route.js",
+        "line": 6,
+        "route": "POST /api/headshot/status"
+      },
+      "notes": "pollStatus(): fetch('/api/headshot/status', { method: 'POST' }); the literal status/ folder under headshot/"
+    },
+    {
+      "callSite": { "file": "src/app/page.js", "line": 569 },
+      "method": "GET",
+      "target": null,
+      "notes": "downloadImage(resultUrl[i], …): an image URL returned by the status poll (muapi.ai outputs), known only at runtime; see gallery/page.js:192"
+    },
+    {
+      "callSite": { "file": "src/app/page.js", "line": 597 },
+      "method": "GET",
+      "target": null,
+      "notes": "downloadImage(url, …) over resultUrl.map: a returned image URL, known only at runtime"
+    },
+    {
+      "callSite": { "file": "src/app/page.js", "line": 630 },
+      "method": "GET",
+      "target": null,
+      "notes": "downloadImage(resultUrl, …): a returned image URL, known only at runtime"
+    },
+    {
+      "callSite": { "file": "src/app/pricing/page.js", "line": 29 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/checkout/route.js",
+        "line": 6,
+        "route": "POST /api/checkout"
+      },
+      "notes": "axios.post('/api/checkout', { planId }), plain axios (no instance or defaults), root-relative"
+    },
+    {
+      "callSite": { "file": "src/components/Navbar.js", "line": 58 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/user/apikey/route.js",
+        "line": 6,
+        "route": "POST /api/user/apikey"
+      },
+      "notes": "fetch('/api/user/apikey', { method: 'POST' }) saving the key; the else branch's signIn('credentials') is NextAuth's own request, not labeled"
+    },
+    {
+      "callSite": { "file": "src/components/Navbar.js", "line": 92 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/user/apikey/route.js",
+        "line": 32,
+        "route": "DELETE /api/user/apikey"
+      },
+      "notes": "fetch('/api/user/apikey', { method: 'DELETE' }); route.js exports DELETE at line 32"
+    },
+    {
+      "callSite": { "file": "src/lib/services/ai.js", "line": 49 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(submitUrl, { method: 'POST' }), submitUrl = `${config.ai.headshot.endpoint}?webhook=…` with endpoint the literal 'https://api.muapi.ai/api/v1/photo-pack' (src/lib/config.js:32): external host"
+    },
+    {
+      "callSite": { "file": "src/lib/services/ai.js", "line": 112 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(pollUrl, { method: 'GET' }), pollUrl = `https://api.muapi.ai/api/v1/predictions/${requestId}/result`: external host"
+    }
+  ]
+}

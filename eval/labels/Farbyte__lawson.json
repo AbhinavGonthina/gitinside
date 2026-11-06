@@ -1,0 +1,85 @@
+{
+  "repo": "Farbyte/lawson",
+  "sha": "34ab42135dd5da47e567bf238f44e229d46bf724",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "app/_chat_components/navbar-comp/NavSidebar.tsx", "line": 44 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/deletePdf/route.ts",
+        "line": 7,
+        "route": "DELETE /api/deletePdf"
+      },
+      "notes": "deleteDocument(): fetch('/api/deletePdf', { method: 'DELETE' }), root-relative on the same Next app (no basePath or rewrites in next.config.mjs; middleware.ts is Clerk's auth only)"
+    },
+    {
+      "callSite": { "file": "app/_helper_functions/fetchSummary.tsx", "line": 13 },
+      "method": "POST",
+      "target": { "file": "app/api/summary/route.ts", "line": 12, "route": "POST /api/summary" },
+      "notes": "fetchSummary(): fetch(`/api/summary`, { method: 'POST' }), the path fixed inside the helper, so labeled here"
+    },
+    {
+      "callSite": { "file": "app/_helper_functions/getLatest.tsx", "line": 2 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/getLatestPdf/route.tsx",
+        "line": 5,
+        "route": "GET /api/getLatestPdf"
+      },
+      "notes": "getLatestDocId(): fetch(`/api/getLatestPdf?userId=${userId}`, { method: 'GET' }), query dropped; the handler file is route.tsx, one of Next's default page extensions"
+    },
+    {
+      "callSite": { "file": "app/_helper_functions/uploadDocs.tsx", "line": 2 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/uploadPdf/route.ts",
+        "line": 44,
+        "route": "POST /api/uploadPdf"
+      },
+      "notes": "uploadPdf(): fetch('/api/uploadPdf', { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "app/_helper_functions/vectorStore.tsx", "line": 6 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/vectorStore/route.ts",
+        "line": 15,
+        "route": "POST /api/vectorStore"
+      },
+      "notes": "vectorStore(): fetch('/api/vectorStore', { method: 'POST' })"
+    },
+    {
+      "callSite": { "file": "app/api/summary/route.ts", "line": 27 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(`${process.env.EMBEDDER_URL}/summarize/${id}?api_key=…`, { method: 'GET' }): EMBEDDER_URL is blank in .env.example and has no in-code fallback; /summarize/{namespaces} is served by the Python FastAPI app in backend/main.py:83, which v1 can't read, so no route in the repo either way"
+    },
+    {
+      "callSite": { "file": "app/api/summary/route.ts", "line": 54 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(fileUrl): the uploaded PDF's URL from the request body (an UploadThing file host), known only at runtime"
+    },
+    {
+      "callSite": { "file": "app/api/uploadPdf/route.ts", "line": 19 },
+      "method": "POST",
+      "target": null,
+      "notes": "fastEmbedder(): fetch(`${process.env.EMBEDDER_URL}/emmbed?url=…`, { method: 'POST' }); the Python backend's @app.post('/emmbed') (backend/main.py:63), see summary/route.ts:27"
+    },
+    {
+      "callSite": { "file": "app/api/uploadPdf/route.ts", "line": 68 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(fileUrl): the uploaded PDF's URL from the request body, known only at runtime"
+    },
+    {
+      "callSite": { "file": "app/api/vectorStore/route.ts", "line": 45 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(fileUrl): the uploaded PDF's URL from the request body, known only at runtime"
+    }
+  ]
+}

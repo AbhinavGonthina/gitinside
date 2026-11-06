@@ -1,0 +1,509 @@
+{
+  "repo": "leswww/agentboard-ce",
+  "sha": "60b57ac1931387f30361bdee618903eb679abf78",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/app/agents/page.tsx", "line": 97 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/agents/[id]/route.ts",
+        "line": 57,
+        "route": "DELETE /api/agents/:id"
+      },
+      "notes": "<DeleteButton endpoint={`/api/agents/${agent.id}`}>: DeleteButton (components/delete-button.tsx:35) is fetch(endpoint, { method: \"DELETE\" }) with the path from this prop, so the label is at the element"
+    },
+    {
+      "callSite": { "file": "src/app/ai-history/page.tsx", "line": 38 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/ai/history/route.ts",
+        "line": 4,
+        "route": "GET /api/ai/history"
+      },
+      "notes": "fetch(\"/api/ai/history\"), root-relative on the same Next app (no basePath, rewrites, or middleware)"
+    },
+    {
+      "callSite": { "file": "src/app/api/github/issues/[number]/route.ts", "line": 53 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(url) with url = https://api.github.com/repos/${owner}/${repo}/issues/${number}: GitHub's API, external"
+    },
+    {
+      "callSite": { "file": "src/app/api/github/issues/route.ts", "line": 50 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(url) with url = https://api.github.com/repos/${owner}/${repo}/issues?…: GitHub's API, external"
+    },
+    {
+      "callSite": { "file": "src/app/api/github/pull-requests/[number]/route.ts", "line": 59 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}`) in Promise.all: GitHub's API, external"
+    },
+    {
+      "callSite": { "file": "src/app/api/github/pull-requests/[number]/route.ts", "line": 60 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(`https://api.github.com/…/pulls/${number}/files?per_page=100`): GitHub's API, external"
+    },
+    {
+      "callSite": { "file": "src/app/api/github/pull-requests/[number]/route.ts", "line": 61 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(`https://api.github.com/…/pulls/${number}/commits?per_page=30`): GitHub's API, external"
+    },
+    {
+      "callSite": { "file": "src/app/api/github/pull-requests/route.ts", "line": 50 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(url) with url = https://api.github.com/repos/${owner}/${repo}/pulls?…: GitHub's API, external"
+    },
+    {
+      "callSite": { "file": "src/app/api/github/token/route.ts", "line": 54 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(\"https://api.github.com/user\") checking the token: GitHub's API, external"
+    },
+    {
+      "callSite": { "file": "src/app/api/github/validate/route.ts", "line": 19 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(\"https://api.github.com/user\"): GitHub's API, external"
+    },
+    {
+      "callSite": { "file": "src/app/commands/page.tsx", "line": 94 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/commands/[id]/route.ts",
+        "line": 59,
+        "route": "DELETE /api/commands/:id"
+      },
+      "notes": "<DeleteButton endpoint={`/api/commands/${command.id}`}>, see agents/page.tsx:97"
+    },
+    {
+      "callSite": { "file": "src/app/docs-suggestions/page.tsx", "line": 57 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/docs-suggestions/route.ts",
+        "line": 6,
+        "route": "POST /api/ai/docs-suggestions"
+      },
+      "notes": "fetch(\"/api/ai/docs-suggestions\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/app/github/issues/[number]/page.tsx", "line": 66 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/github/issues/[number]/route.ts",
+        "line": 4,
+        "route": "GET /api/github/issues/:number"
+      },
+      "notes": "fetch(`/api/github/issues/${number}?projectId=${pid}`), query dropped"
+    },
+    {
+      "callSite": { "file": "src/app/github/issues/[number]/page.tsx", "line": 87 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/github/issues/[number]/triage/route.ts",
+        "line": 4,
+        "route": "POST /api/github/issues/:number/triage"
+      },
+      "notes": "fetch(`/api/github/issues/${issue.number}/triage`, { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/app/github/issues/page.tsx", "line": 58 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/github/token/route.ts",
+        "line": 27,
+        "route": "GET /api/github/token"
+      },
+      "notes": "fetch(\"/api/github/token\") in checkToken()"
+    },
+    {
+      "callSite": { "file": "src/app/github/issues/page.tsx", "line": 70 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/projects/route.ts",
+        "line": 5,
+        "route": "GET /api/projects"
+      },
+      "notes": "fetch(\"/api/projects\") in fetchProjects()"
+    },
+    {
+      "callSite": { "file": "src/app/github/issues/page.tsx", "line": 91 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/github/issues/route.ts",
+        "line": 4,
+        "route": "GET /api/github/issues"
+      },
+      "notes": "fetch(`/api/github/issues?projectId=${selectedProjectId}`), query dropped"
+    },
+    {
+      "callSite": { "file": "src/app/github/pull-requests/[number]/page.tsx", "line": 82 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/github/pull-requests/[number]/route.ts",
+        "line": 4,
+        "route": "GET /api/github/pull-requests/:number"
+      },
+      "notes": "fetch(`/api/github/pull-requests/${number}?projectId=${pid}`), query dropped"
+    },
+    {
+      "callSite": { "file": "src/app/github/pull-requests/[number]/page.tsx", "line": 117 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/github/pull-requests/[number]/review-draft/route.ts",
+        "line": 4,
+        "route": "POST /api/github/pull-requests/:number/review-draft"
+      },
+      "notes": "fetch(`/api/github/pull-requests/${pr.number}/review-draft`, { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/app/github/pull-requests/page.tsx", "line": 72 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/github/token/route.ts",
+        "line": 27,
+        "route": "GET /api/github/token"
+      },
+      "notes": "fetch(\"/api/github/token\") in checkToken()"
+    },
+    {
+      "callSite": { "file": "src/app/github/pull-requests/page.tsx", "line": 84 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/projects/route.ts",
+        "line": 5,
+        "route": "GET /api/projects"
+      },
+      "notes": "fetch(\"/api/projects\") in fetchProjects()"
+    },
+    {
+      "callSite": { "file": "src/app/github/pull-requests/page.tsx", "line": 105 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/github/pull-requests/route.ts",
+        "line": 4,
+        "route": "GET /api/github/pull-requests"
+      },
+      "notes": "fetch(`/api/github/pull-requests?projectId=…&state=${stateFilter}`), query dropped"
+    },
+    {
+      "callSite": { "file": "src/app/issues/page.tsx", "line": 105 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/issues/[id]/route.ts",
+        "line": 30,
+        "route": "DELETE /api/issues/:id"
+      },
+      "notes": "<DeleteButton endpoint={`/api/issues/${issue.id}`}>, see agents/page.tsx:97"
+    },
+    {
+      "callSite": { "file": "src/app/pr-reviews/page.tsx", "line": 90 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/pr-reviews/[id]/route.ts",
+        "line": 30,
+        "route": "DELETE /api/pr-reviews/:id"
+      },
+      "notes": "<DeleteButton endpoint={`/api/pr-reviews/${review.id}`}>, see agents/page.tsx:97"
+    },
+    {
+      "callSite": { "file": "src/app/release-notes/page.tsx", "line": 76 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/release-notes/[id]/route.ts",
+        "line": 30,
+        "route": "DELETE /api/release-notes/:id"
+      },
+      "notes": "<DeleteButton endpoint={`/api/release-notes/${note.id}`}>, see agents/page.tsx:97"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 71 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 4,
+        "route": "GET /api/settings"
+      },
+      "notes": "fetch(\"/api/settings\")"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 86 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 21,
+        "route": "PUT /api/settings"
+      },
+      "notes": "fetch(\"/api/settings\", { method: \"PUT\" })"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 110 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/github/token/route.ts",
+        "line": 27,
+        "route": "GET /api/github/token"
+      },
+      "notes": "fetch(\"/api/github/token\")"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 124 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/github/token/route.ts",
+        "line": 39,
+        "route": "POST /api/github/token"
+      },
+      "notes": "fetch(\"/api/github/token\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 147 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/github/validate/route.ts",
+        "line": 4,
+        "route": "POST /api/github/validate"
+      },
+      "notes": "fetch(\"/api/github/validate\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 171 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/github/token/route.ts",
+        "line": 111,
+        "route": "DELETE /api/github/token"
+      },
+      "notes": "fetch(\"/api/github/token\", { method: \"DELETE\" })"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 186 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/ai/status/route.ts",
+        "line": 4,
+        "route": "GET /api/ai/status"
+      },
+      "notes": "fetch(\"/api/ai/status\") in Promise.all"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 187 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/ai/settings/route.ts",
+        "line": 4,
+        "route": "GET /api/ai/settings"
+      },
+      "notes": "fetch(\"/api/ai/settings\") in Promise.all"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 213 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/settings/route.ts",
+        "line": 23,
+        "route": "POST /api/ai/settings"
+      },
+      "notes": "fetch(\"/api/ai/settings\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 238 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/validate/route.ts",
+        "line": 4,
+        "route": "POST /api/ai/validate"
+      },
+      "notes": "fetch(\"/api/ai/validate\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 256 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/ai/settings/route.ts",
+        "line": 45,
+        "route": "DELETE /api/ai/settings"
+      },
+      "notes": "fetch(\"/api/ai/settings\", { method: \"DELETE\" })"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 276 },
+      "method": "GET",
+      "target": { "file": "src/app/api/export/route.ts", "line": 4, "route": "GET /api/export" },
+      "notes": "fetch(\"/api/export\")"
+    },
+    {
+      "callSite": { "file": "src/app/settings/page.tsx", "line": 303 },
+      "method": "POST",
+      "target": { "file": "src/app/api/import/route.ts", "line": 4, "route": "POST /api/import" },
+      "notes": "fetch(\"/api/import\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/components/agent-form.tsx", "line": 61 },
+      "method": "POST",
+      "target": { "file": "src/app/api/agents/route.ts", "line": 19, "route": "POST /api/agents" },
+      "notes": "url = isEditing ? `/api/agents/${agentId}` : \"/api/agents\", method = isEditing ? \"PUT\" : \"POST\" (two alternatives fixed in the code, ADR-0041); the create alternative"
+    },
+    {
+      "callSite": { "file": "src/components/agent-form.tsx", "line": 61 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/agents/[id]/route.ts",
+        "line": 31,
+        "route": "PUT /api/agents/:id"
+      },
+      "notes": "the isEditing alternative of the same url and method"
+    },
+    {
+      "callSite": { "file": "src/components/command-form.tsx", "line": 51 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/commands/route.ts",
+        "line": 20,
+        "route": "POST /api/commands"
+      },
+      "notes": "url = isEditing ? `/api/commands/${commandId}` : \"/api/commands\", method = isEditing ? \"PUT\" : \"POST\"; the create alternative"
+    },
+    {
+      "callSite": { "file": "src/components/command-form.tsx", "line": 51 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/commands/[id]/route.ts",
+        "line": 32,
+        "route": "PUT /api/commands/:id"
+      },
+      "notes": "the isEditing alternative of the same url and method"
+    },
+    {
+      "callSite": { "file": "src/components/git-insights-section.tsx", "line": 132 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/git/status/route.ts",
+        "line": 6,
+        "route": "GET /api/git/status"
+      },
+      "notes": "fetch(`/api/git/status?projectId=${encodeURIComponent(projectId)}`), query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/git-status-section.tsx", "line": 29 },
+      "method": "POST",
+      "target": { "file": "src/app/api/git/route.ts", "line": 5, "route": "POST /api/git" },
+      "notes": "fetch(\"/api/git\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/components/issue-form.tsx", "line": 81 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/issue-triage/route.ts",
+        "line": 6,
+        "route": "POST /api/ai/issue-triage"
+      },
+      "notes": "fetch(\"/api/ai/issue-triage\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/components/issue-form.tsx", "line": 128 },
+      "method": "POST",
+      "target": { "file": "src/app/api/issues/route.ts", "line": 18, "route": "POST /api/issues" },
+      "notes": "fetch(\"/api/issues\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/components/pr-review-form.tsx", "line": 90 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/pr-review/route.ts",
+        "line": 6,
+        "route": "POST /api/ai/pr-review"
+      },
+      "notes": "fetch(\"/api/ai/pr-review\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/components/pr-review-form.tsx", "line": 144 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/pr-reviews/route.ts",
+        "line": 18,
+        "route": "POST /api/pr-reviews"
+      },
+      "notes": "fetch(\"/api/pr-reviews\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/components/project-form.tsx", "line": 91 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/projects/route.ts",
+        "line": 19,
+        "route": "POST /api/projects"
+      },
+      "notes": "url = isEditing ? `/api/projects/${projectId}` : \"/api/projects\", method = isEditing ? \"PUT\" : \"POST\"; the create alternative"
+    },
+    {
+      "callSite": { "file": "src/components/project-form.tsx", "line": 91 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/projects/[id]/route.ts",
+        "line": 38,
+        "route": "PUT /api/projects/:id"
+      },
+      "notes": "the isEditing alternative of the same url and method"
+    },
+    {
+      "callSite": { "file": "src/components/release-note-form.tsx", "line": 97 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/release-notes/route.ts",
+        "line": 6,
+        "route": "POST /api/ai/release-notes"
+      },
+      "notes": "fetch(\"/api/ai/release-notes\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/components/release-note-form.tsx", "line": 166 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/release-notes/route.ts",
+        "line": 18,
+        "route": "POST /api/release-notes"
+      },
+      "notes": "fetch(\"/api/release-notes\", { method: \"POST\" })"
+    },
+    {
+      "callSite": { "file": "src/components/run-command-button.tsx", "line": 47 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/commands/run/route.ts",
+        "line": 5,
+        "route": "POST /api/commands/run"
+      },
+      "notes": "fetch(\"/api/commands/run\", { method: \"POST\" }); the literal run/ folder wins over commands/[id]"
+    },
+    {
+      "callSite": { "file": "src/components/terminal-workspace.tsx", "line": 78 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/commands/run/route.ts",
+        "line": 5,
+        "route": "POST /api/commands/run"
+      },
+      "notes": "fetch(\"/api/commands/run\", { method: \"POST\" }); the literal run/ folder wins over commands/[id]"
+    },
+    {
+      "callSite": { "file": "src/lib/ai/provider.ts", "line": 80 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(`${baseUrl}/models/${model}`), baseUrl = config.baseUrl (user setting from the DB) || \"https://api.openai.com/v1\": an OpenAI-compatible provider, external"
+    },
+    {
+      "callSite": { "file": "src/lib/ai/provider.ts", "line": 117 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(`${baseUrl}/chat/completions`, { method: \"POST\" }), same base as line 80: external AI provider"
+    }
+  ]
+}
