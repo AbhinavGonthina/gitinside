@@ -101,3 +101,24 @@ Before fixing a recall pattern (4–7), its task first shows it outside batch 4:
 - **F (10 FN): a generated class client** (`this.request({ path, method })` on a `this.baseUrl` field), and **K (2 FN): a base set from a constructor argument.** Both need values followed through class instances from every `new`; one repo each, and neither has a usage count yet. A fresh sample that misses them again will show it.
 - **L (3 FN): a path segment typed as a union of string literals,** and **M (1 FN): SWR's global fetcher from `SWRConfig`.** One repo, few misses; L would read types as values, which ADR-0166 does only for values in the code. Revisit if batch 5 misses them.
 - **N (1 FN): an env base set only in a committed `.env`.** By design: SECURITY.md T5 and ADR-0202 read only example env files.
+
+## After batch 5 (M5C.9)
+
+Batch 5's blind run (M5C.8c) measured precision 93.5% (290/310), below the 95% floor, recall 63.0% (290/460), and 6 of 16 repos mapped completely. Its 10 causes are in [`2026-11-batch5-diagnosis.md`](../eval/results/2026-11-batch5-diagnosis.md), by letter (P–Y, after batch 4's A–O). Abhinav's decision on #18 (2026-11-06, option 2): fix the two precision causes, then the three large recall patterns, each shown outside batch 5 first; batch 5 counts as seen from then on, and its blind result stays quoted as measured, with the "after" numbers labeled as seen. No batch 6 now: the next blind batch is part of M9.2's final eval. Precision ≥ 95% stays the hard number.
+
+**Planned, in order** (PROGRESS.md M5C.10a–e, then back to M6.11):
+
+1. **M5C.10a, P (14 FP, 2 FN):** a helper whose URL is picked by a ternary on its own parameter becomes a wrapper through the condition alone, and every caller gets both routes, even where the argument settles which (5 of 7 callers pass no `slug`).
+2. **M5C.10b, Q (6 FP, 1 FN):** a parameter that fills only the origin's port counts as leading (M5A.3j), so a request with a fixed path moves to the callers, where EVALUATION.md §1 doesn't label it. The analyzer's rule is aligned with the label rule.
+3. **M5C.10c, R (59 FN):** Express routers created as `require("express").Router()`, CommonJS's compact spelling of the documented `express.Router()`.
+4. **M5C.10d, S (54 FN):** path-taking helpers declared as local `const` arrows inside a function (a test, a fixture, a component); ADR-0032 makes only symbols wrappers today.
+5. **M5C.10e, T (27 FN):** a `let` URL extended only with a query (`url += \`?${qs}\``), which can't change the path but reads as runtime-only today.
+
+Before fixing a recall pattern (3–5), its task first shows it outside batch 5: a code search count (query and date in `usage/`) or a repo in the earlier eval sets. One that can't be shown is recorded here and not fixed.
+
+**Not planned now, and why** (Abhinav: skip W/X/V/U/Y for now):
+- **W (10 FN): one condition picks both the URL and the method.** Unresolved as `AMBIGUOUS`, M5C.7a's deliberate precision trade; pairing a ternary method with its URL is the fix if it recurs.
+- **X (6 FN): a base from React context** (`useContext(C)` to `<C.Provider value>`). Needs the provider's value read across files; one repo.
+- **V (5 FN): a component fetching a path prop** (`<DeleteButton endpoint={…}>`). A prop as a wrapper parameter is a new kind of wrapper; one repo.
+- **U (4 FN): an env base not named like an API base.** By design (ADR-0165).
+- **Y (2 FN): a literal with a trailing space,** which the URL parser trims. One repo, two sites.
