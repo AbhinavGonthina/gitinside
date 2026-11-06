@@ -450,6 +450,57 @@ describe("detectWorkspace", () => {
     ]);
   });
 
+  it("checks duplicates and cycles by importable name, not an Nx standalone root's label", async () => {
+    await tree({
+      "nx.json": {},
+      "package.json": { name: "@api/source", dependencies: { "@acme/util": "*" } },
+      "project.json": { name: "api" },
+      "src/main.ts": "",
+      "libs/api/package.json": { name: "api" },
+      "libs/api/project.json": {},
+      "libs/util/package.json": { name: "@acme/util", dependencies: { "@api/source": "*" } },
+      "libs/util/project.json": {},
+    });
+    const ws = await detect();
+    expect(ws.packages.map((p) => [p.name, p.packageName])).toEqual([
+      ["api", "@api/source"],
+      ["api", "api"],
+      ["@acme/util", "@acme/util"],
+    ]);
+    // Two labels "api", but only one package imports as "api": no duplicate warning.
+    expect(ws.warnings).toEqual([
+      {
+        code: "WORKSPACE_CYCLE",
+        message: "circular workspace dependencies between @acme/util, @api/source",
+      },
+    ]);
+  });
+
+  it("ignores nameless packages in duplicate and cycle checks: nothing can import them", async () => {
+    await tree({
+      "package.json": { workspaces: ["apps/*", "tools/*"] },
+      "apps/config/package.json": { dependencies: { config: "*" } },
+      "tools/config/package.json": { private: true },
+    });
+    const ws = await detect();
+    expect(ws.packages.map((p) => p.name)).toEqual(["config", "config"]);
+    expect(ws.warnings).toEqual([]);
+  });
+
+  it("names the repo root `.` in a duplicate warning", async () => {
+    await tree({
+      "package.json": { name: "app", workspaces: ["web"] },
+      "server.ts": "",
+      "web/package.json": { name: "app" },
+    });
+    expect((await detect()).warnings).toEqual([
+      {
+        code: "DUPLICATE_PACKAGE_NAME",
+        message: 'package name "app" is used by ., web; workspace imports of it are ambiguous',
+      },
+    ]);
+  });
+
   it("never reads files outside the inventory", async () => {
     await tree({
       "package.json": { workspaces: ["*"] },
