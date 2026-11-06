@@ -287,7 +287,10 @@ function contractBreak(
  * Doesn't handle (no head evidence in the graph): calls to removed functions (unresolved
  * calls make no node), aliased or package imports (`@/x`, `@acme/shared`), clipped URL
  * labels, a call whose text changed and that reached the route only through a matcher path
- * form (or a base graph from before sites had `request`), a source that follows a renamed target with one call and not another (its edge
+ * form (or a base graph from before sites had `request`), the second of two requests at one
+ * site that reached one route (an edge keeps a site once per location, with the first's
+ * `request`, so the second is found only when its method and path reach the route by the
+ * path grammar; M6 review R5), a source that follows a renamed target with one call and not another (its edge
  * is renamed, so it isn't a candidate), `renders`/`publishes`/`consumes`/`external_call`/
  * `stores` edges, symbols with no `requiredParams` (JavaScript, overloads, inherited
  * constructors), parameters whose type changed, and model fields whose type changed or
