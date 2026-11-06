@@ -1,0 +1,167 @@
+{
+  "repo": "BharathxD/DevCircle",
+  "sha": "efab02e8479337dd705d47cc1d26045b23150274",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/app/api/forum/route.ts", "line": 61 },
+      "method": "GET",
+      "target": null,
+      "notes": "createForum (server): axios.get(`${siteConfig.url}/api/cron`); siteConfig.url is the literal public host https://devcircle.live (src/config/site.ts). No in-repo evidence deploys this app at that host (sst.config.ts names www.devcircle.live and its deploy step is commented out in deploy.yml; vercel.json only schedules a cron), so external host per ADR-0209; the path would be api/cron/route.ts GET"
+    },
+    {
+      "callSite": { "file": "src/app/api/forum/route.ts", "line": 216 },
+      "method": "GET",
+      "target": null,
+      "notes": "deleteForum (server): axios.get(`${siteConfig.url}/api/cron`) on the literal public host https://devcircle.live; external host per ADR-0209, as at line 61"
+    },
+    {
+      "callSite": { "file": "src/app/api/link/route.ts", "line": 32 },
+      "method": "GET",
+      "target": null,
+      "notes": "getLinkMetada (server): axios.get(href) where href is the request's ?url= query value, known only at runtime"
+    },
+    {
+      "callSite": { "file": "src/components/comments/create-comment.tsx", "line": 33 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/forum/post/comment/route.ts",
+        "line": 251,
+        "route": "PATCH /api/forum/post/comment"
+      },
+      "notes": "useMutation mutationFn: axios.patch( with `/api/forum/post/comment` on the next line; comment/route.ts exports const PATCH in `export { GET, PATCH, POST, DELETE }`"
+    },
+    {
+      "callSite": { "file": "src/components/comments/delete-comment.tsx", "line": 19 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/forum/post/comment/route.ts",
+        "line": 251,
+        "route": "DELETE /api/forum/post/comment"
+      },
+      "notes": "deleteComment: axios.delete(`/api/forum/post/comment?commentId=${commentId}`); query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/comments/edit-comment.tsx", "line": 42 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/forum/post/comment/route.ts",
+        "line": 251,
+        "route": "POST /api/forum/post/comment"
+      },
+      "notes": "editComment: axios.post(`/api/forum/post/comment `, payload); the trailing space is stripped by URL parsing; comment/route.ts's POST edits a comment"
+    },
+    {
+      "callSite": { "file": "src/components/comments/post-comment.tsx", "line": 86 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/forum/post/comment/route.ts",
+        "line": 251,
+        "route": "PATCH /api/forum/post/comment"
+      },
+      "notes": "reply: axios.patch(`/api/forum/post/comment `, payload); trailing space stripped by URL parsing"
+    },
+    {
+      "callSite": { "file": "src/components/forms/create-forum-form.tsx", "line": 37 },
+      "method": "POST",
+      "target": { "file": "src/app/api/forum/route.ts", "line": 239, "route": "POST /api/forum" },
+      "notes": "createForum: axios.post<string>(\"/api/forum\", payload); forum/route.ts exports createForum as POST"
+    },
+    {
+      "callSite": { "file": "src/components/forms/forum-form.tsx", "line": 51 },
+      "method": "PATCH",
+      "target": { "file": "src/app/api/forum/route.ts", "line": 239, "route": "PATCH /api/forum" },
+      "notes": "updateForum: axios.patch(\"/api/forum\", payload); editForum as PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/forms/profile-form.tsx", "line": 53 },
+      "method": "PATCH",
+      "target": { "file": "src/app/api/user/route.ts", "line": 84, "route": "PATCH /api/user" },
+      "notes": "mutationFn: axios.patch(\"/api/user\", payload); user/route.ts exports updateUser as PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/forum/delete-forum.tsx", "line": 34 },
+      "method": "DELETE",
+      "target": { "file": "src/app/api/forum/route.ts", "line": 239, "route": "DELETE /api/forum" },
+      "notes": "deleteForum: axios.delete(`/api/forum/?forumId=${forumId}`); Next's default trailingSlash: false redirects /api/forum/ to /api/forum (308 keeps the method), query dropped; deleteForum as DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/forum/subscribe-leave-toggle.tsx", "line": 35 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/forum/[forumId]/subscription/route.ts",
+        "line": 18,
+        "route": "PATCH /api/forum/:forumId/subscription"
+      },
+      "notes": "patchSubscription: axios.patch(`/api/forum/${id}/subscription`); [forumId]/subscription/route.ts exports async function PATCH (no literal sibling has a subscription route)"
+    },
+    {
+      "callSite": { "file": "src/components/navigation/search.tsx", "line": 28 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/posts/search/route.ts",
+        "line": 41,
+        "route": "GET /api/posts/search"
+      },
+      "notes": "fetchResults: axios.get( with \"/api/posts/search\", { params: { query } } on the next lines; posts/search/route.ts exports getUsers as GET"
+    },
+    {
+      "callSite": { "file": "src/components/post/comment-votes.tsx", "line": 47 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/forum/post/comment/vote/route.ts",
+        "line": 15,
+        "route": "PATCH /api/forum/post/comment/vote"
+      },
+      "notes": "vote: axios.patch(\"/api/forum/post/comment/vote\", payload); exports async function PATCH (next-auth middleware only guards it)"
+    },
+    {
+      "callSite": { "file": "src/components/post/create-post.tsx", "line": 28 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/forum/post/route.ts",
+        "line": 252,
+        "route": "POST /api/forum/post"
+      },
+      "notes": "mutationFn: axios.post(\"/api/forum/post\", { ...payload, forumId }); forum/post/route.ts exports createPost as POST"
+    },
+    {
+      "callSite": { "file": "src/components/post/delete-post.tsx", "line": 30 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/forum/post/route.ts",
+        "line": 252,
+        "route": "DELETE /api/forum/post"
+      },
+      "notes": "deletePost: axios.delete(`/api/forum/post/?postId=${postId}`); trailing slash redirected away (trailingSlash: false), query dropped; deletePost as DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/post/post-feed.tsx", "line": 68 },
+      "method": "GET",
+      "target": { "file": "src/app/api/posts/route.ts", "line": 80, "route": "GET /api/posts" },
+      "notes": "fetchPosts (passed to useInfiniteQuery with key \"infinite-query\", which it ignores): axios.get(query), query = `/api/posts?${queryParams}` on line 67; retrievePosts as GET"
+    },
+    {
+      "callSite": { "file": "src/components/post/post-vote-client.tsx", "line": 47 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/forum/post/vote/route.ts",
+        "line": 117,
+        "route": "PATCH /api/forum/post/vote"
+      },
+      "notes": "vote: axios.patch(\"/api/forum/post/vote\", payload); vote/route.ts exports patchVotes as PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/post/update-post.tsx", "line": 41 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/forum/post/route.ts",
+        "line": 252,
+        "route": "PATCH /api/forum/post"
+      },
+      "notes": "mutationFn: axios.patch(\"/api/forum/post\", { ...payload, postId }); editPost as PATCH"
+    }
+  ]
+}
