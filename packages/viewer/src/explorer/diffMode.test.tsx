@@ -484,20 +484,22 @@ describe("Explorer diff mode's export (M6.11e)", { timeout: 30_000 }, () => {
       topBar: false,
     });
     const removed = "DELETE /api/orders/:id";
+    // The explorer sets `exportRef` in an effect, which can run after the
+    // layout's `data-layout="done"` render that `settle()` waits for (M6.11j3).
+    const exported = async (view: DiffView) => {
+      await waitFor(() => expect(exportRef.current?.note).toBe(EXPORT_NOTES[view]));
+      return exportRef.current as ViewExport;
+    };
     const show = async (name: "Base" | "Head" | "Overlay") => {
       const views = screen.getByRole("radiogroup", { name: "Diff view" });
       fireEvent.click(within(views).getByRole("radio", { name }));
       await settle();
-      await waitFor(() =>
-        expect(exportRef.current?.note).toBe(EXPORT_NOTES[name.toLowerCase() as DiffView]),
-      );
-      return exportRef.current as ViewExport;
+      return exported(name.toLowerCase() as DiffView);
     };
 
-    const overlay = exportRef.current;
-    expect(overlay?.note).toBe(EXPORT_NOTES.overlay);
-    expect(overlay?.name).toBe("fixtures-diff-broken-head-ccccccc-head");
-    expect(overlay?.mermaid()).not.toContain(removed);
+    const overlay = await exported("overlay");
+    expect(overlay.name).toBe("fixtures-diff-broken-head-ccccccc-head");
+    expect(overlay.mermaid()).not.toContain(removed);
 
     const inBase = await show("Base");
     expect(inBase.name).toBe("fixtures-diff-broken-base-bbbbbbb-base");
@@ -508,8 +510,8 @@ describe("Explorer diff mode's export (M6.11e)", { timeout: 30_000 }, () => {
     const inHead = await show("Head");
     expect(inHead.name).toBe("fixtures-diff-broken-head-ccccccc-head");
     expect(inHead.mermaid()).not.toContain(removed);
-    expect(inHead.mermaid()).toBe(overlay?.mermaid());
-    expect(inHead.svg("light")).toBe(overlay?.svg("light"));
+    expect(inHead.mermaid()).toBe(overlay.mermaid());
+    expect(inHead.svg("light")).toBe(overlay.svg("light"));
   });
 
   it("names no version outside diff mode", async () => {
