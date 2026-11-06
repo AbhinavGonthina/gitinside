@@ -1453,6 +1453,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "DiffChangePicked",
       "DiffHead",
       "DiffRenamedBase",
+      "DiffZoomedOut",
       "DrilledDeep",
       "Filters",
       "NoApp",
@@ -1526,6 +1527,15 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     await settle();
     expect(broken.container.querySelector('.gi-node[data-diff="removed"]')).not.toBeNull();
     expect(broken.container.querySelector(".gi-edge[data-broken]")).not.toBeNull();
+    cleanup();
+    // Zoomed out (M6.11g2), the lines' glyphs show (jsdom has no canvas size
+    // to zoom in; the visual suite shoots the story at 50%).
+    const zoomed = render(<all.DiffZoomedOut />);
+    await settle();
+    const marks = [...zoomed.container.querySelectorAll(".gi-edge__mark")];
+    expect(new Set(marks.map((m) => m.getAttribute("data-mark")))).toEqual(
+      new Set(["added", "changed", "removed"]),
+    );
     cleanup();
 
     // Head and Base (M6.9c2), switched by each story's play.

@@ -154,6 +154,31 @@ describe("Explorer diff mode", { timeout: 30_000 }, () => {
     );
   });
 
+  it("marks each changed line with its state's glyph where its pill sits (M6.11g2)", async () => {
+    const { container } = await setup({ initialOpen: [SERVICE, SRC] });
+    const lines = [...container.querySelectorAll(".gi-drill__lines .gi-edge")];
+    const pills = [...container.querySelectorAll<HTMLElement>(".gi-drill__labels .gi-edge-label")];
+    expect(pills).toHaveLength(lines.length);
+    const states = new Set<string>();
+    lines.forEach((line, i) => {
+      const diff = line.getAttribute("data-diff");
+      const mark = line.querySelector(".gi-edge__mark");
+      if (!diff) {
+        expect(mark).toBeNull();
+        return;
+      }
+      states.add(diff);
+      expect(mark?.getAttribute("data-mark")).toBe(diff);
+      // Lines and pills are drawn in the same order; the glyph hides under the pill.
+      const pill = pills[i] as HTMLElement;
+      expect(pill.getAttribute("data-diff")).toBe(diff);
+      expect(mark?.getAttribute("transform")).toBe(
+        `translate(${parseFloat(pill.style.left)} ${parseFloat(pill.style.top)})`,
+      );
+    });
+    expect([...states].sort(compareStrings)).toEqual(["added", "changed", "removed"]);
+  });
+
   it("draws broken connections dashed red with the diff's words, and many as a count", async () => {
     const { container } = await setup({ initialOpen: [SERVICE, SRC] });
     const broken = [...container.querySelectorAll(".gi-edge[data-broken]")].map(

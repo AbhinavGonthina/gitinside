@@ -98,7 +98,7 @@ Findings marked "confirmed" were traced in the code by the reviewer; "plausible"
 | U3 | Low (confirmed) | A linked `view=base\|head` whose `sel`/`trace` the version lacks falls back to Overlay silently, and Copy link still says the linked version | Planned: M6.11h |
 | U4 | Low (plausible) | Stop comparing unmounts the focused link; focus likely drops to `<body>` | Planned: M6.11h |
 | U5 | Low (confirmed) | A base graph that fails to load replaces the head diagram with an error card | Planned: M6.11h |
-| U6 | Low (a11y, confirmed) | Zoomed out to `names`/`outline`, added and changed lines differ by color only (WCAG 1.4.1) | Planned: M6.11g2 |
+| U6 | Low (a11y, confirmed) | Zoomed out to `names`/`outline`, added and changed lines differ by color only (WCAG 1.4.1) | Fixed in M6.11g2: below full detail each added, changed, or removed line carries a glyph (+, ~, −) at its pill's point, kept 12 screen px; story "Diff, zoomed out" (40%) has Linux baselines, and dropping the glyph's position turns `diffMode.test.tsx` red |
 | U7 | Low (test gap) | No test that `buildDiffOverlay` accepts every `diffGraphs` output; a legitimate pair it rejects shows an error card | Fixed in M6.11g1: `diff.properties.test.ts` runs 300 seeded pairs from `@gitinside/diff/testkit` (diff's own generators) through the overlay; none is rejected, and dropping base's parent frames turns it red |
 | U8 | Design note | Stop comparing on the latest page goes to the commit's permalink, not back to check-on-view | Accepted: ADR-0189 chose "this commit's permalink" |
 

@@ -1,6 +1,6 @@
 import type { Layer } from "@gitinside/schema";
 import type { CSSProperties, HTMLAttributes, SVGAttributes } from "react";
-import { DIFF_TEXT } from "../nodes/describe.js";
+import { DIFF_TEXT, type NodeDiff } from "../nodes/describe.js";
 import {
   edgeAccessibleName,
   edgeLabel,
@@ -14,6 +14,20 @@ import { edgeGeometry, type Point } from "./geometry.js";
 
 /** Flow particles per edge; each starts a fraction of a lap after the last. */
 export const FLOW_PARTICLES = 2;
+
+/** The diff glyph's disc radius, in pixels before `--gi-mark-scale`. */
+export const MARK_RADIUS = 6;
+
+/**
+ * Each diff state's glyph, centered on 0 0 inside the disc: a plus, a tilde,
+ * a minus. A shape per state, so a zoomed-out line whose pill has faded
+ * doesn't say its state by color alone (WCAG 1.4.1, M6.11g2).
+ */
+export const DIFF_MARK: Readonly<Record<NodeDiff, string>> = {
+  added: "M -3 0 H 3 M 0 -3 V 3",
+  changed: "M -3.5 0.75 C -2.5 -1.25 -1 -1.25 0 0 S 2.5 1.25 3.5 -0.75",
+  removed: "M -3 0 H 3",
+};
 
 /** State as data attributes, shared by the line and its label so they style together. */
 function stateAttrs(edge: EdgeLike, layer: Layer | undefined, state: EdgeState) {
@@ -51,6 +65,8 @@ export interface DiagramEdgeProps
   pulse?: "forward" | "backward" | undefined;
   /** For an aggregated edge: how many edges it stands for. */
   count?: number | undefined;
+  /** Where the diff glyph goes: the label's point (default: halfway along the line). */
+  markAt?: Point | undefined;
 }
 
 /**
@@ -58,6 +74,11 @@ export interface DiagramEdgeProps
  * components"). Line style encodes confidence, the arrowhead points at the
  * target (an open chevron when unresolved), and the source's layer colors
  * the line. States are data attributes styled in `styles/edges.css`.
+ *
+ * A line in a diff also carries its state's glyph ({@link DIFF_MARK}) at
+ * `markAt`, under where its label sits. It's hidden while the label shows
+ * (the label says the state in words) and drawn once a zoomed-out canvas
+ * fades the labels (`styles/drill.css`).
  *
  * The label is a separate HTML element ({@link EdgeLabel}) placed by the
  * caller at {@link edgeGeometry}'s `mid`, the way React Flow draws labels
@@ -71,6 +92,7 @@ export function DiagramEdge({
   flow = false,
   pulse,
   count,
+  markAt,
   hovered,
   selected,
   emphasis,
@@ -81,6 +103,7 @@ export function DiagramEdge({
 }: DiagramEdgeProps) {
   const state = { hovered, selected, emphasis, diff, broken };
   const g = edgeGeometry(points);
+  const mark = markAt ?? g.mid;
   const unresolved = edge.confidence === "unresolved";
   return (
     <g
@@ -117,6 +140,19 @@ export function DiagramEdge({
       {pulse && (
         // pathLength 100: the dash and its travel are percentages of the line, whatever its length.
         <path className="gi-edge__pulse" d={g.flowPath} pathLength={100} data-pulse={pulse} />
+      )}
+      {diff && (
+        <g
+          className="gi-edge__mark"
+          transform={`translate(${mark.x} ${mark.y})`}
+          data-mark={diff}
+          aria-hidden
+        >
+          <g className="gi-edge__mark-glyph">
+            <circle r={MARK_RADIUS} />
+            <path d={DIFF_MARK[diff]} />
+          </g>
+        </g>
       )}
     </g>
   );

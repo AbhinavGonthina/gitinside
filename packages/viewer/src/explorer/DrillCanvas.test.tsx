@@ -159,6 +159,7 @@ describe("DrillCanvas", () => {
       inner.length,
     );
     expect(canvas()?.style.getPropertyValue("--gi-name-scale")).toBe("1");
+    expect(canvas()?.style.getPropertyValue("--gi-mark-scale")).toBe("1");
     rerender(
       <DrillCanvas
         index={index}
@@ -172,6 +173,7 @@ describe("DrillCanvas", () => {
     // The host's style is kept beside the service names' scale.
     expect(canvas()?.style.transform).toBe("scale(0.3)");
     expect(canvas()?.style.getPropertyValue("--gi-name-scale")).toBe("2.86");
+    expect(canvas()?.style.getPropertyValue("--gi-mark-scale")).toBe("3.33");
     // Only the text fades: every box, line, and pill is still drawn.
     expect(document.querySelectorAll(".gi-drill__lines .gi-edge")).toHaveLength(view.edges.length);
     expect(document.querySelectorAll(".gi-drill__labels .gi-edge-label")).toHaveLength(

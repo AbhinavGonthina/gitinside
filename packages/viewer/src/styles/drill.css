@@ -178,6 +178,22 @@
   opacity: 0;
 }
 
+/*
+ * A diff line's glyph (M6.11g2) takes over from its fading pill below full
+ * detail, so added, changed, and removed lines differ by shape, not color
+ * alone (WCAG 1.4.1). A pill still drawn covers it; a broken line has its
+ * dashes and pill. --gi-mark-scale keeps it one size on screen.
+ */
+.gi-drill:is([data-detail="names"], [data-detail="outline"])
+  .gi-edge[data-diff]:not([data-broken])
+  .gi-edge__mark {
+  opacity: 1;
+}
+
+.gi-drill .gi-edge__mark-glyph {
+  transform: scale(var(--gi-mark-scale, 1));
+}
+
 .gi-drill[data-detail="outline"]
   .gi-node:not(
     [data-kind="service"],

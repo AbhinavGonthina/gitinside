@@ -169,6 +169,32 @@
 }
 
 /*
+ * The diff glyph (+, ~, −) on a disc of the line's color, under the label's
+ * point. Hidden while the label says the state in words; a zoomed-out canvas
+ * shows it once the labels fade (drill.css), so color is never the only cue.
+ */
+
+.gi-edge__mark {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-standard) var(--ease-standard);
+}
+
+.gi-edge__mark circle {
+  fill: var(--gi-edge-color);
+  stroke: var(--canvas);
+  stroke-width: 1.5px;
+}
+
+.gi-edge__mark path {
+  fill: none;
+  stroke: var(--canvas);
+  stroke-width: 1.75px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/*
  * State: traced (on the request path) and current (the hop the player is
  * on). The path is a plain trace line; the current hop is wider, haloed, and
  * its particles are larger, so it reads first wherever the whole path is lit.

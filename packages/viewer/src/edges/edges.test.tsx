@@ -3,7 +3,7 @@ import { composeStories } from "@storybook/react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { REASON_TEXT } from "../nodes/describe.js";
-import { DiagramEdge, EdgeLabel, FLOW_PARTICLES } from "./DiagramEdge.js";
+import { DiagramEdge, DIFF_MARK, EdgeLabel, FLOW_PARTICLES, MARK_RADIUS } from "./DiagramEdge.js";
 import {
   brokenText,
   CONFIDENCE_TEXT,
@@ -264,6 +264,29 @@ describe("DiagramEdge", () => {
     // Unlike particles, an unresolved hop pulses too: it's still where the request is.
     const unresolved = draw({ edge: edgeSampleOf("unresolved").edge, pulse: "forward" });
     expect(unresolved.querySelector(".gi-edge__pulse")).not.toBeNull();
+  });
+
+  it("marks a diff with a glyph besides its color, at the label's point unless told", () => {
+    expect(draw().querySelector(".gi-edge__mark")).toBeNull();
+    cleanup();
+    const glyphs = (["added", "changed", "removed"] as const).map((diff) => {
+      const mark = draw({ diff }).querySelector(".gi-edge__mark");
+      cleanup();
+      expect(mark?.getAttribute("aria-hidden")).toBe("true");
+      expect(mark?.getAttribute("data-mark")).toBe(diff);
+      expect(mark?.getAttribute("transform")).toBe("translate(50 0)");
+      expect(mark?.querySelector(".gi-edge__mark-glyph circle")?.getAttribute("r")).toBe(
+        String(MARK_RADIUS),
+      );
+      return mark?.querySelector(".gi-edge__mark-glyph path")?.getAttribute("d");
+    });
+    // Each state has its own shape (+, ~, −), so color is never the only cue.
+    expect(glyphs).toEqual([DIFF_MARK.added, DIFF_MARK.changed, DIFF_MARK.removed]);
+    expect(new Set(glyphs).size).toBe(3);
+    const placed = draw({ diff: "added", markAt: { x: 30.5, y: 12 } });
+    expect(placed.querySelector(".gi-edge__mark")?.getAttribute("transform")).toBe(
+      "translate(30.5 12)",
+    );
   });
 
   it("sets every state as a data attribute, and passes extra attributes through", () => {
