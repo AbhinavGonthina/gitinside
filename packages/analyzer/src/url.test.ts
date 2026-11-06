@@ -12,6 +12,7 @@ import {
   formatUrlPattern,
   joinBaseURL,
   leadingHoles,
+  originHoles,
   MAX_PATHS,
   patternParts,
   resolveKyBaseUrl,
@@ -217,8 +218,18 @@ describe("leadingHoles (M5A.3j)", () => {
     ["glued after a literal origin's path", [t("https://a.example.com/v1"), P()], [true]],
     ["the first segment after a base", [env("API"), t("/"), P()], [true]],
     ["the first segment of a root path", [t("/"), P()], [true]],
-    ["in the host", [t("https://"), P(), t("/x")], [true]],
-    ["in the port", [t("http://localhost:"), P(), t("/x")], [true]],
+    // Only the origin (M5C.10b): the path after it is fixed.
+    ["in the host", [t("https://"), P(), t("/x")], [false]],
+    ["in the port", [t("http://localhost:"), P(), t("/x")], [false]],
+    ["in a protocol-relative host", [t("//"), P(), t("/x")], [false]],
+    ["in a host's label", [t("https://api."), P(), t(".example.com/x")], [false]],
+    ["in a password", [t("https://u:"), P(), t("@h/x")], [false]],
+    ["a port, then a path glued to it", [t("http://localhost:"), P(), P()], [false, true]],
+    ["a host, then a path glued to it", [t("https://"), P(), P()], [false, true]],
+    ["a port, then the first segment", [t("http://h:"), P(), t("/"), P()], [false, true]],
+    ["glued to a literal host", [t("http://localhost"), P()], [true]],
+    ["glued to a literal port", [t("http://localhost:3000"), P()], [true]],
+    ["glued to an IPv6 host", [t("http://[::1]"), P()], [true]],
     ["a later segment", [env("API"), t("/conversation/"), P()], [false]],
     ["a later root-relative segment", [t("/api/posts/"), P()], [false]],
     ["a page-relative segment", [t("users/"), P()], [false]],
@@ -233,6 +244,31 @@ describe("leadingHoles (M5A.3j)", () => {
 
   it("ignores holes that aren't parameters", () => {
     expect(leadingHoles([H, t("/x/"), H]).size).toBe(0);
+  });
+});
+
+describe("originHoles (M5C.10b)", () => {
+  const P = (): UrlPart => ({ kind: "hole", param: true });
+  const origin = (parts: UrlPart[]): boolean[] => {
+    const found = originHoles(parts);
+    return parts.filter((p) => p.kind === "hole" && p.param).map((p) => found.has(p));
+  };
+
+  it.each<[string, UrlPart[], boolean[]]>([
+    ["the port", [t("http://127.0.0.1:"), P(), t("/api/health")], [true]],
+    ["the host", [t("https://"), P(), t("/x")], [true]],
+    ["a host, then a path glued to it", [t("https://"), P(), P()], [true, false]],
+    ["glued to a literal host", [t("http://localhost"), P()], [false]],
+    ["the whole URL", [P(), t("/x")], [false]],
+    ["after an env base", [env("API"), t(":"), P()], [false]],
+    ["in the path", [t("http://h/"), P()], [false]],
+    ["in the query", [t("http://h?x="), P()], [false]],
+  ])("%s", (_name, parts, expected) => {
+    expect(origin(parts)).toEqual(expected);
+  });
+
+  it("ignores holes that aren't parameters", () => {
+    expect(originHoles([t("http://h:"), H, t("/x")]).size).toBe(0);
   });
 });
 

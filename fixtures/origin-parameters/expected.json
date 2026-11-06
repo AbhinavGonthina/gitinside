@@ -1,0 +1,304 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:origin-parameters/src/dashboard.ts#boot",
+      "id": "calls:symbol:origin-parameters/src/dashboard.ts#boot->symbol:origin-parameters/src/probe.ts#latestReadings",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 23,
+          "file": "src/dashboard.ts",
+          "line": 6
+        }
+      ],
+      "to": "symbol:origin-parameters/src/probe.ts#latestReadings"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:origin-parameters/src/dashboard.ts#boot",
+      "id": "calls:symbol:origin-parameters/src/dashboard.ts#boot->symbol:origin-parameters/src/probe.ts#readStation",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 23,
+          "file": "src/dashboard.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:origin-parameters/src/probe.ts#readStation"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:origin-parameters/src/dashboard.ts#boot",
+      "id": "calls:symbol:origin-parameters/src/dashboard.ts#boot->symbol:origin-parameters/src/probe.ts#waitForStation",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 9,
+          "file": "src/dashboard.ts",
+          "line": 4
+        }
+      ],
+      "to": "symbol:origin-parameters/src/probe.ts#waitForStation"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:origin-parameters/src/probe.ts#latestReadings",
+      "id": "calls:symbol:origin-parameters/src/probe.ts#latestReadings->symbol:origin-parameters/src/probe.ts#readStation",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 49,
+          "file": "src/probe.ts",
+          "line": 21
+        }
+      ],
+      "to": "symbol:origin-parameters/src/probe.ts#readStation"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:origin-parameters/src/probe.ts#waitForStation",
+      "id": "calls:symbol:origin-parameters/src/probe.ts#waitForStation->symbol:origin-parameters/src/probe.ts#stationUp",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 23,
+          "file": "src/probe.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:origin-parameters/src/probe.ts#stationUp"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:origin-parameters/src/dashboard.ts#boot",
+      "id": "http:symbol:origin-parameters/src/dashboard.ts#boot->route:origin-parameters/GET /api/readings",
+      "kind": "http",
+      "label": "GET /api/readings",
+      "sites": [
+        {
+          "column": 23,
+          "file": "src/dashboard.ts",
+          "line": 5,
+          "request": "GET http://localhost:{}/api/readings"
+        }
+      ],
+      "to": "route:origin-parameters/GET /api/readings"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:origin-parameters/src/probe.ts#latestReadings",
+      "id": "http:symbol:origin-parameters/src/probe.ts#latestReadings->route:origin-parameters/GET /api/readings",
+      "kind": "http",
+      "label": "GET /api/readings",
+      "sites": [
+        {
+          "column": 49,
+          "file": "src/probe.ts",
+          "line": 21,
+          "request": "GET http://localhost:{}/api/readings"
+        }
+      ],
+      "to": "route:origin-parameters/GET /api/readings"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:origin-parameters/src/probe.ts#stationUp",
+      "id": "http:symbol:origin-parameters/src/probe.ts#stationUp->route:origin-parameters/GET /api/health",
+      "kind": "http",
+      "label": "GET /api/health",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/probe.ts",
+          "line": 3,
+          "request": "GET http://127.0.0.1:{}/api/health"
+        }
+      ],
+      "to": "route:origin-parameters/GET /api/health"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:origin-parameters/src/dashboard.ts",
+      "id": "imports:file:origin-parameters/src/dashboard.ts->file:origin-parameters/src/probe.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 61,
+          "file": "src/dashboard.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:origin-parameters/src/probe.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "f4394947fc6376ebbcdcf9536fb9ccebb72a7e5485d6bbc8ebf9aeb505b380aa",
+      "id": "file:origin-parameters/src/dashboard.ts",
+      "kind": "file",
+      "label": "dashboard.ts",
+      "parentId": "module:origin-parameters/src",
+      "path": "src/dashboard.ts"
+    },
+    {
+      "hash": "d3af4bf04a9ae480afa7ace0920be9bec34df6305e788536951c2f47a1c04de3",
+      "id": "file:origin-parameters/src/probe.ts",
+      "kind": "file",
+      "label": "probe.ts",
+      "parentId": "module:origin-parameters/src",
+      "path": "src/probe.ts"
+    },
+    {
+      "hash": "c64ce069a4288583fc2d28265c7e061391e322229712f1df7d9ee48fcdaae991",
+      "id": "file:origin-parameters/src/station.ts",
+      "kind": "file",
+      "label": "station.ts",
+      "parentId": "module:origin-parameters/src",
+      "path": "src/station.ts"
+    },
+    {
+      "id": "module:origin-parameters/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:origin-parameters/",
+      "path": "src"
+    },
+    {
+      "id": "route:origin-parameters/GET /api/health",
+      "kind": "route",
+      "label": "GET /api/health",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:origin-parameters/src/station.ts",
+      "path": "/api/health",
+      "source": {
+        "column": 9,
+        "file": "src/station.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:origin-parameters/GET /api/readings",
+      "kind": "route",
+      "label": "GET /api/readings",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:origin-parameters/src/station.ts",
+      "path": "/api/readings",
+      "source": {
+        "column": 9,
+        "file": "src/station.ts",
+        "line": 9
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:origin-parameters/",
+      "kind": "service",
+      "label": "origin-parameters",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:origin-parameters/src/dashboard.ts#boot",
+      "kind": "symbol",
+      "label": "boot",
+      "parentId": "file:origin-parameters/src/dashboard.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 8,
+        "file": "src/dashboard.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:origin-parameters/src/probe.ts#latestReadings",
+      "kind": "symbol",
+      "label": "latestReadings",
+      "parentId": "file:origin-parameters/src/probe.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 21,
+        "file": "src/probe.ts",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:origin-parameters/src/probe.ts#readStation",
+      "kind": "symbol",
+      "label": "readStation",
+      "parentId": "file:origin-parameters/src/probe.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "src/probe.ts",
+        "line": 17
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:origin-parameters/src/probe.ts#stationUp",
+      "kind": "symbol",
+      "label": "stationUp",
+      "parentId": "file:origin-parameters/src/probe.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 4,
+        "file": "src/probe.ts",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:origin-parameters/src/probe.ts#waitForStation",
+      "kind": "symbol",
+      "label": "waitForStation",
+      "parentId": "file:origin-parameters/src/probe.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "src/probe.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "origin-parameters",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "origin-parameters",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
