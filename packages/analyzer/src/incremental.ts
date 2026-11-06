@@ -92,13 +92,19 @@ export interface FactKeys {
 export const KEY_FORMAT = 34;
 
 /**
- * The SHA-256 of the entries a cold analysis of every fixture stores, at this
- * {@link KEY_FORMAT} (`keyFormat.test.ts`, M6.11f). A change that alters them fails that test
- * until `KEY_FORMAT` is bumped and this is set to the digest it prints. A new fixture changes
- * it too: it usually comes with a change to the facts, and a needless bump only costs misses.
- * A change that alters entries only for code no fixture has still needs a bump by hand.
+ * The SHA-256 of the entries a cold analysis of every fixture stores, per {@link KEY_FORMAT}
+ * since the guard began (`keyFormat.test.ts`, M6.11f). A change that alters them fails that
+ * test until `KEY_FORMAT` is bumped and the digest it prints is added under the new format.
+ * The test also fails if the newest entry isn't `KEY_FORMAT`'s or two formats share a digest,
+ * so a digest added without a bump, or an old format's entries coming back, is caught (M6
+ * review R3). Entries are append-only: never change one. A new fixture changes the digest too:
+ * it usually comes with a change to the facts, and a needless bump only costs misses. A change
+ * that alters entries only for code no fixture has still needs a bump by hand.
  */
-export const FACTS_DIGEST = "50b447482ae47e42dc61ee5ec23c6380721faeb833489b78dd7a79226e15a176";
+export const FACTS_DIGESTS: Readonly<Record<number, string>> = {
+  33: "bfa4370095adca585bdb0e0c7ee1879f5d61b110442a7c101ffa957fd36d8770",
+  34: "50b447482ae47e42dc61ee5ec23c6380721faeb833489b78dd7a79226e15a176",
+};
 
 /** The {@link EntryUse} of an inputs part entry: shared by the service entries naming it. */
 const SHARED: EntryUse = { shared: true };
