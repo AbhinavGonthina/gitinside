@@ -117,6 +117,57 @@ test("switching Base, Head, and Overlay moves no box and fades the rest in place
   expect(await places(page)).toEqual(before);
 });
 
+/** Each broken line's look, and its pill's opacity, on a story opened at `detail` under reduced motion. */
+async function brokenLines(page: Page, story: string, detail: "names" | "outline") {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(`/iframe.html?id=explorer-explorer--${story}&viewMode=story&globals=theme:dark`);
+  await expect(
+    page.locator(`.gi-drill[data-layout="done"][data-detail="${detail}"]:not([aria-busy])`),
+  ).toHaveCount(1);
+  // Past every fade (the duration tokens are 0ms under reduced motion anyway).
+  await page.waitForTimeout(300);
+  const lines = await page.evaluate(() =>
+    [...document.querySelectorAll<SVGGElement>(".gi-drill .gi-edge[data-broken]")].map((g) => {
+      const mark = g.querySelector(".gi-edge__mark");
+      return {
+        line: getComputedStyle(g).opacity,
+        pulse: getComputedStyle(g.querySelector(".gi-edge__line") ?? g).animationName,
+        mark: mark?.getAttribute("data-mark"),
+        shown: mark ? getComputedStyle(mark).opacity : "",
+      };
+    }),
+  );
+  const pills = await page.evaluate(() =>
+    [...document.querySelectorAll(".gi-drill .gi-edge-label[data-broken]")].map(
+      (p) => getComputedStyle(p).opacity,
+    ),
+  );
+  expect(lines.length, `broken lines drawn at ${detail}`).toBeGreaterThan(0);
+  expect(pills).toHaveLength(lines.length);
+  return { lines, pills };
+}
+
+test("at outline under reduced motion, a broken line still shows a shape, not only its color (M6.11l)", async ({
+  page,
+}) => {
+  const { lines, pills } = await brokenLines(page, "diff-outline", "outline");
+  for (const l of lines) {
+    expect(l).toEqual({ line: "1", pulse: "none", mark: "broken", shown: "1" });
+  }
+  // Every broken pill has faded like the rest: the glyph is the cue left.
+  expect(new Set(pills)).toEqual(new Set(["0"]));
+});
+
+test("at names detail, a broken line says so in its pill, with no glyph showing around it (M6.11l)", async ({
+  page,
+}) => {
+  // The glyph keeps one size on screen, so it would stick out of a pill drawn at 40%.
+  const { lines, pills } = await brokenLines(page, "diff-zoomed-out", "names");
+  for (const l of lines)
+    expect(l).toEqual({ line: "1", pulse: "none", mark: "broken", shown: "0" });
+  expect(new Set(pills)).toEqual(new Set(["1"]));
+});
+
 test("under reduced motion, what a version lacks is gone at once", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await open(page);

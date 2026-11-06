@@ -289,6 +289,22 @@ describe("DiagramEdge", () => {
     );
   });
 
+  it("marks a broken line with a glyph of its own, over its diff state (M6.11l, WCAG 1.4.1)", () => {
+    // Broken whatever its diff state, or with none (an unchanged edge whose call broke).
+    for (const diff of [undefined, "removed", "changed"] as const) {
+      const mark = draw({ diff, broken: "Route removed in this PR" }).querySelector(
+        ".gi-edge__mark",
+      );
+      cleanup();
+      expect(mark?.getAttribute("data-mark")).toBe("broken");
+      expect(mark?.querySelector(".gi-edge__mark-glyph path")?.getAttribute("d")).toBe(
+        DIFF_MARK.broken,
+      );
+    }
+    // A shape apart from removed's minus, though both are red.
+    expect(new Set(Object.values(DIFF_MARK)).size).toBe(4);
+  });
+
   it("sets every state as a data attribute, and passes extra attributes through", () => {
     const g = draw({
       hovered: true,

@@ -1452,6 +1452,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "DiffBrokenDown",
       "DiffChangePicked",
       "DiffHead",
+      "DiffOutline",
       "DiffRenamedBase",
       "DiffZoomedOut",
       "DrilledDeep",
@@ -1534,8 +1535,17 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     await settle();
     const marks = [...zoomed.container.querySelectorAll(".gi-edge__mark")];
     expect(new Set(marks.map((m) => m.getAttribute("data-mark")))).toEqual(
-      new Set(["added", "changed", "removed"]),
+      new Set(["added", "broken", "changed", "removed"]),
     );
+    cleanup();
+    // At outline (M6.11l), broken lines keep their glyph; the visual suite
+    // checks it's drawn under reduced motion, where they don't pulse.
+    const outline = render(<all.DiffOutline />);
+    await settle();
+    expect(
+      outline.container.querySelectorAll('.gi-edge[data-broken] .gi-edge__mark[data-mark="broken"]')
+        .length,
+    ).toBeGreaterThan(0);
     cleanup();
 
     // Head and Base (M6.9c2), switched by each story's play.

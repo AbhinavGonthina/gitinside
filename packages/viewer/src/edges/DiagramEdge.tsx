@@ -18,15 +18,22 @@ export const FLOW_PARTICLES = 2;
 /** The diff glyph's disc radius, in pixels before `--gi-mark-scale`. */
 export const MARK_RADIUS = 6;
 
+/** What a line's glyph says: its diff state, or that it's broken. */
+export type EdgeMark = NodeDiff | "broken";
+
 /**
- * Each diff state's glyph, centered on 0 0 inside the disc: a plus, a tilde,
- * a minus. A shape per state, so a zoomed-out line whose pill has faded
- * doesn't say its state by color alone (WCAG 1.4.1, M6.11g2).
+ * Each glyph, centered on 0 0 inside the disc: a plus, a tilde, a minus, and
+ * a cross for a broken line. A shape per state, so a zoomed-out line whose
+ * pill has faded doesn't say its state by color alone (WCAG 1.4.1, M6.11g2).
+ * Broken and removed lines are both red, so the cross is what tells them
+ * apart, and a broken line from a dashed one once reduced motion stops its
+ * pulse (M6.11l).
  */
-export const DIFF_MARK: Readonly<Record<NodeDiff, string>> = {
+export const DIFF_MARK: Readonly<Record<EdgeMark, string>> = {
   added: "M -3 0 H 3 M 0 -3 V 3",
   changed: "M -3.5 0.75 C -2.5 -1.25 -1 -1.25 0 0 S 2.5 1.25 3.5 -0.75",
   removed: "M -3 0 H 3",
+  broken: "M -2.5 -2.5 L 2.5 2.5 M 2.5 -2.5 L -2.5 2.5",
 };
 
 /** State as data attributes, shared by the line and its label so they style together. */
@@ -75,8 +82,9 @@ export interface DiagramEdgeProps
  * target (an open chevron when unresolved), and the source's layer colors
  * the line. States are data attributes styled in `styles/edges.css`.
  *
- * A line in a diff also carries its state's glyph ({@link DIFF_MARK}) at
- * `markAt`, under where its label sits. It's hidden while the label shows
+ * A line in a diff also carries its state's glyph ({@link DIFF_MARK}; a
+ * broken line's own, whatever its diff state) at `markAt`, under where its
+ * label sits. It's hidden while the label shows
  * (the label says the state in words) and drawn once a zoomed-out canvas
  * fades the labels (`styles/drill.css`).
  *
@@ -104,6 +112,7 @@ export function DiagramEdge({
   const state = { hovered, selected, emphasis, diff, broken };
   const g = edgeGeometry(points);
   const mark = markAt ?? g.mid;
+  const marked: EdgeMark | undefined = broken ? "broken" : diff;
   const unresolved = edge.confidence === "unresolved";
   return (
     <g
@@ -141,16 +150,16 @@ export function DiagramEdge({
         // pathLength 100: the dash and its travel are percentages of the line, whatever its length.
         <path className="gi-edge__pulse" d={g.flowPath} pathLength={100} data-pulse={pulse} />
       )}
-      {diff && (
+      {marked && (
         <g
           className="gi-edge__mark"
           transform={`translate(${mark.x} ${mark.y})`}
-          data-mark={diff}
+          data-mark={marked}
           aria-hidden
         >
           <g className="gi-edge__mark-glyph">
             <circle r={MARK_RADIUS} />
-            <path d={DIFF_MARK[diff]} />
+            <path d={DIFF_MARK[marked]} />
           </g>
         </g>
       )}

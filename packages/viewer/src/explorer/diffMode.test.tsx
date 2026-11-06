@@ -162,13 +162,15 @@ describe("Explorer diff mode", { timeout: 30_000 }, () => {
     const states = new Set<string>();
     lines.forEach((line, i) => {
       const diff = line.getAttribute("data-diff");
+      // A broken line's glyph is its own (M6.11l), whatever its diff state.
+      const state = line.hasAttribute("data-broken") ? "broken" : diff;
       const mark = line.querySelector(".gi-edge__mark");
-      if (!diff) {
+      if (!state) {
         expect(mark).toBeNull();
         return;
       }
-      states.add(diff);
-      expect(mark?.getAttribute("data-mark")).toBe(diff);
+      states.add(state);
+      expect(mark?.getAttribute("data-mark")).toBe(state);
       // Lines and pills are drawn in the same order; the glyph hides under the pill.
       const pill = pills[i] as HTMLElement;
       expect(pill.getAttribute("data-diff")).toBe(diff);
@@ -176,7 +178,7 @@ describe("Explorer diff mode", { timeout: 30_000 }, () => {
         `translate(${parseFloat(pill.style.left)} ${parseFloat(pill.style.top)})`,
       );
     });
-    expect([...states].sort(compareStrings)).toEqual(["added", "changed", "removed"]);
+    expect([...states].sort(compareStrings)).toEqual(["added", "broken", "changed", "removed"]);
   });
 
   it("draws broken connections dashed red with the diff's words, and many as a count", async () => {
