@@ -1,0 +1,119 @@
+{
+  "repo": "dotnize/chessu",
+  "sha": "29968f023da244d6ae1ff10c09577b1b5d53c123",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["client", "server"],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/lib/auth.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 7,
+        "route": "GET /v1/auth"
+      },
+      "notes": "fetchSession(): fetch(`${API_URL}/v1/auth`) with no method (GET). API_URL (client/src/config.ts) = NEXT_PUBLIC_API_URL || \"http://localhost:3001\" = server/src/server.ts's PORT fallback 3001 (CONTRIBUTING.md's example env also gives http://localhost:3001 and PORT=3001; no .env.example). server.ts mounts routes at /v1; routes/index.ts mounts auth at /auth; router.route(\"/\").get(...).patch(...) chain on one line"
+    },
+    {
+      "callSite": { "file": "client/src/lib/auth.ts", "line": 21 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 10,
+        "route": "POST /v1/auth/guest"
+      },
+      "notes": "setGuestSession(): fetch(`${API_URL}/v1/auth/guest`, { method: \"POST\" }); router.route(\"/guest\").post(controller.guestSession)"
+    },
+    {
+      "callSite": { "file": "client/src/lib/auth.ts", "line": 40 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 14,
+        "route": "POST /v1/auth/register"
+      },
+      "notes": "register(): fetch(`${API_URL}/v1/auth/register`, { method: \"POST\" }); router.route(\"/register\").post(controller.registerUser)"
+    },
+    {
+      "callSite": { "file": "client/src/lib/auth.ts", "line": 62 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 15,
+        "route": "POST /v1/auth/login"
+      },
+      "notes": "login(): fetch(`${API_URL}/v1/auth/login`, { method: \"POST\" }); router.route(\"/login\").post(controller.loginUser)"
+    },
+    {
+      "callSite": { "file": "client/src/lib/auth.ts", "line": 84 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 12,
+        "route": "POST /v1/auth/logout"
+      },
+      "notes": "logout(): fetch(`${API_URL}/v1/auth/logout`, { method: \"POST\" }); router.route(\"/logout\").post(controller.logoutSession)"
+    },
+    {
+      "callSite": { "file": "client/src/lib/auth.ts", "line": 99 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/routes/auth.route.ts",
+        "line": 7,
+        "route": "PATCH /v1/auth"
+      },
+      "notes": "updateUser(): fetch(`${API_URL}/v1/auth/`, { method: \"PATCH\" }); the trailing slash is dropped (Express isn't strict, so /v1/auth/ reaches router.route(\"/\")); the .patch(controller.updateUser) in the chain on line 7"
+    },
+    {
+      "callSite": { "file": "client/src/lib/game.ts", "line": 6 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/games.route.ts",
+        "line": 7,
+        "route": "POST /v1/games"
+      },
+      "notes": "createGame(): fetch(`${API_URL}/v1/games`, { method: \"POST\" }); routes/index.ts mounts games at /games under /v1; router.route(\"/\").get(...).post(controller.createGame) chain on one line"
+    },
+    {
+      "callSite": { "file": "client/src/lib/game.ts", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/games.route.ts",
+        "line": 9,
+        "route": "GET /v1/games/:code"
+      },
+      "notes": "fetchActiveGame(code): fetch(`${API_URL}/v1/games/${code}`) with no method (GET); router.route(\"/:code\").get(controller.getActiveGame)"
+    },
+    {
+      "callSite": { "file": "client/src/lib/game.ts", "line": 40 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/games.route.ts",
+        "line": 7,
+        "route": "GET /v1/games"
+      },
+      "notes": "fetchPublicGames(): fetch(`${API_URL}/v1/games`) with no method (GET); the .get(controller.getGames) in router.route(\"/\")'s chain"
+    },
+    {
+      "callSite": { "file": "client/src/lib/game.ts", "line": 60 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/games.route.ts",
+        "line": 7,
+        "route": "GET /v1/games"
+      },
+      "notes": "fetchArchivedGame(): fetch(url) where let url = `${API_URL}/v1/games?` and then += `id=${id}` or `userid=${userid}`; both branches only add the query (dropped), so one route: router.route(\"/\").get(controller.getGames), which reads req.query.id / req.query.userid"
+    },
+    {
+      "callSite": { "file": "client/src/lib/user.ts", "line": 7 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/users.route.ts",
+        "line": 6,
+        "route": "GET /v1/users/:name"
+      },
+      "notes": "fetchProfileData(name): fetch(`${API_URL}/v1/users/${name}`) with no method (GET); routes/index.ts mounts users at /users under /v1; router.route(\"/:name\").get(controller.getUserProfile)"
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+{
+  "repo": "DOodle25/SyncUP",
+  "sha": "4a4e989e3ee3b54c7794148da8e96c1d8ce5c589",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["SyncUpBackend", "SyncUpFrontend", "Update"],
+  "edges": [
+    {
+      "callSite": { "file": "SyncUpFrontend/src/App.jsx", "line": 67 },
+      "method": "GET",
+      "target": {
+        "file": "SyncUpBackend/routes/channelRoutes.js",
+        "line": 43,
+        "route": "GET /api/channels"
+      },
+      "notes": "fetchChannels(): axios.get(\"http://localhost:5000/api/channels\", { params: { userId } }); literal host = SyncUpBackend/server.js PORT fallback 5000 (SyncUpBackend/.env sets no PORT). server.js mounts channelRoutes at /api/channels; router.get('/'). Query params dropped"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/App.jsx", "line": 115 },
+      "method": "GET",
+      "target": {
+        "file": "SyncUpBackend/routes/channelRoutes.js",
+        "line": 73,
+        "route": "GET /api/channels/:channelId/messages"
+      },
+      "notes": "fetchMessages() polled every 5 s: axios.get(`http://localhost:5000/api/channels/${selectedChannel}/messages`); router.get('/:channelId/messages') under the /api/channels mount (not junk/messageRoutes.js, whose /api/messages mount is commented out). The identical request in the commented-out block at line 93 isn't code, so not labeled"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/components/ChannelList.jsx", "line": 36 },
+      "method": "GET",
+      "target": {
+        "file": "SyncUpBackend/routes/channelRoutes.js",
+        "line": 80,
+        "route": "GET /api/channels/invitations"
+      },
+      "notes": "fetchInvitations(): axios.get(\"http://localhost:5000/api/channels/invitations\", { params: { email } }); router.get(\"/invitations\") under /api/channels. The earlier GET '/:channelId/messages' needs two segments, so it can't take this path. Query dropped"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/components/ChannelList.jsx", "line": 54 },
+      "method": "PUT",
+      "target": {
+        "file": "SyncUpBackend/routes/channelRoutes.js",
+        "line": 81,
+        "route": "PUT /api/channels/invitations/:invitationId/accept"
+      },
+      "notes": "handleAcceptInvite(): axios.put(`http://localhost:5000/api/channels/invitations/${invitationId}/accept`, {}); router.put(\"/invitations/:invitationId/accept\") under /api/channels"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/components/ChannelList.jsx", "line": 70 },
+      "method": "DELETE",
+      "target": null,
+      "notes": "handleDeclineInvite(): axios.delete(`http://localhost:5000/api/channels/invitations/${invitationId}/decline`), but the server registers that path only for PUT (channelRoutes.js line 82, router.put(\"/invitations/:invitationId/decline\")); no DELETE route matches, so Express answers 404"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/components/CreateChannelDialog.jsx", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "SyncUpBackend/routes/channelRoutes.js",
+        "line": 53,
+        "route": "POST /api/channels"
+      },
+      "notes": "handleCreateChannel(): axios.post(\"http://localhost:5000/api/channels\", { name, inviteEmails }); router.post('/') under /api/channels"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/components/MessageInput.jsx", "line": 31 },
+      "method": "POST",
+      "target": {
+        "file": "SyncUpBackend/routes/channelRoutes.js",
+        "line": 74,
+        "route": "POST /api/channels/:channelId/messages"
+      },
+      "notes": "handleSendMessage(): axios.post(`http://localhost:5000/api/channels/${selectedChannel}/messages`, { message }); router.post('/:channelId/messages', authenticate, postMessage) under /api/channels"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/components/MessageInput.jsx", "line": 53 },
+      "method": "POST",
+      "target": {
+        "file": "SyncUpBackend/routes/channelRoutes.js",
+        "line": 79,
+        "route": "POST /api/channels/:channelId/invite"
+      },
+      "notes": "handleInviteUsers(): axios.post(`http://localhost:5000/api/channels/${selectedChannel}/invite`, { invitedUserEmail }); router.post(\"/:channelId/invite\") under /api/channels"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/features/auth/sign-in-card.jsx", "line": 30 },
+      "method": "POST",
+      "target": {
+        "file": "SyncUpBackend/routes/authRoutes.js",
+        "line": 8,
+        "route": "POST /api/auth/signin"
+      },
+      "notes": "handleSubmit(): axios.post('http://localhost:5000/api/auth/signin', formData); server.js mounts authRoutes at /api/auth; router.post('/signin')"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/features/auth/sign-up-card.jsx", "line": 36 },
+      "method": "POST",
+      "target": {
+        "file": "SyncUpBackend/routes/authRoutes.js",
+        "line": 6,
+        "route": "POST /api/auth/register-otp"
+      },
+      "notes": "handleRequestOtp(): axios.post(\"http://localhost:5000/api/auth/register-otp\", { email }); router.post('/register-otp') under /api/auth"
+    },
+    {
+      "callSite": { "file": "SyncUpFrontend/src/features/auth/sign-up-card.jsx", "line": 56 },
+      "method": "POST",
+      "target": {
+        "file": "SyncUpBackend/routes/authRoutes.js",
+        "line": 7,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "handleSubmit(): axios.post(\"http://localhost:5000/api/auth/register\", formData); router.post('/register') under /api/auth"
+    },
+    {
+      "callSite": { "file": "Update/Client/layouts/HomeSubLayout.jsx", "line": 130 },
+      "method": "POST",
+      "target": {
+        "file": "Update/Server/routes/workspace.routes.js",
+        "line": 7,
+        "route": "POST /workspaces/coworkers"
+      },
+      "notes": "axios (line 130) .post(\"http://localhost:3000/workspaces/coworkers\", { workspaceId }) chained on line 131. Port 3000 is Update/Server (app.js: server.listen(3000)); SyncUpBackend listens on 5000. Update/Server/server.js mounts workspaceRouter at /workspaces; workspaceRouter.post(\"/coworkers\")"
+    },
+    {
+      "callSite": { "file": "Update/Client/src/components/ChannelList.jsx", "line": 14 },
+      "method": "POST",
+      "target": {
+        "file": "Update/Server/routes/channel.routes.js",
+        "line": 9,
+        "route": "POST /channels/channels"
+      },
+      "notes": "axios (line 14) .post(\"http://localhost:3000/channels/channels\", { workspaceId }) chained on line 15; Update/Server on port 3000 mounts channelRouter at /channels; channelRouter.post(\"/channels\")"
+    },
+    {
+      "callSite": { "file": "Update/Client/src/components/ContextProvider.jsx", "line": 19 },
+      "method": "GET",
+      "target": {
+        "file": "Update/Server/routes/workspace.routes.js",
+        "line": 6,
+        "route": "GET /workspaces"
+      },
+      "notes": "axios (line 19) .get(\"http://localhost:3000/workspaces\") chained on line 20; workspaceRouter.get(\"/\") under the /workspaces mount of Update/Server (port 3000)"
+    },
+    {
+      "callSite": { "file": "Update/Client/src/components/ContextProvider.jsx", "line": 25 },
+      "method": "GET",
+      "target": {
+        "file": "Update/Server/routes/channel.routes.js",
+        "line": 10,
+        "route": "GET /channels"
+      },
+      "notes": "nested in the workspaces request's .then: axios (line 25) .get(\"http://localhost:3000/channels\") chained on line 26; channelRouter.get(\"/\") under /channels"
+    },
+    {
+      "callSite": { "file": "Update/Client/src/components/ContextProvider.jsx", "line": 33 },
+      "method": "POST",
+      "target": {
+        "file": "Update/Server/routes/message.routes.js",
+        "line": 6,
+        "route": "POST /messages"
+      },
+      "notes": "nested in the channels request's .then: axios (line 33) .post(\"http://localhost:3000/messages\", { channels }) chained on line 34; Update/Server/server.js mounts messageRouter at /messages; messageRouter.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "Update/Client/src/components/CreateWorkspace.jsx", "line": 15 },
+      "method": "POST",
+      "target": {
+        "file": "Update/Server/routes/auth.routes.js",
+        "line": 7,
+        "route": "POST /auth/signup"
+      },
+      "notes": "handleCreateWorkspace(): axios.post(\"http://localhost:3000/auth/signup\", { email, name, workspace }); Update/Server mounts authRouter at /auth; authRouter.post(\"/signup\")"
+    },
+    {
+      "callSite": { "file": "Update/Client/src/components/Signin.jsx", "line": 20 },
+      "method": "POST",
+      "target": { "file": "Update/Server/routes/auth.routes.js", "line": 8, "route": "POST /auth" },
+      "notes": "axios.post(\"http://localhost:3000/auth\", { email }); authRouter.post(\"/\") under the /auth mount"
+    },
+    {
+      "callSite": { "file": "Update/Client/src/components/Signup.jsx", "line": 19 },
+      "method": "POST",
+      "target": { "file": "Update/Server/routes/auth.routes.js", "line": 8, "route": "POST /auth" },
+      "notes": "same request as Signin.jsx: axios.post(\"http://localhost:3000/auth\", { email }); authRouter.post(\"/\") under /auth"
+    },
+    {
+      "callSite": { "file": "Update/Client/src/components/VerifyOtp.jsx", "line": 35 },
+      "method": "POST",
+      "target": {
+        "file": "Update/Server/routes/auth.routes.js",
+        "line": 6,
+        "route": "POST /auth/verify-otp"
+      },
+      "notes": "performVerification(): axios.post(\"http://localhost:3000/auth/verify-otp\", { email, code }); authRouter.post(\"/verify-otp\") under /auth"
+    }
+  ]
+}

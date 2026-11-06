@@ -1,0 +1,169 @@
+{
+  "repo": "elyse502/ecommerce-app",
+  "sha": "93271928b597b02dd3973a8ef3d9cb28a6f081bd",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["admin", "backend", "frontend"],
+  "edges": [
+    {
+      "callSite": { "file": "admin/src/components/Login.jsx", "line": 13 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 12,
+        "route": "POST /api/user/admin"
+      },
+      "notes": "axios.post(backendUrl + \"/api/user/admin\", { email, password }). backendUrl is admin/src/App.jsx's export import.meta.env.VITE_BACKEND_URL, no in-code fallback; the committed admin/.env sets it to http://localhost:4000 = backend/server.js's PORT || 4000. server.js mounts userRouter at /api/user; userRouter.post(\"/admin\")"
+    },
+    {
+      "callSite": { "file": "admin/src/pages/Add.jsx", "line": 40 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/productRoute.js",
+        "line": 13,
+        "route": "POST /api/product/add"
+      },
+      "notes": "axios.post( on line 40, URL backendUrl + \"/api/product/add\" on line 41 (multipart FormData, token header); base http://localhost:4000 from admin/.env. productRouter mounted at /api/product; the multi-line productRouter.post(\"/add\", adminAuth, upload.fields(…), addProduct) starts on line 13"
+    },
+    {
+      "callSite": { "file": "admin/src/pages/List.jsx", "line": 11 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/productRoute.js",
+        "line": 26,
+        "route": "GET /api/product/list"
+      },
+      "notes": "fetchList(): axios.get(backendUrl + \"/api/product/list\"); base http://localhost:4000. productRouter.get(\"/list\") under /api/product"
+    },
+    {
+      "callSite": { "file": "admin/src/pages/List.jsx", "line": 26 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/productRoute.js",
+        "line": 24,
+        "route": "POST /api/product/remove"
+      },
+      "notes": "removeProduct(): axios.post( with backendUrl + \"/api/product/remove\" on the next line; the app deletes with POST, and productRouter.post(\"/remove\", adminAuth, removeProduct) under /api/product serves it"
+    },
+    {
+      "callSite": { "file": "admin/src/pages/Orders.jsx", "line": 16 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/orderRoute.js",
+        "line": 16,
+        "route": "POST /api/order/list"
+      },
+      "notes": "fetchAllOrders(): axios.post( with backendUrl + \"/api/order/list\", {} on the next lines (a read sent as POST); orderRouter mounted at /api/order; orderRouter.post(\"/list\", adminAuth, allOrders)"
+    },
+    {
+      "callSite": { "file": "admin/src/pages/Orders.jsx", "line": 34 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/orderRoute.js",
+        "line": 17,
+        "route": "POST /api/order/status"
+      },
+      "notes": "statusHandler(): axios.post( with backendUrl + \"/api/order/status\" on the next line; orderRouter.post(\"/status\", adminAuth, updateStatus) under /api/order"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/ShopContext.jsx", "line": 41 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/cartRoute.js",
+        "line": 12,
+        "route": "POST /api/cart/add"
+      },
+      "notes": "addToCart(): await axios.post( with backendUrl + \"/api/cart/add\" on line 42. backendUrl = import.meta.env.VITE_BACKEND_URL (line 11), no in-code fallback; the committed frontend/.env sets http://localhost:4000 = server.js's PORT || 4000. cartRouter mounted at /api/cart; cartRouter.post(\"/add\", authUser, addToCart)"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/ShopContext.jsx", "line": 77 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/cartRoute.js",
+        "line": 13,
+        "route": "POST /api/cart/update"
+      },
+      "notes": "updateQuantity(): await axios.post( with backendUrl + \"/api/cart/update\" on line 78; cartRouter.post(\"/update\") under /api/cart"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/ShopContext.jsx", "line": 107 },
+      "method": "GET",
+      "target": {
+        "file": "backend/routes/productRoute.js",
+        "line": 26,
+        "route": "GET /api/product/list"
+      },
+      "notes": "getProductsData(): axios.get(backendUrl + \"/api/product/list\"); productRouter.get(\"/list\") under /api/product"
+    },
+    {
+      "callSite": { "file": "frontend/src/context/ShopContext.jsx", "line": 123 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/cartRoute.js",
+        "line": 11,
+        "route": "POST /api/cart/get"
+      },
+      "notes": "getUserCart(token): axios.post( with backendUrl + \"/api/cart/get\", {} on the next lines (a read sent as POST); cartRouter.post(\"/get\", authUser, getUserCart) under /api/cart"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Login.jsx", "line": 19 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 10,
+        "route": "POST /api/user/register"
+      },
+      "notes": "Sign Up branch: axios.post(backendUrl + \"/api/user/register\", …); backendUrl comes from ShopContext's value (import.meta.env.VITE_BACKEND_URL = http://localhost:4000 per frontend/.env). userRouter.post(\"/register\") under /api/user"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Login.jsx", "line": 33 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/userRoute.js",
+        "line": 11,
+        "route": "POST /api/user/login"
+      },
+      "notes": "Login branch: axios.post(backendUrl + \"/api/user/login\", …); userRouter.post(\"/login\") under /api/user"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Orders.jsx", "line": 17 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/orderRoute.js",
+        "line": 24,
+        "route": "POST /api/order/userorders"
+      },
+      "notes": "loadorderData(): axios.post( with backendUrl + \"/api/order/userorders\" on the next line; backendUrl from ShopContext. orderRouter.post(\"/userorders\", authUser, userOrders) under /api/order"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/PlaceOrder.jsx", "line": 70 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/orderRoute.js",
+        "line": 20,
+        "route": "POST /api/order/place"
+      },
+      "notes": "case \"cod\": axios.post( with backendUrl + \"/api/order/place\" on line 71; orderRouter.post(\"/place\", authUser, placeOrder) under /api/order"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/PlaceOrder.jsx", "line": 85 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/orderRoute.js",
+        "line": 21,
+        "route": "POST /api/order/stripe"
+      },
+      "notes": "case \"stripe\": axios.post( with backendUrl + \"/api/order/stripe\" on line 86; orderRouter.post(\"/stripe\", authUser, placeOrderStripe). The window.location.replace(session_url) to Stripe's checkout page at line 92 is a navigation, not labeled"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Verify.jsx", "line": 20 },
+      "method": "POST",
+      "target": {
+        "file": "backend/routes/orderRoute.js",
+        "line": 27,
+        "route": "POST /api/order/verifyStripe"
+      },
+      "notes": "verifyPayment(): axios.post( with backendUrl + \"/api/order/verifyStripe\" on line 21; orderRouter.post(\"/verifyStripe\", authUser, verifyStripe) under /api/order"
+    }
+  ]
+}
