@@ -1,0 +1,419 @@
+{
+  "repo": "g089h515r806/nextcrawler",
+  "sha": "8b0c5639114b6eeea8272e2d05658594d62dee0b",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "app/admin/config/system/page.js", "line": 106 },
+      "method": "POST",
+      "target": { "file": "app/api/config/route.js", "line": 31, "route": "POST /api/config" },
+      "notes": "relative fetch from the browser; same origin; next.config has no basePath or rewrites"
+    },
+    {
+      "callSite": { "file": "app/admin/config/system/page.js", "line": 145 },
+      "method": "GET",
+      "target": { "file": "app/api/config/route.js", "line": 4, "route": "GET /api/config" },
+      "notes": "query ?key=system dropped"
+    },
+    {
+      "callSite": { "file": "app/admin/feed/[id]/delete/page.js", "line": 27 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/feed/[id]/route.js",
+        "line": 72,
+        "route": "DELETE /api/feed/:id"
+      },
+      "notes": "'/api/feed/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/feed/[id]/delete/page.js", "line": 52 },
+      "method": "GET",
+      "target": { "file": "app/api/feed/[id]/route.js", "line": 4, "route": "GET /api/feed/:id" },
+      "notes": "'/api/feed/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/feed/[id]/edit/page.js", "line": 163 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/feed/[id]/route.js",
+        "line": 32,
+        "route": "PATCH /api/feed/:id"
+      },
+      "notes": "'/api/feed/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/feed/[id]/edit/page.js", "line": 214 },
+      "method": "GET",
+      "target": { "file": "app/api/feed/[id]/route.js", "line": 4, "route": "GET /api/feed/:id" },
+      "notes": "'/api/feed/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/feed/add/page.js", "line": 149 },
+      "method": "POST",
+      "target": { "file": "app/api/feed/route.js", "line": 3, "route": "POST /api/feed" }
+    },
+    {
+      "callSite": { "file": "app/admin/feed/add/page.js", "line": 185 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/template/[id]/route.js",
+        "line": 3,
+        "route": "GET /api/template/:id"
+      },
+      "notes": "'/api/template/' + templateId"
+    },
+    {
+      "callSite": { "file": "app/admin/feed/import/page.js", "line": 37 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/feed/import/route.js",
+        "line": 3,
+        "route": "POST /api/feed/import"
+      },
+      "notes": "literal segment import wins over [id]"
+    },
+    {
+      "callSite": { "file": "app/admin/item/[id]/delete/page.js", "line": 27 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/item/[id]/route.js",
+        "line": 60,
+        "route": "DELETE /api/item/:id"
+      },
+      "notes": "'/api/item/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/item/[id]/delete/page.js", "line": 52 },
+      "method": "GET",
+      "target": { "file": "app/api/item/[id]/route.js", "line": 3, "route": "GET /api/item/:id" },
+      "notes": "'/api/item/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/item/[id]/edit/page.js", "line": 96 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/item/[id]/route.js",
+        "line": 22,
+        "route": "PATCH /api/item/:id"
+      },
+      "notes": "'/api/item/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/item/[id]/edit/page.js", "line": 134 },
+      "method": "GET",
+      "target": { "file": "app/api/item/[id]/route.js", "line": 3, "route": "GET /api/item/:id" },
+      "notes": "'/api/item/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/item/[id]/page.js", "line": 29 },
+      "method": "GET",
+      "target": { "file": "app/api/item/[id]/route.js", "line": 3, "route": "GET /api/item/:id" },
+      "notes": "'/api/item/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/item/add/page.js", "line": 85 },
+      "method": "POST",
+      "target": { "file": "app/api/item/route.js", "line": 3, "route": "POST /api/item" }
+    },
+    {
+      "callSite": { "file": "app/admin/listpage/[id]/delete/page.js", "line": 26 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/listpage/[id]/route.js",
+        "line": 57,
+        "route": "DELETE /api/listpage/:id"
+      },
+      "notes": "'/api/listpage/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/listpage/[id]/delete/page.js", "line": 51 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/listpage/[id]/route.js",
+        "line": 3,
+        "route": "GET /api/listpage/:id"
+      },
+      "notes": "'/api/listpage/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/listpage/[id]/edit/page.js", "line": 82 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/listpage/[id]/route.js",
+        "line": 22,
+        "route": "PATCH /api/listpage/:id"
+      },
+      "notes": "'/api/listpage/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/listpage/[id]/edit/page.js", "line": 118 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/listpage/[id]/route.js",
+        "line": 3,
+        "route": "GET /api/listpage/:id"
+      },
+      "notes": "'/api/listpage/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/listpage/add/page.js", "line": 78 },
+      "method": "POST",
+      "target": { "file": "app/api/listpage/route.js", "line": 3, "route": "POST /api/listpage" }
+    },
+    {
+      "callSite": { "file": "app/admin/log/[id]/delete/page.js", "line": 27 },
+      "method": "DELETE",
+      "target": { "file": "app/api/log/[id]/route.js", "line": 22, "route": "DELETE /api/log/:id" },
+      "notes": "'/api/log/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/log/[id]/delete/page.js", "line": 52 },
+      "method": "GET",
+      "target": { "file": "app/api/log/[id]/route.js", "line": 3, "route": "GET /api/log/:id" },
+      "notes": "'/api/log/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/log/[id]/page.js", "line": 27 },
+      "method": "GET",
+      "target": { "file": "app/api/log/[id]/route.js", "line": 3, "route": "GET /api/log/:id" },
+      "notes": "'/api/log/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/proxy/[id]/delete/page.js", "line": 28 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/proxy/[id]/route.js",
+        "line": 58,
+        "route": "DELETE /api/proxy/:id"
+      },
+      "notes": "'/api/proxy/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/proxy/[id]/delete/page.js", "line": 53 },
+      "method": "GET",
+      "target": { "file": "app/api/proxy/[id]/route.js", "line": 3, "route": "GET /api/proxy/:id" },
+      "notes": "'/api/proxy/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/proxy/[id]/edit/page.js", "line": 61 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/proxy/[id]/route.js",
+        "line": 22,
+        "route": "PATCH /api/proxy/:id"
+      },
+      "notes": "'/api/proxy/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/proxy/[id]/edit/page.js", "line": 90 },
+      "method": "GET",
+      "target": { "file": "app/api/proxy/[id]/route.js", "line": 3, "route": "GET /api/proxy/:id" },
+      "notes": "'/api/proxy/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/proxy/add/page.js", "line": 50 },
+      "method": "POST",
+      "target": { "file": "app/api/proxy/route.js", "line": 8, "route": "POST /api/proxy" }
+    },
+    {
+      "callSite": { "file": "app/admin/template/[id]/delete/page.js", "line": 27 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/template/[id]/route.js",
+        "line": 57,
+        "route": "DELETE /api/template/:id"
+      },
+      "notes": "'/api/template/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/template/[id]/delete/page.js", "line": 52 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/template/[id]/route.js",
+        "line": 3,
+        "route": "GET /api/template/:id"
+      },
+      "notes": "'/api/template/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/template/[id]/edit/page.js", "line": 60 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/template/[id]/route.js",
+        "line": 22,
+        "route": "PATCH /api/template/:id"
+      },
+      "notes": "'/api/template/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/template/[id]/edit/page.js", "line": 90 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/template/[id]/route.js",
+        "line": 3,
+        "route": "GET /api/template/:id"
+      },
+      "notes": "'/api/template/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/template/[id]/export/page.js", "line": 29 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/template/[id]/route.js",
+        "line": 3,
+        "route": "GET /api/template/:id"
+      },
+      "notes": "'/api/template/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/template/add/page.js", "line": 55 },
+      "method": "POST",
+      "target": { "file": "app/api/template/route.js", "line": 3, "route": "POST /api/template" }
+    },
+    {
+      "callSite": { "file": "app/admin/template/import/page.js", "line": 46 },
+      "method": "POST",
+      "target": { "file": "app/api/template/route.js", "line": 3, "route": "POST /api/template" }
+    },
+    {
+      "callSite": { "file": "app/admin/test/page.js", "line": 45 },
+      "method": "POST",
+      "target": { "file": "app/api/testurl/route.js", "line": 3, "route": "POST /api/testurl" }
+    },
+    {
+      "callSite": { "file": "app/admin/user/[id]/delete/page.js", "line": 26 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/user/[id]/route.js",
+        "line": 96,
+        "route": "DELETE /api/user/:id"
+      },
+      "notes": "'/api/user/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/user/[id]/delete/page.js", "line": 51 },
+      "method": "GET",
+      "target": { "file": "app/api/user/[id]/route.js", "line": 4, "route": "GET /api/user/:id" },
+      "notes": "'/api/user/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/user/[id]/edit/page.js", "line": 59 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/user/[id]/route.js",
+        "line": 25,
+        "route": "PATCH /api/user/:id"
+      },
+      "notes": "'/api/user/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/user/[id]/edit/page.js", "line": 89 },
+      "method": "GET",
+      "target": { "file": "app/api/user/[id]/route.js", "line": 4, "route": "GET /api/user/:id" },
+      "notes": "'/api/user/' + id"
+    },
+    {
+      "callSite": { "file": "app/admin/user/add/page.js", "line": 54 },
+      "method": "POST",
+      "target": { "file": "app/api/user/route.js", "line": 4, "route": "POST /api/user" }
+    },
+    {
+      "callSite": { "file": "components/feed-batchfetch-button.jsx", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/feed/[id]/batchfetch/route.js",
+        "line": 5,
+        "route": "GET /api/feed/:id/batchfetch"
+      },
+      "notes": "'/api/feed/' + id + '/batchfetch'"
+    },
+    {
+      "callSite": { "file": "components/feed-fetch-button.jsx", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/feed/[id]/fetch/route.js",
+        "line": 4,
+        "route": "GET /api/feed/:id/fetch"
+      },
+      "notes": "'/api/feed/' + id + '/fetch'"
+    },
+    {
+      "callSite": { "file": "components/feed-reset-button.jsx", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/feed/[id]/reset/route.js",
+        "line": 4,
+        "route": "GET /api/feed/:id/reset"
+      },
+      "notes": "'/api/feed/' + id + '/reset'"
+    },
+    {
+      "callSite": { "file": "components/generate-listpage-button.jsx", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/feed/[id]/generatelistpage/route.js",
+        "line": 4,
+        "route": "GET /api/feed/:id/generatelistpage"
+      },
+      "notes": "'/api/feed/' + id + '/generatelistpage'"
+    },
+    {
+      "callSite": { "file": "components/item-fetch-button.jsx", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/item/[id]/fetch/route.js",
+        "line": 4,
+        "route": "GET /api/item/:id/fetch"
+      },
+      "notes": "'/api/item/' + id + '/fetch'"
+    },
+    {
+      "callSite": { "file": "components/listpage-fetch-button.jsx", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/listpage/[id]/fetch/route.js",
+        "line": 4,
+        "route": "GET /api/listpage/:id/fetch"
+      },
+      "notes": "'/api/listpage/' + id + '/fetch'"
+    },
+    {
+      "callSite": { "file": "lib/feed-service.js", "line": 1095 },
+      "method": "GET",
+      "target": null,
+      "notes": "node-fetch of an absolute http(s) img src scraped from a crawled page (downloadContentImgs); external host known only at runtime"
+    },
+    {
+      "callSite": { "file": "lib/feed-service.js", "line": 1221 },
+      "method": "POST",
+      "target": null,
+      "notes": "syncItemToProduction posts to the literal external host https://www.example.com/private/syncitem"
+    },
+    {
+      "callSite": { "file": "lib/testlib.js", "line": 75 },
+      "method": "GET",
+      "target": null,
+      "notes": "node-fetch of a scraped absolute http(s) URL (download transformer test); external host known only at runtime"
+    },
+    {
+      "callSite": { "file": "lib/testlib.js", "line": 140 },
+      "method": "GET",
+      "target": null,
+      "notes": "node-fetch of an absolute http(s) img src scraped from a crawled page; external host known only at runtime"
+    },
+    {
+      "callSite": { "file": "lib/transform.js", "line": 108 },
+      "method": "GET",
+      "target": null,
+      "notes": "download transformer: node-fetch of a scraped absolute http(s) URL; external host known only at runtime"
+    },
+    {
+      "callSite": { "file": "lib/transform.js", "line": 192 },
+      "method": "GET",
+      "target": null,
+      "notes": "executeDownloadInnerImgTransformer: node-fetch of an absolute http(s) img src scraped from a crawled page; external host known only at runtime"
+    }
+  ]
+}
