@@ -64,6 +64,13 @@
       "when": 1793878279659,
       "tag": "0008_compute_usage_secret_accesses",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794069346984,
+      "tag": "0009_sessions",
+      "breakpoints": true
     }
   ]
 }

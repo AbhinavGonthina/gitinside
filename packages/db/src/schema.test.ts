@@ -95,6 +95,7 @@ describe("migrations", () => {
       "pull_requests",
       "rate_limits",
       "repos",
+      "sessions",
       "store_requests",
       "users",
     ]);

@@ -71,7 +71,7 @@ flowchart LR
 **Components**
 - **`apps/web`** (Next.js, App Router, on Vercel):
   - Landing page, the `/<owner>/<repo>[/<sha>]` diagram pages, the progress page, and the signed-in dashboard.
-  - Route handlers: `/api/analyze`, `/api/jobs/:id`, `/api/badge/:owner/:repo.svg`, `/api/diagram/:owner/:repo.svg`, GitHub OAuth callback, GitHub App webhooks.
+  - Route handlers: `/api/analyze`, `/api/jobs/:id`, `/api/badge/:owner/:repo.svg`, `/api/diagram/:owner/:repo.svg`, sign-in (`/api/auth/github`, its callback `/api/auth/github/callback`, and `POST /api/auth/signout`; `lib/authRoute.ts`, ADR-0221), GitHub App webhooks.
   - Never parses repos.
 - **The queue** (ADR-0114): Google Cloud Tasks. The web app writes the job's `queued` row in Neon, then creates a task whose body is the job, HMAC-signed (`apps/web/lib/enqueue.ts`, `cloudTasks.ts`, ADR-0141). Cloud Tasks pushes it to the worker with an OIDC token, at most 2 at once, up to 3 attempts. Job state and live progress are the Neon row, so nothing reads the worker to watch a job (ADR-0139). There is no Redis and no enqueue server (BullMQ was removed in M5.17c3). In local development, `LOCAL_TASKS=push` with no `GCP_*` variable swaps in `localTasks.ts`, which pushes the same signed request straight to a loopback worker, with the same retries, one at a time (ADR-0149).
 - **`apps/worker`** (a Cloud Run service; `run.ts`, `attempt.ts`, `job.ts`, ADR-0143, ADR-0144):
@@ -314,6 +314,7 @@ Built in steps M6.7a–f (ADR-0090).
 | `repos` | id, provider_repo_id, owner, name, visibility (`public`/`private`), installation_id (nullable), default_branch |
 | `analyses` | id, repo_id, sha, status (`queued`/`running`/`done`/`failed`), error_code, stats (jsonb: files, nodes, edges, unresolved), snapshot_key, analyzer_version, started_at, finished_at. Unique (repo_id, sha, analyzer_version). Also the job (ADR-0139): job_id (`analyze-<32 hex>`, indexed), attempts, queued_at (queue position), progress (jsonb, only while `running`) |
 | `users` | id, github_user_id, login, created_at |
+| `sessions` | id, token_hash (SHA-256 of the cookie's token, unique), user_id, github_tokens (sealed by the website), created_at, expires_at. Deleted on sign-out and with the user (ADR-0221) |
 | `installations` | id, github_installation_id, account_login, created_at |
 | `access_cache` | user_id, repo_id, allowed (bool), checked_at. Primary key (user_id, repo_id); TTL 60 s (ADR-0009) |
 | `pull_requests` | id, repo_id, number, base_sha, head_sha, diff_key, broken_count, comment_id, check_run_id |

@@ -8,6 +8,8 @@ import {
   type StoreConfig,
 } from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
+import type { AuthDeps } from "./authRoute";
+import { sessionKeys, type SessionKeys } from "./session";
 import { createTurnstile, type BotCheck } from "./botCheck";
 import { createCodeSizeCache } from "./codeSize";
 import type { GraphRouteDeps } from "./graphRoute";
@@ -264,6 +266,27 @@ export function imageDepsFromEnv(
 ): ImageRouteDeps | undefined {
   const view = repoViewDepsFromEnv(env, oidcToken);
   return view && { view, graph: cdnGraphReader(origin) };
+}
+
+/** Keys derived per `SESSION_SECRET`, kept so each request doesn't run HKDF again. */
+let keys: { secret: string; keys: SessionKeys } | undefined;
+
+/**
+ * Sign-in's deps (M8.2, ADR-0220, ADR-0221): `DATABASE_URL`, `GITHUB_APP_CLIENT_ID`,
+ * `GITHUB_APP_CLIENT_SECRET`, and a `SESSION_SECRET` of at least 32 characters; else
+ * `undefined`, and sign-in says it's unavailable.
+ */
+export function authDepsFromEnv(env: Env = process.env): AuthDeps | undefined {
+  const {
+    GITHUB_APP_CLIENT_ID: clientId,
+    GITHUB_APP_CLIENT_SECRET: clientSecret,
+    SESSION_SECRET: secret,
+  } = env;
+  if (!clientId || !clientSecret || !secret || secret.length < MIN_SECRET_LENGTH) return undefined;
+  const db = database(env);
+  if (!db) return undefined;
+  if (keys?.secret !== secret) keys = { secret, keys: sessionKeys(secret) };
+  return { db, client: { clientId, clientSecret }, keys: keys.keys };
 }
 
 /** One process-wide memory of GitHub's answers (lib/repoView.ts). */
