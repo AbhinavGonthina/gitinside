@@ -11,6 +11,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { namedRepos } from "./cliShared.js";
 import { parseBacktestReposFile } from "./format.js";
 import { ensureClone, gitView } from "./git.js";
 import { pullFacts, pullMessages, searchMerged, searchQuery, type GitHubApi } from "./github.js";
@@ -40,12 +41,7 @@ function main(): void {
     "backtest/repos.json",
     readFileSync(join(EVAL, "backtest", "repos.json"), "utf8"),
   );
-  const asked = process.argv.slice(2).map((a) => a.toLowerCase());
-  const repos = pins.repos.filter(
-    (r) => asked.length === 0 || asked.includes(`${r.owner}/${r.name}`.toLowerCase()),
-  );
-  if (repos.length < asked.length)
-    throw new Error(`not every repo named is pinned: ${asked.join(", ")}`);
+  const repos = namedRepos(pins.repos, process.argv.slice(2));
   mkdirSync(PRS, { recursive: true });
   for (const repo of repos) {
     const name = `${repo.owner}/${repo.name}`;

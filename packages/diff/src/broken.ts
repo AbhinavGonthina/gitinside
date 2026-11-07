@@ -320,8 +320,10 @@ function contractBreak(
  *
  * Doesn't handle (no head evidence in the graph): calls to removed functions whose name no
  * head import of their file still asks for (a global, a re-export from another file, a
- * namespace import `ns.f()`, a named default export imported as `default`, a file the
- * analyzer can't read exports of; see `missingExports` in the analyzer's `imports.ts`),
+ * namespace import `ns.f()`, a named default export imported as `default`, a symbol exported
+ * under an alias (`export { foo as bar }`, imported as `bar`: the site's `missingExports`
+ * holds `bar`, but the symbol's label is `foo`; M7 review F6), a file the analyzer can't
+ * read exports of; see `missingExports` in the analyzer's `imports.ts`),
  * aliased or package imports (`@/x`, `@acme/shared`), clipped URL
  * labels, a call whose text changed and that reached the route only through a matcher path
  * form (or a base graph from before sites had `request`), the second of two requests at one
