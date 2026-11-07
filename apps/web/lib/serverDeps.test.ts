@@ -278,6 +278,19 @@ describe("graphDepsFromEnv", () => {
     const deps = graphDepsFromEnv({ DATABASE_URL: ENV.DATABASE_URL, ...BUCKET });
     expect(typeof deps?.store.get).toBe("function");
     expect(deps?.db).toBe(analyzeDepsFromEnv(ENV)?.db);
+    // Without sign-in, private repos are simply never served.
+    expect(deps?.auth).toBeUndefined();
+  });
+
+  it("carries sign-in's deps when it's configured, for private repos (M8.4b)", () => {
+    const signIn = {
+      GITHUB_APP_CLIENT_ID: "Iv1.x",
+      GITHUB_APP_CLIENT_SECRET: "c",
+      SESSION_SECRET: "s".repeat(43),
+    };
+    const deps = graphDepsFromEnv({ DATABASE_URL: ENV.DATABASE_URL, ...BUCKET, ...signIn });
+    expect(deps?.auth?.client.clientId).toBe("Iv1.x");
+    expect(deps?.auth?.db).toBe(deps?.db);
   });
 
   it("counts each bucket request, and a count that fails doesn't fail the read", async () => {

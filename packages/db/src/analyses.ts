@@ -3,7 +3,8 @@
  * through `queued` → `running` → `done` | `failed`.
  *
  * - **Who calls what:** the web app calls {@link findAnalysis} (the cache lookup),
- *   {@link findPublishedAnalysis} (what a repo page and `/api/graph` serve) and, when it
+ *   {@link findPublishedAnalysis} (what a repo page serves), {@link findStoredAnalysis}
+ *   (what `/api/graph` serves, private repos behind an access check) and, when it
  *   enqueues a new job, {@link upsertRepo} and {@link queueAnalysis} (ADR-0066), before that
  *   {@link failStrandedAnalysis} on a commit that's `queued` with no task coming, and
  *   {@link hideRepo} when GitHub says a published repo went private or away. The worker calls {@link upsertRepo} and {@link startAnalysis} when a
@@ -238,12 +239,47 @@ export interface PublishedAnalysis {
  * (the diagram page and `/api/graph`, ADR-0068); with `sha`, of that commit. "Newest" is
  * the latest finish, so a re-analysis by a newer analyzer version wins over the old one.
  * With `providerRepoId` instead of a name, by GitHub's repo ID (a repo renamed since it was
- * stored, M5.13b3). Private repos are never returned (M8 adds access checks).
+ * stored, M5.13b3). Private repos are never returned ({@link findStoredAnalysis} returns
+ * them, for routes that check access).
  */
 export async function findPublishedAnalysis(
   db: AnyDatabase,
-  query: ({ owner: string; name: string } | { providerRepoId: number }) & { sha?: string },
+  query: AnalysisQuery,
 ): Promise<PublishedAnalysis | undefined> {
+  const found = await newestDone(db, query, true);
+  if (found === undefined) return undefined;
+  const { id, providerRepoId, owner, name } = found.repo;
+  return { repo: { id, providerRepoId, owner, name }, analysis: found.analysis };
+}
+
+/** What {@link findStoredAnalysis} returns: a {@link PublishedAnalysis} with the repo's visibility. */
+export interface StoredAnalysis {
+  repo: PublishedAnalysis["repo"] & { visibility: "public" | "private" };
+  analysis: PublishedAnalysis["analysis"];
+}
+
+/**
+ * Like {@link findPublishedAnalysis}, but whatever the repo's visibility, which it returns
+ * (M8.4b): for a route that checks a private repo's viewer itself before serving it. Never
+ * serve what this finds without looking at `visibility` first.
+ */
+export async function findStoredAnalysis(
+  db: AnyDatabase,
+  query: AnalysisQuery,
+): Promise<StoredAnalysis | undefined> {
+  return newestDone(db, query, false);
+}
+
+/** A repo by name (ignoring case) or by GitHub's ID, and optionally one commit. */
+type AnalysisQuery = ({ owner: string; name: string } | { providerRepoId: number }) & {
+  sha?: string;
+};
+
+async function newestDone(
+  db: AnyDatabase,
+  query: AnalysisQuery,
+  publicOnly: boolean,
+): Promise<StoredAnalysis | undefined> {
   const repo =
     "providerRepoId" in query
       ? [eq(repos.providerRepoId, query.providerRepoId)]
@@ -257,6 +293,7 @@ export async function findPublishedAnalysis(
       providerRepoId: repos.providerRepoId,
       owner: repos.owner,
       name: repos.name,
+      visibility: repos.visibility,
       sha: analyses.sha,
       analyzerVersion: analyses.analyzerVersion,
       snapshotKey: analyses.snapshotKey,
@@ -267,7 +304,7 @@ export async function findPublishedAnalysis(
     .where(
       and(
         ...repo,
-        eq(repos.visibility, "public"),
+        publicOnly ? eq(repos.visibility, "public") : undefined,
         eq(analyses.status, "done"),
         query.sha === undefined ? undefined : eq(analyses.sha, query.sha),
       ),
@@ -275,12 +312,12 @@ export async function findPublishedAnalysis(
     .orderBy(desc(analyses.finishedAt), desc(analyses.createdAt))
     .limit(1);
   if (row === undefined) return undefined;
-  const { id, providerRepoId, owner, name, sha, analyzerVersion } = row;
+  const { id, providerRepoId, owner, name, visibility, sha, analyzerVersion } = row;
   // `done` rows always have both (the status check in schema.ts).
   const snapshotKey = row.snapshotKey as string;
   const finishedAt = row.finishedAt as Date;
   return {
-    repo: { id, providerRepoId, owner, name },
+    repo: { id, providerRepoId, owner, name, visibility },
     analysis: { sha, analyzerVersion, snapshotKey, finishedAt },
   };
 }

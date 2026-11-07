@@ -11,6 +11,11 @@ export async function GET(
 ): Promise<Response> {
   return (
     redirectToCanonical(request.url, "") ??
-    handleGraphRequest(await params, graphDepsFromEnv(), request.headers.get("accept-encoding"))
+    handleGraphRequest(
+      await params,
+      graphDepsFromEnv(),
+      request.headers.get("accept-encoding"),
+      request.headers.get("cookie"),
+    )
   );
 }

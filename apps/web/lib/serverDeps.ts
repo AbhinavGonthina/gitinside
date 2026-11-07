@@ -238,7 +238,10 @@ function botCheck(env: Env): BotCheck | undefined | null {
   return createTurnstile({ siteKey, secret });
 }
 
-/** `/api/graph`'s deps (ADR-0068): the database and the `SNAPSHOTS_*` bucket, else `undefined`. */
+/**
+ * `/api/graph`'s deps (ADR-0068): the database and the `SNAPSHOTS_*` bucket, else
+ * `undefined`; with sign-in's deps when it's configured, for private repos (M8.4b).
+ */
 export function graphDepsFromEnv(env: Env = process.env): GraphRouteDeps | undefined {
   let config: StoreConfig;
   try {
@@ -259,7 +262,8 @@ export function graphDepsFromEnv(env: Env = process.env): GraphRouteDeps | undef
         }),
       ),
   });
-  return { db, store: createObjectStore(config, { fetch }) };
+  const auth = authDepsFromEnv(env);
+  return { db, store: createObjectStore(config, { fetch }), ...(auth !== undefined && { auth }) };
 }
 
 /**
