@@ -14,7 +14,8 @@
     "draw": "node dist/drawCli.js",
     "backtest:prs": "node dist/backtest/listCli.js",
     "backtest:replay": "node dist/backtest/replayCli.js",
-    "backtest:followup": "node dist/backtest/followUpCli.js"
+    "backtest:followup": "node dist/backtest/followUpCli.js",
+    "backtest:report": "node dist/backtest/reportCli.js"
   },
   "dependencies": {
     "@gitinside/analyzer": "workspace:*",
