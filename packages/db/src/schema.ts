@@ -255,7 +255,7 @@ export const sessions = pgTable(
 
 /**
  * Whether a user may view a private repo, as GitHub last answered. Valid for
- * 60 s from `checked_at` (ADR-0009); readers compare against their own clock.
+ * 60 s from `checked_at` (ADR-0009), by the database's clock (`access.ts`).
  */
 export const accessCache = pgTable(
   "access_cache",
