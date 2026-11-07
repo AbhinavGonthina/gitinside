@@ -1,0 +1,829 @@
+{
+  "repo": "hoangsonww/Claude-Code-Agent-Monitor",
+  "listed": "2026-11-06",
+  "branch": "master",
+  "startSha": "d16f2a7aa0c9f4dafdab16abca993addf7ba2aeb",
+  "endSha": "c1a11f7c350ab113c55bc5bf7509f7d29ca7f5d6",
+  "search": "repo:hoangsonww/Claude-Code-Agent-Monitor is:pr is:merged base:master merged:2026-06-30..2026-10-01",
+  "found": 91,
+  "prs": [
+    {
+      "number": 200,
+      "title": "fix: nested subagent hierarchy + graceful shutdown + no card-click toggle",
+      "mergedAt": "2026-07-02T12:32:26Z",
+      "mergeSha": "52c9a5e6b83bd2f01a264788a873967ddaabd83b",
+      "kind": "merge",
+      "baseSha": "d16f2a7aa0c9f4dafdab16abca993addf7ba2aeb",
+      "commits": 21
+    },
+    {
+      "number": 203,
+      "title": "fix(sweep): gate maintenance-sweep workflow ingest by mtime fingerprint",
+      "mergedAt": "2026-07-04T10:23:29Z",
+      "mergeSha": "41b0f35ab75759989db84b377b54e6ec98edc3a9",
+      "kind": "merge",
+      "baseSha": "52c9a5e6b83bd2f01a264788a873967ddaabd83b",
+      "commits": 2
+    },
+    {
+      "number": 205,
+      "title": "feat(hooks): use first user prompt as fallback session/agent descriptor",
+      "mergedAt": "2026-07-08T04:05:04Z",
+      "mergeSha": "ca9fd3f098f71e12c2f445210c13515ce134dc52",
+      "kind": "merge",
+      "baseSha": "41b0f35ab75759989db84b377b54e6ec98edc3a9",
+      "commits": 2
+    },
+    {
+      "number": 206,
+      "title": "fix(run): default the Run page cwd to the user's home directory",
+      "mergedAt": "2026-07-08T04:05:20Z",
+      "mergeSha": "f35b91b72cd11d7afb89f508e18620df637b6447",
+      "kind": "merge",
+      "baseSha": "ca9fd3f098f71e12c2f445210c13515ce134dc52",
+      "commits": 2
+    },
+    {
+      "number": 207,
+      "title": "fix(watchdog): reap dead sessions whose SessionEnd hook was lost while the dashboard was down",
+      "mergedAt": "2026-07-08T04:32:28Z",
+      "mergeSha": "6cf9e3d356c67c98c96276db453ef6cbf0dd3081",
+      "kind": "merge",
+      "baseSha": "f35b91b72cd11d7afb89f508e18620df637b6447",
+      "commits": 1
+    },
+    {
+      "number": 208,
+      "title": "fix(watchdog): clear dead sessions within seconds of dashboard startup",
+      "mergedAt": "2026-07-08T05:30:40Z",
+      "mergeSha": "ee39008ef948950f5602db70c11145606484a292",
+      "kind": "merge",
+      "baseSha": "6cf9e3d356c67c98c96276db453ef6cbf0dd3081",
+      "commits": 2
+    },
+    {
+      "number": 210,
+      "title": "fix(watchdog): boot liveness passes skip the idle gate — quit-then-launch clears instantly",
+      "mergedAt": "2026-07-08T05:38:14Z",
+      "mergeSha": "68c409c3e3c45d9b80f5f32b38011acb2ba09c0a",
+      "kind": "merge",
+      "baseSha": "ee39008ef948950f5602db70c11145606484a292",
+      "commits": 1
+    },
+    {
+      "number": 209,
+      "title": "feat(i18n): add Korean (ko) translation",
+      "mergedAt": "2026-07-08T10:26:01Z",
+      "mergeSha": "2d167ba23b98fa2c790546ea8055f2518b5d3f66",
+      "kind": "merge",
+      "baseSha": "68c409c3e3c45d9b80f5f32b38011acb2ba09c0a",
+      "commits": 5
+    },
+    {
+      "number": 211,
+      "title": "feat(cli): ccam — full-surface dashboard CLI in bin/, linked by npm run setup",
+      "mergedAt": "2026-07-08T10:52:25Z",
+      "mergeSha": "00d3b2a16a7dd8816ba6fc25d9baca4e485f54df",
+      "kind": "merge",
+      "baseSha": "2d167ba23b98fa2c790546ea8055f2518b5d3f66",
+      "commits": 3
+    },
+    {
+      "number": 212,
+      "title": "docs(ts): comprehensive TSDoc enrichment + Linguist overrides — TypeScript becomes the primary language",
+      "mergedAt": "2026-07-08T10:57:47Z",
+      "mergeSha": "6b7ad3ead43a0754e4c0cf493c2971f57486a25d",
+      "kind": "merge",
+      "baseSha": "00d3b2a16a7dd8816ba6fc25d9baca4e485f54df",
+      "commits": 2
+    },
+    {
+      "number": 213,
+      "title": "feat(cli): server up/down indicator + ccam start / ccam status",
+      "mergedAt": "2026-07-08T11:16:50Z",
+      "mergeSha": "18962a225e51daaec2a9afb2c5b89b728bea9508",
+      "kind": "merge",
+      "baseSha": "6b7ad3ead43a0754e4c0cf493c2971f57486a25d",
+      "commits": 1
+    },
+    {
+      "number": 215,
+      "title": "feat(cli): offline mode + terminal UI — re-land #214 onto master",
+      "mergedAt": "2026-07-08T11:51:48Z",
+      "mergeSha": "b9a954065871ddd4cbc6a6299aebb822b8dbd5f8",
+      "kind": "merge",
+      "baseSha": "18962a225e51daaec2a9afb2c5b89b728bea9508",
+      "commits": 3
+    },
+    {
+      "number": 216,
+      "title": "docs: Korean README + mandatory file-header/docs-sync skills + repo-wide header audit",
+      "mergedAt": "2026-07-10T09:35:43Z",
+      "mergeSha": "0175aff88e4139983599695a3380cec2582874a6",
+      "kind": "merge",
+      "baseSha": "b9a954065871ddd4cbc6a6299aebb822b8dbd5f8",
+      "commits": 3
+    },
+    {
+      "number": 219,
+      "title": "feat(hooks): accept remote transcript titles from household hook forwarders",
+      "mergedAt": "2026-07-11T14:39:35Z",
+      "mergeSha": "8f87ce14984506b6b927015d04269496853b127b",
+      "kind": "merge",
+      "baseSha": "0175aff88e4139983599695a3380cec2582874a6",
+      "commits": 1
+    },
+    {
+      "number": 224,
+      "title": "fix(server): stop the desktop app freezing on a large ~/.claude history (#223)",
+      "mergedAt": "2026-07-12T12:03:16Z",
+      "mergeSha": "f8b52a81db3f689460b9a5fda9b2048847298593",
+      "kind": "merge",
+      "baseSha": "8f87ce14984506b6b927015d04269496853b127b",
+      "commits": 1
+    },
+    {
+      "number": 225,
+      "title": "docs(client): comprehensive TSDoc across lib/ — restore TypeScript as top language",
+      "mergedAt": "2026-07-14T14:57:24Z",
+      "mergeSha": "0cdf684443f4284639abbd4cec128efd60ce7bd5",
+      "kind": "merge",
+      "baseSha": "f8b52a81db3f689460b9a5fda9b2048847298593",
+      "commits": 1
+    },
+    {
+      "number": 226,
+      "title": "feat(cli): interactive REPL — ccam repl shell (completion, history, live status)",
+      "mergedAt": "2026-07-14T16:09:21Z",
+      "mergeSha": "c3331eaaeccc92b2fbe6dfa72da4be3355362fc0",
+      "kind": "merge",
+      "baseSha": "0cdf684443f4284639abbd4cec128efd60ce7bd5",
+      "commits": 3
+    },
+    {
+      "number": 228,
+      "title": "feat(server): add awaiting_reason to explain why a session/agent is waiting",
+      "mergedAt": "2026-07-14T21:26:08Z",
+      "mergeSha": "57a76a09508f5fc28e1b8f85715f223472383d8c",
+      "kind": "merge",
+      "baseSha": "c3331eaaeccc92b2fbe6dfa72da4be3355362fc0",
+      "commits": 4
+    },
+    {
+      "number": 229,
+      "title": "fix(watchdog): liveness-probe never reaps household-hook-forwarded sessions",
+      "mergedAt": "2026-07-15T12:45:50Z",
+      "mergeSha": "dcffc03f5a00635af6a8ad7623d82450075022c5",
+      "kind": "merge",
+      "baseSha": "57a76a09508f5fc28e1b8f85715f223472383d8c",
+      "commits": 5
+    },
+    {
+      "number": 230,
+      "title": "chore: add .github/FUNDING.yml sponsor button (GitHub Sponsors)",
+      "mergedAt": "2026-07-15T12:46:09Z",
+      "mergeSha": "7d4d429935938d7e77b0c641c7901f14d8430343",
+      "kind": "merge",
+      "baseSha": "dcffc03f5a00635af6a8ad7623d82450075022c5",
+      "commits": 1
+    },
+    {
+      "number": 231,
+      "title": "fix(husky): quote prettier invocation so pre-commit works from paths with spaces",
+      "mergedAt": "2026-07-16T04:19:15Z",
+      "mergeSha": "70298b4872db3c5801188860eb22aca4bbcd1dd7",
+      "kind": "merge",
+      "baseSha": "7d4d429935938d7e77b0c641c7901f14d8430343",
+      "commits": 1
+    },
+    {
+      "number": 232,
+      "title": "fix(cc-discovery): follow symlinked skill directories in Config Explorer",
+      "mergedAt": "2026-07-16T04:19:36Z",
+      "mergeSha": "88048ff4cf45784e26a676ef6e61a75579808017",
+      "kind": "merge",
+      "baseSha": "70298b4872db3c5801188860eb22aca4bbcd1dd7",
+      "commits": 1
+    },
+    {
+      "number": 233,
+      "title": "feat(client): surface awaiting_reason across the UI + fix transcript viewer dropping mid-turn messages",
+      "mergedAt": "2026-07-16T04:19:57Z",
+      "mergeSha": "cbd7c997b72262f68d3bf8a691fa90bf0970bb7f",
+      "kind": "merge",
+      "baseSha": "88048ff4cf45784e26a676ef6e61a75579808017",
+      "commits": 4
+    },
+    {
+      "number": 234,
+      "title": "fix(cc-discovery): symlinked .md files + seed Waiting fixture + KO doc-coverage",
+      "mergedAt": "2026-07-16T16:11:08Z",
+      "mergeSha": "4d4cf0550b8378ab3ae711d3b2fb3a62cc07c5d8",
+      "kind": "merge",
+      "baseSha": "cbd7c997b72262f68d3bf8a691fa90bf0970bb7f",
+      "commits": 3
+    },
+    {
+      "number": 235,
+      "title": "fix(import): link Workflow-tool inner agents on CLI rescan (offline/headless runs)",
+      "mergedAt": "2026-07-17T16:12:42Z",
+      "mergeSha": "a3377d76c4e4b581be97a1f2ba3ce10b5f908ef6",
+      "kind": "merge",
+      "baseSha": "4d4cf0550b8378ab3ae711d3b2fb3a62cc07c5d8",
+      "commits": 1
+    },
+    {
+      "number": 236,
+      "title": "fix: make Docker quickstart work out of the box + robust SQLite fallback",
+      "mergedAt": "2026-07-17T16:13:01Z",
+      "mergeSha": "e980b29cfec971734ee7c0f7aea079a745763273",
+      "kind": "merge",
+      "baseSha": "a3377d76c4e4b581be97a1f2ba3ce10b5f908ef6",
+      "commits": 2
+    },
+    {
+      "number": 237,
+      "title": "feat: pricing & updates polish — validate rates, surface unpriced models, ccam update-check, fast/intro pricing flags",
+      "mergedAt": "2026-07-17T17:42:43Z",
+      "mergeSha": "c6f10939a877849b60e48f4c6b10ce9bb50812be",
+      "kind": "merge",
+      "baseSha": "e980b29cfec971734ee7c0f7aea079a745763273",
+      "commits": 5
+    },
+    {
+      "number": 238,
+      "title": "fix(hooks): don't let a background subagent clear the main agent's 'notification' wait",
+      "mergedAt": "2026-07-18T07:03:18Z",
+      "mergeSha": "36d2cf4b93c994a93a5b63c0a895f139bcc47ec4",
+      "kind": "merge",
+      "baseSha": "c6f10939a877849b60e48f4c6b10ce9bb50812be",
+      "commits": 1
+    },
+    {
+      "number": 239,
+      "title": "feat(cli): scope ccam cost to a session and surface tool surcharges",
+      "mergedAt": "2026-07-18T07:03:36Z",
+      "mergeSha": "250f91aef1547791a936fa8ac8c4e6c889ea0483",
+      "kind": "merge",
+      "baseSha": "36d2cf4b93c994a93a5b63c0a895f139bcc47ec4",
+      "commits": 1
+    },
+    {
+      "number": 240,
+      "title": "fix(setup): bare root npm install produces a buildable tree on Node 24",
+      "mergedAt": "2026-07-18T07:22:45Z",
+      "mergeSha": "a2541dbb9bdab27e09abb6841fa428f4aa625c57",
+      "kind": "merge",
+      "baseSha": "250f91aef1547791a936fa8ac8c4e6c889ea0483",
+      "commits": 7
+    },
+    {
+      "number": 241,
+      "title": "docs: correct desktop:dmg as per-arch DMGs, not a universal binary",
+      "mergedAt": "2026-07-19T18:47:01Z",
+      "mergeSha": "b31cec032e86401e4615503fbc7206387b32b7a1",
+      "kind": "merge",
+      "baseSha": "a2541dbb9bdab27e09abb6841fa428f4aa625c57",
+      "commits": 1
+    },
+    {
+      "number": 245,
+      "title": "(=) fix claude spawn failing on windows",
+      "mergedAt": "2026-07-20T14:32:38Z",
+      "mergeSha": "808ff06ca1d6c7c7b1ff6be40b176b2ce51da6ea",
+      "kind": "merge",
+      "baseSha": "b31cec032e86401e4615503fbc7206387b32b7a1",
+      "commits": 2
+    },
+    {
+      "number": 242,
+      "title": "fix(client): show the real project version in the sidebar, not a hardcoded v1.0.0",
+      "mergedAt": "2026-07-20T15:50:26Z",
+      "mergeSha": "f75cb41750cbb192bcce98b6f56dd7eebe91ae70",
+      "kind": "merge",
+      "baseSha": "808ff06ca1d6c7c7b1ff6be40b176b2ce51da6ea",
+      "commits": 3
+    },
+    {
+      "number": 243,
+      "title": "feat(desktop): add desktop:dmg:universal to build one merged universal DMG",
+      "mergedAt": "2026-07-20T15:50:37Z",
+      "mergeSha": "5a162669bfd3920eac0ce964dc8f22204be03f72",
+      "kind": "merge",
+      "baseSha": "f75cb41750cbb192bcce98b6f56dd7eebe91ae70",
+      "commits": 3
+    },
+    {
+      "number": 247,
+      "title": "feat(cc-config): clickable MEMORY.md index links jump to matching fact files",
+      "mergedAt": "2026-07-24T04:53:17Z",
+      "mergeSha": "dfb61080edb89428c1316f9e13d87702fe263b86",
+      "kind": "merge",
+      "baseSha": "5a162669bfd3920eac0ce964dc8f22204be03f72",
+      "commits": 3
+    },
+    {
+      "number": 248,
+      "title": "feat(settings): data export/import round-trip for backup & machine consolidation",
+      "mergedAt": "2026-07-24T05:00:34Z",
+      "mergeSha": "c8dc65b0662010665d016413fdf374d835d2ffa1",
+      "kind": "merge",
+      "baseSha": "dfb61080edb89428c1316f9e13d87702fe263b86",
+      "commits": 1
+    },
+    {
+      "number": 252,
+      "title": "feat: Remote Data Sources — live remote/multi-machine collection over SSH",
+      "mergedAt": "2026-07-24T15:39:48Z",
+      "mergeSha": "6e6f690865209c2abce4d8c4b20f32ce307dd85b",
+      "kind": "merge",
+      "baseSha": "c8dc65b0662010665d016413fdf374d835d2ffa1",
+      "commits": 8
+    },
+    {
+      "number": 253,
+      "title": "fix(remote-sources): correct live status for remote SSH sessions + scope total cost",
+      "mergedAt": "2026-07-25T01:31:30Z",
+      "mergeSha": "63a7b5088fae46a07bd937f74c9483b00470b017",
+      "kind": "merge",
+      "baseSha": "6e6f690865209c2abce4d8c4b20f32ce307dd85b",
+      "commits": 5
+    },
+    {
+      "number": 254,
+      "title": "feat(metrics): Prometheus /api/metrics endpoint + turnkey Grafana stack",
+      "mergedAt": "2026-07-25T03:04:09Z",
+      "mergeSha": "bcc2db75c5f5398364cf3589861d614a334068a0",
+      "kind": "merge",
+      "baseSha": "63a7b5088fae46a07bd937f74c9483b00470b017",
+      "commits": 5
+    },
+    {
+      "number": 255,
+      "title": "chore(docs): expand TypeScript TSDoc and harden header audit",
+      "mergedAt": "2026-07-25T03:16:20Z",
+      "mergeSha": "b196aeca2f6356731e7b4e51d30ad85057e856c4",
+      "kind": "merge",
+      "baseSha": "bcc2db75c5f5398364cf3589861d614a334068a0",
+      "commits": 2
+    },
+    {
+      "number": 256,
+      "title": "chore(docs): deepen TS module guides — client lib, hooks, MCP (1/2)",
+      "mergedAt": "2026-07-25T04:12:31Z",
+      "mergeSha": "243eeb5b07e92ad94b6354703ad666d95af52d86",
+      "kind": "merge",
+      "baseSha": "b196aeca2f6356731e7b4e51d30ad85057e856c4",
+      "commits": 1
+    },
+    {
+      "number": 257,
+      "title": "chore(docs): deepen TS guides — UI, desktop, marquees (2/2)",
+      "mergedAt": "2026-07-25T04:12:39Z",
+      "mergeSha": "6758179fd46ea474a9d20deca60da3afc754f83e",
+      "kind": "merge",
+      "baseSha": "243eeb5b07e92ad94b6354703ad666d95af52d86",
+      "commits": 1
+    },
+    {
+      "number": 258,
+      "title": "feat: health version, monitoring JSON verify, ccam health",
+      "mergedAt": "2026-07-25T17:33:37Z",
+      "mergeSha": "471517aa269bb701b2fc27dfac3564d7743dcd0b",
+      "kind": "merge",
+      "baseSha": "6758179fd46ea474a9d20deca60da3afc754f83e",
+      "commits": 5
+    },
+    {
+      "number": 259,
+      "title": "release: v1.4.2 — settings version UI + full version bump",
+      "mergedAt": "2026-07-25T17:33:52Z",
+      "mergeSha": "2609decd9287d1aa1df93ea56391f51849554111",
+      "kind": "merge",
+      "baseSha": "471517aa269bb701b2fc27dfac3564d7743dcd0b",
+      "commits": 4
+    },
+    {
+      "number": 260,
+      "title": "fix(remote-sync): scp-only remote sync — no rsync on remotes",
+      "mergedAt": "2026-07-26T22:03:20Z",
+      "mergeSha": "f2ea1f2d55aefb64d082759f6e7d77658b2a8ce8",
+      "kind": "merge",
+      "baseSha": "2609decd9287d1aa1df93ea56391f51849554111",
+      "commits": 8
+    },
+    {
+      "number": 261,
+      "title": "feat: v1.4.6 polish — a11y, remotes MCP/CLI, UI UX, version bump",
+      "mergedAt": "2026-07-27T00:37:13Z",
+      "mergeSha": "94bfddeeca902cd05617b8ff90716e1ebc15e374",
+      "kind": "merge",
+      "baseSha": "f2ea1f2d55aefb64d082759f6e7d77658b2a8ce8",
+      "commits": 9
+    },
+    {
+      "number": 263,
+      "title": "fix(desktop): bump better-sqlite3 to ^12.11.1 for Electron 43 compatibility",
+      "mergedAt": "2026-07-31T04:10:52Z",
+      "mergeSha": "ac018cf50bbc2d9b930b4b10afab6dee63743b0a",
+      "kind": "merge",
+      "baseSha": "94bfddeeca902cd05617b8ff90716e1ebc15e374",
+      "commits": 1
+    },
+    {
+      "number": 267,
+      "title": "feat(sessions): add searchable multi-project filters",
+      "mergedAt": "2026-08-01T18:14:53Z",
+      "mergeSha": "0c53815234709daedbb2f41c97a2873683d7248c",
+      "kind": "merge",
+      "baseSha": "ac018cf50bbc2d9b930b4b10afab6dee63743b0a",
+      "commits": 7
+    },
+    {
+      "number": 264,
+      "title": "feat(i18n): add Spanish (es) locale — 15 namespaces, ~1 450 keys",
+      "mergedAt": "2026-08-02T03:09:53Z",
+      "mergeSha": "bdb3cb551a38c2c26943ce68b063b4068ce5706b",
+      "kind": "merge",
+      "baseSha": "0c53815234709daedbb2f41c97a2873683d7248c",
+      "commits": 3
+    },
+    {
+      "number": 269,
+      "title": "feat: add real-time Codex monitoring, provider controls, and GPT pricing",
+      "mergedAt": "2026-08-03T16:11:55Z",
+      "mergeSha": "10d6b2ef6304017c93b31bfa817e31caa7de1403",
+      "kind": "merge",
+      "baseSha": "bdb3cb551a38c2c26943ce68b063b4068ce5706b",
+      "commits": 35
+    },
+    {
+      "number": 270,
+      "title": "feat: expand MCP, CLI, and agent ecosystem",
+      "mergedAt": "2026-08-06T16:30:27Z",
+      "mergeSha": "c7078cfbc63c56ca9ded694fdf27750fa8ca1d65",
+      "kind": "merge",
+      "baseSha": "10d6b2ef6304017c93b31bfa817e31caa7de1403",
+      "commits": 11
+    },
+    {
+      "number": 272,
+      "title": "fix: restore deployment audit and complete skills docs",
+      "mergedAt": "2026-08-07T16:32:29Z",
+      "mergeSha": "5bbd1fdd0a26ce4d127ac36ec7cc3be7a716d6f5",
+      "kind": "merge",
+      "baseSha": "c7078cfbc63c56ca9ded694fdf27750fa8ca1d65",
+      "commits": 6
+    },
+    {
+      "number": 275,
+      "title": "feat: add session task progress tracking for v2.0.3",
+      "mergedAt": "2026-08-08T08:16:45Z",
+      "mergeSha": "edd7a758d40fb528350d6fc5ea058f522b3f3e01",
+      "kind": "merge",
+      "baseSha": "5bbd1fdd0a26ce4d127ac36ec7cc3be7a716d6f5",
+      "commits": 9
+    },
+    {
+      "number": 278,
+      "title": "feat(cli): add ccam stop command",
+      "mergedAt": "2026-08-09T18:44:02Z",
+      "mergeSha": "ea9d8c5b4f0ebe13ad5b78c8f59d90b9aaafd37e",
+      "kind": "merge",
+      "baseSha": "edd7a758d40fb528350d6fc5ea058f522b3f3e01",
+      "commits": 8
+    },
+    {
+      "number": 279,
+      "title": "fix(windows): suppress console popups from background child processes",
+      "mergedAt": "2026-08-09T18:44:27Z",
+      "mergeSha": "c62fa3c112f6500a4cf1cff771e2901f31d2a116",
+      "kind": "merge",
+      "baseSha": "ea9d8c5b4f0ebe13ad5b78c8f59d90b9aaafd37e",
+      "commits": 1
+    },
+    {
+      "number": 280,
+      "title": "chore(release): bump version to 2.0.4",
+      "mergedAt": "2026-08-10T16:28:15Z",
+      "mergeSha": "c4bee04ea7f40e87558c781b3a0ed95d007f5bda",
+      "kind": "merge",
+      "baseSha": "c62fa3c112f6500a4cf1cff771e2901f31d2a116",
+      "commits": 9
+    },
+    {
+      "number": 281,
+      "title": "docs: fix rendered Markdown tables",
+      "mergedAt": "2026-08-11T16:31:13Z",
+      "mergeSha": "9040e9ac8f470adb6f72474511275a6be828036a",
+      "kind": "merge",
+      "baseSha": "c4bee04ea7f40e87558c781b3a0ed95d007f5bda",
+      "commits": 9
+    },
+    {
+      "number": 282,
+      "title": "fix(hooks): stop re-inserting every turn on every hook fire",
+      "mergedAt": "2026-08-12T17:01:56Z",
+      "mergeSha": "1d5c645364ae8eb9e046ad3b3d858999634d9128",
+      "kind": "merge",
+      "baseSha": "9040e9ac8f470adb6f72474511275a6be828036a",
+      "commits": 2
+    },
+    {
+      "number": 284,
+      "title": "fix(sessions): clear stale task trackers",
+      "mergedAt": "2026-08-12T20:06:09Z",
+      "mergeSha": "6c36d2e2018c4de3f697fc8f76733dbf557f9558",
+      "kind": "merge",
+      "baseSha": "1d5c645364ae8eb9e046ad3b3d858999634d9128",
+      "commits": 1
+    },
+    {
+      "number": 287,
+      "title": "fix(i18n): enforce locale parity across app and wiki",
+      "mergedAt": "2026-08-14T17:23:01Z",
+      "mergeSha": "48155c736a1f054b4e9c4ac4ec79520b976e0b38",
+      "kind": "merge",
+      "baseSha": "6c36d2e2018c4de3f697fc8f76733dbf557f9558",
+      "commits": 1
+    },
+    {
+      "number": 288,
+      "title": "chore(release): bump version to v2.0.8",
+      "mergedAt": "2026-08-14T17:23:15Z",
+      "mergeSha": "36ffff7433fe3c1d77ae0b2cbaa50dc87f491b6b",
+      "kind": "merge",
+      "baseSha": "48155c736a1f054b4e9c4ac4ec79520b976e0b38",
+      "commits": 1
+    },
+    {
+      "number": 294,
+      "title": "fix(tokens): reconcile transcript usage per message.id (2-4x inflated token totals and costs)",
+      "mergedAt": "2026-08-19T18:50:24Z",
+      "mergeSha": "7d0501eed546d32aa30f6e1861858ff49c000c4a",
+      "kind": "merge",
+      "baseSha": "36ffff7433fe3c1d77ae0b2cbaa50dc87f491b6b",
+      "commits": 9
+    },
+    {
+      "number": 297,
+      "title": "fix(mcp): detect orphaned stdio host and self-terminate",
+      "mergedAt": "2026-08-19T19:00:34Z",
+      "mergeSha": "b0dc72c07938b33e9a2facc92fcb74696a176a15",
+      "kind": "merge",
+      "baseSha": "7d0501eed546d32aa30f6e1861858ff49c000c4a",
+      "commits": 11
+    },
+    {
+      "number": 296,
+      "title": "perf: stop the idle CPU burn from codex sweep self-triggering and per-request transcript re-parsing",
+      "mergedAt": "2026-08-19T19:52:30Z",
+      "mergeSha": "c2099daec8e9799c9b69edebfdecd5fb91d3066f",
+      "kind": "merge",
+      "baseSha": "b0dc72c07938b33e9a2facc92fcb74696a176a15",
+      "commits": 7
+    },
+    {
+      "number": 299,
+      "title": "feat(client): subtle, dependency-free audio cues + release 2.0.11",
+      "mergedAt": "2026-08-20T16:26:03Z",
+      "mergeSha": "c30690e450d84c0631d2d7d9f10222cc36aa01c3",
+      "kind": "merge",
+      "baseSha": "c2099daec8e9799c9b69edebfdecd5fb91d3066f",
+      "commits": 10
+    },
+    {
+      "number": 311,
+      "title": "fix(codex): track hook-only sessions (exec --ephemeral) through their real lifecycle",
+      "mergedAt": "2026-08-28T16:46:11Z",
+      "mergeSha": "6ea1d004a079560c0a09e513b8248e388a6e3a8a",
+      "kind": "merge",
+      "baseSha": "c30690e450d84c0631d2d7d9f10222cc36aa01c3",
+      "commits": 5
+    },
+    {
+      "number": 312,
+      "title": "fix(dashboard): give Recent Activity real per-event status badges + bump to 2.0.12",
+      "mergedAt": "2026-08-28T16:46:50Z",
+      "mergeSha": "e2ffb155d604af29e18f58e9b289b9150f60645a",
+      "kind": "merge",
+      "baseSha": "6ea1d004a079560c0a09e513b8248e388a6e3a8a",
+      "commits": 4
+    },
+    {
+      "number": 308,
+      "title": "feat(client): a command palette that reaches everything, and a full keyboard shortcut layer",
+      "mergedAt": "2026-09-01T18:44:09Z",
+      "mergeSha": "b6ab47497a43f2f7fdd0bbaf1791fd619fca0558",
+      "kind": "merge",
+      "baseSha": "e2ffb155d604af29e18f58e9b289b9150f60645a",
+      "commits": 9
+    },
+    {
+      "number": 314,
+      "title": "fix(wiki): right-size the Command Palette card, reorder it, and indent prose lists",
+      "mergedAt": "2026-09-02T06:10:26Z",
+      "mergeSha": "ad1ed0c247248b6277877f695a0f4e2ec73d10a5",
+      "kind": "merge",
+      "baseSha": "b6ab47497a43f2f7fdd0bbaf1791fd619fca0558",
+      "commits": 9
+    },
+    {
+      "number": 324,
+      "title": "feat(i18n): i18n-parity skill and audit gate; advisory deployment validation; release v2.1.1",
+      "mergedAt": "2026-09-06T02:07:19Z",
+      "mergeSha": "c31ee2782486117dc578473ffab82becf32e4655",
+      "kind": "merge",
+      "baseSha": "ad1ed0c247248b6277877f695a0f4e2ec73d10a5",
+      "commits": 6
+    },
+    {
+      "number": 325,
+      "title": "fix(pricing): add missing claude-opus-5 model_pricing row",
+      "mergedAt": "2026-09-06T04:10:12Z",
+      "mergeSha": "d0c70a14fff37e10b0c6391c6ae56156ff2a99cc",
+      "kind": "merge",
+      "baseSha": "c31ee2782486117dc578473ffab82becf32e4655",
+      "commits": 3
+    },
+    {
+      "number": 326,
+      "title": "fix: make setup script cross-platform (cmd cwd leak)",
+      "mergedAt": "2026-09-06T04:26:10Z",
+      "mergeSha": "5e998abf2d6bafa6866dee2ed4949ef39716cdf6",
+      "kind": "merge",
+      "baseSha": "d0c70a14fff37e10b0c6391c6ae56156ff2a99cc",
+      "commits": 1
+    },
+    {
+      "number": 328,
+      "title": "test(codex): cover cumulative counter regression in token deltas",
+      "mergedAt": "2026-09-06T23:42:30Z",
+      "mergeSha": "fc621cbc13737a7e86a7f983fff9275256423a3e",
+      "kind": "merge",
+      "baseSha": "5e998abf2d6bafa6866dee2ed4949ef39716cdf6",
+      "commits": 1
+    },
+    {
+      "number": 320,
+      "title": "server: index events by (agent_id, created_at) and (session_id, created_at)",
+      "mergedAt": "2026-09-06T23:48:19Z",
+      "mergeSha": "d19d945f9c06721884fbe9072f5def27cef14361",
+      "kind": "merge",
+      "baseSha": "fc621cbc13737a7e86a7f983fff9275256423a3e",
+      "commits": 1
+    },
+    {
+      "number": 318,
+      "title": "server: parse task progress incrementally and stop fetching lifecycle payloads on list requests",
+      "mergedAt": "2026-09-07T01:40:20Z",
+      "mergeSha": "edc6773a99727a5c51c36a1826c174b426216294",
+      "kind": "merge",
+      "baseSha": "d19d945f9c06721884fbe9072f5def27cef14361",
+      "commits": 3
+    },
+    {
+      "number": 327,
+      "title": "chore(release): v2.1.2 + smarter auto-triage labeling",
+      "mergedAt": "2026-09-07T18:12:57Z",
+      "mergeSha": "83d4df5b3c49c9e1a517ff2e50379364677c7d5a",
+      "kind": "merge",
+      "baseSha": "edc6773a99727a5c51c36a1826c174b426216294",
+      "commits": 7
+    },
+    {
+      "number": 329,
+      "title": "feat(hooks): POST /api/hooks/ingest-batch -- remote-push session ingestion (re-scope of #321)",
+      "mergedAt": "2026-09-12T18:18:34Z",
+      "mergeSha": "be52cc0033d3608b62d8d5b05b189a36653dc1c1",
+      "kind": "merge",
+      "baseSha": "83d4df5b3c49c9e1a517ff2e50379364677c7d5a",
+      "commits": 8
+    },
+    {
+      "number": 330,
+      "title": "fix(setup): install with npm ci so setup stops rewriting mcp's lockfile",
+      "mergedAt": "2026-09-12T18:18:59Z",
+      "mergeSha": "1fd612f1aab5e8d9c4410f4261ba5bdc2a59aa51",
+      "kind": "merge",
+      "baseSha": "be52cc0033d3608b62d8d5b05b189a36653dc1c1",
+      "commits": 1
+    },
+    {
+      "number": 331,
+      "title": "fix(codex): bound the sweep's ingest retry so a permanent failure stops",
+      "mergedAt": "2026-09-13T19:23:58Z",
+      "mergeSha": "36428cc67b91c335acbad4032faa58342833c052",
+      "kind": "merge",
+      "baseSha": "1fd612f1aab5e8d9c4410f4261ba5bdc2a59aa51",
+      "commits": 3
+    },
+    {
+      "number": 332,
+      "title": "perf(db): index events.tool_name so the analytics panel stops scanning",
+      "mergedAt": "2026-09-13T19:24:13Z",
+      "mergeSha": "c3c0b2dd68b8018b4acec4789f84eee2ba8982b3",
+      "kind": "merge",
+      "baseSha": "36428cc67b91c335acbad4032faa58342833c052",
+      "commits": 1
+    },
+    {
+      "number": 333,
+      "title": "docs: sweep in everything merged since v2.1.2 + release v2.2.0",
+      "mergedAt": "2026-09-13T20:52:26Z",
+      "mergeSha": "3a7630bfd16045bd99e85d41cc572363cb2eaf24",
+      "kind": "merge",
+      "baseSha": "c3c0b2dd68b8018b4acec4789f84eee2ba8982b3",
+      "commits": 3
+    },
+    {
+      "number": 334,
+      "title": "fix: reconcile model pricing and session contracts for v2.2.1",
+      "mergedAt": "2026-09-17T18:07:40Z",
+      "mergeSha": "661dab8fee738374d697b8c7e3f6b900385922b9",
+      "kind": "merge",
+      "baseSha": "3a7630bfd16045bd99e85d41cc572363cb2eaf24",
+      "commits": 10
+    },
+    {
+      "number": 336,
+      "title": "fix: make desktop release uploads resumable",
+      "mergedAt": "2026-09-18T18:04:26Z",
+      "mergeSha": "c0b85fe308422a87c2ceb660f1e4eb094cad9f84",
+      "kind": "merge",
+      "baseSha": "661dab8fee738374d697b8c7e3f6b900385922b9",
+      "commits": 2
+    },
+    {
+      "number": 337,
+      "title": "feat(hooks): let token-proven remote hooks own the sessions they create",
+      "mergedAt": "2026-09-19T07:19:56Z",
+      "mergeSha": "4f666928d79aae7837f98345cf18d8e7f858ee81",
+      "kind": "merge",
+      "baseSha": "c0b85fe308422a87c2ceb660f1e4eb094cad9f84",
+      "commits": 3
+    },
+    {
+      "number": 338,
+      "title": "fix(hooks): classify Notification by notification_type; idle_prompt is not Needs input",
+      "mergedAt": "2026-09-19T07:20:17Z",
+      "mergeSha": "824bff673331da54031ce1a1b7b726e5149bcc13",
+      "kind": "merge",
+      "baseSha": "4f666928d79aae7837f98345cf18d8e7f858ee81",
+      "commits": 3
+    },
+    {
+      "number": 339,
+      "title": "feat: add native Cursor monitoring and release v2.2.2",
+      "mergedAt": "2026-09-21T16:24:36Z",
+      "mergeSha": "3625f79f6a82e7ee99a36bee1513248c8df8440c",
+      "kind": "merge",
+      "baseSha": "824bff673331da54031ce1a1b7b726e5149bcc13",
+      "commits": 10
+    },
+    {
+      "number": 344,
+      "title": "fix(install): strip inherited allow-scripts env from client postinstall",
+      "mergedAt": "2026-09-24T16:15:52Z",
+      "mergeSha": "320d073a5531b1bae61d1a253267e54cfd64a5be",
+      "kind": "merge",
+      "baseSha": "3625f79f6a82e7ee99a36bee1513248c8df8440c",
+      "commits": 3
+    },
+    {
+      "number": 342,
+      "title": "fix(codex): ingest rollouts beyond V8 string limit",
+      "mergedAt": "2026-09-24T18:03:03Z",
+      "mergeSha": "d130ebb498786c2b985a57e5c920ca781060b709",
+      "kind": "merge",
+      "baseSha": "320d073a5531b1bae61d1a253267e54cfd64a5be",
+      "commits": 9
+    },
+    {
+      "number": 346,
+      "title": "fix(pricing): add Claude Opus 5.5 rate card",
+      "mergedAt": "2026-09-26T08:27:00Z",
+      "mergeSha": "638ee95b2c88f8f8c9af2172581c493e0f99d438",
+      "kind": "merge",
+      "baseSha": "d130ebb498786c2b985a57e5c920ca781060b709",
+      "commits": 3
+    },
+    {
+      "number": 347,
+      "title": "chore(release): bump version to 2.2.4",
+      "mergedAt": "2026-09-27T19:24:23Z",
+      "mergeSha": "fc4d1cbf2e4a5b5e6eee1ce5acd06d29077fe87b",
+      "kind": "merge",
+      "baseSha": "638ee95b2c88f8f8c9af2172581c493e0f99d438",
+      "commits": 5
+    }
+  ],
+  "excluded": [
+    {
+      "number": 271,
+      "mergedAt": "2026-08-07T01:03:10Z",
+      "reason": "its merge commit d07b18d76c86febdd629bf77941a87fb1d9c7b2e isn't in master's history at endSha"
+    }
+  ],
+  "overCap": []
+}

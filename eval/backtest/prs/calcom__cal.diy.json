@@ -1,0 +1,292 @@
+{
+  "repo": "calcom/cal.diy",
+  "listed": "2026-11-06",
+  "branch": "main",
+  "startSha": "53e32a5bbad43b262a5e1fef37f57fc67738afdb",
+  "endSha": "a5ee96f77edd644439e7de8c3255ccb2eb2c5941",
+  "search": "repo:calcom/cal.diy is:pr is:merged base:main merged:2026-06-30..2026-10-01",
+  "found": 31,
+  "prs": [
+    {
+      "number": 29695,
+      "title": "fix(i18n): add missing space between number and unit in Hebrew duration",
+      "mergedAt": "2026-07-03T06:21:43Z",
+      "mergeSha": "8f89c082e8a365fbdc30c5b4f2616dc06b008e6a",
+      "kind": "squash",
+      "baseSha": "53e32a5bbad43b262a5e1fef37f57fc67738afdb",
+      "commits": 1
+    },
+    {
+      "number": 29648,
+      "title": "fix(ui): render markdown headings properly in event descriptions",
+      "mergedAt": "2026-07-03T06:22:09Z",
+      "mergeSha": "032962f5775d64959cce9fd2708c27f0b1b0cabe",
+      "kind": "squash",
+      "baseSha": "8f89c082e8a365fbdc30c5b4f2616dc06b008e6a",
+      "commits": 5
+    },
+    {
+      "number": 29708,
+      "title": "fix(emails): send METHOD:CANCEL in ICS for cancelled bookings",
+      "mergedAt": "2026-07-05T10:23:53Z",
+      "mergeSha": "188aaa18573f733a60065a5317449de38c0312d9",
+      "kind": "squash",
+      "baseSha": "032962f5775d64959cce9fd2708c27f0b1b0cabe",
+      "commits": 2
+    },
+    {
+      "number": 29707,
+      "title": "docs: add windows/powershell setup troubleshooting for prisma",
+      "mergedAt": "2026-07-06T08:29:30Z",
+      "mergeSha": "f3284f581ff18a37ecdcface587b4a03236b1861",
+      "kind": "squash",
+      "baseSha": "188aaa18573f733a60065a5317449de38c0312d9",
+      "commits": 1
+    },
+    {
+      "number": 29724,
+      "title": "refactor(app-store): move credential query to repository pattern",
+      "mergedAt": "2026-07-06T08:40:18Z",
+      "mergeSha": "ca90ca2c94536c7fac97e4e829cdfe18624c7f10",
+      "kind": "squash",
+      "baseSha": "f3284f581ff18a37ecdcface587b4a03236b1861",
+      "commits": 3
+    },
+    {
+      "number": 29580,
+      "title": "fix(calendar): sync Cal.diy iCalUID events",
+      "mergedAt": "2026-07-07T16:23:04Z",
+      "mergeSha": "0968bcef016489e351fabb83b8cd9614104bcb9d",
+      "kind": "squash",
+      "baseSha": "ca90ca2c94536c7fac97e4e829cdfe18624c7f10",
+      "commits": 3
+    },
+    {
+      "number": 29673,
+      "title": "fix(notifications): use instance URL in push test notification",
+      "mergedAt": "2026-07-08T17:53:35Z",
+      "mergeSha": "bb7c87cae1b9274f1c1260142e1c7f5c10286c0f",
+      "kind": "squash",
+      "baseSha": "0968bcef016489e351fabb83b8cd9614104bcb9d",
+      "commits": 1
+    },
+    {
+      "number": 29703,
+      "title": "fix(CalEventParser): skip null/undefined values in getUserFieldsResponses",
+      "mergedAt": "2026-07-08T18:01:42Z",
+      "mergeSha": "009f91d1636560fe6c60182c0bcff3d413da2919",
+      "kind": "squash",
+      "baseSha": "bb7c87cae1b9274f1c1260142e1c7f5c10286c0f",
+      "commits": 1
+    },
+    {
+      "number": 29685,
+      "title": "fix(bookings): refund all seat payments when cancelling a paid seated…",
+      "mergedAt": "2026-07-09T08:53:03Z",
+      "mergeSha": "761b780aa2b2cf3f88b60549a34990071972cea9",
+      "kind": "squash",
+      "baseSha": "009f91d1636560fe6c60182c0bcff3d413da2919",
+      "commits": 2
+    },
+    {
+      "number": 28567,
+      "title": "refactor: rename getEventLocationType to getLocationByType for better clarity",
+      "mergedAt": "2026-07-09T09:22:36Z",
+      "mergeSha": "f00434927386c9ecdcbd7e6c5f82d22044a245bc",
+      "kind": "squash",
+      "baseSha": "761b780aa2b2cf3f88b60549a34990071972cea9",
+      "commits": 3
+    },
+    {
+      "number": 29773,
+      "title": "fix(i18n): add missing space before Hebrew duration abbreviation",
+      "mergedAt": "2026-07-22T12:00:43Z",
+      "mergeSha": "3894f37e14eae5082770f35ff1fde72110c0e6b6",
+      "kind": "squash",
+      "baseSha": "f00434927386c9ecdcbd7e6c5f82d22044a245bc",
+      "commits": 1
+    },
+    {
+      "number": 29865,
+      "title": "chore(booker): remove obsolete eslint-disable in useInitialFormValues",
+      "mergedAt": "2026-07-31T20:46:34Z",
+      "mergeSha": "ab0b9e1fb547e21489093785612749b94c6ce97d",
+      "kind": "squash",
+      "baseSha": "3894f37e14eae5082770f35ff1fde72110c0e6b6",
+      "commits": 1
+    },
+    {
+      "number": 29857,
+      "title": "fix: trim whitespace in parseIpFromHeaders to prevent IP banlist bypass",
+      "mergedAt": "2026-07-31T20:49:54Z",
+      "mergeSha": "038381aeca6261635357957d66b8ba85cdb29737",
+      "kind": "squash",
+      "baseSha": "ab0b9e1fb547e21489093785612749b94c6ce97d",
+      "commits": 3
+    },
+    {
+      "number": 29819,
+      "title": "feat: add Clara app (link-as-an-app, AI & Automation)",
+      "mergedAt": "2026-08-04T15:53:56Z",
+      "mergeSha": "8418db70c71e5364e6baf26275aafa10e6bc9bd7",
+      "kind": "squash",
+      "baseSha": "038381aeca6261635357957d66b8ba85cdb29737",
+      "commits": 3
+    },
+    {
+      "number": 29740,
+      "title": "fix(bookings): provide stable country fallback for phone input",
+      "mergedAt": "2026-08-05T06:29:34Z",
+      "mergeSha": "5e3fe3cbe60e529b7f0d9d18065fd094c4d2152a",
+      "kind": "squash",
+      "baseSha": "8418db70c71e5364e6baf26275aafa10e6bc9bd7",
+      "commits": 6
+    },
+    {
+      "number": 29901,
+      "title": "fix: language update functionality #29900",
+      "mergedAt": "2026-08-05T06:31:11Z",
+      "mergeSha": "b2c28a23ab5b53f2e3729657d23cccb50f64e18a",
+      "kind": "squash",
+      "baseSha": "5e3fe3cbe60e529b7f0d9d18065fd094c4d2152a",
+      "commits": 5
+    },
+    {
+      "number": 29940,
+      "title": "fix(emails): customReplyToEmail no longer dropped when hideOrganizerEmail is true ",
+      "mergedAt": "2026-08-08T17:13:42Z",
+      "mergeSha": "176037d0afbe572f870a3c702985e7cd83fe6c0c",
+      "kind": "squash",
+      "baseSha": "b2c28a23ab5b53f2e3729657d23cccb50f64e18a",
+      "commits": 2
+    },
+    {
+      "number": 30084,
+      "title": "fix: removed unused tokenHandler component",
+      "mergedAt": "2026-09-01T13:57:12Z",
+      "mergeSha": "c910911772d8c55ec6a6609b5eabf14898c7e206",
+      "kind": "squash",
+      "baseSha": "176037d0afbe572f870a3c702985e7cd83fe6c0c",
+      "commits": 1
+    },
+    {
+      "number": 29970,
+      "title": "fix(i18n): add missing Japanese translations",
+      "mergedAt": "2026-09-01T14:01:19Z",
+      "mergeSha": "e70486cd9bf0f16e168e8dcf4281935a503a1f92",
+      "kind": "squash",
+      "baseSha": "c910911772d8c55ec6a6609b5eabf14898c7e206",
+      "commits": 4
+    },
+    {
+      "number": 30039,
+      "title": "fix(hitpay): respect zero-decimal currencies when charging and storing",
+      "mergedAt": "2026-09-04T10:09:41Z",
+      "mergeSha": "b879a542509d908d40141a82bf0caa8cd2fc8f9a",
+      "kind": "squash",
+      "baseSha": "e70486cd9bf0f16e168e8dcf4281935a503a1f92",
+      "commits": 1
+    },
+    {
+      "number": 29984,
+      "title": "fix(paypal): don't scale zero-decimal currency amounts on order creation",
+      "mergedAt": "2026-09-04T10:10:06Z",
+      "mergeSha": "abffde336e744e15cf69626c10e436d6172bc406",
+      "kind": "squash",
+      "baseSha": "b879a542509d908d40141a82bf0caa8cd2fc8f9a",
+      "commits": 1
+    },
+    {
+      "number": 30096,
+      "title": "fix(trpc): execute tempOrgRedirect rewrite on tx inside updateUser transaction",
+      "mergedAt": "2026-09-06T06:06:21Z",
+      "mergeSha": "9d6c5756ddc1a5c2108c92c1324034ebc58cf39f",
+      "kind": "squash",
+      "baseSha": "abffde336e744e15cf69626c10e436d6172bc406",
+      "commits": 1
+    },
+    {
+      "number": 30088,
+      "title": "fix(api): specify default false for CalVideoSettings boolean fields",
+      "mergedAt": "2026-09-06T08:33:50Z",
+      "mergeSha": "e91bb0c38251b0ee6f87eec70ce4940822fb0cf3",
+      "kind": "squash",
+      "baseSha": "9d6c5756ddc1a5c2108c92c1324034ebc58cf39f",
+      "commits": 2
+    },
+    {
+      "number": 30107,
+      "title": "fix(i18n/pl): booking_submitted_subject says \"confirmed\" instead of \"submitted\"",
+      "mergedAt": "2026-09-07T20:35:46Z",
+      "mergeSha": "1251ba5be567d26a7f922452fe7797642376476e",
+      "kind": "squash",
+      "baseSha": "e91bb0c38251b0ee6f87eec70ce4940822fb0cf3",
+      "commits": 1
+    },
+    {
+      "number": 30111,
+      "title": "fix(ui): resolve React 19 ref deprecation warning in Tooltip (#30110)",
+      "mergedAt": "2026-09-09T08:25:29Z",
+      "mergeSha": "b3321936c347744a759e0f36a9793bb78c9bca78",
+      "kind": "squash",
+      "baseSha": "1251ba5be567d26a7f922452fe7797642376476e",
+      "commits": 3
+    },
+    {
+      "number": 30124,
+      "title": "fix(dynamic-booking): respect username order when picking the conferencing app",
+      "mergedAt": "2026-09-09T19:27:35Z",
+      "mergeSha": "569a389e84320a8036a2545f3f656f3123bd08f9",
+      "kind": "squash",
+      "baseSha": "b3321936c347744a759e0f36a9793bb78c9bca78",
+      "commits": 1
+    },
+    {
+      "number": 30140,
+      "title": "chore: remove stale @ts-expect-error from CacheProvider usage",
+      "mergedAt": "2026-09-11T22:25:49Z",
+      "mergeSha": "39c96bc04d7513ffd3185fbbf60ba4cb7b32586d",
+      "kind": "squash",
+      "baseSha": "569a389e84320a8036a2545f3f656f3123bd08f9",
+      "commits": 2
+    },
+    {
+      "number": 30134,
+      "title": "feat(i18n): add Indonesian locale",
+      "mergedAt": "2026-09-12T06:43:19Z",
+      "mergeSha": "b0a34f21c91ae7803f9b7e2c59c2fbd187cce26f",
+      "kind": "squash",
+      "baseSha": "39c96bc04d7513ffd3185fbbf60ba4cb7b32586d",
+      "commits": 2
+    },
+    {
+      "number": 30135,
+      "title": "fix(embed-core): guard iframe ready handler",
+      "mergedAt": "2026-09-14T08:35:10Z",
+      "mergeSha": "6bc45298226f96ff79e0c070c8b2ce39727e8477",
+      "kind": "squash",
+      "baseSha": "b0a34f21c91ae7803f9b7e2c59c2fbd187cce26f",
+      "commits": 2
+    },
+    {
+      "number": 30190,
+      "title": "fix: remove duplicated words in three user-visible strings",
+      "mergedAt": "2026-09-20T07:25:28Z",
+      "mergeSha": "c339c9c47998d5213aab7701c99aa246db4619d3",
+      "kind": "squash",
+      "baseSha": "6bc45298226f96ff79e0c070c8b2ce39727e8477",
+      "commits": 2
+    },
+    {
+      "number": 30171,
+      "title": "fix: restore @ts-expect-error for CacheProvider type mismatch",
+      "mergedAt": "2026-09-20T08:17:33Z",
+      "mergeSha": "54343aa685ae8f33159d2f485ec4a57bad5c574a",
+      "kind": "squash",
+      "baseSha": "c339c9c47998d5213aab7701c99aa246db4619d3",
+      "commits": 2
+    }
+  ],
+  "excluded": [],
+  "overCap": []
+}
