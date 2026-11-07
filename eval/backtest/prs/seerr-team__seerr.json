@@ -1,0 +1,886 @@
+{
+  "repo": "seerr-team/seerr",
+  "listed": "2026-11-06",
+  "branch": "develop",
+  "startSha": "ebac489c8aa1fd1a004f40cbe60a9061c370b19b",
+  "endSha": "c0759ce0ec135cde5e68e3726dc193d7c2992c4c",
+  "search": "repo:seerr-team/seerr is:pr is:merged base:develop merged:2026-06-30..2026-10-01",
+  "found": 97,
+  "prs": [
+    {
+      "number": 2212,
+      "title": "feat: add jellyfin/emby quick connect authentication",
+      "mergedAt": "2026-07-03T11:32:21Z",
+      "mergeSha": "74c8db42a643c2c63e16cdd58ba790f6adfb7ab5",
+      "kind": "squash",
+      "baseSha": "ebac489c8aa1fd1a004f40cbe60a9061c370b19b",
+      "commits": 19
+    },
+    {
+      "number": 3191,
+      "title": "fix(scanners): decline orphaned requests when media is removed from servarr",
+      "mergedAt": "2026-07-03T13:39:14Z",
+      "mergeSha": "2e0e4ceb2a0100bd411e6432b1d5c5e3a553644c",
+      "kind": "squash",
+      "baseSha": "74c8db42a643c2c63e16cdd58ba790f6adfb7ab5",
+      "commits": 2
+    },
+    {
+      "number": 2977,
+      "title": "feat(PlexImportModal): add user details sync functionality",
+      "mergedAt": "2026-07-03T13:40:55Z",
+      "mergeSha": "902b88e16a0075da8831e6293954bdfafd6db4d8",
+      "kind": "squash",
+      "baseSha": "2e0e4ceb2a0100bd411e6432b1d5c5e3a553644c",
+      "commits": 3
+    },
+    {
+      "number": 3203,
+      "title": "fix: prevent cross-instance external ID collisions",
+      "mergedAt": "2026-07-03T20:04:56Z",
+      "mergeSha": "8e02d927dfb18007401dc9af9c5491d253e3b2f4",
+      "kind": "squash",
+      "baseSha": "902b88e16a0075da8831e6293954bdfafd6db4d8",
+      "commits": 1
+    },
+    {
+      "number": 3198,
+      "title": "chore(i18n): update translations from Weblate",
+      "mergedAt": "2026-07-03T20:12:25Z",
+      "mergeSha": "d051deb81103817101ff20384be1f87df811cf59",
+      "kind": "squash",
+      "baseSha": "8e02d927dfb18007401dc9af9c5491d253e3b2f4",
+      "commits": 1
+    },
+    {
+      "number": 3144,
+      "title": "chore(i18n): update translations from Weblate",
+      "mergedAt": "2026-07-04T19:54:26Z",
+      "mergeSha": "192609566c3c23cf15ff77a9f85649cd07f7355d",
+      "kind": "squash",
+      "baseSha": "d051deb81103817101ff20384be1f87df811cf59",
+      "commits": 1
+    },
+    {
+      "number": 3121,
+      "title": "feat(external-links): add Simkl media link",
+      "mergedAt": "2026-07-04T19:54:45Z",
+      "mergeSha": "5ae70d05e1ee123b3cda43153ed415754fd8e816",
+      "kind": "squash",
+      "baseSha": "192609566c3c23cf15ff77a9f85649cd07f7355d",
+      "commits": 1
+    },
+    {
+      "number": 3223,
+      "title": "fix(subscriber): await request status updates",
+      "mergedAt": "2026-07-21T00:14:35Z",
+      "mergeSha": "f481b56a7ac30444551b28508e30eeb415716a3c",
+      "kind": "squash",
+      "baseSha": "5ae70d05e1ee123b3cda43153ed415754fd8e816",
+      "commits": 1
+    },
+    {
+      "number": 3224,
+      "title": "fix(availability-sync): prevent false removals for merged-version Plex items",
+      "mergedAt": "2026-07-21T00:15:44Z",
+      "mergeSha": "46d80335991cc7c5a9e1c501e274f5a90a6c07c9",
+      "kind": "squash",
+      "baseSha": "f481b56a7ac30444551b28508e30eeb415716a3c",
+      "commits": 2
+    },
+    {
+      "number": 3105,
+      "title": "docs(blog): rootless design and PUID/PGID rationale",
+      "mergedAt": "2026-07-21T14:38:26Z",
+      "mergeSha": "bf5323faf4feb15ecfeafeef33131c258e7f0be9",
+      "kind": "squash",
+      "baseSha": "46d80335991cc7c5a9e1c501e274f5a90a6c07c9",
+      "commits": 2
+    },
+    {
+      "number": 2614,
+      "title": "fix: support for IPv6 address literals in HOST env var",
+      "mergedAt": "2026-07-22T12:49:12Z",
+      "mergeSha": "0adbf50b5c448cc5ca928480017890abb2dc5776",
+      "kind": "squash",
+      "baseSha": "bf5323faf4feb15ecfeafeef33131c258e7f0be9",
+      "commits": 6
+    },
+    {
+      "number": 3282,
+      "title": "fix(next): add next-env.d.ts to .gitignore",
+      "mergedAt": "2026-07-22T13:10:56Z",
+      "mergeSha": "3279393c7914c1d73af24ddc8252ce9fff8966e6",
+      "kind": "squash",
+      "baseSha": "0adbf50b5c448cc5ca928480017890abb2dc5776",
+      "commits": 2
+    },
+    {
+      "number": 3202,
+      "title": "fix(discover): use added sort in recent requests slider",
+      "mergedAt": "2026-07-22T14:47:00Z",
+      "mergeSha": "8ccd0f624530035089998e76b57a627f58c7eb7f",
+      "kind": "squash",
+      "baseSha": "3279393c7914c1d73af24ddc8252ce9fff8966e6",
+      "commits": 1
+    },
+    {
+      "number": 3283,
+      "title": "fix(ui): revalidate request list after approving or declining a request",
+      "mergedAt": "2026-07-23T13:14:20Z",
+      "mergeSha": "e810b9814d2b41ef31630f09b5dd0da1e9dec690",
+      "kind": "squash",
+      "baseSha": "8ccd0f624530035089998e76b57a627f58c7eb7f",
+      "commits": 4
+    },
+    {
+      "number": 3273,
+      "title": "fix(airdatebadge): anchor day diff to UTC midnight instead of raw ms delta\n",
+      "mergedAt": "2026-07-23T14:54:32Z",
+      "mergeSha": "669a58a61b4baaf096aa322fbd61dc297364af21",
+      "kind": "squash",
+      "baseSha": "e810b9814d2b41ef31630f09b5dd0da1e9dec690",
+      "commits": 1
+    },
+    {
+      "number": 3290,
+      "title": "chore(i18n): update translations from Weblate",
+      "mergedAt": "2026-07-24T23:59:02Z",
+      "mergeSha": "4b65ab507d6317fec80603acc9fbad63db9ca392",
+      "kind": "squash",
+      "baseSha": "669a58a61b4baaf096aa322fbd61dc297364af21",
+      "commits": 1
+    },
+    {
+      "number": 3137,
+      "title": "feat: allow to disable version check",
+      "mergedAt": "2026-07-27T23:41:47Z",
+      "mergeSha": "73937c0ccd667daed67e320a7fbc032b1207ef53",
+      "kind": "squash",
+      "baseSha": "f484791105bd81bd5404e01410431ee6fe5769c2",
+      "commits": 4
+    },
+    {
+      "number": 3299,
+      "title": "chore(helm): bump seerr to 3.4.0",
+      "mergedAt": "2026-07-28T00:33:22Z",
+      "mergeSha": "f78916bd41a20a3673aa3bc5c0e3c07d74217fd0",
+      "kind": "squash",
+      "baseSha": "73937c0ccd667daed67e320a7fbc032b1207ef53",
+      "commits": 1
+    },
+    {
+      "number": 3254,
+      "title": "chore(helm): add dnsConfig and dnsPolicy",
+      "mergedAt": "2026-07-28T08:48:39Z",
+      "mergeSha": "40017e4ea7a11d84aed49e52fe77a81274bb74b5",
+      "kind": "squash",
+      "baseSha": "f78916bd41a20a3673aa3bc5c0e3c07d74217fd0",
+      "commits": 1
+    },
+    {
+      "number": 3225,
+      "title": "ci: parallelize the action steps when possible",
+      "mergedAt": "2026-07-28T15:12:28Z",
+      "mergeSha": "45f7a7a9abe43f5600db153b89750e9a2d76b916",
+      "kind": "squash",
+      "baseSha": "40017e4ea7a11d84aed49e52fe77a81274bb74b5",
+      "commits": 3
+    },
+    {
+      "number": 3303,
+      "title": "ci: fix docker login race condition",
+      "mergedAt": "2026-07-29T07:35:29Z",
+      "mergeSha": "95e18ded1d6c7edf7e88f580e61266ef14b79475",
+      "kind": "squash",
+      "baseSha": "45f7a7a9abe43f5600db153b89750e9a2d76b916",
+      "commits": 1
+    },
+    {
+      "number": 3209,
+      "title": "fix: handle already-removed media in radarr/sonarr delete",
+      "mergedAt": "2026-07-29T19:49:57Z",
+      "mergeSha": "8ea0c174ea6d23062a13f510924235f6d56b481e",
+      "kind": "squash",
+      "baseSha": "95e18ded1d6c7edf7e88f580e61266ef14b79475",
+      "commits": 10
+    },
+    {
+      "number": 3311,
+      "title": "fix(ui): keep user list action buttons sized with a single user",
+      "mergedAt": "2026-07-30T08:02:38Z",
+      "mergeSha": "f926248e2daf660a452bbc16f36748adb240ab33",
+      "kind": "squash",
+      "baseSha": "3ee6f9200cb040c7ad910294da3a9415dc84e71a",
+      "commits": 1
+    },
+    {
+      "number": 3313,
+      "title": "chore: exclude .pnpm-store from Docker build context",
+      "mergedAt": "2026-07-30T13:30:25Z",
+      "mergeSha": "bd491c7e7ecf7d249da532f8fe9b82456ed6e42e",
+      "kind": "squash",
+      "baseSha": "f926248e2daf660a452bbc16f36748adb240ab33",
+      "commits": 1
+    },
+    {
+      "number": 3331,
+      "title": "fix(request): render anime notice alert in a div instead of a p",
+      "mergedAt": "2026-08-01T20:06:18Z",
+      "mergeSha": "1fd35f9a5d4d41e3e19196ff78100ebdd4acb7e9",
+      "kind": "squash",
+      "baseSha": "bd491c7e7ecf7d249da532f8fe9b82456ed6e42e",
+      "commits": 1
+    },
+    {
+      "number": 3328,
+      "title": "fix(sonarr): decouple anime root folder routing from seriesType",
+      "mergedAt": "2026-08-01T20:49:21Z",
+      "mergeSha": "93c0b6a6d62687ba25c3adc7c74a3e7de55c9bc5",
+      "kind": "squash",
+      "baseSha": "1fd35f9a5d4d41e3e19196ff78100ebdd4acb7e9",
+      "commits": 2
+    },
+    {
+      "number": 3316,
+      "title": "feat: add support for custom plex metadata provider guid scheme in scanner",
+      "mergedAt": "2026-08-02T11:07:37Z",
+      "mergeSha": "7baed83723839d64199fd8e4257f00cb375811fe",
+      "kind": "squash",
+      "baseSha": "42bee2aa10ff381cc9dca6305def8d0a334c2d26",
+      "commits": 6
+    },
+    {
+      "number": 3337,
+      "title": "ci: fix release workflow verify attestation",
+      "mergedAt": "2026-08-03T20:14:11Z",
+      "mergeSha": "090c659be6928baba833d99b39faddc7f4619dc7",
+      "kind": "squash",
+      "baseSha": "7baed83723839d64199fd8e4257f00cb375811fe",
+      "commits": 2
+    },
+    {
+      "number": 3352,
+      "title": "chore(helm): bump seerr to 3.4.1",
+      "mergedAt": "2026-08-08T11:46:22Z",
+      "mergeSha": "c8c8f7a10ed8f770f0a6f2109904e18d9bcef835",
+      "kind": "squash",
+      "baseSha": "090c659be6928baba833d99b39faddc7f4619dc7",
+      "commits": 2
+    },
+    {
+      "number": 3358,
+      "title": "docs: clarify ai disclosure policy further",
+      "mergedAt": "2026-08-09T15:44:33Z",
+      "mergeSha": "dea596056af21480464a007ef4ae0a1727fea90c",
+      "kind": "squash",
+      "baseSha": "c8c8f7a10ed8f770f0a6f2109904e18d9bcef835",
+      "commits": 1
+    },
+    {
+      "number": 3332,
+      "title": "feat(notifications): add embed poster option for Gotify",
+      "mergedAt": "2026-08-11T06:14:01Z",
+      "mergeSha": "afb17aa4f9eb030e0d39e87d6f4750bd8865a215",
+      "kind": "squash",
+      "baseSha": "dea596056af21480464a007ef4ae0a1727fea90c",
+      "commits": 4
+    },
+    {
+      "number": 3077,
+      "title": "build(docker): update node.js to v22.23.2",
+      "mergedAt": "2026-08-11T06:14:31Z",
+      "mergeSha": "bd971f86cf6327ab0470bf0300d126454ca92f5e",
+      "kind": "squash",
+      "baseSha": "afb17aa4f9eb030e0d39e87d6f4750bd8865a215",
+      "commits": 1
+    },
+    {
+      "number": 3250,
+      "title": "fix: changes the suggested url from plex's \"hosted\" app",
+      "mergedAt": "2026-08-11T06:15:04Z",
+      "mergeSha": "d3c070e13ae9ebb5de6a42ab02f18fa84d4f02a8",
+      "kind": "squash",
+      "baseSha": "bd971f86cf6327ab0470bf0300d126454ca92f5e",
+      "commits": 9
+    },
+    {
+      "number": 3369,
+      "title": "fix(login): hide quick connect button for emby servers",
+      "mergedAt": "2026-08-11T10:23:40Z",
+      "mergeSha": "d103787a8f25fa3b4dac35a0ec3a05356adae632",
+      "kind": "squash",
+      "baseSha": "d3c070e13ae9ebb5de6a42ab02f18fa84d4f02a8",
+      "commits": 1
+    },
+    {
+      "number": 3368,
+      "title": "test(cypress): stop dirty restartRequired flag cascading across specs",
+      "mergedAt": "2026-08-11T13:10:31Z",
+      "mergeSha": "39ff48c650d30ced0516574c55914d0bd26c9983",
+      "kind": "squash",
+      "baseSha": "d103787a8f25fa3b4dac35a0ec3a05356adae632",
+      "commits": 1
+    },
+    {
+      "number": 3321,
+      "title": "fix(api): stop library reads from resetting enabled flags",
+      "mergedAt": "2026-08-16T13:31:45Z",
+      "mergeSha": "985ddef3f01b4cb5523a7f00c0119a4c096e1509",
+      "kind": "squash",
+      "baseSha": "39ff48c650d30ced0516574c55914d0bd26c9983",
+      "commits": 1
+    },
+    {
+      "number": 3366,
+      "title": "fix(subscriber): keep request status updates on the owning save's connection",
+      "mergedAt": "2026-08-18T05:32:47Z",
+      "mergeSha": "059008cbb2ee0ca457ac93597d379407cb61a622",
+      "kind": "squash",
+      "baseSha": "4d17e08b91c8e1de41fd75a750c11b635d046434",
+      "commits": 4
+    },
+    {
+      "number": 3428,
+      "title": "fix(override-rules): match default *arr server by id",
+      "mergedAt": "2026-08-25T09:34:37Z",
+      "mergeSha": "7fae95bbeac58c749cd5687fa000f8c87f3938c2",
+      "kind": "squash",
+      "baseSha": "059008cbb2ee0ca457ac93597d379407cb61a622",
+      "commits": 4
+    },
+    {
+      "number": 3431,
+      "title": "fix(ui): don't mark empty collections as available",
+      "mergedAt": "2026-08-25T18:49:47Z",
+      "mergeSha": "92f8404326cf6d8b1c3a9412dbfc6011e26f4112",
+      "kind": "squash",
+      "baseSha": "7fae95bbeac58c749cd5687fa000f8c87f3938c2",
+      "commits": 1
+    },
+    {
+      "number": 2482,
+      "title": "feat(users): add search box for user lookup by username or email",
+      "mergedAt": "2026-08-27T12:55:33Z",
+      "mergeSha": "aae8816766daddb8433e6e3b46f0a9695acb0320",
+      "kind": "squash",
+      "baseSha": "92f8404326cf6d8b1c3a9412dbfc6011e26f4112",
+      "commits": 10
+    },
+    {
+      "number": 3367,
+      "title": "perf: bound tmdb cache & split scan lookups into their own tier",
+      "mergedAt": "2026-08-27T13:09:15Z",
+      "mergeSha": "59ad5f191631ec9c60990c953aef7ae08a132782",
+      "kind": "squash",
+      "baseSha": "aae8816766daddb8433e6e3b46f0a9695acb0320",
+      "commits": 5
+    },
+    {
+      "number": 3350,
+      "title": "feat(notifications): add support for ntfy.sh tags",
+      "mergedAt": "2026-08-27T14:56:59Z",
+      "mergeSha": "92bad10c53976f903a145230141d8f78a7c5eba4",
+      "kind": "squash",
+      "baseSha": "59ad5f191631ec9c60990c953aef7ae08a132782",
+      "commits": 6
+    },
+    {
+      "number": 3395,
+      "title": "feat(api): send a Seerr user agent on outbound requests",
+      "mergedAt": "2026-08-27T15:08:18Z",
+      "mergeSha": "a123d20b2c5821e57fc22082707ad83e866ec78f",
+      "kind": "squash",
+      "baseSha": "92bad10c53976f903a145230141d8f78a7c5eba4",
+      "commits": 2
+    },
+    {
+      "number": 3432,
+      "title": "fix(settings): mutate the query-string status key for modal immediately",
+      "mergedAt": "2026-08-27T15:15:18Z",
+      "mergeSha": "5af32cb27aa13bc8d1ff3cb2478ed55eb5b5552c",
+      "kind": "squash",
+      "baseSha": "a123d20b2c5821e57fc22082707ad83e866ec78f",
+      "commits": 1
+    },
+    {
+      "number": 3434,
+      "title": "fix: prevent hideAvailable/hideBlocklisted from filtering person results",
+      "mergedAt": "2026-08-28T10:45:24Z",
+      "mergeSha": "0be53e6ecccd334b54ecf0ac1ffde7a44d7b13ca",
+      "kind": "squash",
+      "baseSha": "5af32cb27aa13bc8d1ff3cb2478ed55eb5b5552c",
+      "commits": 1
+    },
+    {
+      "number": 3305,
+      "title": "fix(discover): fix tv title sorting and validate sortBy per media type",
+      "mergedAt": "2026-08-28T13:19:08Z",
+      "mergeSha": "2759058aeb01248beae841fd450f7e73ea8d95e3",
+      "kind": "squash",
+      "baseSha": "0be53e6ecccd334b54ecf0ac1ffde7a44d7b13ca",
+      "commits": 2
+    },
+    {
+      "number": 3375,
+      "title": "fix(datasource): register entities and subscribers explicitly",
+      "mergedAt": "2026-08-31T00:23:12Z",
+      "mergeSha": "0f79ee663c32a3e3141ec64ef9ad79ca6dda5b89",
+      "kind": "squash",
+      "baseSha": "2759058aeb01248beae841fd450f7e73ea8d95e3",
+      "commits": 3
+    },
+    {
+      "number": 3441,
+      "title": "chore(i18n): update translations from Weblate",
+      "mergedAt": "2026-08-31T00:27:37Z",
+      "mergeSha": "cc592e8df2a818828855052161f779cbc46ee951",
+      "kind": "squash",
+      "baseSha": "0f79ee663c32a3e3141ec64ef9ad79ca6dda5b89",
+      "commits": 1
+    },
+    {
+      "number": 3446,
+      "title": "fix(ui): stop appear leaking onto the DOM in Modal and SlideOver",
+      "mergedAt": "2026-08-31T05:41:23Z",
+      "mergeSha": "da4b555ca85a5aea05627fc73a4d9cbcec7f7388",
+      "kind": "squash",
+      "baseSha": "cc592e8df2a818828855052161f779cbc46ee951",
+      "commits": 1
+    },
+    {
+      "number": 3449,
+      "title": "fix(datasource): break import cycle mistyping postgres timestamps",
+      "mergedAt": "2026-08-31T07:13:04Z",
+      "mergeSha": "d7b08bddc02467414b71166250f9a38e31df9488",
+      "kind": "squash",
+      "baseSha": "da4b555ca85a5aea05627fc73a4d9cbcec7f7388",
+      "commits": 1
+    },
+    {
+      "number": 3450,
+      "title": "chore(deps): upgrade @headlessui/react to 2.2.10 ",
+      "mergedAt": "2026-08-31T11:58:27Z",
+      "mergeSha": "1cc2f116a2c69ebd4ac874559c015e09a00773aa",
+      "kind": "squash",
+      "baseSha": "d7b08bddc02467414b71166250f9a38e31df9488",
+      "commits": 1
+    },
+    {
+      "number": 3451,
+      "title": "fix(ui): stop the slideover backdrop flashing back on close",
+      "mergedAt": "2026-08-31T12:00:35Z",
+      "mergeSha": "df743f463836269eb1e3b15b07ce1bbd17f543ba",
+      "kind": "squash",
+      "baseSha": "1cc2f116a2c69ebd4ac874559c015e09a00773aa",
+      "commits": 1
+    },
+    {
+      "number": 3453,
+      "title": "refactor(ui): use headlessui flat named exports",
+      "mergedAt": "2026-08-31T12:00:52Z",
+      "mergeSha": "aa8e0de04ce018137a06d3e2b664c2ebda69be70",
+      "kind": "squash",
+      "baseSha": "df743f463836269eb1e3b15b07ce1bbd17f543ba",
+      "commits": 2
+    },
+    {
+      "number": 3454,
+      "title": "refactor(ui): use the Radio component instead of RadioGroup.Option",
+      "mergedAt": "2026-08-31T12:10:50Z",
+      "mergeSha": "46d5915d6c449fc8deccd84bbba50ef76d832f57",
+      "kind": "squash",
+      "baseSha": "aa8e0de04ce018137a06d3e2b664c2ebda69be70",
+      "commits": 1
+    },
+    {
+      "number": 3351,
+      "title": "fix(tv): prevent phantom specials from blocking season request",
+      "mergedAt": "2026-08-31T12:15:41Z",
+      "mergeSha": "7997f7564b1b830c53c6902ef8f9f520f4daf55b",
+      "kind": "squash",
+      "baseSha": "46d5915d6c449fc8deccd84bbba50ef76d832f57",
+      "commits": 1
+    },
+    {
+      "number": 3391,
+      "title": "fix(db): drop stale auth unique on sqlite push subscriptions",
+      "mergedAt": "2026-08-31T12:16:58Z",
+      "mergeSha": "5f4cb1ea45b82e46031e8af583d04555087ca0a0",
+      "kind": "squash",
+      "baseSha": "7997f7564b1b830c53c6902ef8f9f520f4daf55b",
+      "commits": 1
+    },
+    {
+      "number": 3385,
+      "title": "fix(requests): enforce pending and failed states on request routes",
+      "mergedAt": "2026-08-31T13:37:47Z",
+      "mergeSha": "9f6403e14eea2095342407e865f1125d7a4c8896",
+      "kind": "squash",
+      "baseSha": "5f4cb1ea45b82e46031e8af583d04555087ca0a0",
+      "commits": 1
+    },
+    {
+      "number": 3306,
+      "title": "ci(actions): update github actions",
+      "mergedAt": "2026-08-31T14:38:54Z",
+      "mergeSha": "5a5f0590018d648ba3b7d1529f6613d077c4c032",
+      "kind": "squash",
+      "baseSha": "9f6403e14eea2095342407e865f1125d7a4c8896",
+      "commits": 1
+    },
+    {
+      "number": 3447,
+      "title": "chore(i18n): update translations from Weblate",
+      "mergedAt": "2026-08-31T16:18:50Z",
+      "mergeSha": "5c04640b631a3d20712006fea24200762b2e6f70",
+      "kind": "squash",
+      "baseSha": "5a5f0590018d648ba3b7d1529f6613d077c4c032",
+      "commits": 1
+    },
+    {
+      "number": 3467,
+      "title": "fix: fix empty discordId in comment webhooks",
+      "mergedAt": "2026-09-02T08:05:13Z",
+      "mergeSha": "e73825b2f10f53664aeb30733a483b4cf18b6a2e",
+      "kind": "squash",
+      "baseSha": "5c04640b631a3d20712006fea24200762b2e6f70",
+      "commits": 1
+    },
+    {
+      "number": 3279,
+      "title": "fix(requests): reset orphaned season statuses when a request is deleted",
+      "mergedAt": "2026-09-02T12:13:18Z",
+      "mergeSha": "970bb545716505e3d3d2fa7072a7aabbc5712c05",
+      "kind": "squash",
+      "baseSha": "e73825b2f10f53664aeb30733a483b4cf18b6a2e",
+      "commits": 8
+    },
+    {
+      "number": 3376,
+      "title": "fix(requests): stop editing a request from stealing another's season",
+      "mergedAt": "2026-09-03T08:31:23Z",
+      "mergeSha": "17fc4cc659e121ce1bde82188a29a8b07c2dccf9",
+      "kind": "squash",
+      "baseSha": "970bb545716505e3d3d2fa7072a7aabbc5712c05",
+      "commits": 2
+    },
+    {
+      "number": 3377,
+      "title": "fix(requests): serialize request creation per user",
+      "mergedAt": "2026-09-03T10:22:51Z",
+      "mergeSha": "d7dc7bdd347bd5fac83c5a6089ba5226ae57ed36",
+      "kind": "squash",
+      "baseSha": "17fc4cc659e121ce1bde82188a29a8b07c2dccf9",
+      "commits": 1
+    },
+    {
+      "number": 3472,
+      "title": "docs(docker): add cap-drop and security-opt to docker command",
+      "mergedAt": "2026-09-04T06:07:31Z",
+      "mergeSha": "a4f5eaa21e30736648600e115ecc87e27a5f6666",
+      "kind": "squash",
+      "baseSha": "d7dc7bdd347bd5fac83c5a6089ba5226ae57ed36",
+      "commits": 1
+    },
+    {
+      "number": 3412,
+      "title": "fix(requests): scope download status to requested seasons on request cards",
+      "mergedAt": "2026-09-05T07:33:22Z",
+      "mergeSha": "c604bccc003d4d2f74a66d8cb74d9e14d5ffda89",
+      "kind": "squash",
+      "baseSha": "a4f5eaa21e30736648600e115ecc87e27a5f6666",
+      "commits": 1
+    },
+    {
+      "number": 3471,
+      "title": "ci(actions): update github actions (major)",
+      "mergedAt": "2026-09-05T23:24:45Z",
+      "mergeSha": "6bf3d0484ff86553c2e27ed0552c47d62ab2bd46",
+      "kind": "squash",
+      "baseSha": "c604bccc003d4d2f74a66d8cb74d9e14d5ffda89",
+      "commits": 1
+    },
+    {
+      "number": 3458,
+      "title": "chore(deps): update database",
+      "mergedAt": "2026-09-05T23:26:00Z",
+      "mergeSha": "979978fc32d18787f455376d4ac5d29bd2acb954",
+      "kind": "squash",
+      "baseSha": "6bf3d0484ff86553c2e27ed0552c47d62ab2bd46",
+      "commits": 1
+    },
+    {
+      "number": 3478,
+      "title": "ci(actions): update github actions",
+      "mergedAt": "2026-09-05T23:37:41Z",
+      "mergeSha": "a3dbbd94a654dcf9f4273d7ba754f66c6d71d799",
+      "kind": "squash",
+      "baseSha": "979978fc32d18787f455376d4ac5d29bd2acb954",
+      "commits": 1
+    },
+    {
+      "number": 3483,
+      "title": "chore(i18n): update translations from Weblate",
+      "mergedAt": "2026-09-07T14:25:53Z",
+      "mergeSha": "5f9722758c4372cf1cd72f414c079e08b1993507",
+      "kind": "squash",
+      "baseSha": "a3dbbd94a654dcf9f4273d7ba754f66c6d71d799",
+      "commits": 1
+    },
+    {
+      "number": 1855,
+      "title": "feat(settings): hide already requested media",
+      "mergedAt": "2026-09-07T22:43:28Z",
+      "mergeSha": "6f5a17735d383b110cca04326ecd536ad7675ed6",
+      "kind": "squash",
+      "baseSha": "5f9722758c4372cf1cd72f414c079e08b1993507",
+      "commits": 7
+    },
+    {
+      "number": 3492,
+      "title": "chore(i18n): update translations from Weblate",
+      "mergedAt": "2026-09-09T19:26:01Z",
+      "mergeSha": "68c5bc8c7d8560d295387adeeee73982ea518e8f",
+      "kind": "squash",
+      "baseSha": "6f5a17735d383b110cca04326ecd536ad7675ed6",
+      "commits": 1
+    },
+    {
+      "number": 2698,
+      "title": "fix(requests): skip seasons with no episodes when requesting all seasons",
+      "mergedAt": "2026-09-11T08:20:38Z",
+      "mergeSha": "1dbf19b80355850973367a34bd826ada6d628cd2",
+      "kind": "squash",
+      "baseSha": "68c5bc8c7d8560d295387adeeee73982ea518e8f",
+      "commits": 1
+    },
+    {
+      "number": 3420,
+      "title": "docs(helm): fix documentation regarding chart signature verification",
+      "mergedAt": "2026-09-11T14:35:33Z",
+      "mergeSha": "4fc265b60b67796b7b688571bf30f0a513b8bcb6",
+      "kind": "squash",
+      "baseSha": "1dbf19b80355850973367a34bd826ada6d628cd2",
+      "commits": 1
+    },
+    {
+      "number": 3502,
+      "title": "fix(jellyfin-api): update Authorization headers for Jellyfin",
+      "mergedAt": "2026-09-12T12:18:38Z",
+      "mergeSha": "de57e7ac6c59b0fd3dcbedac6679fb394d5e6c8b",
+      "kind": "squash",
+      "baseSha": "4fc265b60b67796b7b688571bf30f0a513b8bcb6",
+      "commits": 1
+    },
+    {
+      "number": 3241,
+      "title": "test: add scanner update rate override for testing",
+      "mergedAt": "2026-09-12T23:32:52Z",
+      "mergeSha": "7a76142ae337ce27779109b2b47bdc14883e93b9",
+      "kind": "squash",
+      "baseSha": "de57e7ac6c59b0fd3dcbedac6679fb394d5e6c8b",
+      "commits": 4
+    },
+    {
+      "number": 3501,
+      "title": "fix(server): respond instead of hanging on proxy route errors",
+      "mergedAt": "2026-09-13T19:41:03Z",
+      "mergeSha": "a53f49bdc3d9740077d84b79fbf470579fb831e7",
+      "kind": "squash",
+      "baseSha": "7a76142ae337ce27779109b2b47bdc14883e93b9",
+      "commits": 3
+    },
+    {
+      "number": 3511,
+      "title": "test: block outbound HTTP in unit tests",
+      "mergedAt": "2026-09-14T09:36:58Z",
+      "mergeSha": "abe2f3bb805429c4318afbc6f1684ce94c2d1e8e",
+      "kind": "squash",
+      "baseSha": "a53f49bdc3d9740077d84b79fbf470579fb831e7",
+      "commits": 1
+    },
+    {
+      "number": 3504,
+      "title": "fix(auth):  refresh avatar on Quick Connect login",
+      "mergedAt": "2026-09-14T10:45:47Z",
+      "mergeSha": "d4eeea85be804af593d00ebba3ec051e355eb1ee",
+      "kind": "squash",
+      "baseSha": "abe2f3bb805429c4318afbc6f1684ce94c2d1e8e",
+      "commits": 3
+    },
+    {
+      "number": 3503,
+      "title": "refactor(avatarproxy): remove unused auth header from avatarproxy",
+      "mergedAt": "2026-09-14T11:11:17Z",
+      "mergeSha": "b2116523f767b9cb9d0065624f0f1dd4f2ca64da",
+      "kind": "squash",
+      "baseSha": "d4eeea85be804af593d00ebba3ec051e355eb1ee",
+      "commits": 1
+    },
+    {
+      "number": 3399,
+      "title": "fix(scanner): confirm orphan candidates against the servers before declining",
+      "mergedAt": "2026-09-14T15:30:30Z",
+      "mergeSha": "34b28d0aba6961bde8cca9b362c1066593ea0313",
+      "kind": "squash",
+      "baseSha": "b2116523f767b9cb9d0065624f0f1dd4f2ca64da",
+      "commits": 1
+    },
+    {
+      "number": 3510,
+      "title": "fix(db): remap leftover Overseerr DELETED status after migration",
+      "mergedAt": "2026-09-15T05:33:45Z",
+      "mergeSha": "2bebae836993db271d192c5db26510a469c83a55",
+      "kind": "squash",
+      "baseSha": "34b28d0aba6961bde8cca9b362c1066593ea0313",
+      "commits": 1
+    },
+    {
+      "number": 3480,
+      "title": "ci: remove third party action dawidd6/action-download-artifact",
+      "mergedAt": "2026-09-15T06:37:46Z",
+      "mergeSha": "6fa7473dbb3bc0a44fd47748435f53a3480cc4da",
+      "kind": "squash",
+      "baseSha": "2bebae836993db271d192c5db26510a469c83a55",
+      "commits": 2
+    },
+    {
+      "number": 3142,
+      "title": "fix(webpush): resolve push subscription bugs for multi-device and shared browsers",
+      "mergedAt": "2026-09-16T12:09:44Z",
+      "mergeSha": "59d5947b4df8591882bda70ae199f3a708e2d02b",
+      "kind": "squash",
+      "baseSha": "6fa7473dbb3bc0a44fd47748435f53a3480cc4da",
+      "commits": 3
+    },
+    {
+      "number": 3481,
+      "title": "docs(discord): document the Thread ID notification setting.",
+      "mergedAt": "2026-09-21T08:06:42Z",
+      "mergeSha": "7afbb2914f21afa78af357425bb5a840f5e95895",
+      "kind": "squash",
+      "baseSha": "59d5947b4df8591882bda70ae199f3a708e2d02b",
+      "commits": 2
+    },
+    {
+      "number": 3017,
+      "title": "feat: add a demo feature",
+      "mergedAt": "2026-09-21T08:11:05Z",
+      "mergeSha": "38581ca1c05f37b3f404571da34358660d1b667b",
+      "kind": "squash",
+      "baseSha": "7afbb2914f21afa78af357425bb5a840f5e95895",
+      "commits": 1
+    },
+    {
+      "number": 2164,
+      "title": "feat(overriderules): apply override rules to advanced requests",
+      "mergedAt": "2026-09-21T21:59:57Z",
+      "mergeSha": "794743a45f17e3d6aba06d68e1716e8b15146673",
+      "kind": "squash",
+      "baseSha": "38581ca1c05f37b3f404571da34358660d1b667b",
+      "commits": 1
+    },
+    {
+      "number": 3378,
+      "title": "fix(requests): enforce the quota when editing a request",
+      "mergedAt": "2026-09-23T11:58:29Z",
+      "mergeSha": "8f0a977de83620130ab6cce7f2d39f6d6725c87d",
+      "kind": "squash",
+      "baseSha": "794743a45f17e3d6aba06d68e1716e8b15146673",
+      "commits": 4
+    },
+    {
+      "number": 3379,
+      "title": "fix(requests): stop editing a request from re-requesting covered seasons",
+      "mergedAt": "2026-09-23T12:04:32Z",
+      "mergeSha": "10483e2c08db5d857edc261bb18afd5b9cc5766c",
+      "kind": "squash",
+      "baseSha": "8f0a977de83620130ab6cce7f2d39f6d6725c87d",
+      "commits": 1
+    },
+    {
+      "number": 3380,
+      "title": "fix(requests): serialize requests for the same title",
+      "mergedAt": "2026-09-23T12:17:55Z",
+      "mergeSha": "cc6f5c76316c25b193f6a8887b9d0eaf3bb26eef",
+      "kind": "squash",
+      "baseSha": "10483e2c08db5d857edc261bb18afd5b9cc5766c",
+      "commits": 1
+    },
+    {
+      "number": 2950,
+      "title": "chore(deps): update dependency @huggingface/transformers to v4",
+      "mergedAt": "2026-09-24T05:39:06Z",
+      "mergeSha": "f92f44b31480c2fd31e23af88302b883a3325d68",
+      "kind": "squash",
+      "baseSha": "cc6f5c76316c25b193f6a8887b9d0eaf3bb26eef",
+      "commits": 1
+    },
+    {
+      "number": 3539,
+      "title": "fix(override-rules): keep values set by advanced requesters",
+      "mergedAt": "2026-09-24T09:18:29Z",
+      "mergeSha": "b9194432020fc029bf5166dc1e0140989236f689",
+      "kind": "squash",
+      "baseSha": "f92f44b31480c2fd31e23af88302b883a3325d68",
+      "commits": 1
+    },
+    {
+      "number": 3536,
+      "title": "fix(subscriber): keep issue comment lookups on the owning save's connection",
+      "mergedAt": "2026-09-25T13:15:06Z",
+      "mergeSha": "68e01b98a3a275f0b16e3796648ddd356d1a57c1",
+      "kind": "squash",
+      "baseSha": "b9194432020fc029bf5166dc1e0140989236f689",
+      "commits": 1
+    },
+    {
+      "number": 3251,
+      "title": "fix(plex): limit concurrent watchlist metadata requests",
+      "mergedAt": "2026-09-25T15:31:33Z",
+      "mergeSha": "103976d1b4d72fb2278995c2e9b9ab51891d5b8f",
+      "kind": "squash",
+      "baseSha": "68e01b98a3a275f0b16e3796648ddd356d1a57c1",
+      "commits": 2
+    },
+    {
+      "number": 3541,
+      "title": "ci(duplicate-detector): switch embeddings to bge-small-en-v1.5",
+      "mergedAt": "2026-09-26T13:19:42Z",
+      "mergeSha": "4fd0da04e355f8b376f357246258ea7bdabdd3e5",
+      "kind": "squash",
+      "baseSha": "103976d1b4d72fb2278995c2e9b9ab51891d5b8f",
+      "commits": 1
+    },
+    {
+      "number": 3551,
+      "title": "fix(jellyfin): handle season and episode items in recently added scan",
+      "mergedAt": "2026-09-28T13:13:55Z",
+      "mergeSha": "cd8aa1f0daefb5ce2938aaf728a087755660aaf1",
+      "kind": "squash",
+      "baseSha": "9fda1c6270e8999d8d4e8fb498fd78926b2d3e4e",
+      "commits": 1
+    },
+    {
+      "number": 3556,
+      "title": "chore(helm): bump seerr to 3.5.0",
+      "mergedAt": "2026-09-29T03:04:27Z",
+      "mergeSha": "fa58c3069795991c6741f624e7374808fe780eb8",
+      "kind": "squash",
+      "baseSha": "cd8aa1f0daefb5ce2938aaf728a087755660aaf1",
+      "commits": 1
+    },
+    {
+      "number": 3557,
+      "title": "fix(settings): allow trailing slash in YouTube URL",
+      "mergedAt": "2026-09-29T11:01:30Z",
+      "mergeSha": "e9590629b8215676a352ec2413d7c8ee7e6974df",
+      "kind": "squash",
+      "baseSha": "fa58c3069795991c6741f624e7374808fe780eb8",
+      "commits": 2
+    }
+  ],
+  "excluded": [],
+  "overCap": []
+}

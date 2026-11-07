@@ -11,7 +11,8 @@
     "validate": "node dist/validate.js",
     "eval": "node dist/run.js",
     "review-sample": "node dist/review.js",
-    "draw": "node dist/drawCli.js"
+    "draw": "node dist/drawCli.js",
+    "backtest:prs": "node dist/backtest/listCli.js"
   },
   "dependencies": {
     "@gitinside/analyzer": "workspace:*",
