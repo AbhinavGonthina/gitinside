@@ -8,14 +8,23 @@
  * gitinside commit wrote it, and refused otherwise; the raw files a run writes don't make the
  * tree dirty, so a restart with the default `--out` resumes. Worktrees a killed run left in a
  * clone are removed first. `--limit` stops after that many PRs per repo, for a smoke run
- * (write it to a gitignored `--out`). `.github/workflows/backtest-replay.yml` runs it on
- * GitHub's runners, one job per repo.
+ * (write it to a gitignored `--out`). A relative `--out` is resolved from the gitinside repo's
+ * root, not from `eval/` where pnpm runs the script (`--out eval/dist/raw`).
+ * `.github/workflows/backtest-replay.yml` runs it on GitHub's runners, one job per repo.
  */
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { openDiskCache } from "@gitinside/analyzer";
-import { takeFlag, thisRun, writeAtomically } from "./cliShared.js";
+import {
+  namedRepos,
+  outDir,
+  ownFiles,
+  parseLimit,
+  takeFlag,
+  thisRun,
+  writeAtomically,
+} from "./cliShared.js";
 import { parseBacktestReposFile } from "./format.js";
 import { ensureClone, removeStrayWorktrees } from "./git.js";
 import { parsePrsFile, prsFileName } from "./prs.js";
@@ -33,31 +42,15 @@ const ROOT = join(EVAL, "..");
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const limitText = takeFlag(args, "limit");
-  const limit = limitText === undefined ? undefined : Number(limitText);
-  if (limit !== undefined && !(Number.isInteger(limit) && limit >= 1)) {
-    throw new Error("--limit must be a whole number of at least 1");
-  }
-  const out = resolve(ROOT, takeFlag(args, "out") ?? join(EVAL, "backtest", "raw"));
-  const asked = args.map((a) => a.toLowerCase());
+  const limit = parseLimit(takeFlag(args, "limit"));
+  const out = outDir(ROOT, takeFlag(args, "out"), join(EVAL, "backtest", "raw"));
   const pins = parseBacktestReposFile(
     "backtest/repos.json",
     readFileSync(join(EVAL, "backtest", "repos.json"), "utf8"),
   );
-  const repos = pins.repos.filter(
-    (r) => asked.length === 0 || asked.includes(`${r.owner}/${r.name}`.toLowerCase()),
-  );
-  if (repos.length < asked.length)
-    throw new Error(`not every repo named is pinned: ${asked.join(", ")}`);
+  const repos = namedRepos(pins.repos, args);
   // A restarted run sees its own raw files as changes; they mustn't make it call itself dirty.
-  const run = thisRun(
-    ROOT,
-    repos.map((r) =>
-      relative(ROOT, join(out, prsFileName(r)))
-        .split(sep)
-        .join("/"),
-    ),
-  );
+  const run = thisRun(ROOT, ownFiles(ROOT, out, repos));
   if (run.gitinside.endsWith(DIRTY_MARK)) {
     process.stderr.write("warning: the tree has uncommitted changes; the results say so\n");
   }

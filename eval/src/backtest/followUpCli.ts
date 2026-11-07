@@ -6,13 +6,14 @@
  * `eval/backtest/followup/`). A repo with no broken edge gets a file with no PRs and isn't
  * cloned. Commits are checked out of the replay's clone (`eval/.repos/backtest/`) with the
  * replay's fact cache; the analyzer must be the replay's (the PR's own breaks are rebuilt and
- * compared first).
+ * compared first). A relative `--out` is resolved from the gitinside repo's root, not from
+ * `eval/` where pnpm runs the script (`--out eval/dist/followup`).
  */
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { openDiskCache } from "@gitinside/analyzer";
-import { takeFlag, thisRun, writeAtomically } from "./cliShared.js";
+import { namedRepos, outDir, ownFiles, takeFlag, thisRun, writeAtomically } from "./cliShared.js";
 import { followUpRepo, flaggedPrs } from "./followUp.js";
 import { parseBacktestReposFile } from "./format.js";
 import {
@@ -31,25 +32,13 @@ const ROOT = join(EVAL, "..");
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const out = resolve(ROOT, takeFlag(args, "out") ?? join(EVAL, "backtest", "followup"));
-  const asked = args.map((a) => a.toLowerCase());
+  const out = outDir(ROOT, takeFlag(args, "out"), join(EVAL, "backtest", "followup"));
   const pins = parseBacktestReposFile(
     "backtest/repos.json",
     readFileSync(join(EVAL, "backtest", "repos.json"), "utf8"),
   );
-  const repos = pins.repos.filter(
-    (r) => asked.length === 0 || asked.includes(`${r.owner}/${r.name}`.toLowerCase()),
-  );
-  if (repos.length < asked.length)
-    throw new Error(`not every repo named is pinned: ${asked.join(", ")}`);
-  const run = thisRun(
-    ROOT,
-    repos.map((r) =>
-      relative(ROOT, join(out, prsFileName(r)))
-        .split(sep)
-        .join("/"),
-    ),
-  );
+  const repos = namedRepos(pins.repos, args);
+  const run = thisRun(ROOT, ownFiles(ROOT, out, repos));
   if (run.gitinside.endsWith(DIRTY_MARK)) {
     process.stderr.write("warning: the tree has uncommitted changes; the results say so\n");
   }
