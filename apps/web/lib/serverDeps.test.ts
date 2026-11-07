@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { FAKE_APP_ID, FAKE_KEYS } from "./githubApp.testkit";
 import { FAKE_GCP, fakeGoogle } from "./google.testkit";
 import {
   LOCAL_TASKS_OPT_IN,
@@ -8,6 +9,7 @@ import {
   SIGNED_OUT_HOURLY_LIMIT,
   analyzeDepsFromEnv,
   authDepsFromEnv,
+  githubAppFromEnv,
   graphDepsFromEnv,
   imageDepsFromEnv,
   jobDepsFromEnv,
@@ -422,6 +424,39 @@ describe("jobDepsFromEnv", () => {
   it("is undefined without the database, whatever the worker's settings", () => {
     expect(jobDepsFromEnv({ ...ENV, DATABASE_URL: undefined })).toBeUndefined();
     expect(jobDepsFromEnv({ ...ENV, DATABASE_URL: "" })).toBeUndefined();
+  });
+});
+
+describe("githubAppFromEnv", () => {
+  const APP = {
+    GITHUB_APP_ID: FAKE_APP_ID,
+    GITHUB_APP_PRIVATE_KEY: FAKE_KEYS.privateKey
+      .export({ type: "pkcs1", format: "pem" })
+      .toString(),
+  };
+
+  it("needs the App ID and its RSA private key, and parses the key once", () => {
+    const app = githubAppFromEnv(APP);
+    expect(app?.appId).toBe(FAKE_APP_ID);
+    expect(app?.privateKey.asymmetricKeyType).toBe("rsa");
+    expect(githubAppFromEnv(APP)?.privateKey).toBe(app?.privateKey);
+    for (const name of Object.keys(APP)) {
+      expect(githubAppFromEnv({ ...APP, [name]: undefined }), name).toBeUndefined();
+      expect(githubAppFromEnv({ ...APP, [name]: "" }), name).toBeUndefined();
+    }
+    expect(githubAppFromEnv({ ...APP, GITHUB_APP_ID: "app" })).toBeUndefined();
+    expect(githubAppFromEnv({ ...APP, GITHUB_APP_PRIVATE_KEY: "not a key" })).toBeUndefined();
+    expect(githubAppFromEnv(APP)?.appId).toBe(FAKE_APP_ID); // back after a bad value
+  });
+
+  it("points its calls at a fake only on this machine (ADR-0223)", () => {
+    expect(githubAppFromEnv(APP)?.fakeOrigin).toBeUndefined();
+    expect(
+      githubAppFromEnv({ ...APP, GITHUB_FAKE_ORIGIN: "http://127.0.0.1:3110" })?.fakeOrigin,
+    ).toBe("http://127.0.0.1:3110");
+    expect(
+      githubAppFromEnv({ ...APP, GITHUB_FAKE_ORIGIN: "https://evil.example" })?.fakeOrigin,
+    ).toBeUndefined();
   });
 });
 

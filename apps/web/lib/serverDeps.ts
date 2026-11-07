@@ -9,6 +9,7 @@ import {
 } from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
 import type { AuthDeps } from "./authRoute";
+import { appCredentials, type AppCredentials } from "./githubApp";
 import { fakeOrigin } from "./githubOAuth";
 import type { WebhookDeps } from "./githubWebhook";
 import { sessionKeys, type SessionKeys } from "./session";
@@ -325,6 +326,25 @@ export function webhookDepsFromEnv(env: Env = process.env): WebhookDeps | undefi
   }
   const db = database(env);
   return db && { db, secrets };
+}
+
+/** The app's credentials per key text, kept so each request doesn't parse the PEM again. */
+let app: { id: string; pem: string; credentials: AppCredentials | undefined } | undefined;
+
+/**
+ * The GitHub App acting as itself (M8.3c1, ADR-0226): `GITHUB_APP_ID` and
+ * `GITHUB_APP_PRIVATE_KEY` (an RSA key in PEM, `appCredentials`), else `undefined`, and no
+ * installation token can be minted. `GITHUB_FAKE_ORIGIN` points its calls at the E2E's
+ * loopback fake GitHub, as for sign-in (ADR-0223).
+ */
+export function githubAppFromEnv(env: Env = process.env): AppCredentials | undefined {
+  const { GITHUB_APP_ID: id = "", GITHUB_APP_PRIVATE_KEY: pem = "" } = env;
+  if (app?.id !== id || app.pem !== pem) {
+    app = { id, pem, credentials: appCredentials(id, pem) };
+  }
+  if (app.credentials === undefined) return undefined;
+  const fake = fakeOrigin(env.GITHUB_FAKE_ORIGIN);
+  return { ...app.credentials, ...(fake !== undefined && { fakeOrigin: fake }) };
 }
 
 /** One process-wide memory of GitHub's answers (lib/repoView.ts). */
