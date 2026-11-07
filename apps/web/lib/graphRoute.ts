@@ -1,6 +1,8 @@
-import { findPublishedAnalysis, type AnyDatabase } from "@gitinside/db";
+import { findStoredAnalysis, type AnyDatabase, type StoredAnalysis } from "@gitinside/db";
 import { StorageError, type ObjectStore } from "@gitinside/worker/storage";
+import { readSession, type AuthDeps } from "./authRoute";
 import { UNAVAILABLE_MESSAGE } from "./messages";
+import { checkRepoAccess } from "./repoAccess";
 import { parseRepoPath } from "./repoUrl";
 import { graphPath } from "./repoView";
 
@@ -9,8 +11,15 @@ import { graphPath } from "./repoView";
  * `architecture.json`, which the diagram page fetches. Apart from Next.js so tests call it
  * with plain values.
  *
- * - **Public repos only** (`findPublishedAnalysis`); the newest finished analysis of the
- *   commit, so a re-analysis by a newer analyzer version replaces the old graph.
+ * - **The newest finished analysis of the commit** (`findStoredAnalysis`), so a re-analysis
+ *   by a newer analyzer version replaces the old graph.
+ * - **A private repo only to a signed-in user GitHub shows it to** (M8.4b, ADR-0232): the
+ *   session is read from the cookie and `checkRepoAccess` asked (cached 60 s, ADR-0231) before
+ *   anything else, the spelling redirect included. Signed out, sign-in not configured, refused,
+ *   or the session ended: the very same `404` as a commit nobody analyzed, with no bucket
+ *   read, so a response never confirms that a private repo exists. A check that can't decide
+ *   is `503`. Served graphs and redirects are `private, no-store` with `Vary: Cookie`: never in
+ *   the CDN or a shared cache.
  * - **Streamed from the bucket** (Oracle Object Storage, ADR-0095) with the bucket's own credentials (no public bucket, ADR-0055).
  *   `fetch` decodes the stored gzip, so the route gzips it again ({@link acceptsGzip}).
  * - **Cached by the CDN** for a day (`s-maxage`) and by browsers for 5 minutes: a commit's
@@ -30,10 +39,14 @@ import { graphPath } from "./repoView";
 export interface GraphRouteDeps {
   db: AnyDatabase;
   store: Pick<ObjectStore, "get">;
+  /** Sign-in, for private repos; without it every private repo is a `404`. */
+  auth?: AuthDeps;
 }
 
-/** Cache headers of a served graph. */
+/** Cache headers of a served public graph. */
 export const GRAPH_CACHE_CONTROL = "public, max-age=300, s-maxage=86400";
+/** Cache headers of everything served for a private repo: a graph or a spelling redirect. */
+export const PRIVATE_CACHE_CONTROL = "private, no-store";
 /**
  * Cache headers of the redirect to the stored spelling: an hour, not a day, since a repo
  * renamed in case only (`Shop` → `shop`) makes the old redirect point back at a path that
@@ -113,37 +126,63 @@ function logFailure(event: string, error: unknown): void {
 }
 
 /**
+ * Whether the request's session may see the private repo `stored` names: `true`, or the
+ * response to give instead (the missing graph's `404`, or `503` when the check can't decide).
+ */
+async function privateAccess(
+  stored: StoredAnalysis,
+  auth: AuthDeps | undefined,
+  cookie: string | null,
+): Promise<true | Response> {
+  const user = await readSession(cookie, auth);
+  if (user === undefined || auth === undefined) return json(404, NOT_FOUND);
+  const access = await checkRepoAccess(user, stored.repo, auth);
+  if ("error" in access) {
+    return json(503, { error: "UNAVAILABLE", message: UNAVAILABLE_MESSAGE });
+  }
+  return "allowed" in access && access.allowed ? true : json(404, NOT_FOUND);
+}
+
+/**
  * Answer one graph request. `deps` is `undefined` when the database or the bucket isn't
  * configured: every request is then "temporarily unavailable". `acceptEncoding` is the
- * request's `Accept-Encoding` (`null` without one).
+ * request's `Accept-Encoding` and `cookie` its `Cookie` (`null` without one).
  */
 export async function handleGraphRequest(
   params: { owner: string; repo: string; sha: string },
   deps: GraphRouteDeps | undefined,
   acceptEncoding: string | null = null,
+  cookie: string | null = null,
 ): Promise<Response> {
   const ref = parseRepoPath(params.owner, params.repo);
   if (ref === null || !SHA.test(params.sha)) return json(404, NOT_FOUND);
   if (deps === undefined) return json(503, { error: "UNAVAILABLE", message: UNAVAILABLE_MESSAGE });
 
   try {
-    const published = await findPublishedAnalysis(deps.db, {
+    const stored = await findStoredAnalysis(deps.db, {
       owner: ref.owner,
       name: ref.repo,
       sha: params.sha,
     });
-    if (published === undefined) return json(404, NOT_FOUND);
-    const { owner, name } = published.repo;
+    if (stored === undefined) return json(404, NOT_FOUND);
+    const isPrivate = stored.repo.visibility === "private";
+    if (isPrivate) {
+      const shown = await privateAccess(stored, deps.auth, cookie);
+      if (shown !== true) return shown;
+    }
+    const { owner, name } = stored.repo;
     if (owner !== ref.owner || name !== ref.repo) {
       return new Response(null, {
         status: 308,
         headers: {
           location: graphPath(owner, name, params.sha),
-          "cache-control": SPELLING_REDIRECT_CACHE_CONTROL,
+          ...(isPrivate
+            ? { "cache-control": PRIVATE_CACHE_CONTROL, vary: "cookie" }
+            : { "cache-control": SPELLING_REDIRECT_CACHE_CONTROL }),
         },
       });
     }
-    const object = await deps.store.get(published.analysis.snapshotKey);
+    const object = await deps.store.get(stored.analysis.snapshotKey);
     if (object === undefined) {
       // A `done` row always had its object; retention (M5.12) or a manual delete removed it.
       console.error(JSON.stringify({ event: "graph_object_missing" }));
@@ -155,9 +194,9 @@ export async function handleGraphRequest(
       status: 200,
       headers: {
         "content-type": "application/json; charset=utf-8",
-        "cache-control": GRAPH_CACHE_CONTROL,
+        "cache-control": isPrivate ? PRIVATE_CACHE_CONTROL : GRAPH_CACHE_CONTROL,
         // The CDN keys on Accept-Encoding already; this tells browsers and other caches.
-        vary: "accept-encoding",
+        vary: isPrivate ? "accept-encoding, cookie" : "accept-encoding",
         ...(gzip ? { "content-encoding": "gzip" } : {}),
       },
     });

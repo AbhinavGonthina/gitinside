@@ -1,18 +1,42 @@
 // @vitest-environment node
-import { analyses, completeAnalysis, repos, startAnalysis, upsertRepo } from "@gitinside/db";
+import {
+  ACCESS_TTL_SECONDS,
+  accessCache,
+  analyses,
+  completeAnalysis,
+  createSession,
+  findSession,
+  repos,
+  sessions,
+  startAnalysis,
+  upsertRepo,
+  upsertUser,
+  users,
+} from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { StorageError, type ObjectBody } from "@gitinside/worker/storage";
 import { gunzipSync } from "node:zlib";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AuthDeps } from "./authRoute";
+import {
+  EXPIRES_IN,
+  FAKE_CLIENT,
+  fakeOAuth,
+  type FakeAccount,
+  type FakeInstallation,
+  type FakeOAuth,
+} from "./githubOAuth.testkit";
 import {
   CDN_CACHEABLE_BYTES,
   GRAPH_CACHE_CONTROL,
+  PRIVATE_CACHE_CONTROL,
   SPELLING_REDIRECT_CACHE_CONTROL,
   acceptsGzip,
   handleGraphRequest,
   type GraphRouteDeps,
 } from "./graphRoute";
 import { UNAVAILABLE_MESSAGE } from "./messages";
+import { hashToken, newToken, SESSION_COOKIE, sealTokens, sessionKeys } from "./session";
 
 const SHA = "d".repeat(40);
 const KEY = `public/acme/shop/${SHA}/0.1.0.json.gz`;
@@ -31,6 +55,9 @@ afterAll(async () => {
   await t?.close();
 });
 beforeEach(async () => {
+  await t.db.delete(accessCache);
+  await t.db.delete(sessions);
+  await t.db.delete(users);
   await t.db.delete(analyses);
   await t.db.delete(repos);
   objects = new Map([[KEY, GRAPH]]);
@@ -53,7 +80,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function publish(visibility: "public" | "private" = "public") {
+async function publish(visibility: "public" | "private" = "public", snapshotKey = KEY) {
   const { id: repoId } = await upsertRepo(t.db, {
     providerRepoId: 1,
     owner: "Acme",
@@ -63,9 +90,10 @@ async function publish(visibility: "public" | "private" = "public") {
   });
   const { id } = await startAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: "0.1.0" });
   await completeAnalysis(t.db, id, {
-    snapshotKey: KEY,
+    snapshotKey,
     stats: { files: 0, nodes: 0, edges: 0, unresolved: 0 },
   });
+  return repoId;
 }
 
 const params = (owner = "Acme", repo = "Shop", sha = SHA) => ({ owner, repo, sha });
@@ -233,5 +261,187 @@ describe("handleGraphRequest", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     // A bad path is still a 404 first.
     expect((await handleGraphRequest(params("-x"), undefined)).status).toBe(404);
+  });
+});
+
+describe("handleGraphRequest for a private repo (M8.4b)", () => {
+  const NOW = Date.parse("2026-11-07T12:00:00.000Z");
+  const OCTO: FakeAccount = { id: 3_000_000_007, login: "octo" };
+  const HUBOT: FakeAccount = { id: 3_000_000_008, login: "hubot" };
+  const KEYS = sessionKeys("s".repeat(43));
+  const PRIVATE_KEY = `private/41/repo/${SHA}/0.1.0.json.gz`;
+  const ACME: FakeInstallation = {
+    id: 41,
+    account: { login: "acme", type: "Organization" },
+    selection: "selected",
+    repos: [{ owner: "Acme", name: "Shop", private: true, id: 1 }],
+  };
+
+  let github: FakeOAuth;
+  beforeEach(async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    github = fakeOAuth();
+    github.install(OCTO, [ACME]);
+    const auth: AuthDeps = {
+      db: t.db,
+      client: { ...FAKE_CLIENT, fetch: github.fetch },
+      keys: KEYS,
+      now: () => NOW,
+    };
+    deps = { ...deps, auth };
+    objects.set(PRIVATE_KEY, GRAPH);
+    await publish("private", PRIVATE_KEY);
+  });
+
+  /** A live session for `account`: its `Cookie` header and what's needed to end it. */
+  async function signIn(account: FakeAccount) {
+    const issued = github.issue(account);
+    const token = newToken();
+    const tokenHash = hashToken(token);
+    const userId = await upsertUser(t.db, { githubUserId: account.id, login: account.login });
+    await createSession(t.db, {
+      userId,
+      tokenHash,
+      githubTokens: sealTokens(KEYS, tokenHash, {
+        accessToken: issued.accessToken,
+        accessExpiresAt: NOW + EXPIRES_IN * 1000,
+        refreshToken: issued.refreshToken,
+        refreshExpiresAt: NOW + 1e10,
+      }),
+      lifetimeSeconds: 3600,
+    });
+    return { cookie: `theme=dark; ${SESSION_COOKIE}=${token}`, tokenHash, issued };
+  }
+
+  const lookups = () => github.requests.filter((r) => r.url.includes("/repositories/")).length;
+
+  /** Everything a client can see of a response. */
+  async function seen(response: Response) {
+    return { status: response.status, headers: [...response.headers], body: await response.text() };
+  }
+
+  /** What a repo nobody analyzed answers: every refusal must look exactly like it. */
+  async function missing() {
+    return seen(await handleGraphRequest(params("Acme", "Nothing"), deps, "gzip"));
+  }
+
+  it("serves the graph to a user GitHub shows the repo to, never cacheable", async () => {
+    const { cookie } = await signIn(OCTO);
+    const response = await handleGraphRequest(params(), deps, "gzip", cookie);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe(PRIVATE_CACHE_CONTROL);
+    expect(response.headers.get("vary")).toBe("accept-encoding, cookie");
+    expect(gunzipSync(Buffer.from(await response.arrayBuffer())).toString()).toBe(GRAPH);
+    expect(reads).toEqual([PRIVATE_KEY]);
+    expect(github.requests.at(-1)?.url).toBe("https://api.github.com/repositories/1");
+
+    // Checked on every view, from the 60 s cache.
+    const plain = await handleGraphRequest(params(), deps, "identity", cookie);
+    expect(await plain.text()).toBe(GRAPH);
+    expect(plain.headers.get("cache-control")).toBe(PRIVATE_CACHE_CONTROL);
+    expect(lookups()).toBe(1);
+  });
+
+  it("answers signed out, without sign-in, or with a dead cookie exactly as a missing graph", async () => {
+    const expected = await missing();
+    expect(expected.status).toBe(404);
+    const { cookie } = await signIn(OCTO);
+    const cases: [string, GraphRouteDeps, string | null][] = [
+      ["signed out", deps, null],
+      ["sign-in not configured", { db: deps.db, store: deps.store }, cookie],
+      ["no such session", deps, `${SESSION_COOKIE}=${newToken()}`],
+    ];
+    for (const [name, d, c] of cases) {
+      expect(await seen(await handleGraphRequest(params(), d, "gzip", c)), name).toEqual(expected);
+    }
+    expect(reads).toEqual([]);
+    expect(lookups()).toBe(0);
+  });
+
+  it("refuses another signed-in user exactly as a missing graph, reading nothing", async () => {
+    const octo = await signIn(OCTO);
+    const hubot = await signIn(HUBOT); // signed in, but not in Acme's installation
+    const expected = await missing();
+
+    expect(await seen(await handleGraphRequest(params(), deps, "gzip", hubot.cookie))).toEqual(
+      expected,
+    );
+    expect(reads).toEqual([]);
+    expect((await handleGraphRequest(params(), deps, "gzip", octo.cookie)).status).toBe(200);
+    expect(reads).toEqual([PRIVATE_KEY]);
+    // The refusal is remembered for hubot alone.
+    expect((await handleGraphRequest(params(), deps, "gzip", hubot.cookie)).status).toBe(404);
+    expect(lookups()).toBe(2);
+  });
+
+  it("refuses access removed on GitHub once the check is 60 s old", async () => {
+    const { cookie } = await signIn(OCTO);
+    expect((await handleGraphRequest(params(), deps, "gzip", cookie)).status).toBe(200);
+    github.install(OCTO, []);
+    const [row] = await t.db.select().from(accessCache);
+    await t.db.update(accessCache).set({
+      checkedAt: new Date((row?.checkedAt.getTime() ?? 0) - ACCESS_TTL_SECONDS * 1000),
+    });
+
+    expect(await seen(await handleGraphRequest(params(), deps, "gzip", cookie))).toEqual(
+      await missing(),
+    );
+    expect(reads).toEqual([PRIVATE_KEY]);
+  });
+
+  it("ends the session when GitHub refuses the user's token, answering as missing", async () => {
+    const { cookie, tokenHash, issued } = await signIn(OCTO);
+    github.revoke(issued.accessToken);
+    expect(await seen(await handleGraphRequest(params(), deps, "gzip", cookie))).toEqual(
+      await missing(),
+    );
+    expect(await findSession(t.db, tokenHash)).toBeUndefined();
+    expect(reads).toEqual([]);
+  });
+
+  it("redirects another spelling only after the check, and never cacheably", async () => {
+    const octo = await signIn(OCTO);
+    const hubot = await signIn(HUBOT);
+    const other = params("acme", "shop");
+
+    const refused = await handleGraphRequest(other, deps, "gzip", hubot.cookie);
+    expect(await seen(refused)).toEqual(await missing());
+    const response = await handleGraphRequest(other, deps, "gzip", octo.cookie);
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe(`/api/graph/Acme/Shop/${SHA}`);
+    expect(response.headers.get("cache-control")).toBe(PRIVATE_CACHE_CONTROL);
+    expect(response.headers.get("vary")).toBe("cookie");
+    expect(reads).toEqual([]);
+  });
+
+  it("is unavailable, reading nothing, when the check can't decide; the next view asks again", async () => {
+    const { cookie } = await signIn(OCTO);
+    github.failNext(new Response("oops", { status: 502 }));
+    const response = await handleGraphRequest(params(), deps, "gzip", cookie);
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ error: "UNAVAILABLE", message: UNAVAILABLE_MESSAGE });
+    expect(reads).toEqual([]);
+
+    expect((await handleGraphRequest(params(), deps, "gzip", cookie)).status).toBe(200);
+  });
+
+  it("serves a public repo's graph the same as before to anyone, signed in or not", async () => {
+    // GitHub says it's public now (which object it serves is M8.4d's).
+    await upsertRepo(t.db, {
+      providerRepoId: 1,
+      owner: "Acme",
+      name: "Shop",
+      visibility: "public",
+      defaultBranch: "main",
+    });
+    const { cookie } = await signIn(HUBOT);
+    for (const c of [null, cookie]) {
+      const response = await handleGraphRequest(params(), deps, "gzip", c);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe(GRAPH_CACHE_CONTROL);
+      expect(response.headers.get("vary")).toBe("accept-encoding");
+    }
+    expect(lookups()).toBe(0);
   });
 });

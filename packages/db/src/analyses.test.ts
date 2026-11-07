@@ -12,6 +12,7 @@ import {
   findAnalysis,
   findLimitFailure,
   findPublishedAnalysis,
+  findStoredAnalysis,
   hideRepo,
   queueAnalysis,
   recentAnalysisStats,
@@ -547,6 +548,48 @@ describe("findPublishedAnalysis", () => {
     expect(await findPublishedAnalysis(t.db, { owner: "acme", name: "shop" })).toBeUndefined();
     const { providerRepoId } = FACTS;
     expect(await findPublishedAnalysis(t.db, { providerRepoId })).toBeUndefined();
+  });
+
+  it("finds a private repo's analysis only through findStoredAnalysis, with its visibility", async () => {
+    const { id: repoId } = await upsertRepo(t.db, {
+      ...FACTS,
+      owner: "Acme",
+      name: "Shop",
+      visibility: "private",
+    });
+    await done(repoId, SHA, VERSION, "2026-10-01T00:00:00Z");
+    await done(repoId, SHA, "0.2.0", "2026-10-02T00:00:00Z");
+    await done(repoId, OTHER, VERSION, "2026-10-03T00:00:00Z");
+    const pinned = { owner: "ACME", name: "shop", sha: SHA };
+
+    expect(await findPublishedAnalysis(t.db, pinned)).toBeUndefined();
+    expect(await findStoredAnalysis(t.db, pinned)).toEqual({
+      repo: {
+        id: repoId,
+        providerRepoId: FACTS.providerRepoId,
+        owner: "Acme",
+        name: "Shop",
+        visibility: "private",
+      },
+      analysis: {
+        sha: SHA,
+        analyzerVersion: "0.2.0",
+        snapshotKey: `k/${SHA}/0.2.0`,
+        finishedAt: new Date("2026-10-02T00:00:00Z"),
+      },
+    });
+    const { providerRepoId } = FACTS;
+    expect((await findStoredAnalysis(t.db, { providerRepoId }))?.analysis.sha).toBe(OTHER);
+    expect(await findStoredAnalysis(t.db, { ...pinned, sha: "c".repeat(40) })).toBeUndefined();
+
+    await upsertRepo(t.db, { ...FACTS, owner: "Acme", name: "Shop" });
+    expect((await findStoredAnalysis(t.db, pinned))?.repo.visibility).toBe("public");
+    expect((await findPublishedAnalysis(t.db, pinned))?.repo).toEqual({
+      id: repoId,
+      providerRepoId,
+      owner: "Acme",
+      name: "Shop",
+    });
   });
 
   it("stops serving a hidden repo, permalinks included, until GitHub's facts restore it", async () => {
