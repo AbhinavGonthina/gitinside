@@ -61,6 +61,25 @@ beforeAll(() => {
   commit("q1", "feat: squashed (#4)");
   git("checkout", "--quiet", "-b", "side", sha.c1 as string);
   commit("x1", "never merged");
+  // `stack`, a later branch from q1: PR 12 (b1) is stacked on PR 11 (a1), and GitHub marks
+  // PR 11 merged by PR 12's merge commit `st`; then PR 13's head `gm` merges the branch (k1)
+  // in, and the branch is fast-forwarded to it.
+  git("checkout", "--quiet", "-b", "a", sha.q1 as string);
+  commit("a1", "feat: the base of a stack");
+  git("checkout", "--quiet", "-b", "b");
+  commit("b1", "feat: on top of it");
+  git("checkout", "--quiet", "-b", "stack", sha.q1 as string);
+  git("merge", "--quiet", "--no-ff", "b", "-m", "Merge pull request #12 from acme/b");
+  sha.st = git("rev-parse", "HEAD");
+  git("checkout", "--quiet", "-b", "g");
+  commit("g1", "feat: g");
+  git("checkout", "--quiet", "stack");
+  commit("k1", "a direct push");
+  git("checkout", "--quiet", "g");
+  git("merge", "--quiet", "--no-ff", "stack", "-m", "Merge branch 'stack' into g");
+  sha.gm = git("rev-parse", "HEAD");
+  git("checkout", "--quiet", "stack");
+  git("merge", "--quiet", "--ff-only", "g");
   git("checkout", "--quiet", "main");
   view = gitView(dir);
 });
@@ -84,6 +103,8 @@ function pr(
     mergedAt: `2026-07-0${number}T12:00:00Z`,
     baseRef: "main",
     mergeSha,
+    // PR 1's head is f1, the second parent of its merge m1; the others aren't merges.
+    headSha: number === 1 ? (sha.f1 as string) : "e".repeat(40),
     commits,
     ...extra,
   };
@@ -118,6 +139,34 @@ describe("classifyPr", () => {
     expect(classifyPr(pr(1, sha.m1 as string), repo(), view, messages)).toEqual({
       kind: "merge",
       baseSha: sha.c1,
+    });
+  });
+
+  it("excludes a merge commit that isn't the PR's own: a stacked PR's child, or another PR's", () => {
+    const stack = { branch: "main", endSha: sha.gm as string };
+    expect(
+      classifyPr(pr(12, sha.st as string, 1, { headSha: sha.b1 as string }), stack, view, messages),
+    ).toEqual({ kind: "merge", baseSha: sha.q1 });
+    // PR 11's head a1 is under b1, so GitHub called it merged when PR 12 landed.
+    expect(
+      classifyPr(pr(11, sha.st as string, 1, { headSha: sha.a1 as string }), stack, view, messages),
+    ).toEqual({
+      reason: `its merge commit ${sha.st} merges ${sha.b1}, not the PR's head ${sha.a1}: another PR's merge (a stacked PR is marked merged when its child lands)`,
+    });
+    // The second parent matches, but the subject names another PR.
+    expect(
+      classifyPr(pr(14, sha.st as string, 1, { headSha: sha.b1 as string }), stack, view, messages),
+    ).toEqual({
+      reason: `its merge commit ${sha.st} is "Merge pull request #12 from acme/b", another PR's merge`,
+    });
+  });
+
+  it("excludes a head that merges the branch in and was fast-forwarded onto it", () => {
+    const stack = { branch: "main", endSha: sha.gm as string };
+    expect(
+      classifyPr(pr(13, sha.gm as string, 2, { headSha: sha.gm as string }), stack, view, messages),
+    ).toEqual({
+      reason: `its head ${sha.gm} is a merge commit the branch was fast-forwarded to, so its first parent is the PR's own branch, not main's previous state`,
     });
   });
 

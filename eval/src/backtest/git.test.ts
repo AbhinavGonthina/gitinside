@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   committedAt,
+  ensureClone,
   hasChangesBesides,
   laterCommits,
   lineCommits,
@@ -124,6 +125,18 @@ describe("laterCommits", () => {
 
     // The local commit is on the line but doesn't hold `from`; the pull's merge does.
     expect(lineCommits(repo, from, pull)).toEqual([pull]);
+  }, 30_000);
+});
+
+describe("ensureClone", () => {
+  it("fetches a branch name as a ref, never as an option", () => {
+    const clone = join(scratch, "clone");
+    execFileSync("git", ["clone", "--quiet", "--no-checkout", "--", repo, clone]);
+    // The pinned end isn't in the clone, so it fetches the branch: git must look for a ref
+    // named `--no-such-option`, not parse it as one of fetch's options.
+    expect(() =>
+      ensureClone(clone, { url: repo, branch: "--no-such-option", endSha: "f".repeat(40) }),
+    ).toThrow(/couldn't find remote ref --no-such-option/);
   }, 30_000);
 });
 

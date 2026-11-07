@@ -61,7 +61,8 @@ export function loadBacktestInputs(evalDir: string): BacktestInputs {
 /**
  * Problems between the backtest's files: each file against the one it builds on (a PR file
  * against its pin, a raw file against its PR file, a follow-up file against its raw file and
- * pin, a classification against its follow-up), and a flagged break without a classification.
+ * pin, a classification against its follow-up), a flagged break without a classification, and
+ * raw files from more than one gitinside commit.
  */
 export function backtestProblems(inputs: BacktestInputs): string[] {
   const { repos, prs, raw, followUp, classified } = inputs;
@@ -95,5 +96,21 @@ export function backtestProblems(inputs: BacktestInputs): string[] {
       if (!listed) return [`backtest/raw/${f}: there's no backtest/prs/${f} it replays`];
       return rawCrossCheck(file, listed.file).map((p) => `backtest/raw/${f}: ${p}`);
     }),
+    ...mixedReplays(raw),
   ];
+}
+
+/**
+ * A problem for each raw file replayed at another gitinside commit than the first (in file-name
+ * order): one analyzer per result set (ADR-0216), so the report never mixes two commits' results.
+ */
+function mixedReplays(raw: Named<RawFile>[]): string[] {
+  const [first] = raw;
+  if (!first) return [];
+  return raw
+    .filter(({ file }) => file.run.gitinside !== first.file.run.gitinside)
+    .map(
+      ({ f, file }) =>
+        `backtest/raw/${f}: replayed at gitinside ${file.run.gitinside}, but backtest/raw/${first.f} at ${first.file.run.gitinside}; every raw file must come from one commit`,
+    );
 }
