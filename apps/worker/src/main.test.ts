@@ -372,9 +372,12 @@ describe("startWorkerProcess", () => {
   });
 
   it("counts its startup (with the shutdown's allowance) and each push in the month's compute", async () => {
-    const worker = await start({ uptimeMs: () => 2_345 });
+    // Counted when the database opens (1,234 ms in) and the rest once listening (1,111 ms more).
+    const ages = [1_234, 2_345];
+    const worker = await start({ uptimeMs: () => ages.shift() ?? 9_999 });
+    expect(ages).toEqual([]);
     expect(await computeUsageThisMonth(t.db)).toMatchObject({
-      instanceMs: 2_400 + 10_000,
+      instanceMs: 1_300 + 10_000 + 1_200,
       runRequests: 0,
       taskOperations: 0,
       secretAccesses: 4,
@@ -444,12 +447,18 @@ describe("startWorkerProcess", () => {
 
   it("fails and closes the database when the sweep fails", async () => {
     await writeFile(join(root, "jobs"), "a file, not a folder");
-    await expect(startWorkerProcess(config(), { log, openDb, migrate })).rejects.toThrow();
+    const ages = [1_234, 2_345];
+    await expect(
+      startWorkerProcess(config(), { log, openDb, migrate, uptimeMs: () => ages.shift() ?? 0 }),
+    ).rejects.toThrow();
     expect(closes).toBe(1);
     expect(events(lines)).toEqual(["worker_starting", "migrations_applied"]);
-    // Cloud Run read the secrets before the process began, so a failed start still used them
-    // (and Cloud Run will start another instance, reading them again).
-    expect(await computeUsageThisMonth(t.db)).toMatchObject({ instanceMs: 0, secretAccesses: 4 });
+    // Cloud Run read the secrets before the process began, and bills a failed start's time
+    // and shutdown too (R13, M5.14b4); it will start another instance, reading them again.
+    expect(await computeUsageThisMonth(t.db)).toMatchObject({
+      instanceMs: 1_300 + 10_000 + 1_200,
+      secretAccesses: 4,
+    });
   });
 
   it("migrates through the direct URL before anything else touches the database", async () => {

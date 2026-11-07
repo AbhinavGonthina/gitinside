@@ -74,9 +74,10 @@ describe("runQuota", () => {
         { resource: "bucket", used: 40, limit: 20_000_000_000, alarm: false },
         { resource: "database", limit: 1_000_000_000, alarm: false },
         { resource: "requests", unit: "requests", limit: 50_000, alarm: false },
-        { resource: "cloud_run_vcpu", unit: "vcpu_seconds", used: 0, limit: 180_000, alarm: false },
-        { resource: "cloud_run_memory", unit: "gb_seconds", used: 0, limit: 360_000, alarm: false },
-        { resource: "cloud_run_requests", unit: "requests", limit: 2_000_000, alarm: false },
+        // Google's free tier less the kill switch's reserve (M5.14b4).
+        { resource: "cloud_run_vcpu", unit: "vcpu_seconds", used: 0, limit: 170_400, alarm: false },
+        { resource: "cloud_run_memory", unit: "gb_seconds", used: 0, limit: 354_846, alarm: false },
+        { resource: "cloud_run_requests", unit: "requests", limit: 1_997_600, alarm: false },
         { resource: "cloud_tasks", unit: "operations", limit: 1_000_000, alarm: false },
         { resource: "secret_manager", unit: "accesses", used: 0, limit: 10_000, alarm: false },
       ],
@@ -85,8 +86,8 @@ describe("runQuota", () => {
   });
 
   it("exits 2 when the month's compute reaches 80% of Google's free allowance (analyses paused)", async () => {
-    // 80% of the 360,000 GB-seconds at 4 GiB: about 18.6 hours of instance time.
-    await countComputeUsage(t.db, { instanceMs: 67_056_000 });
+    // 80% of the 354,846 GB-seconds at 4 GiB: about 18.4 hours of instance time.
+    await countComputeUsage(t.db, { instanceMs: 66_095_300 });
     expect(await runQuota(io())).toBe(QUOTA_ALARM_EXIT);
     expect(parse(lines).slice(1)).toMatchObject([
       { event: "quota_alarm", resource: "cloud_run_memory", percent: 80, alarm: true },

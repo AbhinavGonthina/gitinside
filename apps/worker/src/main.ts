@@ -35,7 +35,8 @@ import { createRunServer } from "./run.js";
  *    endpoint) under a Postgres advisory lock, so two instances take turns and a new
  *    revision never takes traffic (its startup probe waits for `listen`) on a schema older
  *    than its code. Nothing else touches the database first.
- * 1. Open Postgres.
+ * 1. Open Postgres, and count the instance's startup so far (and its shutdown, up front)
+ *    and its secrets in the month's compute (compute.ts, ADR-0156).
  * 2. **Sweep:** delete leftover job folders (`/tmp` is the instance's own, so another
  *    instance's job is never in it), then mark analyses `running` for over
  *    {@link INTERRUPTED_AFTER_SECONDS} `failed` (`JOB_INTERRUPTED`). No attempt runs that
@@ -46,8 +47,8 @@ import { createRunServer } from "./run.js";
  *    ADR-0136), the hourly maintenance (stale jobs, retention, rate-limit pruning, quota
  *    check; maintenance.ts) run after a job once its hourly claim in Postgres is won
  *    (ADR-0147), then listen.
- * 4. Count the instance's startup (and its shutdown, up front) in the month's compute
- *    (compute.ts, ADR-0156); every push answered is counted too.
+ * 4. Count the rest of the startup (also when a step after 1 fails); every push answered is
+ *    counted too.
  *
  * **Shutdown** ({@link RunningWorker.stop}, on SIGTERM or SIGINT): cancel the running job
  * (`CANCELLED` is retriable, so its push is answered `503` and Cloud Tasks delivers it
@@ -86,7 +87,7 @@ export interface StartOptions {
   maintenance?: Pick<MaintenanceTriggerOptions, "everySeconds" | "minTimeLeftMs"> | false;
   /** Default {@link createUsageMeter} on the database (the compute count, ADR-0156). */
   meter?: (options: { db: AnyDatabase; log: WorkerLog }) => UsageMeter;
-  /** The process's age in ms once listening. Default `performance.now()`. */
+  /** The process's age in ms, read when the database opens and again once listening (or failed). Default `performance.now()`. */
   uptimeMs?: () => number;
 }
 
@@ -151,6 +152,9 @@ export async function startWorkerProcess(
   // Undone in reverse if a later step fails.
   const cleanup: [string, () => Promise<void>][] = [];
   const undo = () => runAll([...cleanup].reverse(), log).catch(() => undefined);
+  const uptimeMs = options.uptimeMs ?? (() => performance.now());
+  // Once the startup is counted, how to count the rest of it (to listening, or to failing).
+  let countRest: (() => Promise<void>) | undefined;
   try {
     const migrateStart = performance.now();
     try {
@@ -162,10 +166,13 @@ export async function startWorkerProcess(
 
     const { db, close: closeDb } = (options.openDb ?? createDb)(config.databaseUrl);
     cleanup.push(["database", closeDb]);
-    // Cloud Run read the secrets before this process began; count them before anything
-    // else can fail the start (a failed start is retried, reading them again).
+    // Cloud Run read the secrets before this process began, and bills a failed start's
+    // time too: count both before anything else can fail it (a failed start is retried,
+    // reading them again). Startup is billed from the process's start (`timeOrigin`).
     const meter = (options.meter ?? createUsageMeter)({ db, log });
-    await meter.secretReads();
+    const openedAt = uptimeMs();
+    await meter.startup(openedAt);
+    countRest = () => meter.startupRest(uptimeMs() - openedAt);
 
     const folders = await sweepJobsRoot(config.jobsRoot);
     const interrupted = await failInterruptedAnalyses(db, INTERRUPTED_AFTER_SECONDS);
@@ -228,8 +235,9 @@ export async function startWorkerProcess(
     cleanup.push(["server", closeServer]);
     server.on("error", (error) => log({ event: "server_error", message: error.message }));
 
-    // Startup is billed too: the process's age now, ms since it started (`timeOrigin`).
-    await meter.startup((options.uptimeMs ?? (() => performance.now()))());
+    const rest = countRest;
+    countRest = undefined;
+    await rest();
     const address = server.address() as AddressInfo;
     log({ event: "worker_ready", host: address.address, port: address.port });
 
@@ -244,6 +252,8 @@ export async function startWorkerProcess(
     };
     return { address, stop };
   } catch (error) {
+    // Before the database closes; the meter never rejects.
+    await countRest?.();
     await undo();
     throw error;
   }
