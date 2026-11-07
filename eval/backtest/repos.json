@@ -1,0 +1,293 @@
+{
+  "pinned": "2026-11-06",
+  "window": { "from": "2026-07-01", "to": "2026-09-30" },
+  "maxPrsPerRepo": 300,
+  "followUpDays": 30,
+  "rules": [
+    "1. An application with its own frontend and backend code in the repo (not a library, framework, or SDK), public, not archived.",
+    "2. Its default branch has a commit before the window opens (startSha: the last one before 2026-07-01T00:00:00Z) and after it (endSha: the last one before 2026-10-31T00:00:00Z, when the follow-up ends), endSha descending from startSha (GitHub's compare says `ahead`).",
+    "3. At least 20 PRs merged into the default branch in the window, per GitHub's search (`is:pr is:merged base:<branch> merged:2026-07-01..2026-09-30`) on the day of pinning. A busier repo is kept; only its first maxPrsPerRepo by merge time are replayed.",
+    "4. The analyzer (built at d0c1464, analyzer code last changed in 712d6c7) finishes on startSha within its limits (20,000 source files, 50 MB of source).",
+    "5. At least 20 `http` edges reach a route from app code at startSha (measured.appHttpToRoute: call sites outside test packages, test folders, and *.test.* / *.spec.* files), since only an edge that reaches a route can break."
+  ],
+  "candidates": "A hand-made list of 35 known open-source apps in the supported stack (React/Next.js frontends, Express or Next API routes), plus every result with at least 20 PRs merged in the window (rule 3's search) from three GitHub repository searches sorted by stars, up to 50 results each: `topic:express topic:react stars:>200 pushed:>2026-10-01` (12 results), `topic:nextjs topic:prisma stars:>1000 pushed:>2026-10-01` (12), `topic:nodejs topic:react stars:>1000 pushed:>2026-10-01` (44). Every candidate is pinned or listed under `rejected` with the first rule it fails, checked in order. Rule 1 is a reading of each repo's description and layout; rules 2 to 5 were measured by scripts. No PR was replayed before pinning.",
+  "repos": [
+    {
+      "owner": "calcom",
+      "name": "cal.diy",
+      "url": "https://github.com/calcom/cal.diy",
+      "license": "MIT",
+      "branch": "main",
+      "startSha": "53e32a5bbad43b262a5e1fef37f57fc67738afdb",
+      "endSha": "a5ee96f77edd644439e7de8c3255ccb2eb2c5941",
+      "why": "Cal.com's monorepo (renamed from calcom/cal.com): the Next.js app `@calcom/web` and app-store packages call `@calcom/web`'s Next API routes (35 of 39 edges); most of its client-server traffic is tRPC, which isn't analyzed.",
+      "measured": { "mergedPrs": 31, "files": 5063, "httpToRoute": 39, "appHttpToRoute": 39 }
+    },
+    {
+      "owner": "dubinc",
+      "name": "dub.link",
+      "url": "https://github.com/dubinc/dub.link",
+      "license": "NOASSERTION",
+      "branch": "main",
+      "startSha": "c2ca6a56d59468854e8f04ac9aa4f00c65a5b1ee",
+      "endSha": "6b463b4bdd9ed2fd9aa416f67b5b77d317b1471e",
+      "why": "Dub (renamed from dubinc/dub): the Next.js app `web` calls its own Next API routes with fetch and SWR (399 edges), plus 3 from the shared `@dub/ui` package.",
+      "measured": { "mergedPrs": 377, "files": 4095, "httpToRoute": 402, "appHttpToRoute": 402 }
+    },
+    {
+      "owner": "getmaxun",
+      "name": "maxun",
+      "url": "https://github.com/getmaxun/maxun",
+      "license": "AGPL-3.0",
+      "branch": "develop",
+      "startSha": "6aee602a54ca2804ac56cc705e38cd0e1e9cc77b",
+      "endSha": "491ee3f65bdead5984caccb63d7ae627e20cf3d2",
+      "why": "One package: a React frontend calling the Express server in the same package with axios (72 edges).",
+      "measured": { "mergedPrs": 60, "files": 199, "httpToRoute": 72, "appHttpToRoute": 72 }
+    },
+    {
+      "owner": "hoangsonww",
+      "name": "Claude-Code-Agent-Monitor",
+      "url": "https://github.com/hoangsonww/Claude-Code-Agent-Monitor",
+      "license": "MIT",
+      "branch": "master",
+      "startSha": "d16f2a7aa0c9f4dafdab16abca993addf7ba2aeb",
+      "endSha": "c1a11f7c350ab113c55bc5bf7509f7d29ca7f5d6",
+      "why": "A React client package (`agent-dashboard-client`) calling a separate Express server package (`agent-dashboard`, 80 edges).",
+      "measured": { "mergedPrs": 91, "files": 246, "httpToRoute": 80, "appHttpToRoute": 80 }
+    },
+    {
+      "owner": "Mintplex-Labs",
+      "name": "anything-llm",
+      "url": "https://github.com/Mintplex-Labs/anything-llm",
+      "license": "MIT",
+      "branch": "master",
+      "startSha": "37a02b845667af41f75d19d41d513287f5a3fd70",
+      "endSha": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+      "why": "A React (Vite) frontend calling two Express services: the server (206 edges) and the document collector (113), plus 11 between the services themselves.",
+      "measured": { "mergedPrs": 202, "files": 1095, "httpToRoute": 330, "appHttpToRoute": 330 }
+    },
+    {
+      "owner": "seerr-team",
+      "name": "seerr",
+      "url": "https://github.com/seerr-team/seerr",
+      "license": "MIT",
+      "branch": "develop",
+      "startSha": "ebac489c8aa1fd1a004f40cbe60a9061c370b19b",
+      "endSha": "c0759ce0ec135cde5e68e3726dc193d7c2992c4c",
+      "why": "Seerr (Jellyseerr's successor, renamed from fallenbagel/jellyseerr): one package whose Next.js frontend calls the Express API under `/api/v1` in the same package with axios and SWR (300 edges).",
+      "measured": { "mergedPrs": 97, "files": 609, "httpToRoute": 300, "appHttpToRoute": 300 }
+    },
+    {
+      "owner": "trycompai",
+      "name": "comp",
+      "url": "https://github.com/trycompai/comp",
+      "license": "AGPL-3.0",
+      "branch": "main",
+      "startSha": "0b2803ab5ff08068a2c80f1ea44bce883fdbc389",
+      "endSha": "2f4b9a5c8a2e75d2be0ecfdb1e7f1c48bf24f3e6",
+      "why": "Two Next.js apps (`@trycompai/app`, `@trycompai/portal`) calling their own and each other's Next API routes (39 edges, plus 1 from `@trycompai/framework-editor`); their requests to the NestJS API (`apps/api`) stay unresolved, since NestJS isn't supported.",
+      "measured": { "mergedPrs": 146, "files": 3873, "httpToRoute": 40, "appHttpToRoute": 40 }
+    }
+  ],
+  "rejected": [
+    {
+      "repo": "Automattic/harper",
+      "rule": 1,
+      "reason": "A grammar checker written in Rust, with editor plugins; no backend it calls."
+    },
+    {
+      "repo": "Automattic/wp-calypso",
+      "rule": 1,
+      "reason": "WordPress.com's frontend; the REST API it calls is WordPress.com's (PHP), not in this repo."
+    },
+    {
+      "repo": "brianlovin/briOS",
+      "rule": 5,
+      "reason": "16 app-code http edges to a route (of 16), 1,560 files."
+    },
+    {
+      "repo": "Budibase/budibase",
+      "rule": 5,
+      "reason": "0 http edges to a route, 2,654 files (Koa server, Svelte builder)."
+    },
+    {
+      "repo": "capricorn86/happy-dom",
+      "rule": 1,
+      "reason": "A library (a DOM implementation for tests)."
+    },
+    { "repo": "cefjoeii/mern-crud", "rule": 5, "reason": "0 http edges to a route, 15 files." },
+    {
+      "repo": "chrisvel/tududi",
+      "rule": 5,
+      "reason": "7 app-code http edges to a route (of 7), 768 files."
+    },
+    {
+      "repo": "clerk/javascript",
+      "rule": 1,
+      "reason": "SDKs for Clerk's hosted authentication service."
+    },
+    {
+      "repo": "connorgallopo/Tracearr",
+      "rule": 5,
+      "reason": "0 http edges to a route, 703 files."
+    },
+    {
+      "repo": "coollabsio/coolify",
+      "rule": 5,
+      "reason": "0 http edges to a route, 135 files (the backend is PHP)."
+    },
+    { "repo": "documenso/documenso", "rule": 5, "reason": "0 http edges to a route, 2,040 files." },
+    {
+      "repo": "Dokploy/dokploy",
+      "rule": 5,
+      "reason": "2 app-code http edges to a route (of 2), 841 files; default branch canary."
+    },
+    { "repo": "dolanmiu/docx", "rule": 1, "reason": "A library (generates .docx files)." },
+    {
+      "repo": "DuarteSantos8/openGym",
+      "rule": 2,
+      "reason": "Created 2026-07-18: no commit before the window opens."
+    },
+    {
+      "repo": "elie222/inbox-zero",
+      "rule": 5,
+      "reason": "14 app-code http edges to a route (of 15), 2,326 files."
+    },
+    {
+      "repo": "formbricks/formbricks",
+      "rule": 5,
+      "reason": "10 app-code http edges to a route (of 11), 2,684 files."
+    },
+    {
+      "repo": "freeCodeCamp/freeCodeCamp",
+      "rule": 5,
+      "reason": "0 http edges to a route, 1,172 files."
+    },
+    { "repo": "funmusicplace/mirlo", "rule": 5, "reason": "0 http edges to a route, 1,027 files." },
+    {
+      "repo": "growilabs/growi",
+      "rule": 5,
+      "reason": "0 app-code http edges to a route (of 2), 2,514 files."
+    },
+    {
+      "repo": "hoppscotch/hoppscotch",
+      "rule": 3,
+      "reason": "4 PRs merged into main in the window."
+    },
+    { "repo": "immich-app/immich", "rule": 5, "reason": "0 http edges to a route, 1,030 files." },
+    { "repo": "Infisical/infisical", "rule": 5, "reason": "0 http edges to a route, 7,108 files." },
+    { "repo": "jesec/flood", "rule": 5, "reason": "0 http edges to a route, 480 files." },
+    {
+      "repo": "keystonejs/keystone",
+      "rule": 1,
+      "reason": "A CMS framework published as packages."
+    },
+    {
+      "repo": "langfuse/langfuse",
+      "rule": 5,
+      "reason": "9 app-code http edges to a route (of 110; the rest from tests), 2,873 files."
+    },
+    {
+      "repo": "lightdash/lightdash",
+      "rule": 5,
+      "reason": "0 app-code http edges to a route (all 98 from its api-tests package and test files), 4,390 files."
+    },
+    {
+      "repo": "linkwarden/linkwarden",
+      "rule": 3,
+      "reason": "17 PRs merged into main in the window."
+    },
+    { "repo": "lukevella/rallly", "rule": 5, "reason": "0 http edges to a route, 766 files." },
+    {
+      "repo": "makeplane/plane",
+      "rule": 5,
+      "reason": "0 http edges to a route, 3,493 files (the API is Django)."
+    },
+    {
+      "repo": "medusajs/medusa",
+      "rule": 1,
+      "reason": "A commerce framework published as packages."
+    },
+    { "repo": "meteor/meteor", "rule": 1, "reason": "A framework." },
+    { "repo": "midday-ai/midday", "rule": 3, "reason": "0 PRs merged into main in the window." },
+    { "repo": "middleapi/orpc", "rule": 1, "reason": "A library (typed RPC)." },
+    {
+      "repo": "morluto/rea",
+      "rule": 1,
+      "reason": "At startSha, a Python server (server.py, hopper_client.py) with no frontend."
+    },
+    {
+      "repo": "mxschmitt/try-playwright",
+      "rule": 5,
+      "reason": "0 http edges to a route, 41 files."
+    },
+    { "repo": "nocodb/nocodb", "rule": 5, "reason": "0 http edges to a route, 2,019 files." },
+    {
+      "repo": "novuhq/novu",
+      "rule": 5,
+      "reason": "10 app-code http edges to a route (of 10), 6,488 files."
+    },
+    { "repo": "nrwl/nx", "rule": 1, "reason": "A build tool." },
+    {
+      "repo": "openstatusHQ/openstatus",
+      "rule": 5,
+      "reason": "8 app-code http edges to a route (of 8), 1,875 files."
+    },
+    { "repo": "outline/outline", "rule": 5, "reason": "0 http edges to a route, 2,316 files." },
+    { "repo": "oven-sh/bun", "rule": 1, "reason": "A JavaScript runtime (Zig, C++, Rust)." },
+    {
+      "repo": "papermark/papermark",
+      "rule": 3,
+      "reason": "0 PRs merged into main in the window (asked as mfts/papermark, renamed)."
+    },
+    {
+      "repo": "ParabolInc/parabol",
+      "rule": 5,
+      "reason": "0 http edges to a route, 3,529 files. Analyzed without the 85 migration files whose names Windows can't check out (they hold one fetch, to a CDN)."
+    },
+    {
+      "repo": "payloadcms/payload",
+      "rule": 1,
+      "reason": "A framework (a Next.js CMS) published as packages."
+    },
+    { "repo": "teableio/teable", "rule": 3, "reason": "11 PRs merged into develop in the window." },
+    {
+      "repo": "timothystewart6/littlelink-server",
+      "rule": 5,
+      "reason": "0 http edges to a route, 23 files."
+    },
+    { "repo": "ToolJet/ToolJet", "rule": 5, "reason": "0 http edges to a route, 4,817 files." },
+    {
+      "repo": "triggerdotdev/trigger.dev",
+      "rule": 5,
+      "reason": "7 app-code http edges to a route (of 7), 2,656 files."
+    },
+    { "repo": "trpc/trpc", "rule": 1, "reason": "A library (typed RPC)." },
+    { "repo": "TryGhost/Ghost", "rule": 5, "reason": "0 http edges to a route, 812 files." },
+    {
+      "repo": "twentyhq/twenty",
+      "rule": 4,
+      "reason": "LIMIT_FILES: 20,135 source files at startSha, over the 20,000 limit."
+    },
+    {
+      "repo": "twreporter/twreporter-react",
+      "rule": 5,
+      "reason": "0 http edges to a route, 211 files."
+    },
+    {
+      "repo": "umami-software/umami",
+      "rule": 3,
+      "reason": "4 PRs merged into master in the window."
+    },
+    { "repo": "unkeyed/unkey", "rule": 5, "reason": "0 http edges to a route, 2,025 files." },
+    {
+      "repo": "vendurehq/vendure",
+      "rule": 1,
+      "reason": "A headless commerce framework published as packages."
+    },
+    { "repo": "vicinaehq/vicinae", "rule": 1, "reason": "A native desktop launcher (C++)." },
+    { "repo": "webiny/webiny-js", "rule": 5, "reason": "0 http edges to a route, 10,937 files." },
+    { "repo": "zenstackhq/zenstack", "rule": 1, "reason": "A library (an ORM and data layer)." }
+  ]
+}
