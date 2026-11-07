@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M7.5 Report → eval/backtest/results/
+M7.6 Milestone verification + M7-review.md + tag m7
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -396,7 +396,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M7.2f Re-run the backtest replay for all 7 repos with M7.2e's analyzer (the "Backtest replay" workflow for all 7, cal.diy included so every file has one analyzer), download, `validate`, commit the raw files; expect maxun #1157 among the flagged breaks and list every new one in ADR-0216 {model: opus}
 - [x] M7.3 Follow-up fix detection (also look past the pinned PRs: #1157's fix `9262631` was a direct push) {model: opus}
 - [x] M7.4 Classification of flagged breaks (drafted, labeled as such) {model: opus}
-- [ ] M7.5 Report → eval/backtest/results/ {model: opus}
+- [x] M7.5 Report → eval/backtest/results/ {model: opus}
 - [ ] M7.6 Milestone verification + M7-review.md + tag m7 {model: opus}
 
 ### M8: Sign-in + private repos + PR bot
@@ -424,6 +424,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **2026-11-07 M7.5 (`9c602fa`, `0a229f0`):** `backtest:report [--check]` (`eval/src/backtest/report.ts` pure, `reportCli.ts`, loader `inputs.ts` shared with `validate`; ADR-0219) renders `eval/backtest/results/2026-11-07.md` from the committed backtest files + hand-written `eval/backtest/limitations.md`, dated by the newest input; a unit test re-renders the committed report byte for byte; refuses on partial replays. `.gitattributes`: `eval/backtest/**` LF.
+  Result: 926/1,004 replayed, 0 failed, 5 broken `calls` edges in 1 PR (maxun #1157), 0 `http`; 5 drafted true, 0 reviewed; precision 100.0% (5/5, drafts); all 5 fixed (real). README results updated. Mutations (count `updated` as a change; drop partial-replay refusal) red. Eval 198/198, typecheck, lint green; eval report regenerated (inputs changed).
 - **2026-11-07 M7.4 (`a11cfe2`, report `cb00c1e`):** `eval/backtest/classified/<owner>__<name>.json` (`classify.ts`, ADR-0218): per flagged break a verdict (true/false/unclear), reason, permalink evidence (blob at a full SHA, commit, or PR in that repo), a judgment of the follow-up's fix (real/coincidental/unclear) exactly where one was found, and `reviewedBy` (null = draft). `validate` requires one per follow-up file with flagged PRs and cross-checks breaks in order.
   Drafted by Claude, 0 of 5 reviewed: maxun #1157's 5 breaks are all **true** (file emptied, 4 callers left, reached from `POST /recordings/document`, `/document-parse`, and the task runner), and `9262631` is a **real** fix for each; checked in the clone at those SHAs. Tests red first; mutation (any evidence URL) red. Eval 185/185; report run line only.
 - **2026-11-07 M7.3 (`7e97209`, results `8ba4452`, report `5193b8d`):** `backtest:followup` diffs each flagged PR's base with every commit after its merge up to `endSha` (`rev-list --ancestry-path --date-order`, so direct pushes count) and records the first commit where the same detector no longer flags each break: how (`restored`/`sourceRemoved`/`callChanged`), the pinned PR it came in (or none), and `atEnd`. It first rebuilds the PR's breaks and refuses on a mismatch. `eval/backtest/followup/`, checked by `validate`; ADR-0217.
