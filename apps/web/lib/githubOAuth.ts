@@ -9,7 +9,7 @@ import type { GitHubTokens } from "./session";
  *
  * Handled: the authorize URL, the code exchange (`POST /login/oauth/access_token`, JSON),
  * refreshing an expired token (the same endpoint, `grant_type=refresh_token`; M8.2c), and
- * `GET /user`. Not handled here: the install flow's `installation_id` on the callback (M8.3).
+ * `GET /user`. Not handled here: the install flow's `installation_id` on the callback (M8.3b).
  */
 
 export const GITHUB_WEB = "https://github.com";

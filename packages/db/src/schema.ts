@@ -52,13 +52,28 @@ const githubId = (name: string) => bigint(name, { mode: "number" });
 /** A full commit SHA: 40 lowercase hex characters. */
 const isSha = (column: AnyPgColumn) => sql`${column} ~ '^[0-9a-f]{40}$'`;
 
-/** A GitHub App installation (M8). */
-export const installations = pgTable("installations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  githubInstallationId: githubId("github_installation_id").notNull().unique(),
-  accountLogin: text("account_login").notNull(),
-  createdAt: timestampTz("created_at").notNull().defaultNow(),
-});
+/**
+ * A GitHub App installation (M8), as its last `installation` or `installation_repositories`
+ * webhook described it (M8.3a, ADR-0224). `account_id` is GitHub's ID for the user or
+ * organization it's installed on, which survives renames; `suspended_at` is set while the
+ * account has suspended the app.
+ */
+export const installations = pgTable(
+  "installations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    githubInstallationId: githubId("github_installation_id").notNull().unique(),
+    accountId: githubId("account_id").notNull(),
+    accountLogin: text("account_login").notNull(),
+    accountType: text("account_type").notNull(),
+    suspendedAt: timestampTz("suspended_at"),
+    createdAt: timestampTz("created_at").notNull().defaultNow(),
+    updatedAt: timestampTz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check("installations_account_type_check", sql`${t.accountType} in ('User', 'Organization')`),
+  ],
+);
 
 /**
  * A GitHub repository. `provider_repo_id` is GitHub's ID, which survives

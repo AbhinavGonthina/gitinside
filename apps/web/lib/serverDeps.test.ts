@@ -12,6 +12,7 @@ import {
   imageDepsFromEnv,
   jobDepsFromEnv,
   repoViewDepsFromEnv,
+  webhookDepsFromEnv,
 } from "./serverDeps";
 import { WorkerUnavailableError } from "./worker";
 
@@ -421,5 +422,36 @@ describe("jobDepsFromEnv", () => {
   it("is undefined without the database, whatever the worker's settings", () => {
     expect(jobDepsFromEnv({ ...ENV, DATABASE_URL: undefined })).toBeUndefined();
     expect(jobDepsFromEnv({ ...ENV, DATABASE_URL: "" })).toBeUndefined();
+  });
+});
+
+describe("webhookDepsFromEnv", () => {
+  const HOOK = {
+    DATABASE_URL: ENV.DATABASE_URL,
+    GITHUB_APP_WEBHOOK_SECRET: "w".repeat(43),
+  };
+
+  it("needs the database and a long enough webhook secret", () => {
+    expect(webhookDepsFromEnv(HOOK)?.secrets).toEqual(["w".repeat(43)]);
+    for (const name of Object.keys(HOOK)) {
+      expect(webhookDepsFromEnv({ ...HOOK, [name]: undefined }), name).toBeUndefined();
+      expect(webhookDepsFromEnv({ ...HOOK, [name]: "" }), name).toBeUndefined();
+    }
+    expect(
+      webhookDepsFromEnv({ ...HOOK, GITHUB_APP_WEBHOOK_SECRET: "w".repeat(31) }),
+    ).toBeUndefined();
+  });
+
+  it("accepts the previous secret too during a rotation, if it's long enough", () => {
+    const previous = "p".repeat(43);
+    expect(
+      webhookDepsFromEnv({ ...HOOK, GITHUB_APP_WEBHOOK_SECRET_PREVIOUS: previous })?.secrets,
+    ).toEqual(["w".repeat(43), previous]);
+    expect(
+      webhookDepsFromEnv({ ...HOOK, GITHUB_APP_WEBHOOK_SECRET_PREVIOUS: "p".repeat(31) }),
+    ).toBeUndefined();
+    expect(
+      webhookDepsFromEnv({ ...HOOK, GITHUB_APP_WEBHOOK_SECRET_PREVIOUS: "" })?.secrets,
+    ).toEqual(["w".repeat(43)]);
   });
 });
