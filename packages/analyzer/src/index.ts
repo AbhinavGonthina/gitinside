@@ -12,6 +12,7 @@ export * from "./match.js";
 export * from "./next.js";
 export * from "./prisma.js";
 export * from "./program.js";
+export * from "./revisions.js";
 export * from "./symbols.js";
 export * from "./url.js";
 export * from "./workspace.js";

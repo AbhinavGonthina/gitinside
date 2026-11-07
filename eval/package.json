@@ -12,10 +12,12 @@
     "eval": "node dist/run.js",
     "review-sample": "node dist/review.js",
     "draw": "node dist/drawCli.js",
-    "backtest:prs": "node dist/backtest/listCli.js"
+    "backtest:prs": "node dist/backtest/listCli.js",
+    "backtest:replay": "node dist/backtest/replayCli.js"
   },
   "dependencies": {
     "@gitinside/analyzer": "workspace:*",
+    "@gitinside/diff": "workspace:*",
     "@gitinside/schema": "workspace:*",
     "zod": "3.23.8"
   },
