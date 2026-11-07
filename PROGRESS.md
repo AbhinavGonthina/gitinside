@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M8.2 GitHub sign-in (identity only), sessions, dashboard
+M8.2b Signed-in chrome (header, landing, signed-in rate limit, session sweep)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -407,7 +407,9 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 ### M8: Sign-in + private repos + PR bot
 - [x] M8.1 needs-abhinav: register GitHub App (permissions per ADR-0009) + secrets {model: opus}
-- [ ] M8.2 GitHub sign-in (identity only), sessions, dashboard {model: opus}
+- [x] M8.2a Sign-in backend (ADR-0221): `sessions` table (token hash, sealed GitHub tokens, `expires_at`), `upsertUser`/`createSession`/`findSession`/`deleteSession`; `/api/auth/github` (signed state cookie, PKCE S256, same-site `returnTo`), `/api/auth/github/callback` (state check, code exchange, `GET /user`, session cookie), `POST /api/auth/signout` (same-origin only), `readSession`, `authDepsFromEnv`; tests against a fake GitHub, mutation-checked {model: opus}
+- [ ] M8.2b Signed-in chrome: the site header's "Sign in" / login + Sign out (a form POST), landing's "Sign in for private repos" and the `?signin=` notes (UX.md copy), 30 new analyses per hour per signed-in user (SPEC §3, keyed by user ID, `abuseLimits.test.ts` row), expired sessions swept in the worker's hourly maintenance; tests, screenshots dark/light {model: opus}
+- [ ] M8.2c Dashboard (`/dashboard`, signed in only): the user's installations and their repos from GitHub (`GET /user/installations`, `…/repositories`, with the user token, refreshed when expired; a refresh failure signs out), each repo linking to its diagram, an "Install on more repos" link (`github.com/apps/<GITHUB_APP_SLUG>/installations/new`), empty and error states; fake GitHub in tests and a seeded E2E, screenshots dark/light {model: opus}
 - [ ] M8.3 Install flow + installation webhooks + private snapshot prefix (incl. job IDs scoped by installation, M5 review / ADR-0079) {model: opus}
 - [ ] M8.4 Per-view access checks (60s cache), private isolation, noindex {model: opus}
 - [ ] M8.5 Uninstall → immediate deletion (tested); the worker's fact cache too (M6 review C5): `deleteInstallationCache` reaches only the instance that runs it, other live instances keep `/tmp/cache/installations/<id>` until evicted or recycled, and per-installation folders can't honor a single repo's removal, so decide per-repo folders and a purge at job start against a list of deleted installations/repos (or document the instance-lifetime bound in SECURITY.md T7) {model: opus}
@@ -430,6 +432,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **2026-11-07 M8.2a (`abc9240`):** split M8.2 into a (backend), b (header, landing, 30/h signed in, session sweep), c (dashboard). Sign-in with the App's user authorization: `sessions` rows keyed by the SHA-256 of a random `__Host-` cookie token, GitHub tokens sealed (AES-256-GCM, HKDF from `SESSION_SECRET`, bound to the session's hash), state + PKCE in a signed 10-minute cookie, same-site `returnTo`, sign-out only with this site's `Origin` (ADR-0221, SECURITY T14). Migration `0009_sessions`. Tests against a fake GitHub (`githubOAuth.testkit.ts`); mutations (state check, `Origin` check, sealed-token binding) each red. No UI yet, no eval delta.
 - **2026-11-07 M8.1 (`e65c1a8`):** opened planning #23 with step-by-step GitHub App registration (ADR-0009 permissions only, Pull request + Push events, any account, user authorization during install on, no install yet) and the Vercel Production names. ADR-0220 fixes the routes (`/api/auth/github/callback`, `/api/github/webhook`) and names (`GITHUB_APP_*`, `SESSION_SECRET`, in `apps/web/.env.example`); no local secrets, tests use a fake GitHub. M8.10 tagged `{blocked: #23}`. Next: M8.2.
 - **2026-11-07 M7.6z (`d4e7f36`, tag `m7`):** final re-check at `da233b7`: uncached suite 4,550 passed, 4 skipped (15/15 tasks, 0 cached, nothing rerun); CI run 42390457243 all green, coverage analyzer 97.66%, diff 98.81%, eval 98.5% (86.73% at the draft), the rest ≥ 94.8% lines; `pnpm eval --check`, `backtest:report --check` byte for byte, `validate` unchanged. M7-review.md is final: F7, F8 (future lists), F1–F5, F9 fixed; F6 documented; S1 in M8.6. Next: M8.
 - **2026-11-07 M7.6d (`91e0e6a`, `c52cb6e`):** EVALUATION.md §3 step 2 (all 7 raw files from the workflow; cal.diy's run line checked: Linux runner) and step 3 (follow-up to `endSha`, 30–122 days after a merge). The alias blind spot (`export { foo as bar }`) named in `detectBroken`'s "Doesn't handle" and `limitations.md`; backtest report regenerated. The CLIs' argument handling moved to `cliShared.ts` (`namedRepos`, `parseLimit`, `outDir`, `ownFiles`), 19 tests; the four CLIs join the thin-CLI exclusion with the reason; eval coverage 86.73% → 98.5% lines locally; replay/follow-up docs say a relative `--out` is from the repo root. Eval 226/226, typecheck, lint, both `--check`s green.
