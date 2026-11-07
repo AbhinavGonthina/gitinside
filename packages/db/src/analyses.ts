@@ -18,7 +18,7 @@
  */
 import { and, desc, eq, inArray, lte, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { analyses, repos, type AnalysisStats } from "./schema.js";
+import { analyses, installations, repos, type AnalysisStats } from "./schema.js";
 import type * as schema from "./schema.js";
 
 /** Any Drizzle database on GitInside's schema (postgres.js in production, PGlite in tests). */
@@ -32,6 +32,23 @@ export interface RepoFacts {
   name: string;
   visibility: "public" | "private";
   defaultBranch: string;
+  /**
+   * GitHub's ID for the App installation the repo was read through, if any (M8.3c2): the
+   * repo is linked to it, moving from another installation (a transfer). Left out, the
+   * repo's link stays as it is: a public job never unlinks a repo.
+   */
+  githubInstallationId?: number;
+}
+
+/**
+ * Thrown by {@link upsertRepo} when `githubInstallationId` names an installation that isn't
+ * stored (never recorded, or deleted meanwhile). Nothing is written.
+ */
+export class UnknownInstallationError extends Error {
+  override name = "UnknownInstallationError";
+  constructor() {
+    super("the repo's installation isn't stored");
+  }
 }
 
 /** The cache key of one analysis. */
@@ -62,6 +79,9 @@ export const QUEUE_UNAVAILABLE_CODE = "QUEUE_UNAVAILABLE";
  * `lower(owner), lower(name)` index and fails with a unique violation once it commits
  * (Postgres checks non-arbiter indexes plainly). So a unique violation runs the upsert once
  * more, in a new transaction that sees the committed row (M5A.3d1).
+ *
+ * With `githubInstallationId`, the repo is linked to that installation in the same
+ * transaction; an installation that isn't stored throws {@link UnknownInstallationError}.
  */
 export async function upsertRepo(db: AnyDatabase, facts: RepoFacts): Promise<{ id: string }> {
   try {
@@ -82,6 +102,17 @@ function isUniqueViolation(error: unknown): boolean {
 
 async function upsertRepoOnce(db: AnyDatabase, facts: RepoFacts): Promise<{ id: string }> {
   return db.transaction(async (tx) => {
+    let link: { installationId?: string } = {};
+    if (facts.githubInstallationId !== undefined) {
+      // Locked, so a deletion of the installation (M8.5) waits for this link, then sees it.
+      const [installation] = await tx
+        .select({ id: installations.id })
+        .from(installations)
+        .where(eq(installations.githubInstallationId, facts.githubInstallationId))
+        .for("share");
+      if (installation === undefined) throw new UnknownInstallationError();
+      link = { installationId: installation.id };
+    }
     await tx
       .update(repos)
       .set({ name: sql`'~' || ${repos.providerRepoId}::text`, updatedAt: sql`now()` })
@@ -95,10 +126,17 @@ async function upsertRepoOnce(db: AnyDatabase, facts: RepoFacts): Promise<{ id: 
     const { owner, name, visibility, defaultBranch } = facts;
     const [row] = await tx
       .insert(repos)
-      .values({ providerRepoId: facts.providerRepoId, owner, name, visibility, defaultBranch })
+      .values({
+        providerRepoId: facts.providerRepoId,
+        owner,
+        name,
+        visibility,
+        defaultBranch,
+        ...link,
+      })
       .onConflictDoUpdate({
         target: repos.providerRepoId,
-        set: { owner, name, visibility, defaultBranch, updatedAt: sql`now()` },
+        set: { owner, name, visibility, defaultBranch, ...link, updatedAt: sql`now()` },
       })
       .returning({ id: repos.id });
     return row as { id: string };
@@ -277,6 +315,12 @@ export interface QueuedAnalysis {
   retrying: boolean;
   /** When the row last entered the queue: names its Cloud Tasks task (ADR-0141). */
   queuedAt: Date;
+  /**
+   * The job the row belongs to: the caller's when it `entered`, otherwise whoever queued or
+   * started it (`null` if none said). A caller whose own job ID differs follows this one
+   * (ADR-0227).
+   */
+  jobId: string | null;
 }
 
 /** What the web app knows when it queues a commit. */
@@ -319,7 +363,7 @@ export async function queueAnalysis(
       set: queued,
       setWhere: eq(analyses.status, "failed"),
     })
-    .returning({ id: analyses.id, queuedAt: analyses.queuedAt });
+    .returning({ id: analyses.id, queuedAt: analyses.queuedAt, jobId: analyses.jobId });
   if (row !== undefined) return { ...row, status: "queued", entered: true, retrying: false };
   const [existing] = await db
     .select({
@@ -327,6 +371,7 @@ export async function queueAnalysis(
       status: analyses.status,
       queuedAt: analyses.queuedAt,
       attempts: analyses.attempts,
+      jobId: analyses.jobId,
     })
     .from(analyses)
     .where(
@@ -336,13 +381,14 @@ export async function queueAnalysis(
         eq(analyses.analyzerVersion, key.analyzerVersion),
       ),
     );
-  const { id, status, queuedAt, attempts } = existing as Omit<
+  const { id, status, queuedAt, attempts, jobId } = existing as Omit<
     QueuedAnalysis,
     "entered" | "retrying"
   > & { attempts: number };
   // Entering the queue sets `attempts` to 0 and only a start raises it, so a `queued` row
   // with attempts is one `requeueAnalysis` put back for its task's retry.
-  return { id, status, queuedAt, entered: false, retrying: status === "queued" && attempts > 0 };
+  const retrying = status === "queued" && attempts > 0;
+  return { id, status, queuedAt, jobId, entered: false, retrying };
 }
 
 /**

@@ -4,7 +4,9 @@ import {
   failAnalysis,
   failStrandedAnalysis,
   findAnalysis,
+  findInstallation,
   queueAnalysis,
+  UnknownInstallationError,
   upsertRepo,
   type AnalysisSummary,
   type AnyDatabase,
@@ -19,7 +21,7 @@ import {
   type TaskQueue,
 } from "./cloudTasks";
 import type { ResolvedRepo } from "./github";
-import { WorkerUnavailableError } from "./worker";
+import { WorkerUnavailableError, type AnalyzeJob } from "./worker";
 
 /**
  * Queue one commit's analysis on Cloud Tasks (ADR-0139, ADR-0141), for `/api/analyze` and
@@ -95,14 +97,70 @@ export async function findAnalysisToQueue(
   return findAnalysis(db, key);
 }
 
-/** Queue `repo`'s commit (GitHub's facts, as resolved) unless it's already in flight or done. */
-export async function enqueueAnalysis(
-  repo: ResolvedRepo,
-  deps: EnqueueDeps,
-): Promise<EnqueueResult> {
-  const job = { owner: repo.owner, repo: repo.name, sha: repo.sha };
+/**
+ * A repo to queue: GitHub's facts as resolved, and for one read through the GitHub App, the
+ * installation (GitHub's ID) it's read through. A private repo always names one.
+ */
+export type QueueRepo = Omit<ResolvedRepo, "visibility"> &
+  (
+    | { visibility: "public"; installationId?: number }
+    | { visibility: "private"; installationId: number }
+  );
+
+/** Why {@link enqueueAnalysis} refused a repo's installation; `jobs.ts` words each code. */
+export type InstallationRefusal = "INSTALLATION_NOT_FOUND" | "INSTALLATION_SUSPENDED";
+
+/**
+ * Thrown by {@link enqueueAnalysis} before anything is written when the repo's installation
+ * isn't stored (uninstalled, or its events never arrived) or is suspended (ADR-0227). GitHub
+ * would refuse its token anyway; refusing here says why instead of failing the job later.
+ */
+export class InstallationRefusedError extends Error {
+  override name = "InstallationRefusedError";
+  constructor(readonly code: InstallationRefusal) {
+    super(`installation refused: ${code}`);
+  }
+}
+
+/**
+ * Queue `repo`'s commit (GitHub's facts, as resolved) unless it's already in flight or done.
+ *
+ * Through an installation (ADR-0227): the stored installation is checked first, the repo is
+ * linked to it, the job ID includes it (`jobIdFor`), and so does the task's body, so the
+ * worker reads the repo through it. A commit already in flight under another job ID (queued
+ * without the installation, or through another one) is followed, not queued beside it: the
+ * row is the dedupe, and the task names come from the job ID.
+ */
+export async function enqueueAnalysis(repo: QueueRepo, deps: EnqueueDeps): Promise<EnqueueResult> {
+  const { installationId } = repo;
+  const job: AnalyzeJob = {
+    owner: repo.owner,
+    repo: repo.name,
+    sha: repo.sha,
+    ...(installationId === undefined ? {} : { installationId }),
+  };
   const jobId = jobIdFor({ kind: "analyze", ...job }, deps.analyzerVersion);
-  const { id: repoId } = await upsertRepo(deps.db, repo);
+  if (installationId !== undefined) {
+    const installation = await findInstallation(deps.db, installationId);
+    if (installation === undefined) throw new InstallationRefusedError("INSTALLATION_NOT_FOUND");
+    if (installation.suspendedAt !== null) {
+      throw new InstallationRefusedError("INSTALLATION_SUSPENDED");
+    }
+  }
+  const { id: repoId } = await upsertRepo(deps.db, {
+    providerRepoId: repo.providerRepoId,
+    owner: repo.owner,
+    name: repo.name,
+    visibility: repo.visibility,
+    defaultBranch: repo.defaultBranch,
+    ...(installationId === undefined ? {} : { githubInstallationId: installationId }),
+  }).catch((error: unknown) => {
+    // Deleted since the check (M8.5): the same refusal, still with nothing written.
+    if (error instanceof UnknownInstallationError) {
+      throw new InstallationRefusedError("INSTALLATION_NOT_FOUND");
+    }
+    throw error;
+  });
   const row = await queueAnalysis(
     deps.db,
     { repoId, sha: repo.sha, analyzerVersion: deps.analyzerVersion },
@@ -110,9 +168,13 @@ export async function enqueueAnalysis(
     repo.sizeKb === undefined ? { jobId } : { jobId, repoSizeKb: repo.sizeKb },
   );
   if (row.status === "done") return { status: "done" };
-  if (row.status === "running") return { status: "running", jobId, entered: false };
+  // The row's own job, if another request queued or started it under another ID.
+  const current = row.entered ? jobId : (row.jobId ?? jobId);
+  if (row.status === "running") return { status: "running", jobId: current, entered: false };
   // Its task will push it again after the backoff; a new task would run beside it (R1).
-  if (row.retrying) return { status: "queued", jobId, entered: false };
+  if (row.retrying) return { status: "queued", jobId: current, entered: false };
+  // Another job's entry: its task is that request's to create, under that job's name.
+  if (current !== jobId) return { status: "queued", jobId: current, entered: false };
 
   try {
     await deps.queue.createTask(job, taskIdFor(jobId, row.queuedAt));

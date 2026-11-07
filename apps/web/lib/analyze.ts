@@ -119,12 +119,15 @@ export const REPO_ANALYSIS_MINUTES = 30;
 
 /**
  * Permanent failures about GitHub's access to the repo, not its code: this request's lookup
- * just found it public, so another try can pass.
+ * just found it public, so another try can pass. An installation's refusal (a private job's,
+ * ADR-0227) is one too: a public job needs no installation.
  */
 const ACCESS_FAILURES: ReadonlySet<string> = new Set([
   "REPO_NOT_FOUND",
   "REPO_NOT_PUBLIC",
   "REPO_UNAVAILABLE",
+  "INSTALLATION_NOT_FOUND",
+  "INSTALLATION_SUSPENDED",
 ]);
 
 export interface AnalyzeError {

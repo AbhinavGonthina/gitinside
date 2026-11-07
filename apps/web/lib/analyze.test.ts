@@ -392,7 +392,14 @@ describe("requestAnalysis", () => {
     });
 
     it("retries a commit GitHub refused before, now that it serves the repo again", async () => {
-      for (const code of ["REPO_NOT_FOUND", "REPO_NOT_PUBLIC", "REPO_UNAVAILABLE"]) {
+      // An installation's refusal too: a private job's, for a repo that's public now.
+      for (const code of [
+        "REPO_NOT_FOUND",
+        "REPO_NOT_PUBLIC",
+        "REPO_UNAVAILABLE",
+        "INSTALLATION_NOT_FOUND",
+        "INSTALLATION_SUSPENDED",
+      ]) {
         await t.db.delete(analyses);
         await t.db.update(repos).set({ analysisClaimSha: null, analysisClaimedAt: null });
         await failedWith(code);
