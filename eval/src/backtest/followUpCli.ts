@@ -15,7 +15,14 @@ import { openDiskCache } from "@gitinside/analyzer";
 import { takeFlag, thisRun, writeAtomically } from "./cliShared.js";
 import { followUpRepo, flaggedPrs } from "./followUp.js";
 import { parseBacktestReposFile } from "./format.js";
-import { committedAt, ensureClone, gitView, laterCommits, removeStrayWorktrees } from "./git.js";
+import {
+  committedAt,
+  ensureClone,
+  gitView,
+  laterCommits,
+  lineCommits,
+  removeStrayWorktrees,
+} from "./git.js";
 import { parsePrsFile, prsFileName } from "./prs.js";
 import { commitOpener, DIRTY_MARK, parseRawFile } from "./replay.js";
 
@@ -72,6 +79,7 @@ async function main(): Promise<void> {
     const file = await followUpRepo(raw, prs, repo, run, {
       open: commitOpener(dir, cache),
       later: (from, to) => laterCommits(dir, from, to),
+      line: (from, to) => lineCommits(dir, from, to),
       committedAt: (commit) => committedAt(dir, commit),
       isAncestor: view.isAncestor,
       log: (line) => process.stderr.write(`${line}\n`),
@@ -79,7 +87,7 @@ async function main(): Promise<void> {
     await writeAtomically(join(out, name), `${JSON.stringify(file, null, 2)}\n`);
     const breaks = file.prs.flatMap((p) => p.breaks);
     process.stdout.write(
-      `${prs.repo}: ${file.prs.length} flagged PRs, ${breaks.length} breaks, ${breaks.filter((b) => b.fixed).length} fixed by endSha\n`,
+      `${prs.repo}: ${file.prs.length} flagged PRs, ${breaks.length} breaks, ${breaks.filter((b) => b.fixed).length} fixed on the branch by endSha, ${breaks.filter((b) => b.offLine).length} cleared first off it\n`,
     );
   }
 }

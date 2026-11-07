@@ -7,11 +7,14 @@
  *   pinned `endSha` or one of its ancestors, oldest first ({@link FollowUpIo.later}). That
  *   takes in direct pushes and the commits of PR branches merged later, not only the pinned
  *   PRs' merges (maxun #1157's fix was a direct push), and nothing past the follow-up period.
- * - **Fixed:** a break is fixed at the first of those commits where diffing the PR's *base*
- *   with that commit no longer flags the same base edge, so a fix is judged by the same
- *   detector that flagged the break, with nothing guessed. How ({@link howFixed}): the edge
- *   exists again (`restored`), its source went away (`sourceRemoved`), or the source stayed
- *   and stopped making the call it made (`callChanged`).
+ * - **Fixed:** a break is fixed at the first of those commits on `endSha`'s first-parent line
+ *   ({@link FollowUpIo.line}) where diffing the PR's *base* with that commit no longer flags
+ *   the same base edge, so a fix is judged by the same detector that flagged the break, with
+ *   nothing guessed, and only at a state the branch itself held. How ({@link howFixed}): the
+ *   edge exists again (`restored`), its source went away (`sourceRemoved`), or the source
+ *   stayed and stopped making the call it made (`callChanged`). A side branch's commit that
+ *   stopped flagging it earlier is kept as `offLine`, extra information only: that branch
+ *   may have landed with the break kept (a WIP commit that dropped the caller, say).
  * - **Checked first:** the PR's own base and merge commit are diffed again and must give the
  *   raw file's broken edges exactly; otherwise the analyzer differs from the replay's, and the
  *   follow-up refuses rather than judge one analyzer's breaks with another.
@@ -66,8 +69,16 @@ const breakSchema = z
     /** The base edge that broke (`BrokenEdge.edge` in the raw file). */
     edge: z.string().min(1),
     reason: BrokenReason,
-    /** The first later commit that no longer flags it, or `null` if none up to `endSha`. */
+    /**
+     * The first later commit on the branch's first-parent line that no longer flags it, or
+     * `null` if none up to `endSha`.
+     */
     fixed: fixSchema.nullable(),
+    /**
+     * Extra information only: the first commit off that line (a side branch's) that no longer
+     * flagged it before `fixed`, or `null`. The branch itself never held that commit's state.
+     */
+    offLine: fixSchema.nullable(),
     atEnd: z.enum(AT_END),
   })
   .strict();
@@ -82,7 +93,7 @@ const followedPrSchema = z
     mergedAt: z.string().min(1),
     /** Later commits up to `endSha`. */
     later: z.number().int().min(0),
-    /** Of those, how many were diffed before every break was fixed (`endSha` aside). */
+    /** Of those, how many were diffed before every break was fixed on the line (`endSha` aside). */
     checked: z.number().int().min(0),
     /** Commits that couldn't be checked out, analyzed, or diffed, with why. */
     unreadable: z.array(z.object({ sha, error: z.string().min(1) }).strict()),
@@ -182,6 +193,8 @@ export interface FollowUpIo {
   open: (sha: string) => Promise<ReplaySide>;
   /** Commits descending from `from` up to `to` (included), oldest first. */
   later: (from: string, to: string) => string[];
+  /** Of those, the ones on `to`'s first-parent line, oldest first. */
+  line: (from: string, to: string) => string[];
   /** Commit time of `sha`, UTC. */
   committedAt: (sha: string) => string;
   /** Whether `ancestor` is `descendant` or one of its ancestors. */
@@ -248,7 +261,9 @@ async function followUpPr(
   }
 
   const later = io.later(pr.mergeSha, endSha);
+  const line = new Set(io.line(pr.mergeSha, endSha));
   const fixed = new Map<string, Fix>();
+  const offLine = new Map<string, Fix>();
   const unreadable: FollowedPr["unreadable"] = [];
   let checked = 0;
   const edges = new Set(pr.broken.map((b) => b.edge));
@@ -264,9 +279,11 @@ async function followUpPr(
     }
     const flags = new Set(result.diff.broken.map((b) => b.edge));
     lastFlags = flags;
+    // Only a state the branch itself held fixes a break; a side branch's is kept as a note.
+    const found = line.has(commit) ? fixed : offLine;
     for (const broken of pr.broken) {
-      if (fixed.has(broken.edge) || flags.has(broken.edge)) continue;
-      fixed.set(broken.edge, {
+      if (fixed.has(broken.edge) || found.has(broken.edge) || flags.has(broken.edge)) continue;
+      found.set(broken.edge, {
         sha: commit,
         committedAt: io.committedAt(commit),
         how: howFixed(result.diff, broken),
@@ -299,6 +316,7 @@ async function followUpPr(
       edge: broken.edge,
       reason: broken.reason,
       fixed: fixed.get(broken.edge) ?? null,
+      offLine: offLine.get(broken.edge) ?? null,
       atEnd: end === "unreadable" ? "unreadable" : end.has(broken.edge) ? "flagged" : "clear",
     })),
   };

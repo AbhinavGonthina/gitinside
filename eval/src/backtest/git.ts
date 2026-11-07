@@ -132,6 +132,18 @@ export function laterCommits(dir: string, from: string, to: string): string[] {
   return out.split("\n").filter((line) => line !== "");
 }
 
+/**
+ * The commits on `to`'s first-parent line that descend from `from` (`from` itself left out),
+ * oldest first: the states the branch itself held after it got `from`, not a side branch's
+ * commits. When `from` came in under a merge's second parent (a `git pull` merge), the line
+ * starts at that merge; first-parent commits before it don't hold `from` and are left out.
+ */
+export function lineCommits(dir: string, from: string, to: string): string[] {
+  const holding = new Set(laterCommits(dir, from, to));
+  const out = git(dir, ["rev-list", "--first-parent", "--reverse", `${from}..${to}`, "--"]);
+  return out.split("\n").filter((line) => line !== "" && holding.has(line));
+}
+
 /** When commit `sha` of the git repo at `dir` was committed, in UTC (ISO 8601, to the second). */
 export function committedAt(dir: string, sha: string): string {
   const seconds = Number(git(dir, ["show", "-s", "--format=%ct", sha, "--"]).trim());

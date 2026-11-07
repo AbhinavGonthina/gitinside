@@ -4,7 +4,13 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { committedAt, hasChangesBesides, laterCommits, removeStrayWorktrees } from "./git.js";
+import {
+  committedAt,
+  hasChangesBesides,
+  laterCommits,
+  lineCommits,
+  removeStrayWorktrees,
+} from "./git.js";
 
 let scratch: string;
 let repo: string;
@@ -89,6 +95,35 @@ describe("laterCommits", () => {
     // A branch that left before `from` isn't a state that holds what `from` changed.
     expect(laterCommits(repo, push, merge)).toEqual([merge]);
     expect(laterCommits(repo, merge, merge)).toEqual([]);
+  }, 30_000);
+
+  it("lists only the branch's first-parent line with lineCommits", () => {
+    const from = commitAt("from", 0);
+    git("checkout", "--quiet", "-b", "side");
+    commitAt("on a branch", 20);
+    git("checkout", "--quiet", "main");
+    const push = commitAt("a direct push", 10);
+    git("merge", "--quiet", "--no-ff", "--no-edit", "side");
+    const merge = git("rev-parse", "HEAD");
+    const after = commitAt("after", 40);
+
+    expect(lineCommits(repo, from, after)).toEqual([push, merge, after]);
+    expect(lineCommits(repo, merge, after)).toEqual([after]);
+    expect(lineCommits(repo, after, after)).toEqual([]);
+  }, 30_000);
+
+  it("starts the line where it first holds `from` when a pull merged it in as a second parent", () => {
+    const fork = commitAt("fork", 0);
+    git("checkout", "--quiet", "-b", "github");
+    const from = commitAt("the PR's merge on GitHub", 10);
+    git("checkout", "--quiet", "main");
+    expect(git("rev-parse", "HEAD")).toBe(fork);
+    commitAt("a local commit", 20);
+    git("merge", "--quiet", "--no-ff", "--no-edit", "github");
+    const pull = git("rev-parse", "HEAD");
+
+    // The local commit is on the line but doesn't hold `from`; the pull's merge does.
+    expect(lineCommits(repo, from, pull)).toEqual([pull]);
   }, 30_000);
 });
 
