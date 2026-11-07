@@ -397,7 +397,9 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M7.3 Follow-up fix detection (also look past the pinned PRs: #1157's fix `9262631` was a direct push) {model: opus}
 - [x] M7.4 Classification of flagged breaks (drafted, labeled as such) {model: opus}
 - [x] M7.5 Report → eval/backtest/results/ {model: opus}
-- [ ] M7.6 Milestone verification + M7-review.md + tag m7 {model: opus}
+- M7.6 Milestone verification + M7-review.md + tag m7, split (as M6.11); findings in `docs/milestones/M7-review.md`:
+- [ ] M7.6a Milestone check: full suite uncached + coverage (analyzer, diff, eval), `pnpm eval --check` and `backtest:report --check`, fresh-eyes review of M7's commits (`git diff m6..HEAD`: backtest pins, replay, follow-up, classification, report, workflow; `missingExports` in the analyzer and `stillImported` in the diff), a smoke test of the backtest tools on a real PR, M7-review.md drafted (tag after the fixes); the review's findings planned here as M7.6b… {model: opus}
+- [ ] M7.6z Re-run the milestone checks after the fixes (suite uncached, coverage, `--check`s), findings' outcomes in M7-review.md (status no longer draft), tag m7 {model: opus}
 
 ### M8: Sign-in + private repos + PR bot
 - [ ] M8.1 needs-abhinav: register GitHub App (permissions per ADR-0009) + secrets {model: opus}
