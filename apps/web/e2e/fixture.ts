@@ -5,7 +5,9 @@ export const E2E_SHA = "5e2e0000000000000000000000000000000000a1";
 
 /**
  * Ports: the unconfigured site, the seeded site, the seeded site's database, the signed-in
- * site (the same database, with sign-in set up; M8.2c), and its fake GitHub.
+ * site (sign-in set up; M8.2c), its fake GitHub, and its own database. Each database is one
+ * PGlite session, so the two sites don't share one: a site's queries can't land inside the
+ * other's transaction or session state.
  */
 export const PORTS = {
   unconfigured: 3107,
@@ -13,6 +15,7 @@ export const PORTS = {
   database: 3109,
   signedIn: 3110,
   github: 3111,
+  signedInDatabase: 3112,
 } as const;
 
 /** The signed-in site's `SESSION_SECRET`: a test value, never a real one. */
