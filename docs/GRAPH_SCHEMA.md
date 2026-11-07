@@ -54,7 +54,7 @@ Every node has `id`, `kind`, `label`, `parentId` (null only for the system root)
 
 ```ts
 { id, kind, from, to, confidence, label?, reason?, fields?: string[], sites: CallSite[] }
-CallSite = { file, line, column, endLine?, args?: number, missingFields?: string[], request?: string }
+CallSite = { file, line, column, endLine?, args?: number, missingFields?: string[], missingExports?: string[], request?: string }
 ```
 
 `fields` appears only on `reads`/`writes` edges to a model: the model fields the call sites name in `select`, `where`, `data`, and similar arguments, sorted (ADR-0028).
@@ -62,6 +62,7 @@ CallSite = { file, line, column, endLine?, args?: number, missingFields?: string
 Call sites carry facts about that one call, which the diff checks against head (ADR-0088, ADR-0087):
 - `args` (on `calls` edges): how many arguments the call passes; absent when a spread argument (`f(...xs)`) hides the count.
 - `missingFields` (on `reads`/`writes` edges to a model): names the call uses as fields that the model doesn't declare, sorted; absent when there are none. Query keywords (`AND`/`OR`/`NOT`, `_count` and other `_` selectors, compound unique keys like `email_tenantId`) aren't listed.
+- `missingExports` (on `imports` edges to a file): names the import asks the file for (`import { A, B as C }` asks for `A` and `B`, a default import for `default`, `export { A } from` for `A`) that the file doesn't export, sorted; absent when there are none. A file that isn't a module (emptied, or with no `import`/`export` left) exports nothing. Never listed when the exports can't be known: a workspace package found only through its manifest, declaration files, `export =` and CommonJS modules, or a module that re-exports (`export *`) one TypeScript can't resolve. Namespace, side-effect, `require`, and `import()` imports ask for no names. This is the diff's evidence that a call to a removed symbol is still made (ADR-0087's M7.2e amendment).
 - `request` (on `http` edges to a route): the request as an unresolved node would label it, `<METHOD|?> <url>` with the URL as read from the code (`POST {env:VITE_API_URL}/auth/login`, `GET /api/users`). It's the same text whether the matcher found the route by that path or through an example env path, a dev proxy, a Next `basePath`, or rewrites, so the diff can tell that head's unresolved call is the one that used to reach a removed route (ADR-0087's M6.11c amendment). It never holds an env value or a query string.
 
 - There is one edge per `(kind, from, to)`, with ID `edgeId(kind, from, to)`, i.e. `<kind>:<from>-><to>`. Each call site that produced it is listed in `sites`.
@@ -97,7 +98,7 @@ Call sites carry facts about that one call, which the diff checks against head (
 5. `confidence: "unresolved"` is used exactly when the target is an `unresolved` node.
 6. No unknown fields (strict objects).
 
-New optional fields (`requiredParams`, `args`, `missingFields`, ADR-0088; `request`, ADR-0087) don't change the version: graphs written before them still parse.
+New optional fields (`requiredParams`, `args`, `missingFields`, ADR-0088; `request`, `missingExports`, ADR-0087) don't change the version: graphs written before them still parse.
 
 ## Canonical serialization
 

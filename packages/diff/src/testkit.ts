@@ -502,6 +502,35 @@ function build(c: Choices, sha: string): Built {
     });
   }
 
+  // Two imports per file of files in its service, often asking for names the file no
+  // longer exports (M7.2e), so a call to a removed symbol has an import to be found by.
+  for (const slot of [...FILE_SLOTS, ...FILE_SLOTS]) {
+    const keep = c.flag(80);
+    const target = FILE_SLOTS.filter((f) => f.service === slot.service)[c.pick(6)];
+    const missingExports = SYMBOLS.map((s) => s.name).filter(() => c.flag(50));
+    if (!keep || target === undefined || target.id === slot.id) continue;
+    if (!present.has(slot.id) || !present.has(target.id)) continue;
+    const id = edgeId("imports", slot.id, target.id);
+    if (edges.has(id)) continue;
+    edges.set(id, {
+      id,
+      kind: "imports",
+      from: slot.id,
+      to: target.id,
+      confidence: "exact",
+      sites: [
+        {
+          file: slot.path,
+          line: 2,
+          column: 1,
+          ...(missingExports.length > 0
+            ? { missingExports: missingExports.sort(compareStrings) }
+            : {}),
+        },
+      ],
+    });
+  }
+
   const warnings: AnalysisWarning[] = [];
   for (let w = 0; w < 4; w++) {
     const keep = c.flag(35);

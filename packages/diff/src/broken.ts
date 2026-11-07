@@ -163,9 +163,39 @@ function stillCalls(
   }
 }
 
-/** A target in the words shown to the user: files by path, models as "model X", others by label. */
-const nameOf = (node: GraphNode): string =>
-  node.kind === "file" ? node.path : node.kind === "model" ? `model ${node.label}` : node.label;
+/**
+ * A target in the words shown to the user: files by path, models as "model X", symbols by
+ * their name in the file (`Store.parse`), others by label.
+ */
+const nameOf = (node: GraphNode): string => {
+  if (node.kind === "file") return node.path;
+  if (node.kind === "model") return `model ${node.label}`;
+  const hash = node.id.indexOf("#");
+  return node.kind === "symbol" && hash !== -1 ? node.id.slice(hash + 1) : node.label;
+};
+
+/** The file node `id` sits in (itself for a file), walking up `nodes`' parents. */
+function fileOf(nodes: ReadonlyMap<string, GraphNode>, id: string): GraphNode | undefined {
+  for (let node = nodes.get(id); node !== undefined; ) {
+    if (node.kind === "file") return node;
+    node = node.parentId === null ? undefined : nodes.get(node.parentId);
+  }
+  return undefined;
+}
+
+/** The top-level symbol a symbol belongs to (itself, or a method's class): the name its file exports. */
+function exportedAncestor(
+  nodes: ReadonlyMap<string, GraphNode>,
+  symbol: GraphNode,
+): GraphNode | undefined {
+  for (let node: GraphNode | undefined = symbol; node?.kind === "symbol"; ) {
+    const parent: GraphNode | undefined =
+      node.parentId === null ? undefined : nodes.get(node.parentId);
+    if (parent?.kind === "file") return node;
+    node = parent;
+  }
+  return undefined;
+}
 
 /**
  * Why a target no longer answers, in the words shown to the user. `movedTo` is the
@@ -272,6 +302,10 @@ function contractBreak(
  *   PUT /x").
  * - `imports` ⇒ file: an `UNKNOWN_SYMBOL` relative specifier naming the file's path.
  * - `reads`/`writes` ⇒ model: an `UNKNOWN_SYMBOL` Prisma call through the model's accessor.
+ * - `calls` ⇒ symbol: an unresolved call makes no node, so the evidence is the import
+ *   instead (M7.2e): head's `imports` edge from the caller's file to the symbol's file has
+ *   a site whose `missingExports` holds the name the file exported the symbol by (a
+ *   method's: its class's). Those import sites are the broken edge's sites.
  * A renamed or moved target is `TARGET_MOVED` ("src/util.ts is now at src/lib/util.ts",
  * ADR-0087's M6.11b amendment): a file moved by hash or content while one importer kept
  * the old specifier. Each broken edge lists the head call sites that still make the call.
@@ -284,8 +318,11 @@ function contractBreak(
  * - `reads`/`writes` ⇒ model: `FIELD_REMOVED` when a field was dropped from the model and a
  *   head site still names it (its `missingFields`). A renamed field reads as removed.
  *
- * Doesn't handle (no head evidence in the graph): calls to removed functions (unresolved
- * calls make no node), aliased or package imports (`@/x`, `@acme/shared`), clipped URL
+ * Doesn't handle (no head evidence in the graph): calls to removed functions whose name no
+ * head import of their file still asks for (a global, a re-export from another file, a
+ * namespace import `ns.f()`, a named default export imported as `default`, a file the
+ * analyzer can't read exports of; see `missingExports` in the analyzer's `imports.ts`),
+ * aliased or package imports (`@/x`, `@acme/shared`), clipped URL
  * labels, a call whose text changed and that reached the route only through a matcher path
  * form (or a base graph from before sites had `request`), the second of two requests at one
  * site that reached one route (an edge keeps a site once per location, with the first's
@@ -323,6 +360,23 @@ export function detectBroken(
   }
 
   const headEdges = new Map(head.edges.map((e) => [e.id, e]));
+
+  /**
+   * For a base `calls` edge to `target` from `from` (in head): the sites of the caller's
+   * file's head import of the target's file (its head ID) that still ask for the name the
+   * file exported the target by, which the file no longer exports (M7.2e).
+   */
+  const stillImported = (target: GraphNode, from: string): CallSite[] => {
+    if (target.kind !== "symbol") return [];
+    const top = exportedAncestor(baseNodes, target);
+    const targetFile = fileOf(baseNodes, target.id);
+    const callerFile = fileOf(headNodes, from);
+    if (top === undefined || targetFile === undefined || callerFile === undefined) return [];
+    const now = renames.get(targetFile.id) ?? targetFile.id;
+    const link = headEdges.get(edgeId("imports", callerFile.id, now));
+    return (link?.sites ?? []).filter((s) => s.missingExports?.includes(top.label) === true);
+  };
+
   const out: BrokenEdge[] = [];
   for (const edge of base.edges) {
     const target = baseNodes.get(edge.to);
@@ -344,7 +398,8 @@ export function detectBroken(
         stillCalls(edge, target, source, node)
       );
     });
-    if (calls.length === 0) continue;
+    const imported = edge.kind === "calls" ? stillImported(target, from) : [];
+    if (calls.length === 0 && imported.length === 0) continue;
 
     const replacedBy = new Map<string, RouteNode>();
     for (const handler of handlersOf.get(target.id) ?? []) {
@@ -353,7 +408,7 @@ export function detectBroken(
       }
     }
     const sites = new Map<string, SourceLocation>();
-    for (const site of calls.flatMap((e) => e.sites)) {
+    for (const site of [...calls.flatMap((e) => e.sites), ...imported]) {
       sites.set(`${site.file}:${site.line}:${site.column}`, locationOf(site));
     }
     out.push({

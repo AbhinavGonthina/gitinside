@@ -1,0 +1,195 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:diff-export/src/run.ts#run",
+      "id": "calls:symbol:diff-export/src/run.ts#run->symbol:diff-export/src/format.ts#shout",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 28,
+          "file": "src/run.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:diff-export/src/format.ts#shout"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-export/src/limits.ts",
+      "id": "imports:file:diff-export/src/limits.ts->file:diff-export/src/interpreter.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 26,
+          "file": "src/limits.ts",
+          "line": 1,
+          "missingExports": [
+            "MAX_SIZE"
+          ]
+        }
+      ],
+      "to": "file:diff-export/src/interpreter.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-export/src/run.ts",
+      "id": "imports:file:diff-export/src/run.ts->file:diff-export/src/format.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/run.ts",
+          "line": 2,
+          "missingExports": [
+            "whisper"
+          ]
+        }
+      ],
+      "to": "file:diff-export/src/format.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-export/src/run.ts",
+      "id": "imports:file:diff-export/src/run.ts->file:diff-export/src/interpreter.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/run.ts",
+          "line": 1,
+          "missingExports": [
+            "Interpreter"
+          ]
+        }
+      ],
+      "to": "file:diff-export/src/interpreter.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "267ca2f9df84f9ba262f627e85c39fc2434596cd077ac291d62c8f9084497f86",
+      "id": "file:diff-export/src/format.ts",
+      "kind": "file",
+      "label": "format.ts",
+      "parentId": "module:diff-export/src",
+      "path": "src/format.ts"
+    },
+    {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "id": "file:diff-export/src/interpreter.ts",
+      "kind": "file",
+      "label": "interpreter.ts",
+      "parentId": "module:diff-export/src",
+      "path": "src/interpreter.ts"
+    },
+    {
+      "hash": "eca32ad35528b8835df9c9f276fd420ff84c6593263faec4946d8e15dd4e2230",
+      "id": "file:diff-export/src/limits.ts",
+      "kind": "file",
+      "label": "limits.ts",
+      "parentId": "module:diff-export/src",
+      "path": "src/limits.ts"
+    },
+    {
+      "hash": "f027595130ff2a430824508c4a36468dcea84ad73a7389600cb516877990e44c",
+      "id": "file:diff-export/src/run.ts",
+      "kind": "file",
+      "label": "run.ts",
+      "parentId": "module:diff-export/src",
+      "path": "src/run.ts"
+    },
+    {
+      "id": "module:diff-export/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:diff-export/",
+      "path": "src"
+    },
+    {
+      "id": "service:diff-export/",
+      "kind": "service",
+      "label": "diff-export",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/format.ts#shout",
+      "kind": "symbol",
+      "label": "shout",
+      "parentId": "file:diff-export/src/format.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "src/format.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/limits.ts#limit",
+      "kind": "symbol",
+      "label": "limit",
+      "parentId": "file:diff-export/src/limits.ts",
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "src/limits.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/run.ts#quiet",
+      "kind": "symbol",
+      "label": "quiet",
+      "parentId": "file:diff-export/src/run.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/run.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/run.ts#run",
+      "kind": "symbol",
+      "label": "run",
+      "parentId": "file:diff-export/src/run.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/run.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "diff-export-head",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "diff-export-head",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

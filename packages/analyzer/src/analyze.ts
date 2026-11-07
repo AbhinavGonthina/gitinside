@@ -367,7 +367,7 @@ async function analyzeRoot(
       // Per-service facts, then the global merge (ADR-0098).
       const manifests: ManifestCache = new Map();
       collect("imports", (sp) =>
-        collectImportFacts(sp, workspace, inventory.sourceFiles, manifests),
+        collectImportFacts(sp, workspace, inventory.sourceFiles, manifests, resolver.checkerOf(sp)),
       );
       return composeImports(stageFacts(bundles, "imports"));
     },

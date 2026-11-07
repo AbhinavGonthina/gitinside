@@ -58,10 +58,15 @@ describe("diff properties (fast-check)", { timeout: 60_000 }, () => {
       if (d.nodes.updated.length > 0) seen("updated");
       if (d.warnings.added.length > 0) seen("warning");
       for (const reason of new Set(d.broken.map((b) => b.reason))) seen(reason);
+      // A removed symbol head still imports by name (M7.2e): the only `calls` case removed.
+      if (d.broken.some((b) => b.edge.startsWith("calls:") && b.reason === "TARGET_REMOVED")) {
+        seen("calls TARGET_REMOVED");
+      }
     }
     expect([...counts.keys()].sort(compareStrings)).toEqual(
       [
         "FIELD_REMOVED",
+        "calls TARGET_REMOVED",
         "PARAMETERS_ADDED",
         "ROUTE_CHANGED",
         "TARGET_MOVED",

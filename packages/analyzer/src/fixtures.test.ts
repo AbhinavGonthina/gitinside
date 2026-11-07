@@ -80,6 +80,8 @@ const NAMES = [
   "diff-rename-head",
   "diff-broken-base",
   "diff-broken-head",
+  "diff-export-base",
+  "diff-export-head",
 ];
 
 describe.each(NAMES)("fixture %s", (name) => {

@@ -89,7 +89,7 @@ export interface FactKeys {
  * Bump when what an entry means changes without the analyzer's version changing: when the
  * facts, observed inputs, or repo-wide facts stored for the same files change.
  */
-export const KEY_FORMAT = 34;
+export const KEY_FORMAT = 35;
 
 /**
  * The SHA-256 of the entries a cold analysis of every fixture stores, per {@link KEY_FORMAT}
@@ -104,6 +104,7 @@ export const KEY_FORMAT = 34;
 export const FACTS_DIGESTS: Readonly<Record<number, string>> = {
   33: "bfa4370095adca585bdb0e0c7ee1879f5d61b110442a7c101ffa957fd36d8770",
   34: "50b447482ae47e42dc61ee5ec23c6380721faeb833489b78dd7a79226e15a176",
+  35: "0ab817245e89a821fdfa3806a14c78eae9e346386e96fd1cee220bb766e8e5bd",
 };
 
 /** The {@link EntryUse} of an inputs part entry: shared by the service entries naming it. */

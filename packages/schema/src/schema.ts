@@ -91,6 +91,11 @@ export const CallSite = SourceLocation.extend({
   /** For `reads`/`writes` edges to a model: names the call uses as fields the model lacks, sorted. */
   missingFields: z.array(z.string().min(1)).min(1).optional(),
   /**
+   * For `imports` edges to a file: names the import asks for (`import { A }`,
+   * `export { A } from`, `default`) that the file doesn't export, sorted (M7.2e).
+   */
+  missingExports: z.array(z.string().min(1)).min(1).optional(),
+  /**
    * For `http` edges to a route: the request as an unresolved node would label it
    * (`POST {env:API_URL}/auth/login`), so the diff knows head's unresolved call is the same
    * one, whatever path the matcher sent it by (ADR-0087's M6.11c amendment).
