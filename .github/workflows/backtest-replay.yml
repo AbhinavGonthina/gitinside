@@ -1,0 +1,74 @@
+name: Backtest replay
+
+# The backtest's replay (M7.2c, ADR-0216's M7.2c1 amendment) on GitHub's runners: one job per
+# named repo, each running `backtest:replay <repo>` to a gitignored folder and uploading the
+# raw file as an artifact, also when the replay fails or runs out of time (the file is saved
+# after every PR, so a partial one is still valid; its run line names this runner). Nothing
+# is committed by the workflow: download each artifact
+# (`gh run download <run> -n backtest-raw-<owner>__<name> -D <dir>`), copy the file into
+# eval/backtest/raw/, and run `pnpm --filter @gitinside/eval validate`. The replayed repos are
+# cloned and parsed, never installed or run (docs/SECURITY.md).
+
+on:
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: Repos to replay, a JSON array of "owner/name" (each must be pinned in eval/backtest/repos.json)
+        default: '["dubinc/dub.link", "getmaxun/maxun", "hoangsonww/Claude-Code-Agent-Monitor", "Mintplex-Labs/anything-llm", "seerr-team/seerr", "trycompai/comp"]'
+      limit:
+        description: Stop after this many PRs per repo (empty for all; a number for a smoke run)
+        default: ""
+
+# Least privilege: the jobs only read this repo, and third-party repos are cloned while they
+# run, so the token gets read access and isn't left in .git/config.
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    name: replay ${{ matrix.repo }}
+    runs-on: ubuntu-latest
+    # GitHub's limit is 6 h per job; the replay step stops earlier so the upload still runs.
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJSON(inputs.repos) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@gitinside/eval
+      # The run line records the commit as dirty if the tree changed; show what changed.
+      - run: git status --porcelain
+      # Inputs reach the script as variables, never spliced into the command; the script
+      # refuses a repo that isn't pinned and a limit that isn't a whole number.
+      - name: Replay
+        timeout-minutes: 340
+        run: |
+          args=()
+          if [ -n "$LIMIT" ]; then args+=(--limit "$LIMIT"); fi
+          pnpm --filter @gitinside/eval backtest:replay "$REPO" --out eval/dist/backtest-raw "${args[@]}"
+        env:
+          REPO: ${{ matrix.repo }}
+          LIMIT: ${{ inputs.limit }}
+      # Artifact names can't hold "/", so owner/name becomes owner__name, as in the file name.
+      - name: Name the artifact
+        if: always()
+        id: artifact
+        run: echo "name=backtest-raw-${REPO/\//__}" >> "$GITHUB_OUTPUT"
+        env:
+          REPO: ${{ matrix.repo }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: eval/dist/backtest-raw/*.json
+          # A replay that failed before its first PR has no file; the job's log says why.
+          if-no-files-found: warn
