@@ -123,6 +123,38 @@ describe("parseBacktestReposFile", () => {
     ).toContain("repos.0.startSha: must be a 40-character lowercase hex SHA");
   });
 
+  it("accepts only a plain branch name, which git can't read as an option", () => {
+    const branch = (name: string): string[] => {
+      try {
+        parseBacktestReposFile(
+          "repos.json",
+          text({ repos: [{ ...repo("acme", "shop"), branch: name }, repo("Zeta", "app")] }),
+        );
+        return [];
+      } catch (error) {
+        return [(error as Error).message];
+      }
+    };
+    for (const ok of ["main", "develop", "release/2.x", "v1.0_next"])
+      expect(branch(ok)).toEqual([]);
+    for (const bad of [
+      "--upload-pack=touch x",
+      "-main",
+      "a b",
+      "a..b",
+      "/main",
+      "main/",
+      "a//b",
+      ".hidden",
+      "a/.b",
+      "main.lock",
+      "a@{1}",
+      "HEAD:x",
+    ]) {
+      expect(branch(bad)[0], bad).toContain("repos.0.branch: must be a plain branch name");
+    }
+  });
+
   it("requires a window that opens before it closes, followed up before the pin", () => {
     expect(
       issues(() =>

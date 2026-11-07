@@ -349,6 +349,20 @@ describe("renderBacktestReport", () => {
   });
 });
 
+describe("backtestProblems", () => {
+  it("requires every raw file to come from one gitinside commit", () => {
+    const i = inputs();
+    expect(backtestProblems(i)).toEqual([]);
+    const quiet = i.raw[1]!;
+    quiet.file = { ...quiet.file, run: { ...quiet.file.run, gitinside: sha("e") } };
+    // Its follow-up names the same replay, so only the mix is a problem.
+    i.followUp[1]!.file.replay = sha("e");
+    expect(backtestProblems(i)).toEqual([
+      `backtest/raw/t__quiet.json: replayed at gitinside ${sha("e")}, but backtest/raw/t__flagged.json at ${sha("f")}; every raw file must come from one commit`,
+    ]);
+  });
+});
+
 describe("helpers", () => {
   it("groups thousands", () => {
     expect([0, 999, 1000, 12917, 1234567].map(group)).toEqual([

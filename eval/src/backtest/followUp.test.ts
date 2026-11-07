@@ -412,6 +412,11 @@ describe("follow-up files", () => {
       `follows up the replay at x, the raw file's is ${run.gitinside}`,
       `endSha is ${"e".repeat(40)}, the pinned one is ${"d".repeat(40)}`,
     ]);
+    // Another analyzer would judge the replay's breaks with other rules.
+    const newer = { ...parsed, run: { ...parsed.run, analyzerVersion: "9.9.9" } };
+    expect(followUpCrossCheck(newer, rawFile, parsed)).toEqual([
+      `ran analyzer 9.9.9, the raw file's is ${run.analyzerVersion}`,
+    ]);
     const otherEdge = { ...flagged, broken: [{ ...flagged.broken[0]!, edge: "calls:a->c" }] };
     expect(followUpCrossCheck(parsed, { ...rawFile, prs: [otherEdge] }, parsed)).toEqual([
       "prs[0].breaks aren't the raw file's broken edges of #1",

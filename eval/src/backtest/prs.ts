@@ -4,7 +4,12 @@
  * commits M7.2b analyzes: `baseSha`, the branch just before the PR landed, and `mergeSha`, the
  * branch just after. How GitHub merged the PR decides the base:
  *
- * - **merge** (a merge commit, two or more parents): the first parent.
+ * - **merge** (a merge commit, two or more parents): the first parent. Only when it's this PR's
+ *   own merge: its second parent is the PR's head, and a "Merge pull request #N" subject names
+ *   this PR. Otherwise the PR is excluded with a reason: GitHub marks a stacked PR merged when
+ *   its child lands and reports the child's merge as its `merge_commit_sha` (so the diff would
+ *   hold both PRs), and a head that merges the branch in and was fast-forwarded onto it has
+ *   the PR's own branch as its first parent.
  * - **rebase** (the PR's `k` commits replayed onto the branch, `k > 1`): the commit `k` steps
  *   down the first-parent chain from `mergeSha`, so the replay sees the whole PR, not only its
  *   last commit. Recognized when the last `k` first-parent commits carry exactly the PR's `k`
@@ -42,6 +47,8 @@ export interface ListedPr {
   baseRef: string;
   /** `merge_commit_sha`: the commit the merge put on the branch. */
   mergeSha: string;
+  /** `head.sha`: the PR branch's last commit. */
+  headSha: string;
   /** How many commits the PR had. */
   commits: number;
 }
@@ -205,6 +212,30 @@ function normalizeMessage(message: string): string {
     .trim();
 }
 
+/**
+ * Why merge commit `pr.mergeSha` (with `parents`, two or more) isn't `pr`'s own merge into
+ * `branch`, or `undefined` when it is (see the module comment).
+ */
+function notOwnMerge(
+  pr: ListedPr,
+  parents: string[],
+  branch: string,
+  git: GitView,
+): string | undefined {
+  if (pr.mergeSha === pr.headSha) {
+    return `its head ${pr.headSha} is a merge commit the branch was fast-forwarded to, so its first parent is the PR's own branch, not ${branch}'s previous state`;
+  }
+  if (parents[1] !== pr.headSha) {
+    return `its merge commit ${pr.mergeSha} merges ${String(parents[1])}, not the PR's head ${pr.headSha}: another PR's merge (a stacked PR is marked merged when its child lands)`;
+  }
+  const subject = (git.firstParentMessages(pr.mergeSha, 1)[0] ?? "").split("\n")[0] ?? "";
+  const named = /^Merge pull request #(\d+)\b/.exec(subject);
+  if (named && Number(named[1]) !== pr.number) {
+    return `its merge commit ${pr.mergeSha} is "${subject.trimEnd()}", another PR's merge`;
+  }
+  return undefined;
+}
+
 /** The base and merge kind of one PR, or why it can't be replayed. */
 export function classifyPr(
   pr: ListedPr,
@@ -225,8 +256,11 @@ export function classifyPr(
   const parents = git.parents(pr.mergeSha);
   if (parents.length === 0) return { reason: `its merge commit ${pr.mergeSha} has no parent` };
   let found: { kind: (typeof MERGE_KINDS)[number]; baseSha: string | undefined };
-  if (parents.length > 1) found = { kind: "merge", baseSha: parents[0] };
-  else if (pr.commits <= 1) found = { kind: "squash", baseSha: parents[0] };
+  if (parents.length > 1) {
+    const reason = notOwnMerge(pr, parents, repo.branch, git);
+    if (reason) return { reason };
+    found = { kind: "merge", baseSha: parents[0] };
+  } else if (pr.commits <= 1) found = { kind: "squash", baseSha: parents[0] };
   else if (pr.commits > MAX_PR_COMMITS) {
     return { reason: `${pr.commits} commits, more than the ${MAX_PR_COMMITS} GitHub lists` };
   } else {

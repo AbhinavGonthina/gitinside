@@ -81,10 +81,11 @@ const pull = {
   merge_commit_sha: "a".repeat(40),
   commits: 3,
   base: { ref: "main" },
+  head: { sha: "b".repeat(40) },
 };
 
 describe("pullFacts", () => {
-  it("reads a PR's merge commit, base branch, and commit count", () => {
+  it("reads a PR's merge commit, head, base branch, and commit count", () => {
     const api = fake(() => pull);
     expect(pullFacts(api, repo, { number: 5, mergedAt: "2026-07-02T10:00:00Z" })).toEqual({
       number: 5,
@@ -92,6 +93,7 @@ describe("pullFacts", () => {
       mergedAt: "2026-07-02T10:00:00Z",
       baseRef: "main",
       mergeSha: "a".repeat(40),
+      headSha: "b".repeat(40),
       commits: 3,
     });
     expect(api.calls).toEqual(["repos/acme/shop/pulls/5"]);

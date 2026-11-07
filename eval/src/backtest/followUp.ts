@@ -136,7 +136,7 @@ export function flaggedPrs(raw: RawFile): Flagged[] {
 
 /**
  * Problems between a follow-up file and what it follows up: another repo or replay, another
- * `endSha`, or PRs and breaks that aren't exactly the raw file's flagged ones, in order.
+ * `endSha` or analyzer version, or PRs and breaks that aren't exactly the raw file's flagged ones, in order.
  */
 export function followUpCrossCheck(
   file: FollowUpFile,
@@ -152,6 +152,11 @@ export function followUpCrossCheck(
   }
   if (file.endSha !== repo.endSha) {
     problems.push(`endSha is ${file.endSha}, the pinned one is ${repo.endSha}`);
+  }
+  if (file.run.analyzerVersion !== raw.run.analyzerVersion) {
+    problems.push(
+      `ran analyzer ${file.run.analyzerVersion}, the raw file's is ${raw.run.analyzerVersion}`,
+    );
   }
   const flagged = flaggedPrs(raw);
   if (file.prs.length !== flagged.length) {

@@ -29,6 +29,19 @@ const fullName = z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'must be
 
 const count = z.number().int().min(0);
 
+/**
+ * A plain branch name, which reaches `git clone --branch` and `git fetch` (git.ts): `/`-separated
+ * parts of letters, digits, `.`, `_` and `-`, none empty or starting with `.`, no `..`, not
+ * ending in `.` or `.lock`, and no leading `-`, so git can never read it as an option. Stricter
+ * than `git check-ref-format`, which also allows names no pinned repo needs.
+ */
+const branchName = z
+  .string()
+  .regex(
+    /^(?!-)(?!.*\.\.)(?!.*\.lock$)(?!.*\.$)[\w-][\w.-]*(?:\/[\w-][\w.-]*)*$/,
+    "must be a plain branch name (letters, digits, ., _, - and /, no leading -)",
+  );
+
 /** `date` (YYYY-MM-DD) plus `days` calendar days, in UTC. */
 export function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
@@ -63,7 +76,7 @@ export const backtestRepoSchema = z
     /** GitHub's SPDX ID for the license, or `NOASSERTION` for a custom one. Only read, never copied. */
     license: z.string().min(1),
     /** The branch the replayed PRs merged into (the default branch when pinned). */
-    branch: z.string().min(1),
+    branch: branchName,
     startSha: sha,
     endSha: sha,
     /** What the repo exercises: its frontend, backend, and how they call each other. */

@@ -65,11 +65,11 @@ export function ensureClone(
     );
   }
   const view = gitView(dir);
-  if (!view.has(repo.endSha)) {
-    git(dir, ["fetch", "--quiet", "--filter=blob:none", "origin", repo.branch]);
-  }
-  if (!view.has(repo.endSha))
-    git(dir, ["fetch", "--quiet", "--filter=blob:none", "origin", repo.endSha]);
+  // Refs from repos.json come after `--end-of-options`, so git never reads one as an option
+  // (format.ts also rejects a branch name starting with `-`).
+  const fetch = ["fetch", "--quiet", "--filter=blob:none", "--end-of-options", "origin"];
+  if (!view.has(repo.endSha)) git(dir, [...fetch, repo.branch]);
+  if (!view.has(repo.endSha)) git(dir, [...fetch, repo.endSha]);
 }
 
 /** Paths of the git repo at `dir`'s worktrees other than its own checkout. */
@@ -126,6 +126,7 @@ export function laterCommits(dir: string, from: string, to: string): string[] {
     "--ancestry-path",
     "--date-order",
     "--reverse",
+    "--end-of-options",
     `${from}..${to}`,
     "--",
   ]);
@@ -140,13 +141,22 @@ export function laterCommits(dir: string, from: string, to: string): string[] {
  */
 export function lineCommits(dir: string, from: string, to: string): string[] {
   const holding = new Set(laterCommits(dir, from, to));
-  const out = git(dir, ["rev-list", "--first-parent", "--reverse", `${from}..${to}`, "--"]);
+  const out = git(dir, [
+    "rev-list",
+    "--first-parent",
+    "--reverse",
+    "--end-of-options",
+    `${from}..${to}`,
+    "--",
+  ]);
   return out.split("\n").filter((line) => line !== "" && holding.has(line));
 }
 
 /** When commit `sha` of the git repo at `dir` was committed, in UTC (ISO 8601, to the second). */
 export function committedAt(dir: string, sha: string): string {
-  const seconds = Number(git(dir, ["show", "-s", "--format=%ct", sha, "--"]).trim());
+  const seconds = Number(
+    git(dir, ["show", "-s", "--format=%ct", "--end-of-options", sha, "--"]).trim(),
+  );
   return new Date(seconds * 1000).toISOString().replace(".000Z", "Z");
 }
 
@@ -157,21 +167,46 @@ export function gitView(dir: string): GitView {
     has: (sha) =>
       succeeds(dir, ["rev-parse", "--verify", "--quiet", "--end-of-options", `${sha}^{commit}`]),
     parents: (sha) => {
-      const [, ...parents] = git(dir, ["rev-list", "--parents", "-n", "1", sha, "--"])
+      const [, ...parents] = git(dir, [
+        "rev-list",
+        "--parents",
+        "-n",
+        "1",
+        "--end-of-options",
+        sha,
+        "--",
+      ])
         .trim()
         .split(" ");
       return parents;
     },
     isAncestor: (ancestor, descendant) =>
-      succeeds(dir, ["merge-base", "--is-ancestor", ancestor, descendant]),
+      succeeds(dir, ["merge-base", "--is-ancestor", "--end-of-options", ancestor, descendant]),
     firstParentMessages: (sha, count) =>
-      git(dir, ["log", "--first-parent", "--format=%B%x00", "-n", String(count), sha, "--"])
+      git(dir, [
+        "log",
+        "--first-parent",
+        "--format=%B%x00",
+        "-n",
+        String(count),
+        "--end-of-options",
+        sha,
+        "--",
+      ])
         .split("\0")
         .slice(0, -1)
         .map((m) => m.replace(/^\n/, ""))
         .reverse(),
     firstParentAncestor: (sha, steps) => {
-      const lines = git(dir, ["rev-list", "--first-parent", "-n", String(steps + 1), sha, "--"])
+      const lines = git(dir, [
+        "rev-list",
+        "--first-parent",
+        "-n",
+        String(steps + 1),
+        "--end-of-options",
+        sha,
+        "--",
+      ])
         .trim()
         .split("\n");
       return lines.length === steps + 1 ? lines[steps] : undefined;

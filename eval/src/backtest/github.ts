@@ -1,6 +1,6 @@
 /**
  * What the PR list reads from GitHub's REST API: the merged PRs of a repo's branch in the
- * window (issue search), each kept PR's merge commit (pulls API), and, for a possible rebase,
+ * window (issue search), each kept PR's merge commit and head (pulls API), and, for a possible rebase,
  * its commit messages. Every call goes through `api`, so tests answer them from fixtures and
  * the CLI through `gh api`.
  */
@@ -27,6 +27,7 @@ interface PullResponse {
   merge_commit_sha: string | null;
   commits: number;
   base: { ref: string };
+  head: { sha: string };
 }
 
 /**
@@ -101,6 +102,7 @@ export function pullFacts(
     mergedAt: pr.merged_at,
     baseRef: pr.base.ref,
     mergeSha: pr.merge_commit_sha,
+    headSha: pr.head.sha,
     commits: pr.commits,
   };
 }
