@@ -1,7 +1,7 @@
 {
   "repo": "getmaxun/maxun",
   "run": {
-    "gitinside": "7e97209c355eabdb64dc1cad9c128204fcd1f6c5",
+    "gitinside": "686d35ceb788a3cc7cc73f3af5e1689e845a7928",
     "analyzerVersion": "0.2.0",
     "started": "2026-11-07",
     "machine": {
@@ -33,6 +33,7 @@
             "how": "restored",
             "pr": null
           },
+          "offLine": null,
           "atEnd": "clear"
         },
         {
@@ -44,6 +45,7 @@
             "how": "restored",
             "pr": null
           },
+          "offLine": null,
           "atEnd": "clear"
         },
         {
@@ -55,6 +57,7 @@
             "how": "restored",
             "pr": null
           },
+          "offLine": null,
           "atEnd": "clear"
         },
         {
@@ -66,6 +69,7 @@
             "how": "restored",
             "pr": null
           },
+          "offLine": null,
           "atEnd": "clear"
         },
         {
@@ -77,6 +81,7 @@
             "how": "restored",
             "pr": null
           },
+          "offLine": null,
           "atEnd": "clear"
         }
       ]
