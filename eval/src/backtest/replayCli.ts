@@ -5,18 +5,21 @@
  * holds `endSha`, then analyze and diff each PR's base and merge commits with one fact cache
  * (`eval/.repos/backtest-cache/`), writing `<out>/<owner>__<name>.json` (default
  * `eval/backtest/raw/`) after every PR. An existing raw file is continued if the same clean
- * gitinside commit wrote it, and refused otherwise. `--limit` stops after that many PRs per
- * repo, for a smoke run (write it to a gitignored `--out`).
+ * gitinside commit wrote it, and refused otherwise; the raw files a run writes don't make the
+ * tree dirty, so a restart with the default `--out` resumes. Worktrees a killed run left in a
+ * clone are removed first. `--limit` stops after that many PRs per repo, for a smoke run
+ * (write it to a gitignored `--out`). `.github/workflows/backtest-replay.yml` runs it on
+ * GitHub's runners, one job per repo.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { rename, rm, writeFile } from "node:fs/promises";
 import { cpus, platform, release, totalmem } from "node:os";
-import { join, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ANALYZER_VERSION, openDiskCache } from "@gitinside/analyzer";
 import { parseBacktestReposFile } from "./format.js";
-import { ensureClone } from "./git.js";
+import { ensureClone, hasChangesBesides, removeStrayWorktrees } from "./git.js";
 import { parsePrsFile, prsFileName } from "./prs.js";
 import {
   cannotResume,
@@ -42,9 +45,12 @@ function today(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** This run: the gitinside commit (marked if the tree has changes), analyzer, machine, day. */
-function thisRun(): ReplayRun {
-  const dirty = git(["status", "--porcelain"]) !== "";
+/**
+ * This run: the gitinside commit (marked if the tree has changes besides `own`, the raw files
+ * it writes), analyzer, machine, day.
+ */
+function thisRun(own: string[]): ReplayRun {
+  const dirty = hasChangesBesides(ROOT, own);
   const cpu = cpus();
   return {
     gitinside: `${git(["rev-parse", "HEAD"])}${dirty ? DIRTY_MARK : ""}`,
@@ -100,7 +106,14 @@ async function main(): Promise<void> {
   );
   if (repos.length < asked.length)
     throw new Error(`not every repo named is pinned: ${asked.join(", ")}`);
-  const run = thisRun();
+  // A restarted run sees its own raw files as changes; they mustn't make it call itself dirty.
+  const run = thisRun(
+    repos.map((r) =>
+      relative(ROOT, join(out, prsFileName(r)))
+        .split(sep)
+        .join("/"),
+    ),
+  );
   if (run.gitinside.endsWith(DIRTY_MARK)) {
     process.stderr.write("warning: the tree has uncommitted changes; the results say so\n");
   }
@@ -124,6 +137,9 @@ async function main(): Promise<void> {
     const dir = join(EVAL, ".repos", "backtest", `${repo.owner}__${repo.name}`);
     process.stderr.write(`${prs.repo}: cloning or updating ${repo.branch}'s history\n`);
     ensureClone(dir, repo);
+    const stray = removeStrayWorktrees(dir);
+    if (stray > 0)
+      process.stderr.write(`${prs.repo}: removed ${stray} worktrees a stopped run left\n`);
     const raw = await replayRepo(
       prs,
       // A continued file keeps the run line of the run that started it (same commit and machine).

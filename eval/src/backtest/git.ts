@@ -3,7 +3,8 @@
  * repo's branch history without file contents (`--filter=blob:none`), which is all the PR
  * list needs; the replay fetches blobs as it checks commits out. Like the eval's checkouts, a
  * clone is only read: LFS smudging, line-ending conversion, and symlinks are off, and no hook
- * is ever installed in it.
+ * is ever installed in it. The replay's temporary worktrees are added to these clones, so a
+ * replay starts by removing any a killed run left ({@link removeStrayWorktrees}).
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -69,6 +70,48 @@ export function ensureClone(
   }
   if (!view.has(repo.endSha))
     git(dir, ["fetch", "--quiet", "--filter=blob:none", "origin", repo.endSha]);
+}
+
+/** Paths of the git repo at `dir`'s worktrees other than its own checkout. */
+function otherWorktrees(dir: string): string[] {
+  return git(dir, ["worktree", "list", "--porcelain"])
+    .split("\n")
+    .filter((line) => line.startsWith("worktree "))
+    .map((line) => line.slice("worktree ".length))
+    .slice(1);
+}
+
+/**
+ * Remove every worktree of the clone at `dir` but its own checkout, and return how many there
+ * were. A replay killed mid-run (a job's timeout, a stopped process) leaves its open sides'
+ * worktrees registered, with or without their folders; the replay's own are temporary, so
+ * none may outlive a run. Not handled: two replays sharing one clone at once (the second
+ * would remove the first's).
+ */
+export function removeStrayWorktrees(dir: string): number {
+  const stray = otherWorktrees(dir);
+  // Forget the ones whose folders are already gone, then remove the rest.
+  git(dir, ["worktree", "prune"]);
+  for (const tree of otherWorktrees(dir)) git(dir, ["worktree", "remove", "--force", tree]);
+  return stray.length;
+}
+
+/**
+ * Whether the git repo at `root` has uncommitted changes (tracked or untracked) other than
+ * `own`, repo-relative paths (`/`-separated) that the caller writes itself: a replay's raw
+ * files, so a run writing to the tracked `eval/backtest/raw/` can be restarted and still call
+ * itself clean. Names are matched literally; an own path outside the repo is ignored.
+ */
+export function hasChangesBesides(root: string, own: string[]): boolean {
+  const excluded = own
+    .filter((path) => !path.startsWith("../") && !path.startsWith("/") && !/^[A-Za-z]:/.test(path))
+    .map((path) => `:(exclude,literal)${path}`);
+  const status = execFileSync(
+    "git",
+    ["-C", root, "status", "--porcelain", "--untracked-files=all", "--", ".", ...excluded],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
+  );
+  return status.trim() !== "";
 }
 
 /** A {@link GitView} over the git repo at `dir`. */
