@@ -21,6 +21,7 @@ import {
   runMaintenance,
   type MaintenanceTriggerOptions,
 } from "./maintenance.js";
+import { createTokenClient } from "./installationToken.js";
 import { createAnalysisRecorder } from "./record.js";
 import { createRunServer } from "./run.js";
 
@@ -44,7 +45,8 @@ import { createRunServer } from "./run.js";
  *    job is left alone. A retried push moves its row back to `running`.
  * 3. Build the recorder (`publish` = bucket then Postgres; every bucket request counted in
  *    `store_requests`, ADR-0096; time estimates from the latest finished analyses' stats,
- *    ADR-0136), the hourly maintenance (stale jobs, retention, rate-limit pruning, quota
+ *    ADR-0136), the installation token client when `websiteOrigin` is set
+ *    (installationToken.ts, M8.3c3b), the hourly maintenance (stale jobs, retention, rate-limit pruning, quota
  *    check; maintenance.ts) run after a job once its hourly claim in Postgres is won
  *    (ADR-0147), then listen.
  * 4. Count the rest of the startup (also when a step after 1 fails); every push answered is
@@ -147,6 +149,7 @@ export async function startWorkerProcess(
     jobsRoot: config.jobsRoot,
     cacheRoot: config.cacheRoot,
     githubToken: config.githubToken !== undefined,
+    websiteOrigin: config.websiteOrigin ?? null,
   });
 
   // Undone in reverse if a later step fails.
@@ -184,6 +187,10 @@ export async function startWorkerProcess(
     };
     const store = createCountedStore(config.store, db, log);
     const recorder = createAnalysisRecorder({ db, store, analyzerVersion, github });
+    const installationToken =
+      config.websiteOrigin === undefined
+        ? undefined
+        : createTokenClient({ origin: config.websiteOrigin, secrets: config.secrets });
     let afterJob:
       | ((end: { timeLeftMs: number; signal: AbortSignal }) => Promise<unknown>)
       | undefined;
@@ -209,6 +216,7 @@ export async function startWorkerProcess(
         recorder,
         publish: recorder.publish,
         download: github,
+        ...(installationToken === undefined ? {} : { installationToken }),
       },
       secrets: config.secrets,
       analyzerVersion,

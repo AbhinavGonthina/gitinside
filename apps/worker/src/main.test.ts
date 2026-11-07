@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
-import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
+import { createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,16 +10,26 @@ import {
   analyses,
   computeUsage,
   computeUsageThisMonth,
+  installations,
   maintenanceRuns,
   queueAnalysis,
   repos,
   startAnalysis,
+  upsertInstallation,
   upsertRepo,
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { WorkerConfig } from "./config.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
+import {
+  derivedSecret,
+  SIGNATURE_HEADER,
+  TIMESTAMP_HEADER,
+  TOKEN_REQUEST_PURPOSE,
+  verifyRequest,
+} from "./hmac.js";
+import { jobIdFor } from "./request.js";
 import type { JobDeps } from "./job.js";
 import { INTERRUPTED_AFTER_SECONDS, STALE_QUEUED_AFTER_SECONDS } from "./maintenance.js";
 import {
@@ -432,6 +443,139 @@ describe("startWorkerProcess", () => {
       { event: "startup_sweep", folders: 1, interrupted: 1 },
       { event: "worker_ready", host: "127.0.0.1" },
     ]);
+  });
+
+  it("reads a private job with the token the website mints for it, and never the worker's own", async () => {
+    await t.db.delete(installations);
+    await upsertInstallation(t.db, {
+      githubInstallationId: 42,
+      accountId: 9001,
+      accountLogin: "acme",
+      accountType: "Organization",
+      suspendedAt: null,
+    });
+    const asks: { body: string; verified: boolean }[] = [];
+    const website = createHttpServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        const body = Buffer.concat(chunks);
+        const verified = verifyRequest(
+          [derivedSecret(SECRET, TOKEN_REQUEST_PURPOSE)],
+          { method: req.method ?? "", path: req.url ?? "", body },
+          { timestamp: req.headers[TIMESTAMP_HEADER], signature: req.headers[SIGNATURE_HEADER] },
+        ).ok;
+        asks.push({ body: body.toString(), verified });
+        res.writeHead(200, { "content-type": "application/json", connection: "close" });
+        res.end(JSON.stringify({ token: "ghs_installation", expiresAt: "2026-11-07T13:00:00Z" }));
+      });
+    });
+    await new Promise<void>((resolve) => website.listen(0, "127.0.0.1", resolve));
+    const tarball = github.api;
+    github.api = (req, res) => {
+      if (req.url !== "/repos/acme/shop") return tarball(req, res);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          id: 3_000_000_001,
+          name: "shop",
+          owner: { login: "acme" },
+          private: true,
+          default_branch: "main",
+        }),
+      );
+    };
+    const children: string[] = [];
+    try {
+      const port = (website.address() as AddressInfo).port;
+      const worker = await start(
+        {
+          jobDeps: {
+            run: async (job, options) => {
+              children.push(JSON.stringify({ job, options }));
+              return writeGraph(job, options);
+            },
+          },
+        },
+        { websiteOrigin: `http://127.0.0.1:${port}` },
+      );
+      const job = { ...JOB, installationId: 42 };
+      const deliveries = await pushTask(fakeTask(origin(worker), job, SECRET));
+      expect(deliveries).toMatchObject([{ status: 200, body: { state: "done" } }]);
+
+      expect(asks).toHaveLength(1);
+      expect(asks[0]?.verified).toBe(true);
+      expect(JSON.parse(asks[0]!.body)).toEqual({
+        jobId: expect.stringMatching(/^analyze-[0-9a-f]{32}$/) as string,
+        installationId: 42,
+      });
+      // The facts and the tarball with the installation's token; codeload with none.
+      expect(github.requests.map((r) => [r.server, r.authorization])).toEqual([
+        ["api", "Bearer ghs_installation"],
+        ["api", "Bearer ghs_installation"],
+        ["codeload", undefined],
+      ]);
+      expect(children).toHaveLength(1);
+      expect(children[0]).not.toContain("ghs_installation");
+      expect(lines.join("\n")).not.toContain("ghs_installation");
+      const [row] = await t.db.select().from(analyses);
+      expect(row).toMatchObject({ status: "done" });
+    } finally {
+      website.closeAllConnections();
+      await new Promise<void>((resolve) => website.close(() => resolve()));
+    }
+  });
+
+  it("fails a private job for good, naming it on the row, when the installation is suspended", async () => {
+    const website = createHttpServer((req, res) => {
+      req.resume();
+      req.on("end", () => {
+        res.writeHead(403, { "content-type": "application/json", connection: "close" });
+        res.end(JSON.stringify({ error: "INSTALLATION_SUSPENDED" }));
+      });
+    });
+    await new Promise<void>((resolve) => website.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (website.address() as AddressInfo).port;
+      const worker = await start({}, { websiteOrigin: `http://127.0.0.1:${port}` });
+      const job = { ...JOB, kind: "analyze" as const, installationId: 42 };
+      const task = fakeTask(origin(worker), job, SECRET);
+      const { id: repoId } = await upsertRepo(t.db, {
+        providerRepoId: 3_000_000_001,
+        owner: "acme",
+        name: "shop",
+        visibility: "private",
+        defaultBranch: "main",
+      });
+      await queueAnalysis(
+        t.db,
+        { repoId, sha: SHA, analyzerVersion: VERSION },
+        { jobId: jobIdFor(job, VERSION) },
+      );
+      const deliveries = await pushTask(task);
+      // Permanent: answered so Cloud Tasks doesn't try again.
+      expect(deliveries).toHaveLength(1);
+      expect(deliveries[0]?.body).toMatchObject({
+        state: "failed",
+        errorCode: "INSTALLATION_SUSPENDED",
+      });
+      expect(github.requests).toEqual([]);
+      const [row] = await t.db.select().from(analyses);
+      expect(row).toMatchObject({ status: "failed", errorCode: "INSTALLATION_SUSPENDED" });
+    } finally {
+      website.closeAllConnections();
+      await new Promise<void>((resolve) => website.close(() => resolve()));
+    }
+  });
+
+  it("fails a private job as TOKEN_UNCONFIGURED without a website origin", async () => {
+    const worker = await start();
+    const deliveries = await pushTask(
+      fakeTask(origin(worker), { ...JOB, installationId: 42 }, SECRET),
+    );
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]?.body).toMatchObject({ state: "failed", errorCode: "TOKEN_UNCONFIGURED" });
+    expect(github.requests).toEqual([]);
   });
 
   it("never logs a secret or connection string", async () => {

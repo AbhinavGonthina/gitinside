@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { deployTarget, render } from "../../../infra/gcp/deploy.mjs";
+import { deployTarget, render, WEBSITE_ORIGIN } from "../../../infra/gcp/deploy.mjs";
 import {
   bytes,
   cleanupPolicyKey,
@@ -86,6 +86,7 @@ function healthyProject() {
     SNAPSHOTS_BUCKET: "gitinside-snapshots",
     SNAPSHOTS_ACCESS_KEY_ID: "0123456789abcdef",
     COMMIT: "0123456789abcdef0123456789abcdef01234567",
+    WEBSITE_ORIGIN,
   };
   const service = (name: string): Json => ({
     ...JSON.parse(render(text(`infra/gcp/${name}`), values)),

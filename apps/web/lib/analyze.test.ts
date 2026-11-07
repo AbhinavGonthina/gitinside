@@ -399,7 +399,10 @@ describe("requestAnalysis", () => {
         "REPO_UNAVAILABLE",
         "INSTALLATION_NOT_FOUND",
         "INSTALLATION_SUSPENDED",
+        "REPO_NOT_INSTALLED",
       ]) {
+        // Six requests from one address: past its hourly limit without this.
+        await t.db.delete(rateLimits);
         await t.db.delete(analyses);
         await t.db.update(repos).set({ analysisClaimSha: null, analysisClaimedAt: null });
         await failedWith(code);

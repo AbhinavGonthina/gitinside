@@ -56,7 +56,8 @@
               {
                 "name": "GITHUB_TOKEN",
                 "valueFrom": { "secretKeyRef": { "name": "worker-github-token", "key": "latest" } }
-              }
+              },
+              { "name": "WEBSITE_ORIGIN", "value": "{{WEBSITE_ORIGIN}}" }
             ],
             "startupProbe": {
               "httpGet": { "path": "/health", "port": 8080 },

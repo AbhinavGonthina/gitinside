@@ -202,7 +202,11 @@ describe("processJob fact cache folders", () => {
     const cacheRoot = join(root, "cache");
     await processJob(
       { id: ID, request: { ...REQUEST, installationId: 77 } },
-      deps({ cacheRoot, recorder: record("private") }),
+      deps({
+        cacheRoot,
+        recorder: record("private"),
+        installationToken: async () => "ghs_installation",
+      }),
     );
     expect(cacheOf()).toMatchObject({ dir: join(cacheRoot, "installations", "77") });
   });
@@ -730,6 +734,57 @@ describe("processJob recording", () => {
     expect(calls).toEqual([]);
     expect(github.requests).toEqual([]);
     expect(await jobFolders()).toEqual([]);
+  });
+
+  it("tells the recorder of a final failure before the start, and logs if that fails", async () => {
+    const early: unknown[] = [];
+    const logs: Record<string, unknown>[] = [];
+    const { recorder: r } = recorder({
+      start: async () => {
+        throw new JobFailure("REPO_NOT_PUBLIC");
+      },
+    });
+    r.failedBeforeStart = async (jobId, code) => {
+      early.push([jobId, code]);
+      throw new Error("db down");
+    };
+    const error = await failure(
+      processJob(
+        { id: ID, request: REQUEST },
+        deps({ recorder: r, log: (e) => void logs.push(e) }),
+      ),
+    );
+    expect(error.code).toBe("REPO_NOT_PUBLIC");
+    expect(early).toEqual([[ID, "REPO_NOT_PUBLIC"]]);
+    expect(logs).toEqual([
+      { event: "record_failed", id: ID, code: "REPO_NOT_PUBLIC", message: "db down" },
+    ]);
+  });
+
+  it("asks for an installation's token before the start, and gives it to the start", async () => {
+    const order: unknown[] = [];
+    const { recorder: r } = recorder({
+      start: async (_request, _signal, _jobId, token) => {
+        order.push(["start", token]);
+        throw new JobFailure("REPO_NOT_FOUND");
+      },
+    });
+    await failure(
+      processJob(
+        { id: ID, request: { ...REQUEST, installationId: 77 } },
+        deps({
+          recorder: r,
+          installationToken: async (ask, signal) => {
+            order.push(["token", ask, signal.aborted]);
+            return "ghs_installation";
+          },
+        }),
+      ),
+    );
+    expect(order).toEqual([
+      ["token", { jobId: ID, installationId: 77 }, false],
+      ["start", "ghs_installation"],
+    ]);
   });
 
   it("gives the start the download's cancellation", async () => {

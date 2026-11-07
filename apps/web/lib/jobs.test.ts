@@ -235,6 +235,11 @@ describe("failureView", () => {
       message:
         "GitInside is suspended on this repo's account, so it can't read the repo. An owner of the account can unsuspend it in GitHub's settings.",
     });
+    expect(failureView("REPO_NOT_INSTALLED")).toMatchObject({
+      retry: false,
+      message:
+        "GitInside's installation on this repo's account doesn't include this repo any more, so it can't read it. Add the repo to GitInside in GitHub's settings, then analyze it again.",
+    });
   });
 
   it("anything else is on our side, worth trying again, and never shows the code's words", () => {

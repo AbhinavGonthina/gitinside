@@ -1,6 +1,7 @@
 import {
   completeAnalysis,
   failAnalysis,
+  failQueuedJob,
   findJob,
   recordJobProgress,
   requeueAnalysis,
@@ -39,7 +40,11 @@ import {
  *   database write fails, the attempt is retried and the upload repeats under the same
  *   immutable key, which is harmless.
  * - **failed:** a final failure marks the row `failed` with its code; one that will be
- *   retried marks it `queued`.
+ *   retried marks it `queued`. A final failure before the start wrote the row (a refused
+ *   installation token, `REPO_NOT_FOUND`) fails it by job ID if it's still `queued`
+ *   (`failQueuedJob`, M8.3c3b).
+ * - **A private job's token** (M8.3c3b): when the job passes its installation token to the
+ *   start, the facts are read with it instead of the worker's own token.
  * - **progress** (ADR-0139, ADR-0140): the row carries the job ID from the start, and each
  *   progress update the queue stores is written to it too, so the progress page can read
  *   Postgres. The estimate is written as the time left at the write, never as a moment on
@@ -73,10 +78,11 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
     request: JobRequest,
     signal: AbortSignal,
     jobId: string,
+    token?: string,
   ): Promise<RecordedJob | "done"> {
     const facts = await fetchRepoFacts(
       { owner: request.owner, repo: request.repo },
-      { ...options.github, signal },
+      { ...options.github, ...(token === undefined ? {} : { token }), signal },
     );
     if (facts.private && request.installationId === undefined) {
       throw new JobFailure("REPO_NOT_PUBLIC", "a public job for a private repo");
@@ -153,6 +159,10 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
     else await requeueAnalysis(db, record.analysisId);
   }
 
+  async function failedBeforeStart(jobId: string, code: string): Promise<void> {
+    await failQueuedJob(db, jobId, code);
+  }
+
   async function progress(jobId: string, current: StoredProgress): Promise<void> {
     // The estimate's `since` is this process's clock, so the time left is taken here, on it;
     // the database stamps the write with its own clock for readers (ADR-0140).
@@ -163,5 +173,5 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
     return (await findJob(db, jobId))?.status === "done";
   }
 
-  return { start, publish, failed, progress, done };
+  return { start, publish, failed, failedBeforeStart, progress, done };
 }

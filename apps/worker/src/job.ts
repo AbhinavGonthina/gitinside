@@ -4,6 +4,7 @@ import { ExtractError, extractTarball, type ExtractLimits, type SkippedEntry } f
 import { cacheFolder, prepareCacheFolder, type CacheOwner, type JobCache } from "./factcache.js";
 import { JobFailure } from "./failure.js";
 import { openTarball, type DownloadOptions } from "./github.js";
+import type { InstallationTokenSource } from "./installationToken.js";
 import type { FoundFacts, JobStage, StepProgress, StoredProgress } from "./progress.js";
 import type { AnalysisStats } from "./protocol.js";
 import type { JobRequest } from "./request.js";
@@ -11,8 +12,9 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis, type RunOptions, type RunResult } f
 
 /**
  * One job, start to finish (docs/SECURITY.md §3; ADR-0061):
- * 1. **download + extract:** the recorder (if any) marks the analysis running in Postgres;
- *    then the tarball streams from GitHub (github.ts) straight into
+ * 1. **download + extract:** a job read through an installation first gets its token from
+ *    the website (installationToken.ts, M8.3c3b); the recorder (if any) marks the analysis
+ *    running in Postgres; then the tarball streams from GitHub (github.ts) straight into
  *    `<jobsRoot>/<id>-<random>/src` (extract.ts); nothing is buffered on disk first. All of
  *    it shares one budget, {@link DEFAULT_DOWNLOAD_TIMEOUT_MS}.
  * 2. **analyze:** the sandboxed child (runner.ts) writes `architecture.json` next to `src`,
@@ -21,7 +23,8 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis, type RunOptions, type RunResult } f
  *    after earlier stages ate into that share is the retriable `ANALYSIS_TIME_CUT`.
  * 3. **publish:** the caller's `publish` stores the graph (record.ts: the bucket, then Postgres).
  * 4. **clean up:** the job folder is deleted whatever happened. A failed attempt is
- *    recorded as queued again, or failed if it was final.
+ *    recorded as queued again, or failed if it was final (a final failure before the
+ *    recorder's start fails the row by job ID if it's still queued).
  *
  * Every failure is a {@link JobFailure} with a code; `POST /run` decides from `retriable`
  * whether Cloud Tasks tries again (run.ts). The folder name has a random part, so an attempt
@@ -77,13 +80,24 @@ export class JobAlreadyDone extends Error {
  */
 export interface JobRecorder {
   /**
-   * Before the download: look the repo up on GitHub, upsert it, mark the analysis running
-   * as job `jobId` (ADR-0139). `"done"` if its row is already `done` (final, left as it is):
-   * the job stops there with {@link JobAlreadyDone}.
+   * Before the download: look the repo up on GitHub (with `token`, a private job's
+   * installation token, when given), upsert it, mark the analysis running as job `jobId`
+   * (ADR-0139). `"done"` if its row is already `done` (final, left as it is): the job stops
+   * there with {@link JobAlreadyDone}.
    */
-  start(request: JobRequest, signal: AbortSignal, jobId: string): Promise<RecordedJob | "done">;
+  start(
+    request: JobRequest,
+    signal: AbortSignal,
+    jobId: string,
+    token?: string,
+  ): Promise<RecordedJob | "done">;
   /** After a failed attempt: `final` marks the analysis failed, otherwise queued again. */
   failed(job: RecordedJob, code: string, final: boolean): Promise<void>;
+  /**
+   * After a final failure before `start` returned (a refused token, `REPO_NOT_FOUND`): fail
+   * job `jobId`'s row if it's still queued, so the progress page names the code (M8.3c3b).
+   */
+  failedBeforeStart?(jobId: string, code: string): Promise<void>;
   /**
    * Where job `jobId`'s running attempt is, for the progress page (ADR-0139, ADR-0140).
    * `runAttempt` (attempt.ts) calls it with each progress update, one at a time, and only
@@ -126,6 +140,12 @@ export interface JobDeps {
   cacheBytes?: number;
   publish: (artifact: JobArtifact) => Promise<void>;
   download?: Omit<DownloadOptions, "signal">;
+  /**
+   * Gets a job with an `installationId` its installation token (installationToken.ts), which
+   * replaces `download.token` for that job's facts and tarball and goes nowhere else (never to
+   * the analysis child). Without it such a job fails as the permanent `TOKEN_UNCONFIGURED`.
+   */
+  installationToken?: InstallationTokenSource;
   downloadTimeoutMs?: number;
   extractLimits?: Partial<ExtractLimits>;
   run?: (job: Parameters<typeof runAnalysis>[0], options: RunOptions) => Promise<RunResult>;
@@ -230,13 +250,23 @@ async function fetchSource(
   const signal =
     context.signal === undefined ? timeout : AbortSignal.any([context.signal, timeout]);
   try {
+    const { owner, repo, sha, installationId } = context.request;
+    let token: string | undefined;
+    if (installationId !== undefined) {
+      if (deps.installationToken === undefined) {
+        throw new JobFailure("TOKEN_UNCONFIGURED", "no website origin for installation tokens");
+      }
+      token = await deps.installationToken({ jobId: context.id, installationId }, signal);
+    }
     if (deps.recorder !== undefined) {
-      const record = await deps.recorder.start(context.request, signal, context.id);
+      const record = await deps.recorder.start(context.request, signal, context.id, token);
       if (record === "done") throw new JobAlreadyDone();
       attempt.record = record;
     }
-    const { owner, repo, sha } = context.request;
-    const body = await openTarball({ owner, repo, sha }, { ...deps.download, signal });
+    const body = await openTarball(
+      { owner, repo, sha },
+      { ...deps.download, ...(token === undefined ? {} : { token }), signal },
+    );
     await context.onStage?.("extract");
     return await extractTarball(body, dest, { limits: deps.extractLimits ?? {} });
   } catch (error) {
@@ -345,6 +375,7 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
     };
   } catch (error) {
     if (attempt.record !== undefined) await recordFailure(context, deps, attempt.record, error);
+    else if (error instanceof JobFailure) await recordEarlyFailure(context, deps, error);
     throw error;
   } finally {
     await rm(dir, { recursive: true, force: true, maxRetries: 3 });
@@ -397,6 +428,31 @@ async function recordFailure(
   const final = !failure.retriable || context.lastAttempt === true;
   try {
     await deps.recorder?.failed(record, failure.code, final);
+  } catch (recordError) {
+    deps.log?.({
+      event: "record_failed",
+      id: context.id,
+      code: failure.code,
+      message: recordError instanceof Error ? recordError.message : String(recordError),
+    });
+  }
+}
+
+/**
+ * Tell the recorder a final failure came before its start wrote the row `running` (a refused
+ * installation token, a repo GitHub doesn't show; M8.3c3b), so the queued row names it. A
+ * failure that will be retried changes nothing. A failure to record is logged, like
+ * {@link recordFailure}'s.
+ */
+async function recordEarlyFailure(
+  context: JobContext,
+  deps: JobDeps,
+  failure: JobFailure,
+): Promise<void> {
+  const write = deps.recorder?.failedBeforeStart?.bind(deps.recorder);
+  if (write === undefined || (failure.retriable && context.lastAttempt !== true)) return;
+  try {
+    await write(context.id, failure.code);
   } catch (recordError) {
     deps.log?.({
       event: "record_failed",

@@ -17,6 +17,7 @@ import {
   render,
   touchesImage,
   VARIABLES,
+  WEBSITE_ORIGIN,
   type Queue,
 } from "../../../infra/gcp/deploy.mjs";
 
@@ -72,6 +73,7 @@ const values = {
   SNAPSHOTS_BUCKET: "gitinside-snapshots",
   SNAPSHOTS_ACCESS_KEY_ID: "0123456789abcdef",
   COMMIT: "fedcba9876543210fedcba9876543210fedcba98",
+  WEBSITE_ORIGIN,
 };
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 
@@ -135,7 +137,30 @@ describe("render", () => {
     const placeholders = [...text("infra/gcp/service.json").matchAll(/\{\{([A-Z_]+)\}\}/g)].map(
       (m) => m[1],
     );
-    expect([...new Set(placeholders)].sort()).toEqual(["COMMIT", "IMAGE", ...VARIABLES].sort());
+    expect([...new Set(placeholders)].sort()).toEqual(
+      ["COMMIT", "IMAGE", "WEBSITE_ORIGIN", ...VARIABLES].sort(),
+    );
+  });
+
+  it("points the worker at the website by a reviewed https origin, and nothing else", () => {
+    expect(WEBSITE_ORIGIN).toBe("https://gitinside.abhinavgonthina.dev");
+    const template = text("infra/gcp/service.json");
+    for (const bad of [
+      "http://gitinside.abhinavgonthina.dev",
+      "https://gitinside.abhinavgonthina.dev/",
+      "https://gitinside.abhinavgonthina.dev:8443",
+      "https://user@gitinside.abhinavgonthina.dev",
+      "https://localhost",
+      'https://a.b", "x": "y',
+    ]) {
+      expect(() => render(template, { ...values, WEBSITE_ORIGIN: bad }), bad).toThrow(
+        /WEBSITE_ORIGIN/,
+      );
+    }
+    // An origin is no plain identifier anywhere else.
+    expect(() => render(template, { ...values, SNAPSHOTS_BUCKET: WEBSITE_ORIGIN })).toThrow(
+      /SNAPSHOTS_BUCKET/,
+    );
   });
 
   it("refuses an image that isn't this registry's worker pinned by digest", () => {
@@ -233,6 +258,12 @@ describe("apply", () => {
       expect(rendered.spec.template.spec.containers[0].image, file).toBe(digest);
       expect(rendered.spec.template.metadata.labels[COMMIT_LABEL], file).toBe(SHA);
     }
+    const worker = JSON.parse(readFileSync(join(out, "service.json"), "utf8"));
+    expect(
+      worker.spec.template.spec.containers[0].env.find(
+        (v: { name: string }) => v.name === "WEBSITE_ORIGIN",
+      ).value,
+    ).toBe(WEBSITE_ORIGIN);
   });
 
   it("does nothing without every repo variable or a full commit SHA", () => {

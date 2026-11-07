@@ -5,6 +5,7 @@ import {
   completeAnalysis,
   failAnalysis,
   failInterruptedAnalyses,
+  failQueuedJob,
   findJob,
   findJobInstallation,
   installations,
@@ -379,5 +380,52 @@ describe("findJobInstallation", () => {
       suspendedAt: null,
     });
     expect(await findJobInstallation(t.db, jobOf("2"))).toBeUndefined();
+  });
+});
+
+describe("failQueuedJob", () => {
+  it("fails the job's queued row with the code", async () => {
+    const id = await queued("1", "2026-10-31T10:00:00Z");
+    expect(await failQueuedJob(t.db, jobOf("1"), "INSTALLATION_SUSPENDED")).toBe(true);
+    expect(await row(id)).toMatchObject({
+      status: "failed",
+      errorCode: "INSTALLATION_SUSPENDED",
+      snapshotKey: null,
+      progress: null,
+    });
+    expect((await row(id)).finishedAt).toBeInstanceOf(Date);
+  });
+
+  it("leaves a running, done, or failed row alone, and answers false for an unknown job", async () => {
+    const running = await queued("1", "2026-10-31T10:00:00Z");
+    const key = { repoId: (await row(running)).repoId, sha: shaOf("1"), analyzerVersion: VERSION };
+    await startAnalysis(t.db, key, { jobId: jobOf("1") });
+    const done = await queued("2", "2026-10-31T10:00:00Z");
+    await completeAnalysis(t.db, done, {
+      snapshotKey: "k",
+      stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+    });
+    const failed = await queued("3", "2026-10-31T10:00:00Z");
+    await failAnalysis(t.db, failed, "LIMIT_FILES");
+
+    for (const c of ["1", "2", "3", "4"]) {
+      expect(await failQueuedJob(t.db, jobOf(c), "REPO_NOT_FOUND")).toBe(false);
+    }
+    expect(await row(running)).toMatchObject({ status: "running", errorCode: null });
+    expect(await row(done)).toMatchObject({ status: "done", snapshotKey: "k" });
+    expect(await row(failed)).toMatchObject({ status: "failed", errorCode: "LIMIT_FILES" });
+  });
+
+  it("fails only the newest row when two share the ID", async () => {
+    const old = await queued("1", "2026-10-31T09:00:00Z");
+    await t.db
+      .update(analyses)
+      .set({ createdAt: new Date("2026-10-31T09:00:00Z") })
+      .where(eq(analyses.id, old));
+    const again = await repoId({ ...FACTS, providerRepoId: 3_000_000_002 });
+    const fresh = await queued("1", "2026-10-31T10:00:00Z", again);
+    expect(await failQueuedJob(t.db, jobOf("1"), "REPO_NOT_FOUND")).toBe(true);
+    expect((await row(fresh)).status).toBe("failed");
+    expect((await row(old)).status).toBe("queued");
   });
 });
