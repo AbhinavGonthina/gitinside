@@ -224,6 +224,19 @@ describe("failureView", () => {
     expect(failureView("TAR_UNSAFE_PATH").retry).toBe(false);
   });
 
+  it("an installation's refusal says why and what changes it (ADR-0227)", () => {
+    expect(failureView("INSTALLATION_NOT_FOUND")).toMatchObject({
+      retry: false,
+      message:
+        "GitInside isn't installed on this repo's account any more, so it can't read the repo. Install GitInside again from your dashboard.",
+    });
+    expect(failureView("INSTALLATION_SUSPENDED")).toMatchObject({
+      retry: false,
+      message:
+        "GitInside is suspended on this repo's account, so it can't read the repo. An owner of the account can unsuspend it in GitHub's settings.",
+    });
+  });
+
   it("anything else is on our side, worth trying again, and never shows the code's words", () => {
     for (const code of ["DOWNLOAD_FAILED", "JOB_STALLED", "ANALYZER_CRASHED", "SOMETHING_NEW"]) {
       expect(failureView(code)).toEqual({

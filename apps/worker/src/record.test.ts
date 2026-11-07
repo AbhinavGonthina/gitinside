@@ -2,7 +2,14 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
-import { analyses, repos, type AnyDatabase } from "@gitinside/db";
+import {
+  analyses,
+  installations,
+  repos,
+  upsertInstallation,
+  type AnyDatabase,
+  type InstallationFacts,
+} from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { JobRequest } from "./request.js";
@@ -18,6 +25,13 @@ const SHA = "0123456789abcdef0123456789abcdef01234567";
 const ID = "analyze-0123456789abcdef0123456789abcdef";
 const VERSION = "0.1.0";
 const REQUEST: JobRequest = { kind: "analyze", owner: "acme", repo: "shop", sha: SHA };
+const INSTALLATION: InstallationFacts = {
+  githubInstallationId: 42,
+  accountId: 9001,
+  accountLogin: "Acme",
+  accountType: "Organization",
+  suspendedAt: null,
+};
 const GRAPH = '{"nodes":[]}\n';
 const STATS = {
   files: 2,
@@ -48,6 +62,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.delete(analyses);
   await t.db.delete(repos);
+  await t.db.delete(installations);
   repoJson = {
     id: 3_000_000_001,
     name: "Shop",
@@ -183,16 +198,36 @@ describe("createAnalysisRecorder", () => {
     expect(s3.objects.size).toBe(0);
   });
 
-  it("stores a private repo's job under its installation and repo ID", async () => {
+  it("stores a private repo's job under its installation and repo ID, linking the repo", async () => {
     repoJson.private = true;
+    const installation = await upsertInstallation(t.db, INSTALLATION);
     const request = { ...REQUEST, installationId: 42 };
     await processJob({ id: ID, request }, deps(recorder()));
     const [repo] = await t.db.select().from(repos);
-    expect(repo?.visibility).toBe("private");
+    expect(repo).toMatchObject({ visibility: "private", installationId: installation });
     const key = `private/42/${repo!.id}/${SHA}/${VERSION}.json.gz`;
     expect((await onlyAnalysis()).snapshotKey).toBe(key);
     const stored = [...s3.objects.values()][0];
     expect(stored?.headers["cache-control"] ?? "").not.toContain("public");
+  });
+
+  it("links a public repo read through an installation, and a later public job keeps the link", async () => {
+    const installation = await upsertInstallation(t.db, INSTALLATION);
+    await processJob({ id: ID, request: { ...REQUEST, installationId: 42 } }, deps(recorder()));
+    await t.db.delete(analyses);
+    await processJob({ id: ID, request: REQUEST }, deps(recorder()));
+    const [repo] = await t.db.select().from(repos);
+    expect(repo).toMatchObject({ visibility: "public", installationId: installation });
+  });
+
+  it("fails a job whose installation isn't stored as the permanent INSTALLATION_NOT_FOUND", async () => {
+    repoJson.private = true;
+    const request = { ...REQUEST, installationId: 42 };
+    const error = await failure(processJob({ id: ID, request }, deps(recorder())));
+    expect([error.code, error.retriable]).toEqual(["INSTALLATION_NOT_FOUND", false]);
+    expect(github.requests.map((r) => r.url)).toEqual(["/repos/acme/shop"]);
+    expect(await t.db.select().from(repos)).toEqual([]);
+    expect(s3.objects.size).toBe(0);
   });
 
   it("marks a permanent failure failed with its code, and nothing is uploaded", async () => {

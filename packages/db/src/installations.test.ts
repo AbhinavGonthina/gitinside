@@ -5,9 +5,11 @@ import {
   LINK_CHUNK,
   linkInstallationRepos,
   repos,
+  UnknownInstallationError,
   upsertInstallation,
   upsertRepo,
   type InstallationFacts,
+  type RepoFacts,
 } from "./index.js";
 import { createTestDb, pgErrorCode, type TestDb } from "./testing.js";
 
@@ -19,6 +21,14 @@ const OCTO: InstallationFacts = {
   accountLogin: "octo-org",
   accountType: "Organization",
   suspendedAt: null,
+};
+
+const FACTS: RepoFacts = {
+  providerRepoId: 1,
+  owner: "octo-org",
+  name: "r1",
+  visibility: "private",
+  defaultBranch: "main",
 };
 
 let t: TestDb;
@@ -132,5 +142,45 @@ describe("linkInstallationRepos", () => {
     const ids = Array.from({ length: LINK_CHUNK * 2 + 5 }, (_, i) => i + 1);
     expect(await linkInstallationRepos(t.db, 41, ids)).toBe(2);
     expect(await linkedTo()).toEqual({ r1: id, [`r${LINK_CHUNK * 2 + 5}`]: id });
+  });
+});
+
+describe("upsertRepo with an installation (M8.3c2)", () => {
+  it("links the repo to the installation it was read through", async () => {
+    const id = await upsertInstallation(t.db, OCTO);
+    await upsertRepo(t.db, { ...FACTS, githubInstallationId: 41 });
+    expect(await linkedTo()).toEqual({ r1: id });
+  });
+
+  it("moves the link when the repo is read through another installation", async () => {
+    await upsertInstallation(t.db, OCTO);
+    const second = await upsertInstallation(t.db, { ...OCTO, githubInstallationId: 42 });
+    await upsertRepo(t.db, { ...FACTS, githubInstallationId: 41 });
+    await upsertRepo(t.db, { ...FACTS, githubInstallationId: 42 });
+    expect(await linkedTo()).toEqual({ r1: second });
+  });
+
+  it("keeps the link when a job without an installation upserts the repo", async () => {
+    const id = await upsertInstallation(t.db, OCTO);
+    await upsertRepo(t.db, { ...FACTS, githubInstallationId: 41 });
+    await upsertRepo(t.db, { ...FACTS, visibility: "public" });
+    expect(await linkedTo()).toEqual({ r1: id });
+  });
+
+  it("refuses an installation that isn't stored and writes nothing", async () => {
+    const error = await upsertRepo(t.db, { ...FACTS, githubInstallationId: 404 }).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(UnknownInstallationError);
+    expect(await t.db.select().from(repos)).toEqual([]);
+  });
+
+  it("refuses an unknown installation without touching a stored repo", async () => {
+    const id = await upsertInstallation(t.db, OCTO);
+    await upsertRepo(t.db, { ...FACTS, githubInstallationId: 41 });
+    await expect(
+      upsertRepo(t.db, { ...FACTS, name: "renamed", githubInstallationId: 404 }),
+    ).rejects.toThrow(UnknownInstallationError);
+    expect(await linkedTo()).toEqual({ r1: id });
   });
 });

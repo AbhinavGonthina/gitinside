@@ -5,17 +5,25 @@ import {
   computeUsage,
   computeUsageThisMonth,
   failAnalysis,
+  installations,
   queueAnalysis,
   repos,
   requeueAnalysis,
   startAnalysis,
+  upsertInstallation,
   upsertRepo,
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { jobIdFor } from "@gitinside/worker";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { taskIdFor } from "./cloudTasks";
-import { QUEUE_UNAVAILABLE, enqueueAnalysis, type EnqueueDeps } from "./enqueue";
+import {
+  InstallationRefusedError,
+  QUEUE_UNAVAILABLE,
+  enqueueAnalysis,
+  type EnqueueDeps,
+  type QueueRepo,
+} from "./enqueue";
 import { fakeTaskQueue } from "./google.testkit";
 import type { ResolvedRepo } from "./github";
 
@@ -46,6 +54,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.delete(analyses);
   await t.db.delete(repos);
+  await t.db.delete(installations);
   await t.db.delete(computeUsage);
   tasks = fakeTaskQueue(SECRET);
   deps = { db: t.db, queue: tasks.queue, analyzerVersion: VERSION };
@@ -227,5 +236,103 @@ describe("enqueueAnalysis", () => {
     };
     await expect(enqueueAnalysis(REPO, broken)).rejects.toThrow("bug");
     expect(await rows()).toMatchObject([{ status: "failed", errorCode: QUEUE_UNAVAILABLE }]);
+  });
+});
+
+describe("enqueueAnalysis through an installation (M8.3c2, ADR-0227)", () => {
+  const INSTALLATION = {
+    githubInstallationId: 41,
+    accountId: 9001,
+    accountLogin: "Acme",
+    accountType: "Organization" as const,
+    suspendedAt: null,
+  };
+  const PRIVATE: QueueRepo = { ...REPO, visibility: "private", installationId: 41 };
+  const PRIVATE_JOB_ID = jobIdFor(
+    { kind: "analyze", owner: "acme", repo: "shop", sha: SHA, installationId: 41 },
+    VERSION,
+  );
+
+  async function refusal(repo: QueueRepo): Promise<unknown> {
+    return enqueueAnalysis(repo, deps).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+  }
+
+  it("carries the installation into the task, scopes the job ID, and links the repo", async () => {
+    const installationRow = await upsertInstallation(t.db, INSTALLATION);
+    expect(PRIVATE_JOB_ID).not.toBe(JOB_ID);
+    expect(await enqueueAnalysis(PRIVATE, deps)).toEqual({
+      status: "queued",
+      jobId: PRIVATE_JOB_ID,
+      entered: true,
+    });
+    const [row] = await rows();
+    expect(row).toMatchObject({ status: "queued", jobId: PRIVATE_JOB_ID });
+    expect(tasks.taskIds()).toEqual([taskIdFor(PRIVATE_JOB_ID, row!.queuedAt)]);
+    expect(tasks.jobs()).toEqual([
+      { kind: "analyze", owner: "Acme", repo: "Shop", sha: SHA, installationId: 41 },
+    ]);
+    expect(
+      await t.db
+        .select({ visibility: repos.visibility, installationId: repos.installationId })
+        .from(repos),
+    ).toEqual([{ visibility: "private", installationId: installationRow }]);
+  });
+
+  it("refuses a suspended installation before writing anything", async () => {
+    await upsertInstallation(t.db, { ...INSTALLATION, suspendedAt: new Date() });
+    const error = await refusal(PRIVATE);
+    expect(error).toBeInstanceOf(InstallationRefusedError);
+    expect(error).toMatchObject({ code: "INSTALLATION_SUSPENDED" });
+    expect(await t.db.select().from(repos)).toEqual([]);
+    expect(await rows()).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
+  });
+
+  it("refuses an installation that isn't stored before writing anything", async () => {
+    const error = await refusal(PRIVATE);
+    expect(error).toBeInstanceOf(InstallationRefusedError);
+    expect(error).toMatchObject({ code: "INSTALLATION_NOT_FOUND" });
+    expect(await t.db.select().from(repos)).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
+  });
+
+  it("refuses when the installation is deleted between the check and the repo's write", async () => {
+    await upsertInstallation(t.db, INSTALLATION);
+    // The check reads the row; the repo's write then finds it gone (M8.5's deletion).
+    const db = new Proxy(t.db, {
+      get(target, property, receiver) {
+        if (property !== "transaction") return Reflect.get(target, property, receiver) as unknown;
+        return async (...args: Parameters<typeof target.transaction>) => {
+          await target.delete(installations);
+          return target.transaction(...args);
+        };
+      },
+    });
+    const error = await enqueueAnalysis(PRIVATE, { ...deps, db }).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: "INSTALLATION_NOT_FOUND" });
+    expect(await t.db.select().from(repos)).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
+  });
+
+  it("follows a commit already in flight under another job ID, creating no task", async () => {
+    await upsertInstallation(t.db, INSTALLATION);
+    // Queued without the installation (the repo was public then), not started yet.
+    await enqueueAnalysis(REPO, deps);
+    expect(await enqueueAnalysis(PRIVATE, deps)).toEqual({
+      status: "queued",
+      jobId: JOB_ID,
+      entered: false,
+    });
+    const key = { repoId: await repoId(), sha: SHA, analyzerVersion: VERSION };
+    await startAnalysis(t.db, key, { jobId: JOB_ID });
+    expect(await enqueueAnalysis(PRIVATE, deps)).toEqual({
+      status: "running",
+      jobId: JOB_ID,
+      entered: false,
+    });
+    expect(tasks.google.tasks).toHaveLength(1);
   });
 });

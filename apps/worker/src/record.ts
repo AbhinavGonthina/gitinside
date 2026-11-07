@@ -5,6 +5,7 @@ import {
   recordJobProgress,
   requeueAnalysis,
   startAnalysis,
+  UnknownInstallationError,
   upsertRepo,
   type AnyDatabase,
 } from "@gitinside/db";
@@ -28,7 +29,10 @@ import {
  *   ID, current name, visibility, and default branch; the repo is upserted and the analysis
  *   marked `running`. A **private repo on a job without an installation is refused**
  *   (`REPO_NOT_PUBLIC`): the worker's token may be able to read it, but it must never reach
- *   the public cache. A row that's already `done` stays as it is and the start answers
+ *   the public cache. A job with an installation links the repo to it (ADR-0227); one whose
+ *   installation isn't stored (the website refuses those at enqueue, so it was deleted
+ *   meanwhile) fails as the permanent `INSTALLATION_NOT_FOUND`, writing nothing. A row
+ *   that's already `done` stays as it is and the start answers
  *   `"done"`, so the job stops before the download (R9).
  * - **publish = bucket, then Postgres:** the snapshot is uploaded first and the row marked `done`
  *   only after the bucket acknowledged it, so a `done` row always has its object. If the
@@ -78,6 +82,7 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
       throw new JobFailure("REPO_NOT_PUBLIC", "a public job for a private repo");
     }
     const visibility = facts.private ? "private" : "public";
+    const { installationId } = request;
     try {
       const { id: repoId } = await upsertRepo(db, {
         providerRepoId: facts.id,
@@ -85,6 +90,7 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
         name: facts.name,
         visibility,
         defaultBranch: facts.defaultBranch,
+        ...(installationId === undefined ? {} : { githubInstallationId: installationId }),
       });
       const started = await startAnalysis(
         db,
@@ -94,6 +100,9 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
       if (started.status === "done") return "done";
       return { analysisId: started.id, repoId, visibility, owner: facts.owner, name: facts.name };
     } catch (error) {
+      if (error instanceof UnknownInstallationError) {
+        throw new JobFailure("INSTALLATION_NOT_FOUND", "the job's installation isn't stored");
+      }
       throw new JobFailure("RECORD_FAILED", "writing the job's start failed", { cause: error });
     }
   }

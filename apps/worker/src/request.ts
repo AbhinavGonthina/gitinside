@@ -88,8 +88,13 @@ export function parseJobRequest(value: unknown): JobRequest {
  * The job ID for a request: `<kind>-<32 hex>`, a SHA-256 over the kind, the lowercased owner
  * and repo (GitHub names ignore case), the SHAs, and the analyzer version. The same commit is
  * therefore one job however often it's asked for (the dedupe in T9), and the ID can't be
- * guessed without knowing the repo. `installationId` isn't part of it: it changes who may
- * fetch the commit, not what the analysis is.
+ * guessed without knowing the repo.
+ *
+ * A job read through an installation adds its `installationId` (ADR-0227), so a private job
+ * is never the same job as a public one for that commit, nor as another installation's (a
+ * transfer). Installation IDs aren't secret, so this scopes the job; access checks stay the
+ * website's (M8.4). It's appended only when set: a public job's ID stays what it was, so tasks queued before a deploy still
+ * name their rows.
  */
 export function jobIdFor(request: JobRequest, analyzerVersion: string): string {
   const key = JSON.stringify([
@@ -99,6 +104,7 @@ export function jobIdFor(request: JobRequest, analyzerVersion: string): string {
     request.sha,
     request.baseSha ?? null,
     analyzerVersion,
+    ...(request.installationId === undefined ? [] : [request.installationId]),
   ]);
   return `${request.kind}-${createHash("sha256").update(key).digest("hex").slice(0, 32)}`;
 }

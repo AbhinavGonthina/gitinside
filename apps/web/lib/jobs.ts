@@ -119,6 +119,15 @@ const PERMANENT: Readonly<Record<string, { reason: string; advice?: string }>> =
   REPO_NOT_FOUND: NOT_PUBLIC,
   REPO_NOT_PUBLIC: NOT_PUBLIC,
   REPO_UNAVAILABLE: { reason: "GitHub has blocked access to that repo." },
+  // A private job's installation (ADR-0227): refused at enqueue, or deleted before it ran.
+  INSTALLATION_NOT_FOUND: {
+    reason: "GitInside isn't installed on this repo's account any more, so it can't read the repo.",
+    advice: "Install GitInside again from your dashboard.",
+  },
+  INSTALLATION_SUSPENDED: {
+    reason: "GitInside is suspended on this repo's account, so it can't read the repo.",
+    advice: "An owner of the account can unsuspend it in GitHub's settings.",
+  },
   TAR_INVALID: {
     reason: "GitHub's download of this repo couldn't be read, so it wasn't analyzed.",
   },

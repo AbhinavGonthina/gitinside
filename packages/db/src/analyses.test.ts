@@ -695,6 +695,8 @@ describe("queueAnalysis", () => {
     const first = await queueAnalysis(t.db, await key(), { jobId: one });
     const second = await queueAnalysis(t.db, await key(), { jobId: two });
     expect(second).toEqual({ ...first, entered: false });
+    // The entry's own job, which a caller asking under another job ID follows (ADR-0227).
+    expect(second.jobId).toBe(one);
     expect((await analysis(first.id)).jobId).toBe(one);
   });
 
@@ -761,6 +763,7 @@ describe("queueAnalysis", () => {
       entered: false,
       retrying: false,
       queuedAt,
+      jobId: null,
     });
     await completeAnalysis(t.db, id, { snapshotKey: "k", stats: STATS });
     expect(await queueAnalysis(t.db, await key())).toMatchObject({
