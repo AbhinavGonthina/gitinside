@@ -1,0 +1,97 @@
+{
+  "repo": "getmaxun/maxun",
+  "followUp": "7e97209c355eabdb64dc1cad9c128204fcd1f6c5",
+  "classifiedBy": "Claude (draft, not yet reviewed by Abhinav)",
+  "drafted": "2026-11-07",
+  "prs": [
+    {
+      "number": 1157,
+      "breaks": [
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/createDocumentParseRobotRecord.ts#createDocumentParseRobotRecord->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.parse",
+          "verdict": "true",
+          "why": "The merge commit turns DocumentInterpreter.ts (static parse at base line 1560) into an empty blob, while createDocumentParseRobotRecord still imports DocumentInterpreter from it and calls DocumentInterpreter.parse at line 27; the caller is reached from the POST /recordings/document-parse handler in routes/storage.ts. An empty file exports nothing, so the import doesn't type-check and the call has no function to run.",
+          "evidence": [
+            "https://github.com/getmaxun/maxun/blob/650bcad7b4ba9e529d5ca00699a7b1517a691833/server/src/workflow-management/classes/DocumentInterpreter.ts#L1560",
+            "https://github.com/getmaxun/maxun/blob/c5e849eac2247a61b04f82d54c95688abf07ad73/server/src/utils/document/createDocumentParseRobotRecord.ts#L27",
+            "https://github.com/getmaxun/maxun/blob/c5e849eac2247a61b04f82d54c95688abf07ad73/server/src/routes/storage.ts#L2142-L2166",
+            "https://github.com/getmaxun/maxun/pull/1157",
+            "https://github.com/getmaxun/maxun/commit/9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca"
+          ],
+          "fix": {
+            "verdict": "real",
+            "why": "9262631 \"fix: null byte corruption\", pushed to develop 55 minutes after the merge, restores DocumentInterpreter.ts (0 to 1,677 lines) with export class DocumentInterpreter and static parse again; its message names the corruption, so the restore is the intended fix, not a side effect."
+          },
+          "reviewedBy": null
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/createDocumentRobotRecord.ts#createDocumentRobotRecord->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.extractText",
+          "verdict": "true",
+          "why": "DocumentInterpreter.ts is empty after the merge (static extractText at base line 1386), while createDocumentRobotRecord still imports DocumentInterpreter from it and calls DocumentInterpreter.extractText at line 47; the caller is reached from the POST /recordings/document handler in routes/storage.ts.",
+          "evidence": [
+            "https://github.com/getmaxun/maxun/blob/650bcad7b4ba9e529d5ca00699a7b1517a691833/server/src/workflow-management/classes/DocumentInterpreter.ts#L1386",
+            "https://github.com/getmaxun/maxun/blob/c5e849eac2247a61b04f82d54c95688abf07ad73/server/src/utils/document/createDocumentRobotRecord.ts#L47",
+            "https://github.com/getmaxun/maxun/blob/c5e849eac2247a61b04f82d54c95688abf07ad73/server/src/routes/storage.ts#L2084-L2105",
+            "https://github.com/getmaxun/maxun/pull/1157",
+            "https://github.com/getmaxun/maxun/commit/9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca"
+          ],
+          "fix": {
+            "verdict": "real",
+            "why": "9262631 restores the file with static extractText (fixed line 1475); same intended restore as the other four."
+          },
+          "reviewedBy": null
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/createDocumentRobotRecord.ts#createDocumentRobotRecord->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.generateExtractionSchema",
+          "verdict": "true",
+          "why": "DocumentInterpreter.ts is empty after the merge (static generateExtractionSchema at base line 1391), while createDocumentRobotRecord still calls DocumentInterpreter.generateExtractionSchema at line 50, right after the extractText call, in the same POST /recordings/document path.",
+          "evidence": [
+            "https://github.com/getmaxun/maxun/blob/650bcad7b4ba9e529d5ca00699a7b1517a691833/server/src/workflow-management/classes/DocumentInterpreter.ts#L1391",
+            "https://github.com/getmaxun/maxun/blob/c5e849eac2247a61b04f82d54c95688abf07ad73/server/src/utils/document/createDocumentRobotRecord.ts#L50",
+            "https://github.com/getmaxun/maxun/pull/1157",
+            "https://github.com/getmaxun/maxun/commit/9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca"
+          ],
+          "fix": {
+            "verdict": "real",
+            "why": "9262631 restores the file with static generateExtractionSchema (fixed line 1480)."
+          },
+          "reviewedBy": null
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/executeDocumentParseRun.ts#executeDocumentParseRun->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.parse",
+          "verdict": "true",
+          "why": "DocumentInterpreter.ts is empty after the merge, while executeDocumentParseRun still imports DocumentInterpreter from it and calls DocumentInterpreter.parse at line 24; task-runner.ts imports and runs executeDocumentParseRun for document-parse runs.",
+          "evidence": [
+            "https://github.com/getmaxun/maxun/blob/650bcad7b4ba9e529d5ca00699a7b1517a691833/server/src/workflow-management/classes/DocumentInterpreter.ts#L1560",
+            "https://github.com/getmaxun/maxun/blob/c5e849eac2247a61b04f82d54c95688abf07ad73/server/src/utils/document/executeDocumentParseRun.ts#L24",
+            "https://github.com/getmaxun/maxun/blob/c5e849eac2247a61b04f82d54c95688abf07ad73/server/src/task-runner.ts#L177-L178",
+            "https://github.com/getmaxun/maxun/pull/1157",
+            "https://github.com/getmaxun/maxun/commit/9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca"
+          ],
+          "fix": {
+            "verdict": "real",
+            "why": "9262631 restores the file with static parse (fixed line 1649)."
+          },
+          "reviewedBy": null
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/executeDocumentRun.ts#executeDocumentRun->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.extractData",
+          "verdict": "true",
+          "why": "DocumentInterpreter.ts is empty after the merge (static extractData at base line 1455), while executeDocumentRun still imports DocumentInterpreter from it and calls DocumentInterpreter.extractData at line 28; task-runner.ts imports and runs executeDocumentRun for document runs.",
+          "evidence": [
+            "https://github.com/getmaxun/maxun/blob/650bcad7b4ba9e529d5ca00699a7b1517a691833/server/src/workflow-management/classes/DocumentInterpreter.ts#L1455",
+            "https://github.com/getmaxun/maxun/blob/c5e849eac2247a61b04f82d54c95688abf07ad73/server/src/utils/document/executeDocumentRun.ts#L28",
+            "https://github.com/getmaxun/maxun/blob/c5e849eac2247a61b04f82d54c95688abf07ad73/server/src/task-runner.ts#L164-L165",
+            "https://github.com/getmaxun/maxun/pull/1157",
+            "https://github.com/getmaxun/maxun/commit/9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca"
+          ],
+          "fix": {
+            "verdict": "real",
+            "why": "9262631 restores the file with static extractData (fixed line 1544)."
+          },
+          "reviewedBy": null
+        }
+      ]
+    }
+  ]
+}

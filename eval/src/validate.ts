@@ -3,12 +3,13 @@
  * against the formats in docs/EVALUATION.md, then cross-check them, and every draw record in
  * `eval/draws/` (draw.ts) against its rule and `repos.json`, plus the backtest's
  * `eval/backtest/repos.json` (backtest/format.ts), its PR files (backtest/prs.ts), and the
- * replay's raw results (backtest/replay.ts), and the follow-up files (backtest/followUp.ts).
- * Exits 1 on any problem.
+ * replay's raw results (backtest/replay.ts), the follow-up files (backtest/followUp.ts), and
+ * the classification files (backtest/classify.ts). Exits 1 on any problem.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { classifiedCounts, classifyCrossCheck, parseClassifiedFile } from "./backtest/classify.js";
 import { followUpCrossCheck, parseFollowUpFile } from "./backtest/followUp.js";
 import { parseBacktestReposFile } from "./backtest/format.js";
 import { parsePrsFile, prsCrossCheck } from "./backtest/prs.js";
@@ -47,7 +48,29 @@ try {
       f,
       file: parseFollowUpFile(`backtest/followup/${f}`, readFileSync(join(followUpDir, f), "utf8")),
     }));
+  const classifiedDir = join(root, "backtest", "classified");
+  const classifiedFiles = (existsSync(classifiedDir) ? readdirSync(classifiedDir) : [])
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => ({
+      f,
+      file: parseClassifiedFile(
+        `backtest/classified/${f}`,
+        readFileSync(join(classifiedDir, f), "utf8"),
+      ),
+    }));
   const problems = [
+    ...classifiedFiles.flatMap(({ f, file }) => {
+      const followUp = followUpFiles.find((u) => u.f === f);
+      if (!followUp)
+        return [`backtest/classified/${f}: there's no backtest/followup/${f} it classifies`];
+      return classifyCrossCheck(file, followUp.file).map((p) => `backtest/classified/${f}: ${p}`);
+    }),
+    // Every flagged break gets a verdict.
+    ...followUpFiles
+      .filter(({ f, file }) => file.prs.length > 0 && !classifiedFiles.some((c) => c.f === f))
+      .map(
+        ({ f }) => `backtest/followup/${f}: its flagged breaks have no backtest/classified/${f}`,
+      ),
     ...followUpFiles.flatMap(({ f, file }) => {
       const raw = rawFiles.find((r) => r.f === f);
       if (!raw) return [`backtest/followup/${f}: there's no backtest/raw/${f} it follows up`];
@@ -76,8 +99,9 @@ try {
   if (problems.length > 0) process.exit(1);
   const all = [...inputs.labels.values()].flatMap((l) => l.edges.map((e) => ({ repo: l.repo, e })));
   const sites = new Set(all.map(({ repo, e }) => JSON.stringify([repo, e.callSite]))).size;
+  const classified = classifiedCounts(classifiedFiles.map((c) => c.file));
   console.log(
-    `eval inputs OK: ${inputs.repos.length} repos, ${inputs.labels.size} label files, ${all.length} labels at ${sites} call sites, ${draws.length} draw records, ${backtest.repos.length} backtest repos, ${prFiles.reduce((n, p) => n + p.file.prs.length, 0)} backtest PRs in ${prFiles.length} files, ${rawFiles.reduce((n, r) => n + r.file.prs.length, 0)} replayed in ${rawFiles.length} raw files, ${followUpFiles.reduce((n, f) => n + f.file.prs.length, 0)} flagged PRs followed up in ${followUpFiles.length} files`,
+    `eval inputs OK: ${inputs.repos.length} repos, ${inputs.labels.size} label files, ${all.length} labels at ${sites} call sites, ${draws.length} draw records, ${backtest.repos.length} backtest repos, ${prFiles.reduce((n, p) => n + p.file.prs.length, 0)} backtest PRs in ${prFiles.length} files, ${rawFiles.reduce((n, r) => n + r.file.prs.length, 0)} replayed in ${rawFiles.length} raw files, ${followUpFiles.reduce((n, f) => n + f.file.prs.length, 0)} flagged PRs followed up in ${followUpFiles.length} files, ${classified.breaks} breaks classified (${classified.verdicts.true} true, ${classified.verdicts.false} false, ${classified.verdicts.unclear} unclear; ${classified.reviewed} reviewed)`,
   );
 } catch (error) {
   if (!(error instanceof EvalInputError)) throw error;
