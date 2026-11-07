@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M7.2c Run the replay on all 7 repos (M5.14b4 waits on #22)
+M7.2c2 Backtest replay workflow on GitHub Actions (M5.14b4 waits on #22)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -387,7 +387,10 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M7.1 Select ~8 repos + pin window in eval/backtest/repos.json {model: opus}
 - [x] M7.2a Pin the replayed PRs: list merged PRs in the window (GitHub search + PR API), their merge commit and base (merge, squash, or rebase), ancestry checked against startSha/endSha, the cap applied; committed as `eval/backtest/prs/<owner>__<name>.json`, validated {model: opus}
 - [x] M7.2b Replay script: for each pinned PR, analyze base and merge commit with a shared fact cache, diff, collect broken edges; raw results per repo; tested on a local git fixture {model: opus}
-- [ ] M7.2c Run the replay on all 7 repos and commit the raw results (with run line: gitinside SHA, analyzer version, machine) {model: opus}
+- M7.2c Run the replay on all 7 repos and commit the raw results (with run line: gitinside SHA, analyzer version, machine), split in three (a laptop PR takes ~60–70 s; the rest needs ~15 h, past the tool's 2-hour job limit and unresumable across runs, ADR-0216's M7.2c1 amendment):
+- [x] M7.2c1 cal.diy on the laptop: 31/31 diffed, 0 failed, 0 broken; `eval/backtest/raw/calcom__cal.diy.json` {model: opus}
+- [ ] M7.2c2 A `workflow_dispatch` "Backtest replay" workflow: a matrix job per named repo on `ubuntu-latest` (public repo, free; `timeout-minutes` under 6 h), builds eval, runs `backtest:replay <repo>` to a gitignored `--out`, uploads the raw file as an artifact even when the job fails or times out (a partial file is still valid); also make a killed run's leftover worktrees harmless (prune the clone's worktrees at start) and let a restart resume with the default tracked `--out` (its own untracked raw file mustn't count as dirty); tests red first; a `--limit 2` smoke dispatch {model: opus}
+- [ ] M7.2c3 Dispatch it for the other 6 repos, download the artifacts, `validate`, commit the raw files (each with its runner's run line); if a repo can't finish in one job, record it and split again {model: opus}
 - [ ] M7.3 Follow-up fix detection {model: opus}
 - [ ] M7.4 Classification of flagged breaks (drafted, labeled as such) {model: opus}
 - [ ] M7.5 Report → eval/backtest/results/ {model: opus}
@@ -418,6 +421,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **2026-11-06 M7.2c1 (`b384f0b`):** split M7.2c into c1–c3. The full replay at `66ae750` (clean, gitignored `--out`) finished cal.diy, 31/31 diffed, 0 failed, 0 broken edges (26 non-empty diffs), committed as `eval/backtest/raw/calcom__cal.diy.json`. dub.link reached 75/300 (0 broken) when the 2-hour background limit stopped it; not committed, not restarted. At ~60–70 s per PR the rest is ~15 h, so it moves to Actions (c2). Found: a restart with the tracked default `--out` calls itself dirty, and a killed run leaves 3 worktrees in the clone (ADR-0216 amendment). Validate OK; eval report regenerated, delta 0.
 - **2026-11-06 M7.2b:** `pnpm --filter @gitinside/eval backtest:replay` analyzes each pinned PR's base and merge commit from the M7.2a clone (`openSide`, now exported by the analyzer; one disk fact cache; the last 2 commits kept open) and diffs them with file text. `eval/backtest/raw/<owner>__<name>.json` gets a run line and, per PR, the summary, broken edges whole, and `renameLimit`, or the failed stage and message. It's saved after every PR, continued only by the same clean commit, analyzer, and machine, and checked by `validate` (ADR-0216).
   - Tested on a local git fixture. Mutations went red (LRU update, `closeAll`); a capacity-1 mutation stayed green, so the cache now refuses fewer than 2 sides. Smoke run: maxun's first 3 PRs, 0 broken. Eval 160/160; report regenerated, delta 0.
 - **M7.2a (2026-11-06, `dcddf07`):** split M7.2 into a/b/c. `pnpm --filter @gitinside/eval backtest:prs` pins `eval/backtest/prs/<owner>__<name>.json` once per repo (never replaced, checked by `validate`): 1,004 PRs merged in the window (= M7.1's counts), 926 to replay (439 merge, 487 squash, 0 rebase), 1 excluded (CCAM #271, force-pushed away), 77 of dub.link's past the cap. Base by merge kind (ADR-0215). Two first rules were wrong on real data: a "base descends from startSha" check (maxun's startSha is a PR-branch commit, an M7.1 defect recorded, not re-pinned) and a first-parent-only check (12 real anything-llm merges under `git pull` merges). Eval 146/146; report regenerated (`86c4cee`, run line only).
