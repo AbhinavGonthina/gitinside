@@ -266,7 +266,7 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 **Question:** on real merged PRs, how often would GitInside have flagged a broken cross-service connection, and were those real?
 
 **Method:**
-1. Pick about 8 public repos with separate frontend and backend code, pinned in `eval/backtest/repos.json` with a date window.
+1. Pick about 8 public repos with separate frontend and backend code, pinned in `eval/backtest/repos.json` with a date window (ADR-0214). The file records the selection rules, what was measured on each repo before the window (merged PRs, resolved `http` edges from app code), and every rejected candidate with the rule it fails; no PR is replayed before pinning. Pinned 2026-11-06: 7 repos of 65 candidates, window 2026-07-01 to 2026-09-30, at most 300 PRs per repo (the earliest merged), each between a `startSha` and an `endSha` that bound what the replay and the follow-up can see.
 2. For every merged PR in the window: analyze the base commit and the merge commit (incrementally), run `diff`, and record broken edges.
 3. **Follow-up:** within the next 30 days of commits, was the break fixed (target restored, or the call removed or changed)? Record the fixing commit.
 4. **Classification:** for every flagged break, a human-readable judgment (true break / false positive / unclear) with a reason. Claude drafts; the report states who classified and what was reviewed by Abhinav.

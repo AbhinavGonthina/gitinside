@@ -40,12 +40,15 @@ const RESULTS = join(EVAL, "results");
 
 /**
  * Everything the scores depend on. Reports themselves are excluded, and so are draw records
- * (draw.ts): a repo only enters the scores through `repos.json` with its labels.
+ * (draw.ts): a repo only enters the scores through `repos.json` with its labels. So is the PR
+ * backtest (`eval/backtest`, `eval/src/backtest`), which has inputs and reports of its own.
  */
 const INPUT_PATHS = [
   "eval",
   ":(exclude)eval/results",
   ":(exclude)eval/draws",
+  ":(exclude)eval/backtest",
+  ":(exclude)eval/src/backtest",
   "packages/analyzer",
   "packages/schema",
   "pnpm-lock.yaml",
