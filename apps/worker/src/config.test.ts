@@ -87,6 +87,45 @@ describe("workerConfigFromEnv", () => {
     });
   });
 
+  it("reads the website's origin for installation tokens, as an origin", () => {
+    const read = (value: string) => workerConfigFromEnv({ ...ENV, WEBSITE_ORIGIN: value });
+    expect(read("https://gitinside.abhinavgonthina.dev").websiteOrigin).toBe(
+      "https://gitinside.abhinavgonthina.dev",
+    );
+    expect(read("https://gitinside.abhinavgonthina.dev/").websiteOrigin).toBe(
+      "https://gitinside.abhinavgonthina.dev",
+    );
+    expect(read("http://127.0.0.1:3000").websiteOrigin).toBe("http://127.0.0.1:3000");
+    expect(read("http://localhost:3000").websiteOrigin).toBe("http://localhost:3000");
+    expect(read("")).not.toHaveProperty("websiteOrigin");
+  });
+
+  it.each([
+    [
+      "http://gitinside.abhinavgonthina.dev",
+      "WEBSITE_ORIGIN must be https:// (http:// only on loopback)",
+    ],
+    [
+      "ftp://gitinside.abhinavgonthina.dev",
+      "WEBSITE_ORIGIN must be https:// (http:// only on loopback)",
+    ],
+    [
+      "https://gitinside.abhinavgonthina.dev/api",
+      "WEBSITE_ORIGIN must be an origin, without a path",
+    ],
+    [
+      "https://gitinside.abhinavgonthina.dev?x=1",
+      "WEBSITE_ORIGIN must be an origin, without a path",
+    ],
+    [
+      "https://user:pw@gitinside.abhinavgonthina.dev",
+      "WEBSITE_ORIGIN must be an origin, without a path",
+    ],
+    ["not a url", "WEBSITE_ORIGIN is not a URL"],
+  ])("refuses WEBSITE_ORIGIN %s", (value, problem) => {
+    expect(problems({ ...ENV, WEBSITE_ORIGIN: value })).toEqual([problem]);
+  });
+
   it("migrates through Neon's direct endpoint: the pooled host without -pooler (ADR-0192)", () => {
     const pooled =
       "postgresql://app:pw-value@ep-cool-darkness-a1b2c3d4-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";

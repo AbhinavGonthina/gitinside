@@ -5,7 +5,8 @@
  *
  * - **Writes:** the web app stores the job ID when it queues the row, and the worker when an
  *   attempt starts (`queueAnalysis`, `startAnalysis` in analyses.ts). While an attempt runs,
- *   the worker writes its progress with {@link recordJobProgress}, a few times per stage.
+ *   the worker writes its progress with {@link recordJobProgress}, a few times per stage. A
+ *   final failure before the start is written with {@link failQueuedJob} (M8.3c3b).
  * - **Reads:** {@link findJob}, for `GET /api/jobs/:id` and its SSE stream (M5.17a2);
  *   {@link findJobInstallation}, for a job's installation token (M8.3c3a).
  */
@@ -127,6 +128,35 @@ export async function findJobInstallation(
     .orderBy(desc(analyses.createdAt), desc(analyses.id))
     .limit(1);
   return row;
+}
+
+/**
+ * Mark job `jobId`'s row `failed` with `errorCode` if it's still `queued` (M8.3c3b): for a
+ * final failure before the worker's start wrote the row `running` (a refused installation
+ * token, a repo GitHub doesn't show), so the progress page names it instead of waiting in the
+ * queue until it's stranded. Like {@link findJob}, only the newest row with that ID counts; a
+ * `running` row belongs to another attempt and is left alone. Returns whether a row was failed.
+ */
+export async function failQueuedJob(
+  db: AnyDatabase,
+  jobId: string,
+  errorCode: string,
+): Promise<boolean> {
+  const newest = sql`(select newest.id from ${analyses} as newest where newest.job_id = ${jobId}
+    order by newest.created_at desc, newest.id desc limit 1)`;
+  const rows = await db
+    .update(analyses)
+    .set({
+      status: "failed",
+      errorCode,
+      snapshotKey: null,
+      finishedAt: sql`now()`,
+      progress: null,
+      progressAt: null,
+    })
+    .where(and(eq(analyses.id, newest), eq(analyses.status, "queued")))
+    .returning({ id: analyses.id });
+  return rows.length > 0;
 }
 
 /** A count from SQL (`int` or `bigint`, which drivers may return as a string), or null. */

@@ -128,6 +128,12 @@ const PERMANENT: Readonly<Record<string, { reason: string; advice?: string }>> =
     reason: "GitInside is suspended on this repo's account, so it can't read the repo.",
     advice: "An owner of the account can unsuspend it in GitHub's settings.",
   },
+  // The worker's token request (M8.3c3b): removed from the installation, or transferred.
+  REPO_NOT_INSTALLED: {
+    reason:
+      "GitInside's installation on this repo's account doesn't include this repo any more, so it can't read it.",
+    advice: "Add the repo to GitInside in GitHub's settings, then analyze it again.",
+  },
   TAR_INVALID: {
     reason: "GitHub's download of this repo couldn't be read, so it wasn't analyzed.",
   },

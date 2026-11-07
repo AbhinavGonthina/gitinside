@@ -40,6 +40,7 @@ export function deployNeeded(options: {
   git?: (args: string[]) => string;
   always?: boolean;
 }): boolean;
+export const WEBSITE_ORIGIN: string;
 export function render(text: string, values: Record<string, string>, target?: DeployTarget): string;
 export function queueUpdateArgs(queue: Queue, project: string): string[];
 export const VARIABLES: string[];

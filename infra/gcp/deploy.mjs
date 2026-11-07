@@ -9,7 +9,7 @@
  *
  * Everything it deploys comes from this folder's reviewed files; the only outside values are
  * the repo variables `GCP_PROJECT_NUMBER` and `SNAPSHOTS_*` (identifiers, not secrets), the
- * commit, and the image digest it pushes. It never creates or grants anything: the services, queue, registry,
+ * commit, and the image digest it pushes ({@link WEBSITE_ORIGIN} is a constant here). It never creates or grants anything: the services, queue, registry,
  * and IAM are set up once by hand (`README.md`, "Applying it"), and the deploy account may only
  * push to the registry, replace the two services, and update the queue (`iam.json`).
  */
@@ -181,17 +181,31 @@ export function deployNeeded({ after, exec, git = gitOutput, always = false }) {
 const PLACEHOLDER = /\{\{([A-Z0-9_]+)\}\}/g;
 // Identifiers only (a namespace, region, bucket, or key ID): nothing that needs quoting.
 const PLAIN_VALUE = /^[A-Za-z0-9._-]{1,128}$/;
+// An `https://` origin: a host name, no port, path, or credentials.
+const ORIGIN_VALUE = /^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+
+/**
+ * The website the worker asks for private jobs' installation tokens (`WEBSITE_ORIGIN`,
+ * M8.3c3b, ADR-0228): a reviewed constant, not a repo variable, so a deploy can't point the
+ * worker's signed requests anywhere else.
+ */
+export const WEBSITE_ORIGIN = "https://gitinside.abhinavgonthina.dev";
 
 /**
  * A service file with its `{{NAME}}` placeholders filled in. Rendering works on the parsed
  * JSON, string by string, so a value can never change the document's structure; every
- * placeholder must have a value, `IMAGE` must be this registry's image pinned by digest, and
- * every other value an identifier.
+ * placeholder must have a value, `IMAGE` must be this registry's image pinned by digest,
+ * `WEBSITE_ORIGIN` an `https://` host, and every other value an identifier.
  */
 export function render(text, values, target = deployTarget()) {
   const image = new RegExp(`^${target.image.replace(/[.]/g, "\\.")}@sha256:[0-9a-f]{64}$`);
   for (const [name, value] of Object.entries(values)) {
-    const ok = name === "IMAGE" ? image.test(value) : PLAIN_VALUE.test(value);
+    const ok =
+      name === "IMAGE"
+        ? image.test(value)
+        : name === "WEBSITE_ORIGIN"
+          ? ORIGIN_VALUE.test(value)
+          : PLAIN_VALUE.test(value);
     if (!ok) throw new Error(`${name} has an unexpected value: "${value}"`);
   }
   const fill = (node) => {
@@ -278,6 +292,7 @@ export function apply({ sha, env, exec, out }) {
   if (!digest) throw new Error(`no digest for ${tag} in ${pushed.trim()}`);
   values.IMAGE = digest;
   values.COMMIT = sha;
+  values.WEBSITE_ORIGIN = WEBSITE_ORIGIN;
   // The kill switch first: the stop must never lag behind the worker it stops.
   for (const file of SERVICE_FILES) {
     const rendered = join(out, file);

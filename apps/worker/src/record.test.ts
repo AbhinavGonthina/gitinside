@@ -5,8 +5,10 @@ import { gunzipSync } from "node:zlib";
 import {
   analyses,
   installations,
+  queueAnalysis,
   repos,
   upsertInstallation,
+  upsertRepo,
   type AnyDatabase,
   type InstallationFacts,
 } from "@gitinside/db";
@@ -32,6 +34,7 @@ const INSTALLATION: InstallationFacts = {
   accountType: "Organization",
   suspendedAt: null,
 };
+const INSTALLATION_TOKEN = "ghs_installation";
 const GRAPH = '{"nodes":[]}\n';
 const STATS = {
   files: 2,
@@ -202,7 +205,23 @@ describe("createAnalysisRecorder", () => {
     repoJson.private = true;
     const installation = await upsertInstallation(t.db, INSTALLATION);
     const request = { ...REQUEST, installationId: 42 };
-    await processJob({ id: ID, request }, deps(recorder()));
+    const asks: unknown[] = [];
+    await processJob(
+      { id: ID, request },
+      deps(recorder(), {
+        installationToken: async (ask) => {
+          asks.push(ask);
+          return INSTALLATION_TOKEN;
+        },
+      }),
+    );
+    expect(asks).toEqual([{ jobId: ID, installationId: 42 }]);
+    // The facts and the tarball with the installation's token, never the worker's own.
+    expect(github.requests.map((r) => [r.server, r.authorization])).toEqual([
+      ["api", `Bearer ${INSTALLATION_TOKEN}`],
+      ["api", `Bearer ${INSTALLATION_TOKEN}`],
+      ["codeload", undefined],
+    ]);
     const [repo] = await t.db.select().from(repos);
     expect(repo).toMatchObject({ visibility: "private", installationId: installation });
     const key = `private/42/${repo!.id}/${SHA}/${VERSION}.json.gz`;
@@ -213,7 +232,10 @@ describe("createAnalysisRecorder", () => {
 
   it("links a public repo read through an installation, and a later public job keeps the link", async () => {
     const installation = await upsertInstallation(t.db, INSTALLATION);
-    await processJob({ id: ID, request: { ...REQUEST, installationId: 42 } }, deps(recorder()));
+    await processJob(
+      { id: ID, request: { ...REQUEST, installationId: 42 } },
+      deps(recorder(), { installationToken: async () => INSTALLATION_TOKEN }),
+    );
     await t.db.delete(analyses);
     await processJob({ id: ID, request: REQUEST }, deps(recorder()));
     const [repo] = await t.db.select().from(repos);
@@ -223,11 +245,80 @@ describe("createAnalysisRecorder", () => {
   it("fails a job whose installation isn't stored as the permanent INSTALLATION_NOT_FOUND", async () => {
     repoJson.private = true;
     const request = { ...REQUEST, installationId: 42 };
-    const error = await failure(processJob({ id: ID, request }, deps(recorder())));
+    const error = await failure(
+      processJob(
+        { id: ID, request },
+        deps(recorder(), { installationToken: async () => INSTALLATION_TOKEN }),
+      ),
+    );
     expect([error.code, error.retriable]).toEqual(["INSTALLATION_NOT_FOUND", false]);
     expect(github.requests.map((r) => r.url)).toEqual(["/repos/acme/shop"]);
     expect(await t.db.select().from(repos)).toEqual([]);
     expect(s3.objects.size).toBe(0);
+  });
+
+  describe("a failure before the start", () => {
+    async function queuedRow(): Promise<string> {
+      const { id: repoId } = await upsertRepo(t.db, {
+        providerRepoId: 3_000_000_001,
+        owner: "Acme",
+        name: "Shop",
+        visibility: "private",
+        defaultBranch: "main",
+      });
+      const { id } = await queueAnalysis(
+        t.db,
+        { repoId, sha: SHA, analyzerVersion: VERSION },
+        { jobId: ID },
+      );
+      return id;
+    }
+    const refused = (code: string) => async (): Promise<string> => {
+      throw new JobFailure(code, "the website answered");
+    };
+    const request = { ...REQUEST, installationId: 42 };
+
+    it("fails the queued row with a refused token's code, before asking GitHub anything", async () => {
+      await queuedRow();
+      const error = await failure(
+        processJob(
+          { id: ID, request },
+          deps(recorder(), { installationToken: refused("INSTALLATION_SUSPENDED") }),
+        ),
+      );
+      expect([error.code, error.retriable]).toEqual(["INSTALLATION_SUSPENDED", false]);
+      expect(github.requests).toEqual([]);
+      expect(await onlyAnalysis()).toMatchObject({
+        status: "failed",
+        errorCode: "INSTALLATION_SUSPENDED",
+        attempts: 0,
+      });
+    });
+
+    it("leaves the row queued for a retry, and fails it on the last attempt", async () => {
+      await queuedRow();
+      const unavailable = deps(recorder(), { installationToken: refused("TOKEN_UNAVAILABLE") });
+      const first = await failure(processJob({ id: ID, request }, unavailable));
+      expect([first.code, first.retriable]).toEqual(["TOKEN_UNAVAILABLE", true]);
+      expect(await onlyAnalysis()).toMatchObject({ status: "queued", errorCode: null });
+
+      await failure(processJob({ id: ID, request, lastAttempt: true }, unavailable));
+      expect(await onlyAnalysis()).toMatchObject({
+        status: "failed",
+        errorCode: "TOKEN_UNAVAILABLE",
+      });
+    });
+
+    it("fails the queued row when GitHub doesn't show the repo", async () => {
+      await queuedRow();
+      github.api = (_req, res) => {
+        res.writeHead(404);
+        res.end();
+      };
+      const error = await failure(processJob({ id: ID, request: REQUEST }, deps(recorder())));
+      expect(error.code).toBe("REPO_NOT_FOUND");
+      expect(await onlyAnalysis()).toMatchObject({ status: "failed", errorCode: "REPO_NOT_FOUND" });
+    });
   });
 
   it("marks a permanent failure failed with its code, and nothing is uploaded", async () => {

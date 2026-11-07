@@ -28,6 +28,8 @@ export const RETRIABLE_CODES: ReadonlySet<string> = new Set([
   "PUBLISH_FAILED",
   /** Writing the job's start to Postgres failed (record.ts). */
   "RECORD_FAILED",
+  /** The website couldn't give a private job's installation token just now (installationToken.ts). */
+  "TOKEN_UNAVAILABLE",
   /** Something unexpected in the worker itself (a full disk, a bug); logged with details. */
   "WORKER_ERROR",
 ]);

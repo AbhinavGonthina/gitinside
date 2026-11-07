@@ -18,6 +18,7 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
  * | `HOST` | no, `127.0.0.1` | `POST /run`'s address (a container sets `0.0.0.0`) |
  * | `PORT` | no, `8080` | `POST /run`'s port (Cloud Run sets it) |
  * | `GITHUB_TOKEN` | no | sent to GitHub's API only (raises the 60/hour limit) |
+ * | `WEBSITE_ORIGIN` | no | the website (`https://…`; `http://` on loopback), asked for private jobs' installation tokens (M8.3c3b); without it they fail as `TOKEN_UNCONFIGURED` |
  *
  * Every problem is reported at once, and messages name the variable, never its value.
  */
@@ -36,6 +37,8 @@ export interface WorkerConfig {
   host: string;
   port: number;
   githubToken?: string;
+  /** Where private jobs ask for their installation tokens (installationToken.ts); absent, they fail. */
+  websiteOrigin?: string;
 }
 
 /** Defaults for the optional variables. */
@@ -159,6 +162,9 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     }
     return value;
   });
+  const websiteOrigin = check(() =>
+    env.WEBSITE_ORIGIN ? originOf(env.WEBSITE_ORIGIN) : undefined,
+  );
   const host = env.HOST || CONFIG_DEFAULTS.host;
   const port = check(() => {
     const value = env.PORT || String(CONFIG_DEFAULTS.port);
@@ -190,5 +196,29 @@ export function workerConfigFromEnv(env: Env): WorkerConfig {
     host,
     port,
     ...(githubToken === undefined || githubToken === "" ? {} : { githubToken }),
+    ...(websiteOrigin === undefined ? {} : { websiteOrigin }),
   };
+}
+
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * `WEBSITE_ORIGIN` as an origin (`https://host[:port]`, no trailing slash): `https:`, or
+ * `http:` on a loopback host (local runs and tests), with no credentials, path, query, or
+ * fragment, since the worker signs requests to it and reads tokens from it.
+ */
+function originOf(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("WEBSITE_ORIGIN is not a URL");
+  }
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && LOOPBACK.has(url.hostname))) {
+    throw new Error("WEBSITE_ORIGIN must be https:// (http:// only on loopback)");
+  }
+  if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+    throw new Error("WEBSITE_ORIGIN must be an origin, without a path");
+  }
+  return url.origin;
 }

@@ -15,6 +15,7 @@ import {
   workerConfigFromEnv,
 } from "@gitinside/worker";
 import { describe, expect, it } from "vitest";
+import { WEBSITE_ORIGIN } from "../../../infra/gcp/deploy.mjs";
 import {
   DISPATCH_DEADLINE_SECONDS,
   QUEUE_SLOTS,
@@ -239,10 +240,13 @@ describe("infra/gcp service.json (Cloud Run)", () => {
       SNAPSHOTS_SECRET_ACCESS_KEY: "check",
       ENQUEUE_HMAC_SECRET: "a".repeat(64),
       GITHUB_TOKEN: "github_pat_check",
+      WEBSITE_ORIGIN: WEBSITE_ORIGIN,
     };
     expect(Object.keys(fake).sort()).toEqual([...names].sort());
     const config = workerConfigFromEnv({ ...fake, HOST: "0.0.0.0" });
     expect(config.githubToken).toBe(fake.GITHUB_TOKEN);
+    // The deploy's constant is one the worker takes, so private jobs can get their tokens.
+    expect(config.websiteOrigin).toBe(WEBSITE_ORIGIN);
   });
 
   it("uses only the placeholders the deploy knows", () => {
@@ -254,6 +258,7 @@ describe("infra/gcp service.json (Cloud Run)", () => {
       "SNAPSHOTS_BUCKET",
       "SNAPSHOTS_NAMESPACE",
       "SNAPSHOTS_REGION",
+      "WEBSITE_ORIGIN",
     ]);
   });
 });

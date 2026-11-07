@@ -128,6 +128,7 @@ const ACCESS_FAILURES: ReadonlySet<string> = new Set([
   "REPO_UNAVAILABLE",
   "INSTALLATION_NOT_FOUND",
   "INSTALLATION_SUSPENDED",
+  "REPO_NOT_INSTALLED",
 ]);
 
 export interface AnalyzeError {
