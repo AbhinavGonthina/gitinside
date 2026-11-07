@@ -15,7 +15,7 @@ import { REPO_ANALYSIS_MINUTES } from "./analyze";
 import { CHALLENGE_AFTER_PER_ADDRESS, CHALLENGE_AFTER_SITE } from "./botCheck";
 import { MAX_GITHUB_CODE_BYTES } from "./codeSize";
 import { RECHECKS_PER_HOUR } from "./repoView";
-import { SIGNED_OUT_HOURLY_LIMIT } from "./serverDeps";
+import { SIGNED_IN_HOURLY_LIMIT, SIGNED_OUT_HOURLY_LIMIT } from "./serverDeps";
 import { SIZE_HOLD_DAYS } from "./sizeHold";
 
 /**
@@ -61,6 +61,7 @@ const pauseStarts =
 
 const rows: [string, string][] = [
   ["New analyses per address, signed out", `${SIGNED_OUT_HOURLY_LIMIT} per hour (IPv6 per /64)`],
+  ["New analyses per user, signed in", `${SIGNED_IN_HOURLY_LIMIT} per hour`],
   [
     "Bot check (Turnstile), one address",
     `after ${CHALLENGE_AFTER_PER_ADDRESS} new analyses in an hour`,
@@ -133,9 +134,6 @@ describe("docs/SECURITY.md T9 in numbers", () => {
 
   it("has no row the test doesn't check, besides the ones not yet in code", () => {
     const unchecked = quoted.filter(([what]) => !rows.some(([row]) => row === what));
-    expect(unchecked.map(([what]) => what)).toEqual([
-      "New analyses per user, signed in",
-      "Billing",
-    ]);
+    expect(unchecked.map(([what]) => what)).toEqual(["Billing"]);
   });
 });

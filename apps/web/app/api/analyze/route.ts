@@ -1,5 +1,5 @@
 import { handleAnalyzeRequest } from "../../../lib/analyzeRoute";
-import { analyzeDepsFromEnv, VERCEL_OIDC_HEADER } from "../../../lib/serverDeps";
+import { analyzeDepsFromEnv, authDepsFromEnv, VERCEL_OIDC_HEADER } from "../../../lib/serverDeps";
 
 /**
  * `POST /api/analyze` `{ url }`: resolve the repo's latest commit, then return its cached
@@ -11,5 +11,6 @@ export function POST(request: Request): Promise<Response> {
   return handleAnalyzeRequest(
     request,
     analyzeDepsFromEnv(process.env, request.headers.get(VERCEL_OIDC_HEADER)),
+    authDepsFromEnv(),
   );
 }

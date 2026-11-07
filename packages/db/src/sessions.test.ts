@@ -1,6 +1,14 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createSession, deleteSession, findSession, sessions, upsertUser, users } from "./index.js";
+import {
+  createSession,
+  deleteExpiredSessions,
+  deleteSession,
+  findSession,
+  sessions,
+  upsertUser,
+  users,
+} from "./index.js";
 import { createTestDb, pgErrorCode, type TestDb } from "./testing.js";
 
 const CHECK = "23514";
@@ -73,6 +81,24 @@ describe("sessions", () => {
 
     await t.db.delete(users).where(eq(users.id, userId));
     expect(await t.db.select().from(sessions)).toEqual([]);
+  });
+
+  it("that ended are swept by the database's clock, live ones kept", async () => {
+    const userId = await upsertUser(t.db, { githubUserId: 7, login: "octo" });
+    const base = { userId, githubTokens: "sealed", lifetimeSeconds: 3600 };
+    await createSession(t.db, { ...base, tokenHash: HASH });
+    await createSession(t.db, { ...base, tokenHash: HASH2 });
+    expect(await deleteExpiredSessions(t.db)).toBe(0);
+    await t.db
+      .update(sessions)
+      .set({
+        createdAt: sql`now() - interval '2 hours'`,
+        expiresAt: sql`now() - interval '1 second'`,
+      })
+      .where(eq(sessions.tokenHash, HASH));
+    expect(await deleteExpiredSessions(t.db)).toBe(1);
+    expect((await t.db.select().from(sessions)).map((s) => s.tokenHash)).toEqual([HASH2]);
+    expect(await t.db.select().from(users)).toHaveLength(1); // the user stays
   });
 
   it("refuse a token hash that isn't 64 hex characters, a reused hash, and a bad lifetime", async () => {

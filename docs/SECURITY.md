@@ -36,12 +36,13 @@ GitInside analyzes **untrusted code** submitted by anyone, and holds **private r
 
 ### T9 in numbers
 
-The abuse limits as of M5.18f (#11). `apps/web/lib/abuseLimits.test.ts` checks each row except the last two against the code and `infra/gcp`, so a limit changed in one place only fails CI. Windows are fixed UTC hours unless a row says otherwise.
+The abuse limits as of M5.18f (#11). `apps/web/lib/abuseLimits.test.ts` checks each row except the last one against the code and `infra/gcp`, so a limit changed in one place only fails CI. Windows are fixed UTC hours unless a row says otherwise.
 
 | Limit | Value | Where |
 |---|---|---|
 | New analyses per address, signed out | 5 per hour (IPv6 per /64) | `SIGNED_OUT_HOURLY_LIMIT`, keyed by a hashed address (`clientIp.ts`, ADR-0066) |
-| Bot check (Turnstile), one address | after 2 new analyses in an hour | `botCheck.ts`, ADR-0157; fails closed if Cloudflare can't be reached |
+| New analyses per user, signed in | 30 per hour | `SIGNED_IN_HOURLY_LIMIT`, keyed by the user's row ID (`userRateLimitKey`, ADR-0222); the address they're on isn't charged |
+| Bot check (Turnstile), one address | after 2 new analyses in an hour | `botCheck.ts`, ADR-0157; fails closed if Cloudflare can't be reached. Not asked of a signed-in user (ADR-0222) |
 | Bot check (Turnstile), whole site | after 20 requests for new analyses in an hour, for everyone | `botCheck.ts`, ADR-0157 |
 | New analyses per repo | 1 per 30 minutes, whoever asks | `claimRepoAnalysis`, a sliding claim on the repo's row (ADR-0155); the claimed commit itself still goes through |
 | Re-analysis on view (pages, README images) | 6 new commits per repo per hour | `RECHECKS_PER_HOUR`, charged to the repo, not the visitor (`repoView.ts`) |
@@ -56,7 +57,6 @@ The abuse limits as of M5.18f (#11). `apps/web/lib/abuseLimits.test.ts` checks e
 | Snapshot bucket | 20 GB; retention keeps the latest 5 per repo and evicts the oldest past 16 GB | `RETENTION_POLICY` (PR pins kept 30 days, ADR-0077) |
 | Bucket requests | 50,000 a month | `store_requests` (ADR-0096); alarm only, the plan can't bill |
 | Postgres storage | 1 GB | Neon's free plan as SPEC §5 states it; alarm only |
-| New analyses per user, signed in | 30 per hour | SPEC §3; arrives with sign-in (M8) |
 | Billing | spend cap around $1 if offered, a $1 monthly budget whose alert turns billing off, no Cloud NAT, load balancer, Memorystore, or static IP, images kept inside Artifact Registry's free storage | ADR-0111; the kill switch is `infra/gcp/budget.json` ⇒ `pubsub.json` ⇒ `killswitch.json` (ADR-0169: once the month's cost after credits reaches $1, the project's billing account is unlinked); applied by M5.17e2–e4 and verified in M5.13's smoke test (#3). Until then the trial account can't bill |
 
 What these bound, worked out from the rows above:

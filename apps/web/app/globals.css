@@ -74,6 +74,30 @@ code {
   text-decoration: none;
 }
 
+.site-header__end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
+.site-header__account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  margin: 0;
+}
+
+.site-header__login {
+  overflow: hidden;
+  padding-left: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Landing ----------------------------------------------------------------- */
 
 .landing {
@@ -98,6 +122,31 @@ code {
   color: var(--text-muted);
   font-size: var(--font-size-16);
   line-height: var(--line-height-body);
+}
+
+/* A failed sign-in's explanation, above the slogan: body text marked by an
+   accent bar, like the field's error but not an error of the visitor's. */
+.landing__note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0 0 var(--space-24);
+  color: var(--text);
+  font-size: var(--font-size-13);
+}
+
+.landing__note::before {
+  content: "";
+  flex: none;
+  width: 3px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.landing__private {
+  margin: var(--space-16) 0 0;
+  font-size: var(--font-size-13);
 }
 
 .repo-form__row {
@@ -227,6 +276,14 @@ code {
 @media (max-width: 640px) {
   .landing__promises {
     grid-template-columns: 1fr;
+  }
+}
+
+/* A phone has no room for the login beside Sign out and the theme switch;
+   Sign out alone still says you're signed in. */
+@media (max-width: 480px) {
+  .site-header__login {
+    display: none;
   }
 }
 

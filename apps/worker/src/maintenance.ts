@@ -4,6 +4,7 @@ import {
   computeUsageThisMonth,
   countStoreRequests,
   databaseSizeBytes,
+  deleteExpiredSessions,
   failInterruptedAnalyses,
   failStaleQueuedAnalyses,
   pruneRateLimits,
@@ -33,7 +34,10 @@ import {
  *    (no task can still be accepted for them) fail with the retryable `QUEUE_UNAVAILABLE`.
  * 2. **Retention** ({@link runRetention}): evict snapshots past the rules, delete orphans.
  * 3. **Rate-limit pruning** (`pruneRateLimits`): drop windows that ended over an hour ago.
- * 4. **Quota check** ({@link measureQuotas}): measure the bucket (a fresh listing, after
+ * 4. **Session sweep** (`deleteExpiredSessions`, M8.2b): delete sign-in sessions that have
+ *    ended, with their sealed GitHub tokens. Nothing reads them any more; this keeps tokens
+ *    from lingering in the database.
+ * 5. **Quota check** ({@link measureQuotas}): measure the bucket (a fresh listing, after
  *    retention deleted what it could), the database, and the month's bucket requests
  *    (`store_requests`, ADR-0096), against {@link QUOTA_LIMITS}, and the month's Google
  *    compute (`compute_usage`, ADR-0156) against its free allowance. Each
@@ -227,16 +231,18 @@ export interface MaintenanceReport {
   staleJobs?: { interrupted: number; stranded: number };
   retention?: RetentionReport;
   rateLimitsPruned?: number;
+  /** Ended sign-in sessions deleted. */
+  sessionsSwept?: number;
   quotas?: QuotaReading[];
-  failed: ("stale_jobs" | "retention" | "rate_limits" | "quota")[];
+  failed: ("stale_jobs" | "retention" | "rate_limits" | "sessions" | "quota")[];
 }
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 /**
- * Run the stale-job sweep, retention, rate-limit pruning, and the quota check once, logging
- * each. Never rejects.
+ * Run the stale-job sweep, retention, rate-limit pruning, the session sweep, and the quota
+ * check once, logging each. Never rejects.
  */
 export async function runMaintenance(deps: MaintenanceDeps): Promise<MaintenanceReport> {
   const { db, store, log } = deps;
@@ -280,6 +286,12 @@ export async function runMaintenance(deps: MaintenanceDeps): Promise<Maintenance
   if (pruned !== undefined) {
     report.rateLimitsPruned = pruned;
     log({ event: "rate_limits_pruned", rows: pruned });
+  }
+
+  const swept = await step("sessions", () => deleteExpiredSessions(db));
+  if (swept !== undefined) {
+    report.sessionsSwept = swept;
+    log({ event: "sessions_swept", rows: swept });
   }
 
   const quotas = await step("quota", () =>

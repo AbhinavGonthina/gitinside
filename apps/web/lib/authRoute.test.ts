@@ -110,6 +110,29 @@ describe("handleSignIn", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("builds the callback from the Host the browser used, not the server's own URL (M8.2b)", () => {
+    // `next start` hands route handlers `http://localhost:<port>` whatever host was asked for.
+    const { deps } = setup();
+    const redirectUri = (headers: Record<string, string>) => {
+      const response = handleSignIn(
+        new Request("http://localhost:3000/api/auth/github", { headers }),
+        deps,
+      );
+      return new URL(response.headers.get("location") ?? "").searchParams.get("redirect_uri");
+    };
+    expect(redirectUri({ host: "127.0.0.1:3000" })).toBe(`http://127.0.0.1:3000${CALLBACK_PATH}`);
+    expect(redirectUri({ host: "internal:80", "x-forwarded-host": "gitinside.test, proxy" })).toBe(
+      `http://gitinside.test${CALLBACK_PATH}`,
+    );
+    expect(redirectUri({ host: "gitinside.test", "x-forwarded-proto": "https" })).toBe(
+      `${SITE}${CALLBACK_PATH}`,
+    );
+    // Anything that isn't a plain host (or protocol) is ignored for the URL's own.
+    expect(redirectUri({ host: "evil.example/x?", "x-forwarded-proto": "javascript" })).toBe(
+      `http://localhost:3000${CALLBACK_PATH}`,
+    );
+  });
+
   it("says sign-in is unavailable when the server isn't configured", async () => {
     const response = handleSignIn(new Request(`${SITE}/api/auth/github`), undefined);
     expect(response.headers.get("location")).toBe("/?signin=unavailable");
@@ -344,6 +367,21 @@ describe("handleSignOut", () => {
       expect(setCookies(response).size).toBe(0);
     }
     expect(await readSession(cookie, deps)).toBeDefined();
+  });
+
+  it("compares the Origin with the Host the browser used, not the server's own URL (M8.2b)", async () => {
+    // A real browser's form POST through `next start` (whose request URL says `localhost`).
+    const { deps, cookie } = await signedIn();
+    const local = (origin: string) =>
+      new Request("http://localhost:3491/api/auth/signout", {
+        method: "POST",
+        headers: { cookie, origin, host: "127.0.0.1:3491" },
+      });
+    const elsewhere = await handleSignOut(local("http://evil.example"), deps);
+    expect(elsewhere.status).toBe(403);
+    const response = await handleSignOut(local("http://127.0.0.1:3491"), deps);
+    expect(response.status).toBe(303);
+    expect(await readSession(cookie, deps)).toBeUndefined();
   });
 
   it("clears the cookie even when signed out or unconfigured, and keeps it if the delete fails", async () => {

@@ -1,11 +1,15 @@
 // @vitest-environment node
-import { rateLimits } from "@gitinside/db";
+import { createSession, rateLimits, upsertUser } from "@gitinside/db";
 import { createTestDb } from "@gitinside/db/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnalyzeDeps } from "./analyze";
 import { MAX_BODY_BYTES, handleAnalyzeRequest } from "./analyzeRoute";
+import type { AuthDeps } from "./authRoute";
 import { CHALLENGE_AFTER_SITE, CHALLENGE_FAILED_MESSAGE, SITE_ANALYZE_KEY } from "./botCheck";
+import { userRateLimitKey } from "./clientIp";
 import { fakeGitHub } from "./github.testkit";
+import { FAKE_CLIENT } from "./githubOAuth.testkit";
+import { hashToken, newToken, SESSION_COOKIE, sessionKeys } from "./session";
 
 const SHA = "f".repeat(40);
 
@@ -27,6 +31,7 @@ function depsWithoutDb(): AnalyzeDeps {
     analyzerVersion: "0.1.0",
     rateLimitSecret: "r".repeat(43),
     hourlyLimit: 5,
+    signedInHourlyLimit: 30,
   };
 }
 
@@ -223,6 +228,59 @@ describe("handleAnalyzeRequest", () => {
       const repoLimited = await answer(from("203.0.113.9", "other"), deps);
       expect(repoLimited).toMatchObject({ status: 429, body: { error: "REPO_RATE_LIMITED" } });
       expect(Number(repoLimited.headers.get("retry-after"))).toBeGreaterThan(0);
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("counts a signed-in caller against their user, not their address (M8.2b)", async () => {
+    const t = await createTestDb();
+    try {
+      const auth: AuthDeps = { db: t.db, client: FAKE_CLIENT, keys: sessionKeys("s".repeat(43)) };
+      const userId = await upsertUser(t.db, { githubUserId: 7, login: "octo" });
+      const token = newToken();
+      await createSession(t.db, {
+        userId,
+        tokenHash: hashToken(token),
+        githubTokens: "sealed",
+        lifetimeSeconds: 3600,
+      });
+      const repos = ["r0", "r1", "r2"].map((name, i) => ({
+        id: 10 + i,
+        owner: "acme",
+        name,
+        sha: String(i + 1).repeat(40),
+      }));
+      const deps: AnalyzeDeps = {
+        ...depsWithoutDb(),
+        db: t.db,
+        github: { fetch: fakeGitHub(repos).fetch },
+        hourlyLimit: 1,
+        signedInHourlyLimit: 2,
+      };
+      const ask = (repo: string, cookie: string) =>
+        handleAnalyzeRequest(
+          post(`{"url":"acme/${repo}"}`, { "x-real-ip": "203.0.113.7", cookie }),
+          deps,
+          auth,
+        );
+      const signedIn = `${SESSION_COOKIE}=${token}`;
+      // Two, past the address's one; then the user's own limit.
+      expect((await ask("r0", signedIn)).status).toBe(202);
+      expect((await ask("r1", signedIn)).status).toBe(202);
+      const limited = await ask("r2", signedIn);
+      expect(limited.status).toBe(429);
+      expect(((await limited.json()) as { message: string }).message).toMatch(
+        /^You've analyzed 2 repos this hour\./,
+      );
+      const keys = (await t.db.select().from(rateLimits)).map((r) => [r.key, r.count]);
+      expect(keys).toEqual([[userRateLimitKey(userId), 2]]);
+
+      // A cookie with no live session is a signed-out caller: counted against the address.
+      expect((await ask("r2", `${SESSION_COOKIE}=${newToken()}`)).status).toBe(202);
+      expect((await ask("r2", "")).status).toBe(202); // the same commit, in flight: no slot
+      const after = await t.db.select().from(rateLimits);
+      expect(after.find((r) => r.key.startsWith("ip:"))?.count).toBe(1);
     } finally {
       await t.close();
     }

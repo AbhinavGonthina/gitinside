@@ -4,11 +4,15 @@ import {
   computeUsage,
   countComputeUsage,
   countStoreRequests,
+  createSession,
   maintenanceRuns,
   rateLimits,
   repos,
+  sessions,
   storeRequests,
   storeRequestsThisMonth,
+  upsertUser,
+  users,
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -126,6 +130,8 @@ describe("with a database and a bucket", () => {
   });
   beforeEach(async () => {
     await t.db.delete(rateLimits);
+    await t.db.delete(sessions);
+    await t.db.delete(users);
     await t.db.delete(storeRequests);
     await t.db.delete(computeUsage);
     await t.db.delete(analyses);
@@ -212,12 +218,21 @@ describe("with a database and a bucket", () => {
     expect(lines).toEqual([{ event: "store_request_count_failed", message: "db down" }]);
   });
 
-  it("runs retention, prunes old rate-limit windows, then measures what is left", async () => {
+  it("runs retention, prunes old rate-limit windows and ended sessions, then measures what is left", async () => {
     await t.db.insert(rateLimits).values({
       key: "ip:old",
       windowStart: new Date(Date.now() - 5 * HOUR),
       count: 3,
     });
+    const userId = await upsertUser(t.db, { githubUserId: 7, login: "octo" });
+    const session = { userId, githubTokens: "sealed", lifetimeSeconds: 3600 };
+    await createSession(t.db, { ...session, tokenHash: "a".repeat(64) });
+    // Ended a minute ago (the only row yet), then a live one.
+    await t.db.update(sessions).set({
+      createdAt: new Date(Date.now() - 2 * HOUR),
+      expiresAt: new Date(Date.now() - 60_000),
+    });
+    await createSession(t.db, { ...session, tokenHash: "b".repeat(64) });
 
     const report = await runMaintenance({ db: t.db, store: store(), log });
 
@@ -228,15 +243,19 @@ describe("with a database and a bucket", () => {
       deletedObjects: 1,
     });
     expect(report.rateLimitsPruned).toBe(1);
+    expect(report.sessionsSwept).toBe(1);
+    expect((await t.db.select().from(sessions)).map((s) => s.tokenHash)).toEqual(["b".repeat(64)]);
     expect(report.quotas?.[0]).toMatchObject({ resource: "bucket", used: 500 });
     expect(lines.map((line) => line.event)).toEqual([
       "stale_jobs_failed",
       "retention_run",
       "rate_limits_pruned",
+      "sessions_swept",
       "quota",
     ]);
     expect(lines[0]).toEqual({ event: "stale_jobs_failed", interrupted: 0, stranded: 0 });
     expect(lines[2]).toEqual({ event: "rate_limits_pruned", rows: 1 });
+    expect(lines[3]).toEqual({ event: "sessions_swept", rows: 1 });
   });
 
   it("first fails rows running past the request timeout and rows queued past every task's window", async () => {
@@ -396,6 +415,7 @@ describe("with a database and a bucket", () => {
       failed: ["retention", "quota"],
       staleJobs: { interrupted: 0, stranded: 0 },
       rateLimitsPruned: 0,
+      sessionsSwept: 0,
     });
     expect(lines).toEqual([
       { event: "stale_jobs_failed", interrupted: 0, stranded: 0 },
@@ -405,6 +425,7 @@ describe("with a database and a bucket", () => {
         message: "LIST answered 500 InternalError",
       },
       { event: "rate_limits_pruned", rows: 0 },
+      { event: "sessions_swept", rows: 0 },
       { event: "maintenance_failed", step: "quota", message: "LIST answered 500 InternalError" },
     ]);
     expect(await t.db.select().from(analyses)).toHaveLength(6);

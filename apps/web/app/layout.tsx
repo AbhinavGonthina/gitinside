@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import "@gitinside/viewer/fonts";
 import "@gitinside/viewer/styles.css";
 import "./globals.css";
+import { currentSignIn } from "../lib/currentUser";
 import { parseTheme, THEME_COOKIE } from "../lib/theme";
 import { SiteHeader } from "./SiteHeader";
 
@@ -25,10 +26,11 @@ export const viewport: Viewport = {
  */
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  const signIn = await currentSignIn();
   return (
     <html lang="en" className="gi-root" data-theme={theme}>
       <body>
-        <SiteHeader theme={theme} />
+        <SiteHeader theme={theme} signIn={signIn} />
         {children}
       </body>
     </html>

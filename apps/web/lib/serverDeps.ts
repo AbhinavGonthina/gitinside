@@ -43,6 +43,8 @@ import { createLocalTaskQueue, isLoopbackOrigin, type LocalTaskQueue } from "./l
 
 /** Signed-out analyses per hour per address (SPEC §3). */
 export const SIGNED_OUT_HOURLY_LIMIT = 5;
+/** Signed-in analyses per hour per user (SPEC §3, M8.2b). */
+export const SIGNED_IN_HOURLY_LIMIT = 30;
 
 /**
  * The header Vercel puts the deployment's OIDC token in on every function request; Google's
@@ -212,6 +214,8 @@ export function analyzeDepsFromEnv(
     analyzerVersion: ANALYZER_VERSION,
     rateLimitSecret: secret,
     hourlyLimit: SIGNED_OUT_HOURLY_LIMIT,
+    signedInHourlyLimit: SIGNED_IN_HOURLY_LIMIT,
+    signInAvailable: authDepsFromEnv(env) !== undefined,
     codeSizes,
     ...(check && { botCheck: check }),
   };
