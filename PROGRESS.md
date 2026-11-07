@@ -14,11 +14,12 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M8.1 needs-abhinav: register GitHub App (permissions per ADR-0009) + secrets
+M8.2 GitHub sign-in (identity only), sessions, dashboard
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
+- [#23](https://github.com/AbhinavGonthina/gitinside-planning/issues/23) Register the GitHub App (ADR-0220 settings) and put its secrets in Vercel Production. Blocks only M8.10 (end-to-end on a private repo); M8.2–M8.9 use a fake GitHub. On close: record the slug, App ID, and client ID he comments (not secrets) where M8.2 needs them; he hasn't installed it anywhere yet, and M8.10 asks him to.
 - Reminder (#3, closed 2026-11-04 with "all 119 checks match infra/gcp"): the Google Cloud trial ends 2027-01-30. Remind Abhinav before trial day 90 of anything needed before he activates the full account; he won't activate it until we confirm.
 
 ## Blockers
@@ -405,7 +406,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M7.6z Re-run the milestone checks after the fixes (suite uncached, coverage, `--check`s), findings' outcomes in M7-review.md (status no longer draft), tag m7 {model: opus}
 
 ### M8: Sign-in + private repos + PR bot
-- [ ] M8.1 needs-abhinav: register GitHub App (permissions per ADR-0009) + secrets {model: opus}
+- [x] M8.1 needs-abhinav: register GitHub App (permissions per ADR-0009) + secrets {model: opus}
 - [ ] M8.2 GitHub sign-in (identity only), sessions, dashboard {model: opus}
 - [ ] M8.3 Install flow + installation webhooks + private snapshot prefix (incl. job IDs scoped by installation, M5 review / ADR-0079) {model: opus}
 - [ ] M8.4 Per-view access checks (60s cache), private isolation, noindex {model: opus}
@@ -414,7 +415,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [ ] M8.7 Push webhook → badge refresh {model: opus}
 - [ ] M8.8 Security tests (signatures, revocation, cross-tenant isolation) {model: opus}
 - [ ] M8.9 Switch autopilot to PR flow reviewed by GitInside's bot; update CLAUDE.md {model: opus}
-- [ ] M8.10 Milestone verification + M8-review.md + tag m8 {model: opus}
+- [ ] M8.10 Milestone verification + M8-review.md + tag m8 {model: opus} {blocked: #23}
 
 ### M9: Launch-ready (no public announcement)
 - [ ] M9.1 Choose + hand-verify 3 OSS demo repos; landing gallery {model: opus}
@@ -429,6 +430,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **2026-11-07 M8.1 (`e65c1a8`):** opened planning #23 with step-by-step GitHub App registration (ADR-0009 permissions only, Pull request + Push events, any account, user authorization during install on, no install yet) and the Vercel Production names. ADR-0220 fixes the routes (`/api/auth/github/callback`, `/api/github/webhook`) and names (`GITHUB_APP_*`, `SESSION_SECRET`, in `apps/web/.env.example`); no local secrets, tests use a fake GitHub. M8.10 tagged `{blocked: #23}`. Next: M8.2.
 - **2026-11-07 M7.6z (`d4e7f36`, tag `m7`):** final re-check at `da233b7`: uncached suite 4,550 passed, 4 skipped (15/15 tasks, 0 cached, nothing rerun); CI run 42390457243 all green, coverage analyzer 97.66%, diff 98.81%, eval 98.5% (86.73% at the draft), the rest ≥ 94.8% lines; `pnpm eval --check`, `backtest:report --check` byte for byte, `validate` unchanged. M7-review.md is final: F7, F8 (future lists), F1–F5, F9 fixed; F6 documented; S1 in M8.6. Next: M8.
 - **2026-11-07 M7.6d (`91e0e6a`, `c52cb6e`):** EVALUATION.md §3 step 2 (all 7 raw files from the workflow; cal.diy's run line checked: Linux runner) and step 3 (follow-up to `endSha`, 30–122 days after a merge). The alias blind spot (`export { foo as bar }`) named in `detectBroken`'s "Doesn't handle" and `limitations.md`; backtest report regenerated. The CLIs' argument handling moved to `cliShared.ts` (`namedRepos`, `parseLimit`, `outDir`, `ownFiles`), 19 tests; the four CLIs join the thin-CLI exclusion with the reason; eval coverage 86.73% → 98.5% lines locally; replay/follow-up docs say a relative `--out` is from the repo root. Eval 226/226, typecheck, lint, both `--check`s green.
 - **2026-11-07 M7.6c (`dab1114`, `b6f88ff`):** `classifyPr` excludes a merge commit that isn't the PR's own (second parent ≠ `head.sha`, now read by `pullFacts`, or a "Merge pull request #N" subject for another N) and a merge head the branch fast-forwarded to; dub.link #4246/#4295 (merges are #4256's `43d4cb7` and #4300's `898c84f`, rechecked on GitHub and in the clone) named in `limitations.md`, lists untouched. `backtestProblems` requires one gitinside commit across raw files; `followUpCrossCheck` the raw file's analyzer version. `branch` must be a plain ref name; `git.ts` passes refs/SHAs after `--end-of-options`. 7 tests red first; eval 207/207, typecheck, lint, `validate`, both `--check`s green. ADR-0215/0216 amendments.
