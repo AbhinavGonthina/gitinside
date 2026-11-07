@@ -34,9 +34,10 @@ async function redirectOf(page: Page, path: string): Promise<URL> {
  * Not with `page.route`: Playwright routes only a redirect chain's first request, so the
  * authorize hop would reach the real github.com.
  */
-async function signInAs(page: Page, login: string) {
-  const start = await redirectOf(page, "/dashboard");
-  expect(start.pathname + start.search).toBe("/api/auth/github?returnTo=%2Fdashboard");
+async function signInAs(page: Page, login: string, from = "/dashboard") {
+  const start = await redirectOf(page, from);
+  expect(start.pathname).toBe("/api/auth/github");
+  if (from === "/dashboard") expect(start.search).toBe("?returnTo=%2Fdashboard");
   const authorize = await redirectOf(page, start.href);
   expect(authorize.origin + authorize.pathname).toBe("https://github.com/login/oauth/authorize");
 
@@ -117,6 +118,45 @@ test("an account with nothing installed is shown how to install, once", async ({
   );
   await expect(page.getByRole("link", { name: "Install on more repos" })).toHaveCount(0);
   await expect(page.getByRole("region")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+/** GitHub's redirect after installing the app (M8.3b): a code, the installation, no state. */
+const installReturn = (installationId: number) =>
+  `/api/auth/github/callback?code=issued-on-github&installation_id=${installationId}&setup_action=install`;
+
+test("installing returns to the dashboard, which names the installation GitHub confirmed", async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  await signInAs(page, "octo");
+  await expect(page.getByRole("region", { name: "acme" })).toBeVisible();
+
+  await page.goto(`${SITE}${installReturn(41)}`);
+  await expect(page).toHaveURL(`${SITE}/dashboard?install=installed&installation=41`);
+  await expect(page.getByRole("main").getByRole("status")).toHaveText(
+    "GitInside is installed on acme.",
+  );
+  await expect(page.getByRole("region", { name: "acme" })).toBeVisible();
+
+  // An installation GitHub doesn't list for this user is never taken from the query.
+  await page.goto(`${SITE}${installReturn(999)}`);
+  await expect(page).toHaveURL(`${SITE}/dashboard?install=unverified`);
+  await expect(page.getByRole("main").getByRole("status")).toHaveText(
+    /^GitHub doesn't list that installation for your account, so nothing changed\./,
+  );
+  expect(errors).toEqual([]);
+});
+
+test("a signed-out installer signs in through the site, then lands on the dashboard", async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  await signInAs(page, "octo", installReturn(7));
+  await expect(page).toHaveURL(`${SITE}/dashboard?install=installed&installation=7`);
+  await expect(page.getByRole("main").getByRole("status")).toHaveText(
+    "GitInside is installed on octo.",
+  );
   expect(errors).toEqual([]);
 });
 

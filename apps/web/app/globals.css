@@ -137,7 +137,8 @@ code {
 
 /* A failed sign-in's explanation, above the slogan: body text marked by an
    accent bar, like the field's error but not an error of the visitor's. */
-.landing__note {
+.landing__note,
+.dashboard__note {
   display: flex;
   align-items: center;
   gap: var(--space-8);
@@ -146,7 +147,8 @@ code {
   font-size: var(--font-size-13);
 }
 
-.landing__note::before {
+.landing__note::before,
+.dashboard__note::before {
   content: "";
   flex: none;
   width: 3px;
@@ -347,6 +349,16 @@ code {
   max-width: 760px;
   margin: 0 auto;
   padding: var(--space-48) var(--space-24);
+}
+
+/* The install return's note (M8.3b) can run to two lines: the bar marks the first. */
+.dashboard__note {
+  align-items: flex-start;
+  line-height: var(--line-height-body);
+}
+
+.dashboard__note::before {
+  margin-top: calc((1lh - 14px) / 2);
 }
 
 .dashboard__head {
