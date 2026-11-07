@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M7.2 Replay script (merged PRs, incremental analyze, diff, collect broken edges) (M5.14b4 waits on #22)
+M7.2b Replay script (M5.14b4 waits on #22)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -385,7 +385,9 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 ### M7: PR backtesting
 - [x] M7.1 Select ~8 repos + pin window in eval/backtest/repos.json {model: opus}
-- [ ] M7.2 Replay script (merged PRs, incremental analyze, diff, collect broken edges) {model: opus}
+- [x] M7.2a Pin the replayed PRs: list merged PRs in the window (GitHub search + PR API), their merge commit and base (merge, squash, or rebase), ancestry checked against startSha/endSha, the cap applied; committed as `eval/backtest/prs/<owner>__<name>.json`, validated {model: opus}
+- [ ] M7.2b Replay script: for each pinned PR, analyze base and merge commit with a shared fact cache, diff, collect broken edges; raw results per repo; tested on a local git fixture {model: opus}
+- [ ] M7.2c Run the replay on all 7 repos and commit the raw results (with run line: gitinside SHA, analyzer version, machine) {model: opus}
 - [ ] M7.3 Follow-up fix detection {model: opus}
 - [ ] M7.4 Classification of flagged breaks (drafted, labeled as such) {model: opus}
 - [ ] M7.5 Report → eval/backtest/results/ {model: opus}
@@ -416,6 +418,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **M7.2a (2026-11-06, `dcddf07`):** split M7.2 into a/b/c. `pnpm --filter @gitinside/eval backtest:prs` pins `eval/backtest/prs/<owner>__<name>.json` once per repo (never replaced, checked by `validate`): 1,004 PRs merged in the window (= M7.1's counts), 926 to replay (439 merge, 487 squash, 0 rebase), 1 excluded (CCAM #271, force-pushed away), 77 of dub.link's past the cap. Base by merge kind (ADR-0215). Two first rules were wrong on real data: a "base descends from startSha" check (maxun's startSha is a PR-branch commit, an M7.1 defect recorded, not re-pinned) and a first-parent-only check (12 real anything-llm merges under `git pull` merges). Eval 146/146; report regenerated (`86c4cee`, run line only).
 - **M7.1 (2026-11-06, `cb8a7d0`):** `eval/backtest/repos.json` (format in `eval/src/backtest/format.ts`, checked by `validate`) pins 7 repos: cal.diy, dub.link, maxun, Claude-Code-Agent-Monitor, anything-llm, seerr, comp. Window 2026-07-01..09-30, 30-day follow-up, ≤ 300 PRs per repo, start/end SHA each. 65 candidates by five rules measured at startSha before any replay; the 58 rejected are listed with their first failing rule (17/1/6/1/33), each number script-checked against the raw output. Fewer than 8: most known apps fail rule 5 (ADR-0214). Finished an earlier run's uncommitted draft (didn't validate, empty `rejected`, 23 unmeasured, inconsistent timings dropped). Eval 122/122; report regenerated, `--check` byte for byte.
 - **M6.11o (2026-11-06, `d3413ef`, tag `m6`):** final re-check at `b69cbc1`: uncached suite 4,406 passed, 4 skipped (15/15 tasks, 0 cached, nothing rerun); CI run 42245446225 all green, coverage analyzer 97.65%, diff 99.1%, the rest ≥ 94.8% lines; `pnpm eval --check` byte for byte. M6-review.md is final, with R1–R8 outcomes and what they left weak (overlapping ×s at outline, an in-place digest rewrite, R5 documented, the rename note not in the viewer until M8.6). Next: M7.
 - **M6.11n3 (2026-11-06, `712d6c7`):** R6 fixed. `DUPLICATE_PACKAGE_NAME` and `WORKSPACE_CYCLE` key on `packageName` (what dependencies and imports name), not the label: an Nx standalone root labeled `api` beside a lib named `api` no longer warns, and a cycle through `@api/source` is reported. Nameless packages are in neither check; the warning names the root `.`. Tests red first; a mutation keying the cycle check on the label went red. Analyzer 1,425/1,425, typecheck and lint green; eval delta 0 (report regenerated, `--check` passes). ADR-0021 amendment, R6 outcome in M6-review.md.
