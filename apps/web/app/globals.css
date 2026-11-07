@@ -32,7 +32,9 @@ body {
 /* Text links: text-colored with an accent underline. The accent is a 3:1
    graphics color, so it never colors small text itself. */
 .landing a,
-.notice a {
+.notice a,
+.dashboard__retry,
+.installation__more a {
   color: var(--text);
   text-decoration: underline;
   text-decoration-color: var(--accent);
@@ -42,7 +44,9 @@ body {
 }
 
 .landing a:hover,
-.notice a:hover {
+.notice a:hover,
+.dashboard__retry:hover,
+.installation__more a:hover {
   text-decoration-thickness: 2px;
 }
 
@@ -91,11 +95,18 @@ code {
 
 .site-header__login {
   overflow: hidden;
-  padding-left: var(--space-4);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-chip);
   color: var(--text-muted);
   font-size: var(--font-size-13);
+  text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.site-header__login:hover {
+  color: var(--text);
 }
 
 /* Landing ----------------------------------------------------------------- */
@@ -326,6 +337,185 @@ code {
 
 .notice__title:focus {
   outline: none;
+}
+
+/* Dashboard (M8.2c) ------------------------------------------------------- */
+
+.dashboard {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-48) var(--space-24);
+}
+
+.dashboard__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12) var(--space-24);
+}
+
+.dashboard__title {
+  margin: 0;
+  font-size: var(--font-size-28);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.02em;
+}
+
+.dashboard__lede {
+  margin: var(--space-8) 0 var(--space-32);
+  color: var(--text-muted);
+  font-size: var(--font-size-14);
+}
+
+/* The empty and error states: one quiet card where the list would be. */
+.dashboard__card {
+  padding: var(--space-24);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-tile);
+  background: var(--surface-1);
+}
+
+.dashboard__card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* An error reads in body text, marked by a red bar (as the field's error). */
+.dashboard__card[data-tone="error"] .dashboard__card-title::before {
+  content: "";
+  flex: none;
+  width: 3px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--diff-removed);
+}
+
+.dashboard__card-text {
+  max-width: 60ch;
+  margin: var(--space-8) 0 var(--space-16);
+  color: var(--text-muted);
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-body);
+}
+
+.dashboard__card-text:last-child {
+  margin-bottom: 0;
+}
+
+.dashboard__retry {
+  font-size: var(--font-size-14);
+}
+
+.installation + .installation {
+  margin-top: var(--space-32);
+}
+
+.installation__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-12);
+  padding-bottom: var(--space-8);
+  border-bottom: 1px solid var(--border);
+}
+
+.installation__account {
+  margin: 0;
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.installation__meta {
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+}
+
+.installation__settings {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: auto;
+  border-radius: var(--radius-chip);
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.installation__settings:hover {
+  color: var(--text);
+}
+
+.installation__repos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The hairline is the row's, not the link's: the link's rounded hover wash
+   would bend it at the ends. */
+.installation__repos > li {
+  border-bottom: 1px solid var(--border);
+}
+
+/* A repo is a row-wide link: a hover wash, and the chevron saying it opens. */
+.repo-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 44px;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-chip);
+  color: var(--text);
+  font-size: var(--font-size-14);
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.repo-row:hover {
+  background: var(--surface-1);
+}
+
+.repo-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-row__owner {
+  color: var(--text-muted);
+}
+
+.repo-row__tag {
+  flex: none;
+  padding: 1px var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+}
+
+.repo-row > .gi-ui-icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.installation__none,
+.installation__more {
+  margin: var(--space-12) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
 }
 
 /* Progress page ----------------------------------------------------------- */

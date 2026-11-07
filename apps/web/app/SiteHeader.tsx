@@ -8,10 +8,13 @@ import { ThemeSwitch } from "./ThemeSwitch";
 export const SIGN_IN_HREF = "/api/auth/github";
 /** Where "Sign out" posts (same-origin only, ADR-0221). */
 export const SIGN_OUT_ACTION = "/api/auth/signout";
+/** The signed-in dashboard (M8.2c). */
+export const DASHBOARD_HREF = "/dashboard";
 
 /**
  * The site's quiet top row: the mark and name (home), then sign-in and the theme switch.
- * Signed out, a quiet "Sign in" link; signed in, the GitHub login and "Sign out", a form
+ * Signed out, a quiet "Sign in" link; signed in, the GitHub login (a link to the dashboard,
+ * M8.2c) and "Sign out", a form
  * POST (a link can't sign out: a GET would let any page do it). Nothing about sign-in shows
  * while it isn't set up on the server.
  */
@@ -25,9 +28,13 @@ export function SiteHeader({ theme, signIn }: { theme: Theme; signIn: SignInView
       <div className="site-header__end">
         {signIn.login !== undefined ? (
           <form method="post" action={SIGN_OUT_ACTION} className="site-header__account">
-            <span className="site-header__login" title="Signed in with GitHub">
+            <Link
+              href={DASHBOARD_HREF}
+              className="site-header__login"
+              title={`Your repos (signed in with GitHub as ${signIn.login})`}
+            >
               {signIn.login}
-            </span>
+            </Link>
             <Button type="submit" variant="quiet">
               Sign out
             </Button>

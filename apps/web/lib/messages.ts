@@ -16,6 +16,7 @@ export const SIGN_IN_NOTES: Readonly<Record<string, string>> = {
   expired: "Sign-in took too long, so it was stopped. Try again.",
   failed: "Sign-in didn't work. Try again.",
   unavailable: "Sign-in isn't available right now. Public repos still work without it.",
+  ended: "Your GitHub sign-in ended, so you've been signed out. Sign in again to see your repos.",
 };
 
 /** UX.md's words for a sign-out the server couldn't finish. */

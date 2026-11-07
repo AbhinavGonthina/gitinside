@@ -385,6 +385,30 @@ describe("authDepsFromEnv", () => {
     }
     expect(authDepsFromEnv({ ...AUTH, SESSION_SECRET: "s".repeat(31) })).toBeUndefined();
   });
+
+  it("takes a well-formed app slug for the install link (M8.2c)", () => {
+    expect(authDepsFromEnv(AUTH)?.appSlug).toBeUndefined();
+    expect(authDepsFromEnv({ ...AUTH, GITHUB_APP_SLUG: "gitinside" })?.appSlug).toBe("gitinside");
+    for (const slug of ["", "Git Inside", "../x", "-gitinside", "a/b"]) {
+      expect(authDepsFromEnv({ ...AUTH, GITHUB_APP_SLUG: slug })?.appSlug, slug).toBeUndefined();
+    }
+  });
+
+  it("points GitHub calls at a fake only on this machine (ADR-0223)", () => {
+    const origin = (value: string) =>
+      authDepsFromEnv({ ...AUTH, GITHUB_FAKE_ORIGIN: value })?.client.fakeOrigin;
+    expect(origin("http://127.0.0.1:3110")).toBe("http://127.0.0.1:3110");
+    expect(origin("http://localhost:3110")).toBe("http://localhost:3110");
+    for (const value of [
+      "https://evil.example",
+      "http://127.0.0.1.evil.example:80",
+      "http://127.0.0.1:3110/path",
+      "http://user@127.0.0.1:3110",
+      "",
+    ]) {
+      expect(origin(value), value).toBeUndefined();
+    }
+  });
 });
 
 describe("jobDepsFromEnv", () => {

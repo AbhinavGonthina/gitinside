@@ -88,6 +88,32 @@ export async function findSession(
   return row;
 }
 
+/**
+ * Store a live session's refreshed GitHub tokens (M8.2c): `to` replaces `from` only if the
+ * row still holds `from`, so of two requests refreshing at once only one's tokens are kept
+ * (GitHub's refresh tokens are single use, and the loser reads the winner's). Returns whether
+ * this call replaced them.
+ */
+export async function replaceSessionTokens(
+  db: AnyDatabase,
+  tokenHash: string,
+  from: string,
+  to: string,
+): Promise<boolean> {
+  const updated = await db
+    .update(sessions)
+    .set({ githubTokens: to })
+    .where(
+      and(
+        eq(sessions.tokenHash, tokenHash),
+        eq(sessions.githubTokens, from),
+        gt(sessions.expiresAt, sql`now()`),
+      ),
+    )
+    .returning({ id: sessions.id });
+  return updated.length === 1;
+}
+
 /** Delete the session whose token hashes to `tokenHash` (sign-out); a missing one is fine. */
 export async function deleteSession(db: AnyDatabase, tokenHash: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));

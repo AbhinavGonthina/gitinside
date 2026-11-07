@@ -9,6 +9,7 @@ import {
 } from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
 import type { AuthDeps } from "./authRoute";
+import { fakeOrigin } from "./githubOAuth";
 import { sessionKeys, type SessionKeys } from "./session";
 import { createTurnstile, type BotCheck } from "./botCheck";
 import { createCodeSizeCache } from "./codeSize";
@@ -275,22 +276,34 @@ export function imageDepsFromEnv(
 /** Keys derived per `SESSION_SECRET`, kept so each request doesn't run HKDF again. */
 let keys: { secret: string; keys: SessionKeys } | undefined;
 
+/** A GitHub App's URL name: lowercase letters, digits, and hyphens. */
+const APP_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/;
+
 /**
  * Sign-in's deps (M8.2, ADR-0220, ADR-0221): `DATABASE_URL`, `GITHUB_APP_CLIENT_ID`,
  * `GITHUB_APP_CLIENT_SECRET`, and a `SESSION_SECRET` of at least 32 characters; else
- * `undefined`, and sign-in says it's unavailable.
+ * `undefined`, and sign-in says it's unavailable. `GITHUB_APP_SLUG` (optional, well formed)
+ * gives the dashboard its install link. `GITHUB_FAKE_ORIGIN` points the server's GitHub calls
+ * at the E2E's fake GitHub, and only a loopback origin is taken (ADR-0223).
  */
 export function authDepsFromEnv(env: Env = process.env): AuthDeps | undefined {
   const {
     GITHUB_APP_CLIENT_ID: clientId,
     GITHUB_APP_CLIENT_SECRET: clientSecret,
+    GITHUB_APP_SLUG: slug,
     SESSION_SECRET: secret,
   } = env;
   if (!clientId || !clientSecret || !secret || secret.length < MIN_SECRET_LENGTH) return undefined;
   const db = database(env);
   if (!db) return undefined;
   if (keys?.secret !== secret) keys = { secret, keys: sessionKeys(secret) };
-  return { db, client: { clientId, clientSecret }, keys: keys.keys };
+  const fake = fakeOrigin(env.GITHUB_FAKE_ORIGIN);
+  return {
+    db,
+    client: { clientId, clientSecret, ...(fake !== undefined && { fakeOrigin: fake }) },
+    keys: keys.keys,
+    ...(slug !== undefined && APP_SLUG.test(slug) && { appSlug: slug }),
+  };
 }
 
 /** One process-wide memory of GitHub's answers (lib/repoView.ts). */
