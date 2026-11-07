@@ -10,6 +10,7 @@ import {
 import type { AnalyzeDeps } from "./analyze";
 import type { AuthDeps } from "./authRoute";
 import { fakeOrigin } from "./githubOAuth";
+import type { WebhookDeps } from "./githubWebhook";
 import { sessionKeys, type SessionKeys } from "./session";
 import { createTurnstile, type BotCheck } from "./botCheck";
 import { createCodeSizeCache } from "./codeSize";
@@ -304,6 +305,26 @@ export function authDepsFromEnv(env: Env = process.env): AuthDeps | undefined {
     keys: keys.keys,
     ...(slug !== undefined && APP_SLUG.test(slug) && { appSlug: slug }),
   };
+}
+
+/**
+ * The webhook route's deps (M8.3a, ADR-0220, ADR-0224): `DATABASE_URL` and
+ * `GITHUB_APP_WEBHOOK_SECRET`, plus `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` during a rotation;
+ * each secret at least 32 characters. Else `undefined`, and every delivery gets `503`.
+ */
+export function webhookDepsFromEnv(env: Env = process.env): WebhookDeps | undefined {
+  const secrets: string[] = [];
+  for (const name of ["GITHUB_APP_WEBHOOK_SECRET", "GITHUB_APP_WEBHOOK_SECRET_PREVIOUS"]) {
+    const value = env[name];
+    if (!value) {
+      if (name === "GITHUB_APP_WEBHOOK_SECRET") return undefined;
+      continue;
+    }
+    if (value.length < MIN_SECRET_LENGTH) return undefined;
+    secrets.push(value);
+  }
+  const db = database(env);
+  return db && { db, secrets };
 }
 
 /** One process-wide memory of GitHub's answers (lib/repoView.ts). */

@@ -131,7 +131,12 @@ describe("repos", () => {
   it("are unlinked, not deleted, when their installation is deleted", async () => {
     const [inst] = await t.db
       .insert(installations)
-      .values({ githubInstallationId: 42, accountLogin: "acme" })
+      .values({
+        githubInstallationId: 42,
+        accountId: 7,
+        accountLogin: "acme",
+        accountType: "Organization",
+      })
       .returning();
     const repo = await insertRepo({ visibility: "private", installationId: inst!.id });
     await t.db.delete(installations).where(eq(installations.id, inst!.id));
