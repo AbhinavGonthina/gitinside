@@ -114,6 +114,30 @@ export function hasChangesBesides(root: string, own: string[]): boolean {
   return status.trim() !== "";
 }
 
+/**
+ * The commits of the git repo at `dir` that descend from `from` and are `to` or its ancestors
+ * (`from` itself left out), oldest first: by commit time, never a commit before one of its
+ * parents (`--date-order`). These are every state a fix for a break `from` merged can be in,
+ * the branch's direct pushes and PR branches' commits included, up to `to`.
+ */
+export function laterCommits(dir: string, from: string, to: string): string[] {
+  const out = git(dir, [
+    "rev-list",
+    "--ancestry-path",
+    "--date-order",
+    "--reverse",
+    `${from}..${to}`,
+    "--",
+  ]);
+  return out.split("\n").filter((line) => line !== "");
+}
+
+/** When commit `sha` of the git repo at `dir` was committed, in UTC (ISO 8601, to the second). */
+export function committedAt(dir: string, sha: string): string {
+  const seconds = Number(git(dir, ["show", "-s", "--format=%ct", sha, "--"]).trim());
+  return new Date(seconds * 1000).toISOString().replace(".000Z", "Z");
+}
+
 /** A {@link GitView} over the git repo at `dir`. */
 export function gitView(dir: string): GitView {
   return {
