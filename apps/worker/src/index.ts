@@ -95,6 +95,12 @@ export {
   type StepProgress,
 } from "./progress.js";
 export { createAnalysisRecorder, type AnalysisRecorder, type RecorderOptions } from "./record.js";
+export {
+  createTokenClient,
+  type InstallationTokenSource,
+  type TokenAsk,
+  type TokenClientOptions,
+} from "./installationToken.js";
 export type { AnalysisStats, ChildJob } from "./protocol.js";
 export type { StoredProgress } from "./progress.js";
 export {
