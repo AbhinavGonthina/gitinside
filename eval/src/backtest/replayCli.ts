@@ -11,15 +11,13 @@
  * (write it to a gitignored `--out`). `.github/workflows/backtest-replay.yml` runs it on
  * GitHub's runners, one job per repo.
  */
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { rename, rm, writeFile } from "node:fs/promises";
-import { cpus, platform, release, totalmem } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ANALYZER_VERSION, openDiskCache } from "@gitinside/analyzer";
+import { openDiskCache } from "@gitinside/analyzer";
+import { takeFlag, thisRun, writeAtomically } from "./cliShared.js";
 import { parseBacktestReposFile } from "./format.js";
-import { ensureClone, hasChangesBesides, removeStrayWorktrees } from "./git.js";
+import { ensureClone, removeStrayWorktrees } from "./git.js";
 import { parsePrsFile, prsFileName } from "./prs.js";
 import {
   cannotResume,
@@ -28,65 +26,10 @@ import {
   parseRawFile,
   replayRepo,
   type RawFile,
-  type ReplayRun,
 } from "./replay.js";
 
 const EVAL = fileURLToPath(new URL("../../", import.meta.url));
 const ROOT = join(EVAL, "..");
-
-function git(args: string[]): string {
-  return execFileSync("git", ["-C", ROOT, ...args], { encoding: "utf8", windowsHide: true }).trim();
-}
-
-/** Today's local date as YYYY-MM-DD. */
-function today(): string {
-  const d = new Date();
-  const pad = (n: number): string => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-/**
- * This run: the gitinside commit (marked if the tree has changes besides `own`, the raw files
- * it writes), analyzer, machine, day.
- */
-function thisRun(own: string[]): ReplayRun {
-  const dirty = hasChangesBesides(ROOT, own);
-  const cpu = cpus();
-  return {
-    gitinside: `${git(["rev-parse", "HEAD"])}${dirty ? DIRTY_MARK : ""}`,
-    analyzerVersion: ANALYZER_VERSION,
-    started: today(),
-    machine: {
-      cpu: cpu[0]?.model.trim() ?? "unknown",
-      cores: cpu.length,
-      ramGiB: Math.round((totalmem() / 1024 ** 3) * 10) / 10,
-      os: `${platform()} ${release()}`,
-      node: process.version,
-    },
-  };
-}
-
-/** The value after `--<name>`, removed from `args`, or `undefined`. */
-function takeFlag(args: string[], name: string): string | undefined {
-  const at = args.indexOf(`--${name}`);
-  if (at < 0) return undefined;
-  const value = args[at + 1];
-  if (value === undefined || value.startsWith("--")) throw new Error(`--${name} needs a value`);
-  args.splice(at, 2);
-  return value;
-}
-
-/** Write via a sibling temp file and a rename, so a stopped run never leaves half a file. */
-async function writeAtomically(file: string, text: string): Promise<void> {
-  const temp = `${file}.${process.pid}.tmp`;
-  try {
-    await writeFile(temp, text);
-    await rename(temp, file);
-  } catch (error) {
-    await rm(temp, { force: true });
-    throw error;
-  }
-}
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -108,6 +51,7 @@ async function main(): Promise<void> {
     throw new Error(`not every repo named is pinned: ${asked.join(", ")}`);
   // A restarted run sees its own raw files as changes; they mustn't make it call itself dirty.
   const run = thisRun(
+    ROOT,
     repos.map((r) =>
       relative(ROOT, join(out, prsFileName(r)))
         .split(sep)
