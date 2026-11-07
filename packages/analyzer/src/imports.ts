@@ -192,6 +192,8 @@ function exportTargets(exports: unknown, subpath: string): string[] {
 export interface ResolvedImport {
   path: string;
   confidence: Confidence;
+  /** True when TypeScript's own resolution found it (not a workspace manifest). */
+  byTypeScript?: true;
 }
 
 /**
@@ -292,7 +294,7 @@ export function createModuleResolver(
   return (specifier, sourceFile, literal) => {
     const mode = ts.getModeForUsageLocation(sourceFile, literal, options);
     const tsPath = resolveTs(specifier, sourceFile.fileName, mode);
-    if (tsPath !== undefined) return { path: tsPath, confidence: "exact" };
+    if (tsPath !== undefined) return { path: tsPath, confidence: "exact", byTypeScript: true };
     const pkgTarget = workspaceTarget(workspace, specifier);
     return pkgTarget ? resolveWorkspace(pkgTarget.pkg, pkgTarget.subpath) : undefined;
   };
@@ -323,7 +325,9 @@ export function createModuleResolver(
  * A target that resolves to a repo file outside every service gets an
  * `IMPORT_OUTSIDE_SERVICE` warning instead of an edge. Repeated imports of the same target
  * from one file share one edge, with every site listed. Type-only imports count: they are
- * real file dependencies.
+ * real file dependencies. A site whose import asks the file for names it doesn't export
+ * carries them as `missingExports` (see {@link missingExports}), the evidence the diff
+ * needs for a call to a removed symbol (M7.2e).
  *
  * Not handled: `exports` wildcard patterns (`./*`), `typesVersions`, conditional
  * `paths` per environment, and resolution through real `node_modules` (never present).
@@ -347,8 +351,107 @@ export interface ImportFact {
   to: string;
   /** `exact` or `heuristic` for a file, `unresolved` for an unresolved node. */
   confidence: Confidence;
-  /** The specifier's location. */
-  site: SourceLocation;
+  /** The specifier's location, with `missingExports` when the file lacks names it asks for. */
+  site: SourceLocation & { missingExports?: string[] };
+}
+
+/**
+ * The names an import or re-export declaration asks its module for: `default` for a
+ * default import, each named import's or re-export's name in the module (`b` for
+ * `{ b as c }`). Empty for side-effect, namespace (`* as ns`), star, `require`, and
+ * `import()` imports, which name nothing the analyzer can check.
+ */
+function requestedNames(literal: ts.StringLiteralLike): string[] {
+  const declaration = literal.parent;
+  const names: string[] = [];
+  if (ts.isImportDeclaration(declaration)) {
+    const clause = declaration.importClause;
+    if (clause?.name) names.push("default");
+    const bindings = clause?.namedBindings;
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const element of bindings.elements)
+        names.push((element.propertyName ?? element.name).text);
+    }
+  } else if (
+    ts.isExportDeclaration(declaration) &&
+    declaration.exportClause &&
+    ts.isNamedExports(declaration.exportClause)
+  ) {
+    for (const element of declaration.exportClause.elements) {
+      names.push((element.propertyName ?? element.name).text);
+    }
+  }
+  return names;
+}
+
+/**
+ * Whether a file's text assigns CommonJS exports (`module.exports`, `exports.x =`), comments
+ * included. An ES import beside them (`import fs from "fs"; module.exports = db`) makes
+ * TypeScript read the file as an ES module without those names, while a bundler's interop
+ * answers the import from `module.exports` (M7.2e: maxun's `db/models/index.js`).
+ */
+const COMMONJS_EXPORTS = /\bmodule\.exports\b|\bexports\.[\w$]+\s*=/;
+
+/**
+ * Whether the checker knows every export of `module`: an ES module whose `export *`
+ * re-exports all resolve, recursively, to modules it knows too. Not for `export =` or
+ * CommonJS (`module.exports`) modules, whose names depend on a value's type, nor for a file
+ * mixing the two ({@link COMMONJS_EXPORTS}).
+ */
+function exportsKnown(checker: ts.TypeChecker, module: ts.Symbol, seen: Set<ts.Symbol>): boolean {
+  if (seen.has(module)) return true;
+  seen.add(module);
+  if (module.exports?.has(ts.InternalSymbolName.ExportEquals as ts.__String)) return false;
+  for (const declaration of module.declarations ?? []) {
+    if (!ts.isSourceFile(declaration)) continue;
+    if (!ts.isExternalModule(declaration) || COMMONJS_EXPORTS.test(declaration.text)) return false;
+    for (const statement of declaration.statements) {
+      if (!ts.isExportDeclaration(statement) || statement.exportClause) continue;
+      const specifier = statement.moduleSpecifier;
+      const inner = specifier && checker.getSymbolAtLocation(specifier);
+      if (!inner || !exportsKnown(checker, inner, seen)) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The names the import at `literal` asks for that `target` (a repo file TypeScript resolved
+ * it to) doesn't export, sorted; `undefined` when there are none or the exports aren't known
+ * (M7.2e). A file that isn't a module at all (emptied, or with no `import`/`export` left)
+ * exports nothing. Not checked: a target TypeScript didn't resolve (a workspace package
+ * found through its manifest), declaration files, `export =` and CommonJS modules (and a
+ * file whose text assigns CommonJS exports at all), and a module re-exporting (`export *`)
+ * one TypeScript can't resolve.
+ */
+function missingExports(
+  sp: ServiceProgram,
+  checker: ts.TypeChecker,
+  literal: ts.StringLiteralLike,
+  target: ResolvedImport,
+): string[] | undefined {
+  const names = requestedNames(literal);
+  if (names.length === 0 || target.byTypeScript !== true) return undefined;
+  const file = sp.program.getSourceFile(sp.toAbsolute(target.path));
+  if (!file || file.isDeclarationFile) return undefined;
+  let exported: ReadonlySet<string>;
+  try {
+    const module = checker.getSymbolAtLocation(literal);
+    if (module === undefined) {
+      // TypeScript resolved the file but found no module in it.
+      if (ts.isExternalModule(file) || COMMONJS_EXPORTS.test(file.text)) return undefined;
+      exported = new Set();
+    } else {
+      if (!module.declarations?.includes(file)) return undefined;
+      if (!exportsKnown(checker, module, new Set())) return undefined;
+      exported = new Set(checker.getExportsOfModule(module).map((s) => s.name));
+    }
+  } catch {
+    // The checker can crash on code it doesn't expect (see `guardedChecker`): unknown.
+    return undefined;
+  }
+  const missing = [...new Set(names.filter((name) => !exported.has(name)))].sort(compareStrings);
+  return missing.length === 0 ? undefined : missing;
 }
 
 /**
@@ -368,13 +471,15 @@ export interface ImportFacts {
 
 /**
  * The imports of one service's root files (see {@link buildImportGraph} for the rules).
- * `sourceFiles` is the inventory's source list; `manifests` may be shared between services.
+ * `sourceFiles` is the inventory's source list; `manifests` may be shared between services;
+ * `checker` (the program's, or the analysis's guarded one) reads the imported files' exports.
  */
 export function collectImportFacts(
   sp: ServiceProgram,
   workspace: Workspace,
   sourceFiles: readonly string[],
   manifests: ManifestCache = new Map(),
+  checker: ts.TypeChecker = sp.program.getTypeChecker(),
 ): ImportFacts {
   const sources = new Set(sourceFiles);
   const facts: ImportFacts = { service: sp.service.key, imports: [], unresolved: [], warnings: [] };
@@ -407,7 +512,13 @@ export function collectImportFacts(
           continue;
         }
         const to = fileNodeId(target, resolved.path);
-        facts.imports.push({ from, to, confidence: resolved.confidence, site });
+        const missing = missingExports(sp, checker, literal, resolved);
+        facts.imports.push({
+          from,
+          to,
+          confidence: resolved.confidence,
+          site: missing === undefined ? site : { ...site, missingExports: missing },
+        });
         continue;
       }
 

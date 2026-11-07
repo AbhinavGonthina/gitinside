@@ -104,6 +104,55 @@ describe("broken connections in the diff-broken fixture pair", () => {
   });
 });
 
+describe("broken connections in the diff-export fixture pair (M7.2e)", () => {
+  const base = fixture("diff-export-base");
+  const head = fixture("diff-export-head");
+  const diff = diffGraphs(base, head);
+  const p = "diff-export";
+
+  it("finds the calls to the emptied file's class and the deleted function, at their imports", () => {
+    expect(
+      diff.broken.map(({ from, to, reason, detail, sites }) => ({
+        from,
+        to,
+        reason,
+        detail,
+        sites: sites.map((s) => `${s.file}:${s.line}:${s.column}`),
+      })),
+    ).toEqual([
+      {
+        from: `symbol:${p}/src/run.ts#quiet`,
+        to: `symbol:${p}/src/format.ts#whisper`,
+        reason: "TARGET_REMOVED",
+        detail: "whisper was removed",
+        sites: ["src/run.ts:2:32"],
+      },
+      {
+        from: `symbol:${p}/src/run.ts#quiet`,
+        to: `symbol:${p}/src/interpreter.ts#Interpreter.extract`,
+        reason: "TARGET_REMOVED",
+        detail: "Interpreter.extract was removed",
+        sites: ["src/run.ts:1:29"],
+      },
+      {
+        from: `symbol:${p}/src/run.ts#run`,
+        to: `symbol:${p}/src/interpreter.ts#Interpreter.parse`,
+        reason: "TARGET_REMOVED",
+        detail: "Interpreter.parse was removed",
+        sites: ["src/run.ts:1:29"],
+      },
+    ]);
+    expect(diff.summary.broken).toBe(3);
+    expect(parseGraphDiff(JSON.parse(JSON.stringify(diff)))).toEqual(diff);
+  });
+
+  it("keeps the diff complete, and finds nothing broken in reverse or against itself", () => {
+    expect(stringifyGraph(applyDiff(base, diff))).toBe(stringifyGraph(head));
+    expect(diffGraphs(head, base).broken).toEqual([]);
+    expect(diffGraphs(base, base).broken).toEqual([]);
+  });
+});
+
 // Hand-built graphs: one service `api` (root `apps/api`) with a client and a server file.
 const svc = nodeId("service", "api", "");
 const clientFile = nodeId("file", "api", "src/client.ts");
@@ -558,7 +607,7 @@ describe("detectBroken: imports and Prisma models", () => {
     expect(reasons(base, graph("d4e5f60", [...BASE_NODES, n], [e]))).toEqual([]);
   });
 
-  it("calls to a removed function aren't detected (no head evidence; documented)", () => {
+  it("a call to a removed function with no import of its name left isn't detected (no head evidence)", () => {
     const helper: GraphNode = {
       id: nodeId("symbol", "api", "src/server.ts#helper"),
       kind: "symbol",
@@ -569,6 +618,152 @@ describe("detectBroken: imports and Prisma models", () => {
     };
     const base = graph("a1b2c3f", [...BASE_NODES, helper], [edge("calls", caller, helper.id)]);
     expect(reasons(base, graph("d4e5f60", BASE_NODES, []))).toEqual([]);
+  });
+});
+
+describe("detectBroken: calls to a removed symbol whose name head still imports (M7.2e)", () => {
+  const helper: GraphNode = {
+    id: nodeId("symbol", "api", "src/server.ts#helper"),
+    kind: "symbol",
+    label: "helper",
+    parentId: serverFile,
+    symbolKind: "function",
+    exported: true,
+  };
+  const store: GraphNode = {
+    id: nodeId("symbol", "api", "src/server.ts#Store"),
+    kind: "symbol",
+    label: "Store",
+    parentId: serverFile,
+    symbolKind: "class",
+    exported: true,
+  };
+  const parse: GraphNode = {
+    id: `${store.id}.parse`,
+    kind: "symbol",
+    label: "parse",
+    parentId: store.id,
+    symbolKind: "method",
+    exported: true,
+  };
+  const importSite = (line: number, missingExports?: string[]) => ({
+    ...loc("apps/api/src/client.ts", line),
+    ...(missingExports === undefined ? {} : { missingExports }),
+  });
+  /** Base: `load` calls `target`, and client.ts imports server.ts. Head: the symbols are gone; the import's sites are `sites`. */
+  const removedPair = (target: GraphNode, sites: ReturnType<typeof importSite>[]) => {
+    const base = graph(
+      "a1b2c3f",
+      [...BASE_NODES, helper, store, parse],
+      [
+        edge("calls", caller, target.id),
+        edge("imports", clientFile, serverFile, { sites: [importSite(1)] }),
+      ],
+    );
+    const head = graph("d4e5f60", BASE_NODES, [edge("imports", clientFile, serverFile, { sites })]);
+    return { base, head };
+  };
+
+  it("is TARGET_REMOVED, listing the head imports that still ask for the name", () => {
+    const { base, head } = removedPair(helper, [
+      importSite(1, ["helper"]),
+      importSite(2),
+      importSite(3, ["helper", "other"]),
+    ]);
+    expect(diffGraphs(base, head).broken).toEqual([
+      {
+        edge: edgeId("calls", caller, helper.id),
+        from: caller,
+        to: helper.id,
+        reason: "TARGET_REMOVED",
+        detail: "helper was removed",
+        sites: [loc("apps/api/src/client.ts", 1), loc("apps/api/src/client.ts", 3)],
+      },
+    ]);
+  });
+
+  it("names a removed method by its class, which is what the import asks for", () => {
+    const { base, head } = removedPair(parse, [importSite(1, ["Store"])]);
+    expect(reasons(base, head)).toEqual(["TARGET_REMOVED: Store.parse was removed"]);
+  });
+
+  it.each([
+    ["the import asks for nothing missing", [importSite(1)]],
+    ["another name is missing", [importSite(1, ["other"])]],
+    ["only a method's own name is missing", [importSite(1, ["parse"])]],
+  ])("isn't broken when %s", (_why, sites) => {
+    expect(reasons(removedPair(helper, sites).base, removedPair(helper, sites).head)).toEqual([]);
+    expect(reasons(removedPair(parse, sites).base, removedPair(parse, sites).head)).toEqual([]);
+  });
+
+  it("isn't broken when the missing name is imported from another file", () => {
+    const { base } = removedPair(helper, []);
+    const other: GraphNode = {
+      id: nodeId("file", "api", "src/other.ts"),
+      kind: "file",
+      label: "other.ts",
+      parentId: svc,
+      path: "apps/api/src/other.ts",
+      hash: hash("d"),
+    };
+    const head = graph(
+      "d4e5f60",
+      [...BASE_NODES, other],
+      [
+        edge("imports", clientFile, serverFile, { sites: [importSite(1)] }),
+        edge("imports", clientFile, other.id, { sites: [importSite(2, ["helper"])] }),
+      ],
+    );
+    expect(reasons(base, head)).toEqual([]);
+  });
+
+  it("finds a file-level call, and a call whose caller was renamed", () => {
+    const base = graph(
+      "a1b2c3f",
+      [...BASE_NODES, helper],
+      [
+        edge("calls", clientFile, helper.id),
+        edge("calls", caller, helper.id),
+        edge("imports", clientFile, serverFile),
+      ],
+    );
+    const client2 = nodeId("file", "api", "src/client2.ts");
+    const caller2 = nodeId("symbol", "api", "src/client2.ts#load");
+    const head = graph(
+      "d4e5f60",
+      BASE_NODES.map((n) =>
+        n.id === clientFile
+          ? { ...n, id: client2, path: "apps/api/src/client2.ts" }
+          : n.id === caller
+            ? { ...n, id: caller2, parentId: client2 }
+            : n,
+      ),
+      [edge("imports", client2, serverFile, { sites: [importSite(1, ["helper"])] })],
+    );
+    const renames = new Map([
+      [clientFile, client2],
+      [caller, caller2],
+    ]);
+    expect(detectBroken(base, head, renames).map((b) => [b.from, b.to, b.reason])).toEqual([
+      [client2, helper.id, "TARGET_REMOVED"],
+      [caller2, helper.id, "TARGET_REMOVED"],
+    ]);
+  });
+
+  it("isn't broken when the symbol survives, or when the caller is gone", () => {
+    const { base } = removedPair(helper, []);
+    const kept = graph(
+      "d4e5f60",
+      [...BASE_NODES, helper],
+      [edge("imports", clientFile, serverFile, { sites: [importSite(1, ["helper"])] })],
+    );
+    expect(reasons(base, kept)).toEqual([]);
+    const noCaller = graph(
+      "d4e5f60",
+      BASE_NODES.filter((n) => n.id !== caller),
+      [edge("imports", clientFile, serverFile, { sites: [importSite(1, ["helper"])] })],
+    );
+    expect(reasons(base, noCaller)).toEqual([]);
   });
 });
 

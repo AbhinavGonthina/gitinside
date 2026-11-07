@@ -1,0 +1,305 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:diff-export/src/run.ts#quiet",
+      "id": "calls:symbol:diff-export/src/run.ts#quiet->symbol:diff-export/src/format.ts#whisper",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/run.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:diff-export/src/format.ts#whisper"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:diff-export/src/run.ts#quiet",
+      "id": "calls:symbol:diff-export/src/run.ts#quiet->symbol:diff-export/src/interpreter.ts#Interpreter.extract",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 30,
+          "file": "src/run.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:diff-export/src/interpreter.ts#Interpreter.extract"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:diff-export/src/run.ts#run",
+      "id": "calls:symbol:diff-export/src/run.ts#run->symbol:diff-export/src/format.ts#shout",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 28,
+          "file": "src/run.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:diff-export/src/format.ts#shout"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:diff-export/src/run.ts#run",
+      "id": "calls:symbol:diff-export/src/run.ts#run->symbol:diff-export/src/interpreter.ts#Interpreter.parse",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 22,
+          "file": "src/run.ts",
+          "line": 5
+        }
+      ],
+      "to": "symbol:diff-export/src/interpreter.ts#Interpreter.parse"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-export/src/limits.ts",
+      "id": "imports:file:diff-export/src/limits.ts->file:diff-export/src/interpreter.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 26,
+          "file": "src/limits.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:diff-export/src/interpreter.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-export/src/run.ts",
+      "id": "imports:file:diff-export/src/run.ts->file:diff-export/src/format.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/run.ts",
+          "line": 2
+        }
+      ],
+      "to": "file:diff-export/src/format.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:diff-export/src/run.ts",
+      "id": "imports:file:diff-export/src/run.ts->file:diff-export/src/interpreter.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/run.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:diff-export/src/interpreter.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "4e0ad09ee66ee6798d95c280041f4982bcc340ebb84aa7130ac5b9d44a9db787",
+      "id": "file:diff-export/src/format.ts",
+      "kind": "file",
+      "label": "format.ts",
+      "parentId": "module:diff-export/src",
+      "path": "src/format.ts"
+    },
+    {
+      "hash": "128f8178c66f71f6a5bc1cfedf21b502f5c59f85350b73558d85c98dbb494807",
+      "id": "file:diff-export/src/interpreter.ts",
+      "kind": "file",
+      "label": "interpreter.ts",
+      "parentId": "module:diff-export/src",
+      "path": "src/interpreter.ts"
+    },
+    {
+      "hash": "eca32ad35528b8835df9c9f276fd420ff84c6593263faec4946d8e15dd4e2230",
+      "id": "file:diff-export/src/limits.ts",
+      "kind": "file",
+      "label": "limits.ts",
+      "parentId": "module:diff-export/src",
+      "path": "src/limits.ts"
+    },
+    {
+      "hash": "f027595130ff2a430824508c4a36468dcea84ad73a7389600cb516877990e44c",
+      "id": "file:diff-export/src/run.ts",
+      "kind": "file",
+      "label": "run.ts",
+      "parentId": "module:diff-export/src",
+      "path": "src/run.ts"
+    },
+    {
+      "id": "module:diff-export/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:diff-export/",
+      "path": "src"
+    },
+    {
+      "id": "service:diff-export/",
+      "kind": "service",
+      "label": "diff-export",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/format.ts#shout",
+      "kind": "symbol",
+      "label": "shout",
+      "parentId": "file:diff-export/src/format.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 3,
+        "file": "src/format.ts",
+        "line": 1
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/format.ts#whisper",
+      "kind": "symbol",
+      "label": "whisper",
+      "parentId": "file:diff-export/src/format.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/format.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/interpreter.ts#Interpreter",
+      "kind": "symbol",
+      "label": "Interpreter",
+      "parentId": "file:diff-export/src/interpreter.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/interpreter.ts",
+        "line": 3
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/interpreter.ts#Interpreter.extract",
+      "kind": "symbol",
+      "label": "extract",
+      "parentId": "symbol:diff-export/src/interpreter.ts#Interpreter",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 10,
+        "file": "src/interpreter.ts",
+        "line": 8
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/interpreter.ts#Interpreter.parse",
+      "kind": "symbol",
+      "label": "parse",
+      "parentId": "symbol:diff-export/src/interpreter.ts#Interpreter",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 6,
+        "file": "src/interpreter.ts",
+        "line": 4
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/interpreter.ts#MAX_SIZE",
+      "kind": "symbol",
+      "label": "MAX_SIZE",
+      "parentId": "file:diff-export/src/interpreter.ts",
+      "source": {
+        "column": 14,
+        "endLine": 1,
+        "file": "src/interpreter.ts",
+        "line": 1
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/limits.ts#limit",
+      "kind": "symbol",
+      "label": "limit",
+      "parentId": "file:diff-export/src/limits.ts",
+      "source": {
+        "column": 14,
+        "endLine": 3,
+        "file": "src/limits.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/run.ts#quiet",
+      "kind": "symbol",
+      "label": "quiet",
+      "parentId": "file:diff-export/src/run.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/run.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:diff-export/src/run.ts#run",
+      "kind": "symbol",
+      "label": "run",
+      "parentId": "file:diff-export/src/run.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/run.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "diff-export-base",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "diff-export-base",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

@@ -110,6 +110,8 @@ const EXPECTED: Record<string, string[]> = {
   "config-wrapper": ["9b37fdeb4f08d807", "d1474590e6a2dab0", "4e7661c56985e3aa"],
   "diff-broken-base": ["bcd4b43a268fe1d4", "8f4f6940b880d91a", "1697898c7befd3f1"],
   "diff-broken-head": ["857887a7f6f7aafb", "ad567ab1bb9a6594", "6e90d6f1aea7b8a5"],
+  "diff-export-base": ["3fc81c886cc24a1e", "48aa05bb0a4561fa", "c2bfe2d50fa3a6c5"],
+  "diff-export-head": ["5d29c412f8eb7a81", "9c935e865ceee33c", "a0d3b8a69cb99f32"],
   "diff-rename-base": ["91914401c85b3e45", "c0eb7ea5bad35329", "2a58638f769b631c"],
   "diff-rename-head": ["a53ced415c16a067", "ecee12699249acfa", "eae6dd240d0a5018"],
   "env-base-heuristic": ["a216e46368f855ac", "73491fd94efdfefc", "7f66af5403b0ff2f"],

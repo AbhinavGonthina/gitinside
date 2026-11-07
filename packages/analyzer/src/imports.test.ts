@@ -72,6 +72,127 @@ function importEdges(graph: ArchitectureGraph): string[] {
     .map((e) => `${e.from} -> ${e.to} (${e.confidence})`);
 }
 
+/** `file:line -> to [missing]` for each import site that lacks names (M7.2e). */
+function missing(graph: ArchitectureGraph): string[] {
+  return graph.edges
+    .filter((e) => e.kind === "imports")
+    .flatMap((e) =>
+      e.sites.flatMap((s) =>
+        s.missingExports === undefined
+          ? []
+          : [`${s.file}:${s.line} -> ${e.to} [${s.missingExports.join(", ")}]`],
+      ),
+    );
+}
+
+describe("names an import asks for that its file doesn't export (M7.2e)", () => {
+  it("lists every name asked of an emptied file, default included, sorted", async () => {
+    await put("tsconfig.json", "{}");
+    await put(
+      "src/app.ts",
+      [
+        'import Def, { Zed, Alpha as A } from "./empty";',
+        'import type { T } from "./empty";',
+        'export { Beta } from "./empty";',
+        'import "./empty";',
+        'import * as ns from "./empty";',
+        "export const x = [Def, Zed, A, ns];",
+        "",
+      ].join("\n"),
+    );
+    await put("src/empty.ts", "");
+    expect(missing(await analyze(dir))).toEqual([
+      "src/app.ts:1 -> file:app/src/empty.ts [Alpha, Zed, default]",
+      "src/app.ts:2 -> file:app/src/empty.ts [T]",
+      "src/app.ts:3 -> file:app/src/empty.ts [Beta]",
+    ]);
+  });
+
+  it("lists only the names a module lacks, through re-exports, and treats a script as exporting nothing", async () => {
+    await put("tsconfig.json", "{}");
+    await put(
+      "src/app.ts",
+      [
+        'import { a, gone, type Shape } from "./m";',
+        'import { inner, alsoGone } from "./barrel";',
+        'import { default as d } from "./m";',
+        'import { anything } from "./script";',
+        "export const x = [a, gone, inner, alsoGone, d, anything];",
+        "",
+      ].join("\n"),
+    );
+    await put("src/m.ts", "export const a = 1;\nexport interface Shape { n: number }\n");
+    await put("src/barrel.ts", 'export * from "./inner";\nexport * as space from "./m";\n');
+    await put("src/inner.ts", "export function inner() {}\n");
+    await put("src/script.ts", "const local = 1;\nconsole.log(local);\n");
+    expect(missing(await analyze(dir))).toEqual([
+      "src/app.ts:2 -> file:app/src/barrel.ts [alsoGone]",
+      "src/app.ts:1 -> file:app/src/m.ts [gone]",
+      "src/app.ts:3 -> file:app/src/m.ts [default]",
+      "src/app.ts:4 -> file:app/src/script.ts [anything]",
+    ]);
+  });
+
+  it("records nothing when every name is there", async () => {
+    await put("tsconfig.json", "{}");
+    await put(
+      "src/app.ts",
+      'import def, { a } from "./m";\nexport { b as c } from "./m";\nexport const x = [def, a];\n',
+    );
+    await put("src/m.ts", "export const a = 1, b = 2;\nexport default a;\n");
+    const graph = await analyze(dir);
+    expect(missing(graph)).toEqual([]);
+    expect(graph.edges.find((e) => e.kind === "imports")?.sites).toEqual([
+      { file: "src/app.ts", line: 1, column: 24 },
+      { file: "src/app.ts", line: 2, column: 24 },
+    ]);
+  });
+
+  it("doesn't guess when the exports aren't known", async () => {
+    await put("tsconfig.json", JSON.stringify({ compilerOptions: { allowJs: true } }));
+    await put(
+      "src/app.ts",
+      [
+        'import { x1 } from "./unknownStar";',
+        'import { x2 } from "./equals";',
+        'import { x3 } from "./common.js";',
+        'import { x4 } from "./types";',
+        'const { x5 } = require("./m");',
+        'import x6 from "./mixed.js";',
+        'import { x7 } from "./mixedNamed.js";',
+        'export const all = [x1, x2, x3, x4, x5, x6, x7, import("./m")];',
+        "",
+      ].join("\n"),
+    );
+    await put("src/unknownStar.ts", 'export * from "@vendor/missing";\nexport const y = 1;\n');
+    await put("src/equals.ts", "const value = { y: 1 };\nexport = value;\n");
+    await put("src/common.js", "module.exports = { y: 1 };\n");
+    await put("src/types.d.ts", "export declare const y: number;\n");
+    await put("src/m.ts", "export const y = 1;\n");
+    // ES imports beside CommonJS exports (maxun's `db/models/index.js`): a bundler's
+    // interop answers the import from `module.exports`, which TypeScript doesn't read.
+    await put("src/mixed.js", 'import fs from "fs";\nconst db = { fs };\nmodule.exports = db;\n');
+    await put("src/mixedNamed.js", 'import fs from "fs";\nexports.x7 = fs;\n');
+    const graph = await analyze(dir);
+    expect(importEdges(graph)).toHaveLength(7);
+    expect(missing(graph)).toEqual([]);
+  });
+
+  it("doesn't check a workspace package found only through its manifest", async () => {
+    await put("package.json", JSON.stringify({ workspaces: ["apps/*", "packages/*"] }));
+    await put("apps/web/package.json", JSON.stringify({ name: "web" }));
+    await put(
+      "apps/web/app.ts",
+      'import { notThere } from "@acme/shared";\nexport { notThere };\n',
+    );
+    await put("packages/shared/package.json", JSON.stringify({ name: "@acme/shared" }));
+    await put("packages/shared/src/index.ts", "export const shared = 1;\n");
+    const graph = await analyze(dir);
+    expect(importEdges(graph)).toEqual(["file:web/app.ts -> file:shared/src/index.ts (heuristic)"]);
+    expect(missing(graph)).toEqual([]);
+  });
+});
+
 describe("import edges", () => {
   it("links relative imports, index files, .js specifiers, and merges repeated sites", async () => {
     await put("tsconfig.json", "{}");
