@@ -2,7 +2,17 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { WORKER_MEMORY_GB, WORKER_VCPUS, computeUsage, computeUsageThisMonth } from "@gitinside/db";
+import {
+  KILLSWITCH_MEMORY_GB,
+  KILLSWITCH_MONTHLY_REQUESTS,
+  KILLSWITCH_RESERVE,
+  KILLSWITCH_SECONDS_PER_REQUEST,
+  KILLSWITCH_VCPUS,
+  WORKER_MEMORY_GB,
+  WORKER_VCPUS,
+  computeUsage,
+  computeUsageThisMonth,
+} from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -54,22 +64,23 @@ describe("createUsageMeter", () => {
     expect(lines).toEqual([]);
   });
 
-  it("counts startup with the shutdown's allowance up front, and no request", async () => {
+  it("counts startup with the shutdown's allowance and the secrets Cloud Run read, and no request", async () => {
     await createUsageMeter({ db: t.db, log }).startup(1_234);
     expect(await computeUsageThisMonth(t.db)).toMatchObject({
       instanceMs: 1_300 + SHUTDOWN_ALLOWANCE_MS,
       runRequests: 0,
       taskOperations: 0,
+      secretAccesses: SECRET_READS_PER_START,
     });
   });
 
-  it("counts the secrets Cloud Run read for the instance as Secret Manager accesses, and nothing else", async () => {
-    await createUsageMeter({ db: t.db, log }).secretReads();
+  it("counts the rest of a start (to listening, or to failing) as instance time alone (M5.14b4)", async () => {
+    await createUsageMeter({ db: t.db, log }).startupRest(1_234);
     expect(await computeUsageThisMonth(t.db)).toMatchObject({
-      instanceMs: 0,
+      instanceMs: 1_300,
       runRequests: 0,
       taskOperations: 0,
-      secretAccesses: SECRET_READS_PER_START,
+      secretAccesses: 0,
     });
   });
 
@@ -87,11 +98,11 @@ describe("createUsageMeter", () => {
     const meter = createUsageMeter({ db: broken, log });
     await expect(meter.push(10)).resolves.toBeUndefined();
     await expect(meter.startup(10)).resolves.toBeUndefined();
-    await expect(meter.secretReads()).resolves.toBeUndefined();
+    await expect(meter.startupRest(10)).resolves.toBeUndefined();
     expect(lines).toEqual([
       { event: "compute_count_failed", what: "push", message: "db down" },
       { event: "compute_count_failed", what: "startup", message: "db down" },
-      { event: "compute_count_failed", what: "secrets", message: "db down" },
+      { event: "compute_count_failed", what: "startup_rest", message: "db down" },
     ]);
   });
 });
@@ -124,5 +135,43 @@ describe("the counted instance", () => {
     const [container] = service.spec.template.spec.containers;
     expect(container?.resources.limits).toEqual({ cpu: String(WORKER_VCPUS), memory: "4Gi" });
     expect(WORKER_MEMORY_GB).toBeCloseTo((4 * 2 ** 30) / 1e9, 9);
+  });
+});
+
+describe("the kill switch's reserve", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const killswitch = JSON.parse(
+    readFileSync(join(here, "..", "..", "..", "infra", "gcp", "killswitch.json"), "utf8"),
+  ) as {
+    spec: {
+      template: {
+        spec: {
+          containers: {
+            resources: { limits: Record<string, string> };
+            env: { name: string; valueFrom?: unknown }[];
+          }[];
+        };
+      };
+    };
+  };
+
+  it("is sized for the kill switch's Cloud Run service: 1 vCPU and 512 MiB (infra/gcp/killswitch.json)", () => {
+    const [container] = killswitch.spec.template.spec.containers;
+    expect(container?.resources.limits).toEqual({ cpu: String(KILLSWITCH_VCPUS), memory: "512Mi" });
+    expect(KILLSWITCH_MEMORY_GB).toBeCloseTo(2 ** 29 / 1e9, 9);
+    expect(KILLSWITCH_RESERVE.vcpuSeconds).toBe(
+      KILLSWITCH_MONTHLY_REQUESTS * KILLSWITCH_SECONDS_PER_REQUEST * KILLSWITCH_VCPUS,
+    );
+    expect(KILLSWITCH_RESERVE.memoryGbSeconds).toBe(
+      Math.ceil(
+        KILLSWITCH_MONTHLY_REQUESTS * KILLSWITCH_SECONDS_PER_REQUEST * KILLSWITCH_MEMORY_GB,
+      ),
+    );
+  });
+
+  it("reserves no Secret Manager accesses or Cloud Tasks operations: it mounts no secrets, and Pub/Sub calls it", () => {
+    const env = killswitch.spec.template.spec.containers.flatMap((container) => container.env);
+    expect(env.filter((variable) => variable.valueFrom !== undefined)).toEqual([]);
+    expect(KILLSWITCH_RESERVE).toMatchObject({ secretAccesses: 0, taskOperations: 0 });
   });
 });

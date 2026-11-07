@@ -7,19 +7,19 @@ import type { WorkerLog } from "./attempt.js";
  * instance with request-based billing "is only charged when [it processes] requests, when
  * [it starts], and when [it shuts] down." So:
  *
- * - **Startup** ({@link UsageMeter.startup}, once per instance when it's listening): the
- *   process's age then, plus {@link SHUTDOWN_ALLOWANCE_MS} for its shutdown, counted up
- *   front because Cloud Run may kill the instance before a count at shutdown could land.
- *   Time before the process started (pulling and starting the container) isn't seen.
+ * - **Startup** ({@link UsageMeter.startup}, once per instance, as soon as the database is
+ *   open): the process's age then, plus {@link SHUTDOWN_ALLOWANCE_MS} for its shutdown,
+ *   counted up front because Cloud Run may kill the instance before a count at shutdown
+ *   could land; and the {@link SECRET_READS_PER_START} Secret Manager accesses Cloud Run made
+ *   before starting the instance. Counted before the startup sweep and the listen, since a
+ *   start that fails there has used them too (R13, M5.14b4). Then
+ *   {@link UsageMeter.startupRest} adds the time from that count to listening, or to the
+ *   failure. Time before the process started (pulling and starting the container) and a
+ *   start that fails before the database opens (bad config, migrations) aren't seen.
  * - **Each push** ({@link UsageMeter.push}, before it's answered, while the instance still
  *   has CPU): the request's time so far, one Cloud Run request, and one Cloud Tasks
  *   operation (the delivery; the website counts creating the task). A push answered `429`
  *   while a job runs overlaps it and is counted on top: an overcount, never an undercount.
- * - **Secrets** ({@link UsageMeter.secretReads}, once per instance, as soon as the database
- *   is open): Cloud Run reads the service's secrets from Secret Manager before it starts each
- *   instance, {@link SECRET_READS_PER_START} accesses of the free 10,000 a month. Counted
- *   before the startup sweep and the listen, since a start that fails there has used them
- *   too. A start that fails before (bad config, migrations) isn't seen.
  * - **Rounding:** each figure is rounded up to {@link BILLING_STEP_MS}, at least one step.
  *
  * A count that fails is logged (`compute_count_failed`) and the request goes on: the meter
@@ -41,19 +41,19 @@ export function billedMs(ms: number): number {
 
 /** Counts the instance's own compute. Neither method rejects. */
 export interface UsageMeter {
-  /** The instance is listening, `ms` after its process started. */
+  /** The instance's database is open, `ms` after its process started. */
   startup(ms: number): Promise<void>;
+  /** The instance is listening, or its start failed, `ms` after {@link startup}'s count. */
+  startupRest(ms: number): Promise<void>;
   /** A push is about to be answered, `ms` after it arrived. */
   push(ms: number): Promise<void>;
-  /** The instance is starting: Cloud Run read its secrets for it. */
-  secretReads(): Promise<void>;
 }
 
 /** A {@link UsageMeter} adding to `compute_usage` in `db`. */
 export function createUsageMeter(options: { db: AnyDatabase; log: WorkerLog }): UsageMeter {
   const { db, log } = options;
   const count = async (
-    what: "startup" | "push" | "secrets",
+    what: "startup" | "startup_rest" | "push",
     amounts: ComputeCount,
   ): Promise<void> => {
     try {
@@ -64,8 +64,12 @@ export function createUsageMeter(options: { db: AnyDatabase; log: WorkerLog }): 
     }
   };
   return {
-    startup: (ms) => count("startup", { instanceMs: billedMs(ms) + SHUTDOWN_ALLOWANCE_MS }),
+    startup: (ms) =>
+      count("startup", {
+        instanceMs: billedMs(ms) + SHUTDOWN_ALLOWANCE_MS,
+        secretAccesses: SECRET_READS_PER_START,
+      }),
+    startupRest: (ms) => count("startup_rest", { instanceMs: billedMs(ms) }),
     push: (ms) => count("push", { instanceMs: billedMs(ms), runRequests: 1, taskOperations: 1 }),
-    secretReads: () => count("secrets", { secretAccesses: SECRET_READS_PER_START }),
   };
 }

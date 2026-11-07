@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   COMPUTE_ALLOWANCE,
+  GOOGLE_FREE_TIER,
+  KILLSWITCH_RESERVE,
   computeMeters,
   computeUsage,
   computeUsageThisMonth,
@@ -111,6 +113,40 @@ describe("compute usage counts", () => {
   });
 });
 
+describe("the allowance", () => {
+  it("is Google's free tier less the kill switch's monthly reserve (M5.14b4)", () => {
+    expect(GOOGLE_FREE_TIER).toEqual({
+      vcpuSeconds: 180_000,
+      memoryGbSeconds: 360_000,
+      runRequests: 2_000_000,
+      taskOperations: 1_000_000,
+      secretAccesses: 10_000,
+    });
+    // 2,400 requests of 4 s each on a 1 vCPU / 512 MiB instance; no tasks, no secrets.
+    expect(KILLSWITCH_RESERVE).toEqual({
+      vcpuSeconds: 9_600,
+      memoryGbSeconds: 5_154,
+      runRequests: 2_400,
+      taskOperations: 0,
+      secretAccesses: 0,
+    });
+    expect(COMPUTE_ALLOWANCE).toEqual({
+      vcpuSeconds: 170_400,
+      memoryGbSeconds: 354_846,
+      runRequests: 1_997_600,
+      taskOperations: 1_000_000,
+      secretAccesses: 10_000,
+    });
+  });
+
+  it("reserves more than the kill switch used in #22's four days, scaled to a 31-day month", () => {
+    // Nov 1–4: 132 requests, ≈ 395.9 instance-seconds (Google's CPU and memory split by size).
+    const days = 4;
+    expect(KILLSWITCH_RESERVE.runRequests).toBeGreaterThan((132 / days) * 31);
+    expect(KILLSWITCH_RESERVE.vcpuSeconds).toBeGreaterThan((395.9 / days) * 31);
+  });
+});
+
 describe("compute meters", () => {
   it("turn instance time into vCPU- and GB-seconds of a 1 vCPU / 4 GiB worker", () => {
     expect(
@@ -125,23 +161,23 @@ describe("compute meters", () => {
         resource: "cloud_run_vcpu",
         unit: "vcpu_seconds",
         used: 3_600,
-        limit: 180_000,
-        percent: 2,
+        limit: 170_400,
+        percent: 2.1,
         alarm: false,
       },
       {
         resource: "cloud_run_memory",
         unit: "gb_seconds",
         used: 3_600 * 4 * 1.073_741_824,
-        limit: 360_000,
-        percent: 4.2,
+        limit: 354_846,
+        percent: 4.3,
         alarm: false,
       },
       {
         resource: "cloud_run_requests",
         unit: "requests",
         used: 60,
-        limit: 2_000_000,
+        limit: 1_997_600,
         percent: 0,
         alarm: false,
       },

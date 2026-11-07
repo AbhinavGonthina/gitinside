@@ -11,6 +11,8 @@
  *   `compute.ts` and the website's `enqueue.ts`.
  * - **What it's worth:** each instance-second is {@link WORKER_VCPUS} vCPU-seconds and
  *   {@link WORKER_MEMORY_GB} GB-seconds, the worker's fixed size (infra/gcp).
+ * - **Against what:** Google's free tier less the kill switch's reserve
+ *   ({@link COMPUTE_ALLOWANCE}); the kill switch shares the allowance but isn't counted.
  * - **Months** start on the database clock's UTC month, as for `store_requests`. Google's
  *   own month boundary may not be UTC midnight (Pacific time is believed, not verified), so
  *   a pause can end hours before Google's month does; the 20% margin covers that.
@@ -34,16 +36,59 @@ export interface ComputeAllowance {
 }
 
 /**
- * The free allowance, from Google's free-tier page (Cloud Run's three figures, read
- * 2026-11-01), ADR-0114 (Cloud Tasks; its pricing page didn't render to check again), and
- * ADR-0151 (Secret Manager; its pricing page didn't render on 2026-11-05 either).
+ * Google's free tier, from its free-tier page (Cloud Run's three figures, read 2026-11-01),
+ * ADR-0114 (Cloud Tasks; its pricing page didn't render to check again), and ADR-0151 (Secret
+ * Manager; its pricing page didn't render on 2026-11-05 either).
  */
-export const COMPUTE_ALLOWANCE: ComputeAllowance = {
+export const GOOGLE_FREE_TIER: ComputeAllowance = {
   vcpuSeconds: 180_000,
   memoryGbSeconds: 360_000,
   runRequests: 2_000_000,
   taskOperations: 1_000_000,
   secretAccesses: 10_000,
+};
+
+/** vCPUs of the kill switch's Cloud Run service (infra/gcp/killswitch.json). */
+export const KILLSWITCH_VCPUS = 1;
+/** Memory of the kill switch's Cloud Run service in GB: 512 MiB is 0.537 GB. */
+export const KILLSWITCH_MEMORY_GB = 0.5 * 1.073_741_824;
+/**
+ * Kill switch requests reserved a month. Planning #22 counted 132 in Nov 1–4 (≈ 1,023 in 31
+ * days), and Google's report held 67 more Cloud Run requests than either service logged
+ * (≈ 520 a month): 2,400 leaves about half again on top of both.
+ */
+export const KILLSWITCH_MONTHLY_REQUESTS = 2_400;
+/**
+ * Billed instance-seconds reserved per kill switch request: Nov 1–4's CPU and memory, split
+ * between the two services by their sizes, give it ≈ 395.9 s for 132 requests (3.0 s, most
+ * of each a cold start).
+ */
+export const KILLSWITCH_SECONDS_PER_REQUEST = 4;
+
+/**
+ * The kill switch's monthly share, held back from {@link GOOGLE_FREE_TIER} (M5.14b4,
+ * ADR-0156). It's a second Cloud Run service on the same free allowance, reached by the
+ * budget's Pub/Sub notifications, and it can't count itself: that would give it the
+ * database's secret, and a Secret Manager read at every cold start. It mounts no secrets
+ * and no task reaches it, so it reserves neither.
+ */
+export const KILLSWITCH_RESERVE: ComputeAllowance = {
+  vcpuSeconds: KILLSWITCH_MONTHLY_REQUESTS * KILLSWITCH_SECONDS_PER_REQUEST * KILLSWITCH_VCPUS,
+  memoryGbSeconds: Math.ceil(
+    KILLSWITCH_MONTHLY_REQUESTS * KILLSWITCH_SECONDS_PER_REQUEST * KILLSWITCH_MEMORY_GB,
+  ),
+  runRequests: KILLSWITCH_MONTHLY_REQUESTS,
+  taskOperations: 0,
+  secretAccesses: 0,
+};
+
+/** What GitInside's own counts are measured against: {@link GOOGLE_FREE_TIER} less {@link KILLSWITCH_RESERVE}. */
+export const COMPUTE_ALLOWANCE: ComputeAllowance = {
+  vcpuSeconds: GOOGLE_FREE_TIER.vcpuSeconds - KILLSWITCH_RESERVE.vcpuSeconds,
+  memoryGbSeconds: GOOGLE_FREE_TIER.memoryGbSeconds - KILLSWITCH_RESERVE.memoryGbSeconds,
+  runRequests: GOOGLE_FREE_TIER.runRequests - KILLSWITCH_RESERVE.runRequests,
+  taskOperations: GOOGLE_FREE_TIER.taskOperations - KILLSWITCH_RESERVE.taskOperations,
+  secretAccesses: GOOGLE_FREE_TIER.secretAccesses - KILLSWITCH_RESERVE.secretAccesses,
 };
 
 /** vCPUs per worker instance (infra/gcp/service.json). */

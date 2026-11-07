@@ -336,9 +336,10 @@ describe("with a database and a bucket", () => {
       "secret_manager",
     ]);
     expect(readings.slice(3)).toEqual([
-      expect.objectContaining({ used: 7_200, limit: 180_000, percent: 4, alarm: false }),
-      expect.objectContaining({ unit: "gb_seconds", limit: 360_000, percent: 8.5, alarm: false }),
-      expect.objectContaining({ used: 90, limit: 2_000_000, alarm: false }),
+      // Google's free tier less the kill switch's reserve (M5.14b4).
+      expect.objectContaining({ used: 7_200, limit: 170_400, percent: 4.2, alarm: false }),
+      expect.objectContaining({ unit: "gb_seconds", limit: 354_846, percent: 8.7, alarm: false }),
+      expect.objectContaining({ used: 90, limit: 1_997_600, alarm: false }),
       expect.objectContaining({ used: 800_000, limit: 1_000_000, percent: 80, alarm: true }),
       expect.objectContaining({ used: 100, limit: 10_000, percent: 1, alarm: false }),
     ]);
