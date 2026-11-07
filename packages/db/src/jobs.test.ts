@@ -6,11 +6,14 @@ import {
   failAnalysis,
   failInterruptedAnalyses,
   findJob,
+  findJobInstallation,
+  installations,
   queueAnalysis,
   recordJobProgress,
   repos,
   requeueAnalysis,
   startAnalysis,
+  upsertInstallation,
   upsertRepo,
   type JobProgress,
   type RepoFacts,
@@ -327,5 +330,54 @@ describe("the database refuses", () => {
     expect(
       await pgErrorCode(t.db.update(analyses).set({ attempts: -1 }).where(eq(analyses.id, id))),
     ).toBe(CHECK);
+  });
+});
+
+describe("findJobInstallation", () => {
+  beforeEach(async () => {
+    await t.db.delete(installations);
+  });
+
+  const ACME_APP = {
+    githubInstallationId: 41,
+    accountId: 9001,
+    accountLogin: "acme",
+    accountType: "Organization",
+    suspendedAt: null,
+  } as const;
+
+  it("reads the job's repo and the installation it's linked to", async () => {
+    await upsertInstallation(t.db, ACME_APP);
+    const linked = await repoId({ ...FACTS, visibility: "private", githubInstallationId: 41 });
+    await queued("1", "2026-10-31T10:00:00Z", linked);
+    expect(await findJobInstallation(t.db, jobOf("1"))).toEqual({
+      status: "queued",
+      owner: "acme",
+      name: "shop",
+      githubInstallationId: 41,
+      suspendedAt: null,
+    });
+
+    const at = new Date("2026-11-07T09:00:00Z");
+    await upsertInstallation(t.db, { ...ACME_APP, suspendedAt: at });
+    const key = { repoId: linked, sha: shaOf("1"), analyzerVersion: VERSION };
+    await startAnalysis(t.db, key, { jobId: jobOf("1") });
+    expect(await findJobInstallation(t.db, jobOf("1"))).toMatchObject({
+      status: "running",
+      githubInstallationId: 41,
+      suspendedAt: at,
+    });
+  });
+
+  it("names no installation for a repo that isn't linked, and nothing for an unknown job", async () => {
+    await queued("1", "2026-10-31T10:00:00Z");
+    expect(await findJobInstallation(t.db, jobOf("1"))).toEqual({
+      status: "queued",
+      owner: "acme",
+      name: "shop",
+      githubInstallationId: null,
+      suspendedAt: null,
+    });
+    expect(await findJobInstallation(t.db, jobOf("2"))).toBeUndefined();
   });
 });

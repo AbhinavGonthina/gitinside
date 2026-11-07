@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
 
 /**
  * Request signing for the jobs the website queues for `POST /run` (docs/SECURITY.md T8, §4;
@@ -106,6 +106,22 @@ export function verifyRequest(
     if (timingSafeEqual(mac(secret, timestamp, parts), given)) matched = true;
   }
   return matched ? { ok: true } : { ok: false, reason: "BAD_SIGNATURE" };
+}
+
+/**
+ * What the worker signs its own requests to the website for (M8.3c3a, ADR-0228): asking
+ * for a job's installation token. Each purpose gets its own key ({@link derivedSecret}).
+ */
+export const TOKEN_REQUEST_PURPOSE = "gitinside/v1/installation-token";
+
+/**
+ * A signing key for `purpose`, derived from a shared secret with HKDF-SHA256 (no salt, the
+ * purpose as `info`), as 43 base64url characters. Requests the worker signs for the website
+ * use it rather than the secret itself, so a signature made for one direction or purpose can
+ * never verify as another, even over the same method, path, and body.
+ */
+export function derivedSecret(secret: string, purpose: string): string {
+  return Buffer.from(hkdfSync("sha256", secret, "", purpose, 32)).toString("base64url");
 }
 
 /**

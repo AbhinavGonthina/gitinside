@@ -1,6 +1,6 @@
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
 import { countStoreRequests, createDb, type AnyDatabase, type DbHandle } from "@gitinside/db";
-import { MIN_SECRET_LENGTH } from "@gitinside/worker/hmac";
+import { derivedSecret, MIN_SECRET_LENGTH, TOKEN_REQUEST_PURPOSE } from "@gitinside/worker/hmac";
 import {
   countingFetch,
   createObjectStore,
@@ -12,6 +12,7 @@ import type { AuthDeps } from "./authRoute";
 import { appCredentials, type AppCredentials } from "./githubApp";
 import { fakeOrigin } from "./githubOAuth";
 import type { WebhookDeps } from "./githubWebhook";
+import type { TokenRouteDeps } from "./installationTokenRoute";
 import { sessionKeys, type SessionKeys } from "./session";
 import { createTurnstile, type BotCheck } from "./botCheck";
 import { createCodeSizeCache } from "./codeSize";
@@ -345,6 +346,29 @@ export function githubAppFromEnv(env: Env = process.env): AppCredentials | undef
   if (app.credentials === undefined) return undefined;
   const fake = fakeOrigin(env.GITHUB_FAKE_ORIGIN);
   return { ...app.credentials, ...(fake !== undefined && { fakeOrigin: fake }) };
+}
+
+/**
+ * The token route's deps (M8.3c3a, ADR-0228): `DATABASE_URL`, the app's credentials
+ * ({@link githubAppFromEnv}), and `ENQUEUE_HMAC_SECRET` (+ `ENQUEUE_HMAC_SECRET_PREVIOUS`
+ * during a rotation), each at least 32 characters, from which the worker's signing keys are
+ * derived. Else `undefined`, and the worker is told the route is unavailable.
+ */
+export function tokenRouteDepsFromEnv(env: Env = process.env): TokenRouteDeps | undefined {
+  const secrets: string[] = [];
+  for (const name of ["ENQUEUE_HMAC_SECRET", "ENQUEUE_HMAC_SECRET_PREVIOUS"]) {
+    const value = env[name];
+    if (!value) {
+      if (name === "ENQUEUE_HMAC_SECRET") return undefined;
+      continue;
+    }
+    if (value.length < MIN_SECRET_LENGTH) return undefined;
+    secrets.push(value);
+  }
+  const app = githubAppFromEnv(env);
+  const db = database(env);
+  if (!app || !db) return undefined;
+  return { db, app, keys: secrets.map((s) => derivedSecret(s, TOKEN_REQUEST_PURPOSE)) };
 }
 
 /** One process-wide memory of GitHub's answers (lib/repoView.ts). */

@@ -4,6 +4,8 @@ import {
   MAX_CLOCK_SKEW_SECONDS,
   SIGNATURE_HEADER,
   TIMESTAMP_HEADER,
+  TOKEN_REQUEST_PURPOSE,
+  derivedSecret,
   secretsFromEnv,
   signRequest,
   verifyRequest,
@@ -143,6 +145,32 @@ describe("verifyRequest", () => {
         reason: "BAD_SIGNATURE",
       });
     }
+  });
+});
+
+describe("derivedSecret", () => {
+  it("is HKDF-SHA256 of the secret with no salt and the purpose as info (RFC 5869)", () => {
+    // One output block: PRK = HMAC(zero salt, secret), OKM = HMAC(PRK, info || 0x01).
+    const prk = createHmac("sha256", Buffer.alloc(32)).update(SECRET).digest();
+    const okm = createHmac("sha256", prk)
+      .update(TOKEN_REQUEST_PURPOSE)
+      .update(Buffer.from([1]))
+      .digest();
+    expect(derivedSecret(SECRET, TOKEN_REQUEST_PURPOSE)).toBe(okm.toString("base64url"));
+  });
+
+  it("gives each purpose and secret its own key, long enough to sign with", () => {
+    const key = derivedSecret(SECRET, TOKEN_REQUEST_PURPOSE);
+    expect(key).toHaveLength(43);
+    expect(key).not.toBe(SECRET);
+    expect(derivedSecret(SECRET, "gitinside/v1/other")).not.toBe(key);
+    expect(derivedSecret(OTHER, TOKEN_REQUEST_PURPOSE)).not.toBe(key);
+    // A signature made with the secret itself doesn't verify under the derived key.
+    const signed = headersFor(signRequest(SECRET, PARTS, NOW));
+    expect(verifyRequest([key], PARTS, signed, NOW)).toEqual({
+      ok: false,
+      reason: "BAD_SIGNATURE",
+    });
   });
 });
 
