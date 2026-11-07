@@ -223,9 +223,24 @@ test("the base's Try again takes focus to the compared diagram (M6.11m)", async 
   ]);
 
   await note.getByRole("button", { name: "Try again" }).focus();
+  // Where focus is as soon as the button leaves the page: already in the diagram, never on
+  // `<body>`, even for the frame before the diagram is drawn (M7.2c2a).
+  await page.evaluate(() => {
+    const button = document.querySelector(".diagram-page__note button");
+    const probe = window as { focusOnRemoval?: string };
+    new MutationObserver((_, observer) => {
+      if (button?.isConnected) return;
+      observer.disconnect();
+      const active = document.activeElement;
+      probe.focusOnRemoval = active === document.body ? "body" : (active?.className ?? "none");
+    }).observe(document.body, { subtree: true, childList: true });
+  });
   await page.keyboard.press("Enter");
   await expect(page.locator(".gi-status[data-tone='diff']")).toHaveText(/^Comparing /);
   await expect(note).toHaveCount(0);
+  expect(await page.evaluate(() => (window as { focusOnRemoval?: string }).focusOnRemoval)).toBe(
+    "diagram-page__canvas",
+  );
   await expect(page.locator(".gi-drill__node [tabindex='0']:focus")).toHaveCount(1, {
     timeout: 30_000,
   });
