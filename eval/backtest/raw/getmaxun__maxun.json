@@ -1,7 +1,7 @@
 {
   "repo": "getmaxun/maxun",
   "run": {
-    "gitinside": "76864a02d328c5f7d54833090a8e1f7009f6d983",
+    "gitinside": "a3622e19f2da52c78368574e2e75aa1fbf979388",
     "analyzerVersion": "0.2.0",
     "started": "2026-11-07",
     "machine": {
@@ -510,12 +510,83 @@
           "added": 0,
           "removed": 100,
           "modified": 0,
-          "updated": 2,
+          "updated": 7,
           "renamed": 2
         },
-        "broken": 0
+        "broken": 5
       },
-      "broken": []
+      "broken": [
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/createDocumentParseRobotRecord.ts#createDocumentParseRobotRecord->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.parse",
+          "from": "symbol:maxun/server/src/utils/document/createDocumentParseRobotRecord.ts#createDocumentParseRobotRecord",
+          "to": "symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.parse",
+          "reason": "TARGET_REMOVED",
+          "detail": "DocumentInterpreter.parse was removed",
+          "sites": [
+            {
+              "file": "server/src/utils/document/createDocumentParseRobotRecord.ts",
+              "line": 4,
+              "column": 51
+            }
+          ]
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/createDocumentRobotRecord.ts#createDocumentRobotRecord->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.extractText",
+          "from": "symbol:maxun/server/src/utils/document/createDocumentRobotRecord.ts#createDocumentRobotRecord",
+          "to": "symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.extractText",
+          "reason": "TARGET_REMOVED",
+          "detail": "DocumentInterpreter.extractText was removed",
+          "sites": [
+            {
+              "file": "server/src/utils/document/createDocumentRobotRecord.ts",
+              "line": 4,
+              "column": 48
+            }
+          ]
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/createDocumentRobotRecord.ts#createDocumentRobotRecord->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.generateExtractionSchema",
+          "from": "symbol:maxun/server/src/utils/document/createDocumentRobotRecord.ts#createDocumentRobotRecord",
+          "to": "symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.generateExtractionSchema",
+          "reason": "TARGET_REMOVED",
+          "detail": "DocumentInterpreter.generateExtractionSchema was removed",
+          "sites": [
+            {
+              "file": "server/src/utils/document/createDocumentRobotRecord.ts",
+              "line": 4,
+              "column": 48
+            }
+          ]
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/executeDocumentParseRun.ts#executeDocumentParseRun->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.parse",
+          "from": "symbol:maxun/server/src/utils/document/executeDocumentParseRun.ts#executeDocumentParseRun",
+          "to": "symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.parse",
+          "reason": "TARGET_REMOVED",
+          "detail": "DocumentInterpreter.parse was removed",
+          "sites": [
+            {
+              "file": "server/src/utils/document/executeDocumentParseRun.ts",
+              "line": 2,
+              "column": 37
+            }
+          ]
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/executeDocumentRun.ts#executeDocumentRun->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.extractData",
+          "from": "symbol:maxun/server/src/utils/document/executeDocumentRun.ts#executeDocumentRun",
+          "to": "symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.extractData",
+          "reason": "TARGET_REMOVED",
+          "detail": "DocumentInterpreter.extractData was removed",
+          "sites": [
+            {
+              "file": "server/src/utils/document/executeDocumentRun.ts",
+              "line": 2,
+              "column": 48
+            }
+          ]
+        }
+      ]
     },
     {
       "number": 1149,

@@ -1,11 +1,11 @@
 {
   "repo": "trycompai/comp",
   "run": {
-    "gitinside": "76864a02d328c5f7d54833090a8e1f7009f6d983",
+    "gitinside": "a3622e19f2da52c78368574e2e75aa1fbf979388",
     "analyzerVersion": "0.2.0",
     "started": "2026-11-07",
     "machine": {
-      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "cpu": "AMD EPYC 7763 64-Core Processor",
       "cores": 4,
       "ramGiB": 15.6,
       "os": "linux 7.0.0-1017-azure",
