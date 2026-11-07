@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import brokenBase from "../../../../../fixtures/diff-broken-base/expected.json";
 import brokenHead from "../../../../../fixtures/diff-broken-head/expected.json";
 import shopDemo from "../../../../../fixtures/shop-demo/expected.json";
@@ -787,6 +787,49 @@ describe("RepoDiagram in diff mode (M6.9e2)", () => {
     expect(checked.map((r) => r.textContent)).toEqual(["Head"]);
     // The button went with the note: focus goes on to the compared diagram, not `<body>` (M6.11m).
     expect(document.activeElement).not.toBe(document.body);
+    const box = () => document.querySelector<HTMLElement>(".gi-drill__node [tabindex='0']");
+    await waitFor(() => expect(box()).not.toBeNull(), { timeout: 25_000 });
+    await waitFor(() => expect(document.activeElement).toBe(box()));
+  }, 60_000);
+
+  it("hands focus from the base's Try again to the diagram in the render that takes the button away (M7.2c2a)", async () => {
+    const unavailable = () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ message: "Base unavailable." }), { status: 503 }),
+      );
+    fetchMock.mockImplementation((url) => (url === BASE_URL ? unavailable() : pair()(url)));
+    window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);
+    renderDiagram(READY);
+    await screen.findByRole("region", { name: "Diagram" });
+    fetchMock.mockClear().mockImplementation(pair());
+    const button = within(document.querySelector(".diagram-page__note") as HTMLElement).getByRole(
+      "button",
+      { name: "Try again" },
+    );
+    button.focus();
+    // The base lands outside act, with React's Scheduler yielding after every task, so passive
+    // effects wait for a later task, as on a loaded machine (CI run 42340377659): focus is read
+    // as soon as the button leaves the page.
+    const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    env.IS_REACT_ACT_ENVIRONMENT = false;
+    let time = performance.now();
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => (time += 10));
+    onTestFinished(() => {
+      clock.mockRestore();
+      env.IS_REACT_ACT_ENVIRONMENT = true;
+    });
+    const focused = await new Promise<Element | null>((resolve) => {
+      new MutationObserver((_, observer) => {
+        if (button.isConnected) return;
+        observer.disconnect();
+        resolve(document.activeElement);
+      }).observe(document.body, { subtree: true, childList: true });
+      button.click();
+    });
+    clock.mockRestore();
+    env.IS_REACT_ACT_ENVIRONMENT = true;
+    expect(focused).not.toBe(document.body);
+    expect(document.querySelector(".diagram-page__canvas")?.contains(focused)).toBe(true);
     const box = () => document.querySelector<HTMLElement>(".gi-drill__node [tabindex='0']");
     await waitFor(() => expect(box()).not.toBeNull(), { timeout: 25_000 });
     await waitFor(() => expect(document.activeElement).toBe(box()));

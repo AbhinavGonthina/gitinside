@@ -22,7 +22,7 @@ import {
   type ViewExport,
 } from "@gitinside/viewer";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   baseFailedNote,
   baseNote,
@@ -313,8 +313,10 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
   // replaced is never the target. The spot is focusable only meanwhile: otherwise a click on the
   // empty canvas would take focus out of the explorer. A diagram drawn with no box to focus
   // still ends the wait (M6.11m), so a later diagram in this tab isn't taken for it; focus then
-  // stays on the spot until it moves on.
-  useEffect(() => {
+  // stays on the spot until it moves on. A layout effect, so focus moves in the commit that takes
+  // the focused button away: a passive one ran a task later, after paint, leaving focus on
+  // `<body>` meanwhile (M7.2c2a).
+  useLayoutEffect(() => {
     const host = canvas.current;
     if (!focusNext.pending || !host) return;
     if (fresh && load && !load.ok) {
