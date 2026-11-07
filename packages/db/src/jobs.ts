@@ -6,11 +6,12 @@
  * - **Writes:** the web app stores the job ID when it queues the row, and the worker when an
  *   attempt starts (`queueAnalysis`, `startAnalysis` in analyses.ts). While an attempt runs,
  *   the worker writes its progress with {@link recordJobProgress}, a few times per stage.
- * - **Reads:** {@link findJob}, for `GET /api/jobs/:id` and its SSE stream (M5.17a2).
+ * - **Reads:** {@link findJob}, for `GET /api/jobs/:id` and its SSE stream (M5.17a2);
+ *   {@link findJobInstallation}, for a job's installation token (M8.3c3a).
  */
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
-import { analyses, repos, type JobProgress } from "./schema.js";
+import { analyses, installations, repos, type JobProgress } from "./schema.js";
 
 /**
  * Store where the running attempt of job `jobId` is, stamped with the database's `now()`
@@ -89,6 +90,43 @@ export async function findJob(db: AnyDatabase, jobId: string): Promise<JobRecord
     ...(progressAgeMs === null ? {} : { progressAgeMs }),
     ...(position === null ? {} : { position }),
   };
+}
+
+/** A job's repo and the installation it's linked to, as {@link findJobInstallation} reads it. */
+export interface JobInstallation {
+  status: JobRecord["status"];
+  owner: string;
+  name: string;
+  /** GitHub's ID of the installation the repo is linked to, or `null` if it isn't linked. */
+  githubInstallationId: number | null;
+  /** The linked installation's stored suspension, or `null` (also when it isn't linked). */
+  suspendedAt: Date | null;
+}
+
+/**
+ * The repo of the job with ID `jobId` and the installation it's linked to now (M8.3c3a), or
+ * `undefined` if no row has that ID; like {@link findJob}, the newest row is the job. The
+ * website mints a job's installation token from this, never from what the worker asks.
+ */
+export async function findJobInstallation(
+  db: AnyDatabase,
+  jobId: string,
+): Promise<JobInstallation | undefined> {
+  const [row] = await db
+    .select({
+      status: analyses.status,
+      owner: repos.owner,
+      name: repos.name,
+      githubInstallationId: installations.githubInstallationId,
+      suspendedAt: installations.suspendedAt,
+    })
+    .from(analyses)
+    .innerJoin(repos, eq(repos.id, analyses.repoId))
+    .leftJoin(installations, eq(installations.id, repos.installationId))
+    .where(eq(analyses.jobId, jobId))
+    .orderBy(desc(analyses.createdAt), desc(analyses.id))
+    .limit(1);
+  return row;
 }
 
 /** A count from SQL (`int` or `bigint`, which drivers may return as a string), or null. */
