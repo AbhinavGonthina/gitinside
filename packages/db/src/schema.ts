@@ -212,6 +212,33 @@ export const users = pgTable("users", {
 });
 
 /**
+ * A signed-in browser (M8.2, ADR-0221). Its cookie holds a random token and only the token's
+ * SHA-256 is stored, so reading this table signs nobody in. `github_tokens` holds the user's
+ * GitHub tokens sealed by the website (AES-256-GCM under `SESSION_SECRET`, bound to this
+ * row's hash); the database never sees them in clear. A session ends at `expires_at`, by the
+ * database's clock, or when its row is deleted (sign-out, or the user's row).
+ */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tokenHash: text("token_hash").notNull().unique(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    githubTokens: text("github_tokens").notNull(),
+    createdAt: timestampTz("created_at").notNull().defaultNow(),
+    expiresAt: timestampTz("expires_at").notNull(),
+  },
+  (t) => [
+    index("sessions_user_id_idx").on(t.userId),
+    index("sessions_expires_at_idx").on(t.expiresAt),
+    check("sessions_token_hash_check", sql`${t.tokenHash} ~ '^[0-9a-f]{64}$'`),
+    check("sessions_expires_at_check", sql`${t.expiresAt} > ${t.createdAt}`),
+  ],
+);
+
+/**
  * Whether a user may view a private repo, as GitHub last answered. Valid for
  * 60 s from `checked_at` (ADR-0009); readers compare against their own clock.
  */

@@ -6,6 +6,7 @@ import {
   LOCAL_TASKS_OPT_IN,
   SIGNED_OUT_HOURLY_LIMIT,
   analyzeDepsFromEnv,
+  authDepsFromEnv,
   graphDepsFromEnv,
   imageDepsFromEnv,
   jobDepsFromEnv,
@@ -346,6 +347,27 @@ describe("repoViewDepsFromEnv", () => {
     const deps = repoViewDepsFromEnv(env, FAKE_GCP.subjectToken);
     expect(await deps?.queue?.createTask(JOB, "analyze-test-5")).toEqual({ created: true });
     expect(google.tasks).toHaveLength(1);
+  });
+});
+
+describe("authDepsFromEnv", () => {
+  const AUTH = {
+    DATABASE_URL: ENV.DATABASE_URL,
+    GITHUB_APP_CLIENT_ID: "Iv23liTEST",
+    GITHUB_APP_CLIENT_SECRET: "client-secret",
+    SESSION_SECRET: "s".repeat(43),
+  };
+
+  it("needs the database, the app's client, and a long enough session secret", () => {
+    const deps = authDepsFromEnv(AUTH);
+    expect(deps?.client).toEqual({ clientId: "Iv23liTEST", clientSecret: "client-secret" });
+    expect(deps?.keys.seal).toHaveLength(32);
+    expect(authDepsFromEnv(AUTH)?.keys).toBe(deps?.keys); // derived once per secret
+    for (const name of Object.keys(AUTH)) {
+      expect(authDepsFromEnv({ ...AUTH, [name]: undefined }), name).toBeUndefined();
+      expect(authDepsFromEnv({ ...AUTH, [name]: "" }), name).toBeUndefined();
+    }
+    expect(authDepsFromEnv({ ...AUTH, SESSION_SECRET: "s".repeat(31) })).toBeUndefined();
   });
 });
 

@@ -16,6 +16,7 @@ export * from "./jobs.js";
 export * from "./rateLimits.js";
 export * from "./repoClaims.js";
 export * from "./retention.js";
+export * from "./sessions.js";
 export * from "./maintenance.js";
 export * from "./storeRequests.js";
 export { schema };

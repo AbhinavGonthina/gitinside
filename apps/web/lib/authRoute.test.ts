@@ -1,0 +1,369 @@
+// @vitest-environment node
+import { sessions, users } from "@gitinside/db";
+import { createTestDb, type TestDb } from "@gitinside/db/testing";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  CALLBACK_PATH,
+  handleCallback,
+  handleSignIn,
+  handleSignOut,
+  readSession,
+  type AuthDeps,
+} from "./authRoute";
+import {
+  EXPIRES_IN,
+  FAKE_CLIENT,
+  fakeOAuth,
+  REFRESH_EXPIRES_IN,
+  type FakeOAuth,
+} from "./githubOAuth.testkit";
+import {
+  hashToken,
+  SESSION_COOKIE,
+  SESSION_LIFETIME_SECONDS,
+  sessionKeys,
+  STATE_COOKIE,
+  STATE_LIFETIME_SECONDS,
+} from "./session";
+
+const SITE = "https://gitinside.test";
+const NOW = Date.parse("2026-11-07T12:00:00.000Z");
+const OCTO = { id: 3_000_000_007, login: "octo" };
+
+let t: TestDb;
+beforeAll(async () => {
+  t = await createTestDb();
+});
+afterAll(async () => {
+  await t?.close();
+});
+beforeEach(async () => {
+  await t.db.delete(sessions);
+  await t.db.delete(users);
+  vi.restoreAllMocks();
+});
+
+function setup(options: { expiring?: boolean; now?: number } = {}) {
+  const github = fakeOAuth(options);
+  let now = options.now ?? NOW;
+  const deps: AuthDeps = {
+    db: t.db,
+    client: { ...FAKE_CLIENT, fetch: github.fetch },
+    keys: sessionKeys("s".repeat(43)),
+    now: () => now,
+  };
+  return { github, deps, advance: (ms: number) => (now += ms) };
+}
+
+/** The `Set-Cookie` values of `response`, by cookie name. */
+function setCookies(response: Response): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const value of response.headers.getSetCookie()) {
+    map.set(value.slice(0, value.indexOf("=")), value);
+  }
+  return map;
+}
+
+const cookieValue = (setCookie: string | undefined) =>
+  setCookie?.slice(setCookie.indexOf("=") + 1, setCookie.indexOf(";"));
+
+/** Start signing in; returns GitHub's authorize URL and the state cookie for the callback. */
+function start(deps: AuthDeps, returnTo?: string) {
+  const query = returnTo === undefined ? "" : `?returnTo=${encodeURIComponent(returnTo)}`;
+  const response = handleSignIn(new Request(`${SITE}/api/auth/github${query}`), deps);
+  expect(response.status).toBe(303);
+  const authorize = response.headers.get("location") ?? "";
+  const state = setCookies(response).get(STATE_COOKIE);
+  return { response, authorize, stateCookie: `${STATE_COOKIE}=${cookieValue(state)}` };
+}
+
+function callback(params: Record<string, string>, cookie?: string): Request {
+  const url = new URL(CALLBACK_PATH, SITE);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  return new Request(url, cookie === undefined ? {} : { headers: { cookie } });
+}
+
+/** Sign `account` in all the way; returns the callback's response. */
+async function signIn(github: FakeOAuth, deps: AuthDeps, returnTo?: string) {
+  const { authorize, stateCookie } = start(deps, returnTo);
+  const state = new URL(authorize).searchParams.get("state") ?? "";
+  const code = github.approve(authorize, OCTO);
+  return handleCallback(callback({ code, state }, stateCookie), deps);
+}
+
+describe("handleSignIn", () => {
+  it("sends the browser to GitHub with state, a PKCE challenge, and this site's callback", () => {
+    const { deps } = setup();
+    const { response, authorize } = start(deps, "/acme/shop");
+    const url = new URL(authorize);
+    expect(url.origin + url.pathname).toBe("https://github.com/login/oauth/authorize");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      client_id: FAKE_CLIENT.clientId,
+      redirect_uri: `${SITE}${CALLBACK_PATH}`,
+      state: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+      code_challenge: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+      code_challenge_method: "S256",
+    });
+    expect(setCookies(response).get(STATE_COOKIE)).toMatch(
+      new RegExp(`; Path=/; Max-Age=${STATE_LIFETIME_SECONDS}; HttpOnly; Secure; SameSite=Lax$`),
+    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("says sign-in is unavailable when the server isn't configured", async () => {
+    const response = handleSignIn(new Request(`${SITE}/api/auth/github`), undefined);
+    expect(response.headers.get("location")).toBe("/?signin=unavailable");
+    const back = await handleCallback(callback({ code: "x", state: "y" }), undefined);
+    expect(back.headers.get("location")).toBe("/?signin=unavailable");
+  });
+});
+
+describe("handleCallback", () => {
+  it("stores the user and a session, sets the cookie, and returns where sign-in started", async () => {
+    const { github, deps } = setup();
+    const response = await signIn(github, deps, "/acme/shop?x=1");
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/acme/shop?x=1");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    const cookies = setCookies(response);
+    expect(cookies.get(STATE_COOKIE)).toContain("Max-Age=0");
+    const session = cookies.get(SESSION_COOKIE) ?? "";
+    // The refresh token outlives 30 days, so the session lasts 30 days.
+    expect(session).toMatch(
+      new RegExp(
+        `^${SESSION_COOKIE}=[A-Za-z0-9_-]{43}; Path=/; Max-Age=${SESSION_LIFETIME_SECONDS}; HttpOnly; Secure; SameSite=Lax$`,
+      ),
+    );
+    const token = cookieValue(session) ?? "";
+
+    const [row] = await t.db.select().from(sessions);
+    expect(row?.tokenHash).toBe(hashToken(token));
+    expect(row?.githubTokens).not.toContain("ghu_");
+    expect(row?.githubTokens).not.toContain("ghr_");
+
+    const user = await readSession(`${SESSION_COOKIE}=${token}`, deps);
+    expect(user).toMatchObject({ githubUserId: OCTO.id, login: "octo" });
+    expect(user?.tokens()).toEqual({
+      accessToken: expect.stringMatching(/^ghu_/),
+      accessExpiresAt: NOW + EXPIRES_IN * 1000,
+      refreshToken: expect.stringMatching(/^ghr_/),
+      refreshExpiresAt: NOW + REFRESH_EXPIRES_IN * 1000,
+    });
+  });
+
+  it("keeps a session no longer than GitHub's refresh token, and 30 days when tokens don't expire", async () => {
+    const short = setup();
+    short.deps.client.fetch = async (input, init) => {
+      const response = await short.github.fetch(input, init);
+      if (!new Request(input, init).url.endsWith("/access_token")) return response;
+      const body = (await response.json()) as Record<string, unknown>;
+      return Response.json({ ...body, refresh_token_expires_in: 3600 });
+    };
+    const cut = await signIn(short.github, short.deps);
+    expect(setCookies(cut).get(SESSION_COOKIE)).toContain("; Max-Age=3600;");
+
+    const plain = setup({ expiring: false });
+    const response = await signIn(plain.github, plain.deps);
+    expect(setCookies(response).get(SESSION_COOKIE)).toContain(
+      `; Max-Age=${SESSION_LIFETIME_SECONDS};`,
+    );
+    const token = cookieValue(setCookies(response).get(SESSION_COOKIE));
+    const user = await readSession(`${SESSION_COOKIE}=${token}`, plain.deps);
+    expect(user?.tokens()).toMatchObject({ accessExpiresAt: null, refreshToken: null });
+  });
+
+  it("refuses a callback without its state cookie, with another state, or after 10 minutes", async () => {
+    const { github, deps, advance } = setup();
+    const { authorize, stateCookie } = start(deps);
+    const state = new URL(authorize).searchParams.get("state") ?? "";
+    const code = github.approve(authorize, OCTO);
+
+    const noCookie = await handleCallback(callback({ code, state }), deps);
+    expect(noCookie.headers.get("location")).toBe("/?signin=failed");
+    const otherState = await handleCallback(
+      callback({ code, state: `${state}x` }, stateCookie),
+      deps,
+    );
+    expect(otherState.headers.get("location")).toBe("/?signin=failed");
+    const forged = await handleCallback(callback({ code, state }, `${stateCookie}x`), deps);
+    expect(forged.headers.get("location")).toBe("/?signin=expired");
+    advance(STATE_LIFETIME_SECONDS * 1000 + 1);
+    const late = await handleCallback(callback({ code, state }, stateCookie), deps);
+    expect(late.headers.get("location")).toBe("/?signin=expired");
+
+    // GitHub was never asked, and nobody signed in.
+    expect(github.requests).toEqual([]);
+    expect(await t.db.select().from(sessions)).toEqual([]);
+    for (const response of [noCookie, otherState, forged, late]) {
+      expect(setCookies(response).get(SESSION_COOKIE)).toBeUndefined();
+      expect(setCookies(response).get(STATE_COOKIE)).toContain("Max-Age=0");
+    }
+  });
+
+  it("goes home signed out when the user cancels or GitHub refuses the code", async () => {
+    const { deps } = setup();
+    const { authorize, stateCookie } = start(deps);
+    const state = new URL(authorize).searchParams.get("state") ?? "";
+    const cancelled = await handleCallback(
+      callback({ error: "access_denied", state }, stateCookie),
+      deps,
+    );
+    expect(cancelled.headers.get("location")).toBe("/?signin=cancelled");
+
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const wrong = await handleCallback(
+      callback({ code: "never-issued", state }, stateCookie),
+      deps,
+    );
+    expect(wrong.headers.get("location")).toBe("/?signin=failed");
+    expect(errors).toHaveBeenCalledWith(
+      JSON.stringify({ event: "signin_failed", error: "exchange refused (bad_verification_code)" }),
+    );
+    const malformed = await handleCallback(callback({ code: "a b", state }, stateCookie), deps);
+    expect(malformed.headers.get("location")).toBe("/?signin=failed");
+    expect(await t.db.select().from(users)).toEqual([]);
+  });
+
+  it("checks the PKCE verifier and the redirect URI GitHub issued the code for", async () => {
+    const { github, deps } = setup();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    // A code issued to another sign-in (another challenge) doesn't redeem with this state.
+    const first = start(deps);
+    const second = start(deps);
+    const state = new URL(second.authorize).searchParams.get("state") ?? "";
+    const code = github.approve(first.authorize, OCTO);
+    const crossed = await handleCallback(callback({ code, state }, second.stateCookie), deps);
+    expect(crossed.headers.get("location")).toBe("/?signin=failed");
+
+    // The callback reached through another origin sends another redirect URI.
+    const third = start(deps);
+    const thirdState = new URL(third.authorize).searchParams.get("state") ?? "";
+    const thirdCode = github.approve(third.authorize, OCTO);
+    const elsewhere = new Request(
+      `https://elsewhere.test${CALLBACK_PATH}?code=${thirdCode}&state=${thirdState}`,
+      { headers: { cookie: third.stateCookie } },
+    );
+    expect((await handleCallback(elsewhere, deps)).headers.get("location")).toBe("/?signin=failed");
+    expect(errors).toHaveBeenCalledTimes(2);
+    expect(await t.db.select().from(sessions)).toEqual([]);
+  });
+
+  it("fails visibly, logging only the kind, when GitHub or the database fails", async () => {
+    const { github, deps } = setup();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    github.failNext(new Response("down", { status: 502 }));
+    expect((await signIn(github, deps)).headers.get("location")).toBe("/?signin=failed");
+    github.failNext(new TypeError("fetch failed"));
+    expect((await signIn(github, deps)).headers.get("location")).toBe("/?signin=failed");
+    const broken: AuthDeps = {
+      ...deps,
+      db: new Proxy({} as AuthDeps["db"], {
+        get() {
+          throw new Error("postgres://user:secret@host/db unreachable");
+        },
+      }),
+    };
+    expect((await signIn(github, broken)).headers.get("location")).toBe("/?signin=failed");
+    expect(errors.mock.calls.map(([line]) => line)).toEqual([
+      JSON.stringify({ event: "signin_failed", error: "HTTP 502" }),
+      JSON.stringify({ event: "signin_failed", error: "TypeError" }),
+      JSON.stringify({ event: "signin_failed", error: "Error" }),
+    ]);
+  });
+});
+
+describe("readSession", () => {
+  it("is signed out without a cookie, with an unknown or ended session, or when unconfigured", async () => {
+    const { github, deps, advance } = setup();
+    expect(await readSession(null, deps)).toBeUndefined();
+    expect(await readSession(`${SESSION_COOKIE}=${"a".repeat(43)}`, deps)).toBeUndefined();
+    const response = await signIn(github, deps);
+    const cookie = `${SESSION_COOKIE}=${cookieValue(setCookies(response).get(SESSION_COOKIE))}`;
+    expect(await readSession(cookie, undefined)).toBeUndefined();
+    expect(await readSession(cookie, deps)).toBeDefined();
+    advance(1); // the deps' clock doesn't end sessions: the database's does
+    await t.db.update(sessions).set({
+      createdAt: new Date(Date.now() - 7_200_000),
+      expiresAt: new Date(Date.now() - 1_000),
+    });
+    expect(await readSession(cookie, deps)).toBeUndefined();
+  });
+
+  it("gives no tokens when the session secret changed, and survives a database failure", async () => {
+    const { github, deps } = setup();
+    const response = await signIn(github, deps);
+    const cookie = `${SESSION_COOKIE}=${cookieValue(setCookies(response).get(SESSION_COOKIE))}`;
+    const rotated = { ...deps, keys: sessionKeys("t".repeat(43)) };
+    const user = await readSession(cookie, rotated);
+    expect(user?.login).toBe("octo");
+    expect(user?.tokens()).toBeUndefined();
+
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const broken = {
+      ...deps,
+      db: new Proxy({} as AuthDeps["db"], {
+        get: () => {
+          throw new Error("x");
+        },
+      }),
+    };
+    expect(await readSession(cookie, broken)).toBeUndefined();
+  });
+});
+
+describe("handleSignOut", () => {
+  async function signedIn() {
+    const { github, deps } = setup();
+    const response = await signIn(github, deps);
+    const cookie = `${SESSION_COOKIE}=${cookieValue(setCookies(response).get(SESSION_COOKIE))}`;
+    return { deps, cookie };
+  }
+  const post = (cookie: string, origin: string | null = SITE) =>
+    new Request(`${SITE}/api/auth/signout`, {
+      method: "POST",
+      headers: { cookie, ...(origin === null ? {} : { origin }) },
+    });
+
+  it("deletes the session and clears the cookie", async () => {
+    const { deps, cookie } = await signedIn();
+    const response = await handleSignOut(post(cookie), deps);
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/");
+    expect(setCookies(response).get(SESSION_COOKIE)).toBe(
+      `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+    );
+    expect(await readSession(cookie, deps)).toBeUndefined();
+    expect(await t.db.select().from(sessions)).toEqual([]);
+  });
+
+  it("refuses a POST from another site or without an Origin", async () => {
+    const { deps, cookie } = await signedIn();
+    for (const origin of ["https://evil.example", "null", null]) {
+      const response = await handleSignOut(post(cookie, origin), deps);
+      expect(response.status, String(origin)).toBe(403);
+      expect(setCookies(response).size).toBe(0);
+    }
+    expect(await readSession(cookie, deps)).toBeDefined();
+  });
+
+  it("clears the cookie even when signed out or unconfigured, and keeps it if the delete fails", async () => {
+    const { deps, cookie } = await signedIn();
+    const anonymous = await handleSignOut(post(""), deps);
+    expect(setCookies(anonymous).get(SESSION_COOKIE)).toContain("Max-Age=0");
+    const unconfigured = await handleSignOut(post(cookie), undefined);
+    expect(setCookies(unconfigured).get(SESSION_COOKIE)).toContain("Max-Age=0");
+
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const broken = {
+      ...deps,
+      db: new Proxy({} as AuthDeps["db"], {
+        get: () => {
+          throw new Error("x");
+        },
+      }),
+    };
+    const failed = await handleSignOut(post(cookie), broken);
+    expect(failed.headers.get("location")).toBe("/?signout=failed");
+    expect(setCookies(failed).size).toBe(0);
+  });
+});
