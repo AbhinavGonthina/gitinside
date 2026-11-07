@@ -1,0 +1,761 @@
+{
+  "repo": "calcom/cal.diy",
+  "run": {
+    "gitinside": "66ae750af380efe65364fe2eda053290d1e0634b",
+    "analyzerVersion": "0.2.0",
+    "started": "2026-11-06",
+    "machine": {
+      "cpu": "13th Gen Intel(R) Core(TM) i7-13700H",
+      "cores": 20,
+      "ramGiB": 15.6,
+      "os": "win32 10.0.26300",
+      "node": "v22.13.0"
+    }
+  },
+  "prs": [
+    {
+      "number": 29695,
+      "baseSha": "53e32a5bbad43b262a5e1fef37f57fc67738afdb",
+      "mergeSha": "8f89c082e8a365fbdc30c5b4f2616dc06b008e6a",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29648,
+      "baseSha": "8f89c082e8a365fbdc30c5b4f2616dc06b008e6a",
+      "mergeSha": "032962f5775d64959cce9fd2708c27f0b1b0cabe",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 2,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 2,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29708,
+      "baseSha": "032962f5775d64959cce9fd2708c27f0b1b0cabe",
+      "mergeSha": "188aaa18573f733a60065a5317449de38c0312d9",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 3,
+          "updated": 1,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29707,
+      "baseSha": "188aaa18573f733a60065a5317449de38c0312d9",
+      "mergeSha": "f3284f581ff18a37ecdcface587b4a03236b1861",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29724,
+      "baseSha": "f3284f581ff18a37ecdcface587b4a03236b1861",
+      "mergeSha": "ca90ca2c94536c7fac97e4e829cdfe18624c7f10",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 4,
+          "removed": 0,
+          "modified": 1,
+          "updated": 1,
+          "renamed": 1
+        },
+        "edges": {
+          "added": 9,
+          "removed": 4,
+          "modified": 0,
+          "updated": 8,
+          "renamed": 1
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29580,
+      "baseSha": "ca90ca2c94536c7fac97e4e829cdfe18624c7f10",
+      "mergeSha": "0968bcef016489e351fabb83b8cd9614104bcb9d",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 1,
+          "removed": 0,
+          "modified": 2,
+          "updated": 9,
+          "renamed": 1
+        },
+        "edges": {
+          "added": 2,
+          "removed": 0,
+          "modified": 0,
+          "updated": 21,
+          "renamed": 1
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29673,
+      "baseSha": "0968bcef016489e351fabb83b8cd9614104bcb9d",
+      "mergeSha": "bb7c87cae1b9274f1c1260142e1c7f5c10286c0f",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 1,
+          "removed": 0,
+          "modified": 1,
+          "updated": 1,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 5,
+          "removed": 0,
+          "modified": 0,
+          "updated": 8,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29703,
+      "baseSha": "bb7c87cae1b9274f1c1260142e1c7f5c10286c0f",
+      "mergeSha": "009f91d1636560fe6c60182c0bcff3d413da2919",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 1,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29685,
+      "baseSha": "009f91d1636560fe6c60182c0bcff3d413da2919",
+      "mergeSha": "761b780aa2b2cf3f88b60549a34990071972cea9",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 3,
+          "updated": 1,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 4,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 28567,
+      "baseSha": "761b780aa2b2cf3f88b60549a34990071972cea9",
+      "mergeSha": "f00434927386c9ecdcbd7e6c5f82d22044a245bc",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 10,
+          "updated": 18,
+          "renamed": 1
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 12,
+          "renamed": 24
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29773,
+      "baseSha": "f00434927386c9ecdcbd7e6c5f82d22044a245bc",
+      "mergeSha": "3894f37e14eae5082770f35ff1fde72110c0e6b6",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29865,
+      "baseSha": "3894f37e14eae5082770f35ff1fde72110c0e6b6",
+      "mergeSha": "ab0b9e1fb547e21489093785612749b94c6ce97d",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "updated": 1,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29857,
+      "baseSha": "ab0b9e1fb547e21489093785612749b94c6ce97d",
+      "mergeSha": "038381aeca6261635357957d66b8ba85cdb29737",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 4,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 3,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29819,
+      "baseSha": "038381aeca6261635357957d66b8ba85cdb29737",
+      "mergeSha": "8418db70c71e5364e6baf26275aafa10e6bc9bd7",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 2,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 17,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29740,
+      "baseSha": "8418db70c71e5364e6baf26275aafa10e6bc9bd7",
+      "mergeSha": "5e3fe3cbe60e529b7f0d9d18065fd094c4d2152a",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "updated": 2,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 2,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29901,
+      "baseSha": "5e3fe3cbe60e529b7f0d9d18065fd094c4d2152a",
+      "mergeSha": "b2c28a23ab5b53f2e3729657d23cccb50f64e18a",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 2,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 17,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29940,
+      "baseSha": "b2c28a23ab5b53f2e3729657d23cccb50f64e18a",
+      "mergeSha": "176037d0afbe572f870a3c702985e7cd83fe6c0c",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 2,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 1,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30084,
+      "baseSha": "176037d0afbe572f870a3c702985e7cd83fe6c0c",
+      "mergeSha": "c910911772d8c55ec6a6609b5eabf14898c7e206",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 4,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 3,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29970,
+      "baseSha": "c910911772d8c55ec6a6609b5eabf14898c7e206",
+      "mergeSha": "e70486cd9bf0f16e168e8dcf4281935a503a1f92",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30039,
+      "baseSha": "e70486cd9bf0f16e168e8dcf4281935a503a1f92",
+      "mergeSha": "b879a542509d908d40141a82bf0caa8cd2fc8f9a",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 2,
+          "removed": 0,
+          "modified": 1,
+          "updated": 12,
+          "renamed": 2
+        },
+        "edges": {
+          "added": 5,
+          "removed": 0,
+          "modified": 0,
+          "updated": 15,
+          "renamed": 2
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 29984,
+      "baseSha": "b879a542509d908d40141a82bf0caa8cd2fc8f9a",
+      "mergeSha": "abffde336e744e15cf69626c10e436d6172bc406",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 2,
+          "removed": 0,
+          "modified": 1,
+          "updated": 10,
+          "renamed": 7
+        },
+        "edges": {
+          "added": 5,
+          "removed": 0,
+          "modified": 0,
+          "updated": 14,
+          "renamed": 7
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30096,
+      "baseSha": "abffde336e744e15cf69626c10e436d6172bc406",
+      "mergeSha": "9d6c5756ddc1a5c2108c92c1324034ebc58cf39f",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 2,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30088,
+      "baseSha": "9d6c5756ddc1a5c2108c92c1324034ebc58cf39f",
+      "mergeSha": "e91bb0c38251b0ee6f87eec70ce4940822fb0cf3",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "updated": 5,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 13,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30107,
+      "baseSha": "e91bb0c38251b0ee6f87eec70ce4940822fb0cf3",
+      "mergeSha": "1251ba5be567d26a7f922452fe7797642376476e",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30111,
+      "baseSha": "1251ba5be567d26a7f922452fe7797642376476e",
+      "mergeSha": "b3321936c347744a759e0f36a9793bb78c9bca78",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "updated": 1,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 2,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30124,
+      "baseSha": "b3321936c347744a759e0f36a9793bb78c9bca78",
+      "mergeSha": "569a389e84320a8036a2545f3f656f3123bd08f9",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "updated": 6,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 35,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30140,
+      "baseSha": "569a389e84320a8036a2545f3f656f3123bd08f9",
+      "mergeSha": "39c96bc04d7513ffd3185fbbf60ba4cb7b32586d",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 3,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 1,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30134,
+      "baseSha": "39c96bc04d7513ffd3185fbbf60ba4cb7b32586d",
+      "mergeSha": "b0a34f21c91ae7803f9b7e2c59c2fbd187cce26f",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30135,
+      "baseSha": "b0a34f21c91ae7803f9b7e2c59c2fbd187cce26f",
+      "mergeSha": "6bc45298226f96ff79e0c070c8b2ce39727e8477",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 33,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 63,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30190,
+      "baseSha": "6bc45298226f96ff79e0c070c8b2ce39727e8477",
+      "mergeSha": "c339c9c47998d5213aab7701c99aa246db4619d3",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 0,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 0,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    },
+    {
+      "number": 30171,
+      "baseSha": "c339c9c47998d5213aab7701c99aa246db4619d3",
+      "mergeSha": "54343aa685ae8f33159d2f485ec4a57bad5c574a",
+      "outcome": "diffed",
+      "summary": {
+        "nodes": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "updated": 3,
+          "renamed": 0
+        },
+        "edges": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "updated": 1,
+          "renamed": 0
+        },
+        "broken": 0
+      },
+      "broken": []
+    }
+  ]
+}
