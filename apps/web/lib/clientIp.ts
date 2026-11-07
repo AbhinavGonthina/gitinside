@@ -54,3 +54,11 @@ export function rateLimitKey(secret: string, address: string): string {
   const key = createHmac("sha256", secret).update("gitinside rate-limit key v1").digest();
   return `ip:${createHmac("sha256", key).update(address).digest("hex")}`;
 }
+
+/**
+ * The `rate_limits.key` for a signed-in user (M8.2b): `user:` + the `users` row's ID, which
+ * names nobody outside the database. Never equal to an address's (`ip:`) or the site's key.
+ */
+export function userRateLimitKey(userId: string): string {
+  return `user:${userId}`;
+}

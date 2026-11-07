@@ -4,7 +4,7 @@
  * user's GitHub tokens already sealed. These functions only store and find rows, with every
  * time on the database's clock so serverless instances agree on when a session ends.
  */
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, lte, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
 import { sessions, users } from "./schema.js";
 
@@ -91,4 +91,17 @@ export async function findSession(
 /** Delete the session whose token hashes to `tokenHash` (sign-out); a missing one is fine. */
 export async function deleteSession(db: AnyDatabase, tokenHash: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
+}
+
+/**
+ * Delete every session that has ended, by the database's clock (the worker's hourly
+ * maintenance); returns how many went. {@link findSession} already ignores them, so this
+ * only drops their sealed tokens and keeps the table small. Users stay.
+ */
+export async function deleteExpiredSessions(db: AnyDatabase): Promise<number> {
+  const gone = await db
+    .delete(sessions)
+    .where(lte(sessions.expiresAt, sql`now()`))
+    .returning({ id: sessions.id });
+  return gone.length;
 }

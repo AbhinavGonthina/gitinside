@@ -4,6 +4,7 @@ import {
   type AnalyzeDeps,
   type AnalyzeResponse,
 } from "./analyze";
+import { readSession, type AuthDeps } from "./authRoute";
 import { CHALLENGE_FAILED_MESSAGE, MAX_TOKEN_LENGTH } from "./botCheck";
 import { clientAddress } from "./clientIp";
 
@@ -18,6 +19,9 @@ import { clientAddress } from "./clientIp";
  * - The body is `{ "url": "<what was pasted>" }`, plus `"turnstileToken"` once the visitor
  *   was asked for the bot check (botCheck.ts), and nothing else. A token that's empty, not a
  *   string, or longer than Cloudflare's tokens is refused as a failed check.
+ * - **Who counts:** a request carrying a live session cookie counts against its user's
+ *   hourly limit, any other against its address (`readSession`, M8.2b). The JSON-only rule
+ *   above also keeps another site from spending a signed-in visitor's limit.
  * - **Never cached** (`cache-control: no-store`). Unexpected errors are `500 INTERNAL` with a
  *   generic message; the error itself is logged by name only.
  */
@@ -73,6 +77,8 @@ async function readBody(request: Request, max: number): Promise<Uint8Array | und
 export async function handleAnalyzeRequest(
   request: Request,
   deps: AnalyzeDeps | undefined,
+  /** Sign-in's deps: a request with a live session counts against its user (M8.2b). */
+  auth?: AuthDeps,
 ): Promise<Response> {
   if (!/^application\/json\s*(?:;|$)/i.test(request.headers.get("content-type") ?? "")) {
     return json(415, { error: "UNSUPPORTED_MEDIA_TYPE", message: 'Send JSON: { "url": "…" }.' });
@@ -118,7 +124,9 @@ export async function handleAnalyzeRequest(
   if (deps === undefined) return json(503, { error: "UNAVAILABLE", message: UNAVAILABLE_MESSAGE });
 
   try {
-    const answer = await requestAnalysis(value.url, clientAddress(request.headers), deps, token);
+    const user = await readSession(request.headers.get("cookie"), auth);
+    const caller = user ? { userId: user.userId } : clientAddress(request.headers);
+    const answer = await requestAnalysis(value.url, caller, deps, token);
     return json(answer.status, answer.body, answer.headers);
   } catch (error) {
     // Name only: a driver error's message can carry connection details.

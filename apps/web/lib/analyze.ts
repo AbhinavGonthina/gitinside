@@ -7,7 +7,7 @@ import {
   upsertRepo,
 } from "@gitinside/db";
 import { passBotCheck, type BotCheck, type BotRefusal } from "./botCheck";
-import { rateLimitKey } from "./clientIp";
+import { rateLimitKey, userRateLimitKey } from "./clientIp";
 import {
   enqueueAnalysis,
   findAnalysisToQueue,
@@ -51,8 +51,8 @@ import { findSizeHold, type SizeHold } from "./sizeHold";
  * 6. **Paused:** while the month's Google compute is at 80% of the free allowance, no new
  *    analysis starts (`503 ANALYSIS_PAUSED`, until the next UTC month: `findComputePause`,
  *    ADR-0156). Finished diagrams and jobs already in flight are unaffected.
- * 7. **Rate limit:** a new analysis takes a slot in the caller's hourly window (5 signed
- *    out), or is refused with `429 RATE_LIMITED`. Taken first, in one statement, so the bot
+ * 7. **Rate limit:** a new analysis takes a slot in the caller's hourly window (5 per
+ *    address signed out, 30 per user signed in), or is refused with `429 RATE_LIMITED`. Taken first, in one statement, so the bot
  *    check can decide on the count it was taken at (R6). Every later refusal gives it back,
  *    and so does an answer that queued nothing new (the queue was down, or someone else's
  *    request queued it first) or a throw.
@@ -77,6 +77,10 @@ export interface AnalyzeDeps extends EnqueueDeps {
   rateLimitSecret: string;
   /** New analyses per hour for a signed-out address. */
   hourlyLimit: number;
+  /** New analyses per hour for a signed-in user (M8.2b). */
+  signedInHourlyLimit: number;
+  /** Whether sign-in is set up, so a signed-out caller at the limit is told it helps. */
+  signInAvailable?: boolean;
   /** The Turnstile check (`passBotCheck`, ADR-0157); without it, nobody is asked. */
   botCheck?: BotCheck;
   /**
@@ -165,12 +169,18 @@ const RESOLVE_ERRORS: Record<ResolveFailure, { status: number; message: string }
 };
 
 /**
- * Start (or find) the analysis of the repo at `url` for a caller at `address`.
- * `challengeToken` is the Turnstile widget's token, once the visitor was asked for it.
+ * Who asks for an analysis: a signed-out request's address (`clientAddress`), or a
+ * signed-in user by their `users` row's ID (M8.2b), whose address then doesn't count.
+ */
+export type Caller = string | { userId: string };
+
+/**
+ * Start (or find) the analysis of the repo at `url` for `caller`. `challengeToken` is the
+ * Turnstile widget's token, once the visitor was asked for it.
  */
 export async function requestAnalysis(
   url: string,
-  address: string,
+  caller: Caller,
   deps: AnalyzeDeps,
   challengeToken?: string,
 ): Promise<AnalyzeResponse> {
@@ -221,18 +231,24 @@ export async function requestAnalysis(
     const pause = await findComputePause(deps.db);
     if (pause !== undefined) return paused(pause.until, deps);
   }
-  const key = rateLimitKey(deps.rateLimitSecret, address);
+  const signedIn = typeof caller !== "string";
+  const key = signedIn
+    ? userRateLimitKey(caller.userId)
+    : rateLimitKey(deps.rateLimitSecret, caller);
+  const hourlyLimit = signedIn ? deps.signedInHourlyLimit : deps.hourlyLimit;
   let charged: Date | undefined;
   let claimed: { repoId: string; claimedAt: Date } | undefined;
   if (!inFlight) {
     // The slot first, in one statement: the bot check decides on the count it was taken at,
     // so a parallel burst can't all read the same count (R6).
     const at = deps.rateLimitClock?.();
-    const limit = await consumeRateLimit(deps.db, key, deps.hourlyLimit, at);
-    if (!limit.allowed) return rateLimited(limit.resetAt, deps);
+    const limit = await consumeRateLimit(deps.db, key, hourlyLimit, at);
+    if (!limit.allowed) return rateLimited(limit.resetAt, hourlyLimit, signedIn, deps);
     charged = limit.windowStart;
     if (deps.botCheck) {
-      const started = limit.count - 1;
+      // A signed-in user is asked only when the whole site is busy: their GitHub account is
+      // who they are, and their hourly limit bounds them (ADR-0222).
+      const started = signedIn ? 0 : limit.count - 1;
       const refusal = await passBotCheck(deps.botCheck, deps.db, started, challengeToken, at);
       if (refusal) {
         await refundRateLimit(deps.db, key, charged);
@@ -298,13 +314,20 @@ function paused(until: Date, deps: AnalyzeDeps): AnalyzeResponse {
   };
 }
 
-function rateLimited(resetAt: Date, deps: AnalyzeDeps): AnalyzeResponse {
+function rateLimited(
+  resetAt: Date,
+  limit: number,
+  signedIn: boolean,
+  deps: AnalyzeDeps,
+): AnalyzeResponse {
   const { seconds, wait } = waitUntil(resetAt, deps);
+  // UX.md "Rate limited": a signed-out caller is told signing in raises the limit.
+  const more = !signedIn && deps.signInAvailable === true ? ", or sign in for a higher limit" : "";
   return {
     status: 429,
     body: {
       error: "RATE_LIMITED",
-      message: `You've analyzed ${deps.hourlyLimit} repos this hour. Try again in ${wait}.`,
+      message: `You've analyzed ${limit} repos this hour. Try again in ${wait}${more}.`,
       retryAt: resetAt.toISOString(),
     },
     headers: { "retry-after": String(seconds) },

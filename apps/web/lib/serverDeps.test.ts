@@ -4,6 +4,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { FAKE_GCP, fakeGoogle } from "./google.testkit";
 import {
   LOCAL_TASKS_OPT_IN,
+  SIGNED_IN_HOURLY_LIMIT,
   SIGNED_OUT_HOURLY_LIMIT,
   analyzeDepsFromEnv,
   authDepsFromEnv,
@@ -56,10 +57,25 @@ describe("analyzeDepsFromEnv", () => {
       analyzerVersion: ANALYZER_VERSION,
       rateLimitSecret: ENV.ENQUEUE_HMAC_SECRET,
       hourlyLimit: SIGNED_OUT_HOURLY_LIMIT,
+      signedInHourlyLimit: SIGNED_IN_HOURLY_LIMIT,
+      signInAvailable: false,
       github: {},
     });
     expect(SIGNED_OUT_HOURLY_LIMIT).toBe(5);
+    expect(SIGNED_IN_HOURLY_LIMIT).toBe(30);
     expect(analyzeDepsFromEnv({ ...ENV, GITHUB_TOKEN: "t" })?.github).toEqual({ token: "t" });
+  });
+
+  it("says sign-in is available only when sign-in is configured (M8.2b)", () => {
+    const signIn = {
+      GITHUB_APP_CLIENT_ID: "Iv1.x",
+      GITHUB_APP_CLIENT_SECRET: "c",
+      SESSION_SECRET: "s".repeat(43),
+    };
+    expect(analyzeDepsFromEnv({ ...ENV, ...signIn })?.signInAvailable).toBe(true);
+    expect(
+      analyzeDepsFromEnv({ ...ENV, ...signIn, SESSION_SECRET: "short" })?.signInAvailable,
+    ).toBe(false);
   });
 
   it("has the Turnstile bot check with both keys, none with neither, and no analysis with one (ADR-0157)", async () => {

@@ -87,6 +87,29 @@ function log(event: string, error?: unknown): void {
   console.error(JSON.stringify({ event, ...(reason !== undefined && { error: reason }) }));
 }
 
+/** A host as a `Host` header carries it: a name or IPv4, or a bracketed IPv6, and a port. */
+const HOST = /^(?:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*|\[[0-9A-Fa-f:.]+\])(?::\d{1,5})?$/;
+
+/**
+ * The origin the browser used, for the callback URL and the sign-out `Origin` check:
+ * `X-Forwarded-Host` (its first entry), else `Host`, with `X-Forwarded-Proto`, each used only
+ * if well formed, else the request URL's own. Not `request.url` alone: `next start` gives
+ * route handlers `http://localhost:<port>` whatever host was asked for (found in M8.2b's
+ * browser check), and a proxy can rewrite it too. A client choosing these headers only
+ * changes its own request: GitHub refuses an unregistered callback, and a cross-site form
+ * can't set them.
+ */
+export function siteOrigin(request: Request): string {
+  const url = new URL(request.url);
+  const forwarded = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = [forwarded, request.headers.get("host")?.trim()].find(
+    (candidate) => candidate !== undefined && HOST.test(candidate),
+  );
+  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const scheme = proto === "http" || proto === "https" ? proto : url.protocol.slice(0, -1);
+  return `${scheme}://${host ?? url.host}`;
+}
+
 /** `GET /api/auth/github`: start signing in. */
 export function handleSignIn(request: Request, deps: AuthDeps | undefined): Response {
   if (deps === undefined) return failed("unavailable");
@@ -96,7 +119,7 @@ export function handleSignIn(request: Request, deps: AuthDeps | undefined): Resp
   const returnTo = safeReturnTo(url.searchParams.get("returnTo"));
   const now = (deps.now ?? Date.now)();
   const value = signState(deps.keys, { state, verifier, returnTo, startedAt: now });
-  const redirectUri = new URL(CALLBACK_PATH, url.origin).href;
+  const redirectUri = new URL(CALLBACK_PATH, siteOrigin(request)).href;
   return redirect(authorizeUrl(deps.client.clientId, redirectUri, state, codeChallenge(verifier)), [
     cookie(STATE_COOKIE, value, STATE_LIFETIME_SECONDS),
   ]);
@@ -126,7 +149,7 @@ export async function handleCallback(
   if (code === null || !CODE.test(code)) return failed("failed");
 
   try {
-    const redirectUri = new URL(CALLBACK_PATH, url.origin).href;
+    const redirectUri = new URL(CALLBACK_PATH, siteOrigin(request)).href;
     const tokens = await exchangeCode(deps.client, code, redirectUri, saved.verifier, now);
     const identity = await fetchIdentity(deps.client, tokens.accessToken);
     const userId = await upsertUser(deps.db, identity);
@@ -162,7 +185,7 @@ export async function handleSignOut(
   deps: AuthDeps | undefined,
 ): Promise<Response> {
   const origin = request.headers.get("origin");
-  if (origin === null || origin !== new URL(request.url).origin) {
+  if (origin === null || origin !== siteOrigin(request)) {
     return new Response("Sign out from GitInside's own page.", {
       status: 403,
       headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE },

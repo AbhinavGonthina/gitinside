@@ -545,6 +545,7 @@ describe("startWorkerProcess", () => {
       "stale_jobs_failed",
       "retention_run",
       "rate_limits_pruned",
+      "sessions_swept",
       "quota",
     ]);
     expect(parse(lines).find((line) => line.event === "stale_jobs_failed")).toMatchObject({
@@ -582,7 +583,7 @@ describe("startWorkerProcess", () => {
     const other = { ...JOB, sha: "d".repeat(40) };
     await pushTask(fakeTask(origin(worker), other, SECRET));
     await worker.stop();
-    expect(events(lines).slice(10)).toEqual(["job_done", "worker_stopping", "worker_stopped"]);
+    expect(events(lines).slice(11)).toEqual(["job_done", "worker_stopping", "worker_stopped"]);
     expect(await t.db.select().from(maintenanceRuns)).toMatchObject([{ name: "hourly" }]);
   });
 });

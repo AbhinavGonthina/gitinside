@@ -22,6 +22,7 @@ import {
   UNAVAILABLE_MESSAGE,
   type AnalyzeDeps,
 } from "./analyze";
+import { SIGNED_IN_HOURLY_LIMIT } from "./serverDeps";
 import {
   CHALLENGE_AFTER_PER_ADDRESS,
   CHALLENGE_AFTER_SITE,
@@ -31,7 +32,7 @@ import {
   SITE_ANALYZE_KEY,
   type Verdict,
 } from "./botCheck";
-import { rateLimitKey } from "./clientIp";
+import { rateLimitKey, userRateLimitKey } from "./clientIp";
 import { STRANDED_AFTER_SECONDS, taskIdFor } from "./cloudTasks";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
@@ -71,6 +72,7 @@ beforeEach(async () => {
     analyzerVersion: VERSION,
     rateLimitSecret: SECRET,
     hourlyLimit: 5,
+    signedInHourlyLimit: SIGNED_IN_HOURLY_LIMIT,
   };
 });
 
@@ -596,6 +598,84 @@ describe("requestAnalysis", () => {
     expect((await requestAnalysis("acme/r5", "198.51.100.1", deps)).status).toBe(202);
   });
 
+  describe("signed in (M8.2b, SPEC §3)", () => {
+    const AT = new Date("2026-10-31T14:30:00.000Z");
+    const HOUR_START = new Date("2026-10-31T14:00:00.000Z");
+    const USER = "0b6c1d7e-1111-4222-8333-444455556666";
+    const repos3 = Array.from({ length: 3 }, (_, i) => ({
+      id: 400 + i,
+      owner: "acme",
+      name: `r${i}`,
+      sha: SHA,
+    }));
+
+    beforeEach(() => {
+      gh = fakeGitHub(repos3);
+      deps.github = { fetch: gh.fetch };
+      deps.rateLimitClock = () => AT;
+    });
+
+    const used = async (key: string) =>
+      (await t.db.select().from(rateLimits)).find((r) => r.key === key)?.count ?? 0;
+
+    it("gives a user 30 new analyses an hour, counted by user ID, never by address", async () => {
+      expect(SIGNED_IN_HOURLY_LIMIT).toBe(30);
+      await t.db.insert(rateLimits).values({
+        key: userRateLimitKey(USER),
+        windowStart: HOUR_START,
+        count: SIGNED_IN_HOURLY_LIMIT - 1,
+      });
+      expect((await requestAnalysis("acme/r0", { userId: USER }, deps)).status).toBe(202);
+      expect(await used(userRateLimitKey(USER))).toBe(SIGNED_IN_HOURLY_LIMIT);
+
+      const now = AT.getTime();
+      const limited = await requestAnalysis(
+        "acme/r1",
+        { userId: USER },
+        { ...deps, now: () => now },
+      );
+      expect(limited).toMatchObject({
+        status: 429,
+        body: {
+          error: "RATE_LIMITED",
+          message: "You've analyzed 30 repos this hour. Try again in 30 minutes.",
+          retryAt: "2026-10-31T15:00:00.000Z",
+        },
+        headers: { "retry-after": "1800" },
+      });
+      // No address was charged, and the user's slots aren't any address's.
+      expect(await used(rateLimitKey(SECRET, IP))).toBe(0);
+      expect((await requestAnalysis("acme/r1", IP, deps)).status).toBe(202);
+      expect(await used(userRateLimitKey(USER))).toBe(SIGNED_IN_HOURLY_LIMIT);
+    });
+
+    it("keeps a user's count apart from another user's", async () => {
+      expect(userRateLimitKey(USER)).toBe(`user:${USER}`);
+      expect(userRateLimitKey(USER)).not.toBe(userRateLimitKey(USER.replace("0b", "0c")));
+      expect((await requestAnalysis("acme/r0", { userId: USER }, deps)).status).toBe(202);
+      expect(await used(userRateLimitKey(USER))).toBe(1);
+      expect(await used(userRateLimitKey(USER.replace("0b", "0c")))).toBe(0);
+    });
+
+    it("offers signing in to a signed-out address at its limit, once sign-in is set up", async () => {
+      await t.db.insert(rateLimits).values({
+        key: rateLimitKey(SECRET, IP),
+        windowStart: HOUR_START,
+        count: 5,
+      });
+      const now = AT.getTime();
+      const ask = (signIn: boolean) =>
+        requestAnalysis("acme/r0", IP, { ...deps, now: () => now, signInAvailable: signIn });
+      expect((await ask(true)).body).toMatchObject({
+        message:
+          "You've analyzed 5 repos this hour. Try again in 30 minutes, or sign in for a higher limit.",
+      });
+      expect((await ask(false)).body).toMatchObject({
+        message: "You've analyzed 5 repos this hour. Try again in 30 minutes.",
+      });
+    });
+  });
+
   describe("one new analysis per repo per 30 minutes, whoever asks (#11)", () => {
     const NEWER = "f".repeat(40);
     const ask = (sha: string, address: string, extra: Partial<AnalyzeDeps> = {}) => {
@@ -946,5 +1026,35 @@ describe("requestAnalysis, the bot check (M5.18e, ADR-0157)", () => {
     await busyAddress();
     delete deps.botCheck;
     expect((await requestAnalysis("acme/shop", IP, deps)).status).toBe(202);
+  });
+
+  describe("signed in (M8.2b)", () => {
+    const USER = "0b6c1d7e-1111-4222-8333-444455556666";
+
+    it("doesn't ask a user for starting several analyses: the account is who they are", async () => {
+      await t.db.insert(rateLimits).values({
+        key: userRateLimitKey(USER),
+        windowStart: HOUR_START,
+        count: CHALLENGE_AFTER_PER_ADDRESS + 3,
+      });
+      await busyAddress(); // the address they're on doesn't matter either
+      expect((await requestAnalysis("acme/shop", { userId: USER }, deps)).status).toBe(202);
+      expect(tokens).toEqual([]);
+    });
+
+    it("still asks a user when the whole site is busy", async () => {
+      await t.db.insert(rateLimits).values({
+        key: SITE_ANALYZE_KEY,
+        windowStart: HOUR_START,
+        count: CHALLENGE_AFTER_SITE,
+      });
+      expect(await requestAnalysis("acme/shop", { userId: USER }, deps)).toMatchObject({
+        status: 403,
+        body: { error: "CHALLENGE_REQUIRED", message: challengeMessage("site") },
+      });
+      // The refused request gave the user's slot back.
+      const rows = await t.db.select().from(rateLimits);
+      expect(rows.find((r) => r.key === userRateLimitKey(USER))?.count).toBe(0);
+    });
   });
 });
