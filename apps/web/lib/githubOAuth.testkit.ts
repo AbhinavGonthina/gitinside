@@ -7,7 +7,8 @@ import { createHash } from "node:crypto";
  * URI it was issued for, the PKCE verifier against the challenge given to the authorize page,
  * and refresh tokens (once each). For the dashboard (M8.2c) it also answers `GET
  * /user/installations` and `GET /user/installations/{id}/repositories` (both paged) from
- * {@link FakeOAuth.install}. Requests are matched by path, so the same fake serves calls made
+ * {@link FakeOAuth.install}, and the access check (M8.4a) `GET /repositories/{id}` for a repo one
+ * of them covers. Requests are matched by path, so the same fake serves calls made
  * to github.com, to api.github.com, or to a loopback origin (`e2e/github.ts`).
  */
 
@@ -21,6 +22,8 @@ export interface FakeRepo {
   owner: string;
   name: string;
   private?: boolean;
+  /** GitHub's repo ID, for `GET /repositories/{id}` (M8.4a); without one it isn't found there. */
+  id?: number;
 }
 
 /** An installation of the app the fake lists for the accounts that can see it. */
@@ -153,6 +156,23 @@ export function fakeOAuth(options: { expiring?: boolean } = {}): FakeOAuth {
           suspended_at: i.suspendedAt ?? null,
         })),
       });
+    }
+    // A user's token sees a repo only where the app is installed and the user has access.
+    const byId = /^\/repositories\/(\d+)$/.exec(url.pathname);
+    if (byId !== null) {
+      for (const i of seen) {
+        const r = i.repos.find((repo) => repo.id !== undefined && String(repo.id) === byId[1]);
+        if (r !== undefined) {
+          return Response.json({
+            id: r.id,
+            name: r.name,
+            full_name: `${r.owner}/${r.name}`,
+            owner: { login: r.owner },
+            private: r.private ?? false,
+          });
+        }
+      }
+      return Response.json({ message: "Not Found" }, { status: 404 });
     }
     const repos = /^\/user\/installations\/(\d+)\/repositories$/.exec(url.pathname);
     const installation = seen.find((i) => String(i.id) === repos?.[1]);
