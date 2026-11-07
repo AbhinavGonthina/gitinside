@@ -1,0 +1,18 @@
+{
+  "repo": "dubinc/dub.link",
+  "run": {
+    "gitinside": "7e97209c355eabdb64dc1cad9c128204fcd1f6c5",
+    "analyzerVersion": "0.2.0",
+    "started": "2026-11-07",
+    "machine": {
+      "cpu": "13th Gen Intel(R) Core(TM) i7-13700H",
+      "cores": 20,
+      "ramGiB": 15.6,
+      "os": "win32 10.0.26300",
+      "node": "v22.13.0"
+    }
+  },
+  "replay": "a3622e19f2da52c78368574e2e75aa1fbf979388",
+  "endSha": "6b463b4bdd9ed2fd9aa416f67b5b77d317b1471e",
+  "prs": []
+}

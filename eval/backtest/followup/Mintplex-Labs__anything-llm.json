@@ -1,0 +1,18 @@
+{
+  "repo": "Mintplex-Labs/anything-llm",
+  "run": {
+    "gitinside": "7e97209c355eabdb64dc1cad9c128204fcd1f6c5",
+    "analyzerVersion": "0.2.0",
+    "started": "2026-11-07",
+    "machine": {
+      "cpu": "13th Gen Intel(R) Core(TM) i7-13700H",
+      "cores": 20,
+      "ramGiB": 15.6,
+      "os": "win32 10.0.26300",
+      "node": "v22.13.0"
+    }
+  },
+  "replay": "a3622e19f2da52c78368574e2e75aa1fbf979388",
+  "endSha": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+  "prs": []
+}

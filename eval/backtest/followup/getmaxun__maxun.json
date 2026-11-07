@@ -1,0 +1,85 @@
+{
+  "repo": "getmaxun/maxun",
+  "run": {
+    "gitinside": "7e97209c355eabdb64dc1cad9c128204fcd1f6c5",
+    "analyzerVersion": "0.2.0",
+    "started": "2026-11-07",
+    "machine": {
+      "cpu": "13th Gen Intel(R) Core(TM) i7-13700H",
+      "cores": 20,
+      "ramGiB": 15.6,
+      "os": "win32 10.0.26300",
+      "node": "v22.13.0"
+    }
+  },
+  "replay": "a3622e19f2da52c78368574e2e75aa1fbf979388",
+  "endSha": "491ee3f65bdead5984caccb63d7ae627e20cf3d2",
+  "prs": [
+    {
+      "number": 1157,
+      "baseSha": "650bcad7b4ba9e529d5ca00699a7b1517a691833",
+      "mergeSha": "c5e849eac2247a61b04f82d54c95688abf07ad73",
+      "mergedAt": "2026-08-03T11:04:59Z",
+      "later": 473,
+      "checked": 6,
+      "unreadable": [],
+      "breaks": [
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/createDocumentParseRobotRecord.ts#createDocumentParseRobotRecord->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.parse",
+          "reason": "TARGET_REMOVED",
+          "fixed": {
+            "sha": "9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca",
+            "committedAt": "2026-08-03T11:59:45Z",
+            "how": "restored",
+            "pr": null
+          },
+          "atEnd": "clear"
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/createDocumentRobotRecord.ts#createDocumentRobotRecord->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.extractText",
+          "reason": "TARGET_REMOVED",
+          "fixed": {
+            "sha": "9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca",
+            "committedAt": "2026-08-03T11:59:45Z",
+            "how": "restored",
+            "pr": null
+          },
+          "atEnd": "clear"
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/createDocumentRobotRecord.ts#createDocumentRobotRecord->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.generateExtractionSchema",
+          "reason": "TARGET_REMOVED",
+          "fixed": {
+            "sha": "9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca",
+            "committedAt": "2026-08-03T11:59:45Z",
+            "how": "restored",
+            "pr": null
+          },
+          "atEnd": "clear"
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/executeDocumentParseRun.ts#executeDocumentParseRun->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.parse",
+          "reason": "TARGET_REMOVED",
+          "fixed": {
+            "sha": "9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca",
+            "committedAt": "2026-08-03T11:59:45Z",
+            "how": "restored",
+            "pr": null
+          },
+          "atEnd": "clear"
+        },
+        {
+          "edge": "calls:symbol:maxun/server/src/utils/document/executeDocumentRun.ts#executeDocumentRun->symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentInterpreter.extractData",
+          "reason": "TARGET_REMOVED",
+          "fixed": {
+            "sha": "9262631d7be7deb58d80cd3d9dd3ea0d6a34c5ca",
+            "committedAt": "2026-08-03T11:59:45Z",
+            "how": "restored",
+            "pr": null
+          },
+          "atEnd": "clear"
+        }
+      ]
+    }
+  ]
+}
