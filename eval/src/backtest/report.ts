@@ -334,8 +334,9 @@ export function renderBacktestReport(inputs: BacktestInputs, limitations: string
       line();
       mine.forEach((f, i) => {
         const site = f.edge.sites[0];
+        const off = f.followed.offLine;
         line(
-          `${i + 1}. ${f.edge.detail}${site ? ` (${code(`${site.file}:${site.line}`)})` : ""}. **Verdict:** ${f.classified.why}${f.classified.fix ? ` **Fix:** ${f.classified.fix.why}` : ""} Evidence: ${f.classified.evidence.map((u, k) => `[${k + 1}](${u})`).join(", ")}.`,
+          `${i + 1}. ${f.edge.detail}${site ? ` (${code(`${site.file}:${site.line}`)})` : ""}. **Verdict:** ${f.classified.why}${f.classified.fix ? ` **Fix:** ${f.classified.fix.why}` : ""} Evidence: ${f.classified.evidence.map((u, k) => `[${k + 1}](${u})`).join(", ")}.${off ? ` Off the branch's first-parent line, ${commitLink(repo, off.sha)} (${elapsed(pr.mergedAt, off.committedAt)} after the merge) stopped flagging it first; the branch never held that state, so it isn't counted as the fix.` : ""}`,
         );
       });
       line();

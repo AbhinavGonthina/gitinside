@@ -16,7 +16,7 @@ import {
   pinnedPrOf,
   type FollowUpIo,
 } from "./followUp.js";
-import { committedAt, gitView, laterCommits } from "./git.js";
+import { committedAt, gitView, laterCommits, lineCommits } from "./git.js";
 import type { PinnedPr, PrsFile } from "./prs.js";
 import {
   commitOpener,
@@ -33,9 +33,11 @@ const goldenBase = golden("diff-broken-base");
 const goldenHead = golden("diff-broken-head");
 
 /**
- * A repo whose `main` has five commits: `a` (diff-broken-base), `b` (diff-broken-head, which
- * breaks connections `a` had), `c` (`b` with an edited README), `d` (diff-broken-base again,
- * so every break is fixed), and `e` (`d` with another README edit).
+ * A repo whose `main` has six commits on its first-parent line: `a` (diff-broken-base), `b`
+ * (diff-broken-head, which breaks connections `a` had), `c` (`b` with an edited README), `m`
+ * (the merge of a branch `wip` off `c`, whose `w` went back to diff-broken-base and whose `w2`
+ * then went back to diff-broken-head, so the branch landed with every break kept), `d`
+ * (diff-broken-base again, so every break is fixed), and `e` (`d` with another README edit).
  */
 let scratch: string;
 let repo: string;
@@ -77,6 +79,17 @@ beforeAll(async () => {
   commit("b", 60);
   await writeFile(join(repo, "README.md"), "# edited\n");
   commit("c", 120);
+  git("checkout", "--quiet", "-b", "wip");
+  await replaceWith("diff-broken-base");
+  commit("w", 130);
+  await replaceWith("diff-broken-head");
+  commit("w2", 140);
+  git("checkout", "--quiet", "main");
+  const date = `${1_780_000_000 + 150} +0000`;
+  execFileSync("git", ["-C", repo, "merge", "--quiet", "--no-ff", "--no-edit", "wip"], {
+    env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+  });
+  sha.m = git("rev-parse", "HEAD");
   await replaceWith("diff-broken-base");
   commit("d", 180);
   await writeFile(join(repo, "README.md"), "# edited again\n");
@@ -97,7 +110,7 @@ const pinned = (number: number, baseSha: string, mergeSha: string): PinnedPr => 
   commits: 1,
 });
 
-/** PR 1 breaks (a → b); PR 2 (c → d) fixes it. `c` and `e` are direct pushes. */
+/** PR 1 breaks (a → b); PR 2 (m → d) fixes it. `c`, `m`, and `e` are direct pushes. */
 const prsFile = (): PrsFile => ({
   repo: "test/repo",
   listed: "2026-11-06",
@@ -106,7 +119,7 @@ const prsFile = (): PrsFile => ({
   endSha: sha.e as string,
   search: "repo:test/repo is:pr is:merged",
   found: 2,
-  prs: [pinned(1, sha.a as string, sha.b as string), pinned(2, sha.c as string, sha.d as string)],
+  prs: [pinned(1, sha.a as string, sha.b as string), pinned(2, sha.m as string, sha.d as string)],
   excluded: [],
   overCap: [],
 });
@@ -124,6 +137,7 @@ function repoIo(open: (sha: string) => Promise<ReplaySide>): FollowUpIo {
   return {
     open,
     later: (from, to) => laterCommits(repo, from, to),
+    line: (from, to) => lineCommits(repo, from, to),
     committedAt: (commit) => committedAt(repo, commit),
     isAncestor: view.isAncestor,
   };
@@ -133,7 +147,7 @@ const at = (seconds: number): string =>
   new Date((1_780_000_000 + seconds) * 1000).toISOString().replace(".000Z", "Z");
 
 describe("followUpRepo on a local git repo", () => {
-  it("finds the commit that fixes each break, past the pinned PRs' merges too", async () => {
+  it("finds the commit on the branch's line that fixes each break, past the pinned PRs' merges too", async () => {
     const open = commitOpener(repo);
     const raw = await replayRepo(prsFile(), run, { open, save: async () => {} });
     const broken = raw.prs[0]?.outcome === "diffed" ? raw.prs[0].broken : [];
@@ -156,8 +170,9 @@ describe("followUpRepo on a local git repo", () => {
     expect(file.prs[0]).toMatchObject({
       number: 1,
       mergedAt: "2026-07-01T12:00:00Z",
-      later: 3, // c, d, e
-      checked: 2, // c still flags every break; d fixes them all
+      later: 6, // c, w, w2, m, d, e
+      // c flags every break, w doesn't (off the line), w2 and m do again, d fixes them all.
+      checked: 5,
       unreadable: [],
     });
     expect(file.prs[0]?.breaks).toEqual(
@@ -165,11 +180,13 @@ describe("followUpRepo on a local git repo", () => {
         edge: b.edge,
         reason: b.reason,
         fixed: { sha: sha.d, committedAt: at(180), how: "restored", pr: 2 },
+        // The branch never held w's state; it's kept, but isn't the fix.
+        offLine: { sha: sha.w, committedAt: at(130), how: "restored", pr: null },
         atEnd: "clear",
       })),
     );
-    // The base and merge again, c, d, then e only for `atEnd`.
-    expect(opened).toEqual([sha.a, sha.b, sha.c, sha.d, sha.e]);
+    // The base and merge again, c, w, w2, m, d, then e only for `atEnd`.
+    expect(opened).toEqual([sha.a, sha.b, sha.c, sha.w, sha.w2, sha.m, sha.d, sha.e]);
     expect(
       followUpCrossCheck(parseFollowUpFile("f.json", JSON.stringify(file)), raw, file),
     ).toEqual([]);
@@ -207,9 +224,15 @@ describe("followUpRepo", () => {
     };
   };
 
-  const io = (graphs: Record<string, ArchitectureGraph>, later: string[]): FollowUpIo => ({
+  /** Every later commit is on the branch's line unless `line` says which are. */
+  const io = (
+    graphs: Record<string, ArchitectureGraph>,
+    later: string[],
+    line = later,
+  ): FollowUpIo => ({
     open: fakeSides(graphs).open,
     later: () => later,
+    line: () => line,
     committedAt: () => "2026-07-02T00:00:00Z",
     isAncestor: () => false,
   });
@@ -233,8 +256,37 @@ describe("followUpRepo", () => {
     for (const b of file.prs[0]?.breaks ?? []) {
       expect(b).toMatchObject({
         fixed: { sha: "x", how: "restored", pr: null },
+        offLine: null,
         atEnd: "unreadable",
       });
+    }
+  });
+
+  it("never calls a commit off the branch's line the fix", async () => {
+    const graphs = { [sha.a as string]: goldenBase, [sha.b as string]: goldenHead, x: goldenBase };
+    const offOnly = await followUpRepo(
+      raw(),
+      prsFile(),
+      { endSha: "z" },
+      run,
+      io({ ...graphs, z: goldenHead }, ["x", "z"], ["z"]),
+    );
+    expect(offOnly.prs[0]).toMatchObject({ later: 2, checked: 2 });
+    for (const b of offOnly.prs[0]?.breaks ?? []) {
+      expect(b).toMatchObject({ fixed: null, offLine: { sha: "x" }, atEnd: "flagged" });
+    }
+
+    const both = await followUpRepo(
+      raw(),
+      prsFile(),
+      { endSha: "z" },
+      run,
+      io({ ...graphs, y: goldenBase, z: goldenBase }, ["x", "y", "z"], ["y", "z"]),
+    );
+    // y fixes every break on the line, so z is read only for `atEnd`.
+    expect(both.prs[0]).toMatchObject({ later: 3, checked: 2 });
+    for (const b of both.prs[0]?.breaks ?? []) {
+      expect(b).toMatchObject({ fixed: { sha: "y" }, offLine: { sha: "x" }, atEnd: "clear" });
     }
   });
 
@@ -269,8 +321,10 @@ describe("pinnedPrOf", () => {
     const io = { isAncestor: gitView(repo).isAncestor };
     expect(pinnedPrOf(sha.b as string, prsFile(), io)).toBe(1);
     expect(pinnedPrOf(sha.d as string, prsFile(), io)).toBe(2);
-    // c is under PR 2's merge, but it's PR 2's base, so it was on the branch before PR 2.
+    // c and w are under PR 2's merge, but also under its base, so they came before PR 2.
     expect(pinnedPrOf(sha.c as string, prsFile(), io)).toBeNull();
+    expect(pinnedPrOf(sha.w as string, prsFile(), io)).toBeNull();
+    expect(pinnedPrOf(sha.m as string, prsFile(), io)).toBeNull();
     expect(pinnedPrOf(sha.e as string, prsFile(), io)).toBeNull();
   });
 });
@@ -291,7 +345,13 @@ describe("howFixed", () => {
 });
 
 describe("follow-up files", () => {
-  const breakOf = { edge: "calls:a->b", reason: "TARGET_REMOVED", fixed: null, atEnd: "flagged" };
+  const breakOf = {
+    edge: "calls:a->b",
+    reason: "TARGET_REMOVED",
+    fixed: null,
+    offLine: null,
+    atEnd: "flagged",
+  };
   const file = (later: number, checked: number) => ({
     repo: "test/repo",
     run,

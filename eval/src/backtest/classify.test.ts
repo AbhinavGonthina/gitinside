@@ -32,8 +32,14 @@ const followUp: FollowUpFile = {
       checked: 1,
       unreadable: [],
       breaks: [
-        { edge: "calls:a->b", reason: "TARGET_REMOVED", fixed, atEnd: "clear" },
-        { edge: "calls:a->c", reason: "TARGET_REMOVED", fixed: null, atEnd: "flagged" },
+        { edge: "calls:a->b", reason: "TARGET_REMOVED", fixed, offLine: null, atEnd: "clear" },
+        {
+          edge: "calls:a->c",
+          reason: "TARGET_REMOVED",
+          fixed: null,
+          offLine: null,
+          atEnd: "flagged",
+        },
       ],
     },
   ],

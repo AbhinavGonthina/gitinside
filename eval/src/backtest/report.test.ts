@@ -164,6 +164,7 @@ function inputs(): BacktestInputs {
               how: "restored",
               pr: null,
             },
+            offLine: null,
             atEnd: "clear",
           },
         ],
@@ -272,6 +273,20 @@ describe("renderBacktestReport", () => {
     );
     expect(text).toContain(
       "1. B.parse was removed (`api/src/a.ts:3`). **Verdict:** run still calls B.parse. **Fix:** d restores B. Evidence: [1](https://github.com/t/flagged/pull/1).",
+    );
+  });
+
+  it("notes a side branch's commit that stopped flagging a break before the branch's fix", () => {
+    const i = inputs();
+    expect(renderBacktestReport(i, LIMITS)).not.toContain("Off the branch's first-parent line");
+    i.followUp[0]!.file.prs[0]!.breaks[0]!.offLine = {
+      sha: sha("c"),
+      committedAt: "2026-07-01T10:30:00Z",
+      how: "sourceRemoved",
+      pr: null,
+    };
+    expect(renderBacktestReport(i, LIMITS)).toContain(
+      "Evidence: [1](https://github.com/t/flagged/pull/1). Off the branch's first-parent line, [ccccccc](https://github.com/t/flagged/commit/cccccccccccccccccccccccccccccccccccccccc) (30 min 0 s after the merge) stopped flagging it first; the branch never held that state, so it isn't counted as the fix.",
     );
   });
 
