@@ -41,14 +41,18 @@ describe("landing page", () => {
     expect(screen.getByRole("status").textContent).toBe(SIGN_IN_NOTES["failed"]);
   });
 
-  it("offers signing in for private repos while signed out, and not once signed in", () => {
+  it("offers signing in for private repos while signed out, then the dashboard", () => {
     const { unmount } = render(<Landing signIn={{ available: true }} />);
     expect(
       screen.getByRole("link", { name: "Sign in for private repos" }).getAttribute("href"),
-    ).toBe("/api/auth/github");
+    ).toBe("/api/auth/github?returnTo=%2Fdashboard");
+    expect(screen.queryByRole("link", { name: "Your repos" })).toBeNull();
     unmount();
     render(<Landing signIn={{ available: true, login: "octo" }} />);
     expect(screen.queryByRole("link", { name: "Sign in for private repos" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Your repos" }).getAttribute("href")).toBe(
+      "/dashboard",
+    );
   });
 
   it.each([
@@ -60,6 +64,10 @@ describe("landing page", () => {
       "Sign-in isn't available right now. Public repos still work without it.",
     ],
     [{ signout: "failed" }, "We couldn't sign you out. Try again."],
+    [
+      { signin: "ended" },
+      "Your GitHub sign-in ended, so you've been signed out. Sign in again to see your repos.",
+    ],
   ])("explains %j where a failed sign-in lands", async (query, note) => {
     await home(query);
     expect(screen.getByRole("status").textContent).toBe(note);
@@ -108,7 +116,7 @@ describe("site header", () => {
 
   it("names the signed-in login and signs out with a same-origin form POST", () => {
     render(<SiteHeader theme="light" signIn={{ available: true, login: "octo" }} />);
-    expect(screen.getByText("octo")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "octo" }).getAttribute("href")).toBe("/dashboard");
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
     const button = screen.getByRole("button", { name: "Sign out" });
     expect(button.getAttribute("type")).toBe("submit");

@@ -5,6 +5,7 @@ import {
   deleteExpiredSessions,
   deleteSession,
   findSession,
+  replaceSessionTokens,
   sessions,
   upsertUser,
   users,
@@ -99,6 +100,33 @@ describe("sessions", () => {
     expect(await deleteExpiredSessions(t.db)).toBe(1);
     expect((await t.db.select().from(sessions)).map((s) => s.tokenHash)).toEqual([HASH2]);
     expect(await t.db.select().from(users)).toHaveLength(1); // the user stays
+  });
+
+  it("swap their sealed tokens only from the value the caller read (M8.2c)", async () => {
+    const userId = await upsertUser(t.db, { githubUserId: 7, login: "octo" });
+    await createSession(t.db, { userId, tokenHash: HASH, githubTokens: "v1", lifetimeSeconds: 60 });
+    await createSession(t.db, {
+      userId,
+      tokenHash: HASH2,
+      githubTokens: "v1",
+      lifetimeSeconds: 60,
+    });
+    expect(await replaceSessionTokens(t.db, HASH, "v1", "v2")).toBe(true);
+    // A second refresh that read the old value loses: the row already moved on.
+    expect(await replaceSessionTokens(t.db, HASH, "v1", "v3")).toBe(false);
+    expect((await findSession(t.db, HASH))?.githubTokens).toBe("v2");
+    expect((await findSession(t.db, HASH2))?.githubTokens).toBe("v1"); // only that session
+    expect(await replaceSessionTokens(t.db, "c".repeat(64), "v1", "v2")).toBe(false);
+
+    // An ended session isn't refreshed back to life.
+    await t.db
+      .update(sessions)
+      .set({
+        createdAt: sql`now() - interval '2 hours'`,
+        expiresAt: sql`now() - interval '1 second'`,
+      })
+      .where(eq(sessions.tokenHash, HASH2));
+    expect(await replaceSessionTokens(t.db, HASH2, "v1", "v2")).toBe(false);
   });
 
   it("refuse a token hash that isn't 64 hex characters, a reused hash, and a bad lifetime", async () => {

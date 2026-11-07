@@ -2,6 +2,7 @@ import {
   createSession,
   deleteSession,
   findSession,
+  replaceSessionTokens,
   upsertUser,
   type AnyDatabase,
 } from "@gitinside/db";
@@ -9,7 +10,9 @@ import {
   authorizeUrl,
   exchangeCode,
   fetchIdentity,
+  refreshTokens,
   SignInError,
+  TokenRefusedError,
   type OAuthClient,
 } from "./githubOAuth";
 import {
@@ -56,6 +59,8 @@ export interface AuthDeps {
   db: AnyDatabase;
   client: OAuthClient;
   keys: SessionKeys;
+  /** The app's URL name (`GITHUB_APP_SLUG`), for "Install on more repos"; unset hides it. */
+  appSlug?: string;
   /** The clock for the state cookie's age and token expiry; tests fix it. */
   now?: () => number;
 }
@@ -210,6 +215,8 @@ export interface SignedInUser {
   login: string;
   /** The user's GitHub tokens, or `undefined` if they no longer open (a rotated secret). */
   tokens: () => GitHubTokens | undefined;
+  /** The session's token hash and sealed tokens as read, for {@link userAccessToken}. */
+  session: { tokenHash: string; sealedTokens: string };
 }
 
 /**
@@ -232,9 +239,120 @@ export async function readSession(
       githubUserId,
       login,
       tokens: () => openTokens(deps.keys, tokenHash, githubTokens),
+      session: { tokenHash, sealedTokens: githubTokens },
     };
   } catch (error) {
     log("session_read_failed", error);
     return undefined;
   }
+}
+
+/** A user token renewed this close to its end is refreshed first, so a call can't outlive it. */
+export const REFRESH_MARGIN_MS = 60_000;
+
+/**
+ * What {@link userAccessToken} found: a token to call GitHub with; `ended` when the session
+ * can't get one any more (it has been deleted, so the visitor is signed out); or `error` when
+ * GitHub or the database couldn't be reached, which may pass.
+ */
+export type AccessTokenResult = { token: string } | { ended: true } | { error: true };
+
+/**
+ * The user's GitHub access token, refreshed first when it ends within
+ * {@link REFRESH_MARGIN_MS} (ADR-0223). A refreshed pair replaces the stored one only if the
+ * session still holds what was read ({@link replaceSessionTokens}): of two requests refreshing
+ * at once, the one that loses reads the winner's tokens instead of signing the user out with
+ * an already spent refresh token. The session ends ({@link endUserSession}) when its tokens
+ * don't open (a rotated `SESSION_SECRET`), the refresh token has ended, or GitHub refuses it.
+ */
+export async function userAccessToken(
+  user: SignedInUser,
+  deps: AuthDeps,
+): Promise<AccessTokenResult> {
+  const now = (deps.now ?? Date.now)();
+  const { tokenHash, sealedTokens } = user.session;
+  const tokens = openTokens(deps.keys, tokenHash, sealedTokens);
+  if (tokens === undefined) return endUserSession(user, deps, "session_tokens_unreadable");
+  if (tokens.accessExpiresAt === null || tokens.accessExpiresAt - now > REFRESH_MARGIN_MS) {
+    return { token: tokens.accessToken };
+  }
+  if (
+    tokens.refreshToken === null ||
+    (tokens.refreshExpiresAt !== null && tokens.refreshExpiresAt <= now)
+  ) {
+    return endUserSession(user, deps, "session_refresh_ended");
+  }
+  try {
+    const fresh = await refreshTokens(deps.client, tokens.refreshToken, now);
+    const sealed = sealTokens(deps.keys, tokenHash, fresh);
+    if (await replaceSessionTokens(deps.db, tokenHash, sealedTokens, sealed)) {
+      return { token: fresh.accessToken };
+    }
+    return await storedToken(user, deps, now);
+  } catch (error) {
+    if (!(error instanceof TokenRefusedError)) {
+      log("session_refresh_failed", error);
+      return { error: true };
+    }
+    try {
+      // Another request may have spent the refresh token first and stored the new pair.
+      return await storedToken(user, deps, now);
+    } catch (readError) {
+      log("session_refresh_failed", readError);
+      return { error: true };
+    }
+  }
+}
+
+/**
+ * How long (ms) to wait before each re-read when a refresh was refused but the session still
+ * holds the tokens it was read with: the request that spent the refresh token first may not
+ * have stored the new pair yet. About a second in all, then the session ends.
+ */
+const REFRESH_RACE_WAITS = [0, 150, 300, 600];
+
+/**
+ * The access token the session now stores, if another request refreshed it since `user` was
+ * read and it's still good; otherwise the session ends.
+ */
+async function storedToken(
+  user: SignedInUser,
+  deps: AuthDeps,
+  now: number,
+): Promise<AccessTokenResult> {
+  const { tokenHash, sealedTokens } = user.session;
+  for (const wait of REFRESH_RACE_WAITS) {
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    const found = await findSession(deps.db, tokenHash);
+    if (found === undefined) break; // signed out meanwhile
+    if (found.githubTokens === sealedTokens) continue;
+    const tokens = openTokens(deps.keys, tokenHash, found.githubTokens);
+    if (
+      tokens !== undefined &&
+      (tokens.accessExpiresAt === null || tokens.accessExpiresAt - now > REFRESH_MARGIN_MS)
+    ) {
+      return { token: tokens.accessToken };
+    }
+    break;
+  }
+  return endUserSession(user, deps, "session_refresh_refused");
+}
+
+/**
+ * End `user`'s session because its GitHub tokens no longer work (`event` says why, logged):
+ * the row goes, so every page reads the visitor as signed out from now on.
+ */
+export async function endUserSession(
+  user: SignedInUser,
+  deps: AuthDeps,
+  event: string,
+): Promise<AccessTokenResult> {
+  log(event);
+  try {
+    await deleteSession(deps.db, user.session.tokenHash);
+  } catch (error) {
+    log("session_end_failed", error);
+    return { error: true };
+  }
+  return { ended: true };
 }

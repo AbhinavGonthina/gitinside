@@ -1,7 +1,8 @@
 import { Glyph, type GlyphName } from "@gitinside/viewer";
+import Link from "next/link";
 import type { SignInView } from "../lib/currentUser";
 import { RepoForm } from "./RepoForm";
-import { SIGN_IN_HREF } from "./SiteHeader";
+import { DASHBOARD_HREF, SIGN_IN_HREF } from "./SiteHeader";
 
 /** What sets GitInside apart (SPEC §1), each with the glyph of what it's about. */
 const PROMISES: readonly { glyph: GlyphName; title: string; text: string }[] = [
@@ -30,7 +31,8 @@ const PROMISES: readonly { glyph: GlyphName; title: string; text: string }[] = [
 /**
  * The landing page's content (UX.md "Website flows"): the slogan, one field, and what you
  * get. `note` is a failed sign-in's or sign-out's explanation; "Sign in for private repos"
- * shows while signed out, once sign-in is set up (M8.2b).
+ * (returning to the dashboard) shows while signed out, once sign-in is set up (M8.2b), and
+ * "Your repos" once signed in (M8.2c).
  */
 export function Landing({ signIn, note }: { signIn: SignInView; note?: string | undefined }) {
   return (
@@ -49,9 +51,15 @@ export function Landing({ signIn, note }: { signIn: SignInView; note?: string | 
           code. Break it down from services to functions, and trace a request from page to database.
         </p>
         <RepoForm />
-        {signIn.available && signIn.login === undefined && (
+        {signIn.available && (
           <p className="landing__private">
-            <a href={SIGN_IN_HREF}>Sign in for private repos</a>
+            {signIn.login === undefined ? (
+              <a href={`${SIGN_IN_HREF}?returnTo=${encodeURIComponent(DASHBOARD_HREF)}`}>
+                Sign in for private repos
+              </a>
+            ) : (
+              <Link href={DASHBOARD_HREF}>Your repos</Link>
+            )}
           </p>
         )}
       </section>
