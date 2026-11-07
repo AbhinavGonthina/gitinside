@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
  * api.github.com/user`, checking what GitHub checks: the client, the code (once), the redirect
  * URI it was issued for, the PKCE verifier against the challenge given to the authorize page,
  * and refresh tokens (once each). For the dashboard (M8.2c) it also answers `GET
- * /user/installations` and `GET /user/installations/{id}/repositories` (paged) from
+ * /user/installations` and `GET /user/installations/{id}/repositories` (both paged) from
  * {@link FakeOAuth.install}. Requests are matched by path, so the same fake serves calls made
  * to github.com, to api.github.com, or to a loopback origin (`e2e/github.ts`).
  */
@@ -26,8 +26,11 @@ export interface FakeRepo {
 /** An installation of the app the fake lists for the accounts that can see it. */
 export interface FakeInstallation {
   id: number;
-  account: { login: string; type: "User" | "Organization" };
+  /** The account it's on; its `id` defaults to `1000 + ` the installation's. */
+  account: { id?: number; login: string; type: "User" | "Organization" };
   selection?: "all" | "selected";
+  /** When it was suspended (ISO), as GitHub's `suspended_at`; unset is `null`. */
+  suspendedAt?: string;
   repos: FakeRepo[];
 }
 
@@ -136,12 +139,18 @@ export function fakeOAuth(options: { expiring?: boolean } = {}): FakeOAuth {
     const seen = installations.get(account.id) ?? [];
     if (url.pathname === "/user/installations") {
       const perPage = Number(url.searchParams.get("per_page") ?? 30);
+      const page = Number(url.searchParams.get("page") ?? 1);
       return Response.json({
         total_count: seen.length,
-        installations: seen.slice(0, perPage).map((i) => ({
+        installations: seen.slice((page - 1) * perPage, page * perPage).map((i) => ({
           id: i.id,
-          account: { login: i.account.login, type: i.account.type },
+          account: {
+            id: i.account.id ?? 1000 + i.id,
+            login: i.account.login,
+            type: i.account.type,
+          },
           repository_selection: i.selection ?? "all",
+          suspended_at: i.suspendedAt ?? null,
         })),
       });
     }

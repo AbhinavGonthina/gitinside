@@ -54,31 +54,64 @@ describe("dashboard page", () => {
   const signedIn = () => {
     state.current = { auth: {} as AuthDeps, user: { login: "octo" } as SignedInUser };
   };
+  const page = (query: Record<string, string | string[]> = {}) =>
+    DashboardPage({ searchParams: Promise.resolve(query) });
 
   it("says sign-in is unavailable while it isn't set up", async () => {
-    await expect(DashboardPage()).rejects.toThrow("REDIRECT /?signin=unavailable");
+    await expect(page()).rejects.toThrow("REDIRECT /?signin=unavailable");
   });
 
   it("starts sign-in, coming back here, while signed out", async () => {
     state.current = { auth: {} as AuthDeps };
-    await expect(DashboardPage()).rejects.toThrow(
-      "REDIRECT /api/auth/github?returnTo=%2Fdashboard",
-    );
+    await expect(page()).rejects.toThrow("REDIRECT /api/auth/github?returnTo=%2Fdashboard");
   });
 
   it("lands signed out with a note when the session's GitHub sign-in has ended", async () => {
     signedIn();
     state.view = { kind: "ended" };
-    await expect(DashboardPage()).rejects.toThrow("REDIRECT /?signin=ended");
+    await expect(page()).rejects.toThrow("REDIRECT /?signin=ended");
   });
 
   it("renders the view for a signed-in user, kept out of search results", async () => {
     signedIn();
     state.view = { kind: "ready", installations: [ACME], total: 1, installUrl: INSTALL_URL };
-    render(await DashboardPage());
+    render(await page());
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your repos");
     expect(screen.getByRole("link", { name: /api/ }).getAttribute("href")).toBe("/acme/api");
+    expect(screen.queryByRole("status")).toBeNull();
     expect(metadata).toEqual({ title: "Your repos", robots: { index: false, follow: false } });
+  });
+
+  it("explains the install return, naming the account only when GitHub lists it (M8.3b)", async () => {
+    signedIn();
+    state.view = { kind: "ready", installations: [ACME, OCTO], total: 2 };
+    const note = async (query: Record<string, string | string[]>) => {
+      const { unmount } = render(await page(query));
+      const text = screen.queryByRole("status")?.textContent ?? null;
+      unmount();
+      return text;
+    };
+    expect(await note({ install: "installed", installation: "41" })).toBe(
+      "GitInside is installed on acme.",
+    );
+    expect(await note({ install: "updated", installation: "7" })).toBe(
+      "Your changes to GitInside on octo are saved.",
+    );
+    // An installation it doesn't list (or a made-up one) isn't named.
+    expect(await note({ install: "installed", installation: "99" })).toBe(
+      "GitInside is installed.",
+    );
+    expect(await note({ install: "requested" })).toMatch(/^Your request to install GitInside/);
+    expect(await note({ install: "unverified" })).toMatch(/^GitHub doesn't list that installation/);
+    expect(await note({ install: "failed" })).toMatch(/^We couldn't confirm the installation/);
+    for (const install of ["<b>hi</b>", ["installed", "failed"]]) {
+      expect(await note({ install })).toBeNull();
+    }
+
+    state.view = { kind: "error" };
+    expect(await note({ install: "installed", installation: "41" })).toBe(
+      "GitInside is installed.",
+    );
   });
 });
 

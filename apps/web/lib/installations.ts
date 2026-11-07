@@ -1,3 +1,4 @@
+import type { InstallationFacts } from "@gitinside/db";
 import {
   apiHeaders,
   call,
@@ -19,6 +20,9 @@ import {
  * say how many more there are. Not handled: suspended installations are listed like the rest
  * (M8.3 decides what a suspension means); more installations than one page holds are cut, and
  * the count says so.
+ *
+ * {@link findUserInstallation} (M8.3b) looks one installation up the same way, for the install
+ * return to check against the signed-in user rather than trust the query.
  */
 
 /** Installations read: one page of GitHub's largest size. */
@@ -130,6 +134,55 @@ async function readRepos(
   }
   repos.sort((a, b) => byName(a.owner, b.owner) || byName(a.name, b.name));
   return { repos, totalRepos: Math.max(totalRepos, repos.length) };
+}
+
+/** Pages of 100 installations {@link findUserInstallation} reads looking for one. */
+export const MAX_FIND_PAGES = 10;
+
+/** GitHub's facts about one installation, as the install return stores them (M8.3b). */
+function readFacts(item: unknown): InstallationFacts {
+  const { id, account } = readInstallation(item);
+  const accountId = field(field(item, "account"), "id");
+  const accountType = field(field(item, "account"), "type");
+  const suspended = field(item, "suspended_at");
+  if (typeof accountId !== "number" || !Number.isSafeInteger(accountId) || accountId <= 0) {
+    throw new SignInError("installation without an account ID");
+  }
+  if (accountType !== "User" && accountType !== "Organization") {
+    throw new SignInError("installation with an unknown account type");
+  }
+  const suspendedAt = typeof suspended === "string" ? new Date(suspended) : null;
+  if (
+    (suspended !== null && typeof suspended !== "string") ||
+    (suspendedAt !== null && Number.isNaN(suspendedAt.getTime()))
+  ) {
+    throw new SignInError("installation with a bad suspended_at");
+  }
+  return { githubInstallationId: id, accountId, accountLogin: account, accountType, suspendedAt };
+}
+
+/**
+ * The installation with GitHub's ID `installationId`, if GitHub lists it among the user's own
+ * (`GET /user/installations` with their token, up to {@link MAX_FIND_PAGES} pages), read from
+ * GitHub's answer; `undefined` if it isn't there. Throws as {@link listInstallations} does.
+ */
+export async function findUserInstallation(
+  client: OAuthClient,
+  accessToken: string,
+  installationId: number,
+): Promise<InstallationFacts | undefined> {
+  for (let page = 1; page <= MAX_FIND_PAGES; page++) {
+    const path = `/user/installations?per_page=100&page=${page}`;
+    const body = await call(client, githubUrl(client, "api", path), {
+      headers: apiHeaders(accessToken),
+    });
+    const total = count(body);
+    const items = list(body, "installations");
+    const found = items.find((item) => field(item, "id") === installationId);
+    if (found !== undefined) return readFacts(found);
+    if (items.length < 100 || page * 100 >= total) break;
+  }
+  return undefined;
 }
 
 /**

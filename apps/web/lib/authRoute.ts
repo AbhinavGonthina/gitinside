@@ -3,6 +3,7 @@ import {
   deleteSession,
   findSession,
   replaceSessionTokens,
+  upsertInstallation,
   upsertUser,
   type AnyDatabase,
 } from "@gitinside/db";
@@ -15,6 +16,7 @@ import {
   TokenRefusedError,
   type OAuthClient,
 } from "./githubOAuth";
+import { findUserInstallation } from "./installations";
 import {
   codeChallenge,
   cookie,
@@ -46,7 +48,8 @@ import {
  *   exchanges the code, reads who signed in, stores the user and a new session, sets the
  *   session cookie, and returns to `returnTo`. Any failure lands on `/?signin=<reason>`
  *   (`cancelled`, `expired`, `failed`, `unavailable`), signed out; the state cookie is
- *   cleared either way, so a callback can't be replayed.
+ *   cleared either way, so a callback can't be replayed. GitHub's return from installing the
+ *   app comes here too (`setup_action`), handled apart: {@link handleInstallReturn}.
  * - `POST /api/auth/signout` deletes the session's row and the cookie. Only a same-origin
  *   POST is honored (its `Origin` header must be this site's), so another site can't sign
  *   a visitor out.
@@ -140,6 +143,7 @@ export async function handleCallback(
 ): Promise<Response> {
   if (deps === undefined) return failed("unavailable");
   const url = new URL(request.url);
+  if (url.searchParams.has("setup_action")) return handleInstallReturn(request, url, deps);
   const now = (deps.now ?? Date.now)();
   const cookieValue = readCookie(request.headers.get("cookie"), STATE_COOKIE);
   const saved = verifyState(deps.keys, cookieValue, now);
@@ -171,6 +175,73 @@ export async function handleCallback(
   } catch (error) {
     log("signin_failed", error);
     return failed("failed");
+  }
+}
+
+/** Sign-in's start (`handleSignIn`), as the site header links it. */
+const SIGN_IN_PATH = "/api/auth/github";
+
+/** An installation ID as GitHub writes it: a positive integer, no leading zero. */
+const INSTALLATION_ID = /^[1-9][0-9]{0,15}$/;
+
+/**
+ * GitHub's return from installing the app or changing an installation (M8.3b, ADR-0225).
+ * With "Request user authorization during installation" on (ADR-0220), GitHub comes back to
+ * the callback with `installation_id`, `setup_action` (`install`, `update`, or `request` when
+ * an organization member asked its owners), and a `code`, but never our `state`: the flow
+ * started on GitHub. Anyone can link to such a URL, so nothing in it is trusted:
+ *
+ * - The `code` is never exchanged. Without our state it could be anyone's, and redeeming it
+ *   would sign the visitor in as that account (login CSRF; ADR-0221 checks state for this).
+ * - Signed out, the visitor signs in through our own flow (state, PKCE) and comes back here
+ *   with `after=signin`; still signed out then, sign-in failed, and that's said, not looped.
+ * - Signed in, the installation counts only if GitHub lists it among the user's own
+ *   (`GET /user/installations` with their token), and it's stored from that answer: account
+ *   ID, login, type, suspension. One the user can't see changes nothing.
+ *
+ * Every outcome lands on `/dashboard?install=<outcome>` (`installed`/`updated` name the
+ * installation for the note), except an ended GitHub sign-in (`/?signin=ended`, as the
+ * dashboard does) and an unconfigured server (`/?signin=unavailable`, by the caller).
+ */
+async function handleInstallReturn(request: Request, url: URL, deps: AuthDeps): Promise<Response> {
+  const action = url.searchParams.get("setup_action");
+  if (action === "request") return redirect("/dashboard?install=requested");
+  const idText = url.searchParams.get("installation_id") ?? "";
+  const installationId = Number(idText);
+  if (
+    (action !== "install" && action !== "update") ||
+    !INSTALLATION_ID.test(idText) ||
+    !Number.isSafeInteger(installationId)
+  ) {
+    return redirect("/dashboard");
+  }
+
+  const user = await readSession(request.headers.get("cookie"), deps);
+  if (user === undefined) {
+    if (url.searchParams.get("after") === "signin") return failed("failed");
+    const back = `${CALLBACK_PATH}?installation_id=${installationId}&setup_action=${action}&after=signin`;
+    return redirect(`${SIGN_IN_PATH}?returnTo=${encodeURIComponent(back)}`);
+  }
+  const access = await userAccessToken(user, deps);
+  if ("ended" in access) return redirect("/?signin=ended");
+  if ("error" in access) return redirect("/dashboard?install=failed");
+  try {
+    const facts = await findUserInstallation(deps.client, access.token, installationId);
+    if (facts === undefined) {
+      log("install_return_unverified");
+      return redirect("/dashboard?install=unverified");
+    }
+    await upsertInstallation(deps.db, facts);
+    const outcome = action === "install" ? "installed" : "updated";
+    return redirect(`/dashboard?install=${outcome}&installation=${installationId}`);
+  } catch (error) {
+    if (error instanceof TokenRefusedError) {
+      // Revoked on GitHub (the user removed the app's authorization): the session is over.
+      const ended = await endUserSession(user, deps, "session_token_refused");
+      return redirect("ended" in ended ? "/?signin=ended" : "/dashboard?install=failed");
+    }
+    log("install_return_failed", error);
+    return redirect("/dashboard?install=failed");
   }
 }
 

@@ -65,12 +65,23 @@ function InstallationSection({ installation }: { installation: Installation }) {
  * The dashboard's content (M8.2c, UX.md "Website flows"): one section per installation of
  * the app, its repos linking to their diagrams, then "Install on more repos". With no
  * installation, one card says what installing does; when GitHub can't be read, a note says
- * so with Try again.
+ * so with Try again. `note` explains where GitHub's install return landed (M8.3b).
  */
-export function Dashboard({ view }: { view: Exclude<DashboardView, { kind: "ended" }> }) {
+export function Dashboard({
+  view,
+  note,
+}: {
+  view: Exclude<DashboardView, { kind: "ended" }>;
+  note?: string | undefined;
+}) {
   const empty = view.kind === "ready" && view.installations.length === 0;
   return (
     <main className="dashboard">
+      {note !== undefined && (
+        <p className="dashboard__note" role="status">
+          {note}
+        </p>
+      )}
       <div className="dashboard__head">
         <h1 className="dashboard__title">Your repos</h1>
         {view.installUrl !== undefined && !empty && (

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { sessions, users } from "@gitinside/db";
+import { findInstallation, installations, sessions, users } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -40,6 +40,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.delete(sessions);
   await t.db.delete(users);
+  await t.db.delete(installations);
   vi.restoreAllMocks();
 });
 
@@ -292,6 +293,171 @@ describe("handleCallback", () => {
       JSON.stringify({ event: "signin_failed", error: "TypeError" }),
       JSON.stringify({ event: "signin_failed", error: "Error" }),
     ]);
+  });
+});
+
+describe("handleCallback: the install return (M8.3b)", () => {
+  const ACME = {
+    id: 41,
+    account: { id: 9_001, login: "acme", type: "Organization" as const },
+    repos: [],
+  };
+
+  /** A signed-in visitor: their session cookie, and the requests made after signing in. */
+  async function signedIn(github: FakeOAuth, deps: AuthDeps) {
+    const response = await signIn(github, deps);
+    const cookie = `${SESSION_COOKIE}=${cookieValue(setCookies(response).get(SESSION_COOKIE))}`;
+    github.requests.length = 0;
+    return cookie;
+  }
+
+  /** GitHub's redirect after installing: a code, the installation, and no `state` of ours. */
+  const installReturn = (params: Record<string, string>, cookie?: string) =>
+    callback({ code: "issued-on-github", setup_action: "install", ...params }, cookie);
+
+  it("records an installation GitHub lists for the user, from GitHub's answer, never redeeming the code", async () => {
+    const { github, deps } = setup();
+    const cookie = await signedIn(github, deps);
+    github.install(OCTO, [ACME]);
+    const response = await handleCallback(installReturn({ installation_id: "41" }, cookie), deps);
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/dashboard?install=installed&installation=41");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    // Neither the session nor a sign-in in progress is touched.
+    expect(setCookies(response).size).toBe(0);
+    expect(await findInstallation(t.db, 41)).toEqual({
+      id: expect.any(String),
+      githubInstallationId: 41,
+      accountId: 9_001,
+      accountLogin: "acme",
+      accountType: "Organization",
+      suspendedAt: null,
+    });
+    // Only the user's installations were read: the code from the query was never exchanged.
+    expect(github.requests.map((r) => `${r.method} ${new URL(r.url).pathname}`)).toEqual([
+      "GET /user/installations",
+    ]);
+
+    // Changing it on GitHub (`update`) stores what GitHub says now, suspension included.
+    github.install(OCTO, [{ ...ACME, suspendedAt: "2026-11-07T11:00:00Z" }]);
+    const updated = await handleCallback(
+      installReturn({ installation_id: "41", setup_action: "update" }, cookie),
+      deps,
+    );
+    expect(updated.headers.get("location")).toBe("/dashboard?install=updated&installation=41");
+    expect((await findInstallation(t.db, 41))?.suspendedAt).toEqual(
+      new Date("2026-11-07T11:00:00Z"),
+    );
+  });
+
+  it("never trusts the query: an installation the user can't see changes nothing", async () => {
+    const { github, deps } = setup();
+    const cookie = await signedIn(github, deps);
+    github.install(OCTO, [{ ...ACME, id: 42 }]);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const response = await handleCallback(installReturn({ installation_id: "41" }, cookie), deps);
+    expect(response.headers.get("location")).toBe("/dashboard?install=unverified");
+    expect(await t.db.select().from(installations)).toEqual([]);
+    expect(errors).toHaveBeenCalledWith(JSON.stringify({ event: "install_return_unverified" }));
+  });
+
+  it("looks past GitHub's first page of the user's installations", async () => {
+    const { github, deps } = setup();
+    const cookie = await signedIn(github, deps);
+    const many = Array.from({ length: 150 }, (_, i) => ({
+      ...ACME,
+      id: 100 + i,
+      account: { login: `org${i}`, type: "Organization" as const },
+    }));
+    github.install(OCTO, many);
+    const response = await handleCallback(installReturn({ installation_id: "245" }, cookie), deps);
+    expect(response.headers.get("location")).toBe("/dashboard?install=installed&installation=245");
+    expect((await findInstallation(t.db, 245))?.accountLogin).toBe("org145");
+    expect(github.requests.map((r) => new URL(r.url).searchParams.get("page"))).toEqual(["1", "2"]);
+  });
+
+  it("signs a signed-out installer in through this site's own flow first, then comes back", async () => {
+    const { github, deps } = setup();
+    github.install(OCTO, [ACME]);
+    const first = await handleCallback(installReturn({ installation_id: "41" }), deps);
+    const location = new URL(first.headers.get("location") ?? "", SITE);
+    expect(location.pathname).toBe("/api/auth/github");
+    const returnTo = location.searchParams.get("returnTo") ?? "";
+    expect(returnTo).toBe(`${CALLBACK_PATH}?installation_id=41&setup_action=install&after=signin`);
+    // Without our state, the code could be anyone's (login CSRF): it's never exchanged.
+    expect(github.requests).toEqual([]);
+    expect(await t.db.select().from(sessions)).toEqual([]);
+
+    const back = await signIn(github, deps, returnTo);
+    expect(back.headers.get("location")).toBe(returnTo);
+    const cookie = `${SESSION_COOKIE}=${cookieValue(setCookies(back).get(SESSION_COOKIE))}`;
+    const done = await handleCallback(
+      new Request(new URL(returnTo, SITE), { headers: { cookie } }),
+      deps,
+    );
+    expect(done.headers.get("location")).toBe("/dashboard?install=installed&installation=41");
+    expect(await findInstallation(t.db, 41)).toBeDefined();
+
+    // Still signed out on coming back (the session didn't stick): stop rather than loop.
+    const again = await handleCallback(new Request(new URL(returnTo, SITE)), deps);
+    expect(again.headers.get("location")).toBe("/?signin=failed");
+  });
+
+  it("says an organization member's request was sent, and ignores what it can't read", async () => {
+    const { github, deps } = setup();
+    const cookie = await signedIn(github, deps);
+    const requested = await handleCallback(callback({ setup_action: "request" }, cookie), deps);
+    expect(requested.headers.get("location")).toBe("/dashboard?install=requested");
+    for (const params of [
+      { installation_id: "41", setup_action: "uninstall" },
+      { installation_id: "abc" },
+      { installation_id: "0" },
+      { installation_id: "041" },
+      { installation_id: "99999999999999999" },
+      {},
+    ]) {
+      const response = await handleCallback(installReturn(params, cookie), deps);
+      expect(response.headers.get("location"), JSON.stringify(params)).toBe("/dashboard");
+    }
+    expect(github.requests).toEqual([]);
+    expect(await t.db.select().from(installations)).toEqual([]);
+  });
+
+  it("fails visibly when GitHub or the database fails, and signs out a refused token", async () => {
+    const { github, deps } = setup();
+    const cookie = await signedIn(github, deps);
+    github.install(OCTO, [ACME]);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ask = (d: AuthDeps = deps) =>
+      handleCallback(installReturn({ installation_id: "41" }, cookie), d);
+
+    github.failNext(new Response("down", { status: 502 }));
+    expect((await ask()).headers.get("location")).toBe("/dashboard?install=failed");
+    github.install(OCTO, [{ ...ACME, account: { ...ACME.account, login: "-bad-" } }]);
+    expect((await ask()).headers.get("location")).toBe("/dashboard?install=failed");
+    github.install(OCTO, [ACME]);
+    const noInsert: AuthDeps = {
+      ...deps,
+      db: new Proxy(t.db, {
+        get(target, property, receiver) {
+          if (property === "insert") throw new Error("postgres://user:secret@host/db unreachable");
+          return Reflect.get(target, property, receiver) as unknown;
+        },
+      }),
+    };
+    expect((await ask(noInsert)).headers.get("location")).toBe("/dashboard?install=failed");
+    expect(await t.db.select().from(installations)).toEqual([]);
+    expect(errors.mock.calls.map(([line]) => line)).toEqual([
+      JSON.stringify({ event: "install_return_failed", error: "HTTP 502" }),
+      JSON.stringify({ event: "install_return_failed", error: "installation without an account" }),
+      JSON.stringify({ event: "install_return_failed", error: "Error" }),
+    ]);
+
+    // The user revoked the app on GitHub: the session ends, as on the dashboard.
+    const user = await readSession(cookie, deps);
+    github.revoke(user?.tokens()?.accessToken ?? "");
+    expect((await ask()).headers.get("location")).toBe("/?signin=ended");
+    expect(await readSession(cookie, deps)).toBeUndefined();
   });
 });
 

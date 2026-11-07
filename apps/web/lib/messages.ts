@@ -22,6 +22,32 @@ export const SIGN_IN_NOTES: Readonly<Record<string, string>> = {
 /** UX.md's words for a sign-out the server couldn't finish. */
 export const SIGN_OUT_FAILED_NOTE = "We couldn't sign you out. Try again.";
 
+/**
+ * UX.md's words for where GitHub's install return lands (`/dashboard?install=<outcome>`,
+ * authRoute.ts, M8.3b). `installed` and `updated` name the account when the dashboard lists
+ * the installation; anything else in the parameter says nothing.
+ */
+export function installNote(
+  outcome: string | string[] | undefined,
+  account: string | undefined,
+): string | undefined {
+  const on = account === undefined ? "" : ` on ${account}`;
+  switch (outcome) {
+    case "installed":
+      return `GitInside is installed${on}.`;
+    case "updated":
+      return `Your changes to GitInside${on} are saved.`;
+    case "requested":
+      return "Your request to install GitInside was sent to the organization's owners. Its repos show here once they approve it.";
+    case "unverified":
+      return "GitHub doesn't list that installation for your account, so nothing changed. Sign in with the GitHub account that installed GitInside.";
+    case "failed":
+      return "We couldn't confirm the installation with GitHub. If it's missing below, reload in a moment.";
+    default:
+      return undefined;
+  }
+}
+
 /** The note for a landing page's query, if it names a known outcome. */
 export function signInNote(query: {
   signin?: string | string[] | undefined;
