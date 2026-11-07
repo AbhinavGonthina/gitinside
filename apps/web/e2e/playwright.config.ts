@@ -11,8 +11,9 @@ import { E2E_APP_SLUG, E2E_SESSION_SECRET, E2E_SHA, PORTS } from "./fixture";
 // every API says "temporarily unavailable" (site.e2e.ts); `seeded` reads a
 // PGlite database holding one finished analysis of fixtures/shop-demo
 // (database.ts), so the repo page draws the explorer (explorer.e2e.ts). A third,
-// `signed-in`, reads the same database with sign-in set up against a fake GitHub
-// (github.ts) for the dashboard (dashboard.e2e.ts, M8.2c). The `visual`
+// `signed-in`, reads its own copy of that database with sign-in set up against a fake
+// GitHub (github.ts) for the dashboard (dashboard.e2e.ts, M8.2c): PGlite is one session,
+// so sharing it let the seeded site's reads run beside the dashboard's. The `visual`
 // project screenshots the key screens on the seeded server against e2e/baselines/
 // (screens.visual.ts, Linux CI only; re-capture with the "Visual baselines" workflow).
 
@@ -87,6 +88,13 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
+      command: `node --experimental-strip-types e2e/database.ts ${PORTS.signedInDatabase} ${E2E_SHA}`,
+      cwd: web,
+      wait: { stdout: /^seeded /m },
+      stdout: "pipe",
+      reuseExistingServer: false,
+    },
+    {
       command: `node --experimental-strip-types e2e/github.ts ${PORTS.github}`,
       cwd: web,
       wait: { stdout: /^listening /m },
@@ -98,7 +106,7 @@ export default defineConfig({
       cwd: web,
       url: `http://127.0.0.1:${PORTS.signedIn}/icon.svg`,
       env: {
-        DATABASE_URL: `postgres://postgres:postgres@127.0.0.1:${PORTS.database}/postgres`,
+        DATABASE_URL: `postgres://postgres:postgres@127.0.0.1:${PORTS.signedInDatabase}/postgres`,
         GITHUB_APP_CLIENT_ID: FAKE_CLIENT.clientId,
         GITHUB_APP_CLIENT_SECRET: FAKE_CLIENT.clientSecret,
         GITHUB_APP_SLUG: E2E_APP_SLUG,
