@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M7.4 Classification of flagged breaks (drafted, labeled as such)
+M7.5 Report → eval/backtest/results/
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -395,7 +395,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M7.2e Missed break from M7.2d (`eval/results/2026-11-backtest-zero-check.md`: maxun #1157 emptied `DocumentInterpreter.ts` while 4 files still import the class and call 5 of its static methods; unresolved calls make no node and the import edge survives with the file): the analyzer records on an `imports` edge's sites the imported names the target file doesn't export (schema field, sorted), and `detectBroken` flags a base `calls`/`imports` edge to a removed symbol whose name head still imports from that file (a `BrokenReason` or `TARGET_REMOVED` with the head import sites; viewer and Mermaid text if a reason is added); tests red first (incl. `properties.test.ts`'s reached reasons), a fixture whose head empties or un-exports a file + golden, viewer `bytes`/diff `rename` hashes, ADR (amends ADR-0087), eval delta {model: opus}
 - [x] M7.2f Re-run the backtest replay for all 7 repos with M7.2e's analyzer (the "Backtest replay" workflow for all 7, cal.diy included so every file has one analyzer), download, `validate`, commit the raw files; expect maxun #1157 among the flagged breaks and list every new one in ADR-0216 {model: opus}
 - [x] M7.3 Follow-up fix detection (also look past the pinned PRs: #1157's fix `9262631` was a direct push) {model: opus}
-- [ ] M7.4 Classification of flagged breaks (drafted, labeled as such) {model: opus}
+- [x] M7.4 Classification of flagged breaks (drafted, labeled as such) {model: opus}
 - [ ] M7.5 Report → eval/backtest/results/ {model: opus}
 - [ ] M7.6 Milestone verification + M7-review.md + tag m7 {model: opus}
 
@@ -424,6 +424,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- **2026-11-07 M7.4 (`a11cfe2`, report `cb00c1e`):** `eval/backtest/classified/<owner>__<name>.json` (`classify.ts`, ADR-0218): per flagged break a verdict (true/false/unclear), reason, permalink evidence (blob at a full SHA, commit, or PR in that repo), a judgment of the follow-up's fix (real/coincidental/unclear) exactly where one was found, and `reviewedBy` (null = draft). `validate` requires one per follow-up file with flagged PRs and cross-checks breaks in order.
+  Drafted by Claude, 0 of 5 reviewed: maxun #1157's 5 breaks are all **true** (file emptied, 4 callers left, reached from `POST /recordings/document`, `/document-parse`, and the task runner), and `9262631` is a **real** fix for each; checked in the clone at those SHAs. Tests red first; mutation (any evidence URL) red. Eval 185/185; report run line only.
 - **2026-11-07 M7.3 (`7e97209`, results `8ba4452`, report `5193b8d`):** `backtest:followup` diffs each flagged PR's base with every commit after its merge up to `endSha` (`rev-list --ancestry-path --date-order`, so direct pushes count) and records the first commit where the same detector no longer flags each break: how (`restored`/`sourceRemoved`/`callChanged`), the pinned PR it came in (or none), and `atEnd`. It first rebuilds the PR's breaks and refuses on a mismatch. `eval/backtest/followup/`, checked by `validate`; ADR-0217.
   Result: maxun #1157's 5 breaks all fixed at `9262631` (direct push, 54 min 46 s after the merge, `restored`; 6 of 473 later commits diffed), clear at `endSha`; the other 6 repos have none. Eval 178/178; mutation (no base exclusion in PR attribution) red. No analyzer change, eval delta 0.
 - **2026-11-07 M7.2f (`be7f71e`):** one "Backtest replay" dispatch for all 7 repos (run 42366748428, `a3622e1`, clean; dub.link 2 h 14 min, the rest under 45 min) replaced every raw file, cal.diy's included. 926/926 diffed, 0 failed, **5 broken edges, all `TARGET_REMOVED` in maxun #1157** (M7.2d's 5); no other PR gained a break. Every other entry is identical to M7.2c's; #1157's `edges.updated` went 2 → 7 (import edges now carry `missingExports`). Validate OK; `pnpm eval --check` byte for byte (no report change). ADR-0216 amendment.
