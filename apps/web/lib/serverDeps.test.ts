@@ -503,6 +503,14 @@ describe("webhookDepsFromEnv", () => {
     expect(typeof deps?.queue?.createTask).toBe("function");
   });
 
+  it("reads pushed public repos' code counts with the server's token (M8.7)", () => {
+    expect(webhookDepsFromEnv(HOOK)?.github).toEqual({});
+    expect(webhookDepsFromEnv({ ...HOOK, GITHUB_TOKEN: "ghs_x" })?.github).toEqual({
+      token: "ghs_x",
+    });
+    expect(webhookDepsFromEnv(HOOK)?.codeSizes).toBeDefined();
+  });
+
   it("accepts the previous secret too during a rotation, if it's long enough", () => {
     const previous = "p".repeat(43);
     expect(

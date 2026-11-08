@@ -333,7 +333,8 @@ export function authDepsFromEnv(env: Env = process.env): AuthDeps | undefined {
  * characters. Else `undefined`, and every delivery gets `503`, so GitHub shows a deletion
  * that couldn't run as failed rather than it being half done. The task queue
  * ({@link taskQueue}, with the request's `oidcToken`) is optional: without it only
- * `pull_request` deliveries get `503` (M8.6d2).
+ * `pull_request` deliveries, and pushes that would queue, get `503` (M8.6d2, M8.7). A pushed
+ * public repo's code count reads GitHub with `GITHUB_TOKEN`, as the pages do.
  */
 export function webhookDepsFromEnv(
   env: Env = process.env,
@@ -357,6 +358,8 @@ export function webhookDepsFromEnv(
     secrets,
     analyzerVersion: ANALYZER_VERSION,
     ...(queue !== undefined && { queue }),
+    github: env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN } : {},
+    codeSizes,
   };
 }
 

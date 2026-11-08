@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
   deleteInstallationData,
+  findStoredAnalysis,
   linkInstallationRepos,
   queuePullRequestDiff,
   recordPullRequestHead,
@@ -13,13 +14,19 @@ import { jobIdFor } from "@gitinside/worker/request";
 import type { ObjectStore } from "@gitinside/worker/storage";
 import { readBody } from "./body";
 import { taskIdFor, type TaskQueue } from "./cloudTasks";
+import type { CodeSizeCache } from "./codeSize";
 import {
   countTaskOperation,
+  findAnalysisToQueue,
   InstallationRefusedError,
+  QUEUE_UNAVAILABLE,
   storeQueueRepo,
+  type QueueRepo,
   type StoreRepo,
 } from "./enqueue";
+import type { GitHubOptions } from "./github";
 import { field, LOGIN } from "./githubOAuth";
+import { queueHead } from "./repoView";
 import { WorkerUnavailableError, type DiffJob } from "./worker";
 
 /**
@@ -52,7 +59,13 @@ import { WorkerUnavailableError, type DiffJob } from "./worker";
  *   same name and Cloud Tasks refuses it. No queue configured, or the task can't be created:
  *   `503`, so GitHub shows the delivery failed and "Redeliver" can queue it (GitHub doesn't
  *   retry on its own). Other actions answer `202` ignored.
- * - `push` (M8.7) and any other event answer `202` `"ignored"`.
+ * - **Pushes (M8.7, ADR-0246):** a `push` to the default branch of a repo with a finished
+ *   analysis queues its new commit through the installation, under check-on-view's rules and
+ *   the repo's hourly charge (`queueHead`), so README images catch up without waiting for a
+ *   view. The installation must be stored and not suspended (else `202` ignored); other
+ *   branches, deleted branches, and repos never analyzed are ignored, nothing written. A task
+ *   that can't be created, or no queue when one is needed: `503`, as for pull requests.
+ * - Any other event answers `202` `"ignored"`.
  * - **Every write is idempotent,** so a redelivered event (GitHub's "Redeliver", or a retry
  *   after our `500`) changes nothing twice. Deliveries can arrive out of order; the stored
  *   suspension is the last one received, and GitHub itself refuses tokens for a suspended
@@ -81,10 +94,17 @@ export interface WebhookDeps {
   store: Pick<ObjectStore, "list" | "delete">;
   /** The current webhook secret first, then the previous one during a rotation. */
   secrets: readonly string[];
-  /** Where pull requests' diff jobs go; without it, a `pull_request` delivery gets `503`. */
+  /**
+   * Where pull requests' diff jobs and pushes' analyses go; without it, a `pull_request`
+   * delivery, or a `push` that would queue, gets `503`.
+   */
   queue?: Pick<TaskQueue, "createTask">;
-  /** `@gitinside/analyzer/version`: part of a diff job's ID. */
+  /** `@gitinside/analyzer/version`: part of a job's ID and an analysis row's key. */
   analyzerVersion: string;
+  /** The server's GitHub token, for a pushed public repo's code count (`findTooMuchCode`). */
+  github?: GitHubOptions;
+  /** GitHub's code counts by commit, shared with the pages; without it, asked every time. */
+  codeSizes?: CodeSizeCache;
 }
 
 /** The answer's `status`: what was done with the delivery. */
@@ -245,7 +265,8 @@ function sha(value: unknown, what: string): string {
   return value;
 }
 
-function readPullRequest(payload: unknown): PullRequestEvent {
+/** The `repository` object of a `pull_request` or `push` event, read through its installation. */
+function readRepository(payload: unknown): StoreRepo & { installationId: number } {
   const repository = field(payload, "repository");
   const owner = field(field(repository, "owner"), "login");
   const name = field(repository, "name");
@@ -259,19 +280,24 @@ function readPullRequest(payload: unknown): PullRequestEvent {
   if (typeof defaultBranch !== "string" || defaultBranch === "" || defaultBranch.length > 255) {
     throw new PayloadError("no default branch");
   }
+  return {
+    providerRepoId: positiveId(field(repository, "id"), "repo ID"),
+    owner,
+    name,
+    visibility: isPrivate ? "private" : "public",
+    defaultBranch,
+    installationId: installationId(payload),
+  };
+}
+
+function readPullRequest(payload: unknown): PullRequestEvent {
+  const repo = readRepository(payload);
   const pullRequest = field(payload, "pull_request");
   const updated = field(pullRequest, "updated_at");
   const headAt = typeof updated === "string" ? new Date(updated) : new Date(NaN);
   if (Number.isNaN(headAt.getTime())) throw new PayloadError("no updated_at");
   return {
-    repo: {
-      providerRepoId: positiveId(field(repository, "id"), "repo ID"),
-      owner,
-      name,
-      visibility: isPrivate ? "private" : "public",
-      defaultBranch,
-      installationId: installationId(payload),
-    },
+    repo,
     number: positiveId(field(pullRequest, "number"), "pull request number"),
     baseSha: sha(field(field(pullRequest, "base"), "sha"), "base"),
     headSha: sha(field(field(pullRequest, "head"), "sha"), "head"),
@@ -346,6 +372,85 @@ const diffDone = (action: string, diff: DiffQueueing): Dispatched => ({
   detail: diff,
 });
 
+/** A `push` event's facts: the repo, the ref pushed, and its new commit (absent if deleted). */
+interface PushEvent {
+  repo: QueueRepo & { installationId: number };
+  ref: string;
+  deleted: boolean;
+}
+
+/** Longest ref read: `refs/heads/` and a branch name as long as a default branch may be. */
+const MAX_REF_LENGTH = "refs/heads/".length + 255;
+
+function readPush(payload: unknown): PushEvent {
+  const repo = readRepository(payload);
+  const ref = field(payload, "ref");
+  const deleted = field(payload, "deleted");
+  // Only compared with the default branch's ref, never stored or logged.
+  if (typeof ref !== "string" || !ref.startsWith("refs/") || ref.length > MAX_REF_LENGTH) {
+    throw new PayloadError("no ref");
+  }
+  if (typeof deleted !== "boolean") throw new PayloadError("no deleted flag");
+  // A deleted ref's `after` is forty zeros: no commit to read.
+  const after = deleted ? "0".repeat(40) : sha(field(payload, "after"), "after");
+  const size = field(field(payload, "repository"), "size");
+  const sizeKb = typeof size === "number" && Number.isSafeInteger(size) && size >= 0 ? size : null;
+  return { repo: { ...repo, sha: after, ...(sizeKb !== null && { sizeKb }) }, ref, deleted };
+}
+
+/**
+ * Analyze a pushed default branch's new commit at once (M8.7, ADR-0246), so a README's badge
+ * and live image are up to date by their next draw instead of being re-analyzed on that view.
+ * Only a repo with a finished analysis (someone already asked for its diagram), and under
+ * check-on-view's own rules and charge (`queueHead`: size hold, compute pause, the repo's six
+ * new commits an hour), through the installation that sent the push. Other branches, deleted
+ * branches, and repos never analyzed are ignored, nothing written.
+ */
+async function push(payload: unknown, deps: WebhookDeps): Promise<Dispatched> {
+  const event = readPush(payload);
+  const { repo } = event;
+  if (event.deleted) return { outcome: "ignored", detail: "deleted" };
+  if (event.ref !== `refs/heads/${repo.defaultBranch}`) {
+    return { outcome: "ignored", detail: "other-branch" };
+  }
+  const { db, queue, analyzerVersion } = deps;
+  const { providerRepoId } = repo;
+  if ((await findStoredAnalysis(db, { providerRepoId })) === undefined) {
+    return { outcome: "ignored", detail: "not-analyzed" };
+  }
+  if (queue === undefined) throw new QueueUnavailableError("no queue");
+  const existing = await findAnalysisToQueue(db, {
+    providerRepoId,
+    sha: repo.sha,
+    analyzerVersion,
+  });
+  if (existing?.status === "done") return { outcome: "ok", detail: "done" };
+  // Failed for good: as on a page, not re-run on every push ("Analyze again" can).
+  if (existing?.status === "failed" && existing.errorCode !== QUEUE_UNAVAILABLE) {
+    return { outcome: "ok", detail: "failed" };
+  }
+  const inFlight = existing?.status === "queued" || existing?.status === "running";
+  // GitHub's code count by the server's token, which only sees public repos (else unknown).
+  const github = repo.visibility === "public" ? (deps.github ?? {}) : undefined;
+  const next = await queueHead(
+    repo,
+    inFlight,
+    { db, queue, analyzerVersion, ...(deps.codeSizes && { codeSizes: deps.codeSizes }) },
+    github,
+  );
+  switch (next.state) {
+    case "done":
+      return { outcome: "ok", detail: "done" };
+    case "updating":
+      return { outcome: "ok", detail: "updating" };
+    default:
+      if (next.reason === "unavailable") throw new QueueUnavailableError("task not created");
+      // Uninstalled or suspended: GitHub won't mint its token anyway; nothing was written.
+      if (next.reason === "failed") return { outcome: "ignored", detail: next.errorCode };
+      return { outcome: "ok", detail: next.reason };
+  }
+}
+
 /** What {@link dispatch} did, for the answer and the log. */
 interface Dispatched {
   outcome: WebhookOutcome;
@@ -358,6 +463,7 @@ interface Dispatched {
 async function dispatch(event: string, payload: unknown, deps: WebhookDeps): Promise<Dispatched> {
   const { db } = deps;
   if (event === "ping") return { outcome: "ok" };
+  if (event === "push") return push(payload, deps);
   if (event === "pull_request") {
     const action = field(payload, "action");
     if (typeof action !== "string") throw new PayloadError("no action");

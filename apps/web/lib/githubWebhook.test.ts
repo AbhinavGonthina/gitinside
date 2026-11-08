@@ -4,10 +4,12 @@ import {
   analyses,
   computeUsage,
   computeUsageThisMonth,
+  failAnalysis,
   findInstallation,
   findPullRequest,
   installations,
   pullRequests,
+  rateLimits,
   recordPullRequestDiff,
   repos,
   upsertInstallation,
@@ -18,6 +20,7 @@ import { jobIdFor } from "@gitinside/worker/request";
 import type { ListedObject, ObjectStore } from "@gitinside/worker/storage";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { taskIdFor, type TaskQueue } from "./cloudTasks";
+import { MAX_GITHUB_CODE_BYTES } from "./codeSize";
 import {
   handleWebhook,
   MAX_WEBHOOK_BYTES,
@@ -25,6 +28,7 @@ import {
   verifySignature,
   type WebhookDeps,
 } from "./githubWebhook";
+import { RECHECKS_PER_HOUR } from "./repoView";
 import { WorkerUnavailableError, type TaskJob } from "./worker";
 
 const SECRET = "w".repeat(43);
@@ -465,7 +469,7 @@ describe("handleWebhook", () => {
 
   it("ignores other events and actions", async () => {
     for (const [event, payload] of [
-      ["push", { ref: "refs/heads/main" }],
+      ["star", { action: "created" }],
       ["pull_request", { action: "closed" }],
       ["installation", installed("some_new_action")],
       ["installation", installed("constructor")],
@@ -772,5 +776,252 @@ describe("handleWebhook: pull requests (M8.6d2)", () => {
     }
     expect(await t.db.select().from(repos)).toEqual([]);
     expect(queue.calls).toBe(0);
+  });
+});
+
+describe("handleWebhook: pushes (M8.7)", () => {
+  const SHOWN = "a".repeat(40);
+  const AFTER = "1".repeat(40);
+  /** `/languages` asked for public repos' code counts, by path. */
+  let asked: string[];
+  let languages: Record<string, number>;
+
+  beforeEach(async () => {
+    await t.db.delete(rateLimits);
+    asked = [];
+    languages = { TypeScript: 1_000 };
+    deps.github = {
+      apiBase: "https://github.test",
+      fetch: (input) => {
+        asked.push(new URL(String(input)).pathname);
+        return Promise.resolve(Response.json(languages));
+      },
+    };
+  });
+
+  function pushed({
+    after = AFTER,
+    ref = "refs/heads/main",
+    deleted = false,
+    isPrivate = true,
+  }: { after?: string; ref?: string; deleted?: boolean; isPrivate?: boolean } = {}) {
+    return {
+      ref,
+      before: SHOWN,
+      after: deleted ? "0".repeat(40) : after,
+      created: false,
+      deleted,
+      forced: false,
+      repository: {
+        id: 501,
+        name: "shop",
+        full_name: "octo-org/shop",
+        private: isPrivate,
+        default_branch: "main",
+        size: 2_048,
+        owner: { id: 9001, login: "octo-org", name: "octo-org" },
+      },
+      installation: { id: 41, node_id: "MDIz" },
+      sender: { id: 7, login: "octo" },
+    };
+  }
+
+  /** The repo analyzed once (its diagram shown somewhere), linked to installation 41. */
+  async function analyzed(visibility: "public" | "private" = "private"): Promise<string> {
+    await installation41();
+    const { id } = await upsertRepo(t.db, {
+      providerRepoId: 501,
+      owner: "octo-org",
+      name: "shop",
+      visibility,
+      defaultBranch: "main",
+      githubInstallationId: 41,
+    });
+    await t.db.insert(analyses).values({
+      repoId: id,
+      sha: SHOWN,
+      analyzerVersion: VERSION,
+      status: "done",
+      snapshotKey: `private/41/${id}/${SHOWN}/${VERSION}.json.gz`,
+      startedAt: new Date(),
+      finishedAt: new Date(),
+    });
+    return id;
+  }
+
+  const analyzeJob = (sha = AFTER) =>
+    ({ kind: "analyze", owner: "octo-org", repo: "shop", sha, installationId: 41 }) as const;
+  const taskJob = (sha = AFTER) =>
+    ({ owner: "octo-org", repo: "shop", sha, installationId: 41 }) as const;
+
+  async function row(sha = AFTER) {
+    const rows = await t.db.select().from(analyses);
+    return rows.find((r) => r.sha === sha);
+  }
+
+  async function charged(): Promise<number> {
+    const rows = await t.db.select().from(rateLimits);
+    return rows.filter((r) => r.key === "repo:501").reduce((n, r) => n + r.count, 0);
+  }
+
+  const details = () => logged().map((line) => `${String(line.outcome)}:${String(line.detail)}`);
+  const taskOperations = async () => (await computeUsageThisMonth(t.db)).taskOperations;
+
+  it("queues the default branch's new commit through the installation, charged to the repo", async () => {
+    await analyzed();
+    expect(await answer(delivery("push", pushed()))).toEqual({
+      status: 200,
+      body: { status: "ok" },
+    });
+    const queued = await row();
+    const jobId = jobIdFor(analyzeJob(), VERSION);
+    expect(queued).toMatchObject({ status: "queued", jobId, repoSizeKb: 2_048 });
+    expect(queue.tasks).toEqual([
+      { job: taskJob(), taskId: taskIdFor(jobId, queued?.queuedAt ?? new Date(NaN)) },
+    ]);
+    expect(await charged()).toBe(1);
+    expect(await taskOperations()).toBe(1);
+    expect(asked).toEqual([]); // a private repo's code count isn't the server's to read
+    expect(details()).toEqual(["ok:updating"]);
+  });
+
+  it("a redelivery follows the queued job: the same task name, refused, no second charge", async () => {
+    await analyzed();
+    await answer(delivery("push", pushed()));
+    expect((await answer(delivery("push", pushed()))).status).toBe(200);
+    expect(queue.calls).toBe(2);
+    expect(queue.tasks).toHaveLength(1);
+    expect(await charged()).toBe(1);
+    expect(details()).toEqual(["ok:updating", "ok:updating"]);
+  });
+
+  it("a commit already analyzed, or failed for good, queues nothing", async () => {
+    await analyzed();
+    expect((await answer(delivery("push", pushed({ after: SHOWN })))).status).toBe(200);
+    await answer(delivery("push", pushed()));
+    await failAnalysis(t.db, (await row())?.id ?? "", "PARSE_FAILED");
+    expect((await answer(delivery("push", pushed()))).status).toBe(200);
+    expect(queue.calls).toBe(1);
+    expect(details()).toEqual(["ok:done", "ok:updating", "ok:failed"]);
+  });
+
+  it("ignores other branches, deleted branches, and repos never analyzed, writing nothing", async () => {
+    await installation41();
+    for (const payload of [
+      pushed(),
+      pushed({ ref: "refs/heads/feature" }),
+      pushed({ ref: "refs/tags/main" }),
+      pushed({ ref: "refs/heads/main/x" }),
+      pushed({ deleted: true }),
+    ]) {
+      expect(await answer(delivery("push", payload)), payload.ref).toEqual({
+        status: 202,
+        body: { status: "ignored" },
+      });
+    }
+    expect(await t.db.select().from(repos)).toEqual([]);
+    expect(queue.calls).toBe(0);
+    expect(details()).toEqual([
+      "ignored:not-analyzed",
+      "ignored:other-branch",
+      "ignored:other-branch",
+      "ignored:other-branch",
+      "ignored:deleted",
+    ]);
+    // Analyzed, the same branches are still ignored.
+    await analyzed();
+    await answer(delivery("push", pushed({ ref: "refs/heads/feature" })));
+    expect(queue.calls).toBe(0);
+    expect(await charged()).toBe(0);
+  });
+
+  it("ignores a push whose installation is gone or suspended, refunding the charge", async () => {
+    await analyzed();
+    await t.db.delete(installations);
+    expect(await answer(delivery("push", pushed()))).toEqual({
+      status: 202,
+      body: { status: "ignored" },
+    });
+    await installation41();
+    await upsertInstallation(t.db, {
+      githubInstallationId: 41,
+      accountId: 9001,
+      accountLogin: "octo-org",
+      accountType: "Organization",
+      suspendedAt: new Date(),
+    });
+    expect((await answer(delivery("push", pushed()))).status).toBe(202);
+    expect(await row()).toBeUndefined();
+    expect(queue.calls).toBe(0);
+    expect(await charged()).toBe(0);
+    expect(details()).toEqual(["ignored:INSTALLATION_NOT_FOUND", "ignored:INSTALLATION_SUSPENDED"]);
+  });
+
+  it("stops at the repo's hourly new commits, shared with check-on-view", async () => {
+    await analyzed();
+    for (let i = 1; i <= RECHECKS_PER_HOUR + 1; i++) {
+      await answer(delivery("push", pushed({ after: String(i).repeat(40) })));
+    }
+    expect(queue.tasks).toHaveLength(RECHECKS_PER_HOUR);
+    expect(details().at(-1)).toBe("ok:limited");
+    expect(await row("7".repeat(40))).toBeUndefined();
+  });
+
+  it("reads a public repo's code count and holds one over twice the supported size", async () => {
+    await analyzed("public");
+    languages = { TypeScript: MAX_GITHUB_CODE_BYTES + 1 };
+    expect((await answer(delivery("push", pushed({ isPrivate: false })))).status).toBe(200);
+    expect(asked).toEqual(["/repos/octo-org/shop/languages"]);
+    expect(queue.calls).toBe(0);
+    expect(await charged()).toBe(0);
+    languages = { TypeScript: 1_000 };
+    await answer(delivery("push", pushed({ isPrivate: false, after: "2".repeat(40) })));
+    expect(queue.tasks.map((task) => task.job)).toEqual([taskJob("2".repeat(40))]);
+    expect(details()).toEqual(["ok:too-much-code", "ok:updating"]);
+  });
+
+  it("answers 503 without a queue or when the task can't be created; a redelivery queues it", async () => {
+    await analyzed();
+    const { queue: _, ...noQueue } = deps;
+    expect(await answer(delivery("push", pushed()), noQueue)).toEqual({
+      status: 503,
+      body: { error: "QUEUE_UNAVAILABLE" },
+    });
+    // Ignored pushes don't need it.
+    expect((await answer(delivery("push", pushed({ ref: "refs/heads/x" })), noQueue)).status).toBe(
+      202,
+    );
+    queue.fail = new WorkerUnavailableError("status 503");
+    expect((await answer(delivery("push", pushed()))).status).toBe(503);
+    expect(await row()).toMatchObject({ status: "failed", errorCode: "QUEUE_UNAVAILABLE" });
+    expect(await charged()).toBe(0);
+    queue.fail = undefined;
+    expect((await answer(delivery("push", pushed()))).status).toBe(200);
+    expect(queue.tasks.map((task) => task.job)).toEqual([taskJob()]);
+    expect(await charged()).toBe(1);
+  });
+
+  it("refuses a push out of shape and writes nothing", async () => {
+    await analyzed();
+    const event = pushed();
+    const bad = [
+      { ...event, ref: 5 },
+      { ...event, ref: "main" },
+      { ...event, ref: `refs/heads/${"b".repeat(300)}` },
+      { ...event, deleted: "no" },
+      { ...event, after: "A".repeat(40) },
+      { ...event, after: undefined },
+      { ...event, installation: undefined },
+      { ...event, repository: { ...event.repository, default_branch: 1 } },
+      { ...event, repository: { ...event.repository, owner: { login: "../x" } } },
+    ];
+    for (const payload of bad) {
+      expect(await answer(delivery("push", payload)), JSON.stringify(payload)).toEqual({
+        status: 400,
+        body: { error: "INVALID_PAYLOAD" },
+      });
+    }
+    expect(queue.calls).toBe(0);
+    expect(await row()).toBeUndefined();
   });
 });

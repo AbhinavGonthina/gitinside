@@ -14,7 +14,8 @@ import { viewRepo, type RepoViewDeps } from "./repoView";
  *
  * Both go through {@link viewRepo} with no SHA, so a view is also check-on-view: a new
  * commit on the default branch is enqueued, charged to the repo. The image shows the
- * newest finished analysis meanwhile.
+ * newest finished analysis meanwhile. For a repo with the GitHub App installed, the push
+ * webhook has usually queued that commit already (M8.7, ADR-0246).
  *
  * - **Link-only badge** when there's no diagram to show: a repo never analyzed, one GitHub
  *   no longer shows publicly, a private one (never in our public rows), or a name GitHub
