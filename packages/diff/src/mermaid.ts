@@ -172,6 +172,9 @@ interface Connection {
  *   drawn kind (a function calling a route is drawn from its service), merged when
  *   several edges lift to the same pair.
  *
+ * A method is named with its class (`method DocumentInterpreter.parse`), so a reader can
+ * tell which `parse` broke.
+ *
  * Doesn't draw: files, folders, and symbols that changed without breaking a connection,
  * `imports`/`calls`/`handles`/`renders` edges, `updated` records (nothing a reader would
  * call a change), and warnings. Past `maxNodes`, the remaining nodes and connections are
@@ -275,9 +278,20 @@ export function renderMermaidSummary(
     return `${lines.join("\n")}\n`;
   }
 
+  /** A symbol's label after its enclosing symbols' (`DocumentInterpreter.parse`), else the label. */
+  const qualified = (node: GraphNode): string => {
+    const parts = [node.label];
+    let parent =
+      node.kind === "symbol" && node.parentId !== null ? lookup(node.parentId) : undefined;
+    while (parent?.kind === "symbol") {
+      parts.unshift(parent.label);
+      parent = parent.parentId === null ? undefined : lookup(parent.parentId);
+    }
+    return parts.join(".");
+  };
   const title = (node: GraphNode): string => {
     const word = node.kind === "symbol" ? node.symbolKind : KIND_WORDS[node.kind];
-    return word === "" ? node.label : `${word} ${node.label}`;
+    return word === "" ? qualified(node) : `${word} ${qualified(node)}`;
   };
   /** Label of the service `node` belongs to, if any. */
   const serviceOf = (node: GraphNode): string | undefined => {
@@ -303,8 +317,12 @@ export function renderMermaidSummary(
     const where = (titles.get(text) ?? 0) > 1 ? (serviceOf(node) ?? node.source?.file) : undefined;
     if (where !== undefined) text += ` in ${where}`;
     if (change?.from !== undefined) {
-      text +=
-        change.from.label === node.label ? " - Moved" : ` - Renamed from ${change.from.label}`;
+      // A method renamed within its class names only the old method; moved, the old class too.
+      const from = qualified(change.from);
+      const to = qualified(node);
+      const sameOwner =
+        from.slice(0, -change.from.label.length) === to.slice(0, -node.label.length);
+      text += from === to ? " - Moved" : ` - Renamed from ${sameOwner ? change.from.label : from}`;
     } else if (change !== undefined) {
       text += ` - ${STATUS_WORDS[change.status]}`;
     }
