@@ -280,7 +280,7 @@ describe("private repo pages (M8.4c1)", () => {
     ...(ready(head) as Extract<RepoView, { status: "ready" }>),
     private: { providerRepoId: 77 },
   });
-  const NOINDEX = { index: false, follow: false };
+  const NOINDEX = "noindex, nofollow";
 
   it("views as the request's cookie when sign-in is configured, else as nobody", async () => {
     vi.mocked(viewRepo).mockResolvedValue({ status: "missing" });
@@ -329,33 +329,38 @@ describe("private repo pages (M8.4c1)", () => {
   });
 
   it("keeps a private repo shown to its viewer out of search engines, and nothing else", async () => {
+    vi.mocked(authDepsFromEnv).mockReturnValue(auth);
+    fetchMock.mockImplementation(graphResponse);
+    const robots = () => document.querySelector('meta[name="robots"]')?.getAttribute("content");
     vi.mocked(viewRepo).mockResolvedValue(shownPrivate({ state: "unknown" }));
-    expect(await repoMetadata({ params: params("acme", "shop") })).toEqual({
-      title: "acme/shop",
-      robots: NOINDEX,
-    });
+    render(await RepoPage({ params: params("acme", "shop") }));
+    expect(robots()).toBe(NOINDEX);
+    cleanup();
     vi.mocked(viewRepo).mockResolvedValue(shownPrivate({ state: "pinned" }));
-    expect(await commitMetadata({ params: commitParams("acme", "shop", SHA) })).toEqual({
-      title: "acme/shop at aaaaaaa",
-      robots: NOINDEX,
-    });
-    // A page not shown carries exactly what a missing repo's does.
+    render(await CommitPage({ params: commitParams("acme", "shop", SHA) }));
+    expect(robots()).toBe(NOINDEX);
+    cleanup();
+    // A page not shown carries exactly what a missing repo's does: no robots tag.
     const others: RepoView[] = [
       ready({ state: "current" }),
-      { status: "missing" },
       { status: "not-analyzed", owner: "acme", repo: "shop" },
     ];
     for (const view of others) {
       vi.mocked(viewRepo).mockResolvedValue(view);
-      expect(await repoMetadata({ params: params("acme", "shop") })).toEqual({
-        title: "acme/shop",
-      });
+      render(await RepoPage({ params: params("acme", "shop") }));
+      expect(robots()).toBeUndefined();
+      cleanup();
     }
-    vi.mocked(viewRepo).mockRejectedValue(new RepoAccessUnavailableError());
-    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("titles the tab from the path alone, never viewing the repo (a prefetch resolves metadata)", async () => {
+    vi.mocked(authDepsFromEnv).mockReturnValue(auth);
+    vi.mocked(viewRepo).mockResolvedValue(shownPrivate({ state: "unknown" }));
     expect(await repoMetadata({ params: params("acme", "shop") })).toEqual({ title: "acme/shop" });
-    vi.mocked(repoViewDepsFromEnv).mockReturnValue(undefined);
-    expect(await repoMetadata({ params: params("acme", "shop") })).toEqual({ title: "acme/shop" });
+    expect(await commitMetadata({ params: commitParams("acme", "shop", SHA) })).toEqual({
+      title: "acme/shop at aaaaaaa",
+    });
+    expect(viewRepo).not.toHaveBeenCalled();
   });
 });
 

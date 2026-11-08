@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { cache } from "react";
 import type { AnyDatabase } from "@gitinside/db";
 import { BASE_PARAM, baseParam, type BaseView, type SearchParams } from "../../../lib/compare";
 import type { RepoRef } from "../../../lib/repoUrl";
@@ -25,44 +24,41 @@ function logFailure(error: unknown): void {
 }
 
 /**
- * The view of `/<owner>/<repo>[/<sha>]` (`viewRepo`), once per request: the page and its
- * metadata both ask (React's `cache`), so a private repo is checked once and check-on-view
- * enqueues once. With sign-in configured, the request's cookie is the viewer, for private repos
- * (M8.4c1).
+ * The view of `/<owner>/<repo>[/<sha>]` (`viewRepo`). With sign-in configured, the request's
+ * cookie is the viewer, for private repos (M8.4c1). Only the page itself calls it, never
+ * `generateMetadata`: Next resolves a page's metadata when a `<Link>` to it is prefetched, so a
+ * view there would run check-on-view (GitHub calls, enqueues, `hideRepo`) for every repo link
+ * merely shown on screen. It did, and a permalink's "See the latest" hid the seeded E2E repo.
  */
-const loadView = cache(
-  async (owner: string, repo: string, sha: string | undefined): Promise<Loaded> => {
-    const request = await headers();
-    const deps = repoViewDepsFromEnv(process.env, request.get(VERCEL_OIDC_HEADER));
-    if (deps === undefined) return { unavailable: true };
-    const auth = authDepsFromEnv();
-    const viewed =
-      auth === undefined ? deps : { ...deps, viewer: { cookie: request.get("cookie"), auth } };
-    try {
-      return {
-        view: await viewRepo(sha === undefined ? { owner, repo } : { owner, repo, sha }, viewed),
-        db: deps.db,
-      };
-    } catch (error) {
-      logFailure(error);
-      return { unavailable: true };
-    }
-  },
-);
+async function loadView(owner: string, repo: string, sha: string | undefined): Promise<Loaded> {
+  const request = await headers();
+  const deps = repoViewDepsFromEnv(process.env, request.get(VERCEL_OIDC_HEADER));
+  if (deps === undefined) return { unavailable: true };
+  const auth = authDepsFromEnv();
+  const viewed =
+    auth === undefined ? deps : { ...deps, viewer: { cookie: request.get("cookie"), auth } };
+  try {
+    return {
+      view: await viewRepo(sha === undefined ? { owner, repo } : { owner, repo, sha }, viewed),
+      db: deps.db,
+    };
+  } catch (error) {
+    logFailure(error);
+    return { unavailable: true };
+  }
+}
 
 /**
- * The page's metadata: the tab's title, and for a private repo shown to its viewer, no
- * indexing (SPEC §3: private results are never indexed). Decided from the same view the page
- * shows, so a page that isn't shown (refused, missing) carries exactly a missing repo's.
+ * The page's metadata: the tab's title, from the path alone (no lookup, see {@link loadView}).
+ * A private repo's `noindex` is rendered by {@link repoScreen} with the diagram instead.
  */
-export async function repoMetadata(ref: RepoRef, sha?: string): Promise<Metadata> {
-  const title =
-    sha === undefined
-      ? `${ref.owner}/${ref.repo}`
-      : `${ref.owner}/${ref.repo} at ${sha.slice(0, 7)}`;
-  const loaded = await loadView(ref.owner, ref.repo, sha);
-  const shownPrivate = "view" in loaded && loaded.view.status === "ready" && loaded.view.private;
-  return shownPrivate ? { title, robots: { index: false, follow: false } } : { title };
+export function repoMetadata(ref: RepoRef, sha?: string): Metadata {
+  return {
+    title:
+      sha === undefined
+        ? `${ref.owner}/${ref.repo}`
+        : `${ref.owner}/${ref.repo} at ${sha.slice(0, 7)}`,
+  };
 }
 
 /**
@@ -95,13 +91,18 @@ export async function repoScreen(ref: RepoRef, sha?: string, query: SearchParams
   if (view.status === "moved") redirect(movedPath(view, query));
   if (view.status === "not-analyzed") return <NotAnalyzed owner={view.owner} repo={view.repo} />;
   return (
-    <RepoDiagram
-      owner={view.owner}
-      repo={view.repo}
-      sha={view.sha}
-      graphUrl={view.graphUrl}
-      head={view.head}
-      base={compared}
-    />
+    <>
+      {/* SPEC §3: private results are never indexed. React hoists it into <head>; only a shown
+          private page has it, so a refused one carries exactly a missing repo's head. */}
+      {view.private && <meta name="robots" content="noindex, nofollow" />}
+      <RepoDiagram
+        owner={view.owner}
+        repo={view.repo}
+        sha={view.sha}
+        graphUrl={view.graphUrl}
+        head={view.head}
+        base={compared}
+      />
+    </>
   );
 }
