@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  findDiffJob,
   findPullRequest,
   pullRequests,
   queuePullRequestDiff,
+  recordDiffJobResult,
   recordPullRequestCheckRun,
   recordPullRequestComment,
   recordPullRequestDiff,
@@ -290,6 +292,87 @@ describe("queuePullRequestDiff", () => {
     const job = await opened(repoId);
     const analyze = { ...job, jobId: `analyze-${"e".repeat(32)}` };
     expect(await pgErrorCode(queuePullRequestDiff(t.db, analyze))).toBe(CHECK);
+  });
+});
+
+describe("diff jobs by ID", () => {
+  const JOB = `diff-${"e".repeat(32)}`;
+  const OTHER_JOB = `diff-${"f".repeat(32)}`;
+
+  async function queued(repoId: string, number: number, jobId = JOB) {
+    await recordPullRequestHead(t.db, { repoId, number, baseSha: BASE, headSha: HEAD, headAt: AT });
+    await queuePullRequestDiff(t.db, { repoId, number, baseSha: BASE, headSha: HEAD, jobId });
+  }
+
+  it("finds a queued job's repo and pair, and nothing for a job no record names", async () => {
+    const { repoId } = await setup();
+    await queued(repoId, 7);
+    expect(await findDiffJob(t.db, JOB)).toEqual({
+      repoId,
+      baseSha: BASE,
+      headSha: HEAD,
+      status: "queued",
+    });
+    expect(await findDiffJob(t.db, OTHER_JOB)).toBeUndefined();
+  });
+
+  it("records the result on every record naming the job, and then reads it as done", async () => {
+    const { repoId } = await setup();
+    // Two pull requests with the same pair share the job; a third has its own.
+    await queued(repoId, 9);
+    await queued(repoId, 7);
+    await queued(repoId, 8, OTHER_JOB);
+    const result = { jobId: JOB, diffKey: "private/k.json.gz", brokenCount: 2 };
+    const pair = { repoId, baseSha: BASE, headSha: HEAD };
+    expect(await recordDiffJobResult(t.db, result)).toEqual([
+      { ...pair, number: 7 },
+      { ...pair, number: 9 },
+    ]);
+    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({
+      diffKey: "private/k.json.gz",
+      brokenCount: 2,
+    });
+    expect(await findPullRequest(t.db, repoId, 8)).toMatchObject({ diffKey: null });
+    expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "done" });
+    expect(await findDiffJob(t.db, OTHER_JOB)).toMatchObject({ status: "queued" });
+
+    // A retried job writes the same result again and still learns where to post.
+    expect(await recordDiffJobResult(t.db, result)).toHaveLength(2);
+  });
+
+  it("never lands an older job's result on a newer pair", async () => {
+    const { repoId } = await setup();
+    await queued(repoId, 7);
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 7,
+      baseSha: BASE,
+      headSha: HEAD2,
+      headAt: LATER,
+    });
+    expect(await findDiffJob(t.db, JOB)).toBeUndefined();
+    const late = { jobId: JOB, diffKey: "old", brokenCount: 3 };
+    expect(await recordDiffJobResult(t.db, late)).toEqual([]);
+    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({
+      headSha: HEAD2,
+      diffKey: null,
+      brokenCount: null,
+    });
+  });
+
+  it("prefers a live record while another sharing the job has its diff", async () => {
+    const { repoId } = await setup();
+    await queued(repoId, 7);
+    await queued(repoId, 8);
+    await recordPullRequestDiff(t.db, {
+      repoId,
+      number: 8,
+      baseSha: BASE,
+      headSha: HEAD,
+      diffKey: "k",
+      brokenCount: 0,
+    });
+    expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "queued" });
   });
 });
 

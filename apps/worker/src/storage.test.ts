@@ -12,9 +12,11 @@ import {
   countingFetch,
   createObjectStore,
   oracleS3Host,
+  privateDiffKey,
   privateSnapshotKey,
   publicSnapshotKey,
   storeConfigFromEnv,
+  uploadDiff,
   uploadSnapshot,
   type StoreConfig,
 } from "./storage.js";
@@ -93,6 +95,36 @@ describe("privateSnapshotKey", () => {
         ...change,
       }),
     ).toThrow(field);
+  });
+});
+
+describe("privateDiffKey", () => {
+  const repoId = "3f1c2a4e-5b6d-4e7f-8a9b-0c1d2e3f4a5b";
+  const HEAD = "f".repeat(40);
+  const diff = {
+    installationId: 42,
+    repoId,
+    baseSha: SHA,
+    headSha: HEAD,
+    analyzerVersion: "0.1.0",
+  };
+
+  it("keys by installation, repo row, merge base and head, under private/ (public repos too)", () => {
+    const key = privateDiffKey(diff);
+    expect(key).toBe(`private/42/${repoId}/diffs/${SHA}-${HEAD}/0.1.0.json.gz`);
+    expect(isPrivateSnapshot(key)).toBe(true);
+    // Inside the prefix the uninstall purges (M8.5a).
+    expect(key.startsWith(`private/42/${repoId}/`)).toBe(true);
+  });
+
+  it.each([
+    ["installationId", { installationId: 0 }],
+    ["repoId", { repoId: "../../public" }],
+    ["sha", { baseSha: "x" }],
+    ["sha", { headSha: HEAD.toUpperCase() }],
+    ["analyzerVersion", { analyzerVersion: "../x" }],
+  ])("refuses a bad %s", (field, change) => {
+    expect(() => privateDiffKey({ ...diff, ...change })).toThrow(field);
   });
 });
 
@@ -600,5 +632,36 @@ describe("uploadSnapshot", () => {
       code: "ENOENT",
     });
     expect(s3.requests).toHaveLength(0);
+  });
+});
+
+describe("uploadDiff", () => {
+  it("stores a diff gzipped as private, no-store, with its sizes", async () => {
+    const s3 = await startFakeS3();
+    try {
+      const store = createObjectStore({
+        endpoint: s3.endpoint,
+        bucket: s3.bucket,
+        credentials: s3.credentials,
+      });
+      // Non-ASCII text counts in bytes.
+      const json = `${JSON.stringify({ broken: [], note: "é".repeat(300) })}\n`;
+      const key = "private/42/3f1c2a4e-5b6d-4e7f-8a9b-0c1d2e3f4a5b/diffs/x/0.1.0.json.gz";
+      const stored = await uploadDiff(store, json, key);
+      const object = s3.objects.get(key);
+      expect(gunzipSync(object?.body ?? Buffer.alloc(0)).toString()).toBe(json);
+      expect(object?.headers).toMatchObject({
+        "content-type": "application/json",
+        "content-encoding": "gzip",
+        "cache-control": "private, no-store",
+      });
+      expect(stored).toEqual({
+        key,
+        bytes: Buffer.byteLength(json),
+        storedBytes: object?.body.length,
+      });
+    } finally {
+      await s3.close();
+    }
   });
 });

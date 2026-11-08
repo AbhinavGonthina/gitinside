@@ -8,6 +8,9 @@ import {
   deleteInstallationData,
   installations,
   queueAnalysis,
+  queuePullRequestDiff,
+  recordDiffJobResult,
+  recordPullRequestHead,
   repos,
   upsertInstallation,
   upsertRepo,
@@ -529,6 +532,25 @@ describe("createAnalysisRecorder", () => {
     expect(seen).toEqual([false]);
     expect(await r.done?.(ID)).toBe(true);
     expect(await r.done?.(`analyze-${"f".repeat(32)}`)).toBe(false);
+  });
+
+  it("says a diff job is done once the pull request records naming it have their diff (ADR-0245)", async () => {
+    const r = recorder();
+    const jobId = `diff-${"e".repeat(32)}`;
+    const { id: repoId } = await upsertRepo(t.db, {
+      providerRepoId: 3_000_000_001,
+      owner: "acme",
+      name: "shop",
+      visibility: "public",
+      defaultBranch: "main",
+    });
+    const pair = { repoId, number: 7, baseSha: "a".repeat(40), headSha: SHA };
+    expect(await r.done?.(jobId)).toBe(false);
+    await recordPullRequestHead(t.db, { ...pair, headAt: new Date("2026-11-08T10:00:00Z") });
+    await queuePullRequestDiff(t.db, { ...pair, jobId });
+    expect(await r.done?.(jobId)).toBe(false);
+    await recordDiffJobResult(t.db, { jobId, diffKey: "private/k.json.gz", brokenCount: 0 });
+    expect(await r.done?.(jobId)).toBe(true);
   });
 
   it("stops before the download when the start finds the row already `done` (R9)", async () => {
