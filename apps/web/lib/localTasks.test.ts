@@ -13,6 +13,7 @@ import {
   type JobRecorder,
 } from "@gitinside/worker";
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyRequest } from "@gitinside/worker/hmac";
+import { parseJobRequest } from "@gitinside/worker/request";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { RUN_PATH, taskIdFor } from "./cloudTasks";
 import {
@@ -105,6 +106,16 @@ describe("createLocalTaskQueue", () => {
     expect(events).toEqual([
       { event: "local_task_delivered", taskId: id, attempt: 1, status: 200 },
     ]);
+  });
+
+  it("pushes a diff job with its kind, base, and installation, as the worker parses them", async () => {
+    const worker = await fakeWorker([200]);
+    const { queue } = queueFor(worker.origin);
+    const diff = { kind: "diff", ...JOB, baseSha: "b".repeat(40), installationId: 41 } as const;
+    expect(await queue.createTask(diff, "diff-task")).toEqual({ created: true });
+    await queue.idle();
+    const body = worker.received[0]?.body.toString() ?? "";
+    expect(parseJobRequest(JSON.parse(body))).toEqual(diff);
   });
 
   it("uses the worker's header name and attempt count", () => {

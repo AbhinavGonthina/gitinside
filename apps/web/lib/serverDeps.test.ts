@@ -496,6 +496,13 @@ describe("webhookDepsFromEnv", () => {
     ).toBeUndefined();
   });
 
+  it("adds the task queue when it's configured, for pull requests' diff jobs (M8.6d2)", () => {
+    expect(webhookDepsFromEnv(HOOK)?.queue).toBeUndefined();
+    expect(webhookDepsFromEnv(HOOK)?.analyzerVersion).toBe(ANALYZER_VERSION);
+    const deps = webhookDepsFromEnv({ ...ENV, ...HOOK }, "oidc");
+    expect(typeof deps?.queue?.createTask).toBe("function");
+  });
+
   it("accepts the previous secret too during a rotation, if it's long enough", () => {
     const previous = "p".repeat(43);
     expect(

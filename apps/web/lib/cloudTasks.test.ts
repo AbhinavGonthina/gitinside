@@ -11,6 +11,7 @@ import {
   type JobRecorder,
 } from "@gitinside/worker";
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyRequest } from "@gitinside/worker/hmac";
+import { parseJobRequest } from "@gitinside/worker/request";
 import { describe, expect, it, onTestFinished } from "vitest";
 import {
   DISPATCH_DEADLINE_SECONDS,
@@ -107,6 +108,15 @@ describe("createTaskQueue against the fake Google", () => {
         NOW,
       ),
     ).toEqual({ ok: false, reason: "BAD_SIGNATURE" });
+  });
+
+  it("carries a diff job's kind, base, and installation, as the worker parses them", async () => {
+    const { google, queue } = setup();
+    const diff = { kind: "diff", ...JOB, baseSha: "b".repeat(40), installationId: 41 } as const;
+    const id = taskIdFor(`diff-${"0123456789abcdef".repeat(2)}`, new Date(NOW));
+    expect(await queue.createTask(diff, id)).toEqual({ created: true });
+    const body = Buffer.from(google.tasks[0]?.httpRequest.body ?? "", "base64").toString();
+    expect(parseJobRequest(JSON.parse(body))).toEqual(diff);
   });
 
   it("a used task name is the job already queued", async () => {

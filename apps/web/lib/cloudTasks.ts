@@ -1,6 +1,6 @@
 import { signRequest } from "@gitinside/worker/hmac";
 import { GoogleAuthError } from "./googleAuth";
-import { WorkerUnavailableError, type AnalyzeJob } from "./worker";
+import { WorkerUnavailableError, type TaskJob } from "./worker";
 
 /**
  * The web app's side of the Cloud Tasks queue (ADR-0114, ADR-0141): one REST call,
@@ -43,10 +43,13 @@ export interface TaskQueueOptions {
   now?: () => number;
 }
 
-/** Adds analysis tasks to the queue. */
+/** Adds analysis and diff tasks to the queue. */
 export interface TaskQueue {
-  /** Create the task `taskId` for `job`; `created: false` if that name was already used. */
-  createTask(job: AnalyzeJob, taskId: string): Promise<{ created: boolean }>;
+  /**
+   * Create the task `taskId` for `job` (an `AnalyzeJob` is sent with `kind: "analyze"`, a
+   * `DiffJob` with its own kind); `created: false` if that name was already used.
+   */
+  createTask(job: TaskJob, taskId: string): Promise<{ created: boolean }>;
 }
 
 /** The worker's path Cloud Tasks pushes to (M5.17c). */

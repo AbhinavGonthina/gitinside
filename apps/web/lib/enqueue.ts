@@ -105,15 +105,17 @@ export async function findAnalysisToQueue(
   return findAnalysis(db, key);
 }
 
-/**
- * A repo to queue: GitHub's facts as resolved, and for one read through the GitHub App, the
- * installation (GitHub's ID) it's read through. A private repo always names one.
- */
-export type QueueRepo = Omit<ResolvedRepo, "visibility"> &
-  (
-    | { visibility: "public"; installationId?: number }
-    | { visibility: "private"; installationId: number }
-  );
+/** A repo's visibility, and the installation it's read through: a private repo always names one. */
+type ReadThrough =
+  | { visibility: "public"; installationId?: number }
+  | { visibility: "private"; installationId: number };
+
+/** A repo to store: GitHub's facts about it, and the installation (GitHub's ID) it's read through. */
+export type StoreRepo = Pick<ResolvedRepo, "providerRepoId" | "owner" | "name" | "defaultBranch"> &
+  ReadThrough;
+
+/** A repo to queue: GitHub's facts as resolved, with the commit, and its installation. */
+export type QueueRepo = Omit<ResolvedRepo, "visibility"> & ReadThrough;
 
 /** Why {@link enqueueAnalysis} refused a repo's installation; `jobs.ts` words each code. */
 export type InstallationRefusal = "INSTALLATION_NOT_FOUND" | "INSTALLATION_SUSPENDED";
@@ -136,7 +138,7 @@ export class InstallationRefusedError extends Error {
  * is suspended throws {@link InstallationRefusedError} with nothing written, so a refused
  * private repo's name is never stored.
  */
-export async function storeQueueRepo(db: AnyDatabase, repo: QueueRepo): Promise<{ id: string }> {
+export async function storeQueueRepo(db: AnyDatabase, repo: StoreRepo): Promise<{ id: string }> {
   const { installationId } = repo;
   if (installationId !== undefined) {
     const installation = await findInstallation(db, installationId);
@@ -222,7 +224,7 @@ export async function enqueueAnalysis(repo: QueueRepo, deps: EnqueueDeps): Promi
  * (`compute_usage`, ADR-0156). A count that fails is logged by name, never thrown: the task
  * exists either way.
  */
-async function countTaskOperation(db: AnyDatabase): Promise<void> {
+export async function countTaskOperation(db: AnyDatabase): Promise<void> {
   try {
     await countComputeUsage(db, { taskOperations: 1 });
   } catch (error) {
