@@ -133,7 +133,7 @@ export function mermaidShape(kind: NodeKind): [string, string] {
 /**
  * What a diff whose rename detection stopped at its budget says about it, or `undefined`.
  * Short enough for `MAX_LABEL`: "Moves not checked for 401 removed and 2 added files".
- * Shared with the PR comment.
+ * Shared with the PR comment and the viewer's changes list.
  */
 export function renameLimitText(diff: GraphDiff): string | undefined {
   const limit = diff.renameLimit;

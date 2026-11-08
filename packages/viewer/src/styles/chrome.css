@@ -1299,6 +1299,20 @@ a.gi-button {
   margin-top: 0;
 }
 
+/* The overview's note on moves left unchecked (M8.6f2): quiet text, marked in the changed color. */
+.gi-changes__limit {
+  margin: 0 0 var(--space-12);
+  padding-left: var(--space-8);
+  border-left: 2px solid var(--diff-changed);
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  line-height: var(--line-height-body);
+}
+
+.gi-changes__limit + .gi-changes__group {
+  margin-top: 0;
+}
+
 .gi-change[data-diff="added"] {
   --gi-diff: var(--diff-added);
 }

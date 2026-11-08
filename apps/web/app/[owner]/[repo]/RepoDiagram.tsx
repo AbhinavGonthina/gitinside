@@ -1,6 +1,6 @@
 "use client";
 
-import type { GraphNode } from "@gitinside/schema";
+import type { GraphDiff, GraphNode } from "@gitinside/schema";
 import {
   browserOnboarding,
   buildDiffOverlay,
@@ -29,6 +29,7 @@ import {
   baseNote,
   compareGraphs,
   linkedVersion,
+  loadDiff,
   type BaseView,
 } from "../../../lib/compare";
 import { ignoredNote, shareUrl } from "../../../lib/deepLink";
@@ -118,7 +119,10 @@ function nodeName(node: GraphNode): string {
  *
  * Diff mode (M6.9e2, ADR-0189): with a `base` that has an analysis, both graphs load side by
  * side and are diffed in the browser (`compareGraphs`); the explorer then draws the overlay,
- * reading Base's code at the base commit. The link keeps `base` first (`withBase`), on the
+ * reading Base's code at the base commit. A pull request comment's link (M8.6f2) also loads
+ * the bot's stored diff (`diffUrl`) beside them and draws that one when it's of exactly these
+ * graphs: made with both trees' file contents, it pairs moved and edited files, and its changes
+ * list says when rename detection stopped short. Any other answer leaves the browser's diff. The link keeps `base` first (`withBase`), on the
  * address bar and in Copy link, and the explorer's Base / Head / Overlay (on its canvas, as
  * `view`). A base that can't be compared (not a full SHA, never analyzed, another analyzer
  * version) is said in the note, and the diagram is this commit alone. The repo bar names the
@@ -148,6 +152,8 @@ export function RepoDiagram({
     | {
         head: GraphLoad;
         base?: GraphLoad;
+        /** The pull request bot's stored diff of the two, if `diffUrl` gave one (M8.6f2). */
+        diff?: GraphDiff;
         baseUrl: string | undefined;
         /** The base's loads so far, counting the note's Try again (M6.11m); 1 if unset. */
         baseTries?: number;
@@ -168,6 +174,7 @@ export function RepoDiagram({
   // Diff mode (M6.9e2): the base commit's graph and code, when the link names one that loads.
   const baseUrl = base?.status === "ready" ? base.graphUrl : undefined;
   const baseSha = base?.status === "ready" ? base.sha : undefined;
+  const diffUrl = base?.status === "ready" ? base.diffUrl : undefined;
   const loadBaseSource = useMemo(
     () => (baseSha === undefined ? undefined : sourceLoader(owner, repo, baseSha, isPrivate)),
     [owner, repo, baseSha, isPrivate],
@@ -180,13 +187,15 @@ export function RepoDiagram({
   const baseFailure = load?.ok && loads?.base?.ok === false ? loads.base : undefined;
   const [baseRetrying, setBaseRetrying] = useState(false);
   const baseRetry = useRef<AbortController>(undefined);
-  const comparison = useMemo(
-    () =>
-      loads?.head.ok && loads.base?.ok
-        ? compareGraphs(loads.base.graph, loads.head.graph)
-        : undefined,
-    [loads],
-  );
+  const comparison = useMemo(() => {
+    if (!loads?.head.ok || !loads.base?.ok) return undefined;
+    const { graph: baseGraph } = loads.base;
+    const { graph: headGraph } = loads.head;
+    // A stored diff is checked as the explorer will draw it, so it can't fail there.
+    return compareGraphs(baseGraph, headGraph, loads.diff, (diff) => {
+      buildDiffOverlay(baseGraph, headGraph, diff);
+    });
+  }, [loads]);
   const compared = comparison?.ok ? comparison : undefined;
 
   // The page's link, read once per loaded graph (and again once a retried base compares): the
@@ -300,15 +309,19 @@ export function RepoDiagram({
     setLoads(undefined);
     setReported(undefined);
     setBaseRetrying(false);
-    // Side by side: the page waits for the slower one, not for both in turn.
+    // Side by side: the page waits for the slowest, not for each in turn.
     Promise.all([
       loadGraph(graphUrl, { signal }),
       baseUrl === undefined ? undefined : loadGraph(baseUrl, { signal }),
+      baseUrl === undefined || diffUrl === undefined ? undefined : loadDiff(diffUrl, { signal }),
     ]).then(
-      ([headLoad, baseLoad]) =>
-        setLoads(
-          baseLoad ? { head: headLoad, base: baseLoad, baseUrl } : { head: headLoad, baseUrl },
-        ),
+      ([headLoad, baseLoad, diff]) =>
+        setLoads({
+          head: headLoad,
+          ...(baseLoad && { base: baseLoad }),
+          ...(diff && { diff }),
+          baseUrl,
+        }),
       () => {
         // aborted: the page moved on
       },
@@ -317,7 +330,7 @@ export function RepoDiagram({
       controller.abort();
       baseRetry.current?.abort();
     };
-  }, [graphUrl, baseUrl, attempt]);
+  }, [graphUrl, baseUrl, diffUrl, attempt]);
 
   useEffect(() => {
     if (load && !load.ok) failure.current?.focus();

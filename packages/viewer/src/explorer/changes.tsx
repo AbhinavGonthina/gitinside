@@ -1,4 +1,5 @@
-import type { GraphNode } from "@gitinside/schema";
+import { renameLimitText } from "@gitinside/diff";
+import type { GraphDiff, GraphNode } from "@gitinside/schema";
 import { useId } from "react";
 import { IconTile, NodeIcon, TILE_ICON_SIZE } from "../icons/Icon.js";
 import type { ChangeItem, ChangesList, ChangeStatus } from "../model/diff.js";
@@ -131,6 +132,19 @@ export function changeDetail(item: ChangeItem, node: GraphNode): string {
   }
 }
 
+/**
+ * What the overview says when the diff's rename detection stopped at its budget
+ * (`renameLimit`, ADR-0086's M6.11n2 amendment), or `undefined`: the comparison
+ * fails visibly rather than passing a move off as a removal and an addition.
+ * Only a diff made with file contents (the PR bot's, M8.6f2) can carry it.
+ */
+export function movesNote(diff: GraphDiff): string | undefined {
+  const text = renameLimitText(diff);
+  return text === undefined
+    ? undefined
+    : `${text}, so a moved file may show as one removed and one added.`;
+}
+
 /** How many changes a group stands for: its rows and what's folded into them, as the frames count them. */
 function groupCount(rows: readonly ChangeItem[]): number {
   return rows.reduce((n, r) => n + 1 + r.inside, 0);
@@ -147,6 +161,8 @@ export interface ChangesSectionProps {
   foldedInto: ReadonlyMap<string, string>;
   /** Fly to a row's node, drilling down to it. */
   onSelect: (id: string) => void;
+  /** {@link movesNote} of the diff, shown in the overview only (it counts the whole diff's files). */
+  limit?: string | undefined;
 }
 
 /**
@@ -155,7 +171,8 @@ export interface ChangesSectionProps {
  * rows are left out; the repo overview says when nothing changed, and a
  * selection with no changes in it shows no section. A selection folded into
  * an added or removed row (a file of an added service) lists that row too,
- * since its frame counts those changes (M6.11g).
+ * since its frame counts those changes (M6.11g). The overview leads with
+ * `limit` when the diff left some moves unchecked (M8.6f2).
  */
 export function ChangesSection({
   index,
@@ -163,6 +180,7 @@ export function ChangesSection({
   within,
   foldedInto,
   onSelect,
+  limit,
 }: ChangesSectionProps) {
   const headingId = useId();
   const all = within === index.root.id;
@@ -180,6 +198,7 @@ export function ChangesSection({
   return (
     <section className="gi-inspector__section gi-changes" aria-labelledby={headingId}>
       <h3 id={headingId}>{all ? "Changes" : "Changes here"}</h3>
+      {all && limit !== undefined && <p className="gi-changes__limit">{limit}</p>}
       {groups.length === 0 ? (
         <p className="gi-inspector__empty">
           Nothing the diagram draws changed between these commits.
