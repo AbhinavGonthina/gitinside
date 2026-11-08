@@ -2,15 +2,22 @@
 import { createHmac } from "node:crypto";
 import {
   analyses,
+  computeUsage,
+  computeUsageThisMonth,
   findInstallation,
+  findPullRequest,
   installations,
+  pullRequests,
+  recordPullRequestDiff,
   repos,
   upsertInstallation,
   upsertRepo,
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
+import { jobIdFor } from "@gitinside/worker/request";
 import type { ListedObject, ObjectStore } from "@gitinside/worker/storage";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { taskIdFor, type TaskQueue } from "./cloudTasks";
 import {
   handleWebhook,
   MAX_WEBHOOK_BYTES,
@@ -18,6 +25,7 @@ import {
   verifySignature,
   type WebhookDeps,
 } from "./githubWebhook";
+import { WorkerUnavailableError, type TaskJob } from "./worker";
 
 const SECRET = "w".repeat(43);
 const PREVIOUS = "p".repeat(43);
@@ -43,9 +51,28 @@ class FakeStore implements Pick<ObjectStore, "list" | "delete"> {
   }
 }
 
+/** Cloud Tasks in memory: a used name is `created: false`; `fail` makes the next creates throw. */
+class FakeQueue implements Pick<TaskQueue, "createTask"> {
+  tasks: { job: TaskJob; taskId: string }[] = [];
+  calls = 0;
+  fail: Error | undefined;
+
+  async createTask(job: TaskJob, taskId: string): Promise<{ created: boolean }> {
+    await Promise.resolve();
+    this.calls++;
+    if (this.fail !== undefined) throw this.fail;
+    if (this.tasks.some((task) => task.taskId === taskId)) return { created: false };
+    this.tasks.push({ job, taskId });
+    return { created: true };
+  }
+}
+
+const VERSION = "0.1.0";
+
 let t: TestDb;
 let deps: WebhookDeps;
 let store: FakeStore;
+let queue: FakeQueue;
 beforeAll(async () => {
   t = await createTestDb();
 });
@@ -55,11 +82,18 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.delete(repos);
   await t.db.delete(installations);
+  await t.db.delete(computeUsage);
   store = new FakeStore();
-  deps = { db: t.db, store, secrets: [SECRET] };
+  queue = new FakeQueue();
+  deps = { db: t.db, store, secrets: [SECRET], queue, analyzerVersion: VERSION };
   const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+  logged = () =>
+    spy.mock.calls.map((call) => JSON.parse(String(call[0])) as Record<string, unknown>);
   onTestFinished(() => spy.mockRestore());
 });
+
+/** The `github_webhook` lines logged so far in this test. */
+let logged: () => Record<string, unknown>[];
 
 const sign = (body: string | Uint8Array, secret = SECRET) =>
   `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
@@ -432,7 +466,7 @@ describe("handleWebhook", () => {
   it("ignores other events and actions", async () => {
     for (const [event, payload] of [
       ["push", { ref: "refs/heads/main" }],
-      ["pull_request", { action: "opened" }],
+      ["pull_request", { action: "closed" }],
       ["installation", installed("some_new_action")],
       ["installation", installed("constructor")],
       ["installation_repositories", installed("toString")],
@@ -496,5 +530,247 @@ describe("handleWebhook", () => {
     });
     expect(errors).toHaveBeenCalledTimes(1);
     expect(String(errors.mock.calls[0]?.[0])).not.toContain("secret");
+  });
+});
+
+describe("handleWebhook: pull requests (M8.6d2)", () => {
+  const BASE = "b".repeat(40);
+  const HEAD = "1".repeat(40);
+  const HEAD2 = "2".repeat(40);
+  const AT = "2026-11-08T10:00:00Z";
+  const LATER = "2026-11-08T10:05:00Z";
+
+  function pr(
+    action: string,
+    { head = HEAD, base = BASE, at = AT, isPrivate = true } = {},
+    extra: Record<string, unknown> = {},
+  ) {
+    return {
+      action,
+      number: 7,
+      pull_request: {
+        number: 7,
+        state: "open",
+        updated_at: at,
+        base: { ref: "main", sha: base, repo: { id: 501 } },
+        head: { ref: "feature", sha: head, repo: { id: 900 } }, // a fork's head
+      },
+      repository: {
+        id: 501,
+        name: "shop",
+        full_name: "octo-org/shop",
+        private: isPrivate,
+        default_branch: "main",
+        owner: { id: 9001, login: "octo-org" },
+      },
+      installation: { id: 41, node_id: "MDIz" },
+      sender: { id: 7, login: "octo" },
+      ...extra,
+    };
+  }
+
+  const diffJob = (head = HEAD, base = BASE) =>
+    ({
+      kind: "diff",
+      owner: "octo-org",
+      repo: "shop",
+      sha: head,
+      baseSha: base,
+      installationId: 41,
+    }) as const;
+
+  async function record() {
+    const [repo] = await t.db.select().from(repos);
+    return repo && findPullRequest(t.db, repo.id, 7);
+  }
+
+  const taskOperations = async () => (await computeUsageThisMonth(t.db)).taskOperations;
+  /** Each delivery's logged outcome and detail, in order. */
+  const details = () => logged().map((line) => `${String(line.outcome)}:${String(line.detail)}`);
+
+  it("records the pull request and queues one diff task for its pair", async () => {
+    await installation41();
+    expect(await answer(delivery("pull_request", pr("opened")))).toEqual({
+      status: 200,
+      body: { status: "ok" },
+    });
+    const [repo] = await t.db.select().from(repos);
+    expect(repo).toMatchObject({
+      providerRepoId: 501,
+      owner: "octo-org",
+      name: "shop",
+      visibility: "private",
+      defaultBranch: "main",
+    });
+    expect(await linked()).toEqual({ shop: true });
+    const jobId = jobIdFor(diffJob(), VERSION);
+    const stored = await record();
+    expect(stored).toMatchObject({
+      baseSha: BASE,
+      headSha: HEAD,
+      headAt: new Date(AT),
+      diffKey: null,
+      diffJobId: jobId,
+    });
+    const queuedAt = stored?.diffQueuedAt ?? new Date(NaN);
+    expect(queue.tasks).toEqual([{ job: diffJob(), taskId: taskIdFor(jobId, queuedAt) }]);
+    expect(await taskOperations()).toBe(1);
+  });
+
+  it("a redelivery makes the same task name, which the queue refuses", async () => {
+    await installation41();
+    await answer(delivery("pull_request", pr("opened")));
+    expect(await answer(delivery("pull_request", pr("opened")))).toEqual({
+      status: 200,
+      body: { status: "ok" },
+    });
+    expect(queue.calls).toBe(2);
+    expect(queue.tasks).toHaveLength(1);
+    expect(await taskOperations()).toBe(2);
+    expect(details()).toEqual(["ok:queued", "ok:already-queued"]);
+  });
+
+  it("a new head queues its own job; an older event afterwards queues nothing", async () => {
+    await installation41();
+    await answer(delivery("pull_request", pr("opened")));
+    await answer(delivery("pull_request", pr("synchronize", { head: HEAD2, at: LATER })));
+    expect(queue.tasks.map((task) => task.job)).toEqual([diffJob(), diffJob(HEAD2)]);
+    expect(await record()).toMatchObject({
+      headSha: HEAD2,
+      diffJobId: jobIdFor(diffJob(HEAD2), VERSION),
+    });
+    // `opened` delivered late, or redelivered: the record stays on the newer head.
+    expect((await answer(delivery("pull_request", pr("opened")))).status).toBe(200);
+    expect(queue.calls).toBe(2);
+    expect((await record())?.headSha).toBe(HEAD2);
+    expect(details()).toEqual(["ok:queued", "ok:queued", "ok:stale"]);
+  });
+
+  it("a pair that already has its diff queues nothing, even reopened", async () => {
+    await installation41();
+    await answer(delivery("pull_request", pr("opened")));
+    const [repo] = await t.db.select().from(repos);
+    const repoId = repo?.id ?? "";
+    expect(
+      await recordPullRequestDiff(t.db, {
+        repoId,
+        number: 7,
+        baseSha: BASE,
+        headSha: HEAD,
+        diffKey: "private/41/x/diffs/y/0.1.0.json.gz",
+        brokenCount: 0,
+      }),
+    ).toBe(true);
+    expect((await answer(delivery("pull_request", pr("reopened", { at: LATER })))).status).toBe(
+      200,
+    );
+    expect(queue.calls).toBe(1);
+    // A base-only change is a new pair: diffed again.
+    const rebased = pr("synchronize", { base: "e".repeat(40), at: LATER });
+    expect((await answer(delivery("pull_request", rebased))).status).toBe(200);
+    expect(queue.tasks.map((task) => task.job.sha)).toEqual([HEAD, HEAD]);
+    expect(queue.tasks[1]?.job).toEqual(diffJob(HEAD, "e".repeat(40)));
+    expect(details()).toEqual(["ok:queued", "ok:diffed", "ok:queued"]);
+  });
+
+  it("stores a public repo as public, linked, and queues its diff through the installation", async () => {
+    await installation41();
+    await answer(delivery("pull_request", pr("opened", { isPrivate: false })));
+    const [repo] = await t.db.select().from(repos);
+    expect(repo?.visibility).toBe("public");
+    expect(await linked()).toEqual({ shop: true });
+    expect(queue.tasks.map((task) => task.job)).toEqual([diffJob()]);
+  });
+
+  it("ignores a pull request whose installation isn't stored or is suspended, writing nothing", async () => {
+    expect(await answer(delivery("pull_request", pr("opened")))).toEqual({
+      status: 202,
+      body: { status: "ignored" },
+    });
+    await upsertInstallation(t.db, {
+      githubInstallationId: 41,
+      accountId: 9001,
+      accountLogin: "octo-org",
+      accountType: "Organization",
+      suspendedAt: new Date(AT),
+    });
+    expect(await answer(delivery("pull_request", pr("synchronize")))).toEqual({
+      status: 202,
+      body: { status: "ignored" },
+    });
+    expect(await t.db.select().from(repos)).toEqual([]);
+    expect(await t.db.select().from(pullRequests)).toEqual([]);
+    expect(queue.calls).toBe(0);
+    expect(details()).toEqual(["ignored:INSTALLATION_NOT_FOUND", "ignored:INSTALLATION_SUSPENDED"]);
+  });
+
+  it("ignores other actions, writing nothing", async () => {
+    await installation41();
+    for (const action of ["closed", "edited", "labeled", "ready_for_review", "constructor"]) {
+      expect(await answer(delivery("pull_request", pr(action))), action).toEqual({
+        status: 202,
+        body: { status: "ignored" },
+      });
+    }
+    expect(await t.db.select().from(repos)).toEqual([]);
+    expect(queue.calls).toBe(0);
+  });
+
+  it("answers 503 without a queue, writing nothing", async () => {
+    await installation41();
+    const noQueue: WebhookDeps = { db: t.db, store, secrets: [SECRET], analyzerVersion: VERSION };
+    expect(await answer(delivery("pull_request", pr("opened")), noQueue)).toEqual({
+      status: 503,
+      body: { error: "QUEUE_UNAVAILABLE" },
+    });
+    expect(await t.db.select().from(repos)).toEqual([]);
+    // Installation events don't need the queue.
+    expect((await answer(delivery("installation", installed("created")), noQueue)).status).toBe(
+      200,
+    );
+  });
+
+  it("answers 503 when the task can't be created; a redelivery then creates it", async () => {
+    await installation41();
+    queue.fail = new WorkerUnavailableError("status 503");
+    expect(await answer(delivery("pull_request", pr("opened")))).toEqual({
+      status: 503,
+      body: { error: "QUEUE_UNAVAILABLE" },
+    });
+    expect(await taskOperations()).toBe(1); // a failed create call is still an operation
+    const jobId = jobIdFor(diffJob(), VERSION);
+    const queuedAt = (await record())?.diffQueuedAt ?? new Date(NaN);
+    queue.fail = undefined;
+    expect((await answer(delivery("pull_request", pr("opened")))).status).toBe(200);
+    expect(queue.tasks).toEqual([{ job: diffJob(), taskId: taskIdFor(jobId, queuedAt) }]);
+  });
+
+  it("refuses a pull request event out of shape and writes nothing", async () => {
+    await installation41();
+    const event = pr("opened");
+    const bad = [
+      { ...event, action: 5 },
+      { ...event, installation: { id: "41" } },
+      { ...event, repository: { ...event.repository, id: 0 } },
+      { ...event, repository: { ...event.repository, name: ".." } },
+      { ...event, repository: { ...event.repository, name: "a/b" } },
+      { ...event, repository: { ...event.repository, owner: { login: "-x" } } },
+      { ...event, repository: { ...event.repository, private: "yes" } },
+      { ...event, repository: { ...event.repository, default_branch: "" } },
+      { ...event, pull_request: { ...event.pull_request, number: 1.5 } },
+      { ...event, pull_request: { ...event.pull_request, updated_at: "soon" } },
+      { ...event, pull_request: { ...event.pull_request, updated_at: undefined } },
+      { ...event, pull_request: { ...event.pull_request, base: { sha: "B".repeat(40) } } },
+      { ...event, pull_request: { ...event.pull_request, head: { sha: "1".repeat(39) } } },
+      { ...event, pull_request: undefined },
+    ];
+    for (const payload of bad) {
+      expect(await answer(delivery("pull_request", payload)), JSON.stringify(payload)).toEqual({
+        status: 400,
+        body: { error: "INVALID_PAYLOAD" },
+      });
+    }
+    expect(await t.db.select().from(repos)).toEqual([]);
+    expect(queue.calls).toBe(0);
   });
 });

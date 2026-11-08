@@ -331,9 +331,14 @@ export function authDepsFromEnv(env: Env = process.env): AuthDeps | undefined {
  * bucket (an uninstall deletes its objects, M8.5a), and `GITHUB_APP_WEBHOOK_SECRET`, plus
  * `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` during a rotation; each secret at least 32
  * characters. Else `undefined`, and every delivery gets `503`, so GitHub shows a deletion
- * that couldn't run as failed rather than it being half done.
+ * that couldn't run as failed rather than it being half done. The task queue
+ * ({@link taskQueue}, with the request's `oidcToken`) is optional: without it only
+ * `pull_request` deliveries get `503` (M8.6d2).
  */
-export function webhookDepsFromEnv(env: Env = process.env): WebhookDeps | undefined {
+export function webhookDepsFromEnv(
+  env: Env = process.env,
+  oidcToken?: string | null,
+): WebhookDeps | undefined {
   const secrets: string[] = [];
   for (const name of ["GITHUB_APP_WEBHOOK_SECRET", "GITHUB_APP_WEBHOOK_SECRET_PREVIOUS"]) {
     const value = env[name];
@@ -345,7 +350,14 @@ export function webhookDepsFromEnv(env: Env = process.env): WebhookDeps | undefi
     secrets.push(value);
   }
   const stored = snapshotStore(env);
-  return stored && { ...stored, secrets };
+  if (!stored) return undefined;
+  const queue = taskQueue(env, oidcToken);
+  return {
+    ...stored,
+    secrets,
+    analyzerVersion: ANALYZER_VERSION,
+    ...(queue !== undefined && { queue }),
+  };
 }
 
 /** The app's credentials per key text, kept so each request doesn't parse the PEM again. */
