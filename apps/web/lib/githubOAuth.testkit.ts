@@ -10,7 +10,8 @@ import { createHash } from "node:crypto";
  * {@link FakeOAuth.install}, and the access check (M8.4a) `GET /repositories/{id}` for a repo one
  * of them covers, with its `…/commits/HEAD` and `GET /repos/{owner}/{repo}/languages` for a
  * private page's check-on-view (M8.4c2), and `GET /repos/{owner}/{repo}` (with its
- * `…/commits/HEAD`) for a signed-in "Analyze" (M8.4c2b). Requests are matched by path, so the same fake serves calls made
+ * `…/commits/HEAD`) for a signed-in "Analyze" (M8.4c2b), and `GET
+ * /repositories/{id}/contents/{path}?ref=` (raw) for a private code preview (M8.4c3). Requests are matched by path, so the same fake serves calls made
  * to github.com, to api.github.com, or to a loopback origin (`e2e/github.ts`).
  */
 
@@ -33,6 +34,11 @@ export interface FakeRepo {
   sha?: string;
   /** `GET /repos/{owner}/{name}/languages`'s answer; default 50,000 bytes of TypeScript. */
   languages?: Record<string, unknown>;
+  /**
+   * A file's text at a commit, for `GET /repositories/{id}/contents/{path}?ref=` asked raw
+   * (M8.4c3); `undefined` (or no function) is GitHub's 404.
+   */
+  file?: (path: string, ref: string) => string | undefined;
 }
 
 /** An installation of the app the fake lists for the accounts that can see it. */
@@ -195,6 +201,21 @@ export function fakeOAuth(options: { expiring?: boolean } = {}): FakeOAuth {
         default_branch: "main",
         size: 1_024,
       });
+    }
+    const contents = /^\/repositories\/(\d+)\/contents\/(.+)$/.exec(url.pathname);
+    if (contents !== null) {
+      const r = visible.find((repo) => repo.id !== undefined && String(repo.id) === contents[1]);
+      const ref = url.searchParams.get("ref") ?? "";
+      const path = (contents[2] ?? "").split("/").map(decodeURIComponent).join("/");
+      const text = r?.file?.(path, ref);
+      if (text === undefined) return Response.json({ message: "Not Found" }, { status: 404 });
+      if (request.headers.get("accept") !== "application/vnd.github.raw+json") {
+        return Response.json(
+          { message: "Asked for JSON; the fake answers raw only" },
+          { status: 415 },
+        );
+      }
+      return new Response(text, { headers: { "content-type": "application/vnd.github.raw+json" } });
     }
     const languages = /^\/repos\/([^/]+)\/([^/]+)\/languages$/.exec(url.pathname);
     if (languages !== null) {

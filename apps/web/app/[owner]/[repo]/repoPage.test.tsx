@@ -23,7 +23,13 @@ import { authDepsFromEnv, repoViewDepsFromEnv } from "../../../lib/serverDeps";
 import type { TurnstileOptions } from "../../../lib/turnstile";
 import { CHECK_FAILED_MESSAGE } from "../../BotCheck";
 import CommitPage, { generateMetadata as commitMetadata } from "./[sha]/page";
-import { AddToReadme, COPIED_MESSAGE, COPIED_MS, COPY_FAILED_MESSAGE } from "./AddToReadme";
+import {
+  AddToReadme,
+  COPIED_MESSAGE,
+  COPIED_MS,
+  COPY_FAILED_MESSAGE,
+  PRIVATE_BADGE_TEXT,
+} from "./AddToReadme";
 import { NotAnalyzed } from "./NotAnalyzed";
 import RepoPage, { generateMetadata as repoMetadata } from "./page";
 import { RepoDiagram } from "./RepoDiagram";
@@ -361,6 +367,61 @@ describe("private repo pages (M8.4c1)", () => {
       title: "acme/shop at aaaaaaa",
     });
     expect(viewRepo).not.toHaveBeenCalled();
+  });
+
+  /** The selected page's file in shop-demo, and the page's deep link selecting it. */
+  const CHECKOUT = "page:web//checkout";
+  const checkoutFile = () => {
+    const node = shopDemo.nodes.find((n) => n.id === CHECKOUT) as
+      | { source?: { file: string } }
+      | undefined;
+    if (node?.source === undefined) throw new Error(`${CHECKOUT} has no source`);
+    return node.source.file;
+  };
+  const sourceReads = () =>
+    fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url !== GRAPH_URL);
+  const answerFiles = (input: RequestInfo | URL) =>
+    Promise.resolve(
+      String(input) === GRAPH_URL
+        ? new Response(JSON.stringify(shopDemo))
+        : new Response("export default function Checkout() {}\n"),
+    );
+
+  it("reads a private repo's code through the site's route with its cookies (M8.4c3)", async () => {
+    vi.mocked(authDepsFromEnv).mockReturnValue(auth);
+    fetchMock.mockImplementation(answerFiles);
+    window.history.replaceState({}, "", `/acme/shop?sel=${CHECKOUT}`);
+    vi.mocked(viewRepo).mockResolvedValue(shownPrivate({ state: "unknown" }));
+    render(await RepoPage({ params: params("acme", "shop") }));
+    await waitFor(() => expect(sourceReads()).toHaveLength(1), { timeout: 25_000 });
+    const path = checkoutFile().split("/").map(encodeURIComponent).join("/");
+    expect(fetchMock).toHaveBeenCalledWith(`/api/source/acme/shop/${SHA}/${path}`, {
+      credentials: "same-origin",
+      redirect: "error",
+    });
+  }, 40_000);
+
+  it("reads a public repo's code from GitHub without cookies, as before", async () => {
+    fetchMock.mockImplementation(answerFiles);
+    window.history.replaceState({}, "", `/acme/shop?sel=${CHECKOUT}`);
+    vi.mocked(viewRepo).mockResolvedValue(ready({ state: "current" }));
+    render(await RepoPage({ params: params("acme", "shop") }));
+    await waitFor(() => expect(sourceReads()).toHaveLength(1), { timeout: 25_000 });
+    expect(sourceReads()[0]).toBe(
+      `https://raw.githubusercontent.com/acme/shop/${SHA}/${checkoutFile()}`,
+    );
+  }, 40_000);
+
+  it("offers a private repo only the link-only badge in Add to README (M8.4c3)", async () => {
+    vi.mocked(authDepsFromEnv).mockReturnValue(auth);
+    fetchMock.mockImplementation(graphResponse);
+    vi.mocked(viewRepo).mockResolvedValue(shownPrivate({ state: "unknown" }));
+    render(await RepoPage({ params: params("acme", "shop") }));
+    fireEvent.click(screen.getByRole("button", { name: "Add to README" }));
+    const panel = screen.getByRole("region", { name: "Add to README" });
+    expect(within(panel).getByText(PRIVATE_BADGE_TEXT)).toBeTruthy();
+    expect(within(panel).queryByRole("radio")).toBeNull();
+    await screen.findByRole("region", { name: "Diagram" });
   });
 });
 
@@ -1222,6 +1283,23 @@ describe("AddToReadme", () => {
     fireEvent.click(button);
     fireEvent.click(button);
     expect(screen.queryByRole("region", { name: "Add to README" })).toBeNull();
+  });
+
+  it("gives a private repo the badge alone, saying why, with the same link (M8.4c3)", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue();
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    render(<AddToReadme owner="acme" repo="shop" isPrivate />);
+    fireEvent.click(screen.getByRole("button", { name: "Add to README" }));
+    const panel = screen.getByRole("region", { name: "Add to README" });
+    expect(within(panel).queryByRole("radio")).toBeNull();
+    expect(within(panel).getByText(PRIVATE_BADGE_TEXT)).toBeTruthy();
+    expect(markdown()).toBe(readmeMarkdown("badge", origin, "acme", "shop"));
+    // The badge route answers a private repo with the link-only badge (ADR-0072).
+    expect(within(panel).getByRole("img").getAttribute("src")).toBe(
+      `${origin}/api/badge/acme/shop.svg`,
+    );
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Copy" })));
+    expect(writeText).toHaveBeenCalledWith(readmeMarkdown("badge", origin, "acme", "shop"));
   });
 });
 

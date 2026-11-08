@@ -17,6 +17,10 @@ export const COPIED_MS = 2000;
 export const COPIED_MESSAGE = "Copied. Paste it into your README.";
 export const COPY_FAILED_MESSAGE = "Couldn't copy. Select the text and copy it yourself.";
 
+/** What a private repo's panel says instead of the two kinds' descriptions (M8.4c3). */
+export const PRIVATE_BADGE_TEXT =
+  "This repo is private, so its badge shows no counts and there's no live image. It links to this page, where only people with access to the repo see the diagram.";
+
 type CopyState = "idle" | "copied" | "failed";
 
 /**
@@ -28,15 +32,22 @@ type CopyState = "idle" | "copied" | "failed";
  *
  * With `open` and `onOpenChange`, the repo bar decides when it's open, so it and the share
  * menu are never open together (M4b.15d); unset, it keeps its own state.
+ *
+ * For a private repo (`isPrivate`, M8.4c3) it offers the badge alone, and says why: the image
+ * routes never show a private repo (a README image carries no credentials, ADR-0072), so its
+ * badge is the link-only one, and the page it links to shows the diagram only to people with
+ * access. There's no live image to offer.
  */
 export function AddToReadme({
   owner,
   repo,
+  isPrivate = false,
   open: openProp,
   onOpenChange,
 }: {
   owner: string;
   repo: string;
+  isPrivate?: boolean | undefined;
   open?: boolean | undefined;
   onOpenChange?: ((open: boolean) => void) | undefined;
 }) {
@@ -46,7 +57,8 @@ export function AddToReadme({
     setOwnOpen(next);
     onOpenChange?.(next);
   };
-  const [kind, setKind] = useState<ReadmeKind>("badge");
+  const [chosen, setKind] = useState<ReadmeKind>("badge");
+  const kind = isPrivate ? "badge" : chosen;
   const [copy, setCopy] = useState<CopyState>("idle");
   const root = useRef<HTMLDivElement>(null);
   const code = useRef<HTMLPreElement>(null);
@@ -129,13 +141,26 @@ export function AddToReadme({
             <h2 className="readme-panel__title" id={titleId}>
               Add to README
             </h2>
-            <SegmentedControl label="What to add" options={KINDS} value={kind} onChange={choose} />
+            {!isPrivate && (
+              <SegmentedControl
+                label="What to add"
+                options={KINDS}
+                value={kind}
+                onChange={choose}
+              />
+            )}
           </div>
           <p className="readme-panel__text">
-            {kind === "badge"
-              ? "A small badge that counts the repo's services and datastores."
-              : "The top level as a picture, in the reader's GitHub theme."}{" "}
-            It links to this page and checks for a newer commit each time it&apos;s viewed.
+            {isPrivate ? (
+              PRIVATE_BADGE_TEXT
+            ) : (
+              <>
+                {kind === "badge"
+                  ? "A small badge that counts the repo's services and datastores."
+                  : "The top level as a picture, in the reader's GitHub theme."}{" "}
+                It links to this page and checks for a newer commit each time it&apos;s viewed.
+              </>
+            )}
           </p>
           <div className="readme-panel__preview" data-kind={kind}>
             <img

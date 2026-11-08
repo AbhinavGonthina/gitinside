@@ -11,12 +11,31 @@
  * Run by Playwright as a web server (`playwright.config.ts`), which waits for the "listening"
  * line.
  */
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { fakeOAuth } from "../lib/githubOAuth.testkit.ts";
 import { E2E_PRIVATE, E2E_SHA } from "./fixture.ts";
 
 const port = Number(process.argv[2]);
 if (!Number.isInteger(port)) throw new Error("usage: github.ts <port>");
+
+/**
+ * Storefront's files at its analyzed commit: fixtures/shop-demo's, as its diagram is that
+ * fixture's graph (dashboard.e2e.ts), for the private code preview (M8.4c3).
+ */
+const SHOP_DEMO = fileURLToPath(new URL("../../../fixtures/shop-demo/", import.meta.url));
+function storefrontFile(path: string, ref: string): string | undefined {
+  if (ref !== E2E_SHA || path.split("/").some((s) => s === "" || s === "." || s === "..")) {
+    return undefined;
+  }
+  try {
+    return readFileSync(join(SHOP_DEMO, path), "utf8");
+  } catch {
+    return undefined;
+  }
+}
 
 const github = fakeOAuth();
 const OCTO = { id: 3_000_000_007, login: "octo" };
@@ -34,6 +53,7 @@ github.install(OCTO, [
         private: true,
         id: E2E_PRIVATE.storefront.id,
         sha: E2E_SHA,
+        file: storefrontFile,
       },
       { owner: "acme", name: "api" },
       {
