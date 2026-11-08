@@ -35,6 +35,7 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
    - Run `gh issue list --repo AbhinavGonthina/gitinside-planning --label needs-abhinav --state all --limit 30`.
    - A **closed** issue means he resolved it; read his closing comments.
    - Remove the matching `{blocked: …}` tags and the entry under "Needs Abhinav" in PROGRESS.md.
+5. **An unfinished PR comes first:** run `gh pr list --repo AbhinavGonthina/gitinside --state open --author "@me"` and look for `task/` branches (and `git branch --show-current`). If one is open (a run ended mid-PR), check it out, finish §5's PR steps for it (CI, bot, merge), and only then pick a new task.
 
 ## 2. Operating loop (one task per autopilot run)
 
@@ -42,11 +43,11 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 2. **Tests first** where practical, then implement.
 3. **Check:** run the relevant tests + lint + typecheck. **Never commit with failing tests.** Never delete, skip, or weaken a test to pass (docs/TESTING.md).
 4. **UI tasks:** take Playwright screenshots in dark and light, critique them against docs/DESIGN_SYSTEM.md §2 and §6, and fix before committing.
-5. **Commit** (§5) and push.
-6. **Update PROGRESS.md:**
+5. **Commit** (§5) on the task's `task/<id>` branch and push it.
+6. **Update PROGRESS.md** on the same branch:
    - Check the task, set "Current task" to the next one.
    - Add a 2–4 line session note (newest first).
-   - Commit + push.
+   - Commit + push, then open the PR, wait for CI and the bot, and merge (§5).
 7. **Update `../gitinside-planning/SESSION_LOG.md`** (append under today's date heading, creating it if needed): what got done, decisions made, what's next, plus a **"What to learn from this"** section.
    - 2–4 plain-English bullets explaining the concepts used: what each is, why we chose it, which file to read.
    - Add any new concept to `../gitinside-planning/LEARNING.md` under its topic, in reading order.
@@ -355,7 +356,7 @@ Everything else (design calls within the spec, implementation choices, bug fixes
    - **5 interview-style questions with answers.**
    - Screenshots for UI milestones.
    - Closing line: "Quiz yourself: open Claude Code and say 'quiz me on M<n>'."
-7. `git tag m<n>`, push tags, add a session-log entry, continue to the next milestone.
+7. Once the milestone's PR has merged, `git tag m<n>` on `main`'s merge commit, push tags, add a session-log entry, continue to the next milestone.
 
 If `AUTONOMY: OFF` (PROGRESS.md line 2): after step 6, set "Current task" to `AWAITING REVIEW M<n>`, open a `needs-abhinav` issue for approval, and stop.
 
@@ -373,7 +374,13 @@ If `AUTONOMY: OFF` (PROGRESS.md line 2): after step 6, set "Current task" to `AW
 - **Git identity and history:**
   - Commit as the existing git identity; never change `git config user.*`.
   - Never force-push, never rewrite published history. `main` is branch-protected.
-- **Branch flow:** commit directly to `main` until M8. After M8.9, each task goes through a PR that GitInside's own bot reviews, and is merged after CI passes (D12.3).
+- **Branch flow (since M8.9, D12.3, ADR-0247):** every task goes through a pull request that GitInside's own bot reviews. Never push task work to `main` directly.
+  1. **Branch:** from an up-to-date `main`, `git checkout -b task/<id>` (lowercase, e.g. `task/m8.10`; a split task uses its own ID, `task/m9.3b`). All of the task's commits go there: code, reports (eval, bench), lessons, and PROGRESS.md. `ci/<task>` branches stay for CI experiments and are never merged.
+  2. **Open the PR** after the first push: `gh pr create --base main --head task/<id> --title "<main Conventional Commit subject>" --body "<task ID, what and why, eval delta for analyzer changes>"`, ready for review (not draft). If `gh run list --branch task/<id>` shows no CI run after a minute, `gh workflow run CI --ref task/<id>`.
+  3. **Wait** with `gh pr checks <n> --watch --interval 60` under Bash `run_in_background` (`timeout: 3600000`), then read `gh pr checks <n>` once. A known flake (see Lessons) gets `gh run rerun <run> --failed`; anything else is fixed on the branch. Never merge with a red or pending check.
+  4. **Read the bot's review:** the `GitInside` Check Run in `gh pr checks <n>` and its comment (`gh pr view <n> --json comments`, author `gitinside-bot`). Fix each broken connection on the branch, or, if intended (callers removed in the same task) or a false break, answer it in a PR comment saying why; a false break also becomes a PROGRESS.md task. `neutral` alone isn't a failure. If no `GitInside` check appears within 20 minutes of CI finishing (the App not installed on this repo yet, planning #24, or the worker paused), merge after CI alone and write "no bot review: <reason>" in the PR body and the session note.
+  5. **Merge with a merge commit,** never squash or rebase (reports and notes quote branch SHAs; `eval --check` must find them on `main`): `gh pr merge <n> --merge --delete-branch`. Never `--admin`. Then `git checkout main`, `git pull`, and check `gh run list --branch main --limit 3`.
+  6. The planning repo (no CI, no bot) still takes direct commits to its `main`.
 - **After M3:** analyzer changes state their eval delta in the commit body.
 
 ## 6. Code standards
