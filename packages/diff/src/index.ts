@@ -9,6 +9,17 @@ export {
   type MermaidSummaryOptions,
 } from "./mermaid.js";
 export {
+  CHECK_RUN_NAME,
+  markdownCode,
+  MAX_CHECK_SUMMARY_LENGTH,
+  MAX_COMMENT_LENGTH,
+  PR_COMMENT_MARKER,
+  renderCheckRun,
+  renderPrComment,
+  type CheckRunText,
+  type PrTextOptions,
+} from "./pr.js";
+export {
   detectRenames,
   RENAME_THRESHOLDS,
   similarity,
