@@ -6,10 +6,11 @@
  * - {@link listStoredSnapshots}: every `done` analysis, i.e. every row that names an object.
  * - {@link listPinnedShas}: commits a pull request touched recently, which a PR diff may
  *   still need.
+ * - {@link listDiffKeys}: every stored PR diff a pull request record names (ADR-0245).
  * - {@link deleteDoneAnalyses}: removes evicted rows, only while they are still `done` with
  *   the same snapshot, so a row that changed since the plan was made is left alone.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
 import { analyses, pullRequests, repos } from "./schema.js";
 
@@ -87,6 +88,20 @@ export async function listPinnedShas(
     { repoId, sha: baseSha },
     { repoId, sha: headSha },
   ]);
+}
+
+/**
+ * The diff keys pull request records name, each once, in no particular order. Any record's,
+ * however old: the record is the only way to the diff, so a named diff is kept as long as
+ * the record keeps it (a new pair clears it, ADR-0244), and every other diff object is an
+ * orphan.
+ */
+export async function listDiffKeys(db: AnyDatabase): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ diffKey: pullRequests.diffKey })
+    .from(pullRequests)
+    .where(isNotNull(pullRequests.diffKey));
+  return rows.map((row) => row.diffKey as string);
 }
 
 /**

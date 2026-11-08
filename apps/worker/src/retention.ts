@@ -1,5 +1,6 @@
 import {
   deleteDoneAnalyses,
+  listDiffKeys,
   listPinnedShas,
   listStoredSnapshots,
   type AnyDatabase,
@@ -23,14 +24,19 @@ import type { ListedObject, ObjectStore } from "./storage.js";
  * 3. If the bucket would still hold more than {@link RetentionPolicy.budgetBytes} (16 GB),
  *    the oldest snapshots by finish time go first, globally, private ones included
  *    (`over-budget`), until it fits.
- * 4. **Orphans**, objects with a snapshot key that no `done` row names, are deleted once
- *    older than an hour (an upload is written before its row, ADR-0063). Objects outside
- *    the snapshot key shapes are never touched, only counted.
+ * 4. **Pull request diffs** (ADR-0245) a pull request record names are kept and counted
+ *    (`diffs`, `diffBytes`), however old the record: it is the only way to them. They have
+ *    no rows to evict, so the budget never removes them; their bytes still count toward it.
+ * 5. **Orphans**, objects with a snapshot key no `done` row names or a diff key no pull
+ *    request record names (a new pair clears the record's key), are deleted once older than
+ *    an hour (an upload is written before its row or record, ADR-0063). Objects outside the
+ *    snapshot and diff key shapes are never touched, only counted.
  *
  * Sizes come from listing the bucket, not from our rows: the listing is what the free tier counts.
  *
- * **How a run applies it** ({@link runRetention}): rows are read **before** the bucket is
- * listed, so any row the run sees has its object in the listing (publish uploads first).
+ * **How a run applies it** ({@link runRetention}): rows and diff keys are read **before** the
+ * bucket is listed, so any row or record the run sees has its object in the listing (publish
+ * and the diff job upload first).
  * Evicted rows are deleted first, then their objects: a crash in between leaves an orphan,
  * which the next run deletes, never a row pointing at nothing. A `done` row whose object
  * is missing is only reported (`missing`), because deleting rows on the word of a listing
@@ -80,10 +86,13 @@ export interface RetentionPlan {
   evict: Eviction[];
   /** Objects to delete: evicted snapshots no kept row names, then orphans. Sorted. */
   deleteKeys: string[];
-  /** Orphaned snapshot objects (a subset of `deleteKeys`). Sorted. */
+  /** Orphaned snapshot and diff objects (a subset of `deleteKeys`). Sorted. */
   orphans: string[];
   /** Kept rows whose object the listing doesn't have. Sorted IDs. */
   missing: string[];
+  /** Listed diff objects a pull request record names, and their bytes (all kept). */
+  diffs: number;
+  diffBytes: number;
   /** Objects and bytes in the whole bucket. */
   objects: number;
   storedBytes: number;
@@ -96,12 +105,16 @@ export interface RetentionInput {
   rows: readonly StoredSnapshotRow[];
   objects: readonly ListedObject[];
   pinned: readonly PinnedSha[];
+  /** The diff keys pull request records name (`listDiffKeys`). */
+  diffKeys: readonly string[];
   now: Date;
   policy?: RetentionPolicy;
 }
 
 /** The two snapshot key shapes of storage.ts; anything else in the bucket isn't ours to judge. */
 const SNAPSHOT_KEY = /^(?:public|private)\/(?:[^/]+\/){2}[0-9a-f]{40}\/[^/]+\.json\.gz$/;
+/** The diff key shape of storage.ts's `privateDiffKey`. */
+const DIFF_KEY = /^private\/(?:[^/]+\/){2}diffs\/[0-9a-f]{40}-[0-9a-f]{40}\/[^/]+\.json\.gz$/;
 
 /** Newest finish first; ties by creation, then ID, so a plan never depends on input order. */
 function newestFirst(a: StoredSnapshotRow, b: StoredSnapshotRow): number {
@@ -148,13 +161,19 @@ export function planRetention(input: RetentionInput): RetentionPlan {
     keptByKey.set(row.snapshotKey, (keptByKey.get(row.snapshotKey) ?? 0) + 1);
   }
   const named = new Set(input.rows.map((row) => row.snapshotKey));
+  const namedDiffs = new Set(input.diffKeys);
   const deleteKeys = new Set<string>();
   for (const row of input.rows) {
     if (evicted.has(row.id) && !keptByKey.has(row.snapshotKey)) deleteKeys.add(row.snapshotKey);
   }
   const graceEnd = input.now.getTime() - policy.orphanGraceMs;
+  const diffs = input.objects.filter((o) => DIFF_KEY.test(o.key) && namedDiffs.has(o.key));
   const orphans = input.objects
-    .filter((o) => SNAPSHOT_KEY.test(o.key) && !named.has(o.key))
+    .filter(
+      (o) =>
+        (SNAPSHOT_KEY.test(o.key) && !named.has(o.key)) ||
+        (DIFF_KEY.test(o.key) && !namedDiffs.has(o.key)),
+    )
     .filter((o) => o.lastModified.getTime() <= graceEnd)
     .map((o) => o.key)
     .sort(compareStrings);
@@ -201,6 +220,8 @@ export function planRetention(input: RetentionInput): RetentionPlan {
     deleteKeys: [...deleteKeys].sort(compareStrings),
     orphans,
     missing,
+    diffs: diffs.length,
+    diffBytes: diffs.reduce((sum, o) => sum + o.size, 0),
     objects: input.objects.length,
     storedBytes,
     retainedBytes,
@@ -228,6 +249,9 @@ export interface RetentionReport {
   evicted: Record<EvictionReason, number>;
   orphans: number;
   missing: number;
+  /** Pull request diffs kept, and their bytes. */
+  diffs: number;
+  diffBytes: number;
   /** Objects deleted, and deletes that failed (left for the next run as orphans). */
   deletedObjects: number;
   failedDeletes: number;
@@ -242,12 +266,14 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
   const { db, store } = deps;
   const rows = await listStoredSnapshots(db);
   const pinned = await listPinnedShas(db);
+  const diffKeys = await listDiffKeys(db);
   const objects: ListedObject[] = [];
   for await (const object of store.list()) objects.push(object);
   const plan = planRetention({
     rows,
     objects,
     pinned,
+    diffKeys,
     now: (deps.now ?? (() => new Date()))(),
     ...(deps.policy === undefined ? {} : { policy: deps.policy }),
   });
@@ -287,6 +313,8 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
     evicted,
     orphans: plan.orphans.length,
     missing: plan.missing.length,
+    diffs: plan.diffs,
+    diffBytes: plan.diffBytes,
     deletedObjects,
     failedDeletes,
   };
