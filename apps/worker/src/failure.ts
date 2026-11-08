@@ -30,6 +30,8 @@ export const RETRIABLE_CODES: ReadonlySet<string> = new Set([
   "RECORD_FAILED",
   /** The website couldn't give a private job's installation token just now (installationToken.ts). */
   "TOKEN_UNAVAILABLE",
+  /** Posting a pull request's comment or Check Run met a network error or a GitHub 5xx (post.ts). */
+  "POST_FAILED",
   /** Something unexpected in the worker itself (a full disk, a bug); logged with details. */
   "WORKER_ERROR",
 ]);
