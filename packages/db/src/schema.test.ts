@@ -375,6 +375,27 @@ describe("pull_requests", () => {
     ).toBe(CHECK);
     await t.db.insert(pullRequests).values({ ...pr, number: 3, diffKey: "k", brokenCount: 0 });
   });
+
+  it("have a diff job's ID and queue time together or neither, the ID a diff job's", async () => {
+    const repo = await insertRepo();
+    const pr = { repoId: repo.id, baseSha: SHA, headSha: SHA2, headAt: new Date() };
+    const diffJobId = `diff-${"0".repeat(32)}`;
+    const diffQueuedAt = new Date();
+    expect(
+      await pgErrorCode(t.db.insert(pullRequests).values({ ...pr, number: 1, diffJobId })),
+    ).toBe(CHECK);
+    expect(
+      await pgErrorCode(t.db.insert(pullRequests).values({ ...pr, number: 2, diffQueuedAt })),
+    ).toBe(CHECK);
+    expect(
+      await pgErrorCode(
+        t.db
+          .insert(pullRequests)
+          .values({ ...pr, number: 3, diffJobId: `diff-${"0".repeat(31)}`, diffQueuedAt }),
+      ),
+    ).toBe(CHECK);
+    await t.db.insert(pullRequests).values({ ...pr, number: 4, diffJobId, diffQueuedAt });
+  });
 });
 
 describe("rate_limits", () => {

@@ -5,7 +5,7 @@
  * is conditional in the database: an older event never moves the record back, and a job's
  * result lands only while its pair is still the pull request's current one.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
 import { pullRequests } from "./schema.js";
 
@@ -45,9 +45,9 @@ const samePair = sql`${pullRequests.baseSha} = excluded.base_sha and ${pullReque
  * Records the base and head an event describes, creating the record on its first event. An
  * event older than the recorded one (`headAt` earlier) changes nothing and answers `undefined`:
  * the caller then queues no diff. Otherwise the row is returned as now stored. A different pair
- * clears the old diff, and a different head the old head's Check Run; the comment is kept (it is
- * edited in place). The same pair described again keeps everything, so a caller seeing a
- * `diffKey` has nothing to recompute. Events as new as the recorded one are taken: GitHub's
+ * clears the old diff and its job (which then stops being live), and a different head the old
+ * head's Check Run; the comment is kept (it is edited in place). The same pair described again
+ * keeps everything, so a caller seeing a `diffKey` has nothing to recompute. Events as new as the recorded one are taken: GitHub's
  * times are whole seconds, and two pushes in one second are then recorded in delivery order.
  */
 export async function recordPullRequestHead(
@@ -65,6 +65,8 @@ export async function recordPullRequestHead(
         headAt: sql`excluded.head_at`,
         diffKey: sql`case when ${samePair} then ${pullRequests.diffKey} end`,
         brokenCount: sql`case when ${samePair} then ${pullRequests.brokenCount} end`,
+        diffJobId: sql`case when ${samePair} then ${pullRequests.diffJobId} end`,
+        diffQueuedAt: sql`case when ${samePair} then ${pullRequests.diffQueuedAt} end`,
         checkRunId: sql`case when ${pullRequests.headSha} = excluded.head_sha then ${pullRequests.checkRunId} end`,
         updatedAt: sql`now()`,
       },
@@ -85,6 +87,47 @@ export async function findPullRequest(
     .from(pullRequests)
     .where(and(eq(pullRequests.repoId, repoId), eq(pullRequests.number, number)));
   return row;
+}
+
+/** A diff job to name on the record of the pair it diffs. */
+export interface PullRequestDiffJob extends PullRequestRef {
+  baseSha: string;
+  headSha: string;
+  /** The job's ID (`diff-` + 32 hex, the worker's `jobIdFor`). */
+  jobId: string;
+}
+
+/**
+ * Names `job.jobId` as the diff job of the pull request's current pair (ADR-0245), only while
+ * that pair is still current and has no diff. Answers when the job was queued, the name its task
+ * takes: the stored time when the record already names this job (a redelivered event then makes
+ * the same task again, which the queue refuses as a duplicate), else now. `undefined` means
+ * queue nothing: the pull request moved on, has its diff, or was never recorded. A different job
+ * for the same pair (a new analyzer version) replaces the old one, which then stops being live.
+ */
+export async function queuePullRequestDiff(
+  db: AnyDatabase,
+  job: PullRequestDiffJob,
+): Promise<Date | undefined> {
+  const [row] = await db
+    .update(pullRequests)
+    .set({
+      diffJobId: job.jobId,
+      diffQueuedAt: sql`case when ${pullRequests.diffJobId} = ${job.jobId}
+        then ${pullRequests.diffQueuedAt} else now() end`,
+      updatedAt: sql`now()`,
+    })
+    .where(
+      and(
+        eq(pullRequests.repoId, job.repoId),
+        eq(pullRequests.number, job.number),
+        eq(pullRequests.baseSha, job.baseSha),
+        eq(pullRequests.headSha, job.headSha),
+        isNull(pullRequests.diffKey),
+      ),
+    )
+    .returning({ queuedAt: pullRequests.diffQueuedAt });
+  return row?.queuedAt ?? undefined;
 }
 
 /**

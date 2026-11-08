@@ -276,7 +276,8 @@ export const accessCache = pgTable(
  * The bot's record of one pull request: the diff it posted and where (M8, ADR-0244). The
  * base and head are the newest GitHub has described (`head_at`, GitHub's `updated_at` in that
  * event); the diff's key and broken count are that pair's, set together, and the Check Run is
- * that head's. The comment is the pull request's, edited in place across heads.
+ * that head's. The comment is the pull request's, edited in place across heads. The diff job
+ * queued for the pair (ADR-0245) is named here too and cleared with it.
  */
 export const pullRequests = pgTable(
   "pull_requests",
@@ -291,6 +292,10 @@ export const pullRequests = pgTable(
     headAt: timestampTz("head_at").notNull(),
     diffKey: text("diff_key"),
     brokenCount: integer("broken_count"),
+    /** The diff job queued for this pair (ADR-0245), live while the diff isn't recorded. */
+    diffJobId: text("diff_job_id"),
+    /** When that job was queued: its task's name. Set with `diff_job_id`. */
+    diffQueuedAt: timestampTz("diff_queued_at"),
     commentId: githubId("comment_id"),
     checkRunId: githubId("check_run_id"),
     createdAt: timestampTz("created_at").notNull().defaultNow(),
@@ -303,6 +308,11 @@ export const pullRequests = pgTable(
     check("pull_requests_head_sha_check", isSha(t.headSha)),
     check("pull_requests_broken_count_check", sql`${t.brokenCount} >= 0`),
     check("pull_requests_result_check", sql`(${t.diffKey} is null) = (${t.brokenCount} is null)`),
+    check("pull_requests_diff_job_id_check", sql`${t.diffJobId} ~ '^diff-[0-9a-f]{32}$'`),
+    check(
+      "pull_requests_diff_job_check",
+      sql`(${t.diffJobId} is null) = (${t.diffQueuedAt} is null)`,
+    ),
   ],
 );
 

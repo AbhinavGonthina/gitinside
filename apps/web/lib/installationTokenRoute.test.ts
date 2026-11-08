@@ -3,6 +3,8 @@ import {
   analyses,
   installations,
   queueAnalysis,
+  queuePullRequestDiff,
+  recordPullRequestHead,
   repos,
   startAnalysis,
   completeAnalysis,
@@ -171,6 +173,36 @@ describe("handleTokenRequest", () => {
     expect(github.issued).toHaveLength(1);
   });
 
+  it("mints for a live diff job through its pull request's repo, and not once it moved on", async () => {
+    const { repoId } = await queued(41);
+    const DIFF = `diff-${"3".repeat(32)}`;
+    const pair = { repoId, number: 7, baseSha: SHA, headSha: "b".repeat(40) };
+    await recordPullRequestHead(t.db, { ...pair, headAt: new Date(NOW) });
+    await queuePullRequestDiff(t.db, { ...pair, jobId: DIFF });
+    const forDiff = { jobId: DIFF, installationId: 41 };
+    expect((await answer(ask(forDiff))).status).toBe(200);
+    expect(github.issued).toEqual([
+      { token: github.issued[0]?.token, installationId: 41, repos: ["shop"] },
+    ]);
+    // Only through the repo's own installation.
+    expect(await answer(ask({ ...forDiff, installationId: 52 }))).toMatchObject({
+      status: 403,
+      body: { error: "REPO_NOT_INSTALLED" },
+    });
+
+    // A newer push: the job's pair is no longer the pull request's.
+    await recordPullRequestHead(t.db, {
+      ...pair,
+      headSha: "c".repeat(40),
+      headAt: new Date(NOW + 1000),
+    });
+    expect(await answer(ask(forDiff))).toMatchObject({
+      status: 404,
+      body: { error: "JOB_NOT_FOUND" },
+    });
+    expect(github.issued).toHaveLength(1);
+  });
+
   it("refuses an installation the repo isn't linked to, asking GitHub nothing", async () => {
     await queued(41);
     // Installation 52 would cover a repo named shop; the row's link decides.
@@ -241,6 +273,10 @@ describe("handleTokenRequest", () => {
     ["an array", "[]"],
     ["no installation", JSON.stringify({ jobId: JOB })],
     ["a malformed job ID", JSON.stringify({ jobId: "analyze-1", installationId: 41 })],
+    [
+      "another kind's job ID",
+      JSON.stringify({ jobId: `push-${"1".repeat(32)}`, installationId: 41 }),
+    ],
     ["a string installation", JSON.stringify({ jobId: JOB, installationId: "41" })],
     ["installation 0", JSON.stringify({ jobId: JOB, installationId: 0 })],
     ["a fractional installation", JSON.stringify({ jobId: JOB, installationId: 41.5 })],

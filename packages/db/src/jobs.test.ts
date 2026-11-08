@@ -10,7 +10,10 @@ import {
   findJobInstallation,
   installations,
   queueAnalysis,
+  queuePullRequestDiff,
   recordJobProgress,
+  recordPullRequestDiff,
+  recordPullRequestHead,
   repos,
   requeueAnalysis,
   startAnalysis,
@@ -382,6 +385,60 @@ describe("findJobInstallation", () => {
       suspendedAt: null,
     });
     expect(await findJobInstallation(t.db, jobOf("2"))).toBeUndefined();
+  });
+
+  describe("a diff job (ADR-0245)", () => {
+    const DIFF = `diff-${"e".repeat(32)}`;
+    const AT = new Date("2026-11-08T10:00:00Z");
+
+    /** Pull request `number` of `repo` at (1, 2), its diff job `DIFF` queued. */
+    async function diffQueued(repo: string, number = 7): Promise<void> {
+      const pair = { repoId: repo, number, baseSha: shaOf("1"), headSha: shaOf("2") };
+      await recordPullRequestHead(t.db, { ...pair, headAt: AT });
+      expect(await queuePullRequestDiff(t.db, { ...pair, jobId: DIFF })).toBeInstanceOf(Date);
+    }
+
+    it("is queued while its pull request has no diff, then done", async () => {
+      await upsertInstallation(t.db, ACME_APP);
+      const linked = await repoId({ ...FACTS, visibility: "private", githubInstallationId: 41 });
+      await diffQueued(linked);
+      expect(await findJobInstallation(t.db, DIFF)).toEqual({
+        status: "queued",
+        owner: "acme",
+        name: "shop",
+        githubInstallationId: 41,
+        suspendedAt: null,
+      });
+
+      const pair = { repoId: linked, number: 7, baseSha: shaOf("1"), headSha: shaOf("2") };
+      await recordPullRequestDiff(t.db, { ...pair, diffKey: "d.json.gz", brokenCount: 0 });
+      expect(await findJobInstallation(t.db, DIFF)).toMatchObject({ status: "done" });
+    });
+
+    it("is unknown once its pull request moves on, and never read from analyses", async () => {
+      const repo = await repoId();
+      await diffQueued(repo);
+      await recordPullRequestHead(t.db, {
+        repoId: repo,
+        number: 7,
+        baseSha: shaOf("1"),
+        headSha: shaOf("3"),
+        headAt: new Date("2026-11-08T10:01:00Z"),
+      });
+      expect(await findJobInstallation(t.db, DIFF)).toBeUndefined();
+      // An analysis job's ID is never looked up among pull requests, nor the other way round.
+      await queued("1", "2026-10-31T10:00:00Z", repo);
+      expect(await findJobInstallation(t.db, `diff-${"1".repeat(32)}`)).toBeUndefined();
+    });
+
+    it("is live while any pull request sharing it has no diff", async () => {
+      const repo = await repoId();
+      await diffQueued(repo, 7);
+      await diffQueued(repo, 8);
+      const done = { repoId: repo, number: 8, baseSha: shaOf("1"), headSha: shaOf("2") };
+      await recordPullRequestDiff(t.db, { ...done, diffKey: "d.json.gz", brokenCount: 1 });
+      expect(await findJobInstallation(t.db, DIFF)).toMatchObject({ status: "queued" });
+    });
   });
 });
 
