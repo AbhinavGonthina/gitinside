@@ -5,6 +5,7 @@ import {
   completeAnalysis,
   deleteDoneAnalyses,
   failAnalysis,
+  listDiffKeys,
   listPinnedShas,
   listStoredSnapshots,
   pullRequests,
@@ -111,6 +112,36 @@ describe("listPinnedShas", () => {
   it("refuses a window that isn't a whole number of days", async () => {
     await expect(listPinnedShas(t.db, -1)).rejects.toThrow("days");
     await expect(listPinnedShas(t.db, 1.5)).rejects.toThrow("days");
+  });
+});
+
+describe("listDiffKeys", () => {
+  it("lists each diff key a pull request record names once, whatever the record's age", async () => {
+    const a = await repo(1);
+    const b = await repo(2, "private");
+    const pr = { baseSha: sha("1"), headSha: sha("2"), headAt: new Date() };
+    await t.db.insert(pullRequests).values([
+      { ...pr, repoId: a, number: 1, diffKey: "private/9/a/diffs/x/0.1.0.json.gz", brokenCount: 0 },
+      // Two records with the same pair and installation share a job, so a key.
+      { ...pr, repoId: a, number: 2, diffKey: "private/9/a/diffs/x/0.1.0.json.gz", brokenCount: 0 },
+      {
+        ...pr,
+        repoId: b,
+        number: 1,
+        diffKey: "private/9/b/diffs/y/0.1.0.json.gz",
+        brokenCount: 3,
+        updatedAt: sql`now() - interval '400 days'`,
+      },
+      { ...pr, repoId: b, number: 2 },
+    ]);
+    expect((await listDiffKeys(t.db)).sort()).toEqual([
+      "private/9/a/diffs/x/0.1.0.json.gz",
+      "private/9/b/diffs/y/0.1.0.json.gz",
+    ]);
+  });
+
+  it("answers an empty list when no record has a diff", async () => {
+    expect(await listDiffKeys(t.db)).toEqual([]);
   });
 });
 

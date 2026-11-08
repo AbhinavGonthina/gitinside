@@ -10,7 +10,7 @@ import {
   type RetentionPolicy,
 } from "./retention.js";
 import { s3Error, startFakeS3, type FakeS3 } from "./s3.testkit.js";
-import { createObjectStore, type ListedObject } from "./storage.js";
+import { createObjectStore, privateDiffKey, type ListedObject } from "./storage.js";
 
 const NOW = new Date("2026-10-29T12:00:00Z");
 const HOUR = 60 * 60 * 1000;
@@ -47,7 +47,11 @@ const objectsOf = (rows: readonly StoredSnapshotRow[], size = 100): ListedObject
   rows.map((r) => ({ key: r.snapshotKey, size, lastModified: new Date(0) }));
 
 const plan = (input: Partial<RetentionInput> & Pick<RetentionInput, "rows">) =>
-  planRetention({ objects: objectsOf(input.rows), pinned: [], now: NOW, ...input });
+  planRetention({ objects: objectsOf(input.rows), pinned: [], diffKeys: [], now: NOW, ...input });
+
+/** The key of a stored PR diff from commit `base` to `head` (ADR-0245). */
+const diffKey = (repo: string, base: number, head: number) =>
+  `private/9/${repo}/diffs/${sha(base)}-${sha(head)}/0.1.0.json.gz`;
 
 describe("planRetention", () => {
   it("keeps a public repo's latest 5 commits and evicts the older ones", () => {
@@ -117,6 +121,67 @@ describe("planRetention", () => {
     expect(result.orphans).toEqual([`private/9/x/${sha(1)}/0.1.0.json.gz`, key("gone", 1)]);
     expect(result.deleteKeys).toEqual(result.orphans);
     expect(result).toMatchObject({ objects: 6, storedBytes: 135, retainedBytes: 121 });
+  });
+
+  it("keeps and counts diffs a pull request record names, and deletes old unnamed ones", () => {
+    const rows = [row("r1", "shop", 1)];
+    const old = new Date(NOW.getTime() - HOUR);
+    const objects: ListedObject[] = [
+      ...objectsOf(rows),
+      { key: diffKey("shop", 1, 2), size: 30, lastModified: new Date(0) },
+      { key: diffKey("shop", 2, 3), size: 20, lastModified: old },
+      // A pull request's next pair cleared the record's key: nothing leads here any more.
+      { key: diffKey("shop", 1, 3), size: 11, lastModified: old },
+      // Uploaded, its record not written yet.
+      { key: diffKey("shop", 3, 4), size: 7, lastModified: new Date(old.getTime() + 1) },
+      // Under `diffs/`, but not a diff key's shape: never ours to judge.
+      { key: `private/9/shop/diffs/${sha(1)}/0.1.0.json.gz`, size: 5, lastModified: old },
+      {
+        key: `public/acme/shop/diffs/${sha(1)}-${sha(2)}/0.1.0.json.gz`,
+        size: 5,
+        lastModified: old,
+      },
+    ];
+    const result = plan({
+      rows,
+      objects,
+      // A record can name a diff whose object is gone; it's no object to count.
+      diffKeys: [diffKey("shop", 2, 3), diffKey("shop", 1, 2), diffKey("shop", 5, 6)],
+    });
+    expect(result.orphans).toEqual([diffKey("shop", 1, 3)]);
+    expect(result.deleteKeys).toEqual([diffKey("shop", 1, 3)]);
+    expect(result).toMatchObject({
+      diffs: 2,
+      diffBytes: 50,
+      objects: 7,
+      storedBytes: 178,
+      retainedBytes: 167,
+    });
+  });
+
+  it("treats the keys privateDiffKey makes as diffs", () => {
+    const made = privateDiffKey({
+      installationId: 41,
+      repoId: "0b3c5a8e-1f2d-4c6b-9a7e-5d4c3b2a1f0e",
+      baseSha: sha(1),
+      headSha: sha(2),
+      analyzerVersion: "0.1.0",
+    });
+    const objects = [{ key: made, size: 9, lastModified: new Date(0) }];
+    expect(plan({ rows: [], objects, diffKeys: [made] })).toMatchObject({ diffs: 1, orphans: [] });
+    expect(plan({ rows: [], objects }).orphans).toEqual([made]);
+  });
+
+  it("never evicts a named diff for the budget, only snapshots", () => {
+    const rows = [row("r1", "shop", 1), row("r2", "shop", 2)];
+    const objects = [
+      ...objectsOf(rows),
+      { key: diffKey("shop", 1, 2), size: 300, lastModified: new Date(0) },
+    ];
+    const policy: RetentionPolicy = { ...RETENTION_POLICY, budgetBytes: 250 };
+    const result = plan({ rows, objects, policy, diffKeys: [diffKey("shop", 1, 2)] });
+    expect(result.deleteKeys).toEqual([key("shop", 1), key("shop", 2)]);
+    expect(result).toMatchObject({ diffs: 1, retainedBytes: 300 });
   });
 
   it("evicts the oldest snapshots globally, private and latest ones too, until under budget", () => {
@@ -265,12 +330,50 @@ describe("runRetention", () => {
       evicted: { superseded: 0, "beyond-latest": 1, "over-budget": 0 },
       orphans: 1,
       missing: 0,
+      diffs: 0,
+      diffBytes: 0,
       deletedObjects: 2,
       failedDeletes: 0,
     });
     expect(await commitsLeft()).toEqual([1, 3, 4, 5, 6, 7].map(sha));
     expect([...s3.objects.keys()].sort()).toEqual(
       [...[1, 3, 4, 5, 6, 7].map((n) => key("shop", n)), key("young", 1)].sort(),
+    );
+  });
+
+  it("keeps the diffs pull request records name and deletes old unnamed ones", async () => {
+    const named = diffKey(shopId, 6, 7);
+    const pair = { repoId: shopId, baseSha: sha(6), headSha: sha(7), headAt: new Date() };
+    await t.db.insert(pullRequests).values([
+      // Updated long ago: pins nothing, but its diff is still the record's.
+      {
+        ...pair,
+        number: 1,
+        diffKey: named,
+        brokenCount: 0,
+        updatedAt: new Date(NOW.getTime() - 90 * DAY),
+      },
+      { ...pair, number: 2 },
+    ]);
+    stored(named, 40);
+    stored(diffKey(shopId, 5, 7), 30);
+    stored(diffKey(shopId, 6, 8), 20, new Date());
+
+    const report = await runRetention({ db: t.db, store: store() });
+
+    expect(report).toMatchObject({
+      objects: 10,
+      storedBytes: 790,
+      retainedBytes: 560,
+      evicted: { superseded: 0, "beyond-latest": 2, "over-budget": 0 },
+      orphans: 1,
+      diffs: 1,
+      diffBytes: 40,
+      deletedObjects: 3,
+      failedDeletes: 0,
+    });
+    expect([...s3.objects.keys()].sort()).toEqual(
+      [...[3, 4, 5, 6, 7].map((n) => key("shop", n)), named, diffKey(shopId, 6, 8)].sort(),
     );
   });
 
