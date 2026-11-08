@@ -11,11 +11,17 @@ import { compareStrings } from "@gitinside/schema";
  * room is part of the memory budget (budget.ts: {@link DEFAULT_FACT_CACHE_BYTES}), and it lasts
  * only as long as the instance.
  *
- * - **Folders:** `<root>/public` for public repos, `<root>/installations/<id>` for each GitHub
- *   App installation's repos (M8). The child may read and write only its job's folder
- *   (runner.ts), so facts from one installation's private code never reach another's job, and
- *   {@link deleteInstallationCache} removes all of an installation's facts on uninstall (M8.5).
- *   A private repo without an installation gets no cache.
+ * - **Folders:** `<root>/public` for public repos, `<root>/installations/<id>/<repo row ID>` for
+ *   each repo a GitHub App installation's jobs read (M8). The child may read and write only its
+ *   job's folder (runner.ts), so facts from one installation's private code never reach
+ *   another's job. A private repo without an installation gets no cache.
+ * - **Purged at each job's start** (M8.5b2, ADR-0242): the website's uninstall webhook can't
+ *   reach the worker's instances, so before every job {@link purgeUnlinkedFolders} asks the
+ *   database which cached repos are still linked to their installation and deletes every
+ *   other installation folder (an uninstall, a removed repo, a transfer, a name that isn't
+ *   one). What a live instance keeps after a deletion lasts until its next job or its end
+ *   (`/tmp` is memory), and no job can read it meanwhile: the deleted repo's own jobs are
+ *   refused at their start (ADR-0241), and other jobs never get its folder.
  * - **One cap for the whole root:** before a job, {@link prepareCacheFolder} deletes other
  *   folders whole, least recently used first (by the folder's time, touched by each job that
  *   uses it), until they hold at most half the cap; the job's folder gets the rest as its own
@@ -38,9 +44,20 @@ export const CACHE_BLOCK_BYTES = 4096;
 export interface CacheOwner {
   /** The GitHub App installation the job runs under (M8), if any. */
   installationId?: number;
+  /** The repo's row ID, as the recorder's start wrote it; `undefined` without a recorder. */
+  repoId?: string;
   /** What the recorder learned from GitHub; `undefined` without a recorder. */
   visibility?: "public" | "private";
 }
+
+/**
+ * Which of `repoIds` are linked now to the installation with GitHub's ID `installationId`
+ * (db's `findLinkedRepoIds`).
+ */
+export type LinkedRepoIds = (
+  installationId: number,
+  repoIds: readonly string[],
+) => Promise<readonly string[]>;
 
 /** A job's cache: the folder the child may use and its cap there. */
 export interface JobCache {
@@ -49,19 +66,22 @@ export interface JobCache {
 }
 
 const INSTALLATION_ID = /^[1-9][0-9]{0,19}$/;
-
-/** The folder of installation `id`'s facts, or `undefined` for an ID that can't be one. */
-function installationFolder(root: string, id: number): string | undefined {
-  const name = String(id);
-  return INSTALLATION_ID.test(name) ? join(root, "installations", name) : undefined;
-}
+const REPO_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /**
- * The folder a job's facts belong in: its installation's, else `public` unless the repo is
- * private (a private repo without an installation gets none).
+ * The folder a job's facts belong in: its installation's folder for its repo, else `public`
+ * unless the repo is private (a private repo without an installation gets none, and so does an
+ * installation's job without its repo's row ID).
  */
 export function cacheFolder(root: string, owner: CacheOwner): string | undefined {
-  if (owner.installationId !== undefined) return installationFolder(root, owner.installationId);
+  if (owner.installationId !== undefined) {
+    const id = String(owner.installationId);
+    const { repoId } = owner;
+    if (!INSTALLATION_ID.test(id) || repoId === undefined || !REPO_ID.test(repoId)) {
+      return undefined;
+    }
+    return join(root, "installations", id, repoId);
+  }
   return owner.visibility === "private" ? undefined : join(root, "public");
 }
 
@@ -79,12 +99,54 @@ async function folderBytes(dir: string): Promise<number> {
   return total;
 }
 
-/** Every cache folder under `root`: `public` and each installation's. */
+/** The names in `dir`, sorted; none for a missing folder. */
+async function names(dir: string): Promise<string[]> {
+  const found = await readdir(dir).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === "ENOENT" || error.code === "ENOTDIR") return [];
+    throw error;
+  });
+  return found.sort(compareStrings);
+}
+
+/** Every cache folder under `root`: `public` and each installation's repo's. */
 async function cacheFolders(root: string): Promise<string[]> {
   const folders = [join(root, "public")];
-  const ids = await readdir(join(root, "installations")).catch(() => [] as string[]);
-  for (const id of ids.sort(compareStrings)) folders.push(join(root, "installations", id));
+  for (const id of await names(join(root, "installations"))) {
+    for (const repo of await names(join(root, "installations", id))) {
+      folders.push(join(root, "installations", id, repo));
+    }
+  }
   return folders;
+}
+
+const remove = (path: string) => rm(path, { recursive: true, force: true, maxRetries: 3 });
+
+/**
+ * Delete every installation folder under `root` that `linked` doesn't confirm: a repo no longer
+ * linked to that installation (deleted, removed, or transferred), an installation that's gone,
+ * and any name that isn't an installation's or a repo's. One `linked` call per installation
+ * folder. Returns how many folders were deleted. Throws if `linked` or the filesystem fails,
+ * having deleted what it could decide; the caller then runs the job without a cache.
+ */
+export async function purgeUnlinkedFolders(root: string, linked: LinkedRepoIds): Promise<number> {
+  const installations = join(root, "installations");
+  let deleted = 0;
+  for (const id of await names(installations)) {
+    const folder = join(installations, id);
+    if (!INSTALLATION_ID.test(id)) {
+      await remove(folder);
+      deleted++;
+      continue;
+    }
+    const repos = await names(folder);
+    const asked = repos.filter((repo) => REPO_ID.test(repo));
+    const kept = new Set(asked.length === 0 ? [] : await linked(Number(id), asked));
+    const gone = repos.filter((repo) => !kept.has(repo));
+    for (const repo of gone) await remove(join(folder, repo));
+    deleted += gone.length;
+    if (gone.length === repos.length) await remove(folder);
+  }
+  return deleted;
 }
 
 /**
@@ -108,7 +170,7 @@ export async function prepareCacheFolder(
     let held = others.reduce((sum, other) => sum + other.bytes, 0);
     for (const other of others) {
       if (held <= maxBytes / 2) break;
-      await rm(other.folder, { recursive: true, force: true, maxRetries: 3 });
+      await remove(other.folder);
       held -= other.bytes;
     }
     await mkdir(dir, { recursive: true });
@@ -118,10 +180,4 @@ export async function prepareCacheFolder(
   } catch {
     return undefined;
   }
-}
-
-/** Delete every fact cached for installation `id` (M8.5's uninstall). */
-export async function deleteInstallationCache(root: string, id: number): Promise<void> {
-  const folder = installationFolder(root, id);
-  if (folder !== undefined) await rm(folder, { recursive: true, force: true, maxRetries: 3 });
 }

@@ -3,6 +3,7 @@ import { ANALYZER_VERSION } from "@gitinside/analyzer";
 import {
   createDb,
   failInterruptedAnalyses,
+  findLinkedRepoIds,
   recentAnalysisStats,
   runMigrations,
   type AnyDatabase,
@@ -213,6 +214,7 @@ export async function startWorkerProcess(
         ...options.jobDeps,
         jobsRoot: config.jobsRoot,
         cacheRoot: config.cacheRoot,
+        linkedRepoIds: (installationId, repoIds) => findLinkedRepoIds(db, installationId, repoIds),
         recorder,
         publish: recorder.publish,
         download: github,
