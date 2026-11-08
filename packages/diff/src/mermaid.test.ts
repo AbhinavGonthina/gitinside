@@ -318,6 +318,81 @@ describe("renderMermaidSummary on hand-built graphs", () => {
     );
   });
 
+  it("labels a method with its class, as a reader would name it", () => {
+    const interpreter = nodeId("symbol", "api", "src/server.ts#DocumentInterpreter");
+    const parse = nodeId("symbol", "api", "src/server.ts#DocumentInterpreter.parse");
+    const parseV2 = nodeId("symbol", "api", "src/server.ts#DocumentInterpreter.parseV2");
+    const method = (id: string, label: string): GraphNode => ({
+      id,
+      kind: "symbol",
+      label,
+      parentId: interpreter,
+      symbolKind: "method",
+      exported: false,
+    });
+    const withClass: GraphNode[] = [
+      ...nodes,
+      {
+        id: interpreter,
+        kind: "symbol",
+        label: "DocumentInterpreter",
+        parentId: server,
+        symbolKind: "class",
+        exported: true,
+      },
+    ];
+    const base = graph([...withClass, method(parse, "parse")], [edge("calls", load, parse)]);
+    const head = graph([...withClass, method(parseV2, "parseV2")], []);
+    const diff = diffGraphs(base, head);
+    const broken = {
+      edge: edgeId("calls", load, parse),
+      from: load,
+      to: parse,
+      reason: "TARGET_REMOVED" as const,
+      detail: "DocumentInterpreter.parse was removed",
+      sites: [],
+    };
+    const removed = renderMermaidSummary({ ...diff, broken: [broken] }, base, head);
+    expect(removed).toContain('  n2["method DocumentInterpreter.parse - Removed"]');
+
+    const renamedTo = (to: GraphNode, nodesOfHead: GraphNode[]) =>
+      renderMermaidSummary(
+        {
+          ...diff,
+          nodes: {
+            ...diff.nodes,
+            added: [],
+            removed: [],
+            renamed: [{ from: parse, node: to, changes: ["label"] }],
+          },
+          broken: [{ ...broken, reason: "TARGET_MOVED" as const }],
+        },
+        base,
+        graph(nodesOfHead, []),
+      );
+    // Renamed within its class: the old method's name is enough.
+    expect(
+      renamedTo(method(parseV2, "parseV2"), [...withClass, method(parseV2, "parseV2")]),
+    ).toContain('  n2["method DocumentInterpreter.parseV2 - Renamed from parse"]');
+    // Moved to another class: the old class is named too.
+    const parser = nodeId("symbol", "api", "src/server.ts#Parser");
+    const moved: GraphNode = {
+      ...method(nodeId("symbol", "api", "src/server.ts#Parser.parse"), "parse"),
+      parentId: parser,
+    };
+    const parserClass: GraphNode = {
+      id: parser,
+      kind: "symbol",
+      label: "Parser",
+      parentId: server,
+      symbolKind: "class",
+      exported: true,
+    };
+    expect(renamedTo(moved, [...withClass, parserClass, moved])).toContain(
+      '  n2["method Parser.parse - Renamed from DocumentInterpreter.parse"]',
+    );
+  });
+
   it("says a connection to a moved file broke because the target moved", () => {
     const moved = nodeId("file", "api", "src/srv.ts");
     const missed = nodeId("unresolved", "web", "src/page.ts:1:1");
