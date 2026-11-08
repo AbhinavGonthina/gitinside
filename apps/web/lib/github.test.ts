@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { fetchCodeBytes, resolveRepo, resolveRepoById } from "./github";
+import { fetchCodeBytes, resolveRepo, resolveRepoById, resolveSeenRepo } from "./github";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
 
 const SHA = "d".repeat(40);
@@ -303,6 +303,42 @@ describe("resolveRepoById", () => {
     expect(await resolveRepoById(42, { fetch: gh.fetch })).toEqual({
       ok: false,
       code: "GITHUB_UNAVAILABLE",
+    });
+  });
+});
+
+describe("resolveSeenRepo", () => {
+  it("answers a private repo as private, by name, with the token given (M8.4c2b)", async () => {
+    const gh = fakeGitHub([{ ...SHOP, private: true }]);
+    const result = await resolveSeenRepo(
+      { owner: "acme", repo: "shop" },
+      { fetch: gh.fetch, token: "ghu_user" },
+    );
+    expect(result).toEqual({
+      ok: true,
+      repo: {
+        providerRepoId: 42,
+        owner: "Acme",
+        name: "Shop",
+        visibility: "private",
+        defaultBranch: "trunk",
+        sha: SHA,
+        sizeKb: 2_048,
+      },
+    });
+    expect(gh.requests.map((r) => [r.url, r.authorization])).toEqual([
+      ["https://api.github.com/repos/acme/shop", "Bearer ghu_user"],
+      ["https://api.github.com/repos/Acme/Shop/commits/HEAD", "Bearer ghu_user"],
+    ]);
+  });
+
+  it("answers a public repo as public, and a missing one as resolveRepo does", async () => {
+    const gh = fakeGitHub([SHOP]);
+    const seen = await resolveSeenRepo({ owner: "acme", repo: "shop" }, { fetch: gh.fetch });
+    expect(seen.ok && seen.repo.visibility).toBe("public");
+    expect(await resolveSeenRepo({ owner: "acme", repo: "nope" }, { fetch: gh.fetch })).toEqual({
+      ok: false,
+      code: "REPO_NOT_FOUND",
     });
   });
 });

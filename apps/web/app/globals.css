@@ -231,9 +231,13 @@ code {
   color: var(--text);
 }
 
+/* Beside the first line, so a message that wraps doesn't leave it floating
+   between lines (M8.4c2b's longer "not found"). */
 .repo-form__hint[data-error]::before {
   content: "";
   flex: none;
+  align-self: flex-start;
+  margin-top: calc((1lh - 14px) / 2);
   width: 3px;
   height: 14px;
   border-radius: var(--radius-pill);

@@ -75,7 +75,9 @@ export const MISSING_MESSAGE =
 
 const NOT_PUBLIC = {
   reason: "We couldn't find a public GitHub repo with that name.",
-  advice: "Private repos aren't supported yet.",
+  // A public job of a repo that turned private (M8.4c2b: private repos go through sign-in).
+  advice:
+    "For a private repo, sign in with a GitHub account that can see it and install GitInside on it.",
 };
 const SMALLER = "Try a smaller repo.";
 const ON_OUR_SIDE = "The analysis failed on our side. Try again.";

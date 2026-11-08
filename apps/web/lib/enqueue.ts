@@ -123,6 +123,37 @@ export class InstallationRefusedError extends Error {
 }
 
 /**
+ * Store `repo` (GitHub's facts) and return its row's ID. Through an installation, the stored
+ * installation is checked first and the repo linked to it (ADR-0227); one that isn't stored or
+ * is suspended throws {@link InstallationRefusedError} with nothing written, so a refused
+ * private repo's name is never stored.
+ */
+export async function storeQueueRepo(db: AnyDatabase, repo: QueueRepo): Promise<{ id: string }> {
+  const { installationId } = repo;
+  if (installationId !== undefined) {
+    const installation = await findInstallation(db, installationId);
+    if (installation === undefined) throw new InstallationRefusedError("INSTALLATION_NOT_FOUND");
+    if (installation.suspendedAt !== null) {
+      throw new InstallationRefusedError("INSTALLATION_SUSPENDED");
+    }
+  }
+  return upsertRepo(db, {
+    providerRepoId: repo.providerRepoId,
+    owner: repo.owner,
+    name: repo.name,
+    visibility: repo.visibility,
+    defaultBranch: repo.defaultBranch,
+    ...(installationId === undefined ? {} : { githubInstallationId: installationId }),
+  }).catch((error: unknown) => {
+    // Deleted since the check (M8.5): the same refusal, still with nothing written.
+    if (error instanceof UnknownInstallationError) {
+      throw new InstallationRefusedError("INSTALLATION_NOT_FOUND");
+    }
+    throw error;
+  });
+}
+
+/**
  * Queue `repo`'s commit (GitHub's facts, as resolved) unless it's already in flight or done.
  *
  * Through an installation (ADR-0227): the stored installation is checked first, the repo is
@@ -140,27 +171,7 @@ export async function enqueueAnalysis(repo: QueueRepo, deps: EnqueueDeps): Promi
     ...(installationId === undefined ? {} : { installationId }),
   };
   const jobId = jobIdFor({ kind: "analyze", ...job }, deps.analyzerVersion);
-  if (installationId !== undefined) {
-    const installation = await findInstallation(deps.db, installationId);
-    if (installation === undefined) throw new InstallationRefusedError("INSTALLATION_NOT_FOUND");
-    if (installation.suspendedAt !== null) {
-      throw new InstallationRefusedError("INSTALLATION_SUSPENDED");
-    }
-  }
-  const { id: repoId } = await upsertRepo(deps.db, {
-    providerRepoId: repo.providerRepoId,
-    owner: repo.owner,
-    name: repo.name,
-    visibility: repo.visibility,
-    defaultBranch: repo.defaultBranch,
-    ...(installationId === undefined ? {} : { githubInstallationId: installationId }),
-  }).catch((error: unknown) => {
-    // Deleted since the check (M8.5): the same refusal, still with nothing written.
-    if (error instanceof UnknownInstallationError) {
-      throw new InstallationRefusedError("INSTALLATION_NOT_FOUND");
-    }
-    throw error;
-  });
+  const { id: repoId } = await storeQueueRepo(deps.db, repo);
   const row = await queueAnalysis(
     deps.db,
     { repoId, sha: repo.sha, analyzerVersion: deps.analyzerVersion },
