@@ -1,4 +1,4 @@
-import { findStoredAnalysis } from "@gitinside/db";
+import { findStoredAnalysis, servedPrivately } from "@gitinside/db";
 import { readSession, userAccessToken, type AuthDeps } from "./authRoute";
 import { apiHeaders, githubUrl } from "./githubOAuth";
 import { UNAVAILABLE_MESSAGE } from "./messages";
@@ -13,7 +13,9 @@ import { parseRepoPath } from "./repoUrl";
  * route reads GitHub with the viewer's own token. Apart from Next.js so tests call it with plain
  * values.
  *
- * - **Private repos only:** the commit must have a stored analysis of a private repo. A public
+ * - **Private repos only:** the commit must have a stored analysis of a private repo (or one
+ *   analyzed privately before the repo turned public, which its page shows as private too,
+ *   M8.4d2). A public
  *   repo, an unknown name, or a commit never analyzed is the same `404`, so this is never a
  *   free proxy for public files and never confirms that a private repo exists.
  * - **The same check as the graph** (ADR-0232): the session from the cookie, then
@@ -120,7 +122,7 @@ export async function handleSourceRequest(
       name: ref.repo,
       sha: params.sha,
     });
-    if (stored === undefined || stored.repo.visibility !== "private") return notFound();
+    if (stored === undefined || !servedPrivately(stored)) return notFound();
     const user = await readSession(cookie, auth);
     if (user === undefined) return notFound();
     const access = await checkRepoAccess(user, stored.repo, auth);

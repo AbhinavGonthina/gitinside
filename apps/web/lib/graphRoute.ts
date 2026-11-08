@@ -1,4 +1,9 @@
-import { findStoredAnalysis, type AnyDatabase, type StoredAnalysis } from "@gitinside/db";
+import {
+  findStoredAnalysis,
+  servedPrivately,
+  type AnyDatabase,
+  type StoredAnalysis,
+} from "@gitinside/db";
 import { StorageError, type ObjectStore } from "@gitinside/worker/storage";
 import { readSession, type AuthDeps } from "./authRoute";
 import { CACHE_TAG_HEADER, repoCacheTag } from "./cdnCache";
@@ -20,7 +25,9 @@ import { graphPath } from "./repoView";
  *   or the session ended: the very same `404` as a commit nobody analyzed, with no bucket
  *   read, so a response never confirms that a private repo exists. A check that can't decide
  *   is `503`. Served graphs and redirects are `private, no-store` with `Vary: Cookie`: never in
- *   the CDN or a shared cache.
+ *   the CDN or a shared cache. So is a commit analyzed privately whose repo is public now
+ *   (`servedPrivately`: its snapshot is under `private/`, M8.4d2, ADR-0239), unless a public
+ *   analysis of it exists, which comes first.
  * - **Streamed from the bucket** (Oracle Object Storage, ADR-0095) with the bucket's own credentials (no public bucket, ADR-0055).
  *   `fetch` decodes the stored gzip, so the route gzips it again ({@link acceptsGzip}).
  * - **Cached by the CDN** for a day (`s-maxage`) and by browsers for 5 minutes: a commit's
@@ -168,7 +175,7 @@ export async function handleGraphRequest(
       sha: params.sha,
     });
     if (stored === undefined) return json(404, NOT_FOUND);
-    const isPrivate = stored.repo.visibility === "private";
+    const isPrivate = servedPrivately(stored);
     if (isPrivate) {
       const shown = await privateAccess(stored, deps.auth, cookie);
       if (shown !== true) return shown;

@@ -4,7 +4,9 @@ import {
   findPublishedAnalysis,
   findStoredAnalysis,
   hideRepo,
+  isPrivateSnapshot,
   refundRateLimit,
+  servedPrivately,
   type AnyDatabase,
   type PublishedAnalysis,
   type StoredAnalysis,
@@ -76,6 +78,12 @@ import { findSizeHold } from "./sizeHold";
  * had the name (a permalink's `missing`, the repo page's lookup as written), so a page never
  * confirms that a private repo exists. A check that can't decide throws
  * {@link RepoAccessUnavailableError}: the page says "temporarily unavailable".
+ *
+ * **Repos turned public** (M8.4d2, ADR-0239): an analysis stored under `private/` is shown only
+ * this way, behind the check, whatever the repo's visibility now; public lookups never find it.
+ * A commit analyzed privately is analyzed again as a public job: by check-on-view (a public
+ * page's newer commit, or a private page whose repo GitHub says is public now) and by "Analyze".
+ * Until then a signed-out visitor sees the repo as not analyzed.
  */
 
 /** Who's looking at a page, for private repos: the request's `Cookie` header and sign-in's deps. */
@@ -229,11 +237,16 @@ function ready(published: PublishedAnalysis | StoredAnalysis, head: HeadState): 
     analyzerVersion,
     graphUrl: graphPath(owner, name, sha),
     head,
-    ...("visibility" in published.repo &&
-      published.repo.visibility === "private" && {
+    ...(isStored(published) &&
+      servedPrivately(published) && {
         private: { providerRepoId: published.repo.providerRepoId },
       }),
   };
+}
+
+/** Whether `found` came from `findStoredAnalysis` (it carries the repo's visibility). */
+function isStored(found: PublishedAnalysis | StoredAnalysis): found is StoredAnalysis {
+  return "visibility" in found.repo;
 }
 
 /** A private repo's analysis shown to a signed-in viewer `checkRepoAccess` allowed. */
@@ -261,7 +274,7 @@ async function privateAnalysis(
     name: ref.repo,
     ...(ref.sha === undefined ? {} : { sha: ref.sha }),
   });
-  if (stored?.repo.visibility !== "private") return undefined;
+  if (stored === undefined || !servedPrivately(stored)) return undefined;
   const access = await checkRepoAccess(user, stored.repo, viewer.auth);
   if ("error" in access) throw new RepoAccessUnavailableError();
   return "allowed" in access && access.allowed ? { stored, user, viewer } : undefined;
@@ -305,9 +318,10 @@ async function latestCommit(
  * queued through the installation the repo is linked to, charged to the repo as on a public
  * page, its code counted with the same token.
  *
- * `unknown` when the viewer's token can't be had or GitHub can't answer, and when GitHub says
- * the repo is public now: whether it may then be shown publicly is ADR-0230's open question
- * (M8.4d), so nothing is queued, and the stored row stays private. A repo with no linked
+ * `unknown` when the viewer's token can't be had or GitHub can't answer. When GitHub says the
+ * repo is public now, its latest commit is queued as a public job (M8.4d2, ADR-0239), even when
+ * it's the shown one: what was analyzed privately is only ever shown behind the check, so it's
+ * analyzed again under the public key, where public pages find it. A repo with no linked
  * installation (uninstalled) is `behind` with `INSTALLATION_NOT_FOUND`, as a job refused at
  * enqueue would be.
  */
@@ -324,9 +338,17 @@ async function privateHead(allowed: AllowedPrivate, deps: RepoViewDeps): Promise
     resolved = await resolveRepoById(stored.repo.providerRepoId, github);
     deps.heads.set(key, resolved);
   }
-  if (!resolved.ok || resolved.repo.visibility !== "private") return unknown;
-  const { githubInstallationId } = stored.repo;
+  if (!resolved.ok) return unknown;
   const head = resolved.repo;
+  const { providerRepoId, githubInstallationId } = stored.repo;
+  if (head.visibility === "public") {
+    // Public now (M8.4d2, ADR-0239): a public job, so the commit is analyzed again under the
+    // public key (the shown one too, if it's stored under `private/`) and pages find it.
+    return followHead(stored, { ...head, visibility: "public" }, deps, {
+      github: deps.github,
+      latest: (sha) => findPublishedAnalysis(deps.db, { providerRepoId, sha }),
+    });
+  }
   if (githubInstallationId === null) {
     if (isCurrent(stored, head, deps)) return ready(stored, { state: "current" });
     const errorCode: InstallationRefusal = "INSTALLATION_NOT_FOUND";
@@ -338,8 +360,7 @@ async function privateHead(allowed: AllowedPrivate, deps: RepoViewDeps): Promise
     deps,
     {
       github,
-      latest: (sha) =>
-        findStoredAnalysis(deps.db, { providerRepoId: stored.repo.providerRepoId, sha }),
+      latest: (sha) => findStoredAnalysis(deps.db, { providerRepoId, sha }),
     },
   );
 }
@@ -508,7 +529,8 @@ function isCurrent(
 
 /**
  * Steps 4 and 5 of the module's notes, for a public repo or a private one (M8.4c2): how
- * `published` relates to `head`, GitHub's latest commit, queueing that commit if it's due.
+ * `published` relates to `head`, GitHub's latest commit, queueing that commit if it's due. For
+ * a public `head` (no installation), a commit stored under `private/` is never up to date.
  * `github` reads the repo's code count; `latest(sha)` finds a commit's finished analysis the
  * way this page may show it.
  */
@@ -522,13 +544,18 @@ async function followHead(
   },
 ): Promise<RepoView> {
   const { db } = deps;
-  if (isCurrent(published, head, deps)) return ready(published, { state: "current" });
+  // A public job analyzes again what was analyzed privately (M8.4d2), the shown commit too.
+  const replacePrivate = head.installationId === undefined;
+  const shownPrivately = replacePrivate && isPrivateSnapshot(published.analysis.snapshotKey);
+  if (!shownPrivately && isCurrent(published, head, deps)) {
+    return ready(published, { state: "current" });
+  }
 
-  const existing = await findAnalysisToQueue(db, {
-    providerRepoId: head.providerRepoId,
-    sha: head.sha,
-    analyzerVersion: deps.analyzerVersion,
-  });
+  const existing = await findAnalysisToQueue(
+    db,
+    { providerRepoId: head.providerRepoId, sha: head.sha, analyzerVersion: deps.analyzerVersion },
+    { replacePrivate },
+  );
   if (existing?.status === "done") {
     const latest = await how.latest(head.sha);
     if (latest !== undefined) return ready(latest, { state: "current" });

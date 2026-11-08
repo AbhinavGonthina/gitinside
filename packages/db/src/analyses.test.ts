@@ -15,10 +15,12 @@ import {
   findStoredAnalysis,
   hideRepo,
   installations,
+  isPrivateSnapshot,
   queueAnalysis,
   recentAnalysisStats,
   repos,
   requeueAnalysis,
+  servedPrivately,
   startAnalysis,
   upsertInstallation,
   upsertRepo,
@@ -616,6 +618,50 @@ describe("findPublishedAnalysis", () => {
     );
   });
 
+  it("serves an analysis stored under private/ only through findStoredAnalysis, a public one first (M8.4d2)", async () => {
+    const { id: repoId } = await upsertRepo(t.db, { ...FACTS, visibility: "private" });
+    const privately = async (sha: string, version: string, finishedAt: string) => {
+      const { id } = await startAnalysis(t.db, { repoId, sha, analyzerVersion: version });
+      const snapshotKey = `private/41/${repoId}/${sha}/${version}.json.gz`;
+      await completeAnalysis(t.db, id, { snapshotKey, stats: STATS });
+      await t.db
+        .update(analyses)
+        .set({ finishedAt: new Date(finishedAt) })
+        .where(eq(analyses.id, id));
+    };
+    await privately(SHA, VERSION, "2026-10-01T00:00:00Z");
+    // The repo turned public: GitHub's facts restore its row.
+    await upsertRepo(t.db, FACTS);
+    const pinned = { owner: "acme", name: "shop", sha: SHA };
+    const { providerRepoId } = FACTS;
+
+    expect(await findPublishedAnalysis(t.db, pinned)).toBeUndefined();
+    expect(await findPublishedAnalysis(t.db, { providerRepoId })).toBeUndefined();
+    const stored = await findStoredAnalysis(t.db, pinned);
+    expect(stored?.repo.visibility).toBe("public");
+    expect(stored && servedPrivately(stored)).toBe(true);
+
+    // A public analysis of the commit wins over a newer private one, in both lookups.
+    await done(repoId, SHA, "0.2.0", "2026-10-02T00:00:00Z");
+    await privately(SHA, "0.3.0", "2026-10-03T00:00:00Z");
+    expect((await findPublishedAnalysis(t.db, pinned))?.analysis.analyzerVersion).toBe("0.2.0");
+    const first = await findStoredAnalysis(t.db, pinned);
+    expect(first?.analysis.analyzerVersion).toBe("0.2.0");
+    expect(first && servedPrivately(first)).toBe(false);
+    // Of a private repo, the newest whatever its key.
+    await hideRepo(t.db, repoId);
+    const hidden = await findStoredAnalysis(t.db, pinned);
+    expect(hidden?.analysis.analyzerVersion).toBe("0.3.0");
+    expect(hidden && servedPrivately(hidden)).toBe(true);
+  });
+
+  it("isPrivateSnapshot reads the key's prefix only", () => {
+    expect(isPrivateSnapshot("private/41/r/s/v.json.gz")).toBe(true);
+    expect(isPrivateSnapshot("public/acme/private/s/v.json.gz")).toBe(false);
+    expect(isPrivateSnapshot("privately")).toBe(false);
+    expect(isPrivateSnapshot(null)).toBe(false);
+  });
+
   it("stops serving a hidden repo, permalinks included, until GitHub's facts restore it", async () => {
     const { id: repoId } = await upsertRepo(t.db, FACTS);
     await done(repoId, SHA, VERSION, "2026-10-01T00:00:00Z");
@@ -839,5 +885,35 @@ describe("queueAnalysis", () => {
       entered: false,
     });
     expect((await analysis(id)).snapshotKey).toBe("k");
+  });
+
+  it("with replacePrivate, queues a done row stored under private/ again, and only such a row (M8.4d2)", async () => {
+    const id = await started();
+    const snapshotKey = "private/41/r/x.json.gz";
+    await completeAnalysis(t.db, id, { snapshotKey, stats: STATS });
+    // A private job (no replacePrivate) leaves it.
+    expect(await queueAnalysis(t.db, await key())).toMatchObject({
+      status: "done",
+      entered: false,
+    });
+
+    const jobId = `analyze-${"3".repeat(32)}`;
+    const queued = await queueAnalysis(t.db, await key(), { jobId, replacePrivate: true });
+    expect(queued).toMatchObject({ id, status: "queued", entered: true, retrying: false, jobId });
+    expect(await analysis(id)).toMatchObject({
+      status: "queued",
+      snapshotKey: null,
+      stats: null,
+      finishedAt: null,
+      attempts: 0,
+    });
+    // The worker can run it, and its public snapshot is then left alone.
+    expect((await startAnalysis(t.db, await key())).status).toBe("running");
+    await completeAnalysis(t.db, id, { snapshotKey: "public/acme/shop/x.json.gz", stats: STATS });
+    expect(await queueAnalysis(t.db, await key(), { jobId, replacePrivate: true })).toMatchObject({
+      status: "done",
+      entered: false,
+    });
+    expect((await analysis(id)).snapshotKey).toBe("public/acme/shop/x.json.gz");
   });
 });

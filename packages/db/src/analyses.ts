@@ -228,6 +228,22 @@ export async function findAnalysis(
   return row;
 }
 
+/**
+ * Where the worker stores a private job's snapshot (`private/<installationId>/…`, its
+ * `storage.ts`). Such an analysis is only ever served behind the access check, whatever the
+ * repo's visibility now (M8.4d2, ADR-0239): a repo turned public is analyzed again under the
+ * public key, so deleting an installation's objects (M8.5) never breaks a public diagram.
+ */
+export const PRIVATE_SNAPSHOT_PREFIX = "private/";
+
+/** Whether `snapshotKey` is a private job's ({@link PRIVATE_SNAPSHOT_PREFIX}). */
+export function isPrivateSnapshot(snapshotKey: string | null): boolean {
+  return snapshotKey?.startsWith(PRIVATE_SNAPSHOT_PREFIX) === true;
+}
+
+/** {@link isPrivateSnapshot} in SQL, of an `analyses` row. */
+const storedPrivately = sql`left(${analyses.snapshotKey}, ${PRIVATE_SNAPSHOT_PREFIX.length}) = ${PRIVATE_SNAPSHOT_PREFIX}`;
+
 /** What {@link findPublishedAnalysis} returns: the repo as last seen, and one finished analysis. */
 export interface PublishedAnalysis {
   repo: { id: string; providerRepoId: number; owner: string; name: string };
@@ -239,8 +255,9 @@ export interface PublishedAnalysis {
  * (the diagram page and `/api/graph`, ADR-0068); with `sha`, of that commit. "Newest" is
  * the latest finish, so a re-analysis by a newer analyzer version wins over the old one.
  * With `providerRepoId` instead of a name, by GitHub's repo ID (a repo renamed since it was
- * stored, M5.13b3). Private repos are never returned ({@link findStoredAnalysis} returns
- * them, for routes that check access).
+ * stored, M5.13b3). Private repos are never returned, and neither is an analysis stored under
+ * {@link PRIVATE_SNAPSHOT_PREFIX} (a repo analyzed privately that's public now, M8.4d2):
+ * {@link findStoredAnalysis} returns both, for routes that check access.
  */
 export async function findPublishedAnalysis(
   db: AnyDatabase,
@@ -267,14 +284,25 @@ export interface StoredAnalysis {
 
 /**
  * Like {@link findPublishedAnalysis}, but whatever the repo's visibility, which it returns
- * (M8.4b): for a route that checks a private repo's viewer itself before serving it. Never
- * serve what this finds without looking at `visibility` first.
+ * (M8.4b), and whatever the snapshot's key: for a route that checks a private repo's viewer
+ * itself before serving it. One {@link findPublishedAnalysis} would return comes first, so
+ * both name the same analysis whenever a public one exists (M8.4d2). Never serve what this
+ * finds without asking {@link servedPrivately} first.
  */
 export async function findStoredAnalysis(
   db: AnyDatabase,
   query: AnalysisQuery,
 ): Promise<StoredAnalysis | undefined> {
   return newestDone(db, query, false);
+}
+
+/**
+ * Whether `stored` may only be served after the access check, `private, no-store`: its repo
+ * is private, or it was analyzed privately (stored under {@link PRIVATE_SNAPSHOT_PREFIX}),
+ * whatever the repo's visibility now (M8.4d2, ADR-0239).
+ */
+export function servedPrivately(stored: StoredAnalysis): boolean {
+  return stored.repo.visibility === "private" || isPrivateSnapshot(stored.analysis.snapshotKey);
 }
 
 /** A repo by name (ignoring case) or by GitHub's ID, and optionally one commit. */
@@ -294,6 +322,7 @@ async function newestDone(
           sql`lower(${repos.owner}) = lower(${query.owner})`,
           sql`lower(${repos.name}) = lower(${query.name})`,
         ];
+  const servedPublicly = sql`(${repos.visibility} = 'public' and not ${storedPrivately})`;
   const [row] = await db
     .select({
       id: repos.id,
@@ -313,12 +342,13 @@ async function newestDone(
     .where(
       and(
         ...repo,
-        publicOnly ? eq(repos.visibility, "public") : undefined,
+        publicOnly ? servedPublicly : undefined,
         eq(analyses.status, "done"),
         query.sha === undefined ? undefined : eq(analyses.sha, query.sha),
       ),
     )
-    .orderBy(desc(analyses.finishedAt), desc(analyses.createdAt))
+    // What a public page shows first, so the graph route serves the analysis the page names.
+    .orderBy(sql`${servedPublicly} desc`, desc(analyses.finishedAt), desc(analyses.createdAt))
     .limit(1);
   if (row === undefined) return undefined;
   const {
@@ -382,12 +412,19 @@ export interface QueuedAnalysis {
 export interface QueueOptions extends JobOptions {
   /** GitHub's repo `size` in KiB, kept for {@link findLimitFailure}'s callers. */
   repoSizeKb?: number;
+  /**
+   * A public job (M8.4d2): a `done` row stored under {@link PRIVATE_SNAPSHOT_PREFIX} (the repo
+   * was analyzed privately and is public now) is queued again like a `failed` one, so the
+   * commit is analyzed under the public key instead of being served from the private one.
+   */
+  replacePrivate?: boolean;
 }
 
 /**
  * Record that the web app is queuing a job for this commit: insert a `queued` row, or move a
  * `failed` one back to `queued` (a new job will run it again: attempts start over, and it
- * joins the back of the queue). `queued`, `running`, and `done` rows are left as they are;
+ * joins the back of the queue); with `replacePrivate`, a privately stored `done` one too.
+ * Other `queued`, `running`, and `done` rows are left as they are;
  * the returned status is the row's after the call, `entered` says whether this call
  * queued it, and `retrying` whether a `queued` row is waiting for its task's retry.
  */
@@ -416,7 +453,10 @@ export async function queueAnalysis(
     .onConflictDoUpdate({
       target: [analyses.repoId, analyses.sha, analyses.analyzerVersion],
       set: queued,
-      setWhere: eq(analyses.status, "failed"),
+      setWhere:
+        options.replacePrivate === true
+          ? sql`(${analyses.status} = 'failed' or (${analyses.status} = 'done' and ${storedPrivately}))`
+          : eq(analyses.status, "failed"),
     })
     .returning({ id: analyses.id, queuedAt: analyses.queuedAt, jobId: analyses.jobId });
   if (row !== undefined) return { ...row, status: "queued", entered: true, retrying: false };

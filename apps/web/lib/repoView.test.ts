@@ -879,14 +879,88 @@ describe("viewRepo and viewBase for a private repo (M8.4c1)", () => {
       expect((await rows()).map((r) => r.sha)).not.toContain(NEWER);
     });
 
-    it("queues nothing and stays private when GitHub says the repo is public now", async () => {
+    it("analyzes the shown commit again as a public job when GitHub says the repo is public now (M8.4d2)", async () => {
+      // The server's token sees it too, now that it's public.
+      const server = fakeGitHub([{ id: SECRET_ID, owner: "Acme", name: "Secret", sha: NEW }]);
+      deps.github = { fetch: server.fetch };
       const octo = await signIn(OCTO);
-      secretRepo.sha = NEWER;
       secretRepo.private = false;
-      expect(await viewRepo(secret, octo.deps)).toEqual(shown(NEW, { state: "unknown" }));
-      expect(tasks.google.tasks).toEqual([]);
-      const [row] = await t.db.select({ visibility: repos.visibility }).from(repos);
-      expect(row?.visibility).toBe("private");
+      const publicJob = jobIdFor(
+        { kind: "analyze", owner: "Acme", repo: "Secret", sha: NEW },
+        VERSION,
+      );
+
+      // Still shown to octo from its private snapshot, behind the check, while it's redone.
+      expect(await viewRepo(secret, octo.deps)).toEqual(
+        shown(NEW, { state: "updating", sha: NEW, jobId: publicJob }),
+      );
+      expect(tasks.jobs()).toEqual([{ kind: "analyze", owner: "Acme", repo: "Secret", sha: NEW }]);
+      expect(await slots()).toBe(1);
+      const [repo] = await t.db.select({ visibility: repos.visibility }).from(repos);
+      expect(repo?.visibility).toBe("public");
+      const row = (await t.db.select().from(analyses)).find((r) => r.sha === NEW);
+      expect(row).toMatchObject({ status: "queued", snapshotKey: null, jobId: publicJob });
+
+      // Meanwhile nobody else gets a private snapshot, though the repo's row is public.
+      expect(await viewRepo({ ...secret, sha: OLD }, deps)).toEqual({ status: "missing" });
+      expect(await viewRepo({ ...secret, sha: OLD }, octo.deps)).toEqual(
+        shown(OLD, { state: "pinned" }),
+      );
+      // The next view shows OLD (NEW isn't finished any more), following the same job.
+      expect(await viewRepo(secret, octo.deps)).toEqual(
+        shown(OLD, { state: "updating", sha: NEW, jobId: publicJob }),
+      );
+      expect(tasks.google.tasks).toHaveLength(1);
+
+      // Done under the public key, it's everyone's, with no private mark.
+      const publicKey = `public/acme/secret/${NEW}/${VERSION}.json.gz`;
+      await completeAnalysis(t.db, row!.id, {
+        snapshotKey: publicKey,
+        stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+      });
+      const { private: _private, ...everyone } = shown(NEW, { state: "current" });
+      clock += 120_000;
+      expect(await viewRepo(secret, deps)).toEqual(everyone);
+      expect(await viewRepo(secret, octo.deps)).toEqual(everyone);
+    });
+
+    it("queues a public page's newer commit afresh when it was analyzed privately (M8.4d2)", async () => {
+      // Public again, with a public analysis of OLD; NEW was analyzed while it was private.
+      const server = fakeGitHub([{ id: SECRET_ID, owner: "Acme", name: "Secret", sha: NEW }]);
+      deps.github = { fetch: server.fetch };
+      await t.db.delete(analyses);
+      const { id: repoId } = await upsertRepo(t.db, {
+        providerRepoId: SECRET_ID,
+        owner: "Acme",
+        name: "Secret",
+        visibility: "public",
+        defaultBranch: "main",
+      });
+      for (const [sha, snapshotKey] of [
+        [OLD, `public/acme/secret/${OLD}/${VERSION}.json.gz`],
+        [NEW, `private/41/${repoId}/${NEW}/${VERSION}.json.gz`],
+      ] as const) {
+        const { id } = await startAnalysis(t.db, { repoId, sha, analyzerVersion: VERSION });
+        const stats = { files: 1, nodes: 1, edges: 0, unresolved: 0 };
+        await completeAnalysis(t.db, id, { snapshotKey, stats });
+      }
+      const publicJob = jobIdFor(
+        { kind: "analyze", owner: "Acme", repo: "Secret", sha: NEW },
+        VERSION,
+      );
+
+      const { private: _private, ...oldShown } = shown(OLD, {
+        state: "updating",
+        sha: NEW,
+        jobId: publicJob,
+      });
+      expect(await viewRepo(secret, deps)).toEqual(oldShown);
+      expect(tasks.jobs()).toEqual([{ kind: "analyze", owner: "Acme", repo: "Secret", sha: NEW }]);
+      expect(await slots()).toBe(1);
+      // NEW's permalink isn't served from its private snapshot.
+      expect(await viewRepo({ ...secret, sha: NEW }, deps)).toEqual({ status: "missing" });
+      const queued = (await t.db.select().from(analyses)).find((r) => r.sha === NEW);
+      expect(queued).toMatchObject({ status: "queued", snapshotKey: null, jobId: publicJob });
     });
 
     it("is unknown when GitHub can't answer, asking again on the next view", async () => {

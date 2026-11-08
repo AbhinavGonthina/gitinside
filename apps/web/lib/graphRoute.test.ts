@@ -432,8 +432,8 @@ describe("handleGraphRequest for a private repo (M8.4b)", () => {
     expect((await handleGraphRequest(params(), deps, "gzip", cookie)).status).toBe(200);
   });
 
-  it("serves a public repo's graph the same as before to anyone, signed in or not", async () => {
-    // GitHub says it's public now (which object it serves is M8.4d's).
+  it("keeps a commit analyzed privately behind the check once the repo is public (M8.4d2)", async () => {
+    // GitHub's facts made the row public; the commit's only analysis is under `private/`.
     await upsertRepo(t.db, {
       providerRepoId: 1,
       owner: "Acme",
@@ -441,6 +441,38 @@ describe("handleGraphRequest for a private repo (M8.4b)", () => {
       visibility: "public",
       defaultBranch: "main",
     });
+    expect(await seen(await handleGraphRequest(params(), deps, "gzip", null))).toEqual(
+      await missing(),
+    );
+    const redirect = await handleGraphRequest(params("acme", "shop"), deps, "gzip", null);
+    expect(redirect.status).toBe(404);
+    expect(reads).toEqual([]);
+
+    const { cookie } = await signIn(OCTO);
+    const response = await handleGraphRequest(params(), deps, "gzip", cookie);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe(PRIVATE_CACHE_CONTROL);
+    expect(response.headers.get("vary")).toBe("accept-encoding, cookie");
+    expect(response.headers.get(CACHE_TAG_HEADER)).toBeNull();
+    expect(reads).toEqual([PRIVATE_KEY]);
+    expect(lookups()).toBe(1);
+  });
+
+  it("serves a public repo's public analysis to anyone, before a newer private one of the commit", async () => {
+    const repoId = await publish("public", KEY);
+    // The private one (0.1.0) finished first; re-analyzed publicly by another version later,
+    // then by a newer private one again.
+    const { id } = await startAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: "0.0.9" });
+    await completeAnalysis(t.db, id, {
+      snapshotKey: KEY,
+      stats: { files: 0, nodes: 0, edges: 0, unresolved: 0 },
+    });
+    const newer = await startAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: "0.2.0" });
+    await completeAnalysis(t.db, newer.id, {
+      snapshotKey: `private/41/repo/${SHA}/0.2.0.json.gz`,
+      stats: { files: 0, nodes: 0, edges: 0, unresolved: 0 },
+    });
+    objects.set(KEY, GRAPH);
     const { cookie } = await signIn(HUBOT);
     for (const c of [null, cookie]) {
       const response = await handleGraphRequest(params(), deps, "gzip", c);
@@ -448,6 +480,7 @@ describe("handleGraphRequest for a private repo (M8.4b)", () => {
       expect(response.headers.get("cache-control")).toBe(GRAPH_CACHE_CONTROL);
       expect(response.headers.get("vary")).toBe("accept-encoding");
     }
+    expect(reads).toEqual([KEY, KEY]);
     expect(lookups()).toBe(0);
   });
 });
