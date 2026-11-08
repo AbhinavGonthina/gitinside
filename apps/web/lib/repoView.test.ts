@@ -13,6 +13,8 @@ import {
   installations,
   queueAnalysis,
   rateLimits,
+  recordPullRequestDiff,
+  recordPullRequestHead,
   repos,
   sessions,
   startAnalysis,
@@ -683,6 +685,39 @@ describe("viewBase", () => {
     shop.private = true;
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({ status: "missing" });
     expect(await viewBase(shown, OLD, t.db)).toEqual({ status: "missing", sha: OLD });
+  });
+
+  it("says where the pull request's stored diff of exactly this base and commit is (M8.6f1)", async () => {
+    await done(OLD);
+    await done(NEW);
+    const id = await repoId();
+    const eventBase = "e".repeat(40);
+    await recordPullRequestHead(t.db, {
+      repoId: id,
+      number: 7,
+      baseSha: eventBase,
+      headSha: NEW,
+      headAt: new Date("2026-11-08T10:00:00Z"),
+    });
+    await recordPullRequestDiff(t.db, {
+      repoId: id,
+      number: 7,
+      baseSha: eventBase,
+      headSha: NEW,
+      diffKey: `private/41/${id}/diffs/${OLD}-${NEW}/${VERSION}.json.gz`,
+      brokenCount: 1,
+    });
+    const head = { ...shown, sha: NEW, analyzerVersion: VERSION };
+    expect(await viewBase(head, OLD, t.db)).toEqual({
+      status: "ready",
+      sha: OLD,
+      graphUrl: `/api/graph/Acme/Shop/${OLD}`,
+      diffUrl: `/api/diff/Acme/Shop/${OLD}/${NEW}`,
+    });
+    // Another version's page, another commit, or no commit named: no stored diff.
+    for (const other of [{ ...head, analyzerVersion: "0.1.0" }, { ...head, sha: OLD }, shown]) {
+      expect(await viewBase(other, OLD, t.db), JSON.stringify(other)).not.toHaveProperty("diffUrl");
+    }
   });
 });
 
