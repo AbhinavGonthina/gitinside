@@ -1,30 +1,48 @@
 // @vitest-environment node
 import {
+  ACCESS_TTL_SECONDS,
+  accessCache,
   analyses,
   completeAnalysis,
   computeUsage,
   countComputeUsage,
+  createSession,
   failAnalysis,
+  findSession,
   queueAnalysis,
   rateLimits,
   repos,
+  sessions,
   startAnalysis,
   upsertRepo,
+  upsertUser,
+  users,
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { jobIdFor } from "@gitinside/worker";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AuthDeps } from "./authRoute";
 import { fakeGitHub, type FakeGitHub, type FakeRepo } from "./github.testkit";
+import {
+  EXPIRES_IN,
+  FAKE_CLIENT,
+  fakeOAuth,
+  type FakeAccount,
+  type FakeInstallation,
+  type FakeOAuth,
+} from "./githubOAuth.testkit";
 import {
   createHeadCache,
   graphPath,
   movedPath,
   RECHECKS_PER_HOUR,
+  RepoAccessUnavailableError,
   UNKNOWN_LOOKUPS_PER_HOUR,
   viewBase,
   viewRepo,
   type RepoViewDeps,
 } from "./repoView";
+import { hashToken, newToken, SESSION_COOKIE, sealTokens, sessionKeys } from "./session";
 import { STRANDED_AFTER_SECONDS, taskIdFor } from "./cloudTasks";
 import { createCodeSizeCache } from "./codeSize";
 import { QUEUE_UNAVAILABLE } from "./enqueue";
@@ -53,6 +71,7 @@ afterAll(async () => {
   await t?.close();
 });
 beforeEach(async () => {
+  await t.db.delete(accessCache);
   await t.db.delete(analyses);
   await t.db.delete(repos);
   await t.db.delete(rateLimits);
@@ -615,6 +634,177 @@ describe("viewBase", () => {
     shop.private = true;
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({ status: "missing" });
     expect(await viewBase(shown, OLD, t.db)).toEqual({ status: "missing", sha: OLD });
+  });
+});
+
+describe("viewRepo and viewBase for a private repo (M8.4c1)", () => {
+  const NOW = Date.parse("2026-11-07T12:00:00.000Z");
+  const SECRET_ID = 77;
+  const OCTO: FakeAccount = { id: 3_000_000_007, login: "octo" };
+  const HUBOT: FakeAccount = { id: 3_000_000_008, login: "hubot" };
+  const KEYS = sessionKeys("s".repeat(43));
+  const ACME: FakeInstallation = {
+    id: 41,
+    account: { login: "acme", type: "Organization" },
+    selection: "selected",
+    repos: [{ owner: "Acme", name: "Secret", private: true, id: SECRET_ID }],
+  };
+  const secret = { owner: "acme", repo: "secret" };
+  const graphUrl = (sha: string) => `/api/graph/Acme/Secret/${sha}`;
+  const shown = (sha: string, head: object) => ({
+    status: "ready",
+    owner: "Acme",
+    repo: "Secret",
+    sha,
+    analyzerVersion: VERSION,
+    graphUrl: graphUrl(sha),
+    head,
+    private: { providerRepoId: SECRET_ID },
+  });
+
+  let github: FakeOAuth;
+  let auth: AuthDeps;
+  beforeEach(async () => {
+    await t.db.delete(sessions);
+    await t.db.delete(users);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    github = fakeOAuth();
+    github.install(OCTO, [ACME]);
+    auth = {
+      db: t.db,
+      client: { ...FAKE_CLIENT, fetch: github.fetch },
+      keys: KEYS,
+      now: () => NOW,
+    };
+    await privateDone(OLD);
+    await privateDone(NEW);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** A finished analysis of `sha` of the private Acme/Secret, finishing after the one before. */
+  async function privateDone(sha: string) {
+    const { id: repoId } = await upsertRepo(t.db, {
+      providerRepoId: SECRET_ID,
+      owner: "Acme",
+      name: "Secret",
+      visibility: "private",
+      defaultBranch: "main",
+    });
+    const { id } = await startAnalysis(t.db, { repoId, sha, analyzerVersion: VERSION });
+    await completeAnalysis(t.db, id, {
+      snapshotKey: `private/41/${repoId}/${sha}/${VERSION}.json.gz`,
+      stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+    });
+  }
+
+  /** A live session for `account`, and the deps of a page it views. */
+  async function signIn(account: FakeAccount) {
+    const issued = github.issue(account);
+    const token = newToken();
+    const tokenHash = hashToken(token);
+    const userId = await upsertUser(t.db, { githubUserId: account.id, login: account.login });
+    await createSession(t.db, {
+      userId,
+      tokenHash,
+      githubTokens: sealTokens(KEYS, tokenHash, {
+        accessToken: issued.accessToken,
+        accessExpiresAt: NOW + EXPIRES_IN * 1000,
+        refreshToken: issued.refreshToken,
+        refreshExpiresAt: NOW + 1e10,
+      }),
+      lifetimeSeconds: 3600,
+    });
+    const cookie = `theme=dark; ${SESSION_COOKIE}=${token}`;
+    return { deps: viewing(cookie), tokenHash, issued };
+  }
+
+  const viewing = (cookie: string | null): RepoViewDeps => ({ ...deps, viewer: { cookie, auth } });
+  const lookups = () => github.requests.filter((r) => r.url.includes("/repositories/")).length;
+
+  it("shows the newest analysis to a user GitHub shows the repo to, checked once a minute", async () => {
+    const octo = await signIn(OCTO);
+    expect(await viewRepo(secret, octo.deps)).toEqual(shown(NEW, { state: "unknown" }));
+    expect(await viewRepo({ ...secret, sha: OLD }, octo.deps)).toEqual(
+      shown(OLD, { state: "pinned" }),
+    );
+    expect(github.requests.at(-1)?.url).toBe(`https://api.github.com/repositories/${SECRET_ID}`);
+    expect(lookups()).toBe(1);
+    // Nothing asked with the server's token (it can't see the repo), nothing queued.
+    expect(gh.requests).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
+  });
+
+  it("goes on exactly as for a name nobody analyzed when signed out, refused, or without a viewer", async () => {
+    const hubot = await signIn(HUBOT); // signed in, but not in Acme's installation
+    const cases: [string, RepoViewDeps][] = [
+      ["no viewer (the README images)", deps],
+      ["signed out", viewing(null)],
+      ["a dead cookie", viewing(`${SESSION_COOKIE}=${newToken()}`)],
+      ["refused", hubot.deps],
+    ];
+    for (const [name, d] of cases) {
+      // What any unanalyzed name gets: the lookup as written (GitHub doesn't show it), a 404.
+      expect(await viewRepo(secret, d), name).toEqual({ status: "not-analyzed", ...secret });
+      expect(await viewRepo({ ...secret, sha: NEW }, d), name).toEqual({ status: "missing" });
+    }
+    expect(lookups()).toBe(1); // hubot's refusal, remembered
+  });
+
+  it("refuses once access removed on GitHub is 60 s old", async () => {
+    const octo = await signIn(OCTO);
+    expect((await viewRepo(secret, octo.deps)).status).toBe("ready");
+    github.install(OCTO, []);
+    const [row] = await t.db.select().from(accessCache);
+    await t.db.update(accessCache).set({
+      checkedAt: new Date((row?.checkedAt.getTime() ?? 0) - ACCESS_TTL_SECONDS * 1000),
+    });
+    expect(await viewRepo({ ...secret, sha: NEW }, octo.deps)).toEqual({ status: "missing" });
+  });
+
+  it("ends the session when GitHub refuses the user's token, showing nothing", async () => {
+    const octo = await signIn(OCTO);
+    github.revoke(octo.issued.accessToken);
+    expect(await viewRepo({ ...secret, sha: NEW }, octo.deps)).toEqual({ status: "missing" });
+    expect(await findSession(t.db, octo.tokenHash)).toBeUndefined();
+  });
+
+  it("throws when the check can't decide, remembering nothing", async () => {
+    const octo = await signIn(OCTO);
+    github.failNext(new Response("oops", { status: 502 }));
+    await expect(viewRepo(secret, octo.deps)).rejects.toThrow(RepoAccessUnavailableError);
+    expect((await viewRepo(secret, octo.deps)).status).toBe("ready");
+  });
+
+  it("shows a public repo of the same name as before, without a check", async () => {
+    const octo = await signIn(OCTO);
+    await done(OLD); // the public Acme/Shop
+    expect(await viewRepo({ owner: "acme", repo: "shop", sha: OLD }, octo.deps)).toEqual(
+      ready(OLD, { state: "pinned" }),
+    );
+    expect(lookups()).toBe(0);
+  });
+
+  it("compares with the private repo's own analyses, by GitHub's ID", async () => {
+    const octo = await signIn(OCTO);
+    const view = await viewRepo(secret, octo.deps);
+    if (view.status !== "ready") throw new Error(`not shown: ${view.status}`);
+    expect(await viewBase(view, OLD, t.db)).toEqual({
+      status: "ready",
+      sha: OLD,
+      graphUrl: graphUrl(OLD),
+    });
+    const other = "c".repeat(40);
+    expect(await viewBase(view, other, t.db)).toEqual({
+      status: "missing",
+      sha: other,
+    });
+    // Without the check's mark, a private repo's commits are never found by name.
+    expect(await viewBase({ owner: "Acme", repo: "Secret" }, OLD, t.db)).toEqual({
+      status: "missing",
+      sha: OLD,
+    });
   });
 });
 
