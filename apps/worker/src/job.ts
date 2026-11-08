@@ -9,6 +9,7 @@ import {
   type JobCache,
   type LinkedRepoIds,
 } from "./factcache.js";
+import type { DiffRecorder } from "./diffJob.js";
 import { JobFailure } from "./failure.js";
 import { openTarball, type DownloadOptions } from "./github.js";
 import type { InstallationTokenSource } from "./installationToken.js";
@@ -133,6 +134,13 @@ export interface JobOutcome {
   };
   /** Wall-clock milliseconds per stage group. */
   timings: { downloadMs: number; analyzeMs: number; publishMs: number };
+  /** A diff job's result (diffJob.ts); `stats` and `extract` are then its head side's. */
+  diff?: {
+    mergeBase: string;
+    broken: number;
+    /** The pull request records it landed on; 0 when each moved on to another pair. */
+    pullRequests: number;
+  };
 }
 
 /** What the worker supplies for every job. */
@@ -166,6 +174,11 @@ export interface JobDeps {
   runOptions?: Omit<RunOptions, "signal">;
   /** Without one, nothing is written to Postgres (and `artifact.record` is absent). */
   recorder?: JobRecorder;
+  /**
+   * Finds a diff job's pull request records and stores its result (diffJob.ts, record.ts).
+   * Without it a diff job fails as the permanent `UNSUPPORTED_JOB`.
+   */
+  diffs?: DiffRecorder;
   /** Where a failure to record a failure is reported (the job's own failure still wins). */
   log?: (event: Record<string, unknown>) => void;
 }
@@ -211,7 +224,7 @@ export const PUBLISH_RESERVE_MS = 20_000;
 export const DOWNLOAD_ALLOWANCE_MS = 30_000;
 
 /** What's left for a stage: its own budget, cut to the attempt's remaining time if it has one. */
-function stageBudget(context: JobContext, own: number): number {
+export function stageBudget(context: JobContext, own: number): number {
   if (context.timeLeft === undefined) return own;
   return Math.min(own, context.timeLeft() - PUBLISH_RESERVE_MS);
 }
@@ -233,7 +246,7 @@ export function guaranteedAnalysisMs(
  * The analysis's timeout under the attempt's deadline, and whether earlier stages cut it below
  * its {@link guaranteedAnalysisMs} share.
  */
-function analysisBudget(
+export function analysisBudget(
   own: number,
   atStart: number,
   context: JobContext,
@@ -245,7 +258,8 @@ function analysisBudget(
   return { timeoutMs, cut: left < guaranteed };
 }
 
-const JOB_FOLDER_ID = /^[A-Za-z0-9_-]{1,100}$/;
+/** What a job ID must look like before it names a folder. */
+export const JOB_FOLDER_ID = /^[A-Za-z0-9_-]{1,100}$/;
 const elapsed = (start: number): number => Math.round(performance.now() - start);
 
 /**
@@ -302,7 +316,7 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
   // The ID names a folder; `POST /run` derives it, but check before touching the disk.
   if (!JOB_FOLDER_ID.test(context.id)) throw new JobFailure("INVALID_REQUEST", "bad job ID");
   if (context.request.kind !== "analyze") {
-    throw new JobFailure("UNSUPPORTED_JOB", `${context.request.kind} jobs arrive with M6`);
+    throw new JobFailure("UNSUPPORTED_JOB", "a diff job runs through processDiffJob");
   }
   const atStart = context.timeLeft?.();
   await mkdir(deps.jobsRoot, { recursive: true });
@@ -405,7 +419,7 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
  * fails (logged as `cache_purge_failed`), the job runs without a cache. Without
  * `linkedRepoIds` nothing can be confirmed, so an installation's job gets no cache.
  */
-async function jobCache(
+export async function jobCache(
   context: JobContext,
   deps: JobDeps,
   owner: CacheOwner,

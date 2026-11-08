@@ -1,9 +1,14 @@
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
+import { diffGraphs } from "@gitinside/diff";
+import { parseGraph, stringifyDiff, type ArchitectureGraph } from "@gitinside/schema";
 import {
   analyses,
+  pullRequests,
   completeAnalysis,
   deleteInstallationData,
   installations,
@@ -23,7 +28,7 @@ import type { JobRequest } from "./request.js";
 import { JobFailure } from "./failure.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import { JobAlreadyDone, processJob, type JobDeps } from "./job.js";
-import { createAnalysisRecorder, type AnalysisRecorder } from "./record.js";
+import { createAnalysisRecorder, createDiffRecorder, type AnalysisRecorder } from "./record.js";
 import type { RunResult } from "./runner.js";
 import { startFakeS3, type FakeS3 } from "./s3.testkit.js";
 import { createObjectStore } from "./storage.js";
@@ -578,5 +583,109 @@ describe("createAnalysisRecorder", () => {
     const error = await failure(processJob({ id: ID, request: REQUEST }, unrecorded));
     expect(error.code).toBe("PUBLISH_FAILED");
     expect((error.cause as Error).message).toBe("the job was not recorded");
+  });
+});
+
+describe("createDiffRecorder (ADR-0245)", () => {
+  const JOB = `diff-${"e".repeat(32)}`;
+  const BASE = "b".repeat(40);
+  const MERGE = "a".repeat(40);
+  const fixture = (name: string): ArchitectureGraph =>
+    parseGraph(
+      JSON.parse(
+        readFileSync(
+          fileURLToPath(new URL(`../../../fixtures/${name}/expected.json`, import.meta.url)),
+          "utf8",
+        ),
+      ) as unknown,
+    );
+  const diff = diffGraphs(fixture("diff-rename-base"), fixture("diff-rename-head"));
+
+  function diffRecorder() {
+    return createDiffRecorder({
+      db: t.db,
+      store: createObjectStore({
+        endpoint: s3.endpoint,
+        bucket: s3.bucket,
+        credentials: s3.credentials,
+      }),
+      analyzerVersion: VERSION,
+    });
+  }
+
+  /** Pull requests `numbers` of one repo, each on the pair BASE…SHA, naming {@link JOB}. */
+  async function queued(...numbers: number[]): Promise<string> {
+    const { id: repoId } = await upsertRepo(t.db, {
+      providerRepoId: 3_000_000_001,
+      owner: "acme",
+      name: "shop",
+      visibility: "public",
+      defaultBranch: "main",
+    });
+    for (const number of numbers) {
+      const pair = { repoId, number, baseSha: BASE, headSha: SHA };
+      await recordPullRequestHead(t.db, { ...pair, headAt: new Date("2026-11-08T10:00:00Z") });
+      await queuePullRequestDiff(t.db, { ...pair, jobId: JOB });
+    }
+    return repoId;
+  }
+
+  it("finds the job's repo while a record naming it has no diff", async () => {
+    const d = diffRecorder();
+    expect(await d.find(JOB)).toBeUndefined();
+    const repoId = await queued(7);
+    expect(await d.find(JOB)).toEqual({ repoId, baseSha: BASE, headSha: SHA, status: "queued" });
+  });
+
+  it("stores the diff under the merge base and head, private, then records it on every record naming the job", async () => {
+    const repoId = await queued(8, 7);
+    const d = diffRecorder();
+    const records = await d.publish({
+      jobId: JOB,
+      installationId: 42,
+      repoId,
+      mergeBase: MERGE,
+      headSha: SHA,
+      diff,
+    });
+
+    const key = `private/42/${repoId}/diffs/${MERGE}-${SHA}/${VERSION}.json.gz`;
+    const stored = s3.objects.get(key);
+    expect(gunzipSync(stored!.body).toString()).toBe(stringifyDiff(diff));
+    expect(stored?.headers["cache-control"]).toBe("private, no-store");
+    expect(records).toEqual([
+      { repoId, number: 7, baseSha: BASE, headSha: SHA },
+      { repoId, number: 8, baseSha: BASE, headSha: SHA },
+    ]);
+    const rows = await t.db.select().from(pullRequests);
+    expect(rows.map((r) => [r.number, r.diffKey, r.brokenCount]).sort()).toEqual([
+      [7, key, diff.broken.length],
+      [8, key, diff.broken.length],
+    ]);
+    expect(await d.find(JOB)).toMatchObject({ status: "done" });
+  });
+
+  it("records nothing once the pull request moved on, leaving the upload to retention", async () => {
+    const repoId = await queued(7);
+    const newer = "d".repeat(40);
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 7,
+      baseSha: BASE,
+      headSha: newer,
+      headAt: new Date("2026-11-08T10:05:00Z"),
+    });
+    const records = await diffRecorder().publish({
+      jobId: JOB,
+      installationId: 42,
+      repoId,
+      mergeBase: MERGE,
+      headSha: SHA,
+      diff,
+    });
+    expect(records).toEqual([]);
+    expect(s3.objects.size).toBe(1);
+    const [row] = await t.db.select().from(pullRequests);
+    expect([row?.headSha, row?.diffKey]).toEqual([newer, null]);
   });
 });

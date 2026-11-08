@@ -23,7 +23,7 @@ import {
   type MaintenanceTriggerOptions,
 } from "./maintenance.js";
 import { createTokenClient } from "./installationToken.js";
-import { createAnalysisRecorder } from "./record.js";
+import { createAnalysisRecorder, createDiffRecorder } from "./record.js";
 import { createRunServer } from "./run.js";
 
 /**
@@ -217,6 +217,7 @@ export async function startWorkerProcess(
         linkedRepoIds: (installationId, repoIds) => findLinkedRepoIds(db, installationId, repoIds),
         recorder,
         publish: recorder.publish,
+        diffs: createDiffRecorder({ db, store, analyzerVersion }),
         download: github,
         ...(installationToken === undefined ? {} : { installationToken }),
       },

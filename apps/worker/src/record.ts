@@ -7,6 +7,7 @@ import {
   findJob,
   isPrivateSnapshot,
   JobGoneError,
+  recordDiffJobResult,
   recordJobProgress,
   requeueAnalysis,
   startAnalysis,
@@ -15,14 +16,18 @@ import {
   upsertRepo,
   type AnyDatabase,
 } from "@gitinside/db";
+import { stringifyDiff } from "@gitinside/schema";
+import type { DiffRecorder } from "./diffJob.js";
 import { JobFailure } from "./failure.js";
 import { fetchRepoFacts, type DownloadOptions } from "./github.js";
 import type { JobArtifact, JobRecorder, RecordedJob } from "./job.js";
 import { recordedProgress, type StoredProgress } from "./progress.js";
 import type { JobRequest } from "./request.js";
 import {
+  privateDiffKey,
   privateSnapshotKey,
   publicSnapshotKey,
+  uploadDiff,
   uploadSnapshot,
   type ObjectStore,
 } from "./storage.js";
@@ -208,4 +213,36 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
   }
 
   return { start, publish, failed, failedBeforeStart, progress, done };
+}
+
+/**
+ * Where a diff job's results go (ADR-0245): its records are found by job ID (`findDiffJob`),
+ * and `publish` uploads the diff (`stringifyDiff`, gzipped, `private, no-store`) under
+ * `privateDiffKey` (merge base and head) before recording it on every record naming the job
+ * (`recordDiffJobResult`), so a recorded key always has its object. An upload no record names
+ * afterwards (each moved on meanwhile) is left to retention's orphan sweep: another job whose
+ * pair has the same merge base and head can name the same key, and only the sweep checks.
+ */
+export function createDiffRecorder(
+  options: Pick<RecorderOptions, "db" | "store" | "analyzerVersion">,
+): DiffRecorder {
+  const { db, store, analyzerVersion } = options;
+  return {
+    find: (jobId) => findDiffJob(db, jobId),
+    async publish(stored) {
+      const key = privateDiffKey({
+        installationId: stored.installationId,
+        repoId: stored.repoId,
+        baseSha: stored.mergeBase,
+        headSha: stored.headSha,
+        analyzerVersion,
+      });
+      await uploadDiff(store, stringifyDiff(stored.diff), key);
+      return recordDiffJobResult(db, {
+        jobId: stored.jobId,
+        diffKey: key,
+        brokenCount: stored.diff.broken.length,
+      });
+    },
+  };
 }

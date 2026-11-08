@@ -94,7 +94,18 @@ export {
   type AnalyzerStep,
   type StepProgress,
 } from "./progress.js";
-export { createAnalysisRecorder, type AnalysisRecorder, type RecorderOptions } from "./record.js";
+export {
+  createAnalysisRecorder,
+  createDiffRecorder,
+  type AnalysisRecorder,
+  type RecorderOptions,
+} from "./record.js";
+export {
+  processDiffJob,
+  type DiffRecorder,
+  type DiffToStore,
+  type LiveDiffJob,
+} from "./diffJob.js";
 export {
   createTokenClient,
   type InstallationTokenSource,

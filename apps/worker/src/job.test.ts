@@ -861,7 +861,7 @@ describe("processJob recording", () => {
 });
 
 describe("processJob refuses", () => {
-  it("diff jobs until M6", async () => {
+  it("diff jobs, which run through processDiffJob (diffJob.test.ts)", async () => {
     const error = await failure(
       processJob({ id: ID, request: { ...REQUEST, kind: "diff", baseSha: SHA } }, deps()),
     );
