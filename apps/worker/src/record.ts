@@ -4,13 +4,18 @@ import {
   failQueuedJob,
   findAnalysisStatus,
   findDiffJob,
+  findDiffJobPosts,
   findDoneSnapshotKey,
   findJob,
   findLinkedRepo,
+  findPullRequest,
   isPrivateSnapshot,
   JobGoneError,
   recordDiffJobResult,
   recordJobProgress,
+  recordPullRequestCheckRun,
+  recordPullRequestComment,
+  reopenDiffJob,
   requeueAnalysis,
   startAnalysis,
   startInstallationAnalysis,
@@ -69,7 +74,7 @@ import {
  *   this process's clock.
  * - **done** (M5.17c2b): whether the job's row is already `done`, read by job ID before a
  *   push runs (`findJob`); for a `diff-` job, whether the pull request records naming it all
- *   have their diff (`findDiffJob`, ADR-0245).
+ *   have their Check Run, so it's posted, not only diffed (`findDiffJob`, ADR-0245, M8.6e2b).
  */
 
 /** Options for {@link createAnalysisRecorder}. */
@@ -210,7 +215,7 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
   }
 
   async function done(jobId: string): Promise<boolean> {
-    // A diff job is done once every pull request record naming it has its diff (ADR-0245).
+    // A diff job is done once every pull request record naming it is posted (M8.6e2b).
     if (jobId.startsWith("diff-")) return (await findDiffJob(db, jobId))?.status === "done";
     return (await findJob(db, jobId))?.status === "done";
   }
@@ -244,7 +249,10 @@ export function readableBy(key: string, side: { installationId: number; repoId: 
  * have no `jobMs`: the job's download and upload covered both sides and the diff. An upload
  * whose row isn't written (another job holds it, or the repo was unlinked meanwhile) is left
  * to retention's orphan sweep, which checks every row first: a `done` row may name the same
- * key.
+ * key. Posting (M8.6e2b) reads the records left to post to (`findDiffJobPosts`), each record
+ * again just before its post (`findPullRequest`), a `diffed` retry's stored diff by the key
+ * the records name, and stores the comment and Check Run IDs; `reopen` clears the unposted
+ * records' diff (`reopenDiffJob`) when a retry can't read what it was made from.
  */
 export function createDiffRecorder(
   options: Pick<RecorderOptions, "db" | "store" | "analyzerVersion">,
@@ -311,5 +319,19 @@ export function createDiffRecorder(
         brokenCount: stored.diff.broken.length,
       });
     },
+    posts: (jobId) => findDiffJobPosts(db, jobId),
+    async current({ repoId, number }) {
+      const row = await findPullRequest(db, repoId, number);
+      if (row === undefined) return undefined;
+      const { diffJobId, baseSha, headSha, commentId, checkRunId } = row;
+      return { diffJobId, baseSha, headSha, commentId, checkRunId };
+    },
+    async storedDiff(key) {
+      const object = await store.get(key);
+      return object === undefined ? undefined : new Response(object.body).text();
+    },
+    reopen: (jobId) => reopenDiffJob(db, jobId),
+    recordComment: (ref) => recordPullRequestComment(db, ref),
+    recordCheckRun: (ref) => recordPullRequestCheckRun(db, ref),
   };
 }

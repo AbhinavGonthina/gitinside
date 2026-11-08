@@ -15,6 +15,7 @@ import {
   queueAnalysis,
   queuePullRequestDiff,
   recordDiffJobResult,
+  recordPullRequestCheckRun,
   recordPullRequestHead,
   repos,
   startAnalysis,
@@ -545,7 +546,7 @@ describe("createAnalysisRecorder", () => {
     expect(await r.done?.(`analyze-${"f".repeat(32)}`)).toBe(false);
   });
 
-  it("says a diff job is done once the pull request records naming it have their diff (ADR-0245)", async () => {
+  it("says a diff job is done once the pull request records naming it are posted, not only diffed (M8.6e2b)", async () => {
     const r = recorder();
     const jobId = `diff-${"e".repeat(32)}`;
     const { id: repoId } = await upsertRepo(t.db, {
@@ -561,6 +562,9 @@ describe("createAnalysisRecorder", () => {
     await queuePullRequestDiff(t.db, { ...pair, jobId });
     expect(await r.done?.(jobId)).toBe(false);
     await recordDiffJobResult(t.db, { jobId, diffKey: "private/k.json.gz", brokenCount: 0 });
+    // Diffed, but a retry still has to post (M8.6e2b).
+    expect(await r.done?.(jobId)).toBe(false);
+    await recordPullRequestCheckRun(t.db, { ...pair, checkRunId: 9_000_000_002 });
     expect(await r.done?.(jobId)).toBe(true);
   });
 
@@ -668,7 +672,72 @@ describe("createDiffRecorder (ADR-0245)", () => {
       [7, key, diff.broken.length],
       [8, key, diff.broken.length],
     ]);
+    // Diffed, not done: posting is left (M8.6e2b).
+    expect(await d.find(JOB)).toMatchObject({ status: "diffed" });
+  });
+
+  it("posts through the records: the ones left, each as stored now, its IDs, the stored diff, then done (M8.6e2b)", async () => {
+    const repoId = await queued(8, 7);
+    const d = diffRecorder();
+    const done = () => recorder().done?.(JOB);
+    expect(await d.posts(JOB)).toEqual([]);
+    await d.publish({
+      jobId: JOB,
+      installationId: 42,
+      repoId,
+      mergeBase: MERGE,
+      headSha: SHA,
+      diff,
+    });
+    const key = `private/42/${repoId}/diffs/${MERGE}-${SHA}/${VERSION}.json.gz`;
+    const pair = { repoId, baseSha: BASE, headSha: SHA };
+    expect(await d.posts(JOB)).toEqual([
+      { ...pair, number: 7, diffKey: key },
+      { ...pair, number: 8, diffKey: key },
+    ]);
+    expect(await d.storedDiff(key)).toBe(stringifyDiff(diff));
+    expect(await d.storedDiff(`${key}.gone`)).toBeUndefined();
+    expect(await d.current({ repoId, number: 7 })).toEqual({
+      diffJobId: JOB,
+      baseSha: BASE,
+      headSha: SHA,
+      commentId: null,
+      checkRunId: null,
+    });
+    expect(await d.current({ repoId, number: 9 })).toBeUndefined();
+
+    expect(await d.recordComment({ repoId, number: 7, commentId: 9_000_000_001 })).toBe(true);
+    expect(await d.recordCheckRun({ ...pair, number: 7, checkRunId: 9_000_000_002 })).toBe(true);
+    expect(await d.current({ repoId, number: 7 })).toMatchObject({
+      commentId: 9_000_000_001,
+      checkRunId: 9_000_000_002,
+    });
+    expect(await d.posts(JOB)).toEqual([{ ...pair, number: 8, diffKey: key }]);
+    expect(await done()).toBe(false);
+    // A Check Run for another pair isn't stored.
+    const other = { ...pair, number: 8, headSha: "d".repeat(40), checkRunId: 1 };
+    expect(await d.recordCheckRun(other)).toBe(false);
+    expect(await d.recordCheckRun({ ...pair, number: 8, checkRunId: 2 })).toBe(true);
     expect(await d.find(JOB)).toMatchObject({ status: "done" });
+    expect(await done()).toBe(true);
+  });
+
+  it("reopens a diffed job: the unposted records lose their diff and the job is queued again", async () => {
+    const repoId = await queued(7, 8);
+    const d = diffRecorder();
+    await d.publish({
+      jobId: JOB,
+      installationId: 42,
+      repoId,
+      mergeBase: MERGE,
+      headSha: SHA,
+      diff,
+    });
+    const pair = { repoId, baseSha: BASE, headSha: SHA };
+    await d.recordCheckRun({ ...pair, number: 8, checkRunId: 2 });
+    expect(await d.reopen(JOB)).toBe(1);
+    expect(await d.find(JOB)).toMatchObject({ status: "queued" });
+    expect(await d.posts(JOB)).toEqual([]);
   });
 
   it("records nothing once the pull request moved on, leaving the upload to retention", async () => {

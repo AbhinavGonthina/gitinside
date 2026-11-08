@@ -220,6 +220,7 @@ export async function startWorkerProcess(
         diffs: createDiffRecorder({ db, store, analyzerVersion }),
         download: github,
         ...(installationToken === undefined ? {} : { installationToken }),
+        ...(config.websiteOrigin === undefined ? {} : { siteOrigin: config.websiteOrigin }),
       },
       secrets: config.secrets,
       analyzerVersion,

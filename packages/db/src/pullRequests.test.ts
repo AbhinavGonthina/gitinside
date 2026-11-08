@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   findDiffJob,
+  findDiffJobPosts,
   findPullRequest,
   pullRequests,
   queuePullRequestDiff,
@@ -9,6 +10,7 @@ import {
   recordPullRequestComment,
   recordPullRequestDiff,
   recordPullRequestHead,
+  reopenDiffJob,
   repos,
   upsertRepo,
 } from "./index.js";
@@ -317,7 +319,7 @@ describe("diff jobs by ID", () => {
     expect(await findDiffJob(t.db, OTHER_JOB)).toBeUndefined();
   });
 
-  it("records the result on every record naming the job, and then reads it as done", async () => {
+  it("records the result on every record naming the job, and then reads it as diffed", async () => {
     const { repoId } = await setup();
     // Two pull requests with the same pair share the job; a third has its own.
     await queued(repoId, 9);
@@ -334,11 +336,88 @@ describe("diff jobs by ID", () => {
       brokenCount: 2,
     });
     expect(await findPullRequest(t.db, repoId, 8)).toMatchObject({ diffKey: null });
-    expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "done" });
+    expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "diffed" });
     expect(await findDiffJob(t.db, OTHER_JOB)).toMatchObject({ status: "queued" });
 
     // A retried job writes the same result again and still learns where to post.
     expect(await recordDiffJobResult(t.db, result)).toHaveLength(2);
+  });
+
+  /** Store a Check Run on pull request `number` at (BASE, HEAD). */
+  const checkRun = (repoId: string, number: number) =>
+    recordPullRequestCheckRun(t.db, {
+      repoId,
+      number,
+      baseSha: BASE,
+      headSha: HEAD,
+      checkRunId: 9_000_000_000 + number,
+    });
+
+  it("reads a job as done only once every record naming it has its Check Run", async () => {
+    const { repoId } = await setup();
+    await queued(repoId, 7);
+    await queued(repoId, 9);
+    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 0 });
+    // A comment alone isn't posted: the Check Run is the last write.
+    await recordPullRequestComment(t.db, { repoId, number: 7, commentId: 1 });
+    expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "diffed" });
+    await checkRun(repoId, 7);
+    expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "diffed" });
+    await checkRun(repoId, 9);
+    expect(await findDiffJob(t.db, JOB)).toEqual({
+      repoId,
+      baseSha: BASE,
+      headSha: HEAD,
+      status: "done",
+    });
+  });
+
+  it("lists the records left to post to: with the job's diff and no Check Run, by repo and number", async () => {
+    const { repoId, otherRepoId } = await setup();
+    await queued(repoId, 9);
+    await queued(repoId, 7);
+    await queued(repoId, 8);
+    await queued(otherRepoId, 3, OTHER_JOB);
+    expect(await findDiffJobPosts(t.db, JOB)).toEqual([]);
+    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 1 });
+    await recordDiffJobResult(t.db, { jobId: OTHER_JOB, diffKey: "other", brokenCount: 0 });
+    await checkRun(repoId, 8);
+    const pair = { repoId, baseSha: BASE, headSha: HEAD, diffKey: "k" };
+    expect(await findDiffJobPosts(t.db, JOB)).toEqual([
+      { ...pair, number: 7 },
+      { ...pair, number: 9 },
+    ]);
+    // A record that moved on no longer names the job.
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 9,
+      baseSha: BASE,
+      headSha: HEAD2,
+      headAt: LATER,
+    });
+    expect(await findDiffJobPosts(t.db, JOB)).toEqual([{ ...pair, number: 7 }]);
+    await checkRun(repoId, 7);
+    expect(await findDiffJobPosts(t.db, JOB)).toEqual([]);
+  });
+
+  it("reopens a diffed job: the unposted records lose their diff, the posted keep theirs", async () => {
+    const { repoId } = await setup();
+    await queued(repoId, 7);
+    await queued(repoId, 8);
+    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 2 });
+    await checkRun(repoId, 8);
+    expect(await reopenDiffJob(t.db, JOB)).toBe(1);
+    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({
+      diffJobId: JOB,
+      diffKey: null,
+      brokenCount: null,
+    });
+    expect(await findPullRequest(t.db, repoId, 8)).toMatchObject({ diffKey: "k", brokenCount: 2 });
+    expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "queued" });
+    expect(await findDiffJobPosts(t.db, JOB)).toEqual([]);
+    // Nothing left to reopen.
+    expect(await reopenDiffJob(t.db, JOB)).toBe(0);
+    expect(await reopenDiffJob(t.db, OTHER_JOB)).toBe(0);
   });
 
   it("never lands an older job's result on a newer pair", async () => {

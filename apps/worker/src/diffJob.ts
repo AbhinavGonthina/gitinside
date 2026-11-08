@@ -1,12 +1,18 @@
 import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
-import type { DiffedPullRequest } from "@gitinside/db";
-import { diffGraphs } from "@gitinside/diff";
-import { parseGraph, type ArchitectureGraph, type GraphDiff } from "@gitinside/schema";
+import type { DiffedPullRequest, DiffJobPost } from "@gitinside/db";
+import { diffGraphs, renderCheckRun, renderPrComment } from "@gitinside/diff";
+import {
+  parseGraph,
+  parseGraphDiff,
+  type ArchitectureGraph,
+  type GraphDiff,
+} from "@gitinside/schema";
 import { ExtractError, extractTarball } from "./extract.js";
 import { JobFailure } from "./failure.js";
 import { fetchMergeBase, openTarball } from "./github.js";
+import type { InstallationTokenSource } from "./installationToken.js";
 import {
   DEFAULT_DOWNLOAD_TIMEOUT_MS,
   JOB_FOLDER_ID,
@@ -20,6 +26,7 @@ import {
   type JobOutcome,
 } from "./job.js";
 import type { JobCache } from "./factcache.js";
+import { createCheckRun, postComment, type PostOptions } from "./post.js";
 import type { AnalysisStats } from "./protocol.js";
 import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
 
@@ -27,7 +34,8 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
  * A pull request's diff job (ADR-0245), start to finish:
  * 1. **the record:** the pull request records naming the job give its repo row
  *    (`DiffRecorder.find`); none ⇒ the permanent `JOB_NOT_LIVE` (every pull request it was
- *    queued for moved on), all diffed ⇒ {@link JobAlreadyDone}.
+ *    queued for moved on), all posted ⇒ {@link JobAlreadyDone}, all diffed but some not posted
+ *    ⇒ the retry of step 7 below, from what's stored.
  * 2. **download:** the installation's read token, the merge base of the event's base and head
  *    (GitHub's compare, `fetchMergeBase`), then both tarballs, merge base first, each streamed
  *    into its own `<side>/src`. All of it shares the download budget, as an analysis's does.
@@ -50,6 +58,23 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
  * 5. **publish:** `DiffRecorder.publish` stores the diff and records it on every pull request
  *    record naming the job (record.ts).
  * 6. **clean up:** the job folder is deleted whatever happened.
+ * 7. **post** (M8.6e2b, {@link postAll}): to each record naming the job that has its diff and
+ *    no Check Run (`DiffRecorder.posts`), with the job's write token (`access: "post"`, which
+ *    the website mints only in that window) and the texts `renderPrComment`/`renderCheckRun`
+ *    make with the website's origin. Each record is read again just before its post
+ *    (`DiffRecorder.current`) and skipped (`post_skipped`) unless it still names the job, with
+ *    the same pair and no Check Run: a newer push since must not get this head's comment. Then
+ *    `postComment` (post.ts) ⇒ `recordComment` ⇒ `createCheckRun` on the head ⇒
+ *    `recordCheckRun` (only for the current pair). The stored Check Run is what makes a record
+ *    posted, so the job is "done" only once every record has one. A record's failure is logged
+ *    (`post_failed`, the code and detail) and the others still posted; then the attempt fails
+ *    with it (a retriable one first), and the queue retries.
+ *
+ * **A retry after the diff was recorded** (status `diffed`) posts without downloading: the
+ * diff's object (`DiffRecorder.storedDiff`, named by the records) and both sides' stored graphs
+ * (step 3's `storedGraph`, by the commits the diff names). When any of them is missing or
+ * unreadable (logged), the records' diff is cleared (`DiffRecorder.reopen`, which reopens the
+ * read token's window) and the job runs again from step 2 in the same attempt.
  *
  * A diff job has no `analyses` row: a failure is only logged (and answered to the queue), and
  * the record keeps naming the job until the next push (ADR-0245). It reports stages, never the
@@ -60,8 +85,11 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
 export interface LiveDiffJob {
   /** Our repo row's ID: part of the diff's key and the fact cache folder. */
   repoId: string;
-  /** `queued` while some record naming the job has no diff yet, else `done`. */
-  status: "queued" | "done";
+  /**
+   * `queued` while some record naming the job has no diff yet; `diffed` once all have it and
+   * some has no Check Run; `done` once every one is posted.
+   */
+  status: "queued" | "diffed" | "done";
 }
 
 /** A finished diff, for {@link DiffRecorder.publish}. */
@@ -73,6 +101,21 @@ export interface DiffToStore {
   mergeBase: string;
   headSha: string;
   diff: GraphDiff;
+}
+
+/** A pull request record as read just before posting to it (db's `findPullRequest`). */
+export interface PostingRecord {
+  diffJobId: string | null;
+  baseSha: string;
+  headSha: string;
+  commentId: number | null;
+  checkRunId: number | null;
+}
+
+/** Which pull request record a write is about. */
+interface RecordRef {
+  repoId: string;
+  number: number;
 }
 
 /** Where a diff job's records and results live (record.ts's `createDiffRecorder`). */
@@ -107,7 +150,24 @@ export interface DiffRecorder {
    * records (empty: each moved on to another pair, and nothing is posted).
    */
   publish(diff: DiffToStore): Promise<DiffedPullRequest[]>;
+  /** The records naming the job with its diff and no Check Run (db's `findDiffJobPosts`). */
+  posts(jobId: string): Promise<DiffJobPost[]>;
+  /** A pull request's record as stored now, or `undefined` when it's gone. */
+  current(ref: RecordRef): Promise<PostingRecord | undefined>;
+  /** The text of the diff stored under `key`, or `undefined` when the object is gone. */
+  storedDiff(key: string): Promise<string | undefined>;
+  /** Clear the diff of the job's unposted records, so it runs again (db's `reopenDiffJob`). */
+  reopen(jobId: string): Promise<number>;
+  /** Store the pull request's comment ID (db's `recordPullRequestComment`). */
+  recordComment(ref: RecordRef & { commentId: number }): Promise<boolean>;
+  /** Store the pair's Check Run ID, only for the current pair (db's `recordPullRequestCheckRun`). */
+  recordCheckRun(
+    ref: RecordRef & { baseSha: string; headSha: string; checkRunId: number },
+  ): Promise<boolean>;
 }
+
+/** Milliseconds for getting the write token and posting to every record, at most. */
+export const DEFAULT_POST_TIMEOUT_MS = 15_000;
 
 /** One side of the diff in the job folder. */
 interface Side {
@@ -116,7 +176,26 @@ interface Side {
   out: string;
 }
 
+/** A diff and the two graphs it was made from: what the comment and Check Run are made of. */
+interface MadeDiff {
+  diff: GraphDiff;
+  base: ArchitectureGraph;
+  head: ArchitectureGraph;
+}
+
+/** What posting needs besides the diff. */
+interface Poster {
+  tokens: InstallationTokenSource;
+  siteOrigin: string;
+  installationId: number;
+}
+
+type Deps = JobDeps & { diffs: DiffRecorder };
+
 const elapsed = (start: number): number => Math.round(performance.now() - start);
+
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 /** Text of a repo-relative `path` under `root`, or `undefined` if it's missing or escapes it. */
 function treeReader(root: string): (path: string) => string | undefined {
@@ -132,16 +211,34 @@ function treeReader(root: string): (path: string) => string | undefined {
   };
 }
 
+/** A recorder read, its error the retriable `RECORD_FAILED`. */
+async function fromRecords<T>(what: string, read: () => Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    throw new JobFailure("RECORD_FAILED", `${what} failed`, { cause: error });
+  }
+}
+
+/** The job as its records describe it; stops the job when none names it or all are posted. */
+async function findLive(context: JobContext, diffs: DiffRecorder): Promise<LiveDiffJob> {
+  const live = await fromRecords("reading the job's records", () => diffs.find(context.id));
+  if (live === undefined) throw new JobFailure("JOB_NOT_LIVE", "no record names the job");
+  if (live.status === "done") throw new JobAlreadyDone();
+  return live;
+}
+
 /**
- * Find the job's record, get the token and the merge base, and download and extract both
- * sides, mapping every error to a {@link JobFailure} as an analysis's download does.
+ * Get the read token and the merge base, and download and extract both sides, mapping every
+ * error to a {@link JobFailure} as an analysis's download does.
  */
 async function fetchSides(
   context: JobContext,
-  deps: JobDeps & { diffs: DiffRecorder },
+  deps: Deps,
+  tokens: InstallationTokenSource,
   installationId: number,
   dir: string,
-): Promise<{ live: LiveDiffJob; sides: [Side, Side]; head: ExtractedHead }> {
+): Promise<{ sides: [Side, Side]; head: ExtractedHead }> {
   const budget = stageBudget(context, deps.downloadTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS);
   if (budget <= 0) throw new JobFailure("DOWNLOAD_TIMEOUT", "no time left for the download");
   const timeout = AbortSignal.timeout(budget);
@@ -150,18 +247,7 @@ async function fetchSides(
   const { owner, repo, sha, baseSha } = context.request;
   if (baseSha === undefined) throw new JobFailure("INVALID_REQUEST", "a diff job needs its base");
   try {
-    let live: LiveDiffJob | undefined;
-    try {
-      live = await deps.diffs.find(context.id);
-    } catch (error) {
-      throw new JobFailure("RECORD_FAILED", "reading the job's records failed", { cause: error });
-    }
-    if (live === undefined) throw new JobFailure("JOB_NOT_LIVE", "no record names the job");
-    if (live.status === "done") throw new JobAlreadyDone();
-    if (deps.installationToken === undefined) {
-      throw new JobFailure("TOKEN_UNCONFIGURED", "no website origin for installation tokens");
-    }
-    const token = await deps.installationToken({ jobId: context.id, installationId }, signal);
+    const token = await tokens({ jobId: context.id, installationId }, signal);
     const github = { ...deps.download, token, signal };
     const mergeBase = await fetchMergeBase({ owner, repo, base: baseSha, head: sha }, github);
     const sides: Side[] = [];
@@ -179,9 +265,8 @@ async function fetchSides(
       sides.push(side);
     }
     if (head === undefined) throw new Error("the head side wasn't extracted");
-    return { live, sides: sides as [Side, Side], head };
+    return { sides: sides as [Side, Side], head };
   } catch (error) {
-    if (error instanceof JobAlreadyDone) throw error;
     if (context.signal?.aborted) throw new JobFailure("CANCELLED", "cancelled while downloading");
     if (timeout.aborted) throw new JobFailure("DOWNLOAD_TIMEOUT", "download budget exceeded");
     if (error instanceof JobFailure) throw error;
@@ -239,13 +324,13 @@ async function analyzeSide(
 }
 
 /**
- * `side`'s stored graph, with the counts the child would report for it (no stage times), or
- * `undefined` when it has none or it can't be used (logged), and the side is analyzed.
+ * Commit `side.sha`'s stored graph, with the counts the child would report for it (no stage
+ * times), or `undefined` when it has none or it can't be used (logged).
  */
 async function storedSide(
   context: JobContext,
-  deps: JobDeps & { diffs: DiffRecorder },
-  side: Side,
+  deps: Deps,
+  side: { sha: string },
   owner: { installationId: number; repoId: string },
 ): Promise<{ graph: ArchitectureGraph; stats: JobOutcome["stats"] } | undefined> {
   try {
@@ -268,7 +353,7 @@ async function storedSide(
       event: "stored_graph_unread",
       id: context.id,
       sha: side.sha,
-      message: error instanceof Error ? error.message : String(error),
+      message: messageOf(error),
     });
     return undefined;
   }
@@ -281,7 +366,7 @@ async function storedSide(
  */
 async function storeSide(
   context: JobContext,
-  deps: JobDeps & { diffs: DiffRecorder },
+  deps: Deps,
   side: Side,
   owner: { installationId: number; repoId: string },
   stats: AnalysisStats,
@@ -293,10 +378,166 @@ async function storeSide(
       event: "side_store_failed",
       id: context.id,
       sha: side.sha,
-      message: error instanceof Error ? error.message : String(error),
+      message: messageOf(error),
     });
     return false;
   }
+}
+
+/**
+ * Post the comment and Check Run to one record (see the module comment's step 7). Answers
+ * whether its Check Run was stored: `false` when the record moved on, before posting (nothing
+ * posted) or before the Check Run was stored (logged as `post_skipped`).
+ */
+async function postOne(
+  context: JobContext,
+  deps: Deps,
+  record: DiffJobPost,
+  texts: { comment: string; checkRun: ReturnType<typeof renderCheckRun> },
+  options: PostOptions,
+): Promise<boolean> {
+  const { owner, repo } = context.request;
+  const { repoId, number, baseSha, headSha } = record;
+  const skipped = (reason: string): false => {
+    deps.log?.({ event: "post_skipped", id: context.id, number, reason });
+    return false;
+  };
+  const now = await fromRecords("reading the pull request", () =>
+    deps.diffs.current({ repoId, number }),
+  );
+  if (
+    now?.diffJobId !== context.id ||
+    now.baseSha !== baseSha ||
+    now.headSha !== headSha ||
+    now.checkRunId !== null
+  ) {
+    return skipped("moved on");
+  }
+  const target = { owner, repo, number };
+  const commentId = await postComment(target, texts.comment, now.commentId ?? undefined, options);
+  await fromRecords("recording the comment", () =>
+    deps.diffs.recordComment({ repoId, number, commentId }),
+  );
+  const checkRunId = await createCheckRun({ owner, repo }, headSha, texts.checkRun, options);
+  const stored = await fromRecords("recording the Check Run", () =>
+    deps.diffs.recordCheckRun({ repoId, number, baseSha, headSha, checkRunId }),
+  );
+  return stored || skipped("moved on before its Check Run was stored");
+}
+
+/**
+ * Post `made` to every record the job still has to post to (see the module comment's step 7).
+ * Answers how many were posted; throws the first retriable failure, else the first failure,
+ * after trying every record.
+ */
+async function postAll(
+  context: JobContext,
+  deps: Deps,
+  made: MadeDiff,
+  poster: Poster,
+): Promise<number> {
+  const records = await fromRecords("reading the records to post to", () =>
+    deps.diffs.posts(context.id),
+  );
+  if (records.length === 0) return 0;
+  const link = { siteOrigin: poster.siteOrigin };
+  const texts = {
+    comment: renderPrComment(made.diff, made.base, made.head, link),
+    checkRun: renderCheckRun(made.diff, made.base, made.head, link),
+  };
+  const own = deps.postTimeoutMs ?? DEFAULT_POST_TIMEOUT_MS;
+  const budget = context.timeLeft === undefined ? own : Math.min(own, context.timeLeft());
+  if (budget <= 0) throw new JobFailure("POST_FAILED", "no time left to post");
+  const timeout = AbortSignal.timeout(budget);
+  const signal =
+    context.signal === undefined ? timeout : AbortSignal.any([context.signal, timeout]);
+  const failures: JobFailure[] = [];
+  let posted = 0;
+  try {
+    const token = await poster.tokens(
+      { jobId: context.id, installationId: poster.installationId, access: "post" },
+      signal,
+    );
+    const options: PostOptions = {
+      token,
+      signal,
+      ...(deps.download?.apiBase === undefined ? {} : { apiBase: deps.download.apiBase }),
+      ...(deps.download?.fetch === undefined ? {} : { fetch: deps.download.fetch }),
+    };
+    for (const record of records) {
+      try {
+        if (await postOne(context, deps, record, texts, options)) posted++;
+      } catch (error) {
+        if (signal.aborted) throw error;
+        const failure =
+          error instanceof JobFailure
+            ? error
+            : new JobFailure("POST_FAILED", messageOf(error), { cause: error });
+        deps.log?.({
+          event: "post_failed",
+          id: context.id,
+          number: record.number,
+          code: failure.code,
+          detail: failure.detail,
+        });
+        failures.push(failure);
+      }
+    }
+  } catch (error) {
+    if (context.signal?.aborted) throw new JobFailure("CANCELLED", "cancelled while posting");
+    if (timeout.aborted) throw new JobFailure("POST_FAILED", "posting budget exceeded");
+    if (error instanceof JobFailure) throw error;
+    throw new JobFailure("POST_FAILED", "posting stopped", { cause: error });
+  }
+  const failure = failures.find((f) => f.retriable) ?? failures[0];
+  if (failure !== undefined) throw failure;
+  return posted;
+}
+
+/**
+ * For a `diffed` job: the stored diff and both sides' stored graphs, with the head's counts, or
+ * `undefined` when any is missing or unusable (logged), and the job must run again. Throws
+ * {@link JobAlreadyDone} when no record is left to post to, and `RECORD_FAILED` when the records
+ * or the bucket can't be read.
+ */
+async function storedResult(
+  context: JobContext,
+  deps: Deps,
+  owner: { installationId: number; repoId: string },
+): Promise<{ made: MadeDiff; stats: AnalysisStats; records: number } | undefined> {
+  const records = await fromRecords("reading the records to post to", () =>
+    deps.diffs.posts(context.id),
+  );
+  const [first] = records;
+  // Posted meanwhile (another attempt) or moved on: nothing left for this job.
+  if (first === undefined) throw new JobAlreadyDone();
+  const text = await fromRecords("reading the stored diff", () =>
+    deps.diffs.storedDiff(first.diffKey),
+  );
+  const unread = (message: string): undefined => {
+    deps.log?.({ event: "stored_diff_unread", id: context.id, message });
+    return undefined;
+  };
+  if (text === undefined) return unread("the diff's object is gone");
+  let diff: GraphDiff;
+  try {
+    diff = parseGraphDiff(JSON.parse(text) as unknown);
+  } catch (error) {
+    return unread(messageOf(error));
+  }
+  const mergeBase = diff.base.repo.sha;
+  if (mergeBase === undefined || diff.head.repo.sha !== context.request.sha) {
+    return unread("the stored diff names other commits");
+  }
+  const base = await storedSide(context, deps, { sha: mergeBase }, owner);
+  if (base === undefined) return unread("the merge base's graph isn't stored");
+  const head = await storedSide(context, deps, { sha: context.request.sha }, owner);
+  if (head === undefined) return unread("the head's graph isn't stored");
+  return {
+    made: { diff, base: base.graph, head: head.graph },
+    stats: head.stats,
+    records: records.length,
+  };
 }
 
 /**
@@ -316,28 +557,62 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
     throw new JobFailure("INVALID_REQUEST", "a diff job runs through an installation");
   }
   const atStart = context.timeLeft?.();
+  const withDiffs = { ...deps, diffs };
+  const live = await findLive(context, diffs);
+  const tokens = deps.installationToken;
+  if (tokens === undefined) {
+    throw new JobFailure("TOKEN_UNCONFIGURED", "no website origin for installation tokens");
+  }
+  const { siteOrigin } = deps;
+  if (siteOrigin === undefined) {
+    throw new JobFailure("TOKEN_UNCONFIGURED", "no website origin for the comment's link");
+  }
+  const poster = { tokens, siteOrigin, installationId };
+  const owner = { installationId, repoId: live.repoId };
+
+  if (live.status === "diffed") {
+    const start = performance.now();
+    await context.onStage?.("upload");
+    const stored = await storedResult(context, withDiffs, owner);
+    if (stored !== undefined) {
+      const posted = await postAll(context, withDiffs, stored.made, poster);
+      const { diff } = stored.made;
+      return {
+        stats: stored.stats,
+        extract: { files: 0, directories: 0, tarBytes: 0, skipped: 0, skippedSample: [] },
+        timings: { downloadMs: 0, analyzeMs: 0, publishMs: 0 },
+        diff: {
+          mergeBase: diff.base.repo.sha ?? "",
+          broken: diff.broken.length,
+          pullRequests: stored.records,
+          reused: ["mergeBase", "head"],
+          stored: [],
+          posted,
+          postMs: elapsed(start),
+          resumed: true,
+        },
+      };
+    }
+    const reopened = await fromRecords("reopening the job", () => diffs.reopen(context.id));
+    deps.log?.({ event: "diff_reopened", id: context.id, records: reopened });
+  }
+
   await mkdir(deps.jobsRoot, { recursive: true });
   const dir = await mkdtemp(join(deps.jobsRoot, `${context.id}-`));
   try {
     let start = performance.now();
     await context.onStage?.("download");
-    const { live, sides, head } = await fetchSides(
-      context,
-      { ...deps, diffs },
-      installationId,
-      dir,
-    );
+    const { sides, head } = await fetchSides(context, withDiffs, tokens, installationId, dir);
     const downloadMs = elapsed(start);
 
     start = performance.now();
     await context.onStage?.("analyze");
-    const owner = { installationId, repoId: live.repoId };
     const [base, after] = sides;
     const reused: ("mergeBase" | "head")[] = [];
     const stored: ("mergeBase" | "head")[] = [];
     let cache: JobCache | undefined | null = null;
     const graphOf = async (side: Side, name: "mergeBase" | "head") => {
-      const read = await storedSide(context, { ...deps, diffs }, side, owner);
+      const read = await storedSide(context, withDiffs, side, owner);
       if (read !== undefined) {
         reused.push(name);
         return read;
@@ -345,7 +620,7 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
       // Prepared once, and only when a side is analyzed (it purges other repos' folders).
       if (cache === null) cache = await jobCache(context, deps, owner);
       const analyzed = await analyzeSide(context, deps, side, cache, atStart);
-      if (await storeSide(context, { ...deps, diffs }, side, owner, analyzed.stats)) {
+      if (await storeSide(context, withDiffs, side, owner, analyzed.stats)) {
         stored.push(name);
       }
       return analyzed;
@@ -375,6 +650,11 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
     }
     const publishMs = elapsed(start);
 
+    start = performance.now();
+    const made = { diff, base: before.graph, head: analyzed.graph };
+    const posted = records.length === 0 ? 0 : await postAll(context, withDiffs, made, poster);
+    const postMs = elapsed(start);
+
     return {
       stats: analyzed.stats,
       extract: {
@@ -391,6 +671,9 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
         pullRequests: records.length,
         reused,
         stored,
+        posted,
+        postMs,
+        resumed: false,
       },
     };
   } finally {
