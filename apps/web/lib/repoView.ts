@@ -592,38 +592,67 @@ async function followHead(
     return ready(published, { state: "behind", sha: head.sha, reason: "failed", errorCode });
   }
   const inFlight = existing?.status === "queued" || existing?.status === "running";
-  const updating: HeadState = { state: "updating", sha: head.sha };
-  const unavailable: HeadState = { state: "behind", sha: head.sha, reason: "unavailable" };
-  if (deps.queue === undefined) return ready(published, inFlight ? updating : unavailable);
+  const next = await queueHead(head, inFlight, deps, how.github);
+  if (next.state !== "done") return ready(published, next);
+  // Finished since the lookup above (a racing job).
+  const latest = await how.latest(head.sha);
+  return latest === undefined
+    ? ready(published, { state: "updating", sha: head.sha })
+    : ready(latest, { state: "current" });
+}
+
+/** What {@link queueHead} found or did about a newer commit. */
+export type HeadQueueing =
+  | Extract<HeadState, { state: "updating" | "behind" }>
+  /** The commit's analysis finished meanwhile (a racing job): nothing queued. */
+  | { state: "done" };
+
+/** What {@link queueHead} talks to: the database, the queue, and check-on-view's limits. */
+export type HeadQueueDeps = Pick<
+  RepoViewDeps,
+  "db" | "queue" | "analyzerVersion" | "codeSizes" | "rechecksPerHour"
+>;
+
+/**
+ * Queue `head`, a newer commit than the one shown whose own analysis isn't `done` or failed
+ * (`inFlight`: it's `queued` or `running`), under step 4's rules and step 5's charge: no queue
+ * ⇒ `unavailable`; unless in flight, the size hold, GitHub's code count (read with `github`;
+ * without it, not asked, so unknown and not refused), and the compute pause first; then the
+ * repo's {@link RECHECKS_PER_HOUR} slot, refunded when no new job was made, and
+ * `enqueueAnalysis` (through `head.installationId` when set; an uninstalled or suspended
+ * installation ⇒ `behind`, `failed` with its code, nothing charged). Shared by check-on-view
+ * and the push webhook (M8.7, ADR-0246).
+ */
+export async function queueHead(
+  head: QueueRepo,
+  inFlight: boolean,
+  deps: HeadQueueDeps,
+  github: GitHubOptions | undefined,
+): Promise<HeadQueueing> {
+  const { db } = deps;
+  const updating: HeadQueueing = { state: "updating", sha: head.sha };
+  const unavailable: HeadQueueing = { state: "behind", sha: head.sha, reason: "unavailable" };
+  if (deps.queue === undefined) return inFlight ? updating : unavailable;
   if (!inFlight) {
     const hold = await findSizeHold(db, head);
     if (hold !== undefined) {
       const { errorCode, until } = hold;
-      return ready(published, {
+      return {
         state: "behind",
         sha: head.sha,
         reason: "too-big",
         errorCode,
         until: until.toISOString(),
-      });
+      };
     }
-    const codeBytes = await findTooMuchCode(head, how.github, deps.codeSizes);
+    const codeBytes =
+      github === undefined ? undefined : await findTooMuchCode(head, github, deps.codeSizes);
     if (codeBytes !== undefined) {
-      return ready(published, {
-        state: "behind",
-        sha: head.sha,
-        reason: "too-much-code",
-        codeBytes,
-      });
+      return { state: "behind", sha: head.sha, reason: "too-much-code", codeBytes };
     }
     const pause = await findComputePause(db);
     if (pause !== undefined) {
-      return ready(published, {
-        state: "behind",
-        sha: head.sha,
-        reason: "paused",
-        until: pause.until.toISOString(),
-      });
+      return { state: "behind", sha: head.sha, reason: "paused", until: pause.until.toISOString() };
     }
   }
 
@@ -631,9 +660,7 @@ async function followHead(
   let charged: Date | undefined;
   if (!inFlight) {
     const limit = await consumeRateLimit(db, key, deps.rechecksPerHour ?? RECHECKS_PER_HOUR);
-    if (!limit.allowed) {
-      return ready(published, { state: "behind", sha: head.sha, reason: "limited" });
-    }
+    if (!limit.allowed) return { state: "behind", sha: head.sha, reason: "limited" };
     charged = limit.windowStart;
   }
   let queued: EnqueueResult;
@@ -645,24 +672,18 @@ async function followHead(
     });
   } catch (error) {
     if (!(error instanceof InstallationRefusedError)) throw error;
-    // Uninstalled or suspended (a private repo): nothing was written, so nothing is charged.
+    // Uninstalled or suspended: nothing was written, so nothing is charged.
     if (charged) await refundRateLimit(db, key, charged);
-    const errorCode = error.code;
-    return ready(published, { state: "behind", sha: head.sha, reason: "failed", errorCode });
+    return { state: "behind", sha: head.sha, reason: "failed", errorCode: error.code };
   }
   const isNew = queued.status === "queued" && queued.entered;
   if (charged && !isNew) await refundRateLimit(db, key, charged);
   switch (queued.status) {
-    case "done": {
-      // Finished since the lookup above (a racing job).
-      const latest = await how.latest(head.sha);
-      return latest === undefined
-        ? ready(published, updating)
-        : ready(latest, { state: "current" });
-    }
+    case "done":
+      return { state: "done" };
     case "unavailable":
-      return ready(published, unavailable);
+      return unavailable;
     default:
-      return ready(published, { state: "updating", sha: head.sha, jobId: queued.jobId });
+      return { state: "updating", sha: head.sha, jobId: queued.jobId };
   }
 }
