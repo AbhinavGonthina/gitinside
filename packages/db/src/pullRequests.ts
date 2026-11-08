@@ -5,7 +5,7 @@
  * is conditional in the database: an older event never moves the record back, and a job's
  * result lands only while its pair is still the pull request's current one.
  */
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
 import { pullRequests } from "./schema.js";
 
@@ -138,35 +138,104 @@ export interface DiffJobRecord {
   /** The pair the job diffs: the event's base (not the merge base) and the head. */
   baseSha: string;
   headSha: string;
-  /** `queued` while some record naming the job has no diff yet, else `done`. */
-  status: "queued" | "done";
+  /**
+   * `queued` while some record naming the job has no diff yet; `diffed` once every one has its
+   * diff and some still has no Check Run (posting is left, M8.6e2b); `done` once all are posted.
+   */
+  status: "queued" | "diffed" | "done";
 }
 
 /**
  * The diff job with ID `jobId` as the records naming it describe it, or `undefined` when none
  * does (every pull request it was queued for moved on to another pair, or was deleted). A
  * record names a job only for its current pair (the job is cleared with the pair), so every
- * record naming it has the same repo and pair; a live one is preferred.
+ * record naming it has the same repo and pair. "Posted" is a stored Check Run, which belongs to
+ * the record's current pair (M8.6e1).
  */
 export async function findDiffJob(
   db: AnyDatabase,
   jobId: string,
 ): Promise<DiffJobRecord | undefined> {
-  const live = sql<boolean>`${pullRequests.diffKey} is null`;
-  const [row] = await db
+  const rows = await db
     .select({
-      live,
       repoId: pullRequests.repoId,
       baseSha: pullRequests.baseSha,
       headSha: pullRequests.headSha,
+      diffKey: pullRequests.diffKey,
+      checkRunId: pullRequests.checkRunId,
     })
     .from(pullRequests)
     .where(eq(pullRequests.diffJobId, jobId))
-    .orderBy(desc(live), desc(pullRequests.updatedAt), desc(pullRequests.id))
-    .limit(1);
-  if (row === undefined) return undefined;
-  const { live: isLive, ...rest } = row;
-  return { ...rest, status: isLive ? "queued" : "done" };
+    .orderBy(desc(pullRequests.updatedAt), desc(pullRequests.id));
+  const [first] = rows;
+  if (first === undefined) return undefined;
+  const status = rows.some((row) => row.diffKey === null)
+    ? "queued"
+    : rows.some((row) => row.checkRunId === null)
+      ? "diffed"
+      : "done";
+  return { repoId: first.repoId, baseSha: first.baseSha, headSha: first.headSha, status };
+}
+
+/** A pull request a diff job still has to post to, as {@link findDiffJobPosts} reads it. */
+export interface DiffJobPost {
+  repoId: string;
+  number: number;
+  baseSha: string;
+  headSha: string;
+  /** Where the job's diff is stored. */
+  diffKey: string;
+}
+
+/**
+ * The records naming diff job `jobId` that hold its diff and have no Check Run yet (M8.6e2b):
+ * the pull requests it still has to post to, sorted by repo and number. Empty when every one is
+ * posted, has moved on, or has no diff yet. The poster still re-reads each record just before
+ * posting (`findPullRequest`): a newer event can arrive meanwhile (ADR-0244).
+ */
+export async function findDiffJobPosts(db: AnyDatabase, jobId: string): Promise<DiffJobPost[]> {
+  const rows = await db
+    .select({
+      repoId: pullRequests.repoId,
+      number: pullRequests.number,
+      baseSha: pullRequests.baseSha,
+      headSha: pullRequests.headSha,
+      diffKey: pullRequests.diffKey,
+    })
+    .from(pullRequests)
+    .where(
+      and(
+        eq(pullRequests.diffJobId, jobId),
+        isNotNull(pullRequests.diffKey),
+        isNull(pullRequests.checkRunId),
+      ),
+    );
+  return rows
+    .flatMap(({ diffKey, ...row }) => (diffKey === null ? [] : [{ ...row, diffKey }]))
+    .sort((a, b) => (a.repoId === b.repoId ? a.number - b.number : a.repoId < b.repoId ? -1 : 1));
+}
+
+/**
+ * Clears the diff from the records naming diff job `jobId` that have no Check Run yet
+ * (M8.6e2b), so the job is `queued` again and runs from the start: for a retry that has to post
+ * but can no longer read what the diff was made from (the diff's object or a side's stored
+ * graph). The read token's window (`findJobInstallation`) opens again with it. Posted records
+ * keep theirs. Answers how many records were cleared; the old diff object is then retention's
+ * orphan, unless the run stores it again under the same key.
+ */
+export async function reopenDiffJob(db: AnyDatabase, jobId: string): Promise<number> {
+  const rows = await db
+    .update(pullRequests)
+    .set({ diffKey: null, brokenCount: null, updatedAt: sql`now()` })
+    .where(
+      and(
+        eq(pullRequests.diffJobId, jobId),
+        isNotNull(pullRequests.diffKey),
+        isNull(pullRequests.checkRunId),
+      ),
+    )
+    .returning({ id: pullRequests.id });
+  return rows.length;
 }
 
 /** A diff job's stored result. */

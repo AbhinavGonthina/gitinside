@@ -560,7 +560,7 @@ describe("startWorkerProcess", () => {
     }
   });
 
-  it("takes a pushed diff task to a stored diff on the pull request's record (ADR-0245)", async () => {
+  it("takes a pushed diff task to a stored diff on the pull request's record, then posts it (ADR-0245)", async () => {
     await t.db.delete(installations);
     await upsertInstallation(t.db, {
       githubInstallationId: 42,
@@ -569,25 +569,53 @@ describe("startWorkerProcess", () => {
       accountType: "Organization",
       suspendedAt: null,
     });
+    // The read token for the download, the write token (`access: "post"`) for the posts.
     const website = createHttpServer((req, res) => {
-      req.resume();
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
       req.on("end", () => {
+        const post = Buffer.concat(chunks).toString().includes('"access":"post"');
         res.writeHead(200, { "content-type": "application/json", connection: "close" });
-        res.end(JSON.stringify({ token: "ghs_installation", expiresAt: "2026-11-08T13:00:00Z" }));
+        res.end(
+          JSON.stringify({
+            token: post ? "ghs_post" : "ghs_installation",
+            expiresAt: "2026-11-08T13:00:00Z",
+          }),
+        );
       });
     });
     await new Promise<void>((resolve) => website.listen(0, "127.0.0.1", resolve));
     const base = "b".repeat(40);
     const mergeBase = "a".repeat(40);
     const tarball = github.api;
+    const posts: string[] = [];
     github.api = (req, res) => {
-      if (!(req.url ?? "").includes("/compare/")) return tarball(req, res);
+      const url = req.url ?? "";
+      if (url.includes("/issues/") || url.includes("/check-runs")) {
+        req.resume();
+        req.on("end", () => {
+          posts.push(
+            `${req.method ?? ""} ${url.split("?")[0] ?? ""} ${req.headers.authorization ?? ""}`,
+          );
+          const list = req.method === "GET";
+          res.writeHead(list ? 200 : 201, {
+            "content-type": "application/json",
+            connection: "close",
+          });
+          res.end(JSON.stringify(list ? [] : { id: url.includes("/check-runs") ? 802 : 801 }));
+        });
+        return;
+      }
+      if (!url.includes("/compare/")) return tarball(req, res);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ merge_base_commit: { sha: mergeBase } }));
     };
-    const graph = await readFile(
-      fileURLToPath(new URL("../../../fixtures/express-basic/expected.json", import.meta.url)),
-    );
+    const graph = JSON.parse(
+      await readFile(
+        fileURLToPath(new URL("../../../fixtures/express-basic/expected.json", import.meta.url)),
+        "utf8",
+      ),
+    ) as { repo: Record<string, unknown> };
     const shas: (string | undefined)[] = [];
     try {
       const port = (website.address() as AddressInfo).port;
@@ -596,7 +624,9 @@ describe("startWorkerProcess", () => {
           jobDeps: {
             run: async (job): Promise<RunResult> => {
               shas.push(job.sha);
-              await writeFile(job.out, graph);
+              // As the child writes it: the repo and commit it analyzed.
+              const repo = { ...graph.repo, owner: "acme", name: "shop", sha: job.sha };
+              await writeFile(job.out, JSON.stringify({ ...graph, repo }));
               return { ok: true, stats: STATS, durationMs: 1 };
             },
           },
@@ -628,7 +658,20 @@ describe("startWorkerProcess", () => {
       const sideKey = (sha: string) => `public/acme/shop/${sha}/${VERSION}.json.gz`;
       expect([...s3.objects.keys()].sort()).toEqual([key, sideKey(mergeBase), sideKey(SHA)].sort());
       const [record] = await t.db.select().from(pullRequests);
-      expect(record).toMatchObject({ diffKey: key, brokenCount: 0, diffJobId: jobId });
+      expect(record).toMatchObject({
+        diffKey: key,
+        brokenCount: 0,
+        diffJobId: jobId,
+        commentId: 801,
+        checkRunId: 802,
+      });
+      // Posted with the write token only: the comment (none of the bot's yet), then the Check Run.
+      expect(posts).toEqual([
+        "GET /repos/acme/shop/issues/7/comments Bearer ghs_post",
+        "POST /repos/acme/shop/issues/7/comments Bearer ghs_post",
+        "POST /repos/acme/shop/check-runs Bearer ghs_post",
+      ]);
+      expect(lines.join("\n")).not.toContain("ghs_post");
       const rows = await t.db.select().from(analyses);
       expect(rows.map((r) => [r.sha, r.status, r.snapshotKey]).sort()).toEqual(
         [
@@ -642,11 +685,14 @@ describe("startWorkerProcess", () => {
         pullRequests: 1,
         reused: [],
         stored: ["mergeBase", "head"],
+        posted: 1,
+        resumed: false,
       });
 
-      // A duplicate push finds every record diffed and does nothing.
+      // A duplicate push finds every record posted and does nothing.
       expect(await pushTask(task)).toMatchObject([{ status: 200, body: { state: "done" } }]);
       expect(shas).toHaveLength(2);
+      expect(posts).toHaveLength(3);
     } finally {
       website.closeAllConnections();
       await new Promise<void>((resolve) => website.close(() => resolve()));

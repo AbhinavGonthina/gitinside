@@ -147,6 +147,16 @@ export interface JobOutcome {
     reused: ("mergeBase" | "head")[];
     /** The analyzed sides stored as that commit's analysis (M8.6d4). */
     stored: ("mergeBase" | "head")[];
+    /** The pull requests whose comment and Check Run this attempt posted (M8.6e2b). */
+    posted: number;
+    /** Milliseconds for the write token and the posts. */
+    postMs: number;
+    /**
+     * Whether this attempt only posted, from the stored diff and graphs, after an earlier one
+     * recorded the diff (`stats` then counted from the head's graph, `extract` and `timings`
+     * zero).
+     */
+    resumed: boolean;
   };
 }
 
@@ -186,6 +196,14 @@ export interface JobDeps {
    * Without it a diff job fails as the permanent `UNSUPPORTED_JOB`.
    */
   diffs?: DiffRecorder;
+  /**
+   * The website's origin, for the interactive diff's link in a pull request's comment and Check
+   * Run (diffJob.ts). Without it a diff job fails as the permanent `TOKEN_UNCONFIGURED`, as it
+   * does without `installationToken` (both come from `WEBSITE_ORIGIN`).
+   */
+  siteOrigin?: string;
+  /** A diff job's budget for its write token and posts. Default `DEFAULT_POST_TIMEOUT_MS`. */
+  postTimeoutMs?: number;
   /** Where a failure to record a failure is reported (the job's own failure still wins). */
   log?: (event: Record<string, unknown>) => void;
 }
