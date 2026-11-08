@@ -81,9 +81,9 @@ Mutation-checked: removing the graph's access check, the job route's, the token 
 
 ## CI (GitHub Actions)
 
-- **On every push:** install (pnpm, cached), lint, typecheck, unit + snapshot + property + determinism + integration + security, coverage thresholds, Storybook build, visual regression.
-- **On push to main:** all of the above plus Playwright E2E. Once every job is green and the worker image's inputs changed, the `deploy` job ships the worker and kill switch to Cloud Run, keyless (`infra/gcp/deploy.mjs`, checked by `apps/web/lib/gcpDeploy.test.ts`, ADR-0170).
-- **Required for M8 PR flow:** CI must pass before autopilot merges a PR.
+- **On every pull request and push to main:** install (pnpm, cached), lint, typecheck, unit + snapshot + property + determinism + integration + security, coverage thresholds, Storybook build, visual regression, the worker image check, and Playwright E2E (`check`, `worker-image`, `visual`, `web-e2e` in `.github/workflows/ci.yml`).
+- **On push to main only:** once every job is green and the worker image's inputs changed, the `deploy` job ships the worker and kill switch to Cloud Run, keyless (`infra/gcp/deploy.mjs`, checked by `apps/web/lib/gcpDeploy.test.ts`, ADR-0170).
+- **PR flow (since M8.9, ADR-0247):** every task lands through a `task/<id>` PR; autopilot merges it (merge commit) only when every CI check is green and GitInside Bot's `GitInside` Check Run has posted and been read (or, until the App is installed on this repo, after CI alone, saying so). See CLAUDE.md §5.
 
 ## Commands
 
