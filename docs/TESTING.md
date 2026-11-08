@@ -72,6 +72,13 @@ Coverage is a floor, not a goal. Don't write tests that only touch lines.
 - Verifies webhook signatures (M8.8).
 - Denies private snapshots to users without access (M8.8).
 
+`apps/web/lib/security.test.ts` (M8.8) covers the last two, and the website's other promises that span routes, with two tenants at once (installations 41 and 52, each with a private repo named `Shop` analyzed at the same commit, a stored pull request diff, a code file, and a queued job):
+- **Cross-tenant isolation:** each tenant's member reads all of their own data on every private surface (graph, stored diff, code file, job and its events, permalink page), and gets exactly a never-analyzed name's answers for the other tenant's, with no object read and no file asked of GitHub. Signed out, a dead cookie, and sign-in not configured answer the same. The token route never mints one tenant's job a token through the other's installation, though GitHub alone couldn't tell the two `Shop`s apart.
+- **Revocation:** access removed on GitHub is refused on every surface once the 60 s check is old (a code file at once, since GitHub reads it with the user's token); a revoked authorization ends the session; an uninstall deletes that tenant's rows and objects at once and leaves the other's answers unchanged (only the global queue position moves).
+- **Signatures:** the webhook and the token route refuse an unsigned request, one signed with another of our secrets or for another path, body, or time, before anything is read or written, then accept the genuine one; a token request's signature never passes the worker's job check.
+- **Every API route is listed** with the test of its guard, so a new route fails until it's classified.
+Mutation-checked: removing the graph's access check, the job route's, the token route's installation match, or the webhook's signature comparison each turns it red.
+
 ## CI (GitHub Actions)
 
 - **On every push:** install (pnpm, cached), lint, typecheck, unit + snapshot + property + determinism + integration + security, coverage thresholds, Storybook build, visual regression.
