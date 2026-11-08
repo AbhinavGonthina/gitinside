@@ -431,13 +431,19 @@ describe("processJob downloads", () => {
   });
 
   it("fails a network error as retriable", async () => {
-    const closed = github.apiBase;
-    await github.close();
+    // A `fetch` that fails as a refused connection does: a closed server's port can be taken
+    // by another test file's server meanwhile, which then answers.
+    const refused = async (): Promise<Response> => {
+      throw new TypeError("fetch failed", { cause: new Error("connect ECONNREFUSED") });
+    };
     const error = await failure(
-      processJob({ id: ID, request: REQUEST }, deps({ download: { apiBase: closed } })),
+      processJob(
+        { id: ID, request: REQUEST },
+        deps({ download: { apiBase: github.apiBase, fetch: refused } }),
+      ),
     );
     expect([error.code, error.retriable]).toEqual(["DOWNLOAD_FAILED", true]);
-    github = await startFakeGitHub();
+    expect(github.requests).toEqual([]);
   });
 
   it("fails a body cut off mid-stream as retriable", async () => {
