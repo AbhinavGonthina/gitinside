@@ -3,6 +3,7 @@ import { JobFailure } from "./failure.js";
 import {
   MAX_REDIRECTS,
   failureForStatus,
+  fetchMergeBase,
   fetchRepoFacts,
   openTarball,
   type DownloadOptions,
@@ -247,5 +248,107 @@ describe("fetchRepoFacts", () => {
     });
     const { fetch } = scripted(new Response(body));
     expect(await factsCode({ fetch })).toBe("DOWNLOAD_FAILED");
+  });
+});
+
+describe("fetchMergeBase", () => {
+  const BASE = "a".repeat(40);
+  const HEAD = "b".repeat(40);
+  const MERGE_BASE = "c".repeat(40);
+  const PAIR = { owner: "acme", repo: "shop", base: BASE, head: HEAD };
+  const compared = (sha: unknown = MERGE_BASE): Response =>
+    new Response(JSON.stringify({ status: "diverged", merge_base_commit: { sha }, files: [] }));
+
+  async function baseCode(options: DownloadOptions, pair = PAIR): Promise<string> {
+    try {
+      await fetchMergeBase(pair, options);
+    } catch (error) {
+      if (error instanceof JobFailure) return error.code;
+      throw error;
+    }
+    return "OK";
+  }
+
+  it("asks for the comparison of the pair, one commit per page, with the token", async () => {
+    const { calls, fetch } = scripted(compared());
+    expect(await fetchMergeBase(PAIR, { fetch, token: "t" })).toBe(MERGE_BASE);
+    expect(calls).toEqual([
+      {
+        url: `${API}/repos/acme/shop/compare/${BASE}...${HEAD}?per_page=1`,
+        headers: {
+          "user-agent": "gitinside-worker",
+          accept: "application/vnd.github+json",
+          "x-github-api-version": "2022-11-28",
+          authorization: "Bearer t",
+        },
+      },
+    ]);
+  });
+
+  it("follows a renamed repo's redirect inside the API, and no other", async () => {
+    const moved = `${API}/repositories/3000000001/compare/${BASE}...${HEAD}?per_page=1`;
+    const { calls, fetch } = scripted(redirect(301, moved), compared());
+    expect(await fetchMergeBase(PAIR, { fetch, token: "t" })).toBe(MERGE_BASE);
+    expect(calls.map((c) => [c.url, c.headers.authorization])).toEqual([
+      [`${API}/repos/acme/shop/compare/${BASE}...${HEAD}?per_page=1`, "Bearer t"],
+      [moved, "Bearer t"],
+    ]);
+    const away = scripted(redirect(302, "https://evil.example/compare"));
+    expect(await baseCode({ fetch: away.fetch })).toBe("DOWNLOAD_REFUSED");
+    expect(away.calls).toHaveLength(1);
+  });
+
+  it("names a 404 (an unknown commit, no common ancestor) as no merge base", async () => {
+    const { fetch } = scripted(new Response('{"message":"Not Found"}', { status: 404 }));
+    expect(await baseCode({ fetch })).toBe("MERGE_BASE_NOT_FOUND");
+  });
+
+  it.each([
+    [403, "GITHUB_RATE_LIMITED"],
+    [502, "DOWNLOAD_FAILED"],
+    [401, "DOWNLOAD_REFUSED"],
+  ])("maps %i to %s", async (status, code) => {
+    const headers = status === 403 ? { "x-ratelimit-remaining": "0" } : {};
+    const { fetch } = scripted(new Response("{}", { status, headers }));
+    expect(await baseCode({ fetch })).toBe(code);
+  });
+
+  it.each([
+    ["not JSON", new Response("{")],
+    ["no merge base", new Response(JSON.stringify({ status: "ahead" }))],
+    ["a short SHA", compared("c".repeat(39))],
+    ["an upper-case SHA", compared("C".repeat(40))],
+    ["a number", compared(7)],
+    [
+      "a valid body over 32 MiB",
+      new Response(
+        JSON.stringify({
+          merge_base_commit: { sha: MERGE_BASE },
+          files: "x".repeat(32 * 1024 * 1024),
+        }),
+      ),
+    ],
+  ])("refuses an answer with %s", async (_, response) => {
+    expect(await baseCode({ fetch: scripted(response).fetch })).toBe("DOWNLOAD_REFUSED");
+  });
+
+  it("fails a body cut off mid-stream as retriable, and rethrows an abort", async () => {
+    const body = new ReadableStream<Uint8Array>({ pull: (c) => c.error(new Error("reset")) });
+    expect(await baseCode({ fetch: scripted(new Response(body)).fetch })).toBe("DOWNLOAD_FAILED");
+
+    const controller = new AbortController();
+    controller.abort(new Error("stop"));
+    const down = (async () => {
+      throw new TypeError("fetch failed");
+    }) as typeof globalThis.fetch;
+    await expect(fetchMergeBase(PAIR, { fetch: down, signal: controller.signal })).rejects.toThrow(
+      "stop",
+    );
+  });
+
+  it("refuses to compare anything but full SHAs, asking nothing", async () => {
+    const { calls, fetch } = scripted();
+    await expect(fetchMergeBase({ ...PAIR, head: "main" }, { fetch })).rejects.toThrow("full SHAs");
+    expect(calls).toEqual([]);
   });
 });

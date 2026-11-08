@@ -3,6 +3,7 @@ import {
   failAnalysis,
   failQueuedJob,
   findAnalysisStatus,
+  findDiffJob,
   findJob,
   isPrivateSnapshot,
   JobGoneError,
@@ -59,7 +60,8 @@ import {
  *   Postgres. The estimate is written as the time left at the write, never as a moment on
  *   this process's clock.
  * - **done** (M5.17c2b): whether the job's row is already `done`, read by job ID before a
- *   push runs (`findJob`).
+ *   push runs (`findJob`); for a `diff-` job, whether the pull request records naming it all
+ *   have their diff (`findDiffJob`, ADR-0245).
  */
 
 /** Options for {@link createAnalysisRecorder}. */
@@ -200,6 +202,8 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
   }
 
   async function done(jobId: string): Promise<boolean> {
+    // A diff job is done once every pull request record naming it has its diff (ADR-0245).
+    if (jobId.startsWith("diff-")) return (await findDiffJob(db, jobId))?.status === "done";
     return (await findJob(db, jobId))?.status === "done";
   }
 

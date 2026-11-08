@@ -5,7 +5,7 @@
  * is conditional in the database: an older event never moves the record back, and a job's
  * result lands only while its pair is still the pull request's current one.
  */
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
 import { pullRequests } from "./schema.js";
 
@@ -128,6 +128,88 @@ export async function queuePullRequestDiff(
     )
     .returning({ queuedAt: pullRequests.diffQueuedAt });
   return row?.queuedAt ?? undefined;
+}
+
+/** A diff job as the pull request records naming it describe it (ADR-0245). */
+export interface DiffJobRecord {
+  /** Our repo row's ID: part of the diff's key. */
+  repoId: string;
+  /** The pair the job diffs: the event's base (not the merge base) and the head. */
+  baseSha: string;
+  headSha: string;
+  /** `queued` while some record naming the job has no diff yet, else `done`. */
+  status: "queued" | "done";
+}
+
+/**
+ * The diff job with ID `jobId` as the records naming it describe it, or `undefined` when none
+ * does (every pull request it was queued for moved on to another pair, or was deleted). A
+ * record names a job only for its current pair (the job is cleared with the pair), so every
+ * record naming it has the same repo and pair; a live one is preferred.
+ */
+export async function findDiffJob(
+  db: AnyDatabase,
+  jobId: string,
+): Promise<DiffJobRecord | undefined> {
+  const live = sql<boolean>`${pullRequests.diffKey} is null`;
+  const [row] = await db
+    .select({
+      live,
+      repoId: pullRequests.repoId,
+      baseSha: pullRequests.baseSha,
+      headSha: pullRequests.headSha,
+    })
+    .from(pullRequests)
+    .where(eq(pullRequests.diffJobId, jobId))
+    .orderBy(desc(live), desc(pullRequests.updatedAt), desc(pullRequests.id))
+    .limit(1);
+  if (row === undefined) return undefined;
+  const { live: isLive, ...rest } = row;
+  return { ...rest, status: isLive ? "queued" : "done" };
+}
+
+/** A diff job's stored result. */
+export interface DiffJobResult {
+  jobId: string;
+  /** Where the diff is stored. */
+  diffKey: string;
+  brokenCount: number;
+}
+
+/** A pull request a diff job's result was recorded on. */
+export interface DiffedPullRequest {
+  repoId: string;
+  number: number;
+  baseSha: string;
+  headSha: string;
+}
+
+/**
+ * Records a diff job's result on every pull request record naming the job (ADR-0245; two pull
+ * requests with the same pair share it). A record names the job only while its pair is the
+ * job's, so an older job's result never lands on a newer pair. Answers the records written,
+ * sorted by repo and number: empty means every one moved on and nothing is posted. A job
+ * retried after recording writes the same result again and gets the same records, so it can
+ * still post. `true` for a record doesn't hold its pair: a newer event can still arrive before
+ * the post, so the poster checks again (ADR-0244).
+ */
+export async function recordDiffJobResult(
+  db: AnyDatabase,
+  result: DiffJobResult,
+): Promise<DiffedPullRequest[]> {
+  const rows = await db
+    .update(pullRequests)
+    .set({ diffKey: result.diffKey, brokenCount: result.brokenCount, updatedAt: sql`now()` })
+    .where(eq(pullRequests.diffJobId, result.jobId))
+    .returning({
+      repoId: pullRequests.repoId,
+      number: pullRequests.number,
+      baseSha: pullRequests.baseSha,
+      headSha: pullRequests.headSha,
+    });
+  return rows.sort((a, b) =>
+    a.repoId === b.repoId ? a.number - b.number : a.repoId < b.repoId ? -1 : 1,
+  );
 }
 
 /**

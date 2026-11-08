@@ -18,7 +18,10 @@ import {
  *   - public: `public/<owner>/<repo>/<sha>/<analyzerVersion>.json.gz` (owner and repo
  *     lowercased, as GitHub ignores case);
  *   - private (M8): `private/<installationId>/<repoId>/<sha>/<analyzerVersion>.json.gz`,
- *     never served through the CDN (SECURITY.md T6).
+ *     never served through the CDN (SECURITY.md T6);
+ *   - a pull request's diff (M8.6d, ADR-0245):
+ *     `private/<installationId>/<repoId>/diffs/<merge base>-<head>/<analyzerVersion>.json.gz`,
+ *     for public repos too.
  * - **Objects** are `architecture.json` gzipped (level 9), stored with
  *   `Content-Encoding: gzip` and `Content-Type: application/json`. Public ones are
  *   immutable (a key never changes content), private ones `no-store`.
@@ -200,6 +203,33 @@ export function privateSnapshotKey(snapshot: PrivateSnapshot): string {
   if (!UUID.test(repoId)) throw new Error("repoId must be a lowercase UUID");
   checkVersionAndSha(sha, analyzerVersion);
   return `private/${installationId}/${repoId}/${sha}/${analyzerVersion}.json.gz`;
+}
+
+/** What identifies a pull request's stored diff (ADR-0245): its merge base and head. */
+export interface StoredDiffName {
+  installationId: number;
+  repoId: string;
+  /** The merge base of the pull request's base and head, the diff's base side. */
+  baseSha: string;
+  headSha: string;
+  analyzerVersion: string;
+}
+
+/**
+ * The key of a pull request's diff (ADR-0245):
+ * `private/<installationId>/<repoId>/diffs/<base>-<head>/<analyzerVersion>.json.gz`. Under the
+ * installation's prefix for public repos too, so only the pull request record leads to it and
+ * the uninstall's purge removes it.
+ */
+export function privateDiffKey(diff: StoredDiffName): string {
+  const { installationId, repoId, baseSha, headSha, analyzerVersion } = diff;
+  if (!Number.isSafeInteger(installationId) || installationId < 1) {
+    throw new Error("installationId must be a positive integer");
+  }
+  if (!UUID.test(repoId)) throw new Error("repoId must be a lowercase UUID");
+  checkVersionAndSha(baseSha, analyzerVersion);
+  checkVersionAndSha(headSha, analyzerVersion);
+  return `private/${installationId}/${repoId}/diffs/${baseSha}-${headSha}/${analyzerVersion}.json.gz`;
 }
 
 /**
@@ -482,7 +512,28 @@ export async function uploadSnapshot(
   key: string,
   visibility: "public" | "private",
 ): Promise<StoredSnapshot> {
-  const json = await readFile(graphPath);
+  return putGzippedJson(store, await readFile(graphPath), key, visibility);
+}
+
+/**
+ * Gzip a pull request's diff (`stringifyDiff`'s text) and store it under `key`
+ * ({@link privateDiffKey}) as `private, no-store`, whatever the repo's visibility (ADR-0245).
+ * Resolves once the bucket has acknowledged the whole object.
+ */
+export async function uploadDiff(
+  store: ObjectStore,
+  diffJson: string,
+  key: string,
+): Promise<StoredSnapshot> {
+  return putGzippedJson(store, Buffer.from(diffJson, "utf8"), key, "private");
+}
+
+async function putGzippedJson(
+  store: ObjectStore,
+  json: Buffer,
+  key: string,
+  visibility: "public" | "private",
+): Promise<StoredSnapshot> {
   // Async, on libuv's pool: the run server shares this process's event loop.
   const gzipped = await new Promise<Buffer>((resolve, reject) => {
     gzip(json, { level: constants.Z_BEST_COMPRESSION }, (error, result) =>

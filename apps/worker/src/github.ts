@@ -19,6 +19,7 @@ import { JobFailure } from "./failure.js";
  * - `DOWNLOAD_FAILED` (retried): a network error, 408, or 5xx.
  * - `DOWNLOAD_REFUSED` (permanent): any other status, or a redirect that is refused, has
  *   no location, or loops.
+ * - `MERGE_BASE_NOT_FOUND` (permanent, {@link fetchMergeBase} only): a comparison's 404.
  * - When the signal fires, its reason is rethrown; the caller turns it into `CANCELLED` or
  *   `DOWNLOAD_TIMEOUT`.
  *
@@ -130,10 +131,120 @@ export async function fetchRepoFacts(
   source: Omit<TarballSource, "sha">,
   options: DownloadOptions = {},
 ): Promise<RepoFacts> {
+  const value = await getApiJson(
+    ["repos", source.owner, source.repo],
+    options,
+    MAX_REPO_JSON_BYTES,
+    "the repo description",
+  );
+  const facts = parseRepoFacts(value);
+  if (facts === undefined) throw failure("DOWNLOAD_REFUSED", "malformed repo description");
+  return facts;
+}
+
+/** The two commits of a pull request, as its event names them (40 lowercase hex each). */
+export interface ComparedPair {
+  owner: string;
+  repo: string;
+  base: string;
+  head: string;
+}
+
+/**
+ * A comparison lists up to 300 files with their patches besides the merge base (GitHub caps
+ * each patch), so it can run to megabytes; far past this it isn't one.
+ */
+const MAX_COMPARE_JSON_BYTES = 32 * 1024 * 1024;
+const SHA = /^[0-9a-f]{40}$/;
+
+/**
+ * The merge base of a pull request's base and head (ADR-0245): `GET
+ * {api}/repos/{owner}/{repo}/compare/{base}...{head}?per_page=1` (one commit listed; the
+ * merge base comes whatever the page), read from `merge_base_commit.sha`. A fork's head is
+ * reachable from the base repo, so one repo serves both. Redirects and statuses as for
+ * {@link fetchRepoFacts}, except that a `404` (a commit GitHub doesn't have, or two commits
+ * with no common ancestor) is the permanent `MERGE_BASE_NOT_FOUND`. A malformed answer is
+ * `DOWNLOAD_REFUSED`.
+ */
+export async function fetchMergeBase(
+  pair: ComparedPair,
+  options: DownloadOptions = {},
+): Promise<string> {
+  if (!SHA.test(pair.base) || !SHA.test(pair.head)) throw new Error("compare full SHAs only");
+  let value: unknown;
+  try {
+    value = await getApiJson(
+      ["repos", pair.owner, pair.repo, "compare", `${pair.base}...${pair.head}`],
+      options,
+      MAX_COMPARE_JSON_BYTES,
+      "the comparison",
+      "per_page=1",
+    );
+  } catch (error) {
+    if (error instanceof JobFailure && error.code === "REPO_NOT_FOUND") {
+      throw failure("MERGE_BASE_NOT_FOUND", "GitHub answered 404 to the comparison");
+    }
+    throw error;
+  }
+  const sha =
+    isRecord(value) && isRecord(value.merge_base_commit) ? value.merge_base_commit.sha : undefined;
+  if (typeof sha !== "string" || !SHA.test(sha)) {
+    throw failure("DOWNLOAD_REFUSED", "malformed comparison");
+  }
+  return sha;
+}
+
+/**
+ * Read at most `maxBytes` of `response`'s body as text, or `undefined` past that (the rest is
+ * cancelled unread). Rethrows the signal's reason if it fires; a body that stops is
+ * `DOWNLOAD_FAILED`.
+ */
+async function readBounded(
+  response: Response,
+  maxBytes: number,
+  what: string,
+  signal: AbortSignal | undefined,
+): Promise<string | undefined> {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    if (response.body === null) return "";
+    const reader = response.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return undefined;
+      }
+      chunks.push(value);
+    }
+  } catch (error) {
+    if (signal?.aborted) throw signal.reason;
+    throw failure("DOWNLOAD_FAILED", `${what} stopped`, error);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * `GET {api}/<path parts, each encoded>[?query]` as JSON, following redirects inside the API
+ * only (with the token, at most {@link MAX_REDIRECTS} hops). A body over `maxBytes` or not
+ * JSON is `DOWNLOAD_REFUSED`; statuses map through {@link failureForStatus}. Rethrows the
+ * signal's reason if it fires.
+ */
+async function getApiJson(
+  parts: readonly string[],
+  options: DownloadOptions,
+  maxBytes: number,
+  what: string,
+  query?: string,
+): Promise<unknown> {
   const doFetch = options.fetch ?? fetch;
   const api = new URL(options.apiBase ?? "https://api.github.com");
-  const path = ["repos", source.owner, source.repo].map(encodeURIComponent).join("/");
+  const path = parts.map(encodeURIComponent).join("/");
   let url = new URL(`${api.pathname.replace(/\/$/, "")}/${path}`, api);
+  if (query !== undefined) url.search = query;
 
   for (let hop = 0; ; hop++) {
     let response: Response;
@@ -148,21 +259,13 @@ export async function fetchRepoFacts(
       throw failure("DOWNLOAD_FAILED", `request to ${url.host} failed`, error);
     }
     if (response.status === 200) {
-      let text: string;
+      const text = await readBounded(response, maxBytes, what, options.signal);
       try {
-        text = await response.text();
-      } catch (error) {
-        if (options.signal?.aborted) throw options.signal.reason;
-        throw failure("DOWNLOAD_FAILED", "the repo description stopped", error);
-      }
-      let facts: RepoFacts | undefined;
-      try {
-        facts = text.length > MAX_REPO_JSON_BYTES ? undefined : parseRepoFacts(JSON.parse(text));
+        if (text !== undefined) return JSON.parse(text) as unknown;
       } catch {
-        facts = undefined;
+        // Falls through to the refusal below.
       }
-      if (facts === undefined) throw failure("DOWNLOAD_REFUSED", "malformed repo description");
-      return facts;
+      throw failure("DOWNLOAD_REFUSED", `malformed answer: ${what}`);
     }
     await discard(response);
     if (!REDIRECT.has(response.status)) throw failureForStatus(response.status, response.headers);
