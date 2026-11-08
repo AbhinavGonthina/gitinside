@@ -1,5 +1,8 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { E2E_APP_SLUG, PORTS } from "./fixture";
+import { E2E_APP_SLUG, E2E_PRIVATE, E2E_SHA, PORTS } from "./fixture";
 
 // The signed-in dashboard (M8.2c) against the production build, its database, and the fake
 // GitHub (github.ts): sign-in's whole round trip through real cookies, then the dashboard's
@@ -158,6 +161,99 @@ test("a signed-out installer signs in through the site, then lands on the dashbo
     "GitInside is installed on octo.",
   );
   expect(errors).toEqual([]);
+});
+
+// Private repos (M8.4c2c): acme/storefront's diagram and acme/billing-service's running job
+// are in the site's database (database.ts), GitHub shows both to octo only (github.ts).
+const FIXTURE = join(fileURLToPath(new URL(".", import.meta.url)), "../../../fixtures/shop-demo");
+const MISSING = /^We couldn't find this analysis\./;
+
+/**
+ * Answers the browser's read of storefront's graph with shop-demo's (the site has no bucket;
+ * the graph route's private check is unit-tested in lib/graphRoute.test.ts).
+ */
+async function serveStorefront(page: Page) {
+  const graph = JSON.parse(readFileSync(join(FIXTURE, "expected.json"), "utf8")) as {
+    repo: Record<string, string>;
+  };
+  await page.route(`**/api/graph/acme/storefront/${E2E_SHA}`, (route) =>
+    route.fulfill({
+      json: { ...graph, repo: { ...graph.repo, owner: "acme", name: "storefront", sha: E2E_SHA } },
+    }),
+  );
+}
+
+/** Waits until the explorer has laid out and drawn the diagram. */
+async function drawn(page: Page) {
+  await expect(page.locator(".gi-drill")).toHaveAttribute("data-layout", "done", {
+    timeout: 30_000,
+  });
+}
+
+test("a private repo's dashboard link opens its diagram, kept out of search engines", async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  await serveStorefront(page);
+  await page.addInitScript(() => localStorage.setItem("gitinside.onboarding", "done"));
+  await signInAs(page, "octo");
+  await page.locator('.repo-row[href="/acme/storefront"]').click();
+  await expect(page).toHaveURL(`${SITE}/acme/storefront`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("acme / storefront");
+  await drawn(page);
+  expect(await page.locator('meta[name="robots"]').getAttribute("content")).toMatch(/noindex/);
+  expect(errors).toEqual([]);
+});
+
+test("a private job's progress page shows the analysis only to someone GitHub shows the repo to", async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  const progress = `${SITE}/acme/billing-service/jobs/${E2E_PRIVATE.billing.job}`;
+  const failure = page.getByRole("main").getByRole("alert");
+
+  // Signed out, then signed in without access: exactly a job that doesn't exist.
+  await page.goto(progress);
+  await expect(failure).toHaveText(MISSING);
+  await signInAs(page, "newcomer");
+  await page.goto(progress);
+  await expect(failure).toHaveText(MISSING);
+  await expect(page.getByRole("progressbar")).toHaveCount(0);
+
+  await page.context().clearCookies();
+  await signInAs(page, "octo");
+  await page.goto(progress);
+  await expect(page.getByRole("progressbar")).toHaveAttribute(
+    "aria-valuetext",
+    "Analyzing: Parsing 1,204 files",
+  );
+  await expect(page.getByRole("region", { name: "Found so far" })).toContainText("2 routes");
+  await expect(failure).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("a finished private job's progress page opens the diagram", async ({ page }) => {
+  const errors = watchErrors(page);
+  await serveStorefront(page);
+  await page.addInitScript(() => localStorage.setItem("gitinside.onboarding", "done"));
+  await signInAs(page, "octo");
+  await page.goto(`${SITE}/acme/storefront/jobs/${E2E_PRIVATE.storefront.job}`);
+  await expect(page).toHaveURL(`${SITE}/acme/storefront`);
+  await drawn(page);
+  expect(errors).toEqual([]);
+});
+
+// Not the signed-out latest page: a name with no public analysis is asked of the real GitHub.
+test("signed out, or signed in without access, a private repo's permalink is a 404", async ({
+  page,
+}) => {
+  const permalink = `${SITE}/acme/storefront/${E2E_SHA}`;
+  expect((await page.goto(permalink))?.status()).toBe(404);
+  await signInAs(page, "newcomer");
+  expect((await page.goto(permalink))?.status()).toBe(404);
+  await page.context().clearCookies();
+  await signInAs(page, "octo");
+  expect((await page.goto(permalink))?.status()).toBe(200);
 });
 
 test("after signing out, the dashboard asks to sign in again", async ({ page }) => {

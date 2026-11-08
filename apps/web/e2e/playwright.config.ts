@@ -88,7 +88,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: `node --experimental-strip-types e2e/database.ts ${PORTS.signedInDatabase} ${E2E_SHA}`,
+      command: `node --experimental-strip-types e2e/database.ts ${PORTS.signedInDatabase} ${E2E_SHA} private`,
       cwd: web,
       wait: { stdout: /^seeded /m },
       stdout: "pipe",

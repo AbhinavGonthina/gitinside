@@ -60,7 +60,7 @@ export type JobView =
   | { state: "done" }
   /** It failed: `message` says what happened and what to do; `retry` if trying again could help. */
   | { state: "failed"; errorCode: string; message: string; retry: boolean }
-  /** No row has this job (never queued, or removed since), or it isn't public. */
+  /** No row has this job (never queued, or removed since), or its private repo isn't the viewer's. */
   | { state: "missing"; message: string }
   /** The database can't be reached right now; the page keeps listening. */
   | { state: "unavailable"; message: string };
@@ -219,14 +219,18 @@ const ERROR_CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
 
 /**
  * The view for a job's row (`undefined`: no row has the job). A private repo's job reads as
- * missing until M8's access check, so nothing about it shows. The row's `progress` is checked
+ * missing unless the caller ran the access check and passes `privateAllowed` (M8.4c2c,
+ * lib/jobRoute.ts), so nothing about it shows by default. The row's `progress` is checked
  * with the worker's own parser, and anything malformed is left out (the page then says
  * "Downloading", as for a running row with none yet). The time left is what the worker wrote
  * minus the row's age, both measured on the database's clock (ADR-0140), never compared with
  * this server's.
  */
-export function jobView(job: JobRecord | undefined): JobView {
-  if (job === undefined || job.visibility !== "public") {
+export function jobView(
+  job: JobRecord | undefined,
+  options: { privateAllowed?: boolean } = {},
+): JobView {
+  if (job === undefined || (job.visibility !== "public" && options.privateAllowed !== true)) {
     return { state: "missing", message: MISSING_MESSAGE };
   }
   switch (job.status) {

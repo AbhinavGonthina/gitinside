@@ -5,9 +5,9 @@ import { jobDepsFromEnv } from "../../../../lib/serverDeps";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
-  return handleJobRequest(id, jobDepsFromEnv());
+  return handleJobRequest(id, jobDepsFromEnv(), request.headers.get("cookie"));
 }

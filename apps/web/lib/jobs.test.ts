@@ -22,6 +22,7 @@ const record = (fields: Partial<JobRecord>): JobRecord => ({
   attempts: 0,
   progress: null,
   visibility: "public",
+  repo: { id: "00000000-0000-4000-8000-0000000000aa", providerRepoId: 1 },
   ...fields,
 });
 const running = (progress: unknown, progressAgeMs = 0): JobRecord =>
@@ -164,17 +165,21 @@ describe("jobView", () => {
     }
   });
 
-  it("a private repo's job reads as missing, whatever its state (until M8's access check)", () => {
+  it("a private repo's job reads as missing, whatever its state, unless the access check allowed it", () => {
     for (const fields of [
       { position: 0 },
       { status: "running", progress: { stage: "upload", progress: 90 }, progressAgeMs: 0 },
       { status: "done" },
       { status: "failed", errorCode: "LIMIT_FILES" },
     ] as Partial<JobRecord>[]) {
-      expect(jobView(record({ ...fields, visibility: "private" }))).toEqual({
-        state: "missing",
-        message: MISSING_MESSAGE,
-      });
+      const job = record({ ...fields, visibility: "private" });
+      for (const options of [undefined, {}, { privateAllowed: false }]) {
+        expect(jobView(job, options)).toEqual({ state: "missing", message: MISSING_MESSAGE });
+      }
+      // Allowed: exactly the public job's view.
+      expect(jobView(job, { privateAllowed: true })).toEqual(
+        jobView(record({ ...fields, visibility: "public" })),
+      );
     }
   });
 });

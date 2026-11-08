@@ -70,7 +70,8 @@ async function row(id: string) {
 
 describe("findJob", () => {
   it("finds a queued job by its ID, with its place in the queue", async () => {
-    const id = await queued("1", "2026-10-31T10:00:00Z");
+    const repo = await repoId();
+    const id = await queued("1", "2026-10-31T10:00:00Z", repo);
     expect(await findJob(t.db, jobOf("1"))).toEqual({
       analysisId: id,
       status: "queued",
@@ -78,6 +79,7 @@ describe("findJob", () => {
       attempts: 0,
       progress: null,
       visibility: "public",
+      repo: { id: repo, providerRepoId: FACTS.providerRepoId },
       position: 0,
     });
   });

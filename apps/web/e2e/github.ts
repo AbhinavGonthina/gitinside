@@ -5,13 +5,15 @@
  * answers that page itself, asking this server for a code with `GET /_approve?url=<authorize
  * URL>&login=<account>`. `POST /_fail` makes the next GitHub call answer 502.
  *
- * `octo` sees two installations; any other login sees none (the dashboard's empty state).
+ * `octo` sees two installations; any other login sees none (the dashboard's empty state), so
+ * GitHub refuses it the private repos.
  *
  * Run by Playwright as a web server (`playwright.config.ts`), which waits for the "listening"
  * line.
  */
 import { createServer } from "node:http";
 import { fakeOAuth } from "../lib/githubOAuth.testkit.ts";
+import { E2E_PRIVATE, E2E_SHA } from "./fixture.ts";
 
 const port = Number(process.argv[2]);
 if (!Number.isInteger(port)) throw new Error("usage: github.ts <port>");
@@ -20,13 +22,27 @@ const github = fakeOAuth();
 const OCTO = { id: 3_000_000_007, login: "octo" };
 github.install(OCTO, [
   {
-    id: 41,
+    id: E2E_PRIVATE.installationId,
     account: { login: "acme", type: "Organization" },
     selection: "selected",
+    // The private repos the site has analyses of (database.ts), by GitHub's ID, each with the
+    // head the site holds, so their pages are up to date and queue nothing.
     repos: [
-      { owner: "acme", name: "storefront", private: true },
+      {
+        owner: "acme",
+        name: "storefront",
+        private: true,
+        id: E2E_PRIVATE.storefront.id,
+        sha: E2E_SHA,
+      },
       { owner: "acme", name: "api" },
-      { owner: "acme", name: "billing-service", private: true },
+      {
+        owner: "acme",
+        name: "billing-service",
+        private: true,
+        id: E2E_PRIVATE.billing.id,
+        sha: E2E_PRIVATE.billing.sha,
+      },
     ],
   },
   {
