@@ -280,7 +280,7 @@ describe("deleting a repo", () => {
       await t.db.insert(analyses).values({ repoId: r.id, sha: SHA, analyzerVersion: "0.1.0" });
       await t.db
         .insert(pullRequests)
-        .values({ repoId: r.id, number: 1, baseSha: SHA, headSha: SHA2 });
+        .values({ repoId: r.id, number: 1, baseSha: SHA, headSha: SHA2, headAt: new Date() });
       await t.db
         .insert(accessCache)
         .values({ userId: user!.id, repoId: r.id, allowed: true, checkedAt: new Date() });
@@ -333,37 +333,47 @@ describe("access_cache", () => {
 describe("pull_requests", () => {
   it("are unique per repo and number, with positive numbers and real SHAs", async () => {
     const repo = await insertRepo();
+    const headAt = new Date();
     await t.db
       .insert(pullRequests)
-      .values({ repoId: repo.id, number: 5, baseSha: SHA, headSha: SHA2 });
+      .values({ repoId: repo.id, number: 5, baseSha: SHA, headSha: SHA2, headAt });
     expect(
       await pgErrorCode(
         t.db
           .insert(pullRequests)
-          .values({ repoId: repo.id, number: 5, baseSha: SHA, headSha: SHA }),
+          .values({ repoId: repo.id, number: 5, baseSha: SHA, headSha: SHA, headAt }),
       ),
     ).toBe(UNIQUE);
     expect(
       await pgErrorCode(
         t.db
           .insert(pullRequests)
-          .values({ repoId: repo.id, number: 0, baseSha: SHA, headSha: SHA2 }),
+          .values({ repoId: repo.id, number: 0, baseSha: SHA, headSha: SHA2, headAt }),
       ),
     ).toBe(CHECK);
     expect(
       await pgErrorCode(
         t.db
           .insert(pullRequests)
-          .values({ repoId: repo.id, number: 6, baseSha: "main", headSha: SHA2 }),
+          .values({ repoId: repo.id, number: 6, baseSha: "main", headSha: SHA2, headAt }),
       ),
+    ).toBe(CHECK);
+    const pr = { repoId: repo.id, number: 7, baseSha: SHA, headSha: SHA2, headAt };
+    expect(
+      await pgErrorCode(t.db.insert(pullRequests).values({ ...pr, diffKey: "k", brokenCount: -1 })),
+    ).toBe(CHECK);
+  });
+
+  it("have a diff's key and broken count together or neither", async () => {
+    const repo = await insertRepo();
+    const pr = { repoId: repo.id, baseSha: SHA, headSha: SHA2, headAt: new Date() };
+    expect(
+      await pgErrorCode(t.db.insert(pullRequests).values({ ...pr, number: 1, diffKey: "k" })),
     ).toBe(CHECK);
     expect(
-      await pgErrorCode(
-        t.db
-          .insert(pullRequests)
-          .values({ repoId: repo.id, number: 7, baseSha: SHA, headSha: SHA2, brokenCount: -1 }),
-      ),
+      await pgErrorCode(t.db.insert(pullRequests).values({ ...pr, number: 2, brokenCount: 0 })),
     ).toBe(CHECK);
+    await t.db.insert(pullRequests).values({ ...pr, number: 3, diffKey: "k", brokenCount: 0 });
   });
 });
 

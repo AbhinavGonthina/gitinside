@@ -1,0 +1,2 @@
+ALTER TABLE "pull_requests" ADD COLUMN "head_at" timestamp with time zone NOT NULL;--> statement-breakpoint
+ALTER TABLE "pull_requests" ADD CONSTRAINT "pull_requests_result_check" CHECK (("pull_requests"."diff_key" is null) = ("pull_requests"."broken_count" is null));

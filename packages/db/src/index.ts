@@ -15,6 +15,7 @@ export * from "./analyses.js";
 export * from "./computeUsage.js";
 export * from "./installations.js";
 export * from "./jobs.js";
+export * from "./pullRequests.js";
 export * from "./rateLimits.js";
 export * from "./repoClaims.js";
 export * from "./retention.js";

@@ -84,12 +84,13 @@ describe("listPinnedShas", () => {
   it("pins base and head of pull requests updated within the window", async () => {
     const id = await repo(1);
     await t.db.insert(pullRequests).values([
-      { repoId: id, number: 1, baseSha: sha("1"), headSha: sha("2") },
+      { repoId: id, number: 1, baseSha: sha("1"), headSha: sha("2"), headAt: new Date() },
       {
         repoId: id,
         number: 2,
         baseSha: sha("3"),
         headSha: sha("4"),
+        headAt: new Date(),
         updatedAt: sql`now() - interval '29 days'`,
       },
       {
@@ -97,6 +98,7 @@ describe("listPinnedShas", () => {
         number: 3,
         baseSha: sha("5"),
         headSha: sha("6"),
+        headAt: new Date(),
         updatedAt: sql`now() - interval '31 days'`,
       },
     ]);
