@@ -309,7 +309,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - A `node -e` string holding a URL path with a colon segment (`/api/jobs/:id`) needs approval as a separate operation (M8.4c2c). Make such doc edits with Read + Edit (pass `offset`/`limit` for a long table line).
 - In a signed-in E2E, `clearCookies()` before switching users also resets the site's theme to dark, and clicking the theme switch closes an open panel (a click outside). For screenshots, shoot dark first, switch to Light, then reopen the panel before the light shot (M8.4c3: two mislabeled shots).
 - A size-limit test whose oversized body is also invalid (zero bytes aren't JSON) passes with the limit removed (M8.6d3a). Make the oversized input otherwise valid, so only the size can refuse it.
-- `delete obj[key]` with a computed key fails `pnpm lint` (`@typescript-eslint/no-dynamic-delete`), tests included (M8.6d3c1). Drop a dependency in a test with rest destructuring (`({ diffs: _, ...d }) => d`), or replace the object.<!-- lessons:end -->
+- `delete obj[key]` with a computed key fails `pnpm lint` (`@typescript-eslint/no-dynamic-delete`), tests included (M8.6d3c1). Drop a dependency in a test with rest destructuring (`({ diffs: _, ...d }) => d`), or replace the object.
+- `purgeUnlinkedFolders` asks `linkedRepoIds` only about folders that exist, so a "cache not prepared" test asserting it wasn't called passes vacuously on an empty cache root (M8.6d3c2: the mutation survived). Seed a repo folder under `installations/<id>/` first.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
