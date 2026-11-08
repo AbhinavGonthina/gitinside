@@ -6,6 +6,7 @@ import {
   findDiffJob,
   findDoneSnapshotKey,
   findJob,
+  findLinkedRepo,
   isPrivateSnapshot,
   JobGoneError,
   recordDiffJobResult,
@@ -13,6 +14,7 @@ import {
   requeueAnalysis,
   startAnalysis,
   startInstallationAnalysis,
+  storeDiffSideAnalysis,
   UnknownInstallationError,
   upsertRepo,
   type AnyDatabase,
@@ -235,7 +237,14 @@ export function readableBy(key: string, side: { installationId: number; repoId: 
  * afterwards (each moved on meanwhile) is left to retention's orphan sweep: another job whose
  * pair has the same merge base and head can name the same key, and only the sweep checks.
  * `storedGraph` reads a side's `done` analysis by this analyzer version
- * (`findDoneSnapshotKey`) when {@link readableBy} allows its key (M8.6d3c2).
+ * (`findDoneSnapshotKey`) when {@link readableBy} allows its key (M8.6d3c2). `storeSide`
+ * (M8.6d4) keys a side the job analyzed as an analysis job would (public repo ⇒ the public key,
+ * else this installation's private one), uploads it, then writes its `done` row through
+ * `storeDiffSideAnalysis` (no row, or a `failed` one, and the repo still linked). Its stats
+ * have no `jobMs`: the job's download and upload covered both sides and the diff. An upload
+ * whose row isn't written (another job holds it, or the repo was unlinked meanwhile) is left
+ * to retention's orphan sweep, which checks every row first: a `done` row may name the same
+ * key.
  */
 export function createDiffRecorder(
   options: Pick<RecorderOptions, "db" | "store" | "analyzerVersion">,
@@ -254,6 +263,38 @@ export function createDiffRecorder(
       // Retention deleted it since the row was read (or the row outlived it): analyze instead.
       if (object === undefined) return undefined;
       return new Response(object.body).text();
+    },
+    async storeSide(side) {
+      const { installationId, repoId, sha } = side;
+      const repo = await findLinkedRepo(db, { githubInstallationId: installationId, repoId });
+      if (repo === undefined) return false;
+      // The key an analysis job through this installation would use (`snapshotKey` above).
+      const key =
+        repo.visibility === "public"
+          ? publicSnapshotKey({ owner: repo.owner, repo: repo.name, sha, analyzerVersion })
+          : privateSnapshotKey({ installationId, repoId, sha, analyzerVersion });
+      const uploaded = await uploadSnapshot(store, side.graphPath, key, repo.visibility);
+      const { stats } = side;
+      return storeDiffSideAnalysis(db, {
+        githubInstallationId: installationId,
+        repoId,
+        sha,
+        analyzerVersion,
+        snapshotKey: key,
+        stats: {
+          files: stats.files,
+          nodes: stats.nodes,
+          edges: stats.edges,
+          unresolved: stats.unresolved,
+          warnings: stats.warnings,
+          graphBytes: uploaded.bytes,
+          snapshotBytes: uploaded.storedBytes,
+          stageMs: stats.stageMs,
+          ...(stats.peakRssBytes === undefined ? {} : { peakRssBytes: stats.peakRssBytes }),
+          ...(stats.heapBytes === undefined ? {} : { heapBytes: stats.heapBytes }),
+          ...(stats.gcMs === undefined ? {} : { gcMs: stats.gcMs }),
+        },
+      });
     },
     async publish(stored) {
       const key = privateDiffKey({
