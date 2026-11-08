@@ -3,11 +3,13 @@ import {
   UNAVAILABLE_MESSAGE,
   type AnalyzeDeps,
   type AnalyzeResponse,
+  type Caller,
 } from "./analyze";
 import { readSession, type AuthDeps } from "./authRoute";
 import { readBody } from "./body";
 import { CHALLENGE_FAILED_MESSAGE, MAX_TOKEN_LENGTH } from "./botCheck";
 import { clientAddress } from "./clientIp";
+import { resolvePrivateRepo } from "./privateRepo";
 
 /**
  * The HTTP edge of `POST /api/analyze` (ADR-0066), apart from Next.js so tests call it with a
@@ -23,6 +25,8 @@ import { clientAddress } from "./clientIp";
  * - **Who counts:** a request carrying a live session cookie counts against its user's
  *   hourly limit, any other against its address (`readSession`, M8.2b). The JSON-only rule
  *   above also keeps another site from spending a signed-in visitor's limit.
+ * - **Private repos** (M8.4c2b): a signed-in caller's name the public lookup doesn't find is
+ *   asked again with their own GitHub token (`resolvePrivateRepo`).
  * - **Never cached** (`cache-control: no-store`). Unexpected errors are `500 INTERNAL` with a
  *   generic message; the error itself is logged by name only.
  */
@@ -100,7 +104,13 @@ export async function handleAnalyzeRequest(
 
   try {
     const user = await readSession(request.headers.get("cookie"), auth);
-    const caller = user ? { userId: user.userId } : clientAddress(request.headers);
+    const caller: Caller =
+      user && auth
+        ? {
+            userId: user.userId,
+            privateRepos: (ref) => resolvePrivateRepo(ref, user, auth, deps.github),
+          }
+        : clientAddress(request.headers);
     const answer = await requestAnalysis(value.url, caller, deps, token);
     return json(answer.status, answer.body, answer.headers);
   } catch (error) {

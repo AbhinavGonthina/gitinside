@@ -9,7 +9,8 @@ import { createHash } from "node:crypto";
  * /user/installations` and `GET /user/installations/{id}/repositories` (both paged) from
  * {@link FakeOAuth.install}, and the access check (M8.4a) `GET /repositories/{id}` for a repo one
  * of them covers, with its `…/commits/HEAD` and `GET /repos/{owner}/{repo}/languages` for a
- * private page's check-on-view (M8.4c2). Requests are matched by path, so the same fake serves calls made
+ * private page's check-on-view (M8.4c2), and `GET /repos/{owner}/{repo}` (with its
+ * `…/commits/HEAD`) for a signed-in "Analyze" (M8.4c2b). Requests are matched by path, so the same fake serves calls made
  * to github.com, to api.github.com, or to a loopback origin (`e2e/github.ts`).
  */
 
@@ -168,10 +169,19 @@ export function fakeOAuth(options: { expiring?: boolean } = {}): FakeOAuth {
     // A user's token sees a repo only where the app is installed and the user has access.
     const visible = seen.flatMap((i) => i.repos);
     const byId = /^\/repositories\/(\d+)(\/commits\/HEAD)?$/.exec(url.pathname);
-    if (byId !== null) {
-      const r = visible.find((repo) => repo.id !== undefined && String(repo.id) === byId[1]);
+    const byName = /^\/repos\/([^/]+)\/([^/]+)(\/commits\/HEAD)?$/.exec(url.pathname);
+    if (byId !== null || byName !== null) {
+      const [, owner = "", name = ""] = (byName ?? []).map(decodeURIComponent);
+      const r = visible.find((repo) =>
+        byId !== null
+          ? repo.id !== undefined && String(repo.id) === byId[1]
+          : repo.id !== undefined &&
+            repo.owner.toLowerCase() === owner.toLowerCase() &&
+            repo.name.toLowerCase() === name.toLowerCase(),
+      );
       if (r === undefined) return Response.json({ message: "Not Found" }, { status: 404 });
-      if (byId[2] !== undefined) {
+      const head = byId !== null ? byId[2] : byName?.[3];
+      if (head !== undefined) {
         return r.sha === undefined
           ? Response.json({ message: "Not Found" }, { status: 404 })
           : new Response(r.sha, { headers: { "content-type": "application/vnd.github.sha" } });

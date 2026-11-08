@@ -22,7 +22,8 @@ import {
  * the count says so.
  *
  * {@link findUserInstallation} (M8.3b) looks one installation up the same way, for the install
- * return to check against the signed-in user rather than trust the query.
+ * return to check against the signed-in user rather than trust the query, and
+ * {@link findAccountInstallation} (M8.4c2b) finds the one on a private repo's account.
  */
 
 /** Installations read: one page of GitHub's largest size. */
@@ -171,6 +172,32 @@ export async function findUserInstallation(
   accessToken: string,
   installationId: number,
 ): Promise<InstallationFacts | undefined> {
+  return findInstallationWhere(client, accessToken, (item) => field(item, "id") === installationId);
+}
+
+/**
+ * The installation on the account `login` (GitHub's spelling, compared ignoring case), among the
+ * user's own as {@link findUserInstallation} reads them; `undefined` if none. An app has at most
+ * one installation per account, so this is the one a private repo of that account is read
+ * through (M8.4c2b). Throws as {@link listInstallations} does.
+ */
+export async function findAccountInstallation(
+  client: OAuthClient,
+  accessToken: string,
+  login: string,
+): Promise<InstallationFacts | undefined> {
+  const wanted = login.toLowerCase();
+  return findInstallationWhere(client, accessToken, (item) => {
+    const account = field(field(item, "account"), "login");
+    return typeof account === "string" && account.toLowerCase() === wanted;
+  });
+}
+
+async function findInstallationWhere(
+  client: OAuthClient,
+  accessToken: string,
+  matches: (item: unknown) => boolean,
+): Promise<InstallationFacts | undefined> {
   for (let page = 1; page <= MAX_FIND_PAGES; page++) {
     const path = `/user/installations?per_page=100&page=${page}`;
     const body = await call(client, githubUrl(client, "api", path), {
@@ -178,7 +205,7 @@ export async function findUserInstallation(
     });
     const total = count(body);
     const items = list(body, "installations");
-    const found = items.find((item) => field(item, "id") === installationId);
+    const found = items.find(matches);
     if (found !== undefined) return readFacts(found);
     if (items.length < 100 || page * 100 >= total) break;
   }

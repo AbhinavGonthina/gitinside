@@ -9,10 +9,14 @@ import {
 import { passBotCheck, type BotCheck, type BotRefusal } from "./botCheck";
 import { rateLimitKey, userRateLimitKey } from "./clientIp";
 import {
+  InstallationRefusedError,
   enqueueAnalysis,
   findAnalysisToQueue,
+  storeQueueRepo,
   type EnqueueDeps,
   type EnqueueResult,
+  type InstallationRefusal,
+  type QueueRepo,
 } from "./enqueue";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
 import {
@@ -24,14 +28,19 @@ import {
 } from "./jobs";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import { resolveRepo, type GitHubOptions, type ResolveFailure } from "./github";
-import { parseRepoUrl } from "./repoUrl";
+import type { PrivateResult } from "./privateRepo";
+import { parseRepoUrl, type RepoRef } from "./repoUrl";
 import { findSizeHold, type SizeHold } from "./sizeHold";
 
 /**
  * What `POST /api/analyze` does once the body is read (docs/DESIGN.md §11, ADR-0066):
  *
  * 1. **Parse** the pasted URL with GitHub's name rules (`parseRepoUrl`).
- * 2. **Resolve** the repo and its default branch's latest commit on GitHub (public only).
+ * 2. **Resolve** the repo and its default branch's latest commit on GitHub, public by the
+ *    server's token. A name it doesn't find is asked again for a signed-in caller with their
+ *    own token (`resolvePrivateRepo`, M8.4c2b, ADR-0235): a private repo they can see through
+ *    an installation of the app is queued through that installation (its code counted with
+ *    their token), and anything else is the same `404 REPO_NOT_FOUND` everyone gets.
  * 3. **Cache:** a `done` analysis of that commit by this analyzer version is returned as is
  *    (the repo row refreshed from GitHub's facts). Viewing and re-asking are never
  *    rate-limited.
@@ -109,6 +118,7 @@ export type AnalyzeErrorCode =
   | "ANALYSIS_PAUSED"
   | BotRefusal["body"]["error"]
   | "RATE_LIMITED"
+  | InstallationRefusal
   | "UNAVAILABLE";
 
 /**
@@ -154,29 +164,70 @@ export interface AnalyzeResponse {
 
 export { UNAVAILABLE_MESSAGE };
 
-const RESOLVE_ERRORS: Record<ResolveFailure, { status: number; message: string }> = {
-  REPO_NOT_FOUND: {
-    status: 404,
-    message:
-      "We couldn't find a public GitHub repo with that name. Private repos aren't supported yet.",
-  },
-  REPO_EMPTY: {
-    status: 422,
-    message: "That repo has no commits yet, so there's nothing to analyze.",
-  },
-  REPO_UNAVAILABLE: { status: 451, message: "GitHub has blocked access to that repo." },
-  GITHUB_RATE_LIMITED: {
-    status: 503,
-    message: "GitHub is limiting our requests right now. Try again in a few minutes.",
-  },
-  GITHUB_UNAVAILABLE: { status: 503, message: "We couldn't reach GitHub. Try again in a minute." },
-};
+/** A repo nobody can see by that name, said the same to everyone (signed in or out). */
+export const NOT_FOUND_MESSAGE = "We couldn't find a public GitHub repo with that name.";
+/** Added to {@link NOT_FOUND_MESSAGE} where sign-in is set up (the same for everyone). */
+export const PRIVATE_HINT =
+  "For a private repo, sign in with a GitHub account that can see it and install GitInside on it.";
+
+/** Each resolve failure's answer; `REPO_NOT_FOUND` mentions private repos where sign-in exists. */
+function resolveErrors(
+  deps: Pick<AnalyzeDeps, "signInAvailable">,
+): Record<ResolveFailure, { status: number; message: string }> {
+  return {
+    REPO_NOT_FOUND: {
+      status: 404,
+      message:
+        deps.signInAvailable === true ? `${NOT_FOUND_MESSAGE} ${PRIVATE_HINT}` : NOT_FOUND_MESSAGE,
+    },
+    REPO_EMPTY: {
+      status: 422,
+      message: "That repo has no commits yet, so there's nothing to analyze.",
+    },
+    REPO_UNAVAILABLE: { status: 451, message: "GitHub has blocked access to that repo." },
+    GITHUB_RATE_LIMITED: {
+      status: 503,
+      message: "GitHub is limiting our requests right now. Try again in a few minutes.",
+    },
+    GITHUB_UNAVAILABLE: {
+      status: 503,
+      message: "We couldn't reach GitHub. Try again in a minute.",
+    },
+  };
+}
 
 /**
  * Who asks for an analysis: a signed-out request's address (`clientAddress`), or a
  * signed-in user by their `users` row's ID (M8.2b), whose address then doesn't count.
+ * `privateRepos` looks a name up as the user sees it on GitHub (`resolvePrivateRepo`,
+ * M8.4c2b), for a repo the public lookup didn't find.
  */
-export type Caller = string | { userId: string };
+export type Caller =
+  | string
+  | { userId: string; privateRepos?: (ref: RepoRef) => Promise<PrivateResult> };
+
+/**
+ * The repo `ref` names and how to read GitHub for it: public by the server's token, else, for
+ * a signed-in caller, private as they see it (ADR-0235). Refused there, it's the public
+ * lookup's own `REPO_NOT_FOUND`.
+ */
+async function findRepo(
+  ref: RepoRef,
+  caller: Caller,
+  deps: AnalyzeDeps,
+): Promise<
+  { ok: true; repo: QueueRepo; github: GitHubOptions } | { ok: false; code: ResolveFailure }
+> {
+  const resolved = await resolveRepo(ref, deps.github);
+  if (resolved.ok) return { ok: true, repo: resolved.repo, github: deps.github };
+  if (resolved.code !== "REPO_NOT_FOUND" || typeof caller === "string") return resolved;
+  return caller.privateRepos === undefined ? resolved : caller.privateRepos(ref);
+}
+
+/** A private repo's installation refused at enqueue (ADR-0227), in the job page's words. */
+function installationRefused(code: InstallationRefusal): AnalyzeResponse {
+  return { status: 403, body: { error: code, message: failureView(code).message } };
+}
 
 /**
  * Start (or find) the analysis of the repo at `url` for `caller`. `challengeToken` is the
@@ -191,12 +242,12 @@ export async function requestAnalysis(
   const parsed = parseRepoUrl(url);
   if (!parsed.ok) return { status: 400, body: { error: "INVALID_URL", message: parsed.error } };
 
-  const resolved = await resolveRepo(parsed, deps.github);
-  if (!resolved.ok) {
-    const { status, message } = RESOLVE_ERRORS[resolved.code];
-    return { status, body: { error: resolved.code, message } };
+  const found = await findRepo(parsed, caller, deps);
+  if (!found.ok) {
+    const { status, message } = resolveErrors(deps)[found.code];
+    return { status, body: { error: found.code, message } };
   }
-  const { repo } = resolved;
+  const { repo, github } = found;
   const commit = { owner: repo.owner, repo: repo.name, sha: repo.sha };
 
   const existing = await findAnalysisToQueue(deps.db, {
@@ -206,7 +257,7 @@ export async function requestAnalysis(
   });
   if (existing?.status === "done") {
     // GitHub's facts again: a repo hidden when it went private is served once it's public.
-    await upsertRepo(deps.db, repo);
+    if (repo.visibility === "public") await upsertRepo(deps.db, repo);
     return { status: 200, body: { status: "done", ...commit } };
   }
 
@@ -225,7 +276,7 @@ export async function requestAnalysis(
   if (!inFlight) {
     const hold = await findSizeHold(deps.db, repo);
     if (hold !== undefined) return tooBig(hold, deps);
-    const codeBytes = await findTooMuchCode(repo, deps.github, deps.codeSizes);
+    const codeBytes = await findTooMuchCode(repo, github, deps.codeSizes);
     if (codeBytes !== undefined) {
       return {
         status: 422,
@@ -259,7 +310,14 @@ export async function requestAnalysis(
         return refusal;
       }
     }
-    const { id: repoId } = await upsertRepo(deps.db, repo);
+    let repoId: string;
+    try {
+      ({ id: repoId } = await storeQueueRepo(deps.db, repo));
+    } catch (error) {
+      if (!(error instanceof InstallationRefusedError)) throw error;
+      await refundRateLimit(deps.db, key, charged);
+      return installationRefused(error.code);
+    }
     const claim = await claimRepoAnalysis(deps.db, repoId, repo.sha, REPO_ANALYSIS_MINUTES * 60);
     if (claim.status === "refused") {
       await refundRateLimit(deps.db, key, charged);
@@ -277,6 +335,8 @@ export async function requestAnalysis(
       charged && refundRateLimit(deps.db, key, charged),
       claimed && releaseRepoAnalysis(deps.db, claimed.repoId, claimed.claimedAt),
     ]);
+    // Uninstalled or suspended since the repo was stored (a private repo): said, not a 500.
+    if (error instanceof InstallationRefusedError) return installationRefused(error.code);
     throw error;
   }
   // Only a new analysis this request queued keeps the slot. The repo's claim stays whenever

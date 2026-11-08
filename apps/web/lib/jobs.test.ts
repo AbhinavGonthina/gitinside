@@ -220,7 +220,9 @@ describe("failureView", () => {
       );
     }
     expect(failureView("REPO_NOT_PUBLIC").message).toBe(failureView("REPO_NOT_FOUND").message);
-    expect(failureView("REPO_NOT_PUBLIC").message).toContain("Private repos aren't supported yet");
+    expect(failureView("REPO_NOT_PUBLIC").message).toContain(
+      "For a private repo, sign in with a GitHub account that can see it",
+    );
     expect(failureView("TAR_UNSAFE_PATH").retry).toBe(false);
   });
 

@@ -31,7 +31,7 @@ import {
   type SeenRepo,
   type SeenResult,
 } from "./github";
-import { githubUrl } from "./githubOAuth";
+import { userGitHub } from "./privateRepo";
 import { checkRepoAccess } from "./repoAccess";
 import type { RepoRef } from "./repoUrl";
 import { findSizeHold } from "./sizeHold";
@@ -310,13 +310,7 @@ async function privateHead(allowed: AllowedPrivate, deps: RepoViewDeps): Promise
   const unknown = ready(stored, { state: "unknown" });
   const access = await userAccessToken(user, viewer.auth);
   if (!("token" in access)) return unknown;
-  const { client } = viewer.auth;
-  const github: GitHubOptions = {
-    ...deps.github,
-    token: access.token,
-    apiBase: githubUrl(client, "api", "/"),
-    ...(client.fetch === undefined ? {} : { fetch: client.fetch }),
-  };
+  const github = userGitHub(access.token, viewer.auth.client, deps.github);
   const { analysis } = stored;
   const key = `#${stored.repo.providerRepoId}@${analysis.sha}/${analysis.analyzerVersion}`;
   let resolved = deps.heads.get(key);
