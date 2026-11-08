@@ -14,11 +14,12 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M8.9 Switch autopilot to PR flow reviewed by GitInside's bot; update CLAUDE.md
+M8.10 Milestone verification + M8-review.md + tag m8
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
+- [#24](https://github.com/AbhinavGonthina/gitinside-planning/issues/24) Copy `proposed/autopilot.ps1` (PR flow), install GitInside Bot on `gitinside`, optionally require PRs + CI checks on `main`. Blocks nothing; until installed, PRs merge after CI alone with "no bot review" (ADR-0247).
 - Reminder (#3, closed 2026-11-04 with "all 119 checks match infra/gcp"): the Google Cloud trial ends 2027-01-30. Remind Abhinav before trial day 90 of anything needed before he activates the full account; he won't activate it until we confirm.
 
 ## Blockers
@@ -458,7 +459,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M8.6f2 The diagram's diff mode using it: `RepoDiagram` loads `diffUrl` beside both graphs and uses the stored diff when it parses and matches them (analyzer version, both SHAs; else the browser's own diff, ADR-0189), and the `renameLimit` note shown in the viewer's diff mode (ADR-0086's M6.11n2 amendment); tests, screenshots dark/light {model: opus}
 - [x] M8.7 Push webhook → badge refresh {model: opus}
 - [x] M8.8 Security tests (signatures, revocation, cross-tenant isolation) {model: opus}
-- [ ] M8.9 Switch autopilot to PR flow reviewed by GitInside's bot; update CLAUDE.md {model: opus}
+- [x] M8.9 Switch autopilot to PR flow reviewed by GitInside's bot; update CLAUDE.md {model: opus}
 - [ ] M8.10 Milestone verification + M8-review.md + tag m8 {model: opus}
 
 ### M9: Launch-ready (no public announcement)
@@ -474,6 +475,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- 2026-11-08 M8.9 (`0cdbc61`, ADR-0247, PR #28): tasks now land through `task/<id>` PRs (CLAUDE.md §1 step 5, §2, §5): ready PR, every CI check green, the `GitInside` Check Run and comment read (each break fixed or answered), merged with a merge commit so report and note SHAs stay on `main`. This task went through the flow itself; no bot review: GitInside Bot isn't installed on this repo yet (planning #24, which also carries the proposed `autopilot.ps1`: pull only on `main`, PR prompt, `gh pr merge --admin` and branch-protection `gh api` denied). TESTING.md corrected: E2E and the worker image check run on PRs too.
 - 2026-11-08 M8.8 (`e7de269`): `apps/web/lib/security.test.ts` runs every private surface (graph, stored diff, code file, job + events, permalink page) against two look-alike tenants (installations 41/52, both `Shop` at one commit): each member sees all of their own, and the other's answers equal a never-analyzed name's byte for byte, nothing read; the token route never mints across tenants. Revocation (60 s cache, revoked authorization, uninstall leaving the other tenant unchanged) and forged webhooks/token requests (nothing read or written, then the genuine one works). Every `app/api` route listed with the test of its guard. Found, by design: a code file is refused at once after removal (user's token), and queue position is global. web 1031 (11 new); four mutations red.
 - 2026-11-08 M8.7 (`1750359`, ADR-0246): a `push` to the default branch of a repo with any finished analysis queues its `after` commit through the sending installation (public repos too; the worker still keys a public repo's snapshot publicly). Check-on-view's gates and the repo's 6/h charge now live in `queueHead` (extracted from `followHead`, shared); a private repo's code count isn't asked. Other branches, tags, deletes, never-analyzed repos ⇒ `202` ignored, nothing written; gone/suspended installation ⇒ ignored, slot refunded; no queue or refused create ⇒ `503`. Images still cache 10 min (no purge on completion). web 1020 (10 new); three mutations red.
 - 2026-11-08 M8.6f2 (`4efb47a`, ADR-0245 amendment): `RepoDiagram` loads a `ready` base's `diffUrl` beside both graphs (`loadDiff`: `undefined` for anything unusable) and `compareGraphs` uses it when `storedDiffFits` (analyzer version, each side's repo and commit) and `buildDiffOverlay` accepts it, else the browser's diff quietly (ADR-0189). The viewer's Changes overview leads with `movesNote` (`renameLimitText`, now exported by diff), overview only. Viewer 1121, web 1010, diff 161; four mutations red; screenshots `docs/milestones/M8/stored-diff/`.
