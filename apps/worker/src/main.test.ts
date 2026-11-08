@@ -499,7 +499,21 @@ describe("startWorkerProcess", () => {
         },
         { websiteOrigin: `http://127.0.0.1:${port}` },
       );
-      const job = { ...JOB, installationId: 42 };
+      const job = { ...JOB, kind: "analyze" as const, installationId: 42 };
+      // What the website writes before the task: the repo linked, its row queued (M8.5b1).
+      const { id: repoId } = await upsertRepo(t.db, {
+        providerRepoId: 3_000_000_001,
+        owner: "acme",
+        name: "shop",
+        visibility: "private",
+        defaultBranch: "main",
+        githubInstallationId: 42,
+      });
+      await queueAnalysis(
+        t.db,
+        { repoId, sha: SHA, analyzerVersion: VERSION },
+        { jobId: jobIdFor(job, VERSION) },
+      );
       const deliveries = await pushTask(fakeTask(origin(worker), job, SECRET));
       expect(deliveries).toMatchObject([{ status: 200, body: { state: "done" } }]);
 

@@ -358,6 +358,8 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
         ...(attempt.record === undefined ? {} : { record: attempt.record }),
       });
     } catch (error) {
+      // A failure `publish` named itself (its row deleted meanwhile, M8.5b) keeps its code.
+      if (error instanceof JobFailure) throw error;
       throw new JobFailure("PUBLISH_FAILED", "storing the result failed", { cause: error });
     }
     const publishMs = elapsed(start);

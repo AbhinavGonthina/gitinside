@@ -2,10 +2,14 @@ import {
   completeAnalysis,
   failAnalysis,
   failQueuedJob,
+  findAnalysisStatus,
   findJob,
+  isPrivateSnapshot,
+  JobGoneError,
   recordJobProgress,
   requeueAnalysis,
   startAnalysis,
+  startInstallationAnalysis,
   UnknownInstallationError,
   upsertRepo,
   type AnyDatabase,
@@ -32,13 +36,18 @@ import {
  *   (`REPO_NOT_PUBLIC`): the worker's token may be able to read it, but it must never reach
  *   the public cache. A job with an installation links the repo to it (ADR-0227); one whose
  *   installation isn't stored (the website refuses those at enqueue, so it was deleted
- *   meanwhile) fails as the permanent `INSTALLATION_NOT_FOUND`, writing nothing. A row
+ *   meanwhile) fails as the permanent `INSTALLATION_NOT_FOUND`, writing nothing. Such a job
+ *   starts only while its queued row exists and its repo is linked to that installation
+ *   (`startInstallationAnalysis`, M8.5b): an uninstall or a removed repo since the job was
+ *   queued fails it as the permanent `REPO_NOT_INSTALLED` (as the token route words it),
+ *   re-creating nothing. A row
  *   that's already `done` stays as it is and the start answers
  *   `"done"`, so the job stops before the download (R9).
  * - **publish = bucket, then Postgres:** the snapshot is uploaded first and the row marked `done`
  *   only after the bucket acknowledged it, so a `done` row always has its object. If the
  *   database write fails, the attempt is retried and the upload repeats under the same
- *   immutable key, which is harmless.
+ *   immutable key, which is harmless. If the uninstall flow deleted the row while the job ran
+ *   (M8.5b), a private snapshot is deleted at once and the job fails as `REPO_NOT_INSTALLED`.
  * - **failed:** a final failure marks the row `failed` with its code; one that will be
  *   retried marks it `queued`. A final failure before the start wrote the row (a refused
  *   installation token, `REPO_NOT_FOUND`) fails it by job ID if it's still `queued`
@@ -88,26 +97,35 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
       throw new JobFailure("REPO_NOT_PUBLIC", "a public job for a private repo");
     }
     const visibility = facts.private ? "private" : "public";
-    const { installationId } = request;
+    const { installationId, sha } = request;
+    const repo = {
+      providerRepoId: facts.id,
+      owner: facts.owner,
+      name: facts.name,
+      visibility,
+      defaultBranch: facts.defaultBranch,
+    } as const;
     try {
-      const { id: repoId } = await upsertRepo(db, {
-        providerRepoId: facts.id,
-        owner: facts.owner,
-        name: facts.name,
-        visibility,
-        defaultBranch: facts.defaultBranch,
-        ...(installationId === undefined ? {} : { githubInstallationId: installationId }),
-      });
-      const started = await startAnalysis(
-        db,
-        { repoId, sha: request.sha, analyzerVersion },
-        { jobId },
-      );
+      let repoId: string;
+      let started: { id: string; status: "running" | "done" };
+      if (installationId === undefined) {
+        ({ id: repoId } = await upsertRepo(db, repo));
+        started = await startAnalysis(db, { repoId, sha, analyzerVersion }, { jobId });
+      } else {
+        ({ repoId, ...started } = await startInstallationAnalysis(
+          db,
+          { ...repo, githubInstallationId: installationId },
+          { sha, analyzerVersion, jobId },
+        ));
+      }
       if (started.status === "done") return "done";
       return { analysisId: started.id, repoId, visibility, owner: facts.owner, name: facts.name };
     } catch (error) {
       if (error instanceof UnknownInstallationError) {
         throw new JobFailure("INSTALLATION_NOT_FOUND", "the job's installation isn't stored");
+      }
+      if (error instanceof JobGoneError) {
+        throw new JobFailure("REPO_NOT_INSTALLED", "the job's row or its repo's link was deleted");
       }
       throw new JobFailure("RECORD_FAILED", "writing the job's start failed", { cause: error });
     }
@@ -135,7 +153,7 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
     const uploadStart = performance.now();
     const stored = await uploadSnapshot(store, artifact.graphPath, key, record.visibility);
     const upload = Math.round(performance.now() - uploadStart);
-    await completeAnalysis(db, record.analysisId, {
+    const completed = await completeAnalysis(db, record.analysisId, {
       snapshotKey: key,
       stats: {
         files: stats.files,
@@ -152,6 +170,18 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
         ...(stats.gcMs === undefined ? {} : { gcMs: stats.gcMs }),
       },
     });
+    if (completed || (await findAnalysisStatus(db, record.analysisId)) !== undefined) return;
+    // The uninstall flow deleted the row while the job ran (M8.5b): nothing will ever name a
+    // private key again (it holds the deleted repo row's ID), so its object goes now rather
+    // than at retention's orphan sweep. A public key could be named again by the repo's next
+    // job, so it's left to the sweep, which checks.
+    let detail = "the job's row was deleted while it ran";
+    if (isPrivateSnapshot(key)) {
+      await store.delete(key).catch(() => {
+        detail += "; deleting its snapshot failed (left to retention)";
+      });
+    }
+    throw new JobFailure("REPO_NOT_INSTALLED", detail);
   }
 
   async function failed(record: RecordedJob, code: string, final: boolean): Promise<void> {
