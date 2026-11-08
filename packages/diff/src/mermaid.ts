@@ -52,8 +52,8 @@ const KIND_WORDS: Record<NodeKind, string> = {
   unresolved: "unresolved",
 };
 
-/** What breaks, in the words of DESIGN_SYSTEM.md's broken-edge pill. */
-const BROKEN_WORDS: Record<BrokenReason, string> = {
+/** What breaks, in the words of DESIGN_SYSTEM.md's broken-edge pill. Shared with the PR comment. */
+export const BROKEN_WORDS: Record<BrokenReason, string> = {
   TARGET_REMOVED: "target removed",
   ROUTE_CHANGED: "route changed",
   TARGET_MOVED: "target moved",
@@ -131,10 +131,11 @@ export function mermaidShape(kind: NodeKind): [string, string] {
 }
 
 /**
- * The note for a diff whose rename detection stopped at its budget, or `undefined`. Short
- * enough for `MAX_LABEL`: "Moves not checked for 401 removed and 2 added files".
+ * What a diff whose rename detection stopped at its budget says about it, or `undefined`.
+ * Short enough for `MAX_LABEL`: "Moves not checked for 401 removed and 2 added files".
+ * Shared with the PR comment.
  */
-function renameLimitNote(diff: GraphDiff): string | undefined {
+export function renameLimitText(diff: GraphDiff): string | undefined {
   const limit = diff.renameLimit;
   if (limit === undefined) return undefined;
   const counts = [
@@ -142,11 +143,40 @@ function renameLimitNote(diff: GraphDiff): string | undefined {
     ...(limit.added > 0 ? [[limit.added, "added"] as const] : []),
   ];
   const last = counts.at(-1)?.[0];
-  const text =
-    last === undefined
-      ? "Moves checked only between files of the same name"
-      : `Moves not checked for ${counts.map(([n, word]) => `${n} ${word}`).join(" and ")} ${last === 1 ? "file" : "files"}`;
-  return `  limit["${escapeMermaidLabel(text)}"]`;
+  return last === undefined
+    ? "Moves checked only between files of the same name"
+    : `Moves not checked for ${counts.map(([n, word]) => `${n} ${word}`).join(" and ")} ${last === 1 ? "file" : "files"}`;
+}
+
+/** The Mermaid note line for {@link renameLimitText}, or `undefined`. */
+function renameLimitNote(diff: GraphDiff): string | undefined {
+  const text = renameLimitText(diff);
+  return text === undefined ? undefined : `  limit["${escapeMermaidLabel(text)}"]`;
+}
+
+/** A symbol's label after its enclosing symbols' (`DocumentInterpreter.parse`), else the label. */
+function qualifiedLabel(node: GraphNode, lookup: (id: string) => GraphNode | undefined): string {
+  const parts = [node.label];
+  let parent = node.kind === "symbol" && node.parentId !== null ? lookup(node.parentId) : undefined;
+  while (parent?.kind === "symbol") {
+    parts.unshift(parent.label);
+    parent = parent.parentId === null ? undefined : lookup(parent.parentId);
+  }
+  return parts.join(".");
+}
+
+/**
+ * A node as the summary and the PR comment name it: its kind in words, then its label, a
+ * method after its class (`method DocumentInterpreter.parse`), a route as just its label.
+ * `lookup` finds the node's ancestors.
+ */
+export function describeNode(
+  node: GraphNode,
+  lookup: (id: string) => GraphNode | undefined,
+): string {
+  const word = node.kind === "symbol" ? node.symbolKind : KIND_WORDS[node.kind];
+  const label = qualifiedLabel(node, lookup);
+  return word === "" ? label : `${word} ${label}`;
 }
 
 interface Connection {
@@ -278,21 +308,8 @@ export function renderMermaidSummary(
     return `${lines.join("\n")}\n`;
   }
 
-  /** A symbol's label after its enclosing symbols' (`DocumentInterpreter.parse`), else the label. */
-  const qualified = (node: GraphNode): string => {
-    const parts = [node.label];
-    let parent =
-      node.kind === "symbol" && node.parentId !== null ? lookup(node.parentId) : undefined;
-    while (parent?.kind === "symbol") {
-      parts.unshift(parent.label);
-      parent = parent.parentId === null ? undefined : lookup(parent.parentId);
-    }
-    return parts.join(".");
-  };
-  const title = (node: GraphNode): string => {
-    const word = node.kind === "symbol" ? node.symbolKind : KIND_WORDS[node.kind];
-    return word === "" ? qualified(node) : `${word} ${qualified(node)}`;
-  };
+  const qualified = (node: GraphNode): string => qualifiedLabel(node, lookup);
+  const title = (node: GraphNode): string => describeNode(node, lookup);
   /** Label of the service `node` belongs to, if any. */
   const serviceOf = (node: GraphNode): string | undefined => {
     let current = node.parentId === null ? undefined : lookup(node.parentId);
