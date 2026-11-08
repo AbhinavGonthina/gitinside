@@ -50,7 +50,8 @@ import { findSizeHold } from "./sizeHold";
  *    analysis for {@link HEAD_TTL_MS} so busy pages don't spend GitHub's hourly quota. If
  *    GitHub can't be asked, the diagram is still shown (`unknown`). If GitHub says it's gone or
  *    private now, it's a 404, and the repo is hidden (`hideRepo`) so its permalinks, graphs,
- *    and images stop too: a repo that went private must stop being served publicly.
+ *    and images stop too: a repo that went private must stop being served publicly. Then
+ *    the CDN's copies of its graphs are purged by GitHub's ID (`purgeRepo`, M8.4d1, ADR-0238).
  * 4. **Up to date** when the shown analysis is that commit by this analyzer version.
  *    Otherwise the newer commit's own state decides: finished ⇒ shown instead; in flight
  *    ⇒ `updating`; failed ⇒ `behind` with its code (a failure isn't re-run on every view;
@@ -156,6 +157,11 @@ export interface RepoViewDeps {
   unknownLookupsPerHour?: number;
   /** Who's viewing (the pages, with sign-in configured); without it, private repos never show. */
   viewer?: RepoViewer;
+  /**
+   * Drop the CDN's copies of a repo's graphs, by GitHub's ID (`purgeRepoCache`, ADR-0238),
+   * once the repo is hidden; without it they stay until `s-maxage` ends.
+   */
+  purgeRepo?: (providerRepoId: number) => Promise<void>;
 }
 
 /** How the shown diagram relates to the default branch's latest commit. */
@@ -420,6 +426,23 @@ async function findRenamed(
   return { published, resolved };
 }
 
+/**
+ * Ask the CDN to drop a hidden repo's graphs. A failure is logged by name only and doesn't
+ * change the view: the repo is already hidden, and the CDN's copies expire by `s-maxage`.
+ */
+async function purgeRepo(providerRepoId: number, deps: RepoViewDeps): Promise<void> {
+  try {
+    await deps.purgeRepo?.(providerRepoId);
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: "cdn_purge_failed",
+        error: error instanceof Error ? error.name : "unknown",
+      }),
+    );
+  }
+}
+
 /** Decide what `/<owner>/<repo>` (or `/<owner>/<repo>/<sha>` with `sha`) shows. */
 export async function viewRepo(
   ref: RepoRef & { sha?: string },
@@ -454,6 +477,9 @@ export async function viewRepo(
     if (resolved.code === "REPO_NOT_FOUND" || resolved.code === "REPO_UNAVAILABLE") {
       // Recorded, so its permalinks and graphs (which never ask GitHub) stop too.
       await hideRepo(db, published.repo.id);
+      // Then out of the CDN: purged before the hide, its next ask could cache them again.
+      // Every view that saw it public purges, so one that failed is retried by a racing one.
+      await purgeRepo(published.repo.providerRepoId, deps);
       return { status: "missing" };
     }
     return ready(published, { state: "unknown" });

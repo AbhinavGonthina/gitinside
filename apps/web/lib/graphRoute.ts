@@ -1,6 +1,7 @@
 import { findStoredAnalysis, type AnyDatabase, type StoredAnalysis } from "@gitinside/db";
 import { StorageError, type ObjectStore } from "@gitinside/worker/storage";
 import { readSession, type AuthDeps } from "./authRoute";
+import { CACHE_TAG_HEADER, repoCacheTag } from "./cdnCache";
 import { UNAVAILABLE_MESSAGE } from "./messages";
 import { checkRepoAccess } from "./repoAccess";
 import { parseRepoPath } from "./repoUrl";
@@ -24,7 +25,9 @@ import { graphPath } from "./repoView";
  *   `fetch` decodes the stored gzip, so the route gzips it again ({@link acceptsGzip}).
  * - **Cached by the CDN** for a day (`s-maxage`) and by browsers for 5 minutes: a commit's
  *   graph only changes when a newer analyzer version re-analyzes it, and serving the older
- *   one for a while is harmless. Errors are `no-store`.
+ *   one for a while is harmless. Errors are `no-store`. Each public answer is tagged with
+ *   the repo's GitHub ID (`repo-<id>`, lib/cdnCache.ts), and the repo page purges that tag
+ *   when it finds the repo gone private, so the CDN's day ends there (M8.4d1, ADR-0238).
  * - **Gzipped so big graphs stay cacheable** (ADR-0097 amendment, M5.13a): Vercel's CDN
  *   doesn't cache a function response over 10 MB, and documenso's 13.4 MB of JSON was a
  *   `MISS` on every read (a bucket read each). Gzipped it's under 1 MB. A served body over
@@ -178,7 +181,10 @@ export async function handleGraphRequest(
           location: graphPath(owner, name, params.sha),
           ...(isPrivate
             ? { "cache-control": PRIVATE_CACHE_CONTROL, vary: "cookie" }
-            : { "cache-control": SPELLING_REDIRECT_CACHE_CONTROL }),
+            : {
+                "cache-control": SPELLING_REDIRECT_CACHE_CONTROL,
+                [CACHE_TAG_HEADER]: repoCacheTag(stored.repo.providerRepoId),
+              }),
         },
       });
     }
@@ -194,9 +200,14 @@ export async function handleGraphRequest(
       status: 200,
       headers: {
         "content-type": "application/json; charset=utf-8",
-        "cache-control": isPrivate ? PRIVATE_CACHE_CONTROL : GRAPH_CACHE_CONTROL,
         // The CDN keys on Accept-Encoding already; this tells browsers and other caches.
-        vary: isPrivate ? "accept-encoding, cookie" : "accept-encoding",
+        ...(isPrivate
+          ? { "cache-control": PRIVATE_CACHE_CONTROL, vary: "accept-encoding, cookie" }
+          : {
+              "cache-control": GRAPH_CACHE_CONTROL,
+              vary: "accept-encoding",
+              [CACHE_TAG_HEADER]: repoCacheTag(stored.repo.providerRepoId),
+            }),
         ...(gzip ? { "content-encoding": "gzip" } : {}),
       },
     });

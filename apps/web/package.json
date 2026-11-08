@@ -19,6 +19,7 @@
     "@gitinside/schema": "workspace:*",
     "@gitinside/viewer": "workspace:*",
     "@gitinside/worker": "workspace:*",
+    "@vercel/functions": "3.11.0",
     "next": "16.4.3",
     "react": "19.0.0",
     "react-dom": "19.0.0"
