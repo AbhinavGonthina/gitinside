@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import {
   analyses,
+  completeAnalysis,
+  deleteInstallationData,
   installations,
   queueAnalysis,
   repos,
@@ -201,9 +203,24 @@ describe("createAnalysisRecorder", () => {
     expect(s3.objects.size).toBe(0);
   });
 
+  /** What the website writes before a job through installation 42: the linked repo, its row. */
+  async function queuedThroughInstallation(visibility: "public" | "private"): Promise<string> {
+    const installation = await upsertInstallation(t.db, INSTALLATION);
+    const { id: repoId } = await upsertRepo(t.db, {
+      providerRepoId: 3_000_000_001,
+      owner: "Acme",
+      name: "Shop",
+      visibility,
+      defaultBranch: "main",
+      githubInstallationId: 42,
+    });
+    await queueAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: VERSION }, { jobId: ID });
+    return installation;
+  }
+
   it("stores a private repo's job under its installation and repo ID, linking the repo", async () => {
     repoJson.private = true;
-    const installation = await upsertInstallation(t.db, INSTALLATION);
+    const installation = await queuedThroughInstallation("private");
     const request = { ...REQUEST, installationId: 42 };
     const asks: unknown[] = [];
     await processJob(
@@ -230,8 +247,8 @@ describe("createAnalysisRecorder", () => {
     expect(stored?.headers["cache-control"] ?? "").not.toContain("public");
   });
 
-  it("links a public repo read through an installation, and a later public job keeps the link", async () => {
-    const installation = await upsertInstallation(t.db, INSTALLATION);
+  it("keeps a public repo read through an installation linked, and a later public job too", async () => {
+    const installation = await queuedThroughInstallation("public");
     await processJob(
       { id: ID, request: { ...REQUEST, installationId: 42 } },
       deps(recorder(), { installationToken: async () => INSTALLATION_TOKEN }),
@@ -255,6 +272,94 @@ describe("createAnalysisRecorder", () => {
     expect(github.requests.map((r) => r.url)).toEqual(["/repos/acme/shop"]);
     expect(await t.db.select().from(repos)).toEqual([]);
     expect(s3.objects.size).toBe(0);
+  });
+
+  describe("an installation's data deleted around the job (M8.5b)", () => {
+    const request = { ...REQUEST, installationId: 42 };
+    const withToken = (overrides: Partial<JobDeps> = {}) =>
+      deps(recorder(), { installationToken: async () => INSTALLATION_TOKEN, ...overrides });
+
+    it("refuses to start once the repo was removed, re-creating nothing", async () => {
+      repoJson.private = true;
+      await queuedThroughInstallation("private");
+      // The token was minted, then the webhook deleted the repo before the start.
+      await deleteInstallationData(t.db, 42, [3_000_000_001]);
+      const error = await failure(processJob({ id: ID, request }, withToken()));
+      expect([error.code, error.retriable]).toEqual(["REPO_NOT_INSTALLED", false]);
+      expect(github.requests.map((r) => r.url)).toEqual(["/repos/acme/shop"]);
+      expect(await t.db.select().from(repos)).toEqual([]);
+      expect(await t.db.select().from(analyses)).toEqual([]);
+      expect(s3.objects.size).toBe(0);
+    });
+
+    it("fails a public repo's queued row once it was unlinked, linking nothing again", async () => {
+      await queuedThroughInstallation("public");
+      await deleteInstallationData(t.db, 42, [3_000_000_001]);
+      const error = await failure(processJob({ id: ID, request }, withToken()));
+      expect(error.code).toBe("REPO_NOT_INSTALLED");
+      expect(await onlyAnalysis()).toMatchObject({
+        status: "failed",
+        errorCode: "REPO_NOT_INSTALLED",
+      });
+      const [repo] = await t.db.select().from(repos);
+      expect(repo?.installationId).toBeNull();
+    });
+
+    it("deletes a private snapshot at once when the row was deleted while the job ran", async () => {
+      repoJson.private = true;
+      await queuedThroughInstallation("private");
+      const run: JobDeps["run"] = async (child) => {
+        await deleteInstallationData(t.db, 42, "all");
+        return writeGraph(child);
+      };
+      const error = await failure(processJob({ id: ID, request }, withToken({ run })));
+      expect([error.code, error.retriable]).toEqual(["REPO_NOT_INSTALLED", false]);
+      // Uploaded, then deleted: nothing names it, nothing keeps it.
+      expect(s3.requests.filter((r) => r.method === "PUT")).toHaveLength(1);
+      expect(s3.objects.size).toBe(0);
+      expect(await t.db.select().from(repos)).toEqual([]);
+      expect(await t.db.select().from(analyses)).toEqual([]);
+    });
+
+    it("still fails the job when that delete fails, leaving the object to retention", async () => {
+      repoJson.private = true;
+      await queuedThroughInstallation("private");
+      const put = s3.handler;
+      s3.handler = (req, body, res) => {
+        if (req.method === "DELETE") {
+          res.writeHead(503);
+          res.end();
+        } else put(req, body, res);
+      };
+      const run: JobDeps["run"] = async (child) => {
+        await deleteInstallationData(t.db, 42, "all");
+        return writeGraph(child);
+      };
+      const error = await failure(processJob({ id: ID, request }, withToken({ run })));
+      expect([error.code, error.retriable]).toEqual(["REPO_NOT_INSTALLED", false]);
+      expect(error.detail).toMatch(/deleting its snapshot failed/);
+      expect(s3.objects.size).toBe(1);
+    });
+
+    it("keeps the object when the row is already done under the same key", async () => {
+      repoJson.private = true;
+      await queuedThroughInstallation("private");
+      const r = recorder();
+      const run: JobDeps["run"] = async (child) => {
+        // Another attempt finished first; this one's upload repeats the same immutable key.
+        const row = await onlyAnalysis();
+        const [repo] = await t.db.select().from(repos);
+        const key = `private/42/${repo!.id}/${SHA}/${VERSION}.json.gz`;
+        await completeAnalysis(t.db, row.id, { snapshotKey: key, stats: STATS });
+        return writeGraph(child);
+      };
+      await processJob(
+        { id: ID, request },
+        deps(r, { installationToken: async () => INSTALLATION_TOKEN, run }),
+      );
+      expect(s3.objects.size).toBe(1);
+      expect((await onlyAnalysis()).status).toBe("done");
+    });
   });
 
   describe("a failure before the start", () => {

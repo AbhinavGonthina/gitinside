@@ -4,12 +4,16 @@ import {
   INTERRUPTED_CODE,
   QUEUE_UNAVAILABLE_CODE,
   analyses,
+  JobGoneError,
+  UnknownInstallationError,
   completeAnalysis,
+  deleteInstallationData,
   failAnalysis,
   failInterruptedAnalyses,
   failStaleQueuedAnalyses,
   failStrandedAnalysis,
   findAnalysis,
+  findAnalysisStatus,
   findLimitFailure,
   findPublishedAnalysis,
   findStoredAnalysis,
@@ -22,6 +26,7 @@ import {
   requeueAnalysis,
   servedPrivately,
   startAnalysis,
+  startInstallationAnalysis,
   upsertInstallation,
   upsertRepo,
   type AnalysisStats,
@@ -240,6 +245,146 @@ describe("startAnalysis", () => {
     const repoId = (await analysis(id)).repoId;
     const next = await startAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: "0.2.0" });
     expect(next.id).not.toBe(id);
+  });
+});
+
+describe("startInstallationAnalysis (M8.5b)", () => {
+  const JOB = "analyze-0123456789abcdef0123456789abcdef";
+  const PRIVATE = { ...FACTS, visibility: "private" as const, githubInstallationId: 41 };
+  const START = { sha: SHA, analyzerVersion: VERSION, jobId: JOB };
+
+  /** What the website does before creating the task: link the repo, queue the row. */
+  async function queued(facts: RepoFacts = PRIVATE): Promise<{ repoId: string; id: string }> {
+    const { id: repoId } = await upsertRepo(t.db, facts);
+    const { id } = await queueAnalysis(
+      t.db,
+      { repoId, sha: SHA, analyzerVersion: VERSION },
+      { jobId: JOB },
+    );
+    return { repoId, id };
+  }
+
+  beforeEach(async () => {
+    await upsertInstallation(t.db, {
+      githubInstallationId: 41,
+      accountId: 9001,
+      accountLogin: "acme",
+      accountType: "Organization",
+      suspendedAt: null,
+    });
+  });
+
+  it("starts the queued row, bringing the repo's facts up to date", async () => {
+    const { repoId, id } = await queued();
+    const renamed = { ...PRIVATE, name: "storefront", defaultBranch: "trunk" };
+    expect(await startInstallationAnalysis(t.db, renamed, START)).toEqual({
+      repoId,
+      id,
+      status: "running",
+    });
+    expect(await analysis(id)).toMatchObject({ status: "running", jobId: JOB, attempts: 1 });
+    expect(await repoRows()).toEqual([
+      { id: repoId, owner: "acme", name: "storefront", branch: "trunk" },
+    ]);
+  });
+
+  it("answers done for a done row, changing nothing", async () => {
+    const { id } = await queued();
+    await startAnalysis(t.db, {
+      repoId: (await analysis(id)).repoId,
+      sha: SHA,
+      analyzerVersion: VERSION,
+    });
+    await completeAnalysis(t.db, id, { snapshotKey: "private/41/r/k", stats: STATS });
+    const before = await analysis(id);
+    expect(await startInstallationAnalysis(t.db, PRIVATE, START)).toMatchObject({ status: "done" });
+    expect(await analysis(id)).toEqual(before);
+  });
+
+  it("refuses a job whose private repo was removed from the installation, re-creating nothing", async () => {
+    await queued();
+    await deleteInstallationData(t.db, 41, [PRIVATE.providerRepoId]);
+    await expect(startInstallationAnalysis(t.db, PRIVATE, START)).rejects.toBeInstanceOf(
+      JobGoneError,
+    );
+    expect(await repoRows()).toEqual([]);
+    expect(await t.db.select().from(analyses)).toEqual([]);
+  });
+
+  it("refuses a job whose public repo was unlinked, linking nothing again", async () => {
+    const pub = { ...PRIVATE, visibility: "public" as const };
+    const { repoId, id } = await queued(pub);
+    await deleteInstallationData(t.db, 41, [pub.providerRepoId]);
+    await expect(startInstallationAnalysis(t.db, pub, START)).rejects.toBeInstanceOf(JobGoneError);
+    const [repo] = await t.db.select().from(repos);
+    expect(repo).toMatchObject({ id: repoId, installationId: null });
+    expect(await analysis(id)).toMatchObject({ status: "queued", attempts: 0 });
+  });
+
+  it("refuses another job's ID, or another repo with that job's ID", async () => {
+    await queued();
+    const other = { ...START, jobId: "analyze-ffffffffffffffffffffffffffffffff" };
+    await expect(startInstallationAnalysis(t.db, PRIVATE, other)).rejects.toBeInstanceOf(
+      JobGoneError,
+    );
+    const elsewhere = { ...PRIVATE, providerRepoId: 3_000_000_002, name: "billing" };
+    await expect(startInstallationAnalysis(t.db, elsewhere, START)).rejects.toBeInstanceOf(
+      JobGoneError,
+    );
+    expect(await repoRows()).toHaveLength(1);
+  });
+
+  it("refuses a job whose repo moved to another installation", async () => {
+    await queued();
+    await upsertInstallation(t.db, {
+      githubInstallationId: 42,
+      accountId: 9002,
+      accountLogin: "acme-2",
+      accountType: "Organization",
+      suspendedAt: null,
+    });
+    await upsertRepo(t.db, { ...PRIVATE, githubInstallationId: 42 });
+    await expect(startInstallationAnalysis(t.db, PRIVATE, START)).rejects.toBeInstanceOf(
+      JobGoneError,
+    );
+  });
+
+  it("throws UnknownInstallationError once the installation is uninstalled", async () => {
+    await queued();
+    await deleteInstallationData(t.db, 41, "all");
+    await expect(startInstallationAnalysis(t.db, PRIVATE, START)).rejects.toBeInstanceOf(
+      UnknownInstallationError,
+    );
+    expect(await repoRows()).toEqual([]);
+  });
+
+  it("runs once more after a unique violation", async () => {
+    await queued();
+    const violation = Object.assign(new Error("duplicate key value"), { code: "23505" });
+    let calls = 0;
+    const racing = new Proxy(t.db, {
+      get(target, key, receiver) {
+        if (key !== "transaction") return Reflect.get(target, key, receiver);
+        return (...args: Parameters<typeof target.transaction>) => {
+          calls += 1;
+          if (calls === 1) return Promise.reject(new Error("Failed query", { cause: violation }));
+          return target.transaction(...args);
+        };
+      },
+    });
+    expect(await startInstallationAnalysis(racing, PRIVATE, START)).toMatchObject({
+      status: "running",
+    });
+    expect(calls).toBe(2);
+  });
+});
+
+describe("findAnalysisStatus (M8.5b)", () => {
+  it("reads a row's status, and nothing once the row is deleted", async () => {
+    const id = await started();
+    expect(await findAnalysisStatus(t.db, id)).toBe("running");
+    await t.db.delete(analyses).where(eq(analyses.id, id));
+    expect(await findAnalysisStatus(t.db, id)).toBeUndefined();
   });
 });
 

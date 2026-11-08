@@ -8,8 +8,9 @@
  *   enqueues a new job, {@link upsertRepo} and {@link queueAnalysis} (ADR-0066), before that
  *   {@link failStrandedAnalysis} on a commit that's `queued` with no task coming, and
  *   {@link hideRepo} when GitHub says a published repo went private or away. The worker calls {@link upsertRepo} and {@link startAnalysis} when a
- *   job starts, {@link completeAnalysis} after the snapshot is in object storage (so a `done`
- *   row always has its object), {@link requeueAnalysis} when an attempt fails but will be
+ *   job starts ({@link startInstallationAnalysis} for a job through an installation),
+ *   {@link completeAnalysis} after the snapshot is in object storage (so a `done`
+ *   row always has its object; {@link findAnalysisStatus} when it finds none), {@link requeueAnalysis} when an attempt fails but will be
  *   retried, {@link failAnalysis} when the last one fails,
  *   {@link failInterruptedAnalyses} at startup, and {@link recentAnalysisStats} when a job
  *   starts (for its time estimate).
@@ -191,6 +192,71 @@ export async function startAnalysis(
       ),
     );
   return { id: (done as { id: string }).id, status: "done" };
+}
+
+/**
+ * Thrown by {@link startInstallationAnalysis} when the job's row is gone, or its repo is no
+ * longer linked to the job's installation: the installation was uninstalled or lost the repo
+ * since the job was queued (M8.5b, ADR-0241). Nothing is written.
+ */
+export class JobGoneError extends Error {
+  override name = "JobGoneError";
+  constructor() {
+    super("the job's row is gone");
+  }
+}
+
+/**
+ * The worker's start of a job through an installation (M8.5b, ADR-0241): {@link upsertRepo}
+ * and {@link startAnalysis} in one transaction, but only while the job is still ours to run.
+ * The website queued its row (with job ID `jobId`) and linked the repo to the installation
+ * before creating the task, and the uninstall flow (`deleteInstallationData`) deletes or
+ * unlinks both. So the row must still exist, for the repo with GitHub's ID
+ * `facts.providerRepoId`, linked to installation `facts.githubInstallationId`; otherwise
+ * {@link JobGoneError}, and a removed private repo's row is never created again.
+ *
+ * The installation's row is locked (`FOR SHARE`) before the check, so a deletion holding it
+ * `FOR UPDATE` either commits first (and the check sees what it deleted) or waits until this
+ * start has committed (and deletes the running row with the rest). An installation that isn't
+ * stored throws {@link UnknownInstallationError}.
+ */
+export async function startInstallationAnalysis(
+  db: AnyDatabase,
+  facts: RepoFacts & { githubInstallationId: number },
+  start: { sha: string; analyzerVersion: string; jobId: string },
+): Promise<{ repoId: string; id: string; status: "running" | "done" }> {
+  const once = () =>
+    db.transaction(async (tx) => {
+      const [installation] = await tx
+        .select({ id: installations.id })
+        .from(installations)
+        .where(eq(installations.githubInstallationId, facts.githubInstallationId))
+        .for("share");
+      if (installation === undefined) throw new UnknownInstallationError();
+      const [job] = await tx
+        .select({ id: analyses.id })
+        .from(analyses)
+        .innerJoin(repos, eq(repos.id, analyses.repoId))
+        .where(
+          and(
+            eq(analyses.jobId, start.jobId),
+            eq(repos.providerRepoId, facts.providerRepoId),
+            eq(repos.installationId, installation.id),
+          ),
+        )
+        .limit(1);
+      if (job === undefined) throw new JobGoneError();
+      const { id: repoId } = await upsertRepoOnce(tx, facts);
+      const { sha, analyzerVersion, jobId } = start;
+      const started = await startAnalysis(tx, { repoId, sha, analyzerVersion }, { jobId });
+      return { repoId, ...started };
+    });
+  try {
+    return await once();
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    return once();
+  }
 }
 
 /** What {@link findAnalysis} returns: the row's state, enough to answer `/api/analyze`. */
@@ -525,6 +591,22 @@ export async function completeAnalysis(
     .where(and(eq(analyses.id, id), ne(analyses.status, "done")))
     .returning({ id: analyses.id });
   return rows.length > 0;
+}
+
+/**
+ * The status of analysis `id`, or `undefined` if no row has that ID (any more): when
+ * {@link completeAnalysis} returns `false`, this tells a row already `done` from one the
+ * uninstall flow deleted while the job ran (M8.5b, ADR-0241).
+ */
+export async function findAnalysisStatus(
+  db: AnyDatabase,
+  id: string,
+): Promise<AnalysisSummary["status"] | undefined> {
+  const [row] = await db
+    .select({ status: analyses.status })
+    .from(analyses)
+    .where(eq(analyses.id, id));
+  return row?.status;
 }
 
 /**
