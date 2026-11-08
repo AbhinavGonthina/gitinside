@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer as createHttpServer } from "node:http";
 import { createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -12,7 +12,10 @@ import {
   computeUsageThisMonth,
   installations,
   maintenanceRuns,
+  pullRequests,
   queueAnalysis,
+  queuePullRequestDiff,
+  recordPullRequestHead,
   repos,
   startAnalysis,
   upsertInstallation,
@@ -551,6 +554,89 @@ describe("startWorkerProcess", () => {
       expect(lines.join("\n")).not.toContain("ghs_installation");
       const [row] = await t.db.select().from(analyses);
       expect(row).toMatchObject({ status: "done" });
+    } finally {
+      website.closeAllConnections();
+      await new Promise<void>((resolve) => website.close(() => resolve()));
+    }
+  });
+
+  it("takes a pushed diff task to a stored diff on the pull request's record (ADR-0245)", async () => {
+    await t.db.delete(installations);
+    await upsertInstallation(t.db, {
+      githubInstallationId: 42,
+      accountId: 9001,
+      accountLogin: "acme",
+      accountType: "Organization",
+      suspendedAt: null,
+    });
+    const website = createHttpServer((req, res) => {
+      req.resume();
+      req.on("end", () => {
+        res.writeHead(200, { "content-type": "application/json", connection: "close" });
+        res.end(JSON.stringify({ token: "ghs_installation", expiresAt: "2026-11-08T13:00:00Z" }));
+      });
+    });
+    await new Promise<void>((resolve) => website.listen(0, "127.0.0.1", resolve));
+    const base = "b".repeat(40);
+    const mergeBase = "a".repeat(40);
+    const tarball = github.api;
+    github.api = (req, res) => {
+      if (!(req.url ?? "").includes("/compare/")) return tarball(req, res);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ merge_base_commit: { sha: mergeBase } }));
+    };
+    const graph = await readFile(
+      fileURLToPath(new URL("../../../fixtures/express-basic/expected.json", import.meta.url)),
+    );
+    const shas: (string | undefined)[] = [];
+    try {
+      const port = (website.address() as AddressInfo).port;
+      const worker = await start(
+        {
+          jobDeps: {
+            run: async (job): Promise<RunResult> => {
+              shas.push(job.sha);
+              await writeFile(job.out, graph);
+              return { ok: true, stats: STATS, durationMs: 1 };
+            },
+          },
+        },
+        { websiteOrigin: `http://127.0.0.1:${port}` },
+      );
+      const job = { kind: "diff" as const, owner: "acme", repo: "shop", sha: SHA, baseSha: base };
+      const jobId = jobIdFor({ ...job, installationId: 42 }, VERSION);
+      // What the website writes before the task (M8.6d2): the repo linked, the record naming the job.
+      const { id: repoId } = await upsertRepo(t.db, {
+        providerRepoId: 3_000_000_001,
+        owner: "acme",
+        name: "shop",
+        visibility: "public",
+        defaultBranch: "main",
+        githubInstallationId: 42,
+      });
+      const pair = { repoId, number: 7, baseSha: base, headSha: SHA };
+      await recordPullRequestHead(t.db, { ...pair, headAt: new Date("2026-11-08T10:00:00Z") });
+      await queuePullRequestDiff(t.db, { ...pair, jobId });
+
+      const task = fakeTask(origin(worker), { ...job, installationId: 42 }, SECRET);
+      expect(await pushTask(task)).toMatchObject([
+        { status: 200, body: { id: jobId, state: "done" } },
+      ]);
+      expect(shas).toEqual([mergeBase, SHA]);
+      const key = `private/42/${repoId}/diffs/${mergeBase}-${SHA}/${VERSION}.json.gz`;
+      expect([...s3.objects.keys()]).toEqual([key]);
+      const [record] = await t.db.select().from(pullRequests);
+      expect(record).toMatchObject({ diffKey: key, brokenCount: 0, diffJobId: jobId });
+      expect(await t.db.select().from(analyses)).toEqual([]);
+      expect(parse(lines).find((line) => line.event === "job_done")).toMatchObject({
+        mergeBase,
+        broken: 0,
+        pullRequests: 1,
+      });
+
+      // A duplicate push finds every record diffed and does nothing.
+      expect(await pushTask(task)).toMatchObject([{ status: 200, body: { state: "done" } }]);
+      expect(shas).toHaveLength(2);
     } finally {
       website.closeAllConnections();
       await new Promise<void>((resolve) => website.close(() => resolve()));

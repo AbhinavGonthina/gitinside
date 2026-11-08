@@ -7,6 +7,7 @@ import {
   type TimingSample,
 } from "./estimate.js";
 import { JobFailure } from "./failure.js";
+import { processDiffJob } from "./diffJob.js";
 import { JobAlreadyDone, processJob, type JobDeps, type JobOutcome } from "./job.js";
 import {
   STAGE_PROGRESS,
@@ -18,7 +19,8 @@ import {
 
 /**
  * One attempt at a job, as Cloud Tasks' push to `POST /run` delivers it (run.ts, ADR-0114):
- * validate the request, run {@link processJob},
+ * validate the request, run {@link processJob} (an analysis) or {@link processDiffJob} (a
+ * pull request's diff),
  * report each stage and step as progress (with the time expected from each step on, once the
  * file count is known, ADR-0136) to the caller and to the recorder's Postgres row
  * (ADR-0139), log the outcome, and turn every error into a {@link JobFailure}.
@@ -153,7 +155,8 @@ export async function runAttempt(
   let failure: JobFailure;
   try {
     const request = parseJobRequest(input.data);
-    const outcome = await processJob(
+    const runJob = request.kind === "diff" ? processDiffJob : processJob;
+    const outcome = await runJob(
       {
         id,
         request,
@@ -169,7 +172,14 @@ export async function runAttempt(
       },
       jobDeps,
     );
-    log({ event: "job_done", id, attempt, nodes: outcome.stats.nodes, ...outcome.timings });
+    log({
+      event: "job_done",
+      id,
+      attempt,
+      nodes: outcome.stats.nodes,
+      ...outcome.timings,
+      ...(outcome.diff === undefined ? {} : outcome.diff),
+    });
     return { ok: true, outcome };
   } catch (error) {
     if (error instanceof JobAlreadyDone) {
