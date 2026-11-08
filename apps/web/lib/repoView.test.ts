@@ -8,6 +8,7 @@ import {
   countComputeUsage,
   createSession,
   failAnalysis,
+  findPublishedAnalysis,
   findSession,
   installations,
   queueAnalysis,
@@ -22,7 +23,17 @@ import {
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { jobIdFor } from "@gitinside/worker";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import type { AuthDeps } from "./authRoute";
 import { fakeGitHub, type FakeGitHub, type FakeRepo } from "./github.testkit";
 import {
@@ -562,6 +573,41 @@ describe("viewRepo", () => {
     expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
       ready(OLD, { state: "current" }),
     );
+  });
+
+  it("drops the repo's CDN-cached graphs once it's hidden, never before (M8.4d1)", async () => {
+    await done(OLD);
+    const purged: [number, boolean][] = [];
+    deps.purgeRepo = async (providerRepoId) => {
+      // Purged after the row is hidden, so the CDN's next ask can't cache the graph again.
+      const published = await findPublishedAnalysis(t.db, { providerRepoId });
+      purged.push([providerRepoId, published === undefined]);
+    };
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual(
+      ready(OLD, { state: "current" }),
+    );
+    gh.failNext(new TypeError("fetch failed"));
+    clock += 61_000;
+    await viewRepo({ owner: "acme", repo: "shop" }, deps);
+    expect(purged).toEqual([]);
+
+    shop.private = true;
+    clock += 61_000;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({ status: "missing" });
+    expect(purged).toEqual([[ID, true]]);
+  });
+
+  it("still hides a repo whose purge fails, logging the failure by name only", async () => {
+    await done(OLD);
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    onTestFinished(() => log.mockRestore());
+    deps.purgeRepo = () => Promise.reject(new Error("429 from https://secret.example"));
+    gh.failNext(new Response("", { status: 451 }));
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({ status: "missing" });
+    expect(await viewRepo({ owner: "acme", repo: "shop", sha: OLD }, deps)).toEqual({
+      status: "missing",
+    });
+    expect(log).toHaveBeenCalledWith(JSON.stringify({ event: "cdn_purge_failed", error: "Error" }));
   });
 
   it("stops serving a repo GitHub blocks (451), and doesn't remember the answer", async () => {

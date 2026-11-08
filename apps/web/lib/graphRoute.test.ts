@@ -26,6 +26,7 @@ import {
   type FakeInstallation,
   type FakeOAuth,
 } from "./githubOAuth.testkit";
+import { CACHE_TAG_HEADER } from "./cdnCache";
 import {
   CDN_CACHEABLE_BYTES,
   GRAPH_CACHE_CONTROL,
@@ -107,6 +108,7 @@ describe("handleGraphRequest", () => {
     expect(response.headers.get("content-encoding")).toBe("gzip");
     expect(response.headers.get("vary")).toBe("accept-encoding");
     expect(response.headers.get("cache-control")).toBe(GRAPH_CACHE_CONTROL);
+    expect(response.headers.get(CACHE_TAG_HEADER)).toBe("repo-1");
     expect(gunzipSync(Buffer.from(await response.arrayBuffer())).toString()).toBe(GRAPH);
     expect(reads).toEqual([KEY]);
   });
@@ -192,6 +194,7 @@ describe("handleGraphRequest", () => {
       expect(response.status, `${owner}/${repo}`).toBe(308);
       expect(response.headers.get("location")).toBe(`/api/graph/Acme/Shop/${SHA}`);
       expect(response.headers.get("cache-control")).toBe(SPELLING_REDIRECT_CACHE_CONTROL);
+      expect(response.headers.get(CACHE_TAG_HEADER)).toBe("repo-1");
     }
     expect(reads).toEqual([]);
   });
@@ -331,6 +334,8 @@ describe("handleGraphRequest for a private repo (M8.4b)", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe(PRIVATE_CACHE_CONTROL);
     expect(response.headers.get("vary")).toBe("accept-encoding, cookie");
+    // Never in the CDN, so nothing to purge.
+    expect(response.headers.get(CACHE_TAG_HEADER)).toBeNull();
     expect(gunzipSync(Buffer.from(await response.arrayBuffer())).toString()).toBe(GRAPH);
     expect(reads).toEqual([PRIVATE_KEY]);
     expect(github.requests.at(-1)?.url).toBe("https://api.github.com/repositories/1");
@@ -411,6 +416,7 @@ describe("handleGraphRequest for a private repo (M8.4b)", () => {
     expect(response.headers.get("location")).toBe(`/api/graph/Acme/Shop/${SHA}`);
     expect(response.headers.get("cache-control")).toBe(PRIVATE_CACHE_CONTROL);
     expect(response.headers.get("vary")).toBe("cookie");
+    expect(response.headers.get(CACHE_TAG_HEADER)).toBeNull();
     expect(reads).toEqual([]);
   });
 

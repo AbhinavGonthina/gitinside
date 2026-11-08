@@ -374,6 +374,10 @@ describe("repoViewDepsFromEnv", () => {
     expect(repoViewDepsFromEnv({ ...ENV, DATABASE_URL: "" })).toBeUndefined();
   });
 
+  it("purges hidden repos from Vercel's CDN, a no-op outside Vercel (ADR-0238)", async () => {
+    await expect(repoViewDepsFromEnv(ENV)?.purgeRepo?.(4242)).resolves.toBeUndefined();
+  });
+
   it("check-on-view creates tasks with the page request's OIDC token", async () => {
     const { google, env } = withGoogle("enqueue-view@gitinside-demo.iam.gserviceaccount.com");
     const deps = repoViewDepsFromEnv(env, FAKE_GCP.subjectToken);
