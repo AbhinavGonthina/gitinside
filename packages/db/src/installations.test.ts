@@ -228,7 +228,9 @@ describe("deleteInstallationData (M8.5a)", () => {
         finishedAt: new Date(),
       });
     }
-    await t.db.insert(pullRequests).values({ repoId: id, number: 1, baseSha: SHA, headSha: SHA2 });
+    await t.db
+      .insert(pullRequests)
+      .values({ repoId: id, number: 1, baseSha: SHA, headSha: SHA2, headAt: new Date() });
     const [user] = await t.db
       .insert(users)
       .values({ githubUserId: providerRepoId, login: `u${providerRepoId}` })

@@ -318,7 +318,7 @@ Built in steps M6.7a–f (ADR-0090).
 | `sessions` | id, token_hash (SHA-256 of the cookie's token, unique), user_id, github_tokens (sealed by the website), created_at, expires_at. Deleted on sign-out and with the user (ADR-0221) |
 | `installations` | id, github_installation_id, account_login, created_at |
 | `access_cache` | user_id, repo_id, allowed (bool), checked_at. Primary key (user_id, repo_id); TTL 60 s (ADR-0009) |
-| `pull_requests` | id, repo_id, number, base_sha, head_sha, diff_key, broken_count, comment_id, check_run_id |
+| `pull_requests` | id, repo_id, number, base_sha, head_sha, head_at (GitHub's `updated_at` in the event that set them), diff_key, broken_count (set together), comment_id, check_run_id. Unique (repo_id, number); an older event or an old pair's result never overwrites a newer one (`packages/db/src/pullRequests.ts`, ADR-0244) |
 | `rate_limits` | key (ip or user), window_start, count |
 | `store_requests` | month_start (UTC), source (`worker`/`web`), count. Primary key (month_start, source); bucket requests against Oracle's 50,000 a month (ADR-0096) |
 | `compute_usage` | month_start (UTC, primary key), instance_ms, run_requests, task_operations. Google compute used this month, counted by the worker (startup + shutdown allowance, each push's time) and the website (each Cloud Tasks create); new analyses pause at 80% of the free allowance (ADR-0156) |

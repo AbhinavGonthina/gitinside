@@ -272,7 +272,12 @@ export const accessCache = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.repoId] })],
 );
 
-/** The bot's record of one pull request: the diff it posted and where (M8). */
+/**
+ * The bot's record of one pull request: the diff it posted and where (M8, ADR-0244). The
+ * base and head are the newest GitHub has described (`head_at`, GitHub's `updated_at` in that
+ * event); the diff's key and broken count are that pair's, set together, and the Check Run is
+ * that head's. The comment is the pull request's, edited in place across heads.
+ */
 export const pullRequests = pgTable(
   "pull_requests",
   {
@@ -283,6 +288,7 @@ export const pullRequests = pgTable(
     number: integer("number").notNull(),
     baseSha: text("base_sha").notNull(),
     headSha: text("head_sha").notNull(),
+    headAt: timestampTz("head_at").notNull(),
     diffKey: text("diff_key"),
     brokenCount: integer("broken_count"),
     commentId: githubId("comment_id"),
@@ -296,6 +302,7 @@ export const pullRequests = pgTable(
     check("pull_requests_base_sha_check", isSha(t.baseSha)),
     check("pull_requests_head_sha_check", isSha(t.headSha)),
     check("pull_requests_broken_count_check", sql`${t.brokenCount} >= 0`),
+    check("pull_requests_result_check", sql`(${t.diffKey} is null) = (${t.brokenCount} is null)`),
   ],
 );
 

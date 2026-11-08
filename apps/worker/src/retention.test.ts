@@ -252,7 +252,7 @@ describe("runRetention", () => {
   it("deletes evicted rows and their objects, and old orphans, keeping pinned commits", async () => {
     await t.db
       .insert(pullRequests)
-      .values({ repoId: shopId, number: 4, baseSha: sha(1), headSha: sha(9) });
+      .values({ repoId: shopId, number: 4, baseSha: sha(1), headSha: sha(9), headAt: new Date() });
     stored(key("gone", 1), 50);
     stored(key("young", 1), 50, new Date());
 
