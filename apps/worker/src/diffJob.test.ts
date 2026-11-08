@@ -1,4 +1,5 @@
-import { copyFile, mkdtemp, readdir, rm } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { copyFile, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -102,6 +103,7 @@ function recorder(overrides: Partial<DiffRecorder> = {}) {
   const published: DiffToStore[] = [];
   const diffs: DiffRecorder = {
     find: async () => ({ repoId: REPO_ID, status: "queued" }),
+    storedGraph: async () => undefined,
     publish: async (stored) => {
       published.push(stored);
       return [{ repoId: REPO_ID, number: 7, baseSha: BASE, headSha: HEAD }];
@@ -176,7 +178,7 @@ describe("processDiffJob with the real analyzer", () => {
       "file:diff-rename/src/orders/routes.ts",
     ]);
     expect(stored?.diff.nodes.removed).toEqual([]);
-    expect(outcome.diff).toEqual({ mergeBase: MERGE, broken: 0, pullRequests: 1 });
+    expect(outcome.diff).toEqual({ mergeBase: MERGE, broken: 0, pullRequests: 1, reused: [] });
     expect(outcome.stats.nodes).toBeGreaterThan(0);
     expect(outcome.extract.files).toBeGreaterThan(0);
     expect(await jobFolders()).toEqual([]);
@@ -257,6 +259,100 @@ describe("processDiffJob", () => {
         broken: 0,
         pullRequests: 1,
       }),
+    ]);
+  });
+});
+
+describe("processDiffJob with stored graphs (M8.6d3c2)", () => {
+  /** `sha`'s committed graph as the bucket would hold it: naming that commit. */
+  const storedText = (sha: string, as: string = sha): string => {
+    const graph = JSON.parse(readFileSync(join(TREES[sha] as string, "expected.json"), "utf8")) as {
+      repo: Record<string, unknown>;
+    };
+    return JSON.stringify({ ...graph, repo: { ...graph.repo, sha: as } });
+  };
+
+  it("reads both sides' stored graphs instead of analyzing, still diffing both trees' text", async () => {
+    const storedGraph = vi.fn(async ({ sha }: { sha: string }) => storedText(sha));
+    const { diffs, published } = recorder({ storedGraph });
+    const run = fakeRun();
+    const linkedRepoIds = vi.fn(async (_id: number, repoIds: readonly string[]) => repoIds);
+    const cacheRoot = join(root, "cache");
+    // A repo's cached facts, which preparing a cache would check against the database.
+    await mkdir(join(cacheRoot, "installations", String(INSTALLATION), REPO_ID), {
+      recursive: true,
+    });
+    const outcome = await processDiffJob(context(), deps({ diffs, run, cacheRoot, linkedRepoIds }));
+
+    expect(run).not.toHaveBeenCalled();
+    // Nothing analyzed, so no cache prepared (and no database read for it).
+    expect(linkedRepoIds).not.toHaveBeenCalled();
+    expect(storedGraph.mock.calls.map(([side]) => side)).toEqual([
+      { installationId: INSTALLATION, repoId: REPO_ID, sha: MERGE },
+      { installationId: INSTALLATION, repoId: REPO_ID, sha: HEAD },
+    ]);
+    // Both trees are still downloaded: rename detection reads their text.
+    expect(asked().filter((r) => r.startsWith("codeload"))).toHaveLength(2);
+    expect(published[0]?.diff.nodes.renamed.map((r) => [r.from, r.node.id])).toContainEqual([
+      "file:diff-rename/src/routes/orders.ts",
+      "file:diff-rename/src/orders/routes.ts",
+    ]);
+    expect(outcome.diff?.reused).toEqual(["mergeBase", "head"]);
+    const head = JSON.parse(storedText(HEAD)) as {
+      nodes: { kind: string }[];
+      edges: unknown[];
+      warnings: unknown[];
+    };
+    expect(outcome.stats).toEqual({
+      files: head.nodes.filter((n) => n.kind === "file").length,
+      nodes: head.nodes.length,
+      edges: head.edges.length,
+      unresolved: head.nodes.filter((n) => n.kind === "unresolved").length,
+      warnings: head.warnings.length,
+      graphBytes: Buffer.byteLength(storedText(HEAD)),
+      stageMs: {},
+    });
+    expect(await jobFolders()).toEqual([]);
+  });
+
+  it("analyzes only the side without a stored graph, with the fact cache", async () => {
+    const storedGraph = async ({ sha }: { sha: string }) =>
+      sha === MERGE ? storedText(MERGE) : undefined;
+    const { diffs } = recorder({ storedGraph });
+    const run = fakeRun();
+    const linkedRepoIds = vi.fn(async (_id: number, repoIds: readonly string[]) => repoIds);
+    const cacheRoot = join(root, "cache");
+    const outcome = await processDiffJob(context(), deps({ diffs, run, cacheRoot, linkedRepoIds }));
+    expect(run.mock.calls.map(([job]) => job.sha)).toEqual([HEAD]);
+    expect(run.mock.calls.map(([job]) => "cache" in job)).toEqual([true]);
+    expect(outcome.diff?.reused).toEqual(["mergeBase"]);
+    expect(outcome.stats).toEqual(STATS);
+  });
+
+  it.each([
+    ["names another commit", async () => storedText(MERGE, "f".repeat(40))],
+    ["isn't JSON", async () => "{"],
+    ["isn't a graph", async () => JSON.stringify({ nodes: [] })],
+    [
+      "can't be read",
+      async () => {
+        throw new Error("GET answered 500");
+      },
+    ],
+  ])("analyzes a side whose stored graph %s, and logs it", async (_, read) => {
+    const storedGraph = async ({ sha }: { sha: string }) =>
+      sha === MERGE ? read() : storedText(HEAD);
+    const { diffs } = recorder({ storedGraph });
+    const run = fakeRun();
+    const logs: Record<string, unknown>[] = [];
+    const outcome = await processDiffJob(
+      context(),
+      deps({ diffs, run, log: (event) => void logs.push(event) }),
+    );
+    expect(run.mock.calls.map(([job]) => job.sha)).toEqual([MERGE]);
+    expect(outcome.diff?.reused).toEqual(["head"]);
+    expect(logs).toEqual([
+      expect.objectContaining({ event: "stored_graph_unread", id: ID, sha: MERGE }),
     ]);
   });
 });
