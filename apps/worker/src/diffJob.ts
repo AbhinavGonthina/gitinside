@@ -20,6 +20,7 @@ import {
   type JobOutcome,
 } from "./job.js";
 import type { JobCache } from "./factcache.js";
+import type { AnalysisStats } from "./protocol.js";
 import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
 
 /**
@@ -36,7 +37,11 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
  *    turn, merge base first, both with the repo's fact cache folder (factcache.ts), so the head
  *    side reuses the facts of every file the pull request didn't touch. A stored graph that
  *    can't be read or doesn't parse is logged (`stored_graph_unread`) and that side analyzed: it
- *    only ever saves time. Each side's timeout is cut to the attempt's deadline as an
+ *    only ever saves time. A side it analyzed is stored right away as that commit's analysis
+ *    (`DiffRecorder.storeSide`, M8.6d4) when no other job holds its row: the pull request's
+ *    link then has both diagrams, and a retry after the head ran out of time reads the merge
+ *    base instead of analyzing it again. A side that can't be stored is logged
+ *    (`side_store_failed`) and the job goes on. Each side's timeout is cut to the attempt's deadline as an
  *    analysis's is: running out of a guaranteed share is `LIMIT_TIME`, running out of less (the
  *    head side, once the merge base took its time) is the retriable `ANALYSIS_TIME_CUT`.
  *    Both trees are still downloaded: the diff needs their text.
@@ -84,6 +89,19 @@ export interface DiffRecorder {
     repoId: string;
     sha: string;
   }): Promise<string | undefined>;
+  /**
+   * Store a side the job analyzed as that commit's analysis, when no other job holds that
+   * commit's row and the repo is still linked to the installation (M8.6d4): its snapshot under
+   * the key an analysis job would use, then a `done` row. Answers whether the row was written.
+   */
+  storeSide(side: {
+    installationId: number;
+    repoId: string;
+    sha: string;
+    /** The side's graph file, as the analysis child wrote it. */
+    graphPath: string;
+    stats: AnalysisStats;
+  }): Promise<boolean>;
   /**
    * Store the diff and record it on every pull request record naming the job; answers those
    * records (empty: each moved on to another pair, and nothing is posted).
@@ -257,6 +275,31 @@ async function storedSide(
 }
 
 /**
+ * Store a side the job just analyzed as that commit's analysis (`DiffRecorder.storeSide`,
+ * M8.6d4); answers whether its row was written. A failure is logged (`side_store_failed`, the
+ * error's message only) and the job goes on: the diff doesn't depend on it.
+ */
+async function storeSide(
+  context: JobContext,
+  deps: JobDeps & { diffs: DiffRecorder },
+  side: Side,
+  owner: { installationId: number; repoId: string },
+  stats: AnalysisStats,
+): Promise<boolean> {
+  try {
+    return await deps.diffs.storeSide({ ...owner, sha: side.sha, graphPath: side.out, stats });
+  } catch (error) {
+    deps.log?.({
+      event: "side_store_failed",
+      id: context.id,
+      sha: side.sha,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/**
  * Run one diff job (see the module comment). Resolves with its {@link JobOutcome} (`diff` set,
  * `stats` and `extract` its head side's) or throws a {@link JobFailure} (or
  * {@link JobAlreadyDone}, before any download); the job folder is gone either way.
@@ -291,16 +334,21 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
     const owner = { installationId, repoId: live.repoId };
     const [base, after] = sides;
     const reused: ("mergeBase" | "head")[] = [];
+    const stored: ("mergeBase" | "head")[] = [];
     let cache: JobCache | undefined | null = null;
     const graphOf = async (side: Side, name: "mergeBase" | "head") => {
-      const stored = await storedSide(context, { ...deps, diffs }, side, owner);
-      if (stored !== undefined) {
+      const read = await storedSide(context, { ...deps, diffs }, side, owner);
+      if (read !== undefined) {
         reused.push(name);
-        return stored;
+        return read;
       }
       // Prepared once, and only when a side is analyzed (it purges other repos' folders).
       if (cache === null) cache = await jobCache(context, deps, owner);
-      return analyzeSide(context, deps, side, cache, atStart);
+      const analyzed = await analyzeSide(context, deps, side, cache, atStart);
+      if (await storeSide(context, { ...deps, diffs }, side, owner, analyzed.stats)) {
+        stored.push(name);
+      }
+      return analyzed;
     };
     const before = await graphOf(base, "mergeBase");
     const analyzed = await graphOf(after, "head");
@@ -342,6 +390,7 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
         broken: diff.broken.length,
         pullRequests: records.length,
         reused,
+        stored,
       },
     };
   } finally {

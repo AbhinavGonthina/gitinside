@@ -633,6 +633,89 @@ export async function findDoneSnapshotKey(
   return row?.snapshotKey ?? undefined;
 }
 
+/** What {@link findLinkedRepo} returns: the repo as last seen, enough for its snapshot key. */
+export interface LinkedRepo {
+  owner: string;
+  name: string;
+  visibility: "public" | "private";
+}
+
+/**
+ * Repo row `repoId` if it's linked to the installation with GitHub's ID `githubInstallationId`,
+ * else `undefined`: a diff job keys a side it analyzed by it before storing it
+ * (M8.6d4, ADR-0245).
+ */
+export async function findLinkedRepo(
+  db: AnyDatabase,
+  link: { githubInstallationId: number; repoId: string },
+): Promise<LinkedRepo | undefined> {
+  const [row] = await db
+    .select({ owner: repos.owner, name: repos.name, visibility: repos.visibility })
+    .from(repos)
+    .innerJoin(installations, eq(installations.id, repos.installationId))
+    .where(
+      and(
+        eq(repos.id, link.repoId),
+        eq(installations.githubInstallationId, link.githubInstallationId),
+      ),
+    );
+  return row;
+}
+
+/**
+ * Store a side a pull request's diff job analyzed as that commit's analysis (M8.6d4,
+ * ADR-0245), once its snapshot is in object storage: a new `done` row, or a `failed` one moved
+ * to `done`. A row another job holds (`queued` or `running`) and a `done` one are left as they
+ * are, as is everything when the repo is no longer linked to the job's installation (an
+ * uninstall or a removed repo since the job started). The installation's row is locked
+ * (`FOR SHARE`) as in {@link startInstallationAnalysis}, so the uninstall flow's deletion
+ * either ran first (and nothing is written) or deletes this row with the rest. The row gets no
+ * job ID (`analyze-` IDs only) and no attempts. Returns whether a row was written.
+ */
+export async function storeDiffSideAnalysis(
+  db: AnyDatabase,
+  side: AnalysisKey & {
+    githubInstallationId: number;
+    snapshotKey: string;
+    stats: AnalysisStats;
+  },
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [linked] = await tx
+      .select({ id: installations.id })
+      .from(installations)
+      .innerJoin(repos, eq(repos.installationId, installations.id))
+      .where(
+        and(
+          eq(installations.githubInstallationId, side.githubInstallationId),
+          eq(repos.id, side.repoId),
+        ),
+      )
+      .for("share", { of: installations });
+    if (linked === undefined) return false;
+    const done = {
+      status: "done" as const,
+      snapshotKey: side.snapshotKey,
+      stats: side.stats,
+      errorCode: null,
+      finishedAt: sql`now()`,
+      progress: null,
+      progressAt: null,
+    };
+    const { repoId, sha, analyzerVersion } = side;
+    const rows = await tx
+      .insert(analyses)
+      .values({ repoId, sha, analyzerVersion, ...done })
+      .onConflictDoUpdate({
+        target: [analyses.repoId, analyses.sha, analyses.analyzerVersion],
+        set: done,
+        setWhere: eq(analyses.status, "failed"),
+      })
+      .returning({ id: analyses.id });
+    return rows.length > 0;
+  });
+}
+
 /**
  * The stats of the `limit` most recently finished `done` analyses, newest first, of any repo
  * or visibility (counts and timings only, nothing that names a repo). The worker estimates a

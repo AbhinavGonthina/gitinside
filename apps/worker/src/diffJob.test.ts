@@ -98,19 +98,33 @@ const fakeRun = (
     return { ok: true, stats: STATS, durationMs: 1 };
   });
 
-/** A recorder that finds the job queued and collects what's published. */
+/** A side as `storeSide` received it, with its graph file's text read at the call. */
+type StoredSide = Omit<Parameters<DiffRecorder["storeSide"]>[0], "graphPath"> & { text: string };
+
+/**
+ * A recorder that finds the job queued, stores every analyzed side, and collects what's
+ * stored and published (`calls` in order).
+ */
 function recorder(overrides: Partial<DiffRecorder> = {}) {
   const published: DiffToStore[] = [];
+  const sides: StoredSide[] = [];
+  const calls: string[] = [];
   const diffs: DiffRecorder = {
     find: async () => ({ repoId: REPO_ID, status: "queued" }),
     storedGraph: async () => undefined,
+    storeSide: async ({ graphPath, ...side }) => {
+      calls.push(`storeSide ${side.sha}`);
+      sides.push({ ...side, text: readFileSync(graphPath, "utf8") });
+      return true;
+    },
     publish: async (stored) => {
+      calls.push("publish");
       published.push(stored);
       return [{ repoId: REPO_ID, number: 7, baseSha: BASE, headSha: HEAD }];
     },
     ...overrides,
   };
-  return { diffs, published };
+  return { diffs, published, sides, calls };
 }
 
 function deps(overrides: Partial<JobDeps> = {}): JobDeps {
@@ -178,7 +192,13 @@ describe("processDiffJob with the real analyzer", () => {
       "file:diff-rename/src/orders/routes.ts",
     ]);
     expect(stored?.diff.nodes.removed).toEqual([]);
-    expect(outcome.diff).toEqual({ mergeBase: MERGE, broken: 0, pullRequests: 1, reused: [] });
+    expect(outcome.diff).toEqual({
+      mergeBase: MERGE,
+      broken: 0,
+      pullRequests: 1,
+      reused: [],
+      stored: ["mergeBase", "head"],
+    });
     expect(outcome.stats.nodes).toBeGreaterThan(0);
     expect(outcome.extract.files).toBeGreaterThan(0);
     expect(await jobFolders()).toEqual([]);
@@ -274,7 +294,7 @@ describe("processDiffJob with stored graphs (M8.6d3c2)", () => {
 
   it("reads both sides' stored graphs instead of analyzing, still diffing both trees' text", async () => {
     const storedGraph = vi.fn(async ({ sha }: { sha: string }) => storedText(sha));
-    const { diffs, published } = recorder({ storedGraph });
+    const { diffs, published, sides } = recorder({ storedGraph });
     const run = fakeRun();
     const linkedRepoIds = vi.fn(async (_id: number, repoIds: readonly string[]) => repoIds);
     const cacheRoot = join(root, "cache");
@@ -298,6 +318,9 @@ describe("processDiffJob with stored graphs (M8.6d3c2)", () => {
       "file:diff-rename/src/orders/routes.ts",
     ]);
     expect(outcome.diff?.reused).toEqual(["mergeBase", "head"]);
+    // Both are stored already: nothing to store again.
+    expect(sides).toEqual([]);
+    expect(outcome.diff?.stored).toEqual([]);
     const head = JSON.parse(storedText(HEAD)) as {
       nodes: { kind: string }[];
       edges: unknown[];
@@ -318,7 +341,7 @@ describe("processDiffJob with stored graphs (M8.6d3c2)", () => {
   it("analyzes only the side without a stored graph, with the fact cache", async () => {
     const storedGraph = async ({ sha }: { sha: string }) =>
       sha === MERGE ? storedText(MERGE) : undefined;
-    const { diffs } = recorder({ storedGraph });
+    const { diffs, sides } = recorder({ storedGraph });
     const run = fakeRun();
     const linkedRepoIds = vi.fn(async (_id: number, repoIds: readonly string[]) => repoIds);
     const cacheRoot = join(root, "cache");
@@ -326,6 +349,8 @@ describe("processDiffJob with stored graphs (M8.6d3c2)", () => {
     expect(run.mock.calls.map(([job]) => job.sha)).toEqual([HEAD]);
     expect(run.mock.calls.map(([job]) => "cache" in job)).toEqual([true]);
     expect(outcome.diff?.reused).toEqual(["mergeBase"]);
+    expect(sides.map((s) => s.sha)).toEqual([HEAD]);
+    expect(outcome.diff?.stored).toEqual(["head"]);
     expect(outcome.stats).toEqual(STATS);
   });
 
@@ -354,6 +379,64 @@ describe("processDiffJob with stored graphs (M8.6d3c2)", () => {
     expect(logs).toEqual([
       expect.objectContaining({ event: "stored_graph_unread", id: ID, sha: MERGE }),
     ]);
+  });
+});
+
+describe("processDiffJob stores the sides it analyzed (M8.6d4)", () => {
+  it("stores each analyzed side's graph and stats under the job's installation and repo, before the diff", async () => {
+    const { diffs, sides, calls } = recorder();
+    const outcome = await processDiffJob(context(), deps({ diffs }));
+    const graph = (sha: string) =>
+      readFileSync(join(TREES[sha] as string, "expected.json"), "utf8");
+    expect(sides).toEqual([
+      {
+        installationId: INSTALLATION,
+        repoId: REPO_ID,
+        sha: MERGE,
+        stats: STATS,
+        text: graph(MERGE),
+      },
+      { installationId: INSTALLATION, repoId: REPO_ID, sha: HEAD, stats: STATS, text: graph(HEAD) },
+    ]);
+    // Stored before the diff is recorded, so the pull request's link has both diagrams.
+    expect(calls).toEqual([`storeSide ${MERGE}`, `storeSide ${HEAD}`, "publish"]);
+    expect(outcome.diff?.stored).toEqual(["mergeBase", "head"]);
+  });
+
+  it("leaves out a side the recorder didn't write (another job holds its row)", async () => {
+    const { diffs } = recorder({ storeSide: async ({ sha }) => sha === HEAD });
+    const outcome = await processDiffJob(context(), deps({ diffs }));
+    expect(outcome.diff?.stored).toEqual(["head"]);
+  });
+
+  it("logs a side it couldn't store and still publishes the diff", async () => {
+    const { diffs, published } = recorder({
+      storeSide: async ({ sha }) => {
+        if (sha === MERGE) throw new Error("PUT answered 503");
+        return true;
+      },
+    });
+    const logs: Record<string, unknown>[] = [];
+    const outcome = await processDiffJob(
+      context(),
+      deps({ diffs, log: (event) => void logs.push(event) }),
+    );
+    expect(logs).toEqual([
+      { event: "side_store_failed", id: ID, sha: MERGE, message: "PUT answered 503" },
+    ]);
+    expect(published).toHaveLength(1);
+    expect(outcome.diff?.stored).toEqual(["head"]);
+  });
+
+  it("stores the merge base as soon as it's analyzed, so a retry after the head ran out of time reads it", async () => {
+    const { diffs, sides } = recorder();
+    const run = fakeRun((job) =>
+      job.sha === HEAD
+        ? { ok: false, code: "LIMIT_TIME", message: "", stderrTail: "", durationMs: 1 }
+        : undefined,
+    );
+    await failure(processDiffJob(context(), deps({ diffs, run })));
+    expect(sides.map((s) => s.sha)).toEqual([MERGE]);
   });
 });
 

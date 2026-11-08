@@ -750,6 +750,88 @@ describe("createDiffRecorder (ADR-0245)", () => {
       expect(await d.storedGraph({ installationId: 42, repoId, sha: MERGE })).toBeUndefined();
     });
   });
+
+  describe("storeSide (M8.6d4)", () => {
+    const TEXT = '{"nodes":["analyzed"]}\n';
+
+    /** A repo linked to installation 42, and a side's graph file. */
+    async function linked(visibility: "public" | "private") {
+      await upsertInstallation(t.db, INSTALLATION);
+      const { id: repoId } = await upsertRepo(t.db, {
+        providerRepoId: 3_000_000_001,
+        owner: "Acme",
+        name: "Shop",
+        visibility,
+        defaultBranch: "main",
+        githubInstallationId: 42,
+      });
+      const graphPath = join(root, "side.json");
+      await writeFile(graphPath, TEXT);
+      return { installationId: 42, repoId, sha: MERGE, graphPath, stats: STATS };
+    }
+
+    it("stores a public repo's side under the public key, which then reads back as its stored graph", async () => {
+      const side = await linked("public");
+      const d = diffRecorder();
+      expect(await d.storeSide(side)).toBe(true);
+
+      const key = `public/acme/shop/${MERGE}/${VERSION}.json.gz`;
+      expect(gunzipSync(s3.objects.get(key)!.body).toString()).toBe(TEXT);
+      const [row] = await t.db.select().from(analyses);
+      expect(row).toMatchObject({
+        repoId: side.repoId,
+        sha: MERGE,
+        analyzerVersion: VERSION,
+        status: "done",
+        snapshotKey: key,
+        jobId: null,
+      });
+      const { graphBytes: _, ...counts } = STATS;
+      expect(row?.stats).toEqual({
+        ...counts,
+        graphBytes: Buffer.byteLength(TEXT),
+        snapshotBytes: s3.objects.get(key)!.body.length,
+      });
+      expect(await d.storedGraph(side)).toBe(TEXT);
+    });
+
+    it("stores a private repo's side under this installation's private key", async () => {
+      const side = await linked("private");
+      expect(await diffRecorder().storeSide(side)).toBe(true);
+      const key = `private/42/${side.repoId}/${MERGE}/${VERSION}.json.gz`;
+      expect(s3.objects.get(key)?.headers["cache-control"]).toBe("private, no-store");
+      const [row] = await t.db.select().from(analyses);
+      expect(row?.snapshotKey).toBe(key);
+    });
+
+    it("leaves a row another job holds, keeping the upload for retention", async () => {
+      const side = await linked("public");
+      const { id } = await queueAnalysis(t.db, {
+        repoId: side.repoId,
+        sha: MERGE,
+        analyzerVersion: VERSION,
+      });
+      expect(await diffRecorder().storeSide(side)).toBe(false);
+      const [row] = await t.db.select().from(analyses);
+      expect(row).toMatchObject({ id, status: "queued", snapshotKey: null });
+    });
+
+    it("uploads nothing for a repo no longer linked to the installation", async () => {
+      const side = await linked("private");
+      await deleteInstallationData(t.db, 42, [3_000_000_001]);
+      await upsertRepo(t.db, {
+        providerRepoId: 3_000_000_001,
+        owner: "Acme",
+        name: "Shop",
+        visibility: "public",
+        defaultBranch: "main",
+      });
+      const [repo] = await t.db.select().from(repos);
+      expect(await diffRecorder().storeSide({ ...side, repoId: repo!.id })).toBe(false);
+      expect(s3.objects.size).toBe(0);
+      expect(await t.db.select().from(analyses)).toEqual([]);
+    });
+  });
 });
 
 describe("readableBy (M8.6d3c2)", () => {

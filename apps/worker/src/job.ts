@@ -145,6 +145,8 @@ export interface JobOutcome {
     pullRequests: number;
     /** The sides read from their stored graph instead of analyzed (M8.6d3c2). */
     reused: ("mergeBase" | "head")[];
+    /** The analyzed sides stored as that commit's analysis (M8.6d4). */
+    stored: ("mergeBase" | "head")[];
   };
 }
 

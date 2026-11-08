@@ -624,15 +624,24 @@ describe("startWorkerProcess", () => {
       ]);
       expect(shas).toEqual([mergeBase, SHA]);
       const key = `private/42/${repoId}/diffs/${mergeBase}-${SHA}/${VERSION}.json.gz`;
-      expect([...s3.objects.keys()]).toEqual([key]);
+      // Both sides it analyzed are that commit's analysis now (M8.6d4), under the public key.
+      const sideKey = (sha: string) => `public/acme/shop/${sha}/${VERSION}.json.gz`;
+      expect([...s3.objects.keys()].sort()).toEqual([key, sideKey(mergeBase), sideKey(SHA)].sort());
       const [record] = await t.db.select().from(pullRequests);
       expect(record).toMatchObject({ diffKey: key, brokenCount: 0, diffJobId: jobId });
-      expect(await t.db.select().from(analyses)).toEqual([]);
+      const rows = await t.db.select().from(analyses);
+      expect(rows.map((r) => [r.sha, r.status, r.snapshotKey]).sort()).toEqual(
+        [
+          [mergeBase, "done", sideKey(mergeBase)],
+          [SHA, "done", sideKey(SHA)],
+        ].sort(),
+      );
       expect(parse(lines).find((line) => line.event === "job_done")).toMatchObject({
         mergeBase,
         broken: 0,
         pullRequests: 1,
         reused: [],
+        stored: ["mergeBase", "head"],
       });
 
       // A duplicate push finds every record diffed and does nothing.

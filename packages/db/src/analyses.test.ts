@@ -16,6 +16,7 @@ import {
   findAnalysisStatus,
   findDoneSnapshotKey,
   findLimitFailure,
+  findLinkedRepo,
   findPublishedAnalysis,
   findStoredAnalysis,
   hideRepo,
@@ -28,6 +29,7 @@ import {
   servedPrivately,
   startAnalysis,
   startInstallationAnalysis,
+  storeDiffSideAnalysis,
   upsertInstallation,
   upsertRepo,
   type AnalysisStats,
@@ -414,6 +416,115 @@ describe("findDoneSnapshotKey (M8.6d3c2)", () => {
     expect(await findDoneSnapshotKey(t.db, key)).toBeUndefined();
     await failInterruptedAnalyses(t.db, 0);
     expect(await findDoneSnapshotKey(t.db, key)).toBeUndefined();
+  });
+});
+
+describe("a diff job's sides stored as analyses (M8.6d4)", () => {
+  const LINKED = { ...FACTS, githubInstallationId: 41 };
+  const KEY = "public/acme/shop/" + SHA + "/" + VERSION + ".json.gz";
+
+  async function installation(githubInstallationId: number) {
+    await upsertInstallation(t.db, {
+      githubInstallationId,
+      accountId: 9000 + githubInstallationId,
+      accountLogin: `acme-${String(githubInstallationId)}`,
+      accountType: "Organization",
+      suspendedAt: null,
+    });
+  }
+
+  beforeEach(async () => {
+    await installation(41);
+  });
+
+  const side = (repoId: string, githubInstallationId = 41) => ({
+    githubInstallationId,
+    repoId,
+    sha: SHA,
+    analyzerVersion: VERSION,
+    snapshotKey: KEY,
+    stats: STATS,
+  });
+
+  it("findLinkedRepo reads a repo only through the installation it's linked to", async () => {
+    const { id: repoId } = await upsertRepo(t.db, LINKED);
+    await installation(42);
+    expect(await findLinkedRepo(t.db, { githubInstallationId: 41, repoId })).toEqual({
+      owner: "acme",
+      name: "shop",
+      visibility: "public",
+    });
+    expect(await findLinkedRepo(t.db, { githubInstallationId: 42, repoId })).toBeUndefined();
+    const { id: unlinked } = await upsertRepo(t.db, {
+      ...FACTS,
+      providerRepoId: FACTS.providerRepoId + 1,
+      name: "other",
+    });
+    expect(
+      await findLinkedRepo(t.db, { githubInstallationId: 41, repoId: unlinked }),
+    ).toBeUndefined();
+  });
+
+  it("inserts a done row with the key and stats, which the repo's pages then find", async () => {
+    const { id: repoId } = await upsertRepo(t.db, LINKED);
+    expect(await storeDiffSideAnalysis(t.db, side(repoId))).toBe(true);
+    const [row] = await t.db.select().from(analyses);
+    expect(row).toMatchObject({
+      repoId,
+      sha: SHA,
+      analyzerVersion: VERSION,
+      status: "done",
+      snapshotKey: KEY,
+      stats: STATS,
+      errorCode: null,
+      jobId: null,
+      attempts: 0,
+      progress: null,
+    });
+    expect(row?.finishedAt).toBeInstanceOf(Date);
+    expect(await findPublishedAnalysis(t.db, { owner: "acme", name: "shop", sha: SHA })).toEqual(
+      expect.objectContaining({ analysis: expect.objectContaining({ snapshotKey: KEY }) }),
+    );
+  });
+
+  it("moves a failed row to done, clearing its error", async () => {
+    const { id: repoId } = await upsertRepo(t.db, LINKED);
+    const { id } = await startAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: VERSION });
+    await failAnalysis(t.db, id, "LIMIT_TIME");
+    expect(await storeDiffSideAnalysis(t.db, side(repoId))).toBe(true);
+    expect(await analysis(id)).toMatchObject({
+      status: "done",
+      snapshotKey: KEY,
+      errorCode: null,
+      attempts: 1,
+    });
+  });
+
+  it.each(["queued", "running", "done"] as const)(
+    "leaves a %s row (another job holds it, or it's stored) as it is",
+    async (status) => {
+      const { id: repoId } = await upsertRepo(t.db, LINKED);
+      const key = { repoId, sha: SHA, analyzerVersion: VERSION };
+      const { id } =
+        status === "queued" ? await queueAnalysis(t.db, key) : await startAnalysis(t.db, key);
+      if (status === "done") {
+        await completeAnalysis(t.db, id, { snapshotKey: "public/other", stats: STATS });
+      }
+      const before = await analysis(id);
+      expect(await storeDiffSideAnalysis(t.db, side(repoId))).toBe(false);
+      expect(await analysis(id)).toEqual(before);
+    },
+  );
+
+  it("writes nothing for a repo no longer linked to the job's installation", async () => {
+    const { id: repoId } = await upsertRepo(t.db, LINKED);
+    await installation(42);
+    expect(await storeDiffSideAnalysis(t.db, side(repoId, 42))).toBe(false);
+    await deleteInstallationData(t.db, 41, [FACTS.providerRepoId]);
+    expect(await storeDiffSideAnalysis(t.db, side(repoId))).toBe(false);
+    await deleteInstallationData(t.db, 41, "all");
+    expect(await storeDiffSideAnalysis(t.db, side(repoId))).toBe(false);
+    expect(await t.db.select().from(analyses)).toEqual([]);
   });
 });
 
