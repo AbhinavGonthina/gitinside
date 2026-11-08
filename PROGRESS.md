@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M8.8 Security tests (signatures, revocation, cross-tenant isolation)
+M8.9 Switch autopilot to PR flow reviewed by GitInside's bot; update CLAUDE.md
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -457,7 +457,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M8.6f1 The stored diff reachable from the website: db `findPullRequestDiffKey` (a record of the repo naming a diff of the link's merge base and head by that analyzer version, `privateDiffKey`'s exact shape), `GET /api/diff/:owner/:repo/:base/:head` (both commits stored, the head's analyzer version, the graphs' access check when either side is served privately, one `404` for every refusal, `private, no-store`), `viewBase`'s `diffUrl` when a record names one; tests, mutation-checked {model: opus}
 - [x] M8.6f2 The diagram's diff mode using it: `RepoDiagram` loads `diffUrl` beside both graphs and uses the stored diff when it parses and matches them (analyzer version, both SHAs; else the browser's own diff, ADR-0189), and the `renameLimit` note shown in the viewer's diff mode (ADR-0086's M6.11n2 amendment); tests, screenshots dark/light {model: opus}
 - [x] M8.7 Push webhook → badge refresh {model: opus}
-- [ ] M8.8 Security tests (signatures, revocation, cross-tenant isolation) {model: opus}
+- [x] M8.8 Security tests (signatures, revocation, cross-tenant isolation) {model: opus}
 - [ ] M8.9 Switch autopilot to PR flow reviewed by GitInside's bot; update CLAUDE.md {model: opus}
 - [ ] M8.10 Milestone verification + M8-review.md + tag m8 {model: opus}
 
@@ -474,6 +474,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- 2026-11-08 M8.8 (`e7de269`): `apps/web/lib/security.test.ts` runs every private surface (graph, stored diff, code file, job + events, permalink page) against two look-alike tenants (installations 41/52, both `Shop` at one commit): each member sees all of their own, and the other's answers equal a never-analyzed name's byte for byte, nothing read; the token route never mints across tenants. Revocation (60 s cache, revoked authorization, uninstall leaving the other tenant unchanged) and forged webhooks/token requests (nothing read or written, then the genuine one works). Every `app/api` route listed with the test of its guard. Found, by design: a code file is refused at once after removal (user's token), and queue position is global. web 1031 (11 new); four mutations red.
 - 2026-11-08 M8.7 (`1750359`, ADR-0246): a `push` to the default branch of a repo with any finished analysis queues its `after` commit through the sending installation (public repos too; the worker still keys a public repo's snapshot publicly). Check-on-view's gates and the repo's 6/h charge now live in `queueHead` (extracted from `followHead`, shared); a private repo's code count isn't asked. Other branches, tags, deletes, never-analyzed repos ⇒ `202` ignored, nothing written; gone/suspended installation ⇒ ignored, slot refunded; no queue or refused create ⇒ `503`. Images still cache 10 min (no purge on completion). web 1020 (10 new); three mutations red.
 - 2026-11-08 M8.6f2 (`4efb47a`, ADR-0245 amendment): `RepoDiagram` loads a `ready` base's `diffUrl` beside both graphs (`loadDiff`: `undefined` for anything unusable) and `compareGraphs` uses it when `storedDiffFits` (analyzer version, each side's repo and commit) and `buildDiffOverlay` accepts it, else the browser's diff quietly (ADR-0189). The viewer's Changes overview leads with `movesNote` (`renameLimitText`, now exported by diff), overview only. Viewer 1121, web 1010, diff 161; four mutations red; screenshots `docs/milestones/M8/stored-diff/`.
 - 2026-11-08 M8.6f1 (`f8e7a60`, ADR-0245 amendment): M8.6f split into f1 (stored diff reachable) and f2 (diff mode using it, `renameLimit` note, screenshots). db `findPullRequestDiffKey` reads the merge base from the key (the record holds the event's base), only `privateDiffKey`'s exact shape. `GET /api/diff/:owner/:repo/:base/:head` (`lib/diffRoute.ts`): both commits stored, the head's analyzer version, the graphs' access check when either side is served privately, one `404` for every refusal, always `private, no-store` (uninstall deletes the object at once). `viewBase` adds `diffUrl` only when a record names one. db 257, web 995; four mutations red.
