@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { createHmac } from "node:crypto";
 import {
+  analyses,
   findInstallation,
   installations,
   repos,
@@ -8,10 +9,12 @@ import {
   upsertRepo,
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
+import type { ListedObject, ObjectStore } from "@gitinside/worker/storage";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   handleWebhook,
   MAX_WEBHOOK_BYTES,
+  purgeObjects,
   verifySignature,
   type WebhookDeps,
 } from "./githubWebhook";
@@ -19,11 +22,32 @@ import {
 const SECRET = "w".repeat(43);
 const PREVIOUS = "p".repeat(43);
 
+/** A bucket in memory: listing by prefix in key order, deletes of missing keys succeed. */
+class FakeStore implements Pick<ObjectStore, "list" | "delete"> {
+  keys = new Set<string>();
+  failList = new Set<string>();
+  failDelete = new Set<string>();
+
+  async *list(prefix = ""): AsyncIterable<ListedObject> {
+    await Promise.resolve();
+    if (this.failList.has(prefix)) throw new Error("LIST answered 503");
+    for (const key of [...this.keys].sort()) {
+      if (key.startsWith(prefix)) yield { key, size: 1, lastModified: new Date(0) };
+    }
+  }
+
+  async delete(key: string): Promise<void> {
+    await Promise.resolve();
+    if (this.failDelete.has(key)) throw new Error("DELETE answered 500");
+    this.keys.delete(key);
+  }
+}
+
 let t: TestDb;
 let deps: WebhookDeps;
+let store: FakeStore;
 beforeAll(async () => {
   t = await createTestDb();
-  deps = { db: t.db, secrets: [SECRET] };
 });
 afterAll(async () => {
   await t?.close();
@@ -31,6 +55,8 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.delete(repos);
   await t.db.delete(installations);
+  store = new FakeStore();
+  deps = { db: t.db, store, secrets: [SECRET] };
   const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
   onTestFinished(() => spy.mockRestore());
 });
@@ -77,15 +103,49 @@ async function answer(request: Request, ...d: [WebhookDeps | undefined] | []) {
   return { status: response.status, body: (await response.json()) as unknown };
 }
 
-function repo(providerRepoId: number) {
+function repo(providerRepoId: number, visibility: "public" | "private" = "private") {
   return upsertRepo(t.db, {
     providerRepoId,
     owner: "octo-org",
     name: `r${providerRepoId}`,
-    visibility: "private",
+    visibility,
     defaultBranch: "main",
   });
 }
+
+const SHA = "c".repeat(40);
+
+/** A `done` analysis stored under `key`, with its object in the fake bucket. */
+async function stored(repoId: string, key: string, analyzerVersion = "0.1.0"): Promise<void> {
+  await t.db.insert(analyses).values({
+    repoId,
+    sha: SHA,
+    analyzerVersion,
+    status: "done",
+    snapshotKey: key,
+    startedAt: new Date(),
+    finishedAt: new Date(),
+  });
+  store.keys.add(key);
+}
+
+const linkRepo = (id: number) =>
+  answer(
+    delivery("installation_repositories", installed("added", { repositories_added: [{ id }] })),
+  );
+
+async function storedKeys(): Promise<string[]> {
+  return (await t.db.select().from(analyses)).map((a) => a.snapshotKey ?? "").sort();
+}
+
+const installation41 = () =>
+  upsertInstallation(t.db, {
+    githubInstallationId: 41,
+    accountId: 9001,
+    accountLogin: "octo-org",
+    accountType: "Organization",
+    suspendedAt: null,
+  });
 
 async function linked(): Promise<Record<string, boolean>> {
   const rows = await t.db
@@ -119,6 +179,28 @@ describe("verifySignature", () => {
       expect(verifySignature([SECRET], body, header), String(header)).toBe(false);
     }
     expect(verifySignature([], body, sign(body))).toBe(false);
+  });
+});
+
+describe("purgeObjects", () => {
+  it("deletes every object under each prefix and nothing else", async () => {
+    for (let i = 0; i < 25; i++) store.keys.add(`private/41/a/${String(i).padStart(2, "0")}`);
+    store.keys.add("private/41/b/1");
+    store.keys.add("private/41/c/1");
+    expect(await purgeObjects(store, ["private/41/a/", "private/41/b/"])).toEqual({
+      deleted: 26,
+      failed: 0,
+    });
+    expect([...store.keys]).toEqual(["private/41/c/1"]);
+    expect(await purgeObjects(store, [])).toEqual({ deleted: 0, failed: 0 });
+  });
+
+  it("counts a failed listing or delete and goes on with the rest", async () => {
+    for (const key of ["p/a/1", "p/a/2", "p/b/1", "p/c/1"]) store.keys.add(key);
+    store.failList.add("p/b/");
+    store.failDelete.add("p/a/1");
+    expect(await purgeObjects(store, ["p/a/", "p/b/", "p/c/"])).toEqual({ deleted: 2, failed: 2 });
+    expect([...store.keys].sort()).toEqual(["p/a/1", "p/b/1"]);
   });
 });
 
@@ -240,31 +322,110 @@ describe("handleWebhook", () => {
     expect(await linked()).toEqual({ r5: false, r6: true });
   });
 
-  it("defers deletions to M8.5 and changes nothing", async () => {
-    const id = await upsertInstallation(t.db, {
-      githubInstallationId: 41,
-      accountId: 9001,
-      accountLogin: "octo-org",
-      accountType: "Organization",
-      suspendedAt: null,
-    });
-    await repo(1);
+  it("deletes an uninstalled installation's private data, rows and objects (M8.5a)", async () => {
+    await installation41();
+    const r1 = await repo(1);
+    const r2 = await repo(2, "public");
+    const r3 = await repo(3);
     await answer(
       delivery(
         "installation_repositories",
-        installed("added", { repositories_added: [{ id: 1 }] }),
+        installed("added", { repositories_added: [{ id: 1 }, { id: 2 }] }),
       ),
     );
+    await stored(r1.id, `private/41/${r1.id}/${SHA}/0.1.0.json.gz`);
+    await stored(r2.id, `private/41/${r2.id}/${SHA}/0.1.0.json.gz`);
+    await stored(r2.id, `public/octo-org/r2/${SHA}/0.2.0.json.gz`, "0.2.0");
+    await stored(r3.id, `private/42/${r3.id}/${SHA}/0.1.0.json.gz`);
+    store.keys.add("private/41/stray/object"); // no row names it, still the installation's
+    store.keys.add("private/410/x"); // another installation's, sharing the digits
+
+    expect(await answer(delivery("installation", installed("deleted")))).toEqual({
+      status: 200,
+      body: { status: "ok" },
+    });
+    expect(await findInstallation(t.db, 41)).toBeUndefined();
+    expect(await linked()).toEqual({ r2: false, r3: false });
+    expect(await storedKeys()).toEqual([
+      `private/42/${r3.id}/${SHA}/0.1.0.json.gz`,
+      `public/octo-org/r2/${SHA}/0.2.0.json.gz`,
+    ]);
+    expect([...store.keys].sort()).toEqual([
+      "private/410/x",
+      `private/42/${r3.id}/${SHA}/0.1.0.json.gz`,
+      `public/octo-org/r2/${SHA}/0.2.0.json.gz`,
+    ]);
+    // A redelivery finds nothing more to delete.
+    expect((await answer(delivery("installation", installed("deleted")))).status).toBe(200);
+    expect(store.keys.size).toBe(3);
+  });
+
+  it("deletes only the removed repos' private data, keeping the installation (M8.5a)", async () => {
+    const id = await installation41();
+    const r1 = await repo(1);
+    const r2 = await repo(2);
+    await answer(
+      delivery(
+        "installation_repositories",
+        installed("added", { repositories_added: [{ id: 1 }, { id: 2 }] }),
+      ),
+    );
+    await stored(r1.id, `private/41/${r1.id}/${SHA}/0.1.0.json.gz`);
+    await stored(r2.id, `private/41/${r2.id}/${SHA}/0.1.0.json.gz`);
+    const payload = installed("removed", {
+      repository_selection: "selected",
+      repositories_added: [],
+      repositories_removed: [{ id: 1, name: "r1", full_name: "octo-org/r1", private: true }],
+    });
+    expect(await answer(delivery("installation_repositories", payload))).toEqual({
+      status: 200,
+      body: { status: "ok" },
+    });
+    expect((await findInstallation(t.db, 41))?.id).toBe(id);
+    expect(await linked()).toEqual({ r2: true });
+    expect([...store.keys]).toEqual([`private/41/${r2.id}/${SHA}/0.1.0.json.gz`]);
+    expect(await storedKeys()).toEqual([...store.keys]);
+  });
+
+  it("logs objects it couldn't delete and still answers 200: the rows are gone", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    onTestFinished(() => errors.mockRestore());
+    await installation41();
+    const r1 = await repo(1);
+    await linkRepo(1);
+    const key = `private/41/${r1.id}/${SHA}/0.1.0.json.gz`;
+    await stored(r1.id, key);
+    store.failDelete.add(key);
+    expect(await answer(delivery("installation", installed("deleted")))).toEqual({
+      status: 200,
+      body: { status: "ok" },
+    });
+    expect(await storedKeys()).toEqual([]);
+    expect([...store.keys]).toEqual([key]); // retention's orphan sweep deletes it
+    expect(errors.mock.calls.map((c) => JSON.parse(String(c[0])) as unknown)).toEqual([
+      {
+        event: "webhook_purge_failed",
+        delivery: "72d3162e-cc78-11e3-81ab-4c9367dc0958",
+        failed: 1,
+      },
+    ]);
+  });
+
+  it("refuses a deletion out of shape and deletes nothing", async () => {
+    await installation41();
+    await repo(1);
+    await linkRepo(1);
     for (const [event, payload] of [
-      ["installation", installed("deleted")],
-      ["installation_repositories", installed("removed", { repositories_removed: [{ id: 1 }] })],
+      ["installation", { ...installed("deleted"), installation: { id: "41" } }],
+      ["installation", { action: "deleted" }],
+      ["installation_repositories", installed("removed", { repositories_removed: "all" })],
+      ["installation_repositories", installed("removed", { repositories_removed: [{ id: -1 }] })],
     ] as const) {
-      expect(await answer(delivery(event, payload)), event).toEqual({
-        status: 202,
-        body: { status: "deferred" },
+      expect(await answer(delivery(event, payload)), JSON.stringify(payload)).toEqual({
+        status: 400,
+        body: { error: "INVALID_PAYLOAD" },
       });
     }
-    expect((await findInstallation(t.db, 41))?.id).toBe(id);
     expect(await linked()).toEqual({ r1: true });
   });
 

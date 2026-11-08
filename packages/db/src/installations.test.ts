@@ -1,13 +1,19 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  accessCache,
+  analyses,
+  deleteInstallationData,
   findInstallation,
   installations,
+  installationSnapshotPrefix,
   LINK_CHUNK,
   linkInstallationRepos,
+  pullRequests,
   repos,
   UnknownInstallationError,
   upsertInstallation,
   upsertRepo,
+  users,
   type InstallationFacts,
   type RepoFacts,
 } from "./index.js";
@@ -41,6 +47,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.delete(repos);
   await t.db.delete(installations);
+  await t.db.delete(users);
 });
 
 function repo(providerRepoId: number, name = `r${providerRepoId}`) {
@@ -142,6 +149,169 @@ describe("linkInstallationRepos", () => {
     const ids = Array.from({ length: LINK_CHUNK * 2 + 5 }, (_, i) => i + 1);
     expect(await linkInstallationRepos(t.db, 41, ids)).toBe(2);
     expect(await linkedTo()).toEqual({ r1: id, [`r${LINK_CHUNK * 2 + 5}`]: id });
+  });
+});
+
+describe("deleteInstallationData (M8.5a)", () => {
+  const SHA = "a".repeat(40);
+  const SHA2 = "b".repeat(40);
+
+  /** A repo with a `done` analysis per key, one PR record, and one access-cache row. */
+  async function stocked(
+    providerRepoId: number,
+    visibility: "public" | "private",
+    keys: (repoId: string) => string[],
+    githubInstallationId?: number,
+  ): Promise<string> {
+    const { id } = await upsertRepo(t.db, {
+      providerRepoId,
+      owner: "octo-org",
+      name: `r${providerRepoId}`,
+      visibility,
+      defaultBranch: "main",
+      ...(githubInstallationId !== undefined && { githubInstallationId }),
+    });
+    const list = keys(id);
+    for (const [i, snapshotKey] of list.entries()) {
+      await t.db.insert(analyses).values({
+        repoId: id,
+        sha: SHA,
+        analyzerVersion: `0.${i}.0`,
+        status: "done",
+        snapshotKey,
+        startedAt: new Date(),
+        finishedAt: new Date(),
+      });
+    }
+    await t.db.insert(pullRequests).values({ repoId: id, number: 1, baseSha: SHA, headSha: SHA2 });
+    const [user] = await t.db
+      .insert(users)
+      .values({ githubUserId: providerRepoId, login: `u${providerRepoId}` })
+      .returning({ id: users.id });
+    await t.db
+      .insert(accessCache)
+      .values({ userId: user?.id ?? "", repoId: id, allowed: true, checkedAt: new Date() });
+    return id;
+  }
+
+  /** Per repo name: its installation link, snapshot keys, PR records, and access rows. */
+  async function state() {
+    const out: Record<
+      string,
+      { linked: string | null; keys: string[]; prs: number; access: number }
+    > = {};
+    for (const repo of await t.db.select().from(repos)) {
+      const keys = (await t.db.select().from(analyses))
+        .filter((a) => a.repoId === repo.id)
+        .map((a) => a.snapshotKey ?? "")
+        .sort();
+      const prs = (await t.db.select().from(pullRequests)).filter((p) => p.repoId === repo.id);
+      const access = (await t.db.select().from(accessCache)).filter((a) => a.repoId === repo.id);
+      out[repo.name] = {
+        linked: repo.installationId,
+        keys,
+        prs: prs.length,
+        access: access.length,
+      };
+    }
+    return out;
+  }
+
+  const priv =
+    (installation: number, sha = SHA) =>
+    (repoId: string) => [`private/${installation}/${repoId}/${sha}/0.0.0.json.gz`];
+
+  it("deletes an uninstalled installation's private repos, and its snapshots of others", async () => {
+    await upsertInstallation(t.db, OCTO);
+    const other = await upsertInstallation(t.db, {
+      ...OCTO,
+      githubInstallationId: 42,
+      accountId: 9002,
+    });
+    await stocked(1, "private", priv(41), 41);
+    const publicKey = (name: string) => `public/octo-org/${name}/${SHA}/0.1.0.json.gz`;
+    await stocked(2, "public", (id) => [...priv(41)(id), publicKey("r2")], 41);
+    // Linked elsewhere now (a transfer), with a snapshot still under 41's prefix.
+    const moved = await stocked(3, "private", (id) => [...priv(41)(id), ...priv(42, SHA2)(id)], 42);
+    const r4 = await stocked(4, "private", priv(42), 42);
+    await stocked(5, "public", () => [publicKey("r5")]);
+
+    expect(await deleteInstallationData(t.db, 41, "all")).toEqual({
+      deletedRepos: 1,
+      unlinkedRepos: 1,
+      installationDeleted: true,
+      prefixes: ["private/41/"],
+    });
+    expect(await findInstallation(t.db, 41)).toBeUndefined();
+    expect((await findInstallation(t.db, 42))?.id).toBe(other);
+    expect(await state()).toEqual({
+      r2: { linked: null, keys: [publicKey("r2")], prs: 0, access: 0 },
+      r3: { linked: other, keys: priv(42, SHA2)(moved), prs: 1, access: 1 },
+      r4: { linked: other, keys: priv(42)(r4), prs: 1, access: 1 },
+      r5: { linked: null, keys: [publicKey("r5")], prs: 1, access: 1 },
+    });
+    // A redelivery deletes nothing more.
+    const before = await state();
+    expect(await deleteInstallationData(t.db, 41, "all")).toEqual({
+      deletedRepos: 0,
+      unlinkedRepos: 0,
+      installationDeleted: false,
+      prefixes: ["private/41/"],
+    });
+    expect(await state()).toEqual(before);
+  });
+
+  it("deletes only the repos removed from an installation, keeping the installation", async () => {
+    const octo = await upsertInstallation(t.db, OCTO);
+    await upsertInstallation(t.db, { ...OCTO, githubInstallationId: 42, accountId: 9002 });
+    const r1 = await stocked(1, "private", priv(41), 41);
+    const r2 = await stocked(2, "private", priv(41), 41);
+    const publicKey = `public/octo-org/r3/${SHA}/0.1.0.json.gz`;
+    const r3 = await stocked(3, "public", (id) => [...priv(41)(id), publicKey], 41);
+    const r4 = await stocked(4, "private", priv(42), 42);
+
+    // 4 is another installation's (only its 41-prefixed snapshots would go), 999 isn't stored.
+    expect(await deleteInstallationData(t.db, 41, [1, 3, 4, 999])).toEqual({
+      deletedRepos: 1,
+      unlinkedRepos: 1,
+      installationDeleted: false,
+      prefixes: [r1, r3, r4].map((id) => `private/41/${id}/`).sort(),
+    });
+    expect((await findInstallation(t.db, 41))?.id).toBe(octo);
+    expect(await state()).toEqual({
+      r2: { linked: octo, keys: priv(41)(r2), prs: 1, access: 1 },
+      r3: { linked: null, keys: [publicKey], prs: 0, access: 0 },
+      r4: { linked: (await findInstallation(t.db, 42))?.id, keys: priv(42)(r4), prs: 1, access: 1 },
+    });
+  });
+
+  it("deletes an unknown installation's snapshots of the repos named", async () => {
+    const r1 = await stocked(1, "public", priv(41));
+    expect(await deleteInstallationData(t.db, 41, [1])).toEqual({
+      deletedRepos: 0,
+      unlinkedRepos: 0,
+      installationDeleted: false,
+      prefixes: [`private/41/${r1}/`],
+    });
+    expect(await deleteInstallationData(t.db, 41, "all")).toMatchObject({ deletedRepos: 0 });
+    expect(await state()).toEqual({ r1: { linked: null, keys: [], prs: 1, access: 1 } });
+  });
+
+  it("deletes lists longer than one statement takes", async () => {
+    await upsertInstallation(t.db, OCTO);
+    await stocked(1, "private", priv(41), 41);
+    await stocked(LINK_CHUNK * 2 + 5, "private", priv(41), 41);
+    const ids = Array.from({ length: LINK_CHUNK * 2 + 5 }, (_, i) => i + 1);
+    expect(await deleteInstallationData(t.db, 41, ids)).toMatchObject({ deletedRepos: 2 });
+    expect(await state()).toEqual({});
+  });
+
+  it("refuses an installation ID a key can't hold", async () => {
+    for (const id of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => installationSnapshotPrefix(id), String(id)).toThrow(/positive integer/);
+      await expect(deleteInstallationData(t.db, id, "all")).rejects.toThrow(/positive integer/);
+    }
+    expect(installationSnapshotPrefix(41)).toBe("private/41/");
   });
 });
 

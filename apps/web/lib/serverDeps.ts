@@ -5,6 +5,7 @@ import {
   countingFetch,
   createObjectStore,
   storeConfigFromEnv,
+  type ObjectStore,
   type StoreConfig,
 } from "@gitinside/worker/storage";
 import type { AnalyzeDeps } from "./analyze";
@@ -245,6 +246,17 @@ function botCheck(env: Env): BotCheck | undefined | null {
  * `undefined`; with sign-in's deps when it's configured, for private repos (M8.4b).
  */
 export function graphDepsFromEnv(env: Env = process.env): GraphRouteDeps | undefined {
+  const stored = snapshotStore(env);
+  if (!stored) return undefined;
+  const auth = authDepsFromEnv(env);
+  return { ...stored, ...(auth !== undefined && { auth }) };
+}
+
+/**
+ * The database and the `SNAPSHOTS_*` bucket, each bucket request counted against the month's
+ * free requests (ADR-0096); else `undefined`.
+ */
+function snapshotStore(env: Env): { db: AnyDatabase; store: ObjectStore } | undefined {
   let config: StoreConfig;
   try {
     config = storeConfigFromEnv(env);
@@ -264,8 +276,7 @@ export function graphDepsFromEnv(env: Env = process.env): GraphRouteDeps | undef
         }),
       ),
   });
-  const auth = authDepsFromEnv(env);
-  return { db, store: createObjectStore(config, { fetch }), ...(auth !== undefined && { auth }) };
+  return { db, store: createObjectStore(config, { fetch }) };
 }
 
 /**
@@ -316,9 +327,11 @@ export function authDepsFromEnv(env: Env = process.env): AuthDeps | undefined {
 }
 
 /**
- * The webhook route's deps (M8.3a, ADR-0220, ADR-0224): `DATABASE_URL` and
- * `GITHUB_APP_WEBHOOK_SECRET`, plus `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` during a rotation;
- * each secret at least 32 characters. Else `undefined`, and every delivery gets `503`.
+ * The webhook route's deps (M8.3a, ADR-0220, ADR-0224): `DATABASE_URL`, the `SNAPSHOTS_*`
+ * bucket (an uninstall deletes its objects, M8.5a), and `GITHUB_APP_WEBHOOK_SECRET`, plus
+ * `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` during a rotation; each secret at least 32
+ * characters. Else `undefined`, and every delivery gets `503`, so GitHub shows a deletion
+ * that couldn't run as failed rather than it being half done.
  */
 export function webhookDepsFromEnv(env: Env = process.env): WebhookDeps | undefined {
   const secrets: string[] = [];
@@ -331,8 +344,8 @@ export function webhookDepsFromEnv(env: Env = process.env): WebhookDeps | undefi
     if (value.length < MIN_SECRET_LENGTH) return undefined;
     secrets.push(value);
   }
-  const db = database(env);
-  return db && { db, secrets };
+  const stored = snapshotStore(env);
+  return stored && { ...stored, secrets };
 }
 
 /** The app's credentials per key text, kept so each request doesn't parse the PEM again. */

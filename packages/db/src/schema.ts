@@ -13,7 +13,7 @@
  * - counts are never negative;
  * - deleting a repo or user deletes everything that hangs off it (uninstall
  *   deletes private data, SPEC §3), while deleting an installation only
- *   unlinks its repos (the uninstall flow, M8.5, deletes those itself).
+ *   unlinks its repos (the uninstall flow, `deleteInstallationData`, deletes those itself).
  *
  * This file must stay self-contained (no relative imports): drizzle-kit
  * loads it directly to generate migrations.

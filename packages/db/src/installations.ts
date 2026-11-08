@@ -1,11 +1,12 @@
 /**
  * GitHub App installations as their webhooks describe them (M8.3a, ADR-0224). The website
- * checks each delivery's signature and shape; these functions only store what it read.
- * Deleting an installation and its repos' private data is M8.5's.
+ * checks each delivery's signature and shape; these functions only store what it read, and
+ * delete an installation's private data when it's uninstalled or loses repos (M8.5a,
+ * {@link deleteInstallationData}).
  */
-import { eq, inArray, sql } from "drizzle-orm";
-import type { AnyDatabase } from "./analyses.js";
-import { installations, repos } from "./schema.js";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { PRIVATE_SNAPSHOT_PREFIX, type AnyDatabase } from "./analyses.js";
+import { accessCache, analyses, installations, pullRequests, repos } from "./schema.js";
 
 /** One installation, as an `installation` or `installation_repositories` event carries it. */
 export interface InstallationFacts {
@@ -99,5 +100,130 @@ export async function linkInstallationRepos(
   return count;
 }
 
-/** Repo IDs per statement in {@link linkInstallationRepos}. */
+/** Repo IDs per statement in {@link linkInstallationRepos} and {@link deleteInstallationData}. */
 export const LINK_CHUNK = 1_000;
+
+function chunks<T>(items: readonly T[]): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += LINK_CHUNK) out.push(items.slice(i, i + LINK_CHUNK));
+  return out;
+}
+
+/** The bucket prefix of every snapshot a job through installation `githubInstallationId` stored. */
+export function installationSnapshotPrefix(githubInstallationId: number): string {
+  if (!Number.isSafeInteger(githubInstallationId) || githubInstallationId < 1) {
+    throw new Error("githubInstallationId must be a positive integer");
+  }
+  return `${PRIVATE_SNAPSHOT_PREFIX}${githubInstallationId}/`;
+}
+
+/** What {@link deleteInstallationData} deleted, and where the matching objects are. */
+export interface InstallationDeletion {
+  /** Private repos deleted with everything that hangs off them. */
+  deletedRepos: number;
+  /** Repos kept but unlinked (public ones linked to the installation). */
+  unlinkedRepos: number;
+  /** Whether the installation's own row was deleted (`all` only, when it was stored). */
+  installationDeleted: boolean;
+  /**
+   * Bucket prefixes whose objects the deleted rows named, for the caller to list and delete:
+   * the installation's `private/<id>/` for `all`, else `private/<id>/<repo row ID>/` per repo
+   * named. Sorted. No row names an object under them any more, so retention's orphan sweep
+   * removes whatever the caller fails to delete.
+   */
+  prefixes: string[];
+}
+
+/**
+ * Delete what an installation's uninstall (`scope` `"all"`, GitHub's `installation`
+ * `deleted`) or its loss of repos (GitHub's repo IDs, `installation_repositories` `removed`)
+ * leaves us no right to keep (SPEC §3, SECURITY.md T7, ADR-0240), in one transaction:
+ *
+ * - a **private repo linked to the installation** is deleted with its analyses, PR records,
+ *   and access-cache rows (the foreign keys cascade);
+ * - **every other repo concerned** (linked to it, named in the list, or with an analysis
+ *   stored under its prefix) loses the analyses stored under `private/<id>/`; a public repo
+ *   linked to it is also unlinked, losing its PR records and access-cache rows. Its public
+ *   analyses stay: anyone can make them again from the public repo (ADR-0239);
+ * - for `"all"`, the installation's row.
+ *
+ * The installation's row is locked first, so a job start linking a repo to it
+ * (`upsertRepo`) either finishes before and is deleted here, or starts after and finds the
+ * row gone. Running it twice deletes nothing the second time; an installation never stored
+ * still has its prefix's analyses deleted.
+ */
+export async function deleteInstallationData(
+  db: AnyDatabase,
+  githubInstallationId: number,
+  scope: "all" | readonly number[],
+): Promise<InstallationDeletion> {
+  const root = installationSnapshotPrefix(githubInstallationId);
+  const storedHere = sql`left(${analyses.snapshotKey}, ${root.length}) = ${root}`;
+  return db.transaction(async (tx) => {
+    const [installation] = await tx
+      .select({ id: installations.id })
+      .from(installations)
+      .where(eq(installations.githubInstallationId, githubInstallationId))
+      .for("update");
+    const here = installation?.id;
+    const columns = {
+      id: repos.id,
+      visibility: repos.visibility,
+      installationId: repos.installationId,
+    };
+    const targets: { id: string; visibility: string; installationId: string | null }[] = [];
+    if (scope === "all") {
+      const withSnapshots = tx
+        .selectDistinct({ id: analyses.repoId })
+        .from(analyses)
+        .where(storedHere);
+      const linked = here === undefined ? sql`false` : eq(repos.installationId, here);
+      targets.push(
+        ...(await tx
+          .select(columns)
+          .from(repos)
+          .where(or(linked, inArray(repos.id, withSnapshots)))),
+      );
+    } else {
+      for (const ids of chunks(scope)) {
+        targets.push(
+          ...(await tx.select(columns).from(repos).where(inArray(repos.providerRepoId, ids))),
+        );
+      }
+    }
+
+    const linkedHere = (repo: (typeof targets)[number]) =>
+      here !== undefined && repo.installationId === here;
+    const drop = targets
+      .filter((r) => r.visibility === "private" && linkedHere(r))
+      .map((r) => r.id);
+    const dropped = new Set(drop);
+    const kept = targets.filter((r) => !dropped.has(r.id));
+    const unlink = kept.filter(linkedHere).map((r) => r.id);
+    for (const ids of chunks(kept.map((r) => r.id))) {
+      await tx.delete(analyses).where(and(inArray(analyses.repoId, ids), storedHere));
+    }
+    for (const ids of chunks(unlink)) {
+      await tx.delete(pullRequests).where(inArray(pullRequests.repoId, ids));
+      await tx.delete(accessCache).where(inArray(accessCache.repoId, ids));
+      await tx
+        .update(repos)
+        .set({ installationId: null, updatedAt: sql`now()` })
+        .where(inArray(repos.id, ids));
+    }
+    for (const ids of chunks(drop)) await tx.delete(repos).where(inArray(repos.id, ids));
+    let installationDeleted = false;
+    if (scope === "all" && here !== undefined) {
+      await tx.delete(installations).where(eq(installations.id, here));
+      installationDeleted = true;
+    }
+    const prefixes =
+      scope === "all" ? [root] : [...new Set(targets.map((r) => `${root}${r.id}/`))].sort();
+    return {
+      deletedRepos: drop.length,
+      unlinkedRepos: unlink.length,
+      installationDeleted,
+      prefixes,
+    };
+  });
+}

@@ -481,10 +481,12 @@ describe("webhookDepsFromEnv", () => {
   const HOOK = {
     DATABASE_URL: ENV.DATABASE_URL,
     GITHUB_APP_WEBHOOK_SECRET: "w".repeat(43),
+    ...BUCKET,
   };
 
-  it("needs the database and a long enough webhook secret", () => {
+  it("needs the database, the bucket, and a long enough webhook secret", () => {
     expect(webhookDepsFromEnv(HOOK)?.secrets).toEqual(["w".repeat(43)]);
+    expect(typeof webhookDepsFromEnv(HOOK)?.store.delete).toBe("function");
     for (const name of Object.keys(HOOK)) {
       expect(webhookDepsFromEnv({ ...HOOK, [name]: undefined }), name).toBeUndefined();
       expect(webhookDepsFromEnv({ ...HOOK, [name]: "" }), name).toBeUndefined();

@@ -1,10 +1,13 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
+  deleteInstallationData,
   linkInstallationRepos,
   upsertInstallation,
   type AnyDatabase,
+  type InstallationDeletion,
   type InstallationFacts,
 } from "@gitinside/db";
+import type { ObjectStore } from "@gitinside/worker/storage";
 import { readBody } from "./body";
 import { field, LOGIN } from "./githubOAuth";
 
@@ -21,10 +24,15 @@ import { field, LOGIN } from "./githubOAuth";
  *   `unsuspend` store the installation's account and suspension, and `created` links the
  *   stored repos it lists; `installation_repositories` `added` does the same for the repos
  *   added. `ping` answers `200`.
- * - **Not handled yet:** `installation` `deleted` and `installation_repositories` `removed`
- *   delete private data, which is M8.5's; until then they answer `202` with
- *   `"deferred"` and change nothing (the app isn't installed anywhere before M8.10).
- *   `pull_request` (M8.6), `push` (M8.7), and any other event answer `202` `"ignored"`.
+ * - **Deletion (M8.5a, ADR-0240):** `installation` `deleted` and `installation_repositories`
+ *   `removed` delete the private data those repos leave behind at once (SPEC §3): first
+ *   the rows, in one transaction (`deleteInstallationData`), then every object under the
+ *   prefixes it returns, listed and deleted from the bucket before answering. An object
+ *   delete that fails is logged (`webhook_purge_failed`, counts only) and doesn't fail the
+ *   delivery: no row names it any more, so retention's hourly orphan sweep deletes it within
+ *   about two hours (the hour's grace plus the run's period), and a redelivery couldn't find
+ *   a deleted repo's prefix again anyway.
+ * - `pull_request` (M8.6), `push` (M8.7), and any other event answer `202` `"ignored"`.
  * - **Every write is idempotent,** so a redelivered event (GitHub's "Redeliver", or a retry
  *   after our `500`) changes nothing twice. Deliveries can arrive out of order; the stored
  *   suspension is the last one received, and GitHub itself refuses tokens for a suspended
@@ -49,12 +57,57 @@ export const DELIVERY_HEADER = "x-github-delivery";
 /** What the webhook route needs. */
 export interface WebhookDeps {
   db: AnyDatabase;
+  /** The snapshot bucket, to delete a removed installation's objects. */
+  store: Pick<ObjectStore, "list" | "delete">;
   /** The current webhook secret first, then the previous one during a rotation. */
   secrets: readonly string[];
 }
 
 /** The answer's `status`: what was done with the delivery. */
-export type WebhookOutcome = "ok" | "ignored" | "deferred";
+export type WebhookOutcome = "ok" | "ignored";
+
+/** Object deletes in flight at once while purging. */
+const PURGE_CONCURRENCY = 8;
+
+/** What {@link purgeObjects} did. */
+export interface PurgeReport {
+  deleted: number;
+  /** Deletes that failed, plus one per prefix whose listing failed. */
+  failed: number;
+}
+
+/**
+ * Delete every object under each of `prefixes`, never throwing: a failed listing or delete is
+ * counted and the rest go on. Exported for its tests.
+ */
+export async function purgeObjects(
+  store: Pick<ObjectStore, "list" | "delete">,
+  prefixes: readonly string[],
+): Promise<PurgeReport> {
+  const report: PurgeReport = { deleted: 0, failed: 0 };
+  for (const prefix of prefixes) {
+    const keys: string[] = [];
+    try {
+      for await (const object of store.list(prefix)) keys.push(object.key);
+    } catch {
+      report.failed++;
+    }
+    let next = 0;
+    const lane = async () => {
+      while (next < keys.length) {
+        const key = keys[next++] as string;
+        try {
+          await store.delete(key);
+          report.deleted++;
+        } catch {
+          report.failed++;
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: PURGE_CONCURRENCY }, lane));
+  }
+  return report;
+}
 
 type Body = { status: WebhookOutcome } | { error: string };
 
@@ -130,24 +183,30 @@ function repoIds(payload: unknown, name: string): number[] {
   return list.map((repo) => positiveId(field(repo, "id"), "repo ID"));
 }
 
-/** What the handlers do with each installation event's action. */
-const INSTALLATION_ACTIONS: Record<string, WebhookOutcome | undefined> = {
-  created: "ok",
-  new_permissions_accepted: "ok",
-  suspend: "ok",
-  unsuspend: "ok",
-  deleted: "deferred", // M8.5
+/** What each event handles: an action stores (`store`), deletes (`delete`), or is ignored. */
+const INSTALLATION_ACTIONS: Record<string, "store" | "delete" | undefined> = {
+  created: "store",
+  new_permissions_accepted: "store",
+  suspend: "store",
+  unsuspend: "store",
+  deleted: "delete",
 };
-const REPOSITORIES_ACTIONS: Record<string, WebhookOutcome | undefined> = {
-  added: "ok",
-  removed: "deferred", // M8.5
+const REPOSITORIES_ACTIONS: Record<string, "store" | "delete" | undefined> = {
+  added: "store",
+  removed: "delete",
 };
+
+/** The installation's ID alone: a deletion needs nothing else, and stores nothing. */
+function installationId(payload: unknown): number {
+  return positiveId(field(field(payload, "installation"), "id"), "installation ID");
+}
 
 async function dispatch(
   event: string,
   payload: unknown,
-  db: AnyDatabase,
-): Promise<{ outcome: WebhookOutcome; action?: string }> {
+  deps: WebhookDeps,
+): Promise<{ outcome: WebhookOutcome; action?: string; deletion?: Deletion }> {
+  const { db } = deps;
   if (event === "ping") return { outcome: "ok" };
   if (event !== "installation" && event !== "installation_repositories") {
     return { outcome: "ignored" };
@@ -155,8 +214,16 @@ async function dispatch(
   const action = field(payload, "action");
   if (typeof action !== "string") throw new PayloadError("no action");
   const actions = event === "installation" ? INSTALLATION_ACTIONS : REPOSITORIES_ACTIONS;
-  const outcome = Object.hasOwn(actions, action) ? actions[action] : undefined;
-  if (outcome !== "ok") return { outcome: outcome ?? "ignored", action };
+  const handling = Object.hasOwn(actions, action) ? actions[action] : undefined;
+  if (handling === undefined) return { outcome: "ignored", action };
+
+  if (handling === "delete") {
+    const id = installationId(payload);
+    const scope = event === "installation" ? "all" : repoIds(payload, "repositories_removed");
+    const rows = await deleteInstallationData(db, id, scope);
+    const purge = await purgeObjects(deps.store, rows.prefixes);
+    return { outcome: "ok", action, deletion: { ...rows, ...purge } };
+  }
 
   // Read everything before writing anything, so a bad payload writes nothing.
   const facts = readInstallation(payload);
@@ -170,10 +237,13 @@ async function dispatch(
     await upsertInstallation(tx, facts);
     await linkInstallationRepos(tx, facts.githubInstallationId, repos);
   });
-  return { outcome, action };
+  return { outcome: "ok", action };
 }
 
-function log(fields: Record<string, string | undefined>): void {
+/** What a deletion did: rows, then objects. */
+type Deletion = InstallationDeletion & PurgeReport;
+
+function log(fields: Record<string, string | number | boolean | undefined>): void {
   console.log(JSON.stringify({ event: "github_webhook", ...fields }));
 }
 
@@ -205,8 +275,17 @@ export async function handleWebhook(
     return json(400, { error: "INVALID_JSON" });
   }
   try {
-    const { outcome, action } = await dispatch(event, payload, deps.db);
-    log({ delivery, name: event, action, outcome });
+    const { outcome, action, deletion } = await dispatch(event, payload, deps);
+    if (deletion === undefined) log({ delivery, name: event, action, outcome });
+    else {
+      const { prefixes, ...counts } = deletion;
+      log({ delivery, name: event, action, outcome, prefixes: prefixes.length, ...counts });
+      if (deletion.failed > 0) {
+        console.error(
+          JSON.stringify({ event: "webhook_purge_failed", delivery, failed: deletion.failed }),
+        );
+      }
+    }
     return json(outcome === "ok" ? 200 : 202, { status: outcome });
   } catch (error) {
     if (error instanceof PayloadError) {
