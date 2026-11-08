@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import { createGitHubSourceLoader, createSourceAccess, MAX_SOURCE_BYTES } from "./sources.js";
+import {
+  createGitHubSourceLoader,
+  createSiteSourceLoader,
+  createSourceAccess,
+  MAX_SOURCE_BYTES,
+} from "./sources.js";
 
 describe("createSourceAccess", () => {
   it("knows the host's files by own key only", () => {
@@ -174,5 +179,42 @@ describe("createGitHubSourceLoader", () => {
       fetch: async () => response(new Uint8Array([0x61, 0x00, 0x62])),
     });
     expect(await load("a.png")).toBeUndefined();
+  });
+});
+
+describe("createSiteSourceLoader (M8.4c3)", () => {
+  const repo = { owner: "acme co", name: "shop", sha: "abc123" };
+
+  it("reads the file through the site's route with the page's cookies, never a redirect", async () => {
+    const fetch = vi.fn(async () => response("export const x = 1;\n"));
+    const load = createSiteSourceLoader(repo, "/api/source", { fetch });
+    expect(await load("src/a b/#x.ts")).toBe("export const x = 1;\n");
+    expect(fetch).toHaveBeenCalledWith("/api/source/acme%20co/shop/abc123/src/a%20b/%23x.ts", {
+      credentials: "same-origin",
+      redirect: "error",
+    });
+  });
+
+  it("keeps the shared guards: SHA, path, status, cap, binary", async () => {
+    const fetch = vi.fn(async () => response("x"));
+    expect(
+      await createSiteSourceLoader({ owner: "acme", name: "shop" }, "/api/source", { fetch })(
+        "a.ts",
+      ),
+    ).toBeUndefined();
+    expect(await createSiteSourceLoader(repo, "/api/source", { fetch })("../a.ts")).toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
+    const answers = [
+      response("nope", { status: 404 }),
+      response("abcde"),
+      response(new Uint8Array([0x61, 0x00])),
+    ];
+    for (const answer of answers) {
+      const load = createSiteSourceLoader(repo, "/api/source", {
+        maxBytes: 4,
+        fetch: async () => answer,
+      });
+      expect(await load("a.ts")).toBeUndefined();
+    }
   });
 });

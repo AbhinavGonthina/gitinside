@@ -128,19 +128,54 @@ export interface GitHubSourceLoaderOptions {
  * size cap (by `content-length`, and while the body streams, so a chunked
  * answer stops at the cap rather than downloading in full), and for binary
  * files (a NUL byte), so the inspector says it couldn't load the file.
- * Private repos (M8) need a signed-in route instead.
+ * Private repos read through the host's signed-in route instead
+ * ({@link createSiteSourceLoader}).
  */
 export function createGitHubSourceLoader(
   repo: RepoRef,
   options: GitHubSourceLoaderOptions = {},
+): SourceLoader {
+  return cappedLoader(
+    repo,
+    (parts) => `https://raw.githubusercontent.com/${parts.repo}/${parts.sha}/${parts.path}`,
+    "omit",
+    options,
+  );
+}
+
+/**
+ * Loads a private repo's files through the host's own signed-in route (M8.4c3, ADR-0237):
+ * `<prefix>/<owner>/<repo>/<sha>/<path>` on the page's origin, sent with its cookies, which
+ * checks the viewer's access and reads GitHub with their token. The same guards as
+ * {@link createGitHubSourceLoader}: a commit SHA, no path leaving the repo, a 200 only, the
+ * size cap while streaming, no binary files.
+ */
+export function createSiteSourceLoader(
+  repo: RepoRef,
+  prefix: string,
+  options: GitHubSourceLoaderOptions = {},
+): SourceLoader {
+  return cappedLoader(
+    repo,
+    (parts) => `${prefix}/${parts.repo}/${parts.sha}/${parts.path}`,
+    "same-origin",
+    options,
+  );
+}
+
+/** A loader reading `urlOf(parts)` with `credentials`, under the guards both loaders share. */
+function cappedLoader(
+  repo: RepoRef,
+  urlOf: (parts: { repo: string; sha: string; path: string }) => string,
+  credentials: RequestCredentials,
+  options: GitHubSourceLoaderOptions,
 ): SourceLoader {
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
   const maxBytes = options.maxBytes ?? MAX_SOURCE_BYTES;
   return async (path) => {
     const parts = repoFileParts(repo, path);
     if (!parts) return undefined;
-    const url = `https://raw.githubusercontent.com/${parts.repo}/${parts.sha}/${parts.path}`;
-    const response = await fetchImpl(url, { credentials: "omit", redirect: "error" });
+    const response = await fetchImpl(urlOf(parts), { credentials, redirect: "error" });
     if (response.status !== 200) {
       void response.body?.cancel().catch(() => undefined);
       return undefined;

@@ -7,6 +7,7 @@ import {
   buildHierarchy,
   Button,
   createGitHubSourceLoader,
+  createSiteSourceLoader,
   decodeState,
   EmptyState,
   encodeState,
@@ -48,6 +49,21 @@ export interface RepoDiagramProps {
   head: HeadState;
   /** The commit a link's `?base=` compares this one with (`viewBase`), if it names one. */
   base?: BaseView | undefined;
+  /** A private repo shown to its viewer (M8.4c3): code through our route, a link-only badge. */
+  isPrivate?: boolean | undefined;
+}
+
+/** Where a private repo's code previews are read (`app/api/source`, ADR-0237). */
+const SOURCE_ROUTE = "/api/source";
+
+/**
+ * The code previews' loader at `sha`: a public repo's files straight from GitHub in this browser
+ * (ADR-0115), a private one's through our signed-in route, which checks access and reads GitHub
+ * with the viewer's token (M8.4c3).
+ */
+function sourceLoader(owner: string, repo: string, sha: string, isPrivate: boolean) {
+  const ref = { owner, name: repo, sha };
+  return isPrivate ? createSiteSourceLoader(ref, SOURCE_ROUTE) : createGitHubSourceLoader(ref);
 }
 
 /**
@@ -89,7 +105,8 @@ function nodeName(node: GraphNode): string {
  * page itself stays small and the CDN caches the graph per commit. "Add to README" and the
  * share menu live on the repo bar, since the explorer's top bar is hidden. The diagram is the
  * M4b explorer without its top bar, laid out in a Web Worker (the explorer falls back to the
- * main thread if the worker can't start).
+ * main thread if the worker can't start). A private repo's page (M8.4c3) reads its code previews
+ * through our signed-in route and offers only the link-only badge in "Add to README".
  *
  * Deep links (M4b.9b, ADR-0123): the explorer opens from the page's query (`decodeState`
  * against the loaded graph), and each change it reports replaces the query in place
@@ -118,7 +135,15 @@ function nodeName(node: GraphNode): string {
  * (M6.11h). A Try again that loads it hands focus to the diagram, as Stop comparing does; one
  * that fails again says so in new words, counting the tries, so it's announced (M6.11m).
  */
-export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiagramProps) {
+export function RepoDiagram({
+  owner,
+  repo,
+  sha,
+  graphUrl,
+  head,
+  base,
+  isPrivate = false,
+}: RepoDiagramProps) {
   const [loads, setLoads] = useState<
     | {
         head: GraphLoad;
@@ -136,20 +161,16 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
   const exportRef = useRef<ViewExport | undefined>(undefined);
   const status = headStatus(owner, repo, head);
   const { analyze, busy, error, asked, check } = useAnalyze(owner, repo);
-  // Code previews read the public file at this commit straight from GitHub (ADR-0115).
   const loadSource = useMemo(
-    () => createGitHubSourceLoader({ owner, name: repo, sha }),
-    [owner, repo, sha],
+    () => sourceLoader(owner, repo, sha, isPrivate),
+    [owner, repo, sha, isPrivate],
   );
   // Diff mode (M6.9e2): the base commit's graph and code, when the link names one that loads.
   const baseUrl = base?.status === "ready" ? base.graphUrl : undefined;
   const baseSha = base?.status === "ready" ? base.sha : undefined;
   const loadBaseSource = useMemo(
-    () =>
-      baseSha === undefined
-        ? undefined
-        : createGitHubSourceLoader({ owner, name: repo, sha: baseSha }),
-    [owner, repo, baseSha],
+    () => (baseSha === undefined ? undefined : sourceLoader(owner, repo, baseSha, isPrivate)),
+    [owner, repo, baseSha, isPrivate],
   );
   // A base that's a full SHA stays in the link, even one not analyzed yet: it compares once it is.
   const keptBase = base?.status === "ready" || base?.status === "missing" ? base.sha : undefined;
@@ -429,6 +450,7 @@ export function RepoDiagram({ owner, repo, sha, graphUrl, head, base }: RepoDiag
         <AddToReadme
           owner={owner}
           repo={repo}
+          isPrivate={isPrivate}
           open={menu === "readme"}
           onOpenChange={(open) => openMenu("readme", open)}
         />

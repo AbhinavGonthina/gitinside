@@ -205,6 +205,63 @@ test("a private repo's dashboard link opens its diagram, kept out of search engi
   expect(errors).toEqual([]);
 });
 
+test("a private repo's code preview reads through the site with the viewer's token; its badge is link-only", async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  await serveStorefront(page);
+  const raw: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().startsWith("https://raw.githubusercontent.com/")) raw.push(r.url());
+  });
+  await page.addInitScript(() => localStorage.setItem("gitinside.onboarding", "done"));
+  await signInAs(page, "octo");
+  const checkout = "page:web//checkout";
+  await page.goto(`${SITE}/acme/storefront?sel=${checkout}`);
+  await drawn(page);
+
+  // The file comes from our route (session, access check, the fake GitHub with octo's token).
+  const graph = JSON.parse(readFileSync(join(FIXTURE, "expected.json"), "utf8")) as {
+    nodes: { id: string; source?: { file: string; line: number } }[];
+  };
+  const source = graph.nodes.find((n) => n.id === checkout)?.source;
+  if (source === undefined) throw new Error(`${checkout} has no source in the fixture`);
+  const code = page.getByRole("figure");
+  await expect(code).not.toHaveAttribute("aria-busy", "true");
+  const text = readFileSync(join(FIXTURE, source.file), "utf8").split("\n")[source.line - 1];
+  await expect(code.locator(".gi-code__line[data-highlight] > code")).toHaveText(
+    (text ?? "").trim(),
+  );
+  expect(raw).toEqual([]);
+
+  // Signed in as someone else, the same file is the missing answer.
+  const url = `${SITE}/api/source/acme/storefront/${E2E_SHA}/${source.file}`;
+  expect((await page.context().request.get(url)).status()).toBe(200);
+  await page.context().clearCookies();
+  await signInAs(page, "newcomer");
+  expect((await page.context().request.get(url)).status()).toBe(404);
+
+  // Add to README offers the link-only badge alone. Its preview is answered by the unconfigured
+  // site's badge (the same link-only bytes): this site's would ask the real GitHub for a name
+  // with no public analysis (lib/imageRoute.test.ts covers that answer).
+  await page.route("**/api/badge/**", async (route) => {
+    const linkOnly = `http://127.0.0.1:${PORTS.unconfigured}/api/badge/acme/storefront.svg`;
+    await route.fulfill({ response: await route.fetch({ url: linkOnly }) });
+  });
+  await page.context().clearCookies();
+  await signInAs(page, "octo");
+  await page.goto(`${SITE}/acme/storefront`);
+  await page.getByRole("button", { name: "Add to README" }).click();
+  const panel = page.getByRole("region", { name: "Add to README" });
+  await expect(panel).toContainText("This repo is private, so its badge shows no counts");
+  await expect(panel.getByRole("radio")).toHaveCount(0);
+  const badge = panel.getByRole("img");
+  await expect
+    .poll(() => badge.evaluate((i: HTMLImageElement) => i.naturalWidth))
+    .toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});
+
 test("a private job's progress page shows the analysis only to someone GitHub shows the repo to", async ({
   page,
 }) => {

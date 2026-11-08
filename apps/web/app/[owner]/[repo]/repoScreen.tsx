@@ -102,6 +102,7 @@ export async function repoScreen(ref: RepoRef, sha?: string, query: SearchParams
         graphUrl={view.graphUrl}
         head={view.head}
         base={compared}
+        isPrivate={view.private !== undefined}
       />
     </>
   );

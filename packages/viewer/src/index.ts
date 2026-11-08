@@ -273,7 +273,11 @@ export { DRAG_THRESHOLD } from "./explorer/gestures.js";
 export type { CameraMotion } from "./explorer/gestures.js";
 export { canTraceFrom, TRACE_DEPTH, traceFrom, traceNodes } from "./explorer/trace.js";
 export type { Trace, TraceStep } from "./explorer/trace.js";
-export { createGitHubSourceLoader, MAX_SOURCE_BYTES } from "./explorer/sources.js";
+export {
+  createGitHubSourceLoader,
+  createSiteSourceLoader,
+  MAX_SOURCE_BYTES,
+} from "./explorer/sources.js";
 export type { GitHubSourceLoaderOptions, SourceLoader } from "./explorer/sources.js";
 export {
   BASE_PARAM,
