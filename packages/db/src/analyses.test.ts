@@ -14,6 +14,7 @@ import {
   failStrandedAnalysis,
   findAnalysis,
   findAnalysisStatus,
+  findDoneSnapshotKey,
   findLimitFailure,
   findPublishedAnalysis,
   findStoredAnalysis,
@@ -385,6 +386,34 @@ describe("findAnalysisStatus (M8.5b)", () => {
     expect(await findAnalysisStatus(t.db, id)).toBe("running");
     await t.db.delete(analyses).where(eq(analyses.id, id));
     expect(await findAnalysisStatus(t.db, id)).toBeUndefined();
+  });
+});
+
+describe("findDoneSnapshotKey (M8.6d3c2)", () => {
+  it("reads a done analysis's key for that repo row, commit, and version only", async () => {
+    const id = await started();
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    const { id: otherRepoId } = await upsertRepo(t.db, {
+      ...FACTS,
+      providerRepoId: FACTS.providerRepoId + 1,
+      name: "other",
+    });
+    const key = { repoId, sha: SHA, analyzerVersion: VERSION };
+    expect(await findDoneSnapshotKey(t.db, key)).toBeUndefined();
+    await completeAnalysis(t.db, id, { snapshotKey: "public/k", stats: STATS });
+    expect(await findDoneSnapshotKey(t.db, key)).toBe("public/k");
+    expect(await findDoneSnapshotKey(t.db, { ...key, sha: "b".repeat(40) })).toBeUndefined();
+    expect(await findDoneSnapshotKey(t.db, { ...key, analyzerVersion: "0.2.0" })).toBeUndefined();
+    expect(await findDoneSnapshotKey(t.db, { ...key, repoId: otherRepoId })).toBeUndefined();
+  });
+
+  it("finds nothing for a row that isn't done", async () => {
+    await started();
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    const key = { repoId, sha: SHA, analyzerVersion: VERSION };
+    expect(await findDoneSnapshotKey(t.db, key)).toBeUndefined();
+    await failInterruptedAnalyses(t.db, 0);
+    expect(await findDoneSnapshotKey(t.db, key)).toBeUndefined();
   });
 });
 

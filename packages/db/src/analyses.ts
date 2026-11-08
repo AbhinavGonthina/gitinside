@@ -610,6 +610,30 @@ export async function findAnalysisStatus(
 }
 
 /**
+ * The snapshot key of repo row `repoId`'s `done` analysis of `sha` by `analyzerVersion`, or
+ * `undefined` if there's none (yet): a pull request's diff job reads that side's stored graph
+ * instead of analyzing it (M8.6d3c2, ADR-0245). The caller decides whether it may read the key.
+ */
+export async function findDoneSnapshotKey(
+  db: AnyDatabase,
+  key: { repoId: string; sha: string; analyzerVersion: string },
+): Promise<string | undefined> {
+  const [row] = await db
+    .select({ snapshotKey: analyses.snapshotKey })
+    .from(analyses)
+    .where(
+      and(
+        eq(analyses.repoId, key.repoId),
+        eq(analyses.sha, key.sha),
+        eq(analyses.analyzerVersion, key.analyzerVersion),
+        eq(analyses.status, "done"),
+      ),
+    );
+  // `done` rows always have one (the status check in schema.ts).
+  return row?.snapshotKey ?? undefined;
+}
+
+/**
  * The stats of the `limit` most recently finished `done` analyses, newest first, of any repo
  * or visibility (counts and timings only, nothing that names a repo). The worker estimates a
  * running job's time left from them (ADR-0136).

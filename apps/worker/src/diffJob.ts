@@ -30,11 +30,16 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
  * 2. **download:** the installation's read token, the merge base of the event's base and head
  *    (GitHub's compare, `fetchMergeBase`), then both tarballs, merge base first, each streamed
  *    into its own `<side>/src`. All of it shares the download budget, as an analysis's does.
- * 3. **analyze:** the sandboxed child on each side in turn, merge base first, both with the
- *    repo's fact cache folder (factcache.ts), so the head side reuses the facts of every file
- *    the pull request didn't touch. Each side's timeout is cut to the attempt's deadline as an
+ * 3. **analyze:** each side's stored graph when it has one (`DiffRecorder.storedGraph`: a
+ *    `done` analysis of that commit by this analyzer version, under a key this installation may
+ *    read, parsed and naming that commit, M8.6d3c2); otherwise the sandboxed child on it, in
+ *    turn, merge base first, both with the repo's fact cache folder (factcache.ts), so the head
+ *    side reuses the facts of every file the pull request didn't touch. A stored graph that
+ *    can't be read or doesn't parse is logged (`stored_graph_unread`) and that side analyzed: it
+ *    only ever saves time. Each side's timeout is cut to the attempt's deadline as an
  *    analysis's is: running out of a guaranteed share is `LIMIT_TIME`, running out of less (the
  *    head side, once the merge base took its time) is the retriable `ANALYSIS_TIME_CUT`.
+ *    Both trees are still downloaded: the diff needs their text.
  * 4. **diff:** `diffGraphs(mergeBase, head)` with both trees' file text (rename detection of
  *    edited files, ADR-0086), read while the job folder exists.
  * 5. **publish:** `DiffRecorder.publish` stores the diff and records it on every pull request
@@ -69,6 +74,16 @@ export interface DiffToStore {
 export interface DiffRecorder {
   /** The job as the records naming it describe it, or `undefined` when none does. */
   find(jobId: string): Promise<LiveDiffJob | undefined>;
+  /**
+   * The text of `side.sha`'s stored graph: its `done` analysis by this analyzer version, under
+   * a key this installation may read (record.ts's `readableBy`), or `undefined` when there's
+   * none, and that side is analyzed (M8.6d3c2).
+   */
+  storedGraph(side: {
+    installationId: number;
+    repoId: string;
+    sha: string;
+  }): Promise<string | undefined>;
   /**
    * Store the diff and record it on every pull request record naming the job; answers those
    * records (empty: each moved on to another pair, and nothing is posted).
@@ -206,6 +221,42 @@ async function analyzeSide(
 }
 
 /**
+ * `side`'s stored graph, with the counts the child would report for it (no stage times), or
+ * `undefined` when it has none or it can't be used (logged), and the side is analyzed.
+ */
+async function storedSide(
+  context: JobContext,
+  deps: JobDeps & { diffs: DiffRecorder },
+  side: Side,
+  owner: { installationId: number; repoId: string },
+): Promise<{ graph: ArchitectureGraph; stats: JobOutcome["stats"] } | undefined> {
+  try {
+    const text = await deps.diffs.storedGraph({ ...owner, sha: side.sha });
+    if (text === undefined) return undefined;
+    const graph = parseGraph(JSON.parse(text) as unknown);
+    if (graph.repo.sha !== side.sha) throw new Error("the stored graph names another commit");
+    const stats = {
+      files: graph.nodes.filter((node) => node.kind === "file").length,
+      nodes: graph.nodes.length,
+      edges: graph.edges.length,
+      unresolved: graph.nodes.filter((node) => node.kind === "unresolved").length,
+      warnings: graph.warnings.length,
+      graphBytes: Buffer.byteLength(text),
+      stageMs: {},
+    };
+    return { graph, stats };
+  } catch (error) {
+    deps.log?.({
+      event: "stored_graph_unread",
+      id: context.id,
+      sha: side.sha,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return undefined;
+  }
+}
+
+/**
  * Run one diff job (see the module comment). Resolves with its {@link JobOutcome} (`diff` set,
  * `stats` and `extract` its head side's) or throws a {@link JobFailure} (or
  * {@link JobAlreadyDone}, before any download); the job folder is gone either way.
@@ -237,10 +288,22 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
 
     start = performance.now();
     await context.onStage?.("analyze");
-    const cache = await jobCache(context, deps, { installationId, repoId: live.repoId });
+    const owner = { installationId, repoId: live.repoId };
     const [base, after] = sides;
-    const before = await analyzeSide(context, deps, base, cache, atStart);
-    const analyzed = await analyzeSide(context, deps, after, cache, atStart);
+    const reused: ("mergeBase" | "head")[] = [];
+    let cache: JobCache | undefined | null = null;
+    const graphOf = async (side: Side, name: "mergeBase" | "head") => {
+      const stored = await storedSide(context, { ...deps, diffs }, side, owner);
+      if (stored !== undefined) {
+        reused.push(name);
+        return stored;
+      }
+      // Prepared once, and only when a side is analyzed (it purges other repos' folders).
+      if (cache === null) cache = await jobCache(context, deps, owner);
+      return analyzeSide(context, deps, side, cache, atStart);
+    };
+    const before = await graphOf(base, "mergeBase");
+    const analyzed = await graphOf(after, "head");
     const diff = diffGraphs(before.graph, analyzed.graph, {
       contents: { base: treeReader(base.src), head: treeReader(after.src) },
     });
@@ -274,7 +337,12 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
         skippedSample: head.skipped.slice(0, SKIPPED_SAMPLE_SIZE),
       },
       timings: { downloadMs, analyzeMs, publishMs },
-      diff: { mergeBase: base.sha, broken: diff.broken.length, pullRequests: records.length },
+      diff: {
+        mergeBase: base.sha,
+        broken: diff.broken.length,
+        pullRequests: records.length,
+        reused,
+      },
     };
   } finally {
     await rm(dir, { recursive: true, force: true, maxRetries: 3 });

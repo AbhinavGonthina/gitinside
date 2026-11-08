@@ -134,12 +134,17 @@ export interface JobOutcome {
   };
   /** Wall-clock milliseconds per stage group. */
   timings: { downloadMs: number; analyzeMs: number; publishMs: number };
-  /** A diff job's result (diffJob.ts); `stats` and `extract` are then its head side's. */
+  /**
+   * A diff job's result (diffJob.ts); `stats` and `extract` are then its head side's (`stats`
+   * without stage times when the head's graph was stored).
+   */
   diff?: {
     mergeBase: string;
     broken: number;
     /** The pull request records it landed on; 0 when each moved on to another pair. */
     pullRequests: number;
+    /** The sides read from their stored graph instead of analyzed (M8.6d3c2). */
+    reused: ("mergeBase" | "head")[];
   };
 }
 

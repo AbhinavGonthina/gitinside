@@ -632,6 +632,7 @@ describe("startWorkerProcess", () => {
         mergeBase,
         broken: 0,
         pullRequests: 1,
+        reused: [],
       });
 
       // A duplicate push finds every record diffed and does nothing.

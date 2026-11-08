@@ -17,6 +17,7 @@ import {
   recordDiffJobResult,
   recordPullRequestHead,
   repos,
+  startAnalysis,
   upsertInstallation,
   upsertRepo,
   type AnyDatabase,
@@ -28,10 +29,15 @@ import type { JobRequest } from "./request.js";
 import { JobFailure } from "./failure.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import { JobAlreadyDone, processJob, type JobDeps } from "./job.js";
-import { createAnalysisRecorder, createDiffRecorder, type AnalysisRecorder } from "./record.js";
+import {
+  createAnalysisRecorder,
+  createDiffRecorder,
+  readableBy,
+  type AnalysisRecorder,
+} from "./record.js";
 import type { RunResult } from "./runner.js";
 import { startFakeS3, type FakeS3 } from "./s3.testkit.js";
-import { createObjectStore } from "./storage.js";
+import { createObjectStore, uploadSnapshot } from "./storage.js";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const ID = "analyze-0123456789abcdef0123456789abcdef";
@@ -687,5 +693,77 @@ describe("createDiffRecorder (ADR-0245)", () => {
     expect(s3.objects.size).toBe(1);
     const [row] = await t.db.select().from(pullRequests);
     expect([row?.headSha, row?.diffKey]).toEqual([newer, null]);
+  });
+
+  describe("storedGraph (M8.6d3c2)", () => {
+    const TEXT = '{"nodes":["stored"]}\n';
+
+    /** A `done` analysis of {@link MERGE} by `version` stored under `key` (with its object). */
+    async function stored(repoId: string, key: string, version = VERSION): Promise<void> {
+      const { id } = await startAnalysis(t.db, { repoId, sha: MERGE, analyzerVersion: version });
+      const path = join(root, "graph.json");
+      await writeFile(path, TEXT);
+      const store = createObjectStore({
+        endpoint: s3.endpoint,
+        bucket: s3.bucket,
+        credentials: s3.credentials,
+      });
+      await uploadSnapshot(store, path, key, key.startsWith("public/") ? "public" : "private");
+      await completeAnalysis(t.db, id, { snapshotKey: key, stats: STATS });
+    }
+
+    const gets = () => s3.requests.filter((r) => r.method === "GET").map((r) => r.url);
+
+    it("reads a public snapshot of the commit, ungzipped", async () => {
+      const repoId = await queued(7);
+      const key = `public/acme/shop/${MERGE}/${VERSION}.json.gz`;
+      await stored(repoId, key);
+      const text = await diffRecorder().storedGraph({ installationId: 42, repoId, sha: MERGE });
+      expect(text).toBe(TEXT);
+    });
+
+    it("reads a private snapshot under this installation's folder for this repo", async () => {
+      const repoId = await queued(7);
+      await stored(repoId, `private/42/${repoId}/${MERGE}/${VERSION}.json.gz`);
+      const d = diffRecorder();
+      expect(await d.storedGraph({ installationId: 42, repoId, sha: MERGE })).toBe(TEXT);
+    });
+
+    it("never reads another installation's private snapshot", async () => {
+      const repoId = await queued(7);
+      await stored(repoId, `private/41/${repoId}/${MERGE}/${VERSION}.json.gz`);
+      const before = gets().length;
+      const d = diffRecorder();
+      expect(await d.storedGraph({ installationId: 42, repoId, sha: MERGE })).toBeUndefined();
+      expect(gets()).toHaveLength(before);
+    });
+
+    it("finds nothing for another commit, another analyzer version, or a missing object", async () => {
+      const repoId = await queued(7);
+      const d = diffRecorder();
+      await stored(repoId, `public/acme/shop/${MERGE}/0.0.9.json.gz`, "0.0.9");
+      expect(await d.storedGraph({ installationId: 42, repoId, sha: MERGE })).toBeUndefined();
+      const key = `public/acme/shop/${MERGE}/${VERSION}.json.gz`;
+      await stored(repoId, key);
+      expect(await d.storedGraph({ installationId: 42, repoId, sha: SHA })).toBeUndefined();
+      s3.objects.delete(key);
+      expect(await d.storedGraph({ installationId: 42, repoId, sha: MERGE })).toBeUndefined();
+    });
+  });
+});
+
+describe("readableBy (M8.6d3c2)", () => {
+  const repoId = "0b6a1c1e-9a3e-4c55-8e0c-6c3f2a4b5d6e";
+  const side = { installationId: 42, repoId };
+  it.each([
+    [`public/acme/shop/${SHA}/${VERSION}.json.gz`, true],
+    [`private/42/${repoId}/${SHA}/${VERSION}.json.gz`, true],
+    [`private/41/${repoId}/${SHA}/${VERSION}.json.gz`, false],
+    [`private/420/${repoId}/${SHA}/${VERSION}.json.gz`, false],
+    [`private/42/${"1".repeat(8)}${repoId.slice(8)}/${SHA}/${VERSION}.json.gz`, false],
+    [`private/42/${repoId}x/${SHA}/${VERSION}.json.gz`, false],
+    [`elsewhere/${SHA}.json.gz`, false],
+  ])("%s ⇒ %s", (key, readable) => {
+    expect(readableBy(key, side)).toBe(readable);
   });
 });
