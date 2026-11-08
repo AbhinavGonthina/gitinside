@@ -1,5 +1,10 @@
 import { diffGraphs, IncompatibleGraphsError } from "@gitinside/diff";
-import type { ArchitectureGraph, GraphDiff } from "@gitinside/schema";
+import {
+  parseGraphDiff,
+  type ArchitectureGraph,
+  type GraphDiff,
+  type GraphRepo,
+} from "@gitinside/schema";
 import type { ExplorerState } from "@gitinside/viewer";
 import { short, UNREADABLE_TITLE, type GraphLoad } from "./repoStatus";
 
@@ -45,13 +50,55 @@ export type Comparison =
   | { ok: true; base: ArchitectureGraph; diff: GraphDiff }
   | { ok: false; note: string };
 
+/** The same repo at the same commit; a side without a SHA never matches. */
+const sameCommit = (a: GraphRepo, b: GraphRepo): boolean =>
+  a.sha !== undefined && a.owner === b.owner && a.name === b.name && a.sha === b.sha;
+
 /**
- * Diffs `base` against `head` (`diffGraphs`, without file contents: a moved file pairs
- * only when its content is unchanged, ADR-0086, ADR-0189). Graphs from two analyzer versions aren't
- * compared, since every difference the analyzer made would read as a change in the code;
- * the note says so instead.
+ * Whether `stored` (the pull request bot's diff, M8.6f2) is of exactly these graphs: both
+ * commits (and their repos, as the explorer's overlay requires) and the analyzer version of
+ * all three. Determinism makes that enough: the same commit by the same analyzer is the same
+ * graph, so the worker diffed what the page draws.
  */
-export function compareGraphs(base: ArchitectureGraph, head: ArchitectureGraph): Comparison {
+export function storedDiffFits(
+  stored: GraphDiff,
+  base: ArchitectureGraph,
+  head: ArchitectureGraph,
+): boolean {
+  return (
+    stored.analyzerVersion === base.analyzerVersion &&
+    stored.analyzerVersion === head.analyzerVersion &&
+    sameCommit(stored.base.repo, base.repo) &&
+    sameCommit(stored.head.repo, head.repo)
+  );
+}
+
+/**
+ * Diffs `base` against `head`. With the pull request bot's `stored` diff of exactly these
+ * graphs (`storedDiffFits`, then `check`, which throws to refuse it: the page passes the
+ * explorer's own overlay check), that diff is used as is (M8.6f2): the worker made it with
+ * both trees' file contents, so a file moved and edited pairs as a move, and it says when its
+ * rename detection stopped short (`renameLimit`). Otherwise the browser diffs the two
+ * (`diffGraphs`, without file contents: a moved file pairs only when its content is unchanged,
+ * ADR-0086, ADR-0189), a correct comparison that only pairs fewer moves, so a stored diff that
+ * doesn't fit falls back quietly. Graphs from two analyzer versions aren't compared, since
+ * every difference the analyzer made would read as a change in the code; the note says so
+ * instead.
+ */
+export function compareGraphs(
+  base: ArchitectureGraph,
+  head: ArchitectureGraph,
+  stored?: GraphDiff,
+  check?: (diff: GraphDiff) => void,
+): Comparison {
+  if (stored && storedDiffFits(stored, base, head)) {
+    try {
+      check?.(stored);
+      return { ok: true, base, diff: stored };
+    } catch {
+      // refused by the overlay's check: the browser's own diff below
+    }
+  }
   try {
     return { ok: true, base, diff: diffGraphs(base, head) };
   } catch (error) {
@@ -63,6 +110,26 @@ export function compareGraphs(base: ArchitectureGraph, head: ArchitectureGraph):
         `and this one by ${head.analyzerVersion}, so they aren't compared: the differences would ` +
         `be the analyzer's, not the code's. This is commit ${short(head.repo.sha ?? "")} alone.`,
     };
+  }
+}
+
+/**
+ * Fetch and validate the pull request bot's stored diff at `url` (`/api/diff/…`, M8.6f2).
+ * Never throws, except an abort: anything it can't use (no diff, a failed request, text that
+ * isn't a valid diff) is `undefined`, and the page diffs the graphs itself.
+ */
+export async function loadDiff(
+  url: string,
+  options: { fetch?: typeof fetch; signal?: AbortSignal } = {},
+): Promise<GraphDiff | undefined> {
+  const doFetch = options.fetch ?? fetch;
+  try {
+    const response = await doFetch(url, options.signal ? { signal: options.signal } : {});
+    if (!response.ok) return undefined;
+    return parseGraphDiff(JSON.parse(await response.text()));
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
+    return undefined;
   }
 }
 

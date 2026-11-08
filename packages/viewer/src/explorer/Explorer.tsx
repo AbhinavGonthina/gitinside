@@ -59,7 +59,7 @@ import {
   type Camera,
   type Size,
 } from "./camera.js";
-import { ChangesSection } from "./changes.js";
+import { ChangesSection, movesNote } from "./changes.js";
 import { encodeState, withState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
@@ -1454,6 +1454,7 @@ export function Explorer({
                   within={panelNode.id}
                   foldedInto={overlay.foldedInto}
                   onSelect={pickChange}
+                  limit={compareDiff && movesNote(compareDiff)}
                 />
               )
             }

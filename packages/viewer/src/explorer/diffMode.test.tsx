@@ -802,4 +802,44 @@ describe("Explorer diff mode's changes list", { timeout: 30_000 }, () => {
     await setup({ graph: pair.head, diff: { base: pair.base, diff: pair.diff } });
     expect(row("Changed: routes.ts, file. Moved from src/routes/orders.ts")).toBeDefined();
   });
+
+  /** The overview's note on moves left unchecked (`renameLimit`), or null. */
+  const limitNote = () => changes()?.querySelector(".gi-changes__limit")?.textContent ?? null;
+
+  it("says in the overview when moves weren't checked for some files (ADR-0086, M8.6f2)", async () => {
+    expect(diff).not.toHaveProperty("renameLimit");
+    await setup();
+    expect(limitNote()).toBeNull();
+    cleanup();
+
+    await setup({ diff: { base, diff: { ...diff, renameLimit: { removed: 401, added: 2 } } } });
+    expect(limitNote()).toBe(
+      "Moves not checked for 401 removed and 2 added files, so a moved file may show as one removed and one added.",
+    );
+    // A selection's list leaves it out: the note counts the whole diff's files.
+    fireEvent.click(row("Removed: DELETE /api/orders/:id")!);
+    await settle();
+    await waitFor(() => expect(changes()?.querySelector("h3")?.textContent).toBe("Changes here"), {
+      timeout: 10_000,
+    });
+    expect(limitNote()).toBeNull();
+  });
+
+  it("says when moves were checked only between files of the same name", async () => {
+    await setup({ diff: { base, diff: { ...diff, renameLimit: { removed: 0, added: 0 } } } });
+    expect(limitNote()).toBe(
+      "Moves checked only between files of the same name, so a moved file may show as one removed and one added.",
+    );
+  });
+
+  it("says it even when nothing the diagram draws changed", async () => {
+    const same = diffGraphs(head, head);
+    await setup({
+      diff: { base: head, diff: { ...same, renameLimit: { removed: 1, added: 0 } } },
+    });
+    expect(changes()?.textContent).toContain("Nothing the diagram draws changed");
+    expect(limitNote()).toBe(
+      "Moves not checked for 1 removed file, so a moved file may show as one removed and one added.",
+    );
+  });
 });

@@ -1,4 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { diffGraphs } from "@gitinside/diff";
+import { parseGraph } from "@gitinside/schema";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import brokenBase from "../../../../../fixtures/diff-broken-base/expected.json";
 import brokenHead from "../../../../../fixtures/diff-broken-head/expected.json";
@@ -769,6 +771,90 @@ describe("RepoDiagram in diff mode (M6.9e2)", () => {
     expect(fetchMock).toHaveBeenCalledWith(BASE_URL, expect.anything());
     await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
     expect(note()).toBeUndefined();
+  });
+
+  describe("with the pull request bot's stored diff (M8.6f2)", () => {
+    const DIFF_URL = `/api/diff/acme/shop/${BASE}/${SHA}`;
+    const graphAt = (json: object, sha: string) =>
+      parseGraph({ ...json, repo: { owner: "acme", name: "shop", sha } });
+    /** The worker's diff of the pair: made with file contents, so it can carry `renameLimit`. */
+    const storedDiff = (over: object = {}) => ({
+      ...diffGraphs(graphAt(brokenBase, BASE), graphAt(brokenHead, SHA)),
+      renameLimit: { removed: 2, added: 3 },
+      ...over,
+    });
+    /** A stored diff of these commits naming a node neither graph has (the overlay refuses it). */
+    const ghostDiff = () => {
+      const diff = storedDiff();
+      const removed = [...diff.nodes.removed, "file:diff-broken/src/ghost.ts"];
+      const nodes = { ...diff.summary.nodes, removed: removed.length };
+      return { ...diff, nodes: { ...diff.nodes, removed }, summary: { ...diff.summary, nodes } };
+    };
+    /** Both graphs, and the diff URL answered by `diff`. */
+    const withDiff = (diff: () => Promise<Response>) => (url: string | URL | Request) =>
+      url === DIFF_URL ? diff() : pair()(url);
+    const limit = () => document.querySelector(".gi-changes__limit")?.textContent;
+    const LIMIT_TEXT =
+      "Moves not checked for 2 removed and 3 added files, so a moved file may show as one removed and one added.";
+
+    it("loads it beside both graphs and draws it, with its note on moves left unchecked", async () => {
+      fetchMock.mockImplementation(
+        withDiff(() => Promise.resolve(new Response(JSON.stringify(storedDiff())))),
+      );
+      window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);
+      renderDiagram({ ...READY, diffUrl: DIFF_URL });
+      await screen.findByRole("region", { name: "Diagram" });
+      expect(fetchMock).toHaveBeenCalledWith(DIFF_URL, expect.anything());
+      await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
+      await waitFor(() => expect(limit()).toBe(LIMIT_TEXT));
+      expect(note()).toBeUndefined();
+    });
+
+    it.each<[string, () => Promise<Response>]>([
+      [
+        "of another base commit",
+        async () =>
+          new Response(
+            JSON.stringify(
+              storedDiff({ base: { repo: { owner: "acme", name: "shop", sha: NEWER } } }),
+            ),
+          ),
+      ],
+      [
+        "by another analyzer version",
+        async () => new Response(JSON.stringify(storedDiff({ analyzerVersion: "0.0.1" }))),
+      ],
+      [
+        "naming a node the graphs don't have",
+        async () => new Response(JSON.stringify(ghostDiff())),
+      ],
+      [
+        "that isn't a valid diff",
+        async () => new Response(JSON.stringify({ ...storedDiff(), summary: {} })),
+      ],
+      ["that isn't there", async () => new Response("{}", { status: 404 })],
+      ["that didn't load", () => Promise.reject(new TypeError("Failed to fetch"))],
+    ])("diffs in the browser instead of using a stored diff %s", async (_, answer) => {
+      fetchMock.mockImplementation(withDiff(answer));
+      window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);
+      renderDiagram({ ...READY, diffUrl: DIFF_URL });
+      await screen.findByRole("region", { name: "Diagram" });
+      expect(fetchMock).toHaveBeenCalledWith(DIFF_URL, expect.anything());
+      await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
+      // The browser's diff, made without file contents, never carries the note.
+      expect(screen.getByRole("heading", { name: "Changes" })).toBeTruthy();
+      expect(limit()).toBeUndefined();
+      expect(note()).toBeUndefined();
+    });
+
+    it("doesn't ask for a diff without a diffUrl", async () => {
+      fetchMock.mockImplementation(pair());
+      window.history.replaceState({}, "", `/acme/shop/${SHA}?base=${BASE}`);
+      renderDiagram(READY);
+      await screen.findByRole("region", { name: "Diagram" });
+      await waitFor(() => expect(chip()).toBe("Comparing ddddddd → aaaaaaa"));
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("opens a link to a route only base has, linked at the base commit", async () => {

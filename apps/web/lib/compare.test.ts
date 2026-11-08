@@ -3,8 +3,9 @@ import {
   BASE_PARAM as VIEWER_BASE_PARAM,
   type ExplorerState,
 } from "@gitinside/viewer";
-import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
-import { describe, expect, it } from "vitest";
+import { diffGraphs } from "@gitinside/diff";
+import { parseGraph, type ArchitectureGraph, type GraphDiff } from "@gitinside/schema";
+import { describe, expect, it, vi } from "vitest";
 import renameBase from "../../../fixtures/diff-rename-base/expected.json";
 import renameHead from "../../../fixtures/diff-rename-head/expected.json";
 import {
@@ -15,6 +16,7 @@ import {
   COMMIT_SHA,
   compareGraphs,
   linkedVersion,
+  loadDiff,
 } from "./compare";
 import { LOAD_FAILED_TITLE, UNREADABLE_MESSAGE, UNREADABLE_TITLE } from "./repoStatus";
 
@@ -47,6 +49,97 @@ describe("compareGraphs", () => {
       ok: false,
       note: `Commit bbbbbbb was analyzed by GitInside 0.0.9 and this one by ${head.analyzerVersion}, so they aren't compared: the differences would be the analyzer's, not the code's. This is commit aaaaaaa alone.`,
     });
+  });
+});
+
+describe("compareGraphs with the pull request bot's stored diff (M8.6f2)", () => {
+  const base = at(renameBase, BASE);
+  const head = at(renameHead, HEAD);
+  /** The worker's diff of these graphs: made with file contents, it can carry `renameLimit`. */
+  const stored: GraphDiff = { ...diffGraphs(base, head), renameLimit: { removed: 3, added: 1 } };
+
+  it("uses a stored diff of these two commits by their analyzer version", () => {
+    const result = compareGraphs(base, head, stored);
+    expect(result).toEqual({ ok: true, base, diff: stored });
+    if (result.ok) expect(result.diff).toBe(stored);
+  });
+
+  it("diffs in the browser when the stored diff names another commit, repo, or version", () => {
+    const other = "c".repeat(40);
+    const { sha: _, ...unpinned } = stored.base.repo;
+    const mismatched: [string, GraphDiff][] = [
+      ["base commit", { ...stored, base: { repo: { ...stored.base.repo, sha: other } } }],
+      ["head commit", { ...stored, head: { repo: { ...stored.head.repo, sha: other } } }],
+      ["no base commit", { ...stored, base: { repo: unpinned } }],
+      ["base repo", { ...stored, base: { repo: { ...stored.base.repo, owner: "someone" } } }],
+      ["head repo", { ...stored, head: { repo: { ...stored.head.repo, name: "fork" } } }],
+      ["analyzer version", { ...stored, analyzerVersion: "0.0.9" }],
+    ];
+    for (const [what, diff] of mismatched) {
+      const result = compareGraphs(base, head, diff);
+      if (!result.ok) throw new Error(result.note);
+      expect(result.diff, what).not.toHaveProperty("renameLimit");
+      expect(result.diff, what).toEqual(diffGraphs(base, head));
+    }
+  });
+
+  it("diffs in the browser when the stored diff fits the commits but the check refuses it", () => {
+    const check = vi.fn((diff: GraphDiff) => {
+      if (diff === stored) throw new Error("names a node the graphs don't have");
+    });
+    const result = compareGraphs(base, head, stored, check);
+    expect(check).toHaveBeenCalledWith(stored);
+    if (!result.ok) throw new Error(result.note);
+    expect(result.diff).toEqual(diffGraphs(base, head));
+    // A check that passes keeps it.
+    expect(compareGraphs(base, head, stored, () => undefined)).toEqual({
+      ok: true,
+      base,
+      diff: stored,
+    });
+  });
+
+  it("still refuses graphs from two analyzer versions, whatever was stored", () => {
+    const older = { ...base, analyzerVersion: "0.0.9" };
+    const result = compareGraphs(older, head, { ...stored, analyzerVersion: "0.0.9" });
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe("loadDiff (M8.6f2)", () => {
+  const URL_ = `/api/diff/acme/shop/${BASE}/${HEAD}`;
+  const diff = diffGraphs(at(renameBase, BASE), at(renameHead, HEAD));
+  const answer = (response: Response | Error) =>
+    vi.fn<typeof fetch>(() =>
+      response instanceof Error ? Promise.reject(response) : Promise.resolve(response),
+    );
+
+  it("reads and validates the stored diff", async () => {
+    const fetch = answer(new Response(JSON.stringify(diff)));
+    expect(await loadDiff(URL_, { fetch })).toEqual(diff);
+    expect(fetch).toHaveBeenCalledWith(URL_, {});
+  });
+
+  it("answers undefined for anything it can't use, so the browser diffs instead", async () => {
+    const { summary: _, ...unsummed } = diff;
+    for (const response of [
+      new Response("{}", { status: 404 }),
+      new Response("oops", { status: 503 }),
+      new Response("not json"),
+      new Response(JSON.stringify(unsummed)),
+      new Response(JSON.stringify({ ...diff, summary: { ...diff.summary, broken: 99 } })),
+      new TypeError("Failed to fetch"),
+    ]) {
+      expect(await loadDiff(URL_, { fetch: answer(response) })).toBeUndefined();
+    }
+  });
+
+  it("passes an abort on, as loadGraph does", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    // jsdom's DOMException isn't an Error, so the fake rejects with a plain one.
+    const fetch = answer(new Error("aborted"));
+    await expect(loadDiff(URL_, { fetch, signal: controller.signal })).rejects.toThrow("aborted");
   });
 });
 

@@ -5,6 +5,7 @@ export { diffGraphs, type DiffOptions } from "./diff.js";
 export {
   escapeMermaidLabel,
   mermaidShape,
+  renameLimitText,
   renderMermaidSummary,
   type MermaidSummaryOptions,
 } from "./mermaid.js";
