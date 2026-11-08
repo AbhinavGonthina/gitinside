@@ -172,10 +172,12 @@ describe("processJob with the real analyzer", () => {
 });
 
 describe("processJob fact cache folders", () => {
+  const REPO = "0b3c3f0e-7d6a-4a51-9c3e-2f1d8e5b6a01";
+  const REMOVED = "5e2a9c1d-3b4f-4e6a-8d7c-9a0b1c2d3e02";
   const record = (visibility: "public" | "private"): JobRecorder => ({
     start: async () => ({
       analysisId: "a1",
-      repoId: "r1",
+      repoId: REPO,
       visibility,
       owner: "acme",
       name: "shop",
@@ -183,6 +185,12 @@ describe("processJob fact cache folders", () => {
     failed: async () => undefined,
   });
   const cacheOf = () => (fakeRun.mock.calls[0]?.[0] as { cache?: unknown }).cache;
+  /** Installation 77 links only `REPO` (db's `findLinkedRepoIds` stand-in). */
+  const linkedRepoIds = vi.fn(async (id: number, repoIds: readonly string[]) =>
+    id === 77 ? repoIds.filter((repo) => repo === REPO) : [],
+  );
+  const installationJob = { id: ID, request: { ...REQUEST, installationId: 77 } };
+  const installationToken = async () => "ghs_installation";
 
   it("gives no cache without a cache root", async () => {
     await processJob({ id: ID, request: REQUEST }, deps());
@@ -198,17 +206,66 @@ describe("processJob fact cache folders", () => {
     expect(cacheOf()).toEqual({ dir: join(cacheRoot, "public"), maxBytes: 1 << 20 });
   });
 
-  it("gives an installation's repo its installation's folder", async () => {
+  it("gives an installation's repo its own folder under its installation", async () => {
     const cacheRoot = join(root, "cache");
     await processJob(
-      { id: ID, request: { ...REQUEST, installationId: 77 } },
+      installationJob,
+      deps({ cacheRoot, linkedRepoIds, recorder: record("private"), installationToken }),
+    );
+    expect(cacheOf()).toMatchObject({ dir: join(cacheRoot, "installations", "77", REPO) });
+  });
+
+  it("deletes the facts of repos no longer installed before the analysis (M8.5b2)", async () => {
+    const cacheRoot = join(root, "cache");
+    const kept = join(cacheRoot, "installations", "77", REPO, "entries");
+    const removed = join(cacheRoot, "installations", "77", REMOVED, "entries");
+    const uninstalled = join(cacheRoot, "installations", "78", REPO, "entries");
+    for (const dir of [kept, removed, uninstalled]) await mkdir(dir, { recursive: true });
+    let seen: string[] = [];
+    const run: JobDeps["run"] = async (job, options) => {
+      seen = await readdir(cacheRoot, { recursive: true });
+      return fakeRun(job, options);
+    };
+    // A public job purges too: any job is the instance's chance to.
+    await processJob(
+      { id: ID, request: REQUEST },
+      deps({ cacheRoot, linkedRepoIds, recorder: record("public"), run }),
+    );
+    expect(seen.map((name) => name.replaceAll("\\", "/")).sort()).toEqual([
+      "installations",
+      "installations/77",
+      `installations/77/${REPO}`,
+      `installations/77/${REPO}/entries`,
+      "public",
+    ]);
+  });
+
+  it("runs an installation's job without a cache when nothing can confirm its links", async () => {
+    await processJob(
+      installationJob,
+      deps({ cacheRoot: join(root, "cache"), recorder: record("private"), installationToken }),
+    );
+    expect(fakeRun).toHaveBeenCalledOnce();
+    expect(cacheOf()).toBeUndefined();
+  });
+
+  it("runs without a cache, logging it, when the purge fails", async () => {
+    const cacheRoot = join(root, "cache");
+    await mkdir(join(cacheRoot, "installations", "77", REMOVED), { recursive: true });
+    const events: Record<string, unknown>[] = [];
+    await processJob(
+      installationJob,
       deps({
         cacheRoot,
+        linkedRepoIds: async () => Promise.reject(new Error("database down")),
         recorder: record("private"),
-        installationToken: async () => "ghs_installation",
+        installationToken,
+        log: (event) => void events.push(event),
       }),
     );
-    expect(cacheOf()).toMatchObject({ dir: join(cacheRoot, "installations", "77") });
+    expect(fakeRun).toHaveBeenCalledOnce();
+    expect(cacheOf()).toBeUndefined();
+    expect(events).toEqual([{ event: "cache_purge_failed", id: ID, message: "database down" }]);
   });
 
   it("gives a private repo without an installation no cache", async () => {

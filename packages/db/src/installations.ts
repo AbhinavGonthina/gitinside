@@ -109,6 +109,33 @@ function chunks<T>(items: readonly T[]): T[][] {
   return out;
 }
 
+const REPO_ROW_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * Which of `repoIds` (repo row IDs) are linked now to the installation with GitHub's ID
+ * `githubInstallationId` (M8.5b2): the worker keeps a repo's cached facts under that
+ * installation only while this holds. Sorted. Anything that isn't a row ID, an unknown
+ * installation, and a repo deleted, unlinked, or linked elsewhere are all left out.
+ */
+export async function findLinkedRepoIds(
+  db: AnyDatabase,
+  githubInstallationId: number,
+  repoIds: readonly string[],
+): Promise<string[]> {
+  const linked: string[] = [];
+  for (const chunk of chunks(repoIds.filter((id) => REPO_ROW_ID.test(id)))) {
+    const rows = await db
+      .select({ id: repos.id })
+      .from(repos)
+      .innerJoin(installations, eq(repos.installationId, installations.id))
+      .where(
+        and(eq(installations.githubInstallationId, githubInstallationId), inArray(repos.id, chunk)),
+      );
+    linked.push(...rows.map((row) => row.id));
+  }
+  return linked.sort();
+}
+
 /** The bucket prefix of every snapshot a job through installation `githubInstallationId` stored. */
 export function installationSnapshotPrefix(githubInstallationId: number): string {
   if (!Number.isSafeInteger(githubInstallationId) || githubInstallationId < 1) {

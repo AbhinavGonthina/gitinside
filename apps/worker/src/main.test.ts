@@ -351,6 +351,23 @@ describe("startWorkerProcess", () => {
     return id;
   }
 
+  it("deletes cached facts of repos the database no longer links before a job (M8.5b2)", async () => {
+    // A repo removed from installation 41 while this instance held its facts.
+    const stale = join(
+      root,
+      "cache",
+      "installations",
+      "41",
+      "0b3c3f0e-7d6a-4a51-9c3e-2f1d8e5b6a01",
+    );
+    await mkdir(join(stale, "entries"), { recursive: true });
+    const worker = await start();
+    const deliveries = await pushTask(fakeTask(origin(worker), JOB, SECRET));
+    expect(deliveries).toMatchObject([{ status: 200, body: { state: "done" } }]);
+    expect(await readdir(join(root, "cache"))).toEqual(["installations", "public"]);
+    expect(await readdir(join(root, "cache", "installations"))).toEqual([]);
+  });
+
   it("takes a pushed task to the bucket and Postgres, then stops cleanly", async () => {
     const worker = await start();
     const health = await fetch(`${origin(worker)}/health`);

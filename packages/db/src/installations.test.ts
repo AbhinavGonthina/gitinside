@@ -4,6 +4,7 @@ import {
   analyses,
   deleteInstallationData,
   findInstallation,
+  findLinkedRepoIds,
   installations,
   installationSnapshotPrefix,
   LINK_CHUNK,
@@ -149,6 +150,50 @@ describe("linkInstallationRepos", () => {
     const ids = Array.from({ length: LINK_CHUNK * 2 + 5 }, (_, i) => i + 1);
     expect(await linkInstallationRepos(t.db, 41, ids)).toBe(2);
     expect(await linkedTo()).toEqual({ r1: id, [`r${LINK_CHUNK * 2 + 5}`]: id });
+  });
+});
+
+describe("findLinkedRepoIds (M8.5b2)", () => {
+  it("answers only the repos linked to that installation now", async () => {
+    await upsertInstallation(t.db, OCTO);
+    await upsertInstallation(t.db, {
+      ...OCTO,
+      githubInstallationId: 42,
+      accountId: 9002,
+      accountLogin: "elsewhere",
+    });
+    const { id: linked } = await repo(1);
+    const { id: unlinked } = await repo(2);
+    const { id: elsewhere } = await repo(3);
+    const { id: removed } = await repo(4);
+    await linkInstallationRepos(t.db, 41, [1, 4]);
+    await linkInstallationRepos(t.db, 42, [3]);
+    await deleteInstallationData(t.db, 41, [4]);
+
+    const asked = [removed, elsewhere, unlinked, linked, "not-a-row-id", "../41"];
+    expect(await findLinkedRepoIds(t.db, 41, asked)).toEqual([linked]);
+    expect(await findLinkedRepoIds(t.db, 42, asked)).toEqual([elsewhere]);
+    expect(await findLinkedRepoIds(t.db, 404, asked)).toEqual([]);
+    expect(await findLinkedRepoIds(t.db, 41, [])).toEqual([]);
+  });
+
+  it("answers nothing once the installation is deleted", async () => {
+    await upsertInstallation(t.db, OCTO);
+    const { id } = await repo(1);
+    await linkInstallationRepos(t.db, 41, [1]);
+    await deleteInstallationData(t.db, 41, "all");
+    expect(await findLinkedRepoIds(t.db, 41, [id])).toEqual([]);
+  });
+
+  it("asks lists longer than one statement takes", async () => {
+    await upsertInstallation(t.db, OCTO);
+    const { id } = await repo(1);
+    await linkInstallationRepos(t.db, 41, [1]);
+    const many = Array.from(
+      { length: LINK_CHUNK * 2 },
+      (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+    );
+    expect(await findLinkedRepoIds(t.db, 41, [...many, id])).toEqual([id]);
   });
 });
 

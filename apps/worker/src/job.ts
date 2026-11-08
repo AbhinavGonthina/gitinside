@@ -1,7 +1,14 @@
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { ExtractError, extractTarball, type ExtractLimits, type SkippedEntry } from "./extract.js";
-import { cacheFolder, prepareCacheFolder, type CacheOwner, type JobCache } from "./factcache.js";
+import {
+  cacheFolder,
+  prepareCacheFolder,
+  purgeUnlinkedFolders,
+  type CacheOwner,
+  type JobCache,
+  type LinkedRepoIds,
+} from "./factcache.js";
 import { JobFailure } from "./failure.js";
 import { openTarball, type DownloadOptions } from "./github.js";
 import type { InstallationTokenSource } from "./installationToken.js";
@@ -18,7 +25,8 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis, type RunOptions, type RunResult } f
  *    `<jobsRoot>/<id>-<random>/src` (extract.ts); nothing is buffered on disk first. All of
  *    it shares one budget, {@link DEFAULT_DOWNLOAD_TIMEOUT_MS}.
  * 2. **analyze:** the sandboxed child (runner.ts) writes `architecture.json` next to `src`,
- *    reusing facts from the job's fact cache folder (factcache.ts) if it has one. Under an
+ *    reusing facts from the job's fact cache folder (factcache.ts) if it has one, once the
+ *    folders of repos no longer installed are deleted (M8.5b2). Under an
  *    attempt's deadline, running out of time it was guaranteed is `LIMIT_TIME`; running out
  *    after earlier stages ate into that share is the retriable `ANALYSIS_TIME_CUT`.
  * 3. **publish:** the caller's `publish` stores the graph (record.ts: the bucket, then Postgres).
@@ -138,6 +146,12 @@ export interface JobDeps {
   cacheRoot?: string;
   /** The cache's cap over all its folders. Default `DEFAULT_FACT_CACHE_BYTES` (64 MiB). */
   cacheBytes?: number;
+  /**
+   * Which cached repos are still linked to their installation (db's `findLinkedRepoIds`),
+   * asked before each job's cache is prepared so an uninstall's or a removed repo's facts are
+   * deleted (M8.5b2). Without it, a job through an installation runs without a cache.
+   */
+  linkedRepoIds?: LinkedRepoIds;
   publish: (artifact: JobArtifact) => Promise<void>;
   download?: Omit<DownloadOptions, "signal">;
   /**
@@ -307,9 +321,10 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
     await context.onStage?.("analyze");
     const run = deps.run ?? runAnalysis;
     const { owner, repo, sha, installationId } = context.request;
-    const cache = await jobCache(deps, {
+    const { record } = attempt;
+    const cache = await jobCache(context, deps, {
       ...(installationId === undefined ? {} : { installationId }),
-      ...(attempt.record === undefined ? {} : { visibility: attempt.record.visibility }),
+      ...(record === undefined ? {} : { repoId: record.repoId, visibility: record.visibility }),
     });
     const limits = deps.runOptions?.limits;
     let timeoutMs: number | undefined;
@@ -384,12 +399,36 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
   }
 }
 
-/** The job's fact cache (factcache.ts), or `undefined` when it gets none. */
-async function jobCache(deps: JobDeps, owner: CacheOwner): Promise<JobCache | undefined> {
-  if (deps.cacheRoot === undefined) return undefined;
-  const folder = cacheFolder(deps.cacheRoot, owner);
+/**
+ * The job's fact cache (factcache.ts), or `undefined` when it gets none. First every
+ * installation folder whose repo isn't linked to it any more is deleted (M8.5b2); if that
+ * fails (logged as `cache_purge_failed`), the job runs without a cache. Without
+ * `linkedRepoIds` nothing can be confirmed, so an installation's job gets no cache.
+ */
+async function jobCache(
+  context: JobContext,
+  deps: JobDeps,
+  owner: CacheOwner,
+): Promise<JobCache | undefined> {
+  const root = deps.cacheRoot;
+  if (root === undefined) return undefined;
+  if (deps.linkedRepoIds === undefined) {
+    if (owner.installationId !== undefined) return undefined;
+  } else {
+    try {
+      await purgeUnlinkedFolders(root, deps.linkedRepoIds);
+    } catch (error) {
+      deps.log?.({
+        event: "cache_purge_failed",
+        id: context.id,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return undefined;
+    }
+  }
+  const folder = cacheFolder(root, owner);
   if (folder === undefined) return undefined;
-  return prepareCacheFolder(deps.cacheRoot, folder, deps.cacheBytes);
+  return prepareCacheFolder(root, folder, deps.cacheBytes);
 }
 
 /**
