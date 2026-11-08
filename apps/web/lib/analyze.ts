@@ -43,7 +43,8 @@ import { findSizeHold, type SizeHold } from "./sizeHold";
  *    their token), and anything else is the same `404 REPO_NOT_FOUND` everyone gets.
  * 3. **Cache:** a `done` analysis of that commit by this analyzer version is returned as is
  *    (the repo row refreshed from GitHub's facts). Viewing and re-asking are never
- *    rate-limited.
+ *    rate-limited. One analyzed privately before the repo turned public isn't: it's a new
+ *    analysis, stored under the public key (M8.4d2, ADR-0239).
  * 4. **Dedupe:** a commit already `queued` or `running` gets the same job back (the job ID
  *    is derived from the commit), again without counting against the limit; one `queued`
  *    with no task coming any more is a new analysis instead (`findAnalysisToQueue`, R10).
@@ -250,11 +251,12 @@ export async function requestAnalysis(
   const { repo, github } = found;
   const commit = { owner: repo.owner, repo: repo.name, sha: repo.sha };
 
-  const existing = await findAnalysisToQueue(deps.db, {
-    providerRepoId: repo.providerRepoId,
-    sha: repo.sha,
-    analyzerVersion: deps.analyzerVersion,
-  });
+  const existing = await findAnalysisToQueue(
+    deps.db,
+    { providerRepoId: repo.providerRepoId, sha: repo.sha, analyzerVersion: deps.analyzerVersion },
+    // Analyzed privately, public now: a new public analysis, never the private snapshot.
+    { replacePrivate: repo.installationId === undefined },
+  );
   if (existing?.status === "done") {
     // GitHub's facts again: a repo hidden when it went private is served once it's public.
     if (repo.visibility === "public") await upsertRepo(deps.db, repo);

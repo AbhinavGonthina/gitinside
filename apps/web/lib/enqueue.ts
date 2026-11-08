@@ -5,6 +5,7 @@ import {
   failStrandedAnalysis,
   findAnalysis,
   findInstallation,
+  isPrivateSnapshot,
   queueAnalysis,
   UnknownInstallationError,
   upsertRepo,
@@ -86,12 +87,19 @@ const STRANDED_WAIT: StrandedWait = {
  * the commit as a new analysis (every limit applies, a slot is taken), and
  * {@link enqueueAnalysis} queues it again under a fresh task name, where it used to count as
  * in flight, its name refused as `ALREADY_EXISTS`, until maintenance failed it a day later.
+ *
+ * With `replacePrivate` (a public job), a `done` row stored under `private/` is no analysis at
+ * all: {@link enqueueAnalysis} queues it again (M8.4d2, ADR-0239).
  */
 export async function findAnalysisToQueue(
   db: AnyDatabase,
   key: Parameters<typeof findAnalysis>[1],
+  options: { replacePrivate?: boolean } = {},
 ): Promise<AnalysisSummary | undefined> {
   const found = await findAnalysis(db, key);
+  if (options.replacePrivate === true && found?.status === "done") {
+    if (isPrivateSnapshot(found.snapshotKey)) return undefined;
+  }
   if (found?.status !== "queued") return found;
   if (!(await failStrandedAnalysis(db, found.id, STRANDED_WAIT))) return found;
   return findAnalysis(db, key);
@@ -161,6 +169,11 @@ export async function storeQueueRepo(db: AnyDatabase, repo: QueueRepo): Promise<
  * worker reads the repo through it. A commit already in flight under another job ID (queued
  * without the installation, or through another one) is followed, not queued beside it: the
  * row is the dedupe, and the task names come from the job ID.
+ *
+ * Without an installation (a public job), a `done` row stored under `private/` counts as not
+ * analyzed: the repo was analyzed privately and is public now, so the commit is queued again
+ * and its snapshot written under the public key (M8.4d2, ADR-0239), never served publicly
+ * from the private one.
  */
 export async function enqueueAnalysis(repo: QueueRepo, deps: EnqueueDeps): Promise<EnqueueResult> {
   const { installationId } = repo;
@@ -175,8 +188,13 @@ export async function enqueueAnalysis(repo: QueueRepo, deps: EnqueueDeps): Promi
   const row = await queueAnalysis(
     deps.db,
     { repoId, sha: repo.sha, analyzerVersion: deps.analyzerVersion },
-    // The size it's queued at: a `LIMIT_*` failure holds the repo until it halves (sizeHold.ts).
-    repo.sizeKb === undefined ? { jobId } : { jobId, repoSizeKb: repo.sizeKb },
+    {
+      jobId,
+      // The size it's queued at: a `LIMIT_*` failure holds the repo until it halves (sizeHold.ts).
+      ...(repo.sizeKb === undefined ? {} : { repoSizeKb: repo.sizeKb }),
+      // A public job analyzes again what was analyzed privately (M8.4d2, ADR-0239).
+      replacePrivate: installationId === undefined,
+    },
   );
   if (row.status === "done") return { status: "done" };
   // The row's own job, if another request queued or started it under another ID.

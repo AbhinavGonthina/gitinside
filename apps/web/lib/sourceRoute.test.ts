@@ -89,7 +89,10 @@ async function publish(visibility: "public" | "private") {
   });
   const { id } = await startAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: "0.1.0" });
   await completeAnalysis(t.db, id, {
-    snapshotKey: `private/41/${repoId}/${SHA}/0.1.0.json.gz`,
+    snapshotKey:
+      visibility === "private"
+        ? `private/41/${repoId}/${SHA}/0.1.0.json.gz`
+        : `public/acme/shop/${SHA}/0.1.0.json.gz`,
     stats: { files: 0, nodes: 0, edges: 0, unresolved: 0 },
   });
 }
@@ -213,9 +216,28 @@ describe("handleSourceRequest (M8.4c3)", () => {
         await handleSourceRequest(params(undefined, "Acme", "Shop", OTHER_SHA), auth, cookie),
       ),
     ).toEqual(expected);
+    await t.db.delete(analyses);
     await publish("public");
     expect(await seen(await handleSourceRequest(params(), auth, cookie))).toEqual(expected);
     expect(github.requests).toEqual([]);
+  });
+
+  it("still reads a commit analyzed privately through the check once the repo is public (M8.4d2)", async () => {
+    // GitHub's facts made the row public; the commit's analysis is still the private one.
+    await upsertRepo(t.db, {
+      providerRepoId: 1,
+      owner: "Acme",
+      name: "Shop",
+      visibility: "public",
+      defaultBranch: "main",
+    });
+    expect(await seen(await handleSourceRequest(params(), auth, null))).toEqual(await missing());
+    expect(fileReads()).toEqual([]);
+    const { cookie } = await signIn(OCTO);
+    const response = await handleSourceRequest(params(), auth, cookie);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(fileReads()).toHaveLength(1);
   });
 
   it("refuses a path that could leave the repo, and a malformed name or SHA, asking nothing", async () => {

@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { isPrivateSnapshot } from "@gitinside/db";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { s3Error, startFakeS3, type FakeS3 } from "./s3.testkit.js";
 import {
@@ -64,6 +65,16 @@ describe("privateSnapshotKey", () => {
     expect(
       privateSnapshotKey({ installationId: 42, repoId, sha: SHA, analyzerVersion: "0.1.0" }),
     ).toBe(`private/42/${repoId}/${SHA}/0.1.0.json.gz`);
+  });
+
+  it("is what the database serves only behind the access check, and a public key isn't (M8.4d2)", () => {
+    const ids = { sha: SHA, analyzerVersion: "0.1.0" };
+    expect(isPrivateSnapshot(privateSnapshotKey({ installationId: 42, repoId, ...ids }))).toBe(
+      true,
+    );
+    // Even a repo whose name is "private".
+    const key = publicSnapshotKey({ owner: "private", repo: "private", ...ids });
+    expect(isPrivateSnapshot(key)).toBe(false);
   });
 
   it.each([

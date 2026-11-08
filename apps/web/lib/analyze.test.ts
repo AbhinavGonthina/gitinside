@@ -237,6 +237,32 @@ describe("requestAnalysis", () => {
     expect(repo).toMatchObject({ visibility: "public", owner: "Acme", name: "Shop" });
   });
 
+  it("analyzes again, publicly, a commit analyzed while the repo was private (M8.4d2)", async () => {
+    const { repoId, id } = await doneAnalysis();
+    await completeAnalysis(t.db, id, {
+      snapshotKey: `private/41/${repoId}/${SHA}/${VERSION}.json.gz`,
+      stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+    });
+    await hideRepo(t.db, repoId);
+    const answer = await requestAnalysis("acme/shop", IP, deps);
+    expect(answer).toEqual({
+      status: 202,
+      body: { status: "queued", jobId: JOB_ID, owner: "Acme", repo: "Shop", sha: SHA },
+    });
+    // A new analysis by every rule: a public job, one task, the caller's slot, the repo's claim.
+    expect(tasks.jobs()).toEqual([{ kind: "analyze", owner: "Acme", repo: "Shop", sha: SHA }]);
+    expect(await slotsUsed()).toBe(1);
+    expect(await claimOf(SHOP.id)).toBeDefined();
+    const [row] = await t.db.select().from(analyses);
+    expect(row).toMatchObject({ id, status: "queued", snapshotKey: null, jobId: JOB_ID });
+    const [repo] = await t.db.select().from(repos);
+    expect(repo?.visibility).toBe("public");
+    // Asked again, it's the same job.
+    const again = await requestAnalysis("acme/shop", "198.51.100.1", deps);
+    expect(again).toMatchObject({ status: 202, body: { jobId: JOB_ID } });
+    expect(tasks.google.tasks).toHaveLength(1);
+  });
+
   it("creates no task when the queued row can't be written", async () => {
     const db = new Proxy(t.db, {
       get(target, key, receiver) {
