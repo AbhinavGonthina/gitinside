@@ -26,8 +26,9 @@ import {
  *   pass here, nor this one there. Not configured (database, app key, or secret): `503`.
  * - **Only for a live job, through its own installation.** The body is `{ jobId, installationId }`.
  *   The token is minted only if the newest `analyses` row with that job ID is `queued` or
- *   `running` and its repo is linked to that installation now; the repo's owner and name come
- *   from the row, never from the request. A stored suspension is refused without asking GitHub.
+ *   `running` (for a `diff-` job, ADR-0245: a pull request record names it and has no diff
+ *   yet) and its repo is linked to that installation now; the repo's owner and name come from
+ *   the row, never from the request. A stored suspension is refused without asking GitHub.
  * - **Answers** `200 { token, expiresAt }` (ISO), else `{ error }` with a code: `404`
  *   `JOB_NOT_FOUND`; `403` `INSTALLATION_SUSPENDED`, `INSTALLATION_NOT_FOUND` (the repo is
  *   linked to none now), or `REPO_NOT_INSTALLED` (linked to another, or GitHub says this one
@@ -86,7 +87,7 @@ function json(status: number, body: Body): Response {
   });
 }
 
-const JOB_ID = /^analyze-[0-9a-f]{32}$/;
+const JOB_ID = /^(?:analyze|diff)-[0-9a-f]{32}$/;
 
 /** The body's `{ jobId, installationId }`, exactly those, or `undefined`. */
 function parse(bytes: Uint8Array): { jobId: string; installationId: number } | undefined {

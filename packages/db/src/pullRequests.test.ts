@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   findPullRequest,
   pullRequests,
+  queuePullRequestDiff,
   recordPullRequestCheckRun,
   recordPullRequestComment,
   recordPullRequestDiff,
@@ -204,6 +205,91 @@ describe("recordPullRequestHead", () => {
     expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ headSha: HEAD, brokenCount: 2 });
     expect(await findPullRequest(t.db, otherRepoId, 7)).toMatchObject({ headSha: HEAD2 });
     expect(await findPullRequest(t.db, repoId, 9)).toBeUndefined();
+  });
+});
+
+describe("queuePullRequestDiff", () => {
+  const JOB = `diff-${"e".repeat(32)}`;
+  const JOB2 = `diff-${"f".repeat(32)}`;
+
+  async function opened(repoId: string) {
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 7,
+      baseSha: BASE,
+      headSha: HEAD,
+      headAt: AT,
+    });
+    return { repoId, number: 7, baseSha: BASE, headSha: HEAD, jobId: JOB };
+  }
+
+  it("names the job on the current pair and answers when it was queued", async () => {
+    const { repoId } = await setup();
+    const job = await opened(repoId);
+    const queuedAt = await queuePullRequestDiff(t.db, job);
+    expect(queuedAt).toBeInstanceOf(Date);
+    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({
+      diffJobId: JOB,
+      diffQueuedAt: queuedAt,
+    });
+  });
+
+  it("answers the same time for the same job again, so its task keeps its name", async () => {
+    const { repoId } = await setup();
+    const job = await opened(repoId);
+    const first = await queuePullRequestDiff(t.db, job);
+    // A redelivery: same pair described again, same job.
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 7,
+      baseSha: BASE,
+      headSha: HEAD,
+      headAt: LATER,
+    });
+    expect(await queuePullRequestDiff(t.db, job)).toEqual(first);
+
+    // Another job for the same pair (a new analyzer version) takes over with its own time.
+    const replaced = await queuePullRequestDiff(t.db, { ...job, jobId: JOB2 });
+    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({
+      diffJobId: JOB2,
+      diffQueuedAt: replaced,
+    });
+  });
+
+  it("queues nothing for an old pair, a recorded diff, or an unknown pull request", async () => {
+    const { repoId } = await setup();
+    const job = await opened(repoId);
+    expect(await queuePullRequestDiff(t.db, { ...job, headSha: HEAD2 })).toBeUndefined();
+    expect(await queuePullRequestDiff(t.db, { ...job, baseSha: BASE2 })).toBeUndefined();
+    expect(await queuePullRequestDiff(t.db, { ...job, number: 8 })).toBeUndefined();
+    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ diffJobId: null });
+
+    await recordPullRequestDiff(t.db, { ...job, diffKey: "k", brokenCount: 0 });
+    expect(await queuePullRequestDiff(t.db, job)).toBeUndefined();
+    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ diffJobId: null });
+  });
+
+  it("is cleared with the diff when the pair moves on, and kept for the same pair", async () => {
+    const { repoId } = await setup();
+    const job = await opened(repoId);
+    await queuePullRequestDiff(t.db, job);
+    const same = await recordPullRequestHead(t.db, { ...job, headAt: LATER });
+    expect(same).toMatchObject({ diffJobId: JOB });
+    const moved = await recordPullRequestHead(t.db, {
+      repoId,
+      number: 7,
+      baseSha: BASE2,
+      headSha: HEAD,
+      headAt: new Date("2026-11-08T10:00:10Z"),
+    });
+    expect(moved).toMatchObject({ diffJobId: null, diffQueuedAt: null });
+  });
+
+  it("is refused by the database with a job ID that isn't a diff job's", async () => {
+    const { repoId } = await setup();
+    const job = await opened(repoId);
+    const analyze = { ...job, jobId: `analyze-${"e".repeat(32)}` };
+    expect(await pgErrorCode(queuePullRequestDiff(t.db, analyze))).toBe(CHECK);
   });
 });
 

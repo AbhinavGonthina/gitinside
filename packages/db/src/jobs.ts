@@ -12,7 +12,7 @@
  */
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
-import { analyses, installations, repos, type JobProgress } from "./schema.js";
+import { analyses, installations, pullRequests, repos, type JobProgress } from "./schema.js";
 
 /**
  * Store where the running attempt of job `jobId` is, stamped with the database's `now()`
@@ -113,11 +113,16 @@ export interface JobInstallation {
  * The repo of the job with ID `jobId` and the installation it's linked to now (M8.3c3a), or
  * `undefined` if no row has that ID; like {@link findJob}, the newest row is the job. The
  * website mints a job's installation token from this, never from what the worker asks.
+ *
+ * A `diff-` job (ADR-0245) is read from the pull request records naming it: `queued` while one
+ * of them has no diff yet (preferred when several PRs share the job), else `done`. A record
+ * whose pair moved on no longer names it, so the job is then unknown.
  */
 export async function findJobInstallation(
   db: AnyDatabase,
   jobId: string,
 ): Promise<JobInstallation | undefined> {
+  if (jobId.startsWith("diff-")) return findDiffJobInstallation(db, jobId);
   const [row] = await db
     .select({
       status: analyses.status,
@@ -133,6 +138,30 @@ export async function findJobInstallation(
     .orderBy(desc(analyses.createdAt), desc(analyses.id))
     .limit(1);
   return row;
+}
+
+async function findDiffJobInstallation(
+  db: AnyDatabase,
+  jobId: string,
+): Promise<JobInstallation | undefined> {
+  const live = sql<boolean>`${pullRequests.diffKey} is null`;
+  const [row] = await db
+    .select({
+      live,
+      owner: repos.owner,
+      name: repos.name,
+      githubInstallationId: installations.githubInstallationId,
+      suspendedAt: installations.suspendedAt,
+    })
+    .from(pullRequests)
+    .innerJoin(repos, eq(repos.id, pullRequests.repoId))
+    .leftJoin(installations, eq(installations.id, repos.installationId))
+    .where(eq(pullRequests.diffJobId, jobId))
+    .orderBy(desc(live), desc(pullRequests.updatedAt), desc(pullRequests.id))
+    .limit(1);
+  if (row === undefined) return undefined;
+  const { live: isLive, ...rest } = row;
+  return { status: isLive ? "queued" : "done", ...rest };
 }
 
 /**
