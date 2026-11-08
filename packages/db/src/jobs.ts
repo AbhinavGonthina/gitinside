@@ -50,6 +50,8 @@ export interface JobRecord {
   progressAgeMs?: number;
   /** Private jobs (M8) need an access check before anything about them is shown. */
   visibility: "public" | "private";
+  /** The job's repo: our row ID and GitHub's ID, which a private job's access check asks by (M8.4c2c). */
+  repo: { id: string; providerRepoId: number };
   /** While `queued`: how many `queued` rows entered the queue before it (0 = next). */
   position?: number;
 }
@@ -69,6 +71,8 @@ export async function findJob(db: AnyDatabase, jobId: string): Promise<JobRecord
       attempts: analyses.attempts,
       progress: analyses.progress,
       visibility: repos.visibility,
+      repoId: repos.id,
+      providerRepoId: repos.providerRepoId,
       position: sql<number | null>`case when ${analyses.status} = 'queued' then (
         select count(*)::int from ${analyses} as ahead
         where ahead.status = 'queued'
@@ -85,9 +89,10 @@ export async function findJob(db: AnyDatabase, jobId: string): Promise<JobRecord
     .orderBy(desc(analyses.createdAt), desc(analyses.id))
     .limit(1);
   if (row === undefined) return undefined;
-  const { position, progressAgeMs, ...job } = row;
+  const { position, progressAgeMs, repoId, providerRepoId, ...job } = row;
   return {
     ...job,
+    repo: { id: repoId, providerRepoId },
     ...(progressAgeMs === null ? {} : { progressAgeMs }),
     ...(position === null ? {} : { position }),
   };

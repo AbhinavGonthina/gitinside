@@ -1,15 +1,34 @@
 // @vitest-environment node
 import {
+  ACCESS_TTL_SECONDS,
+  accessCache,
+  analyses,
   completeAnalysis,
+  createSession,
+  findSession,
   queueAnalysis,
   recordJobProgress,
+  repos,
+  sessions,
   startAnalysis,
   upsertRepo,
+  upsertUser,
+  users,
   type JobProgress,
   type JobRecord,
 } from "@gitinside/db";
-import { createTestDb } from "@gitinside/db/testing";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { createTestDb, type TestDb } from "@gitinside/db/testing";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AuthDeps } from "./authRoute";
+import {
+  EXPIRES_IN,
+  FAKE_CLIENT,
+  fakeOAuth,
+  type FakeAccount,
+  type FakeInstallation,
+  type FakeOAuth,
+} from "./githubOAuth.testkit";
+import { hashToken, newToken, SESSION_COOKIE, sealTokens, sessionKeys } from "./session";
 import {
   ANALYZE_JOB_ID,
   handleJobEvents,
@@ -43,6 +62,7 @@ const row = (fields: Partial<JobRecord>): JobRecord => ({
   attempts: 0,
   progress: null,
   visibility: "public",
+  repo: { id: "00000000-0000-4000-8000-0000000000aa", providerRepoId: 1 },
   ...fields,
 });
 const queued = (position?: number): JobRecord => row(position === undefined ? {} : { position });
@@ -173,6 +193,206 @@ describe("the job routes on the database (ADR-0139, ADR-0140)", { timeout: 60_00
     } finally {
       await t.close();
     }
+  });
+});
+
+describe("the job routes for a private repo (M8.4c2c)", { timeout: 60_000 }, () => {
+  const NOW = Date.parse("2026-11-07T12:00:00.000Z");
+  const SHA = "a".repeat(40);
+  const OCTO: FakeAccount = { id: 3_000_000_007, login: "octo" };
+  const HUBOT: FakeAccount = { id: 3_000_000_008, login: "hubot" };
+  const KEYS = sessionKeys("s".repeat(43));
+  const ACME: FakeInstallation = {
+    id: 41,
+    account: { login: "acme", type: "Organization" },
+    selection: "selected",
+    repos: [{ owner: "acme", name: "shop", private: true, id: 3_000_000_001 }],
+  };
+  const OTHER_ID = `analyze-${"b".repeat(32)}`;
+
+  let t: TestDb;
+  let github: FakeOAuth;
+  let deps: JobRouteDeps;
+  beforeAll(async () => {
+    t = await createTestDb();
+  });
+  afterAll(async () => {
+    await t?.close();
+  });
+  beforeEach(async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await t.db.delete(accessCache);
+    await t.db.delete(sessions);
+    await t.db.delete(users);
+    await t.db.delete(analyses);
+    await t.db.delete(repos);
+    github = fakeOAuth();
+    github.install(OCTO, [ACME]);
+    const auth: AuthDeps = {
+      db: t.db,
+      client: { ...FAKE_CLIENT, fetch: github.fetch },
+      keys: KEYS,
+      now: () => NOW,
+    };
+    deps = jobRouteDeps(t.db, auth);
+    const { id: repoId } = await upsertRepo(t.db, {
+      providerRepoId: 3_000_000_001,
+      owner: "acme",
+      name: "shop",
+      visibility: "private",
+      defaultBranch: "main",
+    });
+    await queueAnalysis(t.db, { repoId, sha: SHA, analyzerVersion: "0.1.0" }, { jobId: ID });
+  });
+
+  /** A live session for `account`: its `Cookie` header and what's needed to end it. */
+  async function signIn(account: FakeAccount) {
+    const issued = github.issue(account);
+    const token = newToken();
+    const tokenHash = hashToken(token);
+    const userId = await upsertUser(t.db, { githubUserId: account.id, login: account.login });
+    await createSession(t.db, {
+      userId,
+      tokenHash,
+      githubTokens: sealTokens(KEYS, tokenHash, {
+        accessToken: issued.accessToken,
+        accessExpiresAt: NOW + EXPIRES_IN * 1000,
+        refreshToken: issued.refreshToken,
+        refreshExpiresAt: NOW + 1e10,
+      }),
+      lifetimeSeconds: 3600,
+    });
+    return { cookie: `theme=dark; ${SESSION_COOKIE}=${token}`, tokenHash, issued };
+  }
+
+  const lookups = () => github.requests.filter((r) => r.url.includes("/repositories/")).length;
+
+  /** Everything a client can see of a response. */
+  async function seen(response: Response) {
+    return { status: response.status, headers: [...response.headers], body: await response.text() };
+  }
+
+  /** A job ID no row has: every refusal must look exactly like it. */
+  async function missing() {
+    return seen(await handleJobRequest(OTHER_ID, deps));
+  }
+
+  /** The stream of a job ID no row has. */
+  const otherStream = () => handleJobEvents(OTHER_ID, new AbortController().signal, deps, FAST);
+
+  it("shows the job to a user GitHub shows the repo to", async () => {
+    const { cookie } = await signIn(OCTO);
+    const response = await handleJobRequest(ID, deps, cookie);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      state: "queued",
+      step: "queue",
+      progress: 0,
+      text: "You're next",
+      position: 0,
+    });
+    expect(github.requests.at(-1)?.url).toBe("https://api.github.com/repositories/3000000001");
+  });
+
+  it("answers signed out, without sign-in, a dead cookie, or another user exactly as a missing job", async () => {
+    const expected = await missing();
+    expect(expected.status).toBe(404);
+    await signIn(OCTO);
+    const hubot = await signIn(HUBOT); // signed in, but not in Acme's installation
+    const cases: [string, JobRouteDeps, string | null][] = [
+      ["signed out", deps, null],
+      ["sign-in not configured", jobRouteDeps(t.db), hubot.cookie],
+      ["no such session", deps, `${SESSION_COOKIE}=${newToken()}`],
+      ["refused", deps, hubot.cookie],
+    ];
+    for (const [name, d, c] of cases) {
+      expect(await seen(await handleJobRequest(ID, d, c)), name).toEqual(expected);
+      const stream = await events(handleJobEvents(ID, new AbortController().signal, d, FAST, c));
+      expect(stream.views, name).toEqual((await events(otherStream())).views);
+    }
+  });
+
+  it("refuses access removed on GitHub once the check is 60 s old", async () => {
+    const { cookie } = await signIn(OCTO);
+    expect((await handleJobRequest(ID, deps, cookie)).status).toBe(200);
+    github.install(OCTO, []);
+    expect((await handleJobRequest(ID, deps, cookie)).status).toBe(200); // still cached
+    const [row] = await t.db.select().from(accessCache);
+    await t.db.update(accessCache).set({
+      checkedAt: new Date((row?.checkedAt.getTime() ?? 0) - ACCESS_TTL_SECONDS * 1000),
+    });
+    expect(await seen(await handleJobRequest(ID, deps, cookie))).toEqual(await missing());
+  });
+
+  it("ends the session when GitHub refuses the user's token, answering as missing", async () => {
+    const { cookie, tokenHash, issued } = await signIn(OCTO);
+    github.revoke(issued.accessToken);
+    expect(await seen(await handleJobRequest(ID, deps, cookie))).toEqual(await missing());
+    expect(await findSession(t.db, tokenHash)).toBeUndefined();
+  });
+
+  it("is unavailable while the check can't decide, and asks again on the next read", async () => {
+    const { cookie } = await signIn(OCTO);
+    github.failNext(new Response("oops", { status: 502 }));
+    const response = await handleJobRequest(ID, deps, cookie);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual(UNAVAILABLE_VIEW);
+    expect((await handleJobRequest(ID, deps, cookie)).status).toBe(200);
+    expect(lookups()).toBe(2);
+  });
+
+  it("streams to an allowed user, checking once per connection, through to done", async () => {
+    const { cookie } = await signIn(OCTO);
+    const key = {
+      repoId: (await t.db.select().from(repos))[0]!.id,
+      sha: SHA,
+      analyzerVersion: "0.1.0",
+    };
+    const abort = new AbortController();
+    const response = handleJobEvents(
+      ID,
+      abort.signal,
+      deps,
+      { ...FAST, lifetimeMs: 60_000 },
+      cookie,
+    );
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let text = "";
+    const until = async (part: string) => {
+      while (!text.includes(part)) {
+        const { value, done } = await reader.read();
+        if (done) throw new Error(`stream ended before ${part}: ${text}`);
+        text += decoder.decode(value);
+      }
+    };
+    await until('"state":"queued"');
+    // Revoked, and the 60 s cache gone: this connection keeps its decision regardless, and
+    // the next one (≤ 25 s later) asks again.
+    github.install(OCTO, []);
+    await t.db.delete(accessCache);
+    await startAnalysis(t.db, key, { jobId: ID });
+    await until('"state":"running"');
+    const { id } = await startAnalysis(t.db, key);
+    await completeAnalysis(t.db, id, {
+      snapshotKey: "k",
+      stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+    });
+    await until('{"state":"done"}');
+    // Many reads of the row, one check.
+    expect(lookups()).toBe(1);
+    abort.abort();
+    expect(await seen(await handleJobRequest(ID, deps, cookie))).toEqual(await missing());
+  });
+
+  it("a stream that couldn't decide says unavailable, then shows the job once it can", async () => {
+    const { cookie } = await signIn(OCTO);
+    github.failNext(new Response("oops", { status: 502 }));
+    const { views } = await events(
+      handleJobEvents(ID, new AbortController().signal, deps, { ...FAST, lifetimeMs: 200 }, cookie),
+    );
+    expect(views.map((v) => (v as { state: string }).state)).toEqual(["unavailable", "queued"]);
   });
 });
 

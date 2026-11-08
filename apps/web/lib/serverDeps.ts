@@ -180,12 +180,13 @@ function localQueue(env: Env): TaskQueue | undefined {
 }
 
 /**
- * The job routes' deps (`/api/jobs/:id`, ADR-0067, ADR-0139): only the database, where each
- * job's row is, so watching a job never asks the worker. `undefined` without `DATABASE_URL`.
+ * The job routes' deps (`/api/jobs/:id`, ADR-0067, ADR-0139): the database, where each job's
+ * row is, so watching a job never asks the worker, and sign-in's deps when it's configured, for
+ * private jobs (M8.4c2c). `undefined` without `DATABASE_URL`.
  */
 export function jobDepsFromEnv(env: Env = process.env): JobRouteDeps | undefined {
   const db = database(env);
-  return db && jobRouteDeps(db);
+  return db && jobRouteDeps(db, authDepsFromEnv(env));
 }
 
 /** The shared connection for `DATABASE_URL`, or `undefined` if it isn't set. */

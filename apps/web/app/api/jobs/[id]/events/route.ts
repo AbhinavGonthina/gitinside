@@ -14,5 +14,5 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
-  return handleJobEvents(id, request.signal, jobDepsFromEnv());
+  return handleJobEvents(id, request.signal, jobDepsFromEnv(), {}, request.headers.get("cookie"));
 }
