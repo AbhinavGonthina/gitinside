@@ -8,7 +8,8 @@ import { createHash } from "node:crypto";
  * and refresh tokens (once each). For the dashboard (M8.2c) it also answers `GET
  * /user/installations` and `GET /user/installations/{id}/repositories` (both paged) from
  * {@link FakeOAuth.install}, and the access check (M8.4a) `GET /repositories/{id}` for a repo one
- * of them covers. Requests are matched by path, so the same fake serves calls made
+ * of them covers, with its `…/commits/HEAD` and `GET /repos/{owner}/{repo}/languages` for a
+ * private page's check-on-view (M8.4c2). Requests are matched by path, so the same fake serves calls made
  * to github.com, to api.github.com, or to a loopback origin (`e2e/github.ts`).
  */
 
@@ -24,6 +25,13 @@ export interface FakeRepo {
   private?: boolean;
   /** GitHub's repo ID, for `GET /repositories/{id}` (M8.4a); without one it isn't found there. */
   id?: number;
+  /**
+   * The default branch's head, for `GET /repositories/{id}/commits/HEAD` (M8.4c2); without one
+   * that's a 404.
+   */
+  sha?: string;
+  /** `GET /repos/{owner}/{name}/languages`'s answer; default 50,000 bytes of TypeScript. */
+  languages?: Record<string, unknown>;
 }
 
 /** An installation of the app the fake lists for the accounts that can see it. */
@@ -158,21 +166,36 @@ export function fakeOAuth(options: { expiring?: boolean } = {}): FakeOAuth {
       });
     }
     // A user's token sees a repo only where the app is installed and the user has access.
-    const byId = /^\/repositories\/(\d+)$/.exec(url.pathname);
+    const visible = seen.flatMap((i) => i.repos);
+    const byId = /^\/repositories\/(\d+)(\/commits\/HEAD)?$/.exec(url.pathname);
     if (byId !== null) {
-      for (const i of seen) {
-        const r = i.repos.find((repo) => repo.id !== undefined && String(repo.id) === byId[1]);
-        if (r !== undefined) {
-          return Response.json({
-            id: r.id,
-            name: r.name,
-            full_name: `${r.owner}/${r.name}`,
-            owner: { login: r.owner },
-            private: r.private ?? false,
-          });
-        }
+      const r = visible.find((repo) => repo.id !== undefined && String(repo.id) === byId[1]);
+      if (r === undefined) return Response.json({ message: "Not Found" }, { status: 404 });
+      if (byId[2] !== undefined) {
+        return r.sha === undefined
+          ? Response.json({ message: "Not Found" }, { status: 404 })
+          : new Response(r.sha, { headers: { "content-type": "application/vnd.github.sha" } });
       }
-      return Response.json({ message: "Not Found" }, { status: 404 });
+      return Response.json({
+        id: r.id,
+        name: r.name,
+        full_name: `${r.owner}/${r.name}`,
+        owner: { login: r.owner },
+        private: r.private ?? false,
+        default_branch: "main",
+        size: 1_024,
+      });
+    }
+    const languages = /^\/repos\/([^/]+)\/([^/]+)\/languages$/.exec(url.pathname);
+    if (languages !== null) {
+      const [, owner = "", name = ""] = languages.map(decodeURIComponent);
+      const r = visible.find(
+        (repo) =>
+          repo.owner.toLowerCase() === owner.toLowerCase() &&
+          repo.name.toLowerCase() === name.toLowerCase(),
+      );
+      if (r === undefined) return Response.json({ message: "Not Found" }, { status: 404 });
+      return Response.json(r.languages ?? { TypeScript: 50_000 });
     }
     const repos = /^\/user\/installations\/(\d+)\/repositories$/.exec(url.pathname);
     const installation = seen.find((i) => String(i.id) === repos?.[1]);
