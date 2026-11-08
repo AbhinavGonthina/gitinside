@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M8.6d4 Sides the diff job analyzed stored as that commit's analysis
+M8.6e Posting: the comment and Check Run with a write-scoped installation token
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -447,7 +447,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M8.6d3c The worker's diff job, split:
 - [x] M8.6d3c1 The job analyzing both sides: `UNSUPPORTED_JOB` lifted, the live record (`findDiffJob`: none ⇒ permanent `JOB_NOT_LIVE`, `done` ⇒ already done), the read token, the merge base, both tarballs, the analysis child per side (fact cache), `diffGraphs` with both trees' contents, `uploadDiff` + `recordDiffJobResult`; over the budget it fails like an analysis; tests against fakes and one with the real analyzer {model: opus}
 - [x] M8.6d3c2 A side's stored `done` graph (same analyzer version, a key this installation may read) read from the bucket instead of running the child; tests {model: opus}
-- [ ] M8.6d4 Sides the diff job analyzed stored as that commit's analysis when no other job holds its row (the PR link's diagrams exist); tests {model: opus}
+- [x] M8.6d4 Sides the diff job analyzed stored as that commit's analysis when no other job holds its row (the PR link's diagrams exist); tests {model: opus}
 - [ ] M8.6e Posting: an installation token scoped to `pull_requests: write` + `checks: write` for that repo (minted by the website, never the job's read token), the comment created once then edited in place (found by stored ID, else by the marker), the Check Run created per head SHA and completed; failures logged, retried by the queue; tests against the fake GitHub, mutation-checked {model: opus}
 - [ ] M8.6f The interactive diff from a PR link: the stored diff (with `renameLimit`) used by the diagram's diff mode when it matches, and its note shown in the viewer (ADR-0086's M6.11n2 amendment); tests, screenshots dark/light {model: opus}
 - [ ] M8.7 Push webhook → badge refresh {model: opus}
@@ -468,6 +468,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- 2026-11-08 M8.6d4 (`2de216c`, ADR-0245 amendment): each side the diff job analyzes is stored right away (`DiffRecorder.storeSide`): db `findLinkedRepo` (linked to the job's installation, else nothing uploaded), the analysis job's key (public repo ⇒ public key, else this installation's private one), `uploadSnapshot`, then `storeDiffSideAnalysis` (installation `FOR SHARE`, repo still linked; a new row or a `failed` one ⇒ `done`, no job ID, stats without `jobMs`; queued/running/done rows left, the upload to retention). Stored at once so a time-cut retry reads the merge base; a failed store is logged (`side_store_failed`) and the diff goes on; `job_done` adds `stored`. db 245, worker 771; four mutations red.
 - 2026-11-08 M8.6d3c2 (`016169c`, ADR-0245 amendment): each diff side first asks `DiffRecorder.storedGraph` (db `findDoneSnapshotKey` on the job's repo row and this analyzer version; read only if `readableBy`: `public/` or this installation's own `private/<id>/<repo>/`). It must parse and name that commit, else it's logged (`stored_graph_unread`) and analyzed. Both trees still downloaded; the fact cache prepared only when a side is analyzed; `job_done` logs `reused`. db 62 (analyses), worker 763; three mutations red (the cache one only after seeding a cached folder: an empty cache root never asks the database).
 - 2026-11-08 M8.6d3c1 (`3d37c5b`, ADR-0245 amendment): M8.6d3c split into c1 (the job) and c2 (a side's stored graph). `processDiffJob` (`apps/worker/src/diffJob.ts`, run by `runAttempt` for `kind: "diff"`): records first (none ⇒ permanent `JOB_NOT_LIVE` before any GitHub call, all diffed ⇒ already done), then the read token, `fetchMergeBase`, the merge base's and head's tarballs, the child on each with the repo's fact cache, `diffGraphs` with both trees' text; `createDiffRecorder` uploads then `recordDiffJobResult`. Merge base outrunning its share ⇒ `LIMIT_TIME`, head outrunning what's left ⇒ retriable `ANALYSIS_TIME_CUT`. Worker 746 (25 new, one with the real analyzer); three mutations red. Lockfile changed (worker now depends on `@gitinside/diff`): eval re-recorded at `4a85310`, no delta.
 - 2026-11-08 M8.6d3b (`e8e2447`, ADR-0245 amendment): retention's snapshot key shape never matched diff keys, so diff objects were never swept. A run now reads db's `listDiffKeys` (every record's `diff_key`, before listing) and matches `privateDiffKey`'s shape: named diffs kept and counted (`diffs`, `diffBytes` in `retention_run`), never evicted for the budget; unnamed ones are orphans after the hour's grace. db 236, worker 721 (two `DOWNLOAD_FAILED` load flakes passed alone); two mutations red.
