@@ -12,8 +12,12 @@ import { short, UNREADABLE_TITLE, type GraphLoad } from "./repoStatus";
 
 /** What a link's `base` names, as the server found it. */
 export type BaseView =
-  /** A commit with a published analysis of this repo, and where its graph is. */
-  | { status: "ready"; sha: string; graphUrl: string }
+  /**
+   * A commit with a published analysis of this repo, and where its graph is. `diffUrl`, when
+   * the pull request bot stored a diff of exactly this base and the page's commit (a PR
+   * comment's link, M8.6f1): where that diff is (`/api/diff/…`).
+   */
+  | { status: "ready"; sha: string; graphUrl: string; diffUrl?: string }
   /** A full SHA nobody analyzed (or whose analysis was pruned). */
   | { status: "missing"; sha: string }
   /** Not a full, lowercase, 40-character SHA. */

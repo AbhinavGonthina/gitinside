@@ -307,6 +307,53 @@ export async function recordPullRequestDiff(
   return rows.length > 0;
 }
 
+/** A stored diff to look for, as a pull request comment's link names it (M8.6f1). */
+export interface StoredDiffQuery {
+  /** Our repo row's ID. */
+  repoId: string;
+  /** The link's `?base=`: the diff's merge base, not the event's base the record holds. */
+  baseSha: string;
+  headSha: string;
+  /** The analyzer version the diff was made by. */
+  analyzerVersion: string;
+}
+
+/**
+ * The key of a diff of `baseSha`...`headSha` by `analyzerVersion` that some pull request record
+ * of the repo still names (M8.6f1), for the diagram page's diff mode on the comment's link
+ * (`/<owner>/<repo>/<head>?base=<merge base>`). The record holds the event's base, not the
+ * merge base, so the pair is read from the key (`privateDiffKey`'s shape: `private/<installation>/
+ * <repoId>/diffs/<merge base>-<head>/<version>.json.gz`); a key of another shape is never
+ * returned. A record whose pull request moved on no longer names its old diff, so an old link
+ * finds nothing. Two records naming the pair under different installations answer the first
+ * key in string order.
+ */
+export async function findPullRequestDiffKey(
+  db: AnyDatabase,
+  query: StoredDiffQuery,
+): Promise<string | undefined> {
+  const rows = await db
+    .select({ diffKey: pullRequests.diffKey })
+    .from(pullRequests)
+    .where(
+      and(
+        eq(pullRequests.repoId, query.repoId),
+        eq(pullRequests.headSha, query.headSha),
+        isNotNull(pullRequests.diffKey),
+      ),
+    );
+  const name = `/${query.repoId}/diffs/${query.baseSha}-${query.headSha}/${query.analyzerVersion}.json.gz`;
+  return rows
+    .flatMap(({ diffKey }) =>
+      diffKey !== null &&
+      /^private\/[1-9][0-9]*$/.test(diffKey.slice(0, -name.length)) &&
+      diffKey.endsWith(name)
+        ? [diffKey]
+        : [],
+    )
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0];
+}
+
 /**
  * Stores the ID of the pull request's comment, whatever its head (the comment is edited in
  * place across heads), replacing an earlier one (say, deleted on GitHub and posted again).

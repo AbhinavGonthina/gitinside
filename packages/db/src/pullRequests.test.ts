@@ -3,6 +3,7 @@ import {
   findDiffJob,
   findDiffJobPosts,
   findPullRequest,
+  findPullRequestDiffKey,
   pullRequests,
   queuePullRequestDiff,
   recordDiffJobResult,
@@ -595,5 +596,99 @@ describe("recordPullRequestCheckRun", () => {
     expect(await recordPullRequestCheckRun(t.db, run)).toBe(false);
     expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ checkRunId: null });
     expect(await recordPullRequestCheckRun(t.db, { ...run, baseSha: BASE2 })).toBe(true);
+  });
+});
+
+describe("findPullRequestDiffKey (M8.6f1)", () => {
+  const MERGE_BASE = "e".repeat(40);
+  const key = (repoId: string, installation = 41, base = MERGE_BASE, head = HEAD, v = "0.1.0") =>
+    `private/${installation}/${repoId}/diffs/${base}-${head}/${v}.json.gz`;
+  const diffed = async (repoId: string, number: number, diffKey: string, headSha = HEAD) => {
+    await recordPullRequestHead(t.db, { repoId, number, baseSha: BASE, headSha, headAt: AT });
+    await recordPullRequestDiff(t.db, {
+      repoId,
+      number,
+      baseSha: BASE,
+      headSha,
+      diffKey,
+      brokenCount: 0,
+    });
+  };
+  const query = (repoId: string) => ({
+    repoId,
+    baseSha: MERGE_BASE,
+    headSha: HEAD,
+    analyzerVersion: "0.1.0",
+  });
+
+  it("finds the diff of the link's merge base and head, though the record holds the event's base", async () => {
+    const { repoId } = await setup();
+    await diffed(repoId, 7, key(repoId));
+    expect(await findPullRequestDiffKey(t.db, query(repoId))).toBe(key(repoId));
+  });
+
+  it("finds nothing for another merge base, head, version, or repo, or a record without a diff", async () => {
+    const { repoId, otherRepoId } = await setup();
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 6,
+      baseSha: BASE,
+      headSha: HEAD,
+      headAt: AT,
+    });
+    expect(await findPullRequestDiffKey(t.db, query(repoId))).toBeUndefined();
+    await diffed(repoId, 7, key(repoId));
+    await diffed(otherRepoId, 7, key(otherRepoId));
+    for (const [name, q] of [
+      ["merge base", { ...query(repoId), baseSha: BASE }],
+      ["head", { ...query(repoId), headSha: HEAD2 }],
+      ["version", { ...query(repoId), analyzerVersion: "0.1.1" }],
+      ["version prefix", { ...query(repoId), analyzerVersion: "1.0" }],
+    ] as const) {
+      expect(await findPullRequestDiffKey(t.db, q), name).toBeUndefined();
+    }
+    // Each repo finds its own record's key, never the other's.
+    expect(await findPullRequestDiffKey(t.db, query(otherRepoId))).toBe(key(otherRepoId));
+  });
+
+  it("never answers a key of another shape, or one naming another repo row", async () => {
+    const { repoId, otherRepoId } = await setup();
+    const name = `/${repoId}/diffs/${MERGE_BASE}-${HEAD}/0.1.0.json.gz`;
+    const wrong = [
+      `public${name}`,
+      `private/0${name}`,
+      `private/x${name}`,
+      `private/41/extra${name}`,
+      name,
+      `${key(repoId)}.old`,
+      key(otherRepoId),
+    ];
+    for (const [i, diffKey] of wrong.entries()) {
+      await diffed(repoId, 10 + i, diffKey);
+      expect(await findPullRequestDiffKey(t.db, query(repoId)), diffKey).toBeUndefined();
+    }
+  });
+
+  it("stops finding the diff once the pull request moves on, and picks one key by string order", async () => {
+    const { repoId } = await setup();
+    await diffed(repoId, 7, key(repoId, 42));
+    await diffed(repoId, 8, key(repoId, 41));
+    expect(await findPullRequestDiffKey(t.db, query(repoId))).toBe(key(repoId, 41));
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 8,
+      baseSha: BASE,
+      headSha: HEAD2,
+      headAt: LATER,
+    });
+    expect(await findPullRequestDiffKey(t.db, query(repoId))).toBe(key(repoId, 42));
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 7,
+      baseSha: BASE2,
+      headSha: HEAD,
+      headAt: LATER,
+    });
+    expect(await findPullRequestDiffKey(t.db, query(repoId))).toBeUndefined();
   });
 });

@@ -2,6 +2,7 @@ import {
   consumeRateLimit,
   findComputePause,
   findPublishedAnalysis,
+  findPullRequestDiffKey,
   findStoredAnalysis,
   hideRepo,
   isPrivateSnapshot,
@@ -383,15 +384,29 @@ export function movedPath(
   return search.size === 0 ? path : `${path}?${search.toString()}`;
 }
 
+/** `/api/diff/<owner>/<repo>/<base>/<head>`: a pull request's stored diff (M8.6f1). */
+export function diffPath(owner: string, repo: string, base: string, head: string): string {
+  return `/api/diff/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${base}/${head}`;
+}
+
 /**
  * What a link's `?base=<sha>` compares the shown diagram with (diff mode, M6.9e2): that
  * commit's published analysis of the same repo (looked up by the stored spelling, like a
  * permalink: never checked against GitHub, nothing enqueued). `base` is the raw value. A
  * private repo shown after its check (M8.4c1) compares with its own analyses, found by
- * GitHub's ID, so the check covers the base too.
+ * GitHub's ID, so the check covers the base too. When `shown` names its commit and analyzer
+ * version (a `ready` view does) and a pull request record of the repo names a stored diff of
+ * `base`...that commit by that version (`findPullRequestDiffKey`, M8.6f1), the base also says
+ * where that diff is; `/api/diff` checks access again before serving it.
  */
 export async function viewBase(
-  shown: { owner: string; repo: string; private?: { providerRepoId: number } | undefined },
+  shown: {
+    owner: string;
+    repo: string;
+    sha?: string;
+    analyzerVersion?: string;
+    private?: { providerRepoId: number } | undefined;
+  },
   base: string,
   db: AnyDatabase,
 ): Promise<BaseView> {
@@ -402,7 +417,17 @@ export async function viewBase(
       : await findStoredAnalysis(db, { providerRepoId: shown.private.providerRepoId, sha: base });
   if (published === undefined) return { status: "missing", sha: base };
   const { owner, name } = published.repo;
-  return { status: "ready", sha: base, graphUrl: graphPath(owner, name, base) };
+  const view = { status: "ready", sha: base, graphUrl: graphPath(owner, name, base) } as const;
+  if (shown.sha === undefined || shown.analyzerVersion === undefined) return view;
+  const diffKey = await findPullRequestDiffKey(db, {
+    repoId: published.repo.id,
+    baseSha: base,
+    headSha: shown.sha,
+    analyzerVersion: shown.analyzerVersion,
+  });
+  return diffKey === undefined
+    ? view
+    : { ...view, diffUrl: diffPath(owner, name, base, shown.sha) };
 }
 
 /** Whether GitHub's names are the URL's, ignoring case (GitHub's own rule). */
