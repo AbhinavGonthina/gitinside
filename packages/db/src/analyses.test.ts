@@ -14,11 +14,13 @@ import {
   findPublishedAnalysis,
   findStoredAnalysis,
   hideRepo,
+  installations,
   queueAnalysis,
   recentAnalysisStats,
   repos,
   requeueAnalysis,
   startAnalysis,
+  upsertInstallation,
   upsertRepo,
   type AnalysisStats,
   type RepoFacts,
@@ -46,6 +48,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.delete(analyses);
   await t.db.delete(repos);
+  await t.db.delete(installations);
 });
 
 async function repoRows() {
@@ -570,6 +573,7 @@ describe("findPublishedAnalysis", () => {
         owner: "Acme",
         name: "Shop",
         visibility: "private",
+        githubInstallationId: null,
       },
       analysis: {
         sha: SHA,
@@ -590,6 +594,26 @@ describe("findPublishedAnalysis", () => {
       owner: "Acme",
       name: "Shop",
     });
+  });
+
+  it("names the installation a stored repo is linked to, by GitHub's ID", async () => {
+    await upsertInstallation(t.db, {
+      githubInstallationId: 41,
+      accountId: 9001,
+      accountLogin: "acme",
+      accountType: "Organization",
+      suspendedAt: null,
+    });
+    const private_ = { ...FACTS, visibility: "private" as const };
+    const { id: repoId } = await upsertRepo(t.db, { ...private_, githubInstallationId: 41 });
+    await done(repoId, SHA, VERSION, "2026-10-01T00:00:00Z");
+    const found = await findStoredAnalysis(t.db, { owner: "acme", name: "shop" });
+    expect(found?.repo.githubInstallationId).toBe(41);
+    // Never on what public pages read.
+    await upsertRepo(t.db, FACTS);
+    expect(await findPublishedAnalysis(t.db, { owner: "acme", name: "shop" })).not.toHaveProperty(
+      "repo.githubInstallationId",
+    );
   });
 
   it("stops serving a hidden repo, permalinks included, until GitHub's facts restore it", async () => {

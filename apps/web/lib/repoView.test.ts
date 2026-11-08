@@ -9,11 +9,13 @@ import {
   createSession,
   failAnalysis,
   findSession,
+  installations,
   queueAnalysis,
   rateLimits,
   repos,
   sessions,
   startAnalysis,
+  upsertInstallation,
   upsertRepo,
   upsertUser,
   users,
@@ -30,6 +32,7 @@ import {
   type FakeAccount,
   type FakeInstallation,
   type FakeOAuth,
+  type FakeRepo as OAuthRepo,
 } from "./githubOAuth.testkit";
 import {
   createHeadCache,
@@ -664,18 +667,29 @@ describe("viewRepo and viewBase for a private repo (M8.4c1)", () => {
 
   let github: FakeOAuth;
   let auth: AuthDeps;
+  /** Acme/Secret as GitHub shows it to OCTO's token: its default branch is at NEW. */
+  let secretRepo: OAuthRepo;
   beforeEach(async () => {
     await t.db.delete(sessions);
     await t.db.delete(users);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     github = fakeOAuth();
-    github.install(OCTO, [ACME]);
+    secretRepo = { owner: "Acme", name: "Secret", private: true, id: SECRET_ID, sha: NEW };
+    github.install(OCTO, [{ ...ACME, repos: [secretRepo] }]);
     auth = {
       db: t.db,
       client: { ...FAKE_CLIENT, fetch: github.fetch },
       keys: KEYS,
       now: () => NOW,
     };
+    await t.db.delete(installations);
+    await upsertInstallation(t.db, {
+      githubInstallationId: 41,
+      accountId: 1041,
+      accountLogin: "acme",
+      accountType: "Organization",
+      suspendedAt: null,
+    });
     await privateDone(OLD);
     await privateDone(NEW);
   });
@@ -683,7 +697,7 @@ describe("viewRepo and viewBase for a private repo (M8.4c1)", () => {
     vi.restoreAllMocks();
   });
 
-  /** A finished analysis of `sha` of the private Acme/Secret, finishing after the one before. */
+  /** A finished analysis of `sha` of the private Acme/Secret (linked to installation 41), finishing after the one before. */
   async function privateDone(sha: string) {
     const { id: repoId } = await upsertRepo(t.db, {
       providerRepoId: SECRET_ID,
@@ -691,6 +705,7 @@ describe("viewRepo and viewBase for a private repo (M8.4c1)", () => {
       name: "Secret",
       visibility: "private",
       defaultBranch: "main",
+      githubInstallationId: 41,
     });
     const { id } = await startAnalysis(t.db, { repoId, sha, analyzerVersion: VERSION });
     await completeAnalysis(t.db, id, {
@@ -725,15 +740,126 @@ describe("viewRepo and viewBase for a private repo (M8.4c1)", () => {
 
   it("shows the newest analysis to a user GitHub shows the repo to, checked once a minute", async () => {
     const octo = await signIn(OCTO);
-    expect(await viewRepo(secret, octo.deps)).toEqual(shown(NEW, { state: "unknown" }));
+    expect(await viewRepo(secret, octo.deps)).toEqual(shown(NEW, { state: "current" }));
     expect(await viewRepo({ ...secret, sha: OLD }, octo.deps)).toEqual(
       shown(OLD, { state: "pinned" }),
     );
-    expect(github.requests.at(-1)?.url).toBe(`https://api.github.com/repositories/${SECRET_ID}`);
-    expect(lookups()).toBe(1);
+    // The access check, then the latest commit by ID with the user's token (M8.4c2).
+    expect(github.requests.map((r) => r.url)).toEqual([
+      `https://api.github.com/repositories/${SECRET_ID}`,
+      `https://api.github.com/repositories/${SECRET_ID}`,
+      `https://api.github.com/repositories/${SECRET_ID}/commits/HEAD`,
+    ]);
+    expect(lookups()).toBe(3);
     // Nothing asked with the server's token (it can't see the repo), nothing queued.
     expect(gh.requests).toEqual([]);
     expect(tasks.google.tasks).toEqual([]);
+  });
+
+  describe("check-on-view with the viewer's token (M8.4c2)", () => {
+    const NEWER = "c".repeat(40);
+    const jobId = jobIdFor(
+      { kind: "analyze", owner: "Acme", repo: "Secret", sha: NEWER, installationId: 41 },
+      VERSION,
+    );
+    const slots = async () =>
+      (await t.db.select().from(rateLimits)).find((r) => r.key === `repo:${SECRET_ID}`)?.count ?? 0;
+
+    it("queues a newer commit through the repo's installation, charged to the repo", async () => {
+      const octo = await signIn(OCTO);
+      secretRepo.sha = NEWER;
+      expect(await viewRepo(secret, octo.deps)).toEqual(
+        shown(NEW, { state: "updating", sha: NEWER, jobId }),
+      );
+      expect(tasks.jobs()).toEqual([
+        { kind: "analyze", owner: "Acme", repo: "Secret", sha: NEWER, installationId: 41 },
+      ]);
+      expect(await slots()).toBe(1);
+      // Its code was counted with the user's token too, never the server's.
+      expect(github.requests.map((r) => r.url)).toContain(
+        "https://api.github.com/repos/Acme/Secret/languages",
+      );
+      expect(gh.requests).toEqual([]);
+
+      // The next view within the minute asks GitHub nothing and follows the same job.
+      const before = github.requests.length;
+      expect(await viewRepo(secret, octo.deps)).toEqual(
+        shown(NEW, { state: "updating", sha: NEWER, jobId }),
+      );
+      expect(github.requests).toHaveLength(before);
+      expect(tasks.google.tasks).toHaveLength(1);
+      expect(await slots()).toBe(1);
+
+      // Once it's done, the newer diagram is shown.
+      const row = (await t.db.select().from(analyses)).find((r) => r.sha === NEWER);
+      await completeAnalysis(t.db, row!.id, {
+        snapshotKey: "k",
+        stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+      });
+      clock += 120_000;
+      expect(await viewRepo(secret, octo.deps)).toEqual(shown(NEWER, { state: "current" }));
+    });
+
+    it("says the installation is gone when the repo isn't linked to one, queueing nothing", async () => {
+      const octo = await signIn(OCTO);
+      secretRepo.sha = NEWER;
+      await t.db.update(repos).set({ installationId: null });
+      expect(await viewRepo(secret, octo.deps)).toEqual(
+        shown(NEW, {
+          state: "behind",
+          sha: NEWER,
+          reason: "failed",
+          errorCode: "INSTALLATION_NOT_FOUND",
+        }),
+      );
+      expect(tasks.google.tasks).toEqual([]);
+      expect(await slots()).toBe(0);
+    });
+
+    it("says the installation is suspended, refunding the repo's slot", async () => {
+      const octo = await signIn(OCTO);
+      secretRepo.sha = NEWER;
+      await t.db.update(installations).set({ suspendedAt: new Date(NOW) });
+      expect(await viewRepo(secret, octo.deps)).toEqual(
+        shown(NEW, {
+          state: "behind",
+          sha: NEWER,
+          reason: "failed",
+          errorCode: "INSTALLATION_SUSPENDED",
+        }),
+      );
+      expect(tasks.google.tasks).toEqual([]);
+      expect(await slots()).toBe(0);
+      expect((await rows()).map((r) => r.sha)).not.toContain(NEWER);
+    });
+
+    it("queues nothing and stays private when GitHub says the repo is public now", async () => {
+      const octo = await signIn(OCTO);
+      secretRepo.sha = NEWER;
+      secretRepo.private = false;
+      expect(await viewRepo(secret, octo.deps)).toEqual(shown(NEW, { state: "unknown" }));
+      expect(tasks.google.tasks).toEqual([]);
+      const [row] = await t.db.select({ visibility: repos.visibility }).from(repos);
+      expect(row?.visibility).toBe("private");
+    });
+
+    it("is unknown when GitHub can't answer, asking again on the next view", async () => {
+      const octo = await signIn(OCTO);
+      expect((await viewRepo(secret, octo.deps)).status).toBe("ready"); // the check, remembered
+      const cold: RepoViewDeps = { ...octo.deps, heads: createHeadCache({ now: () => clock }) };
+      github.failNext(new Response("oops", { status: 502 }));
+      expect(await viewRepo(secret, cold)).toEqual(shown(NEW, { state: "unknown" }));
+      expect(await viewRepo(secret, cold)).toEqual(shown(NEW, { state: "current" }));
+    });
+
+    it("never answers a public page of the same name from a private repo's remembered head", async () => {
+      const octo = await signIn(OCTO);
+      expect((await viewRepo(secret, octo.deps)).status).toBe("ready");
+      // The private answer sits under `#77@…`; a public lookup of the name asks GitHub itself.
+      expect(gh.requests).toEqual([]);
+      expect(await viewRepo(secret, deps)).toEqual({ status: "not-analyzed", ...secret });
+      expect(gh.requests).toHaveLength(1);
+    });
   });
 
   it("goes on exactly as for a name nobody analyzed when signed out, refused, or without a viewer", async () => {

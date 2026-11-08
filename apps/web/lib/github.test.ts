@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { fetchCodeBytes, resolveRepo } from "./github";
+import { fetchCodeBytes, resolveRepo, resolveRepoById } from "./github";
 import { fakeGitHub, type FakeGitHub } from "./github.testkit";
 
 const SHA = "d".repeat(40);
@@ -236,6 +236,74 @@ describe("resolveRepo", () => {
       { fetch: gh.fetch, apiBase: "https://ghe.example/api/v3/" },
     );
     expect(gh.requests[0]?.url).toBe("https://ghe.example/api/v3/repos/acme/shop");
+  });
+});
+
+describe("resolveRepoById", () => {
+  it("answers a private repo as private, by GitHub's ID, with the token given", async () => {
+    const gh = fakeGitHub([{ ...SHOP, private: true }]);
+    const result = await resolveRepoById(42, { fetch: gh.fetch, token: "ghu_user" });
+    expect(result).toEqual({
+      ok: true,
+      repo: {
+        providerRepoId: 42,
+        owner: "Acme",
+        name: "Shop",
+        visibility: "private",
+        defaultBranch: "trunk",
+        sha: SHA,
+        sizeKb: 2_048,
+      },
+    });
+    expect(gh.requests.map((r) => [r.url, r.accept, r.authorization])).toEqual([
+      ["https://api.github.com/repositories/42", "application/vnd.github+json", "Bearer ghu_user"],
+      [
+        "https://api.github.com/repositories/42/commits/HEAD",
+        "application/vnd.github.sha",
+        "Bearer ghu_user",
+      ],
+    ]);
+  });
+
+  it("says when the repo is public now", async () => {
+    const gh = fakeGitHub([SHOP]);
+    const result = await resolveRepoById(42, { fetch: gh.fetch });
+    expect(result.ok && result.repo.visibility).toBe("public");
+  });
+
+  it("never matches an answer about another repo", async () => {
+    const gh = fakeGitHub([{ ...SHOP, private: true }]);
+    gh.failNext(
+      Response.json({
+        id: 43,
+        name: "Other",
+        owner: { login: "Acme" },
+        private: true,
+        default_branch: "main",
+      }),
+    );
+    expect(await resolveRepoById(42, { fetch: gh.fetch })).toEqual({
+      ok: false,
+      code: "GITHUB_UNAVAILABLE",
+    });
+    expect(gh.requests).toHaveLength(1);
+  });
+
+  it("reports GitHub's failures as resolveRepo does", async () => {
+    const gh = fakeGitHub([{ ...SHOP, sha: null }]);
+    expect(await resolveRepoById(7, { fetch: gh.fetch })).toEqual({
+      ok: false,
+      code: "REPO_NOT_FOUND",
+    });
+    expect(await resolveRepoById(42, { fetch: gh.fetch })).toEqual({
+      ok: false,
+      code: "REPO_EMPTY",
+    });
+    gh.failNext(new Error("offline"));
+    expect(await resolveRepoById(42, { fetch: gh.fetch })).toEqual({
+      ok: false,
+      code: "GITHUB_UNAVAILABLE",
+    });
   });
 });
 

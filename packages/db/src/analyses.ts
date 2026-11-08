@@ -252,9 +252,16 @@ export async function findPublishedAnalysis(
   return { repo: { id, providerRepoId, owner, name }, analysis: found.analysis };
 }
 
-/** What {@link findStoredAnalysis} returns: a {@link PublishedAnalysis} with the repo's visibility. */
+/**
+ * What {@link findStoredAnalysis} returns: a {@link PublishedAnalysis} with the repo's visibility
+ * and GitHub's ID of the installation it's linked to (`null` if none), which a private repo's
+ * newer commits are queued through (M8.4c2).
+ */
 export interface StoredAnalysis {
-  repo: PublishedAnalysis["repo"] & { visibility: "public" | "private" };
+  repo: PublishedAnalysis["repo"] & {
+    visibility: "public" | "private";
+    githubInstallationId: number | null;
+  };
   analysis: PublishedAnalysis["analysis"];
 }
 
@@ -294,6 +301,7 @@ async function newestDone(
       owner: repos.owner,
       name: repos.name,
       visibility: repos.visibility,
+      githubInstallationId: installations.githubInstallationId,
       sha: analyses.sha,
       analyzerVersion: analyses.analyzerVersion,
       snapshotKey: analyses.snapshotKey,
@@ -301,6 +309,7 @@ async function newestDone(
     })
     .from(analyses)
     .innerJoin(repos, eq(repos.id, analyses.repoId))
+    .leftJoin(installations, eq(installations.id, repos.installationId))
     .where(
       and(
         ...repo,
@@ -312,12 +321,21 @@ async function newestDone(
     .orderBy(desc(analyses.finishedAt), desc(analyses.createdAt))
     .limit(1);
   if (row === undefined) return undefined;
-  const { id, providerRepoId, owner, name, visibility, sha, analyzerVersion } = row;
+  const {
+    id,
+    providerRepoId,
+    owner,
+    name,
+    visibility,
+    githubInstallationId,
+    sha,
+    analyzerVersion,
+  } = row;
   // `done` rows always have both (the status check in schema.ts).
   const snapshotKey = row.snapshotKey as string;
   const finishedAt = row.finishedAt as Date;
   return {
-    repo: { id, providerRepoId, owner, name, visibility },
+    repo: { id, providerRepoId, owner, name, visibility, githubInstallationId },
     analysis: { sha, analyzerVersion, snapshotKey, finishedAt },
   };
 }

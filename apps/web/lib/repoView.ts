@@ -9,16 +9,29 @@ import {
   type PublishedAnalysis,
   type StoredAnalysis,
 } from "@gitinside/db";
-import { readSession, type AuthDeps } from "./authRoute";
+import { readSession, userAccessToken, type AuthDeps, type SignedInUser } from "./authRoute";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
 import { COMMIT_SHA, type BaseView, type SearchParams } from "./compare";
 import {
+  InstallationRefusedError,
   QUEUE_UNAVAILABLE,
   enqueueAnalysis,
   findAnalysisToQueue,
   type EnqueueDeps,
+  type EnqueueResult,
+  type InstallationRefusal,
+  type QueueRepo,
 } from "./enqueue";
-import { resolveRepo, type GitHubOptions, type ResolvedRepo, type ResolveResult } from "./github";
+import {
+  resolveRepo,
+  resolveRepoById,
+  type GitHubOptions,
+  type ResolvedRepo,
+  type ResolveResult,
+  type SeenRepo,
+  type SeenResult,
+} from "./github";
+import { githubUrl } from "./githubOAuth";
 import { checkRepoAccess } from "./repoAccess";
 import type { RepoRef } from "./repoUrl";
 import { findSizeHold } from "./sizeHold";
@@ -56,9 +69,9 @@ import { findSizeHold } from "./sizeHold";
  * **Private repos** (M8.4c1, ADR-0233): only with a {@link RepoViewer} (the pages, never the
  * README images), and only to a signed-in user `checkRepoAccess` allows (cached 60 s,
  * ADR-0231). Then the newest stored analysis is shown (of the commit, on a permalink), with no
- * GitHub call by the server's token, which can't see the repo; checking for newer commits with
- * the user's token is M8.4c2's, so until then the repo page says it couldn't (`unknown`).
- * Signed out, refused, or the session ended: the view goes on exactly as if no private repo
+ * GitHub call by the server's token, which can't see the repo. The repo page checks for newer
+ * commits with the viewer's own token instead and queues them through the repo's installation
+ * (`privateHead`, M8.4c2, ADR-0234). Signed out, refused, or the session ended: the view goes on exactly as if no private repo
  * had the name (a permalink's `missing`, the repo page's lookup as written), so a page never
  * confirms that a private repo exists. A check that can't decide throws
  * {@link RepoAccessUnavailableError}: the page says "temporarily unavailable".
@@ -91,10 +104,13 @@ export const UNKNOWN_LOOKUPS_PER_HOUR = 500;
 /** {@link UNKNOWN_LOOKUPS_PER_HOUR}'s `rate_limits` key (never `ip:` or `repo:`). */
 export const UNKNOWN_LOOKUPS_KEY = "site:unknown-repo";
 
-/** Recent GitHub answers by repo, so repeated views cost one lookup a minute. */
+/**
+ * Recent GitHub answers by repo, so repeated views cost one lookup a minute. Private repos'
+ * (M8.4c2) are kept under their own keys (`#<GitHub ID>@…`), never a name's.
+ */
 export interface HeadCache {
-  get(key: string): ResolveResult | undefined;
-  set(key: string, value: ResolveResult): void;
+  get(key: string): SeenResult | undefined;
+  set(key: string, value: SeenResult): void;
 }
 
 /** A {@link HeadCache} in this process's memory; successful answers only, oldest dropped first. */
@@ -102,7 +118,7 @@ export function createHeadCache(
   options: { ttlMs?: number; maxEntries?: number; now?: () => number } = {},
 ): HeadCache {
   const { ttlMs = HEAD_TTL_MS, maxEntries = 1_000, now = Date.now } = options;
-  const entries = new Map<string, { value: ResolveResult; expires: number }>();
+  const entries = new Map<string, { value: SeenResult; expires: number }>();
   return {
     get(key) {
       const entry = entries.get(key);
@@ -214,6 +230,13 @@ function ready(published: PublishedAnalysis | StoredAnalysis, head: HeadState): 
   };
 }
 
+/** A private repo's analysis shown to a signed-in viewer `checkRepoAccess` allowed. */
+interface AllowedPrivate {
+  stored: StoredAnalysis;
+  user: SignedInUser;
+  viewer: RepoViewer;
+}
+
 /**
  * The newest analysis of the private repo `ref` names (of `ref.sha` when set), if the viewer is
  * signed in and GitHub shows it to them; else `undefined` (see the module's notes). The session
@@ -222,7 +245,7 @@ function ready(published: PublishedAnalysis | StoredAnalysis, head: HeadState): 
 async function privateAnalysis(
   ref: RepoRef & { sha?: string },
   deps: RepoViewDeps,
-): Promise<StoredAnalysis | undefined> {
+): Promise<AllowedPrivate | undefined> {
   const { viewer } = deps;
   if (viewer === undefined) return undefined;
   const user = await readSession(viewer.cookie, viewer.auth);
@@ -235,7 +258,16 @@ async function privateAnalysis(
   if (stored?.repo.visibility !== "private") return undefined;
   const access = await checkRepoAccess(user, stored.repo, viewer.auth);
   if ("error" in access) throw new RepoAccessUnavailableError();
-  return "allowed" in access && access.allowed ? stored : undefined;
+  return "allowed" in access && access.allowed ? { stored, user, viewer } : undefined;
+}
+
+/** A remembered answer if it's one `resolveRepo` could give (a public repo's), else a miss. */
+function publicAnswer(cached: SeenResult | undefined): ResolveResult | undefined {
+  if (cached === undefined || !cached.ok) return cached;
+  const { repo } = cached;
+  return repo.visibility === "public"
+    ? { ok: true, repo: { ...repo, visibility: "public" } }
+    : undefined;
 }
 
 /**
@@ -252,11 +284,64 @@ async function latestCommit(
 ): Promise<ResolveResult> {
   const repo = `${ref.owner}/${ref.repo}`.toLowerCase();
   const key = `${repo}@${shown.sha}/${shown.analyzerVersion}`;
-  const cached = deps.heads.get(key);
+  const cached = publicAnswer(deps.heads.get(key));
   if (cached !== undefined) return cached;
   const resolved = await resolveRepo(ref, deps.github);
   deps.heads.set(key, resolved);
   return resolved;
+}
+
+/**
+ * Check-on-view for a private repo shown to `allowed` (M8.4c2): the default branch's latest
+ * commit is asked by GitHub's ID with the viewer's own token (the server's can't see the repo),
+ * on the API the sign-in client uses, and remembered like a public repo's, under the repo's ID
+ * (shared between viewers: each was allowed by the check before reaching it). A newer commit is
+ * queued through the installation the repo is linked to, charged to the repo as on a public
+ * page, its code counted with the same token.
+ *
+ * `unknown` when the viewer's token can't be had or GitHub can't answer, and when GitHub says
+ * the repo is public now: whether it may then be shown publicly is ADR-0230's open question
+ * (M8.4d), so nothing is queued, and the stored row stays private. A repo with no linked
+ * installation (uninstalled) is `behind` with `INSTALLATION_NOT_FOUND`, as a job refused at
+ * enqueue would be.
+ */
+async function privateHead(allowed: AllowedPrivate, deps: RepoViewDeps): Promise<RepoView> {
+  const { stored, user, viewer } = allowed;
+  const unknown = ready(stored, { state: "unknown" });
+  const access = await userAccessToken(user, viewer.auth);
+  if (!("token" in access)) return unknown;
+  const { client } = viewer.auth;
+  const github: GitHubOptions = {
+    ...deps.github,
+    token: access.token,
+    apiBase: githubUrl(client, "api", "/"),
+    ...(client.fetch === undefined ? {} : { fetch: client.fetch }),
+  };
+  const { analysis } = stored;
+  const key = `#${stored.repo.providerRepoId}@${analysis.sha}/${analysis.analyzerVersion}`;
+  let resolved = deps.heads.get(key);
+  if (resolved === undefined) {
+    resolved = await resolveRepoById(stored.repo.providerRepoId, github);
+    deps.heads.set(key, resolved);
+  }
+  if (!resolved.ok || resolved.repo.visibility !== "private") return unknown;
+  const { githubInstallationId } = stored.repo;
+  const head = resolved.repo;
+  if (githubInstallationId === null) {
+    if (isCurrent(stored, head, deps)) return ready(stored, { state: "current" });
+    const errorCode: InstallationRefusal = "INSTALLATION_NOT_FOUND";
+    return ready(stored, { state: "behind", sha: head.sha, reason: "failed", errorCode });
+  }
+  return followHead(
+    stored,
+    { ...head, visibility: "private", installationId: githubInstallationId },
+    deps,
+    {
+      github,
+      latest: (sha) =>
+        findStoredAnalysis(deps.db, { providerRepoId: stored.repo.providerRepoId, sha }),
+    },
+  );
 }
 
 /**
@@ -325,7 +410,7 @@ async function findRenamed(
   const { db } = deps;
   const notAnalyzed: RepoView = { status: "not-analyzed", owner: ref.owner, repo: ref.repo };
   const key = `${ref.owner}/${ref.repo}@unknown`.toLowerCase();
-  let resolved = deps.heads.get(key);
+  let resolved = publicAnswer(deps.heads.get(key));
   if (resolved === undefined) {
     const limit = deps.unknownLookupsPerHour ?? UNKNOWN_LOOKUPS_PER_HOUR;
     if (!(await consumeRateLimit(db, UNKNOWN_LOOKUPS_KEY, limit)).allowed) return notAnalyzed;
@@ -353,10 +438,11 @@ export async function viewRepo(
     ...(ref.sha === undefined ? {} : { sha: ref.sha }),
   });
   if (published === undefined) {
-    const shown = await privateAnalysis(ref, deps);
-    // The user's token can check for newer commits; asking it is M8.4c2's.
-    if (shown !== undefined) {
-      return ready(shown, ref.sha === undefined ? { state: "unknown" } : { state: "pinned" });
+    const allowed = await privateAnalysis(ref, deps);
+    if (allowed !== undefined) {
+      return ref.sha === undefined
+        ? privateHead(allowed, deps)
+        : ready(allowed.stored, { state: "pinned" });
     }
   }
   if (ref.sha !== undefined) {
@@ -383,10 +469,40 @@ export async function viewRepo(
   if (head.providerRepoId !== published.repo.providerRepoId) {
     return { status: "not-analyzed", owner: head.owner, repo: head.name };
   }
-  const { analysis } = published;
-  if (analysis.sha === head.sha && analysis.analyzerVersion === deps.analyzerVersion) {
-    return ready(published, { state: "current" });
-  }
+  const { owner, name } = published.repo;
+  return followHead(published, head, deps, {
+    github: deps.github,
+    latest: (sha) => findPublishedAnalysis(db, { owner, name, sha }),
+  });
+}
+
+/** Whether `shown` is `head`'s commit by this analyzer version. */
+function isCurrent(
+  shown: PublishedAnalysis,
+  head: Pick<SeenRepo, "sha">,
+  deps: Pick<RepoViewDeps, "analyzerVersion">,
+): boolean {
+  const { analysis } = shown;
+  return analysis.sha === head.sha && analysis.analyzerVersion === deps.analyzerVersion;
+}
+
+/**
+ * Steps 4 and 5 of the module's notes, for a public repo or a private one (M8.4c2): how
+ * `published` relates to `head`, GitHub's latest commit, queueing that commit if it's due.
+ * `github` reads the repo's code count; `latest(sha)` finds a commit's finished analysis the
+ * way this page may show it.
+ */
+async function followHead(
+  published: PublishedAnalysis | StoredAnalysis,
+  head: QueueRepo,
+  deps: RepoViewDeps,
+  how: {
+    github: GitHubOptions;
+    latest: (sha: string) => Promise<PublishedAnalysis | StoredAnalysis | undefined>;
+  },
+): Promise<RepoView> {
+  const { db } = deps;
+  if (isCurrent(published, head, deps)) return ready(published, { state: "current" });
 
   const existing = await findAnalysisToQueue(db, {
     providerRepoId: head.providerRepoId,
@@ -394,11 +510,7 @@ export async function viewRepo(
     analyzerVersion: deps.analyzerVersion,
   });
   if (existing?.status === "done") {
-    const latest = await findPublishedAnalysis(db, {
-      owner: published.repo.owner,
-      name: published.repo.name,
-      sha: head.sha,
-    });
+    const latest = await how.latest(head.sha);
     if (latest !== undefined) return ready(latest, { state: "current" });
   }
   // A job that never got its task failed no analysis: try again, as if it had no row.
@@ -423,7 +535,7 @@ export async function viewRepo(
         until: until.toISOString(),
       });
     }
-    const codeBytes = await findTooMuchCode(head, deps.github, deps.codeSizes);
+    const codeBytes = await findTooMuchCode(head, how.github, deps.codeSizes);
     if (codeBytes !== undefined) {
       return ready(published, {
         state: "behind",
@@ -452,21 +564,26 @@ export async function viewRepo(
     }
     charged = limit.windowStart;
   }
-  const queued = await enqueueAnalysis(head, {
-    db,
-    queue: deps.queue,
-    analyzerVersion: deps.analyzerVersion,
-  });
+  let queued: EnqueueResult;
+  try {
+    queued = await enqueueAnalysis(head, {
+      db,
+      queue: deps.queue,
+      analyzerVersion: deps.analyzerVersion,
+    });
+  } catch (error) {
+    if (!(error instanceof InstallationRefusedError)) throw error;
+    // Uninstalled or suspended (a private repo): nothing was written, so nothing is charged.
+    if (charged) await refundRateLimit(db, key, charged);
+    const errorCode = error.code;
+    return ready(published, { state: "behind", sha: head.sha, reason: "failed", errorCode });
+  }
   const isNew = queued.status === "queued" && queued.entered;
   if (charged && !isNew) await refundRateLimit(db, key, charged);
   switch (queued.status) {
     case "done": {
       // Finished since the lookup above (a racing job).
-      const latest = await findPublishedAnalysis(db, {
-        owner: published.repo.owner,
-        name: published.repo.name,
-        sha: head.sha,
-      });
+      const latest = await how.latest(head.sha);
       return latest === undefined
         ? ready(published, updating)
         : ready(latest, { state: "current" });

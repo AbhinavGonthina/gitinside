@@ -6,8 +6,9 @@ import type { RepoRef } from "./repoUrl";
  * (`GET /repos/{owner}/{repo}/commits/HEAD` with the `sha` media type, which answers with
  * the 40 hex characters alone). Before new work, its languages (`fetchCodeBytes`, ADR-0154).
  *
- * - **Public repos only** until M8: a private repo is reported exactly like a missing one,
- *   so a configured token that can see private repos never reveals that one exists.
+ * - **Public repos only** by name: a private repo is reported exactly like a missing one,
+ *   so a configured token that can see private repos never reveals that one exists. A private
+ *   repo's page asks by ID with the viewer's token instead ({@link resolveRepoById}, M8.4c2).
  * - **Only `api.github.com` is contacted.** A renamed repo's `301` to
  *   `/repositories/<id>` is followed (at most 3 hops, same origin only); a redirect anywhere
  *   else counts as not found. The token, if any, goes nowhere else.
@@ -115,6 +116,11 @@ class GitHubApi {
     return `${this.#api.pathname.replace(/\/$/, "")}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
   }
 
+  /** `/repositories/{id}` under the API's base path: the repo whatever it's called now. */
+  idPath(providerRepoId: number): string {
+    return `${this.#api.pathname.replace(/\/$/, "")}/repositories/${providerRepoId}`;
+  }
+
   /** The body of a `200` for `path`, following same-origin redirects; else a {@link Failure}. */
   async get(path: string, accept: string): Promise<string> {
     const { options } = this;
@@ -177,6 +183,50 @@ export async function resolveRepo(
         owner,
         name,
         visibility: "public",
+        defaultBranch,
+        sha,
+        ...(sizeKb === undefined ? {} : { sizeKb }),
+      },
+    };
+  } catch (error) {
+    if (error instanceof Failure) return { ok: false, code: error.code };
+    throw error;
+  }
+}
+
+/** A repo as GitHub showed it to a token that may read private repos (a user's, M8.4c2). */
+export type SeenRepo = Omit<ResolvedRepo, "visibility"> & { visibility: "public" | "private" };
+
+/** What {@link resolveRepoById} found. */
+export type SeenResult = { ok: true; repo: SeenRepo } | { ok: false; code: ResolveFailure };
+
+/**
+ * Like {@link resolveRepo}, but by GitHub's repo ID (`GET /repositories/{id}`, then
+ * `…/commits/HEAD`), and a private repo is answered as one rather than as missing: for a
+ * private repo page checking for newer commits with the viewer's own token (M8.4c2), which
+ * GitHub shows the repo to only after the access check did. An answer naming another ID is
+ * `GITHUB_UNAVAILABLE`, so a stored repo is never matched with a different one. Never throws.
+ */
+export async function resolveRepoById(
+  providerRepoId: number,
+  options: GitHubOptions = {},
+): Promise<SeenResult> {
+  const api = new GitHubApi(options);
+  try {
+    const path = api.idPath(providerRepoId);
+    const text = await api.get(path, "application/vnd.github+json");
+    const facts = text.length > MAX_JSON_BYTES ? undefined : parseFacts(text);
+    if (facts?.id !== providerRepoId) return { ok: false, code: "GITHUB_UNAVAILABLE" };
+    const sha = (await api.get(`${path}/commits/HEAD`, "application/vnd.github.sha")).trim();
+    if (!SHA.test(sha)) return { ok: false, code: "GITHUB_UNAVAILABLE" };
+    const { id, owner, name, defaultBranch, sizeKb } = facts;
+    return {
+      ok: true,
+      repo: {
+        providerRepoId: id,
+        owner,
+        name,
+        visibility: facts.private ? "private" : "public",
         defaultBranch,
         sha,
         ...(sizeKb === undefined ? {} : { sizeKb }),
