@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { COMMIT_SHA, type SearchParams } from "../../../../lib/compare";
 import { parseRepoPath } from "../../../../lib/repoUrl";
-import { repoScreen } from "../repoScreen";
+import { repoMetadata, repoScreen } from "../repoScreen";
 
 /** Route params for `/<owner>/<repo>/<sha>`. */
 interface Params {
@@ -11,12 +11,11 @@ interface Params {
   sha: string;
 }
 
+/** The tab's title; a private repo shown to its viewer isn't indexed (M8.4c1). */
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { owner, repo, sha } = await params;
   const ref = parseRepoPath(owner, repo);
-  return ref && COMMIT_SHA.test(sha)
-    ? { title: `${ref.owner}/${ref.repo} at ${sha.slice(0, 7)}` }
-    : {};
+  return ref && COMMIT_SHA.test(sha) ? repoMetadata(ref, sha) : {};
 }
 
 /**

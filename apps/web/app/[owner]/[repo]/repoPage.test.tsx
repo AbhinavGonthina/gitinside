@@ -11,14 +11,21 @@ import {
   UNREADABLE_MESSAGE,
   UNREADABLE_TITLE,
 } from "../../../lib/repoStatus";
-import { viewBase, viewRepo, type RepoView, type RepoViewDeps } from "../../../lib/repoView";
-import { repoViewDepsFromEnv } from "../../../lib/serverDeps";
+import {
+  RepoAccessUnavailableError,
+  viewBase,
+  viewRepo,
+  type RepoView,
+  type RepoViewDeps,
+} from "../../../lib/repoView";
+import type { AuthDeps } from "../../../lib/authRoute";
+import { authDepsFromEnv, repoViewDepsFromEnv } from "../../../lib/serverDeps";
 import type { TurnstileOptions } from "../../../lib/turnstile";
 import { CHECK_FAILED_MESSAGE } from "../../BotCheck";
 import CommitPage, { generateMetadata as commitMetadata } from "./[sha]/page";
 import { AddToReadme, COPIED_MESSAGE, COPIED_MS, COPY_FAILED_MESSAGE } from "./AddToReadme";
 import { NotAnalyzed } from "./NotAnalyzed";
-import RepoPage from "./page";
+import RepoPage, { generateMetadata as repoMetadata } from "./page";
 import { RepoDiagram } from "./RepoDiagram";
 
 const router = { push: vi.fn(), replace: vi.fn(), refresh: vi.fn() };
@@ -32,12 +39,18 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("../../../lib/serverDeps", () => ({
+  authDepsFromEnv: vi.fn(),
   repoViewDepsFromEnv: vi.fn(),
   VERCEL_OIDC_HEADER: "x-vercel-oidc-token",
 }));
-// Vercel's OIDC token arrives with the page's request (ADR-0142).
+// Vercel's OIDC token arrives with the page's request (ADR-0142), and the viewer's cookie.
+const request = vi.hoisted(() => ({ cookie: undefined as string | undefined }));
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ "x-vercel-oidc-token": "page-oidc" }),
+  headers: async () =>
+    new Headers({
+      "x-vercel-oidc-token": "page-oidc",
+      ...(request.cookie !== undefined && { cookie: request.cookie }),
+    }),
 }));
 vi.mock("../../../lib/repoView", async (original) => ({
   ...(await original<typeof import("../../../lib/repoView")>()),
@@ -96,6 +109,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.mocked(viewRepo).mockReset();
   vi.mocked(viewBase).mockReset();
+  vi.mocked(authDepsFromEnv).mockReset();
+  request.cookie = undefined;
   vi.restoreAllMocks();
   router.push.mockReset();
   router.refresh.mockReset();
@@ -251,10 +266,96 @@ describe("commit permalink page", () => {
   });
 
   it("titles the tab with the short commit, and adds nothing for a bad path", async () => {
+    vi.mocked(viewRepo).mockResolvedValue(ready({ state: "pinned" }));
     expect(await commitMetadata({ params: commitParams("acme", "shop", SHA) })).toEqual({
       title: "acme/shop at aaaaaaa",
     });
     expect(await commitMetadata({ params: commitParams("acme", "shop", "main") })).toEqual({});
+  });
+});
+
+describe("private repo pages (M8.4c1)", () => {
+  const auth = { db } as AuthDeps;
+  const shownPrivate = (head: Extract<RepoView, { status: "ready" }>["head"]): RepoView => ({
+    ...(ready(head) as Extract<RepoView, { status: "ready" }>),
+    private: { providerRepoId: 77 },
+  });
+  const NOINDEX = { index: false, follow: false };
+
+  it("views as the request's cookie when sign-in is configured, else as nobody", async () => {
+    vi.mocked(viewRepo).mockResolvedValue({ status: "missing" });
+    request.cookie = "theme=dark; __Host-gitinside_session=abc";
+    await expect(RepoPage({ params: params("acme", "shop") })).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(viewRepo).toHaveBeenLastCalledWith({ owner: "acme", repo: "shop" }, deps);
+
+    vi.mocked(authDepsFromEnv).mockReturnValue(auth);
+    await expect(CommitPage({ params: commitParams("acme", "shop", SHA) })).rejects.toThrow(
+      "NEXT_NOT_FOUND",
+    );
+    expect(viewRepo).toHaveBeenLastCalledWith(
+      { owner: "acme", repo: "shop", sha: SHA },
+      { ...deps, viewer: { cookie: request.cookie, auth } },
+    );
+    request.cookie = undefined;
+    await expect(RepoPage({ params: params("acme", "shop") })).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(viewRepo).toHaveBeenLastCalledWith(
+      { owner: "acme", repo: "shop" },
+      { ...deps, viewer: { cookie: null, auth } },
+    );
+  });
+
+  it("draws a private repo shown to its viewer, comparing within it", async () => {
+    vi.mocked(authDepsFromEnv).mockReturnValue(auth);
+    fetchMock.mockImplementation(graphResponse);
+    const view = shownPrivate({ state: "unknown" });
+    vi.mocked(viewRepo).mockResolvedValue(view);
+    vi.mocked(viewBase).mockResolvedValue({ status: "missing", sha: BASE });
+    const searchParams = Promise.resolve({ base: BASE });
+    render(await RepoPage({ params: params("acme", "shop"), searchParams }));
+    expect(viewBase).toHaveBeenCalledWith(view, BASE, db);
+    expect(await screen.findByRole("region", { name: "Diagram" })).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(GRAPH_URL, expect.anything());
+  });
+
+  it("says unavailable when a private repo's check can't decide, logging its name", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(authDepsFromEnv).mockReturnValue(auth);
+    vi.mocked(viewRepo).mockRejectedValue(new RepoAccessUnavailableError());
+    render(await CommitPage({ params: commitParams("acme", "shop", SHA) }));
+    expect(screen.getByText(UNAVAILABLE_MESSAGE)).toBeTruthy();
+    expect(log).toHaveBeenCalledWith(
+      JSON.stringify({ event: "repo_view_failed", error: "RepoAccessUnavailableError" }),
+    );
+  });
+
+  it("keeps a private repo shown to its viewer out of search engines, and nothing else", async () => {
+    vi.mocked(viewRepo).mockResolvedValue(shownPrivate({ state: "unknown" }));
+    expect(await repoMetadata({ params: params("acme", "shop") })).toEqual({
+      title: "acme/shop",
+      robots: NOINDEX,
+    });
+    vi.mocked(viewRepo).mockResolvedValue(shownPrivate({ state: "pinned" }));
+    expect(await commitMetadata({ params: commitParams("acme", "shop", SHA) })).toEqual({
+      title: "acme/shop at aaaaaaa",
+      robots: NOINDEX,
+    });
+    // A page not shown carries exactly what a missing repo's does.
+    const others: RepoView[] = [
+      ready({ state: "current" }),
+      { status: "missing" },
+      { status: "not-analyzed", owner: "acme", repo: "shop" },
+    ];
+    for (const view of others) {
+      vi.mocked(viewRepo).mockResolvedValue(view);
+      expect(await repoMetadata({ params: params("acme", "shop") })).toEqual({
+        title: "acme/shop",
+      });
+    }
+    vi.mocked(viewRepo).mockRejectedValue(new RepoAccessUnavailableError());
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await repoMetadata({ params: params("acme", "shop") })).toEqual({ title: "acme/shop" });
+    vi.mocked(repoViewDepsFromEnv).mockReturnValue(undefined);
+    expect(await repoMetadata({ params: params("acme", "shop") })).toEqual({ title: "acme/shop" });
   });
 });
 

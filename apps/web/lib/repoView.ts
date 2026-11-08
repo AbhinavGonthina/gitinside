@@ -2,11 +2,14 @@ import {
   consumeRateLimit,
   findComputePause,
   findPublishedAnalysis,
+  findStoredAnalysis,
   hideRepo,
   refundRateLimit,
   type AnyDatabase,
   type PublishedAnalysis,
+  type StoredAnalysis,
 } from "@gitinside/db";
+import { readSession, type AuthDeps } from "./authRoute";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
 import { COMMIT_SHA, type BaseView, type SearchParams } from "./compare";
 import {
@@ -16,6 +19,7 @@ import {
   type EnqueueDeps,
 } from "./enqueue";
 import { resolveRepo, type GitHubOptions, type ResolvedRepo, type ResolveResult } from "./github";
+import { checkRepoAccess } from "./repoAccess";
 import type { RepoRef } from "./repoUrl";
 import { findSizeHold } from "./sizeHold";
 
@@ -48,7 +52,31 @@ import { findSizeHold } from "./sizeHold";
  *    (`repo:<GitHub ID>`, {@link RECHECKS_PER_HOUR} per hour), since a README image or a
  *    shared link is viewed by many people at once, and only a repo someone already paid to
  *    analyze is ever re-analyzed this way. The slot is refunded when no new job was made.
+ *
+ * **Private repos** (M8.4c1, ADR-0233): only with a {@link RepoViewer} (the pages, never the
+ * README images), and only to a signed-in user `checkRepoAccess` allows (cached 60 s,
+ * ADR-0231). Then the newest stored analysis is shown (of the commit, on a permalink), with no
+ * GitHub call by the server's token, which can't see the repo; checking for newer commits with
+ * the user's token is M8.4c2's, so until then the repo page says it couldn't (`unknown`).
+ * Signed out, refused, or the session ended: the view goes on exactly as if no private repo
+ * had the name (a permalink's `missing`, the repo page's lookup as written), so a page never
+ * confirms that a private repo exists. A check that can't decide throws
+ * {@link RepoAccessUnavailableError}: the page says "temporarily unavailable".
  */
+
+/** Who's looking at a page, for private repos: the request's `Cookie` header and sign-in's deps. */
+export interface RepoViewer {
+  cookie: string | null;
+  auth: AuthDeps;
+}
+
+/** Thrown when a private repo's access check can't decide (GitHub down): nothing is shown. */
+export class RepoAccessUnavailableError extends Error {
+  override name = "RepoAccessUnavailableError";
+  constructor() {
+    super("the access check couldn't decide");
+  }
+}
 
 /** How long a repo's latest commit, as GitHub last said, is trusted. */
 export const HEAD_TTL_MS = 60_000;
@@ -110,6 +138,8 @@ export interface RepoViewDeps {
   rechecksPerHour?: number;
   /** Default {@link UNKNOWN_LOOKUPS_PER_HOUR}. */
   unknownLookupsPerHour?: number;
+  /** Who's viewing (the pages, with sign-in configured); without it, private repos never show. */
+  viewer?: RepoViewer;
 }
 
 /** How the shown diagram relates to the default branch's latest commit. */
@@ -157,6 +187,8 @@ export type RepoView =
       /** Where the browser fetches the graph (`/api/graph/…`). */
       graphUrl: string;
       head: HeadState;
+      /** Set only for a private repo the viewer was allowed to see: GitHub's ID for it. */
+      private?: { providerRepoId: number };
     };
 
 /** `/api/graph/<owner>/<repo>/<sha>`. */
@@ -164,7 +196,7 @@ export function graphPath(owner: string, repo: string, sha: string): string {
   return `/api/graph/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${sha}`;
 }
 
-function ready(published: PublishedAnalysis, head: HeadState): RepoView {
+function ready(published: PublishedAnalysis | StoredAnalysis, head: HeadState): RepoView {
   const { owner, name } = published.repo;
   const { sha, analyzerVersion } = published.analysis;
   return {
@@ -175,7 +207,35 @@ function ready(published: PublishedAnalysis, head: HeadState): RepoView {
     analyzerVersion,
     graphUrl: graphPath(owner, name, sha),
     head,
+    ...("visibility" in published.repo &&
+      published.repo.visibility === "private" && {
+        private: { providerRepoId: published.repo.providerRepoId },
+      }),
   };
+}
+
+/**
+ * The newest analysis of the private repo `ref` names (of `ref.sha` when set), if the viewer is
+ * signed in and GitHub shows it to them; else `undefined` (see the module's notes). The session
+ * is read first, so a signed-out view costs no lookup.
+ */
+async function privateAnalysis(
+  ref: RepoRef & { sha?: string },
+  deps: RepoViewDeps,
+): Promise<StoredAnalysis | undefined> {
+  const { viewer } = deps;
+  if (viewer === undefined) return undefined;
+  const user = await readSession(viewer.cookie, viewer.auth);
+  if (user === undefined) return undefined;
+  const stored = await findStoredAnalysis(deps.db, {
+    owner: ref.owner,
+    name: ref.repo,
+    ...(ref.sha === undefined ? {} : { sha: ref.sha }),
+  });
+  if (stored?.repo.visibility !== "private") return undefined;
+  const access = await checkRepoAccess(user, stored.repo, viewer.auth);
+  if ("error" in access) throw new RepoAccessUnavailableError();
+  return "allowed" in access && access.allowed ? stored : undefined;
 }
 
 /**
@@ -220,19 +280,20 @@ export function movedPath(
 /**
  * What a link's `?base=<sha>` compares the shown diagram with (diff mode, M6.9e2): that
  * commit's published analysis of the same repo (looked up by the stored spelling, like a
- * permalink: never checked against GitHub, nothing enqueued). `base` is the raw value.
+ * permalink: never checked against GitHub, nothing enqueued). `base` is the raw value. A
+ * private repo shown after its check (M8.4c1) compares with its own analyses, found by
+ * GitHub's ID, so the check covers the base too.
  */
 export async function viewBase(
-  shown: { owner: string; repo: string },
+  shown: { owner: string; repo: string; private?: { providerRepoId: number } | undefined },
   base: string,
   db: AnyDatabase,
 ): Promise<BaseView> {
   if (!COMMIT_SHA.test(base)) return { status: "invalid" };
-  const published = await findPublishedAnalysis(db, {
-    owner: shown.owner,
-    name: shown.repo,
-    sha: base,
-  });
+  const published =
+    shown.private === undefined
+      ? await findPublishedAnalysis(db, { owner: shown.owner, name: shown.repo, sha: base })
+      : await findStoredAnalysis(db, { providerRepoId: shown.private.providerRepoId, sha: base });
   if (published === undefined) return { status: "missing", sha: base };
   const { owner, name } = published.repo;
   return { status: "ready", sha: base, graphUrl: graphPath(owner, name, base) };
@@ -291,6 +352,13 @@ export async function viewRepo(
     name: ref.repo,
     ...(ref.sha === undefined ? {} : { sha: ref.sha }),
   });
+  if (published === undefined) {
+    const shown = await privateAnalysis(ref, deps);
+    // The user's token can check for newer commits; asking it is M8.4c2's.
+    if (shown !== undefined) {
+      return ready(shown, ref.sha === undefined ? { state: "unknown" } : { state: "pinned" });
+    }
+  }
   if (ref.sha !== undefined) {
     return published ? ready(published, { state: "pinned" }) : { status: "missing" };
   }

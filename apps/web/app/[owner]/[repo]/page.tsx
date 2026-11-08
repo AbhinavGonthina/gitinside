@@ -2,17 +2,19 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { SearchParams } from "../../../lib/compare";
 import { parseRepoPath } from "../../../lib/repoUrl";
-import { repoScreen } from "./repoScreen";
+import { repoMetadata, repoScreen } from "./repoScreen";
 
 /** Route params for `/<owner>/<repo>`. */
 interface Params {
   owner: string;
   repo: string;
 }
+
+/** The tab's title; a private repo shown to its viewer isn't indexed (M8.4c1). */
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { owner, repo } = await params;
   const ref = parseRepoPath(owner, repo);
-  return ref ? { title: `${ref.owner}/${ref.repo}` } : {};
+  return ref ? repoMetadata(ref) : {};
 }
 
 /**
