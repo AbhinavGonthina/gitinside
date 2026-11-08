@@ -8,9 +8,10 @@
  *   the worker writes its progress with {@link recordJobProgress}, a few times per stage. A
  *   final failure before the start is written with {@link failQueuedJob} (M8.3c3b).
  * - **Reads:** {@link findJob}, for `GET /api/jobs/:id` and its SSE stream (M5.17a2);
- *   {@link findJobInstallation}, for a job's installation token (M8.3c3a).
+ *   {@link findJobInstallation}, for a job's installation token (M8.3c3a);
+ *   {@link findDiffJobToPost}, for a diff job's write token (M8.6e1).
  */
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
 import { analyses, installations, pullRequests, repos, type JobProgress } from "./schema.js";
 
@@ -162,6 +163,44 @@ async function findDiffJobInstallation(
   if (row === undefined) return undefined;
   const { live: isLive, ...rest } = row;
   return { status: isLive ? "queued" : "done", ...rest };
+}
+
+/** A diff job's repo and installation, as {@link findDiffJobToPost} reads them. */
+export type PostingJob = Omit<JobInstallation, "status">;
+
+/**
+ * The repo of diff job `jobId` and the installation it's linked to now, only while the job has
+ * something to post (M8.6e1, ADR-0245): a pull request record names it, holds its diff, and has
+ * no Check Run for that pair yet. `undefined` otherwise: the job hasn't recorded its diff
+ * (posting comes after), every record naming it is posted, or none names it (each moved on). The
+ * website mints the job's write token from this, never from {@link findJobInstallation}, whose
+ * liveness (no diff yet) is the read token's. An analysis job is never one.
+ */
+export async function findDiffJobToPost(
+  db: AnyDatabase,
+  jobId: string,
+): Promise<PostingJob | undefined> {
+  if (!jobId.startsWith("diff-")) return undefined;
+  const [row] = await db
+    .select({
+      owner: repos.owner,
+      name: repos.name,
+      githubInstallationId: installations.githubInstallationId,
+      suspendedAt: installations.suspendedAt,
+    })
+    .from(pullRequests)
+    .innerJoin(repos, eq(repos.id, pullRequests.repoId))
+    .leftJoin(installations, eq(installations.id, repos.installationId))
+    .where(
+      and(
+        eq(pullRequests.diffJobId, jobId),
+        isNotNull(pullRequests.diffKey),
+        isNull(pullRequests.checkRunId),
+      ),
+    )
+    .orderBy(desc(pullRequests.updatedAt), desc(pullRequests.id))
+    .limit(1);
+  return row;
 }
 
 /**

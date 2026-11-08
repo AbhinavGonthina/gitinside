@@ -68,6 +68,7 @@ async function posted(repoId: string, number = 7) {
   await recordPullRequestCheckRun(t.db, {
     repoId,
     number,
+    baseSha: BASE,
     headSha: HEAD,
     checkRunId: 9_000_000_002,
   });
@@ -119,7 +120,7 @@ describe("recordPullRequestHead", () => {
     expect(await t.db.select().from(pullRequests)).toHaveLength(1);
   });
 
-  it("clears the diff but keeps the head's Check Run when only the base moves", async () => {
+  it("clears the diff and its Check Run when only the base moves (M8.6e1)", async () => {
     const { repoId } = await setup();
     await posted(repoId);
     const row = await recordPullRequestHead(t.db, {
@@ -135,7 +136,7 @@ describe("recordPullRequestHead", () => {
       diffKey: null,
       brokenCount: null,
       commentId: 9_000_000_001,
-      checkRunId: 9_000_000_002,
+      checkRunId: null,
     });
   });
 
@@ -480,7 +481,7 @@ describe("recordPullRequestCheckRun", () => {
       headSha: HEAD,
       headAt: AT,
     });
-    const run = { repoId, number: 7, headSha: HEAD, checkRunId: 51 };
+    const run = { repoId, number: 7, baseSha: BASE, headSha: HEAD, checkRunId: 51 };
     expect(await recordPullRequestCheckRun(t.db, run)).toBe(true);
     expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ checkRunId: 51 });
     await recordPullRequestHead(t.db, {
@@ -493,5 +494,27 @@ describe("recordPullRequestCheckRun", () => {
     expect(await recordPullRequestCheckRun(t.db, { ...run, checkRunId: 52 })).toBe(false);
     expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ checkRunId: null });
     expect(await recordPullRequestCheckRun(t.db, { ...run, number: 8 })).toBe(false);
+  });
+
+  it("stores a Check Run only for the current pair, not one posted for the old base (M8.6e1)", async () => {
+    const { repoId } = await setup();
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 7,
+      baseSha: BASE,
+      headSha: HEAD,
+      headAt: AT,
+    });
+    await recordPullRequestHead(t.db, {
+      repoId,
+      number: 7,
+      baseSha: BASE2,
+      headSha: HEAD,
+      headAt: LATER,
+    });
+    const run = { repoId, number: 7, baseSha: BASE, headSha: HEAD, checkRunId: 51 };
+    expect(await recordPullRequestCheckRun(t.db, run)).toBe(false);
+    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ checkRunId: null });
+    expect(await recordPullRequestCheckRun(t.db, { ...run, baseSha: BASE2 })).toBe(true);
   });
 });

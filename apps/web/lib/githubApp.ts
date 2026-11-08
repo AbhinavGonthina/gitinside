@@ -12,14 +12,17 @@ import { field, GITHUB_API, LOGIN } from "./githubOAuth";
  *   advice for clock drift) and expiring 9 minutes later (GitHub refuses more than 10).
  * - **One token per repo** ({@link mintInstallationToken}): `POST
  *   /app/installations/{id}/access_tokens` asks for that one repository with `contents: read`
- *   and `metadata: read` only, so a token that leaks reads one repo for at most an hour, even
- *   on an installation granting more (the PR bot's write permissions, M8.6, ask for their own).
- *   The answer must name exactly that repository and grant nothing beyond reading, else it's
- *   refused rather than used.
+ *   and `metadata: read` only ({@link JOB_PERMISSIONS}), so a token that leaks reads one repo for
+ *   at most an hour, even on an installation granting more. The PR bot's post asks for its own
+ *   set instead ({@link POST_PERMISSIONS}, M8.6e1): pull requests and checks written, metadata
+ *   read, and no code. The answer must name exactly that repository and grant nothing beyond
+ *   what was asked, else it's refused rather than used.
  * - **Refusals named** ({@link InstallationTokenError}): a suspended installation (a `403`, then
  *   `GET /app/installations/{id}` reads `suspended_at`, since GitHub's message text isn't a
  *   contract), an installation that's gone (`404`), a repo it doesn't cover (`422`), the app's
- *   own credentials refused (`401`), and GitHub unreachable or out of shape.
+ *   own credentials refused (`401`), and GitHub unreachable or out of shape. GitHub also answers
+ *   `422` when the installation hasn't granted a permission asked for (an owner who hasn't
+ *   accepted the bot's write permissions); that is `REPO_NOT_INSTALLED` too, refused either way.
  *
  * Not handled: caching tokens (each private job asks once, and a cached token would outlive a
  * repo's removal from the installation by up to an hour); tokens for several repos at once.
@@ -31,8 +34,20 @@ const TIMEOUT_MS = 10_000;
 export const JWT_BACKDATE_SECONDS = 60;
 /** The JWT's lifetime from `iat`; GitHub refuses more than 10 minutes. */
 export const JWT_LIFETIME_SECONDS = 10 * 60 - 60;
-/** The only permissions a job's token asks for. */
+/** A set of permissions to ask a token for: GitHub's permission names and levels. */
+export type TokenPermissions = Readonly<Record<string, "read" | "write">>;
+/** The only permissions a job's read token asks for. */
 export const JOB_PERMISSIONS = { contents: "read", metadata: "read" } as const;
+/**
+ * The only permissions a diff job's post token asks for (M8.6e1, SPEC §3): the comment needs
+ * `pull_requests: write` (GitHub accepts it for a pull request's issue comments), the Check Run
+ * `checks: write`; `metadata: read` is granted with any token. No `contents`: posting reads no code.
+ */
+export const POST_PERMISSIONS = {
+  pull_requests: "write",
+  checks: "write",
+  metadata: "read",
+} as const;
 
 /** The app's own credentials, from `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`. */
 export interface AppCredentials {
@@ -183,20 +198,25 @@ async function forbiddenCode(
 const same = (a: unknown, b: string) =>
   typeof a === "string" && a.toLowerCase() === b.toLowerCase();
 
-/** Whether `permissions` grants nothing beyond {@link JOB_PERMISSIONS}. */
-function onlyReads(permissions: unknown): boolean {
+/**
+ * Whether `permissions` grants something and nothing beyond `asked`: each granted name asked
+ * for, at the level asked (a `write` where `read` was asked is more, a `read` where `write` was
+ * asked is GitHub granting less than the token needs).
+ */
+function onlyAsked(permissions: unknown, asked: TokenPermissions): boolean {
   if (typeof permissions !== "object" || permissions === null || Array.isArray(permissions)) {
     return false;
   }
   const granted = Object.entries(permissions as Record<string, unknown>);
   return (
     granted.length > 0 &&
-    granted.every(([name, level]) => Object.hasOwn(JOB_PERMISSIONS, name) && level === "read")
+    granted.every(([name, level]) => Object.hasOwn(asked, name) && level === asked[name])
   );
 }
 
 /**
- * An installation token for `repo` alone, reading only (`JOB_PERMISSIONS`), from installation
+ * An installation token for `repo` alone with `permissions` (default {@link JOB_PERMISSIONS},
+ * reading only; {@link POST_PERMISSIONS} for the PR bot's post), from installation
  * `installationId`. Throws {@link InstallationTokenError} naming why not.
  */
 export async function mintInstallationToken(
@@ -204,6 +224,7 @@ export async function mintInstallationToken(
   installationId: number,
   repo: RepoName,
   now: number,
+  permissions: TokenPermissions = JOB_PERMISSIONS,
 ): Promise<InstallationToken> {
   if (!Number.isSafeInteger(installationId) || installationId < 1) {
     throw new Error("installationId must be a positive integer");
@@ -218,7 +239,7 @@ export async function mintInstallationToken(
   }
   const response = await appCall(app, `/app/installations/${installationId}/access_tokens`, now, {
     method: "POST",
-    body: { repositories: [repo.name], permissions: JOB_PERMISSIONS },
+    body: { repositories: [repo.name], permissions },
   });
   if (response.status !== 201) {
     await response.body?.cancel();
@@ -253,8 +274,8 @@ export async function mintInstallationToken(
   ) {
     throw new InstallationTokenError("GITHUB_UNAVAILABLE", "token for other repositories");
   }
-  if (!onlyReads(field(body, "permissions"))) {
-    throw new InstallationTokenError("GITHUB_UNAVAILABLE", "token grants more than reading");
+  if (!onlyAsked(field(body, "permissions"), permissions)) {
+    throw new InstallationTokenError("GITHUB_UNAVAILABLE", "token grants other than asked");
   }
   return { token, expiresAt };
 }

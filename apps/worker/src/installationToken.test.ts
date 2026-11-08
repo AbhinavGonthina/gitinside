@@ -96,6 +96,23 @@ describe("createTokenClient", () => {
     ]);
   });
 
+  it("asks for a diff job's post token by naming the access, signed alike (M8.6e1)", async () => {
+    const post = { jobId: `diff-${"d".repeat(32)}`, installationId: 42, access: "post" } as const;
+    expect(await client()(post, new AbortController().signal)).toBe(TOKEN);
+    expect(seen).toEqual([
+      {
+        method: "POST",
+        url: TOKEN_ROUTE_PATH,
+        body: JSON.stringify({ jobId: post.jobId, installationId: 42, access: "post" }),
+        verified: true,
+        verifiedWithSecret: false,
+      },
+    ]);
+    // A job past posting gets JOB_NOT_FOUND: nothing left to post, as for a finished read.
+    answer = (res) => json(res, 404, { error: "JOB_NOT_FOUND" });
+    expect((await failure(client()(post, new AbortController().signal))).code).toBe("JOB_NOT_LIVE");
+  });
+
   it("asks once more with the previous secret's key when the website hasn't the new one yet", async () => {
     // The website still signs and verifies with the old secret: it refuses the current key.
     answer = (res) => {
