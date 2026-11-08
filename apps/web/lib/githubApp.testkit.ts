@@ -5,8 +5,9 @@ import { generateKeyPairSync, verify, type KeyObject } from "node:crypto";
  * /app/installations/{id}/access_tokens` and `GET /app/installations/{id}`, checking what
  * GitHub checks: an RS256 JWT signed by the app's key, issued by its App ID, not expired, and
  * living at most 10 minutes; the installation (not suspended); and that it covers every
- * repository asked for. Its answer narrows to the repositories and permissions asked, as
- * GitHub's does. Requests are matched by path, so a loopback origin works too.
+ * repository asked for, and grants every permission asked for at that level (`422` otherwise).
+ * Its answer narrows to the repositories and permissions asked, as GitHub's does. Requests are
+ * matched by path, so a loopback origin works too.
  */
 
 export interface FakeAppInstallation {
@@ -136,6 +137,16 @@ export function fakeApp(
     }
     const granted = installation.permissions ?? { contents: "read", metadata: "read" };
     const permissions = asked.permissions ?? granted;
+    const level = (name: string) => ({ read: 1, write: 2 })[granted[name] ?? ""] ?? 0;
+    const beyond = Object.entries(permissions).some(
+      ([name, wanted]) => level(name) < (wanted === "write" ? 2 : 1),
+    );
+    if (beyond) {
+      return Response.json(
+        { message: "The permissions requested are not granted to this installation." },
+        { status: 422 },
+      );
+    }
     const token = `ghs_${String(++next).padStart(36, "0")}`;
     issued.push({ token, installationId: installation.id, repos: covered as string[] });
     return Response.json(

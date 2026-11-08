@@ -1,4 +1,9 @@
-import { findJobInstallation, type AnyDatabase } from "@gitinside/db";
+import {
+  findDiffJobToPost,
+  findJobInstallation,
+  type AnyDatabase,
+  type PostingJob,
+} from "@gitinside/db";
 import {
   SIGNATURE_HEADER,
   TIMESTAMP_HEADER,
@@ -8,7 +13,9 @@ import {
 import { readBody } from "./body";
 import {
   InstallationTokenError,
+  JOB_PERMISSIONS,
   mintInstallationToken,
+  POST_PERMISSIONS,
   type AppCredentials,
   type InstallationTokenCode,
 } from "./githubApp";
@@ -29,6 +36,13 @@ import {
  *   `running` (for a `diff-` job, ADR-0245: a pull request record names it and has no diff
  *   yet) and its repo is linked to that installation now; the repo's owner and name come from
  *   the row, never from the request. A stored suspension is refused without asking GitHub.
+ * - **Posting asks for its own token** (M8.6e1, ADR-0245): a body with `access: "post"` (a
+ *   `diff-` job only) gets a token with `POST_PERMISSIONS` (pull requests and checks written,
+ *   no code read), minted only while a pull request record names the job, holds its diff, and
+ *   has no Check Run (db `findDiffJobToPost`). That window starts where the read token's ends
+ *   (the diff recorded), so neither token is minted outside its step, and a job retried after
+ *   posting gets `JOB_NOT_FOUND`. The same installation checks apply. `access: "read"` or none is
+ *   the read token, as before.
  * - **Answers** `200 { token, expiresAt }` (ISO), else `{ error }` with a code: `404`
  *   `JOB_NOT_FOUND`; `403` `INSTALLATION_SUSPENDED`, `INSTALLATION_NOT_FOUND` (the repo is
  *   linked to none now), or `REPO_NOT_INSTALLED` (linked to another, or GitHub says this one
@@ -89,8 +103,20 @@ function json(status: number, body: Body): Response {
 
 const JOB_ID = /^(?:analyze|diff)-[0-9a-f]{32}$/;
 
-/** The body's `{ jobId, installationId }`, exactly those, or `undefined`. */
-function parse(bytes: Uint8Array): { jobId: string; installationId: number } | undefined {
+/** What a token is for: the job's reads (the default) or a diff job's post. */
+export type TokenAccess = "read" | "post";
+
+interface TokenAsk {
+  jobId: string;
+  installationId: number;
+  access: TokenAccess;
+}
+
+/**
+ * The body's `{ jobId, installationId, access? }`, exactly those, or `undefined`. `access` is
+ * `"read"` (also when left out) or `"post"`, which only a `diff-` job may ask.
+ */
+function parse(bytes: Uint8Array): TokenAsk | undefined {
   let body: unknown;
   try {
     body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
@@ -98,23 +124,43 @@ function parse(bytes: Uint8Array): { jobId: string; installationId: number } | u
     return undefined;
   }
   if (typeof body !== "object" || body === null || Array.isArray(body)) return undefined;
-  const { jobId, installationId, ...rest } = body as Record<string, unknown>;
+  const { jobId, installationId, access = "read", ...rest } = body as Record<string, unknown>;
   if (Object.keys(rest).length > 0) return undefined;
   if (typeof jobId !== "string" || !JOB_ID.test(jobId)) return undefined;
   if (typeof installationId !== "number" || !Number.isSafeInteger(installationId)) {
     return undefined;
   }
   if (installationId < 1) return undefined;
-  return { jobId, installationId };
+  if (access !== "read" && access !== "post") return undefined;
+  if (access === "post" && !jobId.startsWith("diff-")) return undefined;
+  return { jobId, installationId, access };
 }
 
-function log(jobId: string, outcome: string): void {
-  console.log(JSON.stringify({ event: "installation_token", jobId, outcome }));
+/** The read token's outcome lines are unchanged; a post token's name its access. */
+function log(asked: TokenAsk, outcome: string): void {
+  const { jobId, access } = asked;
+  console.log(
+    JSON.stringify({
+      event: "installation_token",
+      jobId,
+      ...(access === "post" && { access }),
+      outcome,
+    }),
+  );
 }
 
-function refuse(jobId: string, code: TokenRouteCode): Response {
-  log(jobId, code);
+function refuse(asked: TokenAsk, code: TokenRouteCode): Response {
+  log(asked, code);
   return json(TOKEN_ROUTE_STATUS[code], { error: code });
+}
+
+/** The job's repo and installation if it's live for `access`'s step, else `undefined`. */
+async function liveJob(db: AnyDatabase, asked: TokenAsk): Promise<PostingJob | undefined> {
+  if (asked.access === "post") return findDiffJobToPost(db, asked.jobId);
+  const job = await findJobInstallation(db, asked.jobId);
+  return job !== undefined && (job.status === "queued" || job.status === "running")
+    ? job
+    : undefined;
 }
 
 /** Answer one token request. `deps` is `undefined` when the route isn't configured. */
@@ -143,23 +189,22 @@ export async function handleTokenRequest(
   if (asked === undefined) return json(400, { error: "INVALID_REQUEST" });
   const { jobId, installationId } = asked;
   try {
-    const job = await findJobInstallation(deps.db, jobId);
-    if (job === undefined || (job.status !== "queued" && job.status !== "running")) {
-      return refuse(jobId, "JOB_NOT_FOUND");
-    }
-    if (job.githubInstallationId === null) return refuse(jobId, "INSTALLATION_NOT_FOUND");
-    if (job.githubInstallationId !== installationId) return refuse(jobId, "REPO_NOT_INSTALLED");
-    if (job.suspendedAt !== null) return refuse(jobId, "INSTALLATION_SUSPENDED");
+    const job = await liveJob(deps.db, asked);
+    if (job === undefined) return refuse(asked, "JOB_NOT_FOUND");
+    if (job.githubInstallationId === null) return refuse(asked, "INSTALLATION_NOT_FOUND");
+    if (job.githubInstallationId !== installationId) return refuse(asked, "REPO_NOT_INSTALLED");
+    if (job.suspendedAt !== null) return refuse(asked, "INSTALLATION_SUSPENDED");
     const { token, expiresAt } = await mintInstallationToken(
       deps.app,
       installationId,
       { owner: job.owner, name: job.name },
       now,
+      asked.access === "post" ? POST_PERMISSIONS : JOB_PERMISSIONS,
     );
-    log(jobId, "issued");
+    log(asked, "issued");
     return json(200, { token, expiresAt: new Date(expiresAt).toISOString() });
   } catch (error) {
-    if (error instanceof InstallationTokenError) return refuse(jobId, error.code);
+    if (error instanceof InstallationTokenError) return refuse(asked, error.code);
     // Name only: a driver error's message can carry connection details.
     console.error(
       JSON.stringify({

@@ -45,8 +45,9 @@ const samePair = sql`${pullRequests.baseSha} = excluded.base_sha and ${pullReque
  * Records the base and head an event describes, creating the record on its first event. An
  * event older than the recorded one (`headAt` earlier) changes nothing and answers `undefined`:
  * the caller then queues no diff. Otherwise the row is returned as now stored. A different pair
- * clears the old diff and its job (which then stops being live), and a different head the old
- * head's Check Run; the comment is kept (it is edited in place). The same pair described again
+ * clears the old diff, its job (which then stops being live), and its Check Run, which reported
+ * that pair's diff (M8.6e1: a base that moves under the same head gets a new one); the comment is
+ * kept (it is edited in place). The same pair described again
  * keeps everything, so a caller seeing a `diffKey` has nothing to recompute. Events as new as the recorded one are taken: GitHub's
  * times are whole seconds, and two pushes in one second are then recorded in delivery order.
  */
@@ -67,7 +68,7 @@ export async function recordPullRequestHead(
         brokenCount: sql`case when ${samePair} then ${pullRequests.brokenCount} end`,
         diffJobId: sql`case when ${samePair} then ${pullRequests.diffJobId} end`,
         diffQueuedAt: sql`case when ${samePair} then ${pullRequests.diffQueuedAt} end`,
-        checkRunId: sql`case when ${pullRequests.headSha} = excluded.head_sha then ${pullRequests.checkRunId} end`,
+        checkRunId: sql`case when ${samePair} then ${pullRequests.checkRunId} end`,
         updatedAt: sql`now()`,
       },
       setWhere: sql`${pullRequests.headAt} <= excluded.head_at`,
@@ -255,12 +256,14 @@ export async function recordPullRequestComment(
 }
 
 /**
- * Stores the ID of the Check Run created for `headSha`, only if that is still the pull
- * request's head (a Check Run belongs to one head commit). Answers whether it was stored.
+ * Stores the ID of the Check Run created for the pair `baseSha`, `headSha`, only if that is
+ * still the pull request's current pair (a Check Run sits on one head commit and reports one
+ * pair's diff; M8.6e1). Answers whether it was stored. A stored Check Run is what makes the
+ * pair posted (jobs.ts `findDiffJobToPost`).
  */
 export async function recordPullRequestCheckRun(
   db: AnyDatabase,
-  ref: PullRequestRef & { headSha: string; checkRunId: number },
+  ref: PullRequestRef & { baseSha: string; headSha: string; checkRunId: number },
 ): Promise<boolean> {
   const rows = await db
     .update(pullRequests)
@@ -269,6 +272,7 @@ export async function recordPullRequestCheckRun(
       and(
         eq(pullRequests.repoId, ref.repoId),
         eq(pullRequests.number, ref.number),
+        eq(pullRequests.baseSha, ref.baseSha),
         eq(pullRequests.headSha, ref.headSha),
       ),
     )

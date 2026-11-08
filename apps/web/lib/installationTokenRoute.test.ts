@@ -4,6 +4,8 @@ import {
   installations,
   queueAnalysis,
   queuePullRequestDiff,
+  recordPullRequestCheckRun,
+  recordPullRequestDiff,
   recordPullRequestHead,
   repos,
   startAnalysis,
@@ -38,6 +40,13 @@ const ACME: InstallationFacts = {
   accountType: "Organization",
   suspendedAt: null,
 };
+/** What GitInside's app asks of an installation (SPEC §3). */
+const BOT_GRANTS = {
+  contents: "read",
+  metadata: "read",
+  pull_requests: "write",
+  checks: "write",
+};
 
 let t: TestDb;
 let github: FakeApp;
@@ -55,8 +64,8 @@ beforeEach(async () => {
   await t.db.delete(installations);
   github = fakeApp(
     [
-      { id: 41, owner: "acme", repos: ["shop"] },
-      { id: 52, owner: "other", repos: ["shop"] },
+      { id: 41, owner: "acme", repos: ["shop"], permissions: BOT_GRANTS },
+      { id: 52, owner: "other", repos: ["shop"], permissions: BOT_GRANTS },
     ],
     { now: () => NOW },
   );
@@ -201,6 +210,113 @@ describe("handleTokenRequest", () => {
       body: { error: "JOB_NOT_FOUND" },
     });
     expect(github.issued).toHaveLength(1);
+  });
+
+  describe("a diff job's post token (M8.6e1)", () => {
+    const DIFF = `diff-${"3".repeat(32)}`;
+    const forPost = { jobId: DIFF, installationId: 41, access: "post" };
+
+    /** Pull request 7 of acme/shop with job {@link DIFF} queued; its pair. */
+    async function diffQueued(installationId = 41) {
+      const { repoId } = await queued(installationId);
+      const pair = { repoId, number: 7, baseSha: SHA, headSha: "b".repeat(40) };
+      await recordPullRequestHead(t.db, { ...pair, headAt: new Date(NOW) });
+      await queuePullRequestDiff(t.db, { ...pair, jobId: DIFF });
+      return pair;
+    }
+    const diffed = (pair: Awaited<ReturnType<typeof diffQueued>>) =>
+      recordPullRequestDiff(t.db, { ...pair, diffKey: "d.json.gz", brokenCount: 1 });
+
+    it("mints pull requests and checks written, no code, once the diff is recorded", async () => {
+      await diffed(await diffQueued());
+      const { status, cache, body } = await answer(ask(forPost));
+      expect(status).toBe(200);
+      expect(cache).toBe("no-store");
+      expect(body.token).toBe(github.issued[0]?.token);
+      expect(github.requests).toEqual([
+        {
+          method: "POST",
+          path: "/app/installations/41/access_tokens",
+          body: {
+            repositories: ["shop"],
+            permissions: { pull_requests: "write", checks: "write", metadata: "read" },
+          },
+        },
+      ]);
+      expect(logs).toEqual([
+        JSON.stringify({
+          event: "installation_token",
+          jobId: DIFF,
+          access: "post",
+          outcome: "issued",
+        }),
+      ]);
+      // The read token's step is over: a diffed job reads nothing more.
+      expect(await answer(ask({ jobId: DIFF, installationId: 41 }))).toMatchObject({
+        status: 404,
+        body: { error: "JOB_NOT_FOUND" },
+      });
+    });
+
+    it("mints no post token before the diff is recorded or once the Check Run is", async () => {
+      const pair = await diffQueued();
+      expect(await answer(ask(forPost))).toMatchObject({
+        status: 404,
+        body: { error: "JOB_NOT_FOUND" },
+      });
+      // The read token, explicitly asked for, is the queued job's.
+      expect((await answer(ask({ ...forPost, access: "read" }))).body).toHaveProperty("token");
+
+      await diffed(pair);
+      await recordPullRequestCheckRun(t.db, { ...pair, checkRunId: 77 });
+      expect(await answer(ask(forPost))).toMatchObject({
+        status: 404,
+        body: { error: "JOB_NOT_FOUND" },
+      });
+      expect(github.issued).toHaveLength(1); // the read token only
+    });
+
+    it("checks the installation as the read token does", async () => {
+      await diffed(await diffQueued());
+      expect(await answer(ask({ ...forPost, installationId: 52 }))).toMatchObject({
+        status: 403,
+        body: { error: "REPO_NOT_INSTALLED" },
+      });
+      await upsertInstallation(t.db, { ...ACME, suspendedAt: new Date(NOW - 1000) });
+      expect(await answer(ask(forPost))).toMatchObject({
+        status: 403,
+        body: { error: "INSTALLATION_SUSPENDED" },
+      });
+      await t.db.update(repos).set({ installationId: null });
+      expect(await answer(ask(forPost))).toMatchObject({
+        status: 403,
+        body: { error: "INSTALLATION_NOT_FOUND" },
+      });
+      expect(github.requests).toEqual([]);
+    });
+
+    it("answers an installation that hasn't granted the bot's writes as not installed", async () => {
+      github = fakeApp([{ id: 41, owner: "acme", repos: ["shop"] }], { now: () => NOW });
+      deps = { ...deps, app: { ...deps.app, fetch: github.fetch } };
+      await diffed(await diffQueued());
+      expect(await answer(ask(forPost))).toMatchObject({
+        status: 403,
+        body: { error: "REPO_NOT_INSTALLED" },
+      });
+    });
+
+    it.each([
+      ["an analysis job", { jobId: JOB, installationId: 41, access: "post" }],
+      ["another access", { ...forPost, access: "write" }],
+      ["a non-string access", { ...forPost, access: 1 }],
+    ])("refuses a post asked for %s", async (_, body) => {
+      await diffed(await diffQueued());
+      expect(await answer(ask(body))).toMatchObject({
+        status: 400,
+        body: { error: "INVALID_REQUEST" },
+      });
+      expect(github.requests).toEqual([]);
+    });
   });
 
   it("refuses an installation the repo isn't linked to, asking GitHub nothing", async () => {

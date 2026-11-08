@@ -9,6 +9,7 @@ import {
   JWT_BACKDATE_SECONDS,
   JWT_LIFETIME_SECONDS,
   mintInstallationToken,
+  POST_PERMISSIONS,
   type InstallationTokenCode,
 } from "./githubApp";
 import {
@@ -23,6 +24,13 @@ const NOW = Date.parse("2026-11-07T12:00:00Z");
 const PEM = FAKE_KEYS.privateKey.export({ type: "pkcs1", format: "pem" }).toString();
 const ACME: FakeAppInstallation = { id: 41, owner: "acme", repos: ["shop", "billing"] };
 const SHOP = { owner: "acme", name: "shop" };
+/** What GitInside's app asks of an installation (SPEC §3). */
+const BOT_GRANTS = {
+  contents: "read",
+  metadata: "read",
+  pull_requests: "write",
+  checks: "write",
+};
 
 function setup(installations: FakeAppInstallation[] = [ACME], now = () => NOW) {
   const github = fakeApp(installations, { now });
@@ -108,6 +116,49 @@ describe("mintInstallationToken", () => {
     ]);
     expect(JOB_PERMISSIONS).toEqual({ contents: "read", metadata: "read" });
     expect(github.issued[0]?.repos).toEqual(["shop"]);
+  });
+
+  it("asks for the post's permissions alone, writing pull requests and checks (M8.6e1)", async () => {
+    const { github, app } = setup([{ ...ACME, permissions: BOT_GRANTS }]);
+    const minted = await mintInstallationToken(app, 41, SHOP, NOW, POST_PERMISSIONS);
+    expect(minted.token).toBe(github.issued[0]?.token);
+    expect(github.requests).toEqual([
+      {
+        method: "POST",
+        path: "/app/installations/41/access_tokens",
+        body: {
+          repositories: ["shop"],
+          permissions: { pull_requests: "write", checks: "write", metadata: "read" },
+        },
+      },
+    ]);
+    // The read token from the same installation still reads only.
+    await mintInstallationToken(app, 41, SHOP, NOW);
+    expect(github.requests[1]?.body).toMatchObject({ permissions: JOB_PERMISSIONS });
+  });
+
+  it("calls an installation that hasn't granted the bot's writes not installed (GitHub's 422)", async () => {
+    const { app } = setup(); // contents and metadata read only
+    expect(await code(mintInstallationToken(app, 41, SHOP, NOW, POST_PERMISSIONS))).toBe(
+      "REPO_NOT_INSTALLED",
+    );
+    const readOnlyChecks = setup([{ ...ACME, permissions: { ...BOT_GRANTS, checks: "read" } }]);
+    expect(
+      await code(mintInstallationToken(readOnlyChecks.app, 41, SHOP, NOW, POST_PERMISSIONS)),
+    ).toBe("REPO_NOT_INSTALLED");
+  });
+
+  it.each<[string, Record<string, string>]>([
+    ["contents read", { ...POST_PERMISSIONS, contents: "read" }],
+    ["administration", { ...POST_PERMISSIONS, administration: "write" }],
+    ["pull requests read only", { ...POST_PERMISSIONS, pull_requests: "read" }],
+    ["metadata write", { ...POST_PERMISSIONS, metadata: "write" }],
+  ])("refuses a post token whose answer grants %s", async (_, permissions) => {
+    const { github, app } = setup([{ ...ACME, permissions: BOT_GRANTS }]);
+    github.tamper((b) => ({ ...b, permissions }));
+    expect(await code(mintInstallationToken(app, 41, SHOP, NOW, POST_PERMISSIONS))).toBe(
+      "GITHUB_UNAVAILABLE",
+    );
   });
 
   it("matches the repo's owner and name without regard to case, as GitHub does", async () => {

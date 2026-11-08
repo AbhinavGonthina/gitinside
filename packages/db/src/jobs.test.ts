@@ -6,12 +6,15 @@ import {
   failAnalysis,
   failInterruptedAnalyses,
   failQueuedJob,
+  findDiffJobToPost,
   findJob,
   findJobInstallation,
   installations,
   queueAnalysis,
   queuePullRequestDiff,
   recordJobProgress,
+  recordPullRequestCheckRun,
+  recordPullRequestComment,
   recordPullRequestDiff,
   recordPullRequestHead,
   repos,
@@ -438,6 +441,82 @@ describe("findJobInstallation", () => {
       const done = { repoId: repo, number: 8, baseSha: shaOf("1"), headSha: shaOf("2") };
       await recordPullRequestDiff(t.db, { ...done, diffKey: "d.json.gz", brokenCount: 1 });
       expect(await findJobInstallation(t.db, DIFF)).toMatchObject({ status: "queued" });
+    });
+
+    describe("findDiffJobToPost (M8.6e1)", () => {
+      const pairOf = (repo: string, number = 7) => ({
+        repoId: repo,
+        number,
+        baseSha: shaOf("1"),
+        headSha: shaOf("2"),
+      });
+      const diffed = (repo: string, number = 7) =>
+        recordPullRequestDiff(t.db, {
+          ...pairOf(repo, number),
+          diffKey: "d.json.gz",
+          brokenCount: 2,
+        });
+
+      it("reads the repo and installation once the diff is recorded, until the Check Run is", async () => {
+        await upsertInstallation(t.db, ACME_APP);
+        const linked = await repoId({ ...FACTS, visibility: "private", githubInstallationId: 41 });
+        await diffQueued(linked);
+        expect(await findDiffJobToPost(t.db, DIFF)).toBeUndefined(); // nothing to post yet
+        await diffed(linked);
+        expect(await findDiffJobToPost(t.db, DIFF)).toEqual({
+          owner: "acme",
+          name: "shop",
+          githubInstallationId: 41,
+          suspendedAt: null,
+        });
+        // The read token's liveness has ended: the two never overlap.
+        expect(await findJobInstallation(t.db, DIFF)).toMatchObject({ status: "done" });
+        await recordPullRequestComment(t.db, { repoId: linked, number: 7, commentId: 501 });
+        expect(await findDiffJobToPost(t.db, DIFF)).toBeDefined(); // the comment alone isn't posted
+        await recordPullRequestCheckRun(t.db, { ...pairOf(linked), checkRunId: 502 });
+        expect(await findDiffJobToPost(t.db, DIFF)).toBeUndefined();
+      });
+
+      it("reads a suspension and an unlinked repo, for the route to refuse", async () => {
+        const at = new Date("2026-11-08T09:00:00Z");
+        await upsertInstallation(t.db, { ...ACME_APP, suspendedAt: at });
+        const linked = await repoId({ ...FACTS, visibility: "private", githubInstallationId: 41 });
+        await diffQueued(linked);
+        await diffed(linked);
+        expect(await findDiffJobToPost(t.db, DIFF)).toMatchObject({ suspendedAt: at });
+
+        await t.db.delete(repos);
+        const unlinked = await repoId();
+        await diffQueued(unlinked);
+        await diffed(unlinked);
+        expect(await findDiffJobToPost(t.db, DIFF)).toMatchObject({ githubInstallationId: null });
+      });
+
+      it("has something to post while any pull request sharing the job lacks its Check Run", async () => {
+        const repo = await repoId();
+        await diffQueued(repo, 7);
+        await diffQueued(repo, 8);
+        await diffed(repo, 7);
+        await diffed(repo, 8);
+        await recordPullRequestCheckRun(t.db, { ...pairOf(repo, 8), checkRunId: 801 });
+        expect(await findDiffJobToPost(t.db, DIFF)).toBeDefined();
+        await recordPullRequestCheckRun(t.db, { ...pairOf(repo, 7), checkRunId: 701 });
+        expect(await findDiffJobToPost(t.db, DIFF)).toBeUndefined();
+      });
+
+      it("is undefined once the pull request moves on, and for an analysis job", async () => {
+        const repo = await repoId();
+        await diffQueued(repo);
+        await diffed(repo);
+        await recordPullRequestHead(t.db, {
+          ...pairOf(repo),
+          headSha: shaOf("3"),
+          headAt: new Date("2026-11-08T10:01:00Z"),
+        });
+        expect(await findDiffJobToPost(t.db, DIFF)).toBeUndefined();
+        await queued("1", "2026-10-31T10:00:00Z", repo);
+        expect(await findDiffJobToPost(t.db, jobOf("1"))).toBeUndefined();
+      });
     });
   });
 });

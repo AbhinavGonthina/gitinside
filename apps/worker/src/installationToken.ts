@@ -56,6 +56,12 @@ export interface TokenClientOptions {
 export interface TokenAsk {
   jobId: string;
   installationId: number;
+  /**
+   * `"post"` asks for a diff job's write token (M8.6e1): pull requests and checks written, no
+   * code read, minted only once the job's diff is recorded and until its Check Run is. Left out,
+   * the job's read token, as before (the body then has no `access`).
+   */
+  access?: "post";
 }
 
 /** Asks the website for one job's token; throws a {@link JobFailure} or the signal's reason. */
@@ -96,7 +102,11 @@ export function createTokenClient(options: TokenClientOptions): InstallationToke
 
   return async (job, signal) => {
     const body = new TextEncoder().encode(
-      JSON.stringify({ jobId: job.jobId, installationId: job.installationId }),
+      JSON.stringify({
+        jobId: job.jobId,
+        installationId: job.installationId,
+        ...(job.access === "post" && { access: "post" }),
+      }),
     );
     // During a rollover the worker may hold the new secret before the website does: a `401`
     // with the current key is tried once more with the previous one.
