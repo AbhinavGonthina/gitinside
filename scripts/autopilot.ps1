@@ -10,6 +10,11 @@
 # {model: ...} tag on the first unchecked, unblocked task in PROGRESS.md (default opus).
 # No new task starts after the stop time; the task in progress always finishes.
 #
+# Since M8.9 each task lands through a pull request from a task/<id> branch, merged
+# once CI is green and GitInside Bot's Check Run has posted (CLAUDE.md section 5,
+# ADR-0247). A run that ends mid-PR leaves the repo on that branch; the next run
+# finishes the PR first, so the loop only pulls when it's on main.
+#
 # To pause gracefully: create a file named PAUSE in the repo root (New-Item PAUSE).
 # Delete it to resume.
 #
@@ -151,7 +156,7 @@ function Write-Event($Evt, [hashtable]$Run) {
   }
 }
 
-$prompt = "Follow CLAUDE.md. git pull both repos. Complete exactly ONE unchecked, unblocked task from PROGRESS.md (tests green, committed, pushed, PROGRESS.md and SESSION_LOG.md updated; if it finishes a milestone, run the milestone verification protocol). Then exit."
+$prompt = "Follow CLAUDE.md. git pull both repos. Finish any open task/ pull request first. Complete exactly ONE unchecked, unblocked task from PROGRESS.md through a pull request (CLAUDE.md section 5: tests green, committed on a task/ branch with PROGRESS.md updated, CI green, GitInside's review read, merged, back on main; SESSION_LOG.md updated; if it finishes a milestone, run the milestone verification protocol). Then exit."
 
 $allowedTools = @(
   'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Agent', 'WebFetch', 'WebSearch',
@@ -164,7 +169,9 @@ $disallowedTools = @(
   'Bash(git push -f*)',      'Bash(git push * -f*)',
   'Bash(git push * +*)',                                   # +refspec force-push
   'Bash(gh repo delete*)',
-  'Bash(gh repo edit*)'
+  'Bash(gh repo edit*)',
+  'Bash(gh pr merge*--admin*)',                             # merging past branch protection
+  'Bash(gh api*protection*)'                                # reading or changing branch protection
 )
 
 $failures = 0
@@ -172,7 +179,15 @@ for ($i = 1; $i -le $MaxRuns; $i++) {
   if ($stop -and (Get-Date) -ge $stop) { Stop-Loop "Time window ended ($stop)" }
   if (Test-Path (Join-Path $root 'PAUSE')) { Stop-Loop 'PAUSE file found. Delete PAUSE to resume' }
 
-  git pull --quiet 2>$null | Out-Null
+  # On main, pull. On a task/ branch (a run ended mid-PR), only fetch: the next run
+  # finishes that PR, and pulling main into it would add a merge to the branch.
+  $branch = (git rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim()
+  if ($branch -eq 'main') {
+    git pull --quiet 2>$null | Out-Null
+  } else {
+    git fetch --quiet 2>$null | Out-Null
+    Write-Host "On branch '$branch' (an open PR?); this run finishes it first." -ForegroundColor Yellow
+  }
   $progress = Join-Path $root 'PROGRESS.md'
   if (-not (Test-Path $progress)) { Stop-Loop 'PROGRESS.md not found' 1 }
   $status = Get-Content $progress -TotalCount 1
