@@ -76,6 +76,31 @@ export const installations = pgTable(
 );
 
 /**
+ * An installation GitHub said was deleted (M8.10e2a, ADR-0240). GitHub never reuses an
+ * installation's ID (a reinstall gets a new one), so anything naming it later is stale: a
+ * replayed `created`, or a request that read GitHub before the uninstall. GitHub's IDs only.
+ */
+export const deletedInstallations = pgTable("deleted_installations", {
+  githubInstallationId: githubId("github_installation_id").primaryKey(),
+  deletedAt: timestampTz("deleted_at").notNull().defaultNow(),
+});
+
+/**
+ * A repo GitHub said was removed from a live installation (`installation_repositories`
+ * `removed`, M8.10e2a), until it says the repo was `added` again: no job or delivery links it
+ * to that installation meanwhile. GitHub's IDs only, so a removed private repo leaves no name.
+ */
+export const removedInstallationRepos = pgTable(
+  "removed_installation_repos",
+  {
+    githubInstallationId: githubId("github_installation_id").notNull(),
+    providerRepoId: githubId("provider_repo_id").notNull(),
+    removedAt: timestampTz("removed_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.githubInstallationId, t.providerRepoId] })],
+);
+
+/**
  * A GitHub repository. `provider_repo_id` is GitHub's ID, which survives
  * renames; `owner`/`name` are unique ignoring case, as on GitHub.
  */
