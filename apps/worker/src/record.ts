@@ -240,16 +240,20 @@ export function readableBy(key: string, side: { installationId: number; repoId: 
  * `privateDiffKey` (merge base and head) before recording it on every record naming the job
  * (`recordDiffJobResult`), so a recorded key always has its object. An upload no record names
  * afterwards (each moved on meanwhile) is left to retention's orphan sweep: another job whose
- * pair has the same merge base and head can name the same key, and only the sweep checks.
+ * pair has the same merge base and head can name the same key, and only the sweep checks. But
+ * when the repo was unlinked from the installation meanwhile (an uninstall or a removed repo),
+ * the upload is deleted at once and the job fails as `REPO_NOT_INSTALLED` (M8.10e).
  * `storedGraph` reads a side's `done` analysis by this analyzer version
  * (`findDoneSnapshotKey`) when {@link readableBy} allows its key (M8.6d3c2). `storeSide`
  * (M8.6d4) keys a side the job analyzed as an analysis job would (public repo ⇒ the public key,
  * else this installation's private one), uploads it, then writes its `done` row through
  * `storeDiffSideAnalysis` (no row, or a `failed` one, and the repo still linked). Its stats
  * have no `jobMs`: the job's download and upload covered both sides and the diff. An upload
- * whose row isn't written (another job holds it, or the repo was unlinked meanwhile) is left
- * to retention's orphan sweep, which checks every row first: a `done` row may name the same
- * key. Posting (M8.6e2b) reads the records left to post to (`findDiffJobPosts`), each record
+ * whose row isn't written because another job holds it is left to retention's orphan sweep,
+ * which checks every row first: a `done` row may name the same key. One whose repo was unlinked
+ * during the upload is deleted at once when it's private (the job failing as
+ * `REPO_NOT_INSTALLED`, M8.10e); a public key is left to the sweep, since the repo's next public
+ * job can name it. Posting (M8.6e2b) reads the records left to post to (`findDiffJobPosts`), each record
  * again just before its post (`findPullRequest`), a `diffed` retry's stored diff by the key
  * the records name, and stores the comment and Check Run IDs; `reopen` clears the unposted
  * records' diff (`reopenDiffJob`) when a retry can't read what it was made from.
@@ -258,6 +262,29 @@ export function createDiffRecorder(
   options: Pick<RecorderOptions, "db" | "store" | "analyzerVersion">,
 ): DiffRecorder {
   const { db, store, analyzerVersion } = options;
+
+  /**
+   * When the repo is no longer linked to the job's installation (an uninstall or a removed repo
+   * while the job ran, M8.10e), deletes the private object the job just uploaded under `key` and
+   * fails the job as the permanent `REPO_NOT_INSTALLED`, as an analysis's publish does (ADR-0241):
+   * the webhook's listing ran before the upload and its rows are gone, so nothing will name the
+   * key again. A failed delete is noted in the failure's detail and left to retention. Still
+   * linked ⇒ nothing (the records moved on, or another job holds the row), left to the sweep.
+   */
+  async function deleteIfUnlinked(
+    owner: { installationId: number; repoId: string },
+    key: string,
+    what: string,
+  ): Promise<void> {
+    const link = { githubInstallationId: owner.installationId, repoId: owner.repoId };
+    if ((await findLinkedRepo(db, link)) !== undefined) return;
+    let detail = "the repo was unlinked from the installation while the job ran";
+    await store.delete(key).catch(() => {
+      detail += `; deleting ${what} failed (left to retention)`;
+    });
+    throw new JobFailure("REPO_NOT_INSTALLED", detail);
+  }
+
   return {
     find: (jobId) => findDiffJob(db, jobId),
     async storedGraph(side) {
@@ -283,7 +310,7 @@ export function createDiffRecorder(
           : privateSnapshotKey({ installationId, repoId, sha, analyzerVersion });
       const uploaded = await uploadSnapshot(store, side.graphPath, key, repo.visibility);
       const { stats } = side;
-      return storeDiffSideAnalysis(db, {
+      const written = await storeDiffSideAnalysis(db, {
         githubInstallationId: installationId,
         repoId,
         sha,
@@ -303,6 +330,9 @@ export function createDiffRecorder(
           ...(stats.gcMs === undefined ? {} : { gcMs: stats.gcMs }),
         },
       });
+      if (written || !isPrivateSnapshot(key)) return written;
+      await deleteIfUnlinked(side, key, "its snapshot");
+      return false;
     },
     async publish(stored) {
       const key = privateDiffKey({
@@ -313,11 +343,13 @@ export function createDiffRecorder(
         analyzerVersion,
       });
       await uploadDiff(store, stringifyDiff(stored.diff), key);
-      return recordDiffJobResult(db, {
+      const records = await recordDiffJobResult(db, {
         jobId: stored.jobId,
         diffKey: key,
         brokenCount: stored.diff.broken.length,
       });
+      if (records.length === 0) await deleteIfUnlinked(stored, key, "the diff");
+      return records;
     },
     posts: (jobId) => findDiffJobPosts(db, jobId),
     async current({ repoId, number }) {
