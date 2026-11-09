@@ -20,7 +20,8 @@
  *   `const { X } = process.env`. `env ?? fallback` and `env || fallback` read as the env var
  *   carrying the fallback's parts (ADR-0158): at the start of a URL, a literal fallback URL or
  *   root-relative path adds its path after the env base (`?? "http://localhost:4000/api/v1"`
- *   ⇒ `{env:X}/api/v1/…`) and records its host; later on, a fallback of text and holes takes
+ *   ⇒ `{env:X}/api/v1/…`) and records its host and how many segments it added (which a set
+ *   env var replaces, M9.1a3); later on, a fallback of text and holes takes
  *   the env var's place (`/api/${process.env.V || "v1"}` ⇒ `/api/v1`). `process` is the
  *   global unless the repo declares it; a JS file's `process.env.NODE_ENV = "test"` doesn't
  *   (ADR-0211), and the same goes for `window`, `location`, `URL`, and `String`.
@@ -181,8 +182,12 @@ export type UrlBase =
   /**
    * An origin read from an environment variable. `fallbackHost` is the host (and port) of a
    * literal fallback URL in the code, which says whether the default points at this machine.
+   * `fallbackSegments` counts the leading segments that are the fallback's path
+   * (`API_BASE || "/api"` ⇒ 1): a set env var replaces them, so an example env file's path
+   * goes in their place (ADR-0202's M9.1a3 amendment). Absent when there are none, or when
+   * the next text glues onto them (`/api` + `-v2/x`).
    */
-  | { kind: "env"; name: string; fallbackHost?: string };
+  | { kind: "env"; name: string; fallbackHost?: string; fallbackSegments?: number };
 
 /** A normalized URL: a base and its path segments. */
 export interface UrlPattern {
@@ -487,11 +492,16 @@ export function toUrlPattern(
   let rest: UrlPart[];
   if (first.kind === "env") {
     const { prefix, host } = envFallback(first.fallback);
-    base =
-      host === undefined
-        ? { kind: "env", name: first.name }
-        : { kind: "env", name: first.name, fallbackHost: host };
     rest = mergeParts([...prefix, ...parts.slice(1)]);
+    // The fallback's own segments, when they come out whole after the rest is joined on.
+    const own = toSegments(prefix).length;
+    const after = toSegments(parts.slice(1));
+    const all = toSegments(rest);
+    const whole = own > 0 && JSON.stringify(all.slice(own)) === JSON.stringify(after);
+    const envBase: Extract<UrlBase, { kind: "env" }> = { kind: "env", name: first.name };
+    if (host !== undefined) envBase.fallbackHost = host;
+    if (whole) envBase.fallbackSegments = own;
+    base = envBase;
   } else if (first.kind === "origin") {
     base = { kind: "path" };
     rest = parts.slice(1);
@@ -546,17 +556,23 @@ export function toUrlPattern(
 export function patternParts(pattern: UrlPattern): UrlPart[] {
   const out: UrlPart[] = [];
   const { base } = pattern;
+  // Segments the env base's fallback gave go back into the fallback (always literal text).
+  const fromFallback = base.kind === "env" ? (base.fallbackSegments ?? 0) : 0;
   if (base.kind === "env") {
-    // The fallback's path is already in the segments; only its host is left to carry.
+    const host = base.fallbackHost === undefined ? "" : `//${base.fallbackHost}`;
+    const path = pattern.segments
+      .slice(0, fromFallback)
+      .map((segment) => "/" + segmentText(segment))
+      .join("");
     out.push(
-      base.fallbackHost === undefined
+      host + path === ""
         ? { kind: "env", name: base.name }
-        : { kind: "env", name: base.name, fallback: [text(`//${base.fallbackHost}`)] },
+        : { kind: "env", name: base.name, fallback: [text(host + path)] },
     );
   }
   if (base.kind === "host")
     out.push(text(`${base.scheme === null ? "" : base.scheme + ":"}//${base.host}`));
-  pattern.segments.forEach((segment, i) => {
+  pattern.segments.slice(fromFallback).forEach((segment, i) => {
     if (i > 0 || base.kind !== "page") out.push(text("/"));
     for (const p of segment) out.push(p.kind === "text" ? text(p.text) : HOLE);
   });
