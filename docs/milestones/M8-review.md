@@ -37,6 +37,7 @@ M8 turns the public website into a GitHub App: people sign in, install the App o
   - **Check Run** `GitInside` at 19:11:05 on `33d0663`, by app 5659224: `completed`, `success`, titled "No broken connections".
   - **The link's data:** `/api/diff/…/4039f77…/33d0663…` `200` (`private, no-store`, `broken: []`, every change list empty); both sides' graphs `200` (`public, max-age=300`).
   - **`main`'s diagram current again:** the diff job stored its base side as `4039f77`'s analysis (M8.6d4), so the repo page shows `4039f77` with head `current`, no longer `7e80d9b`.
+  - **Edited in place:** PR #52's second push (`77f0d4b`) left one bot comment, the same ID (6748951965), updated at 19:15:51 to compare `4039f77` with `77f0d4b`, plus a new `success` Check Run on `77f0d4b` (each Check Run belongs to its head).
 ## Key decisions and trade-offs
 
 - **Refusals look like absence** (ADR-0232–0236): a signed-out visitor, a refused user, a dead cookie, and a never-analyzed name get the same status, headers, and body, so nobody learns that a private repo exists. The cost is unfriendly errors: a signed-in user without access sees "not found", not "ask for access".

@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M8.10z2 The bot read on a real PR of this repo, `main`'s diagram current, M8-review.md final, tag m8
+M9.1a4 `fetch(new URL("<relative>", import.meta.url))` asset reads not drawn as `DYNAMIC_URL` requests
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -475,7 +475,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M8.10z Re-run the milestone checks after the fixes and tag m8, split (the bot's first real PR, #39, found F18):
 - [x] M8.10z1 Re-run the milestone checks after the fixes (suite uncached, CI coverage, `pnpm eval --check`), findings' outcomes in M8-review.md, the bot on a real PR measured (PR #39: nothing posted, every installation job `TOKEN_REFUSED`, F18) and needs-abhinav #25 opened for the logs {model: opus}
 - [x] M8.10g Installation jobs refused their token in production (F18): from #25's log lines, find why `POST /api/worker/installation-token` refuses the worker, fix it (red test first if it's code), and make a refused token visible on the PR (a Check Run saying the bot couldn't read the repo) or state why not; ADR {model: opus}
-- [ ] M8.10z2 After M8.10g ships: the bot's comment and Check Run read on a real PR of this repo, `main`'s diagram current again, M8-review.md final (status no longer draft), tag m8 {model: opus}
+- [x] M8.10z2 After M8.10g ships: the bot's comment and Check Run read on a real PR of this repo, `main`'s diagram current again, M8-review.md final (status no longer draft), tag m8 {model: opus}
 
 ### M9: Launch-ready (no public announcement)
 - M9.1 Choose + hand-verify 3 OSS demo repos; landing gallery, split (each repo's check is its own run; `docs/demos/`):
@@ -508,6 +508,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- 2026-11-09 M8.10z2 (PR #52, M8-review.md final, tag `m8`): M8.10g's worker deployed at 19:03 UTC (run 42677882043); `main`'s `4039f77`, pushed before that, still failed `TOKEN_REFUSED`. PR #52 then got the bot's first real comment (`performed_via_github_app.id` 5659224, F3's assumption confirmed) and a `success` Check Run; the second push edited the same comment in place. The stored diff and both graphs are served, and the diff job's stored base made `main`'s diagram current again (`4039f77`, head `current`). Docs only; post-fix checks are CI's (z1 ran the suite uncached).
 - 2026-11-09 M8.10g (`7b14653`, ADR-0250, F18): #25's logs showed the website issuing every token and the worker refusing the `200` as `malformed token answer`. Cause: GitHub's stateless installation tokens (`ghs_<app ID>_<JWT>`, ~520 characters with dots and `-`, on every installation since 2026-10-02) fail the worker's `^[A-Za-z0-9_]{1,255}$`. Both sides now take an opaque token of up to 2,048 visible ASCII characters (website cap was 1,024); the fake GitHub App mints stateless-format tokens, so `privateJob.test.ts` went red exactly as production did. Red first (worker 1, web pair 1, web cap 1 mutation-checked). No Check Run for a refused token: the token exchange is the worker's only path to a write token (stated in the ADR). Worker 853, web 1055 (5 load timeouts rerun alone, green). PR #51: no bot review (its jobs fail on this very bug until the fix deploys from `main`).
 - 2026-11-09 M9.1a3f (`1a18979`, `docs/demos/Mintplex-Labs__anything-llm.json`): the 282 Prisma edges checked by hand: **all correct, 0 wrong**. 249 reads/writes (258 sites) parsed into receiver, accessor, and op at the pin: each op is its edge's kind, each accessor its model, each receiver `server/utils/prisma`'s one client, a `$transaction` callback's `tx` (7), or seed.js's own client; 13 sites read by hand. 33 `stores` = the schema's 33 models to its one SQLite datasource. Sweep: every Prisma call for the 33 models is on an edge, no raw or computed access, nothing missing. anything-llm fully checked: 866 edges, 630 correct, 236 unresolved, 0 wrong. Docs only, no code.
 - 2026-11-09 M9.1a3e2b (`docs/demos/Mintplex-Labs__anything-llm.json`): anything-llm re-dumped at `945faa2`: exactly the 117 wrong SDK edges are gone, 120 added at their sites, nothing else changed (863 → 866). **0 wrong.** 46 literal bases now reach their own host (16 hosts), the compatibility script's 5 calls are 4 edges to the server's `/api/v1/openai/*` routes (each the one Express runs, only `ALL /*` besides), the mock has no edge, 70 unresolved. 58 reasons accurate; 12 overstate it (`this.basePath` literal ×10, lemond's static getter ×2), added to M9.1a7. Labels: Kokoro's drops a forced `/v1`, two calls outside the path table draw `?`. Docs only, no code.
