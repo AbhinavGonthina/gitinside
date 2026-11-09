@@ -12,13 +12,13 @@ is **zero wrong edges** (D13.4).
 
 | Repo | Commit | Stars | Inferred edges | Checked | Wrong |
 | --- | --- | ---: | ---: | --- | ---: |
-| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 865 | in progress (M9.1a3) | 244 fixed |
+| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 863 | [228 of 863](Mintplex-Labs__anything-llm.json) (M9.1a3c–f) | 244 + 11 fixed, 0 since |
 | [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
 Stars are as of 2026-11-09. Edge counts come from analyzer 0.2.0 at the pinned commit, as of
 the latest fix. anything-llm was pinned at 978 edges (`repos.json`); M9.1a3a removed 244 wrong
-ones and added 131 right ones.
+ones and added 131 right ones, and M9.1a3b replaced 11 more wrong ones with 9 unresolved ones.
 
 ## What "checked" means
 
@@ -76,7 +76,8 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
   - Missing: the database (Sequelize; v1 reads Prisma only), MinIO, the Airtable SDK's
     record calls, Google's token exchange, and socket.io traffic.
 - **Mintplex-Labs/anything-llm** (`308b276`, in progress): checked one service pair at a time
-  (M9.1a3a–f).
+  (M9.1a3a–f). The record lists all 863 edges; the ones not yet checked are `pending`, with
+  the task that checks them.
   - Before any verdict, the first read of the edges found 244 wrong ones. Literal-path
     frontend requests (`${API_BASE}/admin/users`, …) went to both services' `app.all("*")` 404
     handlers instead of the server's `/api` routes (122 frontend functions, two edges
@@ -91,3 +92,16 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     branch, or an env base (Ollama, Outlook's Graph API, a SearXNG search URL). Fixed in
     M9.1a3b (ADR-0033's amendment, no eval delta): a route that matches every path never
     picks one, so these 9 requests are unresolved and name the catch-all. 865 → 863 edges.
+  - **Frontend → server** (M9.1a3c, checked 2026-11-09): 224 edges (228 call sites), all
+    correct, 0 wrong. Each request's method and path is the route's, and where a second
+    route also takes the path (`GET /api/agent-flows/:uuid` for `…/list`, three more), Express
+    runs the one the edge names, since it's registered first.
+  - The frontend's 4 unresolved edges build their URL from `fullApiUrl()`, which is the page's
+    own origin at runtime when the base is `/api`. The reason is accurate; they're missing
+    edges to 4 real routes, not wrong ones.
+  - Missing from the frontend: the chat streams and embedding progress go through
+    `fetchEventSource(` (`@microsoft/fetch-event-source`, 3 calls), which the analyzer doesn't
+    collect, so the app's main request (`POST /api/workspace/:slug/stream-chat`) has no edge.
+    Planned as M9.1a6. Also missing: one `navigator.sendBeacon` to the onboarding survey's
+    host, which a `fetch` beside it already reaches. Every other request call in `frontend/`
+    is on an edge.
