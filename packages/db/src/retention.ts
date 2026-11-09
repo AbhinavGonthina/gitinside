@@ -4,8 +4,8 @@
  * lists what exists and deletes the rows it was told to.
  *
  * - {@link listStoredSnapshots}: every `done` analysis, i.e. every row that names an object.
- * - {@link listPinnedShas}: commits a pull request touched recently, which a PR diff may
- *   still need.
+ * - {@link listPinnedShas}: commits a pull request touched recently (its base, head, and its
+ *   diff's merge base), which a PR diff may still need.
  * - {@link listDiffKeys}: every stored PR diff a pull request record names (ADR-0245).
  * - {@link deleteDoneAnalyses}: removes evicted rows, only while they are still `done` with
  *   the same snapshot, so a row that changed since the plan was made is left alone.
@@ -68,8 +68,33 @@ export async function listStoredSnapshots(db: AnyDatabase): Promise<StoredSnapsh
 }
 
 /**
- * The base and head commits of every pull request updated in the last `days` days
- * (default {@link PR_PIN_DAYS}), by the database's clock.
+ * A stored PR diff's key (`privateDiffKey`'s shape: `private/<installation>/<repoId>/diffs/
+ * <merge base>-<head>/<version>.json.gz`), capturing the repo ID, merge base, and head.
+ */
+const DIFF_KEY =
+  /^private\/[1-9][0-9]*\/([^/]+)\/diffs\/([0-9a-f]{40})-([0-9a-f]{40})\/[^/]+\.json\.gz$/;
+
+/**
+ * The merge base a record's diff was taken from, read from its key, or `undefined` when the
+ * key is of another shape or names another repo or head than the record.
+ */
+function mergeBaseOf(record: {
+  repoId: string;
+  headSha: string;
+  diffKey: string | null;
+}): string | undefined {
+  const match = record.diffKey === null ? null : DIFF_KEY.exec(record.diffKey);
+  if (match === null || match[1] !== record.repoId || match[3] !== record.headSha) return undefined;
+  return match[2];
+}
+
+/**
+ * The commits of every pull request updated in the last `days` days (default
+ * {@link PR_PIN_DAYS}), by the database's clock: the event's base and head, plus the merge
+ * base the record's stored diff was taken from (M8.10b). The diff job diffs from the merge
+ * base, usually not the event's base, and the comment's `?base=` link and `/api/diff` need
+ * its analysis; the record keeps only the event's pair, so the merge base is read from the
+ * diff key. A merge base equal to the base or head is listed once.
  */
 export async function listPinnedShas(
   db: AnyDatabase,
@@ -81,13 +106,21 @@ export async function listPinnedShas(
       repoId: pullRequests.repoId,
       baseSha: pullRequests.baseSha,
       headSha: pullRequests.headSha,
+      diffKey: pullRequests.diffKey,
     })
     .from(pullRequests)
     .where(sql`${pullRequests.updatedAt} >= now() - make_interval(days => ${days})`);
-  return rows.flatMap(({ repoId, baseSha, headSha }) => [
-    { repoId, sha: baseSha },
-    { repoId, sha: headSha },
-  ]);
+  return rows.flatMap((row) => {
+    const { repoId, baseSha, headSha } = row;
+    const merge = mergeBaseOf(row);
+    return [
+      { repoId, sha: baseSha },
+      { repoId, sha: headSha },
+      ...(merge === undefined || merge === baseSha || merge === headSha
+        ? []
+        : [{ repoId, sha: merge }]),
+    ];
+  });
 }
 
 /**
