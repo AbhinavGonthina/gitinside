@@ -4,7 +4,7 @@
  * private page and its graph cost one GitHub call per user and repo a minute at most. Every
  * time is on the database's clock, so serverless instances agree on when an answer is stale.
  */
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, lt, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
 import { accessCache } from "./schema.js";
 
@@ -33,18 +33,27 @@ export async function findAccess(
   return row?.allowed;
 }
 
-/** Record GitHub's answer about `userId` viewing `repoId` now, replacing the last one. */
+/**
+ * Record GitHub's answer about `userId` viewing `repoId`, dated when GitHub was asked:
+ * `askedMsAgo` before the database's `now()` (M8.10f1, F13), so a slow answer is trusted no
+ * longer than {@link ACCESS_TTL_SECONDS} from the ask. It replaces the last answer only if that
+ * one was asked earlier: a slow grant finishing after a newer refusal leaves the refusal.
+ */
 export async function recordAccess(
   db: AnyDatabase,
   userId: string,
   repoId: string,
   allowed: boolean,
+  options: { askedMsAgo?: number } = {},
 ): Promise<void> {
+  const askedMs = Math.max(0, Math.ceil(options.askedMsAgo ?? 0));
+  const askedAt = sql`now() - ${askedMs} * interval '1 millisecond'`;
   await db
     .insert(accessCache)
-    .values({ userId, repoId, allowed, checkedAt: sql`now()` })
+    .values({ userId, repoId, allowed, checkedAt: askedAt })
     .onConflictDoUpdate({
       target: [accessCache.userId, accessCache.repoId],
-      set: { allowed, checkedAt: sql`now()` },
+      set: { allowed, checkedAt: sql`excluded.checked_at` },
+      setWhere: lt(accessCache.checkedAt, sql`excluded.checked_at`),
     });
 }

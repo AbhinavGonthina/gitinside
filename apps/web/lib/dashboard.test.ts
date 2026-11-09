@@ -238,6 +238,18 @@ describe("loadDashboard", () => {
     expect(await findSession(t.db, tokenHash)).toBeDefined();
   });
 
+  it("leaves both requests of a refresh race holding the stored pair, not the spent one (F12)", async () => {
+    const { github, deps, user, tokenHash, cookie } = await signedIn({ accessIn: 0 });
+    const other = await readSession(cookie, deps);
+    if (other === undefined) throw new Error("signed out");
+    github.install(OCTO, [OWN]);
+    const views = await Promise.all([loadDashboard(user, deps), loadDashboard(other, deps)]);
+    expect(views.map((v) => v.kind)).toEqual(["ready", "ready"]);
+    const stored = await findSession(t.db, tokenHash);
+    expect(user.session.sealedTokens).toBe(stored?.githubTokens);
+    expect(other.session.sealedTokens).toBe(stored?.githubTokens);
+  });
+
   it("waits for the winner of a refresh to store its tokens before giving up", async () => {
     const github = fakeOAuth();
     const { deps, user, tokenHash } = await signedIn({ github, accessIn: 0 });

@@ -293,7 +293,10 @@ export interface SignedInUser {
   login: string;
   /** The user's GitHub tokens, or `undefined` if they no longer open (a rotated secret). */
   tokens: () => GitHubTokens | undefined;
-  /** The session's token hash and sealed tokens as read, for {@link userAccessToken}. */
+  /**
+   * The session's token hash and sealed tokens, for {@link userAccessToken}: as read, until a
+   * refresh in this request replaces them, so the request refreshes once (M8.10f1, F12).
+   */
   session: { tokenHash: string; sealedTokens: string };
 }
 
@@ -312,12 +315,13 @@ export async function readSession(
     const found = await findSession(deps.db, tokenHash);
     if (found === undefined) return undefined;
     const { userId, githubUserId, login, githubTokens } = found;
+    const session = { tokenHash, sealedTokens: githubTokens };
     return {
       userId,
       githubUserId,
       login,
-      tokens: () => openTokens(deps.keys, tokenHash, githubTokens),
-      session: { tokenHash, sealedTokens: githubTokens },
+      tokens: () => openTokens(deps.keys, tokenHash, session.sealedTokens),
+      session,
     };
   } catch (error) {
     log("session_read_failed", error);
@@ -340,7 +344,9 @@ export type AccessTokenResult = { token: string } | { ended: true } | { error: t
  * {@link REFRESH_MARGIN_MS} (ADR-0223). A refreshed pair replaces the stored one only if the
  * session still holds what was read ({@link replaceSessionTokens}): of two requests refreshing
  * at once, the one that loses reads the winner's tokens instead of signing the user out with
- * an already spent refresh token. The session ends ({@link endUserSession}) when its tokens
+ * an already spent refresh token. Either way `user.session` then holds the new pair, so a later
+ * call in the same request uses it rather than refreshing again (M8.10f1, F12). The session
+ * ends ({@link endUserSession}) when its tokens
  * don't open (a rotated `SESSION_SECRET`), the refresh token has ended, or GitHub refuses it.
  */
 export async function userAccessToken(
@@ -364,6 +370,7 @@ export async function userAccessToken(
     const fresh = await refreshTokens(deps.client, tokens.refreshToken, now);
     const sealed = sealTokens(deps.keys, tokenHash, fresh);
     if (await replaceSessionTokens(deps.db, tokenHash, sealedTokens, sealed)) {
+      user.session.sealedTokens = sealed;
       return { token: fresh.accessToken };
     }
     return await storedToken(user, deps, now);
@@ -409,6 +416,7 @@ async function storedToken(
       tokens !== undefined &&
       (tokens.accessExpiresAt === null || tokens.accessExpiresAt - now > REFRESH_MARGIN_MS)
     ) {
+      user.session.sealedTokens = found.githubTokens;
       return { token: tokens.accessToken };
     }
     break;

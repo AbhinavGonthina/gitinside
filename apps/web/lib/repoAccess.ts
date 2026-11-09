@@ -11,14 +11,15 @@ import { apiHeaders, field, githubUrl, SignInError, type OAuthClient } from "./g
  *
  * - **Cached for 60 s per user and repo** (`findAccess`/`recordAccess`, the database's clock),
  *   grants and refusals alike: access removed on GitHub is refused within a minute, access
- *   given is seen within a minute.
+ *   given is seen within a minute. The minute runs from when GitHub was asked (the clock is
+ *   read before the cache), and an answer never replaces one asked later (M8.10f1, F13).
  * - **Fails closed:** anything but a clear answer (a timeout, a 5xx, a rate limit, an answer
  *   out of shape or for another repo, the cache unreadable) is `error`, never `allowed`, and
  *   isn't cached, so the next view asks again.
  * - **401 ends the session**, as on the dashboard (ADR-0223): the user revoked the app.
  *
- * Handled: GitHub's 404 (no access, not installed, or deleted) and a 403 that isn't a rate
- * limit (an organization's SAML or IP allow list) as refusals. Not handled here: what a page or
+ * Handled: GitHub's 404 (no access, not installed, or deleted), 451 (the repo is blocked), and
+ * a 403 that isn't a rate limit (an organization's SAML or IP allow list) as refusals. Not handled here: what a page or
  * route shows for each answer (M8.4b, M8.4c), and whether the repo is still private (a public
  * repo is readable with any token, so it's simply allowed).
  */
@@ -66,7 +67,8 @@ async function askGitHub(
     },
   );
   if (response.status === 401) return "token-refused";
-  if (response.status === 404) return false;
+  // 451: GitHub blocks the repo (a DMCA takedown); nobody may see it, so it's a refusal (F17).
+  if (response.status === 404 || response.status === 451) return false;
   if (response.status === 403 && !rateLimited(response)) return false;
   if (response.status !== 200) throw new SignInError(`HTTP ${response.status}`);
   let body: unknown;
@@ -85,6 +87,9 @@ export async function checkRepoAccess(
   repo: AccessRepo,
   deps: AuthDeps,
 ): Promise<RepoAccess> {
+  const now = deps.now ?? Date.now;
+  // Before the cache read, so the recorded answer is dated no later than GitHub's (F13).
+  const started = now();
   try {
     const cached = await findAccess(deps.db, user.userId, repo.id);
     if (cached !== undefined) return { allowed: cached };
@@ -109,7 +114,7 @@ export async function checkRepoAccess(
   }
 
   try {
-    await recordAccess(deps.db, user.userId, repo.id, allowed);
+    await recordAccess(deps.db, user.userId, repo.id, allowed, { askedMsAgo: now() - started });
   } catch (error) {
     // GitHub's answer stands for this view; the next one asks again.
     log("repo_access_record_failed", error);

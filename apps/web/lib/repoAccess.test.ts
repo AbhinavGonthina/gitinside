@@ -13,7 +13,7 @@ import {
 } from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { readSession, type AuthDeps } from "./authRoute";
+import { readSession, userAccessToken, type AuthDeps } from "./authRoute";
 import {
   EXPIRES_IN,
   FAKE_CLIENT,
@@ -201,6 +201,61 @@ describe("checkRepoAccess", () => {
 
     expect(await checkRepoAccess(user, repo, deps)).toEqual({ allowed: false });
     expect(await findAccess(t.db, user.userId, repo.id)).toBe(false);
+  });
+
+  it("refuses a repo GitHub blocks (451), and remembers the refusal (F17)", async () => {
+    const github = fakeOAuth();
+    const { deps, user } = await signedIn(github);
+    const repo = await storedRepo();
+    github.failNext(Response.json({ message: "Repository access blocked" }, { status: 451 }));
+
+    expect(await checkRepoAccess(user, repo, deps)).toEqual({ allowed: false });
+    expect(await findAccess(t.db, user.userId, repo.id)).toBe(false);
+    expect(await checkRepoAccess(user, repo, deps)).toEqual({ allowed: false });
+    expect(lookups(github)).toBe(1);
+  });
+
+  it("dates GitHub's answer from when it was asked, so a slow one isn't trusted longer (F13)", async () => {
+    const github = fakeOAuth();
+    github.install(OCTO, [ACME()]);
+    const { deps, user } = await signedIn(github);
+    const repo = await storedRepo();
+    // GitHub takes 30 s to answer, by the request's clock.
+    let clock = NOW;
+    const slow: AuthDeps = {
+      ...deps,
+      now: () => clock,
+      client: {
+        ...deps.client,
+        fetch: async (input, init) => {
+          const response = await github.fetch(input, init);
+          clock += 30_000;
+          return response;
+        },
+      },
+    };
+
+    expect(await checkRepoAccess(user, repo, slow)).toEqual({ allowed: true });
+    const [row] = await t.db.select().from(accessCache);
+    const ago = Date.now() - (row?.checkedAt.getTime() ?? 0);
+    expect(ago).toBeGreaterThan(25_000);
+    expect(ago).toBeLessThan(40_000);
+  });
+
+  it("refreshes the user's tokens once: a later call in the request uses the new token (F12)", async () => {
+    const github = fakeOAuth();
+    github.install(OCTO, [ACME()]);
+    const { deps, user, issued } = await signedIn(github, OCTO, { accessIn: 1_000 });
+    const repo = await storedRepo();
+
+    expect(await checkRepoAccess(user, repo, deps)).toEqual({ allowed: true });
+    // A second refresh would fail here (its refresh token is spent, or GitHub times out).
+    github.failNext(new TypeError("fetch failed"));
+    const second = await userAccessToken(user, deps);
+    expect(second).toEqual({ token: user.tokens()?.accessToken });
+    expect(second).not.toEqual({ token: issued.accessToken });
+    const refreshes = github.requests.filter((r) => r.url.endsWith("/login/oauth/access_token"));
+    expect(refreshes).toHaveLength(1);
   });
 
   const failures: [string, () => Response | Error][] = [
