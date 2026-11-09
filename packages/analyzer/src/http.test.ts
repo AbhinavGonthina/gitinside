@@ -230,7 +230,7 @@ describe("collectHttpCalls: fetch", () => {
     ]);
   });
 
-  it("skips a read of a file next to the module, new URL(relative, import.meta.url) (M9.1a4)", async () => {
+  it("marks a read of a file next to the module, new URL(relative, import.meta.url) (M9.1a4)", async () => {
     await put("package.json", JSON.stringify({ name: "web", dependencies: { axios: "1.0.0" } }));
     await put("src/a.ts", [
       'import axios from "axios";',
@@ -256,14 +256,22 @@ describe("collectHttpCalls: fetch", () => {
       "class URL { constructor(public a: string, public b: string) {} }",
       'export const local = () => fetch(new URL("./x.json", import.meta.url) as never);',
     ]);
-    expect(summary(await collect()).map((s) => s.split(" base=")[0])).toEqual([
-      'src/a.ts:12:9 fetch GET new URL("/api/root", import.meta.url)',
-      'src/a.ts:13:9 fetch GET new URL("https://h.com/a", import.meta.url)',
-      "src/a.ts:14:9 fetch GET new URL(`${lang}/x.json`, import.meta.url)",
-      "src/a.ts:15:9 fetch GET new URL(path, import.meta.url)",
-      'src/a.ts:16:9 fetch GET new URL("./x.json", location.href)',
-      "src/a.ts:17:9 fetch GET moved",
-      'src/b.ts:2:28 fetch GET new URL("./x.json", import.meta.url) as never',
+    // Every site is still collected: a file read is shown as unresolved, never dropped.
+    expect(
+      (await collect()).map((s) => `${s.file}:${s.site.line} ${s.client} ${s.moduleFile ?? "-"}`),
+    ).toEqual([
+      "src/a.ts:7 fetch true",
+      "src/a.ts:8 fetch true",
+      "src/a.ts:9 fetch true",
+      "src/a.ts:10 fetch true",
+      "src/a.ts:11 axios true",
+      "src/a.ts:12 fetch -",
+      "src/a.ts:13 fetch -",
+      "src/a.ts:14 fetch -",
+      "src/a.ts:15 fetch -",
+      "src/a.ts:16 fetch -",
+      "src/a.ts:17 fetch -",
+      "src/b.ts:2 fetch -",
     ]);
   });
 

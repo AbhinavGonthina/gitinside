@@ -6,7 +6,7 @@ export async function POST(request: Request): Promise<Response> {
   return Response.json(await request.json(), { status: 201 });
 }
 
-// A file bundled with the route (`@vercel/og`'s font form): read, not requested, so no edge.
+// A file bundled with the route (`@vercel/og`'s font form): no route serves it.
 const font = fetch(new URL("../../../assets/Inter-Regular.ttf", import.meta.url)).then((r) =>
   r.arrayBuffer(),
 );

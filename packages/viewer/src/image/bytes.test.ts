@@ -132,7 +132,7 @@ const EXPECTED: Record<string, string[]> = {
   "let-query-urls": ["8a7b0fa56e0ca90e", "2cb98638918479b5", "4b7a3c5b789f5ec7"],
   "local-helpers": ["afad3ccf07a92c1e", "d662c1ba2f987fe3", "9c81dbd32a7555f3"],
   "nested-config": ["e09cd135f6f7eb33", "8e28e41695e97ec5", "19d5cf5eaebc5005"],
-  "next-app-router": ["066275a4f8746a39", "6e60eb042b05a1ec", "7c9f3558ff0124c2"],
+  "next-app-router": ["1c1d14b0ef9ef9d9", "aa20499eb0543432", "51837647f6c6633e"],
   "next-connect": ["e3491958e79cd2ff", "55cdbe3076562dd7", "92e18284d06069a5"],
   "next-method-exclusions": ["fa1a9684081bccc7", "99edf2121fa9bee3", "f3c616510a54c58a"],
   "next-pages-api": ["cfc5e40c69391f0d", "7a84135e11ca8c0f", "5adb677acbeb0974"],

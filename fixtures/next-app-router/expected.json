@@ -30,6 +30,21 @@
       "to": "symbol:next-app-router/app/api/items/route.ts#POST"
     },
     {
+      "confidence": "unresolved",
+      "from": "file:next-app-router/app/api/items/route.ts",
+      "id": "http:file:next-app-router/app/api/items/route.ts->unresolved:next-app-router/app/api/items/route.ts:10:14",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 14,
+          "file": "app/api/items/route.ts",
+          "line": 10
+        }
+      ],
+      "to": "unresolved:next-app-router/app/api/items/route.ts:10:14"
+    },
+    {
       "confidence": "exact",
       "from": "page:next-app-router//",
       "id": "renders:page:next-app-router//->symbol:next-app-router/app/page.tsx#Home",
@@ -68,7 +83,7 @@
       "path": "app/(shop)/products/[id]/page.tsx"
     },
     {
-      "hash": "453c7629b6c4c88579e5c9f80c13d7889ba96e2e336044f49840cf7906f9391f",
+      "hash": "320e5b0650b24cbe343cf16fddb14e196c8d88eca3b4d8ee9e5f3ae0900986b1",
       "id": "file:next-app-router/app/api/items/route.ts",
       "kind": "file",
       "label": "route.ts",
@@ -232,6 +247,20 @@
       "kind": "system",
       "label": "next-app-router",
       "parentId": null
+    },
+    {
+      "detail": "the URL is a file next to the module (new URL(path, import.meta.url)), which no route serves",
+      "expression": "fetch(new URL(\"../../../assets/Inter-Regular.ttf\", import.meta.url))",
+      "id": "unresolved:next-app-router/app/api/items/route.ts:10:14",
+      "kind": "unresolved",
+      "label": "GET new URL(\"../../../assets/Inter-Regular.ttf\", import.meta.url)",
+      "parentId": "service:next-app-router/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 14,
+        "file": "app/api/items/route.ts",
+        "line": 10
+      }
     }
   ],
   "repo": {
