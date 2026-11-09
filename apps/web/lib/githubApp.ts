@@ -260,7 +260,8 @@ export async function mintInstallationToken(
   const token = field(body, "token");
   const expiresAt = Date.parse(String(field(body, "expires_at")));
   const repositories = field(body, "repositories");
-  if (typeof token !== "string" || token === "" || token.length > 1_024) {
+  // Opaque (GitHub's stateless tokens are ~520 characters and vary); the worker takes as many.
+  if (typeof token !== "string" || token === "" || token.length > 2_048) {
     throw new InstallationTokenError("GITHUB_UNAVAILABLE", "no token");
   }
   if (Number.isNaN(expiresAt) || expiresAt <= now) {
