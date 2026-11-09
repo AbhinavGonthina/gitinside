@@ -58,7 +58,8 @@ import { WorkerUnavailableError, type DiffJob } from "./worker";
  *   and one task is created, named from that job's queue time, so a redelivery recreates the
  *   same name and Cloud Tasks refuses it. No queue configured, or the task can't be created:
  *   `503`, so GitHub shows the delivery failed and "Redeliver" can queue it (GitHub doesn't
- *   retry on its own). Other actions answer `202` ignored.
+ *   retry on its own). An `edited` that retargeted the base (`changes.base`, M8.10c) is a new
+ *   pair and is handled the same way; other edits and other actions answer `202` ignored.
  * - **Pushes (M8.7, ADR-0246):** a `push` to the default branch of a repo with a finished
  *   analysis queues its new commit through the installation, under check-on-view's rules and
  *   the repo's hourly charge (`queueHead`), so README images catch up without waiting for a
@@ -248,6 +249,19 @@ function installationId(payload: unknown): number {
 /** The pull request actions that queue a diff: a new or reopened pull request, or a new head. */
 const PULL_REQUEST_ACTIONS = new Set(["opened", "synchronize", "reopened"]);
 
+/**
+ * Whether a `pull_request` action queues a diff: one of {@link PULL_REQUEST_ACTIONS}, or an
+ * `edited` that retargeted the base (M8.10c): GitHub sends `changes.base` (`ref` and `sha`
+ * `from`) only then, beside the new base in `pull_request.base`. A title or body edit leaves
+ * the pair as it was, so it's ignored like any other action.
+ */
+function queuesDiff(payload: unknown, action: string): boolean {
+  if (PULL_REQUEST_ACTIONS.has(action)) return true;
+  if (action !== "edited") return false;
+  const base = field(field(payload, "changes"), "base");
+  return typeof base === "object" && base !== null && !Array.isArray(base);
+}
+
 /** A `pull_request` event's facts, read in full before anything is written. */
 interface PullRequestEvent {
   repo: StoreRepo & { installationId: number };
@@ -324,7 +338,7 @@ async function pullRequest(
   action: string,
   deps: WebhookDeps,
 ): Promise<Dispatched> {
-  if (!PULL_REQUEST_ACTIONS.has(action)) return { outcome: "ignored", action };
+  if (!queuesDiff(payload, action)) return { outcome: "ignored", action };
   const event = readPullRequest(payload);
   const { db, queue } = deps;
   if (queue === undefined) throw new QueueUnavailableError("no queue");
