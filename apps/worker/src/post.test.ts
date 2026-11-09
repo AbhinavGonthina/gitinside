@@ -26,7 +26,13 @@ interface Comment {
   id: number;
   body: string;
   user: { login: string; type: "Bot" | "User" };
+  performed_via_github_app: { id: number; slug: string } | null;
 }
+
+/** GitInside's App ID, as the post token's answer gives it. */
+const APP_ID = 4242;
+/** GitHub Actions' App, whose workflows comment as `github-actions[bot]`. */
+const ACTIONS_APP_ID = 15368;
 
 /** What the fake API was asked, with methods and bodies. */
 interface Call {
@@ -86,11 +92,7 @@ function fakeApi(fake: FakeGitHub) {
           return json(res, 200, state.comments.slice((page - 1) * perPage, page * perPage));
         }
         if (call.method === "POST") {
-          const comment: Comment = {
-            id: state.nextId++,
-            body: String(body?.body),
-            user: { login: "gitinside[bot]", type: "Bot" },
-          };
+          const comment = bot(state.nextId++, String(body?.body));
           state.comments.push(comment);
           return json(res, 201, comment);
         }
@@ -110,11 +112,14 @@ const human = (id: number, body: string): Comment => ({
   id,
   body,
   user: { login: "octocat", type: "User" },
+  performed_via_github_app: null,
 });
-const bot = (id: number, body: string, login = "gitinside[bot]"): Comment => ({
+/** A bot's comment, written through App `appId` (GitInside's by default). */
+const bot = (id: number, body: string, login = "gitinside[bot]", appId = APP_ID): Comment => ({
   id,
   body,
   user: { login, type: "Bot" },
+  performed_via_github_app: { id: appId, slug: login.replace(/\[bot\]$/, "") },
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<[string, boolean]> {
@@ -134,7 +139,7 @@ let options: PostOptions;
 beforeEach(async () => {
   fake = await startFakeGitHub();
   api = fakeApi(fake);
-  options = { token: "ghs_post", apiBase: fake.apiBase };
+  options = { token: "ghs_post", apiBase: fake.apiBase, appId: APP_ID };
 });
 afterEach(async () => {
   await fake.close();
@@ -181,14 +186,49 @@ describe("postComment", () => {
   it("never edits a person's comment quoting the marker, or a bot's without it", async () => {
     api.comments.push(
       human(1, `${PR_COMMENT_MARKER}\nlook what I can do`),
-      bot(2, `Thanks! ${PR_COMMENT_MARKER}`, "other[bot]"),
-      bot(3, "Deployed preview", "vercel[bot]"),
+      bot(2, `Thanks! ${PR_COMMENT_MARKER}`),
+      bot(3, "Deployed preview", "vercel[bot]", 8329),
     );
     expect(await postComment(TARGET, BODY, undefined, options)).toBe(1000);
     expect(api.comments.slice(0, 3).map((c) => c.body)).toEqual([
       `${PR_COMMENT_MARKER}\nlook what I can do`,
       `Thanks! ${PR_COMMENT_MARKER}`,
       "Deployed preview",
+    ]);
+  });
+
+  it("never edits another bot's comment starting with the marker (M8.10d, F3)", async () => {
+    // A workflow echoing the pull request's text as github-actions[bot], or a bot account
+    // without an App at all.
+    const echoed = `${PR_COMMENT_MARKER}\nCI says: ${"x".repeat(10)}`;
+    const noApp: Comment = { ...bot(2, echoed, "old-bot[bot]"), performed_via_github_app: null };
+    api.comments.push(bot(1, echoed, "github-actions[bot]", ACTIONS_APP_ID), noApp);
+    expect(await postComment(TARGET, BODY, undefined, options)).toBe(1000);
+    expect(api.comments.slice(0, 2).map((c) => c.body)).toEqual([echoed, echoed]);
+    expect(methods()).toEqual([
+      "GET /repos/acme/shop/issues/7/comments?per_page=100&page=1",
+      "POST /repos/acme/shop/issues/7/comments",
+    ]);
+  });
+
+  it("finds this App's comment after another bot's marker comment", async () => {
+    api.comments.push(
+      bot(1, `${PR_COMMENT_MARKER}\necho`, "github-actions[bot]", ACTIONS_APP_ID),
+      bot(2, `${PR_COMMENT_MARKER}\nold`),
+    );
+    expect(await postComment(TARGET, BODY, undefined, options)).toBe(2);
+    expect(api.comments.map((c) => c.body)).toEqual([`${PR_COMMENT_MARKER}\necho`, BODY]);
+  });
+
+  it("searches for nothing without the App's ID: edits the stored comment, else creates", async () => {
+    const { appId: _, ...noAppId } = options;
+    api.comments.push(bot(60, `${PR_COMMENT_MARKER}\nold`));
+    expect(await postComment(TARGET, BODY, 60, noAppId)).toBe(60);
+    expect(await postComment(TARGET, BODY, 55, noAppId)).toBe(1000);
+    expect(methods()).toEqual([
+      "PATCH /repos/acme/shop/issues/comments/60",
+      "PATCH /repos/acme/shop/issues/comments/55",
+      "POST /repos/acme/shop/issues/7/comments",
     ]);
   });
 

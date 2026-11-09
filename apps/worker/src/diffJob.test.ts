@@ -16,7 +16,7 @@ import {
 } from "./diffJob.js";
 import { JobFailure } from "./failure.js";
 import { startFakeGitHub, tarballOf, type FakeGitHub } from "./github.testkit.js";
-import type { TokenAsk } from "./installationToken.js";
+import type { IssuedToken, TokenAsk } from "./installationToken.js";
 import { JobAlreadyDone, type JobContext, type JobDeps, type JobStage } from "./job.js";
 import type { ChildJob } from "./protocol.js";
 import type { JobRequest } from "./request.js";
@@ -31,6 +31,8 @@ const MERGE = "a".repeat(40);
 const HEAD = "c".repeat(40);
 const ID = "diff-0123456789abcdef0123456789abcdef";
 const INSTALLATION = 42;
+/** The App's ID, answered with the post token; the fake's comments are all this App's. */
+const APP_ID = 4242;
 const REPO_ID = "0b6a1c1e-9a3e-4c55-8e0c-6c3f2a4b5d6e";
 const REQUEST: JobRequest = {
   kind: "diff",
@@ -112,7 +114,12 @@ function postApi(req: IncomingMessage, res: ServerResponse, path: string): void 
       const listed = [...comments].filter(([, c]) => c.number === number);
       return answer(
         200,
-        listed.map(([id, c]) => ({ id, body: c.body, user: c.user })),
+        listed.map(([id, c]) => ({
+          id,
+          body: c.body,
+          user: c.user,
+          performed_via_github_app: { id: APP_ID },
+        })),
       );
     }
     const id = ++lastId;
@@ -298,8 +305,8 @@ const storedDiffText = (): string =>
   );
 
 /** The installation token for each ask: the read token, or the write token for `access: "post"`. */
-const tokenFor = async (ask: TokenAsk): Promise<string> =>
-  ask.access === "post" ? "post-token" : "installation-token";
+const tokenFor = async (ask: TokenAsk): Promise<IssuedToken> =>
+  ask.access === "post" ? { token: "post-token", appId: APP_ID } : { token: "installation-token" };
 
 function deps(overrides: Partial<JobDeps> = {}): JobDeps {
   return {
@@ -412,7 +419,7 @@ describe("processDiffJob", () => {
   });
 
   it("asks for the token by the job's ID and installation", async () => {
-    const installationToken = vi.fn(async () => "installation-token");
+    const installationToken = vi.fn(async () => ({ token: "installation-token" }));
     await processDiffJob(context(), deps({ installationToken }));
     expect(installationToken).toHaveBeenCalledWith(
       { jobId: ID, installationId: INSTALLATION },
@@ -621,7 +628,7 @@ describe("processDiffJob stores the sides it analyzed (M8.6d4)", () => {
 
 describe("processDiffJob stops before downloading", () => {
   it("when no record names the job (its pull requests moved on): permanent JOB_NOT_LIVE", async () => {
-    const installationToken = vi.fn(async () => "installation-token");
+    const installationToken = vi.fn(async () => ({ token: "installation-token" }));
     const { diffs } = recorder({ find: async () => undefined });
     const error = await failure(processDiffJob(context(), deps({ diffs, installationToken })));
     expect([error.code, error.retriable]).toEqual(["JOB_NOT_LIVE", false]);
@@ -934,12 +941,36 @@ describe("processDiffJob posts (M8.6e2b)", () => {
     expect([error.code, error.retriable]).toEqual(["POST_FAILED", true]);
   });
 
+  it("still creates the Check Run when GitHub refuses the comment, then fails for good (M8.10d, F7)", async () => {
+    const { overrides, records } = naming([7]);
+    const { diffs } = recorder({ ...overrides, storedGraph });
+    // A locked conversation refuses comments, not Check Runs.
+    refuse = (method, path) =>
+      method === "POST" && path.endsWith("/issues/7/comments") ? 422 : undefined;
+    const logs: Record<string, unknown>[] = [];
+    const error = await failure(
+      processDiffJob(context(), deps({ diffs, log: (event) => void logs.push(event) })),
+    );
+    expect([error.code, error.retriable]).toEqual(["POST_REFUSED", false]);
+    expect(writes.map((w) => `${w.method} ${w.path}`)).toEqual([
+      "POST /repos/acme/shop/issues/7/comments",
+      "POST /repos/acme/shop/check-runs",
+    ]);
+    expect(records.get(7)).toMatchObject({
+      commentId: null,
+      checkRunId: expect.any(Number) as number,
+    });
+    expect(logs).toContainEqual(
+      expect.objectContaining({ event: "post_failed", number: 7, code: "POST_REFUSED" }),
+    );
+  });
+
   it("fails as the write token's refusal (posted meanwhile), posting nothing", async () => {
     const { overrides } = naming([7]);
     const { diffs } = recorder({ ...overrides, storedGraph });
     const installationToken = async (ask: TokenAsk) => {
       if (ask.access === "post") throw new JobFailure("JOB_NOT_LIVE", "the website answered 404");
-      return "installation-token";
+      return { token: "installation-token" };
     };
     const error = await failure(processDiffJob(context(), deps({ diffs, installationToken })));
     expect([error.code, error.retriable]).toEqual(["JOB_NOT_LIVE", false]);

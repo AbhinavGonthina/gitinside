@@ -11,11 +11,17 @@ import { JobFailure } from "./failure.js";
  *   (`PATCH /repos/{owner}/{repo}/issues/comments/{id}`); a `404` there (someone deleted it) or
  *   no stored ID looks for the bot's comment among the pull request's comments (oldest first,
  *   at most {@link MAX_COMMENT_PAGES} pages of 100): the first one written by a bot account
- *   (`user.type` `Bot`) whose body starts with {@link PR_COMMENT_MARKER}. A person's comment
- *   quoting the marker is never edited (people with write access may edit others' comments,
- *   and so may the bot's token). Found ⇒ edited; else created
- *   (`POST /repos/{owner}/{repo}/issues/{number}/comments`). The marker search keeps a job that
- *   posted but failed to record the ID from posting a second comment on retry.
+ *   (`user.type` `Bot`) through this App (`performed_via_github_app.id` equal to
+ *   {@link PostOptions.appId}, which the post token's answer carries, M8.10d) whose body starts
+ *   with {@link PR_COMMENT_MARKER}. A person's or another bot's comment quoting the marker (a
+ *   workflow echoing the pull request's text as `github-actions[bot]`) is never edited (people
+ *   with write access may edit others' comments, and so may the bot's token). Found ⇒ edited;
+ *   else created (`POST /repos/{owner}/{repo}/issues/{number}/comments`). The marker search
+ *   keeps a job that posted but failed to record the ID from posting a second comment on retry.
+ *   Doesn't handle: two attempts of one job running at once (no row to claim, ADR-0245) on a
+ *   pull request's first comment both find nothing and each create one. The bound is one extra
+ *   comment per attempt running at the same time; later posts edit the stored (or oldest) one,
+ *   and the extra one stays as it was.
  * - **The Check Run** ({@link createCheckRun}): created completed
  *   (`POST /repos/{owner}/{repo}/check-runs` with a `conclusion`, so GitHub sets the status and
  *   time). A retry after creating one but before recording it creates another on the same head;
@@ -39,6 +45,11 @@ import { JobFailure } from "./failure.js";
 export interface PostOptions {
   /** The diff job's write token. */
   token: string;
+  /**
+   * The App's ID (the post token's answer, M8.10d): only a comment this App wrote is found
+   * again. Without it no comment is searched for, and a stored ID's `404` creates a new one.
+   */
+  appId?: number;
   /** GitHub's REST API. Default `https://api.github.com`. */
   apiBase?: string;
   /** Aborts every request. */
@@ -224,11 +235,17 @@ async function editComment(
   return id;
 }
 
-/** Whether a listed comment is the bot's own: written by a bot account, starting with the marker. */
-function isBotComment(comment: unknown): boolean {
+/**
+ * Whether a listed comment is the bot's own: written by a bot account through App `appId`
+ * (`performed_via_github_app.id`), starting with the marker.
+ */
+function isBotComment(comment: unknown, appId: number): boolean {
   if (!isRecord(comment) || !isRecord(comment.user)) return false;
+  const app = comment.performed_via_github_app;
   return (
     comment.user.type === "Bot" &&
+    isRecord(app) &&
+    app.id === appId &&
     typeof comment.body === "string" &&
     comment.body.startsWith(PR_COMMENT_MARKER)
   );
@@ -236,12 +253,14 @@ function isBotComment(comment: unknown): boolean {
 
 /**
  * The ID of the pull request's first comment that {@link isBotComment} accepts, reading at most
- * {@link MAX_COMMENT_PAGES} pages, or `undefined` when there is none.
+ * {@link MAX_COMMENT_PAGES} pages, or `undefined` when there is none (or no App ID to match).
  */
 async function findBotComment(
   target: PostTarget,
   options: PostOptions,
 ): Promise<number | undefined> {
+  const { appId } = options;
+  if (appId === undefined) return undefined;
   for (let page = 1; page <= MAX_COMMENT_PAGES; page++) {
     const { value } = await request(
       "GET",
@@ -255,7 +274,7 @@ async function findBotComment(
       },
     );
     if (!Array.isArray(value)) throw new JobFailure("POST_REFUSED", "malformed comment list");
-    const found = value.find(isBotComment);
+    const found = value.find((comment) => isBotComment(comment, appId));
     if (found !== undefined) {
       const id = idOf(found);
       if (id === undefined) throw new JobFailure("POST_REFUSED", "malformed comment list");
