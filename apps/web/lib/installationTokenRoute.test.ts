@@ -17,7 +17,13 @@ import {
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { derivedSecret, signRequest, TOKEN_REQUEST_PURPOSE } from "@gitinside/worker/hmac";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import { FAKE_KEYS, fakeApp, TOKEN_LIFETIME_MS, type FakeApp } from "./githubApp.testkit";
+import {
+  FAKE_APP_ID,
+  FAKE_KEYS,
+  fakeApp,
+  TOKEN_LIFETIME_MS,
+  type FakeApp,
+} from "./githubApp.testkit";
 import {
   handleTokenRequest,
   MAX_TOKEN_REQUEST_BYTES,
@@ -232,7 +238,12 @@ describe("handleTokenRequest", () => {
       const { status, cache, body } = await answer(ask(forPost));
       expect(status).toBe(200);
       expect(cache).toBe("no-store");
-      expect(body.token).toBe(github.issued[0]?.token);
+      // With the App's ID, so the worker edits only a comment this App wrote (M8.10d, F3).
+      expect(body).toEqual({
+        token: github.issued[0]?.token,
+        expiresAt: new Date(NOW + TOKEN_LIFETIME_MS).toISOString(),
+        appId: Number(FAKE_APP_ID),
+      });
       expect(github.requests).toEqual([
         {
           method: "POST",

@@ -309,7 +309,7 @@ async function fetchSource(
       if (deps.installationToken === undefined) {
         throw new JobFailure("TOKEN_UNCONFIGURED", "no website origin for installation tokens");
       }
-      token = await deps.installationToken({ jobId: context.id, installationId }, signal);
+      ({ token } = await deps.installationToken({ jobId: context.id, installationId }, signal));
     }
     if (deps.recorder !== undefined) {
       const record = await deps.recorder.start(context.request, signal, context.id, token);

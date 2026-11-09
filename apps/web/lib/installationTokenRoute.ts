@@ -43,7 +43,9 @@ import {
  *   (the diff recorded), so neither token is minted outside its step, and a job retried after
  *   posting gets `JOB_NOT_FOUND`. The same installation checks apply. `access: "read"` or none is
  *   the read token, as before.
- * - **Answers** `200 { token, expiresAt }` (ISO), else `{ error }` with a code: `404`
+ * - **Answers** `200 { token, expiresAt }` (ISO), a post token's with the App's `appId` too
+ *   (`GITHUB_APP_ID`, M8.10d), so the worker edits only a comment this App wrote; else
+ *   `{ error }` with a code: `404`
  *   `JOB_NOT_FOUND`; `403` `INSTALLATION_SUSPENDED`, `INSTALLATION_NOT_FOUND` (the repo is
  *   linked to none now), or `REPO_NOT_INSTALLED` (linked to another, or GitHub says this one
  *   doesn't cover it), which a retry won't change; `503` `APP_AUTH_FAILED` and `502`
@@ -83,7 +85,7 @@ export const TOKEN_ROUTE_STATUS: Readonly<Record<TokenRouteCode, number>> = {
 };
 
 type Body =
-  | { token: string; expiresAt: string }
+  | { token: string; expiresAt: string; appId?: number }
   | {
       error:
         | TokenRouteCode
@@ -202,7 +204,12 @@ export async function handleTokenRequest(
       asked.access === "post" ? POST_PERMISSIONS : JOB_PERMISSIONS,
     );
     log(asked, "issued");
-    return json(200, { token, expiresAt: new Date(expiresAt).toISOString() });
+    const appId = Number(deps.app.appId);
+    return json(200, {
+      token,
+      expiresAt: new Date(expiresAt).toISOString(),
+      ...(asked.access === "post" && Number.isSafeInteger(appId) && { appId }),
+    });
   } catch (error) {
     if (error instanceof InstallationTokenError) return refuse(asked, error.code);
     // Name only: a driver error's message can carry connection details.
