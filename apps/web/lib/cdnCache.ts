@@ -1,4 +1,4 @@
-import { dangerouslyDeleteByTag } from "@vercel/functions";
+import { dangerouslyDeleteByTag, waitUntil } from "@vercel/functions";
 
 /**
  * Dropping a repo's graphs from Vercel's CDN when it stops being public (M8.4d1, ADR-0238).
@@ -37,4 +37,17 @@ export async function purgeRepoCache(
   api: CdnPurgeApi = { dangerouslyDeleteByTag },
 ): Promise<void> {
   await api.dangerouslyDeleteByTag(repoCacheTag(providerRepoId));
+}
+
+/**
+ * Run `task` `delayMs` from now, past the response: `keepAlive` (Vercel's `waitUntil`) keeps
+ * the function running until it ends, within the route's `maxDuration`. Outside Vercel the
+ * timer just runs. `task` must not reject (the hide's purge logs its own failure).
+ */
+export function runLater(
+  task: () => Promise<void>,
+  delayMs: number,
+  keepAlive: (promise: Promise<unknown>) => void = waitUntil,
+): void {
+  keepAlive(new Promise((resolve) => setTimeout(resolve, delayMs)).then(task));
 }

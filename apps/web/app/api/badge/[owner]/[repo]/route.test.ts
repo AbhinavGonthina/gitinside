@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { IMAGE_CSP } from "../../../../../lib/csp";
-import { GET } from "./route";
+import { PURGE_AGAIN_MS } from "../../../../../lib/repoView";
+import { GET, maxDuration } from "./route";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -10,6 +11,10 @@ afterEach(() => {
 const params = (repo: string) => ({ params: Promise.resolve({ owner: "acme", repo }) });
 
 describe("GET /api/badge/:owner/:repo.svg", () => {
+  it("outlives the second purge check-on-view schedules when it hides a repo (F14)", () => {
+    expect(maxDuration * 1000).toBeGreaterThanOrEqual(PURGE_AGAIN_MS + 10_000);
+  });
+
   it("is the link-only badge until the database and bucket are configured", async () => {
     vi.stubEnv("DATABASE_URL", "");
     const response = await GET(new Request("https://gitinside.test/"), params("shop.svg"));

@@ -34,7 +34,9 @@ import { graphPath } from "./repoView";
  *   graph only changes when a newer analyzer version re-analyzes it, and serving the older
  *   one for a while is harmless. Errors are `no-store`. Each public answer is tagged with
  *   the repo's GitHub ID (`repo-<id>`, lib/cdnCache.ts), and the repo page purges that tag
- *   when it finds the repo gone private, so the CDN's day ends there (M8.4d1, ADR-0238).
+ *   when it finds the repo gone private, so the CDN's day ends there (M8.4d1, ADR-0238), and
+ *   again once a request that read it as public can't still be running
+ *   ({@link GRAPH_MAX_DURATION_SECONDS}, F14).
  * - **Gzipped so big graphs stay cacheable** (ADR-0097 amendment, M5.13a): Vercel's CDN
  *   doesn't cache a function response over 10 MB, and documenso's 13.4 MB of JSON was a
  *   `MISS` on every read (a bucket read each). Gzipped it's under 1 MB. A served body over
@@ -52,6 +54,14 @@ export interface GraphRouteDeps {
   /** Sign-in, for private repos; without it every private repo is a `404`. */
   auth?: AuthDeps;
 }
+
+/**
+ * How long one graph request may run, in seconds (the route's `maxDuration`; F14, ADR-0238
+ * amendment). A request that read the repo as public has ended this long after it started, its
+ * answer in the CDN or not, so the hide's second purge (`PURGE_AGAIN_MS`, lib/repoView.ts) waits
+ * it out. documenso's 13.4 MB graph is read and gzipped in about a second.
+ */
+export const GRAPH_MAX_DURATION_SECONDS = 15;
 
 /** Cache headers of a served public graph. */
 export const GRAPH_CACHE_CONTROL = "public, max-age=300, s-maxage=86400";
