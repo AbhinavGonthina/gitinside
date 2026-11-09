@@ -1,0 +1,283 @@
+{
+  "owner": "shadcn-ui",
+  "name": "taxonomy",
+  "sha": "298a8857c7128a0d121e7f699dfd729f23b3966d",
+  "analyzerVersion": "0.2.0",
+  "checkedAt": "2026-11-09",
+  "method": "Every edge that isn't imports, calls, renders, or handles (those come from TypeScript's own resolution) read at its sites in `git show <sha>:<file>`: an http edge's URL, method, and the route file's exported handler; an external_call's client traced to its package import; a reads/writes call's receiver traced to `lib/db.ts`'s PrismaClient and its model accessor; each stores edge against `prisma/schema.prisma`'s datasource. Then every `fetch(`, `db.<model>.`, and `stripe.` call in app/, lib/, and components/ (git grep) matched to an edge, so none was missed either.",
+  "totals": {
+    "edges": 29,
+    "correct": 27,
+    "wrong": 0,
+    "unresolved": 2
+  },
+  "notCovered": "Structural edges (imports, calls, renders, handles) aren't hand-checked; they're TypeScript's resolution, tested by the fixtures and the eval.",
+  "observations": [
+    "Every `fetch(`, `db.<model>.`, and `stripe.` call site in app/, lib/, and components/ is on an edge; `stripe.webhooks.constructEvent` (app/api/webhooks/stripe/route.ts:15) has none, correctly: it verifies a signature locally and sends no request.",
+    "Account, Session, and VerificationToken have a stores edge but no reads or writes: NextAuth's `PrismaAdapter(db)` (lib/auth.ts:17) uses them from inside the library, which isn't analyzed (node_modules never is). Missing, not wrong.",
+    "The two unresolved edges are app/api/og/route.tsx's font loads, `fetch(new URL(\"../../../assets/fonts/<font>.ttf\", import.meta.url))`: a read of a file bundled with the route, not a request to a service. Shown unresolved rather than guessed, as intended, but the reason (`DYNAMIC_URL`, \"the URL starts with a value only known at runtime\") names `import.meta.url` as a runtime value where it's the module's own file; on the demo it draws an unresolved box for a font. Planned as M9.1a4."
+  ],
+  "edges": [
+    {
+      "id": "external_call:symbol:taxonomy/app/(dashboard)/dashboard/billing/page.tsx#BillingPage->external:ext/api.stripe.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.stripe.com",
+      "sites": ["app/(dashboard)/dashboard/billing/page.tsx:37"],
+      "verdict": "correct",
+      "evidence": "`stripe.subscriptions.retrieve(` on `stripe` from lib/stripe.ts (`new Stripe(...)`, package `stripe`)."
+    },
+    {
+      "id": "external_call:symbol:taxonomy/app/(marketing)/page.tsx#getGitHubStars->external:ext/api.github.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.github.com",
+      "sites": ["app/(marketing)/page.tsx:10"],
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://api.github.com/repos/shadcn/taxonomy\", ...)` inside getGitHubStars."
+    },
+    {
+      "id": "external_call:symbol:taxonomy/app/api/users/stripe/route.ts#GET->external:ext/api.stripe.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.stripe.com",
+      "sites": ["app/api/users/stripe/route.ts:25", "app/api/users/stripe/route.ts:35"],
+      "verdict": "correct",
+      "evidence": "`stripe.billingPortal.sessions.create(` (line 25) and `stripe.checkout.sessions.create(` (line 35) in GET, `stripe` from lib/stripe.ts."
+    },
+    {
+      "id": "external_call:symbol:taxonomy/app/api/webhooks/stripe/route.ts#POST->external:ext/api.stripe.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.stripe.com",
+      "sites": ["app/api/webhooks/stripe/route.ts:28", "app/api/webhooks/stripe/route.ts:52"],
+      "verdict": "correct",
+      "evidence": "Two `stripe.subscriptions.retrieve(` calls (lines 28, 52) in POST, `stripe` from lib/stripe.ts."
+    },
+    {
+      "id": "external_call:symbol:taxonomy/lib/auth.ts#authOptions->external:ext/api.postmarkapp.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.postmarkapp.com",
+      "sites": ["lib/auth.ts:48"],
+      "verdict": "correct",
+      "evidence": "`postmarkClient.sendEmailWithTemplate(` in the email provider's sendVerificationRequest, `postmarkClient = new Client(...)` from package `postmark`."
+    },
+    {
+      "id": "http:file:taxonomy/app/api/og/route.tsx->unresolved:taxonomy/app/api/og/route.tsx:11:19",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET new URL(\"../../../assets/fonts/CalSans-SemiBold.ttf\", import.meta.url) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["app/api/og/route.tsx:11"],
+      "verdict": "unresolved",
+      "evidence": "`fetch(new URL(\"../../../assets/fonts/CalSans-SemiBold.ttf\", import.meta.url))`: a bundled font file, no route or service to point at; no claim made."
+    },
+    {
+      "id": "http:file:taxonomy/app/api/og/route.tsx->unresolved:taxonomy/app/api/og/route.tsx:7:22",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET new URL(\"../../../assets/fonts/Inter-Regular.ttf\", import.meta.url) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["app/api/og/route.tsx:7"],
+      "verdict": "unresolved",
+      "evidence": "`fetch(new URL(\"../../../assets/fonts/Inter-Regular.ttf\", import.meta.url))`: a bundled font file, no route or service to point at; no claim made."
+    },
+    {
+      "id": "http:symbol:taxonomy/components/billing-form.tsx#BillingForm->route:taxonomy/GET /api/users/stripe",
+      "kind": "http",
+      "confidence": "exact",
+      "to": "route GET /api/users/stripe",
+      "sites": ["components/billing-form.tsx:37"],
+      "verdict": "correct",
+      "evidence": "`fetch(\"/api/users/stripe\")` (no init, so GET) in BillingForm's onSubmit; app/api/users/stripe/route.ts exports GET."
+    },
+    {
+      "id": "http:symbol:taxonomy/components/editor.tsx#Editor->route:taxonomy/PATCH /api/posts/:postId",
+      "kind": "http",
+      "confidence": "exact",
+      "to": "route PATCH /api/posts/:postId",
+      "sites": ["components/editor.tsx:91"],
+      "verdict": "correct",
+      "evidence": "`fetch(`/api/posts/${post.id}`, { method: \"PATCH\", ... })` in Editor's onSubmit; app/api/posts/[postId]/route.ts exports PATCH."
+    },
+    {
+      "id": "http:symbol:taxonomy/components/post-create-button.tsx#PostCreateButton->route:taxonomy/POST /api/posts",
+      "kind": "http",
+      "confidence": "exact",
+      "to": "route POST /api/posts",
+      "sites": ["components/post-create-button.tsx:24"],
+      "verdict": "correct",
+      "evidence": "`fetch(\"/api/posts\", { method: \"POST\", ... })` in PostCreateButton's onClick; app/api/posts/route.ts exports POST."
+    },
+    {
+      "id": "http:symbol:taxonomy/components/post-operations.tsx#deletePost->route:taxonomy/DELETE /api/posts/:postId",
+      "kind": "http",
+      "confidence": "exact",
+      "to": "route DELETE /api/posts/:postId",
+      "sites": ["components/post-operations.tsx:29"],
+      "verdict": "correct",
+      "evidence": "`fetch(`/api/posts/${postId}`, { method: \"DELETE\" })` in deletePost; app/api/posts/[postId]/route.ts exports DELETE."
+    },
+    {
+      "id": "http:symbol:taxonomy/components/user-name-form.tsx#UserNameForm->route:taxonomy/PATCH /api/users/:userId",
+      "kind": "http",
+      "confidence": "exact",
+      "to": "route PATCH /api/users/:userId",
+      "sites": ["components/user-name-form.tsx:49"],
+      "verdict": "correct",
+      "evidence": "`fetch(`/api/users/${user.id}`, { method: \"PATCH\", ... })` in UserNameForm's onSubmit; app/api/users/[userId]/route.ts exports PATCH."
+    },
+    {
+      "id": "reads:symbol:taxonomy/app/(dashboard)/dashboard/page.tsx#DashboardPage->model:taxonomy/Post",
+      "kind": "reads",
+      "confidence": "exact",
+      "to": "model Post",
+      "sites": ["app/(dashboard)/dashboard/page.tsx:23"],
+      "verdict": "correct",
+      "evidence": "`db.post.findMany(` in DashboardPage; `db` is lib/db.ts's PrismaClient."
+    },
+    {
+      "id": "reads:symbol:taxonomy/app/(editor)/editor/[postId]/page.tsx#getPostForUser->model:taxonomy/Post",
+      "kind": "reads",
+      "confidence": "exact",
+      "to": "model Post",
+      "sites": ["app/(editor)/editor/[postId]/page.tsx:10"],
+      "verdict": "correct",
+      "evidence": "`db.post.findFirst(` in getPostForUser."
+    },
+    {
+      "id": "reads:symbol:taxonomy/app/api/posts/[postId]/route.ts#verifyCurrentUserHasAccessToPost->model:taxonomy/Post",
+      "kind": "reads",
+      "confidence": "exact",
+      "to": "model Post",
+      "sites": ["app/api/posts/[postId]/route.ts:85"],
+      "verdict": "correct",
+      "evidence": "`db.post.count(` in verifyCurrentUserHasAccessToPost."
+    },
+    {
+      "id": "reads:symbol:taxonomy/app/api/posts/route.ts#GET->model:taxonomy/Post",
+      "kind": "reads",
+      "confidence": "exact",
+      "to": "model Post",
+      "sites": ["app/api/posts/route.ts:23"],
+      "verdict": "correct",
+      "evidence": "`db.post.findMany(` in GET."
+    },
+    {
+      "id": "reads:symbol:taxonomy/app/api/posts/route.ts#POST->model:taxonomy/Post",
+      "kind": "reads",
+      "confidence": "exact",
+      "to": "model Post",
+      "sites": ["app/api/posts/route.ts:55"],
+      "verdict": "correct",
+      "evidence": "`db.post.count(` (the free plan's post limit) in POST."
+    },
+    {
+      "id": "reads:symbol:taxonomy/lib/auth.ts#authOptions->model:taxonomy/User",
+      "kind": "reads",
+      "confidence": "exact",
+      "to": "model User",
+      "sites": ["lib/auth.ts:32", "lib/auth.ts:84"],
+      "verdict": "correct",
+      "evidence": "`db.user.findUnique(` (line 32, sendVerificationRequest) and `db.user.findFirst(` (line 84, the jwt callback), both inside the authOptions object."
+    },
+    {
+      "id": "reads:symbol:taxonomy/lib/subscription.ts#getUserSubscriptionPlan->model:taxonomy/User",
+      "kind": "reads",
+      "confidence": "exact",
+      "to": "model User",
+      "sites": ["lib/subscription.ts:10"],
+      "verdict": "correct",
+      "evidence": "`db.user.findFirst(` in getUserSubscriptionPlan."
+    },
+    {
+      "id": "stores:model:taxonomy/Account->datastore:infra/taxonomy/prisma/schema.prisma#db",
+      "kind": "stores",
+      "confidence": "exact",
+      "to": "datastore mysql",
+      "sites": ["prisma/schema.prisma:8"],
+      "verdict": "correct",
+      "evidence": "`model Account` in prisma/schema.prisma, whose one datasource `db` has `provider = \"mysql\"`."
+    },
+    {
+      "id": "stores:model:taxonomy/Post->datastore:infra/taxonomy/prisma/schema.prisma#db",
+      "kind": "stores",
+      "confidence": "exact",
+      "to": "datastore mysql",
+      "sites": ["prisma/schema.prisma:8"],
+      "verdict": "correct",
+      "evidence": "`model Post` in the same schema, datasource `db` (mysql)."
+    },
+    {
+      "id": "stores:model:taxonomy/Session->datastore:infra/taxonomy/prisma/schema.prisma#db",
+      "kind": "stores",
+      "confidence": "exact",
+      "to": "datastore mysql",
+      "sites": ["prisma/schema.prisma:8"],
+      "verdict": "correct",
+      "evidence": "`model Session` in the same schema, datasource `db` (mysql)."
+    },
+    {
+      "id": "stores:model:taxonomy/User->datastore:infra/taxonomy/prisma/schema.prisma#db",
+      "kind": "stores",
+      "confidence": "exact",
+      "to": "datastore mysql",
+      "sites": ["prisma/schema.prisma:8"],
+      "verdict": "correct",
+      "evidence": "`model User` in the same schema, datasource `db` (mysql)."
+    },
+    {
+      "id": "stores:model:taxonomy/VerificationToken->datastore:infra/taxonomy/prisma/schema.prisma#db",
+      "kind": "stores",
+      "confidence": "exact",
+      "to": "datastore mysql",
+      "sites": ["prisma/schema.prisma:8"],
+      "verdict": "correct",
+      "evidence": "`model VerificationToken` in the same schema, datasource `db` (mysql)."
+    },
+    {
+      "id": "writes:symbol:taxonomy/app/api/posts/[postId]/route.ts#DELETE->model:taxonomy/Post",
+      "kind": "writes",
+      "confidence": "exact",
+      "to": "model Post",
+      "sites": ["app/api/posts/[postId]/route.ts:28"],
+      "verdict": "correct",
+      "evidence": "`db.post.delete(` in DELETE."
+    },
+    {
+      "id": "writes:symbol:taxonomy/app/api/posts/[postId]/route.ts#PATCH->model:taxonomy/Post",
+      "kind": "writes",
+      "confidence": "exact",
+      "to": "model Post",
+      "sites": ["app/api/posts/[postId]/route.ts:63"],
+      "verdict": "correct",
+      "evidence": "`db.post.update(` in PATCH."
+    },
+    {
+      "id": "writes:symbol:taxonomy/app/api/posts/route.ts#POST->model:taxonomy/Post",
+      "kind": "writes",
+      "confidence": "exact",
+      "to": "model Post",
+      "sites": ["app/api/posts/route.ts:69"],
+      "verdict": "correct",
+      "evidence": "`db.post.create(` in POST."
+    },
+    {
+      "id": "writes:symbol:taxonomy/app/api/users/[userId]/route.ts#PATCH->model:taxonomy/User",
+      "kind": "writes",
+      "confidence": "exact",
+      "to": "model User",
+      "sites": ["app/api/users/[userId]/route.ts:33"],
+      "verdict": "correct",
+      "evidence": "`db.user.update(` in PATCH."
+    },
+    {
+      "id": "writes:symbol:taxonomy/app/api/webhooks/stripe/route.ts#POST->model:taxonomy/User",
+      "kind": "writes",
+      "confidence": "exact",
+      "to": "model User",
+      "sites": ["app/api/webhooks/stripe/route.ts:35", "app/api/webhooks/stripe/route.ts:57"],
+      "verdict": "correct",
+      "evidence": "Two `db.user.update(` calls (lines 35, 57: the subscription's IDs and period) in POST."
+    }
+  ]
+}
