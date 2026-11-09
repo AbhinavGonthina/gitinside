@@ -4,13 +4,13 @@
   "sha": "308b27662b2f6fd4947791d61c797945c609fcbc",
   "analyzerVersion": "0.2.0",
   "checkedAt": "2026-11-09",
-  "method": "Checked one service pair at a time (M9.1a3c–f); edges not yet checked are `pending` with the task that checks them. M9.1a3c, frontend → server: each site's call read from its first line to its closing parenthesis in `git show <sha>:<file>`, giving the method (`method:` in the init, else GET) and URL, with `${API_BASE}` as `/api`: `API_BASE` is `VITE_API_BASE || \"/api\"` (frontend/src/utils/constants.js:1), and frontend/.env.example's `http://localhost:3001/api` is the server's port (`SERVER_PORT || 3001`, server/index.js:198) and its router's mount (`app.use(\"/api\", apiRouter)`, server/index.js:98). Each URL compared segment by segment with the target route, its definition line read, and every other server route of the same method that takes the URL listed, to see which one Express runs first (registration order: server/index.js:99–130, then each file's order). Every target file's routes are registered on `apiRouter`: directly from server/index.js, or through `utilEndpoints` (server/endpoints/utils.js:90–98), `experimentalEndpoints` (server/endpoints/experimental/index.js:8–9), and `workspaceEndpoints` (server/endpoints/workspaces.js:1109). Sites whose URL is a const or local, or whose path a second route also takes, were read by hand. Then every `fetch(`, `fetchEventSource(`, `axios`, `new EventSource(`, `new WebSocket(`, and `sendBeacon(` call in frontend/ (git grep) matched to an edge site. M9.1a3d, the server's, collector's, and root `extras/` http edges (all unresolved after M9.1a3b): each site read with its lines around it, the URL's base followed to its definition (a parameter, a constructor or `init()` assignment, a static field or getter, an object property, an env read) by `git grep` at the pin, and the reason checked against it; for a base held in the source, the route or host the request reaches named. Then every `fetch(`, `axios`, `http(s).get/request(`, `got(`, `request(`, `new EventSource(`, and `new WebSocket(` call in server/, collector/, and extras/ matched to an edge site of any kind.",
+  "method": "Checked one service pair at a time (M9.1a3c–f); edges not yet checked are `pending` with the task that checks them. M9.1a3c, frontend → server: each site's call read from its first line to its closing parenthesis in `git show <sha>:<file>`, giving the method (`method:` in the init, else GET) and URL, with `${API_BASE}` as `/api`: `API_BASE` is `VITE_API_BASE || \"/api\"` (frontend/src/utils/constants.js:1), and frontend/.env.example's `http://localhost:3001/api` is the server's port (`SERVER_PORT || 3001`, server/index.js:198) and its router's mount (`app.use(\"/api\", apiRouter)`, server/index.js:98). Each URL compared segment by segment with the target route, its definition line read, and every other server route of the same method that takes the URL listed, to see which one Express runs first (registration order: server/index.js:99–130, then each file's order). Every target file's routes are registered on `apiRouter`: directly from server/index.js, or through `utilEndpoints` (server/endpoints/utils.js:90–98), `experimentalEndpoints` (server/endpoints/experimental/index.js:8–9), and `workspaceEndpoints` (server/endpoints/workspaces.js:1109). Sites whose URL is a const or local, or whose path a second route also takes, were read by hand. Then every `fetch(`, `fetchEventSource(`, `axios`, `new EventSource(`, `new WebSocket(`, and `sendBeacon(` call in frontend/ (git grep) matched to an edge site. M9.1a3d, the server's, collector's, and root `extras/` http edges (all unresolved after M9.1a3b): each site read with its lines around it, the URL's base followed to its definition (a parameter, a constructor or `init()` assignment, a static field or getter, an object property, an env read) by `git grep` at the pin, and the reason checked against it; for a base held in the source, the route or host the request reaches named. Then every `fetch(`, `axios`, `http(s).get/request(`, `got(`, `request(`, `new EventSource(`, and `new WebSocket(` call in server/, collector/, and extras/ matched to an edge site of any kind. M9.1a3e1, the external_call edges: each site read with its lines around it (`git show <sha>:<file>`). For a `fetch(`, the URL's host from the literal, a const, or a `new URL(…)` it names, followed by `git grep` at the pin. For an SDK call, the receiver (`this.openai`, a local `openai`, …) matched to its `new OpenAI(…)`/`new AnthropicAI(…)` construction in the same file and that construction's options read: a client without `baseURL` reaches the SDK's default host, one with a `baseURL` reaches that base. Then every `openai`/`@anthropic-ai/sdk` request-shaped call (`.chat.completions`, `.embeddings`, `.responses`, `.models`, `.audio.*`, `.images`, `.messages`, followed by `.create`/`.stream`/`.list`/`.retrieve`/`.generate`) in server/, collector/, and frontend/ matched to an edge site.",
   "totals": {
     "edges": 863,
-    "correct": 224,
-    "wrong": 0,
+    "correct": 298,
+    "wrong": 117,
     "unresolved": 166,
-    "pending": 473
+    "pending": 282
   },
   "notCovered": "Structural edges (imports, calls, renders, handles) aren't hand-checked; they're TypeScript's resolution, tested by the fixtures and the eval. Route nodes are checked only where an edge points at them.",
   "observations": [
@@ -21,7 +21,10 @@
     "M9.1a3d: the server's 133, the collector's 28, and `extras/`'s 1 http edges are all unresolved, 0 wrong. 129 reasons are accurate: the base is a parameter, the user's settings or env, a link the user gives, a response's URL, or a test's own server or fake host (38 edges in two test files).",
     "33 reasons overstate it: `DYNAMIC_URL` says \"only known at runtime\", but the base is a literal in a class or object member the analyzer doesn't read. A constructor's `this.endpoint` (CollectorApi ×9, Deepgram), static fields (`FoundryCatalog.CATALOG_URL`, `ContextWindowFinder.remoteUrl`), static getters (`EmbeddedLemonadeEngine.baseUrl` ×15, a loopback child process), an object property read through `this` (`CommunityHub.apiBase` ×4), and private methods returning a template (Gmail's and Google Calendar's `#getBaseUrl()`). Planned as M9.1a7.",
     "The biggest gap is server → collector: every request from the server to the collector goes through `CollectorApi`, whose `this.endpoint` is `http://127.0.0.1:${COLLECTOR_PORT || 8888}` (server/utils/collectorApi/index.js:54), so the demo draws no server → collector link at all. 8 of its 9 edges would reach a collector route (`POST /process`, `/process-link`, `/process-raw-text`, `/parse`, `/util/get-link`, `/util/convert-audio-to-wav`, `GET /accepts`, and the `/ext/…` routes via `forwardExtensionRequest`); `online()`'s `GET /` only reaches the collector's `app.all(\"*\")`.",
-    "Sweep of server/, collector/, and extras/: 146 request calls are on an edge (106 http, 61 external_call sites, some both). The other 42 are wrapper bodies drawn at their callers (12:`determineContentType`, `downloadURIToFile`, `fetchConfluenceData`, DrupalWiki's `_doFetch`, Gitea's `fetchJson`, the MCP test's `call`, `createStaticItem`, docx `fetchImage`, Outlook's `request`, and customModels.js:539, :1074, :1361 behind `getCustomModels`), Gmail's 17 and Google Calendar's 10 `this.request(\"<action>\")` calls (one wrapper whose single fetch is on an edge), and three that aren't HTTP requests (a `new WebSocket` in an example HTML page, MSSQL's `this._client.request()`, the abort-signal rebinding in helpers/abortSignals.js:106). No request call is missing an edge."
+    "Sweep of server/, collector/, and extras/: 146 request calls are on an edge (106 http, 61 external_call sites, some both). The other 42 are wrapper bodies drawn at their callers (12:`determineContentType`, `downloadURIToFile`, `fetchConfluenceData`, DrupalWiki's `_doFetch`, Gitea's `fetchJson`, the MCP test's `call`, `createStaticItem`, docx `fetchImage`, Outlook's `request`, and customModels.js:539, :1074, :1361 behind `getCustomModels`), Gmail's 17 and Google Calendar's 10 `this.request(\"<action>\")` calls (one wrapper whose single fetch is on an edge), and three that aren't HTTP requests (a `new WebSocket` in an example HTML page, MSSQL's `this._client.request()`, the abort-signal rebinding in helpers/abortSignals.js:106). No request call is missing an edge.",
+    "M9.1a3e1: the 191 external_call edges are 74 correct and 117 wrong. Correct: all 59 `fetch(` edges to a literal host (16 Outlook requests through `this.request` to `GRAPH_API_URL`, 2 Microsoft token exchanges, 41 search, model-list, transcript, and download requests; Keenable's, fastCRW's, and You.com's are one branch each, drawn beside the other), and the 15 SDK edges whose client is built without `baseURL` (10 `openai`, 5 `@anthropic-ai/sdk`).",
+    "117 wrong: the SDK detector draws every call on an `openai` or `@anthropic-ai/sdk` client to the SDK's default host, ignoring the constructor's `baseURL`, and anything-llm uses the `openai` package as the client for most of its providers. 56 edges have a literal `baseURL` naming another provider (20 hosts: api.groq.com, generativelanguage.googleapis.com, api.deepseek.com, api.together.xyz, api.mistral.ai, openrouter.ai, api.x.ai, …); 57 have a base set at runtime (the user's LiteLLM, LM Studio, LocalAI, KoboldCPP, generic OpenAI-compatible, Azure, Vertex, or Bedrock endpoint, or the loopback lemond); 2 are Bedrock's Anthropic client (`*.amazonaws.com`); 1 is a script testing AnythingLLM's own OpenAI-compatible API (`http://localhost:3001/api/v1/openai`, 5 calls to the server's routes); 1 is a Jest mock's `create.mockImplementation(…)` in a test. Planned as M9.1a3e2 (red tests first, eval delta, re-dump, these 117 rechecked), before the gallery.",
+    "Missing SDK edges (sweep of server/, collector/, frontend/: 134 request-shaped `openai`/Anthropic calls on an edge, 3 grep hits that aren't calls): 83 calls on clients the detector doesn't trace: the agent providers' `this.client` (server/utils/agents/aibitat/providers/*.js, 69 calls, plus the helpers `tooled.js`, `anthropicTooled.js`, `responsesTooled.js` taking `client` as a parameter, 6), the embedded lemond agent provider (2), the image generators' `this.client` (3), and Mistral's `normalizeMistralClient(new OpenAIApi(…))` (3, a wrapped client). They're missing edges, not wrong ones: SDK clients assigned without a type or passed as parameters are among `sdk.ts`'s stated unhandled patterns."
   ],
   "edges": [
     {
@@ -30,8 +33,8 @@
       "confidence": "exact",
       "to": "external github.com",
       "sites": ["collector/__tests__/utils/WhisperProviders/ffmpeg/index.test.js:55"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(sampleUrl)` with `sampleUrl` a literal `https://github.com/ringcentral/…/sample1.wav?raw=true` (index.test.js:52–53), a test downloading a sample file."
     },
     {
       "id": "external_call:file:server/__tests__/utils/AiProviders/embeddedLemonade/agentProvider.test.js->external:ext/api.openai.com",
@@ -39,8 +42,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/__tests__/utils/AiProviders/embeddedLemonade/agentProvider.test.js:116"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "`agent._client.chat.completions.create.mockImplementation(…)` sets a Jest mock's implementation: the test replaced `agent._client` with an object of `jest.fn()`s (agentProvider.test.js:46), so no request is made. The class's real `_client` is `new OpenAI({ baseURL: EmbeddedLemonadeLLM.openaiBasePath() })` (embeddedLemonade/agentProvider.js:36–37), the loopback lemond process, not api.openai.com either. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). A mock method (`mockImplementation`, `mockResolvedValue`, …) called on a client path isn't a request; M9.1a3e2 covers that too."
     },
     {
       "id": "external_call:file:server/endpoints/api/openai/compatibility-test-script.cjs->external:ext/api.openai.com",
@@ -54,8 +57,8 @@
         "server/endpoints/api/openai/compatibility-test-script.cjs:60",
         "server/endpoints/api/openai/compatibility-test-script.cjs:75"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "A script that tests AnythingLLM's own OpenAI-compatible API: its client is `new OpenAI({ baseURL: \"http://localhost:3001/api/v1/openai\" })` (compatibility-test-script.cjs:6–9), the server's port and mount, so its 5 calls reach the server's `GET /api/v1/openai/models`, `POST /api/v1/openai/chat/completions` (×2), `POST /api/v1/openai/embeddings`, and `GET /api/v1/openai/vector_stores` routes, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:file:server/utils/agents/aibitat/example/beginner-chat.js->external:ext/raw.githubusercontent.com",
@@ -63,8 +66,8 @@
       "confidence": "exact",
       "to": "external raw.githubusercontent.com",
       "sites": ["server/utils/agents/aibitat/example/beginner-chat.js:25"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://raw.githubusercontent.com/wladiston/aibitat/main/README.md\")` in an example agent's tool handler."
     },
     {
       "id": "external_call:symbol:collector/utils/WhisperProviders/GenericOpenAiWhisper.js#GenericOpenAiWhisper.processFile->external:ext/api.openai.com",
@@ -72,8 +75,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["collector/utils/WhisperProviders/GenericOpenAiWhisper.js:24"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `options.WhisperGenericOpenAiBaseUrl` (GenericOpenAiWhisper.js:10), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:collector/utils/WhisperProviders/OpenAiWhisper.js#OpenAiWhisper.processFile->external:ext/api.openai.com",
@@ -81,8 +84,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["collector/utils/WhisperProviders/OpenAiWhisper.js:22"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (OpenAiWhisper.js:8), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:collector/utils/extensions/YoutubeTranscript/YoutubeLoader/youtube-transcript.js#YoutubeTranscript.#getPreferredCaptionTrack->external:ext/www.youtube.com",
@@ -92,8 +95,8 @@
       "sites": [
         "collector/utils/extensions/YoutubeTranscript/YoutubeLoader/youtube-transcript.js:149"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://www.youtube.com/…` URL (the watch page, then `youtubei/v1/get_transcript`)."
     },
     {
       "id": "external_call:symbol:collector/utils/extensions/YoutubeTranscript/YoutubeLoader/youtube-transcript.js#YoutubeTranscript.fetchTranscript->external:ext/www.youtube.com",
@@ -103,8 +106,8 @@
       "sites": [
         "collector/utils/extensions/YoutubeTranscript/YoutubeLoader/youtube-transcript.js:196"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://www.youtube.com/…` URL (the watch page, then `youtubei/v1/get_transcript`)."
     },
     {
       "id": "external_call:symbol:frontend/src/pages/OnboardingFlow/Steps/Survey/index.jsx#sendQuestionnaire->external:ext/onboarding.anythingllm.com",
@@ -112,8 +115,8 @@
       "confidence": "exact",
       "to": "external onboarding.anythingllm.com",
       "sites": ["frontend/src/pages/OnboardingFlow/Steps/Survey/index.jsx:27"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(ONBOARDING_SURVEY_URL, …)` with `ONBOARDING_SURVEY_URL = \"https://onboarding.anythingllm.com\"` (frontend/src/utils/constants.js:2), the fallback when `navigator.sendBeacon` is missing."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/anthropic/index.js#AnthropicLLM.fetchModelMaxTokens->external:ext/api.anthropic.com",
@@ -121,8 +124,8 @@
       "confidence": "exact",
       "to": "external api.anthropic.com",
       "sites": ["server/utils/AiProviders/anthropic/index.js:105"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `@anthropic-ai/sdk` (`require(\"@anthropic-ai/sdk\")`) built without `baseURL` (anthropic/index.js:35, :102), so the request goes to the SDK's default `https://api.anthropic.com`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/anthropic/index.js#AnthropicLLM.getChatCompletion->external:ext/api.anthropic.com",
@@ -130,8 +133,8 @@
       "confidence": "exact",
       "to": "external api.anthropic.com",
       "sites": ["server/utils/AiProviders/anthropic/index.js:236"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `@anthropic-ai/sdk` (`require(\"@anthropic-ai/sdk\")`) built without `baseURL` (anthropic/index.js:35, :102), so the request goes to the SDK's default `https://api.anthropic.com`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/anthropic/index.js#AnthropicLLM.getModelCapabilities->external:ext/api.anthropic.com",
@@ -139,8 +142,8 @@
       "confidence": "exact",
       "to": "external api.anthropic.com",
       "sites": ["server/utils/AiProviders/anthropic/index.js:207"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `@anthropic-ai/sdk` (`require(\"@anthropic-ai/sdk\")`) built without `baseURL` (anthropic/index.js:35, :102), so the request goes to the SDK's default `https://api.anthropic.com`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/anthropic/index.js#AnthropicLLM.streamGetChatCompletion->external:ext/api.anthropic.com",
@@ -148,8 +151,8 @@
       "confidence": "exact",
       "to": "external api.anthropic.com",
       "sites": ["server/utils/AiProviders/anthropic/index.js:282"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `@anthropic-ai/sdk` (`require(\"@anthropic-ai/sdk\")`) built without `baseURL` (anthropic/index.js:35, :102), so the request goes to the SDK's default `https://api.anthropic.com`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/apipie/index.js#ApiPieLLM.getChatCompletion->external:ext/api.openai.com",
@@ -157,8 +160,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/apipie/index.js:203"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://apipie.ai/v1` (apipie/index.js:31–33), so the request goes to apipie.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/apipie/index.js#ApiPieLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -166,8 +169,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/apipie/index.js:245"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://apipie.ai/v1` (apipie/index.js:31–33), so the request goes to apipie.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/apipie/index.js#fetchApiPieModels->external:ext/apipie.ai",
@@ -175,8 +178,8 @@
       "confidence": "exact",
       "to": "external apipie.ai",
       "sites": ["server/utils/AiProviders/apipie/index.js:345"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(`https://apipie.ai/v1/models`, …)`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/azureOpenAi/index.js#AzureOpenAiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -184,8 +187,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/azureOpenAi/index.js:174"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `AzureOpenAiLLM.formatBaseUrl(process.env.AZURE_OPENAI_ENDPOINT)` (azureOpenAi/index.js:24, :55–61), the user's Azure OpenAI resource with the path `/openai/v1`. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/azureOpenAi/index.js#AzureOpenAiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -193,8 +196,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/azureOpenAi/index.js:212"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `AzureOpenAiLLM.formatBaseUrl(process.env.AZURE_OPENAI_ENDPOINT)` (azureOpenAi/index.js:24, :55–61), the user's Azure OpenAI resource with the path `/openai/v1`. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/bedrock/index.js#AWSBedrockLLM.#anthropicChatCompletion->external:ext/api.anthropic.com",
@@ -202,8 +205,8 @@
       "confidence": "exact",
       "to": "external api.anthropic.com",
       "sites": ["server/utils/AiProviders/bedrock/index.js:355"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver (`this.anthropic`) is built with `baseURL: anthropicBaseURL(this.region, this.model)` (bedrock/index.js:104–108; endpoints.js:128–132), the Bedrock runtime or mantle host for the user's region (`*.amazonaws.com`), so the request never goes to api.anthropic.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/bedrock/index.js#AWSBedrockLLM.#responsesChatCompletion->external:ext/api.openai.com",
@@ -211,8 +214,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/bedrock/index.js:386"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver (`this.openai`) is built with `baseURL: openaiBaseURL(this.region, this.model)` (bedrock/index.js:97–100; endpoints.js:113–118), the Bedrock runtime or mantle host for the user's region (`*.amazonaws.com`), so the request never goes to api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/bedrock/index.js#AWSBedrockLLM.getChatCompletion->external:ext/api.openai.com",
@@ -220,8 +223,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/bedrock/index.js:256"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver (`this.openai`) is built with `baseURL: openaiBaseURL(this.region, this.model)` (bedrock/index.js:97–100; endpoints.js:113–118), the Bedrock runtime or mantle host for the user's region (`*.amazonaws.com`), so the request never goes to api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/bedrock/index.js#AWSBedrockLLM.streamGetChatCompletion->external:ext/api.anthropic.com",
@@ -229,8 +232,8 @@
       "confidence": "exact",
       "to": "external api.anthropic.com",
       "sites": ["server/utils/AiProviders/bedrock/index.js:296"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver (`this.anthropic`) is built with `baseURL: anthropicBaseURL(this.region, this.model)` (bedrock/index.js:104–108; endpoints.js:128–132), the Bedrock runtime or mantle host for the user's region (`*.amazonaws.com`), so the request never goes to api.anthropic.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/bedrock/index.js#AWSBedrockLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -241,8 +244,8 @@
         "server/utils/AiProviders/bedrock/index.js:307",
         "server/utils/AiProviders/bedrock/index.js:320"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver (`this.openai`) is built with `baseURL: openaiBaseURL(this.region, this.model)` (bedrock/index.js:97–100; endpoints.js:113–118), the Bedrock runtime or mantle host for the user's region (`*.amazonaws.com`), so the request never goes to api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cerebras/index.js#CerebrasLLM.cacheContextWindows->external:ext/api.cerebras.ai",
@@ -250,8 +253,8 @@
       "confidence": "exact",
       "to": "external api.cerebras.ai",
       "sites": ["server/utils/AiProviders/cerebras/index.js:71"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://api.cerebras.ai/public/v1/models…` URL."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cerebras/index.js#CerebrasLLM.getChatCompletion->external:ext/api.openai.com",
@@ -259,8 +262,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/cerebras/index.js:209"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.cerebras.ai/v1` (cerebras/index.js:24), so the request goes to api.cerebras.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cerebras/index.js#CerebrasLLM.getModelCapabilities->external:ext/api.cerebras.ai",
@@ -268,8 +271,8 @@
       "confidence": "exact",
       "to": "external api.cerebras.ai",
       "sites": ["server/utils/AiProviders/cerebras/index.js:274"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://api.cerebras.ai/public/v1/models…` URL."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cerebras/index.js#CerebrasLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -277,8 +280,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/cerebras/index.js:248"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.cerebras.ai/v1` (cerebras/index.js:24), so the request goes to api.cerebras.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cohere/index.js#CohereLLM.getChatCompletion->external:ext/api.openai.com",
@@ -286,8 +289,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/cohere/index.js:95"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.cohere.ai/compatibility/v1` (cohere/index.js:24), so the request goes to api.cohere.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cohere/index.js#CohereLLM.getModelCapabilities->external:ext/api.cohere.com",
@@ -295,8 +298,8 @@
       "confidence": "exact",
       "to": "external api.cohere.com",
       "sites": ["server/utils/AiProviders/cohere/index.js:163"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://api.cohere.com/v1/models…` template."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cohere/index.js#CohereLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -304,8 +307,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/cohere/index.js:133"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.cohere.ai/compatibility/v1` (cohere/index.js:24), so the request goes to api.cohere.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cometapi/index.js#CometApiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -313,8 +316,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/cometapi/index.js:209"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://api.cometapi.com/v1` (cometapi/index.js:32–34), so the request goes to api.cometapi.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cometapi/index.js#CometApiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -322,8 +325,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/cometapi/index.js:250"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://api.cometapi.com/v1` (cometapi/index.js:32–34), so the request goes to api.cometapi.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cometapi/index.js#fetchCometApiModels->external:ext/api.cometapi.com",
@@ -331,8 +334,8 @@
       "confidence": "exact",
       "to": "external api.cometapi.com",
       "sites": ["server/utils/AiProviders/cometapi/index.js:396"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(`https://api.cometapi.com/v1/models`, …)`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/deepseek/index.js#DeepSeekLLM.getChatCompletion->external:ext/api.openai.com",
@@ -340,8 +343,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/deepseek/index.js:161"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.deepseek.com/v1` (deepseek/index.js:27), so the request goes to api.deepseek.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/deepseek/index.js#DeepSeekLLM.getModelCapabilities->external:ext/api.openai.com",
@@ -349,8 +352,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/deepseek/index.js:141"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.deepseek.com/v1` (deepseek/index.js:27), so the request goes to api.deepseek.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/deepseek/index.js#DeepSeekLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -358,8 +361,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/deepseek/index.js:200"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.deepseek.com/v1` (deepseek/index.js:27), so the request goes to api.deepseek.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.getChatCompletion->external:ext/api.openai.com",
@@ -367,8 +370,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:254"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `EmbeddedLemonadeLLM.openaiBasePath()` (embeddedLemonade/index.js:54, :70–71), `${EmbeddedLemonadeEngine.baseUrl}/api/v1`, the loopback lemond process the server starts itself (M9.1a3d). The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -376,8 +379,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:286"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `EmbeddedLemonadeLLM.openaiBasePath()` (embeddedLemonade/index.js:54, :70–71), `${EmbeddedLemonadeEngine.baseUrl}/api/v1`, the loopback lemond process the server starts itself (M9.1a3d). The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/fireworksAi/index.js#FireworksAiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -385,8 +388,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/fireworksAi/index.js:155"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.fireworks.ai/inference/v1` (fireworksAi/index.js:30, :230), so the request goes to api.fireworks.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/fireworksAi/index.js#FireworksAiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -394,8 +397,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/fireworksAi/index.js:193"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.fireworks.ai/inference/v1` (fireworksAi/index.js:30, :230), so the request goes to api.fireworks.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/fireworksAi/index.js#fireworksAiModels->external:ext/api.openai.com",
@@ -403,8 +406,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/fireworksAi/index.js:235"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.fireworks.ai/inference/v1` (fireworksAi/index.js:30, :230), so the request goes to api.fireworks.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/foundry/index.js#FoundryLLM.cacheContextWindows->external:ext/api.openai.com",
@@ -412,8 +415,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/foundry/index.js:175"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseFoundryBasePath(process.env.FOUNDRY_BASE_PATH)` (foundry/index.js:38, :172), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/foundry/index.js#FoundryLLM.getChatCompletion->external:ext/api.openai.com",
@@ -421,8 +424,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/foundry/index.js:322"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseFoundryBasePath(process.env.FOUNDRY_BASE_PATH)` (foundry/index.js:38, :172), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/foundry/index.js#FoundryLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -430,8 +433,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/foundry/index.js:366"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseFoundryBasePath(process.env.FOUNDRY_BASE_PATH)` (foundry/index.js:38, :172), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/foundry/models.js#FoundryModels.#listFromOpenAiSurface->external:ext/api.openai.com",
@@ -439,8 +442,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/foundry/models.js:201"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseFoundryBasePath(basePath)` (foundry/models.js:196), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/gemini/index.js#GeminiLLM.fetchModels->external:ext/generativelanguage.googleapis.com",
@@ -451,8 +454,8 @@
         "server/utils/AiProviders/gemini/index.js:209",
         "server/utils/AiProviders/gemini/index.js:257"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(url.toString(), …)` of `new URL(\"https://generativelanguage.googleapis.com/v1/models\")` and `…/v1beta/models` (gemini/index.js:203–204, :251–252), the paged model lists."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/gemini/index.js#GeminiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -460,8 +463,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/gemini/index.js:409"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://generativelanguage.googleapis.com/v1beta/openai/` (gemini/index.js:59), so the request goes to generativelanguage.googleapis.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/gemini/index.js#GeminiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -469,8 +472,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/gemini/index.js:447"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://generativelanguage.googleapis.com/v1beta/openai/` (gemini/index.js:59), so the request goes to generativelanguage.googleapis.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/genericOpenAi/index.js#GenericOpenAiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -478,8 +481,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/genericOpenAi/index.js:243"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (GENERIC_OPEN_AI_BASE_PATH)` (genericOpenAi/index.js:32), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/genericOpenAi/index.js#GenericOpenAiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -487,8 +490,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/genericOpenAi/index.js:285"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (GENERIC_OPEN_AI_BASE_PATH)` (genericOpenAi/index.js:32), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/giteeai/index.js#GiteeAILLM.getChatCompletion->external:ext/api.openai.com",
@@ -496,8 +499,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/giteeai/index.js:135"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://ai.gitee.com/v1` (giteeai/index.js:31), so the request goes to ai.gitee.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/giteeai/index.js#GiteeAILLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -505,8 +508,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/giteeai/index.js:173"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://ai.gitee.com/v1` (giteeai/index.js:31), so the request goes to ai.gitee.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/giteeai/index.js#giteeAiModels->external:ext/ai.gitee.com",
@@ -514,8 +517,8 @@
       "confidence": "exact",
       "to": "external ai.gitee.com",
       "sites": ["server/utils/AiProviders/giteeai/index.js:210"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(url.toString())` of `new URL(\"https://ai.gitee.com/v1/models\")` (giteeai/index.js:208)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/groq/index.js#GroqLLM.getChatCompletion->external:ext/api.openai.com",
@@ -523,8 +526,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/groq/index.js:183"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.groq.com/openai/v1` (groq/index.js:21), so the request goes to api.groq.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/groq/index.js#GroqLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -532,8 +535,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/groq/index.js:226"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.groq.com/openai/v1` (groq/index.js:21), so the request goes to api.groq.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/koboldCPP/index.js#KoboldCPPLLM.getChatCompletion->external:ext/api.openai.com",
@@ -541,8 +544,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/koboldCPP/index.js:178"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (KOBOLD_CPP_BASE_PATH)` (koboldCPP/index.js:26), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/koboldCPP/index.js#KoboldCPPLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -550,8 +553,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/koboldCPP/index.js:216"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (KOBOLD_CPP_BASE_PATH)` (koboldCPP/index.js:26), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/lemonade/index.js#LemonadeLLM.getChatCompletion->external:ext/api.openai.com",
@@ -559,8 +562,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/lemonade/index.js:167"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLemonadeServerEndpoint(process.env.LEMONADE_LLM_BASE_PATH, \"openai\")` (lemonade/index.js:28, :231), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/lemonade/index.js#LemonadeLLM.getModelCapabilities->external:ext/api.openai.com",
@@ -568,8 +571,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/lemonade/index.js:238"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLemonadeServerEndpoint(process.env.LEMONADE_LLM_BASE_PATH, \"openai\")` (lemonade/index.js:28, :231), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/lemonade/index.js#LemonadeLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -577,8 +580,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/lemonade/index.js:202"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLemonadeServerEndpoint(process.env.LEMONADE_LLM_BASE_PATH, \"openai\")` (lemonade/index.js:28, :231), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/liteLLM/index.js#LiteLLM.getChatCompletion->external:ext/api.openai.com",
@@ -586,8 +589,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/liteLLM/index.js:136"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (LITE_LLM_BASE_PATH)` (liteLLM/index.js:24), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/liteLLM/index.js#LiteLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -595,8 +598,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/liteLLM/index.js:173"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (LITE_LLM_BASE_PATH)` (liteLLM/index.js:24), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/lmStudio/index.js#LMStudioLLM.getChatCompletion->external:ext/api.openai.com",
@@ -604,8 +607,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/lmStudio/index.js:247"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLMStudioBasePath(process.env.LMSTUDIO_BASE_PATH)` (lmStudio/index.js:30), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/lmStudio/index.js#LMStudioLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -613,8 +616,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/lmStudio/index.js:286"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLMStudioBasePath(process.env.LMSTUDIO_BASE_PATH)` (lmStudio/index.js:30), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/localAi/index.js#LocalAiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -622,8 +625,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/localAi/index.js:276"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `process.env.LOCAL_AI_BASE_PATH` (localAi/index.js:24), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/localAi/index.js#LocalAiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -631,8 +634,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/localAi/index.js:319"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `process.env.LOCAL_AI_BASE_PATH` (localAi/index.js:24), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/minimax/index.js#MinimaxLLM.getChatCompletion->external:ext/api.openai.com",
@@ -640,8 +643,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/minimax/index.js:100"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.minimax.io/v1` (minimax/index.js:22), so the request goes to api.minimax.io, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/minimax/index.js#MinimaxLLM.isValidChatCompletionModel->external:ext/api.openai.com",
@@ -649,8 +652,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/minimax/index.js:68"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.minimax.io/v1` (minimax/index.js:22), so the request goes to api.minimax.io, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/minimax/index.js#MinimaxLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -658,8 +661,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/minimax/index.js:143"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.minimax.io/v1` (minimax/index.js:22), so the request goes to api.minimax.io, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/moonshotAi/index.js#MoonshotAiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -667,8 +670,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/moonshotAi/index.js:124"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.moonshot.ai/v1` (moonshotAi/index.js:22), so the request goes to api.moonshot.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/moonshotAi/index.js#MoonshotAiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -676,8 +679,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/moonshotAi/index.js:160"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.moonshot.ai/v1` (moonshotAi/index.js:22), so the request goes to api.moonshot.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/novita/index.js#NovitaLLM.getChatCompletion->external:ext/api.openai.com",
@@ -685,8 +688,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/novita/index.js:235"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://api.novita.ai/v3/openai` (novita/index.js:32–34), so the request goes to api.novita.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/novita/index.js#NovitaLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -694,8 +697,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/novita/index.js:276"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://api.novita.ai/v3/openai` (novita/index.js:32–34), so the request goes to api.novita.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/novita/index.js#fetchNovitaModels->external:ext/api.novita.ai",
@@ -703,8 +706,8 @@
       "confidence": "exact",
       "to": "external api.novita.ai",
       "sites": ["server/utils/AiProviders/novita/index.js:418"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(`https://api.novita.ai/v3/openai/models`, …)`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/nvidiaNim/index.js#NvidiaNimLLM.getChatCompletion->external:ext/api.openai.com",
@@ -712,8 +715,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/nvidiaNim/index.js:168"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseNvidiaNimBasePath(process.env.NVIDIA_NIM_LLM_BASE_PATH)` (nvidiaNim/index.js:21, :64), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/nvidiaNim/index.js#NvidiaNimLLM.setModelTokenLimit->external:ext/api.openai.com",
@@ -721,8 +724,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/nvidiaNim/index.js:70"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseNvidiaNimBasePath(process.env.NVIDIA_NIM_LLM_BASE_PATH)` (nvidiaNim/index.js:21, :64), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/nvidiaNim/index.js#NvidiaNimLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -730,8 +733,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/nvidiaNim/index.js:209"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseNvidiaNimBasePath(process.env.NVIDIA_NIM_LLM_BASE_PATH)` (nvidiaNim/index.js:21, :64), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/omlx/index.js#OMLXLLM.getChatCompletion->external:ext/api.openai.com",
@@ -739,8 +742,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/omlx/index.js:245"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseOMLXBasePath(process.env.OMLX_LLM_BASE_PATH)` (omlx/index.js:28), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/omlx/index.js#OMLXLLM.getModelCapabilities->external:ext/api.openai.com",
@@ -748,8 +751,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/omlx/index.js:323"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseOMLXBasePath(process.env.OMLX_LLM_BASE_PATH)` (omlx/index.js:28), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/omlx/index.js#OMLXLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -757,8 +760,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/omlx/index.js:278"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseOMLXBasePath(process.env.OMLX_LLM_BASE_PATH)` (omlx/index.js:28), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/openAi/index.js#OpenAiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -766,8 +769,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/openAi/index.js:178"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (openAi/index.js:28), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/openAi/index.js#OpenAiLLM.isValidChatCompletionModel->external:ext/api.openai.com",
@@ -775,8 +778,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/openAi/index.js:85"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (openAi/index.js:28), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/openAi/index.js#OpenAiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -784,8 +787,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/openAi/index.js:222"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (openAi/index.js:28), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/openRouter/index.js#OpenRouterLLM.getChatCompletion->external:ext/api.openai.com",
@@ -793,8 +796,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/openRouter/index.js:290"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://openrouter.ai/api/v1` (openRouter/index.js:55–57), so the request goes to openrouter.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/openRouter/index.js#OpenRouterLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -802,8 +805,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/openRouter/index.js:336"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://openrouter.ai/api/v1` (openRouter/index.js:55–57), so the request goes to openrouter.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/openRouter/index.js#fetchOpenRouterModels->external:ext/openrouter.ai",
@@ -811,8 +814,8 @@
       "confidence": "exact",
       "to": "external openrouter.ai",
       "sites": ["server/utils/AiProviders/openRouter/index.js:557"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://openrouter.ai/api/v1/…models` URL."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/perplexity/index.js#PerplexityLLM.getChatCompletion->external:ext/api.openai.com",
@@ -820,8 +823,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/perplexity/index.js:112"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.perplexity.ai` (perplexity/index.js:30), so the request goes to api.perplexity.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/perplexity/index.js#PerplexityLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -829,8 +832,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/perplexity/index.js:153"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.perplexity.ai` (perplexity/index.js:30), so the request goes to api.perplexity.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/ppio/index.js#PPIOLLM.getChatCompletion->external:ext/api.openai.com",
@@ -838,8 +841,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/ppio/index.js:175"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://api.ppinfra.com/v3/openai/` (ppio/index.js:36–38), so the request goes to api.ppinfra.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/ppio/index.js#PPIOLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -847,8 +850,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/ppio/index.js:216"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `this.basePath`, set to `https://api.ppinfra.com/v3/openai/` (ppio/index.js:36–38), so the request goes to api.ppinfra.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/ppio/index.js#fetchPPIOModels->external:ext/api.ppinfra.com",
@@ -856,8 +859,8 @@
       "confidence": "exact",
       "to": "external api.ppinfra.com",
       "sites": ["server/utils/AiProviders/ppio/index.js:249"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(`https://api.ppinfra.com/v3/openai/models`, …)`."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/privatemode/index.js#PrivatemodeLLM.getChatCompletion->external:ext/api.openai.com",
@@ -865,8 +868,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/privatemode/index.js:155"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `PrivatemodeLLM.parseBasePath()` (privatemode/index.js:29, :52–58), the origin of `PRIVATEMODE_LLM_BASE_PATH` plus `/v1`, the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/privatemode/index.js#PrivatemodeLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -874,8 +877,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/privatemode/index.js:193"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `PrivatemodeLLM.parseBasePath()` (privatemode/index.js:29, :52–58), the origin of `PRIVATEMODE_LLM_BASE_PATH` plus `/v1`, the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/sambanova/index.js#SambaNovaLLM.getChatCompletion->external:ext/api.openai.com",
@@ -883,8 +886,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/sambanova/index.js:125"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.sambanova.ai/v1` (sambanova/index.js:25), so the request goes to api.sambanova.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/sambanova/index.js#SambaNovaLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -892,8 +895,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/sambanova/index.js:161"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.sambanova.ai/v1` (sambanova/index.js:25), so the request goes to api.sambanova.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/textGenWebUI/index.js#TextGenWebUILLM.getChatCompletion->external:ext/api.openai.com",
@@ -901,8 +904,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/textGenWebUI/index.js:134"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (TEXT_GEN_WEB_UI_BASE_PATH)` (textGenWebUI/index.js:24), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/textGenWebUI/index.js#TextGenWebUILLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -910,8 +913,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/textGenWebUI/index.js:170"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (TEXT_GEN_WEB_UI_BASE_PATH)` (textGenWebUI/index.js:24), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/togetherAi/index.js#TogetherAiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -919,8 +922,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/togetherAi/index.js:214"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.together.xyz/v1` (togetherAi/index.js:51, :100), so the request goes to api.together.xyz, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/togetherAi/index.js#TogetherAiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -928,8 +931,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/togetherAi/index.js:256"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.together.xyz/v1` (togetherAi/index.js:51, :100), so the request goes to api.together.xyz, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/togetherAi/index.js#togetherAiModels->external:ext/api.openai.com",
@@ -937,8 +940,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/togetherAi/index.js:55"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.together.xyz/v1` (togetherAi/index.js:51, :100), so the request goes to api.together.xyz, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/vertex/index.js#VertexLLM.getChatCompletion->external:ext/api.openai.com",
@@ -946,8 +949,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/vertex/index.js:157"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `VertexLLM.openaiBaseURL()` (vertex/index.js:28, :60–66), `https://aiplatform.googleapis.com` or `https://<region>-aiplatform.googleapis.com` by `VERTEX_AI_LLM_REGION`, with the user's project in the path. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/vertex/index.js#VertexLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -955,8 +958,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/vertex/index.js:195"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `VertexLLM.openaiBaseURL()` (vertex/index.js:28, :60–66), `https://aiplatform.googleapis.com` or `https://<region>-aiplatform.googleapis.com` by `VERTEX_AI_LLM_REGION`, with the user's project in the path. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/xai/index.js#XAiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -964,8 +967,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/xai/index.js:131"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.x.ai/v1` (xai/index.js:22), so the request goes to api.x.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/xai/index.js#XAiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -973,8 +976,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/xai/index.js:172"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.x.ai/v1` (xai/index.js:22), so the request goes to api.x.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/zai/index.js#ZAiLLM.getChatCompletion->external:ext/api.openai.com",
@@ -982,8 +985,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/zai/index.js:121"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.z.ai/api/paas/v4` (zai/index.js:21), so the request goes to api.z.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/zai/index.js#ZAiLLM.streamGetChatCompletion->external:ext/api.openai.com",
@@ -991,8 +994,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/AiProviders/zai/index.js:157"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.z.ai/api/paas/v4` (zai/index.js:21), so the request goes to api.z.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/azureOpenAi/index.js#AzureOpenAiEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1000,8 +1003,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/azureOpenAi/index.js:56"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `endpoint: process.env.AZURE_OPENAI_ENDPOINT (an AzureOpenAI client)` (EmbeddingEngines/azureOpenAi/index.js:13–17), the user's Azure OpenAI resource. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/cohere/index.js#CohereEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1009,8 +1012,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/cohere/index.js:45"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.cohere.ai/compatibility/v1` (EmbeddingEngines/cohere/index.js:15), so the request goes to api.cohere.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/gemini/index.js#GeminiEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1018,8 +1021,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/gemini/index.js:77"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://generativelanguage.googleapis.com/v1beta/openai/` (EmbeddingEngines/gemini/index.js:19), so the request goes to generativelanguage.googleapis.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/genericOpenAi/index.js#GenericOpenAiEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1027,8 +1030,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/genericOpenAi/index.js:138"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (EMBEDDING_BASE_PATH)` (EmbeddingEngines/genericOpenAi/index.js:17), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/lemonade/index.js#LemonadeEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1036,8 +1039,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/lemonade/index.js:46"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLemonadeServerEndpoint(process.env.EMBEDDING_BASE_PATH, \"openai\")` (EmbeddingEngines/lemonade/index.js:13), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/liteLLM/index.js#LiteLLMEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1045,8 +1048,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/liteLLM/index.js:43"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (LITE_LLM_BASE_PATH)` (EmbeddingEngines/liteLLM/index.js:16), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/lmstudio/index.js#LMStudioEmbedder.#isAlive->external:ext/api.openai.com",
@@ -1054,8 +1057,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/lmstudio/index.js:34"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLMStudioBasePath(process.env.EMBEDDING_BASE_PATH)` (EmbeddingEngines/lmstudio/index.js:18), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/lmstudio/index.js#LMStudioEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1063,8 +1066,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/lmstudio/index.js:68"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLMStudioBasePath(process.env.EMBEDDING_BASE_PATH)` (EmbeddingEngines/lmstudio/index.js:18), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/localAi/index.js#LocalAiEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1072,8 +1075,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/localAi/index.js:65"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `process.env.EMBEDDING_BASE_PATH` (EmbeddingEngines/localAi/index.js:18), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/mistral/index.js#MistralEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1081,8 +1084,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/mistral/index.js:76"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.mistral.ai/v1` (EmbeddingEngines/mistral/index.js:15), so the request goes to api.mistral.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/openAi/index.js#OpenAiEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1090,8 +1093,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/openAi/index.js:43"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (EmbeddingEngines/openAi/index.js:8), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/openRouter/index.js#OpenRouterEmbedder.embedChunks->external:ext/api.openai.com",
@@ -1099,8 +1102,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/EmbeddingEngines/openRouter/index.js:45"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://openrouter.ai/api/v1` (EmbeddingEngines/openRouter/index.js:10), so the request goes to openrouter.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/EmbeddingEngines/openRouter/index.js#fetchOpenRouterEmbeddingModels->external:ext/openrouter.ai",
@@ -1108,8 +1111,8 @@
       "confidence": "exact",
       "to": "external openrouter.ai",
       "sites": ["server/utils/EmbeddingEngines/openRouter/index.js:103"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://openrouter.ai/api/v1/…models` URL."
     },
     {
       "id": "external_call:symbol:server/utils/ImageGenerators/gemini/index.js#GeminiImageGenerator.#generateContent->external:ext/generativelanguage.googleapis.com",
@@ -1117,8 +1120,8 @@
       "confidence": "exact",
       "to": "external generativelanguage.googleapis.com",
       "sites": ["server/utils/ImageGenerators/gemini/index.js:135"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(url, …)` with ``url = `${GEMINI_API_BASE}/…:generateContent` `` and `GEMINI_API_BASE = \"https://generativelanguage.googleapis.com/v1/models\"` (ImageGenerators/gemini/index.js:3)."
     },
     {
       "id": "external_call:symbol:server/utils/SpeechToText/groq/index.js#GroqSTT.transcribe->external:ext/api.openai.com",
@@ -1126,8 +1129,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/SpeechToText/groq/index.js:27"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.groq.com/openai/v1` (SpeechToText/groq/index.js:7), so the request goes to api.groq.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/SpeechToText/lemonade/index.js#LemonadeSTT.transcribe->external:ext/api.openai.com",
@@ -1135,8 +1138,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/SpeechToText/lemonade/index.js:46"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLemonadeServerEndpoint(process.env.STT_LEMONADE_BASE_PATH, \"openai\")` (SpeechToText/lemonade/index.js:12), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/SpeechToText/openAi/index.js#OpenAiSTT.transcribe->external:ext/api.openai.com",
@@ -1144,8 +1147,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/SpeechToText/openAi/index.js:20"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (SpeechToText/openAi/index.js:5), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:server/utils/SpeechToText/openAiGeneric/index.js#GenericOpenAiSTT.transcribe->external:ext/api.openai.com",
@@ -1153,8 +1156,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/SpeechToText/openAiGeneric/index.js:50"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `process.env.STT_OPEN_AI_COMPATIBLE_ENDPOINT` (SpeechToText/openAiGeneric/index.js:22), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/TextToSpeech/kokoro/index.js#KokoroTTS.ttsBuffer->external:ext/api.openai.com",
@@ -1162,8 +1165,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/TextToSpeech/kokoro/index.js:35"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `endpoint.toString()` (kokoro/index.js:8–13), `new URL(process.env.TTS_KOKORO_ENDPOINT)` with the path `/v1`, the user's kokoro-fastapi server. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/TextToSpeech/openAi/index.js#OpenAiTTS.ttsBuffer->external:ext/api.openai.com",
@@ -1171,8 +1174,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/TextToSpeech/openAi/index.js:14"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (TextToSpeech/openAi/index.js:6), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:server/utils/TextToSpeech/openAiGeneric/index.js#GenericOpenAiTTS.ttsBuffer->external:ext/api.openai.com",
@@ -1180,8 +1183,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/TextToSpeech/openAiGeneric/index.js:43"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `process.env.TTS_OPEN_AI_COMPATIBLE_ENDPOINT` (TextToSpeech/openAiGeneric/index.js:23), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.#refreshAccessToken->external:ext/login.microsoftonline.com",
@@ -1189,8 +1192,8 @@
       "confidence": "exact",
       "to": "external login.microsoftonline.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:722"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(tokenUrl, …)` with ``tokenUrl = `${MICROSOFT_AUTH_URL}/${authority}/oauth2/v2.0/token` `` and `MICROSOFT_AUTH_URL = \"https://login.microsoftonline.com\"` (outlook/lib.js:466): the OAuth token exchange."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.createDraft->external:ext/graph.microsoft.com",
@@ -1201,8 +1204,8 @@
         "server/utils/agents/aibitat/plugins/outlook/lib.js:1100",
         "server/utils/agents/aibitat/plugins/outlook/lib.js:1111"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.createDraftReply->external:ext/graph.microsoft.com",
@@ -1213,8 +1216,8 @@
         "server/utils/agents/aibitat/plugins/outlook/lib.js:1149",
         "server/utils/agents/aibitat/plugins/outlook/lib.js:1159"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.deleteDraft->external:ext/graph.microsoft.com",
@@ -1222,8 +1225,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1263"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.exchangeCodeForToken->external:ext/login.microsoftonline.com",
@@ -1231,8 +1234,8 @@
       "confidence": "exact",
       "to": "external login.microsoftonline.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:648"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(tokenUrl, …)` with ``tokenUrl = `${MICROSOFT_AUTH_URL}/${authority}/oauth2/v2.0/token` `` and `MICROSOFT_AUTH_URL = \"https://login.microsoftonline.com\"` (outlook/lib.js:466): the OAuth token exchange."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.getInbox->external:ext/graph.microsoft.com",
@@ -1240,8 +1243,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:999"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.getMailboxStats->external:ext/graph.microsoft.com",
@@ -1252,8 +1255,8 @@
         "server/utils/agents/aibitat/plugins/outlook/lib.js:1390",
         "server/utils/agents/aibitat/plugins/outlook/lib.js:1402"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.listDrafts->external:ext/graph.microsoft.com",
@@ -1261,8 +1264,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1196"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.markRead->external:ext/graph.microsoft.com",
@@ -1270,8 +1273,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1349"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.markUnread->external:ext/graph.microsoft.com",
@@ -1279,8 +1282,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1361"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.moveToTrash->external:ext/graph.microsoft.com",
@@ -1288,8 +1291,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1373"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.readMessage->external:ext/graph.microsoft.com",
@@ -1297,8 +1300,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1062"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.readThread->external:ext/graph.microsoft.com",
@@ -1306,8 +1309,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1023"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.replyToMessage->external:ext/graph.microsoft.com",
@@ -1315,8 +1318,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1331"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.search->external:ext/graph.microsoft.com",
@@ -1324,8 +1327,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:977"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.sendDraft->external:ext/graph.microsoft.com",
@@ -1333,8 +1336,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1274"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.sendEmail->external:ext/graph.microsoft.com",
@@ -1342,8 +1345,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1309"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.updateDraft->external:ext/graph.microsoft.com",
@@ -1351,8 +1354,8 @@
       "confidence": "exact",
       "to": "external graph.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/outlook/lib.js:1241"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`this.request(\"/me/…\")`: Outlook's wrapper fetches `endpoint.startsWith(\"http\") ? endpoint : `${GRAPH_API_URL}${endpoint}`` (outlook/lib.js:886–902), with `GRAPH_API_URL = \"https://graph.microsoft.com/v1.0\"` (:467). The path here is root-relative, so the request goes to Microsoft Graph."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.anysearch.com",
@@ -1360,8 +1363,8 @@
       "confidence": "exact",
       "to": "external api.anysearch.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1750"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://api.anysearch.com/v1/search\", …)`, the AnySearch search provider."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.bing.microsoft.com",
@@ -1369,8 +1372,8 @@
       "confidence": "exact",
       "to": "external api.bing.microsoft.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:742"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(searchURL, …)` of `new URL(\"https://api.bing.microsoft.com/v7.0/search\")` (web-browsing.js:731–733)."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.deepseek.com",
@@ -1378,8 +1381,8 @@
       "confidence": "exact",
       "to": "external api.deepseek.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1921"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://api.deepseek.com/v1/tools/search\", …)`, the DeepSeek search provider."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.exa.ai",
@@ -1387,8 +1390,8 @@
       "confidence": "exact",
       "to": "external api.exa.ai",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1218"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(url, …)` with `const url = \"https://api.exa.ai/search\"` on the line before."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.firecrawl.dev",
@@ -1396,8 +1399,8 @@
       "confidence": "exact",
       "to": "external api.firecrawl.dev",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1833"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://api.firecrawl.dev/v2/search\", …)`."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.keenable.ai",
@@ -1405,8 +1408,8 @@
       "confidence": "exact",
       "to": "external api.keenable.ai",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1551"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(`${baseUrl}${path}`, …)`, where `baseUrl` is a `let` starting as `\"https://api.keenable.ai\"` and replaced by `AGENT_KEENABLE_API_URL`'s origin only when that's set (web-browsing.js:1510–1521). The edge is the default branch, drawn beside an unresolved one for the configured branch (M9.1a3d); both are what the code does."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.perplexity.ai",
@@ -1414,8 +1417,8 @@
       "confidence": "exact",
       "to": "external api.perplexity.ai",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1286"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://api.perplexity.ai/search\", …)`."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.search.brave.com",
@@ -1423,8 +1426,8 @@
       "confidence": "exact",
       "to": "external api.search.brave.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1380"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(searchURL.toString(), …)` of `new URL(\"https://api.search.brave.com/res/v1/web/search\")` (web-browsing.js:1357–1359)."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.serply.io",
@@ -1432,8 +1435,8 @@
       "confidence": "exact",
       "to": "external api.serply.io",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:916"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(url, …)` with ``const url = `https://api.serply.io/v1/search/${…}` `` on the line before."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.tavily.com",
@@ -1441,8 +1444,8 @@
       "confidence": "exact",
       "to": "external api.tavily.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1056"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(url, …)` with `const url = \"https://api.tavily.com/search\"` on the line before."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/api.you.com",
@@ -1450,8 +1453,8 @@
       "confidence": "exact",
       "to": "external api.you.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1641"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(searchURL.toString(), …)` of `new URL(usingKey ? \"https://ydc-index.io/v1/search\" : \"https://api.you.com/v1/agents/search\")` (web-browsing.js:1624–1627): this edge is the keyless branch, drawn beside the other."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/fastcrw.com",
@@ -1459,8 +1462,8 @@
       "confidence": "exact",
       "to": "external fastcrw.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1451"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(`${baseUrl}/v1/search`, …)`, where `baseUrl` is a `let` starting as `\"https://fastcrw.com/api\"` and replaced by `AGENT_CRW_API_URL` only when that's set (web-browsing.js:1437–1443). The edge is the default branch, drawn beside an unresolved one for the configured branch (M9.1a3d); both are what the code does."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/google.serper.dev",
@@ -1468,8 +1471,8 @@
       "confidence": "exact",
       "to": "external google.serper.dev",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:673"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://google.serper.dev/search\", …)`."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/html.duckduckgo.com",
@@ -1477,8 +1480,8 @@
       "confidence": "exact",
       "to": "external html.duckduckgo.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1146"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(searchURL.toString())` of `new URL(\"https://html.duckduckgo.com/html\")` (web-browsing.js:1143)."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/qianfan.baidubce.com",
@@ -1486,8 +1489,8 @@
       "confidence": "exact",
       "to": "external qianfan.baidubce.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:793"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://qianfan.baidubce.com/v2/ai_search/web_search\", …)`, Baidu's search provider."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/serpapi.com",
@@ -1495,8 +1498,8 @@
       "confidence": "exact",
       "to": "external serpapi.com",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:193"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(url, …)` with ``const url = `https://serpapi.com/search.json?${…}` `` on the line before."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/www.searchapi.io",
@@ -1504,8 +1507,8 @@
       "confidence": "exact",
       "to": "external www.searchapi.io",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:449"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(url, …)` with ``const url = `https://www.searchapi.io/api/v1/search?${…}` `` on the line before."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/web-browsing.js#webBrowsing.plugin->external:ext/ydc-index.io",
@@ -1513,8 +1516,8 @@
       "confidence": "exact",
       "to": "external ydc-index.io",
       "sites": ["server/utils/agents/aibitat/plugins/web-browsing.js:1641"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(searchURL.toString(), …)` of `new URL(usingKey ? \"https://ydc-index.io/v1/search\" : \"https://api.you.com/v1/agents/search\")` (web-browsing.js:1624–1627): this edge is the keyed branch, drawn beside the other."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#anthropicModels->external:ext/api.anthropic.com",
@@ -1522,8 +1525,8 @@
       "confidence": "exact",
       "to": "external api.anthropic.com",
       "sites": ["server/utils/helpers/customModels.js:361"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `@anthropic-ai/sdk` (`require(\"@anthropic-ai/sdk\")`) built without `baseURL` (customModels.js:359), so the request goes to the SDK's default `https://api.anthropic.com`."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getBedrockModels->external:ext/api.openai.com",
@@ -1531,8 +1534,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:1455"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `openaiBaseURL(region)` (customModels.js:1445; bedrock/endpoints.js:113–118), the Bedrock runtime or mantle host for the region the user picks (`*.amazonaws.com`). The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getCerebrasModels->external:ext/api.cerebras.ai",
@@ -1540,8 +1543,8 @@
       "confidence": "exact",
       "to": "external api.cerebras.ai",
       "sites": ["server/utils/helpers/customModels.js:1290"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://api.cerebras.ai/public/v1/models…` URL."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getCohereModels->external:ext/api.cohere.com",
@@ -1549,8 +1552,8 @@
       "confidence": "exact",
       "to": "external api.cohere.com",
       "sites": ["server/utils/helpers/customModels.js:996"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://api.cohere.com/v1/models…` template."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getDeepSeekModels->external:ext/api.openai.com",
@@ -1558,8 +1561,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:805"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.deepseek.com/v1` (customModels.js:802), so the request goes to api.deepseek.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getDeepgramSTTModels->external:ext/api.deepgram.com",
@@ -1567,8 +1570,8 @@
       "confidence": "exact",
       "to": "external api.deepgram.com",
       "sites": ["server/utils/helpers/customModels.js:1160"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://api.deepgram.com/v1/models\", …)`."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getGeminiImageModels->external:ext/generativelanguage.googleapis.com",
@@ -1576,8 +1579,8 @@
       "confidence": "exact",
       "to": "external generativelanguage.googleapis.com",
       "sites": ["server/utils/helpers/customModels.js:1701"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(url.toString(), …)` of `new URL(\"https://generativelanguage.googleapis.com/v1/models\")` (customModels.js:1699)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getGenericOpenAiModels->external:ext/api.openai.com",
@@ -1585,8 +1588,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:1318"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `basePath || process.env.GENERIC_OPEN_AI_BASE_PATH` (customModels.js:1314), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getGroqAiModels->external:ext/api.openai.com",
@@ -1594,8 +1597,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:414"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.groq.com/openai/v1` (customModels.js:409), so the request goes to api.groq.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getGroqSTTModels->external:ext/api.openai.com",
@@ -1603,8 +1606,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:442"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.groq.com/openai/v1` (customModels.js:437), so the request goes to api.groq.com, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getKoboldCPPModels->external:ext/api.openai.com",
@@ -1612,8 +1615,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:511"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `basePath || process.env.KOBOLD_CPP_BASE_PATH` (customModels.js:507), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getLMStudioModels->external:ext/api.openai.com",
@@ -1621,8 +1624,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:489"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseLMStudioBasePath(basePath || process.env.LMSTUDIO_BASE_PATH)` (customModels.js:483), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getMinimaxModels->external:ext/api.openai.com",
@@ -1630,8 +1633,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:743"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.minimax.io/v1` (customModels.js:739), so the request goes to api.minimax.io, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getMistralModels->external:ext/api.openai.com",
@@ -1639,8 +1642,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:683"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.mistral.ai/v1` (customModels.js:680), so the request goes to api.mistral.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getMoonshotAiModels->external:ext/api.openai.com",
@@ -1648,8 +1651,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:950"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.moonshot.ai/v1` (customModels.js:946), so the request goes to api.moonshot.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getNvidiaNimModels->external:ext/api.openai.com",
@@ -1657,8 +1660,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:888"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseNvidiaNimBasePath(basePath ?? process.env.NVIDIA_NIM_LLM_BASE_PATH)` (customModels.js:882), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getOMLXModels->external:ext/api.openai.com",
@@ -1666,8 +1669,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:1129"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `parseOMLXBasePath(basePath ?? process.env.OMLX_LLM_BASE_PATH)` (customModels.js:1125), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getOpenAiImageModels->external:ext/api.openai.com",
@@ -1675,8 +1678,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:1523"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (customModels.js:1519), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getOpenRouterImageModels->external:ext/openrouter.ai",
@@ -1684,8 +1687,8 @@
       "confidence": "exact",
       "to": "external openrouter.ai",
       "sites": ["server/utils/helpers/customModels.js:1737"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://openrouter.ai/api/v1/…models` URL."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getPrivatemodeModels->external:ext/api.openai.com",
@@ -1693,8 +1696,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:1206"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `PrivatemodeLLM.parseBasePath(basePath || process.env.PRIVATEMODE_LLM_BASE_PATH)` (customModels.js:1200), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getSambaNovaModels->external:ext/api.openai.com",
@@ -1702,8 +1705,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:1254"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.sambanova.ai/v1` (customModels.js:1250), so the request goes to api.sambanova.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getXAIModels->external:ext/api.openai.com",
@@ -1711,8 +1714,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:859"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.x.ai/v1` (customModels.js:855), so the request goes to api.x.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#getZAiModels->external:ext/api.openai.com",
@@ -1720,8 +1723,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:1030"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL` `https://api.z.ai/api/paas/v4` (customModels.js:1026), so the request goes to api.z.ai, not api.openai.com. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2)."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#liteLLMModels->external:ext/api.openai.com",
@@ -1729,8 +1732,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:462"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `basePath || process.env.LITE_LLM_BASE_PATH` (customModels.js:458), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#localAIModels->external:ext/api.openai.com",
@@ -1738,8 +1741,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:390"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "wrong",
+      "evidence": "The receiver is an `openai` SDK client whose base is `basePath || process.env.LOCAL_AI_BASE_PATH` (customModels.js:386), the endpoint the user configures. The request goes there, not to the SDK's default, so drawing api.openai.com guesses a host the code doesn't name. The SDK detector ignores the client's `baseURL` (planned as M9.1a3e2). With a base only known at runtime, the honest drawing is unresolved."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#openAiModels->external:ext/api.openai.com",
@@ -1747,8 +1750,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:218"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (customModels.js:214), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/customModels.js#openAiSttModels->external:ext/api.openai.com",
@@ -1756,8 +1759,8 @@
       "confidence": "exact",
       "to": "external api.openai.com",
       "sites": ["server/utils/helpers/customModels.js:330"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (customModels.js:325), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
       "id": "external_call:symbol:server/utils/helpers/modelPricing/index.js#ModelPricing.#refresh->external:ext/models.dev",
@@ -1765,8 +1768,8 @@
       "confidence": "exact",
       "to": "external models.dev",
       "sites": ["server/utils/helpers/modelPricing/index.js:237"],
-      "verdict": "pending",
-      "task": "M9.1a3e"
+      "verdict": "correct",
+      "evidence": "`fetch(REMOTE_URL, …)` with `REMOTE_URL = \"https://models.dev/api.json\"` (modelPricing/index.js:70)."
     },
     {
       "id": "http:file:collector/__tests__/utils/extensions/RepoLoader/GiteaRepo.test.js->unresolved:collector/__tests__/utils/extensions/RepoLoader/GiteaRepo.test.js:489:18",

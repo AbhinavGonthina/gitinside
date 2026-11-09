@@ -12,7 +12,7 @@ is **zero wrong edges** (D13.4).
 
 | Repo | Commit | Stars | Inferred edges | Checked | Wrong |
 | --- | --- | ---: | ---: | --- | ---: |
-| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 863 | [390 of 863](Mintplex-Labs__anything-llm.json) (M9.1a3c–f) | 244 + 11 fixed, 0 since |
+| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 863 | [581 of 863](Mintplex-Labs__anything-llm.json) (M9.1a3c–f) | 244 + 11 fixed; 117 open (M9.1a3e2) |
 | [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
@@ -122,3 +122,21 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     `server/`, `collector/`, and `extras/` is on an edge, or is a wrapper body drawn at its
     callers, or isn't an HTTP request (a WebSocket in an example page, an MSSQL request, an
     SDK method rebinding).
+  - **External calls** (M9.1a3e1, checked 2026-11-09): 191 edges, 74 correct, **117 wrong**.
+    All 59 `fetch(` edges to a literal host are correct (Microsoft Graph, search APIs, model
+    lists, YouTube). So are the 15 SDK edges whose client is built without a `baseURL` (10
+    `openai`, 5 `@anthropic-ai/sdk`).
+  - The 117 wrong ones all come from one gap: the SDK detector sends every call on an
+    `openai` or Anthropic client to the SDK's default host, ignoring the constructor's
+    `baseURL`. anything-llm uses the `openai` package as the client for most providers, so
+    `new OpenAI({ baseURL: "https://api.groq.com/openai/v1" })` was drawn as a call to
+    api.openai.com.
+  - Of the 117, 56 name another provider in a literal base (20 hosts), 57 use a base the user
+    configures (LM Studio, LiteLLM, Azure, Vertex, Bedrock, …) or the loopback lemond, 2 are
+    Bedrock's Anthropic client, 1 is a script calling AnythingLLM's own API on
+    `localhost:3001`, and 1 is a Jest mock (`create.mockImplementation(…)`). The fix is planned
+    as M9.1a3e2, and the repo stays out of the gallery until the fix lands and these edges are
+    checked again.
+  - Missing, not wrong: 83 SDK calls on clients the detector doesn't trace (the agent
+    providers' `this.client`, helpers taking `client` as a parameter, the image generators,
+    Mistral's wrapped client).
