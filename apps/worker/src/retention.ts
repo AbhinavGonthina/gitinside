@@ -19,8 +19,9 @@ import type { ListedObject, ObjectStore } from "./storage.js";
  *    the analysis a permalink serves (the newest finished, as `findPublishedAnalysis` picks).
  *    Older commits are evicted (`beyond-latest`), and so is every other analysis of a kept
  *    commit (`superseded`: an older analyzer version nothing serves any more).
- * 2. Plus any commit a pull request updated in the last 30 days names as base or head
- *    (pinned): a PR diff may still need it. Pinned snapshots are never evicted.
+ * 2. Plus any commit a pull request updated in the last 30 days names as base or head, or
+ *    its stored diff names as merge base (pinned, M8.10b): a PR diff, or the comment's
+ *    `?base=` link, may still need it. Pinned snapshots are never evicted.
  * 3. If the bucket would still hold more than {@link RetentionPolicy.budgetBytes} (16 GB),
  *    the oldest snapshots by finish time go first, globally, private ones included
  *    (`over-budget`), until it fits.
