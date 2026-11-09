@@ -377,6 +377,29 @@ describe("runRetention", () => {
     );
   });
 
+  it("keeps the merge base a pull request's diff was taken from (F1)", async () => {
+    // The event names base 9 (the branch's tip, never analyzed) and head 10; the diff job
+    // diffed from the merge base, commit 1, beyond the latest 5.
+    const named = diffKey(shopId, 1, 10);
+    await t.db.insert(pullRequests).values({
+      repoId: shopId,
+      number: 5,
+      baseSha: sha(9),
+      headSha: sha(10),
+      headAt: new Date(),
+      diffKey: named,
+      brokenCount: 0,
+    });
+    stored(named, 40);
+
+    const report = await runRetention({ db: t.db, store: store() });
+
+    expect(report.evicted).toEqual({ superseded: 0, "beyond-latest": 1, "over-budget": 0 });
+    expect(await commitsLeft()).toEqual([1, 3, 4, 5, 6, 7].map(sha));
+    expect(s3.objects.has(key("shop", 1))).toBe(true);
+    expect(s3.objects.has(named)).toBe(true);
+  });
+
   it("evicts for the budget given", async () => {
     const report = await runRetention({
       db: t.db,
