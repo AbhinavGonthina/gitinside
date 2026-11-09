@@ -44,9 +44,11 @@
  *    - A partly literal segment (`user-{}`) matches a literal it can spell (`pattern`). A pure
  *      hole never matches a literal: nothing says the runtime value is that literal.
  *    - A wildcard (`*`, `*rest`, `:p*`, `:p+`, Next's `[...slug]`) takes the rest of its
- *      segments (`pattern`). In a route with no literal segment (a SPA's `GET /*splat`,
- *      Express `*`), it never takes a pure hole (M5C.7c): such a route matches every path, so
- *      `/api/{}` against it doesn't say where the request goes. When only such routes would
+ *      segments (`pattern`). A route with a wildcard and no literal segment (a SPA's
+ *      `GET /*splat`, a 404 handler's Express `*`, `/:lang/*rest`) matches every path, so it
+ *      never picks a route: not for `/api/{}` (M5C.7c), and not for a literal path either
+ *      (M9.1a3b: a loopback Ollama call, a wrapper's `/me/messages`). Such routes are left out
+ *      of the ranking, so they don't beat a real route elsewhere, and when only they would
  *      take a request, it is unresolved (`NO_MATCHING_ROUTE`, naming them).
  *    - An optional param (`:id?`) may be absent (`exact`).
  *
@@ -157,6 +159,17 @@ interface IndexedRoute {
   service: string | undefined;
   method: HttpMethod;
   segments: RouteSegment[];
+  /** A catch-all of every path: a wildcard and no literal segment ({@link isCatchAll}). */
+  catchAll: boolean;
+}
+
+/**
+ * True for a route that matches every path (`*`, `/*splat`, `/:lang/*rest`, a root
+ * `[...slug]`): it has a wildcard and no literal segment, so matching it uses nothing the
+ * request says (M5C.7c, M9.1a3b). `/:id` and `/` aren't: they still fix the path's shape.
+ */
+function isCatchAll(segments: readonly RouteSegment[]): boolean {
+  return segments.some((s) => s.kind === "wildcard") && segments.every((s) => s.kind !== "literal");
 }
 
 /** The `next.config`s of the repo's Next apps, and the nodes their `basePath` applies to. */
@@ -298,11 +311,13 @@ export function createRouteMatcher(
     if (node.kind !== "route" || labels.has(node.id)) continue;
     labels.set(node.id, node.label);
     const service = routeService(node.id, keys);
+    const segments = segmentsOf(node, service);
     const route: IndexedRoute = {
       id: node.id,
       service,
       method: node.method,
-      segments: segmentsOf(node, service),
+      segments,
+      catchAll: isCatchAll(segments),
     };
     const byFirst = index.get(route.method) ?? new Map<string, IndexedRoute[]>();
     const bucket = bucketOf(route.segments);
@@ -399,26 +414,22 @@ export function createRouteMatcher(
         let best = FAIL;
         let bestPath = FAIL;
         let matched: IndexedRoute[] = [];
-        /** Routes with no literal matched only by a wildcard taking a wholly unknown segment. */
+        /** Catch-alls of every path that would have matched; they never pick a route. */
         const catchAlls: IndexedRoute[] = [];
         for (const route of candidates(request.method, path[0])) {
-          // A route with no literal matches every path, so its wildcard never takes a hole:
-          // `/api/{}` against a SPA's `/*splat` says nothing about where it goes (M5C.7c).
-          const aligned = alignSegments(path, route.segments, { rootWildcardsTakeHoles: false });
+          const aligned = alignSegments(path, route.segments);
           const level = Math.max(
             baseLevel(base, caller, route),
             methodLevel(request.method, route),
             aligned,
             listed.has(route.id) ? HEURISTIC : EXACT,
           );
-          if (level === FAIL) {
-            if (aligned === FAIL && alignSegments(path, route.segments) !== FAIL) {
-              const other = Math.max(
-                baseLevel(base, caller, route),
-                methodLevel(request.method, route),
-              );
-              if (other !== FAIL) catchAlls.push(route);
-            }
+          if (level === FAIL) continue;
+          // A route with no literal matches every path, so it never says where a request goes:
+          // `/api/{}` against a SPA's `/*splat` (M5C.7c), and as much a loopback `/api/chat`
+          // or a wrapper's `/me/messages` against a 404 handler's `app.all("*")` (M9.1a3b).
+          if (route.catchAll) {
+            catchAlls.push(route);
             continue;
           }
           if (level < best || (level === best && aligned < bestPath)) {
@@ -432,7 +443,8 @@ export function createRouteMatcher(
         if (best === FAIL) {
           if (catchAlls.length > 0 && catchAllOnly === undefined) {
             const names = [...new Set(catchAlls.map((r) => labels.get(r.id) ?? r.id))];
-            catchAllOnly = `only a catch-all of every path matches ${url.text} (${names.sort(compareStrings).join(", ")}), so its unknown part doesn't pick a route`;
+            const what = path.some((s) => isHole(s)) ? "its unknown part doesn't" : "it doesn't";
+            catchAllOnly = `only a catch-all of every path matches ${url.text} (${names.sort(compareStrings).join(", ")}), so ${what} pick a route`;
           }
           return undefined;
         }

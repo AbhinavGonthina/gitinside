@@ -319,9 +319,8 @@ describe("createRouteMatcher", () => {
     // request named its prefix.
     expect(s("GET /docs/{}")).toBe("pattern route:web/GET /docs/*slug");
     expect(s("POST /files/{}")).toBe("pattern route:web/ALL /files/*");
-    // A literal path under a catch-all, a param taking the unknown part, and a partly
-    // literal segment still match.
-    expect(s("GET /api/health")).toBe("heuristic route:api/GET /*splat");
+    // A param taking the unknown part and a partly literal segment under a catch-all with a
+    // literal still match.
     expect(s("GET /docs/intro")).toBe("pattern route:web/GET /docs/*slug");
     expect(s("GET /docs/v-{}")).toBe("pattern route:web/GET /docs/*slug");
     expect(s("GET /api/items/{}")).toBe("heuristic route:api/GET /api/items/:id");
@@ -330,6 +329,46 @@ describe("createRouteMatcher", () => {
     );
     // Other failures keep their own detail.
     expect(s("POST /api/{}")).toBe("NO_MATCHING_ROUTE: no route matches POST to /api/{}");
+  });
+
+  it("never lets a catch-all of every path pick a literal path either (M9.1a3b)", () => {
+    // anything-llm at 308b276: `app.all("*")` 404 handlers in the server and the collector
+    // took an Ollama call on 127.0.0.1, a search URL from an env base, and the root-relative
+    // branch of an Outlook wrapper's `endpoint.startsWith("http") ? endpoint : GRAPH + endpoint`.
+    const matcher = createRouteMatcher(
+      [
+        route("api", "ALL *"),
+        route("api", "GET /:a/*b"),
+        route("api", "GET /:id"),
+        route("web", "GET /*splat"),
+        route("web", "GET /docs/*slug"),
+        route("api", "GET /api/users"),
+      ],
+      workspace,
+    );
+    const s = (spec: string, file = "apps/web/src/client.ts") =>
+      show(matcher.match(request(spec, file)));
+    expect(s("POST http://127.0.0.1:11434/api/chat")).toBe(
+      "NO_MATCHING_ROUTE: only a catch-all of every path matches http://127.0.0.1:11434/api/chat (ALL *), so it doesn't pick a route",
+    );
+    expect(s("GET {env:AGENT_SEARXNG_API_URL}")).toBe(
+      "NO_MATCHING_ROUTE: only a catch-all of every path matches {env:AGENT_SEARXNG_API_URL} (ALL *, GET /*splat), so it doesn't pick a route",
+    );
+    expect(s("POST /me/messages", "apps/api/a.ts")).toBe(
+      "NO_MATCHING_ROUTE: only a catch-all of every path matches /me/messages (ALL *), so it doesn't pick a route",
+    );
+    expect(s("GET /me/messages", "apps/api/a.ts")).toBe(
+      "NO_MATCHING_ROUTE: only a catch-all of every path matches /me/messages (ALL *, GET /*splat, GET /:a/*b), so it doesn't pick a route",
+    );
+    expect(s("GET /me/messages/inbox", "apps/api/a.ts")).toBe(
+      "NO_MATCHING_ROUTE: only a catch-all of every path matches /me/messages/inbox (ALL *, GET /*splat, GET /:a/*b), so it doesn't pick a route",
+    );
+    // A SPA fallback in the caller's own service doesn't beat another service's real route.
+    expect(s("GET /api/users")).toBe("heuristic route:api/GET /api/users");
+    // A route with no literal but no wildcard still names the request's shape.
+    expect(s("GET /me", "apps/api/a.ts")).toBe("pattern route:api/GET /:id");
+    // A catch-all under a literal still takes a literal rest.
+    expect(s("GET /docs/intro")).toBe("pattern route:web/GET /docs/*slug");
   });
 
   it("links every equally good route, one level weaker, and records AMBIGUOUS", () => {
@@ -1130,6 +1169,67 @@ describe("analyze: http edges", () => {
       .map((e) => `${e.from} -> ${e.to} ${e.confidence}${e.reason ? " " + e.reason : ""}`);
     expect(http).toEqual([
       "symbol:frontend/src/admin.js#users -> route:server/GET /api/admin/users heuristic",
+    ]);
+  });
+
+  it("draws no edge to a 404 catch-all for a request it would only guess at (M9.1a3b)", async () => {
+    // anything-llm at 308b276: 11 edges went to the server's and collector's `app.all("*")`.
+    await put("package.json", [JSON.stringify({ name: "llm", workspaces: ["apps/*"] })]);
+    for (const service of ["server", "collector"]) {
+      await put(`apps/${service}/package.json`, [
+        JSON.stringify({ name: service, dependencies: { express: "4" } }),
+      ]);
+    }
+    await put("apps/collector/index.js", [
+      'const express = require("express");',
+      "const app = express();",
+      'app.post("/process", (_req, res) => res.json({}));',
+      'app.all("*", (_req, res) => res.sendStatus(404));',
+      "app.listen(8888);",
+    ]);
+    await put("apps/server/index.js", [
+      'const express = require("express");',
+      "const app = express();",
+      'app.get("/api/ping", (_req, res) => res.json({}));',
+      'app.all("*", (_req, res) => res.sendStatus(404));',
+      "app.listen(3001);",
+    ]);
+    await put("apps/server/agents.js", [
+      'const GRAPH_API_URL = "https://graph.microsoft.com/v1.0";',
+      "class Outlook {",
+      "  async request(endpoint, options = {}) {",
+      '    const url = endpoint.startsWith("http") ? endpoint : `${GRAPH_API_URL}${endpoint}`;',
+      "    return fetch(url, options);",
+      "  }",
+      "  async inbox() {",
+      '    return this.request("/me/messages");',
+      "  }",
+      "}",
+      "async function translate() {",
+      '  return fetch("http://127.0.0.1:11434/api/chat", { method: "POST" });',
+      "}",
+      "async function search() {",
+      "  const url = new URL(process.env.AGENT_SEARXNG_API_URL);",
+      "  return fetch(url.toString());",
+      "}",
+      "module.exports = { Outlook, translate, search };",
+    ]);
+
+    const graph = await analyze(dir);
+    const edges = graph.edges
+      .filter((e) => e.kind === "http" || e.kind === "external_call")
+      .map((e) => `${e.from} -> ${e.to} ${e.confidence}`);
+    expect(edges.filter((e) => e.includes("route:"))).toEqual([]);
+    expect(edges).toContain(
+      "symbol:server/agents.js#Outlook.inbox -> external:ext/graph.microsoft.com exact",
+    );
+    const details = graph.nodes
+      .flatMap((n) => (n.kind === "unresolved" ? [`${n.label} | ${n.detail}`] : []))
+      .sort();
+    expect(details).toEqual([
+      "GET /me/messages | only a catch-all of every path matches /me/messages (ALL /*), so it doesn't pick a route",
+      "GET {env:AGENT_SEARXNG_API_URL} | only a catch-all of every path matches {env:AGENT_SEARXNG_API_URL} (ALL /*), so it doesn't pick a route",
+      "POST http://127.0.0.1:11434/api/chat | only a catch-all of every path matches http://127.0.0.1:11434/api/chat (ALL /*), so it doesn't pick a route",
     ]);
   });
 });
