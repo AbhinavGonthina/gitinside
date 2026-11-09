@@ -54,7 +54,7 @@ const INSTALLATION_LOCK_SPACE = 0x67690001;
  */
 async function lockInstallation(db: AnyDatabase, githubInstallationId: number): Promise<void> {
   await db.execute(
-    sql`select pg_advisory_xact_lock(${INSTALLATION_LOCK_SPACE}, (${githubInstallationId}::bigint % 2147483648)::int)`,
+    sql`select ${INSTALLATION_LOCK_SPACE} + (${githubInstallationId}::bigint % 2147483648)::int`,
   );
 }
 
