@@ -614,6 +614,22 @@ describe("processDiffJob stores the sides it analyzed (M8.6d4)", () => {
     expect(outcome.diff?.stored).toEqual(["head"]);
   });
 
+  it("stops at a failure the recorder named itself (the repo unlinked meanwhile, M8.10e)", async () => {
+    const tried: string[] = [];
+    const { diffs, published } = recorder({
+      storeSide: async ({ sha }) => {
+        tried.push(sha);
+        throw new JobFailure("REPO_NOT_INSTALLED", "the repo was unlinked while the job ran");
+      },
+    });
+    const error = await failure(processDiffJob(context(), deps({ diffs })));
+    expect([error.code, error.retriable]).toEqual(["REPO_NOT_INSTALLED", false]);
+    // Neither the head analyzed nor the diff stored, and the folder gone.
+    expect(tried).toEqual([MERGE]);
+    expect(published).toEqual([]);
+    expect(await jobFolders()).toEqual([]);
+  });
+
   it("stores the merge base as soon as it's analyzed, so a retry after the head ran out of time reads it", async () => {
     const { diffs, sides } = recorder();
     const run = fakeRun((job) =>

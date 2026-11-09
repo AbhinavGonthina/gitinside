@@ -137,7 +137,8 @@ export interface DiffRecorder {
   /**
    * Store a side the job analyzed as that commit's analysis, when no other job holds that
    * commit's row and the repo is still linked to the installation (M8.6d4): its snapshot under
-   * the key an analysis job would use, then a `done` row. Answers whether the row was written.
+   * the key an analysis job would use, then a `done` row. Answers whether the row was written;
+   * throws `REPO_NOT_INSTALLED` when the repo was unlinked during the upload (M8.10e).
    */
   storeSide(side: {
     installationId: number;
@@ -149,7 +150,8 @@ export interface DiffRecorder {
   }): Promise<boolean>;
   /**
    * Store the diff and record it on every pull request record naming the job; answers those
-   * records (empty: each moved on to another pair, and nothing is posted).
+   * records (empty: each moved on to another pair, and nothing is posted). Throws
+   * `REPO_NOT_INSTALLED` when none is left because the repo was unlinked (M8.10e).
    */
   publish(diff: DiffToStore): Promise<DiffedPullRequest[]>;
   /** The records naming the job with its diff and no Check Run (db's `findDiffJobPosts`). */
@@ -364,7 +366,9 @@ async function storedSide(
 /**
  * Store a side the job just analyzed as that commit's analysis (`DiffRecorder.storeSide`,
  * M8.6d4); answers whether its row was written. A failure is logged (`side_store_failed`, the
- * error's message only) and the job goes on: the diff doesn't depend on it.
+ * error's message only) and the job goes on: the diff doesn't depend on it. A failure the
+ * recorder named itself (`REPO_NOT_INSTALLED`: the repo was unlinked meanwhile, M8.10e) stops
+ * the job.
  */
 async function storeSide(
   context: JobContext,
@@ -376,6 +380,7 @@ async function storeSide(
   try {
     return await deps.diffs.storeSide({ ...owner, sha: side.sha, graphPath: side.out, stats });
   } catch (error) {
+    if (error instanceof JobFailure) throw error;
     deps.log?.({
       event: "side_store_failed",
       id: context.id,

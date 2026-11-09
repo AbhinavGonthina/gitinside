@@ -441,7 +441,7 @@ export async function processJob(context: JobContext, deps: JobDeps): Promise<Jo
 /**
  * The job's fact cache (factcache.ts), or `undefined` when it gets none. First every
  * installation folder whose repo isn't linked to it any more is deleted (M8.5b2); if that
- * fails (logged as `cache_purge_failed`), the job runs without a cache. Without
+ * fails (logged as `cache_purge_failed`, the error's name only), the job runs without a cache. Without
  * `linkedRepoIds` nothing can be confirmed, so an installation's job gets no cache.
  */
 export async function jobCache(
@@ -457,10 +457,11 @@ export async function jobCache(
     try {
       await purgeUnlinkedFolders(root, deps.linkedRepoIds);
     } catch (error) {
+      // The error's name only: a database error's message can name its host (M8.10e).
       deps.log?.({
         event: "cache_purge_failed",
         id: context.id,
-        message: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.name : typeof error,
       });
       return undefined;
     }
