@@ -1,5 +1,6 @@
 import {
   createSession,
+  DeletedInstallationError,
   deleteSession,
   findSession,
   replaceSessionTokens,
@@ -197,7 +198,8 @@ const INSTALLATION_ID = /^[1-9][0-9]{0,15}$/;
  *   with `after=signin`; still signed out then, sign-in failed, and that's said, not looped.
  * - Signed in, the installation counts only if GitHub lists it among the user's own
  *   (`GET /user/installations` with their token), and it's stored from that answer: account
- *   ID, login, type, suspension. One the user can't see changes nothing.
+ *   ID, login, type, suspension. One the user can't see changes nothing, and neither does one
+ *   uninstalled since GitHub answered (its tombstone, M8.10e2a): both are `unverified`.
  *
  * Every outcome lands on `/dashboard?install=<outcome>` (`installed`/`updated` name the
  * installation for the note), except an ended GitHub sign-in (`/?signin=ended`, as the
@@ -235,6 +237,11 @@ async function handleInstallReturn(request: Request, url: URL, deps: AuthDeps): 
     const outcome = action === "install" ? "installed" : "updated";
     return redirect(`/dashboard?install=${outcome}&installation=${installationId}`);
   } catch (error) {
+    if (error instanceof DeletedInstallationError) {
+      // Uninstalled since GitHub answered (M8.10e2a): it isn't the user's any more.
+      log("install_return_deleted");
+      return redirect("/dashboard?install=unverified");
+    }
     if (error instanceof TokenRefusedError) {
       // Revoked on GitHub (the user removed the app's authorization): the session is over.
       const ended = await endUserSession(user, deps, "session_token_refused");
