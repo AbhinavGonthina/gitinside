@@ -183,17 +183,46 @@ describe("toUrlPattern", () => {
       kind: "env",
       name: "X",
       fallbackHost: "localhost:4000",
+      fallbackSegments: 2,
     });
     expect(base([envOr("X", [t("http://localhost:"), H, t("/api")]), t("/a")])).toEqual({
       kind: "env",
       name: "X",
       fallbackHost: "localhost:{}",
+      fallbackSegments: 1,
     });
-    expect(base([envOr("X", [t("/api")]), t("/a")])).toEqual({ kind: "env", name: "X" });
+    expect(base([envOr("X", [t("/api")]), t("/a")])).toEqual({
+      kind: "env",
+      name: "X",
+      fallbackSegments: 1,
+    });
     expect(base([envOr("X", [t("http://localhost/"), H]), t("/a")])).toEqual({
       kind: "env",
       name: "X",
     });
+  });
+
+  it("counts the segments a fallback's path adds only when they stay whole (M9.1a3)", () => {
+    const counted = (input: UrlPart[]): unknown => {
+      const result = toUrlPattern(input);
+      return "pattern" in result && result.pattern.base.kind === "env"
+        ? result.pattern.base.fallbackSegments
+        : result;
+    };
+    // `API_BASE || "/api"` then `/admin/users`: one segment is the fallback's.
+    expect(counted([envOr("X", [t("/api")]), t("/admin/users")])).toBe(1);
+    expect(counted([envOr("X", [t("http://h/api/")]), t("users")])).toBe(1);
+    expect(counted([envOr("X", [t("/api/v1")])])).toBe(2);
+    // Glued to the next text (`/api` + `-v2/x` is `/api-v2/x`): no segment is wholly its own.
+    expect(counted([envOr("X", [t("/api")]), t("-v2/x")])).toBeUndefined();
+    // A fallback with no path, or none at all, adds none.
+    expect(counted([envOr("X", [t("http://localhost:3001")]), t("/a")])).toBeUndefined();
+    expect(counted([env("X"), t("/a")])).toBeUndefined();
+    // The count reads back from the pattern's own parts.
+    const result = toUrlPattern([envOr("X", [t("http://h:1/api/")]), t("users/"), H]);
+    if (!("pattern" in result)) throw new Error("doesn't normalize");
+    expect(partsText(patternParts(result.pattern))).toBe("{env:X}/users/{}");
+    expect(toUrlPattern(patternParts(result.pattern))).toEqual(result);
   });
 
   it("collapses runaway concatenations to a hole", () => {
