@@ -94,15 +94,16 @@
  *   function is the forwarding call above and makes no request of its own.
  * - The owner of a call is the innermost symbol containing it, or the Express routes an
  *   inline handler serves. Top-level calls have no owner but are still collected.
- * - A read of a file next to the module isn't a request, so it isn't collected (M9.1a4,
- *   ADR-0251): a URL that is `new URL(path, import.meta.url)` (the global `URL` or `node:url`'s)
- *   with `path` a string or template whose literal start is neither absolute nor root-relative
+ * - A read of a file next to the module (M9.1a4, ADR-0251) is collected with `moduleFile`, so it
+ *   is unresolved as `NO_MATCHING_ROUTE` saying so, not `DYNAMIC_URL`'s "only known at runtime":
+ *   a URL that is `new URL(path, import.meta.url)` (the global `URL` or `node:url`'s) with `path`
+ *   a string or template whose literal start is neither absolute nor root-relative
  *   (`"../assets/font.ttf"`, `` `./locales/${lang}.json` ``), directly, through `.href`,
  *   `.toString()`, `String(…)`, or a `const` whose members nothing assigns. That is `@vercel/og`'s
- *   documented font form; the bundler ships the file with the module, and no service or route
- *   serves it. Any other URL on an `import.meta.url` base stays a request: a root-relative or
- *   absolute path, a path starting with a hole or held in a parameter (a helper's
- *   `new URL(path, import.meta.url)`, unresolved), `new URL("", import.meta.url)`, and a `URL`
+ *   documented font form; the bundler ships the file with the module, and no route serves it.
+ *   Any other URL on an `import.meta.url` base is read as before (`import.meta.url` a hole): a
+ *   root-relative or absolute path, a path starting with a hole or held in a parameter (a
+ *   helper's `new URL(path, import.meta.url)`), `new URL("", import.meta.url)`, and a `URL`
  *   whose members are assigned (`u.pathname = …`).
  *
  * Patterns not handled:
@@ -265,6 +266,12 @@ export interface HttpCallSite {
    * detail. Absent otherwise.
    */
   urlDetail?: DynamicUrlDetail;
+  /**
+   * `true` when `url` names a file next to the module, `new URL("<relative>", import.meta.url)`
+   * (M9.1a4, ADR-0251): the URL normalizer reports it as `NO_MATCHING_ROUTE` with
+   * `url.ts`'s `MODULE_FILE_DETAIL`. Absent otherwise.
+   */
+  moduleFile?: true;
   /**
    * The axios `baseURL` in effect: the call's own, else the instance's. `undefined` when none
    * is set (always for `fetch`), `null` when one may be set but can't be read.
@@ -704,7 +711,8 @@ export function createHttpSiteCollector(
   };
 
   /**
-   * True when a URL expression names a file next to the module (M9.1a4, ADR-0251):
+   * True when a URL expression names a file next to the module (M9.1a4, ADR-0251), so no route
+   * serves it:
    * `new URL(path, import.meta.url)` whose `path` is a string or template starting with
    * literal text that is neither absolute (`https:`) nor root-relative (`/`), directly, through
    * `.href`, `.toString()`, or `String(…)`, or through a `const` whose members nothing assigns.
@@ -1967,11 +1975,12 @@ export function createHttpSiteCollector(
         const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
           const request = requestOf(sp, file, node) ?? rtkDirectCall(sp, node);
-          // A file shipped with the module is read, not requested from a service (M9.1a4).
-          const asset = request?.url && isModuleFile(request.url.sp, request.url.expression, 0);
-          for (const shape of asset ? [] : request ? [request] : rtkEndpoint(sp, node)) {
+          for (const shape of request ? [request] : rtkEndpoint(sp, node)) {
+            // A file shipped with the module, which no route serves (M9.1a4).
+            const asset = shape.url && isModuleFile(shape.url.sp, shape.url.expression, 0);
             sites.push({
               ...shape,
+              ...(asset ? { moduleFile: true as const } : {}),
               sp,
               file,
               call: node,
