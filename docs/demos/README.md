@@ -12,13 +12,15 @@ is **zero wrong edges** (D13.4).
 
 | Repo | Commit | Stars | Inferred edges | Checked | Wrong |
 | --- | --- | ---: | ---: | --- | ---: |
-| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 863 | [581 of 863](Mintplex-Labs__anything-llm.json) (M9.1a3c–f) | 244 + 11 fixed; 117 open (M9.1a3e2) |
+| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 866 | [584 of 866](Mintplex-Labs__anything-llm.json) (M9.1a3c–f) | 0 (244 + 11 + 117 fixed) |
 | [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
 Stars are as of 2026-11-09. Edge counts come from analyzer 0.2.0 at the pinned commit, as of
 the latest fix. anything-llm was pinned at 978 edges (`repos.json`); M9.1a3a removed 244 wrong
-ones and added 131 right ones, and M9.1a3b replaced 11 more wrong ones with 9 unresolved ones.
+ones and added 131 right ones, M9.1a3b replaced 11 more wrong ones with 9 unresolved ones, and
+M9.1a3e2a replaced 117 wrong SDK edges with 120 (50 to their real host or route, 70 unresolved).
+The 282 Prisma edges are still to check (M9.1a3f).
 
 ## What "checked" means
 
@@ -134,9 +136,22 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
   - Of the 117, 56 name another provider in a literal base (20 hosts), 57 use a base the user
     configures (LM Studio, LiteLLM, Azure, Vertex, Bedrock, …) or the loopback lemond, 2 are
     Bedrock's Anthropic client, 1 is a script calling AnythingLLM's own API on
-    `localhost:3001`, and 1 is a Jest mock (`create.mockImplementation(…)`). The fix is planned
-    as M9.1a3e2, and the repo stays out of the gallery until the fix lands and these edges are
-    checked again.
+    `localhost:3001`, and 1 is a Jest mock (`create.mockImplementation(…)`).
+  - Fixed in M9.1a3e2a (ADR-0249, no eval delta): the detector reads the client's `baseURL`
+    where it's built, and its calls go through the same route matcher as `fetch` calls.
+  - **Rechecked** (M9.1a3e2b, 2026-11-09): re-dumped at the fix, the 117 wrong edges are gone
+    and nothing else changed (863 → 866: 117 removed, 120 added at their sites). 0 wrong.
+    - 46 of the 56 literal-base edges now go to their own host (16 hosts, api.groq.com to
+      api.z.ai). The other 10 set `baseURL: this.basePath`, a constructor field holding a
+      literal, and are unresolved.
+    - The compatibility script's 5 calls are 4 edges to the server's `/api/v1/openai/*` routes
+      (models, chat completions ×2, embeddings, vector stores), each the route Express runs.
+    - The 57 runtime bases and Bedrock's 2 Anthropic calls are 60 unresolved edges. The Jest
+      mock has no edge.
+  - Of the 70 unresolved, 58 reasons are accurate (a parameter, the user's settings, a region
+    the user picks, a plain env var, Azure's unread deployment path). 12 overstate "only known
+    at runtime": the 10 `this.basePath` fields, and embedded lemond's static getter
+    (`http://127.0.0.1:${port()}`, 2). That's M9.1a3d's class-member gap, planned as M9.1a7.
   - Missing, not wrong: 83 SDK calls on clients the detector doesn't trace (the agent
     providers' `this.client`, helpers taking `client` as a parameter, the image generators,
     Mistral's wrapped client).
