@@ -161,6 +161,15 @@ describe("mintInstallationToken", () => {
     );
   });
 
+  it("passes GitHub's token through as an opaque string, up to 2,048 characters (M8.10g)", async () => {
+    const { github, app } = setup();
+    const long = `ghs_424242_${"a.b-c_".repeat(340)}`.slice(0, 2_048);
+    github.tamper((b) => ({ ...b, token: long }));
+    await expect(mintInstallationToken(app, 41, SHOP, NOW)).resolves.toMatchObject({
+      token: long,
+    });
+  });
+
   it("matches the repo's owner and name without regard to case, as GitHub does", async () => {
     const { app } = setup();
     await expect(
@@ -249,7 +258,7 @@ describe("mintInstallationToken", () => {
   it.each<[string, (body: Record<string, unknown>) => Record<string, unknown>]>([
     ["no token", ({ token: _, ...rest }) => rest],
     ["an empty token", (b) => ({ ...b, token: "" })],
-    ["a token over 1 KiB", (b) => ({ ...b, token: "t".repeat(1_025) })],
+    ["a token over 2,048 characters", (b) => ({ ...b, token: "t".repeat(2_049) })],
     ["no expiry", ({ expires_at: _, ...rest }) => rest],
     ["an expiry already past", (b) => ({ ...b, expires_at: new Date(NOW).toISOString() })],
     ["a token for every repo", ({ repositories: _, ...rest }) => rest],

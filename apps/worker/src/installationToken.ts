@@ -13,7 +13,8 @@ import { derivedSecret, signRequest, TOKEN_REQUEST_PURPOSE } from "./hmac.js";
  * - **Never redirected:** the request is sent with `redirect: "error"`, so the signed request
  *   and the token only ever travel between the worker and the configured origin.
  * - **Answers mapped to job failures** (failure.ts):
- *   - `200 { token, expiresAt }` → the token (checked: a short run of letters, digits, `_`),
+ *   - `200 { token, expiresAt }` → the token (checked: opaque, visible ASCII, at most
+ *     {@link MAX_TOKEN_LENGTH} characters),
  *     with `appId` when the answer has one (a positive safe integer; a post token's, M8.10d).
  *   - `403` `INSTALLATION_SUSPENDED`, `INSTALLATION_NOT_FOUND`, `REPO_NOT_INSTALLED` → the
  *     same code, permanent (the website words each).
@@ -31,10 +32,16 @@ import { derivedSecret, signRequest, TOKEN_REQUEST_PURPOSE } from "./hmac.js";
 
 /** The route's path, which is signed with the request. */
 export const TOKEN_ROUTE_PATH = "/api/worker/installation-token";
-/** The answer is under 200 bytes; anything far larger isn't one. */
+/** The longest token taken; GitHub's stateless ones are ~520 characters (M8.10g). */
+export const MAX_TOKEN_LENGTH = 2048;
+/** The answer is a token plus under 100 bytes; anything far larger isn't one. */
 const MAX_ANSWER_BYTES = 4096;
-/** GitHub's installation tokens are `ghs_` plus base62; this is looser, but never a header break. */
-const TOKEN = /^[A-Za-z0-9_]{1,255}$/;
+/**
+ * An opaque token: visible ASCII only, so never a header break. GitHub's stateless tokens
+ * (`ghs_<app ID>_<JWT>`) hold dots and `-`, and it asks clients not to match its format
+ * (M8.10g: the old `[A-Za-z0-9_]{1,255}` refused every one).
+ */
+const TOKEN = new RegExp(`^[\\x21-\\x7e]{1,${String(MAX_TOKEN_LENGTH)}}$`);
 const PERMANENT_403 = new Set([
   "INSTALLATION_SUSPENDED",
   "INSTALLATION_NOT_FOUND",
