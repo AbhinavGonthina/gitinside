@@ -94,6 +94,16 @@
  *   function is the forwarding call above and makes no request of its own.
  * - The owner of a call is the innermost symbol containing it, or the Express routes an
  *   inline handler serves. Top-level calls have no owner but are still collected.
+ * - A read of a file next to the module isn't a request, so it isn't collected (M9.1a4,
+ *   ADR-0251): a URL that is `new URL(path, import.meta.url)` (the global `URL` or `node:url`'s)
+ *   with `path` a string or template whose literal start is neither absolute nor root-relative
+ *   (`"../assets/font.ttf"`, `` `./locales/${lang}.json` ``), directly, through `.href`,
+ *   `.toString()`, `String(…)`, or a `const` whose members nothing assigns. That is `@vercel/og`'s
+ *   documented font form; the bundler ships the file with the module, and no service or route
+ *   serves it. Any other URL on an `import.meta.url` base stays a request: a root-relative or
+ *   absolute path, a path starting with a hole or held in a parameter (a helper's
+ *   `new URL(path, import.meta.url)`, unresolved), `new URL("", import.meta.url)`, and a `URL`
+ *   whose members are assigned (`u.pathname = …`).
  *
  * Patterns not handled:
  * - Locally declared functions named `fetch` and other wrappers (`get(path)` calling
@@ -361,6 +371,32 @@ export function requiredModule(expression: ts.Expression): string | undefined {
     if (arg && ts.isStringLiteralLike(arg)) return arg.text;
   }
   return undefined;
+}
+
+/** True when an expression is `import.meta.url`. */
+function isImportMetaUrl(expression: ts.Expression): boolean {
+  const e = unwrap(expression);
+  return (
+    ts.isPropertyAccessExpression(e) &&
+    e.name.text === "url" &&
+    ts.isMetaProperty(e.expression) &&
+    e.expression.keywordToken === ts.SyntaxKind.ImportKeyword &&
+    e.expression.name.text === "meta"
+  );
+}
+
+/**
+ * True when a string or template starts with literal text that is relative to the base:
+ * neither a scheme (`https:`, `data:`) nor a root (`/`, `\`, which WHATWG reads as `/` for
+ * `file:` and `http:` bases). A template starting with a hole (`${dir}/x`) could be either.
+ */
+function isRelativeStart(expression: ts.Expression): boolean {
+  const e = unwrap(expression);
+  let head: string;
+  if (ts.isStringLiteralLike(e)) head = e.text;
+  else if (ts.isTemplateExpression(e)) head = e.head.text;
+  else return false;
+  return head !== "" && !/^[a-z][a-z\d+\-.]*:/i.test(head) && !/^[/\\]/.test(head);
 }
 
 /**
@@ -651,6 +687,66 @@ export function createHttpSiteCollector(
     return value && constString(value.sp, value.expression, 0) === undefined
       ? { method, methodSource: { kind: "value", value } }
       : { method };
+  };
+
+  // ---- files next to a module (M9.1a4) ----
+
+  /** True when a callee is the global `URL` class or `URL` imported from `url`/`node:url`. */
+  const isUrlClass = (sp: ServiceProgram, callee: ts.Expression): boolean => {
+    const e = unwrap(callee);
+    if (!ts.isIdentifier(e)) return false;
+    const declarations = symbolAt(sp, e)?.declarations ?? [];
+    if (declarations.every((d) => !isRepoCode(sp, d))) return e.text === "URL";
+    return declarations.every((d) => {
+      const binding = importBinding(d);
+      return binding?.name === "URL" && ["node:url", "url"].includes(binding.module);
+    });
+  };
+
+  /**
+   * True when a URL expression names a file next to the module (M9.1a4, ADR-0251):
+   * `new URL(path, import.meta.url)` whose `path` is a string or template starting with
+   * literal text that is neither absolute (`https:`) nor root-relative (`/`), directly, through
+   * `.href`, `.toString()`, or `String(…)`, or through a `const` whose members nothing assigns.
+   */
+  const isModuleFile = (sp: ServiceProgram, expression: ts.Expression, hops: number): boolean => {
+    if (hops > MAX_HOPS) return false;
+    const e = unwrap(expression);
+    if (ts.isNewExpression(e)) {
+      const [path, base, ...rest] = e.arguments ?? [];
+      return (
+        path !== undefined &&
+        base !== undefined &&
+        rest.length === 0 &&
+        isUrlClass(sp, e.expression) &&
+        isImportMetaUrl(base) &&
+        isRelativeStart(path)
+      );
+    }
+    if (ts.isPropertyAccessExpression(e) && e.name.text === "href") {
+      return isModuleFile(sp, e.expression, hops + 1);
+    }
+    if (ts.isCallExpression(e)) {
+      const callee = unwrap(e.expression);
+      const [only] = e.arguments;
+      if (e.arguments.length === 0 && ts.isPropertyAccessExpression(callee)) {
+        return callee.name.text === "toString" && isModuleFile(sp, callee.expression, hops + 1);
+      }
+      const isString =
+        ts.isIdentifier(callee) &&
+        callee.text === "String" &&
+        (symbolAt(sp, callee)?.declarations ?? []).every((d) => !isRepoCode(sp, d));
+      return isString && e.arguments.length === 1 && only !== undefined && !ts.isSpreadElement(only)
+        ? isModuleFile(sp, only, hops + 1)
+        : false;
+    }
+    if (!ts.isIdentifier(e)) return false;
+    const symbol = symbolAt(sp, e);
+    const found = symbol && resolveDeclaration(sp, symbol, hops + 1);
+    const d = found?.declaration;
+    if (!found || !d || !ts.isVariableDeclaration(d) || !d.initializer) return false;
+    if (!isConst(d) || isMutated(found.sp, d)) return false;
+    return isModuleFile(found.sp, d.initializer, hops + 1);
   };
 
   // ---- fetch ----
@@ -1871,7 +1967,9 @@ export function createHttpSiteCollector(
         const current = ownersAt(file, node, byNode.get(node), owners);
         if (ts.isCallExpression(node)) {
           const request = requestOf(sp, file, node) ?? rtkDirectCall(sp, node);
-          for (const shape of request ? [request] : rtkEndpoint(sp, node)) {
+          // A file shipped with the module is read, not requested from a service (M9.1a4).
+          const asset = request?.url && isModuleFile(request.url.sp, request.url.expression, 0);
+          for (const shape of asset ? [] : request ? [request] : rtkEndpoint(sp, node)) {
             sites.push({
               ...shape,
               sp,

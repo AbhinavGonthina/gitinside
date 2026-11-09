@@ -230,6 +230,43 @@ describe("collectHttpCalls: fetch", () => {
     ]);
   });
 
+  it("skips a read of a file next to the module, new URL(relative, import.meta.url) (M9.1a4)", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { axios: "1.0.0" } }));
+    await put("src/a.ts", [
+      'import axios from "axios";',
+      'import { URL as NodeURL } from "node:url";',
+      'const font = new URL("../assets/font.ttf", import.meta.url);',
+      'const moved = new URL("./data.json", import.meta.url);',
+      'moved.pathname = "/api/x";',
+      "export async function load(lang: string, path: string) {",
+      '  await fetch(new URL("../assets/Inter-Regular.ttf", import.meta.url));',
+      "  await fetch(new URL(`./locales/${lang}.json`, import.meta.url).href);",
+      '  await fetch(new NodeURL("data.json", import.meta.url).toString());',
+      "  await fetch(String(font));",
+      "  await axios.get(font.href);",
+      '  await fetch(new URL("/api/root", import.meta.url));',
+      '  await fetch(new URL("https://h.com/a", import.meta.url));',
+      "  await fetch(new URL(`${lang}/x.json`, import.meta.url));",
+      "  await fetch(new URL(path, import.meta.url));",
+      '  await fetch(new URL("./x.json", location.href));',
+      "  await fetch(moved);",
+      "}",
+    ]);
+    await put("src/b.ts", [
+      "class URL { constructor(public a: string, public b: string) {} }",
+      'export const local = () => fetch(new URL("./x.json", import.meta.url) as never);',
+    ]);
+    expect(summary(await collect()).map((s) => s.split(" base=")[0])).toEqual([
+      'src/a.ts:12:9 fetch GET new URL("/api/root", import.meta.url)',
+      'src/a.ts:13:9 fetch GET new URL("https://h.com/a", import.meta.url)',
+      "src/a.ts:14:9 fetch GET new URL(`${lang}/x.json`, import.meta.url)",
+      "src/a.ts:15:9 fetch GET new URL(path, import.meta.url)",
+      'src/a.ts:16:9 fetch GET new URL("./x.json", location.href)',
+      "src/a.ts:17:9 fetch GET moved",
+      'src/b.ts:2:28 fetch GET new URL("./x.json", import.meta.url) as never',
+    ]);
+  });
+
   it("keeps window.fetch and fetch global when a JS file assigns their properties (M5C.7e2)", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/setup.js", ['window.title = "x";', "fetch.polyfilled = true;"]);

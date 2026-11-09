@@ -68,7 +68,7 @@
       "path": "app/(shop)/products/[id]/page.tsx"
     },
     {
-      "hash": "8b20e264d8ab3678822a05de82a4abd93a66cf6f919382aff3ff6be8037cd170",
+      "hash": "453c7629b6c4c88579e5c9f80c13d7889ba96e2e336044f49840cf7906f9391f",
       "id": "file:next-app-router/app/api/items/route.ts",
       "kind": "file",
       "label": "route.ts",
