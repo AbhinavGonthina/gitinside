@@ -539,6 +539,53 @@ describe("createRouteMatcher", () => {
     expect(asked.some((a) => a.startsWith("ANALYTICS"))).toBe(false);
   });
 
+  it("puts an example env file's path in place of the code fallback's path, not in front (M9.1a3)", () => {
+    // anything-llm: `VITE_API_BASE || "/api"`, `VITE_API_BASE='http://localhost:3001/api'` in
+    // frontend/.env.example, and an `app.all("*")` 404 handler in both Express services.
+    const replaced = createRouteMatcher(
+      [
+        route("api", "GET /api/admin/users"),
+        route("api", "GET /users"),
+        route("api", "ALL /*"),
+        route("web", "ALL /*"),
+      ],
+      workspace,
+      new Set(),
+      (name) =>
+        name === "VITE_API_BASE" ? ["api"] : name === "VITE_ROOT_API_URL" ? [] : undefined,
+    );
+    const from = (name: string, fallback: string, path: string) => {
+      const result = toUrlPattern([
+        { kind: "env", name, fallback: [{ kind: "text", text: fallback }] },
+        { kind: "text", text: path },
+      ]);
+      if (!("pattern" in result)) throw new Error(`test URL doesn't normalize: ${path}`);
+      return show(
+        replaced.match({
+          file: "apps/web/src/client.ts",
+          method: "GET",
+          url: {
+            resolved: true,
+            pattern: result.pattern,
+            text: formatUrlPattern(result.pattern),
+            confidence: "exact",
+          },
+          confidence: "exact",
+        }),
+      );
+    };
+    // `/api` + `/admin/users`, not `/api/api/admin/users`, which only the catch-alls take.
+    expect(from("VITE_API_BASE", "/api", "/admin/users")).toBe(
+      "heuristic route:api/GET /api/admin/users",
+    );
+    // An example URL with no path replaces the fallback's path too.
+    expect(from("VITE_ROOT_API_URL", "/v1", "/users")).toBe("heuristic route:api/GET /users");
+    // A fallback with only a host adds no segment, so the example's path still goes in front.
+    expect(from("VITE_API_BASE", "http://localhost:3001", "/admin/users")).toBe(
+      "heuristic route:api/GET /api/admin/users",
+    );
+  });
+
   it("matches a request sent through a dev proxy by the path the proxy sends (ADR-0204)", () => {
     const host = (h: string, path = "") =>
       ({ kind: "host", scheme: h.startsWith("api.") ? "https" : "http", host: h, path }) as const;
@@ -1039,5 +1086,50 @@ describe("analyze: http edges", () => {
     ]);
     // Credentials in a literal URL never reach the graph.
     expect(JSON.stringify(graph)).not.toContain("s3cret");
+  });
+
+  it("matches an env base's fallback path and its example path as one prefix, not two (M9.1a3)", async () => {
+    // anything-llm at 308b276: 122 frontend requests went to the collector's `app.all("*")`.
+    await put("package.json", [JSON.stringify({ name: "llm", workspaces: ["apps/*"] })]);
+    for (const service of ["server", "collector"]) {
+      await put(`apps/${service}/package.json`, [
+        JSON.stringify({ name: service, dependencies: { express: "4" } }),
+      ]);
+    }
+    await put("apps/server/index.js", [
+      'const express = require("express");',
+      "const app = express();",
+      "const apiRouter = express.Router();",
+      'apiRouter.get("/admin/users", (_req, res) => res.json([]));',
+      'app.use("/api", apiRouter);',
+      'app.all("*", (_req, res) => res.sendStatus(404));',
+      "app.listen(3001);",
+    ]);
+    await put("apps/collector/index.js", [
+      'const express = require("express");',
+      "const app = express();",
+      'app.post("/process", (_req, res) => res.json({}));',
+      'app.all("*", (_req, res) => res.sendStatus(404));',
+      "app.listen(8888);",
+    ]);
+    await put("apps/frontend/package.json", [JSON.stringify({ name: "frontend" })]);
+    await put("apps/frontend/.env.example", ["VITE_API_BASE='http://localhost:3001/api'"]);
+    await put("apps/frontend/src/constants.js", [
+      'export const API_BASE = import.meta.env.VITE_API_BASE || "/api";',
+    ]);
+    await put("apps/frontend/src/admin.js", [
+      'import { API_BASE } from "./constants";',
+      "export async function users() {",
+      "  return fetch(`${API_BASE}/admin/users`);",
+      "}",
+    ]);
+
+    const graph = await analyze(dir);
+    const http = graph.edges
+      .filter((e) => e.kind === "http")
+      .map((e) => `${e.from} -> ${e.to} ${e.confidence}${e.reason ? " " + e.reason : ""}`);
+    expect(http).toEqual([
+      "symbol:frontend/src/admin.js#users -> route:server/GET /api/admin/users heuristic",
+    ]);
   });
 });

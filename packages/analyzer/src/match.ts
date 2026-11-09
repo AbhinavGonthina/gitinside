@@ -14,7 +14,9 @@
  *    any other env var matches nothing. When a committed example env file gives such a base
  *    a URL path (`VITE_API_URL=http://localhost:5000/api` in `.env.example`), the path is
  *    tried in front of the request's first, then the request alone (`envExamples.ts`,
- *    ADR-0202); the path is never written into the graph. A literal loopback host (`localhost`, `127.0.0.1`,
+ *    ADR-0202); the path is never written into the graph. When the code's fallback gave the
+ *    URL leading segments (`VITE_API_BASE || "/api"`), the example's path replaces those
+ *    instead of going in front of them, as a set env var replaces the fallback (M9.1a3). A literal loopback host (`localhost`, `127.0.0.1`,
  *    `[::1]`, `0.0.0.0`, `*.localhost`, any port) is `heuristic` against every service; any
  *    other literal host is an external API and is never matched to a route.
  *    A root-relative request from an app with a dev proxy (Vite's `server.proxy`, CRA's
@@ -529,11 +531,20 @@ export function createRouteMatcher(
       }
 
       // An example env file's path for the base goes in front first (ADR-0202); it stays in
-      // here, so the detail below and every graph string are built without it.
+      // here, so the detail below and every graph string are built without it. A set env var
+      // replaces the code's fallback, so the example's path takes the place of the fallback's
+      // segments rather than going in front of them (`|| "/api"` and `…/api` are one `/api`).
       const prefix = base.kind === "env" ? envPrefix(base.name, request.file) : undefined;
+      const replaced = base.kind === "env" ? (base.fallbackSegments ?? 0) : 0;
       const prefixed =
-        prefix && prefix.length > 0
-          ? rank([...prefix.map((text): UrlSegment => [{ kind: "text", text }]), ...segments], own)
+        prefix && (prefix.length > 0 || replaced > 0)
+          ? rank(
+              [
+                ...prefix.map((text): UrlSegment => [{ kind: "text", text }]),
+                ...segments.slice(replaced),
+              ],
+              own,
+            )
           : undefined;
       const underBase = app?.basePath.every((text, i) => {
         const s = segments[i];
