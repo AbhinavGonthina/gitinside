@@ -12,11 +12,13 @@ is **zero wrong edges** (D13.4).
 
 | Repo | Commit | Stars | Inferred edges | Checked | Wrong |
 | --- | --- | ---: | ---: | --- | ---: |
-| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 978 | not yet (M9.1a3) | |
+| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 865 | in progress (M9.1a3) | 244 fixed |
 | [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
-Stars are as of 2026-11-09. Edge counts come from analyzer 0.2.0 at the pinned commit.
+Stars are as of 2026-11-09. Edge counts come from analyzer 0.2.0 at the pinned commit, as of
+the latest fix. anything-llm was pinned at 978 edges (`repos.json`); M9.1a3a removed 244 wrong
+ones and added 131 right ones.
 
 ## What "checked" means
 
@@ -73,3 +75,17 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     labels on the demo are short. Planned as M9.1a5.
   - Missing: the database (Sequelize; v1 reads Prisma only), MinIO, the Airtable SDK's
     record calls, Google's token exchange, and socket.io traffic.
+- **Mintplex-Labs/anything-llm** (`308b276`, in progress): checked one service pair at a time
+  (M9.1a3a–f).
+  - Before any verdict, the first read of the edges found 244 wrong ones. Literal-path
+    frontend requests (`${API_BASE}/admin/users`, …) went to both services' `app.all("*")` 404
+    handlers instead of the server's `/api` routes (122 frontend functions, two edges
+    each). The frontend's base is
+    `VITE_API_BASE || "/api"`, and `frontend/.env.example` sets it to `…:3001/api`. The
+    analyzer put the example's `/api` in front of the fallback's `/api`, so it looked for
+    `/api/api/…`, and only the catch-alls take that.
+  - Fixed in M9.1a3a (ADR-0202's amendment, no eval delta): the example's path now replaces
+    the fallback's. 978 → 865 edges: the 244 are gone, and each of the 122 functions now
+    links only to server routes (131 edges).
+  - 11 edges still land on a catch-all from a loopback host or another wrapper (Ollama,
+    Outlook's Graph API, web search). They're next (M9.1a3b).
