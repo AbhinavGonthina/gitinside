@@ -29,7 +29,9 @@
  *   `document.location`): the page's own origin, so the URL is root-relative.
  * - `new URL(url, base?)`, `.href`, `.toString()`, and `String(x)`. A relative `url` is
  *   resolved with WHATWG rules when both sides are literal; a root-relative `url` (`/x`)
- *   keeps only the base's origin, which may be an env var or `location.origin`.
+ *   keeps only the base's origin, which may be an env var or `location.origin`. A site the
+ *   collector marks `moduleFile` (`new URL("./font.ttf", import.meta.url)`, M9.1a4) is
+ *   `NO_MATCHING_ROUTE` ({@link MODULE_FILE_DETAIL}); otherwise `import.meta.url` is a hole.
  * - A ternary, and a local `let` read where several values may reach it (`lets.ts`): one
  *   value when every option normalizes to the same parts, their shared start and a hole
  *   when they agree up to a literal `?`, else a hole; `alternatives()` instead gives one URL
@@ -235,6 +237,13 @@ export const WRAPPER_DEPTH_DETAIL = {
 
 export type WrapperDepthDetail = (typeof WRAPPER_DEPTH_DETAIL)[keyof typeof WRAPPER_DEPTH_DETAIL];
 
+/**
+ * Why a site marked `moduleFile` (`new URL("<relative>", import.meta.url)`, M9.1a4, ADR-0251) is
+ * `NO_MATCHING_ROUTE`: its URL is known, and it's a file, not a route.
+ */
+export const MODULE_FILE_DETAIL =
+  "the URL is a file next to the module (new URL(path, import.meta.url)), which no route serves";
+
 /** The outcome of normalizing one call site's URL. */
 export type NormalizedUrl =
   | {
@@ -246,7 +255,8 @@ export type NormalizedUrl =
       confidence: Confidence;
     }
   | { resolved: false; reason: "DYNAMIC_URL"; detail: DynamicUrlDetail }
-  | { resolved: false; reason: "WRAPPER_DEPTH"; detail: WrapperDepthDetail };
+  | { resolved: false; reason: "WRAPPER_DEPTH"; detail: WrapperDepthDetail }
+  | { resolved: false; reason: "NO_MATCHING_ROUTE"; detail: typeof MODULE_FILE_DETAIL };
 
 /**
  * Values bound to a wrapper's parameters while inlining one call to it (M2.3): the caller's
@@ -830,7 +840,7 @@ export interface UrlNormalizer {
    * unbound parameter is `WRAPPER_DEPTH`: only a caller further out could supply it.
    */
   normalize(
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
     bindings?: ParameterBindings,
   ): NormalizedUrl;
   /**
@@ -840,7 +850,7 @@ export interface UrlNormalizer {
    * earlier values first). Past {@link MAX_PATHS} paths, `normalize`'s single result.
    */
   alternatives(
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
     bindings?: ParameterBindings,
   ): NormalizedUrl[];
   /**
@@ -1520,7 +1530,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   const normalize = (
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
     scope?: ParameterBindings,
   ): NormalizedUrl => {
     confidence = "exact";
@@ -1535,9 +1545,12 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   const normalizeSite = (
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
   ): NormalizedUrl => {
     if (site.url === null) return dynamic(site.urlDetail ?? DYNAMIC_URL_DETAIL.url);
+    if (site.moduleFile) {
+      return { resolved: false, reason: "NO_MATCHING_ROUTE", detail: MODULE_FILE_DETAIL };
+    }
     let url = parts(site.url);
     if (overflowed(url)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
     if (startsWithParameter(url)) return deeper(WRAPPER_DEPTH_DETAIL.url);
@@ -1572,7 +1585,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   const alternatives = (
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail">,
+    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
     scope?: ParameterBindings,
   ): NormalizedUrl[] => {
     const out: NormalizedUrl[] = [];
