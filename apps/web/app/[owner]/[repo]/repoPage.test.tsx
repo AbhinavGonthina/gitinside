@@ -14,6 +14,7 @@ import {
   UNREADABLE_TITLE,
 } from "../../../lib/repoStatus";
 import {
+  PURGE_AGAIN_MS,
   RepoAccessUnavailableError,
   viewBase,
   viewRepo,
@@ -33,7 +34,7 @@ import {
   PRIVATE_BADGE_TEXT,
 } from "./AddToReadme";
 import { NotAnalyzed } from "./NotAnalyzed";
-import RepoPage, { generateMetadata as repoMetadata } from "./page";
+import RepoPage, { maxDuration, generateMetadata as repoMetadata } from "./page";
 import { RepoDiagram } from "./RepoDiagram";
 
 const router = { push: vi.fn(), replace: vi.fn(), refresh: vi.fn() };
@@ -1472,5 +1473,11 @@ describe("NotAnalyzed", () => {
     expect(screen.getByRole("alert").textContent).toBe(CHECK_FAILED_MESSAGE);
     expect(screen.queryByTestId("bot-check")).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the repo page's time limit (F14)", () => {
+  it("outlives the second purge it schedules when it hides a repo, with time to render", () => {
+    expect(maxDuration * 1000).toBeGreaterThanOrEqual(PURGE_AGAIN_MS + 10_000);
   });
 });

@@ -4,6 +4,8 @@ import { imageDepsFromEnv, VERCEL_OIDC_HEADER } from "../../../../../lib/serverD
 
 /** `GET /api/diagram/:owner/:repo.svg[?theme=dark|light]`: the live README image (lib/imageRoute.ts, ADR-0072). */
 export const dynamic = "force-dynamic";
+/** Past the second CDN purge check-on-view schedules when it hides a repo (`PURGE_AGAIN_MS`, F14). */
+export const maxDuration = 30;
 
 export async function GET(
   request: Request,
