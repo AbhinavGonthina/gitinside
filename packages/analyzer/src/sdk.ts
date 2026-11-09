@@ -23,9 +23,35 @@
  * - A request is a method call on a module value or a client, at any depth:
  *   `stripe.customers.create()`, `s3.send(cmd)`, `sgMail.send()`. Its site is the method
  *   name. The owner is the innermost symbol, or the routes of an inline Express handler;
- *   top-level calls belong to their file node, like HTTP requests.
+ *   top-level calls belong to their file node, like HTTP requests. A Jest/Vitest mock method
+ *   on a client path (`create.mockResolvedValue(…)`, {@link MOCK_METHODS}) isn't a request.
+ * - Base URLs (M9.1a3e2a, ADR-0249): a client of `openai`'s `OpenAI` (and its default
+ *   export), `@anthropic-ai/sdk`'s `Anthropic`, and Octokit's `Octokit` reads the `baseURL`
+ *   (Octokit: `baseUrl`) in the options object it's built with (a literal or a `const`
+ *   object); `AzureOpenAI` reads `baseURL`, else `endpoint` + `/openai`, else the
+ *   `AZURE_OPENAI_ENDPOINT` env var the SDK reads, so it never goes to OpenAI's host. Such a
+ *   client's calls aren't drawn to the default host: each is a request for the HTTP stage's
+ *   matcher, its URL the base (read like a `fetch` URL: literals, consts, templates, env
+ *   vars) joined with the method's path from {@link SdkPackage.paths}
+ *   (`chat.completions.create` ⇒ `POST /chat/completions`, `beta.` dropped). So a literal
+ *   host is an `external` node, the repo's own server (`http://localhost:3001/api/v1/openai`)
+ *   is matched to its routes, and a base only known at runtime (a parameter, a function's
+ *   result, a spread or an unread options value) is unresolved with its reason. A method not
+ *   in the table goes to a literal external host all the same, but is unresolved
+ *   (`sdkPath`) for any other base. No options, or no base option, is the default host.
+ *   A client known only by its type (`constructor(private ai: OpenAI)`) may have been built
+ *   with any base: its calls keep the default host at `heuristic`.
  *
  * Patterns not handled:
+ * - Other SDKs' endpoint options: Stripe's `host`/`port`, Twilio's `edge`/`region`,
+ *   Mailgun's `url` (its EU host), Slack's `slackApiUrl`, SendGrid's and Postmark's
+ *   clients, the Google SDKs' `baseUrl`/`rootUrl`, and AWS's `endpoint`/`region`: their
+ *   calls go to the default host as before. Octokit's `App` and `Octokit.defaults(…)`
+ *   aren't read either. A base option read in another call (`client.baseURL = …`, the SDK's
+ *   `withOptions(…)`), and the env vars `OpenAI`/`Anthropic` read when no option is set
+ *   (`OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`), aren't followed: such clients keep the
+ *   default host. Azure's deployment segment isn't added to the path, so only its host is
+ *   drawn.
  * - Methods that run locally are skipped only when listed in `local` (Stripe's `webhooks`,
  *   SendGrid's `setApiKey`, Twilio's request validators, AWS `destroy`). Other local helpers
  *   still draw an edge, which at worst over-reports a dependency the code does have.
@@ -46,17 +72,41 @@ import {
   type Confidence,
   type GraphEdge,
   type GraphNode,
+  type HttpMethod,
   type SourceLocation,
 } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
 import { returnedExpressions, type FunctionWithBody } from "./express.js";
 import { fileNodeId } from "./files.js";
 import { functionOf, importBinding, locationOf, requiredModule } from "./http.js";
-import { externalNode } from "./match.js";
+import { externalNode, isLoopbackHost } from "./match.js";
 import { bindOwners, NO_OWNERS, ownersAt, withFallback, type Owners } from "./owners.js";
 import type { ServiceProgram } from "./program.js";
 import { unwrap } from "./symbols.js";
-import { CONFIDENCE_RANK, createValueReader, MAX_HOPS, weaker } from "./values.js";
+import {
+  createUrlNormalizer,
+  DYNAMIC_URL_DETAIL,
+  formatUrlPattern,
+  joinBaseURL,
+  mergeParts,
+  patternParts,
+  toUrlPattern,
+  type DynamicUrlDetail,
+  type NormalizedUrl,
+  type UrlPart,
+} from "./url.js";
+import {
+  clip,
+  CONFIDENCE_RANK,
+  createValueReader,
+  expressionText,
+  MAX_HOPS,
+  objectProperty,
+  redactedText,
+  weaker,
+  type ProgramExpression,
+} from "./values.js";
+import type { HttpRequest, HttpRequestFact } from "./wrappers.js";
 import { serviceForFile, type Workspace } from "./workspace.js";
 
 /** A known API client package. */
@@ -76,6 +126,31 @@ export interface SdkPackage {
   clientPattern?: RegExp;
   /** Method or namespace names whose calls run locally and make no request. */
   local: readonly string[];
+  /** Client exports whose constructor options can set a base URL, by export path (M9.1a3e2a). */
+  bases?: ReadonlyMap<string, ClientBase>;
+  /**
+   * The request each known method makes, by method path after the client (`beta.` dropped):
+   * `chat.completions.create` ⇒ `POST /chat/completions`, joined onto the client's base.
+   */
+  paths?: ReadonlyMap<string, readonly [HttpMethod, string]>;
+}
+
+/** An option a client's constructor reads its base URL from, and text the SDK appends to it. */
+export interface BaseOption {
+  name: string;
+  suffix?: string;
+}
+
+/**
+ * How one client export picks the base URL its requests go to (M9.1a3e2a): the first of
+ * `options` its options object sets; when none is set, the env var `env` the SDK reads (with
+ * its suffix), or, without `env`, the SDK's default host. `paths` says whether the package's
+ * {@link SdkPackage.paths} apply (Azure's and Octokit's requests aren't listed).
+ */
+export interface ClientBase {
+  options: readonly BaseOption[];
+  env?: BaseOption;
+  paths: boolean;
 }
 
 type SdkEntry = Omit<SdkPackage, "module" | "confidence">;
@@ -101,13 +176,70 @@ const GOOGLE_API_PACKAGE = entry(
   new RegExp(`^(?:${GOOGLE_CLASS}|(?!auth$)[a-z][a-z0-9]*)$`),
 );
 
+/** A client whose `baseURL` option replaces the default host, and whose paths are listed. */
+const BASE_URL: ClientBase = { options: [{ name: "baseURL" }], paths: true };
+
+/**
+ * `AzureOpenAI`: its `baseURL`, else `endpoint` + `/openai`, else the `AZURE_OPENAI_ENDPOINT`
+ * env var + `/openai`; it never uses OpenAI's host. Requests add a deployment segment the
+ * table doesn't know, so only the host is drawn.
+ */
+const AZURE_BASE: ClientBase = {
+  options: [{ name: "baseURL" }, { name: "endpoint", suffix: "/openai" }],
+  env: { name: "AZURE_OPENAI_ENDPOINT", suffix: "/openai" },
+  paths: false,
+};
+
+/** Octokit's `baseUrl` (GitHub Enterprise Server); its requests aren't listed. */
+const OCTOKIT_BASE: ReadonlyMap<string, ClientBase> = new Map([
+  ["Octokit", { options: [{ name: "baseUrl" }], paths: false }],
+]);
+
+/** The `openai` package's common requests, relative to its base (`…/v1`). */
+const OPENAI_PATHS: ReadonlyMap<string, readonly [HttpMethod, string]> = new Map([
+  ["audio.speech.create", ["POST", "/audio/speech"]],
+  ["audio.transcriptions.create", ["POST", "/audio/transcriptions"]],
+  ["audio.translations.create", ["POST", "/audio/translations"]],
+  ["chat.completions.create", ["POST", "/chat/completions"]],
+  ["chat.completions.parse", ["POST", "/chat/completions"]],
+  ["chat.completions.stream", ["POST", "/chat/completions"]],
+  ["completions.create", ["POST", "/completions"]],
+  ["embeddings.create", ["POST", "/embeddings"]],
+  ["images.edit", ["POST", "/images/edits"]],
+  ["images.generate", ["POST", "/images/generations"]],
+  ["models.list", ["GET", "/models"]],
+  ["moderations.create", ["POST", "/moderations"]],
+  ["responses.create", ["POST", "/responses"]],
+  ["responses.stream", ["POST", "/responses"]],
+  ["vectorStores.list", ["GET", "/vector_stores"]],
+]);
+
+/** `@anthropic-ai/sdk`'s common requests, relative to its base (the bare host). */
+const ANTHROPIC_PATHS: ReadonlyMap<string, readonly [HttpMethod, string]> = new Map([
+  ["completions.create", ["POST", "/v1/complete"]],
+  ["messages.countTokens", ["POST", "/v1/messages/count_tokens"]],
+  ["messages.create", ["POST", "/v1/messages"]],
+  ["messages.stream", ["POST", "/v1/messages"]],
+  ["models.list", ["GET", "/v1/models"]],
+]);
+
 /** The allowlist (ROADMAP M2.6), by package name. Hosts are the SDKs' default endpoints. */
 export const SDK_PACKAGES: ReadonlyMap<string, SdkEntry> = new Map([
-  ["@anthropic-ai/sdk", entry("api.anthropic.com", ["Anthropic"])],
+  [
+    "@anthropic-ai/sdk",
+    {
+      ...entry("api.anthropic.com", ["Anthropic"]),
+      bases: new Map([
+        ["default", BASE_URL],
+        ["Anthropic", BASE_URL],
+      ]),
+      paths: ANTHROPIC_PATHS,
+    },
+  ],
   ["@google/generative-ai", entry("generativelanguage.googleapis.com", ["GoogleGenerativeAI"])],
   ["@hubspot/api-client", entry("api.hubapi.com")],
-  ["@octokit/core", entry("api.github.com", ["Octokit"])],
-  ["@octokit/rest", entry("api.github.com", ["Octokit"])],
+  ["@octokit/core", { ...entry("api.github.com", ["Octokit"]), bases: OCTOKIT_BASE }],
+  ["@octokit/rest", { ...entry("api.github.com", ["Octokit"]), bases: OCTOKIT_BASE }],
   ["@sendgrid/client", entry("api.sendgrid.com", [], ["setApiKey", "setDefaultHeader"])],
   [
     "@sendgrid/mail",
@@ -128,8 +260,19 @@ export const SDK_PACKAGES: ReadonlyMap<string, SdkEntry> = new Map([
     ),
   ],
   ["mailgun.js", entry("api.mailgun.net", ["Mailgun"])],
-  ["octokit", entry("api.github.com", ["Octokit", "App"])],
-  ["openai", entry("api.openai.com", ["OpenAI", "AzureOpenAI"])],
+  ["octokit", { ...entry("api.github.com", ["Octokit", "App"]), bases: OCTOKIT_BASE }],
+  [
+    "openai",
+    {
+      ...entry("api.openai.com", ["OpenAI", "AzureOpenAI"]),
+      bases: new Map([
+        ["default", BASE_URL],
+        ["OpenAI", BASE_URL],
+        ["AzureOpenAI", AZURE_BASE],
+      ]),
+      paths: OPENAI_PATHS,
+    },
+  ],
   ["postmark", entry("api.postmarkapp.com", ["ServerClient", "AccountClient"])],
   ["resend", entry("api.resend.com", ["Resend"])],
   ["stripe", entry("api.stripe.com", ["Stripe"], ["webhooks"])],
@@ -204,7 +347,41 @@ interface SdkValue {
   pkg: SdkPackage;
   name: string | null;
   confidence: Confidence;
+  /** For a client of an export in {@link SdkPackage.bases}, where its requests go. */
+  base?: SdkBase;
 }
+
+/**
+ * Where a client's requests go when its export reads a base URL (M9.1a3e2a): `value`, the
+ * option's expression and the text the SDK appends; `env`, the env var the SDK reads when no
+ * option is set; `unknown`, options a spread or an unread value could set it in; `unseen`, a
+ * client known only by its type. A client without one goes to the SDK's default host.
+ */
+type SdkBase =
+  | { kind: "value"; value: ProgramExpression; suffix: string; paths: boolean }
+  | { kind: "env"; name: string; suffix: string; paths: boolean }
+  | { kind: "unknown"; options: ProgramExpression; paths: boolean }
+  | { kind: "unseen" };
+
+/**
+ * Jest's and Vitest's mock methods (`create.mockResolvedValue(…)`): a test configuring a
+ * mocked client's method, not a request.
+ */
+const MOCK_METHODS: ReadonlySet<string> = new Set([
+  "mockClear",
+  "mockImplementation",
+  "mockImplementationOnce",
+  "mockName",
+  "mockRejectedValue",
+  "mockRejectedValueOnce",
+  "mockReset",
+  "mockResolvedValue",
+  "mockResolvedValueOnce",
+  "mockRestore",
+  "mockReturnThis",
+  "mockReturnValue",
+  "mockReturnValueOnce",
+]);
 
 /**
  * The export path of member `member` of an SDK value: `*` + `S3Client` ⇒ `S3Client`,
@@ -230,6 +407,11 @@ export interface SdkEdges {
   nodes: GraphNode[];
   /** `external_call` edges, sorted by ID, unlabeled like `fetch` ones (ADR-0034). */
   edges: GraphEdge[];
+  /**
+   * Calls on clients built with a base URL, owners bound, sorted by site: the HTTP stage's
+   * matcher draws them like `fetch` calls (`buildHttpEdges`, M9.1a3e2a).
+   */
+  requests: HttpRequest[];
 }
 
 /** One call through an SDK client, before its owners are bound (ADR-0094). Plain data. */
@@ -245,8 +427,10 @@ export interface SdkRequest {
 export interface SdkFacts {
   /** Key of the service whose program found these. */
   service: string;
-  /** Its requests, in walk order. */
+  /** Its requests to an SDK's default host, in walk order. */
   requests: SdkRequest[];
+  /** Its requests on clients built with a base URL, in walk order (M9.1a3e2a). */
+  http: HttpRequestFact[];
 }
 
 const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
@@ -310,7 +494,15 @@ export function composeSdkEdges(
 
   const out = [...edges.values()].sort((a, b) => compareStrings(a.id, b.id));
   for (const edge of out) edge.sites.sort(compareLocations);
-  return { nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)), edges: out };
+  const requests = facts
+    .flatMap((f) => f.http)
+    .map((request) => ({ ...request, owners: bindOwners(request.owners, inlineHandlers) }))
+    .sort((a, b) => compareLocations(a.site, b.site));
+  return {
+    nodes: [...nodes.values()].sort((a, b) => compareStrings(a.id, b.id)),
+    edges: out,
+    requests,
+  };
 }
 
 /**
@@ -324,7 +516,8 @@ export function collectSdkFacts(
   resolver: SymbolResolver,
   workspace: Workspace,
 ): SdkFacts {
-  const { symbolAt } = createValueReader(resolver);
+  const { symbolAt, constObject } = createValueReader(resolver);
+  const normalizer = createUrlNormalizer(resolver);
 
   const moduleValue = (module: string, name: string): SdkValue | undefined => {
     const pkg = sdkPackage(module);
@@ -337,6 +530,58 @@ export function collectSdkFacts(
       ? { ...value, name: null }
       : undefined;
 
+  /**
+   * The base a client built from `value` with options `options` (its first argument) sends
+   * its requests to, when its export reads one (see {@link SdkBase}).
+   */
+  const baseOf = (
+    sp: ServiceProgram,
+    config: ClientBase,
+    options: ts.Expression | undefined,
+  ): SdkBase | undefined => {
+    const { paths } = config;
+    const fallback: SdkBase | undefined = config.env && {
+      kind: "env",
+      name: config.env.name,
+      suffix: config.env.suffix ?? "",
+      paths,
+    };
+    if (!options) return fallback;
+    const unknown: SdkBase = { kind: "unknown", options: { sp, expression: options }, paths };
+    const e = unwrap(options);
+    const object = ts.isObjectLiteralExpression(e)
+      ? { sp, expression: e }
+      : constObject(sp, options, 0);
+    if (!object) return unknown;
+    for (const option of config.options) {
+      const value = objectProperty(object.sp, object.expression, option.name);
+      if (value === null) return unknown;
+      // An option left `undefined` keeps the SDK's default.
+      if (value === undefined || isUndefined(value.expression)) continue;
+      return { kind: "value", value, suffix: option.suffix ?? "", paths };
+    }
+    return fallback;
+  };
+
+  /** A client built from `value` (`new X(options)` or `X(options)`), with its base. */
+  const constructed = (
+    sp: ServiceProgram,
+    value: SdkValue | undefined,
+    args: readonly ts.Expression[] | undefined,
+  ): SdkValue | undefined => {
+    const client = clientOf(value);
+    const config = value?.name ? value.pkg.bases?.get(value.name) : undefined;
+    const base = client && config && baseOf(sp, config, args?.[0]);
+    return base ? { ...client, base } : client;
+  };
+
+  /** A client known only by its type: built somewhere unseen, so with an unseen base. */
+  const typedClient = (value: SdkValue | undefined): SdkValue | undefined => {
+    const client = clientOf(value);
+    const reads = value?.name ? value.pkg.bases?.has(value.name) === true : false;
+    return client && reads ? { ...client, base: { kind: "unseen" } } : client;
+  };
+
   /** The client a type annotation names: `Stripe`, `S3Client`, or `aws.S3Client`. */
   const sdkOfType = (sp: ServiceProgram, type: ts.TypeNode | undefined): SdkValue | undefined => {
     if (!type || !ts.isTypeReferenceNode(type)) return undefined;
@@ -345,13 +590,13 @@ export function collectSdkFacts(
       const declaration = symbolAt(sp, typeName)?.declarations?.[0];
       const binding = declaration && importBinding(declaration);
       if (!binding || binding.name === "*") return undefined;
-      return clientOf(moduleValue(binding.module, binding.name));
+      return typedClient(moduleValue(binding.module, binding.name));
     }
     if (!ts.isIdentifier(typeName.left)) return undefined;
     const declaration = symbolAt(sp, typeName.left)?.declarations?.[0];
     const binding = declaration && importBinding(declaration);
     if (!binding) return undefined;
-    return clientOf(moduleValue(binding.module, memberPath(binding.name, typeName.right.text)));
+    return typedClient(moduleValue(binding.module, memberPath(binding.name, typeName.right.text)));
   };
 
   const sdkOfDeclaration = (
@@ -510,12 +755,13 @@ export function collectSdkFacts(
     if (ts.isConditionalExpression(e)) {
       return sdkOf(sp, e.whenTrue, hops + 1) ?? sdkOf(sp, e.whenFalse, hops + 1);
     }
-    if (ts.isNewExpression(e)) return clientOf(sdkOf(sp, e.expression, hops + 1));
+    if (ts.isNewExpression(e))
+      return constructed(sp, sdkOf(sp, e.expression, hops + 1), e.arguments);
     if (ts.isCallExpression(e)) {
       const callee = sdkOf(sp, e.expression, hops + 1);
       // A call on an SDK value is a request (or a factory like `twilio(sid, token)`); only
       // client factories yield a value worth following.
-      if (callee) return clientOf(callee);
+      if (callee) return constructed(sp, callee, e.arguments);
       const name = ts.isIdentifier(e.expression)
         ? e.expression
         : ts.isPropertyAccessExpression(e.expression)
@@ -583,7 +829,95 @@ export function collectSdkFacts(
     return undefined;
   };
 
+  const dynamic = (detail: DynamicUrlDetail): NormalizedUrl => ({
+    resolved: false,
+    reason: "DYNAMIC_URL",
+    detail,
+  });
+
+  /**
+   * The URL a request on a client with base `base` goes to: the base read like a `fetch`
+   * URL, the SDK's suffix, then the method's `path` joined as axios joins a `baseURL`. With
+   * no known path, a literal host outside the machine is still an external call, but any
+   * other base isn't matched to a route on the base alone. `shown` is what an unresolved
+   * node's label shows for the base.
+   */
+  const sdkUrl = (
+    base: Exclude<SdkBase, { kind: "unseen" }>,
+    path: string | undefined,
+  ): { url: NormalizedUrl; shown: string } => {
+    if (base.kind === "unknown") {
+      return {
+        url: dynamic(DYNAMIC_URL_DETAIL.sdkBase),
+        shown: redactedText(base.options.expression, []),
+      };
+    }
+    let parts: UrlPart[];
+    let shown: string;
+    let confidence: Confidence = "exact";
+    if (base.kind === "env") {
+      parts = [{ kind: "env", name: base.name }];
+      shown = base.name;
+    } else {
+      const node = base.value.expression;
+      shown = redactedText(node, [node]);
+      const read = normalizer.normalize({ url: base.value, baseURL: undefined });
+      if (!read.resolved) {
+        const leading = read.detail === DYNAMIC_URL_DETAIL.leadingHole;
+        return { url: leading ? dynamic(DYNAMIC_URL_DETAIL.sdkBaseLeadingHole) : read, shown };
+      }
+      parts = patternParts(read.pattern);
+      confidence = read.confidence;
+    }
+    if (base.suffix !== "") parts = mergeParts([...parts, { kind: "text", text: base.suffix }]);
+    const own = toUrlPattern(parts);
+    if ("detail" in own) return { url: dynamic(own.detail), shown };
+    shown = formatUrlPattern(own.pattern);
+    let pattern = own.pattern;
+    if (path === undefined) {
+      const outside = pattern.base.kind === "host" && !isLoopbackHost(pattern.base.host);
+      if (!outside) return { url: dynamic(DYNAMIC_URL_DETAIL.sdkPath), shown };
+    } else {
+      const joined = toUrlPattern(joinBaseURL(parts, [{ kind: "text", text: path }]));
+      if ("detail" in joined) return { url: dynamic(joined.detail), shown };
+      pattern = joined.pattern;
+    }
+    return { url: { resolved: true, pattern, text: formatUrlPattern(pattern), confidence }, shown };
+  };
+
+  /** A request on a client built with a base URL, as the HTTP stage reads requests. */
+  const httpRequestOf = (
+    call: ts.CallExpression,
+    request: { value: SdkValue; names: string[]; name: ts.Node },
+    base: Exclude<SdkBase, { kind: "unseen" }>,
+    owners: Owners,
+    file: string,
+  ): HttpRequestFact => {
+    const { value, names } = request;
+    const key = (names[0] === "beta" ? names.slice(1) : names).join(".");
+    const known = base.paths ? value.pkg.paths?.get(key) : undefined;
+    const method = known?.[0] ?? null;
+    const { url, shown } = sdkUrl(base, known?.[1]);
+    const site = locationOf(request.name, file);
+    const confidence = weaker(value.confidence, value.pkg.confidence);
+    const label = url.resolved
+      ? `${method ?? "?"} ${url.text}`
+      : `${method ?? "?"} ${shown}${known ? ` ${known[1]}` : ""}`;
+    return {
+      call: { client: "sdk", file, site },
+      file,
+      site,
+      owners,
+      method,
+      url,
+      confidence: url.resolved ? weaker(confidence, url.confidence) : confidence,
+      label: clip(label),
+      expression: expressionText(call.expression),
+    };
+  };
+
   const requests: SdkRequest[] = [];
+  const http: HttpRequestFact[] = [];
   for (const file of sp.rootFiles) {
     const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
     const byNode = sourceFile && resolver.callers.get(sourceFile);
@@ -597,14 +931,25 @@ export function collectSdkFacts(
         const request = requestOf(sp, node);
         // `google.calendar({ auth })` builds a client locally; calls on it are requests.
         const builds = request !== undefined && sdkOf(sp, node, 0) !== undefined;
-        if (request && !builds && !request.names.some((n) => request.value.pkg.local.includes(n))) {
-          const { pkg } = request.value;
-          requests.push({
-            owners: withFallback(current, fallback),
-            host: pkg.host,
-            confidence: weaker(request.value.confidence, pkg.confidence),
-            site: locationOf(request.name, file),
-          });
+        const skipped =
+          request === undefined ||
+          builds ||
+          request.names.some((n) => request.value.pkg.local.includes(n)) ||
+          MOCK_METHODS.has(request.names[request.names.length - 1] ?? "");
+        if (request && !skipped) {
+          const { pkg, base } = request.value;
+          if (base && base.kind !== "unseen") {
+            http.push(httpRequestOf(node, request, base, current, file));
+          } else {
+            const confidence = weaker(request.value.confidence, pkg.confidence);
+            requests.push({
+              owners: withFallback(current, fallback),
+              host: pkg.host,
+              // A client known only by its type may have been built with another base.
+              confidence: base ? weaker(confidence, "heuristic") : confidence,
+              site: locationOf(request.name, file),
+            });
+          }
         }
       }
       ts.forEachChild(node, (child) => {
@@ -613,5 +958,11 @@ export function collectSdkFacts(
     };
     visit(sourceFile, NO_OWNERS);
   }
-  return { service: sp.service.key, requests };
+  return { service: sp.service.key, requests, http };
+}
+
+/** True for the `undefined` identifier. */
+function isUndefined(expression: ts.Expression): boolean {
+  const e = unwrap(expression);
+  return ts.isIdentifier(e) && e.text === "undefined";
 }

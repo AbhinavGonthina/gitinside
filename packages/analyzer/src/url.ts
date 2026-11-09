@@ -210,6 +210,9 @@ export const DYNAMIC_URL_DETAIL = {
     "the RTK Query baseQuery isn't fetchBaseQuery or a function passing its arguments on to one, so it isn't followed",
   kyBases: "more than one of ky's prefixUrl, prefix, and baseUrl is set, which isn't followed",
   kyPrefixUrlSlash: "ky refuses a URL starting with / under a prefixUrl, so this request fails",
+  sdkBase: "the SDK client's base URL can't be read statically",
+  sdkBaseLeadingHole: "the SDK client's base URL starts with a value only known at runtime",
+  sdkPath: "the SDK method's request path isn't known, so its base URL isn't matched to a route",
 } as const;
 
 export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];

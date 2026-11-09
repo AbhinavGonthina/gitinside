@@ -366,3 +366,143 @@ describe("analyze: SDK and fetch calls", () => {
     ]);
   });
 });
+
+describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
+  /** `from -> to (confidence)` per edge out of the repo's code, `to` without its kind prefix. */
+  const outgoing = (graph: Awaited<ReturnType<typeof analyze>>): string[] =>
+    graph.edges
+      .filter((e) => e.kind === "external_call" || e.kind === "http")
+      .map(
+        (e) =>
+          `${e.from} -> ${e.to.replace(/^external:ext\//, "")}` +
+          (e.confidence === "exact" ? "" : ` (${e.confidence})`),
+      )
+      .sort();
+
+  /** Each unresolved node's label, reason, and detail. */
+  const unresolved = (graph: Awaited<ReturnType<typeof analyze>>): string[][] =>
+    graph.nodes
+      .filter((n) => n.kind === "unresolved")
+      .map((n) => (n.kind === "unresolved" ? [n.label, n.reason, n.detail ?? ""] : []));
+
+  it("sends a client's calls to the host its base option names, and skips mocks", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/llm.js", [
+      'const { OpenAI } = require("openai");',
+      'const Anthropic = require("@anthropic-ai/sdk");',
+      'const { Octokit } = require("@octokit/rest");',
+      "class Groq {",
+      "  constructor() {",
+      '    this.openai = new OpenAI({ baseURL: "https://api.groq.com/openai/v1", apiKey: "k" });',
+      "  }",
+      "  chat() { return this.openai.chat.completions.create({}); }",
+      "}",
+      'const claude = new Anthropic({ baseURL: "https://proxy.example.com" });',
+      "function ask() { return claude.messages.create({}); }",
+      "const plain = new OpenAI();",
+      "function embed() { return plain.embeddings.create({}); }",
+      "function mock() {",
+      "  plain.chat.completions.create.mockResolvedValue({});",
+      "  plain.chat.completions.create.mockImplementation(() => 1);",
+      "}",
+      'const ghe = new Octokit({ baseUrl: "https://github.acme.com/api/v3" });',
+      "function repos() { return ghe.rest.repos.listForOrg({}); }",
+      "module.exports = { Groq, ask, embed, mock, repos };",
+    ]);
+    await put("src/chat.ts", [
+      'import OpenAI from "openai";',
+      "export class Chat {",
+      "  constructor(private readonly ai: OpenAI) {}",
+      "  ask() { return this.ai.responses.create({} as never); }",
+      "}",
+    ]);
+    const graph = await analyze(dir);
+    // A client known only by its type may have been built with any base: the SDK's default
+    // host is kept, but only at `heuristic`.
+    expect(outgoing(graph)).toEqual([
+      "symbol:api/src/chat.ts#Chat.ask -> api.openai.com (heuristic)",
+      "symbol:api/src/llm.js#Groq.chat -> api.groq.com",
+      "symbol:api/src/llm.js#ask -> proxy.example.com",
+      "symbol:api/src/llm.js#embed -> api.openai.com",
+      "symbol:api/src/llm.js#repos -> github.acme.com",
+    ]);
+    expect(unresolved(graph)).toEqual([]);
+  });
+
+  it("draws a base only known at runtime as unresolved, never the SDK's default host", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/local.js", [
+      'const { OpenAI, AzureOpenAI } = require("openai");',
+      "function client(basePath) { return new OpenAI({ baseURL: basePath }); }",
+      "const settings = {};",
+      "const spread = new OpenAI({ ...settings });",
+      "const azure = new AzureOpenAI({ apiKey: 'k' });",
+      "const fromEnv = new OpenAI({ baseURL: process.env.LOCAL_AI_BASE_PATH });",
+      "async function run(p) {",
+      "  await client(p).chat.completions.create({});",
+      "  await spread.models.list();",
+      "  await azure.chat.completions.create({});",
+      "  await fromEnv.embeddings.create({});",
+      "}",
+      "module.exports = { run };",
+    ]);
+    const graph = await analyze(dir);
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([]);
+    // By site: the Azure call (line 10), the env base (11), the parameter (8), the spread (9).
+    expect(unresolved(graph)).toEqual([
+      [
+        "? {env:AZURE_OPENAI_ENDPOINT}/openai",
+        "DYNAMIC_URL",
+        "the SDK method's request path isn't known, so its base URL isn't matched to a route",
+      ],
+      [
+        "POST {env:LOCAL_AI_BASE_PATH}/embeddings",
+        "NO_MATCHING_ROUTE",
+        "the env var LOCAL_AI_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
+      ],
+      [
+        "POST basePath /chat/completions",
+        "DYNAMIC_URL",
+        "the SDK client's base URL starts with a value only known at runtime",
+      ],
+      [
+        "GET { ...settings } /models",
+        "DYNAMIC_URL",
+        "the SDK client's base URL can't be read statically",
+      ],
+    ]);
+  });
+
+  it("matches a client whose base is the repo's own server to its routes", async () => {
+    await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));
+    await put("src/server.js", [
+      'const express = require("express");',
+      "const app = express();",
+      'app.post("/api/v1/openai/chat/completions", (req, res) => res.end());',
+      'app.get("/api/v1/openai/models", (req, res) => res.end());',
+      "app.listen(3001);",
+    ]);
+    await put("scripts/check.js", [
+      'const OpenAI = require("openai");',
+      'const client = new OpenAI({ baseURL: "http://localhost:3001/api/v1/openai" });',
+      "async function main() {",
+      "  await client.models.list();",
+      "  await client.chat.completions.create({});",
+      "  await client.containers.list();",
+      "}",
+      "main();",
+    ]);
+    const graph = await analyze(dir);
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/scripts/check.js#main -> route:api/GET /api/v1/openai/models (heuristic)",
+      "symbol:api/scripts/check.js#main -> route:api/POST /api/v1/openai/chat/completions (heuristic)",
+    ]);
+    expect(unresolved(graph)).toEqual([
+      [
+        "? http://localhost:3001/api/v1/openai",
+        "DYNAMIC_URL",
+        "the SDK method's request path isn't known, so its base URL isn't matched to a route",
+      ],
+    ]);
+  });
+});

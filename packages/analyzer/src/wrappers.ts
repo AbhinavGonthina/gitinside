@@ -203,8 +203,11 @@ import {
  * can be cached as a service's fact (ADR-0090).
  */
 export interface HttpRequest {
-  /** The `fetch` or axios call that makes the request: the wrapper body's when inlined. */
-  call: { client: HttpClient; file: string; site: SourceLocation };
+  /**
+   * The `fetch` or axios call that makes the request: the wrapper body's when inlined. `sdk`
+   * for a call through an SDK client built with a base URL (`sdk.ts`, M9.1a3e2a).
+   */
+  call: { client: HttpClient | "sdk"; file: string; site: SourceLocation };
   /** The symbol node ID of the wrapper this request was inlined through, if any. */
   via?: string;
   /** Repo-relative file the request is made from: the wrapper call's when inlined. */
