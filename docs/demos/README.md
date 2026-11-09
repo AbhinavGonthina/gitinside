@@ -12,7 +12,7 @@ is **zero wrong edges** (D13.4).
 
 | Repo | Commit | Stars | Inferred edges | Checked | Wrong |
 | --- | --- | ---: | ---: | --- | ---: |
-| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 866 | [584 of 866](Mintplex-Labs__anything-llm.json) (M9.1a3c–f) | 0 (244 + 11 + 117 fixed) |
+| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 866 | [all 866](Mintplex-Labs__anything-llm.json) | 0 (244 + 11 + 117 fixed) |
 | [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
@@ -20,7 +20,6 @@ Stars are as of 2026-11-09. Edge counts come from analyzer 0.2.0 at the pinned c
 the latest fix. anything-llm was pinned at 978 edges (`repos.json`); M9.1a3a removed 244 wrong
 ones and added 131 right ones, M9.1a3b replaced 11 more wrong ones with 9 unresolved ones, and
 M9.1a3e2a replaced 117 wrong SDK edges with 120 (50 to their real host or route, 70 unresolved).
-The 282 Prisma edges are still to check (M9.1a3f).
 
 ## What "checked" means
 
@@ -77,9 +76,10 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     labels on the demo are short. Planned as M9.1a5.
   - Missing: the database (Sequelize; v1 reads Prisma only), MinIO, the Airtable SDK's
     record calls, Google's token exchange, and socket.io traffic.
-- **Mintplex-Labs/anything-llm** (`308b276`, in progress): checked one service pair at a time
-  (M9.1a3a–f). The record lists all 863 edges; the ones not yet checked are `pending`, with
-  the task that checks them.
+- **Mintplex-Labs/anything-llm** (`308b276`, checked 2026-11-09): 866 inferred edges, checked
+  one service pair at a time (M9.1a3a–f).
+  - 630 correct, 0 wrong, 236 unresolved. 372 wrong edges were found along the way and fixed
+    in the analyzer (below), and the check was rerun at each fix.
   - Before any verdict, the first read of the edges found 244 wrong ones. Literal-path
     frontend requests (`${API_BASE}/admin/users`, …) went to both services' `app.all("*")` 404
     handlers instead of the server's `/api` routes (122 frontend functions, two edges
@@ -155,3 +155,14 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
   - Missing, not wrong: 83 SDK calls on clients the detector doesn't trace (the agent
     providers' `this.client`, helpers taking `client` as a parameter, the image generators,
     Mistral's wrapped client).
+  - **Prisma** (M9.1a3f, checked 2026-11-09): 282 edges (117 reads, 132 writes, 33 stores),
+    all correct, 0 wrong.
+    - The 249 reads/writes edges (258 call sites) all go through the server's one client,
+      `server/utils/prisma`'s `new PrismaClient(…)`. The exceptions are 7 calls on the `tx`
+      of a `prisma.$transaction(async (tx) => …)` callback and the seed script's own
+      client. Each call's op is the edge's kind, and its accessor is the edge's model.
+    - The 33 `stores` edges are the schema's 33 models, each to its only datasource
+      (SQLite, `file:../storage/anythingllm.db`).
+    - Sweep: every `<receiver>.<model>.<op>(` call for the 33 models is on an edge. The 9
+      `$transaction` calls wrap calls that are each drawn, and there are no raw queries and
+      no computed `prisma[…]` access, so no Prisma edge is missing.
