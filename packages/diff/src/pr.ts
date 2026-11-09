@@ -28,6 +28,13 @@ export const CHECK_RUN_NAME = "GitInside";
 /** GitHub's longest issue comment body, in characters. */
 export const MAX_COMMENT_LENGTH = 65_536;
 
+/**
+ * Mermaid's default `maxTextSize`, in characters: past it Mermaid draws an error instead of
+ * the diagram. GitHub documents no larger setting, so a summary longer than this is left out
+ * of the comment (M8.10d), though the comment would fit {@link MAX_COMMENT_LENGTH}.
+ */
+export const MAX_MERMAID_LENGTH = 50_000;
+
 /** GitHub's longest Check Run `output.summary`, in characters. */
 export const MAX_CHECK_SUMMARY_LENGTH = 65_535;
 
@@ -194,7 +201,8 @@ function verdict(broken: number): string {
  * link to the interactive diff (`/<owner>/<repo>/<head>?base=<base>`).
  *
  * When too long, it lists the first broken connections that fit and counts the rest; if
- * even the summary doesn't fit, it's left out with a note. Repo text is escaped as the
+ * even the summary doesn't fit, or it's longer than {@link MAX_MERMAID_LENGTH} (Mermaid would
+ * draw an error), it's left out with a note. Repo text is escaped as the
  * module comment says.
  */
 export function renderPrComment(
@@ -211,13 +219,12 @@ export function renderPrComment(
     ...(ctx.items.length > 0 ? ["#### Broken connections"] : []),
   ];
   const after = [...limitNote(diff), `[Open the interactive diff](${ctx.diffUrl})`];
-  const withSummary = [
-    "#### What changed",
-    `\`\`\`mermaid\n${renderMermaidSummary(diff, base, head)}\`\`\``,
-    ...after,
-  ];
-  // Room for the summary with no item listed, the count line included.
+  const summary = renderMermaidSummary(diff, base, head);
+  const withSummary = ["#### What changed", `\`\`\`mermaid\n${summary}\`\`\``, ...after];
+  // Room for the summary with no item listed, the count line included; and no longer than
+  // Mermaid draws.
   const tail =
+    summary.length <= MAX_MERMAID_LENGTH &&
     fit(top, [], withSummary, Infinity).length + 200 <= MAX_COMMENT_LENGTH
       ? withSummary
       : ["_The change summary is too large for a comment; open the interactive diff._", ...after];

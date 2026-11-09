@@ -580,6 +580,7 @@ describe("startWorkerProcess", () => {
           JSON.stringify({
             token: post ? "ghs_post" : "ghs_installation",
             expiresAt: "2026-11-08T13:00:00Z",
+            ...(post && { appId: 4242 }),
           }),
         );
       });

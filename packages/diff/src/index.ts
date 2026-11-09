@@ -14,6 +14,7 @@ export {
   markdownCode,
   MAX_CHECK_SUMMARY_LENGTH,
   MAX_COMMENT_LENGTH,
+  MAX_MERMAID_LENGTH,
   PR_COMMENT_MARKER,
   renderCheckRun,
   renderPrComment,

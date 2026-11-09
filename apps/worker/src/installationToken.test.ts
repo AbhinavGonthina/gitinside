@@ -84,7 +84,7 @@ async function failure(promise: Promise<unknown>): Promise<JobFailure> {
 
 describe("createTokenClient", () => {
   it("asks the route, signed with the current secret's derived key, and returns the token", async () => {
-    expect(await client()(ASK, new AbortController().signal)).toBe(TOKEN);
+    expect(await client()(ASK, new AbortController().signal)).toEqual({ token: TOKEN });
     expect(seen).toEqual([
       {
         method: "POST",
@@ -98,7 +98,7 @@ describe("createTokenClient", () => {
 
   it("asks for a diff job's post token by naming the access, signed alike (M8.6e1)", async () => {
     const post = { jobId: `diff-${"d".repeat(32)}`, installationId: 42, access: "post" } as const;
-    expect(await client()(post, new AbortController().signal)).toBe(TOKEN);
+    expect(await client()(post, new AbortController().signal)).toEqual({ token: TOKEN });
     expect(seen).toEqual([
       {
         method: "POST",
@@ -113,6 +113,22 @@ describe("createTokenClient", () => {
     expect((await failure(client()(post, new AbortController().signal))).code).toBe("JOB_NOT_LIVE");
   });
 
+  it("returns the App's ID with the token when the answer has a well-formed one (M8.10d)", async () => {
+    const post = { jobId: `diff-${"d".repeat(32)}`, installationId: 42, access: "post" } as const;
+    const expiresAt = "2026-11-07T13:00:00.000Z";
+    answer = (res) => json(res, 200, { token: TOKEN, expiresAt, appId: 4242 });
+    expect(await client()(post, new AbortController().signal)).toEqual({
+      token: TOKEN,
+      appId: 4242,
+    });
+    for (const appId of [0, -1, 1.5, "4242", null, Number.MAX_SAFE_INTEGER + 2]) {
+      answer = (res) => json(res, 200, { token: TOKEN, expiresAt, appId });
+      expect(await client()(post, new AbortController().signal), String(appId)).toEqual({
+        token: TOKEN,
+      });
+    }
+  });
+
   it("asks once more with the previous secret's key when the website hasn't the new one yet", async () => {
     // The website still signs and verifies with the old secret: it refuses the current key.
     answer = (res) => {
@@ -120,7 +136,9 @@ describe("createTokenClient", () => {
       if (last?.verified === true) json(res, 401, { error: "BAD_SIGNATURE" });
       else json(res, 200, { token: TOKEN });
     };
-    expect(await client([SECRET, OLD])(ASK, new AbortController().signal)).toBe(TOKEN);
+    expect(await client([SECRET, OLD])(ASK, new AbortController().signal)).toEqual({
+      token: TOKEN,
+    });
     expect(seen.map((s) => s.verified)).toEqual([true, false]);
 
     seen = [];
