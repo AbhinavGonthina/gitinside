@@ -13,7 +13,8 @@ import { derivedSecret, signRequest, TOKEN_REQUEST_PURPOSE } from "./hmac.js";
  * - **Never redirected:** the request is sent with `redirect: "error"`, so the signed request
  *   and the token only ever travel between the worker and the configured origin.
  * - **Answers mapped to job failures** (failure.ts):
- *   - `200 { token, expiresAt }` → the token (checked: a short run of letters, digits, `_`).
+ *   - `200 { token, expiresAt }` → the token (checked: a short run of letters, digits, `_`),
+ *     with `appId` when the answer has one (a positive safe integer; a post token's, M8.10d).
  *   - `403` `INSTALLATION_SUSPENDED`, `INSTALLATION_NOT_FOUND`, `REPO_NOT_INSTALLED` → the
  *     same code, permanent (the website words each).
  *   - `404` `JOB_NOT_FOUND` → `JOB_NOT_LIVE`, permanent: the row isn't queued or running, so
@@ -64,8 +65,19 @@ export interface TokenAsk {
   access?: "post";
 }
 
+/** A token the website minted. */
+export interface IssuedToken {
+  token: string;
+  /**
+   * The App's ID, answered with a post token (M8.10d): the comment search accepts only a
+   * comment this App wrote (post.ts). Absent from a read token's answer, or from a website
+   * older than it.
+   */
+  appId?: number;
+}
+
 /** Asks the website for one job's token; throws a {@link JobFailure} or the signal's reason. */
-export type InstallationTokenSource = (ask: TokenAsk, signal: AbortSignal) => Promise<string>;
+export type InstallationTokenSource = (ask: TokenAsk, signal: AbortSignal) => Promise<IssuedToken>;
 
 /** A {@link InstallationTokenSource} for the website at `options.origin`. */
 export function createTokenClient(options: TokenClientOptions): InstallationTokenSource {
@@ -121,7 +133,10 @@ export function createTokenClient(options: TokenClientOptions): InstallationToke
       if (typeof token !== "string" || !TOKEN.test(token)) {
         throw new JobFailure("TOKEN_REFUSED", "malformed token answer");
       }
-      return token;
+      const appId = answer?.appId;
+      return typeof appId === "number" && Number.isSafeInteger(appId) && appId > 0
+        ? { token, appId }
+        : { token };
     }
     const code = typeof answer?.error === "string" ? answer.error : undefined;
     const detail = `the website answered ${String(status)}${code === undefined ? "" : ` ${code}`}`;

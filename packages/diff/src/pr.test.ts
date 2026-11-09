@@ -13,6 +13,7 @@ import {
   markdownCode,
   MAX_CHECK_SUMMARY_LENGTH,
   MAX_COMMENT_LENGTH,
+  MAX_MERMAID_LENGTH,
   PR_COMMENT_MARKER,
   renderCheckRun,
   renderMermaidSummary,
@@ -242,14 +243,45 @@ describe("GitHub's size limits", () => {
   it("leaves out a summary diagram too large for a comment", () => {
     const big = many(true);
     expect(renderMermaidSummary(big, base, head).length).toBeGreaterThan(MAX_COMMENT_LENGTH);
+    expectNoSummary(big);
+  });
+
+  it(`leaves out a summary past Mermaid's ${MAX_MERMAID_LENGTH} characters though the comment fits (M8.10d, F9)`, () => {
+    // The fewest breaks on one pair whose diagram passes Mermaid's limit.
+    const all = many(true);
+    const onFirst = (n: number): GraphDiff => ({ ...all, broken: all.broken.slice(0, n) });
+    const fits = (k: number) =>
+      renderMermaidSummary(onFirst(k), base, head).length <= MAX_MERMAID_LENGTH;
+    // Bisect: onFirst(lo) fits, onFirst(hi) doesn't.
+    let [lo, hi] = [1, all.broken.length];
+    expect([fits(lo), fits(hi)]).toEqual([true, false]);
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (fits(mid)) lo = mid;
+      else hi = mid;
+    }
+    const n = hi;
+    const over = onFirst(n);
+    const summary = renderMermaidSummary(over, base, head);
+    // A comment holding the whole diagram would still fit GitHub's comment limit.
+    expect(summary.length + 2000).toBeLessThan(MAX_COMMENT_LENGTH);
+    expectNoSummary(over);
+    // One break fewer keeps it.
+    expect(renderPrComment(onFirst(n - 1), base, head, SITE)).toContain(
+      `\`\`\`mermaid\n${renderMermaidSummary(onFirst(n - 1), base, head)}\`\`\``,
+    );
+  });
+
+  function expectNoSummary(big: GraphDiff): void {
     const text = renderPrComment(big, base, head, SITE);
     expect(text.length).toBeLessThanOrEqual(MAX_COMMENT_LENGTH);
     expect(text).not.toContain("```mermaid");
+    const more = big.broken.length - listedIn(text);
     expect(text).toContain(
-      `\n\nAnd ${3000 - listedIn(text)} more broken connections, listed in the interactive diff.\n\n` +
+      `\n\n${more > 0 ? `And ${more} more broken connections, listed in the interactive diff.\n\n` : ""}` +
         `_The change summary is too large for a comment; open the interactive diff._\n\n${DIFF_LINK}\n`,
     );
-  });
+  }
 });
 
 describe("renderCheckRun", () => {

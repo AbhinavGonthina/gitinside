@@ -65,7 +65,9 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
  *    (`DiffRecorder.current`) and skipped (`post_skipped`) unless it still names the job, with
  *    the same pair and no Check Run: a newer push since must not get this head's comment. Then
  *    `postComment` (post.ts) ⇒ `recordComment` ⇒ `createCheckRun` on the head ⇒
- *    `recordCheckRun` (only for the current pair). The stored Check Run is what makes a record
+ *    `recordCheckRun` (only for the current pair). A comment GitHub refuses (`POST_REFUSED`, a
+ *    locked conversation) still gets its Check Run, then the record fails with the refusal
+ *    (M8.10d). The stored Check Run is what makes a record
  *    posted, so the job is "done" only once every record has one. A record's failure is logged
  *    (`post_failed`, the code and detail) and the others still posted; then the attempt fails
  *    with it (a retriable one first), and the queue retries.
@@ -247,7 +249,7 @@ async function fetchSides(
   const { owner, repo, sha, baseSha } = context.request;
   if (baseSha === undefined) throw new JobFailure("INVALID_REQUEST", "a diff job needs its base");
   try {
-    const token = await tokens({ jobId: context.id, installationId }, signal);
+    const { token } = await tokens({ jobId: context.id, installationId }, signal);
     const github = { ...deps.download, token, signal };
     const mergeBase = await fetchMergeBase({ owner, repo, base: baseSha, head: sha }, github);
     const sides: Side[] = [];
@@ -414,14 +416,23 @@ async function postOne(
     return skipped("moved on");
   }
   const target = { owner, repo, number };
-  const commentId = await postComment(target, texts.comment, now.commentId ?? undefined, options);
-  await fromRecords("recording the comment", () =>
-    deps.diffs.recordComment({ repoId, number, commentId }),
-  );
+  let refused: JobFailure | undefined;
+  try {
+    const commentId = await postComment(target, texts.comment, now.commentId ?? undefined, options);
+    await fromRecords("recording the comment", () =>
+      deps.diffs.recordComment({ repoId, number, commentId }),
+    );
+  } catch (error) {
+    // A refused comment (a locked conversation) still gets its Check Run, so the pull request
+    // shows the result somewhere; the record then fails with the refusal (M8.10d, F7).
+    if (!(error instanceof JobFailure) || error.code !== "POST_REFUSED") throw error;
+    refused = error;
+  }
   const checkRunId = await createCheckRun({ owner, repo }, headSha, texts.checkRun, options);
   const stored = await fromRecords("recording the Check Run", () =>
     deps.diffs.recordCheckRun({ repoId, number, baseSha, headSha, checkRunId }),
   );
+  if (refused !== undefined) throw refused;
   return stored || skipped("moved on before its Check Run was stored");
 }
 
@@ -454,13 +465,14 @@ async function postAll(
   const failures: JobFailure[] = [];
   let posted = 0;
   try {
-    const token = await poster.tokens(
+    const { token, appId } = await poster.tokens(
       { jobId: context.id, installationId: poster.installationId, access: "post" },
       signal,
     );
     const options: PostOptions = {
       token,
       signal,
+      ...(appId === undefined ? {} : { appId }),
       ...(deps.download?.apiBase === undefined ? {} : { apiBase: deps.download.apiBase }),
       ...(deps.download?.fetch === undefined ? {} : { fetch: deps.download.fetch }),
     };

@@ -190,7 +190,7 @@ describe("processJob fact cache folders", () => {
     id === 77 ? repoIds.filter((repo) => repo === REPO) : [],
   );
   const installationJob = { id: ID, request: { ...REQUEST, installationId: 77 } };
-  const installationToken = async () => "ghs_installation";
+  const installationToken = async () => ({ token: "ghs_installation" });
 
   it("gives no cache without a cache root", async () => {
     await processJob({ id: ID, request: REQUEST }, deps());
@@ -839,7 +839,7 @@ describe("processJob recording", () => {
           recorder: r,
           installationToken: async (ask, signal) => {
             order.push(["token", ask, signal.aborted]);
-            return "ghs_installation";
+            return { token: "ghs_installation" };
           },
         }),
       ),

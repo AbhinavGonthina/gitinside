@@ -243,7 +243,7 @@ describe("createAnalysisRecorder", () => {
       deps(recorder(), {
         installationToken: async (ask) => {
           asks.push(ask);
-          return INSTALLATION_TOKEN;
+          return { token: INSTALLATION_TOKEN };
         },
       }),
     );
@@ -266,7 +266,7 @@ describe("createAnalysisRecorder", () => {
     const installation = await queuedThroughInstallation("public");
     await processJob(
       { id: ID, request: { ...REQUEST, installationId: 42 } },
-      deps(recorder(), { installationToken: async () => INSTALLATION_TOKEN }),
+      deps(recorder(), { installationToken: async () => ({ token: INSTALLATION_TOKEN }) }),
     );
     await t.db.delete(analyses);
     await processJob({ id: ID, request: REQUEST }, deps(recorder()));
@@ -280,7 +280,7 @@ describe("createAnalysisRecorder", () => {
     const error = await failure(
       processJob(
         { id: ID, request },
-        deps(recorder(), { installationToken: async () => INSTALLATION_TOKEN }),
+        deps(recorder(), { installationToken: async () => ({ token: INSTALLATION_TOKEN }) }),
       ),
     );
     expect([error.code, error.retriable]).toEqual(["INSTALLATION_NOT_FOUND", false]);
@@ -292,7 +292,10 @@ describe("createAnalysisRecorder", () => {
   describe("an installation's data deleted around the job (M8.5b)", () => {
     const request = { ...REQUEST, installationId: 42 };
     const withToken = (overrides: Partial<JobDeps> = {}) =>
-      deps(recorder(), { installationToken: async () => INSTALLATION_TOKEN, ...overrides });
+      deps(recorder(), {
+        installationToken: async () => ({ token: INSTALLATION_TOKEN }),
+        ...overrides,
+      });
 
     it("refuses to start once the repo was removed, re-creating nothing", async () => {
       repoJson.private = true;
@@ -370,7 +373,7 @@ describe("createAnalysisRecorder", () => {
       };
       await processJob(
         { id: ID, request },
-        deps(r, { installationToken: async () => INSTALLATION_TOKEN, run }),
+        deps(r, { installationToken: async () => ({ token: INSTALLATION_TOKEN }), run }),
       );
       expect(s3.objects.size).toBe(1);
       expect((await onlyAnalysis()).status).toBe("done");
@@ -393,7 +396,7 @@ describe("createAnalysisRecorder", () => {
       );
       return id;
     }
-    const refused = (code: string) => async (): Promise<string> => {
+    const refused = (code: string) => async (): Promise<{ token: string }> => {
       throw new JobFailure(code, "the website answered");
     };
     const request = { ...REQUEST, installationId: 42 };
