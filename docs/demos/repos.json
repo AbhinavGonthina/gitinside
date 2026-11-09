@@ -1,0 +1,83 @@
+{
+  "pinned": "2026-11-09",
+  "rules": [
+    "1. From the eval or PR-backtest set (D13.1): repos the analyzer has already been measured on, analyzed at their default branch's tip on the day of pinning.",
+    "2. Inside v1's stack and limits: a React/Next.js frontend calling its own Express or Next API routes, with Prisma or external APIs, ≤ 20,000 source files.",
+    "3. One OSI license for the whole repo (no source-available or commercial parts), so the gallery shows nothing under other terms.",
+    "4. At most 1,000 inferred edges (http, external_call, reads, writes, stores, publishes, consumes) at the pinned commit, since each is checked by hand: zero wrong edges is the bar (D13.4).",
+    "5. Recognizable: the three with the most GitHub stars on the day of pinning among those passing 1-4."
+  ],
+  "checked": "Candidates: the backtest's seven repos and the eval's 44. Each is pinned or listed under `rejected` with the first rule it fails, in order, except that a repo with fewer stars than the third pick fails rule 5 whatever rules 2-4 say, so those weren't surveyed; the eval's other 43 are one row, since all have at most 2,431 stars (gh api, the day of pinning), far fewer than the third pick's 18,183. Edge counts are `eval/dist/m91-survey.mjs` (a scratch script, not committed) on the built analyzer 0.2.0 at the commit named.",
+  "repos": [
+    {
+      "owner": "Mintplex-Labs",
+      "name": "anything-llm",
+      "branch": "master",
+      "sha": "308b27662b2f6fd4947791d61c797945c609fcbc",
+      "license": "MIT",
+      "stars": 68095,
+      "why": "The best-known app in the backtest set: a React (Vite) frontend calling two Express services (the server and the document collector), Prisma, and dozens of LLM and vector-store SDKs.",
+      "measured": {
+        "files": 1263,
+        "inferredEdges": 978,
+        "httpToRoute": 348,
+        "httpUnresolved": 157
+      },
+      "verified": null
+    },
+    {
+      "owner": "shadcn-ui",
+      "name": "taxonomy",
+      "branch": "main",
+      "sha": "298a8857c7128a0d121e7f699dfd729f23b3966d",
+      "license": "MIT",
+      "stars": 19289,
+      "why": "shadcn's Next.js 13 App Router example (eval set): client components calling its route handlers, Prisma on MySQL, Stripe, Postmark, and GitHub's API. Small enough to read whole.",
+      "measured": { "files": 132, "inferredEdges": 29, "httpToRoute": 5, "httpUnresolved": 2 },
+      "verified": "shadcn-ui__taxonomy.json"
+    },
+    {
+      "owner": "getmaxun",
+      "name": "maxun",
+      "branch": "develop",
+      "sha": "99c6bd0d42b14336b706ba121a3757f62a9814f7",
+      "license": "AGPL-3.0",
+      "stars": 18183,
+      "why": "Backtest set: one package whose React frontend calls the Express server beside it with axios, plus external APIs.",
+      "measured": { "files": 211, "inferredEdges": 142, "httpToRoute": 74, "httpUnresolved": 49 },
+      "verified": null
+    }
+  ],
+  "rejected": [
+    {
+      "repo": "calcom/cal.diy",
+      "rule": 4,
+      "reason": "49,828 stars, but 2,064 inferred edges at 2eb48ec (1,652 of them Prisma reads and writes, 736 of those heuristic)."
+    },
+    {
+      "repo": "dubinc/dub.link",
+      "rule": 3,
+      "reason": "25,144 stars, but LICENSE.md puts the `(ee)` folders under a separate commercial license (AGPLv3 elsewhere); it would also fail rule 4 (1,040 inferred edges at 6b463b4)."
+    },
+    {
+      "repo": "seerr-team/seerr",
+      "rule": 5,
+      "reason": "13,153 stars, fewer than the third pick's 18,183. Not surveyed."
+    },
+    {
+      "repo": "trycompai/comp",
+      "rule": 5,
+      "reason": "2,088 stars. Not surveyed (its requests to the NestJS API stay unresolved, NestJS isn't supported)."
+    },
+    {
+      "repo": "hoangsonww/Claude-Code-Agent-Monitor",
+      "rule": 5,
+      "reason": "1,160 stars. Not surveyed."
+    },
+    {
+      "repo": "the eval's other 43 repos",
+      "rule": 5,
+      "reason": "At most 2,431 stars each (nz-m/SocialEcho; then panshak/accountill 1,694, shamahoque/mern-social 839). Not surveyed."
+    }
+  ]
+}
