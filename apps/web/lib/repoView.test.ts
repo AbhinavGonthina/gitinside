@@ -37,6 +37,7 @@ import {
   vi,
 } from "vitest";
 import type { AuthDeps } from "./authRoute";
+import { GRAPH_MAX_DURATION_SECONDS } from "./graphRoute";
 import { fakeGitHub, type FakeGitHub, type FakeRepo } from "./github.testkit";
 import {
   EXPIRES_IN,
@@ -51,6 +52,7 @@ import {
   createHeadCache,
   graphPath,
   movedPath,
+  PURGE_AGAIN_MS,
   RECHECKS_PER_HOUR,
   RepoAccessUnavailableError,
   UNKNOWN_LOOKUPS_PER_HOUR,
@@ -599,6 +601,32 @@ describe("viewRepo", () => {
     expect(purged).toEqual([[ID, true]]);
   });
 
+  it("purges again once every graph answer read before the hide has ended (F14)", async () => {
+    await done(OLD);
+    let purges = 0;
+    deps.purgeRepo = async () => {
+      purges += 1;
+    };
+    const later: [() => Promise<void>, number][] = [];
+    deps.later = (task, delayMs) => later.push([task, delayMs]);
+    shop.private = true;
+    expect(await viewRepo({ owner: "acme", repo: "shop" }, deps)).toEqual({ status: "missing" });
+    expect(purges).toBe(1);
+    expect(later.map(([, delayMs]) => delayMs)).toEqual([PURGE_AGAIN_MS]);
+    // A graph route call that found the repo public has ended by then, CDN copy and all.
+    expect(PURGE_AGAIN_MS).toBeGreaterThan(GRAPH_MAX_DURATION_SECONDS * 1000);
+    const [task] = later[0] ?? [];
+    await task?.();
+    expect(purges).toBe(2);
+
+    // A failed second purge is logged like the first, never thrown into the background.
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    onTestFinished(() => log.mockRestore());
+    deps.purgeRepo = () => Promise.reject(new Error("429 from https://secret.example"));
+    await expect(task?.()).resolves.toBeUndefined();
+    expect(log).toHaveBeenCalledWith(JSON.stringify({ event: "cdn_purge_failed", error: "Error" }));
+  });
+
   it("still hides a repo whose purge fails, logging the failure by name only", async () => {
     await done(OLD);
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -1014,6 +1042,45 @@ describe("viewRepo and viewBase for a private repo (M8.4c1)", () => {
       expect(gh.requests).toEqual([]);
       expect(await viewRepo(secret, deps)).toEqual({ status: "not-analyzed", ...secret });
       expect(gh.requests).toHaveLength(1);
+    });
+  });
+
+  describe("a public repo that turned private, on the view that hides it (F15)", () => {
+    beforeEach(async () => {
+      // Acme/Secret was analyzed while public; the server's token doesn't see it any more.
+      await t.db.delete(accessCache);
+      await t.db.delete(analyses);
+      await t.db.delete(repos);
+      const { id: repoId } = await upsertRepo(t.db, {
+        providerRepoId: SECRET_ID,
+        owner: "Acme",
+        name: "Secret",
+        visibility: "public",
+        defaultBranch: "main",
+      });
+      for (const sha of [OLD, NEW]) {
+        const { id } = await startAnalysis(t.db, { repoId, sha, analyzerVersion: VERSION });
+        await completeAnalysis(t.db, id, {
+          snapshotKey: `public/acme/secret/${sha}/${VERSION}.json.gz`,
+          stats: { files: 1, nodes: 1, edges: 0, unresolved: 0 },
+        });
+      }
+      deps.github = { fetch: fakeGitHub([]).fetch };
+    });
+    const visibility = async () =>
+      (await t.db.select({ visibility: repos.visibility }).from(repos))[0]?.visibility;
+
+    it("shows it to a signed-in viewer the check allows, hidden from everyone else", async () => {
+      const octo = await signIn(OCTO);
+      expect(await viewRepo(secret, octo.deps)).toEqual(shown(NEW, { state: "current" }));
+      expect(await visibility()).toBe("private");
+      expect(await viewRepo({ ...secret, sha: NEW }, deps)).toEqual({ status: "missing" });
+    });
+
+    it("is a 404 to a viewer the check refuses, as before", async () => {
+      const hubot = await signIn(HUBOT);
+      expect(await viewRepo(secret, hubot.deps)).toEqual({ status: "missing" });
+      expect(await visibility()).toBe("private");
     });
   });
 

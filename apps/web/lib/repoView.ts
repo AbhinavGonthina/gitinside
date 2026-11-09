@@ -54,7 +54,9 @@ import { findSizeHold } from "./sizeHold";
  *    GitHub can't be asked, the diagram is still shown (`unknown`). If GitHub says it's gone or
  *    private now, it's a 404, and the repo is hidden (`hideRepo`) so its permalinks, graphs,
  *    and images stop too: a repo that went private must stop being served publicly. Then
- *    the CDN's copies of its graphs are purged by GitHub's ID (`purgeRepo`, M8.4d1, ADR-0238).
+ *    the CDN's copies of its graphs are purged by GitHub's ID (`purgeRepo`, M8.4d1, ADR-0238),
+ *    and again {@link PURGE_AGAIN_MS} later (`later`, F14). A viewer the private check allows
+ *    sees it as a private repo on that same view (F15), not only from the next one.
  * 4. **Up to date** when the shown analysis is that commit by this analyzer version.
  *    Otherwise the newer commit's own state decides: finished ⇒ shown instead; in flight
  *    ⇒ `updating`; failed ⇒ `behind` with its code (a failure isn't re-run on every view;
@@ -171,7 +173,19 @@ export interface RepoViewDeps {
    * once the repo is hidden; without it they stay until `s-maxage` ends.
    */
   purgeRepo?: (providerRepoId: number) => Promise<void>;
+  /**
+   * Run `task` `delayMs` after this call, past the response (Vercel's `waitUntil`): the hide's
+   * second purge, {@link PURGE_AGAIN_MS} later. Without it, only the first purge happens.
+   */
+  later?: (task: () => Promise<void>, delayMs: number) => void;
 }
+
+/**
+ * How long after a hide its CDN purge runs again (F14, ADR-0238 amendment): a graph request that
+ * read the repo as public before the hide can still put its answer in the CDN after the first
+ * purge, but it ends within `GRAPH_MAX_DURATION_SECONDS` (15 s), so this one finds it there.
+ */
+export const PURGE_AGAIN_MS = 20_000;
 
 /** How the shown diagram relates to the default branch's latest commit. */
 export type HeadState =
@@ -524,9 +538,15 @@ export async function viewRepo(
       // Recorded, so its permalinks and graphs (which never ask GitHub) stop too.
       await hideRepo(db, published.repo.id);
       // Then out of the CDN: purged before the hide, its next ask could cache them again.
-      // Every view that saw it public purges, so one that failed is retried by a racing one.
-      await purgeRepo(published.repo.providerRepoId, deps);
-      return { status: "missing" };
+      // Every view that saw it public purges, so one that failed is retried by a racing one,
+      // and again once a graph answer read before the hide can't still be on its way (F14).
+      const { providerRepoId } = published.repo;
+      await purgeRepo(providerRepoId, deps);
+      deps.later?.(() => purgeRepo(providerRepoId, deps), PURGE_AGAIN_MS);
+      // Hidden, it's a private repo now: shown to a viewer the check allows, as on their next
+      // view, else a 404 (F15).
+      const allowed = await privateAnalysis(ref, deps);
+      return allowed === undefined ? { status: "missing" } : privateHead(allowed, deps);
     }
     return ready(published, { state: "unknown" });
   }

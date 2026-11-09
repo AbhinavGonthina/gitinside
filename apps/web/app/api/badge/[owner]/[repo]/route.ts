@@ -4,6 +4,8 @@ import { imageDepsFromEnv, VERCEL_OIDC_HEADER } from "../../../../../lib/serverD
 
 /** `GET /api/badge/:owner/:repo.svg`: the README badge, with check-on-view (lib/imageRoute.ts, ADR-0072). */
 export const dynamic = "force-dynamic";
+/** Past the second CDN purge check-on-view schedules when it hides a repo (`PURGE_AGAIN_MS`, F14). */
+export const maxDuration = 30;
 
 export async function GET(
   request: Request,

@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GET } from "./route";
+import { GRAPH_MAX_DURATION_SECONDS } from "../../../../../../lib/graphRoute";
+import { GET, maxDuration } from "./route";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -25,6 +26,11 @@ describe("GET /api/graph/:owner/:repo/:sha", () => {
     const response = await GET(new Request(url), params(sha));
     expect(response.status).toBe(308);
     expect(response.headers.get("location")).toBe(`/api/graph/acme/shop/${sha}`);
+  });
+
+  it("ends within the bound the hide's second purge waits out (F14, ADR-0238)", () => {
+    expect(maxDuration).toBeGreaterThan(0);
+    expect(maxDuration).toBe(GRAPH_MAX_DURATION_SECONDS);
   });
 
   it("answers 404 for a commit that isn't a full SHA", async () => {

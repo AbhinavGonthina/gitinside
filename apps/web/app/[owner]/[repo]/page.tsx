@@ -10,6 +10,12 @@ interface Params {
   repo: string;
 }
 
+/**
+ * Seconds this page may run: past the second CDN purge it schedules after the response when it
+ * hides a repo (`PURGE_AGAIN_MS`, lib/repoView.ts, F14), which ends with the function.
+ */
+export const maxDuration = 30;
+
 /** The tab's title; a private repo shown to its viewer isn't indexed (M8.4c1). */
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { owner, repo } = await params;

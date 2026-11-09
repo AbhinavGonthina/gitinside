@@ -378,6 +378,14 @@ describe("repoViewDepsFromEnv", () => {
     await expect(repoViewDepsFromEnv(ENV)?.purgeRepo?.(4242)).resolves.toBeUndefined();
   });
 
+  it("runs the hide's second purge later, past the response (F14)", async () => {
+    let ran = false;
+    repoViewDepsFromEnv(ENV)?.later?.(async () => {
+      ran = true;
+    }, 0);
+    await vi.waitFor(() => expect(ran).toBe(true));
+  });
+
   it("check-on-view creates tasks with the page request's OIDC token", async () => {
     const { google, env } = withGoogle("enqueue-view@gitinside-demo.iam.gserviceaccount.com");
     const deps = repoViewDepsFromEnv(env, FAKE_GCP.subjectToken);
