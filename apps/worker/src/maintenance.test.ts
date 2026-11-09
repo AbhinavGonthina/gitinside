@@ -31,6 +31,7 @@ import {
   runMaintenance,
   type MaintenanceTriggerOptions,
 } from "./maintenance.js";
+import { dbDown } from "./log.testkit.js";
 import { RETENTION_POLICY } from "./retention.js";
 import { MAX_TASK_AGE_SECONDS } from "./run.js";
 import { s3Error, startFakeS3, type FakeS3 } from "./s3.testkit.js";
@@ -206,7 +207,7 @@ describe("with a database and a bucket", () => {
 
   it("a request goes on when its count fails, and the failure is logged", async () => {
     const down = () => {
-      throw new Error("db down");
+      throw dbDown();
     };
     const broken = { insert: down } as unknown as TestDb["db"];
     const counted = createCountedStore(
@@ -215,7 +216,10 @@ describe("with a database and a bucket", () => {
       log,
     );
     expect(await counted.get(key(1))).toBeDefined();
-    expect(lines).toEqual([{ event: "store_request_count_failed", message: "db down" }]);
+    // The error's name and code only: a driver's message names the database host (M8.10e2b).
+    expect(lines).toEqual([
+      { event: "store_request_count_failed", error: "Error", errorCode: "ECONNREFUSED" },
+    ]);
   });
 
   it("runs retention, prunes old rate-limit windows and ended sessions, then measures what is left", async () => {
@@ -417,16 +421,13 @@ describe("with a database and a bucket", () => {
       rateLimitsPruned: 0,
       sessionsSwept: 0,
     });
+    const listFailed = { error: "StorageError", errorCode: "InternalError", httpStatus: 500 };
     expect(lines).toEqual([
       { event: "stale_jobs_failed", interrupted: 0, stranded: 0 },
-      {
-        event: "maintenance_failed",
-        step: "retention",
-        message: "LIST answered 500 InternalError",
-      },
+      { event: "maintenance_failed", step: "retention", ...listFailed },
       { event: "rate_limits_pruned", rows: 0 },
       { event: "sessions_swept", rows: 0 },
-      { event: "maintenance_failed", step: "quota", message: "LIST answered 500 InternalError" },
+      { event: "maintenance_failed", step: "quota", ...listFailed },
     ]);
     expect(await t.db.select().from(analyses)).toHaveLength(6);
   });
@@ -518,17 +519,17 @@ describe("with a database and a bucket", () => {
     it("logs a failed claim or run and never rejects", async () => {
       const broken = {
         insert: () => {
-          throw new Error("db down");
+          throw dbDown();
         },
       } as unknown as TestDb["db"];
       expect(await trigger({ db: broken }).afterJob(PLENTY)).toBe(false);
-      expect(await trigger({ run: () => Promise.reject(new Error("boom")) }).afterJob(PLENTY)).toBe(
-        true,
-      );
+      expect(
+        await trigger({ run: () => Promise.reject(new TypeError("boom")) }).afterJob(PLENTY),
+      ).toBe(true);
       expect(lines).toEqual([
-        { event: "maintenance_failed", step: "claim", message: "db down" },
+        { event: "maintenance_failed", step: "claim", error: "Error", errorCode: "ECONNREFUSED" },
         { event: "maintenance_started" },
-        { event: "maintenance_failed", step: "run", message: "boom" },
+        { event: "maintenance_failed", step: "run", error: "TypeError" },
       ]);
     });
   });

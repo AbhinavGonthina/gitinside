@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { JobRequest } from "./request.js";
 import { JobFailure } from "./failure.js";
 import { startFakeGitHub, tarballFrom, tarballOf, type FakeGitHub } from "./github.testkit.js";
+import { dbDown } from "./log.testkit.js";
 import {
   DOWNLOAD_ALLOWANCE_MS,
   PUBLISH_RESERVE_MS,
@@ -316,7 +317,7 @@ describe("processJob analyzer steps", () => {
         id: ID,
         request: REQUEST,
         onStep: ({ step }) => {
-          if (step === "inventory") throw new Error("redis down");
+          if (step === "inventory") throw dbDown();
           return Promise.reject("still down");
         },
       },
@@ -324,9 +325,16 @@ describe("processJob analyzer steps", () => {
     );
     expect(outcome.stats).toEqual(STATS);
     await vi.waitFor(() => expect(log).toHaveBeenCalledTimes(2));
+    // The error's name and code only: a driver's message names the database host (M8.10e2b).
     expect(log.mock.calls.map(([event]) => event as unknown)).toEqual([
-      { event: "progress_failed", id: ID, step: "inventory", message: "redis down" },
-      { event: "progress_failed", id: ID, step: "programs", message: "still down" },
+      {
+        event: "progress_failed",
+        id: ID,
+        step: "inventory",
+        error: "Error",
+        errorCode: "ECONNREFUSED",
+      },
+      { event: "progress_failed", id: ID, step: "programs", error: "string" },
     ]);
   });
 
@@ -353,7 +361,7 @@ describe("processJob analyzer steps", () => {
   it("logs a failing found update by its keys (never the repo's names)", async () => {
     const log = vi.fn();
     const outcome = await processJob(
-      { id: ID, request: REQUEST, onFound: () => Promise.reject(new Error("redis down")) },
+      { id: ID, request: REQUEST, onFound: () => Promise.reject(dbDown()) },
       deps({ run: findingRun, log }),
     );
     expect(outcome.stats).toEqual(STATS);
@@ -362,7 +370,8 @@ describe("processJob analyzer steps", () => {
       event: "progress_failed",
       id: ID,
       found: ["services", "routes"],
-      message: "redis down",
+      error: "Error",
+      errorCode: "ECONNREFUSED",
     });
   });
 });
@@ -767,7 +776,7 @@ describe("processJob recording", () => {
     const logs: Record<string, unknown>[] = [];
     const { recorder: r } = recorder({
       failed: async () => {
-        throw new Error("db down");
+        throw dbDown();
       },
     });
     const error = await failure(
@@ -784,7 +793,13 @@ describe("processJob recording", () => {
     );
     expect(error.code).toBe("PUBLISH_FAILED");
     expect(logs).toEqual([
-      { event: "record_failed", id: ID, code: "PUBLISH_FAILED", message: "db down" },
+      {
+        event: "record_failed",
+        id: ID,
+        code: "PUBLISH_FAILED",
+        error: "Error",
+        errorCode: "ECONNREFUSED",
+      },
     ]);
   });
 
@@ -811,7 +826,7 @@ describe("processJob recording", () => {
     });
     r.failedBeforeStart = async (jobId, code) => {
       early.push([jobId, code]);
-      throw new Error("db down");
+      throw dbDown();
     };
     const error = await failure(
       processJob(
@@ -822,7 +837,13 @@ describe("processJob recording", () => {
     expect(error.code).toBe("REPO_NOT_PUBLIC");
     expect(early).toEqual([[ID, "REPO_NOT_PUBLIC"]]);
     expect(logs).toEqual([
-      { event: "record_failed", id: ID, code: "REPO_NOT_PUBLIC", message: "db down" },
+      {
+        event: "record_failed",
+        id: ID,
+        code: "REPO_NOT_PUBLIC",
+        error: "Error",
+        errorCode: "ECONNREFUSED",
+      },
     ]);
   });
 
