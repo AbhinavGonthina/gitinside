@@ -317,6 +317,8 @@ Built in steps M6.7a–f (ADR-0090).
 | `users` | id, github_user_id, login, created_at |
 | `sessions` | id, token_hash (SHA-256 of the cookie's token, unique), user_id, github_tokens (sealed by the website), created_at, expires_at. Deleted on sign-out and with the user (ADR-0221) |
 | `installations` | id, github_installation_id, account_login, created_at |
+| `deleted_installations` | github_installation_id (primary key), deleted_at. An uninstall's tombstone: GitHub never reuses the ID, so `upsertInstallation` refuses it (M8.10e2a, ADR-0240) |
+| `removed_installation_repos` | github_installation_id, provider_repo_id (primary key together), removed_at. A repo removed from a live installation, until `added`: `upsertRepo` won't link it there (ADR-0240) |
 | `access_cache` | user_id, repo_id, allowed (bool), checked_at. Primary key (user_id, repo_id); TTL 60 s (ADR-0009) |
 | `pull_requests` | id, repo_id, number, base_sha, head_sha, head_at (GitHub's `updated_at` in the event that set them), diff_key, broken_count (set together), diff_job_id, diff_queued_at (the pair's diff job and its task's time, set together, cleared with the pair; ADR-0245), comment_id, check_run_id. Unique (repo_id, number); an older event or an old pair's result never overwrites a newer one (`packages/db/src/pullRequests.ts`, ADR-0244) |
 | `rate_limits` | key (ip or user), window_start, count |

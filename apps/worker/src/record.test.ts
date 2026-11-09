@@ -10,6 +10,7 @@ import {
   analyses,
   pullRequests,
   completeAnalysis,
+  deletedInstallations,
   deleteInstallationData,
   installations,
   queueAnalysis,
@@ -17,6 +18,7 @@ import {
   recordDiffJobResult,
   recordPullRequestCheckRun,
   recordPullRequestHead,
+  removedInstallationRepos,
   repos,
   startAnalysis,
   upsertInstallation,
@@ -83,6 +85,8 @@ beforeEach(async () => {
   await t.db.delete(analyses);
   await t.db.delete(repos);
   await t.db.delete(installations);
+  await t.db.delete(deletedInstallations);
+  await t.db.delete(removedInstallationRepos);
   repoJson = {
     id: 3_000_000_001,
     name: "Shop",

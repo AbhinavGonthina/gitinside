@@ -4,6 +4,7 @@ import {
   analyses,
   computeUsage,
   computeUsageThisMonth,
+  deletedInstallations,
   failAnalysis,
   findInstallation,
   findPullRequest,
@@ -11,6 +12,7 @@ import {
   pullRequests,
   rateLimits,
   recordPullRequestDiff,
+  removedInstallationRepos,
   repos,
   upsertInstallation,
   upsertRepo,
@@ -86,6 +88,8 @@ afterAll(async () => {
 beforeEach(async () => {
   await t.db.delete(repos);
   await t.db.delete(installations);
+  await t.db.delete(deletedInstallations);
+  await t.db.delete(removedInstallationRepos);
   await t.db.delete(computeUsage);
   store = new FakeStore();
   queue = new FakeQueue();
@@ -425,6 +429,49 @@ describe("handleWebhook", () => {
     expect(await storedKeys()).toEqual([...store.keys]);
   });
 
+  it("an uninstall stays done: later stores for the installation are ignored, writing nothing (M8.10e2a)", async () => {
+    await installation41();
+    await repo(1, "public");
+    await linkRepo(1);
+    await answer(delivery("installation", installed("deleted")));
+    const suspended = { ...INSTALLATION, suspended_at: "2026-11-07T12:00:00Z" };
+    const replays: [string, Record<string, unknown>][] = [
+      ["installation", installed("created", { repositories: [{ id: 1 }] })],
+      ["installation", { ...installed("suspend"), installation: suspended }],
+      ["installation", installed("unsuspend")],
+      ["installation", installed("new_permissions_accepted")],
+      ["installation_repositories", installed("added", { repositories_added: [{ id: 1 }] })],
+    ];
+    for (const [event, payload] of replays) {
+      expect(await answer(delivery(event, payload)), String(payload.action)).toEqual({
+        status: 202,
+        body: { status: "ignored" },
+      });
+    }
+    expect(await t.db.select().from(installations)).toEqual([]);
+    expect(await linked()).toEqual({ r1: false });
+    expect(
+      logged()
+        .slice(-5)
+        .map((line) => line.detail),
+    ).toEqual(Array.from({ length: 5 }, () => "INSTALLATION_DELETED"));
+  });
+
+  it("a replayed `created` doesn't link a repo removed since (M8.10e2a)", async () => {
+    await repo(1, "public");
+    await repo(2, "public");
+    const created = installed("created", { repositories: [{ id: 1 }, { id: 2 }] });
+    await answer(delivery("installation", created));
+    await answer(
+      delivery(
+        "installation_repositories",
+        installed("removed", { repositories_removed: [{ id: 1 }] }),
+      ),
+    );
+    expect((await answer(delivery("installation", created))).status).toBe(200);
+    expect(await linked()).toEqual({ r1: false, r2: true });
+  });
+
   it("logs objects it couldn't delete and still answers 200: the rows are gone", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     onTestFinished(() => errors.mockRestore());
@@ -706,6 +753,48 @@ describe("handleWebhook: pull requests (M8.6d2)", () => {
     expect(await t.db.select().from(pullRequests)).toEqual([]);
     expect(queue.calls).toBe(0);
     expect(details()).toEqual(["ignored:INSTALLATION_NOT_FOUND", "ignored:INSTALLATION_SUSPENDED"]);
+  });
+
+  it("ignores a pull request for a repo removed from the installation until it's added again (M8.10e2a)", async () => {
+    await installation41();
+    const removed = (isPrivate: boolean) =>
+      installed("removed", {
+        repositories_removed: [
+          { id: 501, name: "shop", full_name: "octo-org/shop", private: isPrivate },
+        ],
+      });
+    for (const isPrivate of [true, false]) {
+      await t.db.delete(repos);
+      await t.db.delete(removedInstallationRepos);
+      await answer(delivery("pull_request", pr("opened", { isPrivate })));
+      await answer(delivery("installation_repositories", removed(isPrivate)));
+      queue.tasks = [];
+      // Sent before the removal, delivered (or redelivered) after it.
+      expect(
+        await answer(
+          delivery("pull_request", pr("synchronize", { head: HEAD2, at: LATER, isPrivate })),
+        ),
+      ).toEqual({ status: 202, body: { status: "ignored" } });
+      expect(await t.db.select().from(pullRequests)).toEqual([]);
+      expect(await linked()).toEqual(isPrivate ? {} : { shop: false });
+      expect(queue.tasks).toEqual([]);
+    }
+    expect(details().filter((d) => d.startsWith("ignored"))).toEqual([
+      "ignored:REPO_NOT_INSTALLED",
+      "ignored:REPO_NOT_INSTALLED",
+    ]);
+
+    // GitHub says it's in the installation again.
+    await linkRepo(501);
+    expect(
+      (
+        await answer(
+          delivery("pull_request", pr("synchronize", { head: HEAD2, at: LATER, isPrivate: false })),
+        )
+      ).status,
+    ).toBe(200);
+    expect(await linked()).toEqual({ shop: true });
+    expect(queue.tasks.map((task) => task.job)).toEqual([diffJob(HEAD2)]);
   });
 
   it("a retargeted pull request (`edited` with `changes.base`) records the new pair and queues its diff", async () => {
@@ -1027,6 +1116,30 @@ describe("handleWebhook: pushes (M8.7)", () => {
     expect(queue.calls).toBe(0);
     expect(await charged()).toBe(0);
     expect(details()).toEqual(["ignored:INSTALLATION_NOT_FOUND", "ignored:INSTALLATION_SUSPENDED"]);
+  });
+
+  it("ignores a push for a public repo removed from the installation, refunding the charge (M8.10e2a)", async () => {
+    const id = await analyzed("public");
+    await t.db.insert(analyses).values({
+      repoId: id,
+      sha: SHOWN,
+      analyzerVersion: "0.0.9",
+      status: "done",
+      snapshotKey: `public/octo-org/shop/${SHOWN}/0.0.9.json.gz`,
+      startedAt: new Date(),
+      finishedAt: new Date(),
+    });
+    const removed = installed("removed", { repositories_removed: [{ id: 501 }] });
+    await answer(delivery("installation_repositories", removed));
+    expect(await answer(delivery("push", pushed({ isPrivate: false })))).toEqual({
+      status: 202,
+      body: { status: "ignored" },
+    });
+    expect(await linked()).toEqual({ shop: false });
+    expect(await row()).toBeUndefined();
+    expect(queue.calls).toBe(0);
+    expect(await charged()).toBe(0);
+    expect(details().at(-1)).toBe("ignored:REPO_NOT_INSTALLED");
   });
 
   it("stops at the repo's hourly new commits, shared with check-on-view", async () => {

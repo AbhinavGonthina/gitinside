@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
+  DeletedInstallationError,
   deleteInstallationData,
   findStoredAnalysis,
   linkInstallationRepos,
@@ -68,9 +69,18 @@ import { WorkerUnavailableError, type DiffJob } from "./worker";
  *   that can't be created, or no queue when one is needed: `503`, as for pull requests.
  * - Any other event answers `202` `"ignored"`.
  * - **Every write is idempotent,** so a redelivered event (GitHub's "Redeliver", or a retry
- *   after our `500`) changes nothing twice. Deliveries can arrive out of order; the stored
- *   suspension is the last one received, and GitHub itself refuses tokens for a suspended
- *   installation, so a stale flag can't grant access (ADR-0224).
+ *   after our `500`) changes nothing twice, and **deletions stay done** (M8.10e2a, ADR-0240):
+ *   an uninstalled installation leaves a tombstone, so any later `installation` or
+ *   `installation_repositories` store for it answers `202` ignored (`INSTALLATION_DELETED`),
+ *   and a repo removed from an installation isn't linked to it again, by a `pull_request` or
+ *   `push` delivery (`202` ignored, `REPO_NOT_INSTALLED`) or a replayed `created`, until GitHub
+ *   sends `added`.
+ * - **What a replay still changes, stated:** deliveries can arrive out of order, and neither
+ *   suspensions nor `added` carry an order we can trust. The stored suspension is the last one
+ *   received, and a replayed `added` after `removed` links stored repos again. Neither grants
+ *   access: GitHub refuses tokens for a suspended installation and for a repo outside it
+ *   (ADR-0224), a stale suspension only refuses our own queueing, and the next event, install
+ *   return, or private Analyze stores GitHub's own answer again.
  * - A signed body out of shape is `400`; a database failure `500`, logged by name only.
  */
 
@@ -508,10 +518,20 @@ async function dispatch(event: string, payload: unknown, deps: WebhookDeps): Pro
         ? repoIds(payload, "repositories")
         : []
       : repoIds(payload, "repositories_added");
-  await db.transaction(async (tx) => {
-    await upsertInstallation(tx, facts);
-    await linkInstallationRepos(tx, facts.githubInstallationId, repos);
-  });
+  try {
+    await db.transaction(async (tx) => {
+      await upsertInstallation(tx, facts);
+      await linkInstallationRepos(tx, facts.githubInstallationId, repos, {
+        added: event === "installation_repositories",
+      });
+    });
+  } catch (error) {
+    // Uninstalled (M8.10e2a): GitHub never reuses the ID, so this delivery is stale.
+    if (error instanceof DeletedInstallationError) {
+      return { outcome: "ignored", action, detail: "INSTALLATION_DELETED" };
+    }
+    throw error;
+  }
   return { outcome: "ok", action };
 }
 
