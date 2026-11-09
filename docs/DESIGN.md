@@ -373,7 +373,7 @@ Built in steps M6.7a–f (ADR-0090).
 
 ## 13. Observability
 
-- **Logs:** structured JSON logs from the worker, one event per line on stdout (`createJsonLog`, ADR-0065), collected by Cloud Logging (inside its free monthly allowance). Codes, IDs, counts, and timings only; never a secret or connection string.
+- **Logs:** structured JSON logs from the worker, one event per line on stdout (`createJsonLog`, ADR-0065), collected by Cloud Logging (inside its free monthly allowance). Codes, IDs, counts, and timings only; never a secret or connection string. A failure is logged by its name, code, and HTTP status (`errorFields`), never its message, which can name the database host or quote a repo's text; only a process's start and stop keep the message (ADR-0248).
 - **Per-analysis timing** for each pipeline stage, stored in `analyses.stats` (feeds benchmarks).
 - **Health endpoint** on the worker (`GET /health`, for Cloud Run's probes).
 - No third-party telemetry ($0, privacy).

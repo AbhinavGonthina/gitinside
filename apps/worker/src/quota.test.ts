@@ -113,9 +113,11 @@ describe("runQuota", () => {
   it("exits 1 when the bucket can't be measured, and still closes the database", async () => {
     s3.handler = (_req, _body, res) => s3Error(res, 403, "AccessDenied");
     expect(await runQuota(io())).toBe(1);
+    // The error's name, S3 code, and status only, as for every dependency's error (M8.10e2b).
     expect(parse(lines)).toMatchObject([
-      { event: "quota_failed", message: "LIST answered 403 AccessDenied" },
+      { event: "quota_failed", error: "StorageError", errorCode: "AccessDenied", httpStatus: 403 },
     ]);
+    expect(parse(lines)[0]).not.toHaveProperty("message");
     expect(closes).toBe(1);
   });
 

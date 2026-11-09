@@ -1,5 +1,6 @@
 import { countComputeUsage, type AnyDatabase, type ComputeCount } from "@gitinside/db";
 import type { WorkerLog } from "./attempt.js";
+import { errorFields } from "./log.js";
 
 /**
  * The worker's share of the monthly compute count (`compute_usage`, #11, ADR-0156): what
@@ -59,8 +60,7 @@ export function createUsageMeter(options: { db: AnyDatabase; log: WorkerLog }): 
     try {
       await countComputeUsage(db, amounts);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      log({ event: "compute_count_failed", what, message });
+      log({ event: "compute_count_failed", what, ...errorFields(error) });
     }
   };
   return {

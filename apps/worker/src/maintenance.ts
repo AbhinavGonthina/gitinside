@@ -14,6 +14,7 @@ import {
   type ComputeMeter,
 } from "@gitinside/db";
 import type { WorkerLog } from "./attempt.js";
+import { errorFields } from "./log.js";
 import { runRetention, type RetentionPolicy, type RetentionReport } from "./retention.js";
 import { MAX_TASK_AGE_SECONDS } from "./run.js";
 import {
@@ -167,8 +168,7 @@ export function createCountedStore(
     ...rest,
     fetch: countingFetch({
       count: () => countStoreRequests(db, "worker"),
-      onCountError: (error) =>
-        log({ event: "store_request_count_failed", message: errorMessage(error) }),
+      onCountError: (error) => log({ event: "store_request_count_failed", ...errorFields(error) }),
       ...(base === undefined ? {} : { fetch: base }),
     }),
   });
@@ -237,9 +237,6 @@ export interface MaintenanceReport {
   failed: ("stale_jobs" | "retention" | "rate_limits" | "sessions" | "quota")[];
 }
 
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
 /**
  * Run the stale-job sweep, retention, rate-limit pruning, the session sweep, and the quota
  * check once, logging each. Never rejects.
@@ -255,7 +252,7 @@ export async function runMaintenance(deps: MaintenanceDeps): Promise<Maintenance
       return await run();
     } catch (error) {
       report.failed.push(name);
-      log({ event: "maintenance_failed", step: name, message: errorMessage(error) });
+      log({ event: "maintenance_failed", step: name, ...errorFields(error) });
       return undefined;
     }
   };
@@ -364,7 +361,7 @@ export function createMaintenanceTrigger(options: MaintenanceTriggerOptions): Ma
     try {
       claimed = await claimMaintenance(db, MAINTENANCE_TASK, everySeconds);
     } catch (error) {
-      log({ event: "maintenance_failed", step: "claim", message: errorMessage(error) });
+      log({ event: "maintenance_failed", step: "claim", ...errorFields(error) });
       return false;
     }
     if (!claimed || stopped) return false;
@@ -372,8 +369,7 @@ export function createMaintenanceTrigger(options: MaintenanceTriggerOptions): Ma
     log({ event: "maintenance_started" });
     const run = options.run().then(
       () => undefined,
-      (error: unknown) =>
-        log({ event: "maintenance_failed", step: "run", message: errorMessage(error) }),
+      (error: unknown) => log({ event: "maintenance_failed", step: "run", ...errorFields(error) }),
     );
     current = run.then(() => {
       current = undefined;

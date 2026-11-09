@@ -6,6 +6,7 @@ import { runAttempt, type AttemptInput, type AttemptResult } from "./attempt.js"
 import { BENCH_MODEL, MIN_SAMPLES, expectedMs } from "./estimate.js";
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import type { JobDeps, JobRecorder } from "./job.js";
+import { dbDown } from "./log.testkit.js";
 import type { StoredProgress } from "./progress.js";
 import { jobIdFor, type JobRequest } from "./request.js";
 import type { RunResult } from "./runner.js";
@@ -189,7 +190,7 @@ describe("runAttempt", () => {
       return writeGraph(child);
     };
     await runAttempt(input, deps(run), (e) => void logs.push(e), {
-      samples: () => Promise.reject(new Error("db down")),
+      samples: () => Promise.reject(dbDown()),
       now: () => 7,
     });
     expect(progress[3]).toMatchObject({
@@ -197,7 +198,13 @@ describe("runAttempt", () => {
       since: 7,
       expectMs: expectedMs(BENCH_MODEL, { stage: "analyze", step: "programs" }, 12),
     });
-    expect(logs).toContainEqual({ event: "estimate_samples_failed", id: ID, message: "db down" });
+    // The error's name and code only: a driver's message names the database host (M8.10e2b).
+    expect(logs).toContainEqual({
+      event: "estimate_samples_failed",
+      id: ID,
+      error: "Error",
+      errorCode: "ECONNREFUSED",
+    });
   });
 
   it("keeps what was found in every later update, the upload stage's too (#8)", async () => {
@@ -281,7 +288,7 @@ describe("runAttempt", () => {
   it("logs a failed progress write and carries on, the job's outcome unchanged", async () => {
     const logs: Record<string, unknown>[] = [];
     const { recorder, written } = progressRecorder(async (progress) => {
-      if (progress.stage === "extract") throw new Error("db down");
+      if (progress.stage === "extract") throw dbDown();
     });
     const result = await runAttempt(
       attempt().input,
@@ -295,7 +302,8 @@ describe("runAttempt", () => {
       event: "progress_record_failed",
       id: ID,
       stage: "extract",
-      message: "db down",
+      error: "Error",
+      errorCode: "ECONNREFUSED",
     });
   });
 

@@ -21,6 +21,7 @@ import {
   billedMs,
   createUsageMeter,
 } from "./compute.js";
+import { dbDown } from "./log.testkit.js";
 import { SHUTDOWN_TIMEOUT_MS } from "./main.js";
 
 let t: TestDb;
@@ -92,17 +93,19 @@ describe("createUsageMeter", () => {
   it("logs a count that fails, and never rejects", async () => {
     const broken = {
       insert: () => {
-        throw new Error("db down");
+        throw dbDown();
       },
     } as unknown as TestDb["db"];
     const meter = createUsageMeter({ db: broken, log });
     await expect(meter.push(10)).resolves.toBeUndefined();
     await expect(meter.startup(10)).resolves.toBeUndefined();
     await expect(meter.startupRest(10)).resolves.toBeUndefined();
+    // The error's name and code only: a driver's message names the database host (M8.10e2b).
+    const failed = { error: "Error", errorCode: "ECONNREFUSED" };
     expect(lines).toEqual([
-      { event: "compute_count_failed", what: "push", message: "db down" },
-      { event: "compute_count_failed", what: "startup", message: "db down" },
-      { event: "compute_count_failed", what: "startup_rest", message: "db down" },
+      { event: "compute_count_failed", what: "push", ...failed },
+      { event: "compute_count_failed", what: "startup", ...failed },
+      { event: "compute_count_failed", what: "startup_rest", ...failed },
     ]);
   });
 });

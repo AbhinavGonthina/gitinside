@@ -3,6 +3,7 @@ import { runAttempt, type ProcessorEstimates, type WorkerLog } from "./attempt.j
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyRequest } from "./hmac.js";
 import { HEALTH_PATH, MAX_BODY_BYTES, isJson, readBody, send } from "./http.js";
 import type { JobDeps } from "./job.js";
+import { errorFields } from "./log.js";
 import { JobRequestError, jobIdFor, parseJobRequest } from "./request.js";
 
 /**
@@ -125,8 +126,7 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
     try {
       return await done(id);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      log({ event: "done_check_failed", id, message });
+      log({ event: "done_check_failed", id, ...errorFields(error) });
       return false;
     }
   }
@@ -155,8 +155,7 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
         try {
           await options.meter(clock() - arrived);
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          log({ event: "meter_failed", message });
+          log({ event: "meter_failed", ...errorFields(error) });
         }
       }
       send(res, status, answer, headers);
@@ -254,8 +253,7 @@ export function createRunHandler(options: RunHandlerOptions): RunHandler {
         try {
           await options.afterJob({ timeLeftMs: timeLeft(), signal });
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          log({ event: "after_job_failed", id, message });
+          log({ event: "after_job_failed", id, ...errorFields(error) });
         }
       }
       // While shutting down, the connection closes with the answer: the server's close
