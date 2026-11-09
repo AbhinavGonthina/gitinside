@@ -42,6 +42,26 @@ export const FAKE_KEYS = generateKeyPairSync("rsa", { modulusLength: 2048 });
 /** Token lifetime GitHub gives installation tokens: one hour. */
 export const TOKEN_LIFETIME_MS = 3_600_000;
 
+const base64url = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+
+/**
+ * An installation token in GitHub's stateless format (rolled out to every installation token
+ * by 2026-10-02): `ghs_<app ID>_<JWT>`, about 520 characters with the JWT's two dots, its
+ * length varying with the claims (M8.10g: the worker refused these as malformed). The
+ * signature is filler: clients must treat the token as opaque, never decode or validate it.
+ */
+export function statelessToken(
+  appId: string,
+  installationId: number,
+  repos: readonly string[],
+  serial: number,
+): string {
+  const header = base64url({ alg: "RS256", typ: "JWT", kid: "gh-s2s" });
+  const payload = base64url({ iss: appId, ins: installationId, rep: repos, jti: serial });
+  const signature = Buffer.alloc(256, serial % 256).toString("base64url");
+  return `ghs_${appId}_${header}.${payload}.${signature}`;
+}
+
 function jwtProblem(
   authorization: string | null,
   appId: string,
@@ -147,7 +167,7 @@ export function fakeApp(
         { status: 422 },
       );
     }
-    const token = `ghs_${String(++next).padStart(36, "0")}`;
+    const token = statelessToken(appId, installation.id, covered as string[], ++next);
     issued.push({ token, installationId: installation.id, repos: covered as string[] });
     return Response.json(
       edit({

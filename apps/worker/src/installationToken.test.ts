@@ -9,7 +9,7 @@ import {
   TOKEN_REQUEST_PURPOSE,
   verifyRequest,
 } from "./hmac.js";
-import { createTokenClient, TOKEN_ROUTE_PATH } from "./installationToken.js";
+import { createTokenClient, MAX_TOKEN_LENGTH, TOKEN_ROUTE_PATH } from "./installationToken.js";
 
 const SECRET = "s".repeat(43);
 const OLD = "o".repeat(43);
@@ -129,6 +129,21 @@ describe("createTokenClient", () => {
     }
   });
 
+  it("takes GitHub's stateless tokens as opaque strings, any length up to the cap (M8.10g)", async () => {
+    // `ghs_<app ID>_<JWT>`: ~520 characters with dots, `-`, and `_`, the length varying.
+    const jwt = [
+      Buffer.from('{"alg":"RS256","typ":"JWT"}').toString("base64url"),
+      Buffer.from('{"iss":"424242","ins":42,"rep":["shop"]}').toString("base64url"),
+      Buffer.from(Uint8Array.from({ length: 256 }, (_, i) => i)).toString("base64url"),
+    ].join(".");
+    const stateless = `ghs_424242_${jwt}`;
+    expect(stateless).toMatch(/[.-]/);
+    for (const token of [stateless, `ghs_${"a".repeat(MAX_TOKEN_LENGTH - 4)}`]) {
+      answer = (res) => json(res, 200, { token, expiresAt: "2026-11-07T13:00:00.000Z" });
+      expect(await client()(ASK, new AbortController().signal)).toEqual({ token });
+    }
+  });
+
   it("asks once more with the previous secret's key when the website hasn't the new one yet", async () => {
     // The website still signs and verifies with the old secret: it refuses the current key.
     answer = (res) => {
@@ -194,6 +209,10 @@ describe("createTokenClient", () => {
       (res) => json(res, 403, { error: "constructor" }),
       (res) => json(res, 404, { error: "NOPE" }),
       (res) => json(res, 200, { token: "ghs_x\r\nx-evil: 1" }),
+      (res) => json(res, 200, { token: "ghs_x y" }),
+      (res) => json(res, 200, { token: "ghs_xé" }),
+      (res) => json(res, 200, { token: "" }),
+      (res) => json(res, 200, { token: `ghs_${"a".repeat(MAX_TOKEN_LENGTH - 3)}` }),
       (res) => json(res, 200, { expiresAt: "2026-11-07T13:00:00.000Z" }),
       (res) => json(res, 200, [TOKEN]),
       (res) => {
