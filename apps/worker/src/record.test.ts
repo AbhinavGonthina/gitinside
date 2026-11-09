@@ -626,14 +626,23 @@ describe("createDiffRecorder (ADR-0245)", () => {
     });
   }
 
-  /** Pull requests `numbers` of one repo, each on the pair BASE…SHA, naming {@link JOB}. */
+  /**
+   * Pull requests `numbers` of one repo linked to installation 42, each on the pair BASE…SHA,
+   * naming {@link JOB}.
+   */
   async function queued(...numbers: number[]): Promise<string> {
+    return queuedAs("public", ...numbers);
+  }
+
+  async function queuedAs(visibility: "public" | "private", ...numbers: number[]): Promise<string> {
+    await upsertInstallation(t.db, INSTALLATION);
     const { id: repoId } = await upsertRepo(t.db, {
       providerRepoId: 3_000_000_001,
       owner: "acme",
       name: "shop",
-      visibility: "public",
+      visibility,
       defaultBranch: "main",
+      githubInstallationId: 42,
     });
     for (const number of numbers) {
       const pair = { repoId, number, baseSha: BASE, headSha: SHA };
@@ -765,6 +774,62 @@ describe("createDiffRecorder (ADR-0245)", () => {
     expect(s3.objects.size).toBe(1);
     const [row] = await t.db.select().from(pullRequests);
     expect([row?.headSha, row?.diffKey]).toEqual([newer, null]);
+  });
+
+  /** Make the fake bucket run `during` before storing each PUT: a webhook racing the upload. */
+  function racingPuts(during: () => Promise<unknown>, refuseDeletes = false): void {
+    const handle = s3.handler;
+    s3.handler = (req, body, res) => {
+      if (req.method === "PUT") {
+        void during().then(() => handle(req, body, res));
+      } else if (req.method === "DELETE" && refuseDeletes) {
+        res.writeHead(503);
+        res.end();
+      } else handle(req, body, res);
+    };
+  }
+
+  describe("an uninstall while the diff uploads (M8.10e)", () => {
+    const toStore = (repoId: string) => ({
+      jobId: JOB,
+      installationId: 42,
+      repoId,
+      mergeBase: MERGE,
+      headSha: SHA,
+      diff,
+    });
+
+    it.each([
+      ["the installation deleted", "all" as const],
+      ["the repo removed", [3_000_000_001]],
+    ])("deletes the diff at once and fails the job: %s", async (_, scope) => {
+      const repoId = await queuedAs("private", 7);
+      racingPuts(() => deleteInstallationData(t.db, 42, scope));
+      const error = await failure(diffRecorder().publish(toStore(repoId)));
+      expect([error.code, error.retriable]).toEqual(["REPO_NOT_INSTALLED", false]);
+      // Uploaded after the webhook's listing, then deleted by the job itself.
+      expect(s3.requests.filter((r) => r.method === "PUT")).toHaveLength(1);
+      expect(s3.objects.size).toBe(0);
+    });
+
+    it("deletes a public repo's diff too: it's under the installation's private folder", async () => {
+      const repoId = await queued(7);
+      racingPuts(() => deleteInstallationData(t.db, 42, [3_000_000_001]));
+      const error = await failure(diffRecorder().publish(toStore(repoId)));
+      expect(error.code).toBe("REPO_NOT_INSTALLED");
+      expect(s3.objects.size).toBe(0);
+      const [repo] = await t.db.select().from(repos);
+      expect(repo?.installationId).toBeNull();
+    });
+
+    it("still fails the job when that delete fails, leaving the object to retention", async () => {
+      const repoId = await queuedAs("private", 7);
+      racingPuts(() => deleteInstallationData(t.db, 42, "all"), true);
+      const error = await failure(diffRecorder().publish(toStore(repoId)));
+      expect([error.code, error.retriable]).toEqual(["REPO_NOT_INSTALLED", false]);
+      expect(error.detail).toMatch(/deleting the diff failed/);
+      expect(s3.objects.size).toBe(1);
+    });
   });
 
   describe("storedGraph (M8.6d3c2)", () => {
@@ -902,6 +967,38 @@ describe("createDiffRecorder (ADR-0245)", () => {
       expect(await diffRecorder().storeSide({ ...side, repoId: repo!.id })).toBe(false);
       expect(s3.objects.size).toBe(0);
       expect(await t.db.select().from(analyses)).toEqual([]);
+    });
+
+    it.each([
+      ["the installation deleted", "all" as const],
+      ["the repo removed", [3_000_000_001]],
+    ])(
+      "deletes a private side at once when its repo is unlinked during the upload, failing the job: %s",
+      async (_, scope) => {
+        const side = await linked("private");
+        racingPuts(() => deleteInstallationData(t.db, 42, scope));
+        const error = await failure(diffRecorder().storeSide(side));
+        expect([error.code, error.retriable]).toEqual(["REPO_NOT_INSTALLED", false]);
+        expect(s3.requests.filter((r) => r.method === "PUT")).toHaveLength(1);
+        expect(s3.objects.size).toBe(0);
+        expect(await t.db.select().from(analyses)).toEqual([]);
+      },
+    );
+
+    it("still fails the job when deleting the side fails, leaving it to retention", async () => {
+      const side = await linked("private");
+      racingPuts(() => deleteInstallationData(t.db, 42, "all"), true);
+      const error = await failure(diffRecorder().storeSide(side));
+      expect(error.code).toBe("REPO_NOT_INSTALLED");
+      expect(error.detail).toMatch(/deleting its snapshot failed/);
+      expect(s3.objects.size).toBe(1);
+    });
+
+    it("leaves a public side to retention: the repo's next public job can name its key", async () => {
+      const side = await linked("public");
+      racingPuts(() => deleteInstallationData(t.db, 42, [3_000_000_001]));
+      expect(await diffRecorder().storeSide(side)).toBe(false);
+      expect([...s3.objects.keys()]).toEqual([`public/acme/shop/${MERGE}/${VERSION}.json.gz`]);
     });
   });
 });

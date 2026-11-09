@@ -257,7 +257,8 @@ describe("processJob fact cache folders", () => {
       installationJob,
       deps({
         cacheRoot,
-        linkedRepoIds: async () => Promise.reject(new Error("database down")),
+        linkedRepoIds: async () =>
+          Promise.reject(new TypeError("connect to db.internal.example:5432 failed")),
         recorder: record("private"),
         installationToken,
         log: (event) => void events.push(event),
@@ -265,7 +266,8 @@ describe("processJob fact cache folders", () => {
     );
     expect(fakeRun).toHaveBeenCalledOnce();
     expect(cacheOf()).toBeUndefined();
-    expect(events).toEqual([{ event: "cache_purge_failed", id: ID, message: "database down" }]);
+    // The error's name only: a database error's message can name its host (M8.10e, F11).
+    expect(events).toEqual([{ event: "cache_purge_failed", id: ID, error: "TypeError" }]);
   });
 
   it("gives a private repo without an installation no cache", async () => {
