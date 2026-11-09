@@ -87,5 +87,7 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
   - Fixed in M9.1a3a (ADR-0202's amendment, no eval delta): the example's path now replaces
     the fallback's. 978 → 865 edges: the 244 are gone, and each of the 122 functions now
     links only to server routes (131 edges).
-  - 11 edges still land on a catch-all from a loopback host or another wrapper (Ollama,
-    Outlook's Graph API, web search). They're next (M9.1a3b).
+  - 11 more edges landed on a catch-all from a loopback host, a wrapper's root-relative
+    branch, or an env base (Ollama, Outlook's Graph API, a SearXNG search URL). Fixed in
+    M9.1a3b (ADR-0033's amendment, no eval delta): a route that matches every path never
+    picks one, so these 9 requests are unresolved and name the catch-all. 865 → 863 edges.
