@@ -60,9 +60,14 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     locally.
   - Missing: NextAuth's `PrismaAdapter` uses Account, Session, and VerificationToken from
     inside the library, so those models have no reads or writes drawn.
-  - The font loads' reason (`DYNAMIC_URL`, "only known at runtime") misdescribes
-    `import.meta.url`, the module's own file, and draws an unresolved box for a font on
-    the demo. Planned as M9.1a4.
+  - At the first check the font loads' reason (`DYNAMIC_URL`, "only known at runtime")
+    misdescribed `import.meta.url`, the module's own file. Since M9.1a4 (ADR-0251) they are
+    `NO_MATCHING_ROUTE`, "the URL is a file next to the module …, which no route serves".
+    Re-dumped at that fix, only those two reasons changed. They stay on the diagram: the eval
+    labels every `fetch`, so dropping them would count as missing call sites. maxun's and
+    anything-llm's pins have no request on an `import.meta.url` base (only
+    `fileURLToPath(import.meta.url)` and `new Worker(new URL(…))`), so their records don't
+    change.
 - **getmaxun/maxun** (`99c6bd0`, checked 2026-11-09): 142 inferred edges.
   - 93 correct (74 frontend requests to their Express routes, 19 external calls), 0 wrong,
     49 unresolved.
