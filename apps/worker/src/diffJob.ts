@@ -26,6 +26,7 @@ import {
   type JobOutcome,
 } from "./job.js";
 import type { JobCache } from "./factcache.js";
+import { errorFields, type ErrorFields } from "./log.js";
 import { createCheckRun, postComment, type PostOptions } from "./post.js";
 import type { AnalysisStats } from "./protocol.js";
 import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
@@ -341,7 +342,7 @@ async function storedSide(
     const text = await deps.diffs.storedGraph({ ...owner, sha: side.sha });
     if (text === undefined) return undefined;
     const graph = parseGraph(JSON.parse(text) as unknown);
-    if (graph.repo.sha !== side.sha) throw new Error("the stored graph names another commit");
+    if (graph.repo.sha !== side.sha) throw new OtherCommitError();
     const stats = {
       files: graph.nodes.filter((node) => node.kind === "file").length,
       nodes: graph.nodes.length,
@@ -353,20 +354,28 @@ async function storedSide(
     };
     return { graph, stats };
   } catch (error) {
+    // By name only (M8.10e2b): a parse error's message quotes the stored text (a repo's
+    // names), a storage or driver error's its host.
     deps.log?.({
       event: "stored_graph_unread",
       id: context.id,
       sha: side.sha,
-      message: messageOf(error),
+      ...errorFields(error),
     });
     return undefined;
   }
 }
 
+/** A stored graph that names a commit other than the side it was read for. */
+class OtherCommitError extends Error {
+  override name = "OtherCommitError";
+}
+
 /**
  * Store a side the job just analyzed as that commit's analysis (`DiffRecorder.storeSide`,
- * M8.6d4); answers whether its row was written. A failure is logged (`side_store_failed`, the
- * error's message only) and the job goes on: the diff doesn't depend on it. A failure the
+ * M8.6d4); answers whether its row was written. A failure is logged (`side_store_failed`, by
+ * `errorFields`: never the message, which can name the database host) and the job goes on:
+ * the diff doesn't depend on it. A failure the
  * recorder named itself (`REPO_NOT_INSTALLED`: the repo was unlinked meanwhile, M8.10e) stops
  * the job.
  */
@@ -385,7 +394,7 @@ async function storeSide(
       event: "side_store_failed",
       id: context.id,
       sha: side.sha,
-      message: messageOf(error),
+      ...errorFields(error),
     });
     return false;
   }
@@ -531,25 +540,26 @@ async function storedResult(
   const text = await fromRecords("reading the stored diff", () =>
     deps.diffs.storedDiff(first.diffKey),
   );
-  const unread = (message: string): undefined => {
-    deps.log?.({ event: "stored_diff_unread", id: context.id, message });
+  // Our own reason, or a parse error by name only (M8.10e2b): its message quotes the text.
+  const unread = (why: { reason: string } | ErrorFields): undefined => {
+    deps.log?.({ event: "stored_diff_unread", id: context.id, ...why });
     return undefined;
   };
-  if (text === undefined) return unread("the diff's object is gone");
+  if (text === undefined) return unread({ reason: "the diff's object is gone" });
   let diff: GraphDiff;
   try {
     diff = parseGraphDiff(JSON.parse(text) as unknown);
   } catch (error) {
-    return unread(messageOf(error));
+    return unread(errorFields(error));
   }
   const mergeBase = diff.base.repo.sha;
   if (mergeBase === undefined || diff.head.repo.sha !== context.request.sha) {
-    return unread("the stored diff names other commits");
+    return unread({ reason: "the stored diff names other commits" });
   }
   const base = await storedSide(context, deps, { sha: mergeBase }, owner);
-  if (base === undefined) return unread("the merge base's graph isn't stored");
+  if (base === undefined) return unread({ reason: "the merge base's graph isn't stored" });
   const head = await storedSide(context, deps, { sha: context.request.sha }, owner);
-  if (head === undefined) return unread("the head's graph isn't stored");
+  if (head === undefined) return unread({ reason: "the head's graph isn't stored" });
   return {
     made: { diff, base: base.graph, head: head.graph },
     stats: head.stats,

@@ -1,6 +1,6 @@
 import { createDb, type AnyDatabase } from "@gitinside/db";
 import { ConfigError, quotaConfigFromEnv, type QuotaConfig } from "./config.js";
-import { createJsonLog } from "./log.js";
+import { createJsonLog, errorFields } from "./log.js";
 import type { DbConnection } from "./main.js";
 import { createCountedStore, logQuotas, measureQuotas, type QuotaLimits } from "./maintenance.js";
 import type { ObjectStore, StoreConfig } from "./storage.js";
@@ -58,7 +58,7 @@ export async function runQuota(io: QuotaIo): Promise<number> {
     logQuotas(log, quotas);
     return quotas.some((quota) => quota.alarm) ? QUOTA_ALARM_EXIT : 0;
   } catch (error) {
-    log({ event: "quota_failed", message: error instanceof Error ? error.message : String(error) });
+    log({ event: "quota_failed", ...errorFields(error) });
     return 1;
   } finally {
     await close().catch(() => undefined);
