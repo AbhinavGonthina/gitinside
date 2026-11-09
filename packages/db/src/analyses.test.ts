@@ -7,6 +7,7 @@ import {
   JobGoneError,
   UnknownInstallationError,
   completeAnalysis,
+  deletedInstallations,
   deleteInstallationData,
   failAnalysis,
   failInterruptedAnalyses,
@@ -24,6 +25,7 @@ import {
   isPrivateSnapshot,
   queueAnalysis,
   recentAnalysisStats,
+  removedInstallationRepos,
   repos,
   requeueAnalysis,
   servedPrivately,
@@ -59,6 +61,8 @@ beforeEach(async () => {
   await t.db.delete(analyses);
   await t.db.delete(repos);
   await t.db.delete(installations);
+  await t.db.delete(deletedInstallations);
+  await t.db.delete(removedInstallationRepos);
 });
 
 async function repoRows() {

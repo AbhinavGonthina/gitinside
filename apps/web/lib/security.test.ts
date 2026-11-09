@@ -29,12 +29,14 @@ import {
   analyses,
   completeAnalysis,
   createSession,
+  deletedInstallations,
   findSession,
   installations,
   pullRequests,
   queueAnalysis,
   recordPullRequestDiff,
   recordPullRequestHead,
+  removedInstallationRepos,
   repos,
   sessions,
   startAnalysis,
@@ -248,6 +250,8 @@ beforeEach(async () => {
   await t.db.delete(analyses);
   await t.db.delete(repos);
   await t.db.delete(installations);
+  await t.db.delete(deletedInstallations);
+  await t.db.delete(removedInstallationRepos);
   objects = new Map();
   reads = [];
   github = fakeOAuth();
