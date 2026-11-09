@@ -4,13 +4,13 @@
   "sha": "308b27662b2f6fd4947791d61c797945c609fcbc",
   "analyzerVersion": "0.2.0",
   "checkedAt": "2026-11-09",
-  "method": "Checked one service pair at a time (M9.1a3c–f); edges not yet checked are `pending` with the task that checks them. M9.1a3c, frontend → server: each site's call read from its first line to its closing parenthesis in `git show <sha>:<file>`, giving the method (`method:` in the init, else GET) and URL, with `${API_BASE}` as `/api`: `API_BASE` is `VITE_API_BASE || \"/api\"` (frontend/src/utils/constants.js:1), and frontend/.env.example's `http://localhost:3001/api` is the server's port (`SERVER_PORT || 3001`, server/index.js:198) and its router's mount (`app.use(\"/api\", apiRouter)`, server/index.js:98). Each URL compared segment by segment with the target route, its definition line read, and every other server route of the same method that takes the URL listed, to see which one Express runs first (registration order: server/index.js:99–130, then each file's order). Every target file's routes are registered on `apiRouter`: directly from server/index.js, or through `utilEndpoints` (server/endpoints/utils.js:90–98), `experimentalEndpoints` (server/endpoints/experimental/index.js:8–9), and `workspaceEndpoints` (server/endpoints/workspaces.js:1109). Sites whose URL is a const or local, or whose path a second route also takes, were read by hand. Then every `fetch(`, `fetchEventSource(`, `axios`, `new EventSource(`, `new WebSocket(`, and `sendBeacon(` call in frontend/ (git grep) matched to an edge site. M9.1a3d, the server's, collector's, and root `extras/` http edges (all unresolved after M9.1a3b): each site read with its lines around it, the URL's base followed to its definition (a parameter, a constructor or `init()` assignment, a static field or getter, an object property, an env read) by `git grep` at the pin, and the reason checked against it; for a base held in the source, the route or host the request reaches named. Then every `fetch(`, `axios`, `http(s).get/request(`, `got(`, `request(`, `new EventSource(`, and `new WebSocket(` call in server/, collector/, and extras/ matched to an edge site of any kind. M9.1a3e1, the external_call edges: each site read with its lines around it (`git show <sha>:<file>`). For a `fetch(`, the URL's host from the literal, a const, or a `new URL(…)` it names, followed by `git grep` at the pin. For an SDK call, the receiver (`this.openai`, a local `openai`, …) matched to its `new OpenAI(…)`/`new AnthropicAI(…)` construction in the same file and that construction's options read: a client without `baseURL` reaches the SDK's default host, one with a `baseURL` reaches that base. Then every `openai`/`@anthropic-ai/sdk` request-shaped call (`.chat.completions`, `.embeddings`, `.responses`, `.models`, `.audio.*`, `.images`, `.messages`, followed by `.create`/`.stream`/`.list`/`.retrieve`/`.generate`) in server/, collector/, and frontend/ matched to an edge site. M9.1a3e2b, the edges replacing a3e1's 117 wrong ones, at analyzer `945faa2` (M9.1a3e2a): the repo re-dumped, the two dumps compared edge by edge (only the 117 removed, 120 added, every added edge at one of their sites), and each new edge's drawing checked against its client's construction as read in a3e1, re-read by `git grep` at the pin: a literal base's host, a constructor field's only assignment, each route the compatibility script reaches with every other server route taking its URL, and each unresolved reason against the base.",
+  "method": "Checked one service pair at a time (M9.1a3c–f); edges not yet checked are `pending` with the task that checks them. M9.1a3c, frontend → server: each site's call read from its first line to its closing parenthesis in `git show <sha>:<file>`, giving the method (`method:` in the init, else GET) and URL, with `${API_BASE}` as `/api`: `API_BASE` is `VITE_API_BASE || \"/api\"` (frontend/src/utils/constants.js:1), and frontend/.env.example's `http://localhost:3001/api` is the server's port (`SERVER_PORT || 3001`, server/index.js:198) and its router's mount (`app.use(\"/api\", apiRouter)`, server/index.js:98). Each URL compared segment by segment with the target route, its definition line read, and every other server route of the same method that takes the URL listed, to see which one Express runs first (registration order: server/index.js:99–130, then each file's order). Every target file's routes are registered on `apiRouter`: directly from server/index.js, or through `utilEndpoints` (server/endpoints/utils.js:90–98), `experimentalEndpoints` (server/endpoints/experimental/index.js:8–9), and `workspaceEndpoints` (server/endpoints/workspaces.js:1109). Sites whose URL is a const or local, or whose path a second route also takes, were read by hand. Then every `fetch(`, `fetchEventSource(`, `axios`, `new EventSource(`, `new WebSocket(`, and `sendBeacon(` call in frontend/ (git grep) matched to an edge site. M9.1a3d, the server's, collector's, and root `extras/` http edges (all unresolved after M9.1a3b): each site read with its lines around it, the URL's base followed to its definition (a parameter, a constructor or `init()` assignment, a static field or getter, an object property, an env read) by `git grep` at the pin, and the reason checked against it; for a base held in the source, the route or host the request reaches named. Then every `fetch(`, `axios`, `http(s).get/request(`, `got(`, `request(`, `new EventSource(`, and `new WebSocket(` call in server/, collector/, and extras/ matched to an edge site of any kind. M9.1a3e1, the external_call edges: each site read with its lines around it (`git show <sha>:<file>`). For a `fetch(`, the URL's host from the literal, a const, or a `new URL(…)` it names, followed by `git grep` at the pin. For an SDK call, the receiver (`this.openai`, a local `openai`, …) matched to its `new OpenAI(…)`/`new AnthropicAI(…)` construction in the same file and that construction's options read: a client without `baseURL` reaches the SDK's default host, one with a `baseURL` reaches that base. Then every `openai`/`@anthropic-ai/sdk` request-shaped call (`.chat.completions`, `.embeddings`, `.responses`, `.models`, `.audio.*`, `.images`, `.messages`, followed by `.create`/`.stream`/`.list`/`.retrieve`/`.generate`) in server/, collector/, and frontend/ matched to an edge site. M9.1a3e2b, the edges replacing a3e1's 117 wrong ones, at analyzer `945faa2` (M9.1a3e2a): the repo re-dumped, the two dumps compared edge by edge (only the 117 removed, 120 added, every added edge at one of their sites), and each new edge's drawing checked against its client's construction as read in a3e1, re-read by `git grep` at the pin: a literal base's host, a constructor field's only assignment, each route the compatibility script reaches with every other server route taking its URL, and each unresolved reason against the base. M9.1a3f, the Prisma edges: each reads/writes site read with the lines after it (`git show <sha>:<file>`) and parsed into receiver, model accessor, and op; the op checked against the edge's kind (`find*`/`count`/`aggregate` read, `create`/`update*`/`upsert`/`delete*` write), the accessor against the target model, the receiver against the file's `require` of server/utils/prisma (the module exporting `new PrismaClient(…)`), and the nearest named definition above the site against the edge's source. The 13 sites those rules didn't confirm (7 `tx` receivers, the seed script's own client, 4 sources in anonymous or nested functions) were read by hand. Each `stores` edge's model found in server/prisma/schema.prisma and the schema's one datasource read. Then every `<receiver>.<model>.<op>(` call (any receiver, line breaks allowed) for the schema's 33 models, every `prisma.$<method>`, and every computed `prisma[…]` in the repo's JS/TS matched to an edge site. Prisma edges' `fields` lists weren't checked.",
   "totals": {
     "edges": 866,
-    "correct": 348,
+    "correct": 630,
     "wrong": 0,
     "unresolved": 236,
-    "pending": 282
+    "pending": 0
   },
   "notCovered": "Structural edges (imports, calls, renders, handles) aren't hand-checked; they're TypeScript's resolution, tested by the fixtures and the eval. Route nodes are checked only where an edge points at them.",
   "observations": [
@@ -26,7 +26,9 @@
     "117 wrong: the SDK detector draws every call on an `openai` or `@anthropic-ai/sdk` client to the SDK's default host, ignoring the constructor's `baseURL`, and anything-llm uses the `openai` package as the client for most of its providers. 56 edges have a literal `baseURL` naming another provider (20 hosts: api.groq.com, generativelanguage.googleapis.com, api.deepseek.com, api.together.xyz, api.mistral.ai, openrouter.ai, api.x.ai, …); 57 have a base set at runtime (the user's LiteLLM, LM Studio, LocalAI, KoboldCPP, generic OpenAI-compatible, Azure, Vertex, or Bedrock endpoint, or the loopback lemond); 2 are Bedrock's Anthropic client (`*.amazonaws.com`); 1 is a script testing AnythingLLM's own OpenAI-compatible API (`http://localhost:3001/api/v1/openai`, 5 calls to the server's routes); 1 is a Jest mock's `create.mockImplementation(…)` in a test. Fixed in M9.1a3e2a (ADR-0249, analyzer `945faa2`) and rechecked in M9.1a3e2b, below.",
     "Missing SDK edges (sweep of server/, collector/, frontend/: 134 request-shaped `openai`/Anthropic calls on an edge, 3 grep hits that aren't calls): 83 calls on clients the detector doesn't trace: the agent providers' `this.client` (server/utils/agents/aibitat/providers/*.js, 69 calls, plus the helpers `tooled.js`, `anthropicTooled.js`, `responsesTooled.js` taking `client` as a parameter, 6), the embedded lemond agent provider (2), the image generators' `this.client` (3), and Mistral's `normalizeMistralClient(new OpenAIApi(…))` (3, a wrapped client). They're missing edges, not wrong ones: SDK clients assigned without a type or passed as parameters are among `sdk.ts`'s stated unhandled patterns.",
     "M9.1a3e2b, at analyzer `945faa2`: re-dumped, the 117 wrong edges are gone and nothing else changed (863 → 866 edges: 117 removed, 120 added, every added edge at one of their sites). 0 wrong. The 56 literal bases: 46 edges now go to their own host (16 hosts, `exact`), and the 10 whose `baseURL` is `this.basePath` (ApiPie, CometAPI, Novita, OpenRouter, PPIO) are unresolved. The compatibility script's 5 calls are 4 `http` edges to the server's `GET /api/v1/openai/models`, `POST …/chat/completions` (×2), `POST …/embeddings`, and `GET …/vector_stores` (`heuristic`, the loopback rule), each the route Express runs. The 57 runtime bases and Bedrock's 2 Anthropic calls are 60 unresolved edges (Bedrock's streaming method draws its `responses` and `chat/completions` calls apart). The Jest mock has no edge.",
-    "Of the 70 unresolved SDK edges, 58 reasons are accurate: `DYNAMIC_URL` for a base that's a parameter, a call on the user's settings, or a region the user picks (Bedrock, Vertex), the env-name rule's `NO_MATCHING_ROUTE` for six bases read straight from env vars (LocalAI ×3, the generic STT/TTS endpoints, Kokoro), and Azure's embedder without a path (its deployment segment, stated in `sdk.ts`). 12 overstate it, the same gap as M9.1a3d's 33: the 10 `this.basePath` fields are set once in the constructor to a literal, and embedded lemond's 2 go through a static method and getter to `http://127.0.0.1:${port()}/api/v1`, a port from a call. M9.1a7 covers both forms. If it resolves lemond's loopback base, none of lemond's paths reaches a server route other than the `ALL /*` 404 handler, which never picks one. Two label details, neither a claim: Kokoro's label drops the `/v1` its constructor puts on the endpoint's path, and two calls outside ADR-0249's path table (`models.retrieve`, the raw `get`) draw `?` with no path."
+    "Of the 70 unresolved SDK edges, 58 reasons are accurate: `DYNAMIC_URL` for a base that's a parameter, a call on the user's settings, or a region the user picks (Bedrock, Vertex), the env-name rule's `NO_MATCHING_ROUTE` for six bases read straight from env vars (LocalAI ×3, the generic STT/TTS endpoints, Kokoro), and Azure's embedder without a path (its deployment segment, stated in `sdk.ts`). 12 overstate it, the same gap as M9.1a3d's 33: the 10 `this.basePath` fields are set once in the constructor to a literal, and embedded lemond's 2 go through a static method and getter to `http://127.0.0.1:${port()}/api/v1`, a port from a call. M9.1a7 covers both forms. If it resolves lemond's loopback base, none of lemond's paths reaches a server route other than the `ALL /*` 404 handler, which never picks one. Two label details, neither a claim: Kokoro's label drops the `/v1` its constructor puts on the endpoint's path, and two calls outside ADR-0249's path table (`models.retrieve`, the raw `get`) draw `?` with no path.",
+    "M9.1a3f: the 282 Prisma edges are all correct, 0 wrong. 249 reads/writes edges (258 sites: 122 reads, 136 writes) all go through `server/utils/prisma`'s one `new PrismaClient(…)`, required by each file, except 7 sites on a `$transaction(async (tx) => …)` callback's `tx` (memory.js, scheduledJobRun.js) and the seed script's own client (prisma/seed.js). Each op is the edge's kind and each accessor its model. The 33 `stores` edges are the schema's 33 models, each to its only datasource, SQLite at `file:../storage/anythingllm.db`. Calls in `DEFAULT_VARIABLES`' anonymous `value:` functions (3 sites) are drawn from the `SystemPromptVariables` object, the innermost named symbol.",
+    "Sweep for Prisma (M9.1a3f): every `<receiver>.<model>.<op>(` call for the 33 models in the repo is on an edge site (258), and the one other hit is a `Set` (`results.workspaces.add(`, search.js:46). The 9 `prisma.$transaction` calls in source (3 callbacks, 5 arrays, 1 array in a variable) wrap calls that are each on an edge; the 3 in memory.test.js are Jest mocks. No raw query (`$queryRaw*`/`$executeRaw*`) and no computed `prisma[…]` access anywhere, so there's no missing Prisma edge."
   ],
   "edges": [
     {
@@ -5321,8 +5323,8 @@
         "server/endpoints/mobile/utils/index.js:34",
         "server/endpoints/mobile/utils/index.js:74"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.count(…)` (index.js:34), `prisma.workspace_chats.findMany(…)` (index.js:74): `prisma` is `require(\"../../../utils/prisma\")` (index.js:7), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/endpoints/mobile/utils/index.js#handleMobileCommand->model:server/workspace_threads",
@@ -5335,8 +5337,8 @@
         "server/endpoints/mobile/utils/index.js:117",
         "server/endpoints/mobile/utils/index.js:163"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_threads.count(…)` (index.js:28), `prisma.workspace_threads.findMany(…)` (index.js:66), `prisma.workspace_threads.findFirst(…)` (index.js:117), `prisma.workspace_threads.findFirst(…)` (index.js:163): `prisma` is `require(\"../../../utils/prisma\")` (index.js:7), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_threads` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/agentSkillWhitelist.js#AgentSkillWhitelist.get->model:server/system_settings",
@@ -5344,8 +5346,8 @@
       "confidence": "exact",
       "to": "model system_settings",
       "sites": ["server/models/agentSkillWhitelist.js:25"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_settings.findFirst(…)` (agentSkillWhitelist.js:25): `prisma` is `require(\"../utils/prisma\")` (agentSkillWhitelist.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_settings` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/apiKeys.js#ApiKey.count->model:server/api_keys",
@@ -5353,8 +5355,8 @@
       "confidence": "exact",
       "to": "model api_keys",
       "sites": ["server/models/apiKeys.js:43"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.api_keys.count(…)` (apiKeys.js:43): `prisma` is `require(\"../utils/prisma\")` (apiKeys.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `api_keys` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/apiKeys.js#ApiKey.get->model:server/api_keys",
@@ -5362,8 +5364,8 @@
       "confidence": "exact",
       "to": "model api_keys",
       "sites": ["server/models/apiKeys.js:33"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.api_keys.findFirst(…)` (apiKeys.js:33): `prisma` is `require(\"../utils/prisma\")` (apiKeys.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `api_keys` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/apiKeys.js#ApiKey.where->model:server/api_keys",
@@ -5371,8 +5373,8 @@
       "confidence": "exact",
       "to": "model api_keys",
       "sites": ["server/models/apiKeys.js:63"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.api_keys.findMany(…)` (apiKeys.js:63): `prisma` is `require(\"../utils/prisma\")` (apiKeys.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `api_keys` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/browserExtensionApiKey.js#BrowserExtensionApiKey.get->model:server/browser_extension_api_keys",
@@ -5380,8 +5382,8 @@
       "confidence": "exact",
       "to": "model browser_extension_api_keys",
       "sites": ["server/models/browserExtensionApiKey.js:62"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.browser_extension_api_keys.findFirst(…)` (browserExtensionApiKey.js:62): `prisma` is `require(\"../utils/prisma\")` (browserExtensionApiKey.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `browser_extension_api_keys` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/browserExtensionApiKey.js#BrowserExtensionApiKey.validate->model:server/browser_extension_api_keys",
@@ -5389,8 +5391,8 @@
       "confidence": "exact",
       "to": "model browser_extension_api_keys",
       "sites": ["server/models/browserExtensionApiKey.js:42"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.browser_extension_api_keys.findUnique(…)` (browserExtensionApiKey.js:42): `prisma` is `require(\"../utils/prisma\")` (browserExtensionApiKey.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `browser_extension_api_keys` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/browserExtensionApiKey.js#BrowserExtensionApiKey.where->model:server/browser_extension_api_keys",
@@ -5398,8 +5400,8 @@
       "confidence": "exact",
       "to": "model browser_extension_api_keys",
       "sites": ["server/models/browserExtensionApiKey.js:120"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.browser_extension_api_keys.findMany(…)` (browserExtensionApiKey.js:120): `prisma` is `require(\"../utils/prisma\")` (browserExtensionApiKey.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `browser_extension_api_keys` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/browserExtensionApiKey.js#BrowserExtensionApiKey.whereWithUser->model:server/browser_extension_api_keys",
@@ -5407,8 +5409,8 @@
       "confidence": "exact",
       "to": "model browser_extension_api_keys",
       "sites": ["server/models/browserExtensionApiKey.js:152"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.browser_extension_api_keys.findMany(…)` (browserExtensionApiKey.js:152): `prisma` is `require(\"../utils/prisma\")` (browserExtensionApiKey.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `browser_extension_api_keys` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/cacheData.js#CacheData.count->model:server/cache_data",
@@ -5416,8 +5418,8 @@
       "confidence": "exact",
       "to": "model cache_data",
       "sites": ["server/models/cacheData.js:58"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.cache_data.count(…)` (cacheData.js:58): `prisma` is `require(\"../utils/prisma\")` (cacheData.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `cache_data` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/cacheData.js#CacheData.get->model:server/cache_data",
@@ -5425,8 +5427,8 @@
       "confidence": "exact",
       "to": "model cache_data",
       "sites": ["server/models/cacheData.js:18"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.cache_data.findFirst(…)` (cacheData.js:18): `prisma` is `require(\"../utils/prisma\")` (cacheData.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `cache_data` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/cacheData.js#CacheData.where->model:server/cache_data",
@@ -5434,8 +5436,8 @@
       "confidence": "exact",
       "to": "model cache_data",
       "sites": ["server/models/cacheData.js:44"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.cache_data.findMany(…)` (cacheData.js:44): `prisma` is `require(\"../utils/prisma\")` (cacheData.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `cache_data` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documentSyncQueue.js#DocumentSyncQueue.count->model:server/document_sync_queues",
@@ -5443,8 +5445,8 @@
       "confidence": "exact",
       "to": "model document_sync_queues",
       "sites": ["server/models/documentSyncQueue.js:201"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_queues.count(…)` (documentSyncQueue.js:201): `prisma` is `require(\"../utils/prisma\")` (documentSyncQueue.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_queues` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documentSyncQueue.js#DocumentSyncQueue.get->model:server/document_sync_queues",
@@ -5452,8 +5454,8 @@
       "confidence": "exact",
       "to": "model document_sync_queues",
       "sites": ["server/models/documentSyncQueue.js:169"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_queues.findFirst(…)` (documentSyncQueue.js:169): `prisma` is `require(\"../utils/prisma\")` (documentSyncQueue.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_queues` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documentSyncQueue.js#DocumentSyncQueue.where->model:server/document_sync_queues",
@@ -5461,8 +5463,8 @@
       "confidence": "exact",
       "to": "model document_sync_queues",
       "sites": ["server/models/documentSyncQueue.js:186"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_queues.findMany(…)` (documentSyncQueue.js:186): `prisma` is `require(\"../utils/prisma\")` (documentSyncQueue.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_queues` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documentSyncRun.js#DocumentSyncRun.count->model:server/document_sync_executions",
@@ -5470,8 +5472,8 @@
       "confidence": "exact",
       "to": "model document_sync_executions",
       "sites": ["server/models/documentSyncRun.js:65"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_executions.count(…)` (documentSyncRun.js:65): `prisma` is `require(\"../utils/prisma\")` (documentSyncRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_executions` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documentSyncRun.js#DocumentSyncRun.get->model:server/document_sync_executions",
@@ -5479,8 +5481,8 @@
       "confidence": "exact",
       "to": "model document_sync_executions",
       "sites": ["server/models/documentSyncRun.js:33"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_executions.findFirst(…)` (documentSyncRun.js:33): `prisma` is `require(\"../utils/prisma\")` (documentSyncRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_executions` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documentSyncRun.js#DocumentSyncRun.where->model:server/document_sync_executions",
@@ -5488,8 +5490,8 @@
       "confidence": "exact",
       "to": "model document_sync_executions",
       "sites": ["server/models/documentSyncRun.js:50"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_executions.findMany(…)` (documentSyncRun.js:50): `prisma` is `require(\"../utils/prisma\")` (documentSyncRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_executions` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documents.js#Document.count->model:server/workspace_documents",
@@ -5497,8 +5499,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/models/documents.js:291"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.count(…)` (documents.js:291): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documents.js#Document.forWorkspace->model:server/workspace_documents",
@@ -5506,8 +5508,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/models/documents.js:36"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.findMany(…)` (documents.js:36): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documents.js#Document.get->model:server/workspace_documents",
@@ -5515,8 +5517,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/models/documents.js:53"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.findFirst(…)` (documents.js:53): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/documents.js#Document.where->model:server/workspace_documents",
@@ -5524,8 +5526,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/models/documents.js:71"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.findMany(…)` (documents.js:71): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/embedChats.js#EmbedChats.count->model:server/embed_chats",
@@ -5533,8 +5535,8 @@
       "confidence": "exact",
       "to": "model embed_chats",
       "sites": ["server/models/embedChats.js:188"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_chats.count(…)` (embedChats.js:188): `prisma` is `require(\"../utils/prisma\")` (embedChats.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/embedChats.js#EmbedChats.forEmbedByUser->model:server/embed_chats",
@@ -5542,8 +5544,8 @@
       "confidence": "exact",
       "to": "model embed_chats",
       "sites": ["server/models/embedChats.js:74"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_chats.findMany(…)` (embedChats.js:74): `prisma` is `require(\"../utils/prisma\")` (embedChats.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/embedChats.js#EmbedChats.get->model:server/embed_chats",
@@ -5551,8 +5553,8 @@
       "confidence": "exact",
       "to": "model embed_chats",
       "sites": ["server/models/embedChats.js:111"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_chats.findFirst(…)` (embedChats.js:111): `prisma` is `require(\"../utils/prisma\")` (embedChats.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/embedChats.js#EmbedChats.where->model:server/embed_chats",
@@ -5560,8 +5562,8 @@
       "confidence": "exact",
       "to": "model embed_chats",
       "sites": ["server/models/embedChats.js:142"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_chats.findMany(…)` (embedChats.js:142): `prisma` is `require(\"../utils/prisma\")` (embedChats.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/embedChats.js#EmbedChats.whereWithEmbedAndWorkspace->model:server/embed_chats",
@@ -5569,8 +5571,8 @@
       "confidence": "exact",
       "to": "model embed_chats",
       "sites": ["server/models/embedChats.js:162"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_chats.findMany(…)` (embedChats.js:162): `prisma` is `require(\"../utils/prisma\")` (embedChats.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/embedConfig.js#EmbedConfig.get->model:server/embed_configs",
@@ -5578,8 +5580,8 @@
       "confidence": "exact",
       "to": "model embed_configs",
       "sites": ["server/models/embedConfig.js:114"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_configs.findFirst(…)` (embedConfig.js:114): `prisma` is `require(\"../utils/prisma\")` (embedConfig.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_configs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/embedConfig.js#EmbedConfig.getWithWorkspace->model:server/embed_configs",
@@ -5587,8 +5589,8 @@
       "confidence": "exact",
       "to": "model embed_configs",
       "sites": ["server/models/embedConfig.js:127"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_configs.findFirst(…)` (embedConfig.js:127): `prisma` is `require(\"../utils/prisma\")` (embedConfig.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_configs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/embedConfig.js#EmbedConfig.where->model:server/embed_configs",
@@ -5596,8 +5598,8 @@
       "confidence": "exact",
       "to": "model embed_configs",
       "sites": ["server/models/embedConfig.js:155"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_configs.findMany(…)` (embedConfig.js:155): `prisma` is `require(\"../utils/prisma\")` (embedConfig.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_configs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/embedConfig.js#EmbedConfig.whereWithWorkspace->model:server/embed_configs",
@@ -5605,8 +5607,8 @@
       "confidence": "exact",
       "to": "model embed_configs",
       "sites": ["server/models/embedConfig.js:173"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_configs.findMany(…)` (embedConfig.js:173): `prisma` is `require(\"../utils/prisma\")` (embedConfig.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_configs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/eventLogs.js#EventLogs.count->model:server/event_logs",
@@ -5614,8 +5616,8 @@
       "confidence": "exact",
       "to": "model event_logs",
       "sites": ["server/models/eventLogs.js:104"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.event_logs.count(…)` (eventLogs.js:104): `prisma` is `require(\"../utils/prisma\")` (eventLogs.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `event_logs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/eventLogs.js#EventLogs.getByEvent->model:server/event_logs",
@@ -5623,8 +5625,8 @@
       "confidence": "exact",
       "to": "model event_logs",
       "sites": ["server/models/eventLogs.js:27"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.event_logs.findMany(…)` (eventLogs.js:27): `prisma` is `require(\"../utils/prisma\")` (eventLogs.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `event_logs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/eventLogs.js#EventLogs.getByUserId->model:server/event_logs",
@@ -5632,8 +5634,8 @@
       "confidence": "exact",
       "to": "model event_logs",
       "sites": ["server/models/eventLogs.js:43"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.event_logs.findMany(…)` (eventLogs.js:43): `prisma` is `require(\"../utils/prisma\")` (eventLogs.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `event_logs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/eventLogs.js#EventLogs.where->model:server/event_logs",
@@ -5641,8 +5643,8 @@
       "confidence": "exact",
       "to": "model event_logs",
       "sites": ["server/models/eventLogs.js:64"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.event_logs.findMany(…)` (eventLogs.js:64): `prisma` is `require(\"../utils/prisma\")` (eventLogs.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `event_logs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/externalCommunicationConnector.js#ExternalCommunicationConnector.get->model:server/external_communication_connectors",
@@ -5650,8 +5652,8 @@
       "confidence": "exact",
       "to": "model external_communication_connectors",
       "sites": ["server/models/externalCommunicationConnector.js:15"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.external_communication_connectors.findUnique(…)` (externalCommunicationConnector.js:15): `prisma` is `require(\"../utils/prisma\")` (externalCommunicationConnector.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `external_communication_connectors` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/invite.js#Invite.count->model:server/invites",
@@ -5659,8 +5661,8 @@
       "confidence": "exact",
       "to": "model invites",
       "sites": ["server/models/invite.js:89"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.invites.count(…)` (invite.js:89): `prisma` is `require(\"../utils/prisma\")` (invite.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `invites` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/invite.js#Invite.deactivate->model:server/invites",
@@ -5668,8 +5670,8 @@
       "confidence": "exact",
       "to": "model invites",
       "sites": ["server/models/invite.js:28"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.invites.findUnique(…)` (invite.js:28): `prisma` is `require(\"../utils/prisma\")` (invite.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `invites` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/invite.js#Invite.get->model:server/invites",
@@ -5677,8 +5679,8 @@
       "confidence": "exact",
       "to": "model invites",
       "sites": ["server/models/invite.js:79"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.invites.findFirst(…)` (invite.js:79): `prisma` is `require(\"../utils/prisma\")` (invite.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `invites` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/invite.js#Invite.where->model:server/invites",
@@ -5686,8 +5688,8 @@
       "confidence": "exact",
       "to": "model invites",
       "sites": ["server/models/invite.js:109"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.invites.findMany(…)` (invite.js:109): `prisma` is `require(\"../utils/prisma\")` (invite.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `invites` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/memory.js#Memory.countForScope->model:server/memories",
@@ -5695,8 +5697,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:284"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.count(…)` (memory.js:284): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/memory.js#Memory.demoteToWorkspace->model:server/memories",
@@ -5704,8 +5706,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:216"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.findUnique(…)` (memory.js:216): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/memory.js#Memory.forUserWorkspace->model:server/memories",
@@ -5713,8 +5715,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:53"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.findMany(…)` (memory.js:53): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/memory.js#Memory.get->model:server/memories",
@@ -5722,8 +5724,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:467"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.findFirst(…)` (memory.js:467): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/memory.js#Memory.globalForUser->model:server/memories",
@@ -5731,8 +5733,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:75"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.findMany(…)` (memory.js:75): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/memory.js#Memory.promoteToGlobal->model:server/memories",
@@ -5740,8 +5742,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:178"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.findUnique(…)` (memory.js:178): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/mobileDevice.js#MobileDevice.get->model:server/desktop_mobile_devices",
@@ -5749,8 +5751,8 @@
       "confidence": "exact",
       "to": "model desktop_mobile_devices",
       "sites": ["server/models/mobileDevice.js:174"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.desktop_mobile_devices.findFirst(…)` (mobileDevice.js:174): `prisma` is `require(\"../utils/prisma\")` (mobileDevice.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `desktop_mobile_devices` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/mobileDevice.js#MobileDevice.where->model:server/desktop_mobile_devices",
@@ -5758,8 +5760,8 @@
       "confidence": "exact",
       "to": "model desktop_mobile_devices",
       "sites": ["server/models/mobileDevice.js:216"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.desktop_mobile_devices.findMany(…)` (mobileDevice.js:216): `prisma` is `require(\"../utils/prisma\")` (mobileDevice.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `desktop_mobile_devices` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/modelRouter.js#ModelRouter.get->model:server/model_routers",
@@ -5767,8 +5769,8 @@
       "confidence": "exact",
       "to": "model model_routers",
       "sites": ["server/models/modelRouter.js:79"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_routers.findFirst(…)` (modelRouter.js:79): `prisma` is `require(\"../utils/prisma\")` (modelRouter.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_routers` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/modelRouter.js#ModelRouter.getAllWithCounts->model:server/model_routers",
@@ -5776,8 +5778,8 @@
       "confidence": "exact",
       "to": "model model_routers",
       "sites": ["server/models/modelRouter.js:150"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_routers.findMany(…)` (modelRouter.js:150): `prisma` is `require(\"../utils/prisma\")` (modelRouter.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_routers` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/modelRouter.js#ModelRouter.getWithRules->model:server/model_routers",
@@ -5785,8 +5787,8 @@
       "confidence": "exact",
       "to": "model model_routers",
       "sites": ["server/models/modelRouter.js:91"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_routers.findFirst(…)` (modelRouter.js:91): `prisma` is `require(\"../utils/prisma\")` (modelRouter.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_routers` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/modelRouter.js#ModelRouter.getWithRulesAndCount->model:server/model_routers",
@@ -5794,8 +5796,8 @@
       "confidence": "exact",
       "to": "model model_routers",
       "sites": ["server/models/modelRouter.js:109"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_routers.findFirst(…)` (modelRouter.js:109): `prisma` is `require(\"../utils/prisma\")` (modelRouter.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_routers` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/modelRouter.js#ModelRouter.where->model:server/model_routers",
@@ -5803,8 +5805,8 @@
       "confidence": "exact",
       "to": "model model_routers",
       "sites": ["server/models/modelRouter.js:132"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_routers.findMany(…)` (modelRouter.js:132): `prisma` is `require(\"../utils/prisma\")` (modelRouter.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_routers` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/modelRouter.js#ModelRouter.workspaceCount->model:server/workspaces",
@@ -5812,8 +5814,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/modelRouter.js:248"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.count(…)` (modelRouter.js:248): `prisma` is `require(\"../utils/prisma\")` (modelRouter.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/modelRouterRule.js#ModelRouterRule.get->model:server/model_router_rules",
@@ -5821,8 +5823,8 @@
       "confidence": "exact",
       "to": "model model_router_rules",
       "sites": ["server/models/modelRouterRule.js:106"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_router_rules.findFirst(…)` (modelRouterRule.js:106): `prisma` is `require(\"../utils/prisma\")` (modelRouterRule.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_router_rules` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/modelRouterRule.js#ModelRouterRule.where->model:server/model_router_rules",
@@ -5830,8 +5832,8 @@
       "confidence": "exact",
       "to": "model model_router_rules",
       "sites": ["server/models/modelRouterRule.js:118"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_router_rules.findMany(…)` (modelRouterRule.js:118): `prisma` is `require(\"../utils/prisma\")` (modelRouterRule.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_router_rules` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/passwordRecovery.js#PasswordResetToken.findUnique->model:server/password_reset_tokens",
@@ -5839,8 +5841,8 @@
       "confidence": "exact",
       "to": "model password_reset_tokens",
       "sites": ["server/models/passwordRecovery.js:92"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.password_reset_tokens.findUnique(…)` (passwordRecovery.js:92): `prisma` is `require(\"../utils/prisma\")` (passwordRecovery.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `password_reset_tokens` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/passwordRecovery.js#RecoveryCode.findFirst->model:server/recovery_codes",
@@ -5848,8 +5850,8 @@
       "confidence": "exact",
       "to": "model recovery_codes",
       "sites": ["server/models/passwordRecovery.js:35"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.recovery_codes.findFirst(…)` (passwordRecovery.js:35): `prisma` is `require(\"../utils/prisma\")` (passwordRecovery.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `recovery_codes` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/passwordRecovery.js#RecoveryCode.findMany->model:server/recovery_codes",
@@ -5857,8 +5859,8 @@
       "confidence": "exact",
       "to": "model recovery_codes",
       "sites": ["server/models/passwordRecovery.js:46"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.recovery_codes.findMany(…)` (passwordRecovery.js:46): `prisma` is `require(\"../utils/prisma\")` (passwordRecovery.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `recovery_codes` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/promptHistory.js#PromptHistory.forWorkspace->model:server/prompt_history",
@@ -5866,8 +5868,8 @@
       "confidence": "exact",
       "to": "model prompt_history",
       "sites": ["server/models/promptHistory.js:34"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.prompt_history.findMany(…)` (promptHistory.js:34): `prisma` is `require(\"../utils/prisma\")` (promptHistory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `prompt_history` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/promptHistory.js#PromptHistory.get->model:server/prompt_history",
@@ -5875,8 +5877,8 @@
       "confidence": "exact",
       "to": "model prompt_history",
       "sites": ["server/models/promptHistory.js:57"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.prompt_history.findFirst(…)` (promptHistory.js:57): `prisma` is `require(\"../utils/prisma\")` (promptHistory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `prompt_history` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/scheduledJob.js#ScheduledJob.allEnabled->model:server/scheduled_jobs",
@@ -5884,8 +5886,8 @@
       "confidence": "exact",
       "to": "model scheduled_jobs",
       "sites": ["server/models/scheduledJob.js:152"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_jobs.findMany(…)` (scheduledJob.js:152): `prisma` is `require(\"../utils/prisma\")` (scheduledJob.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_jobs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/scheduledJob.js#ScheduledJob.countActive->model:server/scheduled_jobs",
@@ -5893,8 +5895,8 @@
       "confidence": "exact",
       "to": "model scheduled_jobs",
       "sites": ["server/models/scheduledJob.js:170"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_jobs.count(…)` (scheduledJob.js:170): `prisma` is `require(\"../utils/prisma\")` (scheduledJob.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_jobs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/scheduledJob.js#ScheduledJob.get->model:server/scheduled_jobs",
@@ -5902,8 +5904,8 @@
       "confidence": "exact",
       "to": "model scheduled_jobs",
       "sites": ["server/models/scheduledJob.js:110"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_jobs.findFirst(…)` (scheduledJob.js:110): `prisma` is `require(\"../utils/prisma\")` (scheduledJob.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_jobs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/scheduledJob.js#ScheduledJob.where->model:server/scheduled_jobs",
@@ -5911,8 +5913,8 @@
       "confidence": "exact",
       "to": "model scheduled_jobs",
       "sites": ["server/models/scheduledJob.js:125"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_jobs.findMany(…)` (scheduledJob.js:125): `prisma` is `require(\"../utils/prisma\")` (scheduledJob.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_jobs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.get->model:server/scheduled_job_runs",
@@ -5920,8 +5922,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:244"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.findFirst(…)` (scheduledJobRun.js:244): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.start->model:server/scheduled_job_runs",
@@ -5929,8 +5931,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:35"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`tx.scheduled_job_runs.findFirst(…)` (scheduledJobRun.js:35): `tx` is the parameter of `prisma.$transaction(async (tx) => …)` (scheduledJobRun.js:34). `scheduled_job_runs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.where->model:server/scheduled_job_runs",
@@ -5938,8 +5940,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:263"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.findMany(…)` (scheduledJobRun.js:263): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/slashCommandsPresets.js#SlashCommandPresets.get->model:server/slash_command_presets",
@@ -5947,8 +5949,8 @@
       "confidence": "exact",
       "to": "model slash_command_presets",
       "sites": ["server/models/slashCommandsPresets.js:16"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.slash_command_presets.findFirst(…)` (slashCommandsPresets.js:16): `prisma` is `require(\"../utils/prisma\")` (slashCommandsPresets.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `slash_command_presets` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/slashCommandsPresets.js#SlashCommandPresets.getUserPresets->model:server/slash_command_presets",
@@ -5956,8 +5958,8 @@
       "confidence": "exact",
       "to": "model slash_command_presets",
       "sites": ["server/models/slashCommandsPresets.js:75"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.slash_command_presets.findMany(…)` (slashCommandsPresets.js:75): `prisma` is `require(\"../utils/prisma\")` (slashCommandsPresets.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `slash_command_presets` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/slashCommandsPresets.js#SlashCommandPresets.where->model:server/slash_command_presets",
@@ -5965,8 +5967,8 @@
       "confidence": "exact",
       "to": "model slash_command_presets",
       "sites": ["server/models/slashCommandsPresets.js:28"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.slash_command_presets.findMany(…)` (slashCommandsPresets.js:28): `prisma` is `require(\"../utils/prisma\")` (slashCommandsPresets.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `slash_command_presets` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/systemPromptVariables.js#SystemPromptVariables->model:server/users",
@@ -5977,8 +5979,8 @@
         "server/models/systemPromptVariables.js:68",
         "server/models/systemPromptVariables.js:87"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.findUnique(…)` (systemPromptVariables.js:68), `prisma.users.findUnique(…)` (systemPromptVariables.js:87): `prisma` is `require(\"../utils/prisma\")` (systemPromptVariables.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a read. The calls are in the anonymous `value: async (…) => …` functions of `DEFAULT_VARIABLES` entries inside the `SystemPromptVariables` object (systemPromptVariables.js:66–123), so the object is the innermost named symbol."
     },
     {
       "id": "reads:symbol:server/models/systemPromptVariables.js#SystemPromptVariables->model:server/workspaces",
@@ -5986,8 +5988,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/systemPromptVariables.js:115"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.findUnique(…)` (systemPromptVariables.js:115): `prisma` is `require(\"../utils/prisma\")` (systemPromptVariables.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read. The calls are in the anonymous `value: async (…) => …` functions of `DEFAULT_VARIABLES` entries inside the `SystemPromptVariables` object (systemPromptVariables.js:66–123), so the object is the innermost named symbol."
     },
     {
       "id": "reads:symbol:server/models/systemPromptVariables.js#SystemPromptVariables.get->model:server/system_prompt_variables",
@@ -5995,8 +5997,8 @@
       "confidence": "exact",
       "to": "model system_prompt_variables",
       "sites": ["server/models/systemPromptVariables.js:134"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_prompt_variables.findUnique(…)` (systemPromptVariables.js:134): `prisma` is `require(\"../utils/prisma\")` (systemPromptVariables.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_prompt_variables` is the model's accessor and each op a read. The calls are in the anonymous `value: async (…) => …` functions of `DEFAULT_VARIABLES` entries inside the `SystemPromptVariables` object (systemPromptVariables.js:66–123), so the object is the innermost named symbol."
     },
     {
       "id": "reads:symbol:server/models/systemPromptVariables.js#SystemPromptVariables.getAll->model:server/system_prompt_variables",
@@ -6004,8 +6006,8 @@
       "confidence": "exact",
       "to": "model system_prompt_variables",
       "sites": ["server/models/systemPromptVariables.js:149"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_prompt_variables.findMany(…)` (systemPromptVariables.js:149): `prisma` is `require(\"../utils/prisma\")` (systemPromptVariables.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_prompt_variables` is the model's accessor and each op a read. The calls are in the anonymous `value: async (…) => …` functions of `DEFAULT_VARIABLES` entries inside the `SystemPromptVariables` object (systemPromptVariables.js:66–123), so the object is the innermost named symbol."
     },
     {
       "id": "reads:symbol:server/models/systemPromptVariables.js#SystemPromptVariables.update->model:server/system_prompt_variables",
@@ -6013,8 +6015,8 @@
       "confidence": "exact",
       "to": "model system_prompt_variables",
       "sites": ["server/models/systemPromptVariables.js:200"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_prompt_variables.findFirst(…)` (systemPromptVariables.js:200): `prisma` is `require(\"../utils/prisma\")` (systemPromptVariables.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_prompt_variables` is the model's accessor and each op a read. The calls are in the anonymous `value: async (…) => …` functions of `DEFAULT_VARIABLES` entries inside the `SystemPromptVariables` object (systemPromptVariables.js:66–123), so the object is the innermost named symbol."
     },
     {
       "id": "reads:symbol:server/models/systemSettings.js#SystemSettings.get->model:server/system_settings",
@@ -6022,8 +6024,8 @@
       "confidence": "exact",
       "to": "model system_settings",
       "sites": ["server/models/systemSettings.js:667"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_settings.findFirst(…)` (systemSettings.js:667): `prisma` is `require(\"../utils/prisma\")` (systemSettings.js:7), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_settings` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/systemSettings.js#SystemSettings.where->model:server/system_settings",
@@ -6031,8 +6033,8 @@
       "confidence": "exact",
       "to": "model system_settings",
       "sites": ["server/models/systemSettings.js:686"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_settings.findMany(…)` (systemSettings.js:686): `prisma` is `require(\"../utils/prisma\")` (systemSettings.js:7), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_settings` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/temporaryAuthToken.js#TemporaryAuthToken.validate->model:server/temporary_auth_tokens",
@@ -6040,8 +6042,8 @@
       "confidence": "exact",
       "to": "model temporary_auth_tokens",
       "sites": ["server/models/temporaryAuthToken.js:78"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.temporary_auth_tokens.findUnique(…)` (temporaryAuthToken.js:78): `prisma` is `require(\"../utils/prisma\")` (temporaryAuthToken.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `temporary_auth_tokens` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/user.js#User._get->model:server/users",
@@ -6049,8 +6051,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:284"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.findFirst(…)` (user.js:284): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/user.js#User._where->model:server/users",
@@ -6058,8 +6060,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:256"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.findMany(…)` (user.js:256): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/user.js#User.count->model:server/users",
@@ -6067,8 +6069,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:294"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.count(…)` (user.js:294): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/user.js#User.get->model:server/users",
@@ -6076,8 +6078,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:274"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.findFirst(…)` (user.js:274): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/user.js#User.update->model:server/users",
@@ -6085,8 +6087,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:160"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.findUnique(…)` (user.js:160): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/user.js#User.where->model:server/users",
@@ -6094,8 +6096,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:329"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.findMany(…)` (user.js:329): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/vectors.js#DocumentVectors.where->model:server/document_vectors",
@@ -6103,8 +6105,8 @@
       "confidence": "exact",
       "to": "model document_vectors",
       "sites": ["server/models/vectors.js:30"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_vectors.findMany(…)` (vectors.js:30): `prisma` is `require(\"../utils/prisma\")` (vectors.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_vectors` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspace.js#Workspace._findFirst->model:server/workspaces",
@@ -6112,8 +6114,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:583"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.findFirst(…)` (workspace.js:583): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspace.js#Workspace._findMany->model:server/workspaces",
@@ -6121,8 +6123,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:568"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.findMany(…)` (workspace.js:568): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspace.js#Workspace.get->model:server/workspaces",
@@ -6130,8 +6132,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:368"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.findFirst(…)` (workspace.js:368): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspace.js#Workspace.getWithUser->model:server/workspaces",
@@ -6139,8 +6141,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:299"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.findFirst(…)` (workspace.js:299): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspace.js#Workspace.where->model:server/workspaces",
@@ -6148,8 +6150,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:403"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.findMany(…)` (workspace.js:403): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspace.js#Workspace.whereWithUser->model:server/workspaces",
@@ -6157,8 +6159,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:425"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.findMany(…)` (workspace.js:425): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceAgentInvocation.js#WorkspaceAgentInvocation.get->model:server/workspace_agent_invocations",
@@ -6166,8 +6168,8 @@
       "confidence": "exact",
       "to": "model workspace_agent_invocations",
       "sites": ["server/models/workspaceAgentInvocation.js:43"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_agent_invocations.findFirst(…)` (workspaceAgentInvocation.js:43): `prisma` is `require(\"../utils/prisma\")` (workspaceAgentInvocation.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_agent_invocations` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceAgentInvocation.js#WorkspaceAgentInvocation.getWithWorkspace->model:server/workspace_agent_invocations",
@@ -6175,8 +6177,8 @@
       "confidence": "exact",
       "to": "model workspace_agent_invocations",
       "sites": ["server/models/workspaceAgentInvocation.js:56"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_agent_invocations.findFirst(…)` (workspaceAgentInvocation.js:56): `prisma` is `require(\"../utils/prisma\")` (workspaceAgentInvocation.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_agent_invocations` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceAgentInvocation.js#WorkspaceAgentInvocation.where->model:server/workspace_agent_invocations",
@@ -6184,8 +6186,8 @@
       "confidence": "exact",
       "to": "model workspace_agent_invocations",
       "sites": ["server/models/workspaceAgentInvocation.js:84"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_agent_invocations.findMany(…)` (workspaceAgentInvocation.js:84): `prisma` is `require(\"../utils/prisma\")` (workspaceAgentInvocation.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_agent_invocations` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceChats.js#WorkspaceChats.count->model:server/workspace_chats",
@@ -6193,8 +6195,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:228"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.count(…)` (workspaceChats.js:228): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceChats.js#WorkspaceChats.forWorkspace->model:server/workspace_chats",
@@ -6202,8 +6204,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:92"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.findMany(…)` (workspaceChats.js:92): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceChats.js#WorkspaceChats.forWorkspaceByApiSessionId->model:server/workspace_chats",
@@ -6211,8 +6213,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:67"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.findMany(…)` (workspaceChats.js:67): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceChats.js#WorkspaceChats.forWorkspaceByUser->model:server/workspace_chats",
@@ -6220,8 +6222,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:41"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.findMany(…)` (workspaceChats.js:41): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceChats.js#WorkspaceChats.get->model:server/workspace_chats",
@@ -6229,8 +6231,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:182"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.findFirst(…)` (workspaceChats.js:182): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceChats.js#WorkspaceChats.where->model:server/workspace_chats",
@@ -6238,8 +6240,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:213"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.findMany(…)` (workspaceChats.js:213): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceParsedFiles.js#WorkspaceParsedFiles.get->model:server/workspace_parsed_files",
@@ -6247,8 +6249,8 @@
       "confidence": "exact",
       "to": "model workspace_parsed_files",
       "sites": ["server/models/workspaceParsedFiles.js:53"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_parsed_files.findFirst(…)` (workspaceParsedFiles.js:53): `prisma` is `require(\"../utils/prisma\")` (workspaceParsedFiles.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_parsed_files` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceParsedFiles.js#WorkspaceParsedFiles.totalTokenCount->model:server/workspace_parsed_files",
@@ -6256,8 +6258,8 @@
       "confidence": "exact",
       "to": "model workspace_parsed_files",
       "sites": ["server/models/workspaceParsedFiles.js:96"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_parsed_files.aggregate(…)` (workspaceParsedFiles.js:96): `prisma` is `require(\"../utils/prisma\")` (workspaceParsedFiles.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_parsed_files` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceParsedFiles.js#WorkspaceParsedFiles.where->model:server/workspace_parsed_files",
@@ -6265,8 +6267,8 @@
       "confidence": "exact",
       "to": "model workspace_parsed_files",
       "sites": ["server/models/workspaceParsedFiles.js:70"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_parsed_files.findMany(…)` (workspaceParsedFiles.js:70): `prisma` is `require(\"../utils/prisma\")` (workspaceParsedFiles.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_parsed_files` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceThread.js#WorkspaceThread.delete->model:server/workspace_threads",
@@ -6274,8 +6276,8 @@
       "confidence": "exact",
       "to": "model workspace_threads",
       "sites": ["server/models/workspaceThread.js:96"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_threads.findMany(…)` (workspaceThread.js:96): `prisma` is `require(\"../utils/prisma\")` (workspaceThread.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_threads` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceThread.js#WorkspaceThread.get->model:server/workspace_threads",
@@ -6283,8 +6285,8 @@
       "confidence": "exact",
       "to": "model workspace_threads",
       "sites": ["server/models/workspaceThread.js:81"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_threads.findFirst(…)` (workspaceThread.js:81): `prisma` is `require(\"../utils/prisma\")` (workspaceThread.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_threads` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceThread.js#WorkspaceThread.where->model:server/workspace_threads",
@@ -6292,8 +6294,8 @@
       "confidence": "exact",
       "to": "model workspace_threads",
       "sites": ["server/models/workspaceThread.js:122"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_threads.findMany(…)` (workspaceThread.js:122): `prisma` is `require(\"../utils/prisma\")` (workspaceThread.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_threads` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceUsers.js#WorkspaceUser.count->model:server/workspace_users",
@@ -6301,8 +6303,8 @@
       "confidence": "exact",
       "to": "model workspace_users",
       "sites": ["server/models/workspaceUsers.js:85"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_users.count(…)` (workspaceUsers.js:85): `prisma` is `require(\"../utils/prisma\")` (workspaceUsers.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_users` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceUsers.js#WorkspaceUser.get->model:server/workspace_users",
@@ -6310,8 +6312,8 @@
       "confidence": "exact",
       "to": "model workspace_users",
       "sites": ["server/models/workspaceUsers.js:62"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_users.findFirst(…)` (workspaceUsers.js:62): `prisma` is `require(\"../utils/prisma\")` (workspaceUsers.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_users` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspaceUsers.js#WorkspaceUser.where->model:server/workspace_users",
@@ -6319,8 +6321,8 @@
       "confidence": "exact",
       "to": "model workspace_users",
       "sites": ["server/models/workspaceUsers.js:72"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_users.findMany(…)` (workspaceUsers.js:72): `prisma` is `require(\"../utils/prisma\")` (workspaceUsers.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_users` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspacesSuggestedMessages.js#WorkspaceSuggestedMessages.get->model:server/workspace_suggested_messages",
@@ -6328,8 +6330,8 @@
       "confidence": "exact",
       "to": "model workspace_suggested_messages",
       "sites": ["server/models/workspacesSuggestedMessages.js:6"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_suggested_messages.findFirst(…)` (workspacesSuggestedMessages.js:6): `prisma` is `require(\"../utils/prisma\")` (workspacesSuggestedMessages.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_suggested_messages` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspacesSuggestedMessages.js#WorkspaceSuggestedMessages.getMessages->model:server/workspace_suggested_messages",
@@ -6337,8 +6339,8 @@
       "confidence": "exact",
       "to": "model workspace_suggested_messages",
       "sites": ["server/models/workspacesSuggestedMessages.js:67"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_suggested_messages.findMany(…)` (workspacesSuggestedMessages.js:67): `prisma` is `require(\"../utils/prisma\")` (workspacesSuggestedMessages.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_suggested_messages` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspacesSuggestedMessages.js#WorkspaceSuggestedMessages.getMessages->model:server/workspaces",
@@ -6346,8 +6348,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspacesSuggestedMessages.js:61"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.findUnique(…)` (workspacesSuggestedMessages.js:61): `prisma` is `require(\"../utils/prisma\")` (workspacesSuggestedMessages.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspacesSuggestedMessages.js#WorkspaceSuggestedMessages.saveAll->model:server/workspaces",
@@ -6355,8 +6357,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspacesSuggestedMessages.js:31"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.findUnique(…)` (workspacesSuggestedMessages.js:31): `prisma` is `require(\"../utils/prisma\")` (workspacesSuggestedMessages.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/models/workspacesSuggestedMessages.js#WorkspaceSuggestedMessages.where->model:server/workspace_suggested_messages",
@@ -6364,8 +6366,8 @@
       "confidence": "exact",
       "to": "model workspace_suggested_messages",
       "sites": ["server/models/workspacesSuggestedMessages.js:18"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_suggested_messages.findMany(…)` (workspacesSuggestedMessages.js:18): `prisma` is `require(\"../utils/prisma\")` (workspacesSuggestedMessages.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_suggested_messages` is the model's accessor and each op a read."
     },
     {
       "id": "reads:symbol:server/prisma/seed.js#main->model:server/system_settings",
@@ -6373,8 +6375,8 @@
       "confidence": "exact",
       "to": "model system_settings",
       "sites": ["server/prisma/seed.js:11"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_settings.findUnique(…)` (seed.js:11): `prisma` is `new PrismaClient()` from `@prisma/client` (seed.js:1–2), the seed script's own client. `system_settings` is the model's accessor and each op a read."
     },
     {
       "id": "stores:model:server/api_keys->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6382,8 +6384,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model api_keys` (schema.prisma:18) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/browser_extension_api_keys->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6391,8 +6393,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model browser_extension_api_keys` (schema.prisma:314) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/cache_data->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6400,8 +6402,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model cache_data` (schema.prisma:224) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/desktop_mobile_devices->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6409,8 +6411,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model desktop_mobile_devices` (schema.prisma:364) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/document_sync_executions->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6418,8 +6420,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model document_sync_executions` (schema.prisma:305) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/document_sync_queues->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6427,8 +6429,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model document_sync_queues` (schema.prisma:294) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/document_vectors->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6436,8 +6438,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model document_vectors` (schema.prisma:113) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/embed_chats->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6445,8 +6447,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model embed_chats` (schema.prisma:256) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/embed_configs->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6454,8 +6456,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model embed_configs` (schema.prisma:235) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/event_logs->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6463,8 +6465,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model event_logs` (schema.prisma:270) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/external_communication_connectors->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6472,8 +6474,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model external_communication_connectors` (schema.prisma:394) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/invites->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6481,8 +6483,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model invites` (schema.prisma:42) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/memories->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6490,8 +6492,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model memories` (schema.prisma:431) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/model_router_rules->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6499,8 +6501,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model model_router_rules` (schema.prisma:461) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/model_routers->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6508,8 +6510,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model model_routers` (schema.prisma:448) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/password_reset_tokens->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6517,8 +6519,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model password_reset_tokens` (schema.prisma:102) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/prompt_history->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6526,8 +6528,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model prompt_history` (schema.prisma:351) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/recovery_codes->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6535,8 +6537,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model recovery_codes` (schema.prisma:92) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/scheduled_job_runs->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6544,8 +6546,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model scheduled_job_runs` (schema.prisma:417) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/scheduled_jobs->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6553,8 +6555,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model scheduled_jobs` (schema.prisma:403) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/slash_command_presets->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6562,8 +6564,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model slash_command_presets` (schema.prisma:280) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/system_prompt_variables->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6571,8 +6573,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model system_prompt_variables` (schema.prisma:337) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/system_settings->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6580,8 +6582,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model system_settings` (schema.prisma:53) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/temporary_auth_tokens->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6589,8 +6591,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model temporary_auth_tokens` (schema.prisma:325) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/users->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6598,8 +6600,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model users` (schema.prisma:61) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/workspace_agent_invocations->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6607,8 +6609,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model workspace_agent_invocations` (schema.prisma:198) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/workspace_chats->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6616,8 +6618,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model workspace_chats` (schema.prisma:182) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/workspace_documents->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6625,8 +6627,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model workspace_documents` (schema.prisma:27) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/workspace_parsed_files->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6634,8 +6636,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model workspace_parsed_files` (schema.prisma:377) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/workspace_suggested_messages->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6643,8 +6645,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model workspace_suggested_messages` (schema.prisma:170) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/workspace_threads->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6652,8 +6654,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model workspace_threads` (schema.prisma:154) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/workspace_users->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6661,8 +6663,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model workspace_users` (schema.prisma:214) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "stores:model:server/workspaces->datastore:infra/server/server/prisma/schema.prisma#db",
@@ -6670,8 +6672,8 @@
       "confidence": "exact",
       "to": "datastore sqlite",
       "sites": ["server/prisma/schema.prisma:13"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`model workspaces` (schema.prisma:121) is in server/prisma/schema.prisma, whose only datasource is `db` with `provider = \"sqlite\"` and `url = \"file:../storage/anythingllm.db\"` (schema.prisma:13–15)."
     },
     {
       "id": "writes:symbol:server/jobs/embedding-worker.js#processQueue->model:server/workspace_documents",
@@ -6679,8 +6681,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/jobs/embedding-worker.js:126"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.create(…)` (embedding-worker.js:126): `prisma` is `require(\"../utils/prisma\")` (embedding-worker.js:24), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/agentSkillWhitelist.js#AgentSkillWhitelist.add->model:server/system_settings",
@@ -6688,8 +6690,8 @@
       "confidence": "exact",
       "to": "model system_settings",
       "sites": ["server/models/agentSkillWhitelist.js:56"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_settings.upsert(…)` (agentSkillWhitelist.js:56): `prisma` is `require(\"../utils/prisma\")` (agentSkillWhitelist.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_settings` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/agentSkillWhitelist.js#AgentSkillWhitelist.clearSingleUserWhitelist->model:server/system_settings",
@@ -6697,8 +6699,8 @@
       "confidence": "exact",
       "to": "model system_settings",
       "sites": ["server/models/agentSkillWhitelist.js:86"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_settings.deleteMany(…)` (agentSkillWhitelist.js:86): `prisma` is `require(\"../utils/prisma\")` (agentSkillWhitelist.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_settings` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/apiKeys.js#ApiKey.create->model:server/api_keys",
@@ -6706,8 +6708,8 @@
       "confidence": "exact",
       "to": "model api_keys",
       "sites": ["server/models/apiKeys.js:16"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.api_keys.create(…)` (apiKeys.js:16): `prisma` is `require(\"../utils/prisma\")` (apiKeys.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `api_keys` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/apiKeys.js#ApiKey.delete->model:server/api_keys",
@@ -6715,8 +6717,8 @@
       "confidence": "exact",
       "to": "model api_keys",
       "sites": ["server/models/apiKeys.js:53"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.api_keys.deleteMany(…)` (apiKeys.js:53): `prisma` is `require(\"../utils/prisma\")` (apiKeys.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `api_keys` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/browserExtensionApiKey.js#BrowserExtensionApiKey.create->model:server/browser_extension_api_keys",
@@ -6724,8 +6726,8 @@
       "confidence": "exact",
       "to": "model browser_extension_api_keys",
       "sites": ["server/models/browserExtensionApiKey.js:22"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.browser_extension_api_keys.create(…)` (browserExtensionApiKey.js:22): `prisma` is `require(\"../utils/prisma\")` (browserExtensionApiKey.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `browser_extension_api_keys` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/browserExtensionApiKey.js#BrowserExtensionApiKey.delete->model:server/browser_extension_api_keys",
@@ -6733,8 +6735,8 @@
       "confidence": "exact",
       "to": "model browser_extension_api_keys",
       "sites": ["server/models/browserExtensionApiKey.js:79"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.browser_extension_api_keys.delete(…)` (browserExtensionApiKey.js:79): `prisma` is `require(\"../utils/prisma\")` (browserExtensionApiKey.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `browser_extension_api_keys` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/browserExtensionApiKey.js#BrowserExtensionApiKey.deleteAllForUser->model:server/browser_extension_api_keys",
@@ -6742,8 +6744,8 @@
       "confidence": "exact",
       "to": "model browser_extension_api_keys",
       "sites": ["server/models/browserExtensionApiKey.js:98"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.browser_extension_api_keys.deleteMany(…)` (browserExtensionApiKey.js:98): `prisma` is `require(\"../utils/prisma\")` (browserExtensionApiKey.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `browser_extension_api_keys` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/browserExtensionApiKey.js#BrowserExtensionApiKey.migrateApiKeysToMultiUser->model:server/browser_extension_api_keys",
@@ -6751,8 +6753,8 @@
       "confidence": "exact",
       "to": "model browser_extension_api_keys",
       "sites": ["server/models/browserExtensionApiKey.js:175"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.browser_extension_api_keys.updateMany(…)` (browserExtensionApiKey.js:175): `prisma` is `require(\"../utils/prisma\")` (browserExtensionApiKey.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `browser_extension_api_keys` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/cacheData.js#CacheData.delete->model:server/cache_data",
@@ -6760,8 +6762,8 @@
       "confidence": "exact",
       "to": "model cache_data",
       "sites": ["server/models/cacheData.js:32"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.cache_data.deleteMany(…)` (cacheData.js:32): `prisma` is `require(\"../utils/prisma\")` (cacheData.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `cache_data` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/cacheData.js#CacheData.new->model:server/cache_data",
@@ -6769,8 +6771,8 @@
       "confidence": "exact",
       "to": "model cache_data",
       "sites": ["server/models/cacheData.js:6"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.cache_data.create(…)` (cacheData.js:6): `prisma` is `require(\"../utils/prisma\")` (cacheData.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `cache_data` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documentSyncQueue.js#DocumentSyncQueue._update->model:server/document_sync_queues",
@@ -6778,8 +6780,8 @@
       "confidence": "exact",
       "to": "model document_sync_queues",
       "sites": ["server/models/documentSyncQueue.js:156"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_queues.update(…)` (documentSyncQueue.js:156): `prisma` is `require(\"../utils/prisma\")` (documentSyncQueue.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_queues` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documentSyncQueue.js#DocumentSyncQueue.delete->model:server/document_sync_queues",
@@ -6787,8 +6789,8 @@
       "confidence": "exact",
       "to": "model document_sync_queues",
       "sites": ["server/models/documentSyncQueue.js:214"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_queues.deleteMany(…)` (documentSyncQueue.js:214): `prisma` is `require(\"../utils/prisma\")` (documentSyncQueue.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_queues` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documentSyncQueue.js#DocumentSyncQueue.watch->model:server/document_sync_queues",
@@ -6796,8 +6798,8 @@
       "confidence": "exact",
       "to": "model document_sync_queues",
       "sites": ["server/models/documentSyncQueue.js:108"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_queues.create(…)` (documentSyncQueue.js:108): `prisma` is `require(\"../utils/prisma\")` (documentSyncQueue.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_queues` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documentSyncRun.js#DocumentSyncRun.delete->model:server/document_sync_executions",
@@ -6805,8 +6807,8 @@
       "confidence": "exact",
       "to": "model document_sync_executions",
       "sites": ["server/models/documentSyncRun.js:79"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_executions.deleteMany(…)` (documentSyncRun.js:79): `prisma` is `require(\"../utils/prisma\")` (documentSyncRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_executions` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documentSyncRun.js#DocumentSyncRun.save->model:server/document_sync_executions",
@@ -6814,8 +6816,8 @@
       "confidence": "exact",
       "to": "model document_sync_executions",
       "sites": ["server/models/documentSyncRun.js:17"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_sync_executions.create(…)` (documentSyncRun.js:17): `prisma` is `require(\"../utils/prisma\")` (documentSyncRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_sync_executions` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documents.js#Document._updateAll->model:server/workspace_documents",
@@ -6823,8 +6825,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/models/documents.js:323"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.updateMany(…)` (documents.js:323): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documents.js#Document.addDocuments->model:server/workspace_documents",
@@ -6832,8 +6834,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/models/documents.js:179"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.create(…)` (documents.js:179): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a write. The call is in `addDocuments`' loop after the local `failDocument` arrow (documents.js:112–120) has closed."
     },
     {
       "id": "writes:symbol:server/models/documents.js#Document.delete->model:server/workspace_documents",
@@ -6841,8 +6843,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/models/documents.js:43"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.deleteMany(…)` (documents.js:43): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documents.js#Document.removeDocuments->model:server/document_vectors",
@@ -6850,8 +6852,8 @@
       "confidence": "exact",
       "to": "model document_vectors",
       "sites": ["server/models/documents.js:270"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_vectors.deleteMany(…)` (documents.js:270): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_vectors` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documents.js#Document.removeDocuments->model:server/workspace_documents",
@@ -6859,8 +6861,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/models/documents.js:267"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.delete(…)` (documents.js:267): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/documents.js#Document.update->model:server/workspace_documents",
@@ -6868,8 +6870,8 @@
       "confidence": "exact",
       "to": "model workspace_documents",
       "sites": ["server/models/documents.js:311"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_documents.update(…)` (documents.js:311): `prisma` is `require(\"../utils/prisma\")` (documents.js:3), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_documents` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/embedChats.js#EmbedChats.delete->model:server/embed_chats",
@@ -6877,8 +6879,8 @@
       "confidence": "exact",
       "to": "model embed_chats",
       "sites": ["server/models/embedChats.js:125"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_chats.deleteMany(…)` (embedChats.js:125): `prisma` is `require(\"../utils/prisma\")` (embedChats.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/embedChats.js#EmbedChats.markHistoryInvalid->model:server/embed_chats",
@@ -6886,8 +6888,8 @@
       "confidence": "exact",
       "to": "model embed_chats",
       "sites": ["server/models/embedChats.js:94"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_chats.updateMany(…)` (embedChats.js:94): `prisma` is `require(\"../utils/prisma\")` (embedChats.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/embedChats.js#EmbedChats.new->model:server/embed_chats",
@@ -6895,8 +6897,8 @@
       "confidence": "exact",
       "to": "model embed_chats",
       "sites": ["server/models/embedChats.js:24"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_chats.create(…)` (embedChats.js:24): `prisma` is `require(\"../utils/prisma\")` (embedChats.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/embedConfig.js#EmbedConfig.delete->model:server/embed_configs",
@@ -6904,8 +6906,8 @@
       "confidence": "exact",
       "to": "model embed_configs",
       "sites": ["server/models/embedConfig.js:143"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_configs.delete(…)` (embedConfig.js:143): `prisma` is `require(\"../utils/prisma\")` (embedConfig.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_configs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/embedConfig.js#EmbedConfig.new->model:server/embed_configs",
@@ -6913,8 +6915,8 @@
       "confidence": "exact",
       "to": "model embed_configs",
       "sites": ["server/models/embedConfig.js:28"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_configs.create(…)` (embedConfig.js:28): `prisma` is `require(\"../utils/prisma\")` (embedConfig.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_configs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/embedConfig.js#EmbedConfig.update->model:server/embed_configs",
@@ -6922,8 +6924,8 @@
       "confidence": "exact",
       "to": "model embed_configs",
       "sites": ["server/models/embedConfig.js:101"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.embed_configs.update(…)` (embedConfig.js:101): `prisma` is `require(\"../utils/prisma\")` (embedConfig.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `embed_configs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/eventLogs.js#EventLogs.delete->model:server/event_logs",
@@ -6931,8 +6933,8 @@
       "confidence": "exact",
       "to": "model event_logs",
       "sites": ["server/models/eventLogs.js:116"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.event_logs.deleteMany(…)` (eventLogs.js:116): `prisma` is `require(\"../utils/prisma\")` (eventLogs.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `event_logs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/eventLogs.js#EventLogs.logEvent->model:server/event_logs",
@@ -6940,8 +6942,8 @@
       "confidence": "exact",
       "to": "model event_logs",
       "sites": ["server/models/eventLogs.js:6"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.event_logs.create(…)` (eventLogs.js:6): `prisma` is `require(\"../utils/prisma\")` (eventLogs.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `event_logs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/externalCommunicationConnector.js#ExternalCommunicationConnector.delete->model:server/external_communication_connectors",
@@ -6949,8 +6951,8 @@
       "confidence": "exact",
       "to": "model external_communication_connectors",
       "sites": ["server/models/externalCommunicationConnector.js:99"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.external_communication_connectors.delete(…)` (externalCommunicationConnector.js:99): `prisma` is `require(\"../utils/prisma\")` (externalCommunicationConnector.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `external_communication_connectors` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/externalCommunicationConnector.js#ExternalCommunicationConnector.upsert->model:server/external_communication_connectors",
@@ -6958,8 +6960,8 @@
       "confidence": "exact",
       "to": "model external_communication_connectors",
       "sites": ["server/models/externalCommunicationConnector.js:59"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.external_communication_connectors.upsert(…)` (externalCommunicationConnector.js:59): `prisma` is `require(\"../utils/prisma\")` (externalCommunicationConnector.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `external_communication_connectors` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/invite.js#Invite.create->model:server/invites",
@@ -6967,8 +6969,8 @@
       "confidence": "exact",
       "to": "model invites",
       "sites": ["server/models/invite.js:12"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.invites.create(…)` (invite.js:12): `prisma` is `require(\"../utils/prisma\")` (invite.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `invites` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/invite.js#Invite.deactivate->model:server/invites",
@@ -6976,8 +6978,8 @@
       "confidence": "exact",
       "to": "model invites",
       "sites": ["server/models/invite.js:33"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.invites.update(…)` (invite.js:33): `prisma` is `require(\"../utils/prisma\")` (invite.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `invites` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/invite.js#Invite.delete->model:server/invites",
@@ -6985,8 +6987,8 @@
       "confidence": "exact",
       "to": "model invites",
       "sites": ["server/models/invite.js:99"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.invites.deleteMany(…)` (invite.js:99): `prisma` is `require(\"../utils/prisma\")` (invite.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `invites` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/invite.js#Invite.markClaimed->model:server/invites",
@@ -6994,8 +6996,8 @@
       "confidence": "exact",
       "to": "model invites",
       "sites": ["server/models/invite.js:46"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.invites.update(…)` (invite.js:46): `prisma` is `require(\"../utils/prisma\")` (invite.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `invites` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/memory.js#Memory.applyExtractedMemories->model:server/memories",
@@ -7007,8 +7009,8 @@
         "server/models/memory.js:401",
         "server/models/memory.js:415"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`tx.memories.create(…)` (memory.js:390), `tx.memories.create(…)` (memory.js:401), `tx.memories.updateMany(…)` (memory.js:415): `tx` is the parameter of `prisma.$transaction(async (tx) => …)` (memory.js:388). `memories` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/memory.js#Memory.create->model:server/memories",
@@ -7016,8 +7018,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:116"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.create(…)` (memory.js:116): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/memory.js#Memory.delete->model:server/memories",
@@ -7025,8 +7027,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:160"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.delete(…)` (memory.js:160): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/memory.js#Memory.demoteToWorkspace->model:server/memories",
@@ -7034,8 +7036,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:237"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.update(…)` (memory.js:237): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/memory.js#Memory.migrateToMultiUser->model:server/memories",
@@ -7043,8 +7045,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:449"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.updateMany(…)` (memory.js:449): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/memory.js#Memory.promoteToGlobal->model:server/memories",
@@ -7052,8 +7054,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:196"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.update(…)` (memory.js:196): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/memory.js#Memory.replaceWorkspaceMemories->model:server/memories",
@@ -7061,8 +7063,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:307", "server/models/memory.js:316"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`tx.memories.deleteMany(…)` (memory.js:307), `tx.memories.create(…)` (memory.js:316): `tx` is the parameter of `prisma.$transaction(async (tx) => …)` (memory.js:306). `memories` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/memory.js#Memory.update->model:server/memories",
@@ -7070,8 +7072,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:139"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.update(…)` (memory.js:139): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/memory.js#Memory.updateLastUsed->model:server/memories",
@@ -7079,8 +7081,8 @@
       "confidence": "exact",
       "to": "model memories",
       "sites": ["server/models/memory.js:260"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.memories.updateMany(…)` (memory.js:260): `prisma` is `require(\"../utils/prisma\")` (memory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `memories` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/mobileDevice.js#MobileDevice.create->model:server/desktop_mobile_devices",
@@ -7088,8 +7090,8 @@
       "confidence": "exact",
       "to": "model desktop_mobile_devices",
       "sites": ["server/models/mobileDevice.js:125"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.desktop_mobile_devices.create(…)` (mobileDevice.js:125): `prisma` is `require(\"../utils/prisma\")` (mobileDevice.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `desktop_mobile_devices` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/mobileDevice.js#MobileDevice.delete->model:server/desktop_mobile_devices",
@@ -7097,8 +7099,8 @@
       "confidence": "exact",
       "to": "model desktop_mobile_devices",
       "sites": ["server/models/mobileDevice.js:192"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.desktop_mobile_devices.delete(…)` (mobileDevice.js:192): `prisma` is `require(\"../utils/prisma\")` (mobileDevice.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `desktop_mobile_devices` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/mobileDevice.js#MobileDevice.migrateDevicesToMultiUser->model:server/desktop_mobile_devices",
@@ -7106,8 +7108,8 @@
       "confidence": "exact",
       "to": "model desktop_mobile_devices",
       "sites": ["server/models/mobileDevice.js:237"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.desktop_mobile_devices.updateMany(…)` (mobileDevice.js:237): `prisma` is `require(\"../utils/prisma\")` (mobileDevice.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `desktop_mobile_devices` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/mobileDevice.js#MobileDevice.update->model:server/desktop_mobile_devices",
@@ -7115,8 +7117,8 @@
       "confidence": "exact",
       "to": "model desktop_mobile_devices",
       "sites": ["server/models/mobileDevice.js:160"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.desktop_mobile_devices.update(…)` (mobileDevice.js:160): `prisma` is `require(\"../utils/prisma\")` (mobileDevice.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `desktop_mobile_devices` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/modelRouter.js#ModelRouter.create->model:server/model_routers",
@@ -7124,8 +7126,8 @@
       "confidence": "exact",
       "to": "model model_routers",
       "sites": ["server/models/modelRouter.js:51"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_routers.create(…)` (modelRouter.js:51): `prisma` is `require(\"../utils/prisma\")` (modelRouter.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_routers` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/modelRouter.js#ModelRouter.delete->model:server/model_routers",
@@ -7133,8 +7135,8 @@
       "confidence": "exact",
       "to": "model model_routers",
       "sites": ["server/models/modelRouter.js:236"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_routers.delete(…)` (modelRouter.js:236): `prisma` is `require(\"../utils/prisma\")` (modelRouter.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_routers` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/modelRouter.js#ModelRouter.update->model:server/model_routers",
@@ -7142,8 +7144,8 @@
       "confidence": "exact",
       "to": "model model_routers",
       "sites": ["server/models/modelRouter.js:212"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_routers.update(…)` (modelRouter.js:212): `prisma` is `require(\"../utils/prisma\")` (modelRouter.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_routers` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/modelRouterRule.js#ModelRouterRule.create->model:server/model_router_rules",
@@ -7151,8 +7153,8 @@
       "confidence": "exact",
       "to": "model model_router_rules",
       "sites": ["server/models/modelRouterRule.js:77"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_router_rules.create(…)` (modelRouterRule.js:77): `prisma` is `require(\"../utils/prisma\")` (modelRouterRule.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_router_rules` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/modelRouterRule.js#ModelRouterRule.delete->model:server/model_router_rules",
@@ -7160,8 +7162,8 @@
       "confidence": "exact",
       "to": "model model_router_rules",
       "sites": ["server/models/modelRouterRule.js:213"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_router_rules.delete(…)` (modelRouterRule.js:213): `prisma` is `require(\"../utils/prisma\")` (modelRouterRule.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_router_rules` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/modelRouterRule.js#ModelRouterRule.reorderRules->model:server/model_router_rules",
@@ -7169,8 +7171,8 @@
       "confidence": "exact",
       "to": "model model_router_rules",
       "sites": ["server/models/modelRouterRule.js:231"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_router_rules.update(…)` (modelRouterRule.js:231): `prisma` is `require(\"../utils/prisma\")` (modelRouterRule.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_router_rules` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/modelRouterRule.js#ModelRouterRule.update->model:server/model_router_rules",
@@ -7178,8 +7180,8 @@
       "confidence": "exact",
       "to": "model model_router_rules",
       "sites": ["server/models/modelRouterRule.js:194"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.model_router_rules.update(…)` (modelRouterRule.js:194): `prisma` is `require(\"../utils/prisma\")` (modelRouterRule.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `model_router_rules` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/passwordRecovery.js#PasswordResetToken.create->model:server/password_reset_tokens",
@@ -7187,8 +7189,8 @@
       "confidence": "exact",
       "to": "model password_reset_tokens",
       "sites": ["server/models/passwordRecovery.js:81"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.password_reset_tokens.create(…)` (passwordRecovery.js:81): `prisma` is `require(\"../utils/prisma\")` (passwordRecovery.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `password_reset_tokens` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/passwordRecovery.js#PasswordResetToken.deleteMany->model:server/password_reset_tokens",
@@ -7196,8 +7198,8 @@
       "confidence": "exact",
       "to": "model password_reset_tokens",
       "sites": ["server/models/passwordRecovery.js:103"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.password_reset_tokens.deleteMany(…)` (passwordRecovery.js:103): `prisma` is `require(\"../utils/prisma\")` (passwordRecovery.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `password_reset_tokens` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/passwordRecovery.js#RecoveryCode.create->model:server/recovery_codes",
@@ -7205,8 +7207,8 @@
       "confidence": "exact",
       "to": "model recovery_codes",
       "sites": ["server/models/passwordRecovery.js:11"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.recovery_codes.create(…)` (passwordRecovery.js:11): `prisma` is `require(\"../utils/prisma\")` (passwordRecovery.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `recovery_codes` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/passwordRecovery.js#RecoveryCode.createMany->model:server/recovery_codes",
@@ -7214,8 +7216,8 @@
       "confidence": "exact",
       "to": "model recovery_codes",
       "sites": ["server/models/passwordRecovery.js:24"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.recovery_codes.create(…)` (passwordRecovery.js:24): `prisma` is `require(\"../utils/prisma\")` (passwordRecovery.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `recovery_codes` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/passwordRecovery.js#RecoveryCode.deleteMany->model:server/recovery_codes",
@@ -7223,8 +7225,8 @@
       "confidence": "exact",
       "to": "model recovery_codes",
       "sites": ["server/models/passwordRecovery.js:57"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.recovery_codes.deleteMany(…)` (passwordRecovery.js:57): `prisma` is `require(\"../utils/prisma\")` (passwordRecovery.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `recovery_codes` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/promptHistory.js#PromptHistory.delete->model:server/prompt_history",
@@ -7232,8 +7234,8 @@
       "confidence": "exact",
       "to": "model prompt_history",
       "sites": ["server/models/promptHistory.js:80"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.prompt_history.deleteMany(…)` (promptHistory.js:80): `prisma` is `require(\"../utils/prisma\")` (promptHistory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `prompt_history` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/promptHistory.js#PromptHistory.deleteForWorkspace->model:server/prompt_history",
@@ -7241,8 +7243,8 @@
       "confidence": "exact",
       "to": "model prompt_history",
       "sites": ["server/models/promptHistory.js:97"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.prompt_history.deleteMany(…)` (promptHistory.js:97): `prisma` is `require(\"../utils/prisma\")` (promptHistory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `prompt_history` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/promptHistory.js#PromptHistory.new->model:server/prompt_history",
@@ -7250,8 +7252,8 @@
       "confidence": "exact",
       "to": "model prompt_history",
       "sites": ["server/models/promptHistory.js:6"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.prompt_history.create(…)` (promptHistory.js:6): `prisma` is `require(\"../utils/prisma\")` (promptHistory.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `prompt_history` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJob.js#ScheduledJob.create->model:server/scheduled_jobs",
@@ -7259,8 +7261,8 @@
       "confidence": "exact",
       "to": "model scheduled_jobs",
       "sites": ["server/models/scheduledJob.js:61"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_jobs.create(…)` (scheduledJob.js:61): `prisma` is `require(\"../utils/prisma\")` (scheduledJob.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_jobs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJob.js#ScheduledJob.delete->model:server/scheduled_jobs",
@@ -7268,8 +7270,8 @@
       "confidence": "exact",
       "to": "model scheduled_jobs",
       "sites": ["server/models/scheduledJob.js:142"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_jobs.delete(…)` (scheduledJob.js:142): `prisma` is `require(\"../utils/prisma\")` (scheduledJob.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_jobs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJob.js#ScheduledJob.recomputeNextRunAt->model:server/scheduled_jobs",
@@ -7277,8 +7279,8 @@
       "confidence": "exact",
       "to": "model scheduled_jobs",
       "sites": ["server/models/scheduledJob.js:210"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_jobs.update(…)` (scheduledJob.js:210): `prisma` is `require(\"../utils/prisma\")` (scheduledJob.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_jobs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJob.js#ScheduledJob.update->model:server/scheduled_jobs",
@@ -7286,8 +7288,8 @@
       "confidence": "exact",
       "to": "model scheduled_jobs",
       "sites": ["server/models/scheduledJob.js:97"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_jobs.update(…)` (scheduledJob.js:97): `prisma` is `require(\"../utils/prisma\")` (scheduledJob.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_jobs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJob.js#ScheduledJob.updateRunTimestamps->model:server/scheduled_jobs",
@@ -7295,8 +7297,8 @@
       "confidence": "exact",
       "to": "model scheduled_jobs",
       "sites": ["server/models/scheduledJob.js:229"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_jobs.update(…)` (scheduledJob.js:229): `prisma` is `require(\"../utils/prisma\")` (scheduledJob.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_jobs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.cancelQueuedForJob->model:server/scheduled_job_runs",
@@ -7304,8 +7306,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:230"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.updateMany(…)` (scheduledJobRun.js:230): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.complete->model:server/scheduled_job_runs",
@@ -7313,8 +7315,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:121"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.updateMany(…)` (scheduledJobRun.js:121): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.delete->model:server/scheduled_job_runs",
@@ -7322,8 +7324,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:294"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.deleteMany(…)` (scheduledJobRun.js:294): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.fail->model:server/scheduled_job_runs",
@@ -7331,8 +7333,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:144"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.updateMany(…)` (scheduledJobRun.js:144): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.failIfNotTerminal->model:server/scheduled_job_runs",
@@ -7340,8 +7342,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:97"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.updateMany(…)` (scheduledJobRun.js:97): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.failOrphanedRuns->model:server/scheduled_job_runs",
@@ -7349,8 +7351,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:308"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.updateMany(…)` (scheduledJobRun.js:308): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.kill->model:server/scheduled_job_runs",
@@ -7358,8 +7360,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:202"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.updateMany(…)` (scheduledJobRun.js:202): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.markRead->model:server/scheduled_job_runs",
@@ -7367,8 +7369,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:281"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.update(…)` (scheduledJobRun.js:281): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.markRunning->model:server/scheduled_job_runs",
@@ -7376,8 +7378,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:69"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.updateMany(…)` (scheduledJobRun.js:69): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.start->model:server/scheduled_job_runs",
@@ -7385,8 +7387,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:44"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`tx.scheduled_job_runs.create(…)` (scheduledJobRun.js:44): `tx` is the parameter of `prisma.$transaction(async (tx) => …)` (scheduledJobRun.js:34). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/scheduledJobRun.js#ScheduledJobRun.timeout->model:server/scheduled_job_runs",
@@ -7394,8 +7396,8 @@
       "confidence": "exact",
       "to": "model scheduled_job_runs",
       "sites": ["server/models/scheduledJobRun.js:170"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.scheduled_job_runs.updateMany(…)` (scheduledJobRun.js:170): `prisma` is `require(\"../utils/prisma\")` (scheduledJobRun.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `scheduled_job_runs` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/slashCommandsPresets.js#SlashCommandPresets.create->model:server/slash_command_presets",
@@ -7403,8 +7405,8 @@
       "confidence": "exact",
       "to": "model slash_command_presets",
       "sites": ["server/models/slashCommandsPresets.js:54"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.slash_command_presets.create(…)` (slashCommandsPresets.js:54): `prisma` is `require(\"../utils/prisma\")` (slashCommandsPresets.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `slash_command_presets` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/slashCommandsPresets.js#SlashCommandPresets.delete->model:server/slash_command_presets",
@@ -7412,8 +7414,8 @@
       "confidence": "exact",
       "to": "model slash_command_presets",
       "sites": ["server/models/slashCommandsPresets.js:106"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.slash_command_presets.delete(…)` (slashCommandsPresets.js:106): `prisma` is `require(\"../utils/prisma\")` (slashCommandsPresets.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `slash_command_presets` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/slashCommandsPresets.js#SlashCommandPresets.migrateToMultiUser->model:server/slash_command_presets",
@@ -7421,8 +7423,8 @@
       "confidence": "exact",
       "to": "model slash_command_presets",
       "sites": ["server/models/slashCommandsPresets.js:124"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.slash_command_presets.updateMany(…)` (slashCommandsPresets.js:124): `prisma` is `require(\"../utils/prisma\")` (slashCommandsPresets.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `slash_command_presets` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/slashCommandsPresets.js#SlashCommandPresets.update->model:server/slash_command_presets",
@@ -7430,8 +7432,8 @@
       "confidence": "exact",
       "to": "model slash_command_presets",
       "sites": ["server/models/slashCommandsPresets.js:93"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.slash_command_presets.update(…)` (slashCommandsPresets.js:93): `prisma` is `require(\"../utils/prisma\")` (slashCommandsPresets.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `slash_command_presets` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/systemPromptVariables.js#SystemPromptVariables.create->model:server/system_prompt_variables",
@@ -7439,8 +7441,8 @@
       "confidence": "exact",
       "to": "model system_prompt_variables",
       "sites": ["server/models/systemPromptVariables.js:181"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_prompt_variables.create(…)` (systemPromptVariables.js:181): `prisma` is `require(\"../utils/prisma\")` (systemPromptVariables.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_prompt_variables` is the model's accessor and each op a write. The calls are in the anonymous `value: async (…) => …` functions of `DEFAULT_VARIABLES` entries inside the `SystemPromptVariables` object (systemPromptVariables.js:66–123), so the object is the innermost named symbol."
     },
     {
       "id": "writes:symbol:server/models/systemPromptVariables.js#SystemPromptVariables.delete->model:server/system_prompt_variables",
@@ -7448,8 +7450,8 @@
       "confidence": "exact",
       "to": "model system_prompt_variables",
       "sites": ["server/models/systemPromptVariables.js:223"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_prompt_variables.delete(…)` (systemPromptVariables.js:223): `prisma` is `require(\"../utils/prisma\")` (systemPromptVariables.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_prompt_variables` is the model's accessor and each op a write. The calls are in the anonymous `value: async (…) => …` functions of `DEFAULT_VARIABLES` entries inside the `SystemPromptVariables` object (systemPromptVariables.js:66–123), so the object is the innermost named symbol."
     },
     {
       "id": "writes:symbol:server/models/systemPromptVariables.js#SystemPromptVariables.update->model:server/system_prompt_variables",
@@ -7457,8 +7459,8 @@
       "confidence": "exact",
       "to": "model system_prompt_variables",
       "sites": ["server/models/systemPromptVariables.js:206"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_prompt_variables.update(…)` (systemPromptVariables.js:206): `prisma` is `require(\"../utils/prisma\")` (systemPromptVariables.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_prompt_variables` is the model's accessor and each op a write. The calls are in the anonymous `value: async (…) => …` functions of `DEFAULT_VARIABLES` entries inside the `SystemPromptVariables` object (systemPromptVariables.js:66–123), so the object is the innermost named symbol."
     },
     {
       "id": "writes:symbol:server/models/systemSettings.js#SystemSettings._updateSettings->model:server/system_settings",
@@ -7466,8 +7468,8 @@
       "confidence": "exact",
       "to": "model system_settings",
       "sites": ["server/models/systemSettings.js:744"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_settings.upsert(…)` (systemSettings.js:744): `prisma` is `require(\"../utils/prisma\")` (systemSettings.js:7), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_settings` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/systemSettings.js#SystemSettings.delete->model:server/system_settings",
@@ -7475,8 +7477,8 @@
       "confidence": "exact",
       "to": "model system_settings",
       "sites": ["server/models/systemSettings.js:717"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_settings.deleteMany(…)` (systemSettings.js:717): `prisma` is `require(\"../utils/prisma\")` (systemSettings.js:7), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `system_settings` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/temporaryAuthToken.js#TemporaryAuthToken.invalidateUserTokens->model:server/temporary_auth_tokens",
@@ -7484,8 +7486,8 @@
       "confidence": "exact",
       "to": "model temporary_auth_tokens",
       "sites": ["server/models/temporaryAuthToken.js:57"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.temporary_auth_tokens.deleteMany(…)` (temporaryAuthToken.js:57): `prisma` is `require(\"../utils/prisma\")` (temporaryAuthToken.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `temporary_auth_tokens` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/temporaryAuthToken.js#TemporaryAuthToken.issue->model:server/temporary_auth_tokens",
@@ -7493,8 +7495,8 @@
       "confidence": "exact",
       "to": "model temporary_auth_tokens",
       "sites": ["server/models/temporaryAuthToken.js:32"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.temporary_auth_tokens.create(…)` (temporaryAuthToken.js:32): `prisma` is `require(\"../utils/prisma\")` (temporaryAuthToken.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `temporary_auth_tokens` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/temporaryAuthToken.js#TemporaryAuthToken.validate->model:server/temporary_auth_tokens",
@@ -7502,8 +7504,8 @@
       "confidence": "exact",
       "to": "model temporary_auth_tokens",
       "sites": ["server/models/temporaryAuthToken.js:99"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.temporary_auth_tokens.delete(…)` (temporaryAuthToken.js:99): `prisma` is `require(\"../utils/prisma\")` (temporaryAuthToken.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `temporary_auth_tokens` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/user.js#User._update->model:server/users",
@@ -7511,8 +7513,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:236"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.update(…)` (user.js:236): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/user.js#User.create->model:server/users",
@@ -7520,8 +7522,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:126"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.create(…)` (user.js:126): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/user.js#User.delete->model:server/users",
@@ -7529,8 +7531,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:318"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.deleteMany(…)` (user.js:318): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/user.js#User.delete->model:server/workspace_chats",
@@ -7538,8 +7540,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/user.js:314"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.updateMany(…)` (user.js:314): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/user.js#User.update->model:server/users",
@@ -7547,8 +7549,8 @@
       "confidence": "exact",
       "to": "model users",
       "sites": ["server/models/user.js:201"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.users.update(…)` (user.js:201): `prisma` is `require(\"../utils/prisma\")` (user.js:2), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `users` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/vectors.js#DocumentVectors.bulkInsert->model:server/document_vectors",
@@ -7556,8 +7558,8 @@
       "confidence": "exact",
       "to": "model document_vectors",
       "sites": ["server/models/vectors.js:12"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_vectors.create(…)` (vectors.js:12): `prisma` is `require(\"../utils/prisma\")` (vectors.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_vectors` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/vectors.js#DocumentVectors.delete->model:server/document_vectors",
@@ -7565,8 +7567,8 @@
       "confidence": "exact",
       "to": "model document_vectors",
       "sites": ["server/models/vectors.js:70"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_vectors.deleteMany(…)` (vectors.js:70): `prisma` is `require(\"../utils/prisma\")` (vectors.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_vectors` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/vectors.js#DocumentVectors.deleteForWorkspace->model:server/document_vectors",
@@ -7574,8 +7576,8 @@
       "confidence": "exact",
       "to": "model document_vectors",
       "sites": ["server/models/vectors.js:46"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_vectors.deleteMany(…)` (vectors.js:46): `prisma` is `require(\"../utils/prisma\")` (vectors.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_vectors` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/vectors.js#DocumentVectors.deleteIds->model:server/document_vectors",
@@ -7583,8 +7585,8 @@
       "confidence": "exact",
       "to": "model document_vectors",
       "sites": ["server/models/vectors.js:58"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.document_vectors.deleteMany(…)` (vectors.js:58): `prisma` is `require(\"../utils/prisma\")` (vectors.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `document_vectors` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspace.js#Workspace._update->model:server/workspaces",
@@ -7592,8 +7594,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:283"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.update(…)` (workspace.js:283): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspace.js#Workspace.delete->model:server/workspaces",
@@ -7601,8 +7603,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:391"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.delete(…)` (workspace.js:391): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspace.js#Workspace.new->model:server/workspaces",
@@ -7610,8 +7612,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:221"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.create(…)` (workspace.js:221): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspace.js#Workspace.upsert->model:server/workspaces",
@@ -7619,8 +7621,8 @@
       "confidence": "exact",
       "to": "model workspaces",
       "sites": ["server/models/workspace.js:602"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspaces.upsert(…)` (workspace.js:602): `prisma` is `require(\"../utils/prisma\")` (workspace.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspaces` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceAgentInvocation.js#WorkspaceAgentInvocation.close->model:server/workspace_agent_invocations",
@@ -7628,8 +7630,8 @@
       "confidence": "exact",
       "to": "model workspace_agent_invocations",
       "sites": ["server/models/workspaceAgentInvocation.js:15"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_agent_invocations.update(…)` (workspaceAgentInvocation.js:15): `prisma` is `require(\"../utils/prisma\")` (workspaceAgentInvocation.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_agent_invocations` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceAgentInvocation.js#WorkspaceAgentInvocation.delete->model:server/workspace_agent_invocations",
@@ -7637,8 +7639,8 @@
       "confidence": "exact",
       "to": "model workspace_agent_invocations",
       "sites": ["server/models/workspaceAgentInvocation.js:72"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_agent_invocations.delete(…)` (workspaceAgentInvocation.js:72): `prisma` is `require(\"../utils/prisma\")` (workspaceAgentInvocation.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_agent_invocations` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceAgentInvocation.js#WorkspaceAgentInvocation.new->model:server/workspace_agent_invocations",
@@ -7646,8 +7648,8 @@
       "confidence": "exact",
       "to": "model workspace_agent_invocations",
       "sites": ["server/models/workspaceAgentInvocation.js:24"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_agent_invocations.create(…)` (workspaceAgentInvocation.js:24): `prisma` is `require(\"../utils/prisma\")` (workspaceAgentInvocation.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_agent_invocations` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats._update->model:server/workspace_chats",
@@ -7655,8 +7657,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:293"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.update(…)` (workspaceChats.js:293): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.bulkCreate->model:server/workspace_chats",
@@ -7664,8 +7666,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:339"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.create(…)` (workspaceChats.js:339): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.delete->model:server/workspace_chats",
@@ -7673,8 +7675,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:196"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.deleteMany(…)` (workspaceChats.js:196): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.markHistoryInvalid->model:server/workspace_chats",
@@ -7682,8 +7684,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:115"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.updateMany(…)` (workspaceChats.js:115): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.markMemoryProcessed->model:server/workspace_chats",
@@ -7691,8 +7693,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:311"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.updateMany(…)` (workspaceChats.js:311): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.markThreadHistoryInvalid->model:server/workspace_chats",
@@ -7700,8 +7702,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:142"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.updateMany(…)` (workspaceChats.js:142): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.markThreadHistoryInvalidV2->model:server/workspace_chats",
@@ -7709,8 +7711,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:168"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.updateMany(…)` (workspaceChats.js:168): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.migrateToMultiUser->model:server/workspace_chats",
@@ -7718,8 +7720,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:322"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.updateMany(…)` (workspaceChats.js:322): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.new->model:server/workspace_chats",
@@ -7727,8 +7729,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:15"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.create(…)` (workspaceChats.js:15): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.updateFeedbackScore->model:server/workspace_chats",
@@ -7736,8 +7738,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:271"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.update(…)` (workspaceChats.js:271): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceChats.js#WorkspaceChats.upsert->model:server/workspace_chats",
@@ -7745,8 +7747,8 @@
       "confidence": "exact",
       "to": "model workspace_chats",
       "sites": ["server/models/workspaceChats.js:372"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_chats.upsert(…)` (workspaceChats.js:372): `prisma` is `require(\"../utils/prisma\")` (workspaceChats.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_chats` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceParsedFiles.js#WorkspaceParsedFiles.create->model:server/workspace_parsed_files",
@@ -7754,8 +7756,8 @@
       "confidence": "exact",
       "to": "model workspace_parsed_files",
       "sites": ["server/models/workspaceParsedFiles.js:19"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_parsed_files.create(…)` (workspaceParsedFiles.js:19): `prisma` is `require(\"../utils/prisma\")` (workspaceParsedFiles.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_parsed_files` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceParsedFiles.js#WorkspaceParsedFiles.delete->model:server/workspace_parsed_files",
@@ -7763,8 +7765,8 @@
       "confidence": "exact",
       "to": "model workspace_parsed_files",
       "sites": ["server/models/workspaceParsedFiles.js:85"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_parsed_files.deleteMany(…)` (workspaceParsedFiles.js:85): `prisma` is `require(\"../utils/prisma\")` (workspaceParsedFiles.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_parsed_files` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceParsedFiles.js#WorkspaceParsedFiles.migrateToMultiUser->model:server/workspace_parsed_files",
@@ -7772,8 +7774,8 @@
       "confidence": "exact",
       "to": "model workspace_parsed_files",
       "sites": ["server/models/workspaceParsedFiles.js:179"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_parsed_files.updateMany(…)` (workspaceParsedFiles.js:179): `prisma` is `require(\"../utils/prisma\")` (workspaceParsedFiles.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_parsed_files` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceThread.js#WorkspaceThread.delete->model:server/workspace_threads",
@@ -7781,8 +7783,8 @@
       "confidence": "exact",
       "to": "model workspace_threads",
       "sites": ["server/models/workspaceThread.js:105"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_threads.deleteMany(…)` (workspaceThread.js:105): `prisma` is `require(\"../utils/prisma\")` (workspaceThread.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_threads` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceThread.js#WorkspaceThread.migrateToMultiUser->model:server/workspace_threads",
@@ -7790,8 +7792,8 @@
       "confidence": "exact",
       "to": "model workspace_threads",
       "sites": ["server/models/workspaceThread.js:137"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_threads.updateMany(…)` (workspaceThread.js:137): `prisma` is `require(\"../utils/prisma\")` (workspaceThread.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_threads` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceThread.js#WorkspaceThread.new->model:server/workspace_threads",
@@ -7799,8 +7801,8 @@
       "confidence": "exact",
       "to": "model workspace_threads",
       "sites": ["server/models/workspaceThread.js:37"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_threads.create(…)` (workspaceThread.js:37): `prisma` is `require(\"../utils/prisma\")` (workspaceThread.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_threads` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceThread.js#WorkspaceThread.update->model:server/workspace_threads",
@@ -7808,8 +7810,8 @@
       "confidence": "exact",
       "to": "model workspace_threads",
       "sites": ["server/models/workspaceThread.js:68"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_threads.update(…)` (workspaceThread.js:68): `prisma` is `require(\"../utils/prisma\")` (workspaceThread.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_threads` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceUsers.js#WorkspaceUser.create->model:server/workspace_users",
@@ -7817,8 +7819,8 @@
       "confidence": "exact",
       "to": "model workspace_users",
       "sites": ["server/models/workspaceUsers.js:47"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_users.create(…)` (workspaceUsers.js:47): `prisma` is `require(\"../utils/prisma\")` (workspaceUsers.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_users` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceUsers.js#WorkspaceUser.createMany->model:server/workspace_users",
@@ -7826,8 +7828,8 @@
       "confidence": "exact",
       "to": "model workspace_users",
       "sites": ["server/models/workspaceUsers.js:9"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_users.create(…)` (workspaceUsers.js:9): `prisma` is `require(\"../utils/prisma\")` (workspaceUsers.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_users` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceUsers.js#WorkspaceUser.createManyUsers->model:server/workspace_users",
@@ -7835,8 +7837,8 @@
       "confidence": "exact",
       "to": "model workspace_users",
       "sites": ["server/models/workspaceUsers.js:31"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_users.create(…)` (workspaceUsers.js:31): `prisma` is `require(\"../utils/prisma\")` (workspaceUsers.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_users` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspaceUsers.js#WorkspaceUser.delete->model:server/workspace_users",
@@ -7844,8 +7846,8 @@
       "confidence": "exact",
       "to": "model workspace_users",
       "sites": ["server/models/workspaceUsers.js:95"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_users.deleteMany(…)` (workspaceUsers.js:95): `prisma` is `require(\"../utils/prisma\")` (workspaceUsers.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_users` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/models/workspacesSuggestedMessages.js#WorkspaceSuggestedMessages.saveAll->model:server/workspace_suggested_messages",
@@ -7856,8 +7858,8 @@
         "server/models/workspacesSuggestedMessages.js:38",
         "server/models/workspacesSuggestedMessages.js:46"
       ],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.workspace_suggested_messages.deleteMany(…)` (workspacesSuggestedMessages.js:38), `prisma.workspace_suggested_messages.create(…)` (workspacesSuggestedMessages.js:46): `prisma` is `require(\"../utils/prisma\")` (workspacesSuggestedMessages.js:1), the server's one client, `new PrismaClient(…)` (server/utils/prisma/index.js:9). `workspace_suggested_messages` is the model's accessor and each op a write."
     },
     {
       "id": "writes:symbol:server/prisma/seed.js#main->model:server/system_settings",
@@ -7865,8 +7867,8 @@
       "confidence": "exact",
       "to": "model system_settings",
       "sites": ["server/prisma/seed.js:17"],
-      "verdict": "pending",
-      "task": "M9.1a3f"
+      "verdict": "correct",
+      "evidence": "`prisma.system_settings.create(…)` (seed.js:17): `prisma` is `new PrismaClient()` from `@prisma/client` (seed.js:1–2), the seed script's own client. `system_settings` is the model's accessor and each op a write."
     }
   ]
 }
