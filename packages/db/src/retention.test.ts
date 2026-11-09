@@ -109,6 +109,43 @@ describe("listPinnedShas", () => {
     expect((await listPinnedShas(t.db, 0)).map((p) => p.sha)).toEqual([]);
   });
 
+  it("pins the merge base a record's diff names, within the same window", async () => {
+    const id = await repo(1);
+    const diffOf = (merge: string, head: string) =>
+      `private/9/${id}/diffs/${sha(merge)}-${sha(head)}/${VERSION}.json.gz`;
+    const pr = { repoId: id, headAt: new Date(), brokenCount: 0 };
+    await t.db.insert(pullRequests).values([
+      // The event's base is the branch's tip; the diff was taken from the merge base `7`.
+      { ...pr, number: 1, baseSha: sha("1"), headSha: sha("2"), diffKey: diffOf("7", "2") },
+      // Merge base = event base: pinned once.
+      { ...pr, number: 2, baseSha: sha("3"), headSha: sha("4"), diffKey: diffOf("3", "4") },
+      // A key of another shape names no commit.
+      { ...pr, number: 3, baseSha: sha("5"), headSha: sha("6"), diffKey: "diffs/x.json.gz" },
+      // Nor does one naming another head or repo than the record.
+      { ...pr, number: 5, baseSha: sha("b"), headSha: sha("c"), diffKey: diffOf("d", "e") },
+      {
+        ...pr,
+        number: 6,
+        baseSha: sha("b"),
+        headSha: sha("c"),
+        diffKey: `private/9/other/diffs/${sha("f")}-${sha("c")}/${VERSION}.json.gz`,
+      },
+      {
+        ...pr,
+        number: 4,
+        baseSha: sha("8"),
+        headSha: sha("9"),
+        diffKey: diffOf("a", "9"),
+        updatedAt: sql`now() - interval '31 days'`,
+      },
+    ]);
+    const pinned = await listPinnedShas(t.db);
+    expect(pinned.map((p) => p.sha).sort()).toEqual(
+      ["1", "2", "3", "4", "5", "6", "7", "b", "b", "c", "c"].map(sha),
+    );
+    expect(pinned.every((p) => p.repoId === id)).toBe(true);
+  });
+
   it("refuses a window that isn't a whole number of days", async () => {
     await expect(listPinnedShas(t.db, -1)).rejects.toThrow("days");
     await expect(listPinnedShas(t.db, 1.5)).rejects.toThrow("days");
