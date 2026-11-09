@@ -12,7 +12,7 @@ is **zero wrong edges** (D13.4).
 
 | Repo | Commit | Stars | Inferred edges | Checked | Wrong |
 | --- | --- | ---: | ---: | --- | ---: |
-| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 863 | [228 of 863](Mintplex-Labs__anything-llm.json) (M9.1a3c–f) | 244 + 11 fixed, 0 since |
+| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 863 | [390 of 863](Mintplex-Labs__anything-llm.json) (M9.1a3c–f) | 244 + 11 fixed, 0 since |
 | [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
@@ -105,3 +105,20 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     Planned as M9.1a6. Also missing: one `navigator.sendBeacon` to the onboarding survey's
     host, which a `fetch` beside it already reaches. Every other request call in `frontend/`
     is on an edge.
+  - **Server, collector, and `extras/` http edges** (M9.1a3d, checked 2026-11-09): 162 edges
+    (133 server, 28 collector, 1 root), all unresolved, 0 wrong. For 129 the reason is
+    accurate: the base is a parameter, the user's settings or env, a link the user gives, a
+    URL from a response, or a test's own server (38 edges in two test files).
+  - For the other 33, `DYNAMIC_URL`'s "only known at runtime" overstates it. The base is a
+    literal in a class or object member that the analyzer doesn't read: a constructor's
+    `this.endpoint`, a static field or getter, an object property read through `this`, or a
+    private method returning a template. Planned as M9.1a7.
+  - The biggest gap this leaves is **server → collector**. Every request from the server to
+    the collector goes through `CollectorApi`, whose `this.endpoint` is
+    `http://127.0.0.1:${COLLECTOR_PORT || 8888}`, so the demo draws no server → collector
+    link at all. 8 of its 9 requests would reach a collector route (`POST /process`,
+    `/process-link`, `/parse`, …).
+  - Sweep: every `fetch(`, `axios`, `http(s).get/request(`, `got(`, and `request(` call in
+    `server/`, `collector/`, and `extras/` is on an edge, or is a wrapper body drawn at its
+    callers, or isn't an HTTP request (a WebSocket in an example page, an MSSQL request, an
+    SDK method rebinding).
