@@ -16,7 +16,7 @@ import type { WebhookDeps } from "./githubWebhook";
 import type { TokenRouteDeps } from "./installationTokenRoute";
 import { sessionKeys, type SessionKeys } from "./session";
 import { createTurnstile, type BotCheck } from "./botCheck";
-import { purgeRepoCache } from "./cdnCache";
+import { purgeRepoCache, runLater } from "./cdnCache";
 import { createCodeSizeCache } from "./codeSize";
 import type { GraphRouteDeps } from "./graphRoute";
 import { cdnGraphReader, type ImageRouteDeps } from "./imageRoute";
@@ -428,5 +428,6 @@ export function repoViewDepsFromEnv(
     heads,
     codeSizes,
     purgeRepo: (providerRepoId) => purgeRepoCache(providerRepoId),
+    later: (task, delayMs) => runLater(task, delayMs),
   };
 }
