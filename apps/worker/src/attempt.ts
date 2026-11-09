@@ -9,6 +9,7 @@ import {
 import { JobFailure } from "./failure.js";
 import { processDiffJob } from "./diffJob.js";
 import { JobAlreadyDone, processJob, type JobDeps, type JobOutcome } from "./job.js";
+import { errorFields } from "./log.js";
 import {
   STAGE_PROGRESS,
   stepProgress,
@@ -33,7 +34,8 @@ export type WorkerLog = (event: Record<string, unknown>) => void;
 export interface ProcessorEstimates {
   /**
    * Recent finished analyses' stats, read once per attempt. Without it, while it's pending,
-   * or if it fails (logged as `estimate_samples_failed`), the benchmark's rates are used.
+   * or if it fails (logged as `estimate_samples_failed`, by `errorFields`), the benchmark's
+   * rates are used.
    */
   samples?: () => Promise<readonly TimingSample[]>;
   /** Clock for when each stage or step started. Default `Date.now`. */
@@ -107,7 +109,7 @@ export async function runAttempt(
       model = timingModel(samples);
     },
     (error: unknown) => {
-      log({ event: "estimate_samples_failed", id, message: messageOf(error) });
+      log({ event: "estimate_samples_failed", id, ...errorFields(error) });
     },
   );
   // What this attempt has found stays in every later update, the upload stage's too; a
@@ -127,7 +129,7 @@ export async function runAttempt(
           event: "progress_record_failed",
           id,
           stage: progress.stage,
-          message: messageOf(error),
+          ...errorFields(error),
         });
       });
   };

@@ -18,9 +18,11 @@ import { JobFailure } from "./failure.js";
 import { startFakeGitHub, tarballOf, type FakeGitHub } from "./github.testkit.js";
 import type { IssuedToken, TokenAsk } from "./installationToken.js";
 import { JobAlreadyDone, type JobContext, type JobDeps, type JobStage } from "./job.js";
+import { DB_HOST, dbDown } from "./log.testkit.js";
 import type { ChildJob } from "./protocol.js";
 import type { JobRequest } from "./request.js";
 import type { RunOptions, RunResult } from "./runner.js";
+import { StorageError } from "./storage.js";
 
 const WORKER = fileURLToPath(new URL("..", import.meta.url));
 const DIST = join(WORKER, "dist");
@@ -541,17 +543,35 @@ describe("processDiffJob with stored graphs (M8.6d3c2)", () => {
     expect(outcome.stats).toEqual(STATS);
   });
 
-  it.each([
-    ["names another commit", async () => storedText(MERGE, "f".repeat(40))],
-    ["isn't JSON", async () => "{"],
-    ["isn't a graph", async () => JSON.stringify({ nodes: [] })],
+  // Logged by the error's name only (M8.10e2b): a parse error's message quotes the stored
+  // text (a repo's names), a storage error's or driver's its host.
+  it.each<[string, () => Promise<string>, Record<string, unknown>]>([
+    [
+      "names another commit",
+      async () => storedText(MERGE, "f".repeat(40)),
+      { error: "OtherCommitError" },
+    ],
+    ["isn't JSON", async () => '{"secret-service-name": ', { error: "SyntaxError" }],
+    [
+      "isn't a graph",
+      async () => JSON.stringify({ nodes: [{ id: "secret-service-name" }] }),
+      { error: "ZodError" },
+    ],
     [
       "can't be read",
       async () => {
-        throw new Error("GET answered 500");
+        throw new StorageError(`GET ${DB_HOST} answered 500`, 500);
       },
+      { error: "StorageError", httpStatus: 500 },
     ],
-  ])("analyzes a side whose stored graph %s, and logs it", async (_, read) => {
+    [
+      "can't be looked up",
+      async () => {
+        throw dbDown();
+      },
+      { error: "Error", errorCode: "ECONNREFUSED" },
+    ],
+  ])("analyzes a side whose stored graph %s, and logs it", async (_, read, fields) => {
     const storedGraph = async ({ sha }: { sha: string }) =>
       sha === MERGE ? read() : storedText(HEAD);
     const { diffs } = recorder({ storedGraph });
@@ -563,9 +583,7 @@ describe("processDiffJob with stored graphs (M8.6d3c2)", () => {
     );
     expect(run.mock.calls.map(([job]) => job.sha)).toEqual([MERGE]);
     expect(outcome.diff?.reused).toEqual(["head"]);
-    expect(logs).toEqual([
-      expect.objectContaining({ event: "stored_graph_unread", id: ID, sha: MERGE }),
-    ]);
+    expect(logs).toEqual([{ event: "stored_graph_unread", id: ID, sha: MERGE, ...fields }]);
   });
 });
 
@@ -598,7 +616,7 @@ describe("processDiffJob stores the sides it analyzed (M8.6d4)", () => {
   it("logs a side it couldn't store and still publishes the diff", async () => {
     const { diffs, published } = recorder({
       storeSide: async ({ sha }) => {
-        if (sha === MERGE) throw new Error("PUT answered 503");
+        if (sha === MERGE) throw dbDown();
         return true;
       },
     });
@@ -607,8 +625,9 @@ describe("processDiffJob stores the sides it analyzed (M8.6d4)", () => {
       context(),
       deps({ diffs, log: (event) => void logs.push(event) }),
     );
+    // The error's name and code only: a driver's message names the database host (M8.10e2b).
     expect(logs).toEqual([
-      { event: "side_store_failed", id: ID, sha: MERGE, message: "PUT answered 503" },
+      { event: "side_store_failed", id: ID, sha: MERGE, error: "Error", errorCode: "ECONNREFUSED" },
     ]);
     expect(published).toHaveLength(1);
     expect(outcome.diff?.stored).toEqual(["head"]);
@@ -1045,14 +1064,29 @@ describe("processDiffJob retried after its diff was recorded (M8.6e2b)", () => {
     expect(await jobFolders()).toEqual([]);
   });
 
-  it.each<[string, Partial<DiffRecorder>]>([
-    ["the diff's object is gone", { storedDiff: async () => undefined }],
-    ["the stored diff isn't a diff", { storedDiff: async () => '{"nodes":[]}' }],
+  // A parse error is logged by name only (M8.10e2b): its message quotes the stored text.
+  it.each<[string, Partial<DiffRecorder>, Record<string, unknown>]>([
+    [
+      "the diff's object is gone",
+      { storedDiff: async () => undefined },
+      { reason: "the diff's object is gone" },
+    ],
+    [
+      "the stored diff isn't JSON",
+      { storedDiff: async () => '{"secret-service-name": ' },
+      { error: "SyntaxError" },
+    ],
+    [
+      "the stored diff isn't a diff",
+      { storedDiff: async () => '{"nodes":[{"id":"secret-service-name"}]}' },
+      { error: "ZodError" },
+    ],
     [
       "the stored diff names another head",
       {
         storedDiff: async () => storedDiffText().replaceAll(HEAD, "d".repeat(40)),
       },
+      { reason: "the stored diff names other commits" },
     ],
     [
       "the merge base's graph isn't stored",
@@ -1061,6 +1095,7 @@ describe("processDiffJob retried after its diff was recorded (M8.6e2b)", () => {
         storedGraph: async ({ sha }: { sha: string }) =>
           sha === MERGE ? undefined : storedText(sha),
       },
+      { reason: "the merge base's graph isn't stored" },
     ],
     [
       "the head's graph isn't stored",
@@ -1069,8 +1104,9 @@ describe("processDiffJob retried after its diff was recorded (M8.6e2b)", () => {
         storedGraph: async ({ sha }: { sha: string }) =>
           sha === HEAD ? undefined : storedText(sha),
       },
+      { reason: "the head's graph isn't stored" },
     ],
-  ])("runs the job again when %s, then posts", async (_what, more) => {
+  ])("runs the job again when %s, then posts", async (_what, more, fields) => {
     const { overrides, calls, records } = naming([7], { diffed: true });
     const { diffs } = recorder({ ...overrides, storedGraph, ...more });
     const installationToken = vi.fn(tokenFor);
@@ -1082,7 +1118,9 @@ describe("processDiffJob retried after its diff was recorded (M8.6e2b)", () => {
     expect(calls).toEqual(["reopen", "publish", "comment 7", "checkRun 7"]);
     expect(installationToken.mock.calls.map(([ask]) => ask.access)).toEqual([undefined, "post"]);
     expect(asked()).toContain(`api /repos/acme/shop/compare/${BASE}...${HEAD}`);
-    expect(logs).toContainEqual(expect.objectContaining({ event: "stored_diff_unread", id: ID }));
+    expect(logs.filter((line) => line.event === "stored_diff_unread")).toEqual([
+      { event: "stored_diff_unread", id: ID, ...fields },
+    ]);
     expect(logs).toContainEqual({ event: "diff_reopened", id: ID, records: 1 });
     expect(records.get(7)?.checkRunId).toEqual(expect.any(Number));
     expect(outcome.diff).toMatchObject({ posted: 1, resumed: false });

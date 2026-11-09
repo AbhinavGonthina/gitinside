@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { startFakeGitHub, tarballFrom, type FakeGitHub } from "./github.testkit.js";
 import { signRequest } from "./hmac.js";
 import { PUBLISH_RESERVE_MS, type JobDeps, type JobRecorder } from "./job.js";
+import { dbDown } from "./log.testkit.js";
 import type { StoredProgress } from "./progress.js";
 import { jobIdFor, type JobRequest } from "./request.js";
 import {
@@ -392,7 +393,7 @@ describe("POST /run, a job already done (M5.17c2b)", () => {
   });
 
   it("runs the job as usual when the lookup fails, logging why", async () => {
-    const { recorder, calls } = doneRecorder(() => Promise.reject(new Error("db down")));
+    const { recorder, calls } = doneRecorder(() => Promise.reject(dbDown()));
     const events: Record<string, unknown>[] = [];
     const origin = await start({
       deps: deps(writeGraph, recorder),
@@ -403,7 +404,13 @@ describe("POST /run, a job already done (M5.17c2b)", () => {
       body: { id: ID, state: "done" },
     });
     expect(calls.started).toEqual([ID]);
-    expect(events[0]).toEqual({ event: "done_check_failed", id: ID, message: "db down" });
+    // The error's name and code only: a driver's message names the database host (M8.10e2b).
+    expect(events[0]).toEqual({
+      event: "done_check_failed",
+      id: ID,
+      error: "Error",
+      errorCode: "ECONNREFUSED",
+    });
   });
 
   it("answers 200 done with no work when the check missed it and the start finds it (R9)", async () => {
@@ -510,7 +517,7 @@ describe("POST /run, after the job (M5.17c2d)", () => {
     const events: Record<string, unknown>[] = [];
     const origin = await start({
       deps: deps(),
-      afterJob: () => Promise.reject(new Error("boom")),
+      afterJob: () => Promise.reject(dbDown()),
       log: (e) => void events.push(e),
     });
     expect(await post(origin, JSON.stringify(REQUEST))).toEqual({
@@ -518,7 +525,7 @@ describe("POST /run, after the job (M5.17c2d)", () => {
       body: { id: ID, state: "done" },
     });
     expect(events.filter((e) => e.event === "after_job_failed")).toEqual([
-      { event: "after_job_failed", id: ID, message: "boom" },
+      { event: "after_job_failed", id: ID, error: "Error", errorCode: "ECONNREFUSED" },
     ]);
   });
 
@@ -600,7 +607,7 @@ describe("POST /run, the compute count (M5.18d)", () => {
     const events: Record<string, unknown>[] = [];
     const origin = await start({
       deps: deps(),
-      meter: () => Promise.reject(new Error("db down")),
+      meter: () => Promise.reject(dbDown()),
       log: (e) => void events.push(e),
     });
     expect(await post(origin, JSON.stringify(REQUEST))).toEqual({
@@ -608,7 +615,7 @@ describe("POST /run, the compute count (M5.18d)", () => {
       body: { id: ID, state: "done" },
     });
     expect(events.filter((e) => e.event === "meter_failed")).toEqual([
-      { event: "meter_failed", message: "db down" },
+      { event: "meter_failed", error: "Error", errorCode: "ECONNREFUSED" },
     ]);
   });
 });
