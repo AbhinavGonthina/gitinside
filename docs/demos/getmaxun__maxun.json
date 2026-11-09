@@ -1,0 +1,1308 @@
+{
+  "owner": "getmaxun",
+  "name": "maxun",
+  "sha": "99c6bd0d42b14336b706ba121a3757f62a9814f7",
+  "analyzerVersion": "0.2.0",
+  "checkedAt": "2026-11-09",
+  "method": "Every edge that isn't imports, calls, renders, or handles read at its sites in `git show <sha>:<file>` (multi-line calls with `git grep -A`): an http edge's method and URL, `apiUrl` from src/apiConfig.js against the server's port, and the route's definition plus its router's `app.use` mount in server/src/server.ts; an external_call's client traced to its package import or literal host; each unresolved edge's reason against its URL. Then every `fetch(`, `axios`, Anthropic, googleapis, OAuth, Airtable, and MinIO call in src/, server/src/, browser/, and maxun-core/src/ (git grep) matched to an edge, so missing ones are written down.",
+  "totals": {
+    "edges": 142,
+    "correct": 93,
+    "wrong": 0,
+    "unresolved": 49
+  },
+  "notCovered": "Structural edges (imports, calls, renders, handles) aren't hand-checked; they're TypeScript's resolution, tested by the fixtures and the eval. Route nodes are checked only where an edge points at them, plus the unmounted-router note below.",
+  "observations": [
+    "Every `fetch(` and `axios` call in src/, server/src/, browser/, and maxun-core/src/ is on an edge, except `fetch(url, …)` inside mcp-worker.ts's `makeApiRequest` (line 147), whose callers carry the edges. All 74 frontend requests reach a route, and each answering route is the one Express would pick.",
+    "server/src/api/record.ts and sdk.ts (26 of the 101 routes) are mounted at `/api` by a loop, `readdirSync(path.join(__dirname, 'api')).forEach(r => app.use('/api', require(path.join(__dirname, 'api', r))))` (server/src/server.ts:133–141), which the analyzer doesn't follow. It warns `EXPRESS_UNMOUNTED_ROUTER` (\"never mounted on an app; its routes use paths relative to the router\") and labels them without the prefix, e.g. `GET /robots` for the real `GET /api/robots`. No edge points at them, so no edge is wrong, but on the demo those 26 route labels are short of `/api`, and the warning's \"never mounted\" overstates it. Planned as M9.1a5.",
+    "The 2 `NO_MATCHING_ROUTE` health checks (browserConnection.ts:25, 142) go to the browser service's raw `http.createServer` handler (browser/server.ts:42, `req.url === '/health'`), which no detector reads: a missing edge, shown unresolved rather than guessed. The third, `POST /integration/upload-credentials` (src/api/integration.ts:6), has no server route at all.",
+    "The 28 LLM requests (`/chat/completions`, `/api/chat`) are unresolved because their base is the user's configured endpoint (`config.baseUrl`), with api.openai.com or Ollama's localhost only as a fallback; drawing api.openai.com would guess which one a deployment uses.",
+    "Missing, not wrong: the database (Sequelize models; v1 reads Prisma only), MinIO object storage (`minioClient.putObject`/`getObject`, server/src/storage/mino.ts:131–305, package `minio`), the Airtable SDK's record calls (`base(tableName).select/destroy/create`, server/src/workflow-management/integrations/airtable.ts:507–556), Google's token exchange (`oauth2Client.getToken`, server/src/routes/auth.ts:401), and socket.io traffic between the frontend and the server."
+  ],
+  "edges": [
+    {
+      "id": "external_call:route:maxun/GET /auth/airtable/bases->external:ext/api.airtable.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.airtable.com",
+      "sites": ["server/src/routes/auth.ts:801"],
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://api.airtable.com/v0/meta/bases…` URL inside the route's inline handler."
+    },
+    {
+      "id": "external_call:route:maxun/GET /auth/airtable/callback->external:ext/airtable.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external airtable.com",
+      "sites": ["server/src/routes/auth.ts:715"],
+      "verdict": "correct",
+      "evidence": "`fetch(\"https://airtable.com/oauth2/v1/token\", …)` inside the route's inline handler (the OAuth code exchange)."
+    },
+    {
+      "id": "external_call:route:maxun/GET /auth/airtable/tables->external:ext/api.airtable.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.airtable.com",
+      "sites": ["server/src/routes/auth.ts:921"],
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://api.airtable.com/v0/meta/bases…` URL inside the route's inline handler."
+    },
+    {
+      "id": "external_call:route:maxun/GET /auth/google/callback->external:ext/www.googleapis.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external www.googleapis.com",
+      "sites": ["server/src/routes/auth.ts:408", "server/src/routes/auth.ts:446"],
+      "verdict": "correct",
+      "evidence": "`google.oauth2(...)`/`google.drive(...)`/`google.sheets(...)` clients from package `googleapis` (`import { google } from \"googleapis\"`); each listed call (`userinfo.get`, `files.list`, `spreadsheets.get`/`batchUpdate`/`values.get`/`values.append`) is a request to www.googleapis.com."
+    },
+    {
+      "id": "external_call:route:maxun/GET /auth/gsheets/files->external:ext/www.googleapis.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external www.googleapis.com",
+      "sites": ["server/src/routes/auth.ts:560"],
+      "verdict": "correct",
+      "evidence": "`google.oauth2(...)`/`google.drive(...)`/`google.sheets(...)` clients from package `googleapis` (`import { google } from \"googleapis\"`); each listed call (`userinfo.get`, `files.list`, `spreadsheets.get`/`batchUpdate`/`values.get`/`values.append`) is a request to www.googleapis.com."
+    },
+    {
+      "id": "external_call:route:maxun/POST /auth/gsheets/data->external:ext/www.googleapis.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external www.googleapis.com",
+      "sites": ["server/src/routes/auth.ts:527"],
+      "verdict": "correct",
+      "evidence": "`google.oauth2(...)`/`google.drive(...)`/`google.sheets(...)` clients from package `googleapis` (`import { google } from \"googleapis\"`); each listed call (`userinfo.get`, `files.list`, `spreadsheets.get`/`batchUpdate`/`values.get`/`values.append`) is a request to www.googleapis.com."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/sdk/aiExtract/llmClient.ts#callProvider->external:ext/api.anthropic.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.anthropic.com",
+      "sites": ["server/src/sdk/aiExtract/llmClient.ts:114"],
+      "verdict": "correct",
+      "evidence": "`<client>.messages.create(` on a client built with `new Anthropic(...)` in the same function, `Anthropic` imported from package `@anthropic-ai/sdk`; no baseURL override."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/sdk/anthropicToolHelper.ts#callAnthropicWithTool->external:ext/api.anthropic.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.anthropic.com",
+      "sites": ["server/src/sdk/anthropicToolHelper.ts:101"],
+      "verdict": "correct",
+      "evidence": "`<client>.messages.create(` on a client built with `new Anthropic(...)` in the same function, `Anthropic` imported from package `@anthropic-ai/sdk`; no baseURL override."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/sdk/browserAgent.ts#callAnthropic->external:ext/api.anthropic.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.anthropic.com",
+      "sites": ["server/src/sdk/browserAgent.ts:409"],
+      "verdict": "correct",
+      "evidence": "`<client>.messages.create(` on a client built with `new Anthropic(...)` in the same function, `Anthropic` imported from package `@anthropic-ai/sdk`; no baseURL override."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/sdk/browserAgent.ts#callLLMRawText->external:ext/api.anthropic.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.anthropic.com",
+      "sites": ["server/src/sdk/browserAgent.ts:537"],
+      "verdict": "correct",
+      "evidence": "`<client>.messages.create(` on a client built with `new Anthropic(...)` in the same function, `Anthropic` imported from package `@anthropic-ai/sdk`; no baseURL override."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/utils/summarizer.ts#summarizeMarkdown->external:ext/api.anthropic.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.anthropic.com",
+      "sites": ["server/src/utils/summarizer.ts:73"],
+      "verdict": "correct",
+      "evidence": "`<client>.messages.create(` on a client built with `new Anthropic(...)` in the same function, `Anthropic` imported from package `@anthropic-ai/sdk`; no baseURL override."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentLLMClient.callAnthropic->external:ext/api.anthropic.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.anthropic.com",
+      "sites": ["server/src/workflow-management/classes/DocumentInterpreter.ts:1482"],
+      "verdict": "correct",
+      "evidence": "`<client>.messages.create(` on a client built with `new Anthropic(...)` in the same function, `Anthropic` imported from package `@anthropic-ai/sdk`; no baseURL override."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/workflow-management/integrations/airtable.ts#createAirtableField->external:ext/api.airtable.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.airtable.com",
+      "sites": ["server/src/workflow-management/integrations/airtable.ts:588"],
+      "verdict": "correct",
+      "evidence": "`axios.post(` (package `axios`) with the literal `https://api.airtable.com/v0/meta/bases/${baseId}/tables/${tableId}/fields` (line 589)."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/workflow-management/integrations/airtable.ts#refreshAirtableToken->external:ext/airtable.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external airtable.com",
+      "sites": ["server/src/workflow-management/integrations/airtable.ts:47"],
+      "verdict": "correct",
+      "evidence": "`axios.post(` (package `axios`) with the literal `\"https://airtable.com/oauth2/v1/token\"` (line 48), the token refresh."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/workflow-management/integrations/gsheet.ts#ensureSheetExists->external:ext/www.googleapis.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external www.googleapis.com",
+      "sites": [
+        "server/src/workflow-management/integrations/gsheet.ts:230",
+        "server/src/workflow-management/integrations/gsheet.ts:238"
+      ],
+      "verdict": "correct",
+      "evidence": "`google.oauth2(...)`/`google.drive(...)`/`google.sheets(...)` clients from package `googleapis` (`import { google } from \"googleapis\"`); each listed call (`userinfo.get`, `files.list`, `spreadsheets.get`/`batchUpdate`/`values.get`/`values.append`) is a request to www.googleapis.com."
+    },
+    {
+      "id": "external_call:symbol:maxun/server/src/workflow-management/integrations/gsheet.ts#writeDataToSheet->external:ext/www.googleapis.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external www.googleapis.com",
+      "sites": [
+        "server/src/workflow-management/integrations/gsheet.ts:324",
+        "server/src/workflow-management/integrations/gsheet.ts:362"
+      ],
+      "verdict": "correct",
+      "evidence": "`google.oauth2(...)`/`google.drive(...)`/`google.sheets(...)` clients from package `googleapis` (`import { google } from \"googleapis\"`); each listed call (`userinfo.get`, `files.list`, `spreadsheets.get`/`batchUpdate`/`values.get`/`values.append`) is a request to www.googleapis.com."
+    },
+    {
+      "id": "external_call:symbol:maxun/src/components/dashboard/MainMenu.tsx#MainMenu->external:ext/api.github.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.github.com",
+      "sites": ["src/components/dashboard/MainMenu.tsx:35"],
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://api.github.com/repos/getmaxun/maxun…` URL (star count / latest release)."
+    },
+    {
+      "id": "external_call:symbol:maxun/src/components/dashboard/NavBar.tsx#NavBar->external:ext/api.github.com",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external api.github.com",
+      "sites": ["src/components/dashboard/NavBar.tsx:66"],
+      "verdict": "correct",
+      "evidence": "`fetch(` with a literal `https://api.github.com/repos/getmaxun/maxun…` URL (star count / latest release)."
+    },
+    {
+      "id": "external_call:symbol:maxun/src/components/proxy/ProxyForm.tsx#ProxyForm->external:ext/docs.maxun.dev",
+      "kind": "external_call",
+      "confidence": "exact",
+      "to": "external docs.maxun.dev",
+      "sites": ["src/components/proxy/ProxyForm.tsx:152"],
+      "verdict": "correct",
+      "evidence": "`fetch(RECOMMENDED_PROXIES_STATUS_URL, …)`, the module const `'https://docs.maxun.dev/proxy-sponsors-status.json'` (line 22)."
+    },
+    {
+      "id": "http:route:maxun/POST /webhook/test->unresolved:maxun/server/src/routes/webhook.ts:364:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST webhook.url [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/routes/webhook.ts:364"],
+      "verdict": "unresolved",
+      "evidence": "`axios.post(webhook.url, …)`: the user's own webhook URL from the database; only known at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/browser-management/browserConnection.ts#checkBrowserServiceHealth->unresolved:maxun/server/src/browser-management/browserConnection.ts:142:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET http://localhost:3002/health [NO_MATCHING_ROUTE] no route matches GET to http://localhost:3002/health",
+      "sites": ["server/src/browser-management/browserConnection.ts:142"],
+      "verdict": "unresolved",
+      "evidence": "`fetch(healthEndpoint)`, `http://${BROWSER_WS_HOST || 'localhost'}:${BROWSER_HEALTH_PORT || '3002'}/health` (lines 19–21 / 138–140). The browser service answers it from a raw `http.createServer` checking `req.url === '/health'` (browser/server.ts:42), which no route detector reads, so no route matches; no claim made. Missing edge to the browser service, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/browser-management/browserConnection.ts#getBrowserServiceEndpoint->unresolved:maxun/server/src/browser-management/browserConnection.ts:25:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET http://localhost:3002/health [NO_MATCHING_ROUTE] no route matches GET to http://localhost:3002/health",
+      "sites": ["server/src/browser-management/browserConnection.ts:25"],
+      "verdict": "unresolved",
+      "evidence": "`fetch(healthEndpoint)`, `http://${BROWSER_WS_HOST || 'localhost'}:${BROWSER_HEALTH_PORT || '3002'}/health` (lines 19–21 / 138–140). The browser service answers it from a raw `http.createServer` checking `req.url === '/health'` (browser/server.ts:42), which no route detector reads, so no route matches; no claim made. Missing edge to the browser service, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.executeRobot->unresolved:maxun/server/src/mcp-worker.ts:181:24",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST this.post(`/api/sdk/robots/${robotId}/execute`, { ...(options.formats ? { formats: options.formats } : {}), ...(options… [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:181"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.findRobotIdByName->unresolved:maxun/server/src/mcp-worker.ts:174:24",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET this.makeApiRequest('/api/robots') [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:174"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:220:33",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST this.post('/api/sdk/robots', { meta: { name, type: '…', url, formats: finalFormats, ...(smart_queries ? { promptInstruc… [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:220"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:272:33",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST this.post('/api/sdk/crawl', { url: args.url, name, crawlConfig, formats, ...this.llmConfig, }) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:272"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:312:35",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST this.post('/api/sdk/search', { name, searchConfig, formats: finalFormats, ...this.llmConfig, }) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:312"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:346:33",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST this.post('/api/sdk/extract/llm', { prompt, ...(url ? { url } : {}), ...(robot_name ? { robotName: robot_name } : {}), … [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:346"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:375:30",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET this.makeApiRequest('/api/robots') [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:375"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:392:30",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET this.makeApiRequest(`/api/robots/${robot_id}`) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:392"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:430:30",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET this.makeApiRequest(`/api/robots/${robot_id}/runs`) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:430"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:448:30",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET this.makeApiRequest(`/api/robots/${robot_id}/runs/${run_id}`) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:448"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:465:30",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST this.post(`/api/sdk/robots/${robot_id}/runs/${run_id}/abort`, {}) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:465"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:484:30",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET this.makeApiRequest(`/api/sdk/robots/${robot_id}/runs/${run_id}/diff${query}`) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:484"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:501:13",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET this.makeApiRequest(`/api/robots/${robot_id}`) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:501"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/mcp-worker.ts#MaxunMCPWorker.setupTools->unresolved:maxun/server/src/mcp-worker.ts:502:13",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET this.makeApiRequest(`/api/robots/${robot_id}/runs`) [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/mcp-worker.ts:502"],
+      "verdict": "unresolved",
+      "evidence": "Through `this.makeApiRequest`/`this.post`, which `fetch(`${this.apiUrl}${endpoint}`)` (line 139), where `this.apiUrl` is `process.env.BACKEND_URL || 'http://localhost:8080'` (line 116), this server. The analyzer doesn't follow the class field, so it calls the base runtime-only: no claim made. Even with the base, the `/api/...` paths need server/src/api's dynamic `/api` mount (see observations) to match a drawn route; a missing edge, not a wrong one."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/routes/webhook.ts#sendWebhookWithRetry->unresolved:maxun/server/src/routes/webhook.ts:458:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST webhook.url [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/routes/webhook.ts:458"],
+      "verdict": "unresolved",
+      "evidence": "`axios.post(webhook.url, …)`: the user's own webhook URL from the database; only known at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/aiExtract/llmClient.ts#callProvider->unresolved:maxun/server/src/sdk/aiExtract/llmClient.ts:127:28",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/aiExtract/llmClient.ts:127"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/aiExtract/llmClient.ts#callProvider->unresolved:maxun/server/src/sdk/aiExtract/llmClient.ts:155:28",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/aiExtract/llmClient.ts:155"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/browserAgent.ts#callLLMRawText->unresolved:maxun/server/src/sdk/browserAgent.ts:561:30",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/browserAgent.ts:561"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/browserAgent.ts#callLLMRawText->unresolved:maxun/server/src/sdk/browserAgent.ts:585:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/browserAgent.ts:585"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/browserAgent.ts#callOllama->unresolved:maxun/server/src/sdk/browserAgent.ts:486:28",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/browserAgent.ts:486"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/browserAgent.ts#callOpenAI->unresolved:maxun/server/src/sdk/browserAgent.ts:436:28",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/browserAgent.ts:436"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.filterFieldsByIntent->unresolved:maxun/server/src/sdk/workflowEnricher.ts:1219:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${ollamaBaseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:1219"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.filterFieldsByIntent->unresolved:maxun/server/src/sdk/workflowEnricher.ts:1288:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${openaiBaseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:1288"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.generateFieldLabelsBatch->unresolved:maxun/server/src/sdk/workflowEnricher.ts:1052:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${openaiBaseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:1052"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.generateFieldLabelsBatch->unresolved:maxun/server/src/sdk/workflowEnricher.ts:976:34",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${ollamaBaseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:976"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.generateListName->unresolved:maxun/server/src/sdk/workflowEnricher.ts:1513:34",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${ollamaBaseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:1513"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.generateListName->unresolved:maxun/server/src/sdk/workflowEnricher.ts:1559:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${openaiBaseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:1559"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.getLLMDecisionWithVision->unresolved:maxun/server/src/sdk/workflowEnricher.ts:397:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${ollamaBaseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:397"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.getLLMDecisionWithVision->unresolved:maxun/server/src/sdk/workflowEnricher.ts:453:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${openaiBaseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:453"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.isMultiSitePrompt->unresolved:maxun/server/src/sdk/workflowEnricher.ts:2630:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${ollamaBaseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:2630"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.isMultiSitePrompt->unresolved:maxun/server/src/sdk/workflowEnricher.ts:2670:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${openaiBaseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:2670"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.parseSearchIntent->unresolved:maxun/server/src/sdk/workflowEnricher.ts:2105:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${ollamaBaseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:2105"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.parseSearchIntent->unresolved:maxun/server/src/sdk/workflowEnricher.ts:2152:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${openaiBaseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:2152"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.selectBestUrlFromResults->unresolved:maxun/server/src/sdk/workflowEnricher.ts:2394:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${ollamaBaseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:2394"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.selectBestUrlFromResults->unresolved:maxun/server/src/sdk/workflowEnricher.ts:2433:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${openaiBaseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:2433"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.selectMultipleUrlsFromResults->unresolved:maxun/server/src/sdk/workflowEnricher.ts:2779:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${ollamaBaseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:2779"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.selectMultipleUrlsFromResults->unresolved:maxun/server/src/sdk/workflowEnricher.ts:2826:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${openaiBaseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:2826"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.verifyWorkflowOutput->unresolved:maxun/server/src/sdk/workflowEnricher.ts:1706:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${ollamaBaseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:1706"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/sdk/workflowEnricher.ts#WorkflowEnricher.verifyWorkflowOutput->unresolved:maxun/server/src/sdk/workflowEnricher.ts:1741:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${openaiBaseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/sdk/workflowEnricher.ts:1741"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/utils/summarizer.ts#summarizeMarkdown->unresolved:maxun/server/src/utils/summarizer.ts:127:30",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/utils/summarizer.ts:127"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/utils/summarizer.ts#summarizeMarkdown->unresolved:maxun/server/src/utils/summarizer.ts:92:28",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/utils/summarizer.ts:92"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentLLMClient.callOllama->unresolved:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts:1375:30",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/api/chat` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/workflow-management/classes/DocumentInterpreter.ts:1375"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts#DocumentLLMClient.callOpenAI->unresolved:maxun/server/src/workflow-management/classes/DocumentInterpreter.ts:1437:14",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST `${baseUrl}/chat/completions` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["server/src/workflow-management/classes/DocumentInterpreter.ts:1437"],
+      "verdict": "unresolved",
+      "evidence": "An OpenAI-compatible (`/chat/completions`) or Ollama (`/api/chat`) request to the user-configured LLM base (`config.baseUrl`/`llmConfig.baseUrl`, falling back to `https://api.openai.com/v1` or `OLLAMA_BASE_URL`/`http://localhost:11434`); the base is chosen at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/auth.ts#getUserById->route:maxun/GET /auth/user/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/user/:id",
+      "sites": ["src/api/auth.ts:6"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/user/:id` (`axios.get('${apiUrl}/auth/user/${userId}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:208, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/integration.ts#handleUploadCredentials->unresolved:maxun/src/api/integration.ts:6:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST {env:VITE_BACKEND_URL}/integration/upload-credentials [NO_MATCHING_ROUTE] no route matches POST to {env:VITE_BACKEND_URL}/integration/upload-credentials",
+      "sites": ["src/api/integration.ts:6"],
+      "verdict": "unresolved",
+      "evidence": "`axios.post(`${apiUrl}/integration/upload-credentials`, …)`: the server mounts no `/integration` router (server/src/server.ts:125–137) and no file defines `upload-credentials`; the reason is accurate (dead client code)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/proxy.ts#deleteProxyConfig->route:maxun/DELETE /proxy/config",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route DELETE /proxy/config",
+      "sites": ["src/api/proxy.ts:48"],
+      "verdict": "correct",
+      "evidence": "`DELETE` to `${apiUrl}/proxy/config` (`axios.delete('${apiUrl}/proxy/config');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/proxy.ts:146, its router mounted with `app.use('/proxy', proxy)` (server/src/server.ts:130)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/proxy.ts#getProxyConfig->route:maxun/GET /proxy/config",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /proxy/config",
+      "sites": ["src/api/proxy.ts:20"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/proxy/config` (`axios.get('${apiUrl}/proxy/config');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/proxy.ts:118, its router mounted with `app.use('/proxy', proxy)` (server/src/server.ts:130)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/proxy.ts#sendProxyConfig->route:maxun/POST /proxy/config",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /proxy/config",
+      "sites": ["src/api/proxy.ts:6"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/proxy/config` (`axios.post('${apiUrl}/proxy/config', proxyConfig);`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/proxy.ts:15, its router mounted with `app.use('/proxy', proxy)` (server/src/server.ts:130)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/proxy.ts#testProxyConfig->route:maxun/GET /proxy/test",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /proxy/test",
+      "sites": ["src/api/proxy.ts:34"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/proxy/test` (`axios.get('${apiUrl}/proxy/test');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/proxy.ts:61, its router mounted with `app.use('/proxy', proxy)` (server/src/server.ts:130)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/recording.ts#canCreateBrowserInState->route:maxun/GET /record/can-create/:state",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /record/can-create/:state",
+      "sites": ["src/api/recording.ts:40"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/record/can-create/:state` (`axios.get('${apiUrl}/record/can-create/${state}', { withCredentials: true });`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/record.ts:96, its router mounted with `app.use('/record', record)` (server/src/server.ts:126)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/recording.ts#getActiveBrowserId->route:maxun/GET /record/active",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /record/active",
+      "sites": ["src/api/recording.ts:27"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/record/active` (`axios.get('${apiUrl}/record/active');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/record.ts:85, its router mounted with `app.use('/record', record)` (server/src/server.ts:126)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/recording.ts#getCurrentTabs->route:maxun/GET /record/active/tabs",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /record/active/tabs",
+      "sites": ["src/api/recording.ts:94"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/record/active/tabs` (`axios.get('${apiUrl}/record/active/tabs');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/record.ts:123, its router mounted with `app.use('/record', record)` (server/src/server.ts:126)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/recording.ts#getCurrentUrl->route:maxun/GET /record/active/url",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /record/active/url",
+      "sites": ["src/api/recording.ts:80"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/record/active/url` (`axios.get('${apiUrl}/record/active/url');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/record.ts:108, its router mounted with `app.use('/record', record)` (server/src/server.ts:126)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/recording.ts#interpretCurrentRecording->route:maxun/GET /record/interpret",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /record/interpret",
+      "sites": ["src/api/recording.ts:53"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/record/interpret` (`axios.get('${apiUrl}/record/interpret');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/record.ts:138, its router mounted with `app.use('/record', record)` (server/src/server.ts:126)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/recording.ts#startRecording->route:maxun/GET /record/start",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /record/start",
+      "sites": ["src/api/recording.ts:6"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/record/start` (`axios.get('${apiUrl}/record/start')`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/record.ts:37, its router mounted with `app.use('/record', record)` (server/src/server.ts:126)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/recording.ts#stopCurrentInterpretation->route:maxun/GET /record/interpret/stop",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /record/interpret/stop",
+      "sites": ["src/api/recording.ts:67"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/record/interpret/stop` (`axios.get('${apiUrl}/record/interpret/stop');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/record.ts:152, its router mounted with `app.use('/record', record)` (server/src/server.ts:126)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/recording.ts#stopRecording->route:maxun/GET /record/stop/:browserId",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /record/stop/:browserId",
+      "sites": ["src/api/recording.ts:18"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/record/stop/:browserId` (`axios.get('${apiUrl}/record/stop/${id}')`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/record.ts:66, its router mounted with `app.use('/record', record)` (server/src/server.ts:126)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#checkRunsForRecording->route:maxun/GET /storage/recordings/:id/runs",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /storage/recordings/:id/runs",
+      "sites": ["src/api/storage.ts:236"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/storage/recordings/:id/runs` (`axios.get('${apiUrl}/storage/recordings/${id}/runs');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:268, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#createAndRunRecording->route:maxun/PUT /storage/runs/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route PUT /storage/runs/:id",
+      "sites": ["src/api/storage.ts:313"],
+      "verdict": "correct",
+      "evidence": "`PUT` to `${apiUrl}/storage/runs/:id` (`axios.put(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1118, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#createCrawlRobot->route:maxun/POST /storage/recordings/crawl",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/recordings/crawl",
+      "sites": ["src/api/storage.ts:440"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/recordings/crawl` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1930, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#createDocumentExtractRobot->route:maxun/POST /storage/recordings/document",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/recordings/document",
+      "sites": ["src/api/storage.ts:490"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/recordings/document` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:2214, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#createDocumentParseRobot->route:maxun/POST /storage/recordings/document-parse",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/recordings/document-parse",
+      "sites": ["src/api/storage.ts:528"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/recordings/document-parse` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:2288, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#createLLMRobot->route:maxun/POST /storage/recordings/llm",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/recordings/llm",
+      "sites": ["src/api/storage.ts:84"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/recordings/llm` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:769, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#createRunForStoredRecording->route:maxun/PUT /storage/runs/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route PUT /storage/runs/:id",
+      "sites": ["src/api/storage.ts:330"],
+      "verdict": "correct",
+      "evidence": "`PUT` to `${apiUrl}/storage/runs/:id` (`axios.put(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1118, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#createScrapeRobot->route:maxun/POST /storage/recordings/scrape",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/recordings/scrape",
+      "sites": ["src/api/storage.ts:43"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/recordings/scrape` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:648, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#createSearchRobot->route:maxun/POST /storage/recordings/search",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/recordings/search",
+      "sites": ["src/api/storage.ts:629"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/recordings/search` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:2080, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#deleteAllRunsFromStorage->route:maxun/DELETE /storage/runs/robot/:robotMetaId",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route DELETE /storage/runs/robot/:robotMetaId",
+      "sites": ["src/api/storage.ts:285"],
+      "verdict": "correct",
+      "evidence": "`DELETE` to `${apiUrl}/storage/runs/robot/:robotMetaId` (`axios.delete('${apiUrl}/storage/runs/robot/${robotMetaId}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1080, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#deleteRecordingFromStorage->route:maxun/DELETE /storage/recordings/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route DELETE /storage/recordings/:id",
+      "sites": ["src/api/storage.ts:255"],
+      "verdict": "correct",
+      "evidence": "`DELETE` to `${apiUrl}/storage/recordings/:id` (`axios.delete('${apiUrl}/storage/recordings/${id}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:894, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#deleteRunFromStorage->route:maxun/DELETE /storage/runs/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route DELETE /storage/runs/:id",
+      "sites": ["src/api/storage.ts:271"],
+      "verdict": "correct",
+      "evidence": "`DELETE` to `${apiUrl}/storage/runs/:id` (`axios.delete('${apiUrl}/storage/runs/${id}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1058, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#deleteSchedule->route:maxun/DELETE /storage/schedule/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route DELETE /storage/schedule/:id",
+      "sites": ["src/api/storage.ts:408"],
+      "verdict": "correct",
+      "evidence": "`DELETE` to `${apiUrl}/storage/schedule/:id` (`axios.delete('${apiUrl}/storage/schedule/${id}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1518, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#duplicateRecording->route:maxun/POST /storage/recordings/:id/duplicate",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/recordings/:id/duplicate",
+      "sites": ["src/api/storage.ts:203"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/recordings/:id/duplicate` (`axios.post('${apiUrl}/storage/recordings/${id}/duplicate', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:921, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#editRecordingFromStorage->route:maxun/PUT /workflow/:browserId/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route PUT /workflow/:browserId/:id",
+      "sites": ["src/api/storage.ts:295"],
+      "verdict": "correct",
+      "evidence": "`PUT` to `${apiUrl}/workflow/:browserId/:id` (`axios.put('${apiUrl}/workflow/${browserId}/${id}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/workflow.ts:109, its router mounted with `app.use('/workflow', workflow)` (server/src/server.ts:127)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#getRunDiff->route:maxun/GET /storage/runs/:id/diff",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /storage/runs/:id/diff",
+      "sites": ["src/api/storage.ts:192"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/storage/runs/:id/diff` (`axios.get('${apiUrl}/storage/runs/${id}/diff');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1284, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#getSchedule->route:maxun/GET /storage/schedule/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /storage/schedule/:id",
+      "sites": ["src/api/storage.ts:394"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/storage/schedule/:id` (`axios.get('${apiUrl}/storage/schedule/${id}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1499, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#getStoredRecording->route:maxun/GET /storage/recordings/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /storage/recordings/:id",
+      "sites": ["src/api/storage.ts:222"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/storage/recordings/:id` (`axios.get('${apiUrl}/storage/recordings/${id}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:241, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#getStoredRecordings->route:maxun/GET /storage/recordings",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /storage/recordings",
+      "sites": ["src/api/storage.ts:20"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/storage/recordings` (`axios.get('${apiUrl}/storage/recordings');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:221, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#getStoredRun->route:maxun/GET /storage/runs/run/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /storage/runs/run/:id",
+      "sites": ["src/api/storage.ts:164"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/storage/runs/run/:id` (`axios.get('${apiUrl}/storage/runs/run/${id}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1269, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#getStoredRuns->route:maxun/GET /storage/runs",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /storage/runs",
+      "sites": ["src/api/storage.ts:150"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/storage/runs` (`axios.get('${apiUrl}/storage/runs');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1041, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#interpretStoredRecording->route:maxun/POST /storage/runs/run/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/runs/run/:id",
+      "sites": ["src/api/storage.ts:346"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/runs/run/:id` (`axios.post('${apiUrl}/storage/runs/run/${id}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1369, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#notifyAboutAbort->route:maxun/POST /storage/runs/abort/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/runs/abort/:id",
+      "sites": ["src/api/storage.ts:360"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/runs/abort/:id` (`axios.post('${apiUrl}/storage/runs/abort/${id}', { withCredentials: true });`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1564, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#replaceDocumentFile->route:maxun/PUT /storage/recordings/:id/document",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route PUT /storage/recordings/:id/document",
+      "sites": ["src/api/storage.ts:593"],
+      "verdict": "correct",
+      "evidence": "`PUT` to `${apiUrl}/storage/recordings/:id/document` (`axios.put(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:2477, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#runDocumentParseRobot->route:maxun/POST /storage/runs/document-parse-run/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/runs/document-parse-run/:id",
+      "sites": ["src/api/storage.ts:574"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/runs/document-parse-run/:id` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:2422, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#runDocumentRobot->route:maxun/POST /storage/runs/document-run/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /storage/runs/document-run/:id",
+      "sites": ["src/api/storage.ts:558"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/storage/runs/document-run/:id` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:2366, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#scheduleStoredRecording->route:maxun/PUT /storage/schedule/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route PUT /storage/schedule/:id",
+      "sites": ["src/api/storage.ts:378"],
+      "verdict": "correct",
+      "evidence": "`PUT` to `${apiUrl}/storage/schedule/:id` (`axios.put(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:1423, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/storage.ts#updateRecording->route:maxun/PUT /storage/recordings/:id",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route PUT /storage/recordings/:id",
+      "sites": ["src/api/storage.ts:129"],
+      "verdict": "correct",
+      "evidence": "`PUT` to `${apiUrl}/storage/recordings/:id` (`axios.put('${apiUrl}/storage/recordings/${id}', data);`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/storage.ts:419, its router mounted with `app.use('/storage', storage)` (server/src/server.ts:128)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/webhook.ts#addWebhook->route:maxun/POST /webhook/add",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /webhook/add",
+      "sites": ["src/api/webhook.ts:28"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/webhook/add` (`axios.post('${apiUrl}/webhook/add', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/webhook.ts:51, its router mounted with `app.use('/webhook', webhook)` (server/src/server.ts:125)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/webhook.ts#clearAllWebhooks->route:maxun/DELETE /webhook/clear/:robotId",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route DELETE /webhook/clear/:robotId",
+      "sites": ["src/api/webhook.ts:133"],
+      "verdict": "correct",
+      "evidence": "`DELETE` to `${apiUrl}/webhook/clear/:robotId` (`axios.delete('${apiUrl}/webhook/clear/${robotId}', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/webhook.ts:482, its router mounted with `app.use('/webhook', webhook)` (server/src/server.ts:125)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/webhook.ts#getWebhooks->route:maxun/GET /webhook/list/:robotId",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /webhook/list/:robotId",
+      "sites": ["src/api/webhook.ts:91"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/webhook/list/:robotId` (`axios.get('${apiUrl}/webhook/list/${robotId}', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/webhook.ts:219, its router mounted with `app.use('/webhook', webhook)` (server/src/server.ts:125)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/webhook.ts#removeWebhook->route:maxun/POST /webhook/remove",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /webhook/remove",
+      "sites": ["src/api/webhook.ts:70"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/webhook/remove` (`axios.post('${apiUrl}/webhook/remove', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/webhook.ts:178, its router mounted with `app.use('/webhook', webhook)` (server/src/server.ts:125)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/webhook.ts#testWebhook->route:maxun/POST /webhook/test",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /webhook/test",
+      "sites": ["src/api/webhook.ts:112"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/webhook/test` (`axios.post('${apiUrl}/webhook/test', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/webhook.ts:250, its router mounted with `app.use('/webhook', webhook)` (server/src/server.ts:125)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/webhook.ts#updateWebhook->route:maxun/POST /webhook/update",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /webhook/update",
+      "sites": ["src/api/webhook.ts:49"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/webhook/update` (`axios.post('${apiUrl}/webhook/update', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/webhook.ts:113, its router mounted with `app.use('/webhook', webhook)` (server/src/server.ts:125)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/workflow.ts#AddPair->route:maxun/POST /workflow/pair/:index",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /workflow/pair/:index",
+      "sites": ["src/api/workflow.ts:50"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/workflow/pair/:index` (`axios.post('${apiUrl}/workflow/pair/${index}', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/workflow.ts:67, its router mounted with `app.use('/workflow', workflow)` (server/src/server.ts:127)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/workflow.ts#UpdatePair->route:maxun/PUT /workflow/pair/:index",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route PUT /workflow/pair/:index",
+      "sites": ["src/api/workflow.ts:66"],
+      "verdict": "correct",
+      "evidence": "`PUT` to `${apiUrl}/workflow/pair/:index` (`axios.put('${apiUrl}/workflow/pair/${index}', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/workflow.ts:88, its router mounted with `app.use('/workflow', workflow)` (server/src/server.ts:127)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/workflow.ts#deletePair->route:maxun/DELETE /workflow/pair/:index",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route DELETE /workflow/pair/:index",
+      "sites": ["src/api/workflow.ts:36"],
+      "verdict": "correct",
+      "evidence": "`DELETE` to `${apiUrl}/workflow/pair/:index` (`axios.delete('${apiUrl}/workflow/pair/${index}');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/workflow.ts:50, its router mounted with `app.use('/workflow', workflow)` (server/src/server.ts:127)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/workflow.ts#getActiveWorkflow->route:maxun/GET /workflow/:browserId",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /workflow/:browserId",
+      "sites": ["src/api/workflow.ts:8"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/workflow/:browserId` (`axios.get('${apiUrl}/workflow/${id}')`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/workflow.ts:26, its router mounted with `app.use('/workflow', workflow)` (server/src/server.ts:127)."
+    },
+    {
+      "id": "http:symbol:maxun/src/api/workflow.ts#getParamsOfActiveWorkflow->route:maxun/GET /workflow/params/:browserId",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /workflow/params/:browserId",
+      "sites": ["src/api/workflow.ts:22"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/workflow/params/:browserId` (`axios.get('${apiUrl}/workflow/params/${id}')`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/workflow.ts:38, its router mounted with `app.use('/workflow', workflow)` (server/src/server.ts:127)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/api/ApiKey.tsx#ApiKeyManager->route:maxun/DELETE /auth/delete-api-key",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route DELETE /auth/delete-api-key",
+      "sites": ["src/components/api/ApiKey.tsx:84"],
+      "verdict": "correct",
+      "evidence": "`DELETE` to `${apiUrl}/auth/delete-api-key` (`axios.delete('${apiUrl}/auth/delete-api-key');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:323, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/api/ApiKey.tsx#ApiKeyManager->route:maxun/GET /auth/api-key",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/api-key",
+      "sites": ["src/components/api/ApiKey.tsx:54"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/api-key` (`axios.get('${apiUrl}/auth/api-key');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:280, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/api/ApiKey.tsx#ApiKeyManager->route:maxun/POST /auth/generate-api-key",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/generate-api-key",
+      "sites": ["src/components/api/ApiKey.tsx:70"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/generate-api-key` (`axios.post('${apiUrl}/auth/generate-api-key');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:238, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/dashboard/NavBar.tsx#NavBar->route:maxun/GET /auth/logout",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/logout",
+      "sites": ["src/components/dashboard/NavBar.tsx:91"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/logout` (`axios.get('${apiUrl}/auth/logout');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:160, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/integration/IntegrationSettings.tsx#IntegrationSettingsModal->route:maxun/GET /auth/airtable/bases",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/airtable/bases",
+      "sites": ["src/components/integration/IntegrationSettings.tsx:374"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/airtable/bases` (`axios.get(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:784, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/integration/IntegrationSettings.tsx#IntegrationSettingsModal->route:maxun/GET /auth/airtable/callback",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/airtable/callback",
+      "sites": ["src/components/integration/IntegrationSettings.tsx:571"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/airtable/callback` (`axios.get('${apiUrl}/auth/airtable/callback');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:690, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/integration/IntegrationSettings.tsx#IntegrationSettingsModal->route:maxun/GET /auth/airtable/tables",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/airtable/tables",
+      "sites": ["src/components/integration/IntegrationSettings.tsx:390"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/airtable/tables` (`axios.get(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:903, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/integration/IntegrationSettings.tsx#IntegrationSettingsModal->route:maxun/GET /auth/gsheets/files",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/gsheets/files",
+      "sites": ["src/components/integration/IntegrationSettings.tsx:357"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/gsheets/files` (`axios.get(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:541, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/integration/IntegrationSettings.tsx#IntegrationSettingsModal->route:maxun/POST /auth/airtable/remove",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/airtable/remove",
+      "sites": ["src/components/integration/IntegrationSettings.tsx:546"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/airtable/remove` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:862, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/integration/IntegrationSettings.tsx#IntegrationSettingsModal->route:maxun/POST /auth/airtable/update",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/airtable/update",
+      "sites": ["src/components/integration/IntegrationSettings.tsx:489"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/airtable/update` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:824, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/integration/IntegrationSettings.tsx#IntegrationSettingsModal->route:maxun/POST /auth/gsheets/remove",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/gsheets/remove",
+      "sites": ["src/components/integration/IntegrationSettings.tsx:518"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/gsheets/remove` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:611, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/integration/IntegrationSettings.tsx#IntegrationSettingsModal->route:maxun/POST /auth/gsheets/update",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/gsheets/update",
+      "sites": ["src/components/integration/IntegrationSettings.tsx:461"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/gsheets/update` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:582, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/robot/pages/RobotIntegrationPage.tsx#RobotIntegrationPage->route:maxun/GET /auth/airtable/bases",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/airtable/bases",
+      "sites": ["src/components/robot/pages/RobotIntegrationPage.tsx:395"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/airtable/bases` (`axios.get('${apiUrl}/auth/airtable/bases?robotId=${recordingId}', { withCredentials: true `…); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:784, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/robot/pages/RobotIntegrationPage.tsx#RobotIntegrationPage->route:maxun/GET /auth/airtable/tables",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/airtable/tables",
+      "sites": ["src/components/robot/pages/RobotIntegrationPage.tsx:410"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/airtable/tables` (`axios.get('${apiUrl}/auth/airtable/tables?robotId=${recordingId}&baseId=${baseId}', { with`…); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:903, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/robot/pages/RobotIntegrationPage.tsx#RobotIntegrationPage->route:maxun/GET /auth/gsheets/files",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/gsheets/files",
+      "sites": ["src/components/robot/pages/RobotIntegrationPage.tsx:327"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/gsheets/files` (`axios.get('${apiUrl}/auth/gsheets/files?robotId=${recordingId}', { withCredentials: true }`…); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:541, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/robot/pages/RobotIntegrationPage.tsx#RobotIntegrationPage->route:maxun/POST /auth/airtable/remove",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/airtable/remove",
+      "sites": ["src/components/robot/pages/RobotIntegrationPage.tsx:466"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/airtable/remove` (`axios.post('${apiUrl}/auth/airtable/remove', { robotId: recordingId }, { withCredentials: `…); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:862, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/robot/pages/RobotIntegrationPage.tsx#RobotIntegrationPage->route:maxun/POST /auth/airtable/update",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/airtable/update",
+      "sites": ["src/components/robot/pages/RobotIntegrationPage.tsx:440"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/airtable/update` (`axios.post('${apiUrl}/auth/airtable/update', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:824, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/robot/pages/RobotIntegrationPage.tsx#RobotIntegrationPage->route:maxun/POST /auth/gsheets/remove",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/gsheets/remove",
+      "sites": ["src/components/robot/pages/RobotIntegrationPage.tsx:373"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/gsheets/remove` (`axios.post('${apiUrl}/auth/gsheets/remove', { robotId: recordingId }, { withCredentials: t`…); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:611, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/robot/pages/RobotIntegrationPage.tsx#RobotIntegrationPage->route:maxun/POST /auth/gsheets/update",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/gsheets/update",
+      "sites": ["src/components/robot/pages/RobotIntegrationPage.tsx:349"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/gsheets/update` (`axios.post('${apiUrl}/auth/gsheets/update', {`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:582, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/run/RunContent.tsx#RunContent->unresolved:maxun/src/components/run/RunContent.tsx:1052:36",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET src [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["src/components/run/RunContent.tsx:1052"],
+      "verdict": "unresolved",
+      "evidence": "`fetch(src)` behind `src.startsWith('http')`: a URL read from the run's output (its screenshots) being downloaded; only known at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/src/components/run/RunContent.tsx#RunContent->unresolved:maxun/src/components/run/RunContent.tsx:1092:32",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET src [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "sites": ["src/components/run/RunContent.tsx:1092"],
+      "verdict": "unresolved",
+      "evidence": "`fetch(src)` behind `src.startsWith('http')`: a URL read from the run's output (its screenshots) being downloaded; only known at runtime, as stated."
+    },
+    {
+      "id": "http:symbol:maxun/src/context/auth.tsx#AuthProvider->route:maxun/GET /auth/logout",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route GET /auth/logout",
+      "sites": ["src/context/auth.tsx:61"],
+      "verdict": "correct",
+      "evidence": "`GET` to `${apiUrl}/auth/logout` (`axios.get('${apiUrl}/auth/logout');`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:160, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/pages/Login.tsx#Login->route:maxun/POST /auth/login",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/login",
+      "sites": ["src/pages/Login.tsx:54"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/login` (`axios.post(`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:104, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    },
+    {
+      "id": "http:symbol:maxun/src/pages/Register.tsx#Register->route:maxun/POST /auth/register",
+      "kind": "http",
+      "confidence": "heuristic",
+      "to": "route POST /auth/register",
+      "sites": ["src/pages/Register.tsx:51"],
+      "verdict": "correct",
+      "evidence": "`POST` to `${apiUrl}/auth/register` (`axios.post('${apiUrl}/auth/register', { email, password });`); `apiUrl` is `VITE_BACKEND_URL` or `http://localhost:8080` (src/apiConfig.js:1), the server's port (server/src/constants/config.ts:1). Answered by server/src/routes/auth.ts:25, its router mounted with `app.use('/auth', auth)` (server/src/server.ts:129)."
+    }
+  ]
+}

@@ -14,7 +14,7 @@ is **zero wrong edges** (D13.4).
 | --- | --- | ---: | ---: | --- | ---: |
 | [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 978 | not yet (M9.1a3) | |
 | [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
-| [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | not yet (M9.1a2) | |
+| [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
 Stars are as of 2026-11-09. Edge counts come from analyzer 0.2.0 at the pinned commit.
 
@@ -60,3 +60,16 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
   - The font loads' reason (`DYNAMIC_URL`, "only known at runtime") misdescribes
     `import.meta.url`, the module's own file, and draws an unresolved box for a font on
     the demo. Planned as M9.1a4.
+- **getmaxun/maxun** (`99c6bd0`, checked 2026-11-09): 142 inferred edges.
+  - 93 correct (74 frontend requests to their Express routes, 19 external calls), 0 wrong,
+    49 unresolved.
+  - The unresolved ones: 28 LLM requests to a user-configured base, 14 MCP worker requests
+    through a `this.apiUrl` wrapper, 2 user webhooks, 2 screenshot downloads, 2 health checks
+    to the browser service's raw `http` server, and 1 request to a route that doesn't exist.
+  - Every `fetch(` and `axios` call in the app is on an edge.
+  - The routers in `server/src/api/` (26 of 101 routes) are mounted at `/api` by a
+    `readdirSync` + `require` loop the analyzer doesn't follow. It warns, and labels them
+    without the prefix (`GET /robots` for `GET /api/robots`). No edge points at them, but the
+    labels on the demo are short. Planned as M9.1a5.
+  - Missing: the database (Sequelize; v1 reads Prisma only), MinIO, the Airtable SDK's
+    record calls, Google's token exchange, and socket.io traffic.
