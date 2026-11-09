@@ -6,16 +6,16 @@
   "checkedAt": "2026-11-09",
   "method": "Every edge that isn't imports, calls, renders, or handles (those come from TypeScript's own resolution) read at its sites in `git show <sha>:<file>`: an http edge's URL, method, and the route file's exported handler; an external_call's client traced to its package import; a reads/writes call's receiver traced to `lib/db.ts`'s PrismaClient and its model accessor; each stores edge against `prisma/schema.prisma`'s datasource. Then every `fetch(`, `db.<model>.`, and `stripe.` call in app/, lib/, and components/ (git grep) matched to an edge, so none was missed either.",
   "totals": {
-    "edges": 27,
+    "edges": 29,
     "correct": 27,
     "wrong": 0,
-    "unresolved": 0
+    "unresolved": 2
   },
   "notCovered": "Structural edges (imports, calls, renders, handles) aren't hand-checked; they're TypeScript's resolution, tested by the fixtures and the eval.",
   "observations": [
     "Every `fetch(`, `db.<model>.`, and `stripe.` call site in app/, lib/, and components/ is on an edge; `stripe.webhooks.constructEvent` (app/api/webhooks/stripe/route.ts:15) has none, correctly: it verifies a signature locally and sends no request.",
     "Account, Session, and VerificationToken have a stores edge but no reads or writes: NextAuth's `PrismaAdapter(db)` (lib/auth.ts:17) uses them from inside the library, which isn't analyzed (node_modules never is). Missing, not wrong.",
-    "At the first check (29 edges) the two unresolved edges were app/api/og/route.tsx's font loads, `fetch(new URL(\"../../../assets/fonts/<font>.ttf\", import.meta.url))` (lines 7 and 11): a read of a file bundled with the route, not a request to a service, yet shown as `DYNAMIC_URL` (\"the URL starts with a value only known at runtime\"), an unresolved box for a font. M9.1a4 (ADR-0251) stops collecting such reads; re-dumped at that fix, exactly those two edges are gone and the other 27 are unchanged (same IDs, confidence, and sites), so the record now holds 27, all correct."
+    "The two unresolved edges are app/api/og/route.tsx's font loads, `fetch(new URL(\"../../../assets/fonts/<font>.ttf\", import.meta.url))`: a read of a file bundled with the route, not a request to a service. Shown unresolved rather than guessed, as intended, but at the first check the reason (`DYNAMIC_URL`, \"the URL starts with a value only known at runtime\") named `import.meta.url` as a runtime value where it's the module's own file. M9.1a4 (ADR-0251) gives them `NO_MATCHING_ROUTE`, \"the URL is a file next to the module (new URL(path, import.meta.url)), which no route serves\". Re-dumped at that fix, those two edges' reason is all that changed: the same 29 IDs, confidence, and sites. They stay on the diagram: the eval labels every `fetch` in the repo, and a dropped one would count as a missing call site."
   ],
   "edges": [
     {
@@ -62,6 +62,24 @@
       "sites": ["lib/auth.ts:48"],
       "verdict": "correct",
       "evidence": "`postmarkClient.sendEmailWithTemplate(` in the email provider's sendVerificationRequest, `postmarkClient = new Client(...)` from package `postmark`."
+    },
+    {
+      "id": "http:file:taxonomy/app/api/og/route.tsx->unresolved:taxonomy/app/api/og/route.tsx:11:19",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET new URL(\"../../../assets/fonts/CalSans-SemiBold.ttf\", import.meta.url) [NO_MATCHING_ROUTE] the URL is a file next to the module (new URL(path, import.meta.url)), which no route serves",
+      "sites": ["app/api/og/route.tsx:11"],
+      "verdict": "unresolved",
+      "evidence": "`fetch(new URL(\"../../../assets/fonts/CalSans-SemiBold.ttf\", import.meta.url))`: a bundled font file, no route or service to point at; no claim made. The reason is accurate since M9.1a4 (was `DYNAMIC_URL`, \"only known at runtime\")."
+    },
+    {
+      "id": "http:file:taxonomy/app/api/og/route.tsx->unresolved:taxonomy/app/api/og/route.tsx:7:22",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved GET new URL(\"../../../assets/fonts/Inter-Regular.ttf\", import.meta.url) [NO_MATCHING_ROUTE] the URL is a file next to the module (new URL(path, import.meta.url)), which no route serves",
+      "sites": ["app/api/og/route.tsx:7"],
+      "verdict": "unresolved",
+      "evidence": "`fetch(new URL(\"../../../assets/fonts/Inter-Regular.ttf\", import.meta.url))`: a bundled font file, no route or service to point at; no claim made. The reason is accurate since M9.1a4 (was `DYNAMIC_URL`, \"only known at runtime\")."
     },
     {
       "id": "http:symbol:taxonomy/components/billing-form.tsx#BillingForm->route:taxonomy/GET /api/users/stripe",
