@@ -95,6 +95,32 @@ describe("access cache", () => {
     expect(await findAccess(t.db, userId, repoId)).toBe(false);
   });
 
+  it("dates an answer from when GitHub was asked, not when it was written (F13)", async () => {
+    const { userId, otherUserId, repoId } = await setup();
+    await recordAccess(t.db, userId, repoId, true, { askedMsAgo: (ACCESS_TTL_SECONDS - 2) * 1000 });
+    expect(await findAccess(t.db, userId, repoId)).toBe(true);
+    // Asked a minute ago: stale the moment it's written.
+    await recordAccess(t.db, otherUserId, repoId, true, {
+      askedMsAgo: (ACCESS_TTL_SECONDS + 1) * 1000,
+    });
+    expect(await findAccess(t.db, otherUserId, repoId)).toBeUndefined();
+    const [row] = await t.db.select().from(accessCache).where(eq(accessCache.userId, userId));
+    const ago = Date.now() - (row?.checkedAt.getTime() ?? 0);
+    expect(ago).toBeGreaterThan((ACCESS_TTL_SECONDS - 12) * 1000);
+    expect(ago).toBeLessThan((ACCESS_TTL_SECONDS + 8) * 1000);
+  });
+
+  it("never replaces an answer GitHub gave later (F13)", async () => {
+    const { userId, repoId } = await setup();
+    // A refusal asked now lands first; a grant asked 5 s ago lands after it.
+    await recordAccess(t.db, userId, repoId, false);
+    await recordAccess(t.db, userId, repoId, true, { askedMsAgo: 5_000 });
+    expect(await findAccess(t.db, userId, repoId)).toBe(false);
+    // The other way round, the later answer wins.
+    await recordAccess(t.db, userId, repoId, true);
+    expect(await findAccess(t.db, userId, repoId)).toBe(true);
+  });
+
   it("goes with its user or repo", async () => {
     const { userId, otherUserId, repoId, otherRepoId } = await setup();
     await recordAccess(t.db, userId, repoId, true);
