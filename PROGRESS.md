@@ -14,12 +14,12 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M8.10z Re-run the milestone checks after the fixes, tag m8
+M9.1 Choose + hand-verify 3 OSS demo repos; landing gallery (M8.10g and M8.10z2 wait on #25)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
-- [#24](https://github.com/AbhinavGonthina/gitinside-planning/issues/24) Copy `proposed/autopilot.ps1` (PR flow), install GitInside Bot on `gitinside`, optionally require PRs + CI checks on `main`. Blocks nothing; until installed, PRs merge after CI alone with "no bot review" (ADR-0247).
+- [#25](https://github.com/AbhinavGonthina/gitinside-planning/issues/25) Paste the worker's `job_failed` lines and Vercel's `/api/worker/installation-token` statuses: every installation job fails `TOKEN_REFUSED` in production since the bot was installed (#24, closed 2026-11-09: script copied, bot installed, `main` protected with required checks). Blocks M8.10g and M8.10z2 (tag m8).
 - Reminder (#3, closed 2026-11-04 with "all 119 checks match infra/gcp"): the Google Cloud trial ends 2027-01-30. Remind Abhinav before trial day 90 of anything needed before he activates the full account; he won't activate it until we confirm.
 
 ## Blockers
@@ -473,7 +473,10 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M8.10f Access check fixes (F13, F12, F17, F15, F14), split into f1 (the check) and f2 (the hide):
 - [x] M8.10f1 The check (F13, F12, F17): `recordAccess` stamps when GitHub was asked and never replaces a newer answer (≤ 60 s, SPEC); one request refreshes the user's tokens at most once (`userAccessToken` updating the `SignedInUser`); `451` a cached refusal; tests red first, ADR-0231 amendment {model: opus}
 - [x] M8.10f2 The hide (F15, F14): the first view after a repo turns private shown to a viewer the check allows; a second CDN purge after the hide (or the graph route re-checking) so a racing answer isn't cached a day; tests red first, ADR-0238 amendment {model: opus}
-- [ ] M8.10z Re-run the milestone checks after the fixes (suite uncached, coverage, `--check`s), the bot's comment and Check Run read on a real PR of this repo if #24 is closed by then (else "not measured" stays in the review), findings' outcomes in M8-review.md (status no longer draft), tag m8 {model: opus}
+- M8.10z Re-run the milestone checks after the fixes and tag m8, split (the bot's first real PR, #39, found F18):
+- [x] M8.10z1 Re-run the milestone checks after the fixes (suite uncached, CI coverage, `pnpm eval --check`), findings' outcomes in M8-review.md, the bot on a real PR measured (PR #39: nothing posted, every installation job `TOKEN_REFUSED`, F18) and needs-abhinav #25 opened for the logs {model: opus}
+- [ ] M8.10g Installation jobs refused their token in production (F18): from #25's log lines, find why `POST /api/worker/installation-token` refuses the worker, fix it (red test first if it's code), and make a refused token visible on the PR (a Check Run saying the bot couldn't read the repo) or state why not; ADR {model: opus} {blocked: #25}
+- [ ] M8.10z2 After M8.10g ships: the bot's comment and Check Run read on a real PR of this repo, `main`'s diagram current again, M8-review.md final (status no longer draft), tag m8 {model: opus} {blocked: #25}
 
 ### M9: Launch-ready (no public announcement)
 - [ ] M9.1 Choose + hand-verify 3 OSS demo repos; landing gallery {model: opus}
@@ -488,6 +491,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- 2026-11-09 M8.10z1 (checked at `87c3a9d`): M8.10z split into z1 (re-check), g (F18 fix), z2 (bot on a real PR, tag). Suite uncached 5,255 passed / 6 skipped (15/15, 0 cached); CI 42589295980 all green, coverage analyzer 97.66%, diff 99.01%, the rest ≥ 94.8% lines; `pnpm eval --check` byte for byte. Each finding's outcome is in M8-review.md. The bot's first real PR (#39, after #24's install) got nothing: every installation job fails `TOKEN_REFUSED` in production (PR #39's diff job, `main`'s `87c3a9d` push analysis), so the repo's diagram is stuck on `7e80d9b`. That's F18, high; the cause needs the logs (needs-abhinav #25). M8.10g and z2 are blocked on it, so m8 isn't tagged yet.
 - 2026-11-09 M8.10f2 (PR #39, `2826bde`; ADR-0238 amendment): finished from an earlier run's uncommitted edits, re-verified. F14: the graph route ends within 15 s (`maxDuration`), and the hide purges the CDN tag again `PURGE_AGAIN_MS` (20 s) later through `runLater` (Vercel's `waitUntil`); the repo page and, added this run, the badge and diagram routes (check-on-view hides there too) run 30 s. F15: the hiding view falls through to `privateAnalysis`/`privateHead`, so an allowed viewer sees the diagram at once. The second purge's delay and the fallthrough mutation-checked; web 1054 tests, `next build` green.
 - 2026-11-09 M8.10f1 (PR #38, `b19d73e`; ADR-0231 amendment): M8.10f split into f1 (the check: F13, F12, F17) and f2 (the hide: F15, F14). `checkRepoAccess` reads its clock before the cache read and `recordAccess` stamps `now() - askedMsAgo`, replacing only an answer asked earlier (`setWhere`); `userAccessToken` writes the pair it (or a racing request) stored back into `user.session`, so a request refreshes once; `451` is a cached refusal. Tests red first (db 2, web 3, plus a refresh-race test); `setWhere` and both `user.session` writes mutation-checked. db 267, web 1044. No bot review (#24 open).
 - 2026-11-09 M8.10e2b (PR #37, `8ce3b75`; ADR-0248): fourteen worker log events (18 sites) logged `error.message`, which can name the database host or quote a stored graph's/diff's text (JSON and Zod errors). `errorFields` (`log.ts`) now logs `error` (name), `errorCode` (code-shaped `code`/`s3Code`, walking `cause` as Drizzle wraps SQLSTATE), `httpStatus`; `createJsonLog` reduces `Error` fields to names; `OtherCommitError` and `stored_diff_unread`'s `reason` keep lines distinct. Kept with stated reasons: start/stop logs, `config_invalid`, kill switch, `job_failed`'s `detail`. Red first (27), cause walk mutation-checked. Worker 852. No bot review (#24 open).
