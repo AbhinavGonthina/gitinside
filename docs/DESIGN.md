@@ -115,7 +115,7 @@ fetch → inventory → parse → resolve → detect → build graph → link cr
    - Models (Prisma).
    - Outbound HTTP calls (fetch/axios).
    - Infra (docker-compose, `.env`).
-   - External SDKs (an allowlist of known clients, e.g. `stripe`, `@aws-sdk/*`, `resend`, `openai`).
+   - External SDKs (an allowlist of known clients, e.g. `stripe`, `@aws-sdk/*`, `resend`, `openai`). A client built with a base URL (`openai`'s and Anthropic's `baseURL`, `AzureOpenAI`'s `endpoint`, Octokit's `baseUrl`) is matched like a `fetch` to that base instead of the SDK's default host (ADR-0249).
 6. **Build graph:** create nodes (system, services, modules = top-level folders under a service's source root, files, symbols, routes, models, datastores, queues, externals) with stable IDs (ADR-0019), a parent chain, and source locations.
 7. **Link cross-service:** match outbound HTTP calls to routes (§7). Link routes to the symbols that handle them. Link symbols to models through Prisma client usage (`prisma.order.create` ⇒ `reads`/`writes` model `Order`). Link models to the datastore from `datasource db { provider }` + compose/env.
 8. **Group:** derive module labels heuristically (folder name, plus a common suffix like `routes/`, `services/`). No LLM (ADR-0003).

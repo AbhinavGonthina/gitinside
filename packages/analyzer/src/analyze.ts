@@ -38,7 +38,7 @@ import {
 import { buildInfra, relinkStores } from "./infra.js";
 import { createRepoFiles, programRootFiles, serviceInputs } from "./inputs.js";
 import { AnalysisError, buildInventory, type InventoryLimits } from "./inventory.js";
-import { buildHttpEdges, createRouteMatcher } from "./match.js";
+import { buildHttpEdges, createRouteMatcher, type RouteMatcher } from "./match.js";
 import { collectNextFacts, composeNextRoutes } from "./next.js";
 import { readNextConfigs } from "./nextConfig.js";
 import { buildPrismaSchemas, collectPrismaFacts, composePrisma } from "./prisma.js";
@@ -444,6 +444,8 @@ async function analyzeRoot(
     },
     () => [],
   );
+  /** The HTTP stage's matcher, for SDK calls on clients built with a base URL (M9.1a3e2a). */
+  let routeMatcher: RouteMatcher | undefined;
   const http = await detector(
     "http",
     async () => {
@@ -486,6 +488,7 @@ async function analyzeRoot(
         await readDevProxies(root, inventory.files, workspace),
         { configs: await readNextConfigs(root, inventory.files, workspace), nodes: next.nodes },
       );
+      routeMatcher = matcher;
       return buildHttpEdges(requests, matcher, workspace);
     },
     () => ({ nodes: [], edges: [], matches: [] }),
@@ -496,9 +499,20 @@ async function analyzeRoot(
     () => {
       // Per-service facts, then the global merge (ADR-0172).
       collect("sdk", (sp) => collectSdkFacts(sp, resolver, workspace));
-      return composeSdkEdges(stageFacts(bundles, "sdk"), inlineHandlers);
+      const composed = composeSdkEdges(stageFacts(bundles, "sdk"), inlineHandlers);
+      if (composed.requests.length === 0) return composed;
+      // Calls on clients built with a base URL go where `fetch` calls to that base would.
+      if (!routeMatcher) {
+        throw new Error("the HTTP stage failed, so SDK clients' base URLs can't be matched");
+      }
+      const based = buildHttpEdges(composed.requests, routeMatcher, workspace);
+      return {
+        ...composed,
+        nodes: [...composed.nodes, ...based.nodes],
+        edges: [...composed.edges, ...based.edges],
+      };
     },
-    () => ({ nodes: [], edges: [] }),
+    () => ({ nodes: [], edges: [], requests: [] }),
   );
   found.add(["externals"], sdk.nodes);
   const queues = await detector(
