@@ -13,14 +13,13 @@ is **zero wrong edges** (D13.4).
 | Repo | Commit | Stars | Inferred edges | Checked | Wrong |
 | --- | --- | ---: | ---: | --- | ---: |
 | [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 866 | [all 866](Mintplex-Labs__anything-llm.json) | 0 (244 + 11 + 117 fixed) |
-| [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 27 | [all 27](shadcn-ui__taxonomy.json) | 0 |
+| [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
 Stars are as of 2026-11-09. Edge counts come from analyzer 0.2.0 at the pinned commit, as of
 the latest fix. anything-llm was pinned at 978 edges (`repos.json`); M9.1a3a removed 244 wrong
 ones and added 131 right ones, M9.1a3b replaced 11 more wrong ones with 9 unresolved ones, and
 M9.1a3e2a replaced 117 wrong SDK edges with 120 (50 to their real host or route, 70 unresolved).
-taxonomy was checked at 29 edges; M9.1a4 removed its 2 unresolved font reads (ADR-0251).
 
 ## What "checked" means
 
@@ -53,19 +52,20 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
 
 ## Results so far
 
-- **shadcn-ui/taxonomy** (`298a885`, checked 2026-11-09): 27 inferred edges.
-  - 27 correct, 0 wrong, 0 unresolved.
+- **shadcn-ui/taxonomy** (`298a885`, checked 2026-11-09): 29 inferred edges.
+  - 27 correct, 0 wrong. The 2 unresolved edges are `app/api/og/route.tsx` loading its
+    bundled fonts with `fetch(new URL("…", import.meta.url))`.
   - Every `fetch(`, `db.<model>.`, and `stripe.` call in the app is on an edge.
     `stripe.webhooks.constructEvent` correctly has none, since it checks a signature
     locally.
   - Missing: NextAuth's `PrismaAdapter` uses Account, Session, and VerificationToken from
     inside the library, so those models have no reads or writes drawn.
-  - The first check found 29 edges: 2 unresolved were `app/api/og/route.tsx` loading its
-    bundled fonts with `fetch(new URL("…", import.meta.url))`, with `DYNAMIC_URL`'s "only
-    known at runtime", which misdescribed `import.meta.url` (the module's own file) and drew an
-    unresolved box for a font. M9.1a4 (ADR-0251) stopped treating such a read as a request.
-    Re-dumped at that fix, exactly those 2 edges are gone and the other 27 are unchanged.
-    maxun's and anything-llm's pins have no request on an `import.meta.url` base (only
+  - At the first check the font loads' reason (`DYNAMIC_URL`, "only known at runtime")
+    misdescribed `import.meta.url`, the module's own file. Since M9.1a4 (ADR-0251) they are
+    `NO_MATCHING_ROUTE`, "the URL is a file next to the module …, which no route serves".
+    Re-dumped at that fix, only those two reasons changed. They stay on the diagram: the eval
+    labels every `fetch`, so dropping them would count as missing call sites. maxun's and
+    anything-llm's pins have no request on an `import.meta.url` base (only
     `fileURLToPath(import.meta.url)` and `new Worker(new URL(…))`), so their records don't
     change.
 - **getmaxun/maxun** (`99c6bd0`, checked 2026-11-09): 142 inferred edges.
