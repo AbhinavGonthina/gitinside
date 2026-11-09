@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.1 Choose + hand-verify 3 OSS demo repos; landing gallery (M8.10g and M8.10z2 wait on #25)
+M9.1a2 getmaxun/maxun checked by hand (M8.10g and M8.10z2 wait on #25)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -479,7 +479,12 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [ ] M8.10z2 After M8.10g ships: the bot's comment and Check Run read on a real PR of this repo, `main`'s diagram current again, M8-review.md final (status no longer draft), tag m8 {model: opus} {blocked: #25}
 
 ### M9: Launch-ready (no public announcement)
-- [ ] M9.1 Choose + hand-verify 3 OSS demo repos; landing gallery {model: opus}
+- M9.1 Choose + hand-verify 3 OSS demo repos; landing gallery, split (each repo's check is its own run; `docs/demos/`):
+- [x] M9.1a1 Choose the 3 demo repos (rules, pins, every candidate's first failed rule in `docs/demos/repos.json`), the check's method (`docs/demos/README.md`), and shadcn-ui/taxonomy checked by hand at `298a885` (every inferred edge's verdict in `docs/demos/shadcn-ui__taxonomy.json`) {model: opus}
+- [ ] M9.1a2 getmaxun/maxun checked by hand at `99c6bd0` (142 inferred edges: 74 http to routes, 49 unresolved, 19 external_call), `docs/demos/getmaxun__maxun.json`; any wrong edge fixed in the analyzer (red test first, eval delta) or the repo replaced {model: opus}
+- [ ] M9.1a3 Mintplex-Labs/anything-llm checked by hand at `308b276` (978 inferred edges; split by service before starting: frontend → server, frontend → collector, server ↔ collector, external_call, Prisma), `docs/demos/Mintplex-Labs__anything-llm.json`; wrong edges handled as in a2 {model: opus}
+- [ ] M9.1a4 `fetch(new URL("<relative>", import.meta.url))` (a module's bundled file, taxonomy's `app/api/og/route.tsx` fonts) not drawn as an unresolved request with `DYNAMIC_URL`'s "only known at runtime": a local asset read, either no edge or its own reason; red fixture test first, eval delta, the demo checks' records updated {model: opus}
+- [ ] M9.1b Landing gallery: the 3 pins pre-analyzed in production, a gallery on the landing page linking each permalink (thumbnail from the diagram image), tests, screenshots dark/light {model: opus}
 - [ ] M9.2 Final eval + benchmarks; README numbers with links {model: opus}
 - [ ] M9.3 README (slogan, GIF with trace first, quickstart, architecture, results) {model: opus}
 - [ ] M9.3b README "Why I built this" section from gitinside-planning/MOTIVATION.md (his voice, nothing added) + needs-abhinav review issue {model: opus}
@@ -491,6 +496,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+- 2026-11-09 M9.1a1 (`docs/demos/`): M9.1 split into a1–a4 (choice, one hand check per repo, an asset-fetch fix) and b (gallery). Picks by stated rules (eval/backtest set, v1 stack, one OSI license, ≤ 1,000 inferred edges, then stars): anything-llm `308b276` (68k, 978 edges), shadcn-ui/taxonomy `298a885` (19k, 29), maxun `99c6bd0` (18k, 142); cal.diy (2,064 edges) and dub (`(ee)` commercial license) rejected, every other candidate on stars. taxonomy checked by hand: 27 correct, 0 wrong, 2 unresolved (bundled font loads, misleading `DYNAMIC_URL` reason ⇒ M9.1a4); every `fetch`/`db.`/`stripe.` site is on an edge. Docs only, no code.
 - 2026-11-09 M8.10z1 (checked at `87c3a9d`): M8.10z split into z1 (re-check), g (F18 fix), z2 (bot on a real PR, tag). Suite uncached 5,255 passed / 6 skipped (15/15, 0 cached); CI 42589295980 all green, coverage analyzer 97.66%, diff 99.01%, the rest ≥ 94.8% lines; `pnpm eval --check` byte for byte. Each finding's outcome is in M8-review.md. The bot's first real PR (#39, after #24's install) got nothing: every installation job fails `TOKEN_REFUSED` in production (PR #39's diff job, `main`'s `87c3a9d` push analysis), so the repo's diagram is stuck on `7e80d9b`. That's F18, high; the cause needs the logs (needs-abhinav #25). M8.10g and z2 are blocked on it, so m8 isn't tagged yet.
 - 2026-11-09 M8.10f2 (PR #39, `2826bde`; ADR-0238 amendment): finished from an earlier run's uncommitted edits, re-verified. F14: the graph route ends within 15 s (`maxDuration`), and the hide purges the CDN tag again `PURGE_AGAIN_MS` (20 s) later through `runLater` (Vercel's `waitUntil`); the repo page and, added this run, the badge and diagram routes (check-on-view hides there too) run 30 s. F15: the hiding view falls through to `privateAnalysis`/`privateHead`, so an allowed viewer sees the diagram at once. The second purge's delay and the fallthrough mutation-checked; web 1054 tests, `next build` green.
 - 2026-11-09 M8.10f1 (PR #38, `b19d73e`; ADR-0231 amendment): M8.10f split into f1 (the check: F13, F12, F17) and f2 (the hide: F15, F14). `checkRepoAccess` reads its clock before the cache read and `recordAccess` stamps `now() - askedMsAgo`, replacing only an answer asked earlier (`setWhere`); `userAccessToken` writes the pair it (or a racing request) stored back into `user.session`, so a request refreshes once; `451` is a cached refusal. Tests red first (db 2, web 3, plus a refresh-race test); `setWhere` and both `user.session` writes mutation-checked. db 267, web 1044. No bot review (#24 open).
