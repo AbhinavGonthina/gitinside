@@ -6,7 +6,15 @@
  */
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { PRIVATE_SNAPSHOT_PREFIX, type AnyDatabase } from "./analyses.js";
-import { accessCache, analyses, installations, pullRequests, repos } from "./schema.js";
+import {
+  accessCache,
+  analyses,
+  deletedInstallations,
+  installations,
+  pullRequests,
+  removedInstallationRepos,
+  repos,
+} from "./schema.js";
 
 /** One installation, as an `installation` or `installation_repositories` event carries it. */
 export interface InstallationFacts {
@@ -25,8 +33,39 @@ export interface InstallationRow extends InstallationFacts {
 }
 
 /**
+ * Thrown by {@link upsertInstallation} for an installation GitHub said was deleted
+ * (M8.10e2a): GitHub never reuses an installation's ID, so whatever names it now is stale.
+ * Nothing is written.
+ */
+export class DeletedInstallationError extends Error {
+  override name = "DeletedInstallationError";
+  constructor() {
+    super("the installation was deleted");
+  }
+}
+
+/** The advisory lock space that serializes one installation's upserts with its deletion. */
+const INSTALLATION_LOCK_SPACE = 0x67690001;
+
+/**
+ * Hold, until the transaction ends, the lock that serializes writes of the installation with
+ * GitHub's ID `githubInstallationId` against its deletion. Keyed by the ID modulo 2^31: two
+ * IDs sharing a key only wait for each other.
+ */
+async function lockInstallation(db: AnyDatabase, githubInstallationId: number): Promise<void> {
+  await db.execute(
+    sql`select pg_advisory_xact_lock(${INSTALLATION_LOCK_SPACE}, (${githubInstallationId}::bigint % 2147483648)::int)`,
+  );
+}
+
+/**
  * Insert the installation, or bring its account and suspension up to date. Returns the
  * row's ID. A delivery that arrives twice writes the same values twice.
+ *
+ * One GitHub said was deleted throws {@link DeletedInstallationError} (M8.10e2a, ADR-0240):
+ * a replayed `created`, or a request that read GitHub before the uninstall. The check and the
+ * write hold the installation's lock, which {@link deleteInstallationData} takes too, so a
+ * racing request's insert either commits first and is deleted, or waits and is refused.
  */
 export async function upsertInstallation(
   db: AnyDatabase,
@@ -38,16 +77,25 @@ export async function upsertInstallation(
     accountType: facts.accountType,
     suspendedAt: facts.suspendedAt,
   };
-  const [row] = await db
-    .insert(installations)
-    .values({ githubInstallationId: facts.githubInstallationId, ...values })
-    .onConflictDoUpdate({
-      target: installations.githubInstallationId,
-      set: { ...values, updatedAt: sql`now()` },
-    })
-    .returning({ id: installations.id });
-  if (row === undefined) throw new Error("the installation upsert returned no row");
-  return row.id;
+  const { githubInstallationId } = facts;
+  return db.transaction(async (tx) => {
+    await lockInstallation(tx, githubInstallationId);
+    const [deleted] = await tx
+      .select({ id: deletedInstallations.githubInstallationId })
+      .from(deletedInstallations)
+      .where(eq(deletedInstallations.githubInstallationId, githubInstallationId));
+    if (deleted !== undefined) throw new DeletedInstallationError();
+    const [row] = await tx
+      .insert(installations)
+      .values({ githubInstallationId, ...values })
+      .onConflictDoUpdate({
+        target: installations.githubInstallationId,
+        set: { ...values, updatedAt: sql`now()` },
+      })
+      .returning({ id: installations.id });
+    if (row === undefined) throw new Error("the installation upsert returned no row");
+    return row.id;
+  });
 }
 
 /** The installation with GitHub's ID `githubInstallationId`, if one is stored. */
@@ -79,21 +127,41 @@ export async function findInstallation(
  * GitHub's ID `githubInstallationId`, moving any linked elsewhere (a transferred repo). Repos
  * not stored yet are linked when they're first analyzed. Returns how many rows changed.
  * Throws if the installation isn't stored: an unknown installation must never unlink repos.
+ *
+ * A repo removed from the installation since (M8.10e2a) stays unlinked: `created` lists the
+ * repos an installation began with, so its removal came later and a replayed `created` must
+ * not undo it. With `added` (`installation_repositories` `added`), GitHub says the repos are
+ * in it now: their removals are forgotten first, and they're linked.
  */
 export async function linkInstallationRepos(
   db: AnyDatabase,
   githubInstallationId: number,
   providerRepoIds: readonly number[],
+  options: { added?: boolean } = {},
 ): Promise<number> {
   const installation = await findInstallation(db, githubInstallationId);
   if (installation === undefined) throw new Error("link repos to an unknown installation");
+  // Qualified by hand: an update's own columns may render unqualified inside a subquery.
+  const notRemoved = sql`not exists (select 1 from ${removedInstallationRepos} as removed
+    where removed.github_installation_id = ${githubInstallationId}
+    and removed.provider_repo_id = "repos"."provider_repo_id")`;
   let count = 0;
   // In chunks: Postgres takes at most 65,535 parameters per statement.
-  for (let i = 0; i < providerRepoIds.length; i += LINK_CHUNK) {
+  for (const ids of chunks(providerRepoIds)) {
+    if (options.added === true) {
+      await db
+        .delete(removedInstallationRepos)
+        .where(
+          and(
+            eq(removedInstallationRepos.githubInstallationId, githubInstallationId),
+            inArray(removedInstallationRepos.providerRepoId, ids),
+          ),
+        );
+    }
     const linked = await db
       .update(repos)
       .set({ installationId: installation.id, updatedAt: sql`now()` })
-      .where(inArray(repos.providerRepoId, providerRepoIds.slice(i, i + LINK_CHUNK)))
+      .where(and(inArray(repos.providerRepoId, ids), notRemoved))
       .returning({ id: repos.id });
     count += linked.length;
   }
@@ -172,12 +240,16 @@ export interface InstallationDeletion {
  *   stored under its prefix) loses the analyses stored under `private/<id>/`; a public repo
  *   linked to it is also unlinked, losing its PR records and access-cache rows. Its public
  *   analyses stay: anyone can make them again from the public repo (ADR-0239);
- * - for `"all"`, the installation's row.
+ * - for `"all"`, the installation's row, leaving its tombstone (`deleted_installations`) for
+ *   {@link upsertInstallation} to refuse; for a list, each repo's removal
+ *   (`removed_installation_repos`), so `upsertRepo` never links it there again until it's
+ *   `added` (M8.10e2a).
  *
- * The installation's row is locked first, so a job start linking a repo to it
- * (`upsertRepo`) either finishes before and is deleted here, or starts after and finds the
- * row gone. Running it twice deletes nothing the second time; an installation never stored
- * still has its prefix's analyses deleted.
+ * The installation's lock and then its row are taken first, so a job start linking a repo to
+ * it (`upsertRepo`) or a request storing it (`upsertInstallation`) either finishes before and
+ * is deleted here, or starts after and is refused. Running it twice deletes nothing the second
+ * time; an installation never stored still has its prefix's analyses deleted and its
+ * tombstone written.
  */
 export async function deleteInstallationData(
   db: AnyDatabase,
@@ -187,6 +259,8 @@ export async function deleteInstallationData(
   const root = installationSnapshotPrefix(githubInstallationId);
   const storedHere = sql`left(${analyses.snapshotKey}, ${root.length}) = ${root}`;
   return db.transaction(async (tx) => {
+    // Before reading the row: a racing upsert's uncommitted insert is invisible, not locked.
+    await lockInstallation(tx, githubInstallationId);
     const [installation] = await tx
       .select({ id: installations.id })
       .from(installations)
@@ -243,6 +317,20 @@ export async function deleteInstallationData(
     if (scope === "all" && here !== undefined) {
       await tx.delete(installations).where(eq(installations.id, here));
       installationDeleted = true;
+    }
+    if (scope === "all") {
+      await tx.insert(deletedInstallations).values({ githubInstallationId }).onConflictDoNothing();
+      // The tombstone refuses every link through it now.
+      await tx
+        .delete(removedInstallationRepos)
+        .where(eq(removedInstallationRepos.githubInstallationId, githubInstallationId));
+    } else {
+      for (const ids of chunks(scope)) {
+        await tx
+          .insert(removedInstallationRepos)
+          .values(ids.map((providerRepoId) => ({ githubInstallationId, providerRepoId })))
+          .onConflictDoNothing();
+      }
     }
     const prefixes =
       scope === "all" ? [root] : [...new Set(targets.map((r) => `${root}${r.id}/`))].sort();

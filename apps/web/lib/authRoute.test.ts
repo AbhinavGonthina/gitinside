@@ -1,5 +1,12 @@
 // @vitest-environment node
-import { findInstallation, installations, sessions, users } from "@gitinside/db";
+import {
+  deletedInstallations,
+  deleteInstallationData,
+  findInstallation,
+  installations,
+  sessions,
+  users,
+} from "@gitinside/db";
 import { createTestDb, type TestDb } from "@gitinside/db/testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -41,6 +48,7 @@ beforeEach(async () => {
   await t.db.delete(sessions);
   await t.db.delete(users);
   await t.db.delete(installations);
+  await t.db.delete(deletedInstallations);
   vi.restoreAllMocks();
 });
 
@@ -361,6 +369,19 @@ describe("handleCallback: the install return (M8.3b)", () => {
     expect(errors).toHaveBeenCalledWith(JSON.stringify({ event: "install_return_unverified" }));
   });
 
+  it("stores nothing for an installation uninstalled since GitHub listed it (M8.10e2a)", async () => {
+    const { github, deps } = setup();
+    const cookie = await signedIn(github, deps);
+    github.install(OCTO, [ACME]);
+    // The `deleted` delivery landed between GitHub's answer and the write.
+    await deleteInstallationData(t.db, 41, "all");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const response = await handleCallback(installReturn({ installation_id: "41" }, cookie), deps);
+    expect(response.headers.get("location")).toBe("/dashboard?install=unverified");
+    expect(await t.db.select().from(installations)).toEqual([]);
+    expect(errors).toHaveBeenCalledWith(JSON.stringify({ event: "install_return_deleted" }));
+  });
+
   it("looks past GitHub's first page of the user's installations", async () => {
     const { github, deps } = setup();
     const cookie = await signedIn(github, deps);
@@ -436,11 +457,14 @@ describe("handleCallback: the install return (M8.3b)", () => {
     github.install(OCTO, [{ ...ACME, account: { ...ACME.account, login: "-bad-" } }]);
     expect((await ask()).headers.get("location")).toBe("/dashboard?install=failed");
     github.install(OCTO, [ACME]);
+    // The installation's write runs in a transaction (its tombstone check, M8.10e2a).
     const noInsert: AuthDeps = {
       ...deps,
       db: new Proxy(t.db, {
         get(target, property, receiver) {
-          if (property === "insert") throw new Error("postgres://user:secret@host/db unreachable");
+          if (property === "transaction") {
+            throw new Error("postgres://user:secret@host/db unreachable");
+          }
           return Reflect.get(target, property, receiver) as unknown;
         },
       }),

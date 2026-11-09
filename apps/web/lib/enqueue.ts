@@ -7,6 +7,7 @@ import {
   findInstallation,
   isPrivateSnapshot,
   queueAnalysis,
+  RemovedRepoError,
   UnknownInstallationError,
   upsertRepo,
   type AnalysisSummary,
@@ -118,12 +119,17 @@ export type StoreRepo = Pick<ResolvedRepo, "providerRepoId" | "owner" | "name" |
 export type QueueRepo = Omit<ResolvedRepo, "visibility"> & ReadThrough;
 
 /** Why {@link enqueueAnalysis} refused a repo's installation; `jobs.ts` words each code. */
-export type InstallationRefusal = "INSTALLATION_NOT_FOUND" | "INSTALLATION_SUSPENDED";
+export type InstallationRefusal =
+  | "INSTALLATION_NOT_FOUND"
+  | "INSTALLATION_SUSPENDED"
+  | "REPO_NOT_INSTALLED";
 
 /**
  * Thrown by {@link enqueueAnalysis} before anything is written when the repo's installation
- * isn't stored (uninstalled, or its events never arrived) or is suspended (ADR-0227). GitHub
- * would refuse its token anyway; refusing here says why instead of failing the job later.
+ * isn't stored (uninstalled, or its events never arrived) or is suspended (ADR-0227), or GitHub
+ * said the repo was removed from it and hasn't said it was added back (`REPO_NOT_INSTALLED`,
+ * M8.10e2a). GitHub would refuse its token anyway; refusing here says why instead of failing
+ * the job later.
  */
 export class InstallationRefusedError extends Error {
   override name = "InstallationRefusedError";
@@ -159,6 +165,8 @@ export async function storeQueueRepo(db: AnyDatabase, repo: StoreRepo): Promise<
     if (error instanceof UnknownInstallationError) {
       throw new InstallationRefusedError("INSTALLATION_NOT_FOUND");
     }
+    // Removed from the installation (M8.10e2a): a delivery or answer read before the removal.
+    if (error instanceof RemovedRepoError) throw new InstallationRefusedError("REPO_NOT_INSTALLED");
     throw error;
   });
 }

@@ -20,7 +20,13 @@
  */
 import { and, desc, eq, inArray, lte, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { analyses, installations, repos, type AnalysisStats } from "./schema.js";
+import {
+  analyses,
+  installations,
+  removedInstallationRepos,
+  repos,
+  type AnalysisStats,
+} from "./schema.js";
 import type * as schema from "./schema.js";
 
 /** Any Drizzle database on GitInside's schema (postgres.js in production, PGlite in tests). */
@@ -50,6 +56,18 @@ export class UnknownInstallationError extends Error {
   override name = "UnknownInstallationError";
   constructor() {
     super("the repo's installation isn't stored");
+  }
+}
+
+/**
+ * Thrown by {@link upsertRepo} when GitHub said the repo was removed from the installation
+ * `githubInstallationId` names and hasn't said it was added back (M8.10e2a): a delivery or
+ * job that read GitHub before the removal. Nothing is written.
+ */
+export class RemovedRepoError extends Error {
+  override name = "RemovedRepoError";
+  constructor() {
+    super("the repo was removed from its installation");
   }
 }
 
@@ -83,7 +101,8 @@ export const QUEUE_UNAVAILABLE_CODE = "QUEUE_UNAVAILABLE";
  * more, in a new transaction that sees the committed row (M5A.3d1).
  *
  * With `githubInstallationId`, the repo is linked to that installation in the same
- * transaction; an installation that isn't stored throws {@link UnknownInstallationError}.
+ * transaction; an installation that isn't stored throws {@link UnknownInstallationError}, and
+ * one GitHub said the repo was removed from throws {@link RemovedRepoError} (M8.10e2a).
  */
 export async function upsertRepo(db: AnyDatabase, facts: RepoFacts): Promise<{ id: string }> {
   try {
@@ -113,6 +132,17 @@ async function upsertRepoOnce(db: AnyDatabase, facts: RepoFacts): Promise<{ id: 
         .where(eq(installations.githubInstallationId, facts.githubInstallationId))
         .for("share");
       if (installation === undefined) throw new UnknownInstallationError();
+      // Read under that lock: a removal (M8.10e2a) holds the row `FOR UPDATE` while recording.
+      const [removed] = await tx
+        .select({ at: removedInstallationRepos.removedAt })
+        .from(removedInstallationRepos)
+        .where(
+          and(
+            eq(removedInstallationRepos.githubInstallationId, facts.githubInstallationId),
+            eq(removedInstallationRepos.providerRepoId, facts.providerRepoId),
+          ),
+        );
+      if (removed !== undefined) throw new RemovedRepoError();
       link = { installationId: installation.id };
     }
     await tx

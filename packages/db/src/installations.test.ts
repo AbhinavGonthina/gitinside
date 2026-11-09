@@ -1,7 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { sql } from "drizzle-orm";
 import {
   accessCache,
   analyses,
+  deletedInstallations,
+  DeletedInstallationError,
   deleteInstallationData,
   findInstallation,
   findLinkedRepoIds,
@@ -10,6 +13,8 @@ import {
   LINK_CHUNK,
   linkInstallationRepos,
   pullRequests,
+  RemovedRepoError,
+  removedInstallationRepos,
   repos,
   UnknownInstallationError,
   upsertInstallation,
@@ -49,6 +54,8 @@ beforeEach(async () => {
   await t.db.delete(repos);
   await t.db.delete(installations);
   await t.db.delete(users);
+  await t.db.delete(deletedInstallations);
+  await t.db.delete(removedInstallationRepos);
 });
 
 function repo(providerRepoId: number, name = `r${providerRepoId}`) {
@@ -88,6 +95,87 @@ describe("upsertInstallation", () => {
     expect(await upsertInstallation(t.db, OCTO)).toBe(id);
     expect(await findInstallation(t.db, 41)).toEqual({ id, ...OCTO });
   });
+
+  it("refuses an installation GitHub said was deleted, writing nothing (M8.10e2a)", async () => {
+    await upsertInstallation(t.db, OCTO);
+    await deleteInstallationData(t.db, 41, "all");
+    // A replayed `created`, or a request that read GitHub before the uninstall.
+    const error = await upsertInstallation(t.db, OCTO).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(DeletedInstallationError);
+    expect(await findInstallation(t.db, 41)).toBeUndefined();
+    // A deletion of one never stored counts too; other installations are unaffected.
+    await deleteInstallationData(t.db, 43, "all");
+    await expect(upsertInstallation(t.db, { ...OCTO, githubInstallationId: 43 })).rejects.toThrow(
+      DeletedInstallationError,
+    );
+    await upsertInstallation(t.db, { ...OCTO, githubInstallationId: 42 });
+    expect((await t.db.select().from(installations)).map((i) => i.githubInstallationId)).toEqual([
+      42,
+    ]);
+  });
+
+  it("leaves a living installation's repos removed by deleting it", async () => {
+    await upsertInstallation(t.db, OCTO);
+    await deleteInstallationData(t.db, 41, [7]);
+    expect(await t.db.select().from(removedInstallationRepos)).toHaveLength(1);
+    await deleteInstallationData(t.db, 41, "all");
+    expect(await t.db.select().from(removedInstallationRepos)).toEqual([]);
+    expect(
+      (await t.db.select().from(deletedInstallations)).map((d) => d.githubInstallationId),
+    ).toEqual([41]);
+  });
+
+  // Real Postgres only: PGlite has one connection, so two transactions can't interleave.
+  const realPostgres = it.skipIf(process.env.TEST_DATABASE_URL === undefined);
+
+  /** Wait until another connection of this database waits on a lock. */
+  async function someoneWaits(tx: Pick<typeof t.db, "execute">, what: string): Promise<void> {
+    for (let waited = 0; ; waited += 20) {
+      // A transaction reads `pg_stat_activity` once and caches it; poll fresh each time.
+      await tx.execute(sql`select pg_stat_clear_snapshot()`);
+      const result: unknown = await tx.execute(
+        sql`select count(*)::int as n from pg_stat_activity
+            where datname = current_database() and wait_event_type = 'Lock'`,
+      );
+      const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as {
+        n: number;
+      }[];
+      if (rows[0]!.n > 0) return;
+      if (waited > 10_000) throw new Error(`${what} never waited.`);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+
+  realPostgres(
+    "an uninstall waits for a racing request's new installation, then deletes it (real Postgres)",
+    async () => {
+      let deletion: Promise<unknown> | undefined;
+      await t.db.transaction(async (tx) => {
+        await upsertInstallation(tx, OCTO);
+        deletion = deleteInstallationData(t.db, 41, "all");
+        await someoneWaits(tx, "The uninstall");
+      });
+      expect(await deletion).toMatchObject({ installationDeleted: true });
+      expect(await findInstallation(t.db, 41)).toBeUndefined();
+    },
+    20_000,
+  );
+
+  realPostgres(
+    "a request racing an uninstall waits for it, then is refused (real Postgres)",
+    async () => {
+      await upsertInstallation(t.db, OCTO);
+      let upsert: Promise<unknown> | undefined;
+      await t.db.transaction(async (tx) => {
+        await deleteInstallationData(tx, 41, "all");
+        upsert = upsertInstallation(t.db, OCTO).catch((e: unknown) => e);
+        await someoneWaits(tx, "The upsert");
+      });
+      expect(await upsert).toBeInstanceOf(DeletedInstallationError);
+      expect(await findInstallation(t.db, 41)).toBeUndefined();
+    },
+    20_000,
+  );
 
   it("refuses an account type GitHub doesn't install on", async () => {
     const code = await pgErrorCode(
@@ -399,5 +487,72 @@ describe("upsertRepo with an installation (M8.3c2)", () => {
       upsertRepo(t.db, { ...FACTS, name: "renamed", githubInstallationId: 404 }),
     ).rejects.toThrow(UnknownInstallationError);
     expect(await linkedTo()).toEqual({ r1: id });
+  });
+});
+
+describe("a repo removed from an installation (M8.10e2a)", () => {
+  const PUBLIC: RepoFacts = { ...FACTS, providerRepoId: 2, name: "r2", visibility: "public" };
+
+  it("is never linked to it again through a job or delivery, writing nothing", async () => {
+    await upsertInstallation(t.db, OCTO);
+    await upsertRepo(t.db, { ...FACTS, githubInstallationId: 41 });
+    await upsertRepo(t.db, { ...PUBLIC, githubInstallationId: 41 });
+    await deleteInstallationData(t.db, 41, [1, 2]);
+    expect(await linkedTo()).toEqual({ r2: null });
+
+    // A `pull_request` delivery sent before the removal, arriving after it.
+    for (const facts of [FACTS, { ...PUBLIC, name: "renamed" }]) {
+      const error = await upsertRepo(t.db, { ...facts, githubInstallationId: 41 }).catch(
+        (e: unknown) => e,
+      );
+      expect(error, facts.name).toBeInstanceOf(RemovedRepoError);
+    }
+    expect(await linkedTo()).toEqual({ r2: null });
+    // A public job still stores it, unlinked.
+    await upsertRepo(t.db, PUBLIC);
+    expect(await linkedTo()).toEqual({ r2: null });
+  });
+
+  it("can still be linked to another installation (a transfer)", async () => {
+    await upsertInstallation(t.db, OCTO);
+    const other = await upsertInstallation(t.db, { ...OCTO, githubInstallationId: 42 });
+    await upsertRepo(t.db, { ...PUBLIC, githubInstallationId: 41 });
+    await deleteInstallationData(t.db, 41, [2]);
+    await upsertRepo(t.db, { ...PUBLIC, githubInstallationId: 42 });
+    expect(await linkedTo()).toEqual({ r2: other });
+  });
+
+  it("isn't linked by the installation's `created` list, only by `added`", async () => {
+    const id = await upsertInstallation(t.db, OCTO);
+    await upsertRepo(t.db, PUBLIC);
+    await upsertRepo(t.db, { ...PUBLIC, providerRepoId: 3, name: "r3" });
+    await deleteInstallationData(t.db, 41, [2]);
+    // A replayed `created` lists the repos it was created with: the removal came after.
+    expect(await linkInstallationRepos(t.db, 41, [2, 3])).toBe(1);
+    expect(await linkedTo()).toEqual({ r2: null, r3: id });
+
+    expect(await linkInstallationRepos(t.db, 41, [2], { added: true })).toBe(1);
+    expect(await linkedTo()).toEqual({ r2: id, r3: id });
+    expect(await t.db.select().from(removedInstallationRepos)).toEqual([]);
+    await upsertRepo(t.db, { ...PUBLIC, githubInstallationId: 41 });
+    expect(await linkedTo()).toEqual({ r2: id, r3: id });
+  });
+
+  it("is forgotten for a repo `added` before it was ever stored", async () => {
+    await upsertInstallation(t.db, OCTO);
+    await deleteInstallationData(t.db, 41, [2]);
+    expect(await linkInstallationRepos(t.db, 41, [2], { added: true })).toBe(0);
+    expect(await t.db.select().from(removedInstallationRepos)).toEqual([]);
+    await upsertRepo(t.db, { ...PUBLIC, githubInstallationId: 41 });
+    expect(Object.keys(await linkedTo())).toEqual(["r2"]);
+  });
+
+  it("is recorded for lists longer than one statement takes", async () => {
+    await upsertInstallation(t.db, OCTO);
+    const ids = Array.from({ length: LINK_CHUNK * 2 + 5 }, (_, i) => i + 1);
+    await deleteInstallationData(t.db, 41, ids);
+    expect(await t.db.select().from(removedInstallationRepos)).toHaveLength(ids.length);
+    await linkInstallationRepos(t.db, 41, ids, { added: true });
+    expect(await t.db.select().from(removedInstallationRepos)).toEqual([]);
   });
 });

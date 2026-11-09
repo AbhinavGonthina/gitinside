@@ -1,4 +1,4 @@
-import { upsertInstallation } from "@gitinside/db";
+import { DeletedInstallationError, upsertInstallation } from "@gitinside/db";
 import { endUserSession, userAccessToken, type AuthDeps, type SignedInUser } from "./authRoute";
 import type { QueueRepo } from "./enqueue";
 import { resolveSeenRepo, type GitHubOptions, type ResolveFailure } from "./github";
@@ -16,7 +16,8 @@ import type { RepoRef } from "./repoUrl";
  *
  * Anything that isn't such a repo is `REPO_NOT_FOUND`, exactly as the public lookup said: a
  * repo the user can't see, one GitHub shows as public (the public lookup just said otherwise),
- * no installation on its account, or a session that has ended. GitHub or the database failing
+ * no installation on its account (or one uninstalled since GitHub answered, M8.10e2a), or a
+ * session that has ended. GitHub or the database failing
  * is `GITHUB_UNAVAILABLE`.
  */
 
@@ -68,6 +69,8 @@ export async function resolvePrivateRepo(
     const installationId = installation.githubInstallationId;
     return { ok: true, repo: { ...seen.repo, visibility: "private", installationId }, github };
   } catch (error) {
+    // Uninstalled since GitHub answered (M8.10e2a): nothing stored, as for no installation.
+    if (error instanceof DeletedInstallationError) return NOT_FOUND;
     if (error instanceof TokenRefusedError) {
       // Revoked on GitHub (the user removed the app's authorization): the session is over.
       const ended = await endUserSession(user, auth, "session_token_refused");

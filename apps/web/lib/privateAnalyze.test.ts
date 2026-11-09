@@ -3,8 +3,11 @@ import {
   analyses,
   completeAnalysis,
   createSession,
+  deletedInstallations,
+  deleteInstallationData,
   installations,
   rateLimits,
+  removedInstallationRepos,
   repos,
   sessions,
   startAnalysis,
@@ -70,7 +73,16 @@ afterAll(async () => {
   await t?.close();
 });
 beforeEach(async () => {
-  for (const table of [analyses, repos, installations, rateLimits, sessions, users]) {
+  for (const table of [
+    analyses,
+    repos,
+    installations,
+    deletedInstallations,
+    removedInstallationRepos,
+    rateLimits,
+    sessions,
+    users,
+  ]) {
     await t.db.delete(table);
   }
   vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -255,6 +267,37 @@ describe("Analyze for a private repo (M8.4c2b)", () => {
     expect(tasks.google.tasks).toEqual([]);
     expect(await repoRows()).toEqual([]);
     expect(await t.db.select().from(rateLimits)).toEqual([]);
+  });
+
+  it("answers a repo whose installation was uninstalled since GitHub answered as not found, storing nothing (M8.10e2a)", async () => {
+    const signedOut = await analyze("acme/secret");
+    const octo = await signIn(OCTO);
+    // GitHub still lists installation 41 (the answer was read before the `deleted` delivery).
+    await deleteInstallationData(t.db, 41, "all");
+    expect(await analyze("acme/secret", octo.cookie)).toEqual(signedOut);
+    expect(await t.db.select().from(installations)).toEqual([]);
+    expect(await repoRows()).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
+    expect(await t.db.select().from(rateLimits)).toEqual([]);
+  });
+
+  it("refuses a repo removed from the installation since GitHub answered, storing nothing (M8.10e2a)", async () => {
+    const octo = await signIn(OCTO);
+    await upsertInstallation(t.db, {
+      githubInstallationId: 41,
+      accountId: 1041,
+      accountLogin: "acme",
+      accountType: "Organization",
+      suspendedAt: null,
+    });
+    await deleteInstallationData(t.db, 41, [SECRET_ID]);
+    expect(await analyze("acme/secret", octo.cookie)).toMatchObject({
+      status: 403,
+      body: { error: "REPO_NOT_INSTALLED", message: failureView("REPO_NOT_INSTALLED").message },
+    });
+    expect(await repoRows()).toEqual([]);
+    expect(tasks.google.tasks).toEqual([]);
+    expect(await slots(octo.userId)).toBe(0);
   });
 
   it("keeps the public lookup's answer for a repo the user's token sees as public", async () => {
