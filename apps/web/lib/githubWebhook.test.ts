@@ -708,10 +708,82 @@ describe("handleWebhook: pull requests (M8.6d2)", () => {
     expect(details()).toEqual(["ignored:INSTALLATION_NOT_FOUND", "ignored:INSTALLATION_SUSPENDED"]);
   });
 
+  it("a retargeted pull request (`edited` with `changes.base`) records the new pair and queues its diff", async () => {
+    const RETARGETED = "e".repeat(40);
+    const retarget = (at: string) =>
+      pr(
+        "edited",
+        { base: RETARGETED, at },
+        { changes: { base: { ref: { from: "main" }, sha: { from: BASE } } } },
+      );
+    await installation41();
+    await answer(delivery("pull_request", pr("opened")));
+    const [repo] = await t.db.select().from(repos);
+    expect(
+      await recordPullRequestDiff(t.db, {
+        repoId: repo?.id ?? "",
+        number: 7,
+        baseSha: BASE,
+        headSha: HEAD,
+        diffKey: "private/41/x/diffs/y/0.1.0.json.gz",
+        brokenCount: 0,
+      }),
+    ).toBe(true);
+    expect(await answer(delivery("pull_request", retarget(LATER)))).toEqual({
+      status: 200,
+      body: { status: "ok" },
+    });
+    expect(queue.tasks.map((task) => task.job)).toEqual([diffJob(), diffJob(HEAD, RETARGETED)]);
+    expect(await record()).toMatchObject({
+      baseSha: RETARGETED,
+      headSha: HEAD,
+      headAt: new Date(LATER),
+      diffKey: null,
+      diffJobId: jobIdFor(diffJob(HEAD, RETARGETED), VERSION),
+    });
+    // Redelivered: the same task name. Delivered after a newer push: stale, nothing changed.
+    await answer(delivery("pull_request", retarget(LATER)));
+    const pushed = "2026-11-08T10:09:00Z";
+    await answer(delivery("pull_request", pr("synchronize", { head: HEAD2, at: pushed })));
+    await answer(delivery("pull_request", retarget(LATER)));
+    expect((await record())?.headSha).toBe(HEAD2);
+    expect(details()).toEqual([
+      "ok:queued",
+      "ok:queued",
+      "ok:already-queued",
+      "ok:queued",
+      "ok:stale",
+    ]);
+  });
+
+  it("ignores edits that don't change the base, writing nothing", async () => {
+    await installation41();
+    const edits = [
+      {},
+      { changes: {} },
+      { changes: { title: { from: "Old title" } } },
+      { changes: { body: { from: "Old body" } } },
+      { changes: { base: null } },
+      { changes: { base: "main" } },
+      { changes: { base: [] } },
+    ];
+    for (const extra of edits) {
+      const payload = pr("edited", { base: "e".repeat(40), at: LATER }, extra);
+      expect(await answer(delivery("pull_request", payload)), JSON.stringify(extra)).toEqual({
+        status: 202,
+        body: { status: "ignored" },
+      });
+    }
+    expect(await t.db.select().from(repos)).toEqual([]);
+    expect(queue.calls).toBe(0);
+  });
+
   it("ignores other actions, writing nothing", async () => {
     await installation41();
-    for (const action of ["closed", "edited", "labeled", "ready_for_review", "constructor"]) {
-      expect(await answer(delivery("pull_request", pr(action))), action).toEqual({
+    for (const action of ["closed", "labeled", "ready_for_review", "constructor"]) {
+      // Even carrying `changes.base`: only `edited` reads it.
+      const payload = pr(action, {}, { changes: { base: { ref: { from: "dev" } } } });
+      expect(await answer(delivery("pull_request", payload)), action).toEqual({
         status: 202,
         body: { status: "ignored" },
       });
