@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.2 Final eval + benchmarks; README numbers with links
+M9.2a2 The draw: snapshot both pools and commit them before reading any candidate, then walk each stratum in `draw status 6` order
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -505,7 +505,16 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.1b2b The 3 pins pre-analyzed in production through their permalinks once b2a deploys (a permalink keeps showing an older version's graph, so taxonomy's `0.2.0` one needs a `0.3.0` analysis queued: a repo-page view while its head is still the pin, or a pin's permalink queueing the current version over an older one, red first), each production graph compared with a local analysis at the same analyzer version (byte for byte: GitHub's tarball, the worker's extractor), results in `docs/demos/README.md` {model: opus}
 - [x] M9.1b2c A graph served after a version bump is the new version's, not the CDN's day-old copy: `/api/graph/<owner>/<repo>/<sha>` is one URL for every analyzer version and `GRAPH_CACHE_CONTROL` keeps it a day (`s-maxage=86400`), so taxonomy's permalink was still served `0.2.0` after its `0.3.0` analysis finished (`x-vercel-cache: HIT`, a fresh query string served `0.3.0`), and a repo page saying `current` can draw an older graph the same way. Put the version in the graph URL the pages and images fetch (old URLs still served), or purge the repo's CDN tag when a newer version's analysis finishes; red first, ADR {model: opus}
 - [x] M9.1b3 Landing gallery linking each pin's permalink (thumbnail from the diagram image at the pin), tests, screenshots dark/light {model: opus}
-- [ ] M9.2 Final eval + benchmarks; README numbers with links {model: opus}
+- M9.2 Final eval + benchmarks; README numbers with links, split like M5C.8 (the final eval includes the next blind batch, #18 option 2):
+- [x] M9.2a1 Batch 6's rule, committed before any candidate list is fetched: `eval/draws/batch-6.json` (batch 5's strata and queries, seed `2026-11-10`, 454 exclusions: batch 5's list, its pins and rejections, the 2026-11-06 usage files, the PR backtest's candidates), `drawCrossCheck` requiring every earlier draw's exclusions, ADR-0208 amendment, EVALUATION.md §1 {model: opus}
+- [ ] M9.2a2 The draw: snapshot both pools and commit them before reading any candidate, then walk each stratum in `draw status 6` order recording every pin or rejection until 8 pins per stratum (each base checked against the routes' full paths, as M5C.8b2 learned); no labels yet {model: opus}
+- [ ] M9.2b1 Label batch 6's first 4 pins in draw order (each committed with its `repos.json` entry, `"heldOut": 6`; batch 6 declared `"seen": null`; no `pnpm eval` until M9.2c) {model: opus}
+- [ ] M9.2b2 Label batch 6's pins 5–8 {model: opus}
+- [ ] M9.2b3 Label batch 6's pins 9–12 {model: opus}
+- [ ] M9.2b4 Label batch 6's pins 13–16; EVALUATION.md's batch 6 table {model: opus}
+- [ ] M9.2c Score batch 6 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, every miss's cause in a diagnosis; README/EVALUATION quote it as measured {model: opus}
+- [ ] M9.2d Final benchmarks at the launch analyzer: full analysis (`pnpm bench`, cal.com), incremental (`pnpm bench:incremental`, edits and commits), and render (`pnpm bench:render`), each report recording repo, SHA, and machine; observations written from the numbers {model: opus}
+- [ ] M9.2e README "Results" rewritten around the final numbers (blind batch 6 first, earlier batches and the backtest summarized, benchmarks), each linking its committed report {model: opus}
 - [ ] M9.3 README (slogan, GIF with trace first, quickstart, architecture, results) {model: opus}
 - [ ] M9.3b README "Why I built this" section from gitinside-planning/MOTIVATION.md (his voice, nothing added) + needs-abhinav review issue {model: opus}
 - [ ] M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md {model: opus}
@@ -516,6 +525,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-10 M9.2a1 (ADR-0208's M9.2a1 amendment): M9.2 split into a1–a2 (rule, draw), b1–b4 (labels), c (blind score), d (benchmarks), e (README results), since the final eval includes the next blind batch (#18). `eval/draws/batch-6.json`: batch 5's strata and queries, seed `2026-11-10`, only the totals read (291, 307); 454 exclusions (batch 5's 278, its 16 pins and 18 rejections, 80 names from the 2026-11-06 usage files, the backtest's 7 pins and 55 rejections), built by scratch `eval/dist/m92a1-exclude.mjs`, which re-derived batch 5's 224 usage names with none missing. `drawCrossCheck` now fails a list dropping an earlier draw's exclusion (red first; a dropped batch-5 usage name mutation-checked red in `validate`). No eval delta (draw records aren't eval inputs).
 
 - 2026-11-10 M9.1b3 (ADR-0259): the landing page's "See it on real repos" gallery, under the field: one card per pin (`DEMO_GALLERY`, lib/gallery.ts) linking its permalink, with the pin's own image from a new commit image route, `/api/diagram/<owner>/<repo>/<sha>.svg` (`viewRepo` with the SHA, as the permalink: no GitHub, nothing queued but a pin lacking this version's graph). A dark and a light image per card, the page's `data-theme` hiding one (`lazy`: 3 requests a page, checked in a browser). Counts tested against each `docs/demos/*.json` record. Red per guard (SHA check, SHA's use); web suite, unconfigured + seeded + signed-in E2E green; the visual test serves the fixture's image for thumbnails, so `landing--*` baselines are re-captured. Screens in `docs/milestones/M9/gallery/`.
 
