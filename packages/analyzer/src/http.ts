@@ -12,6 +12,10 @@
  *   Request(url, init))` reads the request's arguments. The method is `init.method` when it
  *   is a string the collector can read (see below), `GET` when `init` or its `method` is
  *   absent, and `null` (unknown) otherwise.
+ * - `fetchEventSource(url, init?)` imported (named, renamed) or required
+ *   (`require(…).fetchEventSource`) from `@microsoft/fetch-event-source` (M9.1a6), read as
+ *   `fetch`: it calls `fetch(url, init)` with the init's `method`, `GET` by default, and keeps
+ *   the stream open. Its callbacks (`onopen`, `onmessage`) aren't requests.
  * - The `axios` default export (`import axios from "axios"`, `import * as axios`,
  *   `import axios = require("axios")`, `require("axios")` and `require("axios").default`),
  *   and instances from `<axios or instance>.create(config)`, whose `baseURL` comes from the
@@ -118,7 +122,9 @@
  *   entry point loads both (`main.ts` importing `./setup` and `./App`): the request keeps the
  *   `create` config's base, since what an entry point loads isn't modeled.
  * - Other HTTP clients (`got`, `superagent`), `XMLHttpRequest`, and
- *   `EventSource`/`WebSocket`. An SWR fetcher that wraps one of the above is inlined at the
+ *   `EventSource`/`WebSocket`. Of `@microsoft/fetch-event-source`: a namespace import
+ *   (`fes.fetchEventSource(…)`), and the init's own `fetch` option, which replaces the platform's
+ *   (the request is still read as above). An SWR fetcher that wraps one of the above is inlined at the
  *   hook (`wrappers.ts`, ADR-0193).
  * - ofetch: Nuxt's global `$fetch` and `useFetch` (auto-imported, never imported from
  *   `ofetch`; Vue is outside v1), `require("ofetch")`, `createFetch`, the old `ohmyfetch`
@@ -189,6 +195,15 @@ const FETCH_MODULES: ReadonlySet<string> = new Set([
   "node-fetch",
   "undici",
   "unfetch",
+]);
+
+/**
+ * Named exports that make one `fetch` of their `(input, init)` arguments (M9.1a6), by module:
+ * `@microsoft/fetch-event-source`'s `fetchEventSource` calls `fetch(input, init)` with the
+ * init's `method`, so its request reads like `fetch`'s.
+ */
+const FETCH_SHAPED_EXPORTS: ReadonlyMap<string, string> = new Map([
+  ["@microsoft/fetch-event-source", "fetchEventSource"],
 ]);
 
 /** Globals `fetch` can be read from. */
@@ -776,7 +791,8 @@ export function createHttpSiteCollector(
   };
 
   /**
-   * True when a symbol is `fetch`: imported from a fetch module, required from one, or (when
+   * True when a symbol is `fetch` or makes one like it (`FETCH_SHAPED_EXPORTS`): imported from
+   * a fetch module, required from one, or (when
    * `global` says the callee is spelled `fetch`) declared only outside the repo's own code.
    */
   const fetchSymbol = (sp: ServiceProgram, symbol: ts.Symbol, global: boolean): boolean => {
@@ -784,6 +800,9 @@ export function createHttpSiteCollector(
     for (const declaration of declarations) {
       const binding = importBinding(declaration);
       if (binding) {
+        if (FETCH_SHAPED_EXPORTS.has(binding.module)) {
+          return FETCH_SHAPED_EXPORTS.get(binding.module) === binding.name;
+        }
         return (
           FETCH_MODULES.has(binding.module) &&
           (binding.name === "default" || binding.name === "fetch" || binding.name === "*")
@@ -791,6 +810,12 @@ export function createHttpSiteCollector(
       }
       if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
         const init = unwrap(declaration.initializer);
+        if (ts.isPropertyAccessExpression(init)) {
+          const module = requiredModule(init.expression);
+          if (module !== undefined && FETCH_SHAPED_EXPORTS.has(module)) {
+            return FETCH_SHAPED_EXPORTS.get(module) === init.name.text;
+          }
+        }
         const module =
           requiredModule(init) ??
           (ts.isPropertyAccessExpression(init) && init.name.text === "fetch"

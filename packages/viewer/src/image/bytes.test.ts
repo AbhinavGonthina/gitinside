@@ -125,6 +125,7 @@ const EXPECTED: Record<string, string[]> = {
   "express-require-router": ["3fdc7295430a17f8", "6344169ae6a4f83e", "dde1a0ab75eff970"],
   "external-sdk": ["2482ec3f82eeabad", "3acd20df34c01c3d", "d7e32a1c0ac3281c"],
   "fake-secrets": ["2b1e07e08b9a6c57", "8be4b2600775eaee", "cf911a93a59b2b14"],
+  "fetch-event-source": ["d60123db4349f84a", "3862fd0ef8c3346a", "98116eede4410257"],
   "fetch-template-literal": ["8b80d7390797ba19", "248e377451753beb", "261682dcd8866049"],
   "fixed-url-helpers": ["ab7626f2e1d493e9", "03409237b6bb3e26", "2c08a0fb3fc72402"],
   "js-global-assignment": ["18b60ddacf92a70b", "855baae653ff2dc8", "bcde91a2c1772632"],

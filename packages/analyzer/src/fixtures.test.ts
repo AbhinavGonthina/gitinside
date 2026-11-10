@@ -38,6 +38,7 @@ const NAMES = [
   "syntax-error",
   "no-tsconfig",
   "fetch-template-literal",
+  "fetch-event-source",
   "axios-baseurl-instance",
   "env-base-heuristic",
   "env-fallback",
@@ -361,6 +362,15 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `symbol:${p}/src/client.ts#listUsers -> route:${p}/GET /api/users exact`,
       `symbol:${p}/src/client.ts#loadTeams -> unresolved:${p}/src/client.ts:15:21 unresolved NO_MATCHING_ROUTE`,
       `symbol:${p}/src/client.ts#loadUser -> route:${p}/GET /api/users/:id exact`,
+    ]);
+  });
+
+  it("fetch-event-source: fetchEventSource(url, init) is a fetch, GET by default (M9.1a6)", async () => {
+    const g = await run("fetch-event-source");
+    const p = "fetch-event-source";
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/src/stream.ts#streamChat -> route:${p}/POST /api/workspace/:slug/stream-chat exact`,
+      `symbol:${p}/src/stream.ts#watchEmbedding -> route:${p}/GET /api/workspace/:slug/embed-progress exact`,
     ]);
   });
 
