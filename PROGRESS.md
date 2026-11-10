@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.1b2b The 3 pins pre-analyzed in production at analyzer 0.3.0, each graph compared byte for byte with a local analysis
+M9.1b2c A graph served after a version bump is the new version's, not the CDN's day-old copy
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -502,7 +502,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.1b1 Demo pins analyzable and kept: the 3 pins in one shared list (`@gitinside/db`, by GitHub ID and full SHA, checked against `docs/demos/repos.json`); a pin's permalink with no analysis queues that commit (charged to the repo, as check-on-view) and opens its progress page, which then returns to the permalink; retention never evicts a pin; tests red first, ADR {model: opus}
 - M9.1b2 The 3 pins pre-analyzed in production, split (production's taxonomy graph at `298a885` already existed, stamped 0.2.0, but differs from a local 0.2.0 run in 8 entries and a warning: `ANALYZER_VERSION` hasn't changed since M5.13 though the output has, so a stale graph counts as current):
 - [x] M9.1b2a `ANALYZER_VERSION` 0.2.0 → 0.3.0, and a guard like `KEY_FORMAT`'s: a digest of every fixture's golden graph (version field left out) recorded per version, so a change to the output fails a test until the version is bumped; red first, goldens and eval re-recorded, ADR {model: opus}
-- [ ] M9.1b2b The 3 pins pre-analyzed in production through their permalinks once b2a deploys (a permalink keeps showing an older version's graph, so taxonomy's `0.2.0` one needs a `0.3.0` analysis queued: a repo-page view while its head is still the pin, or a pin's permalink queueing the current version over an older one, red first), each production graph compared with a local analysis at the same analyzer version (byte for byte: GitHub's tarball, the worker's extractor), results in `docs/demos/README.md` {model: opus}
+- [x] M9.1b2b The 3 pins pre-analyzed in production through their permalinks once b2a deploys (a permalink keeps showing an older version's graph, so taxonomy's `0.2.0` one needs a `0.3.0` analysis queued: a repo-page view while its head is still the pin, or a pin's permalink queueing the current version over an older one, red first), each production graph compared with a local analysis at the same analyzer version (byte for byte: GitHub's tarball, the worker's extractor), results in `docs/demos/README.md` {model: opus}
+- [ ] M9.1b2c A graph served after a version bump is the new version's, not the CDN's day-old copy: `/api/graph/<owner>/<repo>/<sha>` is one URL for every analyzer version and `GRAPH_CACHE_CONTROL` keeps it a day (`s-maxage=86400`), so taxonomy's permalink was still served `0.2.0` after its `0.3.0` analysis finished (`x-vercel-cache: HIT`, a fresh query string served `0.3.0`), and a repo page saying `current` can draw an older graph the same way. Put the version in the graph URL the pages and images fetch (old URLs still served), or purge the repo's CDN tag when a newer version's analysis finishes; red first, ADR {model: opus}
 - [ ] M9.1b3 Landing gallery linking each pin's permalink (thumbnail from the diagram image at the pin), tests, screenshots dark/light {model: opus}
 - [ ] M9.2 Final eval + benchmarks; README numbers with links {model: opus}
 - [ ] M9.3 README (slogan, GIF with trace first, quickstart, architecture, results) {model: opus}
@@ -515,6 +516,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-10 M9.1b2b (`59191e0`, ADR-0257): a pin's permalink whose newest graph is an older version's now queues the current version like one with none (older graph shown if it can't be queued); red first, both fallbacks mutation-checked, web 1066. After 0.3.0 deployed (09:11 UTC), opened maxun's and anything-llm's permalinks and taxonomy's repo page: all three analyzed at `0.3.0`, each **byte-identical** to a local run of GitHub's tarball through the worker's extractor (873/29/142 inferred edges, as checked by hand), in `docs/demos/README.md`. Found: the CDN served taxonomy's day-old `0.2.0` graph under the same URL after that ⇒ M9.1b2c, next.
 
 - 2026-11-10 M9.1b2a (`4ea8ad6`, ADR-0256): M9.1b2 split into a (version) and b (the pins). Production already had taxonomy's pin, stamped `0.2.0`, but it differs from a local `0.2.0` run of GitHub's tarball through the worker's extractor (scratch `apps/web/dist/m91b2-compare.mjs`): the font reads still `DYNAMIC_URL`, 5 `http` sites lacking `request`, one warning missing (439,252 vs 439,847 bytes). The version hadn't moved since M5.13, and production's cache key is (repo, commit, version). Now `0.3.0`, and `OUTPUT_DIGESTS` + `version.test.ts` (digest of every golden without its version, per version, like `FACTS_DIGESTS`) fail until an output change bumps it. Red first; a changed golden and a golden at the old version each mutation-checked red. Goldens change only in the version line. All suites green (analyzer 1484). Eval: no delta (re-recorded as `2026-11-10-0.3.0.md`). anything-llm and maxun have no production graph yet.
 
