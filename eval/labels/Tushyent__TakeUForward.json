@@ -1,0 +1,1427 @@
+{
+  "repo": "Tushyent/TakeUForward",
+  "sha": "dcb3875cd126613574d50ccee77187fae86ae4b5",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/components/Navbar.jsx", "line": 40 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 181,
+        "route": "GET /api/auth/logout"
+      },
+      "notes": "handleLogout: axiosClient.get('/auth/logout'). axiosClient = axios.create({ baseURL }) in client/src/api/axiosClient.js: on localhost baseURL = VITE_API_URL, which client/.env.example sets to http://localhost:5000/api (server/index.js PORT || 5000, server/.env.example PORT=5000); without it the fallback '/api' goes through vite.config.js's /api proxy to http://localhost:5000, the same server. index.js mounts authRoutes at /api/auth; router.get('/logout')"
+    },
+    {
+      "callSite": { "file": "client/src/components/NotificationsDropdown.jsx", "line": 21 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/notificationRoutes.js",
+        "line": 10,
+        "route": "GET /api/notifications"
+      },
+      "notes": "axiosClient.get('/notifications'), base http://localhost:5000/api (axiosClient). notificationRoutes mounted at /api/notifications; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/components/NotificationsDropdown.jsx", "line": 51 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/notificationRoutes.js",
+        "line": 33,
+        "route": "POST /api/notifications/:id/read"
+      },
+      "notes": "axiosClient.post(`/notifications/${id}/read`), base http://localhost:5000/api (axiosClient). router.post('/:id/read')"
+    },
+    {
+      "callSite": { "file": "client/src/components/Sidebar.jsx", "line": 30 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 181,
+        "route": "GET /api/auth/logout"
+      },
+      "notes": "axiosClient.get('/auth/logout'), base http://localhost:5000/api (axiosClient). authRoutes at /api/auth; router.get('/logout')"
+    },
+    {
+      "callSite": { "file": "client/src/context/AuthContext.jsx", "line": 15 },
+      "method": "GET",
+      "target": { "file": "server/routes/authRoutes.js", "line": 77, "route": "GET /api/auth/me" },
+      "notes": "checkAuth: axiosClient.get('/auth/me'), base http://localhost:5000/api (axiosClient). authRoutes at /api/auth; router.get('/me')"
+    },
+    {
+      "callSite": { "file": "client/src/hooks/useMentionSearch.js", "line": 31 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 11,
+        "route": "GET /api/users/search"
+      },
+      "notes": "axiosClient.get(`/users/search?q=…`), base http://localhost:5000/api (axiosClient); query dropped. userRoutes at /api/users; router.get('/search'), registered before GET '/:username'"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ActivityLog.jsx", "line": 20 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 477,
+        "route": "GET /api/admin/activity"
+      },
+      "notes": "axiosClient.get(`/admin/activity?…`), base http://localhost:5000/api (axiosClient); query dropped. adminRoutes at /api/admin; router.get('/activity')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 124 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 75,
+        "route": "GET /api/admin/overview"
+      },
+      "notes": "axiosClient.get('/admin/overview'), base http://localhost:5000/api (axiosClient). adminRoutes at /api/admin; router.get('/overview')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 135 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 293,
+        "route": "GET /api/admin/clubs"
+      },
+      "notes": "axiosClient.get(`/admin/clubs?…`), base http://localhost:5000/api (axiosClient); query dropped. router.get('/clubs')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 144 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 362,
+        "route": "GET /api/admin/communities"
+      },
+      "notes": "axiosClient.get(`/admin/communities?…`), base http://localhost:5000/api (axiosClient); query dropped. router.get('/communities')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 153 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 435,
+        "route": "GET /api/admin/posts"
+      },
+      "notes": "axiosClient.get(`/admin/posts?…`), base http://localhost:5000/api (axiosClient); query dropped. router.get('/posts')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 163 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 176,
+        "route": "GET /api/admin/resources"
+      },
+      "notes": "axiosClient.get(`/admin/resources?…`), base http://localhost:5000/api (axiosClient); query dropped. router.get('/resources')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 175 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 131,
+        "route": "GET /api/admin/signups"
+      },
+      "notes": "axiosClient.get('/admin/signups?limit=15'), base http://localhost:5000/api (axiosClient); query dropped. router.get('/signups')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 210 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 329,
+        "route": "PUT /api/admin/clubs/:id"
+      },
+      "notes": "editing branch: axiosClient.put(`/admin/clubs/${id}`), base http://localhost:5000/api (axiosClient). router.put('/clubs/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 213 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 311,
+        "route": "POST /api/admin/clubs"
+      },
+      "notes": "create branch: axiosClient.post('/admin/clubs'), base http://localhost:5000/api (axiosClient). router.post('/clubs')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 226 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 345,
+        "route": "DELETE /api/admin/clubs/:id"
+      },
+      "notes": "axiosClient.delete(`/admin/clubs/${id}`), base http://localhost:5000/api (axiosClient). router.delete('/clubs/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 254 },
+      "method": "PUT",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 402,
+        "route": "PUT /api/admin/communities/:id"
+      },
+      "notes": "editing branch: axiosClient.put(`/admin/communities/${id}`), base http://localhost:5000/api (axiosClient). router.put('/communities/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 257 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 380,
+        "route": "POST /api/admin/communities"
+      },
+      "notes": "create branch: axiosClient.post('/admin/communities'), base http://localhost:5000/api (axiosClient). router.post('/communities')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 270 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 418,
+        "route": "DELETE /api/admin/communities/:id"
+      },
+      "notes": "axiosClient.delete(`/admin/communities/${id}`), base http://localhost:5000/api (axiosClient). router.delete('/communities/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 283 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 460,
+        "route": "DELETE /api/admin/posts/:id"
+      },
+      "notes": "axiosClient.delete(`/admin/posts/${id}`), base http://localhost:5000/api (axiosClient). router.delete('/posts/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 294 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 204,
+        "route": "DELETE /api/admin/resources/:id"
+      },
+      "notes": "axiosClient.delete(`/admin/resources/${id}`), base http://localhost:5000/api (axiosClient). router.delete('/resources/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 306 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 149,
+        "route": "GET /api/admin/users"
+      },
+      "notes": "axiosClient.get(`/admin/users?…`), base http://localhost:5000/api (axiosClient); query dropped. router.get('/users')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 320 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 477,
+        "route": "GET /api/admin/activity"
+      },
+      "notes": "axiosClient.get(`/admin/activity?…`), base http://localhost:5000/api (axiosClient); query dropped. router.get('/activity')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 333 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 276,
+        "route": "PATCH /api/admin/users/:id/approve"
+      },
+      "notes": "axiosClient.patch(`/admin/users/${userId}/approve`), base http://localhost:5000/api (axiosClient). router.patch('/users/:id/approve')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminDashboard.jsx", "line": 344 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 219,
+        "route": "DELETE /api/admin/users/:id"
+      },
+      "notes": "axiosClient.delete(`/admin/users/${id}`), base http://localhost:5000/api (axiosClient). router.delete('/users/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminSupportQueue.jsx", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/supportRoutes.js",
+        "line": 131,
+        "route": "GET /api/support"
+      },
+      "notes": "axiosClient.get(`/support?…`), base http://localhost:5000/api (axiosClient); query dropped. supportRoutes at /api/support; router.get('/', requireSystemAdmin)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminSupportQueue.jsx", "line": 49 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/supportRoutes.js",
+        "line": 161,
+        "route": "PATCH /api/support/:id/status"
+      },
+      "notes": "axiosClient.patch(`/support/${id}/status`), base http://localhost:5000/api (axiosClient). router.patch('/:id/status')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminSupportQueue.jsx", "line": 63 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/supportRoutes.js",
+        "line": 264,
+        "route": "DELETE /api/support/:id"
+      },
+      "notes": "axiosClient.delete(`/support/${id}`), base http://localhost:5000/api (axiosClient). router.delete('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AdminSupportQueue.jsx", "line": 335 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/supportRoutes.js",
+        "line": 199,
+        "route": "POST /api/support/:id/reply"
+      },
+      "notes": "axiosClient.post(`/support/${ticket._id}/reply`) in an onSubmit, base http://localhost:5000/api (axiosClient). router.post('/:id/reply')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AlumniDirectory.jsx", "line": 28 },
+      "method": "GET",
+      "target": { "file": "server/routes/alumniRoutes.js", "line": 9, "route": "GET /api/alumni" },
+      "notes": "axiosClient.get(`/alumni?…`), base http://localhost:5000/api (axiosClient); query dropped. alumniRoutes at /api/alumni; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/AlumniInvite.jsx", "line": 14 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 229,
+        "route": "GET /api/auth/alumni/invite/:token"
+      },
+      "notes": "axiosClient.get(`/auth/alumni/invite/${token}`), base http://localhost:5000/api (axiosClient). authRoutes at /api/auth; router.get('/alumni/invite/:token')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Announcements.jsx", "line": 19 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/announcementRoutes.js",
+        "line": 9,
+        "route": "GET /api/announcements"
+      },
+      "notes": "axiosClient.get(url), url = category ? `/announcements?category=…` : '/announcements' (line 18): both alternatives are the same route once the query is dropped, so one label. base http://localhost:5000/api (axiosClient). announcementRoutes at /api/announcements; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Bookmarks.jsx", "line": 24 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 14,
+        "route": "GET /api/bookmarks"
+      },
+      "notes": "axiosClient.get(`/bookmarks${query}`), query is '' or '?type=…' (line 23), so the path is /bookmarks either way. base http://localhost:5000/api (axiosClient). bookmarkRoutes at /api/bookmarks; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Bookmarks.jsx", "line": 39 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 57,
+        "route": "POST /api/bookmarks"
+      },
+      "notes": "axiosClient.post('/bookmarks') (toggle), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CareerRoadmaps.jsx", "line": 41 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/careerRoadmapRoutes.js",
+        "line": 12,
+        "route": "GET /api/career-roadmaps"
+      },
+      "notes": "axiosClient.get(`/career-roadmaps?…`), base http://localhost:5000/api (axiosClient); query dropped. careerRoadmapRoutes at /api/career-roadmaps; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CareerRoadmaps.jsx", "line": 96 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/careerRoadmapRoutes.js",
+        "line": 44,
+        "route": "POST /api/career-roadmaps"
+      },
+      "notes": "axiosClient.post('/career-roadmaps'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CareerRoadmaps.jsx", "line": 119 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/careerRoadmapRoutes.js",
+        "line": 116,
+        "route": "POST /api/career-roadmaps/:id/report"
+      },
+      "notes": "axiosClient.post(`/career-roadmaps/${reportingId}/report`), base http://localhost:5000/api (axiosClient). router.post('/:id/report')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CareerRoadmaps.jsx", "line": 125 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/careerRoadmapRoutes.js",
+        "line": 89,
+        "route": "POST /api/career-roadmaps/:id/upvote"
+      },
+      "notes": "axiosClient.post(`/career-roadmaps/${id}/upvote`), base http://localhost:5000/api (axiosClient). router.post('/:id/upvote')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ChatThread.jsx", "line": 33 },
+      "method": "GET",
+      "target": { "file": "server/routes/authRoutes.js", "line": 77, "route": "GET /api/auth/me" },
+      "notes": "axiosClient.get('/auth/me'), base http://localhost:5000/api (axiosClient). router.get('/me') under /api/auth"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ChatThread.jsx", "line": 38 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/chatRoutes.js",
+        "line": 35,
+        "route": "GET /api/chats/:userId"
+      },
+      "notes": "axiosClient.get(`/chats/${userId}`), base http://localhost:5000/api (axiosClient). chatRoutes at /api/chats; router.get('/:userId')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ChatThread.jsx", "line": 63 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/chatRoutes.js",
+        "line": 83,
+        "route": "POST /api/chats/:userId/message"
+      },
+      "notes": "axiosClient.post(`/chats/${userId}/message`), base http://localhost:5000/api (axiosClient). router.post('/:userId/message')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Chats.jsx", "line": 27 },
+      "method": "GET",
+      "target": { "file": "server/routes/authRoutes.js", "line": 77, "route": "GET /api/auth/me" },
+      "notes": "Promise.all entry axiosClient.get('/auth/me'), base http://localhost:5000/api (axiosClient). router.get('/me') under /api/auth"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Chats.jsx", "line": 28 },
+      "method": "GET",
+      "target": { "file": "server/routes/chatRoutes.js", "line": 19, "route": "GET /api/chats" },
+      "notes": "axiosClient.get('/chats'), base http://localhost:5000/api (axiosClient). chatRoutes at /api/chats; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Chats.jsx", "line": 29 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 46,
+        "route": "GET /api/users/contacts"
+      },
+      "notes": "axiosClient.get('/users/contacts'), base http://localhost:5000/api (axiosClient). userRoutes at /api/users; router.get('/contacts'), before GET '/:username'"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ClubPage.jsx", "line": 43 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/clubRoutes.js",
+        "line": 27,
+        "route": "GET /api/clubs/:id"
+      },
+      "notes": "axiosClient.get(`/clubs/${id}`), base http://localhost:5000/api (axiosClient). clubRoutes at /api/clubs; router.get('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ClubPage.jsx", "line": 51 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/clubRoutes.js",
+        "line": 155,
+        "route": "GET /api/clubs/:id/analytics"
+      },
+      "notes": "axiosClient.get(`/clubs/${id}/analytics`), base http://localhost:5000/api (axiosClient). router.get('/:id/analytics')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ClubPage.jsx", "line": 77 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/clubRoutes.js",
+        "line": 73,
+        "route": "POST /api/clubs/:id/posts"
+      },
+      "notes": "axiosClient.post(`/clubs/${id}/posts`), base http://localhost:5000/api (axiosClient). router.post('/:id/posts')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ClubPage.jsx", "line": 130 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/clubRoutes.js",
+        "line": 48,
+        "route": "PATCH /api/clubs/:id"
+      },
+      "notes": "onSave in JSX: axiosClient.patch(`/clubs/${club._id}`), base http://localhost:5000/api (axiosClient). router.patch('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ClubsList.jsx", "line": 27 },
+      "method": "GET",
+      "target": { "file": "server/routes/clubRoutes.js", "line": 15, "route": "GET /api/clubs" },
+      "notes": "axiosClient.get('/clubs'), base http://localhost:5000/api (axiosClient). router.get('/') under /api/clubs"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityBrowse.jsx", "line": 26 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/communityRoutes.js",
+        "line": 8,
+        "route": "GET /api/communities"
+      },
+      "notes": "axiosClient.get('/communities'), base http://localhost:5000/api (axiosClient). communityRoutes at /api/communities; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 49 },
+      "method": "GET",
+      "target": { "file": "server/routes/postRoutes.js", "line": 96, "route": "GET /api/posts" },
+      "notes": "axiosClient.get(`/posts?…`), base http://localhost:5000/api (axiosClient); query dropped. postRoutes at /api/posts; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 59 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 14,
+        "route": "GET /api/bookmarks"
+      },
+      "notes": "axiosClient.get('/bookmarks?type=post'), base http://localhost:5000/api (axiosClient); query dropped. router.get('/') under /api/bookmarks"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 70 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/communityRoutes.js",
+        "line": 19,
+        "route": "GET /api/communities/:id"
+      },
+      "notes": "axiosClient.get(`/communities/${id}`), base http://localhost:5000/api (axiosClient). router.get('/:id') under /api/communities"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 106 },
+      "method": "POST",
+      "target": { "file": "server/routes/postRoutes.js", "line": 19, "route": "POST /api/posts" },
+      "notes": "axiosClient.post('/posts'), base http://localhost:5000/api (axiosClient). router.post('/') under /api/posts"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 127 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/postRoutes.js",
+        "line": 279,
+        "route": "POST /api/posts/:id/upvote"
+      },
+      "notes": "axiosClient.post(`/posts/${postId}/upvote`), base http://localhost:5000/api (axiosClient). router.post('/:id/upvote')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 139 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/postRoutes.js",
+        "line": 304,
+        "route": "POST /api/posts/:id/report"
+      },
+      "notes": "axiosClient.post(`/posts/${reportingId}/report`), base http://localhost:5000/api (axiosClient). router.post('/:id/report')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 150 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/postRoutes.js",
+        "line": 191,
+        "route": "POST /api/posts/:id/comment"
+      },
+      "notes": "axiosClient.post(`/posts/${postId}/comment`), base http://localhost:5000/api (axiosClient). router.post('/:id/comment')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 167 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 57,
+        "route": "POST /api/bookmarks"
+      },
+      "notes": "axiosClient.post('/bookmarks'), base http://localhost:5000/api (axiosClient). router.post('/') under /api/bookmarks"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 183 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/postRoutes.js",
+        "line": 340,
+        "route": "DELETE /api/posts/:id"
+      },
+      "notes": "axiosClient.delete(`/posts/${postId}`), base http://localhost:5000/api (axiosClient). router.delete('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CommunityPosts.jsx", "line": 194 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/postRoutes.js",
+        "line": 366,
+        "route": "DELETE /api/posts/:id/comments/:commentId"
+      },
+      "notes": "axiosClient.delete(`/posts/${postId}/comments/${commentId}`), base http://localhost:5000/api (axiosClient). router.delete('/:id/comments/:commentId'); the earlier DELETE '/:id' is one segment"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CompleteProfile.jsx", "line": 33 },
+      "method": "GET",
+      "target": { "file": "server/routes/authRoutes.js", "line": 77, "route": "GET /api/auth/me" },
+      "notes": "axiosClient.get('/auth/me'), base http://localhost:5000/api (axiosClient). router.get('/me') under /api/auth"
+    },
+    {
+      "callSite": { "file": "client/src/pages/CompleteProfile.jsx", "line": 60 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 98,
+        "route": "PATCH /api/auth/profile"
+      },
+      "notes": "axiosClient.patch('/auth/profile'), base http://localhost:5000/api (axiosClient). router.patch('/profile') under /api/auth"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Electives.jsx", "line": 42 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/electiveRoutes.js",
+        "line": 13,
+        "route": "GET /api/elective-suggestions"
+      },
+      "notes": "axiosClient.get(`/elective-suggestions?…`), base http://localhost:5000/api (axiosClient); query dropped. electiveRoutes at /api/elective-suggestions; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Electives.jsx", "line": 57 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 14,
+        "route": "GET /api/bookmarks"
+      },
+      "notes": "axiosClient.get('/bookmarks?type=elective_suggestion'), base http://localhost:5000/api (axiosClient); query dropped"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Electives.jsx", "line": 72 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 57,
+        "route": "POST /api/bookmarks"
+      },
+      "notes": "axiosClient.post('/bookmarks'), base http://localhost:5000/api (axiosClient)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Electives.jsx", "line": 94 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/electiveRoutes.js",
+        "line": 51,
+        "route": "POST /api/elective-suggestions"
+      },
+      "notes": "axiosClient.post('/elective-suggestions'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Electives.jsx", "line": 125 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/electiveRoutes.js",
+        "line": 131,
+        "route": "POST /api/elective-suggestions/:id/report"
+      },
+      "notes": "axiosClient.post(`/elective-suggestions/${reportingId}/report`), base http://localhost:5000/api (axiosClient). router.post('/:id/report')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Electives.jsx", "line": 131 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/electiveRoutes.js",
+        "line": 104,
+        "route": "POST /api/elective-suggestions/:id/upvote"
+      },
+      "notes": "axiosClient.post(`/elective-suggestions/${id}/upvote`), base http://localhost:5000/api (axiosClient). router.post('/:id/upvote')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Home.jsx", "line": 192 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/communityRoutes.js",
+        "line": 8,
+        "route": "GET /api/communities"
+      },
+      "notes": "axiosClient.get('/communities'), base http://localhost:5000/api (axiosClient). router.get('/') under /api/communities"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Home.jsx", "line": 222 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 98,
+        "route": "POST /api/admin/marketing-email"
+      },
+      "notes": "axiosClient.post('/admin/marketing-email'), base http://localhost:5000/api (axiosClient). router.post('/marketing-email') under /api/admin"
+    },
+    {
+      "callSite": { "file": "client/src/pages/InterviewExperiences.jsx", "line": 44 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/interviewExperienceRoutes.js",
+        "line": 14,
+        "route": "GET /api/interview-experiences"
+      },
+      "notes": "axiosClient.get(`/interview-experiences?…`), base http://localhost:5000/api (axiosClient); query dropped. interviewExperienceRoutes at /api/interview-experiences; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/InterviewExperiences.jsx", "line": 59 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 14,
+        "route": "GET /api/bookmarks"
+      },
+      "notes": "axiosClient.get('/bookmarks?type=interview_experience'), base http://localhost:5000/api (axiosClient); query dropped"
+    },
+    {
+      "callSite": { "file": "client/src/pages/InterviewExperiences.jsx", "line": 74 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 57,
+        "route": "POST /api/bookmarks"
+      },
+      "notes": "axiosClient.post('/bookmarks'), base http://localhost:5000/api (axiosClient)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/InterviewExperiences.jsx", "line": 120 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/interviewExperienceRoutes.js",
+        "line": 48,
+        "route": "POST /api/interview-experiences"
+      },
+      "notes": "axiosClient.post('/interview-experiences'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/InterviewExperiences.jsx", "line": 150 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/interviewExperienceRoutes.js",
+        "line": 129,
+        "route": "POST /api/interview-experiences/:id/report"
+      },
+      "notes": "axiosClient.post(`/interview-experiences/${reportingId}/report`), base http://localhost:5000/api (axiosClient). router.post('/:id/report')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/InterviewExperiences.jsx", "line": 156 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/interviewExperienceRoutes.js",
+        "line": 102,
+        "route": "POST /api/interview-experiences/:id/upvote"
+      },
+      "notes": "axiosClient.post(`/interview-experiences/${expId}/upvote`), base http://localhost:5000/api (axiosClient). router.post('/:id/upvote')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/InterviewExperiences.jsx", "line": 169 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/interviewExperienceRoutes.js",
+        "line": 167,
+        "route": "DELETE /api/interview-experiences/:id"
+      },
+      "notes": "axiosClient.delete(`/interview-experiences/${expId}`), base http://localhost:5000/api (axiosClient). router.delete('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Login.jsx", "line": 92 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 289,
+        "route": "POST /api/auth/alumni/request"
+      },
+      "notes": "axiosClient.post('/auth/alumni/request'), base http://localhost:5000/api (axiosClient). router.post('/alumni/request') under /api/auth"
+    },
+    {
+      "callSite": { "file": "client/src/pages/LostFound.jsx", "line": 62 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/lostFoundRoutes.js",
+        "line": 12,
+        "route": "GET /api/lost-found"
+      },
+      "notes": "axiosClient.get(`/lost-found?…`), base http://localhost:5000/api (axiosClient); query dropped. lostFoundRoutes at /api/lost-found; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/LostFound.jsx", "line": 97 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/lostFoundRoutes.js",
+        "line": 63,
+        "route": "POST /api/lost-found"
+      },
+      "notes": "axiosClient.post('/lost-found'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/LostFound.jsx", "line": 121 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/lostFoundRoutes.js",
+        "line": 106,
+        "route": "POST /api/lost-found/:id/resolve"
+      },
+      "notes": "axiosClient.post(`/lost-found/${id}/resolve`), base http://localhost:5000/api (axiosClient). router.post('/:id/resolve')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/LostFound.jsx", "line": 133 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/lostFoundRoutes.js",
+        "line": 133,
+        "route": "DELETE /api/lost-found/:id"
+      },
+      "notes": "axiosClient.delete(`/lost-found/${id}`), base http://localhost:5000/api (axiosClient). router.delete('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/LostFound.jsx", "line": 146 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/lostFoundRoutes.js",
+        "line": 162,
+        "route": "POST /api/lost-found/:id/report"
+      },
+      "notes": "axiosClient.post(`/lost-found/${reportingId}/report`), base http://localhost:5000/api (axiosClient). router.post('/:id/report')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/LostFound.jsx", "line": 154 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/chatRoutes.js",
+        "line": 35,
+        "route": "GET /api/chats/:userId"
+      },
+      "notes": "axiosClient.get(`/chats/${userId}`), base http://localhost:5000/api (axiosClient). router.get('/:userId') under /api/chats"
+    },
+    {
+      "callSite": { "file": "client/src/pages/LostFound.jsx", "line": 175 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/lostFoundRoutes.js",
+        "line": 46,
+        "route": "POST /api/lost-found/upload-url"
+      },
+      "notes": "axiosClient.post('/lost-found/upload-url'), base http://localhost:5000/api (axiosClient). router.post('/upload-url'), registered before POST '/'"
+    },
+    {
+      "callSite": { "file": "client/src/pages/LostFound.jsx", "line": 180 },
+      "method": "PUT",
+      "target": null,
+      "notes": "fetch(data.uploadUrl, { method: 'PUT' }): the URL is the upload-url response's presigned S3 URL (server/config/s3.js getSignedUrl), known only at runtime; external storage (the no-AWS-key mock '/api/drive/mock-s3-upload' is also a runtime server choice)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Marketplace.jsx", "line": 56 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/marketplaceRoutes.js",
+        "line": 10,
+        "route": "GET /api/marketplace"
+      },
+      "notes": "axiosClient.get(`/marketplace?…`), base http://localhost:5000/api (axiosClient); query dropped. marketplaceRoutes at /api/marketplace; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Marketplace.jsx", "line": 91 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/marketplaceRoutes.js",
+        "line": 38,
+        "route": "POST /api/marketplace"
+      },
+      "notes": "axiosClient.post('/marketplace'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Marketplace.jsx", "line": 114 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/marketplaceRoutes.js",
+        "line": 119,
+        "route": "POST /api/marketplace/:id/report"
+      },
+      "notes": "axiosClient.post(`/marketplace/${reportingId}/report`), base http://localhost:5000/api (axiosClient). router.post('/:id/report')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Marketplace.jsx", "line": 121 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/marketplaceRoutes.js",
+        "line": 92,
+        "route": "PATCH /api/marketplace/:id/sold"
+      },
+      "notes": "axiosClient.patch(`/marketplace/${id}/sold`), base http://localhost:5000/api (axiosClient). router.patch('/:id/sold')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Marketplace.jsx", "line": 132 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/marketplaceRoutes.js",
+        "line": 149,
+        "route": "DELETE /api/marketplace/:id"
+      },
+      "notes": "axiosClient.delete(`/marketplace/${id}`), base http://localhost:5000/api (axiosClient). router.delete('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/MockInterviews.jsx", "line": 35 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/mockInterviewRoutes.js",
+        "line": 12,
+        "route": "GET /api/mock-interviews"
+      },
+      "notes": "axiosClient.get(`/mock-interviews?…`), base http://localhost:5000/api (axiosClient); query dropped. mockInterviewRoutes at /api/mock-interviews; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/MockInterviews.jsx", "line": 36 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/mockInterviewRoutes.js",
+        "line": 41,
+        "route": "GET /api/mock-interviews/my-requests"
+      },
+      "notes": "axiosClient.get('/mock-interviews/my-requests'), base http://localhost:5000/api (axiosClient). router.get('/my-requests')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/MockInterviews.jsx", "line": 58 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/mockInterviewRoutes.js",
+        "line": 58,
+        "route": "POST /api/mock-interviews"
+      },
+      "notes": "axiosClient.post('/mock-interviews'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/MockInterviews.jsx", "line": 75 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/mockInterviewRoutes.js",
+        "line": 99,
+        "route": "POST /api/mock-interviews/:id/match"
+      },
+      "notes": "axiosClient.post(`/mock-interviews/${id}/match`), base http://localhost:5000/api (axiosClient). router.post('/:id/match')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/MockInterviews.jsx", "line": 85 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/mockInterviewRoutes.js",
+        "line": 133,
+        "route": "PATCH /api/mock-interviews/:id/close"
+      },
+      "notes": "axiosClient.patch(`/mock-interviews/${id}/close`), base http://localhost:5000/api (axiosClient). router.patch('/:id/close')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ModerationQueue.jsx", "line": 24 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/moderationRoutes.js",
+        "line": 20,
+        "route": "GET /api/moderation/queue"
+      },
+      "notes": "axiosClient.get('/moderation/queue'), base http://localhost:5000/api (axiosClient). moderationRoutes at /api/moderation; router.get('/queue')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ModerationQueue.jsx", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/moderationRoutes.js",
+        "line": 167,
+        "route": "GET /api/moderation/alumni-requests"
+      },
+      "notes": "axiosClient.get('/moderation/alumni-requests'), base http://localhost:5000/api (axiosClient). router.get('/alumni-requests')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ModerationQueue.jsx", "line": 49 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/moderationRoutes.js",
+        "line": 125,
+        "route": "POST /api/moderation/:itemId/resolve"
+      },
+      "notes": "handleResolve: axiosClient.post(`/moderation/${postId}/resolve`) (action goes in the body), base http://localhost:5000/api (axiosClient). router.post('/:itemId/resolve')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ModerationQueue.jsx", "line": 298 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/moderationRoutes.js",
+        "line": 244,
+        "route": "POST /api/moderation/alumni-requests/:id/reject"
+      },
+      "notes": "handleAlumniAction(req._id, 'reject'); the helper (line 62) posts `/moderation/alumni-requests/${requestId}/${action}`, its last segment from the caller, so each call is the call site. base http://localhost:5000/api (axiosClient). router.post('/alumni-requests/:id/reject')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ModerationQueue.jsx", "line": 308 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/moderationRoutes.js",
+        "line": 187,
+        "route": "POST /api/moderation/alumni-requests/:id/approve"
+      },
+      "notes": "handleAlumniAction(req._id, 'approve') via the line-62 helper (last segment from the caller). base http://localhost:5000/api (axiosClient). router.post('/alumni-requests/:id/approve')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/NotificationsPage.jsx", "line": 34 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/notificationRoutes.js",
+        "line": 10,
+        "route": "GET /api/notifications"
+      },
+      "notes": "axiosClient.get(`/notifications?page=…`), base http://localhost:5000/api (axiosClient); query dropped. router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/NotificationsPage.jsx", "line": 68 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/notificationRoutes.js",
+        "line": 33,
+        "route": "POST /api/notifications/:id/read"
+      },
+      "notes": "axiosClient.post(`/notifications/${id}/read`), base http://localhost:5000/api (axiosClient). router.post('/:id/read')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/NotificationsPage.jsx", "line": 81 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/notificationRoutes.js",
+        "line": 33,
+        "route": "POST /api/notifications/:id/read"
+      },
+      "notes": "markAll: unread.map(n => axiosClient.post(`/notifications/${n._id}/read`)), base http://localhost:5000/api (axiosClient). router.post('/:id/read')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PendingApproval.jsx", "line": 39 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 366,
+        "route": "GET /api/auth/alumni/request-status"
+      },
+      "notes": "axiosClient.get('/auth/alumni/request-status'), base http://localhost:5000/api (axiosClient). router.get('/alumni/request-status') under /api/auth"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PendingApproval.jsx", "line": 52 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 181,
+        "route": "GET /api/auth/logout"
+      },
+      "notes": "axiosClient.get('/auth/logout'), base http://localhost:5000/api (axiosClient)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PendingApproval.jsx", "line": 67 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 289,
+        "route": "POST /api/auth/alumni/request"
+      },
+      "notes": "axiosClient.post('/auth/alumni/request'), base http://localhost:5000/api (axiosClient)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PersonalDrive.jsx", "line": 18 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/privateFileRoutes.js",
+        "line": 12,
+        "route": "GET /api/drive"
+      },
+      "notes": "axiosClient.get('/drive'), base http://localhost:5000/api (axiosClient). privateFileRoutes at /api/drive; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PersonalDrive.jsx", "line": 44 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/privateFileRoutes.js",
+        "line": 29,
+        "route": "POST /api/drive/upload-url"
+      },
+      "notes": "axiosClient.post('/drive/upload-url'), base http://localhost:5000/api (axiosClient). router.post('/upload-url')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PersonalDrive.jsx", "line": 50 },
+      "method": "PUT",
+      "target": null,
+      "notes": "fetch(data.uploadUrl, { method: 'PUT' }): uploadUrl comes from POST /api/drive/upload-url's response (generatePrivateUploadUrl: a presigned S3 URL, or '/api/drive/mock-s3-upload' only when the server has no AWS key), known only at runtime"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PersonalDrive.jsx", "line": 57 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/privateFileRoutes.js",
+        "line": 98,
+        "route": "POST /api/drive/confirm"
+      },
+      "notes": "axiosClient.post('/drive/confirm'), base http://localhost:5000/api (axiosClient). router.post('/confirm')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PersonalDrive.jsx", "line": 76 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/privateFileRoutes.js",
+        "line": 147,
+        "route": "GET /api/drive/:id/download"
+      },
+      "notes": "axiosClient.get(`/drive/${fileId}/download`), base http://localhost:5000/api (axiosClient). router.get('/:id/download')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PersonalDrive.jsx", "line": 94 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/privateFileRoutes.js",
+        "line": 165,
+        "route": "DELETE /api/drive/:id"
+      },
+      "notes": "axiosClient.delete(`/drive/${fileId}`), base http://localhost:5000/api (axiosClient). router.delete('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ProfileSettings.jsx", "line": 45 },
+      "method": "GET",
+      "target": { "file": "server/routes/authRoutes.js", "line": 77, "route": "GET /api/auth/me" },
+      "notes": "axiosClient.get('/auth/me'), base http://localhost:5000/api (axiosClient)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ProfileSettings.jsx", "line": 112 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/pushRoutes.js",
+        "line": 37,
+        "route": "POST /api/push/unsubscribe"
+      },
+      "notes": "axiosClient.post('/push/unsubscribe'), base http://localhost:5000/api (axiosClient). pushRoutes at /api/push; router.post('/unsubscribe')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ProfileSettings.jsx", "line": 151 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/pushRoutes.js",
+        "line": 9,
+        "route": "POST /api/push/subscribe"
+      },
+      "notes": "axiosClient.post('/push/subscribe'), base http://localhost:5000/api (axiosClient). router.post('/subscribe')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ProfileSettings.jsx", "line": 175 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 128,
+        "route": "PATCH /api/users/me/profile"
+      },
+      "notes": "axiosClient.patch('/users/me/profile'), base http://localhost:5000/api (axiosClient). userRoutes at /api/users; router.patch('/me/profile') (GET '/:username' is GET only)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PublicProfile.jsx", "line": 37 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 79,
+        "route": "GET /api/users/:username"
+      },
+      "notes": "axiosClient.get(`/users/${username}`), base http://localhost:5000/api (axiosClient). router.get('/:username') under /api/users"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PublicProfile.jsx", "line": 38 },
+      "method": "GET",
+      "target": { "file": "server/routes/authRoutes.js", "line": 77, "route": "GET /api/auth/me" },
+      "notes": "axiosClient.get('/auth/me'), base http://localhost:5000/api (axiosClient)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PublicProfile.jsx", "line": 46 },
+      "method": "GET",
+      "target": { "file": "server/routes/postRoutes.js", "line": 96, "route": "GET /api/posts" },
+      "notes": "axiosClient.get(`/posts?authorId=…`), base http://localhost:5000/api (axiosClient); query dropped"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PublicProfile.jsx", "line": 47 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/resourceRoutes.js",
+        "line": 117,
+        "route": "GET /api/resources"
+      },
+      "notes": "axiosClient.get(`/resources?uploaderId=…`), base http://localhost:5000/api (axiosClient); query dropped. resourceRoutes at /api/resources; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/PublicProfile.jsx", "line": 48 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/interviewExperienceRoutes.js",
+        "line": 14,
+        "route": "GET /api/interview-experiences"
+      },
+      "notes": "axiosClient.get(`/interview-experiences?authorId=…`), base http://localhost:5000/api (axiosClient); query dropped"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ReferralBoard.jsx", "line": 33 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/referralRoutes.js",
+        "line": 12,
+        "route": "GET /api/referrals"
+      },
+      "notes": "axiosClient.get(`/referrals?…`), base http://localhost:5000/api (axiosClient); query dropped. referralRoutes at /api/referrals; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ReferralBoard.jsx", "line": 34 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/referralRoutes.js",
+        "line": 41,
+        "route": "GET /api/referrals/my-requests"
+      },
+      "notes": "axiosClient.get('/referrals/my-requests'), base http://localhost:5000/api (axiosClient). router.get('/my-requests')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ReferralBoard.jsx", "line": 56 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/referralRoutes.js",
+        "line": 58,
+        "route": "POST /api/referrals"
+      },
+      "notes": "axiosClient.post('/referrals'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ReferralBoard.jsx", "line": 69 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/referralRoutes.js",
+        "line": 95,
+        "route": "POST /api/referrals/:id/match"
+      },
+      "notes": "axiosClient.post(`/referrals/${id}/match`), base http://localhost:5000/api (axiosClient). router.post('/:id/match')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/ReferralBoard.jsx", "line": 79 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/referralRoutes.js",
+        "line": 129,
+        "route": "PATCH /api/referrals/:id/close"
+      },
+      "notes": "axiosClient.patch(`/referrals/${id}/close`), base http://localhost:5000/api (axiosClient). router.patch('/:id/close')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Resources.jsx", "line": 40 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/resourceRoutes.js",
+        "line": 117,
+        "route": "GET /api/resources"
+      },
+      "notes": "axiosClient.get(`/resources?…`), base http://localhost:5000/api (axiosClient); query dropped. router.get('/') under /api/resources"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Resources.jsx", "line": 51 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 14,
+        "route": "GET /api/bookmarks"
+      },
+      "notes": "axiosClient.get('/bookmarks?type=resource'), base http://localhost:5000/api (axiosClient); query dropped"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Resources.jsx", "line": 74 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/resourceRoutes.js",
+        "line": 15,
+        "route": "POST /api/resources/upload-url"
+      },
+      "notes": "axiosClient.post('/resources/upload-url'), base http://localhost:5000/api (axiosClient). router.post('/upload-url')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Resources.jsx", "line": 82 },
+      "method": "PUT",
+      "target": null,
+      "notes": "plain axios.put(uploadUrl, file) (not axiosClient): uploadUrl is POST /api/resources/upload-url's response (generatePresignedUrl: presigned S3 URL, or the mock path only when the server has no AWS key), known only at runtime"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Resources.jsx", "line": 89 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/resourceRoutes.js",
+        "line": 50,
+        "route": "POST /api/resources"
+      },
+      "notes": "axiosClient.post('/resources'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Resources.jsx", "line": 117 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/bookmarkRoutes.js",
+        "line": 57,
+        "route": "POST /api/bookmarks"
+      },
+      "notes": "axiosClient.post('/bookmarks'), base http://localhost:5000/api (axiosClient)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Resources.jsx", "line": 134 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 204,
+        "route": "DELETE /api/admin/resources/:id"
+      },
+      "notes": "axiosClient.delete(`/admin/resources/${res._id}`), base http://localhost:5000/api (axiosClient). router.delete('/resources/:id') under /api/admin"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Reviews.jsx", "line": 38 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/reviewRoutes.js",
+        "line": 68,
+        "route": "GET /api/reviews"
+      },
+      "notes": "axiosClient.get(`/reviews?…`), base http://localhost:5000/api (axiosClient); query dropped. reviewRoutes at /api/reviews; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Reviews.jsx", "line": 63 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/reviewRoutes.js",
+        "line": 21,
+        "route": "POST /api/reviews"
+      },
+      "notes": "axiosClient.post('/reviews'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Reviews.jsx", "line": 91 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/reviewRoutes.js",
+        "line": 121,
+        "route": "POST /api/reviews/:id/report"
+      },
+      "notes": "axiosClient.post(`/reviews/${reportingId}/report`), base http://localhost:5000/api (axiosClient). router.post('/:id/report')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Support.jsx", "line": 34 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/supportRoutes.js",
+        "line": 105,
+        "route": "GET /api/support/my-tickets"
+      },
+      "notes": "axiosClient.get('/support/my-tickets'), base http://localhost:5000/api (axiosClient). router.get('/my-tickets') under /api/support"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Support.jsx", "line": 76 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/supportRoutes.js",
+        "line": 13,
+        "route": "POST /api/support/upload-url"
+      },
+      "notes": "axiosClient.post('/support/upload-url'), base http://localhost:5000/api (axiosClient). router.post('/upload-url')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Support.jsx", "line": 83 },
+      "method": "PUT",
+      "target": null,
+      "notes": "fetch(uploadUrl, { method: 'PUT' }): uploadUrl is POST /api/support/upload-url's response (a presigned S3 URL), known only at runtime"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Support.jsx", "line": 122 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/supportRoutes.js",
+        "line": 46,
+        "route": "POST /api/support"
+      },
+      "notes": "axiosClient.post('/support'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/TeamFinder.jsx", "line": 42 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/teamRequestRoutes.js",
+        "line": 33,
+        "route": "GET /api/team-requests"
+      },
+      "notes": "axiosClient.get(`/team-requests?…`), base http://localhost:5000/api (axiosClient); query dropped. teamRequestRoutes at /api/team-requests; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/TeamFinder.jsx", "line": 68 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/teamRequestRoutes.js",
+        "line": 61,
+        "route": "POST /api/team-requests"
+      },
+      "notes": "axiosClient.post('/team-requests'), base http://localhost:5000/api (axiosClient). router.post('/')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/TeamFinder.jsx", "line": 94 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/teamRequestRoutes.js",
+        "line": 93,
+        "route": "POST /api/team-requests/:id/apply"
+      },
+      "notes": "axiosClient.post(`/team-requests/${reqId}/apply`), base http://localhost:5000/api (axiosClient). router.post('/:id/apply')"
+    },
+    {
+      "callSite": { "file": "client/src/pages/TeamFinder.jsx", "line": 109 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/teamRequestRoutes.js",
+        "line": 136,
+        "route": "POST /api/team-requests/:id/close"
+      },
+      "notes": "axiosClient.post(`/team-requests/${reqId}/close`), base http://localhost:5000/api (axiosClient). router.post('/:id/close')"
+    },
+    {
+      "callSite": { "file": "e2e/critical-path.spec.js", "line": 47 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 257,
+        "route": "POST /api/auth/test-session"
+      },
+      "notes": "seedSession(): axios.post(`${API_BASE}/auth/test-session`); API_BASE = process.env.PLAYWRIGHT_API_BASE || 'http://127.0.0.1:5000/api' (line 39), the server's PORT || 5000. authRoutes at /api/auth; router.post('/test-session') registered when NODE_ENV !== 'production' and ALLOW_TEST_SESSION === 'true'"
+    },
+    {
+      "callSite": { "file": "e2e/critical-path.spec.js", "line": 87 },
+      "method": "GET",
+      "target": { "file": "server/routes/healthRoutes.js", "line": 6, "route": "GET /api/health" },
+      "notes": "axios.get(`${API_BASE}/health`), API_BASE fallback http://127.0.0.1:5000/api. index.js mounts healthRoutes at /api/health (and /health); router.get('/'). requireAuth lets /api/health through"
+    },
+    {
+      "callSite": { "file": "e2e/critical-path.spec.js", "line": 102 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/communityRoutes.js",
+        "line": 8,
+        "route": "GET /api/communities"
+      },
+      "notes": "axios.get(`${API_BASE}/communities`) with the seeded cookie, API_BASE fallback http://127.0.0.1:5000/api. communityRoutes at /api/communities; router.get('/')"
+    },
+    {
+      "callSite": { "file": "server/routes/resourceRoutes.js", "line": 100 },
+      "method": "GET",
+      "target": null,
+      "notes": "summarizeResource(title, courseCode, tags, fileUrl): server/services/geminiService.js:26 axios.get(fileUrl) on its parameter, so the caller is the call site. fileUrl is req.body.fileUrl, checked by validateS3Url to be the S3 bucket: external storage, known only at runtime"
+    }
+  ]
+}
