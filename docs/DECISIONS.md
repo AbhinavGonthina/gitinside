@@ -2594,6 +2594,11 @@ Product-level decisions trace to `../gitinside-planning/DISCOVERY.md` (`D<topic>
   - `elyse502/ecommerce-app` pinned: its committed `.env` files set the server's own port.
 
   `react-express` has 8 pins out of 21 read. To prevent another misread, every remaining unlabeled pin (M5C.8b3–b4) gets its base checked against the routes' full paths (mounts included), not only the port, before its labels are drafted.
+- **Amendment (2026-11-10, M9.2a1): batch 6, the final blind batch, and exclusions that only grow.** Batch 5 is seen (#18), and M6–M9.1 changed the analyzer since, so M9.2 measures it once more on a fresh draw (`eval/draws/batch-6.json`): batch 5's strata, queries, and 8 pins each, seed `2026-11-10`; only the totals were read before committing (291, 307).
+  - **Excluded:** 454 repos. Batch 5's whole list (278); batch 5's pins (16) and the candidates its walk rejected (18); the 80 repos newly named in `docs/usage/` (the 2026-11-06 files behind M5C.10c–e2); and the PR backtest's 7 pins and 55 rejected candidates (`eval/backtest/repos.json`), which M7 read and M9.1 shaped fixes on (anything-llm, maxun; taxonomy is in the original set). The demo choice's candidates are all among those. Collected by a scratch script over those files (M9.2a1's session note), which also re-derived batch 5's 224 usage names from `docs/usage/` and found none missing.
+  - **Checked:** `drawCrossCheck` now also fails a list that misses any repo an earlier draw excluded. Batch 5's list held repos read for fixes that no other file records in machine-checkable form, so without this rule a later list could quietly drop them.
+  - **Rejected:** new queries or strata (batch 6 couldn't be compared with batches 4 and 5); excluding only the batches (the backtest repos were read in full, and three demo checks shaped M9.1's fixes).
+  - **Consequence:** as with batch 5, the exclusions take out repos with the patterns recent fixes target, so if anything they make batch 6 harder for the analyzer.
 
 ## ADR-0209: Labels follow a literal host into the repo only with in-repo deployment evidence; committed generated code is labeled
 - **Status:** accepted (2026-11-04, M5C.5b1, #18)
