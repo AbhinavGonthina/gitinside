@@ -1,0 +1,289 @@
+{
+  "repo": "kalczugag/Employee-Leave-Management",
+  "sha": "a79f76d90e733109953ff8a0b68996db85b91b71",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/store/apis/departmentApi.ts", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/department.ts",
+        "line": 13,
+        "route": "GET /api/departments"
+      },
+      "notes": "RTK Query getAllDepartments: query returns { url: \"/departments\", method: \"GET\", params }; fetchBaseQuery baseUrl = window.location.protocol + \"//\" + window.location.host + \"/api\" (same origin: Vite dev server proxies /api to http://localhost:8080, the backend's PORT || 8080; in production Express serves frontend/build). backend/index.ts mounts router() at /api; router.get(\"/departments\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/departmentApi.ts", "line": 53 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/department.ts",
+        "line": 14,
+        "route": "GET /api/departments/:id"
+      },
+      "notes": "RTK Query getDepartment: GET `/departments/${id}` on the same-origin /api base. router.get(\"/departments/:id\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/departmentApi.ts", "line": 60 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/department.ts",
+        "line": 15,
+        "route": "POST /api/departments"
+      },
+      "notes": "RTK Query addDepartment: POST \"/departments\" on the same-origin /api base. router.post(\"/departments\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/departmentApi.ts", "line": 71 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/router/department.ts",
+        "line": 22,
+        "route": "PATCH /api/departments/:id"
+      },
+      "notes": "RTK Query editDepartment: PATCH `/departments/${values._id}` on the same-origin /api base. router.patch(\"/departments/:id\", …) under /api (statement starts line 22)"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/departmentApi.ts", "line": 82 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/router/department.ts",
+        "line": 16,
+        "route": "DELETE /api/departments/:id"
+      },
+      "notes": "RTK Query deleteDepartment: DELETE `/departments/${id}` on the same-origin /api base. router.delete(\"/departments/:id\", …) under /api (statement starts line 16)"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/employeeApi.ts", "line": 32 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/users.ts",
+        "line": 15,
+        "route": "GET /api/users"
+      },
+      "notes": "RTK Query getEmployees: query returns { url: \"/users\", method: \"GET\", params }; fetchBaseQuery baseUrl = same-origin \"/api\" (Vite proxy to localhost:8080 in dev). router.get(\"/users\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/employeeApi.ts", "line": 61 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/users.ts",
+        "line": 16,
+        "route": "GET /api/users/:id"
+      },
+      "notes": "RTK Query getEmployee: GET `/users/${id}` on the same-origin /api base. router.get(\"/users/:id\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/employeeApi.ts", "line": 78 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/users.ts",
+        "line": 14,
+        "route": "GET /api/users/byIds"
+      },
+      "notes": "RTK Query getEmployeesByIds: GET \"/users/byIds\" (ids in the query) on the same-origin /api base. router.get(\"/users/byIds\") is registered before router.get(\"/users/:id\"), so Express dispatches the literal route"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/employeeApi.ts", "line": 96 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/users.ts",
+        "line": 17,
+        "route": "POST /api/users"
+      },
+      "notes": "RTK Query addEmployee: POST \"/users\" on the same-origin /api base. router.post(\"/users\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/employeeApi.ts", "line": 107 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/router/users.ts",
+        "line": 19,
+        "route": "PATCH /api/users/:id"
+      },
+      "notes": "RTK Query editEmployee: PATCH `/users/${values._id}` on the same-origin /api base. router.patch(\"/users/:id\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/employeeApi.ts", "line": 118 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/router/users.ts",
+        "line": 18,
+        "route": "DELETE /api/users/:id"
+      },
+      "notes": "RTK Query deleteEmployee: DELETE `/users/${id}` on the same-origin /api base. router.delete(\"/users/:id\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveApi.ts", "line": 28 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/leave.ts",
+        "line": 13,
+        "route": "GET /api/leaves"
+      },
+      "notes": "RTK Query getLeaves: GET \"/leaves\" with params; fetchBaseQuery baseUrl = same-origin \"/api\" (Vite proxy to localhost:8080 in dev). router.get(\"/leaves\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveApi.ts", "line": 50 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/leave.ts",
+        "line": 14,
+        "route": "GET /api/leaves/:id"
+      },
+      "notes": "RTK Query getLeave: GET `/leaves/${id}` on the same-origin /api base. router.get(\"/leaves/:id\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveApi.ts", "line": 58 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/leave.ts",
+        "line": 15,
+        "route": "POST /api/leaves"
+      },
+      "notes": "RTK Query addLeave: POST \"/leaves\" on the same-origin /api base. router.post(\"/leaves\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveApi.ts", "line": 67 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/router/leave.ts",
+        "line": 20,
+        "route": "PATCH /api/leaves/:id"
+      },
+      "notes": "RTK Query editLeave: PATCH `/leaves/${values._id}` on the same-origin /api base. router.patch(\"/leaves/:id\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveApi.ts", "line": 78 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/router/leave.ts",
+        "line": 16,
+        "route": "DELETE /api/leaves/:id"
+      },
+      "notes": "RTK Query deleteLeave: DELETE `/leaves/${id}` on the same-origin /api base. router.delete(\"/leaves/:id\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveTypeApi.ts", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/leaveType.ts",
+        "line": 13,
+        "route": "GET /api/leave-types"
+      },
+      "notes": "RTK Query getLeaveTypes: query returns { url: \"/leave-types\", method: \"GET\", params }; fetchBaseQuery baseUrl = same-origin \"/api\" (Vite proxy to localhost:8080 in dev). router.get(\"/leave-types\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveTypeApi.ts", "line": 53 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/leaveType.ts",
+        "line": 14,
+        "route": "GET /api/leave-types/:id"
+      },
+      "notes": "RTK Query getLeaveType: GET `/leave-types/${id}` on the same-origin /api base. router.get(\"/leave-types/:id\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveTypeApi.ts", "line": 60 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/leaveType.ts",
+        "line": 15,
+        "route": "POST /api/leave-types"
+      },
+      "notes": "RTK Query addLeaveType: POST \"/leave-types\" on the same-origin /api base. router.post(\"/leave-types\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveTypeApi.ts", "line": 71 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/router/leaveType.ts",
+        "line": 22,
+        "route": "PATCH /api/leave-types/:id"
+      },
+      "notes": "RTK Query editLeaveType: PATCH `/leave-types/${values._id}` on the same-origin /api base. router.patch(\"/leave-types/:id\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/apis/leaveTypeApi.ts", "line": 82 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/router/leaveType.ts",
+        "line": 16,
+        "route": "DELETE /api/leave-types/:id"
+      },
+      "notes": "RTK Query deleteLeaveType: DELETE `/leave-types/${id}` on the same-origin /api base. router.delete(\"/leave-types/:id\", …) under /api (statement starts line 16)"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/user/userSlice.ts", "line": 172 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/authentication.ts",
+        "line": 17,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "register thunk: plain axios.post(\"/api/auth/register\") (no instance, no baseURL), same origin; Vite dev proxy sends /api to http://localhost:8080 (backend PORT || 8080). index.ts mounts router() at /api; router.post(\"/auth/register\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/user/userSlice.ts", "line": 188 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/authentication.ts",
+        "line": 18,
+        "route": "POST /api/auth/login"
+      },
+      "notes": "login thunk: axios.post(\"/api/auth/login\"), same origin (Vite proxy in dev). router.post(\"/auth/login\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/user/userSlice.ts", "line": 200 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/authentication.ts",
+        "line": 15,
+        "route": "GET /api/auth/current_user"
+      },
+      "notes": "getUser thunk: axios.get(\"/api/auth/current_user\"), same origin. router.get(\"/auth/current_user\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/user/userSlice.ts", "line": 221 },
+      "method": "GET",
+      "target": {
+        "file": "backend/router/authentication.ts",
+        "line": 16,
+        "route": "GET /api/auth/logout"
+      },
+      "notes": "logout thunk: axios.get(\"/api/auth/logout\"), same origin. router.get(\"/auth/logout\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/user/userSlice.ts", "line": 232 },
+      "method": "POST",
+      "target": {
+        "file": "backend/router/authentication.ts",
+        "line": 19,
+        "route": "POST /api/auth/verify"
+      },
+      "notes": "verifyEmail thunk: axios.post(\"/api/auth/verify\"), same origin. router.post(\"/auth/verify\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/user/userSlice.ts", "line": 241 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/router/authentication.ts",
+        "line": 20,
+        "route": "PATCH /api/auth/reset"
+      },
+      "notes": "resetPassword thunk: axios.patch(\"/api/auth/reset\"), same origin. router.patch(\"/auth/reset\") under /api"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/user/userSlice.ts", "line": 262 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/router/authentication.ts",
+        "line": 21,
+        "route": "PATCH /api/auth/change_password"
+      },
+      "notes": "changePassword thunk: axios.patch( with \"/api/auth/change_password\" on the next line, same origin. router.patch(\"/auth/change_password\") under /api"
+    }
+  ]
+}

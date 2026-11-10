@@ -1,0 +1,399 @@
+{
+  "repo": "Misyuk-T/worklog-hub",
+  "sha": "23a85794ad46ce5f2615e941b3d28d58a0f2035b",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "react-app/src/actions/clickup.jsx", "line": 21 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "clickupLogin(): instance.get(\"/clickup/user\"). instance = axios.create({ baseURL: import.meta.env.VITE_BASE_URL }) in react-app/src/actions/axios.jsx, no in-code fallback (the interceptors only add credential headers); react-app/.env.example sets VITE_BASE_URL=http://localhost:8000 = server/server.js's PORT || 8000. server.js mounts the router with app.use(routes), no prefix; router.all(\"/clickup/*\") proxies to ClickUp (Express 4's unnamed `*` is written *splat here, since the label format needs a named catch-all; scoring ignores the name)"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/clickup.jsx", "line": 60 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "getClickUpTeams(): instance.get(\"/clickup/team\") on base http://localhost:8000 (react-app/.env.example); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/clickup.jsx", "line": 111 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "getClickUpTimeEntries(): instance.get( with `/clickup/team/${teamId}/time_entries` on the next line; router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/clickup.jsx", "line": 208 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "getAssignedTasks(): instance.get(`/clickup/team/${teamId}/task`, { params }); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/clickup.jsx", "line": 274 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "getClickUpTaskById(): instance.get( with `/clickup/task/${encodeURIComponent(taskId)}` on the next line; router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/clickup.jsx", "line": 359 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "createClickUpTimeEntries(): send: () => instance.post( with `/clickup/team/${teamId}/time_entries` on the next line (run later by submitWorklogRequests); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/clickup.jsx", "line": 431 },
+      "method": "PUT",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "updateClickUpTimeEntry(): instance.put(`/clickup/team/${teamId}/time_entries/${id}`, data); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/clickup.jsx", "line": 435 },
+      "method": "DELETE",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "deleteClickUpTimeEntry(): instance.delete(`/clickup/team/${teamId}/time_entries/${id}`); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/jira.jsx", "line": 46 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "jiraLogin(): instance.get(\"/jira/rest/api/3/myself\", { params: { jiraUrl } }) on the axios.jsx instance (VITE_BASE_URL=http://localhost:8000 from react-app/.env.example = server.js PORT || 8000); router.all(\"/jira/*\") under app.use(routes), no prefix"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/jira.jsx", "line": 133 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "getJiraWorklogIssues(): instance.post( with \"/jira/rest/api/3/search/jql\" on the next line; router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/jira.jsx", "line": 170 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "getJiraWorklogIssues(): the page fetcher handed to fetchAllIssueWorklogs fixes its own path, instance.get(`/jira/rest/api/3/issue/${issueKey}/worklog`); router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/jira.jsx", "line": 264 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "getAssignedIssues(): instance.post( with \"/jira/rest/api/3/search/jql\" on the next line; router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/jira.jsx", "line": 309 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "getJiraIssueByKey(): instance.get( with `/jira/rest/api/3/issue/${encodeURIComponent(issueKey)}` on the next line; router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/jira.jsx", "line": 358 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "createJiraWorklogs(): send: () => instance.post( with `/jira/rest/api/3/issue/${task}/worklog` on the next line; router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/jira.jsx", "line": 425 },
+      "method": "PUT",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "updateJiraWorklog(): instance.put( with `/jira/rest/api/3/issue/${issueKey}/worklog/${worklogId}` on the next line; router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/jira.jsx", "line": 433 },
+      "method": "DELETE",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "deleteJiraWorklog(): instance.delete( with `/jira/rest/api/3/issue/${issueKey}/worklog/${worklogId}` on the next line; router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/jira.jsx", "line": 461 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "replaceJiraWorklogIssue(): instance.post( with `/jira/rest/api/3/issue/${oldIssueKey}/worklog/move` on the next line; router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 79 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "loadMemberDirectory(): getPaged(\"/redmine/projects.json\", …). getPaged(url, …) (line 64) is instance.get(url, …) on the axios.jsx instance (base http://localhost:8000 from react-app/.env.example), path from the caller, so each getPaged call is the call site; router.all(\"/redmine/*\") under app.use(routes)"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 89 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "loadMemberDirectory(): getPaged( with `/redmine/projects/${project.id}/memberships.json` on the next line; router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 128 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "getRedmineUserMail(): instance.get(`/redmine/users/${id}.json`, readOptions(credentials)); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 147 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "searchRedmineUsers(): instance.get(\"/redmine/users.json\", { params }); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 182 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "checkJiraUserPicker(): instance.get(\"/jira/rest/api/3/mypermissions\", { params }); router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 194 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "searchJiraUsers(): instance.get(\"/jira/rest/api/3/user/search\", { params }); router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 209 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "getJiraUserByAccountId(): instance.get(\"/jira/rest/api/3/user\", { params }); router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 306 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "loadConnections(): instance.get(\"/clickup/team\", readOptions(preset)); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 347 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "getMeJiraAccountId(): instance.get(\"/jira/rest/api/3/myself\", { params: { jiraUrl: host } }); router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 357 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "getMeRedmineId(): instance.get(\"/redmine/users/current.json\", …); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 366 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "getMeClickUp(): instance.get(\"/clickup/user\", …) in a Promise.all; router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/people.jsx", "line": 367 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "getMeClickUp(): instance.get(\"/clickup/team\", …) in the same Promise.all; router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/redmine.jsx", "line": 22 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "redmineLogin(): instance (line 22) .get(`/redmine/users/current.json`) chained on line 23, on the axios.jsx instance (base http://localhost:8000 from react-app/.env.example = server.js PORT || 8000); router.all(\"/redmine/*\") under app.use(routes)"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/redmine.jsx", "line": 49 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "getRedmineProjects(): instance.get( with `/redmine/issues.json?assigned_to_id=${id}` on the next line; query dropped; router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/redmine.jsx", "line": 52 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "getRedmineProjects(): instance.get( with `/redmine/issues.json?&watcher_id=${id}` on the next line; query dropped; router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/redmine.jsx", "line": 92 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "getLatestRedmineWorkLogs(): instance.get(\"/redmine/time_entries.json\", { params }); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/redmine.jsx", "line": 168 },
+      "method": "PUT",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "updateRedmineTimeEntry(): instance.put(`/redmine/time_entries/${id}.json`, { time_entry }); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/redmine.jsx", "line": 172 },
+      "method": "DELETE",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "deleteRedmineTimeEntry(): instance.delete(`/redmine/time_entries/${id}.json`); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/redmine.jsx", "line": 191 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "trackTimeToRedmine(): send: () => instance.post(`/redmine/time_entries.json`, entry, …), run later by submitWorklogRequests; router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "react-app/src/actions/workLogs.jsx", "line": 19 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 49, "route": "POST /submit-form" },
+      "notes": "sendWorkLogs(): instance (line 19) .post(\"/submit-form\", formData) chained on line 20, on the axios.jsx instance (base http://localhost:8000 from react-app/.env.example = server.js PORT || 8000); router.post(\"/submit-form\") under app.use(routes), no prefix"
+    },
+    {
+      "callSite": { "file": "server/routes/routes.js", "line": 87 },
+      "method": null,
+      "target": null,
+      "notes": "Redmine proxy: axiosClient({ method: req.method, url }) (axiosClient defaults to axios); url = resolveRedmineBaseUrl of the user's X-Redmine-Url header (a Redmine host, https only, private hosts refused by assertSafeTarget) plus the path. External host; method is the incoming request's"
+    },
+    {
+      "callSite": { "file": "server/routes/routes.js", "line": 107 },
+      "method": null,
+      "target": null,
+      "notes": "Jira proxy: limiter.schedule(() => axiosClient(config)), config.url = `https://${jiraUrl}…` from the request's jiraUrl query (a Jira Cloud site). External host; method is req.method"
+    },
+    {
+      "callSite": { "file": "server/routes/routes.js", "line": 129 },
+      "method": null,
+      "target": null,
+      "notes": "ClickUp proxy: limiter.schedule(() => axiosClient(config)), config.url = `https://api.clickup.com/api/v2…`. External host; method is req.method"
+    },
+    {
+      "callSite": { "file": "server/test/backend-errors.test.js", "line": 105 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 49, "route": "POST /submit-form" },
+      "notes": "request(createRouter(), \"/submit-form\", { method: \"POST\" }). The test's request(router, path, { method = \"GET\" }) (line 12) mounts the router on its own express() app with app.use(router), listen(0)s it, and fetch(`http://127.0.0.1:${server.address().port}${path}`) (line 19); path and method come from the caller, so each request call is the call site. router.post(\"/submit-form\")"
+    },
+    {
+      "callSite": { "file": "server/test/backend-errors.test.js", "line": 119 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 49, "route": "POST /submit-form" },
+      "notes": "request(createRouter(), \"/submit-form\", { method: \"POST\", formData }) inside a loop over two import types; router.post(\"/submit-form\")"
+    },
+    {
+      "callSite": { "file": "server/test/backend-errors.test.js", "line": 139 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "request( with \"/jira/rest/api/2/worklog?jiraUrl=…\" and { method: \"POST\" } on the next lines, a router with a fake axiosClient; query dropped; router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/backend-errors.test.js", "line": 162 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/time_entries.json?…\") with no method (GET); query dropped; router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/backend-errors.test.js", "line": 163 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "request(router, \"/jira/rest/api/2/search?…\") (GET); router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/backend-errors.test.js", "line": 164 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "request(router, \"/clickup/team/1/task?…\") (GET); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/backend-errors.test.js", "line": 199 },
+      "method": "POST",
+      "target": { "file": "server/routes/routes.js", "line": 49, "route": "POST /submit-form" },
+      "notes": "upload(name, text, type): request(createRouter(), \"/submit-form\", { method: \"POST\", formData }); the path is fixed here, so this is the call site, not upload's calls. router.post(\"/submit-form\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 42 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/time_entries.json?from=…\", { headers }). The test's request(router, path, { method = \"GET\" }) (line 11) mounts the router on its own express() app with app.use(router), listen(0)s it, and fetch(`http://127.0.0.1:${server.address().port}${path}`, { method }) (line 19); path and method come from the caller, so each request call is the call site. router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 53 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "request(router, \"/jira/rest/api/2/search?…\", { headers }) (GET); router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 67 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "request(router, \"/clickup/team/1/task?page=2\", { headers }) (GET); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 77 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "request(router, \"/clickup/team?clickupApiKey=old-key\", { headers }) (GET); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 84 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/issues.json?…\") (GET); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 85 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "request(router, \"/jira/rest/api/2/myself?…\") (GET); router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 86 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 118, "route": "ALL /clickup/*splat" },
+      "notes": "request(router, \"/clickup/user?clickupApiKey=…\") (GET); router.all(\"/clickup/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 96 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/issues.json\", { headers }) (GET); answered 400 MISSING_CREDENTIALS by the route itself; router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 110 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/time_entries.json\", { headers }) (GET); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 115 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "request(router, \"/jira/rest/api/2/myself?jiraUrl=…\", { headers }) (GET); router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 130 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/issues.json\", { headers }) (GET); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 131 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/issues.json\", { headers }) (GET); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 132 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/issues.json\", { headers }) (GET); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 164 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 95, "route": "ALL /jira/*splat" },
+      "notes": "SSRF tests (a loop over blockedTargets): request(router, `/jira/rest/api/2/myself?jiraUrl=${encodeURIComponent(host)}`, { headers }) (GET), answered 400 BLOCKED_TARGET by the route; query dropped; router.all(\"/jira/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 166 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "same loop: results.push(await request(router, \"/redmine/issues.json\", { headers })) (GET); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 177 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/issues.json\", { headers }) (GET); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 178 },
+      "method": "GET",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "request(router, \"/redmine/issues.json\", { headers }) (GET); router.all(\"/redmine/*\")"
+    },
+    {
+      "callSite": { "file": "server/test/proxy-credentials.test.js", "line": 199 },
+      "method": "OPTIONS",
+      "target": { "file": "server/routes/routes.js", "line": 81, "route": "ALL /redmine/*splat" },
+      "notes": "CORS preflight: request(router, \"/redmine/issues.json\", { method: \"OPTIONS\", middleware: cors }). The cors middleware mounted before the router answers the preflight itself, but the path and method are the router.all(\"/redmine/*\") route's (as with a guard that answers first)"
+    }
+  ]
+}

@@ -159,6 +159,16 @@
       "heldOut": 4
     },
     {
+      "owner": "kalczugag",
+      "name": "Employee-Leave-Management",
+      "url": "https://github.com/kalczugag/Employee-Leave-Management",
+      "sha": "a79f76d90e733109953ff8a0b68996db85b91b71",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 6 (M9.2b2, drawn in stratum react-express). A Vite React TS SPA in frontend/ (Redux Toolkit, MUI) beside an Express TS server in backend/ (Mongoose, cookie sessions, SendGrid mail). Requests go two ways: 21 RTK Query endpoints in four createApi slices under frontend/src/store/apis/ (departmentApi, employeeApi, leaveApi, leaveTypeApi; each query returns { url, method } objects with explicit methods, GET/POST/PATCH/DELETE), labeled at each builder.query/builder.mutation call, and 7 plain axios calls (no instance, no baseURL) with literal /api/auth/* paths in createAsyncThunk thunks in frontend/src/store/user/userSlice.ts. Every fetchBaseQuery baseUrl is window.location.protocol + \"//\" + window.location.host + \"/api\", and the axios paths are root-relative, so all requests are same-origin: vite.config.mts proxies /api to the literal http://localhost:8080/, the server's PORT || 8080 (backend/.env sets no PORT), and in production backend/index.ts serves frontend/build with express.static plus an app.get(\"*\") index.html fallback after the API mount. backend/index.ts mounts router() at /api; backend/router/index.ts passes one shared express.Router to seven register functions (authentication, users, department, leaveType, leave, email, statistics) that each add full sub-paths (/auth/login, /departments/:id, /leave-types/:id, ...), so file names don't carry the prefix. Traps: users.ts registers get(\"/users/byIds\") before get(\"/users/:id\"), and getEmployeesByIds reaches the literal route; three route statements (department delete/patch, leave-type delete) span several lines; employeeApi's getEmployees is builder.query<...>( with its options object on the next line; changePassword's axios.patch( has its path on the next line; docker-compose.yml sets REACT_APP_API_URL=http://backend:8080/api but no code reads it. POST /api/message (email.ts) and the empty statistics register are served but never called. Not labeled: SendGrid's sgMail.send in backend/services/sgEmail.ts (an SDK client), window.location.href navigations in the thunks, image URLs in public/, two vitest component tests with no requests. 141 TS/JS source files.",
+      "heldOut": 6
+    },
+    {
       "owner": "KEX-03",
       "name": "taskflow",
       "url": "https://github.com/KEX-03/taskflow",
@@ -196,6 +206,26 @@
       "shape": "env-api-urls",
       "why": "Held out (M5A.2b). Vite React frontend (frontend/) and an ESM Express + Prisma backend (backend/) side by side, no root package.json. Every request is an inline axios call (or one streaming fetch) on `${process.env.SERVER_URL}/...`, where process.env.SERVER_URL is substituted by vite.config.js `define` from REACT_APP_SERVER_URL, with no in-code fallback; template ternaries pick between two routes, and a router is mounted at a parameterized path (/editorial/:problemStatementId, mergeParams). The backend calls GitHub's OAuth and user APIs. ~80 JS source files.",
       "heldOut": 1
+    },
+    {
+      "owner": "Misyuk-T",
+      "name": "worklog-hub",
+      "url": "https://github.com/Misyuk-T/worklog-hub",
+      "sha": "23a85794ad46ce5f2615e941b3d28d58a0f2035b",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 6 (M9.2b2, drawn in stratum react-express). A Vite React SPA (react-app/) beside an Express 4 proxy server (server/), plus node:test tests in both and a Playwright README-media tool (tools/readme-media/). The client sends all 37 requests through one axios instance in react-app/src/actions/axios.jsx, axios.create({ baseURL: import.meta.env.VITE_BASE_URL }) with no in-code fallback (its interceptors only add credential headers or refuse a request), called with root-relative literals and templates (/redmine/time_entries.json, `/jira/rest/api/3/issue/${key}/worklog`, `/clickup/team/${teamId}/task`); the committed react-app/.env.example sets VITE_BASE_URL=http://localhost:8000, which matches server/server.js's PORT || 8000. There's no dev proxy (vite.config.js only sets base). server.js mounts the router from server/routes/routes.js with a bare app.use(routes), and it registers only four routes: router.post(\"/submit-form\") and three proxies, router.all(\"/redmine/*\"), router.all(\"/jira/*\"), router.all(\"/clickup/*\") (Express 4 unnamed wildcards, labeled ALL /redmine/*splat etc.), so every client path but /submit-form lands on a catch-all under a literal. Traps: people.jsx's getPaged(url, …) helper takes the path, so its two callers are the call sites; several calls are chained across lines (instance on one line, .get on the next) or built inside send: () => … closures run later; the demo build's interceptor refuses every request but doesn't change targets; two server test files fetch the router on a throwaway express() app they listen(0) themselves through a request(router, path, { method }) helper, called 25 times (one OPTIONS preflight answered by the cors middleware). The server's own three axiosClient calls (default axios) go to the user's Redmine and Jira hosts and api.clickup.com with req.method, so they are null. Not labeled: Firebase SDK calls (auth, Realtime Database) and the rules test's emulator client, the helpers' own fetch inside the test request() helpers (path from the caller), the README tool's Playwright page.goto, <a href> links to trackers, and site/index.html. 158 TS/JS source files (31 tests, 6 README-media tool scripts).",
+      "heldOut": 6
+    },
+    {
+      "owner": "MohammedMusharraf11",
+      "name": "Alumni-Connect",
+      "url": "https://github.com/MohammedMusharraf11/Alumni-Connect",
+      "sha": "021d08cc8943013f02a40ad2bf0109da5cf97880",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 6 (M9.2b2, drawn in stratum react-express). A Vite React SPA in frontend/ beside a CommonJS Express/Mongoose server in backend/, no workspace. The client calls the server with inline axios.get/post/put and fetch calls on literal http://localhost:8080/... URLs, with no shared instance, wrapper, env base, or Vite proxy; backend/server.js listens on PORT || 8080 (the committed backend/.env and root .env both set PORT = 8080). server.js mounts /auth, /api/alumni, /api/student/upload, /api/alumni/upload (both on the same routeUpload router), /api/events, /api/messages, /api/user, and /admin. Traps: one fetch(url) in Login.jsx whose url is a conditional between /api/alumni/login and /auth/login (two labels), /api/user's router.get('/') beside router.get('/:id'), two fetch calls whose URL template starts on the line after fetch(, a FollowRoutes.js router that is never mounted, and a committed backend/node_modules. Not labeled: the socket.io clients (SocketContext.jsx, utils/socket.js), Cloudinary SDK uploads on the server, and img src / a href URLs. 78 TS/JS source files without node_modules.",
+      "heldOut": 6
     },
     {
       "owner": "nateherkai",
@@ -404,6 +434,16 @@
       "shape": "next-api-routes",
       "why": "Held out, batch 4 (M5C.5b3, drawn in stratum nextjs-prisma). A pages-router Shopify embedded app in plain JS (Next.js + Prisma) whose debug pages send root-relative fetch requests to its own pages/api handlers, each exported as withMiddleware(\"verifyRequest\")(handler). Three are direct fetch calls; three go through a hook in the same file, useDataFetcher(initial, url, options), so the path and the method (a const options object with method: \"POST\") come from each caller. Some handlers branch on req.method and answer 400 to the rest (labeled by method), others run for every method (ALL). App Bridge adds auth headers to plain fetch, and all traffic to Shopify's Admin and Partners APIs goes through Shopify's libraries (not labeled). ~42 JS source files.",
       "heldOut": 4
+    },
+    {
+      "owner": "Tushyent",
+      "name": "TakeUForward",
+      "url": "https://github.com/Tushyent/TakeUForward",
+      "sha": "dcb3875cd126613574d50ccee77187fae86ae4b5",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 6 (M9.2b2, drawn in stratum react-express). A Vite React SPA (client/) and an Express + Mongoose API (server/) in one repo, plus a Playwright E2E (e2e/). Every client request goes through one axios instance, client/src/api/axiosClient.js, axios.create({ baseURL }) where baseURL is VITE_API_URL on localhost (client/.env.example: http://localhost:5000/api, server/index.js PORT || 5000, server/.env.example PORT=5000) and '/api' otherwise, which vite.config.js proxies to http://localhost:5000 (production: vercel.json rewrites /api to an onrender.com host), so every path reaches the same server. server/index.js mounts 27 routers at /api/<name> (authRoutes at /api/auth before the global requireAuth; healthRoutes at both /health and /api/health). The E2E's three plain axios calls use PLAYWRIGHT_API_BASE || http://127.0.0.1:5000/api, one to POST /api/auth/test-session, registered only when ALLOW_TEST_SESSION is true. Traps: ModerationQueue's handleAlumniAction posts `/alumni-requests/${id}/${action}` with the last segment from its two callers ('approve', 'reject'), so those callers are the call sites; Announcements and Bookmarks pick between a bare path and one with a query (one route); four uploads PUT to a presigned S3 URL returned by an upload-url endpoint (null: runtime value, external storage, with a no-AWS mock path chosen only server-side); the server's geminiService axios.get(fileUrl) fetches a request-supplied S3 URL (null, labeled at its caller in resourceRoutes.js). Not labeled: the server's 7 supertest suites (request(app)), the SendGrid, web-push, Gemini and AWS SDK clients, the workbox service worker's routing, and Playwright's page navigations and waitForResponse. 171 TS/JS source files.",
+      "heldOut": 6
     },
     {
       "owner": "vicharanashala",
