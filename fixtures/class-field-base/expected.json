@@ -1,0 +1,329 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:server/utils/collectorApi.js#CollectorApi",
+      "id": "calls:symbol:server/utils/collectorApi.js#CollectorApi->symbol:server/utils/collectorApi.js#CollectorApi.port",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 54,
+          "file": "server/utils/collectorApi.js",
+          "line": 11
+        }
+      ],
+      "to": "symbol:server/utils/collectorApi.js#CollectorApi.port"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:server/utils/providers.js#RouterLLM.complete",
+      "id": "external_call:symbol:server/utils/providers.js#RouterLLM.complete->external:ext/openrouter.ai",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 41,
+          "file": "server/utils/providers.js",
+          "line": 11
+        }
+      ],
+      "to": "external:ext/openrouter.ai"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:server/utils/collectorApi.js#CollectorApi.acceptedFileTypes",
+      "id": "http:symbol:server/utils/collectorApi.js#CollectorApi.acceptedFileTypes->route:collector/GET /accepts",
+      "kind": "http",
+      "label": "GET /accepts",
+      "sites": [
+        {
+          "column": 23,
+          "file": "server/utils/collectorApi.js",
+          "line": 15,
+          "request": "GET http://127.0.0.1:{}/accepts"
+        }
+      ],
+      "to": "route:collector/GET /accepts"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:server/utils/collectorApi.js#CollectorApi.processDocument",
+      "id": "http:symbol:server/utils/collectorApi.js#CollectorApi.processDocument->route:collector/POST /process",
+      "kind": "http",
+      "label": "POST /process",
+      "sites": [
+        {
+          "column": 23,
+          "file": "server/utils/collectorApi.js",
+          "line": 20,
+          "request": "POST http://127.0.0.1:{}/process"
+        }
+      ],
+      "to": "route:collector/POST /process"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:server/utils/providers.js#Mirror.status",
+      "id": "http:symbol:server/utils/providers.js#Mirror.status->unresolved:server/utils/providers.js:26:23",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 23,
+          "file": "server/utils/providers.js",
+          "line": 26
+        }
+      ],
+      "to": "unresolved:server/utils/providers.js:26:23"
+    }
+  ],
+  "nodes": [
+    {
+      "host": "openrouter.ai",
+      "id": "external:ext/openrouter.ai",
+      "kind": "external",
+      "label": "openrouter.ai",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "bd3ad19d0a66422bf1fa37145798ef8d70dbc58d1a3b97e599fe75d68707369b",
+      "id": "file:collector/index.js",
+      "kind": "file",
+      "label": "index.js",
+      "parentId": "service:collector/",
+      "path": "collector/index.js"
+    },
+    {
+      "hash": "15735d9ed85b2e75cfd788da5523af3af1e722a40b2e9082e6d7ea13e35c90ab",
+      "id": "file:server/utils/collectorApi.js",
+      "kind": "file",
+      "label": "collectorApi.js",
+      "parentId": "module:server/utils",
+      "path": "server/utils/collectorApi.js"
+    },
+    {
+      "hash": "a6c52c4478d21ba1e5a31062ed65e7b155b3fefa2b228c93bcc91e429f8206b8",
+      "id": "file:server/utils/providers.js",
+      "kind": "file",
+      "label": "providers.js",
+      "parentId": "module:server/utils",
+      "path": "server/utils/providers.js"
+    },
+    {
+      "id": "module:server/utils",
+      "kind": "module",
+      "label": "utils",
+      "parentId": "service:server/",
+      "path": "server/utils"
+    },
+    {
+      "id": "route:collector/GET /accepts",
+      "kind": "route",
+      "label": "GET /accepts",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:collector/index.js",
+      "path": "/accepts",
+      "source": {
+        "column": 5,
+        "file": "collector/index.js",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:collector/POST /process",
+      "kind": "route",
+      "label": "POST /process",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:collector/index.js",
+      "path": "/process",
+      "source": {
+        "column": 5,
+        "file": "collector/index.js",
+        "line": 10
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:collector/",
+      "kind": "service",
+      "label": "collector",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "collector"
+    },
+    {
+      "id": "service:server/",
+      "kind": "service",
+      "label": "server",
+      "parentId": "system:root",
+      "root": "server"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/collectorApi.js#CollectorApi",
+      "kind": "symbol",
+      "label": "CollectorApi",
+      "parentId": "file:server/utils/collectorApi.js",
+      "source": {
+        "column": 1,
+        "endLine": 27,
+        "file": "server/utils/collectorApi.js",
+        "line": 2
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/collectorApi.js#CollectorApi.acceptedFileTypes",
+      "kind": "symbol",
+      "label": "acceptedFileTypes",
+      "parentId": "symbol:server/utils/collectorApi.js#CollectorApi",
+      "source": {
+        "column": 3,
+        "endLine": 17,
+        "file": "server/utils/collectorApi.js",
+        "line": 14
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/collectorApi.js#CollectorApi.port",
+      "kind": "symbol",
+      "label": "port",
+      "parentId": "symbol:server/utils/collectorApi.js#CollectorApi",
+      "source": {
+        "column": 3,
+        "endLine": 8,
+        "file": "server/utils/collectorApi.js",
+        "line": 5
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/collectorApi.js#CollectorApi.processDocument",
+      "kind": "symbol",
+      "label": "processDocument",
+      "parentId": "symbol:server/utils/collectorApi.js#CollectorApi",
+      "source": {
+        "column": 3,
+        "endLine": 26,
+        "file": "server/utils/collectorApi.js",
+        "line": 19
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/providers.js#Mirror",
+      "kind": "symbol",
+      "label": "Mirror",
+      "parentId": "file:server/utils/providers.js",
+      "source": {
+        "column": 1,
+        "endLine": 29,
+        "file": "server/utils/providers.js",
+        "line": 16
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/providers.js#Mirror.init",
+      "kind": "symbol",
+      "label": "init",
+      "parentId": "symbol:server/utils/providers.js#Mirror",
+      "source": {
+        "column": 3,
+        "endLine": 23,
+        "file": "server/utils/providers.js",
+        "line": 21
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/providers.js#Mirror.status",
+      "kind": "symbol",
+      "label": "status",
+      "parentId": "symbol:server/utils/providers.js#Mirror",
+      "source": {
+        "column": 3,
+        "endLine": 28,
+        "file": "server/utils/providers.js",
+        "line": 25
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/providers.js#RouterLLM",
+      "kind": "symbol",
+      "label": "RouterLLM",
+      "parentId": "file:server/utils/providers.js",
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "server/utils/providers.js",
+        "line": 4
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/providers.js#RouterLLM.complete",
+      "kind": "symbol",
+      "label": "complete",
+      "parentId": "symbol:server/utils/providers.js#RouterLLM",
+      "source": {
+        "column": 3,
+        "endLine": 12,
+        "file": "server/utils/providers.js",
+        "line": 10
+      },
+      "symbolKind": "method"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "class-field-base",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(`${this.base}/status`)",
+      "id": "unresolved:server/utils/providers.js:26:23",
+      "kind": "unresolved",
+      "label": "GET `${this.base}/status`",
+      "parentId": "service:server/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 23,
+        "file": "server/utils/providers.js",
+        "line": 26
+      }
+    }
+  ],
+  "repo": {
+    "name": "class-field-base",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "collector",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "server",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

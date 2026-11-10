@@ -56,12 +56,17 @@
  *   (`fn`) or `useMemo(() => fn, deps)` (`fn`), the hooks imported from `react` (React's docs:
  *   both give back that function). Builders calling builders are read too, within
  *   {@link MAX_HOPS} and {@link MAX_STEPS}.
+ * - `this.<field>` in a class's instance member when the class writes the field once, in its
+ *   initializer or a top-level constructor statement, and nothing else may (`fields.ts`,
+ *   M9.1a7a, ADR-0253): the value written, read at `heuristic` (`this.endpoint =
+ *   \`http://127.0.0.1:${port()}\`` ⇒ `http://127.0.0.1:{}`).
  *
  * URL rules (DESIGN.md §7.2):
  * - A literal origin (`https://api.example.com`) becomes a `host` base; scheme and host are
  *   lowercased, and credentials (`user:pass@`) are dropped. A hole in the host before any `:`
  *   is `DYNAMIC_URL`; one in the port is kept as `{}` in the host text, and one in a password
- *   is dropped with it.
+ *   is dropped with it. A second hole right after the port's may hold the path, so the URL
+ *   is `DYNAMIC_URL` too (M9.1a7a).
  * - An env var is a base only at the very start of the URL; elsewhere it is a hole, unless
  *   its fallback is text and holes.
  * - Query strings and fragments are dropped at the first literal `?` or `#`.
@@ -90,6 +95,9 @@
  * read in the caller's scope. Only the property named `queryKey` is followed through a pattern.
  *
  * Not handled (each becomes a hole, so usually `DYNAMIC_URL`):
+ * - Other class and object members: static fields and getters, methods returning a URL
+ *   (`#getBaseUrl()`), an object literal's property read through `this`, and an instance
+ *   field `fields.ts` can't prove written once (M9.1a7b).
  * - A `+=` that may change the path (`url += "/" + id`, `url += suffix()` before any `?`),
  *   though `url = url + "/" + id` is read (ADR-0166).
  * - `var` variables, `let`s `lets.ts` can't follow, destructured parameters other than a
@@ -118,6 +126,7 @@ import type { Confidence, UrlSegment } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
 import type { HttpCallSite } from "./http.js";
 import type { ServiceProgram } from "./program.js";
+import { createFieldReader } from "./fields.js";
 import { letValues } from "./lets.js";
 import { isJsExpando, propertyName, unwrap } from "./symbols.js";
 import {
@@ -531,6 +540,9 @@ export function toUrlPattern(
         if (part.kind !== "text") {
           // Only a port may be dynamic; anything earlier makes the host unknown.
           if (!host.includes(":")) return { detail: DYNAMIC_URL_DETAIL.host };
+          // A second value right after the port's may hold the path (`${base}${endpoint}` on a
+          // `http://127.0.0.1:${port}` base, M9.1a7a): what follows the port is unknown.
+          if (host.endsWith("{}")) return { detail: DYNAMIC_URL_DETAIL.onlyHoles };
           host += "{}";
           continue;
         }
@@ -894,6 +906,7 @@ interface Placed {
 /** Create a {@link UrlNormalizer} (see the file comment for what it reads). */
 export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   const reader = createValueReader(resolver);
+  const fields = createFieldReader((sp) => resolver.checkerOf(sp));
   /** The weakest import confidence crossed during the current `normalize` call. */
   let confidence: Confidence = "exact";
   const note = (c: Confidence): void => {
@@ -1390,6 +1403,33 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     }
   };
 
+  /**
+   * An instance field written once (`this.endpoint`, M9.1a7a, `fields.ts`): the value written,
+   * at `heuristic`. It is read in the class's scope, where no wrapper's or builder's parameter
+   * is bound, and a constructor parameter in it is a plain hole: no caller of the method
+   * supplies it.
+   */
+  const fieldParts = (
+    sp: ServiceProgram,
+    e: ts.Expression,
+    hops: number,
+  ): UrlPart[] | undefined => {
+    const value = fields.instanceField(sp, e);
+    if (!value) return undefined;
+    note("heuristic");
+    const outer = { bindings, frame };
+    const usedBefore = new Set(used);
+    bindings = undefined;
+    frame = undefined;
+    try {
+      return partsOf(sp, value, hops + 1).map((p) => (p.kind === "hole" && p.param ? HOLE : p));
+    } finally {
+      ({ bindings, frame } = outer);
+      used.clear();
+      for (const d of usedBefore) used.add(d);
+    }
+  };
+
   /** Expressions visited by the current `parts()` call (see {@link MAX_STEPS}). */
   let steps = 0;
 
@@ -1476,6 +1516,8 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     const key = keyRead(sp, e, hops);
     if (key !== undefined) return keyParts(key, hops);
     if (ts.isIdentifier(e)) return identifierParts(sp, e, hops);
+    const field = fieldParts(sp, e, hops);
+    if (field) return field;
     if (ts.isPropertyAccessExpression(e)) {
       const fromEnum = reader.enumString(sp, e);
       if (fromEnum !== undefined) return [text(fromEnum)];
