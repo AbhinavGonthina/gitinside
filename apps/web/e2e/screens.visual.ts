@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compareStrings } from "@gitinside/schema";
+import { compareStrings, parseGraph } from "@gitinside/schema";
+import { renderDiagram } from "@gitinside/viewer/image";
 import { expect, test, type Page } from "@playwright/test";
 import { E2E_SHA } from "./fixture";
 
@@ -25,8 +26,25 @@ type Theme = (typeof THEMES)[number];
 /** Each screen: how to reach it from a fresh page in the given theme. */
 const SCREENS: Record<string, (page: Page) => Promise<void>> = {
   landing: async (page) => {
+    // The gallery's thumbnails (M9.1b3): the fixture's image in the theme asked for, so the
+    // shot never depends on the demo pins' analyses or on GitHub.
+    await page.route("**/api/diagram/**", (route) => {
+      const theme = new URL(route.request().url()).searchParams.get("theme") === "light";
+      route.fulfill({
+        contentType: "image/svg+xml",
+        body: renderDiagram(parseGraph(graph), { theme: theme ? "light" : "dark" }),
+      });
+    });
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Git inside your repo.");
+    // The page's theme shows one image per card; each must have loaded before the shot.
+    const shown = page.locator(".demo__image:visible");
+    await expect(shown).toHaveCount(3);
+    for (const img of await shown.all()) {
+      await expect
+        .poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth))
+        .toBeGreaterThan(0);
+    }
   },
   diagram: async (page) => {
     await openRepo(page);

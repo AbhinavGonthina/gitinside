@@ -1,5 +1,6 @@
 import { parseGraph, type ArchitectureGraph } from "@gitinside/schema";
 import { badgeMessage, renderBadge, renderDiagram, type ImageTheme } from "@gitinside/viewer/image";
+import { COMMIT_SHA } from "./compare";
 import { IMAGE_CSP } from "./csp";
 import { parseRepoPath } from "./repoUrl";
 import { viewRepo, type RepoViewDeps } from "./repoView";
@@ -11,11 +12,17 @@ import { viewRepo, type RepoViewDeps } from "./repoView";
  * - `GET /api/badge/:owner/:repo.svg`: the badge, "GitInside | 3 services · 2 datastores".
  * - `GET /api/diagram/:owner/:repo.svg[?theme=dark|light]`: the live image, the repo's top
  *   level (`auto` by default: it follows the reader's system).
+ * - `GET /api/diagram/:owner/:repo/:sha.svg[?theme=dark|light]`: one commit's image, as its
+ *   permalink shows it (the landing gallery's thumbnails, M9.1b3, ADR-0259).
  *
- * Both go through {@link viewRepo} with no SHA, so a view is also check-on-view: a new
- * commit on the default branch is enqueued, charged to the repo. The image shows the
+ * The live images go through {@link viewRepo} with no SHA, so a view is also check-on-view: a
+ * new commit on the default branch is enqueued, charged to the repo. The image shows the
  * newest finished analysis meanwhile. For a repo with the GitHub App installed, the push
- * webhook has usually queued that commit already (M8.7, ADR-0246).
+ * webhook has usually queued that commit already (M8.7, ADR-0246). A commit's image goes
+ * through {@link viewRepo} with its SHA, exactly as the permalink page does: never checked
+ * against GitHub, nothing enqueued, except that a demo pin without this analyzer version's
+ * graph is queued as its permalink queues it (ADR-0255, ADR-0257), the link-only badge
+ * showing until it's done.
  *
  * - **Link-only badge** when there's no diagram to show: a repo never analyzed, one GitHub
  *   no longer shows publicly, a private one (never in our public rows), or a name GitHub
@@ -118,29 +125,35 @@ async function loadGraph(
 }
 
 /**
- * Answer one image request. `params.repo` is the path's last segment, `.svg` included.
- * `deps` is `undefined` when the database isn't configured (without the bucket,
- * `/api/graph` answers 503 and the image is the link-only badge for a minute).
+ * Answer one image request. The path's last segment carries `.svg`: `params.repo`, or
+ * `params.sha` for a commit's image (a full lowercase SHA, as permalinks take it; anything
+ * else is the link-only badge, like a name GitHub wouldn't allow). `deps` is `undefined` when
+ * the database isn't configured (without the bucket, `/api/graph` answers 503 and the image
+ * is the link-only badge for a minute).
  */
 export async function handleImageRequest(
   kind: ImageKind,
-  params: { owner: string; repo: string },
+  params: { owner: string; repo: string; sha?: string },
   options: { theme?: string | null | undefined },
   deps: ImageRouteDeps | undefined,
 ): Promise<Response> {
-  if (!params.repo.endsWith(".svg")) {
+  const last = params.sha ?? params.repo;
+  if (!last.endsWith(".svg")) {
     return new Response("Not found", {
       status: 404,
       headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
     });
   }
-  const ref = parseRepoPath(params.owner, params.repo.slice(0, -".svg".length));
-  if (ref === null) return linkOnly();
+  const name = params.sha === undefined ? params.repo.slice(0, -".svg".length) : params.repo;
+  const sha = params.sha?.slice(0, -".svg".length);
+  const ref = parseRepoPath(params.owner, name);
+  if (ref === null || (sha !== undefined && !COMMIT_SHA.test(sha))) return linkOnly();
   if (deps === undefined) return linkOnly(FAILED_IMAGE_CACHE_CONTROL);
 
   try {
-    let view = await viewRepo(ref, deps.view);
+    let view = await viewRepo(sha === undefined ? ref : { ...ref, sha }, deps.view);
     // A renamed repo's README keeps its old image URL: draw the repo under its new name.
+    // (A commit's image never moves: like its permalink, it never asks GitHub.)
     if (view.status === "moved") view = await viewRepo(view, deps.view);
     if (view.status !== "ready") return linkOnly();
     const graph = await loadGraph(view.graphUrl, deps);

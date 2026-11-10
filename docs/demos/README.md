@@ -55,6 +55,11 @@ The site knows the pins too (`DEMO_PINS` in `packages/db/src/demos.ts`, checked 
 far the default branch has moved, and one with only an older analyzer version's graph queues
 the current version (ADR-0257). Retention never evicts a pin (ADR-0255).
 
+The landing page's gallery (M9.1b3, ADR-0259) links each pin's permalink, its thumbnail the
+pin's own diagram image (`/api/diagram/<owner>/<name>/<sha>.svg`). Each card's counts come
+from that repo's record here, and a test (`apps/web/lib/gallery.test.ts`) fails if they drift
+or any edge's verdict is `wrong`.
+
 ## In production
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right

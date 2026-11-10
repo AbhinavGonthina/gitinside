@@ -49,6 +49,21 @@ test("the landing page renders dark first, with our fonts, under a nonce CSP", a
   );
   expect(loaded.some((f) => f.includes("Geist Variable"))).toBe(true);
 
+  // The gallery's thumbnails come from the commit image route (M9.1b3), allowed by the page's
+  // CSP: unconfigured, each is the link-only badge, but an image all the same.
+  const shown = page.locator(".demo__image:visible");
+  await expect(shown).toHaveCount(3);
+  for (const img of await shown.all()) {
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth))
+      .toBeGreaterThan(0);
+  }
+  const image = await page.request.get(
+    "/api/diagram/shadcn-ui/taxonomy/298a8857c7128a0d121e7f699dfd729f23b3966d.svg?theme=dark",
+  );
+  expect(image.status()).toBe(200);
+  expect(image.headers()["content-type"]).toBe("image/svg+xml; charset=utf-8");
+
   await hydrated(page);
   expect(errors).toEqual([]);
 });
