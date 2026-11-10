@@ -1,6 +1,16 @@
 {
   "repos": [
     {
+      "owner": "abjt14",
+      "name": "agamjeet",
+      "url": "https://github.com/abjt14/agamjeet",
+      "sha": "adfc77ee890b964c4d3ca08db9c128204874d47a",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 6 (M9.2b3, drawn in stratum nextjs-prisma). A Next.js 15 App Router portfolio and math-olympiad blog (Contentlayer MDX articles under content/) with four route handlers under src/app/api (views and downloads, each with an /all sibling) backed by Upstash Redis counters and an Upstash rate limiter. Every request is a relative same-origin fetch in src/lib/api.ts (getViews, getAllViews, postView, getAllDownloads, postDownload), each called from a TanStack Query queryFn or mutationFn in src/lib/queries.ts, so the five labels sit at the fetch lines where the paths are fixed; next.config.js only wraps Contentlayer (no basePath, rewrites, redirects, or trailingSlash) and there is no middleware. Traps: getViews' url is a ternary of `/api/views?slug=...` and `/api/views`, two alternatives with the same path once the query is dropped, so one label; static all segments beside the parent routes; GET exported by /api/downloads but never called. Not labeled: the Upstash Redis and Ratelimit SDK requests (library requests), the DownloadButton's `<a href>` to /articles/<slug>/<type>.pdf (a navigation to a static file under public/), and absolute agamjeet.com URLs in metadata, robots, and sitemap (data, not requests). 30 TS/JS source files.",
+      "heldOut": 6
+    },
+    {
       "owner": "Avinash905",
       "name": "Recipen",
       "url": "https://github.com/Avinash905/Recipen",
@@ -91,6 +101,16 @@
       "heldOut": 5
     },
     {
+      "owner": "Gribadan",
+      "name": "RentTools.io",
+      "url": "https://github.com/Gribadan/RentTools.io",
+      "sha": "bfacd9fb5858bb763c630b7757ebd40bd376b76f",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 6 (M9.2b3, drawn in stratum nextjs-prisma). A single Next.js 16 App Router app with Prisma (no workspaces), about 95 route.ts handlers under src/app/api (properties, reservations, guests, calendar, cleaners, cleaner-assignments, date-overrides, message-templates, property-managers and invites, auth, g/[token], and admin/* for blog posts, tags, images, comments, feedback, platforms, SEO, site settings, users), each an export async function METHOD( line. Client pages (src/app/**/page.tsx) and components (src/components) call them with plain root-relative fetch(\"/api/...\") literals and templates on the app's own origin, two built as new URL(\"/api/...\", window.location.origin), with query strings carrying most parameters (DELETEs too: /api/date-overrides?propertyId=&date=); three file-local wrappers take the path (fetchJson in use-calendar-fetch.ts, mutate(url, method) in overview-reservation.tsx, api(endpoint, method) in scripts/publish-blog-api.mjs) and are labeled at each caller. The publishing script's base is BLOG_PUBLISH_ORIGIN || 'https://renttools.io' (no value in .env.example), followed to this app because deploy/nginx/rent-tool.conf serves server_name renttools.io and proxies every path to 127.0.0.1:3000, where deploy/systemd/rent-tool.service runs the app, and every path the script sends is one of its routes (ADR-0209); its fetch of a cover URL taken from the upload response is null. next.config.ts sets no basePath, rewrites, or trailingSlash, and src/middleware.ts only checks auth (401, a 403 for /api/admin), rewrites locale-prefixed marketing pages, and skips /api, so no target moves. Traps: two call sites pick their method (isSuspended ? \"DELETE\" : \"POST\" on /api/admin/users/:id/suspend; a RequestInit of DELETE or PATCH on /api/blog-comments/:id), one label each; a url picked between two forms of /api/calendar/sync; static segments beside [id] (properties/sample, guests/search, admin/blog-posts/bulk-status, admin/blog-tags/merge). Null: server-side iCal fetches of URLs from the database or request (calendar/health, calendar/test, onboard/test-platform, fetchICal's caller), Resend, Google OAuth token and userinfo, the Gemini image API in three cover scripts, and the eVisitor test API (an injected request defaulting to fetch; action(name)'s callers fix the path). Not labeled: new EventSource(\"/api/live\"), the Gemini and Sentry SDKs, <a href> links, and unit tests that hand a new Request(...) straight to a handler. 376 TS/JS source files (161 under src/app, 64 tests).",
+      "heldOut": 6
+    },
+    {
       "owner": "gruz0",
       "name": "checkmvp",
       "url": "https://github.com/gruz0/checkmvp",
@@ -128,6 +148,16 @@
       "license": "MIT",
       "shape": "next-plus-server-monorepo",
       "why": "npm-workspaces Turborepo: a Next.js 14 app router web app calling a separate Express API (apps/api, routers mounted under /api/v1) through a fetch wrapper in lib/api-client.ts that takes the path as a parameter, so call sites are the wrapper's callers in TanStack Query hooks. Also has Express-based mcp/agentic-ai packages. ~308 source files."
+    },
+    {
+      "owner": "ivanrods",
+      "name": "balancefy",
+      "url": "https://github.com/ivanrods/balancefy",
+      "sha": "9e856358de52f741c795768a34da8c3dfe6d4f33",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 6 (M9.2b3, drawn in stratum nextjs-prisma). A single Next.js App Router app at the repo root (src/app, Prisma, NextAuth, TanStack Query; no basePath, rewrites, redirects, or trailingSlash in next.config.ts, and src/middleware.ts only rate-limits login/register and redirects signed-out users to /login, so it changes no /api target). Every request is a plain same-origin fetch of a root-relative /api/... URL: 16 in TanStack Query queryFns and mutationFns in src/hooks/use-{categories,notifications,transactions,transactions-type,wallets}.ts, 4 in useEffects of the transaction create/edit dialogs, and 5 in the register page and the sidebar's profile, upload, and delete-account components; no env bases, no axios, no wrappers. Traps: use-transactions.ts builds its URL as a ternary with and without a query string (one route, so one label), query strings built from URLSearchParams on every list GET, and static segments (notifications/read-all, transactions/transaction-type) that win over the sibling [id] folders; every request's method is exported by its route.ts. Not labeled: NextAuth's signIn calls (library requests), the 69 Jest specs, which only stub globalThis.fetch with jest.fn() or call route handlers directly with new Request(...), and img src URLs (i.ibb.co, example.com). 209 TS/JS source files.",
+      "heldOut": 6
     },
     {
       "owner": "jgudo",
@@ -335,6 +365,16 @@
       "shape": "next-api-routes",
       "why": "Held out, batch 5 (M5C.8b4, drawn in stratum nextjs-prisma). A single Next.js 16 App Router app (NextAuth, Prisma, node-cron, Telegram alerts) with route groups (authLayout, commonLayout, dashboardLayout) and route.ts handlers under src/app/api. The client sends 22 root-relative fetch requests on literals and templates, all inline in the auth forms and dashboard components: four literal /api/auth/* routes (register, forgot-password, reset-password, verify-email) that Next serves ahead of the [...nextauth] catch-all beside them, GET/POST /api/monitors, PATCH/DELETE /api/monitors/${id}, POST /api/monitors/${id}/check, GET /api/monitors/${id}/details, GET/PATCH/DELETE /api/user/profile, /api/telegram/connect and /test, /api/feedback, /api/incidents, /api/status, and the public page's /api/status/${id} (a status/[userId] folder beside status/route.ts). Every method sent has an exported handler. No basePath or rewrites; src/proxy.ts (Next 16's middleware) only redirects /dashboard paths. Server-side, the cron's uptime check fetches each monitor's user-supplied URL, the Telegram helper posts to api.telegram.org, and the instrumentation hook pings HC_PING_URL (no value anywhere in the repo), all null. Not labeled: NextAuth's signIn/signOut, nodemailer, a script's node https/http calls to Telegram, and an RTK Query baseApi with no endpoints. 139 TS/JS source files.",
       "heldOut": 5
+    },
+    {
+      "owner": "RicardoGEsteves",
+      "name": "SpreadIt",
+      "url": "https://github.com/RicardoGEsteves/SpreadIt",
+      "sha": "975f7f9e165d6749e4328d8ca70a521c4ec45c81",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 6 (M9.2b3, drawn in stratum nextjs-prisma). A single Next.js 13 App Router app at the repo root (Prisma, NextAuth, Upstash Redis, UploadThing, Editor.js): pages under app/(main) (route groups and a parallel @authModal slot), components/ for the client code, and 12 route.ts handlers under app/api. Every client request is a plain axios call on a root-relative /api/... path (same origin, no base, no axios instance) inside a TanStack Query mutationFn/queryFn: 11 calls, posts (useInfiniteQuery, the URL built with + from a query string and an optional &subSpreadItName= part, both /api/posts), search (`/api/search?q=${input}`), create community, subscribe, unsubscribe, create post (POST), and username, comment, reply, post vote and comment vote (PATCH). Traps: two paths end in a slash (`/api/username/` and `/api/subspreadit/post/comment/` at two call sites), and next.config.js sets no trailingSlash, so Next's 308 keeps PATCH and they land on the routes without it; app/api/subspreadit/post/vote/route.ts's PATCH export is on line 10, not 6; middleware.ts only redirects unauthenticated page visits (/r/:path*/submit, /r/create) to /sign-in and matches no /api path. Server-side, the link-preview route's axios.get(href) fetches the ?url= query parameter, known only at runtime, so it is null (nothing in the repo calls /api/link). Not labeled: UploadThing's uploadFiles and its createNextRouteHandler route, NextAuth's signIn/signOut/useSession and its [...nextauth] route, Upstash Redis commands (SDK clients), Prisma queries, Next/Image and avatar image URLs, <a href>/Link navigations, and server-rendered page data read straight from Prisma. 90 TS/JS source files.",
+      "heldOut": 6
     },
     {
       "owner": "RishiBakshii",

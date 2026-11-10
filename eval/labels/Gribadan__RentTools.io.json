@@ -1,0 +1,2560 @@
+{
+  "repo": "Gribadan/RentTools.io",
+  "sha": "bfacd9fb5858bb763c630b7757ebd40bd376b76f",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "scripts/generate-blog-covers-one.mjs", "line": 56 },
+      "method": "POST",
+      "target": null,
+      "notes": "ENDPOINT is generativelanguage.googleapis.com (Gemini image API); external"
+    },
+    {
+      "callSite": { "file": "scripts/generate-blog-covers.mjs", "line": 82 },
+      "method": "POST",
+      "target": null,
+      "notes": "ENDPOINT is generativelanguage.googleapis.com (Gemini image API); external"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 55 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/route.ts",
+        "line": 46,
+        "route": "GET /api/admin/blog-posts"
+      },
+      "notes": "local api(endpoint) helper (line 50), base BLOG_PUBLISH_ORIGIN || 'https://renttools.io'; deploy/nginx/rent-tool.conf proxies every renttools.io path to 127.0.0.1:3000 (rent-tool.service PORT=3000, this Next app), and every path the script sends is one of its routes (ADR-0209)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 60 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-tags/route.ts",
+        "line": 61,
+        "route": "GET /api/admin/blog-tags"
+      },
+      "notes": "api() helper, renttools.io base followed to this app via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 69 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-images/route.ts",
+        "line": 31,
+        "route": "POST /api/admin/blog-images"
+      },
+      "notes": "api() helper with method 'POST' (FormData body), renttools.io base followed via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 74 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(base + receipt.cover.url): the path is the upload response's url (asserted /uploads/blog/<hash>.webp, served by src/app/uploads/blog/[filename]/route.ts GET), not fixed in code; URL not statically known"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 87 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-tags/route.ts",
+        "line": 72,
+        "route": "POST /api/admin/blog-tags"
+      },
+      "notes": "api() helper with method 'POST', renttools.io base followed via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 93 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/route.ts",
+        "line": 83,
+        "route": "POST /api/admin/blog-posts"
+      },
+      "notes": "api() helper with method 'POST', renttools.io base followed via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 96 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/route.ts",
+        "line": 83,
+        "route": "GET /api/admin/blog-posts/:id"
+      },
+      "notes": "api('/api/admin/blog-posts/' + row.id), default GET; renttools.io base followed via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 104 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/route.ts",
+        "line": 155,
+        "route": "PATCH /api/admin/blog-posts/:id"
+      },
+      "notes": "api(path, 'PATCH', data), renttools.io base followed via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 105 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/route.ts",
+        "line": 83,
+        "route": "GET /api/admin/blog-posts/:id"
+      },
+      "notes": "api('/api/admin/blog-posts/' + row.id) inside check(...), default GET; base via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 111 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/route.ts",
+        "line": 83,
+        "route": "GET /api/admin/blog-posts/:id"
+      },
+      "notes": "api('/api/admin/blog-posts/' + id), default GET; base via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 112 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/translation-link/route.ts",
+        "line": 26,
+        "route": "POST /api/admin/blog-posts/:id/translation-link"
+      },
+      "notes": "api(template path, 'POST'), base via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 115 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/route.ts",
+        "line": 83,
+        "route": "GET /api/admin/blog-posts/:id"
+      },
+      "notes": "api('/api/admin/blog-posts/' + id), default GET; base via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 119 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/bulk-status/route.ts",
+        "line": 14,
+        "route": "POST /api/admin/blog-posts/bulk-status"
+      },
+      "notes": "api('/api/admin/blog-posts/bulk-status', 'POST'); static segment wins over [id]; base via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/publish-blog-api.mjs", "line": 122 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/route.ts",
+        "line": 83,
+        "route": "GET /api/admin/blog-posts/:id"
+      },
+      "notes": "api('/api/admin/blog-posts/' + id), default GET; base via deploy/nginx (see line 55)"
+    },
+    {
+      "callSite": { "file": "scripts/retry-airbnb-cover.mjs", "line": 18 },
+      "method": "POST",
+      "target": null,
+      "notes": "ENDPOINT is generativelanguage.googleapis.com (Gemini image API); external"
+    },
+    {
+      "callSite": { "file": "src/app/api/calendar/health/route.ts", "line": 27 },
+      "method": "GET",
+      "target": null,
+      "notes": "checkFeed(url): server-side fetch of each property's stored iCal export URL (Airbnb/Booking, from the database); external host, not this app"
+    },
+    {
+      "callSite": { "file": "src/app/api/calendar/test/route.ts", "line": 30 },
+      "method": "GET",
+      "target": null,
+      "notes": "server-side fetch of the iCal URL from the request body (user-supplied, runtime); external"
+    },
+    {
+      "callSite": { "file": "src/app/api/onboard/test-platform/route.ts", "line": 68 },
+      "method": "GET",
+      "target": null,
+      "notes": "server-side fetch of the user-pasted iCal URL (new URL(body.url)); runtime value, external"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/add-property/page.tsx", "line": 131 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 56,
+        "route": "POST /api/properties"
+      },
+      "notes": "relative template literal /api/properties, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/add-property/page.tsx", "line": 148 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 49,
+        "route": "POST /api/calendar/links"
+      },
+      "notes": "relative template literal /api/calendar/links in a loop over rows, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/account/export/page.tsx", "line": 70 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/export-my-data/route.ts",
+        "line": 9,
+        "route": "GET /api/admin/export-my-data"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-comments/page.tsx", "line": 186 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-comments/page.tsx", "line": 207 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-comments/route.ts",
+        "line": 7,
+        "route": "GET /api/admin/blog-comments"
+      },
+      "notes": "url = new URL('/api/admin/blog-comments', window.location.origin) plus optional ?status; same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-comments/page.tsx", "line": 224 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/blog-comments/[id]/route.ts",
+        "line": 8,
+        "route": "PATCH /api/blog-comments/:id"
+      },
+      "notes": "template /api/blog-comments/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-comments/page.tsx", "line": 240 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/blog-comments/[id]/route.ts",
+        "line": 44,
+        "route": "DELETE /api/blog-comments/:id"
+      },
+      "notes": "template /api/blog-comments/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-media/page.tsx", "line": 143 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-media/page.tsx", "line": 161 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/route.ts",
+        "line": 46,
+        "route": "GET /api/admin/blog-posts"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-posts/page.tsx", "line": 455 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-posts/page.tsx", "line": 473 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/route.ts",
+        "line": 46,
+        "route": "GET /api/admin/blog-posts"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-posts/page.tsx", "line": 492 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/route.ts",
+        "line": 155,
+        "route": "PATCH /api/admin/blog-posts/:id"
+      },
+      "notes": "template /api/admin/blog-posts/<post.id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-posts/page.tsx", "line": 526 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/route.ts",
+        "line": 456,
+        "route": "DELETE /api/admin/blog-posts/:id"
+      },
+      "notes": "template /api/admin/blog-posts/<post.id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-posts/page.tsx", "line": 546 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/route.ts",
+        "line": 83,
+        "route": "POST /api/admin/blog-posts"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-posts/page.tsx", "line": 641 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/bulk-status/route.ts",
+        "line": 14,
+        "route": "POST /api/admin/blog-posts/bulk-status"
+      },
+      "notes": "relative literal; static segment bulk-status wins over [id]"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-tags/page.tsx", "line": 339 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-tags/page.tsx", "line": 357 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/blog-tags/route.ts",
+        "line": 61,
+        "route": "GET /api/admin/blog-tags"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-tags/page.tsx", "line": 390 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/admin/blog-tags/[id]/route.ts",
+        "line": 29,
+        "route": "PATCH /api/admin/blog-tags/:id"
+      },
+      "notes": "template /api/admin/blog-tags/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-tags/page.tsx", "line": 425 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/admin/blog-tags/[id]/route.ts",
+        "line": 138,
+        "route": "DELETE /api/admin/blog-tags/:id"
+      },
+      "notes": "template /api/admin/blog-tags/<row.id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-tags/page.tsx", "line": 445 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-tags/route.ts",
+        "line": 72,
+        "route": "POST /api/admin/blog-tags"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/blog-tags/page.tsx", "line": 489 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-tags/merge/route.ts",
+        "line": 22,
+        "route": "POST /api/admin/blog-tags/merge"
+      },
+      "notes": "relative literal; static segment merge wins over [id] (which exports no POST anyway)"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/feedback/page.tsx", "line": 188 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/feedback/page.tsx", "line": 208 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/feedback/route.ts",
+        "line": 8,
+        "route": "GET /api/admin/feedback"
+      },
+      "notes": "url = new URL('/api/admin/feedback', window.location.origin) plus optional ?status; same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/feedback/page.tsx", "line": 230 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/admin/feedback/[id]/route.ts",
+        "line": 16,
+        "route": "PATCH /api/admin/feedback/:id"
+      },
+      "notes": "template /api/admin/feedback/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/feedback/page.tsx", "line": 250 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/admin/feedback/[id]/route.ts",
+        "line": 50,
+        "route": "DELETE /api/admin/feedback/:id"
+      },
+      "notes": "template /api/admin/feedback/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/content/guest-forms/page.tsx", "line": 145 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/guest-form-templates/route.ts",
+        "line": 15,
+        "route": "GET /api/guest-form-templates"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/integrations/feed-tokens/page.tsx",
+        "line": 114
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 6,
+        "route": "GET /api/properties"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/integrations/gemini/page.tsx", "line": 78 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/integrations/gemini/page.tsx", "line": 85 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 5,
+        "route": "GET /api/settings"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/integrations/gemini/page.tsx", "line": 97 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 29,
+        "route": "PUT /api/settings"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/integrations/ical-links/page.tsx",
+        "line": 172
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 10,
+        "route": "GET /api/calendar/links"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/integrations/platforms/page.tsx",
+        "line": 287
+      },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/integrations/platforms/page.tsx",
+        "line": 305
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/platforms/route.ts",
+        "line": 67,
+        "route": "GET /api/admin/platforms"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/integrations/platforms/page.tsx",
+        "line": 343
+      },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/admin/platforms/[slug]/route.ts",
+        "line": 14,
+        "route": "PUT /api/admin/platforms/:slug"
+      },
+      "notes": "template /api/admin/platforms/<encodeURIComponent(slug)>, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/integrations/platforms/page.tsx",
+        "line": 379
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/admin/platforms/[slug]/route.ts",
+        "line": 155,
+        "route": "DELETE /api/admin/platforms/:slug"
+      },
+      "notes": "template /api/admin/platforms/<encodeURIComponent(p.slug)>, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/integrations/platforms/page.tsx",
+        "line": 402
+      },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/platforms/route.ts",
+        "line": 85,
+        "route": "POST /api/admin/platforms"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/integrations/seo/page.tsx", "line": 294 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/integrations/seo/page.tsx", "line": 312 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/seo/route.ts",
+        "line": 47,
+        "route": "GET /api/admin/seo"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/integrations/seo/page.tsx", "line": 350 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/admin/seo/[id]/route.ts",
+        "line": 11,
+        "route": "PUT /api/admin/seo/:id"
+      },
+      "notes": "template /api/admin/seo/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/integrations/seo/page.tsx", "line": 385 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/admin/seo/[id]/route.ts",
+        "line": 137,
+        "route": "DELETE /api/admin/seo/:id"
+      },
+      "notes": "template /api/admin/seo/<row.id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/integrations/seo/page.tsx", "line": 405 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/seo/route.ts",
+        "line": 65,
+        "route": "POST /api/admin/seo"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/operations/property-audit/page.tsx",
+        "line": 242
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 6,
+        "route": "GET /api/properties"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/operations/property-audit/page.tsx",
+        "line": 257
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/[id]/audit/route.ts",
+        "line": 20,
+        "route": "GET /api/properties/:id/audit"
+      },
+      "notes": "template /api/properties/<propertyId>/audit, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/operations/sync-logs/page.tsx", "line": 127 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "relative literal /api/calendar/sync?limit=200 (query dropped), same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/operations/sync-logs/page.tsx", "line": 130 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 6,
+        "route": "GET /api/properties"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/page.tsx", "line": 358 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/page.tsx", "line": 365 },
+      "method": "GET",
+      "target": { "file": "src/app/api/audit/route.ts", "line": 7, "route": "GET /api/audit" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/audit/page.tsx", "line": 99 },
+      "method": "GET",
+      "target": { "file": "src/app/api/audit/route.ts", "line": 7, "route": "GET /api/audit" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/cleaners/page.tsx", "line": 172 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cleaners/route.ts",
+        "line": 11,
+        "route": "GET /api/cleaners"
+      },
+      "notes": "relative literal /api/cleaners?withAssignments=1 (query dropped), same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/cleaners/page.tsx", "line": 192 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/cleaners/route.ts",
+        "line": 75,
+        "route": "POST /api/cleaners"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/cleaners/page.tsx", "line": 224 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/cleaners/[id]/route.ts",
+        "line": 17,
+        "route": "PATCH /api/cleaners/:id"
+      },
+      "notes": "template /api/cleaners/<editingId>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/cleaners/page.tsx", "line": 245 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/cleaners/[id]/route.ts",
+        "line": 77,
+        "route": "DELETE /api/cleaners/:id"
+      },
+      "notes": "template /api/cleaners/<id>, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/workspace/message-templates/page.tsx",
+        "line": 104
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/message-templates/route.ts",
+        "line": 8,
+        "route": "GET /api/message-templates"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/properties/page.tsx", "line": 165 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 6,
+        "route": "GET /api/properties"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/properties/page.tsx", "line": 166 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/workspace/site-settings/page.tsx",
+        "line": 172
+      },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/workspace/site-settings/page.tsx",
+        "line": 187
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/site-settings/route.ts",
+        "line": 16,
+        "route": "GET /api/admin/site-settings"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": {
+        "file": "src/app/dashboard/admin/workspace/site-settings/page.tsx",
+        "line": 201
+      },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/admin/site-settings/route.ts",
+        "line": 36,
+        "route": "PUT /api/admin/site-settings"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/users/page.tsx", "line": 88 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/users/page.tsx", "line": 95 },
+      "method": "GET",
+      "target": { "file": "src/app/api/users/route.ts", "line": 7, "route": "GET /api/users" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/users/page.tsx", "line": 113 },
+      "method": "POST",
+      "target": { "file": "src/app/api/users/route.ts", "line": 29, "route": "POST /api/users" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/users/page.tsx", "line": 132 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/users/[id]/route.ts",
+        "line": 5,
+        "route": "DELETE /api/users/:id"
+      },
+      "notes": "template /api/users/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/admin/workspace/users/page.tsx", "line": 140 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/users/[id]/impersonate/route.ts",
+        "line": 33,
+        "route": "POST /api/admin/users/:id/impersonate"
+      },
+      "notes": "template /api/admin/users/<id>/impersonate, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 29 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 6,
+        "route": "GET /api/properties"
+      },
+      "notes": "loadProperties(): fixed relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 37 },
+      "method": "GET",
+      "target": { "file": "src/app/api/guests/route.ts", "line": 7, "route": "GET /api/guests" },
+      "notes": "loadGuests(): /api/guests?reservationId=<id> (query dropped), same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 50 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/logout/route.ts",
+        "line": 4,
+        "route": "POST /api/auth/logout"
+      },
+      "notes": "CleanerShell logout, relative literal"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 154 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 56,
+        "route": "POST /api/properties"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 163 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/properties/[id]/route.ts",
+        "line": 45,
+        "route": "DELETE /api/properties/:id"
+      },
+      "notes": "template /api/properties/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 177 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/reservations/route.ts",
+        "line": 33,
+        "route": "POST /api/reservations"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 199 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/reservations/[id]/route.ts",
+        "line": 66,
+        "route": "PATCH /api/reservations/:id"
+      },
+      "notes": "template /api/reservations/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 213 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/properties/[id]/route.ts",
+        "line": 7,
+        "route": "PATCH /api/properties/:id"
+      },
+      "notes": "template /api/properties/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 222 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/reservations/[id]/route.ts",
+        "line": 395,
+        "route": "DELETE /api/reservations/:id"
+      },
+      "notes": "template /api/reservations/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 236 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/guests/[id]/route.ts",
+        "line": 99,
+        "route": "DELETE /api/guests/:id"
+      },
+      "notes": "template /api/guests/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 244 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/guests/[id]/route.ts",
+        "line": 41,
+        "route": "PATCH /api/guests/:id"
+      },
+      "notes": "template /api/guests/<childId>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 255 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/guests/[id]/route.ts",
+        "line": 41,
+        "route": "PATCH /api/guests/:id"
+      },
+      "notes": "template /api/guests/<id>, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/dashboard/page.tsx", "line": 280 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/logout/route.ts",
+        "line": 4,
+        "route": "POST /api/auth/logout"
+      },
+      "notes": "AppContent logout, relative literal"
+    },
+    {
+      "callSite": { "file": "src/app/invite/[token]/page.tsx", "line": 125 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/property-manager-invites/accept/route.ts",
+        "line": 108,
+        "route": "GET /api/property-manager-invites/accept"
+      },
+      "notes": "/api/property-manager-invites/accept?token=<token> (query dropped), same origin"
+    },
+    {
+      "callSite": { "file": "src/app/invite/[token]/page.tsx", "line": 151 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/property-manager-invites/accept/route.ts",
+        "line": 11,
+        "route": "POST /api/property-manager-invites/accept"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/login/page.tsx", "line": 55 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/login/route.ts",
+        "line": 11,
+        "route": "POST /api/auth/login"
+      },
+      "notes": "root-relative literal; unaffected by the /ru/login locale rewrite"
+    },
+    {
+      "callSite": { "file": "src/app/onboard/page.tsx", "line": 459 },
+      "method": "GET",
+      "target": { "file": "src/app/api/onboard/route.ts", "line": 45, "route": "GET /api/onboard" },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/onboard/page.tsx", "line": 519 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/onboard/route.ts",
+        "line": 80,
+        "route": "POST /api/onboard"
+      },
+      "notes": "debounced persist(), relative literal"
+    },
+    {
+      "callSite": { "file": "src/app/onboard/page.tsx", "line": 597 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/onboard/test-platform/route.ts",
+        "line": 30,
+        "route": "POST /api/onboard/test-platform"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/reset-password/page.tsx", "line": 35 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/forgot-password/route.ts",
+        "line": 13,
+        "route": "POST /api/auth/forgot-password"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/reset-password/page.tsx", "line": 55 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/reset-password/route.ts",
+        "line": 14,
+        "route": "POST /api/auth/reset-password"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/signup/page.tsx", "line": 46 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/site-config/route.ts",
+        "line": 7,
+        "route": "GET /api/site-config"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/signup/page.tsx", "line": 68 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/signup/route.ts",
+        "line": 17,
+        "route": "POST /api/auth/signup"
+      },
+      "notes": "handleSubmit, relative literal"
+    },
+    {
+      "callSite": { "file": "src/app/signup/page.tsx", "line": 93 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/verify-email/route.ts",
+        "line": 13,
+        "route": "POST /api/auth/verify-email"
+      },
+      "notes": "relative literal, same origin"
+    },
+    {
+      "callSite": { "file": "src/app/signup/page.tsx", "line": 118 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/signup/route.ts",
+        "line": 17,
+        "route": "POST /api/auth/signup"
+      },
+      "notes": "handleResend, relative literal"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 189 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/site-settings/route.ts",
+        "line": 16,
+        "route": "GET /api/admin/site-settings"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 203 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/admin/site-settings/route.ts",
+        "line": 36,
+        "route": "PUT /api/admin/site-settings"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 223 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/users/route.ts",
+        "line": 8,
+        "route": "GET /api/admin/users"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 272 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/admin/users/[id]/suspend/route.ts",
+        "line": 56,
+        "route": "DELETE /api/admin/users/:id/suspend"
+      },
+      "notes": "relative fetch; method isSuspended ? 'DELETE' : 'POST', one label per alternative"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 272 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/users/[id]/suspend/route.ts",
+        "line": 10,
+        "route": "POST /api/admin/users/:id/suspend"
+      },
+      "notes": "relative fetch; method isSuspended ? 'DELETE' : 'POST', one label per alternative"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 290 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/platforms/route.ts",
+        "line": 67,
+        "route": "GET /api/admin/platforms"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 335 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/admin/platforms/[slug]/route.ts",
+        "line": 14,
+        "route": "PUT /api/admin/platforms/:slug"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 363 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/admin/platforms/[slug]/route.ts",
+        "line": 155,
+        "route": "DELETE /api/admin/platforms/:slug"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 382 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/platforms/route.ts",
+        "line": 85,
+        "route": "POST /api/admin/platforms"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 408 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/seo/route.ts",
+        "line": 47,
+        "route": "GET /api/admin/seo"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 450 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/admin/seo/[id]/route.ts",
+        "line": 11,
+        "route": "PUT /api/admin/seo/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 477 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/admin/seo/[id]/route.ts",
+        "line": 137,
+        "route": "DELETE /api/admin/seo/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 493 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/seo/route.ts",
+        "line": 65,
+        "route": "POST /api/admin/seo"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/admin-panel.tsx", "line": 513 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/admin/export-my-data/route.ts",
+        "line": 9,
+        "route": "GET /api/admin/export-my-data"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/announcement-banner.tsx", "line": 25 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/site-config/route.ts",
+        "line": 7,
+        "route": "GET /api/site-config"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/audit-panel.tsx", "line": 42 },
+      "method": "GET",
+      "target": { "file": "src/app/api/audit/route.ts", "line": 7, "route": "GET /api/audit" },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/auth-guard.tsx", "line": 22 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/auth/session/route.ts",
+        "line": 4,
+        "route": "GET /api/auth/session"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/blog-comments.tsx", "line": 54 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/blog-comments/route.ts",
+        "line": 8,
+        "route": "POST /api/blog-comments"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/blog-comments.tsx", "line": 85 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/blog-comments/[id]/route.ts",
+        "line": 44,
+        "route": "DELETE /api/blog-comments/:id"
+      },
+      "notes": "relative fetch with init picked by action === 'delete' ? DELETE : PATCH (lines 77-84), one label per alternative"
+    },
+    {
+      "callSite": { "file": "src/components/blog-comments.tsx", "line": 85 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/blog-comments/[id]/route.ts",
+        "line": 8,
+        "route": "PATCH /api/blog-comments/:id"
+      },
+      "notes": "relative fetch with init picked by action === 'delete' ? DELETE : PATCH (lines 77-84), one label per alternative"
+    },
+    {
+      "callSite": { "file": "src/components/blog-post-editor.tsx", "line": 202 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-images/route.ts",
+        "line": 31,
+        "route": "POST /api/admin/blog-images"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/blog-post-editor.tsx", "line": 233 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/route.ts",
+        "line": 155,
+        "route": "PATCH /api/admin/blog-posts/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/blog-post-editor.tsx", "line": 268 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/translation-link/route.ts",
+        "line": 26,
+        "route": "POST /api/admin/blog-posts/:id/translation-link"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/blog-post-editor.tsx", "line": 292 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/admin/blog-posts/[id]/translation-link/route.ts",
+        "line": 94,
+        "route": "DELETE /api/admin/blog-posts/:id/translation-link"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 399 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 10,
+        "route": "GET /api/calendar/links"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 400 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 401 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/[id]/rotate-feed-token/route.ts",
+        "line": 9,
+        "route": "GET /api/properties/:id/rotate-feed-token"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 417 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/properties/[id]/rotate-feed-token/route.ts",
+        "line": 39,
+        "route": "POST /api/properties/:id/rotate-feed-token"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 430 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/properties/[id]/rotate-feed-token/route.ts",
+        "line": 71,
+        "route": "DELETE /api/properties/:id/rotate-feed-token"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 449 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 49,
+        "route": "POST /api/calendar/links"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 480 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/calendar/links/[id]/route.ts",
+        "line": 78,
+        "route": "DELETE /api/calendar/links/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 485 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/calendar/links/[id]/route.ts",
+        "line": 24,
+        "route": "PATCH /api/calendar/links/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 496 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 15,
+        "route": "POST /api/calendar/sync"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 509 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/test/route.ts",
+        "line": 14,
+        "route": "POST /api/calendar/test"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar-sync.tsx", "line": 528 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/test/route.ts",
+        "line": 14,
+        "route": "POST /api/calendar/test"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/calendar-overview.tsx", "line": 49 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/overview/route.ts",
+        "line": 17,
+        "route": "GET /api/calendar/overview"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/overview-reservation.tsx", "line": 41 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/reservations/[id]/route.ts",
+        "line": 34,
+        "route": "GET /api/reservations/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/overview-reservation.tsx", "line": 42 },
+      "method": "GET",
+      "target": { "file": "src/app/api/guests/route.ts", "line": 7, "route": "GET /api/guests" },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/overview-reservation.tsx", "line": 94 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/reservations/[id]/route.ts",
+        "line": 66,
+        "route": "PATCH /api/reservations/:id"
+      },
+      "notes": "local mutate(url, method) helper (fetch at line 72)"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/overview-reservation.tsx", "line": 100 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/reservations/[id]/route.ts",
+        "line": 395,
+        "route": "DELETE /api/reservations/:id"
+      },
+      "notes": "local mutate(url, method) helper (fetch at line 72)"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/overview-reservation.tsx", "line": 109 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/guests/[id]/route.ts",
+        "line": 41,
+        "route": "PATCH /api/guests/:id"
+      },
+      "notes": "local mutate(url, method) helper (fetch at line 72)"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/overview-reservation.tsx", "line": 115 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/guests/[id]/route.ts",
+        "line": 99,
+        "route": "DELETE /api/guests/:id"
+      },
+      "notes": "local mutate(url, method) helper (fetch at line 72)"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/overview-reservation.tsx", "line": 119 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/guests/[id]/route.ts",
+        "line": 41,
+        "route": "PATCH /api/guests/:id"
+      },
+      "notes": "local mutate(url, method) helper (fetch at line 72)"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/use-calendar-fetch.ts", "line": 74 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "local fetchJson(url, init) helper (fetch at line 27), query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/use-calendar-fetch.ts", "line": 75 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 10,
+        "route": "GET /api/calendar/links"
+      },
+      "notes": "local fetchJson helper, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/use-calendar-fetch.ts", "line": 76 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 9,
+        "route": "GET /api/date-overrides"
+      },
+      "notes": "local fetchJson helper, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/use-calendar-fetch.ts", "line": 125 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 9,
+        "route": "GET /api/date-overrides"
+      },
+      "notes": "local fetchJson helper, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/use-calendar-fetch.ts", "line": 151 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 15,
+        "route": "POST /api/calendar/sync"
+      },
+      "notes": "local fetchJson helper with init method POST"
+    },
+    {
+      "callSite": { "file": "src/components/cleaner-app.tsx", "line": 71 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 6,
+        "route": "GET /api/properties"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/cleaner-app.tsx", "line": 86 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/cleaner-app.tsx", "line": 87 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 10,
+        "route": "GET /api/calendar/links"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/cleaner-app.tsx", "line": 88 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 9,
+        "route": "GET /api/date-overrides"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/cleaner-assignment-section.tsx", "line": 89 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/route.ts",
+        "line": 15,
+        "route": "GET /api/cleaner-assignments"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/cleaner-assignment-section.tsx", "line": 90 },
+      "method": "GET",
+      "target": { "file": "src/app/api/users/route.ts", "line": 7, "route": "GET /api/users" },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/cleaner-assignment-section.tsx", "line": 116 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/route.ts",
+        "line": 68,
+        "route": "POST /api/cleaner-assignments"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/cleaner-assignment-section.tsx", "line": 136 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/[id]/route.ts",
+        "line": 55,
+        "route": "DELETE /api/cleaner-assignments/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/cleaners-panel.tsx", "line": 203 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/route.ts",
+        "line": 15,
+        "route": "GET /api/cleaner-assignments"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/cleaners-panel.tsx", "line": 204 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cleaners/route.ts",
+        "line": 11,
+        "route": "GET /api/cleaners"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/cleaners-panel.tsx", "line": 239 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/route.ts",
+        "line": 68,
+        "route": "POST /api/cleaner-assignments"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/cleaners-panel.tsx", "line": 273 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/cleaners/route.ts",
+        "line": 75,
+        "route": "POST /api/cleaners"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/cleaners-panel.tsx", "line": 298 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/[id]/route.ts",
+        "line": 55,
+        "route": "DELETE /api/cleaner-assignments/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/cleaners-panel.tsx", "line": 308 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/[id]/route.ts",
+        "line": 19,
+        "route": "PATCH /api/cleaner-assignments/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/cleaners-panel.tsx", "line": 327 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/[id]/route.ts",
+        "line": 19,
+        "route": "PATCH /api/cleaner-assignments/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/cleaners-panel.tsx", "line": 332 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/[id]/route.ts",
+        "line": 19,
+        "route": "PATCH /api/cleaner-assignments/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard-onboarding.tsx", "line": 285 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 56,
+        "route": "POST /api/properties"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard-onboarding.tsx", "line": 308 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/properties/sample/route.ts",
+        "line": 6,
+        "route": "POST /api/properties/sample"
+      },
+      "notes": "relative fetch; static 'sample' segment wins over [id]"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard-onboarding.tsx", "line": 311 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 56,
+        "route": "POST /api/properties"
+      },
+      "notes": "relative fetch (fallback when the sample endpoint fails)"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard-onboarding.tsx", "line": 370 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/test/route.ts",
+        "line": 14,
+        "route": "POST /api/calendar/test"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard-onboarding.tsx", "line": 389 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 49,
+        "route": "POST /api/calendar/links"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard.tsx", "line": 573 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard.tsx", "line": 574 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 10,
+        "route": "GET /api/calendar/links"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard.tsx", "line": 575 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 9,
+        "route": "GET /api/date-overrides"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard.tsx", "line": 606 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 10,
+        "route": "GET /api/calendar/links"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/dashboard.tsx", "line": 628 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cleaners/route.ts",
+        "line": 11,
+        "route": "GET /api/cleaners"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/feedback-button.tsx", "line": 204 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/feedback/route.ts",
+        "line": 48,
+        "route": "POST /api/feedback"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/global-cleaning-view.tsx", "line": 141 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/global-cleaning-view.tsx", "line": 142 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 10,
+        "route": "GET /api/calendar/links"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/global-cleaning-view.tsx", "line": 143 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 9,
+        "route": "GET /api/date-overrides"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/global-cleaning-view.tsx", "line": 144 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/route.ts",
+        "line": 15,
+        "route": "GET /api/cleaner-assignments"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/google-one-tap.tsx", "line": 75 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/google/one-tap/route.ts",
+        "line": 20,
+        "route": "POST /api/auth/google/one-tap"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/guest-form-filler.tsx", "line": 136 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/g/[token]/draft/route.ts",
+        "line": 8,
+        "route": "PUT /api/g/:token/draft"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/guest-form-filler.tsx", "line": 197 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/g/[token]/submit/route.ts",
+        "line": 22,
+        "route": "POST /api/g/:token/submit"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/guest-form-page.tsx", "line": 119 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/[id]/guest-form/route.ts",
+        "line": 73,
+        "route": "GET /api/properties/:id/guest-form"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/guest-form-page.tsx", "line": 166 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/properties/[id]/guest-form/route.ts",
+        "line": 117,
+        "route": "PUT /api/properties/:id/guest-form"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/impersonation-banner.tsx", "line": 27 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/exit-impersonation/route.ts",
+        "line": 27,
+        "route": "POST /api/admin/exit-impersonation"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/message-templates-panel.tsx", "line": 149 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/message-templates/route.ts",
+        "line": 8,
+        "route": "GET /api/message-templates"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/message-templates-panel.tsx", "line": 198 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/message-templates/route.ts",
+        "line": 57,
+        "route": "POST /api/message-templates"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/message-templates-panel.tsx", "line": 209 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/message-templates/[id]/route.ts",
+        "line": 18,
+        "route": "PATCH /api/message-templates/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/message-templates-panel.tsx", "line": 229 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/message-templates/[id]/route.ts",
+        "line": 52,
+        "route": "DELETE /api/message-templates/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/profile-panel.tsx", "line": 81 },
+      "method": "GET",
+      "target": { "file": "src/app/api/auth/me/route.ts", "line": 5, "route": "GET /api/auth/me" },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/profile-panel.tsx", "line": 93 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/change-password/route.ts",
+        "line": 7,
+        "route": "POST /api/auth/change-password"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/profile-panel.tsx", "line": 201 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/auth/export-data/route.ts",
+        "line": 10,
+        "route": "GET /api/auth/export-data"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/profile-panel.tsx", "line": 304 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/delete-account/route.ts",
+        "line": 11,
+        "route": "POST /api/auth/delete-account"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 320 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/route.ts",
+        "line": 15,
+        "route": "GET /api/cleaner-assignments"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 367 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 41,
+        "route": "POST /api/date-overrides"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 382 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 119,
+        "route": "DELETE /api/date-overrides"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 399 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/reservations/route.ts",
+        "line": 33,
+        "route": "POST /api/reservations"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 419 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 41,
+        "route": "POST /api/date-overrides"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 429 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 119,
+        "route": "DELETE /api/date-overrides"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 462 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/reservations/[id]/route.ts",
+        "line": 66,
+        "route": "PATCH /api/reservations/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 478 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/reservations/route.ts",
+        "line": 33,
+        "route": "POST /api/reservations"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 520 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/reservations/[id]/route.ts",
+        "line": 395,
+        "route": "DELETE /api/reservations/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 550 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/reservations/[id]/route.ts",
+        "line": 66,
+        "route": "PATCH /api/reservations/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-calendar.tsx", "line": 566 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/reservations/route.ts",
+        "line": 33,
+        "route": "POST /api/reservations"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-cleaning-view.tsx", "line": 91 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-cleaning-view.tsx", "line": 92 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 10,
+        "route": "GET /api/calendar/links"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-cleaning-view.tsx", "line": 93 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/date-overrides/route.ts",
+        "line": 9,
+        "route": "GET /api/date-overrides"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-cleaning-view.tsx", "line": 94 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cleaner-assignments/route.ts",
+        "line": 15,
+        "route": "GET /api/cleaner-assignments"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-cleaning-view.tsx", "line": 144 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/properties/[id]/route.ts",
+        "line": 7,
+        "route": "PATCH /api/properties/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-managers-panel.tsx", "line": 81 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/property-managers/route.ts",
+        "line": 10,
+        "route": "GET /api/property-managers"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-managers-panel.tsx", "line": 82 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/property-manager-invites/route.ts",
+        "line": 18,
+        "route": "GET /api/property-manager-invites"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-managers-panel.tsx", "line": 110 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/auth/session/route.ts",
+        "line": 4,
+        "route": "GET /api/auth/session"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-managers-panel.tsx", "line": 126 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/property-manager-invites/route.ts",
+        "line": 52,
+        "route": "POST /api/property-manager-invites"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/property-managers-panel.tsx", "line": 148 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/property-manager-invites/route.ts",
+        "line": 97,
+        "route": "DELETE /api/property-manager-invites"
+      },
+      "notes": "relative fetch (URL on line 149), query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/property-managers-panel.tsx", "line": 167 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/property-managers/route.ts",
+        "line": 148,
+        "route": "DELETE /api/property-managers"
+      },
+      "notes": "relative fetch (URL on line 168), query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/reports-panel.tsx", "line": 866 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "fetch(url): url = property ? '/api/calendar/sync?propertyId=…' : '/api/calendar/sync?limit=5000' (lines 863-865); both alternatives reach the same route, so one label"
+    },
+    {
+      "callSite": { "file": "src/components/reservation-view.tsx", "line": 417 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/message-templates/route.ts",
+        "line": 8,
+        "route": "GET /api/message-templates"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/reservation-view.tsx", "line": 441 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/[id]/guest-form/route.ts",
+        "line": 73,
+        "route": "GET /api/properties/:id/guest-form"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/reservation-view.tsx", "line": 457 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/reservations/[id]/guest-form/share/route.ts",
+        "line": 36,
+        "route": "GET /api/reservations/:id/guest-form/share"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/reservation-view.tsx", "line": 502 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/reservations/[id]/guest-form/share/route.ts",
+        "line": 129,
+        "route": "POST /api/reservations/:id/guest-form/share"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/reservation-view.tsx", "line": 569 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/reservations/[id]/guest-form/share/route.ts",
+        "line": 260,
+        "route": "PATCH /api/reservations/:id/guest-form/share"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/reservation-view.tsx", "line": 682 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/extract/route.ts",
+        "line": 33,
+        "route": "POST /api/extract"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/settings-panel.tsx", "line": 49 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 5,
+        "route": "GET /api/settings"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/settings-panel.tsx", "line": 57 },
+      "method": "GET",
+      "target": { "file": "src/app/api/users/route.ts", "line": 7, "route": "GET /api/users" },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/settings-panel.tsx", "line": 64 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 29,
+        "route": "PUT /api/settings"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/settings-panel.tsx", "line": 77 },
+      "method": "POST",
+      "target": { "file": "src/app/api/users/route.ts", "line": 29, "route": "POST /api/users" },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/settings-panel.tsx", "line": 93 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/users/[id]/route.ts",
+        "line": 5,
+        "route": "DELETE /api/users/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/support-footer.tsx", "line": 14 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/site-config/route.ts",
+        "line": 7,
+        "route": "GET /api/site-config"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-alerts-banner.tsx", "line": 25 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/sync-alerts/route.ts",
+        "line": 8,
+        "route": "GET /api/sync-alerts"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-alerts-banner.tsx", "line": 44 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/sync-alerts/route.ts",
+        "line": 45,
+        "route": "POST /api/sync-alerts"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 325 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 10,
+        "route": "GET /api/calendar/links"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 326 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 327 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/[id]/rotate-feed-token/route.ts",
+        "line": 9,
+        "route": "GET /api/properties/:id/rotate-feed-token"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 363 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/properties/[id]/rotate-feed-token/route.ts",
+        "line": 39,
+        "route": "POST /api/properties/:id/rotate-feed-token"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 379 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/properties/[id]/rotate-feed-token/route.ts",
+        "line": 71,
+        "route": "DELETE /api/properties/:id/rotate-feed-token"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 399 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/links/route.ts",
+        "line": 49,
+        "route": "POST /api/calendar/links"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 433 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/calendar/links/[id]/route.ts",
+        "line": 78,
+        "route": "DELETE /api/calendar/links/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 451 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/test/route.ts",
+        "line": 14,
+        "route": "POST /api/calendar/test"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 470 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/calendar/links/[id]/route.ts",
+        "line": 24,
+        "route": "PATCH /api/calendar/links/:id"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/sync-settings.tsx", "line": 487 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 15,
+        "route": "POST /api/calendar/sync"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/tasks-panel.tsx", "line": 40 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/schedule/route.ts",
+        "line": 8,
+        "route": "GET /api/calendar/schedule"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/tasks-panel.tsx", "line": 41 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 52,
+        "route": "GET /api/calendar/sync"
+      },
+      "notes": "relative fetch, query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/tasks-panel.tsx", "line": 42 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/properties/route.ts",
+        "line": 6,
+        "route": "GET /api/properties"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/tasks-panel.tsx", "line": 73 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/calendar/schedule/route.ts",
+        "line": 34,
+        "route": "PUT /api/calendar/schedule"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/tasks-panel.tsx", "line": 90 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 15,
+        "route": "POST /api/calendar/sync"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/tasks-panel.tsx", "line": 116 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/calendar/cron-url/route.ts",
+        "line": 17,
+        "route": "GET /api/calendar/cron-url"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/top-bar.tsx", "line": 276 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/guests/search/route.ts",
+        "line": 9,
+        "route": "GET /api/guests/search"
+      },
+      "notes": "relative fetch, query dropped; static 'search' segment wins over [id]"
+    },
+    {
+      "callSite": { "file": "src/components/top-bar.tsx", "line": 338 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/calendar/sync/route.ts",
+        "line": 15,
+        "route": "POST /api/calendar/sync"
+      },
+      "notes": "relative fetch"
+    },
+    {
+      "callSite": { "file": "src/components/welcome-modal.tsx", "line": 43 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/properties/sample/route.ts",
+        "line": 6,
+        "route": "POST /api/properties/sample"
+      },
+      "notes": "relative fetch; static 'sample' segment wins over [id]"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar-sync.ts", "line": 145 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchICal(link.icalExportUrl): fetchICal (line 50) fetches its url parameter (line 54), so this caller is the call site; the URL is a calendar link's iCal export URL from the database (Airbnb/Booking feeds), external and not statically known"
+    },
+    {
+      "callSite": { "file": "src/lib/email.ts", "line": 33 },
+      "method": "POST",
+      "target": null,
+      "notes": "Resend API https://api.resend.com/emails; external"
+    },
+    {
+      "callSite": { "file": "src/lib/evisitor.ts", "line": 212 },
+      "method": "POST",
+      "target": null,
+      "notes": "this.request (injected, defaults to global fetch) to TEST_API_ROOT https://www.evisitor.hr/testApi; external"
+    },
+    {
+      "callSite": { "file": "src/lib/evisitor.ts", "line": 236 },
+      "method": "POST",
+      "target": null,
+      "notes": "this.request (defaults to fetch) to eVisitor test API; external"
+    },
+    {
+      "callSite": { "file": "src/lib/evisitor.ts", "line": 249 },
+      "method": "POST",
+      "target": null,
+      "notes": "this.action(\"CheckInTourist\", ...): action(name) (line 301) takes the path segment, so its caller is the call site; this.request (defaults to fetch) to TEST_API_ROOT/Rest/Htz/CheckInTourist/, eVisitor test API; external"
+    },
+    {
+      "callSite": { "file": "src/lib/evisitor.ts", "line": 258 },
+      "method": "POST",
+      "target": null,
+      "notes": "this.action(\"CheckInTourist\", ...) (see line 249); eVisitor test API; external"
+    },
+    {
+      "callSite": { "file": "src/lib/evisitor.ts", "line": 267 },
+      "method": "POST",
+      "target": null,
+      "notes": "this.action(\"CheckOutTourist\", ...) (see line 249); eVisitor test API; external"
+    },
+    {
+      "callSite": { "file": "src/lib/evisitor.ts", "line": 275 },
+      "method": "POST",
+      "target": null,
+      "notes": "this.action(\"CancelTouristCheckIn\", ...) (see line 249); eVisitor test API; external"
+    },
+    {
+      "callSite": { "file": "src/lib/evisitor.ts", "line": 285 },
+      "method": "GET",
+      "target": null,
+      "notes": "this.request (defaults to fetch) to eVisitor test API; external"
+    },
+    {
+      "callSite": { "file": "src/lib/google-oauth.ts", "line": 89 },
+      "method": "POST",
+      "target": null,
+      "notes": "GOOGLE_TOKEN_ENDPOINT https://oauth2.googleapis.com/token; external"
+    },
+    {
+      "callSite": { "file": "src/lib/google-oauth.ts", "line": 103 },
+      "method": "GET",
+      "target": null,
+      "notes": "GOOGLE_USERINFO_ENDPOINT https://www.googleapis.com/oauth2/v2/userinfo; external"
+    }
+  ]
+}

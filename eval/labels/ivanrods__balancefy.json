@@ -1,0 +1,274 @@
+{
+  "repo": "ivanrods/balancefy",
+  "sha": "9e856358de52f741c795768a34da8c3dfe6d4f33",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": {
+        "file": "src/app/(app)/transactions/components/create-transaction-dialog.tsx",
+        "line": 38
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/categories/route.ts",
+        "line": 7,
+        "route": "GET /api/categories"
+      },
+      "notes": "useEffect fetch('/api/categories?type=select'), same origin; query dropped. src/app/api/categories/route.ts export async function GET"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(app)/transactions/components/create-transaction-dialog.tsx",
+        "line": 44
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/wallets/route.ts",
+        "line": 7,
+        "route": "GET /api/wallets"
+      },
+      "notes": "useEffect fetch('/api/wallets?type=select'), same origin; query dropped. src/app/api/wallets/route.ts export async function GET"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(app)/transactions/components/edit-transaction-dialog.tsx",
+        "line": 44
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/categories/route.ts",
+        "line": 7,
+        "route": "GET /api/categories"
+      },
+      "notes": "useEffect fetch('/api/categories'), same origin. src/app/api/categories/route.ts export async function GET"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(app)/transactions/components/edit-transaction-dialog.tsx",
+        "line": 50
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/wallets/route.ts",
+        "line": 7,
+        "route": "GET /api/wallets"
+      },
+      "notes": "useEffect fetch('/api/wallets?type=select'), same origin; query dropped. src/app/api/wallets/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/app/register/page.tsx", "line": 37 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/register/route.ts",
+        "line": 6,
+        "route": "POST /api/register"
+      },
+      "notes": "onSubmit fetch('/api/register', { method: 'POST' }), same origin (middleware only rate-limits it). src/app/api/register/route.ts export async function POST"
+    },
+    {
+      "callSite": {
+        "file": "src/components/sidebar/components/delete-account-dialog.tsx",
+        "line": 23
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/profile/route.ts",
+        "line": 79,
+        "route": "DELETE /api/profile"
+      },
+      "notes": "handleDeleteAccount fetch('/api/profile', { method: 'DELETE' }), same origin. src/app/api/profile/route.ts export async function DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/sidebar/components/edit-profile.tsx", "line": 47 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/profile/route.ts",
+        "line": 9,
+        "route": "GET /api/profile"
+      },
+      "notes": "fetchProfile fetch('/api/profile'), same origin. src/app/api/profile/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/components/sidebar/components/edit-profile.tsx", "line": 68 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/upload/route.ts",
+        "line": 11,
+        "route": "POST /api/upload"
+      },
+      "notes": "onSubmit fetch('/api/upload', { method: 'POST', body: formData }), same origin. src/app/api/upload/route.ts export async function POST"
+    },
+    {
+      "callSite": { "file": "src/components/sidebar/components/edit-profile.tsx", "line": 85 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/profile/route.ts",
+        "line": 40,
+        "route": "PUT /api/profile"
+      },
+      "notes": "onSubmit fetch('/api/profile', { method: 'PUT' }), same origin. src/app/api/profile/route.ts export async function PUT"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-categories.ts", "line": 13 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/categories/route.ts",
+        "line": 7,
+        "route": "GET /api/categories"
+      },
+      "notes": "fetchCategories (useCategoriesQuery's queryFn) fetch(`/api/categories?${params}`), params a URLSearchParams query; query dropped. src/app/api/categories/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-categories.ts", "line": 31 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/categories/route.ts",
+        "line": 35,
+        "route": "POST /api/categories"
+      },
+      "notes": "createCategory mutationFn fetch('/api/categories', { method: 'POST' }). src/app/api/categories/route.ts export async function POST"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-categories.ts", "line": 46 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/categories/[id]/route.ts",
+        "line": 23,
+        "route": "PUT /api/categories/:id"
+      },
+      "notes": "updateCategory mutationFn fetch(`/api/categories/${data.id}`, { method: 'PUT' }). src/app/api/categories/[id]/route.ts export async function PUT"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-categories.ts", "line": 61 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/categories/[id]/route.ts",
+        "line": 41,
+        "route": "DELETE /api/categories/:id"
+      },
+      "notes": "deleteCategory mutationFn fetch(`/api/categories/${id}`, { method: 'DELETE' }). src/app/api/categories/[id]/route.ts export async function DELETE"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-notifications.ts", "line": 10 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/notifications/route.ts",
+        "line": 6,
+        "route": "GET /api/notifications"
+      },
+      "notes": "useQuery queryFn fetch('/api/notifications'). src/app/api/notifications/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-notifications.ts", "line": 21 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/notifications/[id]/route.ts",
+        "line": 6,
+        "route": "PATCH /api/notifications/:id"
+      },
+      "notes": "markAsRead mutationFn fetch(`/api/notifications/${id}`, { method: 'PATCH' }). src/app/api/notifications/[id]/route.ts export async function PATCH"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-notifications.ts", "line": 34 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/notifications/read-all/route.ts",
+        "line": 6,
+        "route": "PATCH /api/notifications/read-all"
+      },
+      "notes": "markAllAsRead mutationFn fetch('/api/notifications/read-all', { method: 'PATCH' }); the static read-all segment wins over [id]. src/app/api/notifications/read-all/route.ts export async function PATCH"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-transactions-type.ts", "line": 34 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/transactions/transaction-type/route.ts",
+        "line": 5,
+        "route": "GET /api/transactions/transaction-type"
+      },
+      "notes": "useQuery queryFn fetch(`/api/transactions/transaction-type?${params}`); query dropped; the static transaction-type segment wins over [id]. src/app/api/transactions/transaction-type/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-transactions.ts", "line": 21 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/transactions/route.ts",
+        "line": 5,
+        "route": "GET /api/transactions"
+      },
+      "notes": "fetchTransactions (useTransactionsQuery's queryFn) fetch(url), url = queryString ? `/api/transactions?${queryString}` : '/api/transactions' (line 19): both alternatives reach the same route once the query is dropped, so one label. src/app/api/transactions/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-transactions.ts", "line": 41 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/transactions/route.ts",
+        "line": 23,
+        "route": "POST /api/transactions"
+      },
+      "notes": "createTransaction mutationFn fetch('/api/transactions', { method: 'POST' }). src/app/api/transactions/route.ts export async function POST"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-transactions.ts", "line": 58 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/transactions/[id]/route.ts",
+        "line": 25,
+        "route": "PUT /api/transactions/:id"
+      },
+      "notes": "updateTransaction mutationFn fetch(`/api/transactions/${transaction.id}`, { method: 'PUT' }). src/app/api/transactions/[id]/route.ts export async function PUT"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-transactions.ts", "line": 75 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/transactions/[id]/route.ts",
+        "line": 37,
+        "route": "DELETE /api/transactions/:id"
+      },
+      "notes": "deleteTransaction mutationFn fetch(`/api/transactions/${id}`, { method: 'DELETE' }). src/app/api/transactions/[id]/route.ts export async function DELETE"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-wallets.ts", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/wallets/route.ts",
+        "line": 7,
+        "route": "GET /api/wallets"
+      },
+      "notes": "fetchWallets (useWalletsQuery's queryFn) fetch(`/api/wallets?${params}`); query dropped. src/app/api/wallets/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-wallets.ts", "line": 41 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/wallets/route.ts",
+        "line": 35,
+        "route": "POST /api/wallets"
+      },
+      "notes": "createWallet mutationFn fetch('/api/wallets', { method: 'POST' }). src/app/api/wallets/route.ts export async function POST"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-wallets.ts", "line": 56 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/wallets/[id]/route.ts",
+        "line": 23,
+        "route": "PUT /api/wallets/:id"
+      },
+      "notes": "updateWallet mutationFn fetch(`/api/wallets/${data.id}`, { method: 'PUT' }). src/app/api/wallets/[id]/route.ts export async function PUT"
+    },
+    {
+      "callSite": { "file": "src/hooks/use-wallets.ts", "line": 71 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/wallets/[id]/route.ts",
+        "line": 41,
+        "route": "DELETE /api/wallets/:id"
+      },
+      "notes": "deleteWallet mutationFn fetch(`/api/wallets/${id}`, { method: 'DELETE' }). src/app/api/wallets/[id]/route.ts export async function DELETE"
+    }
+  ]
+}
