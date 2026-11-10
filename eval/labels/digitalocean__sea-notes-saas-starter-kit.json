@@ -1,0 +1,298 @@
+{
+  "repo": "digitalocean/sea-notes-saas-starter-kit",
+  "sha": "c9385c6c71fdb69303a5629d88213cbddd3b723b",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "application/setup/stripe.mjs", "line": 30 },
+      "method": "POST",
+      "target": null,
+      "notes": "Setup script attachFeatureToProduct(): fetch(`https://api.stripe.com/v1/products/${productId}/features`, { method: 'POST' }); Stripe's API is an external host, so it reaches no route in the repo"
+    },
+    {
+      "callSite": { "file": "application/src/app/(public)/verify-email/page.tsx", "line": 42 },
+      "method": "GET",
+      "target": {
+        "file": "application/src/app/api/verify-email/route.ts",
+        "line": 61,
+        "route": "GET /api/verify-email"
+      },
+      "notes": "Client page ('use client') effect: fetch(`/api/verify-email?token=...`), relative, same origin (query dropped). No basePath, rewrites, or trailingSlash in next.config.ts; middleware only redirects page paths. verify-email/route.ts exports GET"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/AccountSettings/ProfileUpdateForm/ProfileUpdateForm.tsx",
+        "line": 115
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "application/src/app/api/profile/route.ts",
+        "line": 4,
+        "route": "PATCH /api/profile"
+      },
+      "notes": "fetch('/api/profile', { method: 'PATCH', body: FormData }), same origin; profile/route.ts exports PATCH = withAuth(updateUserProfile)"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/AccountSettings/UpdatePasswordForm/UpdatePasswordForm.tsx",
+        "line": 36
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "application/src/app/api/password/route.ts",
+        "line": 4,
+        "route": "PATCH /api/password"
+      },
+      "notes": "fetch('/api/password', { method: 'PATCH', body: FormData }), same origin; password/route.ts exports PATCH = withAuth(updatePassword)"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/Common/ServiceWarningIndicator/ServiceWarningIndicator.tsx",
+        "line": 28
+      },
+      "method": "GET",
+      "target": {
+        "file": "application/src/app/api/system-status/route.ts",
+        "line": 13,
+        "route": "GET /api/system-status"
+      },
+      "notes": "fetch('/api/system-status'), GET, same origin. The middleware matches /api/system-status but only calls auth() and NextResponse.next() for it; system-status/route.ts exports GET"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/MyNotes/NotesForm/NoteForm.tsx",
+        "line": 129
+      },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/ai/generate-content/route.ts",
+        "line": 41,
+        "route": "POST /api/ai/generate-content"
+      },
+      "notes": "fetch('/api/ai/generate-content', { method: 'POST' }), same origin (client form under MyNotesPage); ai/generate-content/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "application/src/components/Pricing/GetInvoiceButton.tsx", "line": 44 },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/billing/generate-invoice/route.tsx",
+        "line": 205,
+        "route": "POST /api/billing/generate-invoice"
+      },
+      "notes": "fetch('/api/billing/generate-invoice', { method: 'POST' }), same origin; generate-invoice/route.tsx (a valid route file extension) exports POST = withAuth(generateInvoiceHandler)"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/Public/ForgotPasswordForm/ForgotPasswordForm.tsx",
+        "line": 26
+      },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/forgot-password/route.tsx",
+        "line": 14,
+        "route": "POST /api/forgot-password"
+      },
+      "notes": "fetch('/api/forgot-password', { method: 'POST' }), same origin; forgot-password/route.tsx exports POST"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/Public/ForgotPasswordForm/ForgotPasswordForm.tsx",
+        "line": 52
+      },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/auth/magic-link/route.tsx",
+        "line": 22,
+        "route": "POST /api/auth/magic-link"
+      },
+      "notes": "fetch('/api/auth/magic-link', { method: 'POST' }), same origin. The static magic-link segment wins over the auth/[...nextauth] catch-all; magic-link/route.tsx exports POST"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/Public/ResetPasswordForm/ResetPasswordForm.tsx",
+        "line": 32
+      },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/reset-password/route.ts",
+        "line": 14,
+        "route": "POST /api/reset-password"
+      },
+      "notes": "fetch('/api/reset-password', { method: 'POST' }), same origin; reset-password/route.ts exports POST"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/Public/SignUpForm/SignUpForm.tsx",
+        "line": 44
+      },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/auth/signup/route.tsx",
+        "line": 71,
+        "route": "POST /api/auth/signup"
+      },
+      "notes": "fetch('/api/auth/signup', { method: 'POST' }), same origin. The static signup segment wins over the auth/[...nextauth] catch-all; signup/route.tsx exports POST"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/Subscription/DownloadInvoiceButton.tsx",
+        "line": 50
+      },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/billing/generate-invoice-storage/route.tsx",
+        "line": 191,
+        "route": "POST /api/billing/generate-invoice-storage"
+      },
+      "notes": "fetch('/api/billing/generate-invoice-storage', { method: 'POST' }), same origin; generate-invoice-storage/route.tsx exports POST = withAuth(generateInvoiceStorageHandler)"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/Subscription/DownloadInvoiceButton.tsx",
+        "line": 68
+      },
+      "method": "GET",
+      "target": {
+        "file": "application/src/app/api/billing/download-invoice/[invoiceNumber]/route.tsx",
+        "line": 91,
+        "route": "GET /api/billing/download-invoice/:invoiceNumber"
+      },
+      "notes": "fetch(`/api/billing/download-invoice/${generateData.invoiceNumber}`, { method: 'GET' }), same origin; the runtime value fills the [invoiceNumber] segment, whose route.tsx exports GET = withAuth(downloadInvoiceHandler)"
+    },
+    {
+      "callSite": {
+        "file": "application/src/components/SystemStatus/SystemStatusPage.tsx",
+        "line": 45
+      },
+      "method": "GET",
+      "target": {
+        "file": "application/src/app/api/system-status/route.ts",
+        "line": 13,
+        "route": "GET /api/system-status"
+      },
+      "notes": "fetch(url), url = forceRefresh ? '/api/system-status?refresh=true' : '/api/system-status' (line 44): both alternatives are the same path once the query is dropped, so one label. Same origin; system-status/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/notes.ts", "line": 52 },
+      "method": "GET",
+      "target": {
+        "file": "application/src/app/api/notes/route.ts",
+        "line": 5,
+        "route": "GET /api/notes"
+      },
+      "notes": "NotesApiClient.getNotes(): fetch(url), url = this.baseURL plus an optional query; baseURL is the constructor default '/api/notes' (every construction, in MyNotesPage, NoteForm, and notes.test.ts, passes no base). notes/route.ts exports GET = withAuth(getAllNotes). notes.test.ts mocks global fetch and calls this method; no request expression of its own"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/notes.ts", "line": 59 },
+      "method": "GET",
+      "target": {
+        "file": "application/src/app/api/notes/[id]/route.ts",
+        "line": 10,
+        "route": "GET /api/notes/:id"
+      },
+      "notes": "NotesApiClient.getNote(id): fetch(`${this.baseURL}/${id}`) on the default base '/api/notes'; the id parameter only fills the [id] segment, so the route is known here (called from NoteForm). notes/[id]/route.ts exports GET = withAuth(getNote)"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/notes.ts", "line": 66 },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/notes/route.ts",
+        "line": 7,
+        "route": "POST /api/notes"
+      },
+      "notes": "NotesApiClient.createNote(): fetch(`${this.baseURL}`, { method: 'POST' }) on the default base '/api/notes'; notes/route.ts exports POST = withAuth(createNote)"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/notes.ts", "line": 77 },
+      "method": "PUT",
+      "target": {
+        "file": "application/src/app/api/notes/[id]/route.ts",
+        "line": 16,
+        "route": "PUT /api/notes/:id"
+      },
+      "notes": "NotesApiClient.updateNote(id, …): fetch(`${this.baseURL}/${id}`, { method: 'PUT' }) on the default base '/api/notes'; id fills [id]. notes/[id]/route.ts exports PUT = withAuth(editNote)"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/notes.ts", "line": 88 },
+      "method": "DELETE",
+      "target": {
+        "file": "application/src/app/api/notes/[id]/route.ts",
+        "line": 22,
+        "route": "DELETE /api/notes/:id"
+      },
+      "notes": "NotesApiClient.deleteNote(id): fetch(`${this.baseURL}/${id}`, { method: 'DELETE' }) on the default base '/api/notes'; id fills [id]. notes/[id]/route.ts exports DELETE = withAuth(deleteNote)"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/stripe.ts", "line": 12 },
+      "method": "GET",
+      "target": {
+        "file": "application/src/app/api/billing/get-subscription/route.ts",
+        "line": 7,
+        "route": "GET /api/billing/get-subscription"
+      },
+      "notes": "StripeClient.getSubscription(): fetch(`${this.baseURL}/get-subscription`) on the constructor default '/api/billing' (both constructions, DashboardPageClient and SubscriptionPage, pass no base); get-subscription/route.ts exports GET = withAuth(getSubscription)"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/stripe.ts", "line": 18 },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/billing/create-subscription/route.ts",
+        "line": 7,
+        "route": "POST /api/billing/create-subscription"
+      },
+      "notes": "StripeClient.createSubscription(): fetch(`${this.baseURL}/create-subscription`, { method: 'POST' }) on the default base '/api/billing'; create-subscription/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/stripe.ts", "line": 29 },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/billing/cancel-subscription/route.ts",
+        "line": 7,
+        "route": "POST /api/billing/cancel-subscription"
+      },
+      "notes": "StripeClient.cancelSubscription(): fetch(`${this.baseURL}/cancel-subscription`, { method: 'POST' }) on the default base '/api/billing'; cancel-subscription/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/stripe.ts", "line": 38 },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/billing/create-customer/route.ts",
+        "line": 7,
+        "route": "POST /api/billing/create-customer"
+      },
+      "notes": "StripeClient.createCustomer(): fetch(`${this.baseURL}/create-customer`, { method: 'POST' }) on the default base '/api/billing'; create-customer/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/stripe.ts", "line": 47 },
+      "method": "POST",
+      "target": {
+        "file": "application/src/app/api/billing/checkout/route.ts",
+        "line": 7,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "StripeClient.checkout(): fetch(`${this.baseURL}/checkout`, { method: 'POST' }) on the default base '/api/billing'; checkout/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/users.ts", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "application/src/app/api/users/route.ts",
+        "line": 5,
+        "route": "GET /api/users"
+      },
+      "notes": "UsersClient.getUsers(): fetch(url.toString()), url = new URL(this.baseURL + '/users', window.location.origin) plus query params; baseURL is the constructor default '/api' (AdminDashboardPage's two constructions pass no base), so same origin /api/users. users/route.ts exports GET (admin only)"
+    },
+    {
+      "callSite": { "file": "application/src/lib/api/users.ts", "line": 30 },
+      "method": "PATCH",
+      "target": {
+        "file": "application/src/app/api/users/[id]/route.ts",
+        "line": 5,
+        "route": "PATCH /api/users/:id"
+      },
+      "notes": "UsersClient.updateUser(id, …): fetch(this.baseURL + `/users/${id}`, { method: 'PATCH' }) on the default base '/api'; id fills [id]. users/[id]/route.ts exports PATCH (admin only)"
+    }
+  ]
+}

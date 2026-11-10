@@ -1,6 +1,16 @@
 {
   "repos": [
     {
+      "owner": "2Revol2",
+      "name": "DreamingEnglish",
+      "url": "https://github.com/2Revol2/DreamingEnglish",
+      "sha": "ec9ac0a2c7d5a9ce93375071b91ca657933ffab4",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 6 (M9.2b4, drawn in stratum nextjs-prisma). A Next.js 16 App Router app at the repo root (`app/`, route handlers under `app/api/`) with Feature-Sliced Design code under `src/` (`src/pages` is an FSD layer, not the pages router: the root `pages/` folder holds only a README) and Prisma. Every request to its own API goes through one wrapper, `api(path, options)` in `src/shared/api/api.ts` (`fetch(BASE_URL + path)`), labeled at each of its 16 callers that supply the path: 13 call `api` directly from TanStack Query `queryFn`/`mutationFn` helpers, and 3 go through `serverApi(path, options)` (`src/shared/api/serverApi.ts`, a `'use server'` file that adds the cookie and passes the path on), labeled at serverApi's callers. `BASE_URL` is `NEXT_PUBLIC_API_URL` with no in-code fallback; the committed `.env.example` sets it to `http://localhost:3000/api`, the app's own `next dev` port (no `PORT`, no `basePath`), so the base joins `/api` to each path, and the server-side calls through `serverApi` and server components are absolute, so they reach the app too. Routes: me (GET, PUT), watch-time, watch-time/daily (GET, POST), watch-time/manual, watch-later (GET, POST, DELETE), videos (GET, POST), videos/[id], history (GET, POST), stats, chat, every requested method exported. Traps: query strings built in the path (`/videos${query}`, `?limit=&page=`), dropped; `proxy.ts` (Next 16's renamed middleware) only redirects unauthenticated `/admin` page visits and sets CORS headers, changing no `/api` target. One external request: the admin form's YouTube oEmbed `fetch`, `null`. Not labeled: the chat route's `ollama` SDK client (`ollama.chat` to ollama.com, a library request), NextAuth's `[...nextauth]` handler and client calls, and the wrapper's own `fetch`. 282 TS/JS source files.",
+      "heldOut": 6
+    },
+    {
       "owner": "abjt14",
       "name": "agamjeet",
       "url": "https://github.com/abjt14/agamjeet",
@@ -29,6 +39,16 @@
       "shape": "next-api-routes",
       "why": "Held out, batch 5 (M5C.8b4, drawn in stratum nextjs-prisma). A single Next.js App Router app (NextAuth, UploadThing, Prisma, Upstash Redis, Editor.js) whose route.ts handlers under src/app/api mostly export several methods through an export list (export { createPost as POST, editPost as PATCH, deletePost as DELETE }). The client sends 16 direct axios.get/post/patch/delete requests from react-query mutation functions and one useInfiniteQuery fetcher that fixes its own path, all on root-relative literals and templates (/api/forum, /api/forum/post, /api/forum/${id}/subscription, /api/forum/post/comment, /api/forum/post/vote, /api/user, /api/posts, /api/posts/search). Two have a trailing space inside the literal (stripped by URL parsing), and two deletes put a slash before the query (/api/forum/?forumId=), which Next's default trailing-slash redirect (308, method kept) sends to the route without it. No basePath or rewrites; the middleware is next-auth's guard. Server-side, two forum handlers GET `${siteConfig.url}/api/cron` on the literal host https://devcircle.live, which nothing in the repo deploys the app to (sst.config.ts names www.devcircle.live, a different host), so both are null, as is the link-preview handler's axios.get of a runtime ?url= value. Not labeled: NextAuth's signIn, UploadThing's uploadFiles, Editor.js LinkTool's own request to /api/link, OG image URLs, the Upstash client. 195 TS/JS source files.",
       "heldOut": 5
+    },
+    {
+      "owner": "digitalocean",
+      "name": "sea-notes-saas-starter-kit",
+      "url": "https://github.com/digitalocean/sea-notes-saas-starter-kit",
+      "sha": "c9385c6c71fdb69303a5629d88213cbddd3b723b",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 6 (M9.2b4, drawn in stratum nextjs-prisma). A single Next.js 15 App Router app under application/ (Prisma, NextAuth, Stripe, MUI) with route.ts/route.tsx handlers under application/src/app/api for notes, notes/[id], billing/* (get-subscription, create-subscription, cancel-subscription, create-customer, checkout, generate-invoice, generate-invoice-storage, download-invoice/[invoiceNumber]), users, users/[id], profile, password, system-status, ai/generate-content, auth/signup, auth/magic-link, forgot-password, reset-password and verify-email, many exported as withAuth(handler) constants. Clients send 13 root-relative fetch('/api/...') calls from components and the verify-email page (one URL a ternary whose two arms differ only in the query, so one label; one a template filling download-invoice's [invoiceNumber]) and 12 from three repo client classes (NotesApiClient, StripeClient, UsersClient in application/src/lib/api) whose constructor default bases are /api/notes, /api/billing and /api; every construction passes no base, so each method is labeled at its own fetch, an id parameter only filling a dynamic segment (UsersClient.getUsers builds new URL(base + '/users', window.location.origin)). Traps: auth/signup and auth/magic-link sit beside the auth/[...nextauth] catch-all (static segments win); the middleware matches /api/system-status but only reads the session; route files with a .tsx extension. A setup script's fetch to api.stripe.com is labeled null (external host). Not labeled: NextAuth's signIn/signOut (library requests), the useNotesSSE EventSource on /api/notes/events, router.prefetch navigations, the OpenAI, Resend, Stripe and S3 SDK clients in services and scripts, and tests that mock global fetch or axios and call client methods or route handlers directly (no request expression of their own). 234 TS/JS source files, 60 of them tests.",
+      "heldOut": 6
     },
     {
       "owner": "DOodle25",
@@ -148,6 +168,16 @@
       "license": "MIT",
       "shape": "next-plus-server-monorepo",
       "why": "npm-workspaces Turborepo: a Next.js 14 app router web app calling a separate Express API (apps/api, routers mounted under /api/v1) through a fetch wrapper in lib/api-client.ts that takes the path as a parameter, so call sites are the wrapper's callers in TanStack Query hooks. Also has Express-based mcp/agentic-ai packages. ~308 source files."
+    },
+    {
+      "owner": "issam-seghir",
+      "name": "discord-clone",
+      "url": "https://github.com/issam-seghir/discord-clone",
+      "sha": "665bea4a0f770e5e5885a67739b91fe3847954c4",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 6 (M9.2b4, drawn in stratum nextjs-prisma). One Next.js app (Clerk auth, Prisma) mixing App Router handlers under src/app/api (servers, servers/[serverId] and its invite-code and leave, channels, channels/[channelId], members/[memberId], messages, direct-messages, get-participant-token, uploadthing) with pages-router handlers under src/pages/api/socket (messages, direct-messages, their [id] files, and the socket.io io.ts). Clients send root-relative axios and fetch calls, 13 with a literal path in the modals, media room, and rome page, several built with query-string's stringifyUrl (the path is its url field, the query is dropped). The traps: the chat pages hand literal paths as props (apiUrl, socketUrl) to ChatMessages and ChatInput, which pass them down to ChatItem, to useChatQuery's TanStack queryFn, and through the zustand modal store (onOpen(\"deleteMessage\"/\"messageFile\", { apiUrl })) into modals that send the request, so those 8 labels sit at the page elements, the outermost code supplying the path; ChatInput's own POST and its file modal's POST reach one route, so one label each; the pages-router handlers refuse other methods with 405 (POST only on index.ts, DELETE and PATCH on the [id] files), so they are labeled with the request's method on the default export's line. src/proxy.ts (Clerk) only protects routes, and next.config has no basePath or rewrites. Not labeled: uploadthing's UploadDropzone requests (made inside the library), the socket.io-client connection, and router.push navigations. 100 TS/JS source files.",
+      "heldOut": 6
     },
     {
       "owner": "ivanrods",
@@ -474,6 +504,16 @@
       "shape": "next-api-routes",
       "why": "Held out, batch 4 (M5C.5b3, drawn in stratum nextjs-prisma). A pages-router Shopify embedded app in plain JS (Next.js + Prisma) whose debug pages send root-relative fetch requests to its own pages/api handlers, each exported as withMiddleware(\"verifyRequest\")(handler). Three are direct fetch calls; three go through a hook in the same file, useDataFetcher(initial, url, options), so the path and the method (a const options object with method: \"POST\") come from each caller. Some handlers branch on req.method and answer 400 to the rest (labeled by method), others run for every method (ALL). App Bridge adds auth headers to plain fetch, and all traffic to Shopify's Admin and Partners APIs goes through Shopify's libraries (not labeled). ~42 JS source files.",
       "heldOut": 4
+    },
+    {
+      "owner": "TheArcus02",
+      "name": "Better-GPT",
+      "url": "https://github.com/TheArcus02/Better-GPT",
+      "sha": "7716aa291ec6e63ee6740e3a627ce58c4ab7c4b8",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 6 (M9.2b4, drawn in stratum nextjs-prisma). A single Next.js App Router app (Clerk auth, Prisma on MongoDB via Accelerate) at the repo root: 16 `app/api/**/route.ts` handlers (assistants and their files, chats and chat folders, images, stripe, translation, a Stripe webhook) and client components in `components/` that call them with 17 direct axios calls on root-relative `/api/...` literals and template paths, same origin; `next.config.js` sets no `basePath`, rewrites, or `trailingSlash`, and `middleware.ts` only runs Clerk's `auth.protect()`. Traps: static segments beat dynamic siblings (`/api/chat/folder` and `/api/chat/folder/:id` vs `chat/[chatId]`, which also exports POST; `/api/images/generate` vs `images/[imageId]`), and the translation-detect route's own server-side `axios.request(options)` goes to a literal RapidAPI host, so it is `null`. Not labeled: `ai/react`'s `useChat`, `useCompletion`, and `useAssistant` (requests made inside the library, though each is handed an `api: \"/api/...\"` path), the OpenAI, LangChain (SerpAPI, Wolfram Alpha), Stripe, Cloudinary, and Clerk SDK calls in route handlers and the `lib/actions` server actions, and the `window.location` navigation to the Stripe URL; `absoluteUrl` (`NEXT_PUBLIC_APP_URL`) only builds Stripe return URLs. 160 TS/JS source files.",
+      "heldOut": 6
     },
     {
       "owner": "Tushyent",
