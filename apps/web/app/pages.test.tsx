@@ -5,7 +5,7 @@ import ProgressPage, {
 } from "./[owner]/[repo]/jobs/[job]/page";
 import RepoPage, { generateMetadata } from "./[owner]/[repo]/page";
 import { SIGN_IN_NOTES } from "../lib/messages";
-import { Landing } from "./Landing";
+import { DEMOS_DOC_HREF, Landing } from "./Landing";
 import NotFound from "./not-found";
 import Home from "./page";
 import { SiteHeader } from "./SiteHeader";
@@ -94,6 +94,49 @@ describe("landing page", () => {
     for (const li of items) {
       expect(li.querySelector("[aria-hidden] svg.gi-glyph")).not.toBeNull();
     }
+  });
+
+  it("shows the demo gallery under the field: each pin's diagram, linking its permalink (M9.1b3)", async () => {
+    await home();
+    const gallery = screen.getByRole("region", { name: "See it on real repos" });
+    // Under the field (UX.md: headline, line, field, gallery), above what you get.
+    const field = screen.getByRole("textbox", { name: "GitHub repo URL" });
+    const promises = screen.getByRole("list", { name: "What you get" });
+    expect(field.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      gallery.compareDocumentPosition(promises) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const links = within(gallery).getAllByRole("link");
+    expect(links.map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
+      ["How they were checked", DEMOS_DOC_HREF],
+      [
+        "Mintplex-Labs/anything-llm",
+        "/Mintplex-Labs/anything-llm/308b27662b2f6fd4947791d61c797945c609fcbc",
+      ],
+      ["shadcn-ui/taxonomy", "/shadcn-ui/taxonomy/298a8857c7128a0d121e7f699dfd729f23b3966d"],
+      ["getmaxun/maxun", "/getmaxun/maxun/99c6bd0d42b14336b706ba121a3757f62a9814f7"],
+    ]);
+    const [first] = within(gallery).getAllByRole("listitem");
+    // Decorative: the link is named by the repo, and the page's theme picks one image.
+    const images = [...first!.querySelectorAll("img")];
+    expect(
+      images.map((img) => [
+        img.getAttribute("alt"),
+        img.dataset["themeOnly"],
+        img.getAttribute("loading"),
+      ]),
+    ).toEqual([
+      ["", "dark", "lazy"],
+      ["", "light", "lazy"],
+    ]);
+    expect(images.map((img) => img.getAttribute("src"))).toEqual(
+      ["dark", "light"].map(
+        (theme) =>
+          `/api/diagram/Mintplex-Labs/anything-llm/308b27662b2f6fd4947791d61c797945c609fcbc.svg?theme=${theme}`,
+      ),
+    );
+    expect(first!.textContent).toContain("308b276 · 873 checked, 0 wrong");
   });
 });
 
