@@ -1,0 +1,139 @@
+{
+  "repo": "MohammedMusharraf11/Alumni-Connect",
+  "sha": "021d08cc8943013f02a40ad2bf0109da5cf97880",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["backend", "frontend"],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/components/AdminPanel/Alumni.jsx", "line": 11 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/AdminRoutes.js",
+        "line": 6,
+        "route": "GET /admin/alumni"
+      },
+      "notes": "Inline axios.get on the literal http://localhost:8080/admin/alumni (backend/server.js listens on PORT || 8080; backend/.env sets PORT = 8080). server.js mounts AdminRoutes at /admin; router.get('/alumni')"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/AdminPanel/Alumni.jsx", "line": 43 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/Routes/AdminRoutes.js",
+        "line": 9,
+        "route": "PUT /admin/alumni/:id/verify"
+      },
+      "notes": "Inline axios.put(`http://localhost:8080/admin/alumni/${id}/verify`) on the literal local server (port 8080). AdminRoutes mounted at /admin; router.put('/alumni/:id/verify')"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/EditProfilePopup.jsx", "line": 22 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/userRoutes.js",
+        "line": 11,
+        "route": "GET /api/user/:id"
+      },
+      "notes": "Inline axios.get(`http://localhost:8080/api/user/${userId}`) (userId from localStorage). userRoutes mounted at /api/user; router.get('/:id') (the earlier router.get('/') matches only the bare mount path)"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/EditProfilePopup.jsx", "line": 51 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/Routes/userRoutes.js",
+        "line": 14,
+        "route": "PUT /api/user/:id"
+      },
+      "notes": "Inline axios.put(`http://localhost:8080/api/user/${userId}`, formData). userRoutes mounted at /api/user; router.put('/:id')"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/EventsList.jsx", "line": 13 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/eventRoutes.js",
+        "line": 11,
+        "route": "GET /api/events"
+      },
+      "notes": "Inline axios.get(\"http://localhost:8080/api/events\"). eventRoutes mounted at /api/events; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Message.jsx", "line": 26 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/userRoutes.js",
+        "line": 8,
+        "route": "GET /api/user"
+      },
+      "notes": "fetchUsers(): fetch('http://localhost:8080/api/user') with no method (GET). userRoutes mounted at /api/user; router.get('/', protectRoute, getUsersForSidebar)"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Message.jsx", "line": 53 },
+      "method": "GET",
+      "target": {
+        "file": "backend/Routes/messageRoutes.js",
+        "line": 12,
+        "route": "GET /api/messages/:id"
+      },
+      "notes": "fetchMessages(): fetch(`http://localhost:8080/api/messages/${selectedUser._id}`) with no method (GET). messageRoutes mounted at /api/messages; router.get(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/Message.jsx", "line": 95 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/messageRoutes.js",
+        "line": 9,
+        "route": "POST /api/messages/send/:id"
+      },
+      "notes": "handleSendMessage(): fetch(`http://localhost:8080/api/messages/send/${selectedUser._id}`, { method: 'POST' }). messageRoutes mounted at /api/messages; router.post(\"/send/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/components/ScheduleEvent.jsx", "line": 38 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/eventRoutes.js",
+        "line": 13,
+        "route": "POST /api/events"
+      },
+      "notes": "Inline axios.post(\"http://localhost:8080/api/events\", eventData). eventRoutes mounted at /api/events; router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/AlumniReg.jsx", "line": 51 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/AuthAlumniRoutes.js",
+        "line": 7,
+        "route": "POST /api/alumni/signup"
+      },
+      "notes": "Inline axios.post('http://localhost:8080/api/alumni/signup', formData) (multipart). AuthAlumniRouter mounted at /api/alumni; router.post('/signup')"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Login.jsx", "line": 40 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/AuthAlumniRoutes.js",
+        "line": 8,
+        "route": "POST /api/alumni/login"
+      },
+      "notes": "fetch(url, { method: 'POST' }) where url = userType === 'alumni' ? 'http://localhost:8080/api/alumni/login' : 'http://localhost:8080/auth/login' (lines 35-37); this is the alumni alternative. AuthAlumniRouter mounted at /api/alumni; router.post('/login')"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Login.jsx", "line": 40 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/AuthRouter.js",
+        "line": 9,
+        "route": "POST /auth/login"
+      },
+      "notes": "Same fetch(url, { method: 'POST' }); the student alternative 'http://localhost:8080/auth/login'. AuthRouter mounted at /auth; router.post('/login')"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/StudentReg.jsx", "line": 51 },
+      "method": "POST",
+      "target": {
+        "file": "backend/Routes/AuthRouter.js",
+        "line": 8,
+        "route": "POST /auth/signup"
+      },
+      "notes": "Inline axios.post('http://localhost:8080/auth/signup', formData) (multipart). AuthRouter mounted at /auth; router.post('/signup')"
+    }
+  ]
+}
