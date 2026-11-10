@@ -1,9 +1,11 @@
 import {
   deleteDoneAnalyses,
+  listDemoShas,
   listDiffKeys,
   listPinnedShas,
   listStoredSnapshots,
   type AnyDatabase,
+  type DemoPin,
   type PinnedSha,
   type StoredSnapshotRow,
 } from "@gitinside/db";
@@ -21,7 +23,8 @@ import type { ListedObject, ObjectStore } from "./storage.js";
  *    commit (`superseded`: an older analyzer version nothing serves any more).
  * 2. Plus any commit a pull request updated in the last 30 days names as base or head, or
  *    its stored diff names as merge base (pinned, M8.10b): a PR diff, or the comment's
- *    `?base=` link, may still need it. Pinned snapshots are never evicted.
+ *    `?base=` link, may still need it. So is each demo pin (`DEMO_PINS`, ADR-0255), which
+ *    the landing page's gallery links for good. Pinned snapshots are never evicted.
  * 3. If the bucket would still hold more than {@link RetentionPolicy.budgetBytes} (16 GB),
  *    the oldest snapshots by finish time go first, globally, private ones included
  *    (`over-budget`), until it fits.
@@ -238,6 +241,8 @@ export interface RetentionDeps {
   policy?: RetentionPolicy;
   /** Object deletes in flight at once. Default 4. */
   deleteConcurrency?: number;
+  /** The demo pins kept for the gallery (ADR-0255). Default `DEMO_PINS`. */
+  demos?: readonly DemoPin[];
 }
 
 /** What a run did, for the log and the quota check (M5.12b). */
@@ -266,7 +271,7 @@ export interface RetentionReport {
 export async function runRetention(deps: RetentionDeps): Promise<RetentionReport> {
   const { db, store } = deps;
   const rows = await listStoredSnapshots(db);
-  const pinned = await listPinnedShas(db);
+  const pinned = [...(await listPinnedShas(db)), ...(await listDemoShas(db, deps.demos))];
   const diffKeys = await listDiffKeys(db);
   const objects: ListedObject[] = [];
   for await (const object of store.list()) objects.push(object);

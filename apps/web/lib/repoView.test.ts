@@ -5,6 +5,7 @@ import {
   analyses,
   completeAnalysis,
   computeUsage,
+  consumeRateLimit,
   countComputeUsage,
   createSession,
   failAnalysis,
@@ -251,6 +252,92 @@ describe("viewRepo", () => {
     });
     expect(gh.requests).toEqual([]);
     expect(tasks.google.tasks).toEqual([]);
+  });
+
+  describe("a demo pin's permalink (ADR-0255)", () => {
+    const pin = { providerRepoId: ID, owner: "acme", name: "shop", sha: NEW };
+    beforeEach(() => {
+      deps.demos = [pin];
+    });
+
+    it("queues the pinned commit nobody analyzed, charged to the repo, once", async () => {
+      // The default branch is elsewhere: the pin is analyzed at its own commit.
+      const queued = {
+        status: "queued",
+        owner: "Acme",
+        repo: "Shop",
+        sha: NEW,
+        jobId: jobFor(NEW),
+      };
+      expect(await viewRepo({ owner: "ACME", repo: "Shop", sha: NEW }, deps)).toEqual(queued);
+      expect(tasks.google.tasks).toHaveLength(1);
+      expect(await rows()).toEqual([{ sha: NEW, status: "queued", version: VERSION }]);
+      expect(await repoSlots()).toBe(1);
+      // In flight: the same job, nothing queued or charged again.
+      expect(await viewRepo({ owner: "acme", repo: "shop", sha: NEW }, deps)).toEqual(queued);
+      expect(tasks.google.tasks).toHaveLength(1);
+      expect(await repoSlots()).toBe(1);
+      // Finished: the permalink serves it as any other, without asking GitHub.
+      await t.db.delete(analyses);
+      await done(NEW);
+      const asked = gh.requests.length;
+      expect(await viewRepo({ owner: "acme", repo: "shop", sha: NEW }, deps)).toEqual(
+        ready(NEW, { state: "pinned" }),
+      );
+      expect(gh.requests).toHaveLength(asked);
+    });
+
+    it("leaves every other commit a 404 that never asks GitHub", async () => {
+      expect(await viewRepo({ owner: "acme", repo: "shop", sha: OLD }, deps)).toEqual({
+        status: "missing",
+      });
+      expect(await viewRepo({ owner: "acme", repo: "shop2", sha: NEW }, deps)).toEqual({
+        status: "missing",
+      });
+      expect(gh.requests).toEqual([]);
+      expect(tasks.google.tasks).toEqual([]);
+    });
+
+    it("is a 404 when the name is another repo on GitHub now, or none it shows", async () => {
+      deps.demos = [{ ...pin, providerRepoId: ID + 1 }];
+      expect(await viewRepo({ owner: "acme", repo: "shop", sha: NEW }, deps)).toEqual({
+        status: "missing",
+      });
+      deps.demos = [{ ...pin, name: "nope" }];
+      expect(await viewRepo({ owner: "acme", repo: "nope", sha: NEW }, deps)).toEqual({
+        status: "missing",
+      });
+      expect(tasks.google.tasks).toEqual([]);
+      expect(await rows()).toEqual([]);
+    });
+
+    it("is unavailable when it can't be queued: GitHub down, no queue, a failed run, the repo's limit", async () => {
+      const view = { owner: "acme", repo: "shop", sha: NEW };
+      gh.failNext(new Error("offline"));
+      expect(await viewRepo(view, deps)).toEqual({ status: "unavailable" });
+      expect(await viewRepo(view, { ...deps, queue: undefined })).toEqual({
+        status: "unavailable",
+      });
+      expect(tasks.google.tasks).toEqual([]);
+
+      // A failure isn't re-run on every view (check-on-view's rule). Not a `LIMIT_*` one, which
+      // the size hold would refuse anyway.
+      const { id } = await startAnalysis(t.db, {
+        repoId: await repoId(),
+        sha: NEW,
+        analyzerVersion: VERSION,
+      });
+      await failAnalysis(t.db, id, "WORKER_ERROR");
+      expect(await viewRepo(view, deps)).toEqual({ status: "unavailable" });
+      expect(tasks.google.tasks).toEqual([]);
+
+      await t.db.delete(analyses);
+      await consumeRateLimit(t.db, `repo:${ID}`, 1);
+      expect(await viewRepo(view, { ...deps, rechecksPerHour: 1 })).toEqual({
+        status: "unavailable",
+      });
+      expect(tasks.google.tasks).toEqual([]);
+    });
   });
 
   it("shows an up-to-date diagram, asking GitHub at most once a minute", async () => {
