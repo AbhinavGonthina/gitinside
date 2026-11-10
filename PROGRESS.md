@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.1b2 The 3 pins pre-analyzed in production through their permalinks, each graph compared with a local analysis
+M9.1b2b The 3 pins pre-analyzed in production at analyzer 0.3.0, each graph compared byte for byte with a local analysis
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -500,7 +500,9 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.1a7b Static and object members: a static field, a static getter or method returning one, a private method returning a template, an object-literal property read through `this` in that object's methods (`FoundryCatalog.CATALOG_URL`, `ContextWindowFinder.remoteUrl`, `EmbeddedLemonadeEngine.baseUrl` ×15, `CommunityHub.apiBase` ×4, Gmail's/Calendar's `#getBaseUrl()`, embedded lemond's `EmbeddedLemonadeLLM.openaiBasePath()` ×2, whose loopback paths may reach only the server's `ALL /*`); red fixture tests first, `KEY_FORMAT` bump if facts change, eval delta, anything-llm's record updated {model: opus}
 - M9.1b Landing gallery, split (`/api/analyze` only analyzes a default branch's latest commit, anything-llm's head is 23 commits past its checked pin, and retention keeps a repo's latest 5 commits only, so the pins need a way in and a way to stay):
 - [x] M9.1b1 Demo pins analyzable and kept: the 3 pins in one shared list (`@gitinside/db`, by GitHub ID and full SHA, checked against `docs/demos/repos.json`); a pin's permalink with no analysis queues that commit (charged to the repo, as check-on-view) and opens its progress page, which then returns to the permalink; retention never evicts a pin; tests red first, ADR {model: opus}
-- [ ] M9.1b2 The 3 pins pre-analyzed in production through their permalinks, each production graph compared with a local analysis at the same analyzer version (byte for byte), results in `docs/demos/README.md` {model: opus}
+- M9.1b2 The 3 pins pre-analyzed in production, split (production's taxonomy graph at `298a885` already existed, stamped 0.2.0, but differs from a local 0.2.0 run in 8 entries and a warning: `ANALYZER_VERSION` hasn't changed since M5.13 though the output has, so a stale graph counts as current):
+- [x] M9.1b2a `ANALYZER_VERSION` 0.2.0 → 0.3.0, and a guard like `KEY_FORMAT`'s: a digest of every fixture's golden graph (version field left out) recorded per version, so a change to the output fails a test until the version is bumped; red first, goldens and eval re-recorded, ADR {model: opus}
+- [ ] M9.1b2b The 3 pins pre-analyzed in production through their permalinks once b2a deploys (a permalink keeps showing an older version's graph, so taxonomy's `0.2.0` one needs a `0.3.0` analysis queued: a repo-page view while its head is still the pin, or a pin's permalink queueing the current version over an older one, red first), each production graph compared with a local analysis at the same analyzer version (byte for byte: GitHub's tarball, the worker's extractor), results in `docs/demos/README.md` {model: opus}
 - [ ] M9.1b3 Landing gallery linking each pin's permalink (thumbnail from the diagram image at the pin), tests, screenshots dark/light {model: opus}
 - [ ] M9.2 Final eval + benchmarks; README numbers with links {model: opus}
 - [ ] M9.3 README (slogan, GIF with trace first, quickstart, architecture, results) {model: opus}
@@ -513,6 +515,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-10 M9.1b2a (`4ea8ad6`, ADR-0256): M9.1b2 split into a (version) and b (the pins). Production already had taxonomy's pin, stamped `0.2.0`, but it differs from a local `0.2.0` run of GitHub's tarball through the worker's extractor (scratch `apps/web/dist/m91b2-compare.mjs`): the font reads still `DYNAMIC_URL`, 5 `http` sites lacking `request`, one warning missing (439,252 vs 439,847 bytes). The version hadn't moved since M5.13, and production's cache key is (repo, commit, version). Now `0.3.0`, and `OUTPUT_DIGESTS` + `version.test.ts` (digest of every golden without its version, per version, like `FACTS_DIGESTS`) fail until an output change bumps it. Red first; a changed golden and a golden at the old version each mutation-checked red. Goldens change only in the version line. All suites green (analyzer 1484). Eval: no delta (re-recorded as `2026-11-10-0.3.0.md`). anything-llm and maxun have no production graph yet.
 
 - 2026-11-10 M9.1b1 (`8f5b130`, ADR-0255): M9.1b split into b1 (pins analyzable and kept), b2 (pre-analyze in production, compare graphs), b3 (the gallery): `/api/analyze` takes only a default branch's head, anything-llm's is 23 commits past its pin, and retention keeps 5 commits a repo. `DEMO_PINS` (`@gitinside/db`, GitHub ID + full SHA, tested against `repos.json`); a pin's permalink with no analysis asks GitHub once (same repo by ID), queues the pin through `queueHead` (charged to the repo), and redirects to `/jobs/<id>?commit=<sha>`, which opens the permalink when done; unqueueable ⇒ "temporarily unavailable". Retention adds `listDemoShas` to the pinned commits. Red first per guard: 7 mutations, all red (the failed-run guard survived once: a `LIMIT_*` row is also held by the size hold, so the test now uses `WORKER_ERROR`). db 272, worker 854 (one quota-alarm flake, green on rerun), web 1063.
 
