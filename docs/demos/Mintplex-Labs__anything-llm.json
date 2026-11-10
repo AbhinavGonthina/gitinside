@@ -6,10 +6,10 @@
   "checkedAt": "2026-11-09",
   "method": "Checked one service pair at a time (M9.1a3c–f); edges not yet checked are `pending` with the task that checks them. M9.1a3c, frontend → server: each site's call read from its first line to its closing parenthesis in `git show <sha>:<file>`, giving the method (`method:` in the init, else GET) and URL, with `${API_BASE}` as `/api`: `API_BASE` is `VITE_API_BASE || \"/api\"` (frontend/src/utils/constants.js:1), and frontend/.env.example's `http://localhost:3001/api` is the server's port (`SERVER_PORT || 3001`, server/index.js:198) and its router's mount (`app.use(\"/api\", apiRouter)`, server/index.js:98). Each URL compared segment by segment with the target route, its definition line read, and every other server route of the same method that takes the URL listed, to see which one Express runs first (registration order: server/index.js:99–130, then each file's order). Every target file's routes are registered on `apiRouter`: directly from server/index.js, or through `utilEndpoints` (server/endpoints/utils.js:90–98), `experimentalEndpoints` (server/endpoints/experimental/index.js:8–9), and `workspaceEndpoints` (server/endpoints/workspaces.js:1109). Sites whose URL is a const or local, or whose path a second route also takes, were read by hand. Then every `fetch(`, `fetchEventSource(`, `axios`, `new EventSource(`, `new WebSocket(`, and `sendBeacon(` call in frontend/ (git grep) matched to an edge site. M9.1a3d, the server's, collector's, and root `extras/` http edges (all unresolved after M9.1a3b): each site read with its lines around it, the URL's base followed to its definition (a parameter, a constructor or `init()` assignment, a static field or getter, an object property, an env read) by `git grep` at the pin, and the reason checked against it; for a base held in the source, the route or host the request reaches named. Then every `fetch(`, `axios`, `http(s).get/request(`, `got(`, `request(`, `new EventSource(`, and `new WebSocket(` call in server/, collector/, and extras/ matched to an edge site of any kind. M9.1a3e1, the external_call edges: each site read with its lines around it (`git show <sha>:<file>`). For a `fetch(`, the URL's host from the literal, a const, or a `new URL(…)` it names, followed by `git grep` at the pin. For an SDK call, the receiver (`this.openai`, a local `openai`, …) matched to its `new OpenAI(…)`/`new AnthropicAI(…)` construction in the same file and that construction's options read: a client without `baseURL` reaches the SDK's default host, one with a `baseURL` reaches that base. Then every `openai`/`@anthropic-ai/sdk` request-shaped call (`.chat.completions`, `.embeddings`, `.responses`, `.models`, `.audio.*`, `.images`, `.messages`, followed by `.create`/`.stream`/`.list`/`.retrieve`/`.generate`) in server/, collector/, and frontend/ matched to an edge site. M9.1a3e2b, the edges replacing a3e1's 117 wrong ones, at analyzer `945faa2` (M9.1a3e2a): the repo re-dumped, the two dumps compared edge by edge (only the 117 removed, 120 added, every added edge at one of their sites), and each new edge's drawing checked against its client's construction as read in a3e1, re-read by `git grep` at the pin: a literal base's host, a constructor field's only assignment, each route the compatibility script reaches with every other server route taking its URL, and each unresolved reason against the base. M9.1a3f, the Prisma edges: each reads/writes site read with the lines after it (`git show <sha>:<file>`) and parsed into receiver, model accessor, and op; the op checked against the edge's kind (`find*`/`count`/`aggregate` read, `create`/`update*`/`upsert`/`delete*` write), the accessor against the target model, the receiver against the file's `require` of server/utils/prisma (the module exporting `new PrismaClient(…)`), and the nearest named definition above the site against the edge's source. The 13 sites those rules didn't confirm (7 `tx` receivers, the seed script's own client, 4 sources in anonymous or nested functions) were read by hand. Each `stores` edge's model found in server/prisma/schema.prisma and the schema's one datasource read. Then every `<receiver>.<model>.<op>(` call (any receiver, line breaks allowed) for the schema's 33 models, every `prisma.$<method>`, and every computed `prisma[…]` in the repo's JS/TS matched to an edge site. Prisma edges' `fields` lists weren't checked.",
   "totals": {
-    "edges": 869,
-    "correct": 651,
+    "edges": 873,
+    "correct": 659,
     "wrong": 0,
-    "unresolved": 218,
+    "unresolved": 214,
     "pending": 0
   },
   "notCovered": "Structural edges (imports, calls, renders, handles) aren't hand-checked; they're TypeScript's resolution, tested by the fixtures and the eval. Route nodes are checked only where an edge points at them.",
@@ -30,7 +30,8 @@
     "M9.1a3f: the 282 Prisma edges are all correct, 0 wrong. 249 reads/writes edges (258 sites: 122 reads, 136 writes) all go through `server/utils/prisma`'s one `new PrismaClient(…)`, required by each file, except 7 sites on a `$transaction(async (tx) => …)` callback's `tx` (memory.js, scheduledJobRun.js) and the seed script's own client (prisma/seed.js). Each op is the edge's kind and each accessor its model. The 33 `stores` edges are the schema's 33 models, each to its only datasource, SQLite at `file:../storage/anythingllm.db`. Calls in `DEFAULT_VARIABLES`' anonymous `value:` functions (3 sites) are drawn from the `SystemPromptVariables` object, the innermost named symbol.",
     "Sweep for Prisma (M9.1a3f): every `<receiver>.<model>.<op>(` call for the 33 models in the repo is on an edge site (258), and the one other hit is a `Set` (`results.workspaces.add(`, search.js:46). The 9 `prisma.$transaction` calls in source (3 callbacks, 5 arrays, 1 array in a variable) wrap calls that are each on an edge; the 3 in memory.test.js are Jest mocks. No raw query (`$queryRaw*`/`$executeRaw*`) and no computed `prisma[…]` access anywhere, so there's no missing Prisma edge.",
     "M9.1a6, analyzer at the fetchEventSource fix (ADR-0252): re-dumped, 866 → 869 edges, 3 added and nothing else changed. The three `fetchEventSource(` calls are `http` edges to their server routes (`heuristic`, as all frontend → server edges): `Workspace.streamChat` → `POST /api/workspace/:slug/stream-chat`, `WorkspaceThread.streamChat` → `POST /api/workspace/:slug/thread/:threadSlug/stream-chat`, `EmbeddingProgressProvider` → `GET /api/workspace/:slug/embed-progress`. Each checked by hand: method from the init, path with `API_BASE` = `/api`, and every route that takes the path listed (only the named one and the two `ALL /*` 404 handlers, registered after the `/api` router). All 3 correct, 0 wrong.",
-    "M9.1a7a, analyzer at the instance-field fix (ADR-0253): re-dumped, 869 edges, 18 replaced and 13 reasons changed, nothing else. 18 new edges, all correct: `CollectorApi`'s 7 literal-path requests now reach the collector's `GET /accepts`, `POST /process`, `/parse`, `/process-link`, `/process-raw-text`, `/util/get-link`, and `/util/convert-audio-to-wav` (`heuristic`, the loopback rule), the demo's first server → collector links, each route read at collector/index.js and registered before its `app.all(\"*\")`; Deepgram's request goes to api.deepgram.com; and the 10 SDK calls on a literal `this.basePath` go to apipie.ai, api.cometapi.com, api.novita.ai, openrouter.ai, and api.ppinfra.com (two each, `heuristic`). The 13 changed are unresolved with accurate reasons: `online()`'s `GET /` names the collector's `ALL /*`; `forwardExtensionRequest`'s path is its caller's `endpoint`, now `DYNAMIC_URL` \"every path segment is only known at runtime\"; and 11 requests on a `this.basePath` read from an env var now name it (`{env:GENERIC_OPEN_AI_BASE_PATH}`, …, the env-name rule's `NO_MATCHING_ROUTE`). Of a3d's 33 and a3e2b's 12 overstated reasons, 20 are resolved here (CollectorApi ×9, Deepgram, `this.basePath` ×10); the other 25 (static fields and getters, `CommunityHub.apiBase`, `#getBaseUrl()`, lemond's static method) are M9.1a7b's."
+    "M9.1a7a, analyzer at the instance-field fix (ADR-0253): re-dumped, 869 edges, 18 replaced and 13 reasons changed, nothing else. 18 new edges, all correct: `CollectorApi`'s 7 literal-path requests now reach the collector's `GET /accepts`, `POST /process`, `/parse`, `/process-link`, `/process-raw-text`, `/util/get-link`, and `/util/convert-audio-to-wav` (`heuristic`, the loopback rule), the demo's first server → collector links, each route read at collector/index.js and registered before its `app.all(\"*\")`; Deepgram's request goes to api.deepgram.com; and the 10 SDK calls on a literal `this.basePath` go to apipie.ai, api.cometapi.com, api.novita.ai, openrouter.ai, and api.ppinfra.com (two each, `heuristic`). The 13 changed are unresolved with accurate reasons: `online()`'s `GET /` names the collector's `ALL /*`; `forwardExtensionRequest`'s path is its caller's `endpoint`, now `DYNAMIC_URL` \"every path segment is only known at runtime\"; and 11 requests on a `this.basePath` read from an env var now name it (`{env:GENERIC_OPEN_AI_BASE_PATH}`, …, the env-name rule's `NO_MATCHING_ROUTE`). Of a3d's 33 and a3e2b's 12 overstated reasons, 20 are resolved here (CollectorApi ×9, Deepgram, `this.basePath` ×10); the other 25 (static fields and getters, `CommunityHub.apiBase`, `#getBaseUrl()`, lemond's static method) are M9.1a7b's.",
+    "M9.1a7b, analyzer at the static/object-member fix (ADR-0254): re-dumped, 869 → 873 edges, 5 removed, 9 added, 20 reasons changed, nothing else. 8 new external calls, all correct (`heuristic`): Foundry's catalog to ai.azure.com (`this.CATALOG_URL`, a static field), the context-window map to raw.githubusercontent.com (`ContextWindowFinder.remoteUrl`), Gmail's and Google Calendar's Apps Script to script.google.com (`this.#getBaseUrl()`, a private method that logs, then returns a template), and `CommunityHub`'s 4 requests to hub.external.anythingllm.com (`this.apiBase`, the object's own property). `apiBase` is a `NODE_ENV` ternary, so each hub request also draws its development branch, `http://127.0.0.1:5001/…` (the hub's local emulator), unresolved naming the `ALL /*` 404 handlers, the only routes taking it (3 reasons changed, 1 new edge: `createStaticItem`'s request is now drawn at its own site rather than as a wrapper at its route's call). Lemond's 15 requests and 2 SDK calls through `EmbeddedLemonadeEngine.baseUrl` and `EmbeddedLemonadeLLM.openaiBasePath()` read `http://127.0.0.1:{}/api/v1/…` (and `/internal/set`), which only the `ALL /*` handlers take; lemond is a downloaded binary, not a service in the repo, so `NO_MATCHING_ROUTE` naming them is accurate. All 25 overstated reasons left after M9.1a7a are resolved: of a3d's 33 and a3e2b's 12, none remains."
   ],
   "edges": [
     {
@@ -90,6 +91,42 @@
       "sites": ["frontend/src/pages/OnboardingFlow/Steps/Survey/index.jsx:27"],
       "verdict": "correct",
       "evidence": "`fetch(ONBOARDING_SURVEY_URL, …)` with `ONBOARDING_SURVEY_URL = \"https://onboarding.anythingllm.com\"` (frontend/src/utils/constants.js:2), the fallback when `navigator.sendBeacon` is missing."
+    },
+    {
+      "id": "external_call:symbol:server/models/communityHub.js#CommunityHub.createStaticItem->external:ext/hub.external.anythingllm.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external hub.external.anythingllm.com",
+      "sites": ["server/models/communityHub.js:202"],
+      "verdict": "correct",
+      "evidence": "`fetch(`${this.apiBase}/${itemType}/create`, { method: \"POST\", … })` (communityHub.js:202). `apiBase` is `CommunityHub`'s own property, `process.env.NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (communityHub.js:8–11), read as `this.apiBase` in the object's own method and written nowhere; the methods are called as `CommunityHub.<method>(…)` (server/endpoints/communityHub.js), so `this` is the object. The production branch's host."
+    },
+    {
+      "id": "external_call:symbol:server/models/communityHub.js#CommunityHub.fetchExploreItems->external:ext/hub.external.anythingllm.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external hub.external.anythingllm.com",
+      "sites": ["server/models/communityHub.js:39"],
+      "verdict": "correct",
+      "evidence": "`fetch(`${this.apiBase}/explore`, { method: \"GET\" })` (communityHub.js:39). `apiBase` is `CommunityHub`'s own property, `process.env.NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (communityHub.js:8–11), read as `this.apiBase` in the object's own method and written nowhere; the methods are called as `CommunityHub.<method>(…)` (server/endpoints/communityHub.js), so `this` is the object. The production branch's host."
+    },
+    {
+      "id": "external_call:symbol:server/models/communityHub.js#CommunityHub.fetchUserItems->external:ext/hub.external.anythingllm.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external hub.external.anythingllm.com",
+      "sites": ["server/models/communityHub.js:172"],
+      "verdict": "correct",
+      "evidence": "`fetch(`${this.apiBase}/items`, { method: \"GET\", … })` (communityHub.js:172). `apiBase` is `CommunityHub`'s own property, `process.env.NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (communityHub.js:8–11), read as `this.apiBase` in the object's own method and written nowhere; the methods are called as `CommunityHub.<method>(…)` (server/endpoints/communityHub.js), so `this` is the object. The production branch's host."
+    },
+    {
+      "id": "external_call:symbol:server/models/communityHub.js#CommunityHub.getBundleItem->external:ext/hub.external.anythingllm.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external hub.external.anythingllm.com",
+      "sites": ["server/models/communityHub.js:79"],
+      "verdict": "correct",
+      "evidence": "`fetch(`${this.apiBase}/${entityType}/${entityId}/pull`, { method: \"GET\", … })` (communityHub.js:79–81). `apiBase` is `CommunityHub`'s own property, `process.env.NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (communityHub.js:8–11), read as `this.apiBase` in the object's own method and written nowhere; the methods are called as `CommunityHub.<method>(…)` (server/endpoints/communityHub.js), so `this` is the object. The production branch's host."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/anthropic/index.js#AnthropicLLM.fetchModelMaxTokens->external:ext/api.anthropic.com",
@@ -299,6 +336,15 @@
       "evidence": "The receiver is an `openai` SDK client built with `baseURL: \"https://api.fireworks.ai/inference/v1\"` (fireworksAi/index.js:30, :230), so the request goes to api.fireworks.ai, as drawn. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
     },
     {
+      "id": "external_call:symbol:server/utils/AiProviders/foundry/catalog.js#FoundryCatalog.#fetchPage->external:ext/ai.azure.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external ai.azure.com",
+      "sites": ["server/utils/AiProviders/foundry/catalog.js:146"],
+      "verdict": "correct",
+      "evidence": "`fetch(this.CATALOG_URL, { method: \"POST\", … })` in the static `#fetchPage` (catalog.js:145–146); `static CATALOG_URL = \"https://ai.azure.com/api/eastus/ux/v1.0/entities/crossRegion\"` (catalog.js:30–31), written nowhere, and no class extends `FoundryCatalog`."
+    },
+    {
       "id": "external_call:symbol:server/utils/AiProviders/gemini/index.js#GeminiLLM.fetchModels->external:ext/generativelanguage.googleapis.com",
       "kind": "external_call",
       "confidence": "exact",
@@ -399,6 +445,15 @@
       "sites": ["server/utils/AiProviders/minimax/index.js:143"],
       "verdict": "correct",
       "evidence": "The receiver is an `openai` SDK client built with `baseURL: \"https://api.minimax.io/v1\"` (minimax/index.js:22), so the request goes to api.minimax.io, as drawn. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+    },
+    {
+      "id": "external_call:symbol:server/utils/AiProviders/modelMap/index.js#ContextWindowFinder.#pullRemoteModelMap->external:ext/raw.githubusercontent.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external raw.githubusercontent.com",
+      "sites": ["server/utils/AiProviders/modelMap/index.js:108"],
+      "verdict": "correct",
+      "evidence": "`fetch(ContextWindowFinder.remoteUrl)` in `#pullRemoteModelMap` (modelMap/index.js:105–108); `static remoteUrl = \"https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json\"` (index.js:29–30), written nowhere."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/moonshotAi/index.js#MoonshotAiLLM.getChatCompletion->external:ext/api.moonshot.ai",
@@ -723,6 +778,24 @@
       "sites": ["server/utils/TextToSpeech/openAi/index.js:14"],
       "verdict": "correct",
       "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (TextToSpeech/openAi/index.js:6), so the request goes to the SDK's default `https://api.openai.com/v1`."
+    },
+    {
+      "id": "external_call:symbol:server/utils/agents/aibitat/plugins/gmail/lib.js#GmailBridge.request->external:ext/script.google.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external script.google.com",
+      "sites": ["server/utils/agents/aibitat/plugins/gmail/lib.js:346"],
+      "verdict": "correct",
+      "evidence": "`fetch(this.#getBaseUrl(), { method: \"POST\", … })` (gmail/lib.js:346); the private `#getBaseUrl()` logs, then returns `https://script.google.com/macros/s/${this.#deploymentId}/exec` (lib.js:328–331): the host is literal, the deployment ID the user's."
+    },
+    {
+      "id": "external_call:symbol:server/utils/agents/aibitat/plugins/google-calendar/lib.js#GoogleCalendarBridge.request->external:ext/script.google.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external script.google.com",
+      "sites": ["server/utils/agents/aibitat/plugins/google-calendar/lib.js:142"],
+      "verdict": "correct",
+      "evidence": "`fetch(this.#getBaseUrl(), { method: \"POST\", … })` (google-calendar/lib.js:142); the private `#getBaseUrl()` logs, then returns `https://script.google.com/macros/s/${this.#deploymentId}/exec` (lib.js:124–127): the host is literal, the deployment ID the user's."
     },
     {
       "id": "external_call:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.#refreshAccessToken->external:ext/login.microsoftonline.com",
@@ -1608,15 +1681,6 @@
       "sites": ["server/endpoints/api/openai/compatibility-test-script.cjs:60"],
       "verdict": "correct",
       "evidence": "A script testing AnythingLLM's own OpenAI-compatible API: its client is `new OpenAI({ baseURL: \"http://localhost:3001/api/v1/openai\" })` (compatibility-test-script.cjs:6–9), the server's port (`SERVER_PORT || 3001`, server/index.js:198) and `apiRouter`'s mount (`app.use(\"/api\", apiRouter)`, :98, with `developerEndpoints(app, apiRouter)` at :115 registering `apiOpenAICompatibleEndpoints(router)`). The SDK method's path joined on gives `POST /api/v1/openai/embeddings`, answered at server/endpoints/api/openai/index.js:290; the only other server route taking it is the `ALL /*` 404 handler (server/index.js:192), registered later. `heuristic` is the loopback rule. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
-      "id": "http:route:server/POST /api/community-hub/:communityHubItemType/create->unresolved:server/endpoints/communityHub.js:196:50",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST CommunityHub.createStaticItem( communityHubItemType, data, connectionKey ) [DYNAMIC_URL] the URL starts with a value only known at runtime",
-      "sites": ["server/endpoints/communityHub.js:196"],
-      "verdict": "unresolved",
-      "evidence": "`CommunityHub.apiBase` is an object property, `NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (models/communityHub.js:8–11), read through `this` in the object's methods (here `createStaticItem`, :202, inlined at the route's call). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
     },
     {
       "id": "http:route:server/POST /api/system/custom-models->unresolved:server/endpoints/system.js:1130:41",
@@ -3994,31 +4058,40 @@
       "evidence": "`GET` `${API_BASE}/system/check-token` (session.js:6) answered by `app.get(\"/system/check-token\")` at server/endpoints/system.js:134."
     },
     {
+      "id": "http:symbol:server/models/communityHub.js#CommunityHub.createStaticItem->unresolved:server/models/communityHub.js:202:18",
+      "kind": "http",
+      "confidence": "unresolved",
+      "to": "unresolved POST http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1/{}/create [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1/{}/create (ALL /*)…",
+      "sites": ["server/models/communityHub.js:202"],
+      "verdict": "unresolved",
+      "evidence": "`apiBase` is `CommunityHub`'s own property, `process.env.NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (communityHub.js:8–11), read as `this.apiBase` in the object's own method and written nowhere; the methods are called as `CommunityHub.<method>(…)` (server/endpoints/communityHub.js), so `this` is the object. This edge is the development branch: `127.0.0.1:5001/anythingllm-hub/us-central1/…` is the hub's local Firebase Functions emulator, no service in this repo; only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate. The production branch is the external edge beside it."
+    },
+    {
       "id": "http:symbol:server/models/communityHub.js#CommunityHub.fetchExploreItems->unresolved:server/models/communityHub.js:39:18",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${this.apiBase}/explore` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1/explore [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1/explore (ALL /*), …",
       "sites": ["server/models/communityHub.js:39"],
       "verdict": "unresolved",
-      "evidence": "`CommunityHub.apiBase` is an object property, `NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (models/communityHub.js:8–11), read through `this` in the object's methods. The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
+      "evidence": "`apiBase` is `CommunityHub`'s own property, `process.env.NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (communityHub.js:8–11), read as `this.apiBase` in the object's own method and written nowhere; the methods are called as `CommunityHub.<method>(…)` (server/endpoints/communityHub.js), so `this` is the object. This edge is the development branch: `127.0.0.1:5001/anythingllm-hub/us-central1/…` is the hub's local Firebase Functions emulator, no service in this repo; only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate. The production branch is the external edge beside it."
     },
     {
       "id": "http:symbol:server/models/communityHub.js#CommunityHub.fetchUserItems->unresolved:server/models/communityHub.js:172:18",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${this.apiBase}/items` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1/items [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1/items (ALL /*), so…",
       "sites": ["server/models/communityHub.js:172"],
       "verdict": "unresolved",
-      "evidence": "`CommunityHub.apiBase` is an object property, `NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (models/communityHub.js:8–11), read through `this` in the object's methods. The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
+      "evidence": "`apiBase` is `CommunityHub`'s own property, `process.env.NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (communityHub.js:8–11), read as `this.apiBase` in the object's own method and written nowhere; the methods are called as `CommunityHub.<method>(…)` (server/endpoints/communityHub.js), so `this` is the object. This edge is the development branch: `127.0.0.1:5001/anythingllm-hub/us-central1/…` is the hub's local Firebase Functions emulator, no service in this repo; only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate. The production branch is the external edge beside it."
     },
     {
       "id": "http:symbol:server/models/communityHub.js#CommunityHub.getBundleItem->unresolved:server/models/communityHub.js:79:40",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${this.apiBase}/${entityType}/${entityId}/pull` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1/{}/{}/pull [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1/{}/{}/pull (ALL /*…",
       "sites": ["server/models/communityHub.js:79"],
       "verdict": "unresolved",
-      "evidence": "`CommunityHub.apiBase` is an object property, `NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (models/communityHub.js:8–11), read through `this` in the object's methods. The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
+      "evidence": "`apiBase` is `CommunityHub`'s own property, `process.env.NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (communityHub.js:8–11), read as `this.apiBase` in the object's own method and written nowhere; the methods are called as `CommunityHub.<method>(…)` (server/endpoints/communityHub.js), so `this` is the object. This edge is the development branch: `127.0.0.1:5001/anythingllm-hub/us-central1/…` is the hub's local Firebase Functions emulator, no service in this repo; only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate. The production branch is the external edge beside it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/azureOpenAi/index.js#AzureOpenAiLLM.getChatCompletion->unresolved:server/utils/AiProviders/azureOpenAi/index.js:174:36",
@@ -4105,91 +4178,91 @@
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/engine.js#EmbeddedLemonadeEngine.#preferCuda->unresolved:server/utils/AiProviders/embeddedLemonade/engine.js:279:26",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${this.baseUrl}/api/v1/system-info` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/system-info [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/system-info (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/engine.js:279"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/engine.js#EmbeddedLemonadeEngine.#preferCuda->unresolved:server/utils/AiProviders/embeddedLemonade/engine.js:289:30",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST `${this.baseUrl}/internal/set` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved POST http://127.0.0.1:{}/internal/set [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/internal/set (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/engine.js:289"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/engine.js#EmbeddedLemonadeEngine.#stop->unresolved:server/utils/AiProviders/embeddedLemonade/engine.js:404:11",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST `${this.baseUrl}/api/v1/unload` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved POST http://127.0.0.1:{}/api/v1/unload [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/unload (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/engine.js:404"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/engine.js#EmbeddedLemonadeEngine.isRunning->unresolved:server/utils/AiProviders/embeddedLemonade/engine.js:110:18",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${this.baseUrl}/api/v1/health` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/health [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/health (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/engine.js:110"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.#definitionFor->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:633:28",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET url.toString() [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/pull/variants [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/pull/variants (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:633"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.#downloadedRepoDirs->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:768:26",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${EmbeddedLemonadeLLM.openaiBasePath()}/models?…` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/models [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/models (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:768"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.#lemondDelete->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:751:28",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST `${EmbeddedLemonadeLLM.openaiBasePath()}/delete` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved POST http://127.0.0.1:{}/api/v1/delete [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/delete (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:751"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.#pullFrom->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:670:28",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST `${EmbeddedLemonadeLLM.openaiBasePath()}/pull` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved POST http://127.0.0.1:{}/api/v1/pull [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/pull (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:670"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.#repoDirFor->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:562:26",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${EmbeddedLemonadeLLM.openaiBasePath()}/models/${encodeURIComponent(definition.model_name)}` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/models/{} [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/models/{} (ALL /*), so its unknown part doesn't pick …",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:562"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.availableModels->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:424:32",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${EmbeddedLemonadeLLM.openaiBasePath()}/models?…` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/models [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/models (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:424"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.bootingFetch->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:106:20",
@@ -4204,73 +4277,64 @@
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.cacheContextWindow->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:146:24",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${EmbeddedLemonadeLLM.openaiBasePath()}/models/${encodeURIComponent(model)}` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/models/{} [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/models/{} (ALL /*), so its unknown part doesn't pick …",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:146"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.capabilitiesFromLabels->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:341:53",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${EmbeddedLemonadeLLM.openaiBasePath()}/models/${encodeURIComponent(modelId)}` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/models/{} [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/models/{} (ALL /*), so its unknown part doesn't pick …",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:341"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.getChatCompletion->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:254:36",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST EmbeddedLemonadeLLM.openaiBasePath() /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST http://127.0.0.1:{}/api/v1/chat/completions [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/chat/completions (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:254"],
       "verdict": "unresolved",
-      "evidence": "The receiver is `new OpenAI({ baseURL: EmbeddedLemonadeLLM.openaiBasePath() })` (embeddedLemonade/index.js:54); that static method returns `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (:70–71), and the static getter returns `http://127.0.0.1:${port()}` (engine.js:100–101), the lemond process the server starts itself, on a port from `port()`. The port really is a call's result, but the host and path are literals behind a static method and getter, M9.1a7's form. If M9.1a7 resolves it, the loopback base must not reach the server's own routes: lemond's paths (`/api/v1/chat/completions`, `/models`, `/health`, `/load`, `/pull`, `/delete`) match only the server's `ALL /*` 404 handler, which never picks a route (ADR-0033's amendment). At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.getCurrentlyLoadedModels->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:358:18",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${EmbeddedLemonadeLLM.openaiBasePath()}/health` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/health [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/health (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:358"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.loadModel->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:390:28",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST `${EmbeddedLemonadeLLM.openaiBasePath()}/load` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved POST http://127.0.0.1:{}/api/v1/load [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/load (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:390"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/index.js#EmbeddedLemonadeLLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/embeddedLemonade/index.js:286:42",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST EmbeddedLemonadeLLM.openaiBasePath() /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST http://127.0.0.1:{}/api/v1/chat/completions [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/chat/completions (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/index.js:286"],
       "verdict": "unresolved",
-      "evidence": "The receiver is `new OpenAI({ baseURL: EmbeddedLemonadeLLM.openaiBasePath() })` (embeddedLemonade/index.js:54); that static method returns `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (:70–71), and the static getter returns `http://127.0.0.1:${port()}` (engine.js:100–101), the lemond process the server starts itself, on a port from `port()`. The port really is a call's result, but the host and path are literals behind a static method and getter, M9.1a7's form. If M9.1a7 resolves it, the loopback base must not reach the server's own routes: lemond's paths (`/api/v1/chat/completions`, `/models`, `/health`, `/load`, `/pull`, `/delete`) match only the server's `ALL /*` 404 handler, which never picks a route (ADR-0033's amendment). At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/recommendations.js#largestGpuVramBytes->unresolved:server/utils/AiProviders/embeddedLemonade/recommendations.js:76:22",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET `${EmbeddedLemonadeEngine.baseUrl}/api/v1/system-info` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{}/api/v1/system-info [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{}/api/v1/system-info (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/AiProviders/embeddedLemonade/recommendations.js:76"],
       "verdict": "unresolved",
-      "evidence": "`EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (embeddedLemonade/engine.js:100–101; `port()` is `EMBEDDED_LEMONADE_PORT || 13355`, config.js:88–89), the lemond process the server starts itself, and `openaiBasePath()` appends `/api/v1` (index.js:70–71). The reason overstates it: the base is in the source, in a static getter the analyzer doesn't follow (planned as M9.1a7). Once read it names no route in the repo either (lemond isn't part of it), so this stays unresolved, with a better reason."
-    },
-    {
-      "id": "http:symbol:server/utils/AiProviders/foundry/catalog.js#FoundryCatalog.#fetchPage->unresolved:server/utils/AiProviders/foundry/catalog.js:146:28",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.CATALOG_URL [DYNAMIC_URL] the URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/foundry/catalog.js:146"],
-      "verdict": "unresolved",
-      "evidence": "`this.CATALOG_URL` is a static field, `\"https://ai.azure.com/api/eastus/ux/v1.0/entities/crossRegion\"` (foundry/catalog.js:30–31). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
+      "evidence": "The request reaches lemond, the engine binary the server downloads and spawns on 127.0.0.1 (engine.js:18–21), at `port()` = `Number(process.env.EMBEDDED_LEMONADE_PORT) || 13355` (config.js:88–89): no service in this repo. `EmbeddedLemonadeEngine.baseUrl` is a static getter returning `http://127.0.0.1:${port()}` (engine.js:100–102), and `EmbeddedLemonadeLLM.openaiBasePath()` a static method returning `${EmbeddedLemonadeEngine.baseUrl}/api/v1` (index.js:70–72); neither class is extended or written. Only the server's and collector's `ALL /*` 404 handlers take the path (checked against every route), so `NO_MATCHING_ROUTE` naming them is accurate; M9.1a3d/a3e2b's `DYNAMIC_URL` overstated it."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/foundry/index.js#FoundryLLM.cacheContextWindows->unresolved:server/utils/AiProviders/foundry/index.js:175:28",
@@ -4532,15 +4596,6 @@
       "sites": ["server/utils/AiProviders/localAi/index.js:319"],
       "verdict": "unresolved",
       "evidence": "The receiver is an `openai` SDK client whose base is `process.env.LOCAL_AI_BASE_PATH` (localAi/index.js:24), the endpoint the user configures. The reason says the env var isn't named like an API base, so it isn't matched to the repo's routes: accurate, since it holds the URL of the user's own model server, none of the repo's services. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
-      "id": "http:symbol:server/utils/AiProviders/modelMap/index.js#ContextWindowFinder.#pullRemoteModelMap->unresolved:server/utils/AiProviders/modelMap/index.js:108:30",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved GET ContextWindowFinder.remoteUrl [DYNAMIC_URL] the URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/modelMap/index.js:108"],
-      "verdict": "unresolved",
-      "evidence": "`ContextWindowFinder.remoteUrl` is a static field, `\"https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json\"` (modelMap/index.js:29–30). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/nvidiaNim/index.js#NvidiaNimLLM.getChatCompletion->unresolved:server/utils/AiProviders/nvidiaNim/index.js:168:10",
@@ -4874,24 +4929,6 @@
       "sites": ["server/utils/agents/aibitat/plugins/create-files/docx/utils.js:400"],
       "verdict": "unresolved",
       "evidence": "`fetchImage(src)` fetches its argument (docx/utils.js:200), an `<img src>` in the generated HTML. Only known at runtime, as stated."
-    },
-    {
-      "id": "http:symbol:server/utils/agents/aibitat/plugins/gmail/lib.js#GmailBridge.request->unresolved:server/utils/agents/aibitat/plugins/gmail/lib.js:346:30",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.#getBaseUrl() [DYNAMIC_URL] the URL starts with a value only known at runtime",
-      "sites": ["server/utils/agents/aibitat/plugins/gmail/lib.js:346"],
-      "verdict": "unresolved",
-      "evidence": "`#getBaseUrl()` is a private method returning `https://script.google.com/macros/s/${this.#deploymentId}/exec` (gmail/lib.js:328–331): the host is literal, the deployment ID the user's. The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
-    },
-    {
-      "id": "http:symbol:server/utils/agents/aibitat/plugins/google-calendar/lib.js#GoogleCalendarBridge.request->unresolved:server/utils/agents/aibitat/plugins/google-calendar/lib.js:142:30",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.#getBaseUrl() [DYNAMIC_URL] the URL starts with a value only known at runtime",
-      "sites": ["server/utils/agents/aibitat/plugins/google-calendar/lib.js:142"],
-      "verdict": "unresolved",
-      "evidence": "`#getBaseUrl()` is a private method returning `https://script.google.com/macros/s/${this.#deploymentId}/exec` (google-calendar/lib.js:124–127): the host is literal, the deployment ID the user's. The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
     },
     {
       "id": "http:symbol:server/utils/agents/aibitat/plugins/outlook/lib.js#OutlookBridge.createDraft->unresolved:server/utils/agents/aibitat/plugins/outlook/lib.js:1100:26",
