@@ -1,0 +1,5 @@
+{
+  "name": "static-member-base-root",
+  "private": true,
+  "workspaces": ["server", "engine"]
+}
