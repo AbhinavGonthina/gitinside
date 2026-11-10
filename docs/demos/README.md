@@ -76,9 +76,11 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     to the browser service's raw `http` server, and 1 request to a route that doesn't exist.
   - Every `fetch(` and `axios` call in the app is on an edge.
   - The routers in `server/src/api/` (26 of 101 routes) are mounted at `/api` by a
-    `readdirSync` + `require` loop the analyzer doesn't follow. It warns, and labels them
-    without the prefix (`GET /robots` for `GET /api/robots`). No edge points at them, but the
-    labels on the demo are short. Planned as M9.1a5.
+    `readdirSync` + `require` loop that picks `route.default || route`. At the first check the
+    analyzer didn't read the `||`, so it warned "never mounted" and labeled them without the
+    prefix (`GET /robots` for `GET /api/robots`). Since M9.1a5 (ADR-0162's amendment) all 26
+    carry `/api` and the warning is gone. Re-dumped at that fix, the 142 edges are identical:
+    no request reaches those routes.
   - Missing: the database (Sequelize; v1 reads Prisma only), MinIO, the Airtable SDK's
     record calls, Google's token exchange, and socket.io traffic.
 - **Mintplex-Labs/anything-llm** (`308b276`, checked 2026-11-09): 866 inferred edges, checked
