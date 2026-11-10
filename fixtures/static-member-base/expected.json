@@ -1,0 +1,430 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:server/utils/engine.js#Engine",
+      "id": "calls:symbol:server/utils/engine.js#Engine->symbol:server/utils/engine.js#port",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 32,
+          "file": "server/utils/engine.js",
+          "line": 8
+        }
+      ],
+      "to": "symbol:server/utils/engine.js#port"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:server/utils/engine.js#EngineLLM.load",
+      "id": "calls:symbol:server/utils/engine.js#EngineLLM.load->symbol:server/utils/engine.js#EngineLLM.apiBasePath",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 42,
+          "file": "server/utils/engine.js",
+          "line": 23
+        }
+      ],
+      "to": "symbol:server/utils/engine.js#EngineLLM.apiBasePath"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:server/utils/remote.js#Mailer.send",
+      "id": "calls:symbol:server/utils/remote.js#Mailer.send->symbol:server/utils/remote.js#Mailer.#getBaseUrl",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 34,
+          "file": "server/utils/remote.js",
+          "line": 24
+        }
+      ],
+      "to": "symbol:server/utils/remote.js#Mailer.#getBaseUrl"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:server/utils/remote.js#Catalog.models",
+      "id": "external_call:symbol:server/utils/remote.js#Catalog.models->external:ext/catalog.example.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 23,
+          "file": "server/utils/remote.js",
+          "line": 6
+        }
+      ],
+      "to": "external:ext/catalog.example.com"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:server/utils/remote.js#Hub.explore",
+      "id": "external_call:symbol:server/utils/remote.js#Hub.explore->external:ext/hub.example.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 23,
+          "file": "server/utils/remote.js",
+          "line": 36
+        }
+      ],
+      "to": "external:ext/hub.example.com"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:server/utils/remote.js#Mailer.send",
+      "id": "external_call:symbol:server/utils/remote.js#Mailer.send->external:ext/script.google.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 23,
+          "file": "server/utils/remote.js",
+          "line": 24
+        }
+      ],
+      "to": "external:ext/script.google.com"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:server/utils/engine.js#Engine.isRunning",
+      "id": "http:symbol:server/utils/engine.js#Engine.isRunning->route:engine/GET /api/v1/health",
+      "kind": "http",
+      "label": "GET /api/v1/health",
+      "sites": [
+        {
+          "column": 23,
+          "file": "server/utils/engine.js",
+          "line": 12,
+          "request": "GET http://127.0.0.1:{}/api/v1/health"
+        }
+      ],
+      "to": "route:engine/GET /api/v1/health"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:server/utils/engine.js#EngineLLM.load",
+      "id": "http:symbol:server/utils/engine.js#EngineLLM.load->route:engine/POST /api/v1/load",
+      "kind": "http",
+      "label": "POST /api/v1/load",
+      "sites": [
+        {
+          "column": 23,
+          "file": "server/utils/engine.js",
+          "line": 23,
+          "request": "POST http://127.0.0.1:{}/api/v1/load"
+        }
+      ],
+      "to": "route:engine/POST /api/v1/load"
+    }
+  ],
+  "nodes": [
+    {
+      "host": "catalog.example.com",
+      "id": "external:ext/catalog.example.com",
+      "kind": "external",
+      "label": "catalog.example.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "host": "hub.example.com",
+      "id": "external:ext/hub.example.com",
+      "kind": "external",
+      "label": "hub.example.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "host": "script.google.com",
+      "id": "external:ext/script.google.com",
+      "kind": "external",
+      "label": "script.google.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "6d6386f8e30701372a077b6bf192bcab348577d68595f72c2424ead748289aa1",
+      "id": "file:engine/index.js",
+      "kind": "file",
+      "label": "index.js",
+      "parentId": "service:engine/",
+      "path": "engine/index.js"
+    },
+    {
+      "hash": "75986c6b03b36f1bad45f563a71039a0e24ef95b497b9ff739c83f2a821b6193",
+      "id": "file:server/utils/engine.js",
+      "kind": "file",
+      "label": "engine.js",
+      "parentId": "module:server/utils",
+      "path": "server/utils/engine.js"
+    },
+    {
+      "hash": "d270b01c75d14695a6f226a7405fa83ce4df4c237b9cbb6b19ab6ba3c7eb29ba",
+      "id": "file:server/utils/remote.js",
+      "kind": "file",
+      "label": "remote.js",
+      "parentId": "module:server/utils",
+      "path": "server/utils/remote.js"
+    },
+    {
+      "id": "module:server/utils",
+      "kind": "module",
+      "label": "utils",
+      "parentId": "service:server/",
+      "path": "server/utils"
+    },
+    {
+      "id": "route:engine/GET /api/v1/health",
+      "kind": "route",
+      "label": "GET /api/v1/health",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:engine/index.js",
+      "path": "/api/v1/health",
+      "source": {
+        "column": 5,
+        "file": "engine/index.js",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:engine/POST /api/v1/load",
+      "kind": "route",
+      "label": "POST /api/v1/load",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:engine/index.js",
+      "path": "/api/v1/load",
+      "source": {
+        "column": 5,
+        "file": "engine/index.js",
+        "line": 10
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:engine/",
+      "kind": "service",
+      "label": "engine",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": "engine"
+    },
+    {
+      "id": "service:server/",
+      "kind": "service",
+      "label": "server",
+      "parentId": "system:root",
+      "root": "server"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/engine.js#Engine",
+      "kind": "symbol",
+      "label": "Engine",
+      "parentId": "file:server/utils/engine.js",
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "server/utils/engine.js",
+        "line": 6
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/engine.js#Engine.isRunning",
+      "kind": "symbol",
+      "label": "isRunning",
+      "parentId": "symbol:server/utils/engine.js#Engine",
+      "source": {
+        "column": 3,
+        "endLine": 14,
+        "file": "server/utils/engine.js",
+        "line": 11
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/engine.js#EngineLLM",
+      "kind": "symbol",
+      "label": "EngineLLM",
+      "parentId": "file:server/utils/engine.js",
+      "source": {
+        "column": 1,
+        "endLine": 30,
+        "file": "server/utils/engine.js",
+        "line": 17
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/engine.js#EngineLLM.apiBasePath",
+      "kind": "symbol",
+      "label": "apiBasePath",
+      "parentId": "symbol:server/utils/engine.js#EngineLLM",
+      "source": {
+        "column": 3,
+        "endLine": 20,
+        "file": "server/utils/engine.js",
+        "line": 18
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/engine.js#EngineLLM.load",
+      "kind": "symbol",
+      "label": "load",
+      "parentId": "symbol:server/utils/engine.js#EngineLLM",
+      "source": {
+        "column": 3,
+        "endLine": 29,
+        "file": "server/utils/engine.js",
+        "line": 22
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": false,
+      "id": "symbol:server/utils/engine.js#port",
+      "kind": "symbol",
+      "label": "port",
+      "parentId": "file:server/utils/engine.js",
+      "source": {
+        "column": 1,
+        "endLine": 4,
+        "file": "server/utils/engine.js",
+        "line": 2
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/remote.js#Catalog",
+      "kind": "symbol",
+      "label": "Catalog",
+      "parentId": "file:server/utils/remote.js",
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "server/utils/remote.js",
+        "line": 2
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/remote.js#Catalog.models",
+      "kind": "symbol",
+      "label": "models",
+      "parentId": "symbol:server/utils/remote.js#Catalog",
+      "source": {
+        "column": 3,
+        "endLine": 8,
+        "file": "server/utils/remote.js",
+        "line": 5
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/remote.js#Hub",
+      "kind": "symbol",
+      "label": "Hub",
+      "parentId": "file:server/utils/remote.js",
+      "source": {
+        "column": 7,
+        "endLine": 39,
+        "file": "server/utils/remote.js",
+        "line": 32
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/remote.js#Hub.explore",
+      "kind": "symbol",
+      "label": "explore",
+      "parentId": "symbol:server/utils/remote.js#Hub",
+      "source": {
+        "column": 3,
+        "endLine": 38,
+        "file": "server/utils/remote.js",
+        "line": 35
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/remote.js#Mailer",
+      "kind": "symbol",
+      "label": "Mailer",
+      "parentId": "file:server/utils/remote.js",
+      "source": {
+        "column": 1,
+        "endLine": 30,
+        "file": "server/utils/remote.js",
+        "line": 11
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/remote.js#Mailer.#getBaseUrl",
+      "kind": "symbol",
+      "label": "#getBaseUrl",
+      "parentId": "symbol:server/utils/remote.js#Mailer",
+      "source": {
+        "column": 3,
+        "endLine": 21,
+        "file": "server/utils/remote.js",
+        "line": 18
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:server/utils/remote.js#Mailer.send",
+      "kind": "symbol",
+      "label": "send",
+      "parentId": "symbol:server/utils/remote.js#Mailer",
+      "source": {
+        "column": 3,
+        "endLine": 29,
+        "file": "server/utils/remote.js",
+        "line": 23
+      },
+      "symbolKind": "method"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "static-member-base",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "static-member-base",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "engine",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    },
+    {
+      "code": "TSCONFIG_MISSING",
+      "file": "server",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
