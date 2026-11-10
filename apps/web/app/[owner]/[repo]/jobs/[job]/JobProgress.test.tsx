@@ -200,6 +200,13 @@ describe("JobProgress", () => {
     expect(latest().readyState).toBe(FakeEventSource.CLOSED);
   });
 
+  it("opens the commit's permalink instead when the page names one (a demo pin, ADR-0255)", () => {
+    const commit = "e".repeat(40);
+    render(<JobProgress owner="acme" repo="shop" jobId={JOB} commit={commit} />);
+    latest().send({ state: "done" });
+    expect(replace).toHaveBeenCalledWith(`/acme/shop/${commit}`);
+  });
+
   it("a permanent failure says what happened, offers no retry, and takes focus", () => {
     show();
     latest().send(failureView("LIMIT_FILES"));

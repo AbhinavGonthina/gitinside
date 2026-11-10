@@ -5,6 +5,7 @@ import type { AnyDatabase } from "@gitinside/db";
 import { BASE_PARAM, baseParam, type BaseView, type SearchParams } from "../../../lib/compare";
 import type { RepoRef } from "../../../lib/repoUrl";
 import { movedPath, viewBase, viewRepo, type RepoView } from "../../../lib/repoView";
+import { progressHref } from "../../../lib/startAnalysis";
 import { authDepsFromEnv, repoViewDepsFromEnv, VERCEL_OIDC_HEADER } from "../../../lib/serverDeps";
 import { NotAnalyzed } from "./NotAnalyzed";
 import { RepoDiagram } from "./RepoDiagram";
@@ -68,7 +69,8 @@ export function repoMetadata(ref: RepoRef, sha?: string): Metadata {
  * (and the viewer can't see privately), or a commit never analyzed, is a 404. With `base` (a
  * link's `?base=`), the diagram compares with that commit (`viewBase`); a base that can't be
  * compared is a note on the page, not a 404. A repo GitHub knows under another name now
- * redirects there, the query (deep link, `?base=`) kept (M5.13b3). A plain async function,
+ * redirects there, the query (deep link, `?base=`) kept (M5.13b3). A demo pin's permalink whose
+ * commit was just queued redirects to its progress page (ADR-0255). A plain async function,
  * not a component, so tests can await and render it.
  */
 export async function repoScreen(ref: RepoRef, sha?: string, query: SearchParams = {}) {
@@ -89,6 +91,13 @@ export async function repoScreen(ref: RepoRef, sha?: string, query: SearchParams
   if (view.status === "missing") notFound();
   // Outside the `try`: `redirect` throws Next's own error to do its work.
   if (view.status === "moved") redirect(movedPath(view, query));
+  // A demo pin being analyzed (ADR-0255): its progress page, which comes back to the permalink.
+  if (view.status === "queued") {
+    redirect(progressHref(view.owner, view.repo, view.jobId, view.sha));
+  }
+  if (view.status === "unavailable") {
+    return <RepoUnavailable owner={ref.owner} repo={ref.repo} />;
+  }
   if (view.status === "not-analyzed") return <NotAnalyzed owner={view.owner} repo={view.repo} />;
   return (
     <>

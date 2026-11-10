@@ -6,12 +6,14 @@
  * - {@link listStoredSnapshots}: every `done` analysis, i.e. every row that names an object.
  * - {@link listPinnedShas}: commits a pull request touched recently (its base, head, and its
  *   diff's merge base), which a PR diff may still need.
+ * - {@link listDemoShas}: the demo pins' commits, which the landing page's gallery links.
  * - {@link listDiffKeys}: every stored PR diff a pull request record names (ADR-0245).
  * - {@link deleteDoneAnalyses}: removes evicted rows, only while they are still `done` with
  *   the same snapshot, so a row that changed since the plan was made is left alone.
  */
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { AnyDatabase } from "./analyses.js";
+import { DEMO_PINS, type DemoPin } from "./demos.js";
 import { analyses, pullRequests, repos } from "./schema.js";
 
 /** One `done` analysis and the object it names. */
@@ -121,6 +123,32 @@ export async function listPinnedShas(
         : [{ repoId, sha: merge }]),
     ];
   });
+}
+
+/**
+ * The demo pins' commits (`DEMO_PINS`, ADR-0255), for every pin whose repo has a row, found by
+ * GitHub's ID so a renamed repo's pin still counts. The gallery links them for good, so
+ * retention keeps them like a pull request's commits, however many newer commits the repo has.
+ */
+export async function listDemoShas(
+  db: AnyDatabase,
+  pins: readonly DemoPin[] = DEMO_PINS,
+): Promise<PinnedSha[]> {
+  if (pins.length === 0) return [];
+  const rows = await db
+    .select({ id: repos.id, providerRepoId: repos.providerRepoId })
+    .from(repos)
+    .where(
+      inArray(
+        repos.providerRepoId,
+        pins.map((pin) => pin.providerRepoId),
+      ),
+    );
+  return pins.flatMap((pin) =>
+    rows
+      .filter((row) => row.providerRepoId === pin.providerRepoId)
+      .map((row) => ({ repoId: row.id, sha: pin.sha })),
+  );
 }
 
 /**

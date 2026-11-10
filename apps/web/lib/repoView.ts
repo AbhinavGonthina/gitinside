@@ -1,6 +1,7 @@
 import {
   consumeRateLimit,
   findComputePause,
+  findDemoPin,
   findPublishedAnalysis,
   findPullRequestDiffKey,
   findStoredAnalysis,
@@ -9,6 +10,7 @@ import {
   refundRateLimit,
   servedPrivately,
   type AnyDatabase,
+  type DemoPin,
   type PublishedAnalysis,
   type StoredAnalysis,
 } from "@gitinside/db";
@@ -48,7 +50,9 @@ import { findSizeHold } from "./sizeHold";
  *    name now (`findRenamed`, M5.13b3) and the page follows it; else the repo page offers
  *    "Analyze", which goes through `/api/analyze` and the visitor's rate limit; a permalink
  *    is a 404.
- * 2. **Permalinks stop there:** a commit's diagram never changes, so no GitHub call.
+ * 2. **Permalinks stop there:** a commit's diagram never changes, so no GitHub call. The one
+ *    exception is a demo pin's permalink (`DEMO_PINS`, ADR-0255) with no finished analysis:
+ *    the landing page's gallery links it, so its commit is queued (`queueDemoPin`).
  * 3. **Check** the default branch's latest commit on GitHub, remembered per repo and shown
  *    analysis for {@link HEAD_TTL_MS} so busy pages don't spend GitHub's hourly quota. If
  *    GitHub can't be asked, the diagram is still shown (`unknown`). If GitHub says it's gone or
@@ -178,6 +182,8 @@ export interface RepoViewDeps {
    * second purge, {@link PURGE_AGAIN_MS} later. Without it, only the first purge happens.
    */
   later?: (task: () => Promise<void>, delayMs: number) => void;
+  /** The demo pins whose permalinks queue their commit (ADR-0255). Default `DEMO_PINS`. */
+  demos?: readonly DemoPin[];
 }
 
 /**
@@ -220,6 +226,10 @@ export type HeadState =
 /** What a repo page renders. Owner and repo are our stored spelling (GitHub's). */
 export type RepoView =
   | { status: "missing" }
+  /** A demo pin's permalink whose commit is being analyzed (ADR-0255): open `jobId`'s progress. */
+  | { status: "queued"; owner: string; repo: string; sha: string; jobId: string }
+  /** A demo pin's permalink whose commit can't be analyzed right now. */
+  | { status: "unavailable" }
   | { status: "not-analyzed"; owner: string; repo: string }
   /** GitHub knows the repo under another name now (a rename or transfer): open that one. */
   | { status: "moved"; owner: string; repo: string }
@@ -523,7 +533,10 @@ export async function viewRepo(
     }
   }
   if (ref.sha !== undefined) {
-    return published ? ready(published, { state: "pinned" }) : { status: "missing" };
+    if (published) return ready(published, { state: "pinned" });
+    const pinned = { owner: ref.owner, repo: ref.repo, sha: ref.sha };
+    const pin = findDemoPin({ ...pinned, name: ref.repo }, deps.demos);
+    return pin === undefined ? { status: "missing" } : queueDemoPin(pinned, pin, deps);
   }
   let resolved: ResolveResult;
   if (published === undefined) {
@@ -560,6 +573,57 @@ export async function viewRepo(
     github: deps.github,
     latest: (sha) => findPublishedAnalysis(db, { owner, name, sha }),
   });
+}
+
+/**
+ * A demo pin's permalink with no finished analysis (ADR-0255): GitHub is asked for the repo
+ * (it must still be the pin's, by GitHub's ID, and public), and the pinned commit is queued
+ * as check-on-view queues a newer one ({@link queueHead}: its limits, charged to the repo),
+ * so the gallery's links work however far the default branch has moved. `queued` opens the
+ * job's progress page. A name GitHub doesn't show, or shows as another repo, is `missing`;
+ * a commit that can't be queued now (GitHub or the queue down, a failed analysis, which isn't
+ * re-run on every view, a limit) is `unavailable`.
+ */
+async function queueDemoPin(
+  ref: RepoRef & { sha: string },
+  pin: DemoPin,
+  deps: RepoViewDeps,
+): Promise<RepoView> {
+  const { db } = deps;
+  const unavailable: RepoView = { status: "unavailable" };
+  const resolved = await resolveRepo(ref, deps.github);
+  if (!resolved.ok) {
+    const gone = resolved.code === "REPO_NOT_FOUND" || resolved.code === "REPO_UNAVAILABLE";
+    return gone ? { status: "missing" } : unavailable;
+  }
+  if (resolved.repo.providerRepoId !== pin.providerRepoId) return { status: "missing" };
+  const head = { ...resolved.repo, sha: pin.sha };
+  const key = { providerRepoId: head.providerRepoId, sha: head.sha };
+  const existing = await findAnalysisToQueue(
+    db,
+    { ...key, analyzerVersion: deps.analyzerVersion },
+    { replacePrivate: true },
+  );
+  if (existing?.status === "failed" && existing.errorCode !== QUEUE_UNAVAILABLE) return unavailable;
+  const inFlight = existing?.status === "queued" || existing?.status === "running";
+  const next =
+    existing?.status === "done"
+      ? ({ state: "done" } as const)
+      : await queueHead(head, inFlight, deps, deps.github);
+  if (next.state === "done") {
+    const latest = await findPublishedAnalysis(db, key);
+    return latest === undefined ? unavailable : ready(latest, { state: "pinned" });
+  }
+  if (next.state === "updating" && next.jobId !== undefined) {
+    return {
+      status: "queued",
+      owner: head.owner,
+      repo: head.name,
+      sha: head.sha,
+      jobId: next.jobId,
+    };
+  }
+  return unavailable;
 }
 
 /** Whether `shown` is `head`'s commit by this analyzer version. */
