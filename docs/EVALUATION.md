@@ -131,6 +131,12 @@ The fifth held-out batch (M5C.8, drawn by the same rule with its exclusions; pin
 
 Each is pinned at its default-branch HEAD as `"heldOut": 5`; the SHAs are in `repos.json`.
 
+**Held-out batch 6: the final blind measurement** (M9.2, ADR-0208's M9.2a1 amendment; rule committed 2026-11-10 in M9.2a1, before any candidate list was fetched). Batch 5 is seen since M5C.10 fixed its misses, and M6–M9.1 changed the analyzer again (the demo-repo fixes of M9.1a3–a7 among them), so batch 6 measures the analyzer as it launches. The rule, in [`eval/draws/batch-6.json`](../eval/draws/batch-6.json), is batch 5's with these changes:
+- **Same strata, queries, and quota** (`react-express`, `nextjs-prisma`, 8 pins each), so batch 6 describes the same population as batches 4 and 5. Before committing, only the totals were read (291 and 307 on 2026-11-10), both under the 1,000-result cap.
+- **Seed** `2026-11-10`, the day the rule was committed.
+- **Exclusions** (454 repos, each with why): batch 5's 278, carried whole; batch 5's 16 pins and the 18 candidates its walk rejected; the 80 repos newly named in `docs/usage/` (the four 2026-11-06 files behind M5C.10c–e2's fixes); and the PR backtest's 7 repos and 55 rejected candidates (`eval/backtest/repos.json`, read for M7, and three of them for the demo checks and fixes of M9.1). The demo choice's own candidates (`docs/demos/repos.json`) are all among those. `validate` now also fails a list that drops any repo an earlier draw excluded, so a repo once read for a fix stays out of every later batch.
+- **Unchanged:** the pool snapshot, the walk (no skipping, stop at 8 pins), and inclusion rules 2–5. Labels are committed with each pin's `repos.json` entry (`"heldOut": 6`, batch 6 `"seen": null`) before the analyzer first runs on it (M9.2b), and the batch is scored once (M9.2c), with precision ≥ 95% the number that has to hold.
+
 The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MIT-licensed React + Express apps, read but never analyzed):
 
 | Candidate | How it calls its API | Source files | Status |
