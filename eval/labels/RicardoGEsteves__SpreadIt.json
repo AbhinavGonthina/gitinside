@@ -1,0 +1,125 @@
+{
+  "repo": "RicardoGEsteves/SpreadIt",
+  "sha": "975f7f9e165d6749e4328d8ca70a521c4ec45c81",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "app/(main)/r/create/page.tsx", "line": 26 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/subspreadit/route.ts",
+        "line": 6,
+        "route": "POST /api/subspreadit"
+      },
+      "notes": "axios.post(\"/api/subspreadit\", payload) in a useMutation mutationFn; root-relative, same origin. app/api/subspreadit/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "app/(main)/settings/_components/user-name-form.tsx", "line": 51 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/username/route.ts",
+        "line": 6,
+        "route": "PATCH /api/username"
+      },
+      "notes": "axios.patch(`/api/username/`, payload) in a useMutation mutationFn; next.config.js sets no trailingSlash (default false), so the trailing slash gets a 308 that keeps the method and lands on /api/username. app/api/username/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "app/api/link/route.ts", "line": 11 },
+      "method": "GET",
+      "target": null,
+      "notes": "Server-side axios.get(href) in the link-preview route: href is the request's ?url= query parameter, known only at runtime (a page to preview, normally an external site), and no code in the repo calls /api/link with a fixed URL"
+    },
+    {
+      "callSite": { "file": "components/comments/comment-votes.tsx", "line": 43 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/subspreadit/post/comment/vote/route.ts",
+        "line": 6,
+        "route": "PATCH /api/subspreadit/post/comment/vote"
+      },
+      "notes": "axios.patch(\"/api/subspreadit/post/comment/vote\", payload) in a useMutation mutationFn; root-relative. The vote route file exports PATCH"
+    },
+    {
+      "callSite": { "file": "components/comments/create-comment.tsx", "line": 30 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/subspreadit/post/comment/route.ts",
+        "line": 6,
+        "route": "PATCH /api/subspreadit/post/comment"
+      },
+      "notes": "axios.patch(`/api/subspreadit/post/comment/`, payload) in a useMutation mutationFn; trailing slash ⇒ 308 (trailingSlash default false) keeping PATCH, landing on /api/subspreadit/post/comment, whose route file exports PATCH"
+    },
+    {
+      "callSite": { "file": "components/comments/post-comment.tsx", "line": 53 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/subspreadit/post/comment/route.ts",
+        "line": 6,
+        "route": "PATCH /api/subspreadit/post/comment"
+      },
+      "notes": "Reply form: axios.patch(`/api/subspreadit/post/comment/`, payload) in a useMutation mutationFn; trailing slash ⇒ 308 keeping PATCH to /api/subspreadit/post/comment (exports PATCH)"
+    },
+    {
+      "callSite": { "file": "components/navigation/search-bar.tsx", "line": 48 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/search/route.ts",
+        "line": 3,
+        "route": "GET /api/search"
+      },
+      "notes": "axios.get(`/api/search?q=${input}`) in a useQuery queryFn; query dropped. app/api/search/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "components/posts/post-feed.tsx", "line": 32 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/posts/route.ts",
+        "line": 5,
+        "route": "GET /api/posts"
+      },
+      "notes": "fetchPosts (useInfiniteQuery's queryFn): axios.get(query), query = `/api/posts?limit=…&page=…` + (subSpreadItName ? `&subSpreadItName=…` : \"\") built at lines 28-30; either alternative is /api/posts with a query. app/api/posts/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "components/posts/post-vote/client.tsx", "line": 43 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/subspreadit/post/vote/route.ts",
+        "line": 10,
+        "route": "PATCH /api/subspreadit/post/vote"
+      },
+      "notes": "axios.patch(\"/api/subspreadit/post/vote\", payload) in a useMutation mutationFn; the post vote route file exports PATCH (line 10, after imports and a constant)"
+    },
+    {
+      "callSite": { "file": "components/posts/subscribe-leave-toggle.tsx", "line": 35 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/subspreadit/subscribe/route.ts",
+        "line": 6,
+        "route": "POST /api/subspreadit/subscribe"
+      },
+      "notes": "subscribe mutation: axios.post(\"/api/subspreadit/subscribe\", payload); route file exports POST"
+    },
+    {
+      "callSite": { "file": "components/posts/subscribe-leave-toggle.tsx", "line": 71 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/subspreadit/unsubscribe/route.ts",
+        "line": 6,
+        "route": "POST /api/subspreadit/unsubscribe"
+      },
+      "notes": "unsubscribe mutation: axios.post(\"/api/subspreadit/unsubscribe\", payload) (path on line 72); route file exports POST"
+    },
+    {
+      "callSite": { "file": "components/rich-text-editor/text-editor.tsx", "line": 55 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/subspreadit/post/create/route.ts",
+        "line": 6,
+        "route": "POST /api/subspreadit/post/create"
+      },
+      "notes": "createPost mutation: axios.post(\"/api/subspreadit/post/create\", payload) (path on line 56); route file exports POST"
+    }
+  ]
+}

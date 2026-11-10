@@ -1,0 +1,59 @@
+{
+  "repo": "abjt14/agamjeet",
+  "sha": "adfc77ee890b964c4d3ca08db9c128204874d47a",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/lib/api.ts", "line": 8 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/views/route.ts",
+        "line": 7,
+        "route": "GET /api/views"
+      },
+      "notes": "getViews(slug?): fetch(url, { method: \"GET\" }) where url = slug ? `/api/views?slug=...` : `/api/views`; both alternatives are the same path (the query is dropped), so one label. Relative, same origin; no basePath, rewrites, or middleware. Called from useViews' queryFn (src/lib/queries.ts:14). src/app/api/views/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/lib/api.ts", "line": 15 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/views/all/route.ts",
+        "line": 6,
+        "route": "GET /api/views/all"
+      },
+      "notes": "getAllViews(): fetch(\"/api/views/all\", { method: \"GET\" }), same origin; useAllViews' queryFn. The static all segment's route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/lib/api.ts", "line": 27 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/views/route.ts",
+        "line": 27,
+        "route": "POST /api/views"
+      },
+      "notes": "postView(slug): fetch(`/api/views?slug=...`, { method: \"POST\" }), same origin, query dropped; useIncrementView's mutationFn. src/app/api/views/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/lib/api.ts", "line": 38 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/downloads/all/route.ts",
+        "line": 9,
+        "route": "GET /api/downloads/all"
+      },
+      "notes": "getAllDownloads(): fetch(\"/api/downloads/all\", { method: \"GET\" }), same origin; useAllDownloads' queryFn. src/app/api/downloads/all/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/lib/api.ts", "line": 51 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/downloads/route.ts",
+        "line": 36,
+        "route": "POST /api/downloads"
+      },
+      "notes": "postDownload(slug, type): fetch(`/api/downloads?${qs}`, { method: \"POST\" }) with a URLSearchParams query (dropped), same origin; useRegisterDownload's mutationFn (DownloadButton's onClick). src/app/api/downloads/route.ts exports POST"
+    }
+  ]
+}
