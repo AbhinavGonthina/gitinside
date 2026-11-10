@@ -12,7 +12,7 @@ is **zero wrong edges** (D13.4).
 
 | Repo | Commit | Stars | Inferred edges | Checked | Wrong |
 | --- | --- | ---: | ---: | --- | ---: |
-| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 866 | [all 866](Mintplex-Labs__anything-llm.json) | 0 (244 + 11 + 117 fixed) |
+| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 869 | [all 869](Mintplex-Labs__anything-llm.json) | 0 (244 + 11 + 117 fixed) |
 | [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
@@ -83,9 +83,9 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     no request reaches those routes.
   - Missing: the database (Sequelize; v1 reads Prisma only), MinIO, the Airtable SDK's
     record calls, Google's token exchange, and socket.io traffic.
-- **Mintplex-Labs/anything-llm** (`308b276`, checked 2026-11-09): 866 inferred edges, checked
+- **Mintplex-Labs/anything-llm** (`308b276`, checked 2026-11-09): 869 inferred edges, checked
   one service pair at a time (M9.1a3a–f).
-  - 630 correct, 0 wrong, 236 unresolved. 372 wrong edges were found along the way and fixed
+  - 633 correct, 0 wrong, 236 unresolved. 372 wrong edges were found along the way and fixed
     in the analyzer (below), and the check was rerun at each fix.
   - Before any verdict, the first read of the edges found 244 wrong ones. Literal-path
     frontend requests (`${API_BASE}/admin/users`, …) went to both services' `app.all("*")` 404
@@ -108,12 +108,13 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
   - The frontend's 4 unresolved edges build their URL from `fullApiUrl()`, which is the page's
     own origin at runtime when the base is `/api`. The reason is accurate; they're missing
     edges to 4 real routes, not wrong ones.
-  - Missing from the frontend: the chat streams and embedding progress go through
-    `fetchEventSource(` (`@microsoft/fetch-event-source`, 3 calls), which the analyzer doesn't
-    collect, so the app's main request (`POST /api/workspace/:slug/stream-chat`) has no edge.
-    Planned as M9.1a6. Also missing: one `navigator.sendBeacon` to the onboarding survey's
-    host, which a `fetch` beside it already reaches. Every other request call in `frontend/`
-    is on an edge.
+  - At this check the chat streams and embedding progress were missing: they go through
+    `fetchEventSource(` (`@microsoft/fetch-event-source`, 3 calls), which the analyzer didn't
+    collect, so the app's main request (`POST /api/workspace/:slug/stream-chat`) had no edge.
+    Since M9.1a6 (ADR-0252, a `fetch` in all but name) they are 3 edges to their routes,
+    checked by hand: all correct. Re-dumped at that fix, 866 → 869 edges, nothing else
+    changed. Still missing: one `navigator.sendBeacon` to the onboarding survey's host, which
+    a `fetch` beside it already reaches. Every other request call in `frontend/` is on an edge.
   - **Server, collector, and `extras/` http edges** (M9.1a3d, checked 2026-11-09): 162 edges
     (133 server, 28 collector, 1 root), all unresolved, 0 wrong. For 129 the reason is
     accurate: the base is a parameter, the user's settings or env, a link the user gives, a
