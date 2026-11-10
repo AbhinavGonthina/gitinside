@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.2b4 Label batch 6's pins 13–16: `2Revol2/DreamingEnglish`, `digitalocean/sea-notes-saas-starter-kit`, `issam-seghir/discord-clone`, `TheArcus02/Better-GPT`; EVALUATION.md's batch 6 table
+M9.2c Score batch 6 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, every miss's cause in a diagnosis; README/EVALUATION quote it as measured
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -511,7 +511,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.2b1 Label batch 6's first 4 pins in draw order, `vijethph/PlacementCell`, `KEX-03/taskflow`, `swarooppatilx/bit-by-query`, `vicharanashala/cp1` (each committed with its `repos.json` entry, `"heldOut": 6`; batch 6 declared `"seen": null`; no `pnpm eval` until M9.2c) {model: opus}
 - [x] M9.2b2 Label batch 6's pins 5–8: `MohammedMusharraf11/Alumni-Connect`, `Misyuk-T/worklog-hub`, `Tushyent/TakeUForward`, `kalczugag/Employee-Leave-Management` {model: opus}
 - [x] M9.2b3 Label batch 6's pins 9–12: `abjt14/agamjeet`, `Gribadan/RentTools.io`, `ivanrods/balancefy`, `RicardoGEsteves/SpreadIt` {model: opus}
-- [ ] M9.2b4 Label batch 6's pins 13–16: `2Revol2/DreamingEnglish`, `digitalocean/sea-notes-saas-starter-kit`, `issam-seghir/discord-clone`, `TheArcus02/Better-GPT`; EVALUATION.md's batch 6 table {model: opus}
+- [x] M9.2b4 Label batch 6's pins 13–16: `2Revol2/DreamingEnglish`, `digitalocean/sea-notes-saas-starter-kit`, `issam-seghir/discord-clone`, `TheArcus02/Better-GPT`; EVALUATION.md's batch 6 table {model: opus}
 - [ ] M9.2c Score batch 6 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, every miss's cause in a diagnosis; README/EVALUATION quote it as measured {model: opus}
 - [ ] M9.2d Final benchmarks at the launch analyzer: full analysis (`pnpm bench`, cal.com), incremental (`pnpm bench:incremental`, edits and commits), and render (`pnpm bench:render`), each report recording repo, SHA, and machine; observations written from the numbers {model: opus}
 - [ ] M9.2e README "Results" rewritten around the final numbers (blind batch 6 first, earlier batches and the backtest summarized, benchmarks), each linking its committed report {model: opus}
@@ -525,6 +525,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-10 M9.2b4: batch 6's pins 13–16 labeled from the code (`6256438`): DreamingEnglish 17 at 17 (16 with a route; one `api(path)` wrapper on an `.env.example` base, plus a `'use server'` pass-through), sea-notes-saas-starter-kit 26 at 26 (25; three client classes on constructor-default bases), discord-clone 21 at 17 (all; paths passed as props and through a zustand store, labeled at the pages' elements), Better-GPT 18 at 18 (17): 82 labels, 79 with a route. An earlier run drafted the labels and left them uncommitted; this run re-read every pair (`m92b2-check-compact.mjs`), accounted for every `m92b3-unlabeled.mjs` hit, re-checked middleware and pages-router method guards, and re-read each clone's SHA, license, and file count (`eval/dist/m92b4-verify.mjs`). EVALUATION.md has the batch 6 table and totals (790 labels at 783 call sites, 755 with a route). No `pnpm eval` until M9.2c.
 
 - 2026-11-10 M9.2b3: batch 6's pins 9–12 labeled from the code (`2ee339a`): agamjeet 5 at 5 (all with a route), RentTools.io 268 at 266 (250; split between two labelers by call-site folder, merged by `eval/dist/m92b3-merge-renttools.mjs`; `https://renttools.io` script base followed through the committed nginx config, ADR-0209), balancefy 25 at 25 (all), SpreadIt 12 at 12 (11; two trailing-slash PATCHes via Next's 308): 310 labels, 291 with a route. Every pair re-read (`m92b2-check-compact.mjs`), and `eval/dist/m92b3-unlabeled.mjs` listed every request-looking line without a label; two `null` labels inside URL-taking helpers (`fetchICal`, eVisitor's `action`) moved to their callers. `validate` and eval tests (227) pass. No `pnpm eval` until M9.2c.
 
