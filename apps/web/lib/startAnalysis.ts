@@ -23,9 +23,16 @@ export function repoHref(owner: string, repo: string): string {
   return `/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 }
 
-/** The progress page's path for a job. */
-export function progressHref(owner: string, repo: string, jobId: string): string {
-  return `${repoHref(owner, repo)}/jobs/${jobId}`;
+/**
+ * The progress page's query naming the commit to open when the job is done (a demo pin,
+ * ADR-0255); without it the page opens the repo page.
+ */
+export const COMMIT_PARAM = "commit";
+
+/** The progress page's path for a job; with `commit`, it opens that commit's permalink when done. */
+export function progressHref(owner: string, repo: string, jobId: string, commit?: string): string {
+  const path = `${repoHref(owner, repo)}/jobs/${jobId}`;
+  return commit === undefined ? path : `${path}?${COMMIT_PARAM}=${commit}`;
 }
 
 const text = (value: unknown): value is string => typeof value === "string" && value !== "";

@@ -274,6 +274,26 @@ describe("commit permalink page", () => {
     );
   });
 
+  it("opens the progress page of a demo pin being analyzed, returning to the permalink (ADR-0255)", async () => {
+    const jobId = `analyze-${"c".repeat(32)}`;
+    vi.mocked(viewRepo).mockResolvedValue({
+      status: "queued",
+      owner: "Acme",
+      repo: "Shop",
+      sha: SHA,
+      jobId,
+    });
+    await expect(CommitPage({ params: commitParams("acme", "shop", SHA) })).rejects.toThrow(
+      `NEXT_REDIRECT /Acme/Shop/jobs/${jobId}?commit=${SHA}`,
+    );
+  });
+
+  it("says a demo pin that can't be analyzed right now is unavailable", async () => {
+    vi.mocked(viewRepo).mockResolvedValue({ status: "unavailable" });
+    render(await CommitPage({ params: commitParams("acme", "shop", SHA) }));
+    expect(screen.getByText(UNAVAILABLE_MESSAGE)).toBeTruthy();
+  });
+
   it("titles the tab with the short commit, and adds nothing for a bad path", async () => {
     vi.mocked(viewRepo).mockResolvedValue(ready({ state: "pinned" }));
     expect(await commitMetadata({ params: commitParams("acme", "shop", SHA) })).toEqual({

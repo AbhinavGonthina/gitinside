@@ -17,6 +17,11 @@ export interface JobProgressProps {
   repo: string;
   /** An `analyze-…` job ID, checked by the page. */
   jobId: string;
+  /**
+   * The commit whose permalink to open when the job is done (a demo pin, ADR-0255), a full
+   * SHA checked by the page; without it, the repo page.
+   */
+  commit?: string | undefined;
 }
 
 /** A view still moving: the steps list is drawn for it. */
@@ -154,7 +159,7 @@ const CHECK = (
  * has found shows under the stages ({@link FoundSoFar}), and the job link can be copied to
  * come back to ({@link JobLink}).
  */
-export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
+export function JobProgress({ owner, repo, jobId, commit }: JobProgressProps) {
   const router = useRouter();
   const [live, setLive] = useState<LiveView | undefined>(undefined);
   const [ended, setEnded] = useState<Extract<JobView, { state: "failed" | "missing" }>>();
@@ -162,7 +167,7 @@ export function JobProgress({ owner, repo, jobId }: JobProgressProps) {
   // Bumped by "Try again" when the new job has the same ID, so the stream restarts.
   const [attempt, setAttempt] = useState(0);
   const heading = useRef<HTMLHeadingElement>(null);
-  const home = repoHref(owner, repo);
+  const home = commit === undefined ? repoHref(owner, repo) : `${repoHref(owner, repo)}/${commit}`;
   // "Try again", with the bot check when the server asks for it (ADR-0157).
   const retry = useStartAnalysis({
     onStarted: (href) => {

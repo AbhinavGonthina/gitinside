@@ -13,6 +13,7 @@ export * from "./schema.js";
 export * from "./access.js";
 export * from "./analyses.js";
 export * from "./computeUsage.js";
+export * from "./demos.js";
 export * from "./installations.js";
 export * from "./jobs.js";
 export * from "./pullRequests.js";

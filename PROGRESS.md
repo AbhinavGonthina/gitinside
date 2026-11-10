@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.1b Landing gallery: the 3 pins pre-analyzed in production, a gallery on the landing page linking each permalink
+M9.1b2 The 3 pins pre-analyzed in production through their permalinks, each graph compared with a local analysis
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -498,7 +498,10 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M9.1a7 URL bases held in class and object members read as the literal or template they hold (anything-llm's 33 overstated `DYNAMIC_URL`s at a3d and 12 SDK bases at a3e2b; maxun's MCP worker `this.apiUrl` ×14 is `(process.env.BACKEND_URL || '…').replace(/\/+$/, '')`, a `.replace` call, so none of these forms), split by member kind:
 - [x] M9.1a7a Instance fields: a `this.<field>` read in a class's instance member, where the class's only write of that field is its initializer or a top-level constructor statement and nothing else in the program writes a property of that name (a write in another class counts when either class has `extends`), read as what was written (`CollectorApi`'s `this.endpoint` ×9, a template of `http://127.0.0.1:` and the collector's port, the demo's only server → collector links; Deepgram's `this.endpoint`; `baseURL: this.basePath` set once to a literal ×10: ApiPie, CometAPI, Novita, OpenRouter, PPIO); a field reassigned elsewhere (`init()`) stays `DYNAMIC_URL`; red fixture tests first, `KEY_FORMAT` bump if facts change, eval delta, anything-llm's record updated {model: opus}
 - [x] M9.1a7b Static and object members: a static field, a static getter or method returning one, a private method returning a template, an object-literal property read through `this` in that object's methods (`FoundryCatalog.CATALOG_URL`, `ContextWindowFinder.remoteUrl`, `EmbeddedLemonadeEngine.baseUrl` ×15, `CommunityHub.apiBase` ×4, Gmail's/Calendar's `#getBaseUrl()`, embedded lemond's `EmbeddedLemonadeLLM.openaiBasePath()` ×2, whose loopback paths may reach only the server's `ALL /*`); red fixture tests first, `KEY_FORMAT` bump if facts change, eval delta, anything-llm's record updated {model: opus}
-- [ ] M9.1b Landing gallery: the 3 pins pre-analyzed in production, a gallery on the landing page linking each permalink (thumbnail from the diagram image), tests, screenshots dark/light {model: opus}
+- M9.1b Landing gallery, split (`/api/analyze` only analyzes a default branch's latest commit, anything-llm's head is 23 commits past its checked pin, and retention keeps a repo's latest 5 commits only, so the pins need a way in and a way to stay):
+- [x] M9.1b1 Demo pins analyzable and kept: the 3 pins in one shared list (`@gitinside/db`, by GitHub ID and full SHA, checked against `docs/demos/repos.json`); a pin's permalink with no analysis queues that commit (charged to the repo, as check-on-view) and opens its progress page, which then returns to the permalink; retention never evicts a pin; tests red first, ADR {model: opus}
+- [ ] M9.1b2 The 3 pins pre-analyzed in production through their permalinks, each production graph compared with a local analysis at the same analyzer version (byte for byte), results in `docs/demos/README.md` {model: opus}
+- [ ] M9.1b3 Landing gallery linking each pin's permalink (thumbnail from the diagram image at the pin), tests, screenshots dark/light {model: opus}
 - [ ] M9.2 Final eval + benchmarks; README numbers with links {model: opus}
 - [ ] M9.3 README (slogan, GIF with trace first, quickstart, architecture, results) {model: opus}
 - [ ] M9.3b README "Why I built this" section from gitinside-planning/MOTIVATION.md (his voice, nothing added) + needs-abhinav review issue {model: opus}
@@ -510,6 +513,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-10 M9.1b1 (`8f5b130`, ADR-0255): M9.1b split into b1 (pins analyzable and kept), b2 (pre-analyze in production, compare graphs), b3 (the gallery): `/api/analyze` takes only a default branch's head, anything-llm's is 23 commits past its pin, and retention keeps 5 commits a repo. `DEMO_PINS` (`@gitinside/db`, GitHub ID + full SHA, tested against `repos.json`); a pin's permalink with no analysis asks GitHub once (same repo by ID), queues the pin through `queueHead` (charged to the repo), and redirects to `/jobs/<id>?commit=<sha>`, which opens the permalink when done; unqueueable ⇒ "temporarily unavailable". Retention adds `listDemoShas` to the pinned commits. Red first per guard: 7 mutations, all red (the failed-run guard survived once: a `LIMIT_*` row is also held by the size hold, so the test now uses `WORKER_ERROR`). db 272, worker 854 (one quota-alarm flake, green on rerun), web 1063.
 
 - 2026-11-10 M9.1a7b (`5863f1a`, ADR-0254, `KEY_FORMAT` 43): `fields.ts` `classMember` reads the one static (or `#private`) field, getter, or method a `<Class>.<name>` / `this.<name>` read names (unread beside a setter or computed member, for a public static through `this` when any class extends it, or when a write may replace it); `objectMember` reads `this.<name>` in a method of a variable's object literal unless a write may land on it. Getters and methods are builders; a class method may make calls before its `return`. `heuristic`. Red first (url 2, new `static-member-base` fixture); 9 guards mutation-checked in one run (each test line has one guard); analyzer 1480. Eval: no delta. anything-llm: 869 → 873 (5 removed, 9 added, 20 reasons), all checked by hand: 659 correct, 0 wrong, 214 unresolved, all 25 overstated reasons gone; maxun, taxonomy unchanged.
 

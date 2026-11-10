@@ -50,6 +50,10 @@ down.
 A `wrong` verdict blocks the repo from the gallery until the analyzer is fixed (with a
 test and its eval delta) and the check is rerun, or another repo replaces it.
 
+The site knows the pins too (`DEMO_PINS` in `packages/db/src/demos.ts`, checked against
+`repos.json`): opening a pin's permalink that nobody has analyzed queues that commit, however
+far the default branch has moved, and retention never evicts a pin (ADR-0255).
+
 ## Results so far
 
 - **shadcn-ui/taxonomy** (`298a885`, checked 2026-11-09): 29 inferred edges.
