@@ -473,6 +473,52 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
     ]);
   });
 
+  it("reads a base held in an instance field set once in the constructor (M9.1a7a)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/providers.js", [
+      'const { OpenAI } = require("openai");',
+      "class ApiPie {",
+      "  constructor() {",
+      '    this.basePath = "https://apipie.ai/v1";',
+      "    this.openai = new OpenAI({ baseURL: this.basePath });",
+      "  }",
+      "  chat() { return this.openai.chat.completions.create({}); }",
+      "}",
+      "class Generic {",
+      "  constructor() {",
+      "    this.basePath = process.env.GENERIC_BASE_PATH;",
+      "    this.openai = new OpenAI({ baseURL: this.basePath });",
+      "  }",
+      "  chat() { return this.openai.chat.completions.create({}); }",
+      "}",
+      "class Reset {",
+      "  constructor() {",
+      '    this.base = "https://first.example.com/v1";',
+      "    this.openai = new OpenAI({ baseURL: this.base });",
+      "  }",
+      '  init() { this.base = "https://second.example.com/v1"; }',
+      "  chat() { return this.openai.chat.completions.create({}); }",
+      "}",
+      "module.exports = { ApiPie, Generic, Reset };",
+    ]);
+    const graph = await analyze(dir);
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/providers.js#ApiPie.chat -> apipie.ai (heuristic)",
+    ]);
+    expect(unresolved(graph)).toEqual([
+      [
+        "POST {env:GENERIC_BASE_PATH}/chat/completions",
+        "NO_MATCHING_ROUTE",
+        "the env var GENERIC_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
+      ],
+      [
+        "POST this.base /chat/completions",
+        "DYNAMIC_URL",
+        "the SDK client's base URL starts with a value only known at runtime",
+      ],
+    ]);
+  });
+
   it("matches a client whose base is the repo's own server to its routes", async () => {
     await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));
     await put("src/server.js", [
