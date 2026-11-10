@@ -18,6 +18,20 @@
     },
     {
       "confidence": "exact",
+      "from": "route:express-folder-routers/GET /api/robots/:id",
+      "id": "handles:route:express-folder-routers/GET /api/robots/:id->symbol:express-folder-routers/src/api/robots.ts#readRobot",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/api/robots.ts",
+          "line": 12
+        }
+      ],
+      "to": "symbol:express-folder-routers/src/api/robots.ts#readRobot"
+    },
+    {
+      "confidence": "exact",
       "from": "route:express-folder-routers/GET /api/v1/users/:id",
       "id": "handles:route:express-folder-routers/GET /api/v1/users/:id->symbol:express-folder-routers/src/routes/v1/users.ts#getUser",
       "kind": "handles",
@@ -43,6 +57,20 @@
         }
       ],
       "to": "symbol:express-folder-routers/src/legacy/reports.js#daily"
+    },
+    {
+      "confidence": "exact",
+      "from": "route:express-folder-routers/POST /api/runs",
+      "id": "handles:route:express-folder-routers/POST /api/runs->symbol:express-folder-routers/src/api/runs.js#startRun",
+      "kind": "handles",
+      "sites": [
+        {
+          "column": 41,
+          "file": "src/api/runs.js",
+          "line": 7
+        }
+      ],
+      "to": "symbol:express-folder-routers/src/api/runs.js#startRun"
     },
     {
       "confidence": "exact",
@@ -84,11 +112,27 @@
         {
           "column": 10,
           "file": "src/client.ts",
-          "line": 14,
+          "line": 22,
           "request": "GET /health"
         }
       ],
       "to": "route:express-folder-routers/GET /health"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:express-folder-routers/src/client.ts#loadRobot",
+      "id": "http:symbol:express-folder-routers/src/client.ts#loadRobot->route:express-folder-routers/GET /api/robots/:id",
+      "kind": "http",
+      "label": "GET /api/robots/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 14,
+          "request": "GET /api/robots/{}"
+        }
+      ],
+      "to": "route:express-folder-routers/GET /api/robots/:id"
     },
     {
       "confidence": "heuristic",
@@ -123,6 +167,22 @@
       "to": "route:express-folder-routers/POST /api/v1/orders"
     },
     {
+      "confidence": "heuristic",
+      "from": "symbol:express-folder-routers/src/client.ts#startRun",
+      "id": "http:symbol:express-folder-routers/src/client.ts#startRun->route:express-folder-routers/POST /api/runs",
+      "kind": "http",
+      "label": "POST /api/runs",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/client.ts",
+          "line": 18,
+          "request": "POST /api/runs"
+        }
+      ],
+      "to": "route:express-folder-routers/POST /api/runs"
+    },
+    {
       "confidence": "exact",
       "from": "file:express-folder-routers/src/routes/v1/orders.ts",
       "id": "imports:file:express-folder-routers/src/routes/v1/orders.ts->file:express-folder-routers/src/routes/v1/helpers.ts",
@@ -145,7 +205,7 @@
         {
           "column": 25,
           "file": "src/server.ts",
-          "line": 2
+          "line": 4
         }
       ],
       "to": "file:express-folder-routers/src/legacy/index.js"
@@ -159,7 +219,7 @@
         {
           "column": 21,
           "file": "src/server.ts",
-          "line": 3
+          "line": 5
         }
       ],
       "to": "file:express-folder-routers/src/routes/createRouter.ts"
@@ -167,7 +227,23 @@
   ],
   "nodes": [
     {
-      "hash": "a15a194137b11841c288073faa29de2bf03cc72c90100fc53c9a537089cba5fa",
+      "hash": "04f1fc4b8fa6df0909f48b9094c83b4d73b9044b9944a2380b44e9f4146930c1",
+      "id": "file:express-folder-routers/src/api/robots.ts",
+      "kind": "file",
+      "label": "robots.ts",
+      "parentId": "module:express-folder-routers/src/api",
+      "path": "src/api/robots.ts"
+    },
+    {
+      "hash": "cabb9a5cdd5562e3a7e2b479455ca1199b24a220b40aa8f048cc29feb1f63c1b",
+      "id": "file:express-folder-routers/src/api/runs.js",
+      "kind": "file",
+      "label": "runs.js",
+      "parentId": "module:express-folder-routers/src/api",
+      "path": "src/api/runs.js"
+    },
+    {
+      "hash": "b94ca44753cff52f6750c031803adb6f721e2359026b4519c7841d19a0f3d561",
       "id": "file:express-folder-routers/src/client.ts",
       "kind": "file",
       "label": "client.ts",
@@ -223,7 +299,7 @@
       "path": "src/routes/v1/users.ts"
     },
     {
-      "hash": "aaa056e0da72d736764f1a3f38f030d3021fe6499da32f2ec08d1dbda666417c",
+      "hash": "20dfb6130371a36462fbaa753ad5d89e7596030b861b45d494c6ae306bcd6909",
       "id": "file:express-folder-routers/src/server.ts",
       "kind": "file",
       "label": "server.ts",
@@ -236,6 +312,13 @@
       "label": "src",
       "parentId": "service:express-folder-routers/",
       "path": "src"
+    },
+    {
+      "id": "module:express-folder-routers/src/api",
+      "kind": "module",
+      "label": "api",
+      "parentId": "module:express-folder-routers/src",
+      "path": "src/api"
     },
     {
       "id": "module:express-folder-routers/src/legacy",
@@ -257,6 +340,20 @@
       "label": "v1",
       "parentId": "module:express-folder-routers/src/routes",
       "path": "src/routes/v1"
+    },
+    {
+      "id": "route:express-folder-routers/GET /api/robots/:id",
+      "kind": "route",
+      "label": "GET /api/robots/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:express-folder-routers/src/api/robots.ts",
+      "path": "/api/robots/:id",
+      "source": {
+        "column": 8,
+        "file": "src/api/robots.ts",
+        "line": 12
+      }
     },
     {
       "id": "route:express-folder-routers/GET /api/v1/users/:id",
@@ -283,7 +380,7 @@
       "source": {
         "column": 5,
         "file": "src/server.ts",
-        "line": 8
+        "line": 10
       }
     },
     {
@@ -298,6 +395,20 @@
         "column": 8,
         "file": "src/legacy/reports.js",
         "line": 8
+      }
+    },
+    {
+      "id": "route:express-folder-routers/POST /api/runs",
+      "kind": "route",
+      "label": "POST /api/runs",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:express-folder-routers/src/api/runs.js",
+      "path": "/api/runs",
+      "source": {
+        "column": 27,
+        "file": "src/api/runs.js",
+        "line": 7
       }
     },
     {
@@ -323,6 +434,63 @@
     },
     {
       "exported": true,
+      "id": "symbol:express-folder-routers/src/api/robots.ts#readRobot",
+      "kind": "symbol",
+      "label": "readRobot",
+      "parentId": "file:express-folder-routers/src/api/robots.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "src/api/robots.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/api/robots.ts#router",
+      "kind": "symbol",
+      "label": "router",
+      "parentId": "file:express-folder-routers/src/api/robots.ts",
+      "source": {
+        "column": 7,
+        "endLine": 11,
+        "file": "src/api/robots.ts",
+        "line": 11
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/api/runs.js#default",
+      "kind": "symbol",
+      "label": "default",
+      "parentId": "file:express-folder-routers/src/api/runs.js",
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/api/runs.js",
+        "line": 7
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": false,
+      "id": "symbol:express-folder-routers/src/api/runs.js#startRun",
+      "kind": "symbol",
+      "label": "startRun",
+      "parentId": "file:express-folder-routers/src/api/runs.js",
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/api/runs.js",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
       "id": "symbol:express-folder-routers/src/client.ts#dailyReport",
       "kind": "symbol",
       "label": "dailyReport",
@@ -343,6 +511,21 @@
       "label": "health",
       "parentId": "file:express-folder-routers/src/client.ts",
       "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "src/client.ts",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/client.ts#loadRobot",
+      "kind": "symbol",
+      "label": "loadRobot",
+      "parentId": "file:express-folder-routers/src/client.ts",
+      "requiredParams": 1,
       "source": {
         "column": 1,
         "endLine": 15,
@@ -378,6 +561,21 @@
         "endLine": 7,
         "file": "src/client.ts",
         "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:express-folder-routers/src/client.ts#startRun",
+      "kind": "symbol",
+      "label": "startRun",
+      "parentId": "file:express-folder-routers/src/client.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "src/client.ts",
+        "line": 17
       },
       "symbolKind": "function"
     },
@@ -518,9 +716,9 @@
       "parentId": "file:express-folder-routers/src/server.ts",
       "source": {
         "column": 7,
-        "endLine": 5,
+        "endLine": 7,
         "file": "src/server.ts",
-        "line": 5
+        "line": 7
       },
       "symbolKind": "variable"
     },

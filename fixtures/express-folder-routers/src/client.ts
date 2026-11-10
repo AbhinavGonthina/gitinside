@@ -10,6 +10,14 @@ export async function dailyReport() {
   return fetch("/legacy/reports/daily").then((r) => r.json());
 }
 
+export async function loadRobot(id: string) {
+  return fetch(`/api/robots/${id}`).then((r) => r.json());
+}
+
+export async function startRun(robotId: string) {
+  return fetch("/api/runs", { method: "POST", body: JSON.stringify({ robotId }) });
+}
+
 export async function health() {
   return fetch("/health");
 }
