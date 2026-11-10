@@ -85,7 +85,7 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     record calls, Google's token exchange, and socket.io traffic.
 - **Mintplex-Labs/anything-llm** (`308b276`, checked 2026-11-09): 869 inferred edges, checked
   one service pair at a time (M9.1a3a–f).
-  - 633 correct, 0 wrong, 236 unresolved. 372 wrong edges were found along the way and fixed
+  - 651 correct, 0 wrong, 218 unresolved. 372 wrong edges were found along the way and fixed
     in the analyzer (below), and the check was rerun at each fix.
   - Before any verdict, the first read of the edges found 244 wrong ones. Literal-path
     frontend requests (`${API_BASE}/admin/users`, …) went to both services' `app.all("*")` 404
@@ -128,6 +128,13 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     `http://127.0.0.1:${COLLECTOR_PORT || 8888}`, so the demo draws no server → collector
     link at all. 8 of its 9 requests would reach a collector route (`POST /process`,
     `/process-link`, `/parse`, …).
+  - Since M9.1a7a (ADR-0253, an instance field written once is read as what was written),
+    `CollectorApi`'s 7 literal-path requests are edges to the collector's routes, checked by
+    hand: all correct, the demo's first server → collector links. `online()`'s `GET /` names
+    the collector's `ALL /*`, and `forwardExtensionRequest`'s path, its caller's `endpoint`,
+    reads as unknown. Deepgram's request reaches api.deepgram.com. Re-dumped at that fix, 869
+    edges: 18 replaced, 13 reasons changed, nothing else. The other 23 overstated reasons
+    (static fields and getters, `CommunityHub.apiBase`, `#getBaseUrl()`) are M9.1a7b's.
   - Sweep: every `fetch(`, `axios`, `http(s).get/request(`, `got(`, and `request(` call in
     `server/`, `collector/`, and `extras/` is on an edge, or is a wrapper body drawn at its
     callers, or isn't an HTTP request (a WebSocket in an example page, an MSSQL request, an
@@ -160,6 +167,10 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     the user picks, a plain env var, Azure's unread deployment path). 12 overstate "only known
     at runtime": the 10 `this.basePath` fields, and embedded lemond's static getter
     (`http://127.0.0.1:${port()}`, 2). That's M9.1a3d's class-member gap, planned as M9.1a7.
+  - Since M9.1a7a (ADR-0253): the 10 literal `this.basePath` calls are external calls to their
+    own hosts (apipie.ai, api.cometapi.com, api.novita.ai, openrouter.ai, api.ppinfra.com),
+    checked by hand: all correct. 11 calls on a `this.basePath` read from an env var now name
+    the variable. Lemond's 2 stay for M9.1a7b.
   - Missing, not wrong: 83 SDK calls on clients the detector doesn't trace (the agent
     providers' `this.client`, helpers taking `client` as a parameter, the image generators,
     Mistral's wrapped client).
