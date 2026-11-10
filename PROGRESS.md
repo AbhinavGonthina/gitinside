@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.2b3 Label batch 6's pins 9–12: `abjt14/agamjeet`, `Gribadan/RentTools.io`, `ivanrods/balancefy`, `RicardoGEsteves/SpreadIt`
+M9.2b4 Label batch 6's pins 13–16: `2Revol2/DreamingEnglish`, `digitalocean/sea-notes-saas-starter-kit`, `issam-seghir/discord-clone`, `TheArcus02/Better-GPT`; EVALUATION.md's batch 6 table
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -510,7 +510,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.2a2 The draw: snapshot both pools and commit them before reading any candidate, then walk each stratum in `draw status 6` order recording every pin or rejection until 8 pins per stratum (each base checked against the routes' full paths, as M5C.8b2 learned); no labels yet {model: opus}
 - [x] M9.2b1 Label batch 6's first 4 pins in draw order, `vijethph/PlacementCell`, `KEX-03/taskflow`, `swarooppatilx/bit-by-query`, `vicharanashala/cp1` (each committed with its `repos.json` entry, `"heldOut": 6`; batch 6 declared `"seen": null`; no `pnpm eval` until M9.2c) {model: opus}
 - [x] M9.2b2 Label batch 6's pins 5–8: `MohammedMusharraf11/Alumni-Connect`, `Misyuk-T/worklog-hub`, `Tushyent/TakeUForward`, `kalczugag/Employee-Leave-Management` {model: opus}
-- [ ] M9.2b3 Label batch 6's pins 9–12: `abjt14/agamjeet`, `Gribadan/RentTools.io`, `ivanrods/balancefy`, `RicardoGEsteves/SpreadIt` {model: opus}
+- [x] M9.2b3 Label batch 6's pins 9–12: `abjt14/agamjeet`, `Gribadan/RentTools.io`, `ivanrods/balancefy`, `RicardoGEsteves/SpreadIt` {model: opus}
 - [ ] M9.2b4 Label batch 6's pins 13–16: `2Revol2/DreamingEnglish`, `digitalocean/sea-notes-saas-starter-kit`, `issam-seghir/discord-clone`, `TheArcus02/Better-GPT`; EVALUATION.md's batch 6 table {model: opus}
 - [ ] M9.2c Score batch 6 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, every miss's cause in a diagnosis; README/EVALUATION quote it as measured {model: opus}
 - [ ] M9.2d Final benchmarks at the launch analyzer: full analysis (`pnpm bench`, cal.com), incremental (`pnpm bench:incremental`, edits and commits), and render (`pnpm bench:render`), each report recording repo, SHA, and machine; observations written from the numbers {model: opus}
@@ -525,6 +525,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-10 M9.2b3: batch 6's pins 9–12 labeled from the code (`2ee339a`): agamjeet 5 at 5 (all with a route), RentTools.io 268 at 266 (250; split between two labelers by call-site folder, merged by `eval/dist/m92b3-merge-renttools.mjs`; `https://renttools.io` script base followed through the committed nginx config, ADR-0209), balancefy 25 at 25 (all), SpreadIt 12 at 12 (11; two trailing-slash PATCHes via Next's 308): 310 labels, 291 with a route. Every pair re-read (`m92b2-check-compact.mjs`), and `eval/dist/m92b3-unlabeled.mjs` listed every request-looking line without a label; two `null` labels inside URL-taking helpers (`fetchICal`, eVisitor's `action`) moved to their callers. `validate` and eval tests (227) pass. No `pnpm eval` until M9.2c.
 
 - 2026-11-10 M9.2b2: batch 6's pins 5–8 labeled from the code (`a9bd0ee`): Alumni-Connect 13 at 12 (all with a route), worklog-hub 65 at 65 (62; three `router.all` proxies, 25 node:test requests of the router on its own app), TakeUForward 149 at 149 (144; presigned S3 uploads `null`), Employee-Leave-Management 28 at 28 (all; 21 RTK endpoints): 255 labels, 247 with a route. One labeler per repo (`eval/dist/m92b2-labeler.md`), then every pair re-read (`m92b1-check.mjs`, compact `m92b2-check-compact.mjs`), each tree re-grepped and its client sites counted against the labels, mounts and `/:param` order checked by hand. `repos.json` entries via `m92b2-pin.mjs`; `validate` and eval tests (227) pass. No `pnpm eval` until M9.2c.
 - 2026-11-10 M9.2b1: batch 6's first four pins labeled from the code (`a2fc001`): PlacementCell 17 at 17 (14 with a route), taskflow 34 at 34 (all; 23 node:test fetches of the app, one of a test's own `express()` app), bit-by-query 13 at 13 (11), cp1 79 at 79 (all): 143 labels, 138 with a route. One labeler per repo (instructions `eval/dist/m92b1-labeler.md`), then every call-site and route line re-read by `eval/dist/m92b1-check.mjs` and each tree re-grepped by hand (cp1's 78 wrappers + the refresh interceptor counted per file). `repos.json` entries (`"heldOut": 6`, batch 6 `"seen": null`) from the draw's shapes; `validate` and eval tests (227) pass. No `pnpm eval` until M9.2c, so the committed report is stale meanwhile.
