@@ -1,0 +1,3 @@
+# class-field-base
+
+Tests: URL bases held in an instance field written once (anything-llm's `CollectorApi` and its providers, M9.1a7a). `server`'s `CollectorApi` sets `this.endpoint = \`http://127.0.0.1:${CollectorApi.port()}\`` in its constructor, so `${this.endpoint}/accepts` and `${this.endpoint}/process` reach `collector`'s `GET /accepts` and `POST /process` (`heuristic`: a loopback host with a port only known at runtime, and a field read). `RouterLLM` hands `baseURL: this.basePath`, set once to `https://openrouter.ai/api/v1`, to its `openai` client, so `chat.completions.create` is an external call to `openrouter.ai` (`heuristic`). `Mirror`'s `this.base` is reassigned in `init()`, so its request stays `DYNAMIC_URL`.

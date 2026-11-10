@@ -39,6 +39,7 @@ const NAMES = [
   "no-tsconfig",
   "fetch-template-literal",
   "fetch-event-source",
+  "class-field-base",
   "axios-baseurl-instance",
   "env-base-heuristic",
   "env-fallback",
@@ -371,6 +372,20 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     expect(links(g, "http")).toEqual([
       `symbol:${p}/src/stream.ts#streamChat -> route:${p}/POST /api/workspace/:slug/stream-chat exact`,
       `symbol:${p}/src/stream.ts#watchEmbedding -> route:${p}/GET /api/workspace/:slug/embed-progress exact`,
+    ]);
+  });
+
+  it("class-field-base: an instance field set once in the constructor is the base (M9.1a7a)", async () => {
+    const g = await run("class-field-base");
+    const api = "symbol:server/utils/collectorApi.js#CollectorApi";
+    const llm = "symbol:server/utils/providers.js";
+    expect(links(g, "http")).toEqual([
+      `${api}.acceptedFileTypes -> route:collector/GET /accepts heuristic`,
+      `${api}.processDocument -> route:collector/POST /process heuristic`,
+      `${llm}#Mirror.status -> unresolved:server/utils/providers.js:26:23 unresolved DYNAMIC_URL`,
+    ]);
+    expect(links(g, "external_call")).toEqual([
+      `${llm}#RouterLLM.complete -> external:ext/openrouter.ai heuristic`,
     ]);
   });
 
