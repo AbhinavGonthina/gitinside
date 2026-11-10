@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ProgressPage, {
   generateMetadata as progressMetadata,
@@ -173,6 +173,48 @@ describe("progress page", () => {
     render(await ProgressPage({ params: jobParams("acme", "shop", JOB) }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("acme / shop");
     expect(screen.getByRole("progressbar", { name: "Analysis progress" })).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+
+  it("opens the ?commit= permalink when done, and the repo page for anything but a full SHA (ADR-0255)", async () => {
+    const sources: { listeners: Record<string, (event: MessageEvent) => void> }[] = [];
+    vi.stubGlobal(
+      "EventSource",
+      class {
+        listeners: Record<string, (event: MessageEvent) => void> = {};
+        constructor() {
+          sources.push(this);
+        }
+        addEventListener(type: string, listener: (event: MessageEvent) => void) {
+          this.listeners[type] = listener;
+        }
+        close() {}
+      },
+    );
+    const done = () =>
+      act(() => {
+        sources
+          .at(-1)
+          ?.listeners.status?.(
+            new MessageEvent("status", { data: JSON.stringify({ state: "done" }) }),
+          );
+      });
+    const SHA = "f".repeat(40);
+    const cases: [Record<string, string | string[]>, string][] = [
+      [{ commit: SHA }, `/acme/shop/${SHA}`],
+      [{ commit: [SHA, SHA] }, "/acme/shop"],
+      [{ commit: "F".repeat(40) }, "/acme/shop"],
+      [{ commit: "main" }, "/acme/shop"],
+      [{}, "/acme/shop"],
+    ];
+    for (const [query, opens] of cases) {
+      router.replace.mockReset();
+      const searchParams = Promise.resolve(query);
+      render(await ProgressPage({ params: jobParams("acme", "shop", JOB), searchParams }));
+      done();
+      expect(router.replace).toHaveBeenCalledWith(opens);
+      cleanup();
+    }
     vi.unstubAllGlobals();
   });
 

@@ -341,6 +341,16 @@ describe("runRetention", () => {
     );
   });
 
+  it("keeps a demo pin's commit beyond the latest five (ADR-0255)", async () => {
+    const demos = [{ providerRepoId: 1, owner: "acme", name: "shop", sha: sha(1) }];
+
+    const report = await runRetention({ db: t.db, store: store(), demos });
+
+    expect(report.evicted).toEqual({ superseded: 0, "beyond-latest": 1, "over-budget": 0 });
+    expect(await commitsLeft()).toEqual([1, 3, 4, 5, 6, 7].map(sha));
+    expect(s3.objects.has(key("shop", 1))).toBe(true);
+  });
+
   it("keeps the diffs pull request records name and deletes old unnamed ones", async () => {
     const named = diffKey(shopId, 6, 7);
     const pair = { repoId: shopId, baseSha: sha(6), headSha: sha(7), headAt: new Date() };

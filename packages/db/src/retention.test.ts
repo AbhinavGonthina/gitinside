@@ -5,6 +5,7 @@ import {
   completeAnalysis,
   deleteDoneAnalyses,
   failAnalysis,
+  listDemoShas,
   listDiffKeys,
   listPinnedShas,
   listStoredSnapshots,
@@ -149,6 +150,26 @@ describe("listPinnedShas", () => {
   it("refuses a window that isn't a whole number of days", async () => {
     await expect(listPinnedShas(t.db, -1)).rejects.toThrow("days");
     await expect(listPinnedShas(t.db, 1.5)).rejects.toThrow("days");
+  });
+});
+
+describe("listDemoShas", () => {
+  it("pins each demo commit of a repo with a row, by GitHub's ID", async () => {
+    const one = await repo(1);
+    const two = await repo(2, "private");
+    const pins = [
+      { providerRepoId: 1, owner: "old", name: "name", sha: sha("1") },
+      { providerRepoId: 2, owner: "acme", name: "r2", sha: sha("2") },
+      { providerRepoId: 3, owner: "acme", name: "r3", sha: sha("3") },
+    ];
+    const pinned = await listDemoShas(t.db, pins);
+    expect(pinned).toEqual([
+      { repoId: one, sha: sha("1") },
+      { repoId: two, sha: sha("2") },
+    ]);
+    expect(await listDemoShas(t.db, [])).toEqual([]);
+    // The real pins: no such repo here.
+    expect(await listDemoShas(t.db)).toEqual([]);
   });
 });
 
