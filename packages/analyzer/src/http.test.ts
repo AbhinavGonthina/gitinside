@@ -230,6 +230,45 @@ describe("collectHttpCalls: fetch", () => {
     ]);
   });
 
+  it("reads fetchEventSource(url, init) from @microsoft/fetch-event-source as a fetch (M9.1a6)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/a.ts", [
+      'import { fetchEventSource } from "@microsoft/fetch-event-source";',
+      'import { fetchEventSource as stream } from "@microsoft/fetch-event-source";',
+      'import { EventStreamContentType } from "@microsoft/fetch-event-source";',
+      'import * as fes from "@microsoft/fetch-event-source";',
+      'import fetchEventSourceDefault from "@microsoft/fetch-event-source";',
+      'import { fetchEventSource as other } from "other-event-source";',
+      'const required = require("@microsoft/fetch-event-source").fetchEventSource;',
+      "export async function chat(slug: string, init: object) {",
+      "  await fetchEventSource(`/api/workspace/${slug}/stream-chat`, {",
+      '    method: "POST",',
+      "    onmessage() {},",
+      "  });",
+      '  await stream("/api/progress", { headers: {} });',
+      '  await required("/api/r", { method: "PUT" });',
+      '  await fetchEventSource("/api/i", init);',
+      '  await fetchEventSource(new Request("/api/req", { method: "DELETE" }));',
+      '  EventStreamContentType("/no");',
+      '  fes("/no");',
+      '  fetchEventSourceDefault("/no");',
+      '  other("/no");',
+      "}",
+    ]);
+    await put("src/b.ts", [
+      "function fetchEventSource(path: string) { return path; }",
+      'export const local = () => fetchEventSource("/not-a-request");',
+    ]);
+    // Its `fetch` is the platform's: the URL first, `method` in the init, `GET` by default.
+    expect(summary(await collect())).toEqual([
+      "src/a.ts:9:9 fetch POST `/api/workspace/${slug}/stream-chat` base=- [symbol:web/src/a.ts#chat]",
+      'src/a.ts:13:9 fetch GET "/api/progress" base=- [symbol:web/src/a.ts#chat]',
+      'src/a.ts:14:9 fetch PUT "/api/r" base=- [symbol:web/src/a.ts#chat]',
+      'src/a.ts:15:9 fetch ? "/api/i" base=- [symbol:web/src/a.ts#chat]',
+      'src/a.ts:16:9 fetch DELETE "/api/req" base=- [symbol:web/src/a.ts#chat]',
+    ]);
+  });
+
   it("marks a read of a file next to the module, new URL(relative, import.meta.url) (M9.1a4)", async () => {
     await put("package.json", JSON.stringify({ name: "web", dependencies: { axios: "1.0.0" } }));
     await put("src/a.ts", [
