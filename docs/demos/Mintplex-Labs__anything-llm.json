@@ -7,9 +7,9 @@
   "method": "Checked one service pair at a time (M9.1a3c–f); edges not yet checked are `pending` with the task that checks them. M9.1a3c, frontend → server: each site's call read from its first line to its closing parenthesis in `git show <sha>:<file>`, giving the method (`method:` in the init, else GET) and URL, with `${API_BASE}` as `/api`: `API_BASE` is `VITE_API_BASE || \"/api\"` (frontend/src/utils/constants.js:1), and frontend/.env.example's `http://localhost:3001/api` is the server's port (`SERVER_PORT || 3001`, server/index.js:198) and its router's mount (`app.use(\"/api\", apiRouter)`, server/index.js:98). Each URL compared segment by segment with the target route, its definition line read, and every other server route of the same method that takes the URL listed, to see which one Express runs first (registration order: server/index.js:99–130, then each file's order). Every target file's routes are registered on `apiRouter`: directly from server/index.js, or through `utilEndpoints` (server/endpoints/utils.js:90–98), `experimentalEndpoints` (server/endpoints/experimental/index.js:8–9), and `workspaceEndpoints` (server/endpoints/workspaces.js:1109). Sites whose URL is a const or local, or whose path a second route also takes, were read by hand. Then every `fetch(`, `fetchEventSource(`, `axios`, `new EventSource(`, `new WebSocket(`, and `sendBeacon(` call in frontend/ (git grep) matched to an edge site. M9.1a3d, the server's, collector's, and root `extras/` http edges (all unresolved after M9.1a3b): each site read with its lines around it, the URL's base followed to its definition (a parameter, a constructor or `init()` assignment, a static field or getter, an object property, an env read) by `git grep` at the pin, and the reason checked against it; for a base held in the source, the route or host the request reaches named. Then every `fetch(`, `axios`, `http(s).get/request(`, `got(`, `request(`, `new EventSource(`, and `new WebSocket(` call in server/, collector/, and extras/ matched to an edge site of any kind. M9.1a3e1, the external_call edges: each site read with its lines around it (`git show <sha>:<file>`). For a `fetch(`, the URL's host from the literal, a const, or a `new URL(…)` it names, followed by `git grep` at the pin. For an SDK call, the receiver (`this.openai`, a local `openai`, …) matched to its `new OpenAI(…)`/`new AnthropicAI(…)` construction in the same file and that construction's options read: a client without `baseURL` reaches the SDK's default host, one with a `baseURL` reaches that base. Then every `openai`/`@anthropic-ai/sdk` request-shaped call (`.chat.completions`, `.embeddings`, `.responses`, `.models`, `.audio.*`, `.images`, `.messages`, followed by `.create`/`.stream`/`.list`/`.retrieve`/`.generate`) in server/, collector/, and frontend/ matched to an edge site. M9.1a3e2b, the edges replacing a3e1's 117 wrong ones, at analyzer `945faa2` (M9.1a3e2a): the repo re-dumped, the two dumps compared edge by edge (only the 117 removed, 120 added, every added edge at one of their sites), and each new edge's drawing checked against its client's construction as read in a3e1, re-read by `git grep` at the pin: a literal base's host, a constructor field's only assignment, each route the compatibility script reaches with every other server route taking its URL, and each unresolved reason against the base. M9.1a3f, the Prisma edges: each reads/writes site read with the lines after it (`git show <sha>:<file>`) and parsed into receiver, model accessor, and op; the op checked against the edge's kind (`find*`/`count`/`aggregate` read, `create`/`update*`/`upsert`/`delete*` write), the accessor against the target model, the receiver against the file's `require` of server/utils/prisma (the module exporting `new PrismaClient(…)`), and the nearest named definition above the site against the edge's source. The 13 sites those rules didn't confirm (7 `tx` receivers, the seed script's own client, 4 sources in anonymous or nested functions) were read by hand. Each `stores` edge's model found in server/prisma/schema.prisma and the schema's one datasource read. Then every `<receiver>.<model>.<op>(` call (any receiver, line breaks allowed) for the schema's 33 models, every `prisma.$<method>`, and every computed `prisma[…]` in the repo's JS/TS matched to an edge site. Prisma edges' `fields` lists weren't checked.",
   "totals": {
     "edges": 869,
-    "correct": 633,
+    "correct": 651,
     "wrong": 0,
-    "unresolved": 236,
+    "unresolved": 218,
     "pending": 0
   },
   "notCovered": "Structural edges (imports, calls, renders, handles) aren't hand-checked; they're TypeScript's resolution, tested by the fixtures and the eval. Route nodes are checked only where an edge points at them.",
@@ -29,7 +29,8 @@
     "Of the 70 unresolved SDK edges, 58 reasons are accurate: `DYNAMIC_URL` for a base that's a parameter, a call on the user's settings, or a region the user picks (Bedrock, Vertex), the env-name rule's `NO_MATCHING_ROUTE` for six bases read straight from env vars (LocalAI ×3, the generic STT/TTS endpoints, Kokoro), and Azure's embedder without a path (its deployment segment, stated in `sdk.ts`). 12 overstate it, the same gap as M9.1a3d's 33: the 10 `this.basePath` fields are set once in the constructor to a literal, and embedded lemond's 2 go through a static method and getter to `http://127.0.0.1:${port()}/api/v1`, a port from a call. M9.1a7 covers both forms. If it resolves lemond's loopback base, none of lemond's paths reaches a server route other than the `ALL /*` 404 handler, which never picks one. Two label details, neither a claim: Kokoro's label drops the `/v1` its constructor puts on the endpoint's path, and two calls outside ADR-0249's path table (`models.retrieve`, the raw `get`) draw `?` with no path.",
     "M9.1a3f: the 282 Prisma edges are all correct, 0 wrong. 249 reads/writes edges (258 sites: 122 reads, 136 writes) all go through `server/utils/prisma`'s one `new PrismaClient(…)`, required by each file, except 7 sites on a `$transaction(async (tx) => …)` callback's `tx` (memory.js, scheduledJobRun.js) and the seed script's own client (prisma/seed.js). Each op is the edge's kind and each accessor its model. The 33 `stores` edges are the schema's 33 models, each to its only datasource, SQLite at `file:../storage/anythingllm.db`. Calls in `DEFAULT_VARIABLES`' anonymous `value:` functions (3 sites) are drawn from the `SystemPromptVariables` object, the innermost named symbol.",
     "Sweep for Prisma (M9.1a3f): every `<receiver>.<model>.<op>(` call for the 33 models in the repo is on an edge site (258), and the one other hit is a `Set` (`results.workspaces.add(`, search.js:46). The 9 `prisma.$transaction` calls in source (3 callbacks, 5 arrays, 1 array in a variable) wrap calls that are each on an edge; the 3 in memory.test.js are Jest mocks. No raw query (`$queryRaw*`/`$executeRaw*`) and no computed `prisma[…]` access anywhere, so there's no missing Prisma edge.",
-    "M9.1a6, analyzer at the fetchEventSource fix (ADR-0252): re-dumped, 866 → 869 edges, 3 added and nothing else changed. The three `fetchEventSource(` calls are `http` edges to their server routes (`heuristic`, as all frontend → server edges): `Workspace.streamChat` → `POST /api/workspace/:slug/stream-chat`, `WorkspaceThread.streamChat` → `POST /api/workspace/:slug/thread/:threadSlug/stream-chat`, `EmbeddingProgressProvider` → `GET /api/workspace/:slug/embed-progress`. Each checked by hand: method from the init, path with `API_BASE` = `/api`, and every route that takes the path listed (only the named one and the two `ALL /*` 404 handlers, registered after the `/api` router). All 3 correct, 0 wrong."
+    "M9.1a6, analyzer at the fetchEventSource fix (ADR-0252): re-dumped, 866 → 869 edges, 3 added and nothing else changed. The three `fetchEventSource(` calls are `http` edges to their server routes (`heuristic`, as all frontend → server edges): `Workspace.streamChat` → `POST /api/workspace/:slug/stream-chat`, `WorkspaceThread.streamChat` → `POST /api/workspace/:slug/thread/:threadSlug/stream-chat`, `EmbeddingProgressProvider` → `GET /api/workspace/:slug/embed-progress`. Each checked by hand: method from the init, path with `API_BASE` = `/api`, and every route that takes the path listed (only the named one and the two `ALL /*` 404 handlers, registered after the `/api` router). All 3 correct, 0 wrong.",
+    "M9.1a7a, analyzer at the instance-field fix (ADR-0253): re-dumped, 869 edges, 18 replaced and 13 reasons changed, nothing else. 18 new edges, all correct: `CollectorApi`'s 7 literal-path requests now reach the collector's `GET /accepts`, `POST /process`, `/parse`, `/process-link`, `/process-raw-text`, `/util/get-link`, and `/util/convert-audio-to-wav` (`heuristic`, the loopback rule), the demo's first server → collector links, each route read at collector/index.js and registered before its `app.all(\"*\")`; Deepgram's request goes to api.deepgram.com; and the 10 SDK calls on a literal `this.basePath` go to apipie.ai, api.cometapi.com, api.novita.ai, openrouter.ai, and api.ppinfra.com (two each, `heuristic`). The 13 changed are unresolved with accurate reasons: `online()`'s `GET /` names the collector's `ALL /*`; `forwardExtensionRequest`'s path is its caller's `endpoint`, now `DYNAMIC_URL` \"every path segment is only known at runtime\"; and 11 requests on a `this.basePath` read from an env var now name it (`{env:GENERIC_OPEN_AI_BASE_PATH}`, …, the env-name rule's `NO_MATCHING_ROUTE`). Of a3d's 33 and a3e2b's 12 overstated reasons, 20 are resolved here (CollectorApi ×9, Deepgram, `this.basePath` ×10); the other 25 (static fields and getters, `CommunityHub.apiBase`, `#getBaseUrl()`, lemond's static method) are M9.1a7b's."
   ],
   "edges": [
     {
@@ -127,6 +128,24 @@
       "evidence": "The receiver is a client from package `@anthropic-ai/sdk` (`require(\"@anthropic-ai/sdk\")`) built without `baseURL` (anthropic/index.js:35, :102), so the request goes to the SDK's default `https://api.anthropic.com`."
     },
     {
+      "id": "external_call:symbol:server/utils/AiProviders/apipie/index.js#ApiPieLLM.getChatCompletion->external:ext/apipie.ai",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external apipie.ai",
+      "sites": ["server/utils/AiProviders/apipie/index.js:203"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://apipie.ai/v1\"` (apipie/index.js:31; no other write of a `.basePath` that may be this class), so the request goes to apipie.ai. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
+    },
+    {
+      "id": "external_call:symbol:server/utils/AiProviders/apipie/index.js#ApiPieLLM.streamGetChatCompletion->external:ext/apipie.ai",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external apipie.ai",
+      "sites": ["server/utils/AiProviders/apipie/index.js:245"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://apipie.ai/v1\"` (apipie/index.js:31; no other write of a `.basePath` that may be this class), so the request goes to apipie.ai. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
+    },
+    {
       "id": "external_call:symbol:server/utils/AiProviders/apipie/index.js#fetchApiPieModels->external:ext/apipie.ai",
       "kind": "external_call",
       "confidence": "exact",
@@ -197,6 +216,24 @@
       "sites": ["server/utils/AiProviders/cohere/index.js:133"],
       "verdict": "correct",
       "evidence": "The receiver is an `openai` SDK client built with `baseURL: \"https://api.cohere.ai/compatibility/v1\"` (cohere/index.js:24), so the request goes to api.cohere.ai, as drawn. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+    },
+    {
+      "id": "external_call:symbol:server/utils/AiProviders/cometapi/index.js#CometApiLLM.getChatCompletion->external:ext/api.cometapi.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external api.cometapi.com",
+      "sites": ["server/utils/AiProviders/cometapi/index.js:209"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.cometapi.com/v1\"` (cometapi/index.js:32; no other write of a `.basePath` that may be this class), so the request goes to api.cometapi.com. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
+    },
+    {
+      "id": "external_call:symbol:server/utils/AiProviders/cometapi/index.js#CometApiLLM.streamGetChatCompletion->external:ext/api.cometapi.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external api.cometapi.com",
+      "sites": ["server/utils/AiProviders/cometapi/index.js:250"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.cometapi.com/v1\"` (cometapi/index.js:32; no other write of a `.basePath` that may be this class), so the request goes to api.cometapi.com. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/cometapi/index.js#fetchCometApiModels->external:ext/api.cometapi.com",
@@ -382,6 +419,24 @@
       "evidence": "The receiver is an `openai` SDK client built with `baseURL: \"https://api.moonshot.ai/v1\"` (moonshotAi/index.js:22), so the request goes to api.moonshot.ai, as drawn. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
     },
     {
+      "id": "external_call:symbol:server/utils/AiProviders/novita/index.js#NovitaLLM.getChatCompletion->external:ext/api.novita.ai",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external api.novita.ai",
+      "sites": ["server/utils/AiProviders/novita/index.js:235"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.novita.ai/v3/openai\"` (novita/index.js:32; no other write of a `.basePath` that may be this class), so the request goes to api.novita.ai. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
+    },
+    {
+      "id": "external_call:symbol:server/utils/AiProviders/novita/index.js#NovitaLLM.streamGetChatCompletion->external:ext/api.novita.ai",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external api.novita.ai",
+      "sites": ["server/utils/AiProviders/novita/index.js:276"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.novita.ai/v3/openai\"` (novita/index.js:32; no other write of a `.basePath` that may be this class), so the request goes to api.novita.ai. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
+    },
+    {
       "id": "external_call:symbol:server/utils/AiProviders/novita/index.js#fetchNovitaModels->external:ext/api.novita.ai",
       "kind": "external_call",
       "confidence": "exact",
@@ -418,6 +473,24 @@
       "evidence": "The receiver is a client from package `openai` (`require(\"openai\")`) built without `baseURL` (openAi/index.js:28), so the request goes to the SDK's default `https://api.openai.com/v1`."
     },
     {
+      "id": "external_call:symbol:server/utils/AiProviders/openRouter/index.js#OpenRouterLLM.getChatCompletion->external:ext/openrouter.ai",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external openrouter.ai",
+      "sites": ["server/utils/AiProviders/openRouter/index.js:290"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://openrouter.ai/api/v1\"` (openRouter/index.js:55; no other write of a `.basePath` that may be this class), so the request goes to openrouter.ai. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
+    },
+    {
+      "id": "external_call:symbol:server/utils/AiProviders/openRouter/index.js#OpenRouterLLM.streamGetChatCompletion->external:ext/openrouter.ai",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external openrouter.ai",
+      "sites": ["server/utils/AiProviders/openRouter/index.js:336"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://openrouter.ai/api/v1\"` (openRouter/index.js:55; no other write of a `.basePath` that may be this class), so the request goes to openrouter.ai. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
+    },
+    {
       "id": "external_call:symbol:server/utils/AiProviders/openRouter/index.js#fetchOpenRouterModels->external:ext/openrouter.ai",
       "kind": "external_call",
       "confidence": "exact",
@@ -443,6 +516,24 @@
       "sites": ["server/utils/AiProviders/perplexity/index.js:153"],
       "verdict": "correct",
       "evidence": "The receiver is an `openai` SDK client built with `baseURL: \"https://api.perplexity.ai\"` (perplexity/index.js:30), so the request goes to api.perplexity.ai, as drawn. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+    },
+    {
+      "id": "external_call:symbol:server/utils/AiProviders/ppio/index.js#PPIOLLM.getChatCompletion->external:ext/api.ppinfra.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external api.ppinfra.com",
+      "sites": ["server/utils/AiProviders/ppio/index.js:175"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.ppinfra.com/v3/openai/\"` (ppio/index.js:36; no other write of a `.basePath` that may be this class), so the request goes to api.ppinfra.com. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
+    },
+    {
+      "id": "external_call:symbol:server/utils/AiProviders/ppio/index.js#PPIOLLM.streamGetChatCompletion->external:ext/api.ppinfra.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external api.ppinfra.com",
+      "sites": ["server/utils/AiProviders/ppio/index.js:216"],
+      "verdict": "correct",
+      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.ppinfra.com/v3/openai/\"` (ppio/index.js:36; no other write of a `.basePath` that may be this class), so the request goes to api.ppinfra.com. `heuristic`: the field read (ADR-0253). Unresolved at a3e2b with an overstated `DYNAMIC_URL`; at a3e1 drawn to api.openai.com (wrong). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
       "id": "external_call:symbol:server/utils/AiProviders/ppio/index.js#fetchPPIOModels->external:ext/api.ppinfra.com",
@@ -596,6 +687,15 @@
       "sites": ["server/utils/ImageGenerators/gemini/index.js:135"],
       "verdict": "correct",
       "evidence": "`fetch(url, …)` with ``url = `${GEMINI_API_BASE}/…:generateContent` `` and `GEMINI_API_BASE = \"https://generativelanguage.googleapis.com/v1/models\"` (ImageGenerators/gemini/index.js:3)."
+    },
+    {
+      "id": "external_call:symbol:server/utils/SpeechToText/deepgram/index.js#DeepgramSTT.transcribe->external:ext/api.deepgram.com",
+      "kind": "external_call",
+      "confidence": "heuristic",
+      "to": "external api.deepgram.com",
+      "sites": ["server/utils/SpeechToText/deepgram/index.js:50"],
+      "verdict": "correct",
+      "evidence": "`fetch(url.toString(), …)` with `url = new URL(this.endpoint)` (deepgram/index.js:46) and `this.endpoint` set once, in the constructor, to `\"https://api.deepgram.com/v1/listen\"` (:8); `url.searchParams.set(…)` (:47–48) changes only the query. `heuristic`: the field read. Missing at a3d (`DYNAMIC_URL`). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
       "id": "external_call:symbol:server/utils/SpeechToText/groq/index.js#GroqSTT.transcribe->external:ext/api.groq.com",
@@ -3921,24 +4021,6 @@
       "evidence": "`CommunityHub.apiBase` is an object property, `NODE_ENV === \"development\" ? \"http://127.0.0.1:5001/anythingllm-hub/us-central1/external/v1\" : \"https://hub.external.anythingllm.com/v1\"` (models/communityHub.js:8–11), read through `this` in the object's methods. The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
     },
     {
-      "id": "http:symbol:server/utils/AiProviders/apipie/index.js#ApiPieLLM.getChatCompletion->unresolved:server/utils/AiProviders/apipie/index.js:203:10",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/apipie/index.js:203"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://apipie.ai/v1\"` (apipie/index.js:31; no other assignment in the file), so the request goes to apipie.ai. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw apipie.ai. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
-      "id": "http:symbol:server/utils/AiProviders/apipie/index.js#ApiPieLLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/apipie/index.js:245:42",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/apipie/index.js:245"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://apipie.ai/v1\"` (apipie/index.js:31; no other assignment in the file), so the request goes to apipie.ai. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw apipie.ai. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
       "id": "http:symbol:server/utils/AiProviders/azureOpenAi/index.js#AzureOpenAiLLM.getChatCompletion->unresolved:server/utils/AiProviders/azureOpenAi/index.js:174:36",
       "kind": "http",
       "confidence": "unresolved",
@@ -4009,24 +4091,6 @@
       "sites": ["server/utils/AiProviders/bedrock/index.js:320"],
       "verdict": "unresolved",
       "evidence": "The receiver is an `openai` SDK client whose base is `openaiBaseURL(this.region, this.model) / anthropicBaseURL(this.region, this.model)` (bedrock/index.js:97–108; endpoints.js:113–132), the Bedrock runtime or mantle host for the region the user picks (`*.amazonaws.com`). Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
-      "id": "http:symbol:server/utils/AiProviders/cometapi/index.js#CometApiLLM.getChatCompletion->unresolved:server/utils/AiProviders/cometapi/index.js:209:10",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/cometapi/index.js:209"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.cometapi.com/v1\"` (cometapi/index.js:32; no other assignment in the file), so the request goes to api.cometapi.com. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw api.cometapi.com. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
-      "id": "http:symbol:server/utils/AiProviders/cometapi/index.js#CometApiLLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/cometapi/index.js:250:42",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/cometapi/index.js:250"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.cometapi.com/v1\"` (cometapi/index.js:32; no other assignment in the file), so the request goes to api.cometapi.com. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw api.cometapi.com. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/embeddedLemonade/engine.js#EmbeddedLemonadeEngine.#download->unresolved:server/utils/AiProviders/embeddedLemonade/engine.js:225:28",
@@ -4266,19 +4330,19 @@
       "id": "http:symbol:server/utils/AiProviders/genericOpenAi/index.js#GenericOpenAiLLM.getChatCompletion->unresolved:server/utils/AiProviders/genericOpenAi/index.js:243:10",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:GENERIC_OPEN_AI_BASE_PATH}/chat/completions [NO_MATCHING_ROUTE] the env var GENERIC_OPEN_AI_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/AiProviders/genericOpenAi/index.js:243"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (GENERIC_OPEN_AI_BASE_PATH)` (genericOpenAi/index.js:32), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.GENERIC_OPEN_AI_BASE_PATH` (genericOpenAi/index.js:30), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/genericOpenAi/index.js#GenericOpenAiLLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/genericOpenAi/index.js:285:42",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:GENERIC_OPEN_AI_BASE_PATH}/chat/completions [NO_MATCHING_ROUTE] the env var GENERIC_OPEN_AI_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/AiProviders/genericOpenAi/index.js:285"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (GENERIC_OPEN_AI_BASE_PATH)` (genericOpenAi/index.js:32), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.GENERIC_OPEN_AI_BASE_PATH` (genericOpenAi/index.js:30), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/koboldCPP/index.js#KoboldCPPLLM.cacheContextWindow->unresolved:server/utils/AiProviders/koboldCPP/index.js:54:25",
@@ -4293,19 +4357,19 @@
       "id": "http:symbol:server/utils/AiProviders/koboldCPP/index.js#KoboldCPPLLM.getChatCompletion->unresolved:server/utils/AiProviders/koboldCPP/index.js:178:10",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:KOBOLD_CPP_BASE_PATH}/chat/completions [NO_MATCHING_ROUTE] the env var KOBOLD_CPP_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/AiProviders/koboldCPP/index.js:178"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (KOBOLD_CPP_BASE_PATH)` (koboldCPP/index.js:26), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.KOBOLD_CPP_BASE_PATH` (koboldCPP/index.js:24), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/koboldCPP/index.js#KoboldCPPLLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/koboldCPP/index.js:216:42",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:KOBOLD_CPP_BASE_PATH}/chat/completions [NO_MATCHING_ROUTE] the env var KOBOLD_CPP_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/AiProviders/koboldCPP/index.js:216"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (KOBOLD_CPP_BASE_PATH)` (koboldCPP/index.js:26), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.KOBOLD_CPP_BASE_PATH` (koboldCPP/index.js:24), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/lemonade/index.js#LemonadeLLM.getChatCompletion->unresolved:server/utils/AiProviders/lemonade/index.js:167:38",
@@ -4365,19 +4429,19 @@
       "id": "http:symbol:server/utils/AiProviders/liteLLM/index.js#LiteLLM.getChatCompletion->unresolved:server/utils/AiProviders/liteLLM/index.js:136:10",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:LITE_LLM_BASE_PATH}/chat/completions [NO_MATCHING_ROUTE] the env var LITE_LLM_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/AiProviders/liteLLM/index.js:136"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (LITE_LLM_BASE_PATH)` (liteLLM/index.js:24), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.LITE_LLM_BASE_PATH` (liteLLM/index.js:22), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/liteLLM/index.js#LiteLLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/liteLLM/index.js:173:42",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:LITE_LLM_BASE_PATH}/chat/completions [NO_MATCHING_ROUTE] the env var LITE_LLM_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/AiProviders/liteLLM/index.js:173"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (LITE_LLM_BASE_PATH)` (liteLLM/index.js:24), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.LITE_LLM_BASE_PATH` (liteLLM/index.js:22), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/llmman/index.js#LlmmanLLM.applyLlmmanFetch->unresolved:server/utils/AiProviders/llmman/index.js:211:16",
@@ -4479,24 +4543,6 @@
       "evidence": "`ContextWindowFinder.remoteUrl` is a static field, `\"https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json\"` (modelMap/index.js:29–30). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
     },
     {
-      "id": "http:symbol:server/utils/AiProviders/novita/index.js#NovitaLLM.getChatCompletion->unresolved:server/utils/AiProviders/novita/index.js:235:10",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/novita/index.js:235"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.novita.ai/v3/openai\"` (novita/index.js:32; no other assignment in the file), so the request goes to api.novita.ai. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw api.novita.ai. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
-      "id": "http:symbol:server/utils/AiProviders/novita/index.js#NovitaLLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/novita/index.js:276:42",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/novita/index.js:276"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.novita.ai/v3/openai\"` (novita/index.js:32; no other assignment in the file), so the request goes to api.novita.ai. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw api.novita.ai. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
       "id": "http:symbol:server/utils/AiProviders/nvidiaNim/index.js#NvidiaNimLLM.getChatCompletion->unresolved:server/utils/AiProviders/nvidiaNim/index.js:168:10",
       "kind": "http",
       "confidence": "unresolved",
@@ -4569,42 +4615,6 @@
       "evidence": "The receiver is an `openai` SDK client whose base is `parseOMLXBasePath(process.env.OMLX_LLM_BASE_PATH)` (omlx/index.js:28), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
     },
     {
-      "id": "http:symbol:server/utils/AiProviders/openRouter/index.js#OpenRouterLLM.getChatCompletion->unresolved:server/utils/AiProviders/openRouter/index.js:290:10",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/openRouter/index.js:290"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://openrouter.ai/api/v1\"` (openRouter/index.js:55; no other assignment in the file), so the request goes to openrouter.ai. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw openrouter.ai. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
-      "id": "http:symbol:server/utils/AiProviders/openRouter/index.js#OpenRouterLLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/openRouter/index.js:336:42",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/openRouter/index.js:336"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://openrouter.ai/api/v1\"` (openRouter/index.js:55; no other assignment in the file), so the request goes to openrouter.ai. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw openrouter.ai. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
-      "id": "http:symbol:server/utils/AiProviders/ppio/index.js#PPIOLLM.getChatCompletion->unresolved:server/utils/AiProviders/ppio/index.js:175:10",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/ppio/index.js:175"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.ppinfra.com/v3/openai/\"` (ppio/index.js:36; no other assignment in the file), so the request goes to api.ppinfra.com. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw api.ppinfra.com. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
-      "id": "http:symbol:server/utils/AiProviders/ppio/index.js#PPIOLLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/ppio/index.js:216:42",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
-      "sites": ["server/utils/AiProviders/ppio/index.js:216"],
-      "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client built with `baseURL: this.basePath`, and `this.basePath` is set once, in the constructor, to `\"https://api.ppinfra.com/v3/openai/\"` (ppio/index.js:36; no other assignment in the file), so the request goes to api.ppinfra.com. `DYNAMIC_URL`'s \"starts with a value only known at runtime\" claims no target, so it isn't wrong, but it overstates it: the base is a literal in a constructor-assigned field, M9.1a7's form, which would draw api.ppinfra.com. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
-    },
-    {
       "id": "http:symbol:server/utils/AiProviders/privatemode/index.js#PrivatemodeLLM.getChatCompletion->unresolved:server/utils/AiProviders/privatemode/index.js:155:36",
       "kind": "http",
       "confidence": "unresolved",
@@ -4626,19 +4636,19 @@
       "id": "http:symbol:server/utils/AiProviders/textGenWebUI/index.js#TextGenWebUILLM.getChatCompletion->unresolved:server/utils/AiProviders/textGenWebUI/index.js:134:10",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:TEXT_GEN_WEB_UI_BASE_PATH}/chat/completions [NO_MATCHING_ROUTE] the env var TEXT_GEN_WEB_UI_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/AiProviders/textGenWebUI/index.js:134"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (TEXT_GEN_WEB_UI_BASE_PATH)` (textGenWebUI/index.js:24), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.TEXT_GEN_WEB_UI_BASE_PATH` (textGenWebUI/index.js:22), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/textGenWebUI/index.js#TextGenWebUILLM.streamGetChatCompletion->unresolved:server/utils/AiProviders/textGenWebUI/index.js:170:42",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /chat/completions [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:TEXT_GEN_WEB_UI_BASE_PATH}/chat/completions [NO_MATCHING_ROUTE] the env var TEXT_GEN_WEB_UI_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/AiProviders/textGenWebUI/index.js:170"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (TEXT_GEN_WEB_UI_BASE_PATH)` (textGenWebUI/index.js:24), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.TEXT_GEN_WEB_UI_BASE_PATH` (textGenWebUI/index.js:22), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/AiProviders/vertex/index.js#VertexLLM.getChatCompletion->unresolved:server/utils/AiProviders/vertex/index.js:157:10",
@@ -4671,10 +4681,10 @@
       "id": "http:symbol:server/utils/EmbeddingEngines/genericOpenAi/index.js#GenericOpenAiEmbedder.embedChunks->unresolved:server/utils/EmbeddingEngines/genericOpenAi/index.js:138:12",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /embeddings [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:EMBEDDING_BASE_PATH}/embeddings [NO_MATCHING_ROUTE] the env var EMBEDDING_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/EmbeddingEngines/genericOpenAi/index.js:138"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (EMBEDDING_BASE_PATH)` (EmbeddingEngines/genericOpenAi/index.js:17), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.EMBEDDING_BASE_PATH` (EmbeddingEngines/genericOpenAi/index.js:15), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/EmbeddingEngines/lemonade/index.js#LemonadeEmbedder.embedChunks->unresolved:server/utils/EmbeddingEngines/lemonade/index.js:46:12",
@@ -4689,10 +4699,10 @@
       "id": "http:symbol:server/utils/EmbeddingEngines/liteLLM/index.js#LiteLLMEmbedder.embedChunks->unresolved:server/utils/EmbeddingEngines/liteLLM/index.js:43:14",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved POST this.basePath /embeddings [DYNAMIC_URL] the SDK client's base URL starts with a value only known at runtime",
+      "to": "unresolved POST {env:LITE_LLM_BASE_PATH}/embeddings [NO_MATCHING_ROUTE] the env var LITE_LLM_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/EmbeddingEngines/liteLLM/index.js:43"],
       "verdict": "unresolved",
-      "evidence": "The receiver is an `openai` SDK client whose base is `this.basePath (LITE_LLM_BASE_PATH)` (EmbeddingEngines/liteLLM/index.js:16), the endpoint the user configures. Only known at runtime, as stated. At a3e1 this site was drawn to api.openai.com (wrong); M9.1a3e2a (ADR-0249) reads the client's base."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.LITE_LLM_BASE_PATH` (EmbeddingEngines/liteLLM/index.js:14), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/EmbeddingEngines/lmstudio/index.js#LMStudioEmbedder.#isAlive->unresolved:server/utils/EmbeddingEngines/lmstudio/index.js:34:8",
@@ -4734,10 +4744,10 @@
       "id": "http:symbol:server/utils/EmbeddingEngines/ollama/index.js#OllamaEmbedder.#isAlive->unresolved:server/utils/EmbeddingEngines/ollama/index.js:50:18",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET this.basePath [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET {env:EMBEDDING_BASE_PATH} [NO_MATCHING_ROUTE] the env var EMBEDDING_BASE_PATH isn't named like an API base (*_API_URL, *_API_PATH, …)",
       "sites": ["server/utils/EmbeddingEngines/ollama/index.js:50"],
       "verdict": "unresolved",
-      "evidence": "The base is the provider's base path the user configures (`process.env.*_BASE_PATH` or the settings' `basePath`), with a path appended. Only known at runtime, as stated."
+      "evidence": "The base is `this.basePath`, set once, in the constructor, to `process.env.EMBEDDING_BASE_PATH` (EmbeddingEngines/ollama/index.js:16), the user's endpoint. Since M9.1a7a (ADR-0253) the label names that env var instead of `this.basePath`, and `NO_MATCHING_ROUTE` by the env-name rule (not an API-base name) is accurate: it's another program's server, not this repo's."
     },
     {
       "id": "http:symbol:server/utils/ImageGenerators/base.js#BaseImageGenerator.editImage->unresolved:server/utils/ImageGenerators/base.js:102:28",
@@ -4801,15 +4811,6 @@
       "sites": ["server/utils/MCP/identity.js:164"],
       "verdict": "unresolved",
       "evidence": "A `fetch` replacement handed to an SDK (or the MCP transport); its URL is the parameter, whatever the SDK asks for. Only known at runtime, as stated."
-    },
-    {
-      "id": "http:symbol:server/utils/SpeechToText/deepgram/index.js#DeepgramSTT.transcribe->unresolved:server/utils/SpeechToText/deepgram/index.js:50:18",
-      "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST url.toString() [DYNAMIC_URL] the URL starts with a value only known at runtime",
-      "sites": ["server/utils/SpeechToText/deepgram/index.js:50"],
-      "verdict": "unresolved",
-      "evidence": "`url` is `new URL(this.endpoint)` (deepgram/index.js:46), and the constructor sets `this.endpoint = \"https://api.deepgram.com/v1/listen\"` (:8). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing edge, not a wrong one."
     },
     {
       "id": "http:symbol:server/utils/SpeechToText/lemonade/index.js#LemonadeSTT.transcribe->unresolved:server/utils/SpeechToText/lemonade/index.js:46:59",
@@ -5100,85 +5101,85 @@
       "evidence": "A `fetch` replacement handed to an SDK (or the MCP transport); its URL is the parameter, whatever the SDK asks for. Only known at runtime, as stated."
     },
     {
-      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.acceptedFileTypes->unresolved:server/utils/collectorApi/index.js:93:18",
+      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.acceptedFileTypes->route:collector/GET /accepts",
       "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved GET `${this.endpoint}/accepts` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "confidence": "heuristic",
+      "to": "route GET /accepts",
       "sites": ["server/utils/collectorApi/index.js:93"],
-      "verdict": "unresolved",
-      "evidence": "`this.endpoint` is set in the constructor to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing server → collector edge, not a wrong one. The request reaches `GET /accepts` (collector/index.js:217)."
+      "verdict": "correct",
+      "evidence": "`this.endpoint` is set once, in the constructor, to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54; nothing else writes an `.endpoint` that may be a `CollectorApi`), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). `GET /accepts` is answered at collector/index.js:217, registered before the collector's `app.all(\"*\")` (:221), the only other collector route taking it; no server route takes it but its `ALL /*` 404 handler (server/index.js:192). `heuristic` is the loopback rule. Missing at a3d (`DYNAMIC_URL`). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
-      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.convertAudioToWav->unresolved:server/utils/collectorApi/index.js:240:18",
+      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.convertAudioToWav->route:collector/POST /util/convert-audio-to-wav",
       "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST `${this.endpoint}/util/convert-audio-to-wav` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "confidence": "heuristic",
+      "to": "route POST /util/convert-audio-to-wav",
       "sites": ["server/utils/collectorApi/index.js:240"],
-      "verdict": "unresolved",
-      "evidence": "`this.endpoint` is set in the constructor to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing server → collector edge, not a wrong one. The request reaches `POST /util/convert-audio-to-wav` (collector/index.js:163)."
+      "verdict": "correct",
+      "evidence": "`this.endpoint` is set once, in the constructor, to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54; nothing else writes an `.endpoint` that may be a `CollectorApi`), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). `POST /util/convert-audio-to-wav` is answered at collector/index.js:163, registered before the collector's `app.all(\"*\")` (:221), the only other collector route taking it; no server route takes it but its `ALL /*` 404 handler (server/index.js:192). `heuristic` is the loopback rule. Missing at a3d (`DYNAMIC_URL`). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
       "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.forwardExtensionRequest->unresolved:server/utils/collectorApi/index.js:267:18",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved ? `${this.endpoint}${endpoint}` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved ? `${this.endpoint}${endpoint}` [DYNAMIC_URL] every path segment is only known at runtime",
       "sites": ["server/utils/collectorApi/index.js:267"],
       "verdict": "unresolved",
-      "evidence": "`this.endpoint` is set in the constructor to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing server → collector edge, not a wrong one. The request reaches the collector's `/ext/…` route its caller names in `endpoint` (collector/extensions/index.js)."
+      "evidence": "`this.endpoint` is set once, in the constructor, to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54; nothing else writes an `.endpoint` that may be a `CollectorApi`), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The path is the `endpoint` its caller passes in a destructured parameter (`forwardExtensionRequest({ endpoint, method, body })`), the collector's `/ext/…` routes (collector/extensions/index.js), so `DYNAMIC_URL`'s \"every path segment is only known at runtime\" is accurate: the base is read, the path isn't. Since M9.1a7a (ADR-0253), which also reads a value right after the port's as the unknown path."
     },
     {
-      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.getLinkContent->unresolved:server/utils/collectorApi/index.js:307:18",
+      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.getLinkContent->route:collector/POST /util/get-link",
       "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST `${this.endpoint}/util/get-link` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "confidence": "heuristic",
+      "to": "route POST /util/get-link",
       "sites": ["server/utils/collectorApi/index.js:307"],
-      "verdict": "unresolved",
-      "evidence": "`this.endpoint` is set in the constructor to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing server → collector edge, not a wrong one. The request reaches `POST /util/get-link` (collector/index.js:139)."
+      "verdict": "correct",
+      "evidence": "`this.endpoint` is set once, in the constructor, to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54; nothing else writes an `.endpoint` that may be a `CollectorApi`), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). `POST /util/get-link` is answered at collector/index.js:139, registered before the collector's `app.all(\"*\")` (:221), the only other collector route taking it; no server route takes it but its `ALL /*` 404 handler (server/index.js:192). `heuristic` is the loopback rule. Missing at a3d (`DYNAMIC_URL`). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
       "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.online->unresolved:server/utils/collectorApi/index.js:87:18",
       "kind": "http",
       "confidence": "unresolved",
-      "to": "unresolved GET this.endpoint [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "to": "unresolved GET http://127.0.0.1:{} [NO_MATCHING_ROUTE] only a catch-all of every path matches http://127.0.0.1:{} (ALL /*), so it doesn't pick a route",
       "sites": ["server/utils/collectorApi/index.js:87"],
       "verdict": "unresolved",
-      "evidence": "`this.endpoint` is set in the constructor to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing server → collector edge, not a wrong one. The request reaches `GET /`, which only the collector's `app.all(\"*\")` (collector/index.js:221) answers, so even once the base is read it names no route."
+      "evidence": "`this.endpoint` is set once, in the constructor, to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54; nothing else writes an `.endpoint` that may be a `CollectorApi`), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The request is `GET /`, which only the collector's `app.all(\"*\")` (collector/index.js:221) answers, so `NO_MATCHING_ROUTE` naming that catch-all is accurate. Since M9.1a7a (ADR-0253); at a3d it was `DYNAMIC_URL`."
     },
     {
-      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.parseDocument->unresolved:server/utils/collectorApi/index.js:350:18",
+      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.parseDocument->route:collector/POST /parse",
       "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST `${this.endpoint}/parse` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "confidence": "heuristic",
+      "to": "route POST /parse",
       "sites": ["server/utils/collectorApi/index.js:350"],
-      "verdict": "unresolved",
-      "evidence": "`this.endpoint` is set in the constructor to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing server → collector edge, not a wrong one. The request reaches `POST /parse` (collector/index.js:75)."
+      "verdict": "correct",
+      "evidence": "`this.endpoint` is set once, in the constructor, to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54; nothing else writes an `.endpoint` that may be a `CollectorApi`), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). `POST /parse` is answered at collector/index.js:75, registered before the collector's `app.all(\"*\")` (:221), the only other collector route taking it; no server route takes it but its `ALL /*` 404 handler (server/index.js:192). `heuristic` is the loopback rule. Missing at a3d (`DYNAMIC_URL`). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
-      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.processDocument->unresolved:server/utils/collectorApi/index.js:126:18",
+      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.processDocument->route:collector/POST /process",
       "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST `${this.endpoint}/process` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "confidence": "heuristic",
+      "to": "route POST /process",
       "sites": ["server/utils/collectorApi/index.js:126"],
-      "verdict": "unresolved",
-      "evidence": "`this.endpoint` is set in the constructor to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing server → collector edge, not a wrong one. The request reaches `POST /process` (collector/index.js:45)."
+      "verdict": "correct",
+      "evidence": "`this.endpoint` is set once, in the constructor, to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54; nothing else writes an `.endpoint` that may be a `CollectorApi`), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). `POST /process` is answered at collector/index.js:45, registered before the collector's `app.all(\"*\")` (:221), the only other collector route taking it; no server route takes it but its `ALL /*` 404 handler (server/index.js:192). `heuristic` is the loopback rule. Missing at a3d (`DYNAMIC_URL`). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
-      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.processLink->unresolved:server/utils/collectorApi/index.js:167:18",
+      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.processLink->route:collector/POST /process-link",
       "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST `${this.endpoint}/process-link` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "confidence": "heuristic",
+      "to": "route POST /process-link",
       "sites": ["server/utils/collectorApi/index.js:167"],
-      "verdict": "unresolved",
-      "evidence": "`this.endpoint` is set in the constructor to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing server → collector edge, not a wrong one. The request reaches `POST /process-link` (collector/index.js:109)."
+      "verdict": "correct",
+      "evidence": "`this.endpoint` is set once, in the constructor, to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54; nothing else writes an `.endpoint` that may be a `CollectorApi`), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). `POST /process-link` is answered at collector/index.js:109, registered before the collector's `app.all(\"*\")` (:221), the only other collector route taking it; no server route takes it but its `ALL /*` 404 handler (server/index.js:192). `heuristic` is the loopback rule. Missing at a3d (`DYNAMIC_URL`). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
-      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.processRawText->unresolved:server/utils/collectorApi/index.js:202:18",
+      "id": "http:symbol:server/utils/collectorApi/index.js#CollectorApi.processRawText->route:collector/POST /process-raw-text",
       "kind": "http",
-      "confidence": "unresolved",
-      "to": "unresolved POST `${this.endpoint}/process-raw-text` [DYNAMIC_URL] the URL starts with a value only known at runtime",
+      "confidence": "heuristic",
+      "to": "route POST /process-raw-text",
       "sites": ["server/utils/collectorApi/index.js:202"],
-      "verdict": "unresolved",
-      "evidence": "`this.endpoint` is set in the constructor to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). The reason overstates it: the base is in the source, in a member the analyzer doesn't follow (planned as M9.1a7), so this is a missing server → collector edge, not a wrong one. The request reaches `POST /process-raw-text` (collector/index.js:188)."
+      "verdict": "correct",
+      "evidence": "`this.endpoint` is set once, in the constructor, to `http://127.0.0.1:${CollectorApi.getCollectorPort()}` (collectorApi/index.js:54; nothing else writes an `.endpoint` that may be a `CollectorApi`), `COLLECTOR_PORT` or 8888 (:22, :39–48), the port the collector listens on (collector/index.js:22, :226). `POST /process-raw-text` is answered at collector/index.js:188, registered before the collector's `app.all(\"*\")` (:221), the only other collector route taking it; no server route takes it but its `ALL /*` 404 handler (server/index.js:192). `heuristic` is the loopback rule. Missing at a3d (`DYNAMIC_URL`). Drawn since M9.1a7a (ADR-0253), which reads an instance field written once."
     },
     {
       "id": "http:symbol:server/utils/helpers/customModels.js#getBedrockModels->unresolved:server/utils/helpers/customModels.js:1455:8",
