@@ -1,0 +1,146 @@
+{
+  "analyzerVersion": "0.2.0",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:fetch-event-source/src/stream.ts#streamChat",
+      "id": "http:symbol:fetch-event-source/src/stream.ts#streamChat->route:fetch-event-source/POST /api/workspace/:slug/stream-chat",
+      "kind": "http",
+      "label": "POST /api/workspace/:slug/stream-chat",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/stream.ts",
+          "line": 7,
+          "request": "POST /api/workspace/{}/stream-chat"
+        }
+      ],
+      "to": "route:fetch-event-source/POST /api/workspace/:slug/stream-chat"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:fetch-event-source/src/stream.ts#watchEmbedding",
+      "id": "http:symbol:fetch-event-source/src/stream.ts#watchEmbedding->route:fetch-event-source/GET /api/workspace/:slug/embed-progress",
+      "kind": "http",
+      "label": "GET /api/workspace/:slug/embed-progress",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/stream.ts",
+          "line": 18,
+          "request": "GET /api/workspace/{}/embed-progress"
+        }
+      ],
+      "to": "route:fetch-event-source/GET /api/workspace/:slug/embed-progress"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "4039f2a64c56d317c62558c46428ea55501933bad3e3615f0cbe89ce05f75864",
+      "id": "file:fetch-event-source/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:fetch-event-source/src",
+      "path": "src/server.ts"
+    },
+    {
+      "hash": "3b364d8e77435e79cb0884b87b9aac93439f1f43b58495032a9f2f522bd48cbf",
+      "id": "file:fetch-event-source/src/stream.ts",
+      "kind": "file",
+      "label": "stream.ts",
+      "parentId": "module:fetch-event-source/src",
+      "path": "src/stream.ts"
+    },
+    {
+      "id": "module:fetch-event-source/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:fetch-event-source/",
+      "path": "src"
+    },
+    {
+      "id": "route:fetch-event-source/GET /api/workspace/:slug/embed-progress",
+      "kind": "route",
+      "label": "GET /api/workspace/:slug/embed-progress",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:fetch-event-source/src/server.ts",
+      "path": "/api/workspace/:slug/embed-progress",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 11
+      }
+    },
+    {
+      "id": "route:fetch-event-source/POST /api/workspace/:slug/stream-chat",
+      "kind": "route",
+      "label": "POST /api/workspace/:slug/stream-chat",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:fetch-event-source/src/server.ts",
+      "path": "/api/workspace/:slug/stream-chat",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:fetch-event-source/",
+      "kind": "service",
+      "label": "fetch-event-source",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:fetch-event-source/src/stream.ts#streamChat",
+      "kind": "symbol",
+      "label": "streamChat",
+      "parentId": "file:fetch-event-source/src/stream.ts",
+      "requiredParams": 3,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "src/stream.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:fetch-event-source/src/stream.ts#watchEmbedding",
+      "kind": "symbol",
+      "label": "watchEmbedding",
+      "parentId": "file:fetch-event-source/src/stream.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 22,
+        "file": "src/stream.ts",
+        "line": 17
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "fetch-event-source",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "fetch-event-source",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
